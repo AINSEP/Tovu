@@ -36,7 +36,7 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import os from "node:os";
-import ts from "typescript";
+import { importSpecifiers } from "../../__tests__/support/import-specifiers.js";
 
 const REPO_ROOT = path.resolve(import.meta.dirname, "../../../../..");
 const FEATURES_ROOT = path.join(REPO_ROOT, "apps", "website", "src", "features");
@@ -44,24 +44,6 @@ const SERVER_ROOT = path.join(REPO_ROOT, "apps", "website", "src", "server");
 
 const SKIP_DIR_NAMES = new Set(["node_modules", "dist", "build", "coverage", "__tests__"]);
 const SOURCE_EXTENSIONS = new Set([".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs"]);
-
-/** Use the language parser so side-effect imports count and comments do not. */
-function importSpecifiers(source: string): string[] {
-  const file = ts.createSourceFile("boundary.ts", source, ts.ScriptTarget.Latest, true);
-  const specifiers: string[] = [];
-  function visit(node: ts.Node): void {
-    if ((ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) && node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier)) {
-      specifiers.push(node.moduleSpecifier.text);
-    } else if (ts.isImportEqualsDeclaration(node) && ts.isExternalModuleReference(node.moduleReference) && node.moduleReference.expression && ts.isStringLiteral(node.moduleReference.expression)) {
-      specifiers.push(node.moduleReference.expression.text);
-    } else if (ts.isCallExpression(node) && (node.expression.kind === ts.SyntaxKind.ImportKeyword || (ts.isIdentifier(node.expression) && node.expression.text === "require")) && node.arguments[0] && ts.isStringLiteral(node.arguments[0])) {
-      specifiers.push(node.arguments[0].text);
-    }
-    ts.forEachChild(node, visit);
-  }
-  visit(file);
-  return specifiers;
-}
 
 /** `express` and `express/lib/...`, but not a package that merely starts with those letters. */
 const EXPRESS_PACKAGE = /^express(?:\/|$)/;
@@ -111,7 +93,7 @@ test("no production file under src/features/ imports src/server/, Express, or th
   const offenders: string[] = [];
   for (const file of files) {
     const source = fs.readFileSync(file, "utf8");
-    for (const specifier of importSpecifiers(source)) {
+    for (const specifier of importSpecifiers({ source }, { fileName: file })) {
       const reason = violationReason(file, specifier);
       if (reason) offenders.push(`${path.relative(REPO_ROOT, file)} ${reason}: "${specifier}"`);
     }
@@ -125,7 +107,7 @@ test("no production file under src/features/ imports src/server/, Express, or th
 });
 
 test("the boundary scanner sees bare, static, re-export, dynamic and require imports", () => {
-  const specifiers = importSpecifiers(`
+  const specifiers = importSpecifiers({ source: `
     import "express";
     import "#src/server/app";
     import type { Express } from "express/lib/types";
@@ -134,10 +116,38 @@ test("the boundary scanner sees bare, static, re-export, dynamic and require imp
     const admin = require("apps/admin/widget");
     // import "express/comment";
     const text = 'import "express/string"';
-  `);
+  ` });
   assert.deepEqual(specifiers, ["express", "#src/server/app", "express/lib/types", "../../server/boot.js", "#src/server/lazy", "apps/admin/widget"]);
   const fromFile = path.join(FEATURES_ROOT, "example", "index.ts");
   assert.ok(specifiers.every((specifier) => violationReason(fromFile, specifier) !== null));
+});
+
+test("the shared scanner preserves TSX text and executable import expressions", () => {
+  const source = `const note = <p>Don't call require("jsx-text")</p>;
+    const panel = <div>{import("real-edge")}</div>;`;
+  assert.deepEqual(importSpecifiers({ source }, { fileName: "fixture.tsx" }), ["real-edge"]);
+});
+
+test("runtime import scanning omits erased types while the feature boundary retains them", () => {
+  const source = `
+    import type { A } from "type-import";
+    import { type B } from "named-type-import";
+    export type { C } from "type-export";
+    export { type D } from "named-type-export";
+    import type E = require("type-import-equals");
+    import F = require("value-import-equals");
+    import { type G, value } from "mixed-import";
+    export { type H, value } from "mixed-export";
+    import "side-effect";
+    const deferred = () => import(` + '`template-literal`' + `);
+  `;
+  assert.deepEqual(importSpecifiers({ source }), [
+    "type-import", "named-type-import", "type-export", "named-type-export", "type-import-equals",
+    "value-import-equals", "mixed-import", "mixed-export", "side-effect", "template-literal",
+  ]);
+  assert.deepEqual(importSpecifiers({ source }, { runtimeOnly: true }), [
+    "value-import-equals", "mixed-import", "mixed-export", "side-effect", "template-literal",
+  ]);
 });
 
 test("the collector scans JavaScript and module extensions while excluding test fixtures", () => {

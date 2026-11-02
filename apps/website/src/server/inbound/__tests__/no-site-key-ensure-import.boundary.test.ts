@@ -22,31 +22,13 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import ts from "typescript";
+import { importSpecifiers } from "../../../__tests__/support/import-specifiers.js";
 
 const REPO_ROOT = path.resolve(import.meta.dirname, "../../../../../..");
 const INBOUND_ROOT = path.join(REPO_ROOT, "apps", "website", "src", "server", "inbound");
 
 const SKIP_DIR_NAMES = new Set(["node_modules", "dist", "build", "coverage", "__tests__"]);
 const SOURCE_EXTENSIONS = new Set([".ts", ".tsx"]);
-
-/** Read module specifiers with TypeScript's parser, including bare side-effect imports. */
-function importSpecifiers(source: string): string[] {
-  const file = ts.createSourceFile("fixture.tsx", source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
-  const specifiers: string[] = [];
-  const add = (node: ts.Node | undefined) => {
-    if (node && ts.isStringLiteralLike(node)) specifiers.push(node.text);
-  };
-  const visit = (node: ts.Node) => {
-    if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) add(node.moduleSpecifier);
-    else if (ts.isImportEqualsDeclaration(node) && ts.isExternalModuleReference(node.moduleReference)) add(node.moduleReference.expression);
-    else if (ts.isCallExpression(node) && (node.expression.kind === ts.SyntaxKind.ImportKeyword ||
-      (ts.isIdentifier(node.expression) && node.expression.text === "require"))) add(node.arguments[0]);
-    ts.forEachChild(node, visit);
-  };
-  visit(file);
-  return specifiers;
-}
 
 /** `site-key-ensure`, `site-key-ensure.js`, or `site-key-ensure.ts` as the specifier's final path
  *  segment — matches both a relative import and the `#src/...` subpath-map form without also
@@ -75,7 +57,7 @@ test("no production file under server/inbound/ imports site-key-ensure (the one 
   const offenders: string[] = [];
   for (const file of files) {
     const source = fs.readFileSync(file, "utf8");
-    for (const specifier of importSpecifiers(source)) {
+    for (const specifier of importSpecifiers({ source }, { fileName: file })) {
       if (SITE_KEY_ENSURE_SPECIFIER.test(specifier)) {
         offenders.push(`${path.relative(REPO_ROOT, file)} imports site-key-ensure: "${specifier}"`);
       }
@@ -92,7 +74,7 @@ test("no production file under server/inbound/ imports site-key-ensure (the one 
 
 
 test("the boundary scanner sees every supported import syntax and ignores comments and ordinary strings", () => {
-  const specifiers = importSpecifiers(`
+  const specifiers = importSpecifiers({ source: `
     import "#src/features/webhooks/site-key-ensure";
     import { ensure } from "./site-key-ensure.js";
     import type { Key } from "../site-key-ensure.ts";
@@ -104,7 +86,7 @@ test("the boundary scanner sees every supported import syntax and ignores commen
     // import "ignored/site-key-ensure";
     const text = 'from "ignored/site-key-ensure"';
     import "./site-key-ensure-utils";
-  `);
+  ` }, { fileName: "fixture.tsx" });
   assert.deepEqual(specifiers.filter((specifier) => SITE_KEY_ENSURE_SPECIFIER.test(specifier)), [
     "#src/features/webhooks/site-key-ensure", "./site-key-ensure.js", "../site-key-ensure.ts", "../../site-key-ensure",
     "../../../site-key-ensure.js", "../../../../site-key-ensure.ts", "../../../../../site-key-ensure", "../../../../../../site-key-ensure.js",

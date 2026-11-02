@@ -1,8 +1,12 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { createRequire } from "node:module";
+import fs from "node:fs";
+import { createRequire, isBuiltin } from "node:module";
+import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import ts from "typescript";
+import { importSpecifiers } from "../../../../../../__tests__/support/import-specifiers.js";
 
 /**
  * @file Guards the cold-start cost of the theme render sandbox: each render spawns a fresh worker
@@ -23,6 +27,47 @@ import test from "node:test";
 
 const require = createRequire(import.meta.url);
 const SITE_DIR = path.join(import.meta.dirname, "..");
+
+/** Conservatively inspect both Node export conditions, including source imports with .js suffixes.
+ * Declaration candidates are denied: stopping at types could hide the executable's deferred imports.
+ * Unresolved edges fail closed; the maintained TS resolver owns package/import-map semantics.
+ */
+function resolveProductionImports({ fromFile, specifier }: { fromFile: string; specifier: string }, _options = {}): string[] {
+  if (isBuiltin(specifier)) return [];
+  const files = new Set<string>();
+  const host: ts.ModuleResolutionHost = { ...ts.sys, fileExists: file => !/\.d\.[cm]?ts$/.test(file) && ts.sys.fileExists(file) };
+  for (const mode of [ts.ModuleKind.ESNext, ts.ModuleKind.CommonJS] as const) {
+    const resolved = ts.resolveModuleName(specifier, fromFile, {
+      moduleResolution: ts.ModuleResolutionKind.NodeNext, module: ts.ModuleKind.NodeNext, allowJs: true, resolveJsonModule: true,
+    }, host, undefined, undefined, mode).resolvedModule;
+    if (resolved) files.add(resolved.resolvedFileName);
+  }
+  assert.ok(files.size > 0, `cannot resolve production edge ${fromFile} -> ${specifier}`);
+  return [...files];
+}
+
+/** Inspect all reachable production source, including deferred edges that Module._load never sees.
+ * The visited set bounds cycles. O(n + e) scan for n source bytes and e import edges, plus resolution.
+ */
+function sourceRootBarrelImports({ entry }: { entry: string }, _options = {}): string[] {
+  const pending = [entry];
+  const visited = new Set<string>();
+  const offenders: string[] = [];
+  for (const file of pending) {
+    if (visited.has(file)) continue;
+    visited.add(file);
+    const source = fs.readFileSync(file, "utf8");
+    for (const specifier of importSpecifiers({ source }, { runtimeOnly: true, fileName: file })) {
+      if (/^@jini-ai\/[^/]+$/.test(specifier)) {
+        offenders.push(`${file} -> ${specifier}`);
+        continue;
+      }
+      const resolved = resolveProductionImports({ fromFile: file, specifier });
+      pending.push(...resolved.filter(file => /\.[cm]?[jt]sx?$/.test(file)));
+    }
+  }
+  return offenders.sort();
+}
 
 /** Packages a template render never needs; any one of them means a barrel import leaked the server graph in. */
 const FORBIDDEN_IN_WORKER = [
@@ -84,6 +129,11 @@ function loadWorkerGraph(workerFile: string): { entryError: string; modules: str
 }
 
 for (const workerFile of ["handlebars-worker.ts", "liquid-worker.ts"] as const) {
+  test(`${workerFile} source graph contains no @jini-ai package roots, including deferred imports`, () => {
+    const offenders = sourceRootBarrelImports({ entry: path.resolve(SITE_DIR, workerFile) });
+    assert.deepEqual(offenders, [], `${workerFile} names @jini-ai root barrels; use narrow export subpaths:\n${offenders.join("\n")}`);
+  });
+
   test(`${workerFile} loads no database, blob-store or agent packages`, () => {
     const { entryError, modules, rootBarrelImports } = loadWorkerGraph(workerFile);
     // Any other error means an import failed part-way and the graph below would be incomplete.
@@ -103,6 +153,77 @@ for (const workerFile of ["handlebars-worker.ts", "liquid-worker.ts"] as const) 
       `${workerFile} loaded ${renderingModules.length} rendering modules (budget ${budget})`);
   });
 }
+
+for (const [statement, rootImport] of [
+  ['import "./leaf.js";', 'import "@jini-ai/core";'],
+  ['export * from "./leaf.js";', 'export * from "@jini-ai/core";'],
+  ['function deferred() { return require("./leaf.js"); }', 'function deferred() { return require("@jini-ai/core"); }'],
+  ['function deferred() { return import("./leaf.js"); }', 'function deferred() { return import("@jini-ai/core"); }'],
+]) {
+  test(`source graph follows unexecuted production edges: ${statement}`, () => {
+    const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "worker-import-graph-")));
+    try {
+      const entry = path.join(root, "entry.ts");
+      const leaf = path.join(root, "leaf.ts");
+      fs.writeFileSync(entry, `import type { X } from "@jini-ai/core"; ${statement}`);
+      fs.writeFileSync(leaf, `import "./entry.js"; ${rootImport}`);
+      assert.deepEqual(sourceRootBarrelImports({ entry }), [`${leaf} -> @jini-ai/core`]);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+}
+
+test("source graph follows executable imports inside TSX instead of treating JSX text as code", () => {
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "worker-tsx-import-")));
+  try {
+    const entry = path.join(root, "entry.tsx");
+    const leaf = path.join(root, "leaf.js");
+    fs.writeFileSync(entry, `const note = <p>Don't call require("jsx-text")</p>;
+      const panel = <div>{import("./leaf.js")}</div>;`);
+    fs.writeFileSync(leaf, 'import "@jini-ai/core";');
+    assert.deepEqual(sourceRootBarrelImports({ entry }), [`${leaf} -> @jini-ai/core`]);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+for (const statement of ['import "conditional-leaf";', 'export * from "conditional-leaf";', 'function deferred() { return import("conditional-leaf"); }']) {
+  test(`source graph inspects conditional ESM executables behind declarations: ${statement}`, () => {
+    const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "worker-conditional-import-")));
+    try {
+      const entry = path.join(root, "entry.ts");
+      const pkg = path.join(root, "node_modules/conditional-leaf");
+      const esm = path.join(pkg, "esm.mjs");
+      fs.mkdirSync(pkg, { recursive: true });
+      fs.writeFileSync(entry, statement);
+      fs.writeFileSync(path.join(pkg, "package.json"), JSON.stringify({ name: "conditional-leaf", exports: {
+        types: "./index.d.ts", import: "./esm.mjs", require: "./cjs.cjs",
+      } }));
+      fs.writeFileSync(path.join(pkg, "index.d.ts"), "export {}; ");
+      fs.writeFileSync(esm, 'import "@jini-ai/core";');
+      fs.writeFileSync(path.join(pkg, "cjs.cjs"), "module.exports = {}; ");
+      assert.deepEqual(sourceRootBarrelImports({ entry }), [`${esm} -> @jini-ai/core`]);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+}
+
+test("source graph refuses executable edges that resolve only to declarations", () => {
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "worker-declaration-import-")));
+  try {
+    const entry = path.join(root, "entry.ts");
+    const pkg = path.join(root, "node_modules/declaration-only");
+    fs.mkdirSync(pkg, { recursive: true });
+    fs.writeFileSync(entry, 'function deferred() { return import("declaration-only"); }');
+    fs.writeFileSync(path.join(pkg, "package.json"), JSON.stringify({ name: "declaration-only", types: "./index.d.ts" }));
+    fs.writeFileSync(path.join(pkg, "index.d.ts"), "export {}; ");
+    assert.throws(() => sourceRootBarrelImports({ entry }), /cannot resolve production edge/);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
 
 test("public page requests do not load feature-wide barrels or assistant tools", () => {
   const { entryError, modules, rootBarrelImports } = loadWorkerGraph("../../routes/site/pages.ts");
