@@ -11,6 +11,7 @@ import { registerAdminPolicyListRoute } from "../inbound/admin-http/routes/users
 import { registerAdminRoleListRoute } from "../inbound/admin-http/routes/users/list-roles.js";
 import { registerAdminPolicyPermissionListRoute } from "../inbound/admin-http/routes/users/list-policy-permissions.js";
 import { createCapturingResponse, extractRouteHandler } from "./helpers/http-test-server.js";
+import { assertAdminResponse } from "../inbound/admin-http/http/__tests__/assert-admin-response.js";
 
 // Handler behavior only; authentication/authorization are exercised over HTTP in sibling suites.
 // Author checklist: real handlers/services, literal DTOs, distinguishing fixtures, fresh repos,
@@ -78,7 +79,9 @@ test("themes list conceals a presentation repository failure", async () => {
     } },
   }, `${ROOT}/themes`);
   assert.equal(read, true);
-  assert.deepEqual(capture, { statusCode: 500, jsonBody: { error: "internal error" } });
+  // Shared admin failure envelope: a correlatable id, never the repository's cause.
+  assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } } });
+  assert.doesNotMatch(JSON.stringify(capture), /private database path/);
 });
 
 async function widgetRepo() {
@@ -225,5 +228,7 @@ test("policy permission listing refuses an absent parent and conceals repository
   const failed = await invoke(registerAdminPolicyPermissionListRoute, { ...deps, policyRepo: { async findById() {
     throw new Error("private connection string");
   } } }, `${ROOT}/policies/:policyId/permissions`, { policyId: "absent-b07" });
-  assert.deepEqual(failed, { statusCode: 500, jsonBody: { error: "internal error" } });
+  // Shared admin failure envelope: a correlatable id, never the repository's cause.
+  assertAdminResponse({ actual: failed, expected: { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } } });
+  assert.doesNotMatch(JSON.stringify(failed), /private connection string/);
 });
