@@ -13,7 +13,7 @@
  * constant of the same name, so a test can point them at a throwaway `fs.mkdtempSync` directory
  * instead of the real `staging/tovu-payload` tree.
  */
-import { closeSync, cpSync, existsSync, lstatSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, realpathSync, rmSync, statSync } from "node:fs";
+import { chmodSync, closeSync, cpSync, existsSync, lstatSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, realpathSync, rmSync, statSync } from "node:fs";
 import type { Dirent } from "node:fs";
 import path from "node:path";
 
@@ -669,6 +669,29 @@ export function stageBundledNpm({ npmSrc, outDir }: StageBundledNpmInput): Stage
   assertNoNativeBinaries(outDir);
 
   return { fileCount: countFiles(outDir), bytes: diskBytes(outDir) };
+}
+
+/**
+ * Sets the execute bits on every `spawn-helper` the shell's node-pty carries, and returns the ones
+ * that lacked them.
+ *
+ * node-pty execs `spawn-helper` to start every terminal. node-pty 1.1.0's npm tarball ships
+ * `prebuilds/darwin-arm64/spawn-helper` as 0644 (measured 2026-11-02; darwin-x64's is 0755), and
+ * no install script repairs it: `prebuild.js` only checks the prebuild directory exists and
+ * `post-install.js` only cleans `build/Release`, so whether npm's install-scripts gate runs them
+ * changes nothing. electron-builder copies the mode it finds into `app.asar.unpacked`, so the
+ * packaged terminal failed with `posix_spawnp failed` on Apple silicon (open-bugs 10-31). A
+ * from-source `build/Release/spawn-helper` is covered too. No node-pty directory means nothing to do.
+ *
+ * @complexity O(p) in prebuild directories.
+ */
+export function ensurePtyHelpersExecutable({ ptyDir }: { ptyDir: string }): string[] {
+  const prebuilds = path.join(ptyDir, "prebuilds");
+  const platforms = existsSync(prebuilds) ? readdirSync(prebuilds).sort() : [];
+  const helpers = [path.join(ptyDir, "build", "Release", "spawn-helper"), ...platforms.map((dir) => path.join(prebuilds, dir, "spawn-helper"))];
+  const changed = helpers.filter((file) => existsSync(file) && (statSync(file).mode & 0o111) !== 0o111);
+  for (const file of changed) chmodSync(file, statSync(file).mode | 0o755);
+  return changed;
 }
 
 /** Recursive file count under `dir` — used only for {@link stageBundledNpm}'s reported result.
