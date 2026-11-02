@@ -97,18 +97,27 @@ test("a lock held by a live process is waited for, then refused out loud — nev
   assert.equal(fs.readFileSync(lockPath, "utf8"), `${process.pid}:someoneelse`, "the live holder's lock is left exactly as it was");
 });
 
-test("a lock whose owner is gone, or that is older than any synchronous write could be, is taken over", () => {
+test("a lock whose owner is gone, or an aged lock whose owner cannot be identified, is taken over; an aged live owner keeps it", () => {
   const abandoned = tempFile();
   fs.writeFileSync(`${abandoned}.lock`, `${deadPid()}:crashed`);
   assert.equal(withFileLock(abandoned, () => "taken", { waitMs: 50 }), "taken");
   assert.equal(fs.existsSync(`${abandoned}.lock`), false);
 
+  const longAgo = new Date(Date.now() - 60_000);
+  // pid 0 is no process: liveness is unknown, so only age can free it.
   const stale = tempFile();
   const stalePath = `${stale}.lock`;
-  fs.writeFileSync(stalePath, `${process.pid}:wedged`);
-  const longAgo = new Date(Date.now() - 60_000);
+  fs.writeFileSync(stalePath, "0:wedged");
   fs.utimesSync(stalePath, longAgo, longAgo);
   assert.equal(withFileLock(stale, () => "taken", { waitMs: 50 }), "taken");
+
+  // Jini platform 1148c3bf: a proven-live owner is never evicted by age; a slow write still owns it.
+  const slow = tempFile();
+  const slowPath = `${slow}.lock`;
+  fs.writeFileSync(slowPath, `${process.pid}:wedged`);
+  fs.utimesSync(slowPath, longAgo, longAgo);
+  assert.throws(() => withFileLock(slow, () => "taken", { waitMs: 50 }), { name: "FileLockTimeoutError" });
+  assert.equal(fs.readFileSync(slowPath, "utf8"), `${process.pid}:wedged`, "the live holder's aged lock is left exactly as it was");
 });
 
 test("releasing does not delete a lock that now belongs to someone else", () => {
