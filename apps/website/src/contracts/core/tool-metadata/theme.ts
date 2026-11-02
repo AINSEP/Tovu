@@ -214,7 +214,12 @@ export const toolMetadata = {
         "Can you create a new file inside the theme folder?",
       ],
     },
-    approval: { class: 'edit', confirmation: 'direct' },
+    // Owner decision 2026-11-02: the handler's own card asks before an EXISTING file's bytes are
+    // replaced (and keeps a `.trash/` revision); creating a new file runs directly. `plan` because
+    // the domain handler owns that decision — it depends on what is on disk, not on the input — and
+    // class `edit` because that is the input-independent case (a new file), which keeps batched
+    // new-file writes batchable; a batched overwrite still gets its own card per file.
+    approval: { class: 'edit', confirmation: 'plan' },
   },
 
   // --- theme ---------------------------------------------------------------------------------------

@@ -9,6 +9,10 @@ import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import { discoverAllBuiltInThemes } from "../theme.js";
 import { buildThemesRegistrations, type ThemeToolDeps } from "../tool-registrations.js";
+import { withConfirmingSurface } from "../../../assistant/__tests__/fixtures/confirmed-registrations.js";
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/core/primitives";
 
 /**
  * @file ADR-020 §5 (2026-08-12), the AI-authorability half: `theme_write_file` must refuse a write
@@ -92,9 +96,12 @@ function executionContext(input: Record<string, unknown>): ToolExecutionContext 
 }
 
 function writeFileHandler(deps: ThemeToolDeps): ToolRegistration["handler"] {
-  const registration = buildThemesRegistrations(deps).find((r) => r.descriptor.id === "theme_write_file");
+  // Overwrites draw the confirmation card (owner decision 2026-11-02); these gates are about what a
+  // confirmed write may touch, so every card is confirmed. Refusals still happen before any card.
+  const surfaces = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) };
+  const registration = buildThemesRegistrations(deps, surfaces).find((r) => r.descriptor.id === "theme_write_file");
   assert.ok(registration, "theme_write_file must be wired");
-  return registration.handler;
+  return withConfirmingSurface({ registration, surfaces }).handler;
 }
 
 test("sanity: the compiled fixture loads valid before any write is attempted", () => {

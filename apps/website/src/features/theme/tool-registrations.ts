@@ -43,6 +43,8 @@ import { requestThemePreviewRefresh, validatePreviewPath } from "./preview-refre
 import { syncThemeRoster } from "./theme-roster-sync.js";
 import { NO_THEME_ID } from "./active-theme.js";
 import { describeHardcodedLinkList } from "./hardcoded-link-lists.js";
+import { assertThemeFileWriteUnchanged, describeThemeFileOverwrite, keepThemeFileRevision, prepareThemeFileWrite, type PreparedThemeFileWrite } from "./theme-file-overwrite.js";
+import { approvalToolHandler } from "#src/contracts/core/human-confirm";
 import { rmdirSync, statSync } from "node:fs";
 import { ToolInputError } from "@jini-ai/core";
 import { buildDomainRegistrations, indexCatalogById, optionalString, requireInputRecord, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
@@ -662,24 +664,37 @@ export function buildThemesRegistrations(
       } });
     },
 
-    theme_write_file: async (ctx) => {
-      const input = requireInputRecord({ input: ctx.input });
-      const themeId = requireString({ input: input, key: "themeId" });
-      const relativePath = requireString({ input: input, key: "path" });
-      const content = requireString({ input: input, key: "content" });
-      // Only the boolean `true` opts in, the same way `theme_edit_file` reads `replaceAll`.
-      const overwriteOversized = input.overwriteOversized === true;
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: THEME_WRITE_PERMISSION }, { entityType: "theme", entityId: themeId });
+    // Owner decision 2026-11-02: replacing an existing file's bytes asks first and keeps the old
+    // bytes as a `.trash/` revision; a brand-new file is written without asking. See
+    // `theme-file-overwrite.ts`'s header for why, and why the trash is the revision store.
+    theme_write_file: approvalToolHandler<PreparedThemeFileWrite & { overwriteOversized: boolean }>({ surfaces,
+      prepare: async ({ ctx }) => {
+        const input = requireInputRecord({ input: ctx.input });
+        const themeId = requireString({ input: input, key: "themeId" });
+        const relativePath = requireString({ input: input, key: "path" });
+        const content = requireString({ input: input, key: "content" });
+        // Only the boolean `true` opts in, the same way `theme_edit_file` reads `replaceAll`.
+        const overwriteOversized = input.overwriteOversized === true;
+        await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: THEME_WRITE_PERMISSION }, { entityType: "theme", entityId: themeId });
 
-      return withSchemaOnRejection({ toolId: "theme_write_file", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection(error), fn: async () => {
-        const theme = findThemeOrThrow(routeDeps, themeId);
+        return withSchemaOnRejection({ toolId: "theme_write_file", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection(error), fn: async () => {
+          const theme = findThemeOrThrow(routeDeps, themeId);
 
-        // ADR-020 §5 generated-tree refusal + the `preview/` security-parity refusal —
-        // both checked BEFORE any filesystem write, so a rejected write never touches disk. See
-        // `assertThemeFileWritable`'s own doc; shared with `theme_edit_file` below.
-        assertThemeFileWritable(theme, relativePath);
+          // ADR-020 §5 generated-tree refusal + the `preview/` security-parity refusal —
+          // both checked BEFORE any filesystem write, so a rejected write never touches disk. See
+          // `assertThemeFileWritable`'s own doc; shared with `theme_edit_file` below.
+          assertThemeFileWritable(theme, relativePath);
 
-        assertCompiledWriteBoundaryUnchanged(theme, relativePath, content);
+          assertCompiledWriteBoundaryUnchanged(theme, relativePath, content);
+          return { ...prepareThemeFileWrite({ theme, themesRoot: routeDeps.themesDir, relativePath, content }), overwriteOversized };
+        } });
+      },
+      describe: ({ prepared }) => describeThemeFileOverwrite(prepared),
+      run: async ({ prepared }) => withSchemaOnRejection({ toolId: "theme_write_file", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection(error), fn: async () => {
+        const { theme, relativePath, content, overwriteOversized } = prepared;
+        const themeId = theme.manifest.id;
+        assertThemeFileWriteUnchanged({ prepared, themesRoot: routeDeps.themesDir });
+        const trashedPath = keepThemeFileRevision({ prepared, themesRoot: routeDeps.themesDir });
         writeThemeFile({ themeDir: theme.dir, themesRoot: routeDeps.themesDir, relativePath, content }, { overwriteOversized });
 
         // Re-validate through the SAME `loadTheme()` a boot-time discovery uses — the whole point of
@@ -698,10 +713,11 @@ export function buildThemesRegistrations(
           status: reloaded.status,
           errors: reloaded.errors,
           theme: toThemeToolView(reloaded),
+          ...(trashedPath ? { previousRevision: { trashedPath, note: `The replaced version is kept at '${trashedPath}'. To undo, read it with theme_read_file and write it back to '${relativePath}' with theme_write_file.` } } : {}),
           ...(warning ? { warning } : {}),
         };
-      } });
-    },
+      } }),
+    }, { flag: "written", ask: ({ prepared }) => prepared.overwrite }),
 
     theme_edit_file: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });

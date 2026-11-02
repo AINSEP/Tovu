@@ -97,7 +97,7 @@ function executionContext(input: Record<string, unknown> | undefined): ToolExecu
 }
 
 function themesRegistrations(deps: RegistryDepsWithoutLimiter): Map<string, ToolRegistration> {
-  return new Map(buildConfirmedAssistantToolRegistrations({ routeDeps: toAssistantRegistryDeps({ routeDeps: deps }), options: { contributions } }).filter((r) => r.descriptor.id.startsWith("theme_") || r.descriptor.id.startsWith("content_read.theme") || r.descriptor.id === "preview_reload").map((r) => [r.descriptor.id, r]));
+  return new Map(buildConfirmedAssistantToolRegistrations({ routeDeps: toAssistantRegistryDeps({ routeDeps: deps }), options: { contributions } }, { confirmPlanTools: ["theme_write_file"] }).filter((r) => r.descriptor.id.startsWith("theme_") || r.descriptor.id.startsWith("content_read.theme") || r.descriptor.id === "preview_reload").map((r) => [r.descriptor.id, r]));
 }
 
 function wired(deps: RegistryDepsWithoutLimiter, toolId: string): ToolRegistration {

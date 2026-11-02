@@ -3301,7 +3301,7 @@
     },
     "theme_write_file": {
       "class": "edit",
-      "confirmation": "direct"
+      "confirmation": "plan"
     },
     "trash_empty": {
       "class": "delete",
@@ -3724,6 +3724,7 @@
     "theme_trash",
     "theme_trash_file",
     "theme_set_active",
+    "theme_write_file",
     "trash_empty",
     "trash_item",
     "trash_purge_item",
@@ -3817,6 +3818,7 @@
     "theme_trash",
     "theme_trash_file",
     "theme_set_active",
+    "theme_write_file",
     "trash_empty",
     "trash_item",
     "trash_purge_item",
@@ -3890,6 +3892,7 @@
     "theme_trash",
     "theme_trash_file",
     "theme_set_active",
+    "theme_write_file",
     "trash_empty",
     "trash_item",
     "trash_purge_item",

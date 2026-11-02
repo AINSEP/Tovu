@@ -10,6 +10,10 @@ import {
   validatePreviewPath,
 } from "../preview-refresh.js";
 import { buildThemesRegistrations } from "../tool-registrations.js";
+import { withConfirmingSurface } from "../../../assistant/__tests__/fixtures/confirmed-registrations.js";
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/core/primitives";
 
 test("refresh marker crosses independent readers and clears navigation after a save", (t) => {
   const themesDir = fs.mkdtempSync(path.join(os.tmpdir(), "theme-refresh-"));
@@ -94,11 +98,15 @@ test("admin and assistant save chokepoints both signal, rejected writes do not",
   reloadTheme(deps as never, "plain");
   const first = readThemePreviewRefresh({ themesDir });
   assert.ok(first);
-  const writer = buildThemesRegistrations(deps).find((r) => r.descriptor.id === "theme_write_file");
-  assert.ok(writer);
+  // Overwriting tokens.json draws the confirmation card (owner decision 2026-11-02): confirm it.
+  const surfaces = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) };
+  const raw = buildThemesRegistrations(deps, surfaces).find((r) => r.descriptor.id === "theme_write_file");
+  assert.ok(raw);
+  const writer = withConfirmingSurface({ registration: raw, surfaces });
   await writer.handler({
     input: { themeId: "plain", path: "tokens.json", content: '{"--ink":"#fff"}' },
     principal: { id: "owner" },
+    signal: new AbortController().signal,
   } as never);
   const second = readThemePreviewRefresh({ themesDir });
   assert.ok(second);
@@ -107,6 +115,7 @@ test("admin and assistant save chokepoints both signal, rejected writes do not",
     writer.handler({
       input: { themeId: "plain", path: "../escape", content: "bad" },
       principal: { id: "owner" },
+      signal: new AbortController().signal,
     } as never),
   );
   assert.deepEqual(readThemePreviewRefresh({ themesDir }), second);

@@ -170,6 +170,8 @@ const EXPECTED_ALLOWLIST = [
   "theme_set_active",
   "theme_trash",
   "theme_trash_file",
+  // Demo 2026-11-02: replacing an existing theme file's bytes asks on the handler's own plan card.
+  "theme_write_file",
   "trash_item",
   "widgets_trash_instance",
 
