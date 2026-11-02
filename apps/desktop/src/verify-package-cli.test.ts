@@ -7,7 +7,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { copyFileSync, mkdirSync, mkdtempSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -221,12 +221,16 @@ function closureArchiveFixture(scratch: string) {
   mkdirSync(path.join(resources, 'website'), { recursive: true });
   // Builds are forbidden in this dispatch. Exercise the actual Jini source, while the separate
   // installed-peer test continues to fail visibly until those new exports are built/published.
-  const jini = pathToFileURL(path.join(realpathSync(path.join(DESKTOP_ROOT, 'node_modules/@jini-ai/devops')), 'src/packaging/electron/'));
+  // A linked Jini checkout has that source; the npm-published package ships only dist/ (release
+  // run 41393413091 failed on the missing src/ entry.ts), so then the published exports load as-is.
+  const jiniSource = path.join(realpathSync(path.join(DESKTOP_ROOT, 'node_modules/@jini-ai/devops')), 'src/packaging/electron/');
+  const jini = pathToFileURL(jiniSource);
+  const fromSource = existsSync(path.join(jiniSource, 'entry.ts'));
   const hook = path.join(scratch, 'source-hooks.mjs');
   writeFileSync(hook, `import { registerHooks } from 'node:module';
     registerHooks({ resolve(specifier, context, next) {
-      if (specifier === '@jini-ai/devops/packaging/electron') return next(${JSON.stringify(new URL('entry.ts', jini).href)}, context);
-      if (specifier === '@jini-ai/devops/packaging/electron/typescript') return next(${JSON.stringify(new URL('typescript.ts', jini).href)}, context);
+      if (${fromSource} && specifier === '@jini-ai/devops/packaging/electron') return next(${JSON.stringify(new URL('entry.ts', jini).href)}, context);
+      if (${fromSource} && specifier === '@jini-ai/devops/packaging/electron/typescript') return next(${JSON.stringify(new URL('typescript.ts', jini).href)}, context);
       try { return next(specifier, context); }
       catch (error) {
         if (error.code !== 'ERR_MODULE_NOT_FOUND' || !specifier.startsWith('.') || !specifier.endsWith('.js')) throw error;
