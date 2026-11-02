@@ -1250,7 +1250,7 @@ async function composeSiteRouteDeps(
   const siteTitlePreservationStore = new SqliteSiteTitlePreservationStore(kernel);
   const { siteDisplayName, siteTimeZone } = compositionSiteDisplaySources({ dbPath, overrides, settingsRepo });
   const siteTitleSettingsDeps = { settingsRepo, clock, ids: idGen, principals: settingsPrincipals };
-  const siteTitleReady = analyticsSettingsReady
+  const siteSettingsReady = analyticsSettingsReady
     // `core.interface` (`features/settings/admin-interface.ts`), chained here for the same
     // one-connection reason as the registrations above.
     .then(() => ensureAdminInterfaceSettingDefinitions(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
@@ -1267,7 +1267,9 @@ async function composeSiteRouteDeps(
     .then(() => ensureSearchProviderSetting({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     .then(() => ensureSiteTitleSettingDefinition(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     // Bug D: `core.site.timezone` (`features/settings/site-timezone.ts`), the zone post dates render in.
-    .then(() => ensureSiteTimeZoneSettingDefinition(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
+    .then(() => ensureSiteTimeZoneSettingDefinition(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }));
+  // Public title reads already handle pending pins; consent must not inherit this migration wait.
+  const siteTitleReady = siteSettingsReady
     .then(() =>
       preserveLegacySiteTitles(
         { ...siteTitleSettingsDeps, preservationStore: siteTitlePreservationStore },
@@ -2149,9 +2151,9 @@ async function composeSiteRouteDeps(
   const sitemapService = createSitemapService({ deps: seoDeps }, {});
   let resolveRouteDeps!: (deps: RouteDeps) => void;
   const routeDepsBuilt = new Promise<RouteDeps>(resolve => { resolveRouteDeps = resolve; });
-  // Consent owns its own failure chain; title and seeded-owner identity must be ready first.
+  // Serialize ledger registration, but never gate consent on unrelated title preservation.
   const siteConsentReady = createSiteConsentReadiness({ ...siteTitleSettingsDeps,
-    after: Promise.all([siteTitleReady, identity.identityReady]).then(() => undefined),
+    after: Promise.all([siteSettingsReady, identity.identityReady]).then(() => undefined),
     systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID,
   }, {
     ensurePrivacyDefaults: () => ensureSiteConsentPrivacy({ deps: routeDepsBuilt }),

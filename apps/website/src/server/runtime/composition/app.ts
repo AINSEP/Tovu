@@ -505,7 +505,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   // for the single-SQLite-connection-transaction reason every registration above documents.
   const siteTitlePreservationStore = new InMemorySiteTitlePreservationStore();
   const siteTitleSettingsDeps = { settingsRepo, clock, ids: idGen, principals: settingsPrincipals };
-  const siteTitleReady = analyticsSettingsReady
+  const siteSettingsReady = analyticsSettingsReady
     // `core.interface` (`features/settings/admin-interface.ts`), chained here for the same
     // one-connection reason as the registrations above.
     .then(() => ensureAdminInterfaceSettingDefinitions(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
@@ -514,7 +514,9 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     .then(() => ensurePreviewSwitcherSetting({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     .then(() => ensureSiteTitleSettingDefinition(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     // Bug D: `core.site.timezone` (`features/settings/site-timezone.ts`), the zone post dates render in.
-    .then(() => ensureSiteTimeZoneSettingDefinition(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
+    .then(() => ensureSiteTimeZoneSettingDefinition(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }));
+  // Public title reads already handle pending pins; consent must not inherit this migration wait.
+  const siteTitleReady = siteSettingsReady
     .then(() =>
       preserveLegacySiteTitles(
         { ...siteTitleSettingsDeps, preservationStore: siteTitlePreservationStore },
@@ -1122,9 +1124,9 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   // admin's own OAuth client from the same saved credentials the Access Tokens routes write.
   const customCredentialSetRepo = new InMemoryCustomCredentialSetRepo();
   // Hermetic readiness registers definitions without asynchronously publishing CMS default content.
-  // Consent owns its own failure chain; title and seeded-owner identity must be ready first.
+  // Serialize ledger registration, but never gate consent on unrelated title preservation.
   const siteConsentReady = createSiteConsentReadiness({ ...siteTitleSettingsDeps,
-    after: Promise.all([siteTitleReady, identity.identityReady]).then(() => undefined),
+    after: Promise.all([siteSettingsReady, identity.identityReady]).then(() => undefined),
     systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID,
   });
   const pluginExports = createPluginExportRuntime({ workspaceId: seededWorkspace.id, source: createPluginExportSource({ lifecycle: agentPluginLifecycle }), listProviders: async () => [] });

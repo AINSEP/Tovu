@@ -6,6 +6,8 @@ import { createApp, createRouteDeps } from "../app.js";
 import { createServingApp } from "../serving-app.js";
 import { getEffective } from "@jini-ai/core/settings";
 import { SITE_CONSENT_NAMESPACE } from "#src/features/consent/config";
+import { InMemorySiteTitlePreservationStore } from "#src/features/settings/site-title";
+import { dispatchHttpRequest } from "#src/server/__tests__/helpers/in-process-http";
 
 /**
  * @file `createApp()` starts the BYOK tool surface's installed-extension pass (Agent Plugins,
@@ -63,6 +65,37 @@ test("in-memory consent readiness registers definitions without creating privacy
   assert.ok(url, 'consent definitions still register');
   assert.equal(url.value, '');
   assert.equal(url.sourceLayer, 'default', 'bootstrap must not write a workspace value');
+});
+
+test("in-memory consent readiness and public HTML do not wait for a held title pin", async (t) => {
+  let releasePin!: () => void;
+  const pinGate = new Promise<void>(resolve => { releasePin = resolve; });
+  let signalPinReached!: () => void;
+  const pinReached = new Promise<void>(resolve => { signalPinReached = resolve; });
+  const original = InMemorySiteTitlePreservationStore.prototype.listPendingWorkspaceIds;
+  t.mock.method(InMemorySiteTitlePreservationStore.prototype, "listPendingWorkspaceIds", async function (this: InMemorySiteTitlePreservationStore) {
+    signalPinReached();
+    await pinGate;
+    return original.call(this);
+  });
+  const deps = createRouteDeps();
+  let deadline: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await pinReached;
+    await Promise.race([
+      deps.siteConsentReady,
+      new Promise<never>((_resolve, reject) => {
+        deadline = setTimeout(() => reject(new Error("Consent readiness waited on the held title pin")), 5000);
+      }),
+    ]);
+    const response = await dispatchHttpRequest({ app: createApp(deps), method: "GET", url: "/" });
+    assert.equal(response.status, 200, response.body);
+    assert.match(response.body, /<title>[^<]+<\/title>/);
+  } finally {
+    clearTimeout(deadline);
+    releasePin();
+    await Promise.all([deps.siteTitleReady, deps.siteConsentReady]);
+  }
 });
 
 test("createServingApp returns that same pass as bootWork, so a serving process can await it before closing the store", async () => {

@@ -1065,7 +1065,8 @@ export interface AnalyticsDeps {
    * while that workspace's pin is pending (REQ-07).
    */
   siteTitleReady: Promise<void>;
-  /** Consent definitions and initial privacy content, after title preservation and owner seeding. */
+  /** Consent definitions and initial privacy content, after ledger registration and owner seeding.
+   * Independent of title preservation: public reads must work while a title pin is pending. */
   siteConsentReady: Promise<void>;
   /**
    * Bug D: the site's zone for rendered post dates (`core.site.timezone`, `features/settings/site-timezone.ts`).

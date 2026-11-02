@@ -27,6 +27,7 @@ import type { CommerceSiteTestDeps } from "../commerce-site-app.js";
 import { builtInThemesDir, createSiteRouteDeps, createSiteRouteDepsForWorkspace } from "#src/server/runtime/composition/deps";
 import type { RouteDeps } from "#src/server/routes/types";
 import { bootAuthenticated } from "#src/server/__tests__/helpers/http-test-server";
+import { dispatchHttpRequest } from "#src/server/__tests__/helpers/in-process-http";
 import { seedSite } from "../../../../../../../../../../development/scripts/seed-site.mjs";
 
 /**
@@ -146,7 +147,7 @@ function publishPricingPage(deps: RouteDeps): void {
  * 9b20083b6 `createSiteRouteDeps` awaits the vault normalization after its chained boot registrations
  * start, so the pin can already have read the store by the time it returns. Restored after the test.
  */
-async function bootSite(t: TestContext, dir: string, beforeBootChain?: (store: SiteTitlePreservationStorePort) => void): Promise<BootedSite> {
+async function bootSiteDeps(t: TestContext, dir: string, beforeBootChain?: (store: SiteTitlePreservationStorePort) => void): Promise<CommerceSiteTestDeps> {
   if (beforeBootChain) {
     const store = SqliteSiteTitlePreservationStore.prototype as SiteTitlePreservationStorePort;
     t.after(() => {
@@ -167,6 +168,12 @@ async function bootSite(t: TestContext, dir: string, beforeBootChain?: (store: S
     siteBinding: { dir, name: path.basename(dir), dirOverridden: true, switcherCompatible: false },
   });
   publishPricingPage(deps);
+  return deps;
+}
+
+/** Adds the authenticated listening transport for the other site-title journeys. */
+async function bootSite(t: TestContext, dir: string, beforeBootChain?: (store: SiteTitlePreservationStorePort) => void): Promise<BootedSite> {
+  const deps = await bootSiteDeps(t, dir, beforeBootChain);
   const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
   return { deps, baseUrl, cookie };
 }
@@ -273,9 +280,10 @@ test("AC-12 (REQ-07, T-W3): with the definition registered and the pin held open
   const pinReached = new Promise<void>((resolve) => {
     signalPinReached = resolve;
   });
+  let deadline: ReturnType<typeof setTimeout> | undefined;
 
   try {
-    const site = await bootSite(t, await createPreExistingSite(t), (store) => {
+    const deps = await bootSiteDeps(t, await createPreExistingSite(t), (store) => {
       const listPendingWorkspaceIds = store.listPendingWorkspaceIds;
       store.listPendingWorkspaceIds = async function (this: SiteTitlePreservationStorePort) {
         signalPinReached();
@@ -286,17 +294,34 @@ test("AC-12 (REQ-07, T-W3): with the definition registered and the pin held open
     await pinReached;
 
     const definition = await resolveDefinitionRaw(
-      { repo: site.deps.settingsRepo },
+      { repo: deps.settingsRepo },
       { namespace: "core.site", key: "title", workspaceId: null }
     );
     assert.ok(definition, "the window under test: the definition is registered and the pin is not written");
-    assert.equal((await systemPinRevisions(site.deps)).length, 0, "the pin must still be pending here");
-    assertSingleTitle(await getHtml(site.baseUrl, "/products"), LEGACY_TITLE, "S3 GET /products while the pin is pending");
+    assert.equal((await systemPinRevisions(deps)).length, 0, "the pin must still be pending here");
+    // Class guard: unrelated boot work cannot gate consent or public HTML. Keep the pin held
+    // throughout both checks, and bound readiness separately from the HTTP transport's deadline.
+    await Promise.race([
+      deps.siteConsentReady,
+      new Promise<never>((_resolve, reject) => {
+        deadline = setTimeout(() => reject(new Error("Consent readiness waited on the held title pin")), 5000);
+      }),
+    ]);
+    const app = createApp(deps);
+    const pendingPage = await dispatchHttpRequest({ app, method: "GET", url: "/products" });
+    assert.equal(pendingPage.status, 200, pendingPage.body);
+    assertSingleTitle(pendingPage.body, LEGACY_TITLE, "S3 GET /products while the pin is pending");
+    const homePage = await dispatchHttpRequest({ app, method: "GET", url: "/" });
+    assert.equal(homePage.status, 200, homePage.body);
+    assert.equal((await systemPinRevisions(deps)).length, 0, "consent and public rendering must finish before the pin");
 
     releasePin();
-    await site.deps.siteTitleReady;
-    assertSingleTitle(await getHtml(site.baseUrl, "/products"), LEGACY_TITLE, "S3 GET /products after the pin");
+    await deps.siteTitleReady;
+    const pinnedPage = await dispatchHttpRequest({ app, method: "GET", url: "/products" });
+    assert.equal(pinnedPage.status, 200, pinnedPage.body);
+    assertSingleTitle(pinnedPage.body, LEGACY_TITLE, "S3 GET /products after the pin");
   } finally {
+    clearTimeout(deadline);
     releasePin();
   }
 });
