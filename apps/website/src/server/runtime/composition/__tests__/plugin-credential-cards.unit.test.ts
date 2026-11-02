@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
+import path from 'node:path';
 import test from 'node:test';
+import { agentPluginSourceDir } from '../../../../../../../development/test-support/agent-plugin-source.mjs';
 import type { AgentPluginLayout } from '#src/features/agent-plugins/layout';
 import { createPluginCredentialCardsLoader } from '../plugin-credential-cards.js';
 import type { PluginCredentialCard } from "../../../../contracts/core/plugin-credential-card.js";
@@ -117,8 +119,8 @@ test('cards from one plugin may share its API row and domain display labels clai
 
 test('bundled Fly and Meilisearch declarations survive real parsing and ownership with saved labels unchanged', async () => {
   const { readFile } = await import('node:fs/promises');
-  const root = new URL('../../../../../../../content/agent-plugins/', import.meta.url);
-  const sources = await Promise.all(['fly', 'meilisearch'].map(async pluginId => ({ pluginId, raw: await readFile(new URL(`${pluginId}/plugin.json`, root), 'utf8') })));
+  // Both ship from @jini-ai/agent-plugins/<id>: read each manifest where Tovu takes it from.
+  const sources = await Promise.all(['fly', 'meilisearch'].map(async pluginId => ({ pluginId, raw: await readFile(path.join(agentPluginSourceDir({ pluginId }), 'plugin.json'), 'utf8') })));
   const result = await loadDeclaredCards({ sources });
   assert.deepEqual(result.refusals, []);
   assert.deepEqual(result.cards.map(card => [card.providerId, card.pluginId, card.label, card.ownedApiLabel]), [

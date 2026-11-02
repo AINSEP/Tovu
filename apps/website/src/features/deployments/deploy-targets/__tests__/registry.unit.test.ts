@@ -12,6 +12,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
+import { composedBundledSourceRoot } from "#src/features/agent-plugins/__tests__/fixtures/bundled-source-root";
 import { forceRemove } from "#src/features/agent-plugins/__tests__/fixtures/force-remove";
 import { ACTIVATIONS_FILENAME } from "@jini-ai/agent-plugins/lifecycle";
 import { recordBundledAgentPluginDigests } from "../../../agent-plugins/lifecycle.js";
@@ -346,8 +347,11 @@ test("the bundled source registry drops a target id two plugin dirs both declare
   });
 });
 
-test("the product's own bundled plugins load every host with no refusal (no target left in two plugins)", async () => {
-  const registry = await loadBundledDeployTargetRegistry({ sourceRoot: path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins") });
+test("the product's own bundled plugins load every host with no refusal (no target left in two plugins)", async (t) => {
+  // The hosts ship from @jini-ai/agent-plugins/<id> (D-W2/D-W3): load the bundle the build composes.
+  const bundle = await composedBundledSourceRoot();
+  t.after(() => bundle.dispose());
+  const registry = await loadBundledDeployTargetRegistry({ sourceRoot: bundle.root });
 
   assert.deepEqual(registry.refusals, []);
   assert.deepEqual(registry.list().map((target) => target.descriptor.id).sort(), ["cloudflare-pages", "cloudflare-workers", "github-pages", "netlify", "s3-compatible", "vercel"]);

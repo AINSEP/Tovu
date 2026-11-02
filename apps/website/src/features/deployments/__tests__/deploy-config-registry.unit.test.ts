@@ -2,8 +2,9 @@ import assert from "node:assert/strict";
 import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import test from "node:test";
+import test, { after, before } from "node:test";
 
+import { composedBundledSourceRoot, type DisposableSourceRoot } from "#src/features/agent-plugins/__tests__/fixtures/bundled-source-root";
 import { forceRemove } from "#src/features/agent-plugins/__tests__/fixtures/force-remove";
 
 import { DEPLOY_CONFIGS_FILENAME, loadDeployWorkflowFiles, loadDeployConfigGeneratorsFromSource, loadBundledDeployConfigGenerators, parseDeployConfigsFile, readDeployConfigTargetIdsFromSource, readBundledDeployConfigTargetIds } from "../deploy-config-registry.js";
@@ -15,10 +16,14 @@ import { DEPLOY_CONFIGS_FILENAME, loadDeployWorkflowFiles, loadDeployConfigGener
  * reported refusal, never a throw.
  */
 
-const BUNDLED_SOURCE_ROOT = path.resolve(import.meta.dirname, "../../../../../../content/agent-plugins");
+// fly, railway and render ship from @jini-ai/agent-plugins/<id> (D-W4): read the bundle the build
+// composes (Tovu content plus selected packages), not content/agent-plugins alone.
+let bundle: DisposableSourceRoot;
+before(async () => { bundle = await composedBundledSourceRoot(); });
+after(() => bundle.dispose());
 
 test("the bundled plugin union declares fly, railway, render in plugin-id order, each with a render()", async () => {
-  const registry = await loadBundledDeployConfigGenerators({ sourceRoot: BUNDLED_SOURCE_ROOT });
+  const registry = await loadBundledDeployConfigGenerators({ sourceRoot: bundle.root });
 
   assert.deepEqual(registry.refusals, []);
   assert.deepEqual(
@@ -103,7 +108,7 @@ test("parseDeployConfigsFile: rejects each malformed shape with its exact reason
 });
 
 test("readBundledDeployConfigTargetIds: all bundled ids in plugin-id order, without importing modules", () => {
-  assert.deepEqual(readBundledDeployConfigTargetIds({ sourceRoot: BUNDLED_SOURCE_ROOT }), ["fly", "railway", "render"]);
+  assert.deepEqual(readBundledDeployConfigTargetIds({ sourceRoot: bundle.root }), ["fly", "railway", "render"]);
 });
 
 test("readDeployConfigTargetIdsFromSource: a missing or invalid manifest yields no ids", async () => {

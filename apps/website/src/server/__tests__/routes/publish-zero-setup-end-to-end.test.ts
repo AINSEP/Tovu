@@ -25,7 +25,7 @@ import {
 } from "#src/features/publish-trust/provisioning";
 import { nodeProvisioningFileIo } from "#src/features/publish-trust/provisioning.node-io";
 import { readBundledDeployConfigCandidatePaths } from "#src/features/deployments/deploy-config-registry";
-import { resolveProductRoot } from "#src/platform/site-dir/product-root";
+import { composedBundledSourceRoot } from "#src/features/agent-plugins/__tests__/fixtures/bundled-source-root";
 import type { HttpClientPort } from "#src/platform/http/index";
 import type { KeyringPort } from "#src/features/webhooks/index";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
@@ -240,9 +240,12 @@ async function publishEverything(s: Awaited<ReturnType<typeof scenario>>, site: 
   return executePeerImport(transport, { bundleId: pushed.bundleId, confirmationToken, overwriteEntityKeys });
 }
 
-test("the address to confirm comes from the deploy config the repo already carries", async () => {
-  // The vendor config paths are plugin data; read them the way the composition root does.
-  const candidatePaths = readBundledDeployConfigCandidatePaths({ sourceRoot: join(resolveProductRoot(), "content", "agent-plugins") });
+test("the address to confirm comes from the deploy config the repo already carries", async (t) => {
+  // The vendor config paths are plugin data; read them the way the composition root does, from the
+  // bundle the build composes (fly ships from @jini-ai/agent-plugins/fly since D-W4).
+  const bundle = await composedBundledSourceRoot();
+  t.after(() => bundle.dispose());
+  const candidatePaths = readBundledDeployConfigCandidatePaths({ sourceRoot: bundle.root });
   const io = memoryIo({
     "fly.toml": ['app = "tovu"', "[env]", '  TOVU_PUBLIC_URL = "https://tovu.example"'].join("\n"),
   });

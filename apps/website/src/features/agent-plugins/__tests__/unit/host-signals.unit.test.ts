@@ -5,7 +5,7 @@ import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "nod
 import os from "node:os";
 import path from "node:path";
 import { parseHostSignalDeclaration, readBundledHostSignalDeclaration, resolveBundledHostSignals } from "../../host-signals.js";
-import { resolveProductRoot } from "../../../../platform/site-dir/index.js";
+import { agentPluginSourceDir } from "../../../../../../../development/test-support/agent-plugin-source.mjs";
 import { CORE_HOST_SIGNAL_FALLBACK } from "#src/contracts/core/host-signals";
 
 const signal = { env: "EXAMPLE_APP", facts: { hosted: true, nativeToolsRestricted: true, trustProxyHops: 1 }, label: "Example host" };
@@ -109,6 +109,7 @@ test("real synchronous bundled selection reads manifests, excludes retired/non-p
 });
 
 test("explicit shipped and unavailable payloads keep independent no-signal defaults", () => {
-  assert.deepEqual(resolveBundledHostSignals({ env: {}, bundledSourceRoot: path.join(resolveProductRoot(), "content", "agent-plugins") }).labels, []);
+  // fly, the shipped declarer, comes from @jini-ai/agent-plugins/fly (D-W4): read the folder that holds it.
+  assert.deepEqual(resolveBundledHostSignals({ env: {}, bundledSourceRoot: path.dirname(agentPluginSourceDir({ pluginId: "fly" })) }).labels, []);
   assert.deepEqual(resolveBundledHostSignals({ env: {}, bundledSourceRoot: "/missing-host-signals-payload" }).labels, []);
 });

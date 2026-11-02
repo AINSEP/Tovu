@@ -6,17 +6,18 @@ import test, { type TestContext } from "node:test";
 
 import { OBJECT_STORE_CONTRACT } from "@jini-ai/core/object-store";
 
+import { composedBundledSourceRoot } from "../../agent-plugins/__tests__/fixtures/bundled-source-root.js";
 import type { LoadPluginContributions } from "../../agent-plugins/lifecycle.js";
 import { loadBundledObjectStoreRegistry, loadObjectStoreRegistry, OBJECT_STORES_FILENAME, parseObjectStoresFile, type TovuObjectStoreProvider } from "../registry.js";
 
 /**
  * @file Tovu's object-store provider registry: the `tovu-object-stores.json` manifest parser, the
  * installed-plugin loader (with a fake contribution loader standing in for the lifecycle owner), and
- * the bundled-source loader run against the REAL `content/agent-plugins` tree and a temp tree of
+ * the bundled-source loader run against the REAL shipped bundle (Tovu content plus selected
+ * `@jini-ai/agent-plugins/<id>` packages, composed as the build composes it) and a temp tree of
  * deliberately broken plugins.
  */
 
-const BUNDLED_SOURCE_ROOT = path.resolve(import.meta.dirname, "../../../../../../content/agent-plugins");
 
 const manifest = (value: unknown) => parseObjectStoresFile({ raw: JSON.stringify(value) });
 
@@ -143,8 +144,10 @@ test("loadObjectStoreRegistry: the seeded local provider writes under uploadsDir
 // loadBundledObjectStoreRegistry
 // ---------------------------------------------------------------------------
 
-test("loadBundledObjectStoreRegistry: the real bundled source contributes s3_compatible from the s3-compatible plugin, with no refusals", async () => {
-  const { registry, refusals } = await loadBundledObjectStoreRegistry({ uploadsDir: "/nonexistent-uploads", sourceRoot: BUNDLED_SOURCE_ROOT });
+test("loadBundledObjectStoreRegistry: the real bundled source contributes s3_compatible from the s3-compatible plugin, with no refusals", async (t) => {
+  const bundle = await composedBundledSourceRoot();
+  t.after(() => bundle.dispose());
+  const { registry, refusals } = await loadBundledObjectStoreRegistry({ uploadsDir: "/nonexistent-uploads", sourceRoot: bundle.root });
   assert.deepEqual(refusals, []);
   assert.equal(registry.getDefault()?.id, "local");
   const s3 = registry.get({ id: "s3_compatible" });

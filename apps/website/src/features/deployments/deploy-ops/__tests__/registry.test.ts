@@ -2,24 +2,30 @@ import { bundledAgentPluginsDir } from "#src/server/runtime/composition/site-pat
 import { createTovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifecycle";
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 import assert from "node:assert/strict";
-import test from "node:test";
+import test, { after } from "node:test";
 import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { tmpdir } from "node:os";
 import { forceRemove } from "../../../agent-plugins/__tests__/fixtures/force-remove.js";
 import { bundledContributionSources } from "../../../agent-plugins/bundled-contribution-sources.js";
+import { composedBundledSourceRoot } from "../../../agent-plugins/__tests__/fixtures/bundled-source-root.js";
 import { fileURLToPath } from "node:url";
 import { loadDeployOpsRegistryFromSource, loadBundledDeployOpsRegistry, readBundledDeployOpsDescriptors, parseDeployOpsFile, requirePlatform } from "../registry.js";
 const FIXTURE_SOURCE_ROOT = fileURLToPath(new URL("./fixtures/", import.meta.url));
+// The shipped tree as the build composes it (Tovu content plus selected packages): fly, render and
+// railway ship from @jini-ai/agent-plugins/<id> since D-W4. Top-level so the per-package cases below
+// can be declared from it.
+const SHIPPED = await composedBundledSourceRoot();
+after(() => SHIPPED.dispose());
 test("a bundled ops manifest loads every contained module and refuses unknown ids", async () => {
   const registry = await loadBundledDeployOpsRegistry({ sourceRoot: FIXTURE_SOURCE_ROOT });
   assert.deepEqual(registry.list().map(p => ({ id: p.descriptor.id, hosts: p.descriptor.hosts })), [{ id: "example-host", hosts: ["api.example-host.dev", "logs.example-host.dev"] }, { id: "example-observer", hosts: ["api.example-host.dev"] }, { id: "example-pipeline", hosts: ["api.example-host.dev"] }]);
   assert.deepEqual(registry.refusals, []);
   assert.throws(() => requirePlatform(registry, "missing"), { message: "Unknown deployment ops platform 'missing'. Choose: example-host, example-observer, example-pipeline." });
   // Which vendors ship is each plugin's own test; core only proves the shipped tree loads without refusals.
-  const shipped = await loadBundledDeployOpsRegistry({ sourceRoot: path.resolve("content/agent-plugins") });
+  const shipped = await loadBundledDeployOpsRegistry({ sourceRoot: SHIPPED.root });
   assert.deepEqual(shipped.refusals, []);
-  assert.deepEqual(shipped.list().map(p => p.descriptor.id), readBundledDeployOpsDescriptors({ sourceRoot: path.resolve("content/agent-plugins") }).map(d => d.id));
+  assert.deepEqual(shipped.list().map(p => p.descriptor.id), readBundledDeployOpsDescriptors({ sourceRoot: SHIPPED.root }).map(d => d.id));
 });
 test("malformed manifests and missing modules are reported refusals, never thrown", async () => {
   const root = await mkdtemp(path.join(tmpdir(), "t01-ops-"));
@@ -82,7 +88,7 @@ test("invalid module and secrets-adapter shapes return exact refusals and are no
 
 // The owner gate needs a package this build really ships, so the case runs once per shipped ops package
 // rather than naming vendors; each package's files and platform ids come from its own manifest.
-for (const { pluginId, packageRoot } of bundledContributionSources({ sourceRoot: path.resolve("content/agent-plugins"), filename: "tovu-deploy-ops.json" })) {
+for (const { pluginId, packageRoot } of bundledContributionSources({ sourceRoot: SHIPPED.root, filename: "tovu-deploy-ops.json" })) {
   test(`installed ${pluginId} package must be active and match the bundled digest`, async () => {
     const { createHash } = await import("node:crypto");
     const { readFile } = await import("node:fs/promises");
@@ -91,7 +97,7 @@ for (const { pluginId, packageRoot } of bundledContributionSources({ sourceRoot:
     const { loadDeployOpsRegistry } = await import("../registry.js");
     const root = await mkdtemp(path.join(tmpdir(), "t01-ops-installed-"));
     const layout = resolveAgentPluginLayout({ siteDir: process.cwd() }, { env: { TOVU_AGENT_PLUGINS_DIR: root } });
-    const lifecycle = createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: bundledAgentPluginsDir() });
+    const lifecycle = createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: SHIPPED.root });
     try {
       const parsed = parseDeployOpsFile(await readFile(path.join(packageRoot, "tovu-deploy-ops.json"), "utf8"));
       assert.equal(parsed.ok, true);

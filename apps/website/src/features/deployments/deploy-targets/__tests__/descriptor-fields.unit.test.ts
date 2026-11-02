@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 
+import { composedBundledPluginDirs } from "#src/features/agent-plugins/__tests__/fixtures/bundled-source-root";
 import { parseDeployTargetsFile } from "../registry.js";
 import { loadBundledDeployTargets } from "./bundled-deploy-targets.fixture.js";
 
@@ -12,11 +13,11 @@ import { loadBundledDeployTargets } from "./bundled-deploy-targets.fixture.js";
  * `tovu-deploy-targets.json`, parsed and validated by the registry.
  */
 
-const BUNDLED_AGENT_PLUGINS_ROOT = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins");
 
 /** Every shipped hosting plugin's descriptor file, parsed and merged (each host is its own plugin). */
 function parseShippedDescriptors(): ReturnType<typeof parseDeployTargetsFile> {
-  const files = readdirSync(BUNDLED_AGENT_PLUGINS_ROOT).sort().map((dir) => path.join(BUNDLED_AGENT_PLUGINS_ROOT, dir, "tovu-deploy-targets.json")).filter((file) => existsSync(file));
+  // The hosts ship from @jini-ai/agent-plugins/<id> (D-W2/D-W3): every shipped plugin folder, in id order.
+  const files = composedBundledPluginDirs().map(({ dir }) => path.join(dir, "tovu-deploy-targets.json")).filter((file) => existsSync(file));
   const parsed = files.map((file) => parseDeployTargetsFile(readFileSync(file, "utf8")));
   const failed = parsed.find((result) => !result.ok);
   return failed ?? { ok: true, descriptors: parsed.flatMap((result) => (result.ok ? result.descriptors : [])) };

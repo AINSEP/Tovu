@@ -34,7 +34,8 @@ import { EXAMPLE_HOST_PLUGIN_ROOT, loadFixtureAuthSchemes } from "./fixture-auth
  * `detectSelfDescribingAuthScheme` that applies them. Replaces the old per-vendor recognizer tests
  * (`custom-credentials/providers/__tests__/`) with the same exact semantics, run against the rules the
  * neutral `example-host` fixture plugin ships (shaped like the real Fly.io `FlyV1` rule, which is
- * tested in `content/agent-plugins/fly/__tests__/credential-schemes.test.mjs`). Every token is SYNTHETIC, never a real credential.
+ * tested in `content/agent-plugin-overlays/fly/__tests__/credential-schemes.test.mjs` against
+ * `@jini-ai/agent-plugins/fly`). Every token is SYNTHETIC, never a real credential.
  * End-to-end proof that `credentialed-request.ts` applies the rules lives in
  * `credentialed-request.unit.test.ts` and `auth-failure-diagnostic.unit.test.ts`.
  */

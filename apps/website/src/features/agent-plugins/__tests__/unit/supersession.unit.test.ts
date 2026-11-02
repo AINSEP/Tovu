@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 import test from "node:test";
+import { agentPluginSourceDir } from "../../../../../../../development/test-support/agent-plugin-source.mjs";
 
-import { resolveProductRoot } from "../../../../platform/site-dir/index.js";
 
 import {
   createBundledSourceManifestReader, parseSupersedes, readSupersessions,
@@ -88,7 +88,8 @@ test("the bundled source reader reads <root>/<id>/plugin.json and refuses ids th
 });
 
 test("the shipped cloudflare manifest declares exactly the supersession core used to hard-code", async () => {
-  const reader = createBundledSourceManifestReader({ bundledSourceRoot: path.join(resolveProductRoot(), "content", "agent-plugins") });
+  // cloudflare ships from @jini-ai/agent-plugins/cloudflare (D-W3): the reader takes the folder holding it.
+  const reader = createBundledSourceManifestReader({ bundledSourceRoot: path.dirname(agentPluginSourceDir({ pluginId: "cloudflare" })) });
   const supersessions = await readSupersessions({ verdicts: [{ trusted: { pluginId: "cloudflare", packageRoot: "/unused" } }],
     manifests: { readInstalled: () => Promise.reject(new Error("an old install predates the declaration")), readBundledSource: reader } });
   assert.equal(supersededPackageRefusal({ supersessions, pluginId: "cloudflare-pages" }), "contributions from 'cloudflare-pages' were superseded by trusted 'cloudflare'");

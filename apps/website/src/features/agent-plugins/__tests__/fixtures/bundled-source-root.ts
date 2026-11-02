@@ -1,3 +1,4 @@
+import { existsSync, readdirSync, rmSync } from "node:fs";
 import { cp, mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -41,4 +42,28 @@ export async function selectedPluginSourceRoot({ pluginIds }: { readonly pluginI
   const root = await mkdtemp(path.join(tmpdir(), "tovu-selected-plugins-"));
   await copyPlugins(root, pluginIds);
   return { root, dispose: () => forceRemove(root) };
+}
+
+/**
+ * Every shipped plugin folder (Tovu's own plus each selected package), by plugin id, read in place:
+ * for synchronous readers of plugin data files that need no single root folder.
+ */
+export function composedBundledPluginDirs(): readonly { readonly pluginId: string; readonly dir: string }[] {
+  const contentRoot = path.join(REPO_ROOT, "content", "agent-plugins");
+  const contentIds = readdirSync(contentRoot, { withFileTypes: true }).filter((entry) => entry.isDirectory() && existsSync(path.join(contentRoot, entry.name, "plugin.json"))).map((entry) => entry.name);
+  return [...new Set([...contentIds, ...SELECTED_AGENT_PLUGIN_PACKAGES.keys()])].sort().map((pluginId) => ({ pluginId, dir: agentPluginSourceDir({ pluginId }) }));
+}
+
+let processRoot: Promise<string> | undefined;
+
+/**
+ * One composed bundle per test process, for fixtures that cache a registry loaded from it (its modules
+ * may import siblings later, so the folder lives until the process exits).
+ */
+export function processComposedBundledSourceRoot(): Promise<string> {
+  processRoot ??= composedBundledSourceRoot().then(({ root }) => {
+    process.once("exit", () => rmSync(root, { recursive: true, force: true }));
+    return root;
+  });
+  return processRoot;
 }

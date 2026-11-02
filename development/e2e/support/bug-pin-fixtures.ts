@@ -1,5 +1,5 @@
 import { spawn, type ChildProcess } from "node:child_process";
-import { copyFileSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, writeFileSync, watch } from "node:fs";
+import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync, watch } from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import type { APIRequestContext, PlaywrightWorkerArgs, TestInfo } from "@playwright/test";
@@ -8,6 +8,7 @@ import { test as journeyTest, expect } from "../journeys/_fixtures.js";
 import { createIsolatedJourneySite, JOURNEY_ADMIN_USER, JOURNEY_ADMIN_PASSWORD, type IsolatedJourneySite } from "./isolated-journey-site.js";
 import JourneySiteCleanupReporter from "./journey-site-cleanup-reporter.js";
 import { pickFreePort } from "../../scripts/free-port.mjs";
+import { agentPluginSourceDir } from "../../test-support/agent-plugin-source.mjs";
 import { pinSessionHeaders } from "./bug-pin-auth.js";
 
 export * from "@playwright/test";
@@ -162,9 +163,8 @@ async function runPinSite(
     if (testInfo.titlePath.includes("Bug pin: static-site-tab")) {
       // Preview/publish pins must stay credential-free, including every descriptor env alias:
       // a runner's real token would turn the expected local refusal into an outbound publish.
-      // Each hosting plugin ships its own targets file, so read every bundled one.
-      const pluginsRoot = path.join(REPO_ROOT, "content/agent-plugins");
-      const targets = readdirSync(pluginsRoot).map(dir => path.join(pluginsRoot, dir, "tovu-deploy-targets.json")).filter(file => existsSync(file))
+      // Each hosting plugin ships its own targets file; both ship from @jini-ai/agent-plugins/<id> (D-W2).
+      const targets = ["github-pages", "vercel"].map(pluginId => path.join(agentPluginSourceDir({ pluginId }), "tovu-deploy-targets.json")).filter(file => existsSync(file))
         .flatMap(file => (JSON.parse(readFileSync(file, "utf8")) as { targets: Array<{ id: string; env?: { tokenVars: string[] } }> }).targets);
       for (const target of targets) {
         if (target.id !== "github-pages" && target.id !== "vercel") continue;

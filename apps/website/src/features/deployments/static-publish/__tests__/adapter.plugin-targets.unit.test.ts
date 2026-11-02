@@ -4,6 +4,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import { agentPluginSourceDir } from "../../../../../../../development/test-support/agent-plugin-source.mjs";
 import test from "node:test";
 
 import type { DeployTarget } from "@jini-ai/devops/deploy";
@@ -36,10 +37,11 @@ import type { PublishCredentialSource, StaticPublishConfig } from "../types.js";
 const publishOutputDir = mkdtempSync(path.join(tmpdir(), "tovu-publish-plugin-targets-"));
 test.after(() => rmSync(publishOutputDir, { recursive: true, force: true }));
 
-const NETLIFY_MODULE_PATH = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins/netlify/targets/netlify.mjs");
-const CLOUDFLARE_MODULE_PATH = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins/cloudflare/targets/cloudflare-pages.mjs");
-const VERCEL_MODULE_PATH = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins/vercel/targets/vercel.mjs");
-const GITHUB_PAGES_MODULE_PATH = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins/github-pages/targets/github-pages.mjs");
+// The hosts ship from @jini-ai/agent-plugins/<id> (D-W2/D-W3): load each module where Tovu takes it from.
+const NETLIFY_MODULE_PATH = path.join(agentPluginSourceDir({ pluginId: "netlify" }), "targets/netlify.mjs");
+const CLOUDFLARE_MODULE_PATH = path.join(agentPluginSourceDir({ pluginId: "cloudflare" }), "targets/cloudflare-pages.mjs");
+const VERCEL_MODULE_PATH = path.join(agentPluginSourceDir({ pluginId: "vercel" }), "targets/vercel.mjs");
+const GITHUB_PAGES_MODULE_PATH = path.join(agentPluginSourceDir({ pluginId: "github-pages" }), "targets/github-pages.mjs");
 
 function credentialSource(extra: Record<string, string> = {}): PublishCredentialSource {
   return {
@@ -351,7 +353,7 @@ test("a supplied buildTarget (the target-construction test seam) still wins over
   assert.equal(result.ok, true);
 });
 
-const S3_COMPATIBLE_MODULE_PATH = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins/s3-compatible/targets/s3-compatible.mjs");
+const S3_COMPATIBLE_MODULE_PATH = path.join(agentPluginSourceDir({ pluginId: "s3-compatible" }), "targets/s3-compatible.mjs");
 
 for (const [id, modulePath] of [
   ["netlify", NETLIFY_MODULE_PATH],

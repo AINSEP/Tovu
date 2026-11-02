@@ -1,11 +1,11 @@
-import { bundledAgentPluginsDir } from "#src/server/runtime/composition/site-paths";
 import { resolveSiteRoot } from "#src/platform/site-dir/index";
 import { createTovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifecycle";
 import assert from "node:assert/strict";
-import test from "node:test";
+import test, { after, before } from "node:test";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { composedBundledSourceRoot, type DisposableSourceRoot } from "#src/features/agent-plugins/__tests__/fixtures/bundled-source-root";
 import { forceRemove } from "../../../agent-plugins/__tests__/fixtures/force-remove.js";
 import { resolveAgentPluginLayout } from "../../../agent-plugins/layout.js";
 import { loadDeployOpsRegistry } from "../registry.js";
@@ -14,9 +14,13 @@ import { loadDeployOpsRegistry } from "../registry.js";
  * The split upgrade of the retired `deploy` record across the bundled packages. The digest re-trust
  * cases that lived here ("the boot seeder re-trusts the new digest, so the deploy verb actually loads
  * after an upgrade") moved into content/agent-plugins/github/deploy-ops/__tests__/installed-deploy-verb.test.mjs,
- * and Fly's observe-only check into content/agent-plugins/fly/deploy-ops/__tests__/installed-observe-only.test.mjs.
+ * and Fly's observe-only check into content/agent-plugin-overlays/fly/__tests__/installed-observe-only.test.mjs.
  */
-const CONTENT_ROOT = path.resolve("content/agent-plugins");
+// fly, render and railway ship from @jini-ai/agent-plugins/<id> (D-W4): read the bundle the build
+// composes (Tovu content plus selected packages), not content/agent-plugins alone.
+let bundle: DisposableSourceRoot;
+before(async () => { bundle = await composedBundledSourceRoot(); });
+after(() => bundle.dispose());
 const WORKSPACE_ID = "workspace-local";
 
 async function withAgentPluginsDir<T>(fn: (layout: ReturnType<typeof resolveAgentPluginLayout>) => Promise<T>): Promise<T> {
@@ -37,12 +41,12 @@ for (const deployEnabled of [false, true]) {
     test(`split upgrade: deploy=${deployEnabled}, github=${githubEnabled} — Actions follows github, Fly follows deploy`, async () => {
       const { loadSourceControlProviderRegistry } = await import("../../../source-control/provider-registry.js");
       await withAgentPluginsDir(async layout => {
-        const lifecycle = createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: bundledAgentPluginsDir() });
+        const lifecycle = createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: bundle.root });
         const workspaceRoot = layout.forWorkspace(WORKSPACE_ID).root;
         await lifecycle.setAgentPluginActivation({ workspaceRoot, pluginId: "deploy", enabled: deployEnabled, actor: "operator" }, { origin: "bundled" });
         await lifecycle.setAgentPluginActivation({ workspaceRoot, pluginId: "github", enabled: githubEnabled, actor: "operator" }, { origin: "bundled" });
         const githubBefore = (await lifecycle.readAgentPluginActivations({ workspaceRoot })).plugins.github;
-        const result = await lifecycle.seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: CONTENT_ROOT });
+        const result = await lifecycle.seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: bundle.root });
         for (const pluginId of ["fly", "render", "railway", "github"]) assert.equal(result.outcomes.find(outcome => outcome.pluginId === pluginId)?.status, "seeded", pluginId);
         const ops = await loadDeployOpsRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: lifecycle.loadPluginContributions });
         assert.deepEqual(ops.refusals, []);

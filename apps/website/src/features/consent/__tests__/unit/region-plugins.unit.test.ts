@@ -1,8 +1,10 @@
 /** @file Region readers come only from the configured ingress plugin's data file; anything else is strict. */
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import test from 'node:test';
 import { resolveRegion } from '@jini-ai/cookie-consent/server';
+import { agentPluginSourceDir } from '../../../../../../../development/test-support/agent-plugin-source.mjs';
 import { CONSENT_CONTRIBUTIONS_FILENAME, loadSiteRegionResolvers, parseConsentContributions, toRegionResolvers } from '../../region-plugins.js';
 
 const request = (headers: Record<string, string>) => ({ header: (name: string) => headers[name] ?? null, ip: null });
@@ -18,7 +20,7 @@ test('schema 2 parses; region entries are kept and unknown kinds are skipped, no
 
 test('the bundled host plugins ship one valid reader each', async () => {
   for (const [plugin, header] of [['cloudflare', 'cf-ipcountry'], ['vercel', 'x-vercel-ip-country'], ['netlify', 'x-country']] as const) {
-    const raw = readFileSync(new URL(`../../../../../../../content/agent-plugins/${plugin}/${CONSENT_CONTRIBUTIONS_FILENAME}`, import.meta.url), 'utf8');
+    const raw = readFileSync(path.join(agentPluginSourceDir({ pluginId: plugin }), CONSENT_CONTRIBUTIONS_FILENAME), 'utf8');
     const parsed = parseConsentContributions({ raw });
     assert.ok(parsed.ok);
     const resolvers = toRegionResolvers({ entries: parsed.descriptors });

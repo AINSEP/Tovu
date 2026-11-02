@@ -5,6 +5,8 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
+import { agentPluginSourceDir } from "../../../../../../development/test-support/agent-plugin-source.mjs";
 import http from "node:http";
 import test, { type TestContext } from "node:test";
 import Database from "better-sqlite3";
@@ -67,7 +69,8 @@ async function sourceStore(t: TestContext, h: Awaited<ReturnType<typeof importFi
   server.listen(0, "127.0.0.1");
   await new Promise<void>(resolve => server.once("listening", resolve));
   t.after(() => new Promise<void>(resolve => server.close(() => resolve())));
-  const providerUrl = new URL("../../../../../../content/agent-plugins/s3-compatible/object-stores/s3-compatible.mjs", import.meta.url).href;
+  // s3-compatible ships from @jini-ai/agent-plugins/s3-compatible (D-W2).
+  const providerUrl = pathToFileURL(path.join(agentPluginSourceDir({ pluginId: "s3-compatible" }), "object-stores/s3-compatible.mjs")).href;
   const provider = (await import(providerUrl)).default;
   const created = provider.create({
     settings: { bucket: "bucket" },

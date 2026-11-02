@@ -1,4 +1,3 @@
-import { bundledAgentPluginsDir } from "#src/server/runtime/composition/site-paths";
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { cp, mkdtemp, rm } from "node:fs/promises";
@@ -6,6 +5,7 @@ import { promisify } from "node:util";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { agentPluginSourceDir } from "../../../../../../../development/test-support/agent-plugin-source.mjs";
 import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
 
 import { AgentPluginLinkedError, bindProviderFacePorts, followProviderActivations, linkedProviderOf, syncProviderFaces, type ProviderFacePorts } from "../../provider-plugin-link.js";
@@ -92,9 +92,9 @@ test("production ports read the shipped links and switch the real activation rec
   // Installed packages are read-only; make them writable so the temp tree can be removed.
   t.after(async () => { await chmod({ root }); await rm(root, { recursive: true, force: true }); });
   const sourceRoot = path.join(root, "bundled");
-  for (const name of ["posthog", "sentry", "opentelemetry", "vercel"]) await cp(path.resolve("content/agent-plugins", name), path.join(sourceRoot, name), { recursive: true });
+  for (const name of ["posthog", "sentry", "opentelemetry", "vercel"]) await cp(agentPluginSourceDir({ pluginId: name }), path.join(sourceRoot, name), { recursive: true });
   const layout = resolveAgentPluginLayout({ siteDir: root }, { env: {} });
-  await createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: bundledAgentPluginsDir() }).seedBundledAgentPlugins({ layout, workspaceId: "ws", sourceRoot });
+  await createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: sourceRoot }).seedBundledAgentPlugins({ layout, workspaceId: "ws", sourceRoot });
   const ports = bindProviderFacePorts({ workspaceRoot: () => layout.forWorkspace("ws").root });
   const links = await ports.links({});
   assert.deepEqual([...links].filter(([face]) => ["posthog", "sentry", "opentelemetry"].includes(face)).sort(),

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import { agentPluginSourceDir } from "../../../../../../development/test-support/agent-plugin-source.mjs";
 import test from "node:test";
 
 import { buildFormDestinationRegistry, loadFormDestinationRegistryFromSource, parseFormDestinationsFile } from "../registry.js";
@@ -8,7 +9,8 @@ import type { FormDestinationDescriptor, FormDestinationModule, LoadedFormDestin
 
 /** @file The form destination category's parse, module-shape and cross-plugin rules, and the real bundled file. */
 
-const PLUGIN_ROOT = path.resolve(import.meta.dirname, "../../../../../../content/agent-plugins/cloudflare");
+// cloudflare ships from @jini-ai/agent-plugins/cloudflare (D-W3).
+const PLUGIN_ROOT = agentPluginSourceDir({ pluginId: "cloudflare" });
 const file = (destinations: unknown[]) => JSON.stringify({ schemaVersion: 1, destinations });
 const cohosted = { id: "co", label: "Co", module: "d/co.mjs", receive: "co-hosted", hosts: ["host-a"] };
 const receiving: FormDestinationModule = { pull: async () => ({ items: [], nextAfter: 0, hasMore: false }), ack: async () => ({ acknowledged: 0 }) };

@@ -2,6 +2,9 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { stripComments } from "#src/platform/db/kernel/__tests__/raw-sqlite-scan";
+import { SELECTED_AGENT_PLUGIN_PACKAGES } from "#src/features/agent-plugins/bundled-catalog";
+
+import { agentPluginSourceDir } from "../../../../../../../development/test-support/agent-plugin-source.mjs";
 
 /**
  * @file Single vendor-text boundary (vendor extraction phase 11, PLAN.md + coordinator REVIEW.md).
@@ -85,13 +88,22 @@ function supplementalAliases({ id, aliases, vendors }: { id: string; aliases: un
   return aliasesOf({ value: aliases });
 }
 
+/**
+ * Every shipped manifest path: Tovu's own `content/agent-plugins/<id>` plus, for this checkout, each
+ * plugin selected from `@jini-ai/agent-plugins/<id>` (D-W1 onward), so a vendor whose plugin left the
+ * content folder keeps its vocabulary in the guard. A fixture repo root ships no packages.
+ */
+function shippedManifestFiles({ repoRoot }: { repoRoot: string }, { io }: { io: Io }): string[] {
+  const directory = path.join(repoRoot, "content/agent-plugins");
+  const own = io.readdirSync(directory, { withFileTypes: true }).filter((child) => child.isDirectory()).map((child) => path.join(directory, child.name));
+  const selected = repoRoot === REPO_ROOT ? [...SELECTED_AGENT_PLUGIN_PACKAGES.keys()].map((pluginId) => agentPluginSourceDir({ pluginId })) : [];
+  return [...own, ...selected].map((dir) => path.join(dir, "plugin.json"));
+}
+
 /** Read manifests as data, independently of plugin activation. One read per bundled manifest. */
 export function loadVendorRules({ vocabulary }: Pick<VendorPolicy, "vocabulary">, { repoRoot = REPO_ROOT, io = fs }: DiskOptions = {}): VendorRule[] {
-  const directory = path.join(repoRoot, "content/agent-plugins");
   const vendors = new Map<string, string[]>();
-  for (const child of io.readdirSync(directory, { withFileTypes: true })) {
-    if (!child.isDirectory()) continue;
-    const file = path.join(directory, child.name, "plugin.json");
+  for (const file of shippedManifestFiles({ repoRoot }, { io })) {
     const manifest = manifestVocabulary({ file }, { io });
     if (!manifest) continue;
     if (vendors.has(manifest.id)) throw new TypeError(`Duplicate plugin name: ${manifest.id}`);

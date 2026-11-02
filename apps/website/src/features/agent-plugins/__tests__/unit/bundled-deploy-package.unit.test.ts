@@ -1,4 +1,3 @@
-import { bundledAgentPluginsDir } from "#src/server/runtime/composition/site-paths";
 import { resolveSiteRoot } from "#src/platform/site-dir/index";
 import { createTovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifecycle";
 
@@ -9,8 +8,10 @@ import assert from "node:assert/strict";
 import { cp, mkdtemp, readdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import test from "node:test";
+import test, { after, before } from "node:test";
 
+import { agentPluginSourceDir } from "../../../../../../../development/test-support/agent-plugin-source.mjs";
+import { composedBundledSourceRoot, type DisposableSourceRoot } from "../fixtures/bundled-source-root.js";
 import { forceRemove } from "../fixtures/force-remove.js";
 
 import { packAgentPluginDirectory } from "../../lifecycle.js";
@@ -29,7 +30,11 @@ import { DEPLOY_TARGETS_FILENAME, loadDeployTargetRegistry } from "#src/features
  * imported from `<pluginId>/package/sha256/<digest>/`).
  */
 
-const CONTENT_ROOT = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins");
+// The hosting plugins ship from @jini-ai/agent-plugins/<id> (D-W2..D-W4); tests seed the bundle the
+// build composes (Tovu content plus selected packages) and read each plugin where Tovu takes it from.
+let bundle: DisposableSourceRoot;
+before(async () => { bundle = await composedBundledSourceRoot(); });
+after(() => bundle.dispose());
 const WORKSPACE_ID = "workspace-local";
 
 /** Every publish target, the bundled plugin that ships it, and its label. Target ids are the legacy
@@ -49,11 +54,11 @@ async function readPackageJson(relativePath: string, packageRoot: string): Promi
 }
 
 // The Fly package's own manifest/mcp/skill/packing tests moved to
-// content/agent-plugins/fly/__tests__/package-manifest.test.mjs (vendor tests live with the vendor).
+// content/agent-plugin-overlays/fly/__tests__/package-manifest.test.mjs (vendor tests live with the vendor).
 
 test("each plugin's target ids are the legacy provider ids it owns (sealed credentials bind to them)", async () => {
   for (const pluginId of new Set(TARGETS.map((target) => target.pluginId))) {
-    const descriptor = (await readPackageJson(DEPLOY_TARGETS_FILENAME, path.join(CONTENT_ROOT, pluginId))) as { targets: { id: string; module: string }[] };
+    const descriptor = (await readPackageJson(DEPLOY_TARGETS_FILENAME, agentPluginSourceDir({ pluginId }))) as { targets: { id: string; module: string }[] };
     assert.deepEqual(
       descriptor.targets.map((target) => [target.id, target.module]),
       TARGETS.filter((target) => target.pluginId === pluginId).map((target) => [target.id, `targets/${target.id}.mjs`]),
@@ -67,7 +72,7 @@ const EXTRA_PROVIDES: Readonly<Record<string, readonly string[]>> = { cloudflare
 
 for (const host of HOST_PLUGINS) {
   test(`${host.pluginId}: a valid hosting plugin of its own, with its skill, descriptor and module packed`, async () => {
-    const packageRoot = path.join(CONTENT_ROOT, host.pluginId);
+    const packageRoot = agentPluginSourceDir({ pluginId: host.pluginId });
     const manifest = await readPackageJson("plugin.json", packageRoot);
     const parsed = parseAgentPluginManifest({ value: manifest });
     assert.equal(parsed.ok && parsed.manifest.name, host.pluginId);
@@ -104,12 +109,12 @@ test("existing site: an earlier explicitly ENABLED deploy record is retired at t
     // Retirement preserves existing consent to deploy when moving to the split host plugins.
     await setAgentPluginActivation({ workspaceRoot, pluginId: "deploy", enabled: true, actor: "test:operator" }, { origin: "bundled" });
 
-    await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: CONTENT_ROOT });
+    await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: bundle.root });
     // `deploy` is retired (Phase B7): its record goes once every successor is seeded.
     const { plugins } = await readAgentPluginActivations({ workspaceRoot: workspaceRoot });
     assert.equal(Object.hasOwn(plugins, "deploy"), false);
     for (const host of HOST_PLUGINS) assert.equal(plugins[host.pluginId]?.enabled, true, host.pluginId);
-    const registry = await loadDeployTargetRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }) }, { bundledSourceRoot: bundledAgentPluginsDir() }).loadPluginContributions });
+    const registry = await loadDeployTargetRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }) }, { bundledSourceRoot: bundle.root }).loadPluginContributions });
     for (const target of TARGETS) assert.equal(registry.get(target.id)?.pluginId, target.pluginId, target.id);
   });
 });
@@ -118,7 +123,7 @@ test("an untouched disabled deploy seed retires without enabling opt-in hosts", 
   await withAgentPluginsDir(async (layout) => {
     const workspaceRoot = layout.forWorkspace(WORKSPACE_ID).root;
     await recordBundledAgentPluginIfAbsent({ workspaceRoot, pluginId: "deploy" });
-    await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: CONTENT_ROOT });
+    await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: bundle.root });
     const { plugins } = await readAgentPluginActivations({ workspaceRoot });
     assert.equal(Object.hasOwn(plugins, "deploy"), false);
     for (const pluginId of ["fly", "render", "railway", ...HOST_PLUGINS.map(host => host.pluginId)]) {
@@ -133,7 +138,7 @@ test("an existing site whose operator switched deploy off keeps the split-out ho
     // A site seeded before the split: only `deploy` has a record, and an operator turned it off.
     await setAgentPluginActivation({ workspaceRoot, pluginId: "deploy", enabled: false, actor: "test:operator" }, { origin: "bundled" });
 
-    await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: CONTENT_ROOT });
+    await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: bundle.root });
     const { plugins } = await readAgentPluginActivations({ workspaceRoot });
     for (const host of HOST_PLUGINS) assert.equal(plugins[host.pluginId]?.enabled, false, host.pluginId);
     assert.equal(plugins.github?.enabled, true, "other seeded-enabled plugins are unaffected");
@@ -142,18 +147,18 @@ test("an existing site whose operator switched deploy off keeps the split-out ho
 
 test("an operator who switched fly (deploy's server successor) off stays switched off across boots", async () => {
   await withAgentPluginsDir(async (layout) => {
-    await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: CONTENT_ROOT });
+    await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: bundle.root });
     const workspaceRoot = layout.forWorkspace(WORKSPACE_ID).root;
     await setAgentPluginActivation({ workspaceRoot, pluginId: "fly", enabled: false, actor: "test:operator" });
 
-    await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: CONTENT_ROOT });
+    await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: bundle.root });
     assert.equal((await readAgentPluginActivations({ workspaceRoot: workspaceRoot })).plugins.fly?.enabled, false);
   });
 });
 
 test("seeded by the real seeder, hosts start disabled, explicit enable loads targets, deploy is never seeded, and the registry loads Netlify from the installed digest", async () => {
   await withAgentPluginsDir(async (layout) => {
-    const seeded = await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: CONTENT_ROOT });
+    const seeded = await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: bundle.root });
     for (const pluginId of ["fly", ...HOST_PLUGINS.map((host) => host.pluginId)]) {
       assert.equal(seeded.outcomes.find((outcome) => outcome.pluginId === pluginId)?.status, "seeded", pluginId);
     }
@@ -166,13 +171,13 @@ test("seeded by the real seeder, hosts start disabled, explicit enable loads tar
     for (const outcome of seeded.outcomes.filter((item) => item.status === "seeded" && !BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED.has(item.pluginId))) {
       assert.equal(activations.plugins[outcome.pluginId]?.enabled, false, `${outcome.pluginId}: every other bundled plugin still seeds disabled`);
     }
-    const inactive = await loadDeployTargetRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: bundledAgentPluginsDir() }).loadPluginContributions });
+    const inactive = await loadDeployTargetRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: bundle.root }).loadPluginContributions });
     assert.deepEqual(inactive.list(), []);
     for (const host of HOST_PLUGINS) {
       await setAgentPluginActivation({ workspaceRoot: layout.forWorkspace(WORKSPACE_ID).root, pluginId: host.pluginId, enabled: true, actor: "test:operator" }, { origin: "bundled" });
     }
 
-    const registry = await loadDeployTargetRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }) }, { bundledSourceRoot: bundledAgentPluginsDir() }).loadPluginContributions });
+    const registry = await loadDeployTargetRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }) }, { bundledSourceRoot: bundle.root }).loadPluginContributions });
     assert.deepEqual(registry.refusals, []);
     // Plugin-id order (`orderByPluginId`), the order the Static site tab lists hosts in.
     assert.deepEqual(registry.list().map((target) => target.pluginId), [...TARGETS].sort((a, b) => (a.pluginId < b.pluginId ? -1 : a.pluginId > b.pluginId ? 1 : 0)).map((target) => target.pluginId));
@@ -189,7 +194,7 @@ test("upgrade: a site holding an OLDER bundled host digest serves the new one af
   const owner = TARGETS.find((target) => target.id === "netlify")!.pluginId;
   const sourceRoot = await mkdtemp(path.join(tmpdir(), "tovu-deploy-source-"));
   try {
-    await cp(path.join(CONTENT_ROOT, owner), path.join(sourceRoot, owner), { recursive: true });
+    await cp(agentPluginSourceDir({ pluginId: owner }), path.join(sourceRoot, owner), { recursive: true });
     await withAgentPluginsDir(async (layout) => {
       await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot });
       await setAgentPluginActivation({ workspaceRoot: layout.forWorkspace(WORKSPACE_ID).root, pluginId: owner, enabled: true, actor: "test:operator" }, { origin: "bundled" });
@@ -206,7 +211,7 @@ test("upgrade: a site holding an OLDER bundled host digest serves the new one af
       const packages = await readdir(layout.forWorkspace(WORKSPACE_ID).pluginPackagesDir({ pluginId: owner }));
       assert.equal(packages.length, 2, "bundled seeding retains the superseded digest");
 
-      const registry = await loadDeployTargetRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }) }, { bundledSourceRoot: bundledAgentPluginsDir() }).loadPluginContributions });
+      const registry = await loadDeployTargetRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }) }, { bundledSourceRoot: bundle.root }).loadPluginContributions });
       assert.deepEqual(registry.refusals, []);
       assert.equal(registry.get("netlify")?.descriptor.label, "Netlify (next build)");
     });

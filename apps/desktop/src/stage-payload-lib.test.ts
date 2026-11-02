@@ -18,6 +18,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { agentPluginSourceDir } from "../../../development/test-support/agent-plugin-source.mjs";
 
 import {
   assertClosureComplete,
@@ -43,7 +44,8 @@ import {
 test("desktop payload ships the Fly host-signal declaration as unchanged plain data", t => {
   const repoRoot = tempDir();
   t.after(() => fs.rmSync(repoRoot, { recursive: true, force: true }));
-  const sourceManifest = fs.readFileSync(new URL("../../../content/agent-plugins/fly/plugin.json", import.meta.url), "utf8");
+  // fly ships from @jini-ai/agent-plugins/fly (D-W4); the build composes it into dist/content/agent-plugins.
+  const sourceManifest = fs.readFileSync(path.join(agentPluginSourceDir({ pluginId: "fly" }), "plugin.json"), "utf8");
   for (const relative of ["dist/content/agent-plugins/fly", "apps/admin/dist", "apps/site-chat/dist"]) {
     fs.mkdirSync(path.join(repoRoot, relative), { recursive: true });
   }

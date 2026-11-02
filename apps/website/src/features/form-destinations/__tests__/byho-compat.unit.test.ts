@@ -4,6 +4,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import { agentPluginSourceDir } from "../../../../../../development/test-support/agent-plugin-source.mjs";
 import test from "node:test";
 
 import type { DeployPublishInput, DeployPublishOptions, DeployTarget } from "@jini-ai/devops/deploy";
@@ -31,7 +32,8 @@ import type { FormDestinationForm } from "../types.js";
 const publishOutputDir = mkdtempSync(path.join(tmpdir(), "tovu-form-destination-compat-"));
 test.after(() => rmSync(publishOutputDir, { recursive: true, force: true }));
 
-const PLUGIN_ROOT = path.resolve(import.meta.dirname, "../../../../../../content/agent-plugins/cloudflare");
+// cloudflare ships from @jini-ai/agent-plugins/cloudflare (D-W3).
+const PLUGIN_ROOT = agentPluginSourceDir({ pluginId: "cloudflare" });
 const HOST = "cloudflare-workers";
 const ORIGIN = "https://byho.io";
 const KEY = "b".repeat(43);

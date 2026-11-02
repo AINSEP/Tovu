@@ -2,7 +2,8 @@
 import { test } from "../support/bug-pin-fixtures.js";
 import { PUBLIC_URL as PIN_PUBLIC_URL } from "../support/bug-pin-fixtures.js";
 import { JOURNEY_ADMIN_PASSWORD as PIN_PASSWORD } from "../support/bug-pin-fixtures.js";
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { composedBundledPluginDirs } from "../../../apps/website/src/features/agent-plugins/__tests__/fixtures/bundled-source-root.js";
 import path from "node:path";
 import ts from "typescript";
 import { ADDONS_PANEL_PATHS } from "../support/addons-route-fixture.js";
@@ -202,10 +203,10 @@ const tabPages: TabPage[] = [
   { route: "observability", ids: tabValues("observability/Observability.tsx", "tabs", "id"), shell: true, clickOnly: true },
 ];
 const categories = tabValues("security/rules.ts", "ACCESS_TOKEN_CATEGORIES", "id");
-// Each hosting plugin ships its own targets file: read every bundled one, in plugin-id order.
-const bundledPluginsRoot = path.join(REPO_ROOT, "content/agent-plugins");
-const publishTargets = readdirSync(bundledPluginsRoot).sort()
-  .map(dir => path.join(bundledPluginsRoot, dir, "tovu-deploy-targets.json")).filter(file => existsSync(file))
+// Each hosting plugin ships its own targets file: read every shipped one (Tovu content plus selected
+// @jini-ai/agent-plugins/<id> packages), in plugin-id order.
+const publishTargets = composedBundledPluginDirs()
+  .map(({ dir }) => path.join(dir, "tovu-deploy-targets.json")).filter(file => existsSync(file))
   .flatMap(file => (JSON.parse(readFileSync(file, "utf8")) as { targets: Array<{ id: string; label: string }> }).targets);
 const uiExecutionSource = path.join(REPO_ROOT, "apps/admin/node_modules/@jini-ai/ui/src/features/execution/constants.ts");
 const providerPresets = readLiteralArray(uiExecutionSource, "DEFAULT_PROVIDER_PRESETS").map(element => {
