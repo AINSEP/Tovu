@@ -10,7 +10,7 @@ import { renderLazySiteChatMarkup } from '../../http/site/site-chat-markup.js';
 import { SITE_CONSENT_DEFAULTS } from '#src/features/consent/config';
 import { resolveSiteConsentOrigin } from '../site-consent.js';
 
-test('consent origin uses only same-scheme, same-port loopback Host aliases', t => {
+test('consent origin uses the request\'s own loopback Host alias when the configured origin is loopback', t => {
   const original = process.env.TOVU_PUBLIC_URL;
   t.after(() => {
     if (original === undefined) delete process.env.TOVU_PUBLIC_URL;
@@ -22,8 +22,11 @@ test('consent origin uses only same-scheme, same-port loopback Host aliases', t 
     ['127.45.67.89:3000', 'https', 'https://127.45.67.89:3000'],
     ['localhost:3000', 'https', 'https://localhost:3000'],
     ['[::1]:3000', 'https', 'https://[::1]:3000'],
-    ['127.0.0.1:3001', 'https', 'https://localhost:3000'],
-    ['127.0.0.1:3000', 'http', 'https://localhost:3000'],
+    // A local dev site may be served over plain HTTP or on another port than a copied loopback
+    // TOVU_PUBLIC_URL names (owner 11-02: the cookie banner 403'd on http://localhost:3002).
+    ['127.0.0.1:3001', 'https', 'https://127.0.0.1:3001'],
+    ['127.0.0.1:3000', 'http', 'http://127.0.0.1:3000'],
+    ['localhost:3002', 'http', 'http://localhost:3002'],
     ['site.example:3000', 'https', 'https://localhost:3000'],
     ['localhost.attacker.example:3000', 'https', 'https://localhost:3000'],
     ['[invalid', 'https', 'https://localhost:3000'],

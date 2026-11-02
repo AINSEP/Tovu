@@ -37,7 +37,11 @@ export const CONSENT_RECEIPTS_DIR_NAME = "consent-receipts";
 /** Twenty choices per ten minutes per address (/64 for IPv6), with a small burst for retries. */
 export const CONSENT_SAVE_PROFILE: RateLimitProfile = { windowSeconds: 600, max: 20, burst: 5 };
 
-/** Keep the public origin pinned except for loopback aliases on the same scheme and port.
+/** Keep a public configured origin pinned; a loopback one yields to the request's own loopback origin.
+ * A loopback configured origin means a local site, which may be served over HTTP or on another
+ * port than a copied TOVU_PUBLIC_URL names (owner 11-02: banner saves 403'd on http://localhost:3002).
+ * The browser's Origin header is still compared with this request's own loopback origin, so other
+ * local ports and DNS-rebinding hosts (non-loopback Host) stay refused.
  * Only Host identifies this request; X-Forwarded-Host must never widen consent's origin check.
  * Invalid request hosts retain the configured origin. Configuration errors still propagate.
  * @complexity O(1), bounded request headers; no I/O. */
@@ -47,8 +51,7 @@ export function resolveSiteConsentOrigin({ request }: { request: Request }, _opt
   if (!loopback.test(configured.hostname)) return configured.origin;
   try {
     const own = new URL(`${resolveProtocol(request)}://${request.get('host')}`);
-    return loopback.test(own.hostname) && own.protocol === configured.protocol && own.port === configured.port
-      ? own.origin : configured.origin;
+    return loopback.test(own.hostname) ? own.origin : configured.origin;
   } catch { return configured.origin; }
 }
 
