@@ -46,6 +46,11 @@ test('F3b class guard: confirm and frontend credentials apply identical visitor 
     { name: 'canonical', origin: 'https://public.test', serving: 'https://preview.site.test', allowed: true },
     ...['https://preview.site.test', 'http://localhost:5174', 'http://127.0.0.1:4100'].map(serving =>
       ({ name: `serving host ${serving}`, origin: serving, serving, allowed: true })),
+    { name: 'host case', origin: 'https://preview.site.test', serving: 'https://Preview.Site.Test', allowed: true },
+    { name: 'explicit HTTPS default port', origin: 'https://preview.site.test', serving: 'https://Preview.Site.Test:443', allowed: true },
+    { name: 'explicit HTTP default port', origin: 'http://preview.site.test', serving: 'http://Preview.Site.Test:80', allowed: true },
+    { name: 'matching nondefault port', origin: 'https://preview.site.test:8443', serving: 'https://Preview.Site.Test:8443', allowed: true },
+    { name: 'missing nondefault serving port', origin: 'https://preview.site.test', serving: 'https://Preview.Site.Test:8443', allowed: false },
     { name: 'foreign', origin: 'https://foreign.test', serving: 'https://preview.site.test', allowed: false },
     { name: 'wrong port', origin: 'https://preview.site.test:8443', serving: 'https://preview.site.test', allowed: false },
     { name: 'wrong scheme', origin: 'http://preview.site.test', serving: 'https://preview.site.test', allowed: false },
@@ -60,7 +65,8 @@ test('F3b class guard: confirm and frontend credentials apply identical visitor 
       const f = policyFixture();
       const serving = new URL(row.serving);
       const body = { challengeId: 'a'.repeat(22), allow: true };
-      const headers = { host: serving.host, 'x-forwarded-proto': serving.protocol.slice(0, -1),
+      // Preserve the wire Host: URL.host would erase case/default ports before the policy sees them.
+      const headers = { host: row.serving.split('://')[1]!, 'x-forwarded-proto': serving.protocol.slice(0, -1),
         referer: `${row.serving}/page`, 'content-type': 'application/json', 'content-length': String(Buffer.byteLength(JSON.stringify(body))),
         ...(row.origin === undefined ? {} : { origin: row.origin }),
         ...(fetchSite === undefined ? {} : { 'sec-fetch-site': fetchSite }),
@@ -79,6 +85,7 @@ test('F3b class guard: confirm and frontend credentials apply identical visitor 
   // Only safe reads may use Referer; a present Origin always takes precedence.
   const readOrigins: { name: string; headers: Record<string, string>; allowed: boolean }[] = [
     { name: 'serving Referer only', headers: { referer: 'https://preview.site.test/page' }, allowed: true },
+    { name: 'serving Referer with normalized Host', headers: { host: 'Preview.Site.Test:443', referer: 'https://preview.site.test/page' }, allowed: true },
     { name: 'canonical Referer only', headers: { referer: 'https://public.test/page' }, allowed: true },
     { name: 'foreign Referer only', headers: { referer: 'https://foreign.test/page' }, allowed: false },
     { name: 'neither Origin nor Referer', headers: {}, allowed: false },

@@ -23,6 +23,8 @@ export async function allowsVisitorRequestOrigin({ req, method, allowsOrigin }: 
   const raw = req.get('origin') ?? (['GET', 'HEAD'].includes(method) ? req.get('referer') : undefined);
   if (!raw || !normalizeOriginCandidate({ rawUrl: raw })) return false;
   const origin = new URL(raw).origin;
-  if (origin === `${resolveProtocol(req)}://${req.get('host')}`) return true;
+  const serving = `${resolveProtocol(req)}://${req.get('host')}`;
+  // Serialize both sides alike: Host case and explicit default ports do not change an origin.
+  if (normalizeOriginCandidate({ rawUrl: serving }) && origin === new URL(serving).origin) return true;
   return allowsOrigin({ origin });
 }
