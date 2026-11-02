@@ -51,7 +51,7 @@ test('MainHeader: manage tools, a gap, then the ways to get a site in, Create la
   const view = renderHeader(t);
   const order = [...view.tools()!.children].map((child) =>
     child.getAttribute('aria-label') ?? (child.classList.contains('main__tools-gap') ? 'gap' : child.textContent?.trim()));
-  const at = (name: string | undefined) => order.indexOf(name);
+  const at = (name: string) => order.indexOf(name);
   assert.ok(at('Rescan') < at('Shared keys'), 'Rescan leads the manage group');
   assert.ok(at('Shared keys') < at('gap') && at('gap') < at('Import site'), 'a gap separates the groups');
   assert.ok(at('Import site') < at('Add Tovu Website') && at('Add Tovu Website') < order.findIndex((label) => label?.includes('Create website')));
