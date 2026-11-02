@@ -1385,10 +1385,14 @@ describe("useAssistantTransport — the send-time execution re-read", () => {
   it("Stop during the wake still cancels the send", async () => {
     const { startRun, createTransport } = fakeTransport();
     const executionConfigRef = { current: { ...localCliConfig({ agentId: "codex" }), mode: "local-cli" } as ExecutionConfig };
-    const stop = new AbortController(); stop.abort();
-    const prepareBinding = vi.fn().mockRejectedValue(new DOMException("stopped", "AbortError"));
+    // Since 3e4c02499 pageBindToken rethrows the caller's own abort reason, not the wake's error,
+    // so Stop is pressed mid-wake with a reason and the wake fails with an unrelated error.
+    const stop = new AbortController();
+    const reason = new DOMException("stopped", "AbortError");
+    const prepareBinding = vi.fn(async () => { stop.abort(reason); throw new Error("the wake failed"); });
     const { result } = renderHook(() => useAssistantTransport({ executionConfigRef }, { createTransport, prepareBinding }));
-    await expect(result.current.startRun({ agentId: "codex", signal: stop.signal } as unknown as RunInput, handlers)).rejects.toThrow("stopped");
+    await expect(result.current.startRun({ agentId: "codex", signal: stop.signal } as unknown as RunInput, handlers)).rejects.toBe(reason);
+    expect(prepareBinding).toHaveBeenCalledTimes(1);
     expect(startRun).not.toHaveBeenCalled();
   });
 });
