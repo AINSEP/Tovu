@@ -116,7 +116,7 @@ import { resolveAdminDevProxyUrl } from "../admin-dev-proxy.ts";
 // live in `startup-env.ts`, where they are tested; this file passes `process.env` to them.
 import { isSupervisedSiteUrl } from "../supervised-site-url.ts";
 import { readSiteName as readSiteNameIn } from "../site-name.ts";
-import { isUnattendedSiteLaunch as isUnattendedSiteLaunchIn, resolveCliMode as resolveCliModeIn, sitesUiRequested as sitesUiRequestedIn, type CliMode, type RejectedDefault } from "../startup-env.ts";
+import { isUnattendedSiteLaunch as isUnattendedSiteLaunchIn, resolveCliMode as resolveCliModeIn, type CliMode, type RejectedDefault } from "../startup-env.ts";
 import { resolveSiteDir, resolveOrInitSiteDir, adoptSiteDir, classifySiteDirSafely, stateFilePath, existingRecentSiteDirs, SiteDirSelectionCancelled } from "../site-dir-store.ts";
 import { registryDirPath, reconcileOrphans, recordSiteOpened, recordSiteClosed, readRegistry, isLiveServeRow } from "../site-process-registry.ts";
 import { createExternalSiteStopper } from "../external-site-stop.ts";
@@ -155,7 +155,6 @@ import { addSitePointer } from "../add-site-pointer.ts";
 import { registerSitesMcpServer, writeSitesMcpLauncher } from "../sites-mcp-registration.ts";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { resolveDesktopRoots } from "../packaged-paths.ts";
-import { sitesHomeMenuTemplate } from "../site-history-menu.ts";
 import { readWindowBounds, writeWindowBounds } from "../window-bounds-store.ts";
 import { registerSpellCheckContextMenu } from "../spellcheck-menu.ts";
 import { readAutomaticUpdates, writeAutomaticUpdates } from "../desktop-update-preference.ts";
@@ -182,7 +181,8 @@ import { createSiteBackend } from "./boot/site-backend.ts";
 import { createSitePreviewCapture, createPreviewTargetResolver, createListedPreviewRequests, sweepSitePreviewsOnBoot as sweepSitePreviewsOnBootIn, PREVIEW_CAPTURE_DEBOUNCE_MS } from "./boot/site-preview.ts";
 import { reportBootFailure as reportBootFailureIn, buildSelftestTracker as buildSelftestTrackerIn } from "./boot/boot-failure.ts";
 import { resolveStartupSiteDirs as resolveStartupSiteDirsIn, reconcileOrphansOnBoot as reconcileOrphansOnBootIn, bootOwnServerMode as bootOwnServerModeIn } from "./boot/own-server-boot.ts";
-import { applyUserDataDir, prepareNodeToolchainEnv, settleDevFallbackRows, createSiteDiscoveryLanes, settleLegacyOwnerStoreOnStart as settleLegacyOwnerStoreOnStartIn } from "./boot/boot-steps.ts";
+import { applyUserDataDir, chooseBootMode, prepareNodeToolchainEnv, settleDevFallbackRows, createSiteDiscoveryLanes, settleLegacyOwnerStoreOnStart as settleLegacyOwnerStoreOnStartIn } from "./boot/boot-steps.ts";
+import { appWideMenuTemplate, openSingleWindow, runDesktopBoot, runSitesHomeBoot, type SingleWindowPorts } from "./boot/boot-sequence.ts";
 
 /** `apps/desktop` (the `.asar` root when packaged). This file lives two levels below it, in
  *  `src/main/`; every bundled path below — preloads, renderer, icon, MCP bridge — is resolved from here. */
@@ -470,7 +470,6 @@ function promptForSiteDir(rejectedDefault: RejectedDefault | null): Promise<stri
 // Wiring edge for the launch-time decisions in `startup-env.ts` / `site-name.ts`: each binds this
 // process's own `process.env`, packaged CLI default or filesystem, keeping the call sites (and the
 // source-shape wiring tests that read them) unchanged.
-function sitesUiRequested(): boolean { return sitesUiRequestedIn({ env: process.env }); }
 function resolveCliMode(): CliMode { return resolveCliModeIn({ env: process.env, defaultCliMode: DESKTOP_ROOTS.defaultCliMode }); }
 function isUnattendedSiteLaunch(): boolean { return isUnattendedSiteLaunchIn({ env: process.env }); }
 function readSiteName(siteDir: string): string { return readSiteNameIn({ siteDir }); }
@@ -723,6 +722,208 @@ function desktopUpdateSettingsMenu(): MenuItemConstructorOptions {
 }
 
 /**
+ * Route termination signals into `app.quit()`'s graceful drain — see `boot-sequence.ts`'s
+ * `runDesktopBoot` for why this runs first and not at module load.
+ * The Electron 43/macOS probe reproduced duplicate SIGTERM delivery from npm/electron launchers.
+ * SIG_DFL on the second copy killed the drain while detached children survived. Persistent
+ * listeners absorb duplicates; the deadline leaves remaining registry rows for orphan recovery.
+ */
+function armQuitSignals(): void {
+  routeQuitSignals({
+    processLike: { on: ({ signal, listener }) => process.on(signal, listener) },
+    quit: () => app.quit(),
+    forceExit: () => app.exit(1),
+    deadlineMs: QUIT_DEADLINE_MS,
+  });
+}
+
+/** The IPC every boot mode's windows may call, registered before the mode split. */
+function registerAppWideIpc(): void {
+  // Registered before either boot-mode branch so a window's very first `isAvailable()`
+  // call (fired from the preload the instant the page mounts) never races an unregistered
+  // channel — see `SPEECH_PRELOAD_PATH`'s own doc for why this and the preload path are both
+  // needed for `window.tovuVoice` to exist at all.
+  registerSpeechIpc({ ipcMain, isTrustedSender: isShellPage });
+  // General, not sites-home-only: registered here for the same reason `registerSpeechIpc` is —
+  // resolves its target from `event.sender` at call time, so it needs no per-window setup and is
+  // harmless to register even for a boot mode whose window never calls it (no preload exposes
+  // these channels outside the sites home window today). See `find-in-page-ipc.ts`.
+  registerFindInPageIpc({ ipcMain, browserWindow: BrowserWindow });
+  registerSiteThemePreviewIpc({ ipcMain, subscriptions: siteThemePreviews,
+    allowed: (sender) => BrowserWindow.fromWebContents(sender as import("electron").WebContents)?.webContents.getURL() === pathToFileURL(SITES_RENDERER_PATH).href,
+  });
+}
+
+/** The sites-home menus plus Settings — see `boot-sequence.ts`'s `appWideMenuTemplate`. */
+function installAppWideMenu(): void {
+  Menu.setApplicationMenu(Menu.buildFromTemplate(appWideMenuTemplate({ platform: process.platform, settings: desktopUpdateSettingsMenu })));
+}
+
+/** `nested-sites-migration.ts`'s move, bound to this launch's workspace and userData. */
+async function migrateSitesHomeOnBoot(): Promise<void> {
+  await migrateNestedSitesHome({ workspace: sharedSites, repoRoot: PAYLOAD_ROOT, cliMode: resolveCliMode(),
+    projectsPath: sitesFilePath(app.getPath("userData")),
+  });
+}
+
+/** The per-launch paths sites home mode reads and writes. */
+function sitesHomeCtx() {
+  return {
+    cliMode: resolveCliMode(),
+    statePath: stateFilePath(app.getPath("userData")),
+    registryPath: registryDirPath(app.getPath("userData")),
+    projectsPath: sitesFilePath(app.getPath("userData")),
+  };
+}
+type SitesHomeCtx = ReturnType<typeof sitesHomeCtx>;
+
+/** `project-ipc.ts`'s deps bag — built once, see `runSitesHomeBoot`. */
+function buildProjectDeps(sitesCtx: SitesHomeCtx) {
+  return {
+    ipcMain,
+    dialog,
+    shell,
+    openSites,
+    // The other half of what a card reads as a site's status: `openSites` says whether its
+    // server is alive, this says whether a start or a stop is in flight on it. Without it here
+    // the Stop button the card just showed would report `running` for the whole drain.
+    transitions: siteTransitions,
+    pendingTeardowns,
+    serializer,
+    projectsPath: sitesCtx.projectsPath,
+    registryPath: sitesCtx.registryPath,
+    repoRoot: PAYLOAD_ROOT,
+    statePath: sitesCtx.statePath,
+    cliMode: sitesCtx.cliMode,
+    readSiteName,
+    // The write counterpart of `readSiteName` right above: validating and atomic, because a
+    // torn or empty `config.json.name` does not break the running site — it stops the NEXT
+    // boot, with an error naming a file the operator never edited. See `site-config.ts`.
+    writeSiteName,
+    // The preview cache's three operations, bound to THIS launch's userData at the same call
+    // site every other consumer resolves it from — an independently-resolved userData here
+    // would write E2E previews into the real operator's profile (see `site-preview-store.ts`'s
+    // own header, and `applyUserDataDir`'s doc on `TOVU_DESKTOP_USER_DATA_DIR`).
+    readPreviewVersion: (siteDir: string) => readPreviewVersion(app.getPath("userData"), siteDir),
+    readPreviewDataUrl: (siteDir: string) => readPreviewDataUrl(app.getPath("userData"), siteDir),
+    deletePreview: (siteDir: string) => deletePreview(app.getPath("userData"), siteDir),
+    requestPreviewCapture: requestListedSitePreview,
+    cancelPreviewCapture: ({ siteDir }: { siteDir: string }, _optional = {}) => {
+      sitePreviewScheduler.cancel({ siteDir }, {});
+      siteThemePreviews.stop({ siteDir }, {});
+    },
+    sharedSites,
+    // The card's Stop for a site `npm run dev` (or another instance) serves — owner 2026-10-13.
+    // Signals dev.mjs, never the lease pid's watcher-held server; see `external-site-stop.ts`.
+    externalSites: createExternalSiteStopper({}),
+    adoptSiteDir: (input: Parameters<typeof adoptSiteDir>[0]) => adoptSiteDir({ ...input, sharedSites }),
+    // `handleCreate` classifies the picked folder BEFORE adopting it, so a project's row records
+    // whether this app CREATED the directory or merely adopted one that already existed — the
+    // fact `project-delete-guard.ts` needs before any delete may erase anything.
+    //
+    // The SAFE form, because `rescanSites` scans with this same value (D-01). `handleCreate`
+    // is unaffected: an unreadable pick classifies `"unreadable"` rather than `"empty"`, so the
+    // row would be `adopted` — and it never gets written, because `adoptSiteDir` re-classifies
+    // with the throwing form one line later and refuses the folder with its own message.
+    classifySiteDir: classifySiteDirSafely,
+    // "Add Tovu Website" — pointer-only, and deliberately NOT `adoptSiteDir`, which inits an
+    // empty folder. See `add-site-pointer.ts`'s header and `handleAddSite`.
+    addSitePointer,
+    openSiteServer: (siteDir: string, ctx: SitesHomeCtx) => siteBackend.openSiteServer({ siteDir, ctx }),
+    recordSiteClosed,
+    // How `handleDelete` sees a SIBLING app instance's open sites before erasing a directory —
+    // `openSites` above is this process's own memory and cannot (D-08). See
+    // `project-ipc.ts`'s `liveForeignServers`.
+    readRegistry,
+    isLiveServeRow,
+    siteScanRoots: SITE_SCAN_ROOTS,
+    discoverSites: siteDiscovery.discoverSites,
+    siteFolders: createSiteFolders({
+      statePath: sitesCtx.statePath,
+      defaultRoots: SITE_SCAN_ROOTS,
+      home: () => sharedSites.home({}),
+      workspace: sharedSites,
+      createdSiteDirs: () => readTrackedSites(sitesCtx.projectsPath)
+        .filter((row) => row.origin === "created").map((row) => row.siteDir),
+    }),
+    // A thunk, not the list: read fresh on every scan, so a site opened during this session is
+    // found by a later rescan instead of being frozen out by a snapshot taken at boot.
+    recentSiteDirs: () => existingRecentSiteDirs(sitesCtx.statePath, { workspace: sharedSites }),
+    ctx: sitesCtx,
+  };
+}
+type ProjectDeps = ReturnType<typeof buildProjectDeps>;
+
+/** Rescan, then sweep stale previews — see `site-discovery.ts`'s `startDesktopSiteDiscovery`. */
+function startSitesHomeDiscovery(projectDeps: ProjectDeps): void {
+  void startDesktopSiteDiscovery({
+    scan: () => rescanSites(projectDeps),
+    report: (failure) => console.warn(`tovu desktop: ${failure instanceof Error ? failure.message : String(failure)}`),
+    // Hygiene runs after discovery settles, so it sees the fullest tracked list; cleanup,
+    // never correctness. See sweepSitePreviewsOnBoot's own doc.
+    sweep: () => sweepSitePreviewsOnBootIn({ projectsPath: projectDeps.ctx.projectsPath, readTrackedSites,
+      sweepOrphanedPreviews: ({ trackedDirs }) => sweepOrphanedPreviews(app.getPath("userData"), trackedDirs), warn: (message) => console.warn(message) }),
+  });
+}
+
+/** A Dock-reopenable single window opened by `openSingleWindow` — see `boot-sequence.ts`. */
+function singleWindowPorts(openWindow: () => void): SingleWindowPorts {
+  return { selftest: SELFTEST, installSelftestTracker: ({ expectedCount }) => { selftestTracker = buildSelftestTracker(expectedCount); },
+    openWindow, onActivate: (listener) => { app.on("activate", listener); },
+    windowCount: () => BrowserWindow.getAllWindows().length, quitPhase: () => quitPhase };
+}
+
+/** Boot mode 1 — sites home — see `boot-sequence.ts`'s `runSitesHomeBoot` for the step order. */
+function bootSitesHomeMode(): void {
+  const sitesCtx = sitesHomeCtx();
+  runSitesHomeBoot({ ports: {
+    settleDevFallbackRows: () => settleDevFallbackRows({ projectsPath: sitesCtx.projectsPath, devFallbackDir: DEV_FALLBACK_SITE_DIR,
+      classifySiteDir: classifySiteDirSafely, migrateLegacyDismissals, seedDevFallbackSite, retireDevFallbackSite }),
+    buildProjectDeps: () => buildProjectDeps(sitesCtx),
+    registerSiteIpcHandlers: (projectDeps) => registerSiteIpcHandlers(projectDeps),
+    startSiteDiscovery: startSitesHomeDiscovery,
+    registerAppVersionIpc: () => registerAppVersionIpc({ ipcMain, app }, { repoRoot: REPO_ROOT }),
+    registerResourcesIpc: () => registerResourcesIpc({ ipcMain,
+      allowed: (url) => url === pathToFileURL(SITES_RENDERER_PATH).href,
+      monitor: desktopResources,
+    }),
+    registerOwnerStoreIpc: () => registerOwnerStoreIpc({ ipcMain,
+      allowed: (url) => url === pathToFileURL(SITES_RENDERER_PATH).href,
+      controller: ownerStore,
+    }),
+    settleLegacyOwnerStore: settleLegacyOwnerStoreOnStart,
+    registerUpdateCheckIpc: () => registerUpdateCheckIpc({ ipcMain, checkNow: updateCheck.checkNow }),
+    registerRunnerIpcStubs: () => registerRunnerIpcStubs({ ipcMain }),
+    registerGuestNavigationPolicy,
+    installMenu: installAppWideMenu,
+    ...singleWindowPorts(() => { openSitesHomeWindow(); }),
+  } });
+}
+
+/** Boot mode 3 — attach to an already-running site at `TOVU_DESKTOP_URL`. Always exactly one window. */
+function bootAttachMode({ url }: { url: string }): void {
+  openSingleWindow({ ports: singleWindowPorts(() => { createWindow(url, "Tovu"); }) });
+}
+
+/** The launch, in order — see `boot-sequence.ts`'s `runDesktopBoot` for why each step sits where it does. */
+function bootDesktop(): Promise<void> {
+  return runDesktopBoot({ ports: {
+    armQuitSignals,
+    initializeProductTelemetry: initializeDesktopProductTelemetry,
+    registerAppWideIpc,
+    applyDockIcon,
+    installAppWideMenu,
+    startUpdaterInBackground: () => desktopUpdater.startInBackground(),
+    reconcileOrphansOnBoot,
+    migrateNestedSitesHome: migrateSitesHomeOnBoot,
+    chooseBootMode: () => chooseBootMode({ env: process.env }),
+    bootSitesHomeMode,
+    bootAttachMode,
+    bootOwnServerMode,
+  } });
+}
+
+/**
  * Offers to move a packaged macOS copy launched from outside Applications (a disk image, Downloads)
  * into it, once per version — every rule is in `move-to-applications.ts`; this only supplies
  * Electron. Runs before the updater and any site server, so a successful move (Electron relaunches
@@ -732,208 +933,7 @@ function desktopUpdateSettingsMenu(): MenuItemConstructorOptions {
 // Owner 2026-10-06: DMG window already shows drag-to-Applications; prompt redundant.
 // The disabled helper is recoverable with its imports and call from git history.
 
-app
-  .whenReady()
-  .then(async () => {
-    // First, before anything below can spawn a `tovu serve`: a termination signal must reach
-    // `before-quit`'s drain exactly once rather than kill Electron on its second copy. Here and not at
-    // module load, where Chromium's own one-shot handler replaces it. See `quit-signals.ts`, and
-    // `QUIT_DEADLINE_MS` for what the deadline does and does not cover.
-    // The Electron 43/macOS probe reproduced duplicate SIGTERM delivery from npm/electron launchers.
-    // SIG_DFL on the second copy killed the drain while detached children survived. Persistent
-    // listeners absorb duplicates; the deadline leaves remaining registry rows for orphan recovery.
-    routeQuitSignals({
-      processLike: { on: ({ signal, listener }) => process.on(signal, listener) },
-      quit: () => app.quit(),
-      forceExit: () => app.exit(1),
-      deadlineMs: QUIT_DEADLINE_MS,
-    });
-    await initializeDesktopProductTelemetry();
-
-    // Before the updater and any site server: a successful move quits this process at once.
-    // Owner 2026-10-06: DMG window already shows drag-to-Applications; prompt redundant.
-    // Restore the call, helper and imports from git history, then re-enable wiring tests.
-
-    // Registered before either boot-mode branch below so a window's very first `isAvailable()`
-    // call (fired from the preload the instant the page mounts) never races an unregistered
-    // channel — see `SPEECH_PRELOAD_PATH`'s own doc for why this and the preload path are both
-    // needed for `window.tovuVoice` to exist at all.
-    registerSpeechIpc({ ipcMain, isTrustedSender: isShellPage });
-    // General, not sites-home-only: registered here for the same reason `registerSpeechIpc` is —
-    // resolves its target from `event.sender` at call time, so it needs no per-window setup and is
-    // harmless to register even for a boot mode whose window never calls it (no preload exposes
-    // these channels outside the sites home window today). See `find-in-page-ipc.ts`.
-    registerFindInPageIpc({ ipcMain, browserWindow: BrowserWindow });
-    registerSiteThemePreviewIpc({ ipcMain, subscriptions: siteThemePreviews,
-      allowed: (sender) => BrowserWindow.fromWebContents(sender as import("electron").WebContents)?.webContents.getURL() === pathToFileURL(SITES_RENDERER_PATH).href,
-    });
-    applyDockIcon();
-    // App-wide Settings is available in attach mode too; own-server mode replaces this below.
-    Menu.setApplicationMenu(Menu.buildFromTemplate([
-      ...sitesHomeMenuTemplate({ platform: process.platform }), desktopUpdateSettingsMenu(),
-    ]));
-    // Not awaited: the updater's first check waits on its own timer, and a failure to load it must
-    // never block or fail the boot.
-    desktopUpdater.startInBackground();
-
-    // ABOVE the mode split, deliberately: the sites home UI writes crash-safety rows (every project tab's
-    // first open goes through `openSiteServer`) but used to read none back, so a hard kill leaked
-    // every open site's `tovu serve` forever. See `reconcileOrphansOnBoot`'s own doc for why running
-    // it for all three modes is correct and why it cannot reap a live sibling instance's children.
-    await reconcileOrphansOnBoot();
-
-    // Before any boot mode opens a database: reuse the stopped/verified CLI move owner.
-    await migrateNestedSitesHome({ workspace: sharedSites, repoRoot: PAYLOAD_ROOT, cliMode: resolveCliMode(),
-      projectsPath: sitesFilePath(app.getPath("userData")),
-    });
-
-    // Checked before every other mode: the sites home UI supersedes both attach and own-server, and it
-    // spawns no `tovu serve` of its own at boot — only when a project tab is first opened, through
-    // `openSiteServer`'s own `serializer`-guarded spawn-or-reuse (the sites-home counterpart of the
-    // `openSiteWindow` own-server mode uses below).
-    if (sitesUiRequested()) {
-      const sitesCtx = {
-        cliMode: resolveCliMode(),
-        statePath: stateFilePath(app.getPath("userData")),
-        registryPath: registryDirPath(app.getPath("userData")),
-        projectsPath: sitesFilePath(app.getPath("userData")),
-      };
-      // Migrate legacy dismissals, then seed and retire the dev-fallback card — see `settleDevFallbackRows`.
-      settleDevFallbackRows({ projectsPath: sitesCtx.projectsPath, devFallbackDir: DEV_FALLBACK_SITE_DIR,
-        classifySiteDir: classifySiteDirSafely, migrateLegacyDismissals, seedDevFallbackSite, retireDevFallbackSite });
-      // Built once and shared: `rescanSites` below needs the same `deps` the handlers get, and a
-      // second literal would be free to drift from this one in exactly the fields (`projectsPath`,
-      // `classifySiteDir`, the scan inputs) where drift is invisible until a site fails to appear.
-      const projectDeps = {
-        ipcMain,
-        dialog,
-        shell,
-        openSites,
-        // The other half of what a card reads as a site's status: `openSites` says whether its
-        // server is alive, this says whether a start or a stop is in flight on it. Without it here
-        // the Stop button the card just showed would report `running` for the whole drain.
-        transitions: siteTransitions,
-        pendingTeardowns,
-        serializer,
-        projectsPath: sitesCtx.projectsPath,
-        registryPath: sitesCtx.registryPath,
-        repoRoot: PAYLOAD_ROOT,
-        statePath: sitesCtx.statePath,
-        cliMode: sitesCtx.cliMode,
-        readSiteName,
-        // The write counterpart of `readSiteName` right above: validating and atomic, because a
-        // torn or empty `config.json.name` does not break the running site — it stops the NEXT
-        // boot, with an error naming a file the operator never edited. See `site-config.ts`.
-        writeSiteName,
-        // The preview cache's three operations, bound to THIS launch's userData at the same call
-        // site every other consumer resolves it from — an independently-resolved userData here
-        // would write E2E previews into the real operator's profile (see `site-preview-store.ts`'s
-        // own header, and `applyUserDataDir`'s doc on `TOVU_DESKTOP_USER_DATA_DIR`).
-        readPreviewVersion: (siteDir: string) => readPreviewVersion(app.getPath("userData"), siteDir),
-        readPreviewDataUrl: (siteDir: string) => readPreviewDataUrl(app.getPath("userData"), siteDir),
-        deletePreview: (siteDir: string) => deletePreview(app.getPath("userData"), siteDir),
-        requestPreviewCapture: requestListedSitePreview,
-        cancelPreviewCapture: ({ siteDir }: { siteDir: string }, _optional = {}) => {
-          sitePreviewScheduler.cancel({ siteDir }, {});
-          siteThemePreviews.stop({ siteDir }, {});
-        },
-        sharedSites,
-        // The card's Stop for a site `npm run dev` (or another instance) serves — owner 2026-10-13.
-        // Signals dev.mjs, never the lease pid's watcher-held server; see `external-site-stop.ts`.
-        externalSites: createExternalSiteStopper({}),
-        adoptSiteDir: (input: Parameters<typeof adoptSiteDir>[0]) => adoptSiteDir({ ...input, sharedSites }),
-        // `handleCreate` classifies the picked folder BEFORE adopting it, so a project's row records
-        // whether this app CREATED the directory or merely adopted one that already existed — the
-        // fact `project-delete-guard.ts` needs before any delete may erase anything.
-        //
-        // The SAFE form, because `rescanSites` scans with this same value (D-01). `handleCreate`
-        // is unaffected: an unreadable pick classifies `"unreadable"` rather than `"empty"`, so the
-        // row would be `adopted` — and it never gets written, because `adoptSiteDir` re-classifies
-        // with the throwing form one line later and refuses the folder with its own message.
-        classifySiteDir: classifySiteDirSafely,
-        // "Add Tovu Website" — pointer-only, and deliberately NOT `adoptSiteDir`, which inits an
-        // empty folder. See `add-site-pointer.ts`'s header and `handleAddSite`.
-        addSitePointer,
-        openSiteServer: (siteDir: string, ctx: typeof sitesCtx) => siteBackend.openSiteServer({ siteDir, ctx }),
-        recordSiteClosed,
-        // How `handleDelete` sees a SIBLING app instance's open sites before erasing a directory —
-        // `openSites` above is this process's own memory and cannot (D-08). See
-        // `project-ipc.ts`'s `liveForeignServers`.
-        readRegistry,
-        isLiveServeRow,
-        siteScanRoots: SITE_SCAN_ROOTS,
-        discoverSites: siteDiscovery.discoverSites,
-        siteFolders: createSiteFolders({
-          statePath: sitesCtx.statePath,
-          defaultRoots: SITE_SCAN_ROOTS,
-          home: () => sharedSites.home({}),
-          workspace: sharedSites,
-          createdSiteDirs: () => readTrackedSites(sitesCtx.projectsPath)
-            .filter((row) => row.origin === "created").map((row) => row.siteDir),
-        }),
-        // A thunk, not the list: read fresh on every scan, so a site opened during this session is
-        // found by a later rescan instead of being frozen out by a snapshot taken at boot.
-        recentSiteDirs: () => existingRecentSiteDirs(sitesCtx.statePath, { workspace: sharedSites }),
-        ctx: sitesCtx,
-      };
-      // Registered BEFORE the stubs: `ipcMain.handle` throws on a duplicate registration, so these
-      // real handlers must claim their channels first — see `project-ipc.ts`'s own header.
-      registerSiteIpcHandlers(projectDeps);
-      // The boot discovery pass, and the answer to "a site created by `tovu init` outside the shell
-      // never appears": until this existed the Projects screen rendered `desktop-projects.json` and
-      // nothing else. The read-only worker starts here without delaying the window; the normal
-      // list poll picks up its discoveries. A stalled/removable volume cannot hold boot hostage.
-      void startDesktopSiteDiscovery({
-        scan: () => rescanSites(projectDeps),
-        report: (failure) => console.warn(`tovu desktop: ${failure instanceof Error ? failure.message : String(failure)}`),
-        // Hygiene runs after discovery settles, so it sees the fullest tracked list; cleanup,
-        // never correctness. See sweepSitePreviewsOnBoot's own doc.
-        sweep: () => sweepSitePreviewsOnBootIn({ projectsPath: sitesCtx.projectsPath, readTrackedSites,
-          sweepOrphanedPreviews: ({ trackedDirs }) => sweepOrphanedPreviews(app.getPath("userData"), trackedDirs), warn: (message) => console.warn(message) }),
-      });
-      registerAppVersionIpc({ ipcMain, app }, { repoRoot: REPO_ROOT });
-      registerResourcesIpc({ ipcMain,
-        allowed: (url) => url === pathToFileURL(SITES_RENDERER_PATH).href,
-        monitor: desktopResources,
-      });
-      registerOwnerStoreIpc({ ipcMain,
-        allowed: (url) => url === pathToFileURL(SITES_RENDERER_PATH).href,
-        controller: ownerStore,
-      });
-      settleLegacyOwnerStoreOnStart();
-      registerUpdateCheckIpc({ ipcMain, checkNow: updateCheck.checkNow });
-      registerRunnerIpcStubs({ ipcMain });
-      // Global, not per-window: see `registerGuestNavigationPolicy`'s own doc for why one
-      // registration covers every project tab's `<webview>` guest.
-      registerGuestNavigationPolicy();
-      // Electron's default menu, rebuilt, plus History: Back (Cmd+[) and Forward (Cmd+]) for the
-      // visible project tab. A menu accelerator still fires with focus inside a tab's guest. See
-      // `site-history-menu.ts`.
-      Menu.setApplicationMenu(Menu.buildFromTemplate([
-        ...sitesHomeMenuTemplate({ platform: process.platform }), desktopUpdateSettingsMenu(),
-      ]));
-      if (SELFTEST) selftestTracker = buildSelftestTracker(1);
-      openSitesHomeWindow();
-      app.on("activate", () => {
-        if (BrowserWindow.getAllWindows().length === 0 && quitPhase === "idle") openSitesHomeWindow();
-      });
-      return;
-    }
-
-    const attachUrl = process.env.TOVU_DESKTOP_URL?.trim();
-    if (attachUrl) {
-      // Attach mode is always exactly one window.
-      if (SELFTEST) selftestTracker = buildSelftestTracker(1);
-      createWindow(attachUrl, "Tovu");
-      app.on("activate", () => {
-        if (BrowserWindow.getAllWindows().length === 0 && quitPhase === "idle") createWindow(attachUrl, "Tovu");
-      });
-      return;
-    }
-
-    await bootOwnServerMode();
-  })
-  .catch(reportBootFailure);
+app.whenReady().then(bootDesktop).catch(reportBootFailure);
 
 /**
  * Every spawned `tovu serve` must not outlive the app, and each must be given the chance to shut
