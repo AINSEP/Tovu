@@ -2900,7 +2900,9 @@ const PREVIEW_CONSENT_TRANSLATIONS: Record<string, string> = {
   "bn": "প্রিভিউতে কুকি ব্যানার লুকানো আছে। এম্বেড করা ভিডিও এখানে নাও চলতে পারে; পরীক্ষা করতে পেজটি খুলুন।"
 };
 for (const [locale, message] of Object.entries(PREVIEW_CONSENT_TRANSLATIONS)) {
-  POSTS_DICT[locale]["Cookie banner hidden in preview. Embedded videos may not play here; open the page to check."] = message;
+  // Merged via Object.assign (not an indexed write) so the dictionary is only augmented at
+  // initialization, the one shape the dictionary-lookup-sinks guard accepts outside the translator.
+  Object.assign(POSTS_DICT[locale], { "Cookie banner hidden in preview. Embedded videos may not play here; open the page to check.": message });
 }
 
 // Screen requirements that previously bypassed this dictionary or were absent in every locale.

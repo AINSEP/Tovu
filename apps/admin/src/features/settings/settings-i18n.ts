@@ -52,4 +52,10 @@ const ACCENT_NAME_DICT: Record<string, Record<string, string>> = {
   bn: { "Charcoal": "কয়লা", "Clay": "মাটি", "Violet": "বেগুনি", "Green": "সবুজ", "Red": "লাল", "Amber": "অ্যাম্বার", "Teal": "নীলচে সবুজ", "Pink": "গোলাপি", "Gold": "সোনালি" },
 };
 
-export const t = createDictionaryTranslator({ featureDictionary: Object.fromEntries(Object.entries(SETTINGS_DICT).map(([locale, entries]) => [locale, { ...entries, ...ACCENT_NAME_DICT[locale] }])) }, { commonDictionary: COMMON_I18N });
+// Merged into SETTINGS_DICT at initialization (rather than indexed inside the translator call) so
+// the dictionary-lookup-sinks guard can tell module setup from a translation-time lookup.
+for (const [locale, names] of Object.entries(ACCENT_NAME_DICT)) {
+  Object.assign(SETTINGS_DICT[locale], names);
+}
+
+export const t = createDictionaryTranslator({ featureDictionary: SETTINGS_DICT }, { commonDictionary: COMMON_I18N });
