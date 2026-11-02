@@ -21,6 +21,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { appShellSource } from "./app-shell-source.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -42,7 +43,7 @@ function withoutComments(source: string) {
 // a comment in its place that names `.chat-fab--disabled`, and that explanation must not read as the
 // rule still existing. Caught by running this test, not by reading it — the CSS assertion below
 // failed on its own replacement comment first time out.
-const appTsx = withoutComments(read("App.tsx"));
+const appTsx = withoutComments(appShellSource());
 const appCss = withoutComments(read("app.css"));
 const mainJs = withoutComments(read("..", "..", "main.ts"));
 

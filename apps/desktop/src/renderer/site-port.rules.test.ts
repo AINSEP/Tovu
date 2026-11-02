@@ -8,6 +8,7 @@ import { cardOpenClass, cardOpenProps, databaseLabel, deleteActionCopy, isCardOp
 import { STATUS_LABEL } from './site-status.js';
 import { ResourceSiteFigure } from './ResourcesPanel.js';
 import { sourceFunction } from './source-test-harness.js';
+import { appShellSource } from './app-shell-source.js';
 import {
   createWorkspaceActions, initialSiteWorkspaceState, loadResetKey, siteSurfaceUrl, siteWorkspaceReducer, surfaceOfUrl,
 } from './use-site-workspace.hooks.js';
@@ -46,7 +47,7 @@ test('non-running lifecycle states never advertise a stale port', () => {
 });
 
 const gridSource = fs.readFileSync(new URL('./SiteGrid.tsx', import.meta.url), 'utf8');
-const appSource = fs.readFileSync(new URL('./App.tsx', import.meta.url), 'utf8');
+const appSource = appShellSource();
 const workspaceSource = fs.readFileSync(new URL('./use-site-workspace.hooks.ts', import.meta.url), 'utf8');
 
 // REGRESSION: owner 2026-10-13 — the card's copy never shows the port; it lives in the status title.

@@ -7,6 +7,7 @@ import { elements, hookHarness, sourceFunction } from './source-test-harness.js'
 import { humanSiteError } from './site-shell-policy.js';
 import { useSitesFoldersDialog } from './use-sites-folders-dialog.hooks.js';
 import type { SiteFolders } from '../contracts/project.js';
+import { appShellSource } from './app-shell-source.js';
 
 const hookSource = fs.readFileSync(new URL('./use-site-folders.hooks.ts', import.meta.url), 'utf8');
 const componentSource = fs.readFileSync(new URL('./SitesFolders.tsx', import.meta.url), 'utf8');
@@ -229,7 +230,7 @@ test('storage drafts omit env overrides and both startup-warning remedies use th
 });
 
 test('closing the settings dropdown leaves the sites dialog and its placement draft mounted outside the menu', () => {
-  const source = fs.readFileSync(new URL('./App.tsx', import.meta.url), 'utf8');
+  const source = appShellSource();
   let menuOpen = true;
   const settings = { open: false, databases: 'appData', show() { this.open = true; } };
   const component = sourceFunction(source, 'SettingsControl', {

@@ -11,6 +11,7 @@ import { visibleSections } from '../contracts/sections.js';
 import { navAvailability } from './nav-availability.js';
 import { navLinkClick, settingsControlHandlers } from './App.hooks.js';
 import { useSitesFoldersDialog } from './use-sites-folders-dialog.hooks.js';
+import { appShellSource } from './app-shell-source.js';
 
 test('Websites fits at 375px with every nav control and header action inside the page', { timeout: 120_000 }, async (t) => {
   // The queue uses Node/tsx without the renderer tsconfig; its classic JSX transform needs React.
@@ -24,7 +25,7 @@ test('Websites fits at 375px with every nav control and header action inside the
   const { ToolIcon } = await import('./tool-icons.js');
   const { ResourcesChip, ResourcesMonitor } = await import('./ResourcesPanel.js');
   const { SharedKeysLauncher } = await import('./SharedKeys.js');
-  const source = fs.readFileSync(new URL('./App.tsx', import.meta.url), 'utf8');
+  const source = appShellSource();
   const foldersSource = fs.readFileSync(new URL('./SitesFolders.tsx', import.meta.url), 'utf8');
   const settings = { folders: { roots: [], extraRoots: [], home: '' }, open: false, show() {}, close() {} };
   // `SettingsDialogShell` is the dialog's default `Shell` parameter; the dialog stays closed here, so its frame never renders.

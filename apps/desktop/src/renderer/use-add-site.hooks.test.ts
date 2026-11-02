@@ -22,9 +22,10 @@ import { fileURLToPath } from 'node:url';
 import { CANCELLED_MESSAGE, NO_BRIDGE_MESSAGE, describeAddFailure, mergeAddedSite } from './use-add-site.hooks.js';
 import { elements, hookHarness, sourceFunction } from './source-test-harness.js';
 import type { SiteRecord } from '../contracts/project.js';
+import { appShellSource } from './app-shell-source.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const appTsx = fs.readFileSync(path.join(here, 'App.tsx'), 'utf8');
+const appTsx = appShellSource();
 const gridTsx = fs.readFileSync(path.join(here, 'SiteGrid.tsx'), 'utf8');
 const hookSource = fs.readFileSync(path.join(here, 'use-add-site.hooks.ts'), 'utf8');
 const pointerSource = fs.readFileSync(path.join(here, '..', 'add-site-pointer.ts'), 'utf8');

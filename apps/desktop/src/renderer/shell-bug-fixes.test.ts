@@ -13,6 +13,7 @@ import { deleteActionCopy } from './SiteGrid.hooks.js';
 import { describeAddFailure, mergeAddedSite, NO_BRIDGE_MESSAGE } from './use-add-site.hooks.js';
 import type { SiteRecord, CreatedSiteRecord } from '../contracts/project.js';
 import type { RunnerInventoryBridge } from './runner-api.js';
+import { appShellSource } from './app-shell-source.js';
 
 const hooks = readFileSync(new URL('./App.hooks.ts', import.meta.url), 'utf8');
 const site = (fields: Partial<SiteRecord> = {}) => ({ id: '/site', displayName: 'My website', status: 'stopped', folderMissing: false, ...fields }) as SiteRecord;
@@ -207,7 +208,7 @@ test('D-26: the active tab scrolls into view and overflow buttons expose the hid
 
 test('D-28: truncated tab names expose the full name as a title', () => {
   const name = 'Café ☕ 日本語 — a very long website name';
-  const TabStrip = sourceFunction(readFileSync(new URL('./App.tsx', import.meta.url), 'utf8'), 'TabStrip', {
+  const TabStrip = sourceFunction(appShellSource(), 'TabStrip', {
     useTabStrip: () => ({ stripRef: null, overflow: { left: false, right: false }, scrollLeft() {}, scrollRight() {}, tabIndex: () => 0, onKeyDown() {} }),
   });
   const tree = elements(TabStrip({ projects: [site({ displayName: name })], activeTab: '/site' }));
@@ -215,7 +216,7 @@ test('D-28: truncated tab names expose the full name as a title', () => {
 });
 
 test('D-26: scroll arrows render only while the strip overflows, each disabled on its own exhausted side', () => {
-  const source = readFileSync(new URL('./App.tsx', import.meta.url), 'utf8');
+  const source = appShellSource();
   const arrows = (overflow: { left: boolean; right: boolean }) => {
     const TabStrip = sourceFunction(source, 'TabStrip', {
       useTabStrip: () => ({ stripRef: null, overflow, showArrows: overflow.left || overflow.right, scrollLeft() {}, scrollRight() {}, tabIndex: () => 0, onKeyDown() {} }),
@@ -291,7 +292,7 @@ test('siteOperationError falls back to English copy in a host with no navigator'
 // UI test 2026-10-30: after Rename -> Save the card kept the old name for ~1.4 s, until the next
 // poll, because ProjectsBody never handed SiteGrid an `onRenamed`.
 test('a rename updates the Websites grid at once through the same setter as Start/Stop', () => {
-  const source = readFileSync(new URL('./App.tsx', import.meta.url), 'utf8');
+  const source = appShellSource();
   let gridProps: { onRenamed?: (record: SiteRecord) => void } | undefined;
   const SiteGrid = (props: typeof gridProps) => { gridProps = props; return null; };
   const ProjectsBody = sourceFunction(source, 'ProjectsBody', { SiteGrid, NoWebsitesYet: () => null });

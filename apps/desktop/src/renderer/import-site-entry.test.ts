@@ -16,10 +16,11 @@ import { SITE_ADMIN_PAGES, resolveImportSiteTarget } from './import-site-entry.j
 import { siteSurfaceUrl } from './use-site-workspace.hooks.js';
 import { tabAfterClose } from './site-shell-policy.js';
 import { hookHarness, sourceFunction } from './source-test-harness.js';
+import { appShellSource } from './app-shell-source.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const withoutComments = (source: string) => source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
-const app = withoutComments(fs.readFileSync(path.join(here, 'App.tsx'), 'utf8'));
+const app = withoutComments(appShellSource());
 const hooks = fs.readFileSync(path.join(here, 'App.hooks.ts'), 'utf8');
 
 const project = (id: string, status: 'running' | 'stopped' | 'starting') => ({ id, status });

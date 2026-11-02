@@ -17,6 +17,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { appShellSource } from "./app-shell-source.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -30,7 +31,7 @@ const sections = withoutComments(sectionsSource);
 const iconsSource = fs.readFileSync(path.join(here, "icons.tsx"), "utf8");
 const icons = withoutComments(iconsSource);
 
-const appSource = fs.readFileSync(path.join(here, "App.tsx"), "utf8");
+const appSource = appShellSource();
 const app = withoutComments(appSource);
 
 /** The `marketplace` entry's own object literal within `RUNNER_SECTIONS`, so a match cannot be

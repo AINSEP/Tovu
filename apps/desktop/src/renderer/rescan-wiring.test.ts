@@ -14,6 +14,7 @@ import { fileURLToPath } from "node:url";
 import { elements, hookHarness, sourceFunction } from './source-test-harness.js';
 import ts from 'typescript';
 import { SITE_IPC_CHANNELS } from '../contracts/project.ts';
+import { appShellSource } from './app-shell-source.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -21,7 +22,7 @@ const read = (...parts: string[]) => fs.readFileSync(path.join(__dirname, ...par
 const preload = read("..", "preload", "preload.mts");
 const runnerApi = read("runner-api.ts");
 const appHooks = read("App.hooks.ts");
-const appTsx = read("App.tsx");
+const appTsx = appShellSource();
 
 test("the preload rescan method invokes the exact contract channel with no renderer payload", async () => {
   // Evaluate the actual preload method with an injected IPC port, without importing Electron.

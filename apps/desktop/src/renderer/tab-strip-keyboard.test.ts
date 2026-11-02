@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { readFileSync } from 'node:fs';
 import { elements, sourceFunction } from './source-test-harness.js';
 import * as tabStrip from './use-tab-strip.hooks.js';
+import { appShellSource } from './app-shell-source.js';
 
 function fixture() {
   const calls: string[] = [];
@@ -42,7 +42,7 @@ test('D-13 rendered tabs have one tab stop and wire keyboard navigation', () => 
   const getTabIndex = (tabStrip as any).tabStripTabIndex;
   assert.equal(typeof getTabIndex, 'function');
   const onKeyDown = () => {};
-  const TabStrip = sourceFunction(readFileSync(new URL('./App.tsx', import.meta.url), 'utf8'), 'TabStrip', {
+  const TabStrip = sourceFunction(appShellSource(), 'TabStrip', {
     useTabStrip: ({ activeTab, projects }: any) => ({
       stripRef: null, overflow: {}, showArrows: false, onKeyDown,
       tabIndex: ({ tabId }: { tabId: string | null }) => getTabIndex({ activeTab, projects, tabId }, {}),

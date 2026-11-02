@@ -24,12 +24,13 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { elements, hookHarness, sourceFunction } from './source-test-harness.js';
+import { appShellSource } from './app-shell-source.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const read = (...parts: string[]) => fs.readFileSync(path.join(__dirname, ...parts), "utf8");
 const appHooks = read("App.hooks.ts");
-const appTsx = read("App.tsx");
+const appTsx = appShellSource();
 
 /** `useWebviewLoadFailure`'s body, up to the next top-level `export function`. */
 function hookBody() {

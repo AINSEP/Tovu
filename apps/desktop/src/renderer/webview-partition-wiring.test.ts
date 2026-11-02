@@ -16,11 +16,12 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { appShellSource } from "./app-shell-source.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const read = (...parts: string[]) => fs.readFileSync(path.join(__dirname, ...parts), "utf8");
-const appTsx = read("App.tsx");
+const appTsx = appShellSource();
 const contracts = read("..", "contracts", "project.ts");
 
 /** `SiteWorkspace`'s body, up to the next top-level `function`. */

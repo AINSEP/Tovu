@@ -5,6 +5,7 @@ import test from 'node:test';
 import type { RunnerAppVersionBridge } from '../contracts/app-version.js';
 import type { AppVersionState, useAppVersion } from './use-app-version.hooks.js';
 import { elements, hookHarness, sourceFunction } from './source-test-harness.js';
+import { appShellSource } from './app-shell-source.js';
 
 function versionHook(bridge?: Partial<RunnerAppVersionBridge>) {
   const harness = hookHarness();
@@ -87,7 +88,7 @@ test('a version request that settles after unmount cannot update state', async (
 });
 
 test('the nav renders the loaded version beneath Tovu in the same brand block', () => {
-  const source = readFileSync(new URL('./App.tsx', import.meta.url), 'utf8');
+  const source = appShellSource();
   const topNav = sourceFunction(source, 'TopNav', {
     useAppVersion: () => ({ version: '7.9.3', error: null } satisfies AppVersionState),
     visibleSections: () => [],
@@ -106,7 +107,7 @@ test('the nav renders the loaded version beneath Tovu in the same brand block', 
 });
 
 test('the nav exposes the real loading error on the brand without displaying a fake version', () => {
-  const topNav = sourceFunction(readFileSync(new URL('./App.tsx', import.meta.url), 'utf8'), 'TopNav', {
+  const topNav = sourceFunction(appShellSource(), 'TopNav', {
     useAppVersion: () => ({ version: null, error: 'Version IPC unavailable' } satisfies AppVersionState),
     visibleSections: () => [],
     SettingsControl: () => null,

@@ -14,9 +14,10 @@ import test from 'node:test';
 import ts from 'typescript';
 import * as React from 'react';
 import { fileURLToPath } from 'node:url';
+import { appShellSource } from './app-shell-source.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const appTsx = fs.readFileSync(path.join(here, 'App.tsx'), 'utf8');
+const appTsx = appShellSource();
 const workspaceHooks = fs.readFileSync(path.join(here, 'use-site-workspace.hooks.ts'), 'utf8');
 const icons = fs.readFileSync(path.join(here, 'icons.tsx'), 'utf8');
 

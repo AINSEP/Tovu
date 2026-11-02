@@ -1,6 +1,5 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import { describeAddFailure } from './use-add-site.hooks.js';
 import { appPresentation, deriveSitesHomeView, performSiteStart, countRunningSites } from './App.hooks.js';
 import { chromeVisibility } from './expanded-mode.js';
@@ -8,6 +7,7 @@ import { elements, sourceFunction } from './source-test-harness.js';
 import type { SiteRecord } from '../contracts/project.js';
 import { desktopCopy } from '../desktop-i18n.js';
 import { performPowerAction } from './use-site-power.hooks.js';
+import { appShellSource } from './app-shell-source.js';
 
 const TEMP = '/var/folders/7_/scratch/T/sites/junk';
 const OCCUPIED = `${TEMP} is a folder of unrelated files, not a Tovu site (no config.json and no .site-meta.json). If your site lives in a subfolder, point at that subfolder instead.`;
@@ -69,7 +69,7 @@ test('D-24: Add feedback stays on the websites view when switching to a site tab
   const message = 'Could not add this website. Check the folder and try again.';
   let activeTab: string | null = null;
   let areaProps: any;
-  const source = readFileSync(new URL('./App.tsx', import.meta.url), 'utf8');
+  const source = appShellSource();
   const renderApp = sourceFunction(source, 'App', {
     appScreen: sourceFunction(source, 'appScreen'),
     useTheme: () => ['light', noop], useSiteRescan: () => ({}), useApplySiteRecord: () => noop,

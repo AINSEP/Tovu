@@ -37,11 +37,12 @@ import path from 'node:path';
 import React from 'react';
 import { elements, hookHarness, sourceFunction } from './source-test-harness.js';
 import { IN_FLIGHT_STATUS, codeSpans, externalStopConfirm, performPowerAction, powerControl, powerToggleIntent, runPowerToggle } from './use-site-power.hooks.js';
+import { appShellSource } from './app-shell-source.js';
 
 const grid = fs.readFileSync(path.join(import.meta.dirname, 'SiteGrid.tsx'), 'utf8');
 const css = fs.readFileSync(path.join(import.meta.dirname, 'app.css'), 'utf8');
 const power = fs.readFileSync(path.join(import.meta.dirname, 'use-site-power.hooks.ts'), 'utf8');
-const app = fs.readFileSync(path.join(import.meta.dirname, 'App.tsx'), 'utf8');
+const app = appShellSource();
 const appHooks = fs.readFileSync(path.join(import.meta.dirname, 'App.hooks.ts'), 'utf8');
 
 /** `SiteCard`'s own body — the tile and the info block, without the components defined after it. */

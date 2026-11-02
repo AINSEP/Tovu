@@ -1,13 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { elements, sourceFunction } from './source-test-harness.js';
 import type { SiteRecord } from '../contracts/project.js';
 import type { SiteWorkspace as WorkspaceState } from './use-site-workspace.hooks.js';
+import { appShellSource } from './app-shell-source.js';
 
 test('first-content loading keeps the same wrapper, live status and stalled precedence', () => {
-  const source = readFileSync(new URL('./App.tsx', import.meta.url), 'utf8');
+  const source = appShellSource();
   const overlay = sourceFunction(source, 'WorkspaceLoadingOverlay', { Spinner: () => null });
   for (const loaded of [false, true]) for (const stalled of [false, true]) {
     const html = renderToStaticMarkup(overlay({ workspace: { loaded, stalled }, project: { displayName: 'Bakery' } }));
@@ -37,7 +37,7 @@ test('the loading overlay on the Site view says "Loading <site>…"', () => {
     selectView: noop, openInBrowser: noop,
   } satisfies WorkspaceState;
 
-  const source = readFileSync(new URL('./App.tsx', import.meta.url), 'utf8');
+  const source = appShellSource();
   const SiteWorkspace = sourceFunction(source, 'SiteWorkspace', {
     useSiteWorkspace: () => workspace,
     useComposedGuestRef: () => noop,
