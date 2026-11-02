@@ -10,6 +10,7 @@ import { acquireOperationLock, releaseOperationLock } from "#src/contracts/core/
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
 import { registerAdminDatabaseMigrateForwardRoutes } from "../../inbound/admin-http/routes/database/migrate-forward.js";
 import type { RouteDeps } from "../../routes/types.js";
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 
 /**
  * Registers a principal with a login but no role/policy grants at all — mirrors
@@ -361,7 +362,8 @@ for (const fault of [new Error("plan read failed"), "private plan failure"]) {
     const read = t.mock.method(deps.dbOps, "getCapabilities", async () => { throw fault; });
     const response = await fetch(`${baseUrl}/api/admin/v1/database/migrate-forward/plan`, { method: "POST", headers: { cookie } });
     assert.equal(response.status, 500);
-    assert.deepEqual(await response.json(), { error: fault instanceof Error ? fault.message : "internal error", code: "INTERNAL_ERROR" });
+    // 88f429c25: Error and non-Error faults alike answer the concealed incident envelope.
+    assertAdminResponse({ actual: await response.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
     assert.equal(read.mock.callCount(), 1);
     assert.deepEqual(await deps.restorePointsRepo.list(), []);
   });
@@ -438,7 +440,8 @@ for (const failure of [new Error("token store unavailable"), "private token fail
       method: "POST", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify({ planId, planHash }),
     });
     assert.equal(confirmed.status, 500);
-    assert.deepEqual(await confirmed.json(), { error: failure instanceof Error ? failure.message : "internal error", code: "INTERNAL_ERROR" });
+    // 88f429c25: Error and non-Error failures alike answer the concealed incident envelope.
+    assertAdminResponse({ actual: await confirmed.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
     assert.equal(save.mock.callCount(), 1);
     assert.equal(await deps.gatedMutations.gatewayDeps.tokens.count(), 0);
     assert.deepEqual(await deps.restorePointsRepo.list(), []);
@@ -487,5 +490,5 @@ test("database migrate-forward execute: a non-Error throw is a 500 with the gene
     body: JSON.stringify({ confirmationToken: "token" }),
   });
   assert.equal(res.status, 500);
-  assert.deepEqual(await res.json(), { error: "internal error", code: "INTERNAL_ERROR" });
+  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
 });
