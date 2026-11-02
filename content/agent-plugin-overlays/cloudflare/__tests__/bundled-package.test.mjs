@@ -1,15 +1,15 @@
 // Moved from core's apps/website/src/features/agent-plugins/__tests__/unit/bundled-deploy-cloudflare-pages.unit.test.ts (types stripped): vendor tests live with
 // the vendor plugin; the host kits and fixtures it drives are still core's real ones, imported by path.
 import assert from 'node:assert/strict';
-import path from 'node:path';
 import test from 'node:test';
 import { loadDeployTargetRegistryFromSource } from '../../../../apps/website/src/features/deployments/deploy-targets/registry.ts';
 import { createDeployHostKit } from '../../../../apps/website/src/features/deployments/deploy-targets/host-kit.ts';
+import { agentPluginSourceDir } from '../../../../development/test-support/agent-plugin-source.mjs';
 
 /** Package-level compatibility. Protocol/limits/domain lifecycle cases now live next to their
- * implementation in content/agent-plugins/cloudflare/{lib,targets}/__tests__ and root test discovery
- * includes them. The superseded unsafe metadata-only domain path must never be callable. */
-const packageRoot = path.resolve(import.meta.dirname, '..');
+ * implementation in Jini's packages/agent-plugins/cloudflare/{lib,targets}/__tests__. Here Tovu's real
+ * registry and host kit load the plugin where Tovu takes it from (@jini-ai/agent-plugins/cloudflare). The superseded unsafe metadata-only domain path must never be callable. */
+const packageRoot = agentPluginSourceDir({ pluginId: 'cloudflare' });
 
 test('renamed Cloudflare package loads both targets, preserving the Pages target and vendor credential', async () => {
   const registry = await loadDeployTargetRegistryFromSource({ pluginId: 'cloudflare', packageRoot });

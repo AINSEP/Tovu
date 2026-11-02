@@ -2,8 +2,13 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { parsePluginCredentialCards } from '../../../../apps/website/src/features/agent-plugins/credential-cards.ts';
+import path from 'node:path';
+import { agentPluginSourceDir } from '../../../../development/test-support/agent-plugin-source.mjs';
 
-const card = (target = 'cloudflare') => JSON.parse(readFileSync(new URL('../plugin.json', import.meta.url), 'utf8')).extensions.tovu.credentialCards.find(c => c.target === target);
+// cloudflare ships from @jini-ai/agent-plugins/cloudflare: read it where Tovu takes it from.
+const PLUGIN_DIR = agentPluginSourceDir({ pluginId: 'cloudflare' });
+
+const card = (target = 'cloudflare') => JSON.parse(readFileSync(path.join(PLUGIN_DIR, 'plugin.json'), 'utf8')).extensions.tovu.credentialCards.find(c => c.target === target);
 for (const [target, kind, title, permissions, helpUrl] of [
   ['cloudflare-workers', 'publish-host', 'Connect Cloudflare Workers', /Workers Scripts → Edit/, 'https://dash.cloudflare.com/profile/api-tokens'],
   ['cloudflare-pages', 'publish-host', 'Connect Cloudflare Pages', /Cloudflare Pages → Edit/, 'https://dash.cloudflare.com/profile/api-tokens'],
@@ -22,7 +27,7 @@ test('domain-owned forms supply the connection fields', () => {
 });
 
 test('every credential card parses its task purposes', () => {
-  const parsed = parsePluginCredentialCards({ raw: readFileSync(new URL('../plugin.json', import.meta.url), 'utf8') });
+  const parsed = parsePluginCredentialCards({ raw: readFileSync(path.join(PLUGIN_DIR, 'plugin.json'), 'utf8') });
   assert.equal(parsed.ok, true);
   assert.deepEqual(parsed.descriptors.map(({ providerId, usedFor }) => ({ providerId, usedFor })), [
     {

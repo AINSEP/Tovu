@@ -6,12 +6,12 @@ import { createHash } from 'node:crypto';
 import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import { createTovuAgentPluginLifecycle } from '../../../../apps/website/src/features/agent-plugins/lifecycle.ts';
 import { resolveAgentPluginLayout } from '../../../../apps/website/src/features/agent-plugins/layout.ts';
 import { loadDeployTargetRegistry } from '../../../../apps/website/src/features/deployments/deploy-targets/registry.ts';
 import { forceRemove } from '../../../../apps/website/src/features/agent-plugins/__tests__/fixtures/force-remove.ts';
+import { processComposedBundledSourceRoot } from '../../../../apps/website/src/features/agent-plugins/__tests__/fixtures/bundled-source-root.ts';
 
 /** Real trusted-package and contribution owners, simulating seed/retirement failures on disk. */
 function entry(entryPath, content) {
@@ -37,8 +37,10 @@ for (const oldId of ['cloudflare-pages', 'deploy']) for (const state of ['truste
   const root = await mkdtemp(path.join(tmpdir(), 'cloudflare-contribution-'));
   try {
     const layout = resolveAgentPluginLayout({ siteDir: root }, { env: {} });
-    // 561bba06a moved the bundled manifest fallback from ambient lookup to a host port.
-    const owner = createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: fileURLToPath(new URL('../../', import.meta.url)) });
+    // 561bba06a moved the bundled manifest fallback from ambient lookup to a host port. The fixture
+    // cloudflare manifest declares no supersession, so the shipped cloudflare plugin.json (composed
+    // bundle, @jini-ai/agent-plugins/cloudflare) supplies it.
+    const owner = createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: await processComposedBundledSourceRoot() });
     const workspaceId = 'workspace';
     await install({ owner, layout, workspaceId, pluginId: oldId, trusted: true, enabled: true });
     if (state !== 'absent') await install({ owner, layout, workspaceId, pluginId: 'cloudflare', trusted: state !== 'untrusted', enabled: state !== 'disabled' });
