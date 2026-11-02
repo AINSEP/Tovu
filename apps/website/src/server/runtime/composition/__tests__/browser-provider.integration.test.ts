@@ -1,5 +1,7 @@
 /** Chart plan step 5 / ADR-025 amendment: use the real product artifact and activation owner. */
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import test from "node:test";
 import { createSystemClock } from "@jini-ai/core/primitives";
 import { InMemoryPluginActivationRepo, setPluginEnabled } from "@jini-ai/plugins/host";
@@ -43,13 +45,49 @@ test("step 5: compiled-in source without a review approval never exposes browser
   assert.equal(await repo.getActivation({ workspaceId: "site", pluginId: "charts-recharts" }), null);
 });
 
-test("step 5: boot leaves a quarantined activation row unchanged", async () => {
+/** D-charts N-1: a 0.6.18 data dir holds activation rows written for the old content/plugins 0.1.0 copy.
+ * Booting the packaged 0.6.19 source keeps each owner's choice; only an enabled row admits the
+ * provider, and what reaches the browser is exactly the packaged bundle (the bytes the admin mounts). */
+const N1_AT = "2026-10-13T00:00:00.000Z";
+const n1Row = (overrides: { enabled: boolean; quarantinedAt?: string; quarantineReason?: string; quarantineFailureCount?: number }) =>
+  ({ pluginId: "charts-recharts", workspaceId: "site", version: "0.1.0", updatedAt: N1_AT, ...overrides });
+
+test("N-1: an enabled 0.1.0 row boots, admits the packaged provider and serves the packaged bytes", async () => {
   const repo = new InMemoryPluginActivationRepo();
-  const row = { pluginId: "charts-recharts", workspaceId: "site", version: "0.1.0", enabled: false,
-    updatedAt: "2026-10-13T00:00:00.000Z", quarantinedAt: "2026-10-13T00:00:00.000Z", quarantineReason: "operator review", quarantineFailureCount: 3 };
+  await repo.save(n1Row({ enabled: true }));
+  const { runtime } = fixture(repo);
+  await runtime.attachEnabledPluginsAtBoot();
+  assert.equal((await repo.getActivation({ workspaceId: "site", pluginId: "charts-recharts" }))?.enabled, true);
+  const [admitted] = runtime.browserProviders({}).providers;
+  assert.equal(admitted?.declaration.id, "plugin.recharts");
+  assert.equal(admitted?.version, RECHARTS_BROWSER_APPROVAL.version);
+  assert.deepEqual(admitted?.assets.map((asset) => asset.path), ["client/provider.js", "client/styles.css"]);
+  for (const asset of admitted?.assets ?? []) {
+    assert.deepEqual(Buffer.from(asset.readBytes({})), readFileSync(path.join(RECHARTS_RUNTIME_SOURCE.sourceDir, asset.path)), asset.path);
+  }
+  // The browser module the admin imports: the provider contract's named exports, nothing else.
+  const javascript = Buffer.from(admitted?.assets[0]?.readBytes({}) ?? new Uint8Array()).toString("utf8");
+  assert.match(javascript, /export\{[^}]*\bmount\b[^}]*\}/);
+});
+
+test("N-1: an explicitly disabled 0.1.0 row stays disabled and admits nothing", async () => {
+  const repo = new InMemoryPluginActivationRepo();
+  const row = n1Row({ enabled: false });
   await repo.save(row);
-  const runtime = fixture(repo).runtime;
+  const { runtime } = fixture(repo);
   await runtime.attachEnabledPluginsAtBoot();
   assert.deepEqual(await repo.getActivation({ workspaceId: "site", pluginId: "charts-recharts" }), row);
   assert.deepEqual(runtime.browserProviders({}).providers, []);
+});
+
+test("N-1: a quarantined 0.1.0 row stays quarantined across two boots and admits nothing", async () => {
+  const repo = new InMemoryPluginActivationRepo();
+  const row = n1Row({ enabled: false, quarantinedAt: N1_AT, quarantineReason: "operator review", quarantineFailureCount: 3 });
+  await repo.save(row);
+  for (let boot = 0; boot < 2; boot++) {
+    const { runtime } = fixture(repo);
+    await runtime.attachEnabledPluginsAtBoot();
+    assert.deepEqual(await repo.getActivation({ workspaceId: "site", pluginId: "charts-recharts" }), row);
+    assert.deepEqual(runtime.browserProviders({}).providers, []);
+  }
 });

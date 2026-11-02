@@ -104,7 +104,7 @@ export async function collectHardwiring(_required = {}, _options = {}) {
   const covered = bootCoveredEnv({ inspector, wiringSource: readFileSync(join(bootDir, 'boot-readiness-gate.ts'), 'utf8'), refusalSource: readFileSync(join(bootDir, 'production-readiness-gate.ts'), 'utf8') });
   const resolver = createResolver({});
   const violations = [];
-  const files = [...sourceFiles({ directory: join(ROOT, 'apps') }), ...sourceFiles({ directory: join(ROOT, 'content/agent-plugins') }), ...sourceFiles({ directory: join(ROOT, 'content/plugins') })];
+  const files = [...sourceFiles({ directory: join(ROOT, 'apps') }), ...sourceFiles({ directory: join(ROOT, 'content/agent-plugins') })];
   for (const file of files) {
     const source = readFileSync(file, 'utf8');
     const owner = pluginIdentity({ file });

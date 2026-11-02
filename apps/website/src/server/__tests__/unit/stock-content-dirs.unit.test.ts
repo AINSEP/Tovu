@@ -176,7 +176,7 @@ async function stageBuildAssets(t: import("node:test").TestContext): Promise<str
   const { buildServer } = await import(pathToFileURL(path.join(REPO_ROOT, "development/scripts/build-server.mjs")).href);
   const fixture = mkdtempSync(path.join(tmpdir(), "tovu-asset-copy-"));
   t.after(() => rmSync(fixture, { recursive: true, force: true }));
-  for (const relative of ["content/templates", "content/themes", "content/agent-plugins", "content/plugins", "content/public", "src/platform/db/drizzle"]) {
+  for (const relative of ["content/templates", "content/themes", "content/agent-plugins", "content/public", "src/platform/db/drizzle"]) {
     const source = relative.startsWith("src/") ? path.join(fixture, "apps/website", relative) : path.join(fixture, relative);
     const destination = path.join(fixture, "dist", relative);
     mkdirSync(source, { recursive: true });
@@ -192,7 +192,7 @@ async function stageBuildAssets(t: import("node:test").TestContext): Promise<str
 
 test("the build script copies stock data to dist/content, not dist/src", async (t) => {
   const fixture = await stageBuildAssets(t);
-  for (const relative of ["content/templates", "content/themes", "content/agent-plugins", "content/plugins", "content/public"]) {
+  for (const relative of ["content/templates", "content/themes", "content/agent-plugins", "content/public"]) {
     assert.equal(readFileSync(path.join(fixture, "dist", relative, ".current"), "utf8"), relative);
     assert.equal(existsSync(path.join(fixture, "dist/src", relative.slice("content/".length))), false);
   }
@@ -200,7 +200,7 @@ test("the build script copies stock data to dist/content, not dist/src", async (
 
 test("every asset copy in the build script cleans its destination first", async (t) => {
   const fixture = await stageBuildAssets(t);
-  for (const relative of ["content/templates", "content/themes", "content/agent-plugins", "content/plugins", "content/public", "src/platform/db/drizzle"]) {
+  for (const relative of ["content/templates", "content/themes", "content/agent-plugins", "content/public", "src/platform/db/drizzle"]) {
     // An ancestor clean counts: cleaning dist/content also cleans dist/content/themes. The
     // observable contract is that deleted source files cannot survive, whatever the command syntax.
     assert.equal(existsSync(path.join(fixture, "dist", relative, "stale.txt")), false, `${relative} retained stale data`);

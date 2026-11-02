@@ -1,15 +1,23 @@
 /**
- * The reviewed Recharts bundle (`content/plugins/charts-recharts/0.1.0/client/provider.js`) is the
- * only copy of the chart provider's code — its source package was deleted from Jini (440894028), so
- * fixes are patched into the bundle and its integrity pin (`charts-recharts-source.ts`). This test
- * mounts that exact bundle, so it pins the shipped bytes, not a re-creation of them.
+ * Mounts the exact Recharts bundle Tovu ships: the reviewed payload of `@jini-ai/plugin-charts-recharts`
+ * at the version pinned in `charts-recharts-source.ts` (whose pin test ties those bytes to the approval).
+ * The source and its own tests live in Jini (`packages/provider-plugins/src/charts-recharts`); these cases
+ * stay here so the PACKAGED build is checked for the owner-reported bugs, not a re-creation of it.
  *
  * Owner bug 11-01: a bar chart of whole counts (posts per status, etc.) got y ticks 0, 0.8, 1.5, 2.3.
  */
+import { createRequire } from "node:module";
+import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { act } from "@testing-library/react";
-// @ts-expect-error -- plain ESM bundle with no type declarations; the shape used is asserted below.
-import { mount } from "../../../../../../content/plugins/charts-recharts/0.1.0/client/provider.js";
+
+/** Keep in step with RECHARTS_BROWSER_APPROVAL.version (the admin cannot import server composition). */
+const PINNED_VERSION = "0.6.19";
+const packageRoot = path.dirname(createRequire(import.meta.url).resolve("@jini-ai/plugin-charts-recharts/package.json"));
+const bundleUrl = pathToFileURL(path.join(packageRoot, "plugins/charts-recharts", PINNED_VERSION, "client/provider.js")).href;
+// Plain ESM bundle with no type declarations; the shape used is asserted by the cases below.
+const { mount } = (await import(/* @vite-ignore */ bundleUrl)) as { mount: (input: unknown) => unknown };
 
 type Instance = { ready: Promise<void>; destroy: () => void };
 
