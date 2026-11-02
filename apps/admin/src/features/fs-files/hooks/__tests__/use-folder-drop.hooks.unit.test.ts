@@ -346,7 +346,10 @@ describe("useFolderDrop", () => {
     expect(result.current.notice).toEqual({ kind: "confirmation", path: "/Users/x/site", replacedPreviousPath });
   });
 
-  it("a prior confirmation timer erases a later error notice (reported, not fixed)", async () => {
+  // Bug (11-02 o2/lane C): this case used to pin the wrong behaviour — the earlier success's
+  // auto-dismiss timer wiped the newer error 400 ms later. A newer notice must cancel the older
+  // timer; errors stay until dismissed or replaced.
+  it("a prior confirmation timer never erases a later error notice", async () => {
     const composerHandle = fakeComposerHandle();
     const { a, b, port } = twoFolderDrops();
     const setCustomRoot = vi.fn<(path: string) => Promise<{ path: string }>>()
@@ -368,7 +371,9 @@ describe("useFolderDrop", () => {
     act(() => vi.advanceTimersByTime(399));
     expect(result.current.notice).toEqual(errorNotice);
     act(() => vi.advanceTimersByTime(1));
-    expect(result.current.notice).toBeNull();
+    expect(result.current.notice).toEqual(errorNotice);
+    act(() => vi.advanceTimersByTime(10_000));
+    expect(result.current.notice).toEqual(errorNotice);
   });
 
   it("still sets the custom root when reading the previous value fails (best-effort read, REQ-02 unaffected)", async () => {

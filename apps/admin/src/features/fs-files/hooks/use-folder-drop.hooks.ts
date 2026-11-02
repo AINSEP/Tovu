@@ -230,6 +230,8 @@ export function useFolderDrop(input: UseFolderDropInput, deps: UseFolderDropDeps
           // The write itself is not cancelled — it already reached the server — but a superseded
           // drop's failure must not replace whatever the newer drop already confirmed.
           if (!mountedRef.current || !settlement.isCurrent({ generation })) return;
+          // An error is not auto-dismissed, so an earlier success's pending timer must not wipe it.
+          if (dismissTimer.current !== null) clearTimeout(dismissTimer.current);
           setNotice({ kind: "error", path, reason: reasonForCustomRootError(err) });
         }
       } });
