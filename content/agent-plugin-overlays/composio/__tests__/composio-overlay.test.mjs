@@ -6,7 +6,7 @@ import test from 'node:test';
 import { nativeToolMetadata } from '../../../../apps/website/src/contracts/core/tool-metadata/index.ts';
 
 /**
- * @file Tovu's overlay for the portable `composio` plugin (now `@jini-ai/plugin-composio`). The
+ * @file Tovu's overlay for the portable `composio` plugin (now `@jini-ai/agent-plugins/composio`). The
  * plugin says what to grant; this overlay holds where Tovu grants it, the restart and the
  * `TOVU_PUBLIC_URL` fallback (plan v2 §5.1).
  */

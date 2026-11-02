@@ -7,6 +7,7 @@ import { classifyAgentPluginMcpServerTrust } from "../../capability-projection.j
 import { parseAgentPluginManifest } from "@jini-ai/agent-plugins/lifecycle";
 import { parseAgentPluginMcpConfig } from "../../mcp-metadata.js";
 import { packAgentPluginDirectory } from "../../lifecycle.js";
+import { agentPluginSourceDir } from "../../../../../../../development/test-support/agent-plugin-source.mjs";
 
 /**
  * @file The `supabase` bundled Agent Plugin's package is VALID, INSTALLABLE, and says what plan v2's
@@ -18,7 +19,7 @@ import { packAgentPluginDirectory } from "../../lifecycle.js";
  * failure mode covered, the free-limit handling, and no SQL write granted yet.
  */
 
-const PACKAGE_ROOT = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins/supabase");
+const PACKAGE_ROOT = agentPluginSourceDir({ pluginId: "supabase" });
 const SKILL_DIR = path.join(PACKAGE_ROOT, "skills", "supabase");
 
 async function readPackageJson(relativePath: string): Promise<unknown> {
@@ -224,10 +225,12 @@ test("SKILL.md (G3): small database changes go through execute_sql, the SQL is s
   assert.doesNotMatch(failureModes, /I can't make tables or change data/);
 });
 
-test("the user signs up for their own account, and a sign-up link opens in a new tab", async () => {
+test("the user signs up for their own account; Tovu's overlay says a sign-up link opens in a new tab", async () => {
   const skill = await readSkill();
   assert.match(skill, /Sign up/);
-  assert.match(skill, /new\s+tab/i);
+  // The portable skill no longer assumes how a host opens links (D-W6); Tovu's overlay states it.
+  const overlay = await readFile(path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugin-overlays/supabase/GUIDANCE.md"), "utf8");
+  assert.match(overlay, /new\s+tab/i);
 });
 
 test("no file in the package carries credential material", async () => {

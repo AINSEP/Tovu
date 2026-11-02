@@ -9,7 +9,7 @@ import fs from "node:fs/promises";
 import { syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import test from "node:test";
+import test, { after } from "node:test";
 import { ACTIVATIONS_LOCK_FILENAME } from "@jini-ai/agent-plugins/lifecycle";
 
 import { InMemoryExternalMcpServerRepo } from "../../../external-mcp/external-mcp-store.memory.js";
@@ -22,6 +22,12 @@ import { resolveAgentPluginLayout } from "../../layout.js";
 import { createBundledSourceArchiveReader, installAgentPlugin, packAgentPluginDirectory, seedBundledAgentPlugins } from "../../lifecycle.js";
 import { AGENT_PLUGINS_SCREEN, describeSavedTokenSwitch, EXTERNAL_MCP_SCREEN, switchOnSavedTokenConnection } from "../../switch-on-saved-token.js";
 import { forceRemove } from "../fixtures/force-remove.js";
+import { composedBundledSourceRoot } from "../fixtures/bundled-source-root.js";
+
+// The shipped bundle (Tovu's content plugins plus every selected package; supabase ships as
+// `@jini-ai/agent-plugins/supabase` since D-W6), composed once for this file.
+const bundledSource = await composedBundledSourceRoot();
+after(() => bundledSource.dispose());
 
 /**
  * @file `switchOnSavedTokenConnection` reports "on" only when BOTH the connection row and the plugin's
@@ -147,7 +153,7 @@ test("no activation record reads as on and writes nothing", async () => {
 
 test("the production fallback enables an untouched saved-token row with the installed plugin's declared grants", async () => {
   await withAgentPluginsDir(async (workspaceRoot) => {
-    await seedBundledAgentPlugins({ layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }), workspaceId: WORKSPACE, sourceRoot: path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins") });
+    await seedBundledAgentPlugins({ layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }), workspaceId: WORKSPACE, sourceRoot: bundledSource.root });
     const repo = new InMemoryExternalMcpServerRepo();
     const keyring = new InMemoryKeyring();
     const sealer = new AesGcmSecretSealer(keyring);

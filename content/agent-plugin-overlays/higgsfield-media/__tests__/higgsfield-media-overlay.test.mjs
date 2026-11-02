@@ -7,7 +7,7 @@ import { nativeToolMetadata } from '../../../../apps/website/src/contracts/core/
 
 /**
  * @file Tovu's overlay for the portable `higgsfield-media` plugin (now
- * `@jini-ai/plugin-higgsfield-media`). The plugin says what to do; this overlay holds the Tovu
+ * `@jini-ai/agent-plugins/higgsfield-media`). The plugin says what to do; this overlay holds the Tovu
  * screens, refusal strings, limits and restart rule (plan v2 §5.1). Run-start injection prepends
  * GUIDANCE.md, so the claims the injection test requires must live in GUIDANCE.md itself, not in a
  * `host/` file the agent has to ask for.

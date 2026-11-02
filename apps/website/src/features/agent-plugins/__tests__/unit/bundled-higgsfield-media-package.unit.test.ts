@@ -7,12 +7,17 @@ import { classifyAgentPluginMcpServerTrust } from "../../capability-projection.j
 import { parseAgentPluginManifest } from "@jini-ai/agent-plugins/lifecycle";
 import { parseAgentPluginMcpConfig } from "../../mcp-metadata.js";
 import { packAgentPluginDirectory } from "../../lifecycle.js";
+import { agentPluginSourceDir } from "../../../../../../../development/test-support/agent-plugin-source.mjs";
 
 /**
  * @file The `higgsfield-media` bundled Agent Plugin's package is VALID, INSTALLABLE, and still says
  * the specific things it was built to say.
  *
- * Mirrors `content/agent-plugins/fly/__tests__/bundled-package.test.mjs` and
+ * The plugin ships as `@jini-ai/agent-plugins/higgsfield-media` (D-W6); Tovu-only facts (the 15 s
+ * abort, the refusal string, daemon-start restart, `TOVU_PUBLIC_URL`, Settings → External MCP) moved
+ * to its overlay, `content/agent-plugin-overlays/higgsfield-media/`, and are pinned there.
+ *
+ * Mirrors the fly bundled-package test and
  * `bundled-site-compliance-package.unit.test.ts` deliberately — same three kinds of assertion, for
  * the same reasons.
  *
@@ -36,7 +41,8 @@ import { packAgentPluginDirectory } from "../../lifecycle.js";
  * package most likely to acquire a pasted token during a well-meaning edit.
  */
 
-const PACKAGE_ROOT = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins/higgsfield-media");
+const PACKAGE_ROOT = agentPluginSourceDir({ pluginId: "higgsfield-media" });
+const OVERLAY_ROOT = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugin-overlays/higgsfield-media");
 const SKILL_DIR = path.join(PACKAGE_ROOT, "skills", "higgsfield-media");
 
 async function readPackageFile(relativePath: string): Promise<string> {
@@ -45,6 +51,12 @@ async function readPackageFile(relativePath: string): Promise<string> {
 
 async function readSkill(): Promise<string> {
   return readFile(path.join(SKILL_DIR, "SKILL.md"), "utf8");
+}
+
+/** Tovu's host guidance for this plugin: the overlay text delivered alongside the package's skill. */
+async function readHostGuidance(): Promise<string> {
+  const files = ["GUIDANCE.md", path.join("host", "tovu-internals.md")];
+  return (await Promise.all(files.map((file) => readFile(path.join(OVERLAY_ROOT, file), "utf8")))).join("\n");
 }
 
 async function readReference(name: string): Promise<string> {
@@ -140,7 +152,7 @@ test("SKILL.md forbids sync:true AND carries the two numbers that make it unargu
   const skill = await readSkill();
   assert.ok(skill.includes("### ⚠️ Never pass `sync: true`"));
   assert.ok(skill.includes("**Do not pass `sync: true` to `job_status`.** It cannot complete."));
-  assert.match(skill, /15,?000\s*ms|15\s*s\b/i, "the 15s Tovu-side abort must be stated");
+  assert.match(await readHostGuidance(), /15,?000\s*ms|15\s*s\b/i, "the 15s Tovu-side abort must be stated");
   assert.match(skill, /~?25\s*second|~?25\s*s\b/i, "the ~25s Higgsfield-side internal poll must be stated");
 
   // The remedy has to be named, not merely the hazard — a prohibition with no alternative gets
@@ -150,19 +162,20 @@ test("SKILL.md forbids sync:true AND carries the two numbers that make it unargu
 
 test("SKILL.md documents the TWO-list write grant and quotes the exact refusal line", async () => {
   const skill = await readSkill();
-  assert.match(skill, /remote-declares-not-read-only/);
+  const hostGuidance = await readHostGuidance();
+  assert.match(hostGuidance, /remote-declares-not-read-only/);
   assert.match(skill, /writeAllowedToolNames/);
-  assert.match(skill, /may write/i);
+  assert.match(hostGuidance, /may write/i);
 
   // The two-ticks-not-one framing is the part operators get wrong; keep it explicit.
-  assert.ok(skill.includes("Each requested generator needs to be in **both** lists."));
+  assert.match(skill, /Each requested generator needs to\s+be in \*\*both\*\* lists\./);
   assert.ok(skill.includes("**also** named it in a second list, `writeAllowedToolNames`."));
 });
 
 test("SKILL.md states that federation config is read at daemon start, so a saved grant needs a restart", async () => {
-  const skill = await readSkill();
-  assert.match(skill, /daemon start/i);
-  assert.match(skill, /Restart the assistant/);
+  const hostGuidance = await readHostGuidance();
+  assert.match(hostGuidance, /daemon start/i);
+  assert.match(hostGuidance, /Restart the assistant/);
 });
 
 test("SKILL.md forbids inventing a cause for an absent or refused federated tool", async () => {
@@ -240,8 +253,9 @@ test("SKILL.md is honest that the cold start leaves chat — the enable step, an
   // `external_mcp_oauth_connect` refuses outright when TOVU_PUBLIC_URL is unset, because a tool call
   // has no live request to derive a callback origin from. Naming the variable is what makes the
   // refusal recognisable instead of looking like Higgsfield being down.
-  assert.match(skill, /TOVU_PUBLIC_URL/);
-  assert.match(skill, /Settings → External MCP/);
+  const hostGuidance = await readHostGuidance();
+  assert.match(hostGuidance, /TOVU_PUBLIC_URL/);
+  assert.match(hostGuidance, /Settings → External MCP/);
 });
 
 test("plugin.json's keywords also reach an operator who says 'photo' or 'illustration'", async () => {

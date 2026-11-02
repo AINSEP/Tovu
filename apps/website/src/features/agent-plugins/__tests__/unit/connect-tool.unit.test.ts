@@ -3,7 +3,7 @@ import { mcpTestPort, credentialTestPort } from "../fixtures/connection-service-
 import type { AgentPluginOAuthPort } from "../../service-ports.js";
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
-import test from "node:test";
+import test, { after } from "node:test";
 import { OAuthError } from "@jini-ai/oauth";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -27,6 +27,12 @@ import { provisionAgentPluginMcpServers } from "../../federate-mcp.js";
 import type { McpServerConfig } from "../../mcp-metadata.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { composedBundledSourceRoot } from "../fixtures/bundled-source-root.js";
+
+// The shipped bundle (Tovu's content plugins plus every selected package; supabase ships as
+// `@jini-ai/agent-plugins/supabase` since D-W6), composed once for this file.
+const bundledSource = await composedBundledSourceRoot();
+after(() => bundledSource.dispose());
 
 
 /**
@@ -499,7 +505,7 @@ test("agent_plugin_connect resolves the installed package without an injected re
   const previous = process.env.TOVU_AGENT_PLUGINS_DIR;
   process.env.TOVU_AGENT_PLUGINS_DIR = dir;
   try {
-    await seedBundledAgentPlugins({ layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }), workspaceId: WORKSPACE_ID, sourceRoot: path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins") });
+    await seedBundledAgentPlugins({ layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }), workspaceId: WORKSPACE_ID, sourceRoot: bundledSource.root });
     const store = makeStoreDeps();
     const emissions: SurfaceEmission[] = [];
     const result = await runAgentPluginConnect(baseDeps(store, {

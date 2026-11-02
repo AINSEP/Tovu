@@ -7,6 +7,7 @@ import { classifyAgentPluginMcpServerTrust } from "../../capability-projection.j
 import { parseAgentPluginManifest } from "@jini-ai/agent-plugins/lifecycle";
 import { parseAgentPluginMcpConfig } from "../../mcp-metadata.js";
 import { packAgentPluginDirectory } from "../../lifecycle.js";
+import { agentPluginSourceDir } from "../../../../../../../development/test-support/agent-plugin-source.mjs";
 
 /**
  * @file The `composio` bundled Agent Plugin's package is VALID, INSTALLABLE, and says the specific
@@ -19,7 +20,7 @@ import { packAgentPluginDirectory } from "../../lifecycle.js";
  * plan verified against the live server on 2026-09-27, plus the grants the skill must NOT recommend.
  */
 
-const PACKAGE_ROOT = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins/composio");
+const PACKAGE_ROOT = agentPluginSourceDir({ pluginId: "composio" });
 const SKILL_PATH = path.join(PACKAGE_ROOT, "skills", "composio", "SKILL.md");
 
 async function readPackageJson(relativePath: string): Promise<unknown> {

@@ -13,6 +13,7 @@ import test from "node:test";
 import { resolveAgentPluginLayout } from "../../layout.js";
 import { resolveAgentPluginRefs, listInstalledPlugins } from "../../lifecycle.js";
 import { seedBundledAgentPlugins } from "../../lifecycle.js";
+import { composedBundledSourceRoot } from "../fixtures/bundled-source-root.js";
 
 /**
  * @file The `higgsfield-media` bundled plugin seeds like the other two AND its content actually
@@ -25,8 +26,10 @@ import { seedBundledAgentPlugins } from "../../lifecycle.js";
  * up.
  *
  * What is NOT covered there, and is the whole reason this file exists: that THIS package's specific,
- * hard-won claims survive the trip from `content/agent-plugins/higgsfield-media/skills/.../SKILL.md`
- * through packing, content-addressed install, and run-start injection into the actual prompt prefix.
+ * hard-won claims survive the trip from `@jini-ai/agent-plugins/higgsfield-media` (its SKILL.md) and
+ * Tovu's overlay (`content/agent-plugin-overlays/higgsfield-media/GUIDANCE.md`, prepended by
+ * `resolveHostPluginRefs`) through packing, content-addressed install, and run-start injection into
+ * the actual prompt prefix.
  * `bundled-higgsfield-media-package.unit.test.ts` asserts those claims are IN the file on disk; this
  * asserts they are in what the model is handed. Those are different failures: a packer that filtered
  * markdown, a resolver that injected only the frontmatter, or an install that truncated would each
@@ -38,7 +41,6 @@ import { seedBundledAgentPlugins } from "../../lifecycle.js";
 
 const WORKSPACE_ID = "44444444-4444-4444-8444-444444444444";
 const PLUGIN_ID = "higgsfield-media";
-const BUNDLED_SOURCE_ROOT = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins");
 
 /** `install.ts` freezes published trees to 0o555, so a plain `rm -rf` of a temp install root fails
  *  EACCES. Same wrinkle, same remedy as `bundled-inactive-gating.integration.test.ts`. */
@@ -59,9 +61,11 @@ async function withSeededWorkspace<T>(fn: (context: { readonly workspaceRoot: st
   const dir = await mkdtemp(path.join(tmpdir(), "tovu-higgsfield-media-"));
   const previous = process.env.TOVU_AGENT_PLUGINS_DIR;
   process.env.TOVU_AGENT_PLUGINS_DIR = dir;
+  // The shipped bundle: Tovu's content plugins plus every selected package (higgsfield-media since D-W6).
+  const bundle = await composedBundledSourceRoot();
   try {
     const layout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() });
-    const result = await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: BUNDLED_SOURCE_ROOT });
+    const result = await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: bundle.root });
 
     const failures = result.outcomes.filter((outcome) => outcome.status === "failed");
     assert.deepEqual(failures, [], `bundled plugins must seed cleanly, got: ${JSON.stringify(failures)}`);
@@ -71,6 +75,7 @@ async function withSeededWorkspace<T>(fn: (context: { readonly workspaceRoot: st
     if (previous === undefined) delete process.env.TOVU_AGENT_PLUGINS_DIR;
     else process.env.TOVU_AGENT_PLUGINS_DIR = previous;
     await forceRemove(dir);
+    await bundle.dispose();
   }
 }
 
@@ -111,11 +116,11 @@ test("enabling it injects the REAL SKILL.md, carrying every claim an agent canno
       ["does not return an image", "the async trap — reporting success after generate_image is the headline failure"],
       ["job id", "what generate_image actually returns"],
       ["media_import_from_url", "the only call that lands the asset in Media"],
-      ["remote-declares-not-read-only", "the exact refusal string, so the agent can recognise it rather than guess"],
+      ["remote-declares-not-read-only", "the exact refusal string (Tovu overlay GUIDANCE.md), so the agent can recognise it rather than guess"],
       ["writeAllowedToolNames", "the second allowlist a federated write tool needs"],
       ["Requires basic plan or higher", "the plan gate's exact wording"],
       ["z_image", "the model verified to work when the defaults are gated"],
-      ["Restart the assistant", "config is read at daemon start; a saved grant needs the restart"],
+      ["Restart the assistant", "config is read at daemon start; a saved grant needs the restart (Tovu overlay GUIDANCE.md)"],
     ];
 
     for (const [claim, why] of mustReachTheModel) {

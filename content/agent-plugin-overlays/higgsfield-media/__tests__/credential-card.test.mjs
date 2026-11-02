@@ -1,9 +1,14 @@
+import path from 'node:path';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { parsePluginCredentialCards } from '../../../../apps/website/src/features/agent-plugins/credential-cards.ts';
+import { agentPluginSourceDir } from '../../../../development/test-support/agent-plugin-source.mjs';
 
-const card = (target = 'higgsfield-media') => JSON.parse(readFileSync(new URL('../plugin.json', import.meta.url), 'utf8')).extensions.tovu.credentialCards.find(c => c.target === target);
+// Moved from content/agent-plugins/higgsfield-media (D-W): the plugin ships as @jini-ai/agent-plugins/higgsfield-media; this Tovu-bound test reads it from there.
+const PLUGIN_ROOT = agentPluginSourceDir({ pluginId: 'higgsfield-media' });
+
+const card = (target = 'higgsfield-media') => JSON.parse(readFileSync(path.join(PLUGIN_ROOT, 'plugin.json'), 'utf8')).extensions.tovu.credentialCards.find(c => c.target === target);
 for (const [target, kind, title, permissions, helpUrl] of [
   ['higgsfield-media', 'oauth', 'Connect Higgsfield', /Browser sign-in only/, undefined],
 ]) test(`higgsfield-media/${target}: correct title, destination, key page and minimum access guidance`, () => {
@@ -21,7 +26,7 @@ test('browser sign-in declares permissions', () => {
 });
 
 test('every credential card parses its task purposes', () => {
-  const parsed = parsePluginCredentialCards({ raw: readFileSync(new URL('../plugin.json', import.meta.url), 'utf8') });
+  const parsed = parsePluginCredentialCards({ raw: readFileSync(path.join(PLUGIN_ROOT, 'plugin.json'), 'utf8') });
   assert.equal(parsed.ok, true);
   assert.deepEqual(parsed.descriptors.map(({ providerId, usedFor }) => ({ providerId, usedFor })), [
     {

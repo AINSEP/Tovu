@@ -4,7 +4,7 @@ import path from 'node:path';
 import test from 'node:test';
 
 /**
- * @file Tovu's overlay for the portable `supabase` plugin (now `@jini-ai/plugin-supabase`). The
+ * @file Tovu's overlay for the portable `supabase` plugin (now `@jini-ai/agent-plugins/supabase`). The
  * portable skill no longer assumes how the host opens links (plan v2 §5.1); Tovu's new-tab
  * behavior and its approval card are stated here instead.
  */

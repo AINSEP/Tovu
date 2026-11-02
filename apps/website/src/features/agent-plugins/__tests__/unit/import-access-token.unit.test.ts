@@ -24,6 +24,12 @@ import { seedBundledAgentPlugins } from "../../lifecycle.js";
 import { forceRemove } from "../fixtures/force-remove.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
 import { parseAgentPluginMcpConfig, type McpServerConfig } from "../../mcp-metadata.js";
+import { composedBundledSourceRoot } from "../fixtures/bundled-source-root.js";
+
+// The shipped bundle (Tovu's content plugins plus every selected package; supabase ships as
+// `@jini-ai/agent-plugins/supabase` since D-W6), composed once for this file.
+const bundledSource = await composedBundledSourceRoot();
+after(() => bundledSource.dispose());
 
 /**
  * @file `import-access-token.ts`: a token that did not come through the paste form (the retired
@@ -342,7 +348,7 @@ test("listInstalledAgentPluginServers marks a plugin bundled only when its diges
   const dir = siteLayouts.deps.agentPluginLayout.root;
   try {
     const layout = siteLayouts.deps.agentPluginLayout;
-    const contentRoot = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins");
+    const contentRoot = bundledSource.root;
     await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE, sourceRoot: contentRoot });
     const seeded = await listInstalledAgentPluginServers(testSiteLayoutContext({ ...siteLayouts.deps, workspaceId: WORKSPACE }));
     assert.equal(seeded.find((plugin) => plugin.pluginId === "supabase")?.bundled, true);

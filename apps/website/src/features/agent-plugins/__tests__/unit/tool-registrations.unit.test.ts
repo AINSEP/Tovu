@@ -12,7 +12,7 @@ import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, realpath, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import test, { mock } from "node:test";
+import test, { after, mock } from "node:test";
 
 import { createToolRegistry, ToolInputError, type ToolExecutionContext } from "@jini-ai/core";
 import { PAGE_CAPABILITIES } from "@jini-ai/agentic";
@@ -44,6 +44,12 @@ import {
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { UNTESTED_PLUGIN_GUIDANCE } from "../../identity.js";
+import { composedBundledSourceRoot } from "../fixtures/bundled-source-root.js";
+
+// The shipped bundle (Tovu's content plugins plus every selected package; supabase ships as
+// `@jini-ai/agent-plugins/supabase` since D-W6), composed once for this file.
+const bundledSource = await composedBundledSourceRoot();
+after(() => bundledSource.dispose());
 
 
 /**
@@ -635,7 +641,7 @@ test("a disabled plugin's call is denied before the overlay is read, and no over
 
 test("the registered connect handler resolves a real installed plugin and recognizes its saved sign-in", async () => {
   await withAgentPluginsDir(async () => {
-    await seedBundledAgentPlugins({ layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }), workspaceId: WORKSPACE_A, sourceRoot: path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins") });
+    await seedBundledAgentPlugins({ layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }), workspaceId: WORKSPACE_A, sourceRoot: bundledSource.root });
     const repo = new InMemoryExternalMcpServerRepo();
     const keyring = new InMemoryKeyring();
     const sealer = new AesGcmSecretSealer(keyring);

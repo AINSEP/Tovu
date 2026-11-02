@@ -1,7 +1,9 @@
+import path from "node:path";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { parseAgentPluginMcpConfig, type McpServerConfig, type RemoteMcpServerConfig } from "../mcp-metadata.js";
+import { agentPluginSourceDir } from "../../../../../../development/test-support/agent-plugin-source.mjs";
 
 /** Every fixture here declares a remote server; the `tovu*` metadata only exists on that variant. */
 function remote(server: McpServerConfig | undefined): RemoteMcpServerConfig | undefined {
@@ -49,9 +51,9 @@ test("read-only declarations preserve the absence of sign-in defaults", () => {
 });
 
 test("bundled Higgsfield declares only the two evidenced read tools and no sign-in allow defaults", async () => {
-  const raw = JSON.parse(await readFile(new URL("../../../../../../content/agent-plugins/higgsfield-media/mcp.json", import.meta.url), "utf8"));
+  const raw = JSON.parse(await readFile(path.join(agentPluginSourceDir({ pluginId: "higgsfield-media" }), "mcp.json"), "utf8"));
   assert.deepEqual(Object.keys(raw.mcpServers.higgsfield).sort(), ["type", "url"]);
-  const manifest = JSON.parse(await readFile(new URL("../../../../../../content/agent-plugins/higgsfield-media/plugin.json", import.meta.url), "utf8"));
+  const manifest = JSON.parse(await readFile(path.join(agentPluginSourceDir({ pluginId: "higgsfield-media" }), "plugin.json"), "utf8"));
   assert.deepEqual(manifest.extensions.tovu.mcpServers.higgsfield.tovuDefaultTools, { read: ["models_explore", "job_status"] });
   const parsed = parseAgentPluginMcpConfig({ value: raw }, { pluginManifest: manifest });
   assert.equal(parsed.ok, true);

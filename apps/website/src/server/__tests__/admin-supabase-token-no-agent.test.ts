@@ -18,6 +18,7 @@ import { createRouteDeps } from "../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/dev-auth.js";
 import { createExternalMcpModule } from "../runtime/composition/modules/external-mcp.js";
 import { bootAuthenticated } from "./helpers/http-test-server.js";
+import { agentPluginSourceDir } from "../../../../../development/test-support/agent-plugin-source.mjs";
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor<AssistantToolRegistryDeps, AssistantSurfaceDeps> }) => contribution.domain }),
@@ -37,7 +38,7 @@ const contributions = {
 
 const WORKSPACE_ID = "workspace-local";
 const TOKEN = "sbp_no_agent_token_must_never_echo";
-const SUPABASE_MCP_JSON = path.resolve(import.meta.dirname, "../../../../../content/agent-plugins/supabase/mcp.json");
+const SUPABASE_MCP_JSON = path.join(agentPluginSourceDir({ pluginId: "supabase" }), "mcp.json");
 
 async function buildAdminOnlyApp() {
   const deps = createRouteDeps();

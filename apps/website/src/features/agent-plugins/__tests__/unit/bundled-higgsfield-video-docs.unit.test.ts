@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import test from 'node:test';
-const root = path.resolve(import.meta.dirname, '../../../../../../../content/agent-plugins/higgsfield-media');
+import { agentPluginSourceDir } from '../../../../../../../development/test-support/agent-plugin-source.mjs';
+const root = agentPluginSourceDir({ pluginId: 'higgsfield-media' });
 test('Higgsfield setup documents video and its write grant without claiming a deployment-wide ban', async () => {
   const skill = await readFile(path.join(root, 'skills/higgsfield-media/SKILL.md'), 'utf8');
   const gates = await readFile(path.join(root, 'skills/higgsfield-media/references/models-and-plan-gates.md'), 'utf8');
