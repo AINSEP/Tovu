@@ -299,6 +299,34 @@ test('useRunnerConversations: without a bridge every action is a no-op', async (
   assert.deepEqual([hook.current().conversations, hook.current().activeId, hook.current().paneKey], [[], null, 'new']);
 });
 
+test('useRunnerConversations: returns the same shape as before, with actions that keep their identity across renders', async (t) => {
+  const { bridge } = conversationStore([convo('a')]);
+  const hook = renderConversations(t, bridge);
+  await settle();
+  const first = hook.current();
+  assert.deepEqual(Object.keys(first).sort(), ['activeId', 'conversations', 'create', 'initialMessages', 'onMessagesChange', 'paneKey', 'remove', 'rename', 'select']);
+  act(() => first.select('a'));
+  await settle();
+  hook.rerender();
+  const second = hook.current();
+  assert.deepEqual([second.activeId, second.paneKey, second.initialMessages.map((m) => m.id)], ['a', 'a', ['a-m1']], 'controller state reaches the render');
+  for (const name of ['select', 'create', 'remove', 'rename', 'onMessagesChange'] as const) {
+    assert.equal(second[name], first[name], `${name} is stable`);
+  }
+});
+
+test('useRunnerConversations: looks the bridge up once, not on every render', async (t) => {
+  const { bridge } = conversationStore([convo('a')]);
+  let lookups = 0;
+  const getBridge = () => { lookups++; return bridge as never; };
+  const hook = renderHook(t, () => useRunnerConversations({}, { getBridge }));
+  await settle();
+  hook.rerender();
+  await settle();
+  assert.equal(lookups, 1);
+  assert.deepEqual(hook.current().conversations.map((c) => c.id), ['a'], 'the mount refresh still lands');
+});
+
 // ── useConversationDeleteConfirmation ───────────────────────────────────────────────────────────
 
 test('useConversationDeleteConfirmation: a prompt resolves from the answer, and a newer prompt cancels an older one', async (t) => {
