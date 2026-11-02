@@ -224,3 +224,7 @@ docs/business/
 
 # Trashed sites (site-trash.ts:38-49) hold a whole site + its database; never commit them.
 site-trash/
+
+# 2026-11-02: development's composed bundled-agent-plugin root (Tovu's own plugins plus the selected
+# Jini plugin packages), rebuilt by dev-server.mjs / `compose-bundled-agent-plugins.mjs` on demand.
+.generated/

@@ -4,6 +4,7 @@ import { spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { composeBundledAgentPluginRoot } from './compose-bundled-agent-plugins.mjs';
 
 export function buildServer({ repoRoot }, { npmCli = process.env.npm_execpath,
   tscCli = createRequire(path.join(repoRoot, 'package.json')).resolve('typescript/bin/tsc'),
@@ -12,6 +13,7 @@ export function buildServer({ repoRoot }, { npmCli = process.env.npm_execpath,
     if (result.error) throw result.error;
     if (result.status !== 0) throw new Error(`Build step failed (${result.signal ?? result.status}): ${args[0]}`);
   },
+  selection,
 } = {}) {
   if (!npmCli) throw new Error('Run this script through npm run build:server so npm_execpath is available.');
   // Invoke npm's JavaScript entrypoint with node, avoiding Windows npm.cmd shell quoting entirely.
@@ -21,27 +23,32 @@ export function buildServer({ repoRoot }, { npmCli = process.env.npm_execpath,
   rmSync(path.join(repoRoot, 'dist/src'), { recursive: true, force: true });
   runNode({ args: [tscCli, '-p', 'tsconfig.json'] });
   runNode({ args: [path.join(repoRoot, 'development/scripts/emit-dist-package-json.mjs')] });
-  stageServerRuntimeAssets({ repoRoot });
+  stageServerRuntimeAssets({ repoRoot }, { npmCli, selection });
 }
 
 /**
  * Replace compiled runtime assets from their current product sources, including the complete
  * bundled-agent-plugin catalog. Can run independently when unrelated compilation work is in flight.
  * Never change installed plugins in a site; this refreshes only product installation inputs.
- * @throws Filesystem errors retain their native path and cause.
+ * `dist/content/agent-plugins` is the composed root (Tovu's own plugins plus the selected Jini plugin
+ * packages, `compose-bundled-agent-plugins.mjs`), and the Tovu-only overlay text ships beside it.
+ * @param composition Passed to `composeBundledAgentPluginRoot` (`selection`, `npmCli`, `listPackageFiles`;
+ *   defaults: the product selection and npm's own entrypoint).
+ * @throws Filesystem errors retain their native path and cause; composition refusals fail the build.
  * @complexity O(f + b) I/O for f source entries and b bytes copied; recursive copy is owned by Node.
  * @example stageServerRuntimeAssets({ repoRoot }); // CLI: node development/scripts/build-server.mjs --assets-only
  */
-export function stageServerRuntimeAssets({ repoRoot }, _options = {}) {
+export function stageServerRuntimeAssets({ repoRoot }, composition = {}) {
   for (const relative of ['dist/content', 'dist/src/platform/db/drizzle', 'dist/src/platform/db/drizzle-database-journal']) {
     rmSync(path.join(repoRoot, relative), { recursive: true, force: true });
   }
-  for (const relative of ['content/templates', 'content/themes', 'content/agent-plugins', 'content/plugins', 'content/public', 'src/platform/db/drizzle']) {
+  for (const relative of ['content/templates', 'content/themes', 'content/agent-plugin-overlays', 'content/plugins', 'content/public', 'src/platform/db/drizzle']) {
     const source = relative.startsWith('src/') ? path.join(repoRoot, 'apps/website', relative) : path.join(repoRoot, relative);
     const destination = path.join(repoRoot, 'dist', relative);
     mkdirSync(destination, { recursive: true });
     cpSync(source, destination, { recursive: true });
   }
+  composeBundledAgentPluginRoot({ repoRoot, outputRoot: path.join(repoRoot, 'dist/content/agent-plugins') }, composition);
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
