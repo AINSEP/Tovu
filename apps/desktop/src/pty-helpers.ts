@@ -26,9 +26,11 @@ export function lacksExecuteBits(mode: number): boolean {
 }
 
 /**
- * The packaging-backstop check: every `spawn-helper` electron-builder unpacked must be executable,
- * and a macOS bundle must carry at least one (node-pty is unpacked whole, electron-builder.yml
- * `asarUnpack`). A Windows resources dir has none (conpty) and passes.
+ * The packaging-backstop check: in a macOS bundle every `spawn-helper` electron-builder unpacked
+ * must be executable, and there must be at least one (node-pty is unpacked whole, electron-builder.yml
+ * `asarUnpack`). Other targets are not checked: node-pty's tarball carries the darwin helpers into
+ * Windows packages too, Windows cannot hold POSIX modes (`chmod` cannot set them), and conpty never
+ * execs spawn-helper.
  *
  * @param resourcesDirs - packaged `Resources` dirs (each holds `app.asar` and `app.asar.unpacked`).
  * @returns one line per failure; empty when every dir passes.
@@ -36,9 +38,10 @@ export function lacksExecuteBits(mode: number): boolean {
  */
 export function packagedPtyHelperFailures(resourcesDirs: string[]): string[] {
   return resourcesDirs.flatMap((dir) => {
+    if (!dir.endsWith(path.join("Contents", "Resources"))) return [];
     const ptyDir = path.join(dir, "app.asar.unpacked", "node_modules", "node-pty");
     const helpers = ptyHelperPaths({ ptyDir });
-    if (helpers.length === 0) return dir.endsWith(path.join("Contents", "Resources")) ? [`no node-pty spawn-helper under ${ptyDir}`] : [];
+    if (helpers.length === 0) return [`no node-pty spawn-helper under ${ptyDir}`];
     return helpers.flatMap((file) => {
       const mode = statSync(file).mode;
       return lacksExecuteBits(mode) ? [`${file} (mode ${(mode & 0o777).toString(8)})`] : [];

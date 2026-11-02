@@ -38,3 +38,16 @@ test("a mac bundle with no spawn-helper fails; a non-mac resources dir with none
   const win = resourcesWith(path.join(scratch, "win-unpacked", "resources"), { "prebuilds/win32-x64/pty.node": 0o644 });
   assert.deepEqual(packagedPtyHelperFailures([mac, win]), [`no node-pty spawn-helper under ${path.join(mac, "app.asar.unpacked", "node_modules", "node-pty")}`]);
 });
+
+test("a Windows resources dir passes even though node-pty ships macOS spawn-helpers without execute bits", t => {
+  // node-pty's tarball carries darwin prebuilds into Windows packages too; chmod cannot set POSIX
+  // modes on Windows and conpty never execs spawn-helper, so their modes must not fail the build.
+  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "pty-helpers-"));
+  t.after(() => fs.rmSync(scratch, { recursive: true, force: true }));
+  const win = resourcesWith(path.join(scratch, "win-unpacked", "resources"), {
+    "prebuilds/darwin-arm64/spawn-helper": 0o644,
+    "prebuilds/darwin-x64/spawn-helper": 0o644,
+    "prebuilds/win32-x64/pty.node": 0o644,
+  });
+  assert.deepEqual(packagedPtyHelperFailures([win]), []);
+});
