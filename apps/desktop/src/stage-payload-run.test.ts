@@ -139,6 +139,8 @@ test("stages the payload, the dependency closure and the Jini packages, and repo
   assert.ok(existsSync(path.join(modules, "@jini-ai", "platform", "package.json")));
   assert.deepEqual(calls.transitive, [[
     path.join(fx.repo, "packages/sdk"), path.join(fx.repo, "node_modules/dep-a"),
+    // dep-a ships with its own nested copy, so that copy is a root and is never flattened again.
+    path.join(fx.repo, "node_modules/dep-a/node_modules/nested"),
     path.join(fx.repo, "node_modules/better-sqlite3"), path.join(fx.repo, "node_modules/playwright"),
     path.join(fx.tmp, "jini/packages/core"),
   ]]);
@@ -159,11 +161,28 @@ test("stages the payload, the dependency closure and the Jini packages, and repo
   assert.deepEqual(out, [
     `stage-payload: staged bundled npm -> ${path.join(fx.desktop, "staging/npm")} (1962 files, 5.0 MB)\n`,
     `stage-payload: set the execute bits on 1 node-pty spawn-helper(s): ${path.join(fx.desktop, "node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper")}\n`,
-    // sdk + dep-a + nested + better-sqlite3 + playwright + core + required platform + 2 fake transitive.
-    `stage-payload: staged 9 packages, materialized 1 symlinks -> ${fx.outDir} (10.0 MB)\n`,
+    // sdk + dep-a + better-sqlite3 + playwright + core + required platform + 2 fake transitive.
+    // (dep-a's nested package ships inside dep-a; it used to be counted again as a top-level copy.)
+    `stage-payload: staged 8 packages, materialized 1 symlinks -> ${fx.outDir} (10.0 MB)\n`,
     "stage-payload: stripped 4 declarations, 3 third-party source maps, 1 coverage reports (2.0 MB on disk)\n",
     "stage-payload: native prebuilds kept for darwin-x64 + darwin-arm64 only; removed 6 other-architecture prebuilds and 2 from-source build inputs (3.0 MB on disk)\n",
   ]);
+});
+
+test("a root's own nested version ships in place beside a different top-level version (express 4 + sdk's express 5)", (t) => {
+  const fx = fixture();
+  t.after(fx.cleanup);
+  const manifest = JSON.parse(readFileSync(path.join(fx.repo, "package.json"), "utf8"));
+  manifest.dependencies = { ...manifest.dependencies, express: "4", "mcp-sdk": "1" };
+  write(path.join(fx.repo, "package.json"), JSON.stringify(manifest));
+  write(path.join(fx.repo, "node_modules", "express", "package.json"), JSON.stringify({ name: "express", version: "4.22.2" }));
+  write(path.join(fx.repo, "node_modules", "mcp-sdk", "package.json"), JSON.stringify({ name: "mcp-sdk", version: "1.0.0", dependencies: { express: "5" } }));
+  write(path.join(fx.repo, "node_modules", "mcp-sdk", "node_modules", "express", "package.json"), JSON.stringify({ name: "express", version: "5.3.0" }));
+  harness(fx).run();
+  const modules = path.join(fx.outDir, "node_modules");
+  const version = (dir: string) => JSON.parse(readFileSync(path.join(dir, "package.json"), "utf8")).version;
+  assert.equal(version(path.join(modules, "express")), "4.22.2");
+  assert.equal(version(path.join(modules, "mcp-sdk", "node_modules", "express")), "5.3.0");
 });
 
 test("restaging wipes the previous payload and preserves an already staged package", (t) => {
