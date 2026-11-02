@@ -12,6 +12,7 @@ import type { RouteDeps } from "../../routes/types.js";
 import { buildStaticPublishRegistrations } from "#src/features/deployments/publish-agent-tools";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { bundledDeployEnvVars } from "#src/features/deployments/deploy-targets/__tests__/bundled-deploy-targets.fixture";
+import { processComposedBundledSourceRoot } from "#src/features/agent-plugins/__tests__/fixtures/bundled-source-root";
 import type { DeployTargetCreateContext, HostDeployPublishInput, LoadedDeployTarget } from "#src/features/deployments/deploy-targets/types";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
@@ -56,6 +57,9 @@ import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests
 
 const publishOutputDir = mkdtempSync(path.join(tmpdir(), "tovu-publish-route-test-"));
 for (const envVar of await bundledDeployEnvVars()) delete process.env[envVar];
+// The hosting plugins ship from @jini-ai/agent-plugins, not content/agent-plugins, so the app reads the
+// composed bundle the build ships (as `npm run dev` does) rather than finding no publish targets.
+process.env.TOVU_BUNDLED_AGENT_PLUGINS_DIR ??= await processComposedBundledSourceRoot();
 
 const PUBLISH_PATH = "system/publish";
 
