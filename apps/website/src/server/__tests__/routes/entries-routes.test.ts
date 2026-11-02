@@ -16,6 +16,7 @@ import { registerAdminEntryUpdateRoute } from "../../inbound/admin-http/routes/e
 import { registerAdminEntryLifecycleRoute } from "../../inbound/admin-http/routes/entries/lifecycle.js";
 import type { RouteDeps } from "../../routes/types.js";
 import { ensureWidgetContentTypesRegistered } from "@jini-ai/cms/widgets";
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 
 /**
  * @file design-spec.md §1.9 backend-gap closure — route-level tests for the Collections entries
@@ -120,8 +121,8 @@ test("entries routes: create surfaces an authorize() failure as a 500 (INTERNAL_
   });
   assert.equal(res.status, 500);
   const body = (await res.json()) as { error: string; code: string };
-  assert.equal(body.code, "INTERNAL_ERROR");
-  assert.equal(body.error, "boom");
+  // 88f429c25: the shared envelope conceals the cause behind an incident id (whole-body equality).
+  assertAdminResponse({ actual: body, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
 });
 
 test("entries routes: create requires type, slug, and title", async (t) => {
@@ -558,7 +559,7 @@ test("entries routes: update's write-service chokepoint re-check no longer diver
   assert.equal(body.entry.title, "New title");
 });
 
-test("entries routes: update surfaces an authorize() Error as 500 (INTERNAL_ERROR) carrying its message", async (t) => {
+test("entries routes: update surfaces an authorize() Error as 500 (INTERNAL_ERROR) behind the concealed incident envelope", async (t) => {
   const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   await registerRecipeType(baseUrl, cookie);
@@ -575,8 +576,8 @@ test("entries routes: update surfaces an authorize() Error as 500 (INTERNAL_ERRO
   });
   assert.equal(res.status, 500);
   const body = (await res.json()) as { error: string; code: string };
-  assert.equal(body.code, "INTERNAL_ERROR");
-  assert.equal(body.error, "boom");
+  // 88f429c25: the shared envelope conceals the cause behind an incident id (whole-body equality).
+  assertAdminResponse({ actual: body, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
 });
 
 test("entries routes: update surfaces a non-Error throw as 500 (INTERNAL_ERROR) with a generic message", async (t) => {
@@ -597,8 +598,8 @@ test("entries routes: update surfaces a non-Error throw as 500 (INTERNAL_ERROR) 
   });
   assert.equal(res.status, 500);
   const body = (await res.json()) as { error: string; code: string };
-  assert.equal(body.code, "INTERNAL_ERROR");
-  assert.equal(body.error, "internal error");
+  // 88f429c25: the shared envelope conceals the cause behind an incident id (whole-body equality).
+  assertAdminResponse({ actual: body, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
 });
 
 test("entries routes: lifecycle denied 403 FORBIDDEN without admin.collections.manage", async (t) => {
@@ -758,7 +759,7 @@ test("entries routes: unpublish preserves an entry-scoped grant through the writ
   assert.equal((await deps.entryRepo.findById({ workspaceId: deps.workspaceId, id: entry.id }))?.status, "unpublished");
 });
 
-test("entries routes: lifecycle surfaces an authorize() Error as 500 (INTERNAL_ERROR) carrying its message", async (t) => {
+test("entries routes: lifecycle surfaces an authorize() Error as 500 (INTERNAL_ERROR) behind the concealed incident envelope", async (t) => {
   const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   await registerRecipeType(baseUrl, cookie);
@@ -775,8 +776,8 @@ test("entries routes: lifecycle surfaces an authorize() Error as 500 (INTERNAL_E
   });
   assert.equal(res.status, 500);
   const body = (await res.json()) as { error: string; code: string };
-  assert.equal(body.code, "INTERNAL_ERROR");
-  assert.equal(body.error, "boom");
+  // 88f429c25: the shared envelope conceals the cause behind an incident id (whole-body equality).
+  assertAdminResponse({ actual: body, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
 });
 
 test("entries routes: lifecycle surfaces a non-Error throw as 500 (INTERNAL_ERROR) with a generic message", async (t) => {
@@ -797,8 +798,8 @@ test("entries routes: lifecycle surfaces a non-Error throw as 500 (INTERNAL_ERRO
   });
   assert.equal(res.status, 500);
   const body = (await res.json()) as { error: string; code: string };
-  assert.equal(body.code, "INTERNAL_ERROR");
-  assert.equal(body.error, "internal error");
+  // 88f429c25: the shared envelope conceals the cause behind an incident id (whole-body equality).
+  assertAdminResponse({ actual: body, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
 });
 
 test("entries routes: list denied 403 FORBIDDEN without admin.collections.read", async (t) => {
@@ -845,7 +846,7 @@ test("entries routes: list without a `type` filter returns every content type's 
   }
 });
 
-test("entries routes: list surfaces an authorize() Error as 500 (INTERNAL_ERROR) carrying its message", async (t) => {
+test("entries routes: list surfaces an authorize() Error as 500 (INTERNAL_ERROR) behind the concealed incident envelope", async (t) => {
   const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -856,8 +857,8 @@ test("entries routes: list surfaces an authorize() Error as 500 (INTERNAL_ERROR)
   const res = await fetch(`${baseUrl}/api/admin/v1/entries`, { headers: { cookie } });
   assert.equal(res.status, 500);
   const body = (await res.json()) as { error: string; code: string };
-  assert.equal(body.code, "INTERNAL_ERROR");
-  assert.equal(body.error, "boom");
+  // 88f429c25: the shared envelope conceals the cause behind an incident id (whole-body equality).
+  assertAdminResponse({ actual: body, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
 });
 
 test("entries routes: list surfaces a non-Error throw as 500 (INTERNAL_ERROR) with a generic message", async (t) => {
@@ -872,8 +873,8 @@ test("entries routes: list surfaces a non-Error throw as 500 (INTERNAL_ERROR) wi
   const res = await fetch(`${baseUrl}/api/admin/v1/entries`, { headers: { cookie } });
   assert.equal(res.status, 500);
   const body = (await res.json()) as { error: string; code: string };
-  assert.equal(body.code, "INTERNAL_ERROR");
-  assert.equal(body.error, "internal error");
+  // 88f429c25: the shared envelope conceals the cause behind an incident id (whole-body equality).
+  assertAdminResponse({ actual: body, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
 });
 
 // --- Publish/unpublish idempotency (2026-09-03 owner ruling on SPEC-020-state.spec.md vs
