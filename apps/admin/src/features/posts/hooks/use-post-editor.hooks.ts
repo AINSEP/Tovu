@@ -557,6 +557,18 @@ export function handleFilePaste(port: PostEditorPort, editor: Editor, files: Fil
   }
 }
 
+/**
+ * The loaded post when it is a real, saved row; `null` before the load settles and for a new
+ * post's local working copy, whose id is still `""` until its first Save creates the row.
+ *
+ * @param post The editor's loaded post, if any.
+ * @returns `post` when it carries a non-empty id, otherwise `null`.
+ * @complexity O(1).
+ */
+function persistedPost(post: AdminPost | null): AdminPost | null {
+  return post?.id ? post : null;
+}
+
 export function usePostEditor(postId: string, deps: PostEditorDependencies): PostEditorController {
   const { port, navigate, t } = deps;
   const [post, setPost] = useState<AdminPost | null>(null);
@@ -653,7 +665,10 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
   // `entryId`, `loadedId`, `scheduled` and `previewFormTarget` all come from the loaded row — see
   // `loadedPostHandles` (`post-editor-state.rules.ts`) for why writes target the row's id.
   const { entryId, loadedId, scheduled, previewFormTarget } = loadedPostHandles({ post, postId, nowMs: Date.now() });
-  const autosave = useStandingDraftAutosave({ port, entryId: loadedId, enabled: Boolean(post?.id), serverUpdatedAt: post?.updatedAt });
+  // The loaded row only once it exists server-side — a new post's local working copy (id `""`)
+  // has no row to autosave against, name to the assistant, refresh or preview yet.
+  const savedPost = persistedPost(post);
+  const autosave = useStandingDraftAutosave({ port, entryId: loadedId, enabled: savedPost !== null, serverUpdatedAt: post?.updatedAt });
   // The slug this editor's own save just moved the URL to — the load effect skips that `postId` change:
   // it is the record already on screen, not a new one to fetch (see `runSave`).
   const savedRouteSlug = useRef<string | null>(null);
@@ -953,7 +968,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
 
   // Tells the assistant which entry "this post" is (`lib/agent-screen-context.ts`) — the saved row,
   // same as `usePageEditor`.
-  useAgentScreenEntry(!post?.id ? null : { kind: post.kind, id: post.id, title: post.title, slug: post.slug, status: post.status });
+  useAgentScreenEntry(savedPost === null ? null : { kind: savedPost.kind, id: savedPost.id, title: savedPost.title, slug: savedPost.slug, status: savedPost.status });
 
   const publishAt = localDateTimeInputToIso(publishAtInput);
   const { isDirty, confirmLeave } = useDirtyGuard<PostFormState>(
@@ -975,7 +990,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
   // the address bar. Same clean/dirty/saving rule the Pages editor applies
   // (`use-external-entry-refresh.hooks.ts`): a clean editor takes the new row; a dirty one is left alone.
   const externalRefresh = useExternalEntryRefresh<AdminPost>({
-    loaded: post?.id ? post : null,
+    loaded: savedPost,
     fetchLatest: (id) => port.getPost(id).then((loaded) => loaded.post),
     isDirty: () => isDirty,
     isSaving: () => saving,
