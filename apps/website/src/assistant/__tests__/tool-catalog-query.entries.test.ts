@@ -1,9 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { toolCatalogDescribeRoute } from "@jini-ai/daemon/http";
+import { constrainPrincipalToReadOnlyTools, filterReadOnlyToolCatalog } from "@jini-ai/daemon/read-only-tools";
 
 import { buildToolCatalogQuery, listToolCatalogEntries } from "../tool-catalog-query.js";
 import { KEYWORD_MARKER } from "../tool-search-keywords.js";
+import { filterChatDeleteCatalog } from "../permanent-delete-tool-gate.js";
+import { DEFAULT_PERMANENT_DELETES_POLICY } from "../../contracts/headless/index.js";
 import { realToolCatalog } from "./real-tool-catalog.fixture.js";
 
 /**
@@ -85,3 +88,27 @@ for (const [id, currentId, purpose] of [
     }
   });
 }
+
+// Bug class: catalog guidance is not a tool, so a read-only caller (peer/cross-site read) can only
+// be shown it when the guidance names its targets. Every guidance entry this host produces must
+// declare targetToolIds, and the overview must list only the cards the caller may use.
+test("describe_tool guidance declares its target tools so a read-only caller sees only read-only targets", () => {
+  const descriptors = [
+    { id: "content_read.widget_region", description: "Reads a widget region.", readOnly: true, inputSchema: { type: "object" } },
+    { id: "content_read.form_definition", description: "Reads a form definition.", readOnly: false, inputSchema: { type: "object" } },
+    { id: "content_read.post", description: "Reads one post.", readOnly: true, inputSchema: { type: "object" } },
+  ];
+  const registry = { list: () => descriptors };
+  const catalog = buildToolCatalogQuery(registry);
+  assert.deepEqual(catalog.describe({ id: "content_read.content_region" })?.targetToolIds, ["content_read.widget_region"]);
+  assert.deepEqual(catalog.describe({ id: "content_read" })?.targetToolIds, descriptors.map(descriptor => descriptor.id));
+
+  // The BYOK chain: read-only filter over the permanent-delete gate over this host's catalog.
+  const principal = constrainPrincipalToReadOnlyTools({ principal: { id: "peer", roles: ["operator"] } });
+  const visible = filterReadOnlyToolCatalog({ principal, registry, catalog: filterChatDeleteCatalog({ catalog, policy: () => DEFAULT_PERMANENT_DELETES_POLICY }) });
+  assert.ok(visible.describe({ id: "content_read.content_region" })?.description.includes("content_read.widget_region"));
+  assert.equal(visible.describe({ id: "content_read.form" }), null, "an alias to a writing card must not reach a read-only caller");
+  const overview = visible.describe({ id: "content_read" });
+  assert.deepEqual(overview?.targetToolIds, ["content_read.widget_region", "content_read.post"]);
+  assert.ok(!overview?.description.includes("content_read.form_definition"), "the overview must not list a writing card");
+});

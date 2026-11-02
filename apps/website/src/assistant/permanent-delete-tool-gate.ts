@@ -14,7 +14,7 @@ export function filterChatDeleteCatalog(required: { catalog: ToolCatalogQuery; p
   const allowed = (toolId: string) => isChatToolAllowed({ toolId, policy: required.policy() });
   return {
     search: ({ query }, { limit = 10 } = {}) => required.catalog.search({ query }, { limit: limit + PERMANENT_DELETE_TOOLS.length + 2 }).filter(hit => allowed(hit.id)).slice(0, limit),
-    describe: ({ id }) => allowed(id) ? required.catalog.describe({ id }) : null,
+    describe: ({ id }, optional = {}) => allowed(id) ? required.catalog.describe({ id }, optional) : null,
   };
 }
 /** Each site root owns one scope, with native async context keeping concurrent requests isolated.

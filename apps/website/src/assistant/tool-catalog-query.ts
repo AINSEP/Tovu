@@ -1,7 +1,7 @@
 import { openNativeSqlite } from "../platform/db/kernel/drivers/sqlite.js";
 import { toolRegistryRevision, withoutBatchGuidance, type ToolRegistry } from "@jini-ai/core";
 import type { Clock } from "@jini-ai/core/primitives";
-import type { ToolCatalogQuery } from "@jini-ai/daemon/http";
+import type { ToolCatalogEntry as DescribedEntry, ToolCatalogQuery } from "@jini-ai/daemon/http";
 import { buildToolCatalogQuery as buildCatalogSnapshot, listToolCatalogEntries as listCatalogEntries, type SearchEnricher } from "@jini-ai/registry/tool-catalog-builder";
 import { createSqliteCatalogStoreFactory } from "@jini-ai/registry/tool-catalog-builder/sqlite";
 
@@ -60,13 +60,15 @@ const classifier = { classify: ({ id }: { id: string }) => sourceForToolId(id) }
 
 /** Describe this host's read-card family using only the cards in the same catalog snapshot.
  * No handler or schema is published for the family; callers must describe a concrete card.
+ * `visibleToolIds` (a read-only caller's allowed ids) narrows the listed cards; `targetToolIds`
+ * names exactly the cards listed, so a read-only view can verify them.
  * @returns A one-line purpose per registered card, or null when none are registered.
  * @complexity O(n + d) time/space for n catalog entries and d authored description bytes; no I/O.
  */
 function describeContentReadFamily(
-  { entries }: { entries: readonly ToolCatalogEntry[] }, _options = {},
-): ToolCatalogEntry | null {
-  const cards = entries.filter(entry => entry.id.startsWith("content_read."));
+  { entries }: { entries: readonly ToolCatalogEntry[] }, { visibleToolIds }: { visibleToolIds?: ReadonlySet<string> | undefined } = {},
+): DescribedEntry | null {
+  const cards = entries.filter(entry => entry.id.startsWith("content_read.") && (!visibleToolIds || visibleToolIds.has(entry.id)));
   if (cards.length === 0) return null;
   const lines = cards.map(entry => {
     const purpose = entry.description.trim().split(/\r?\n|(?<=[.!?])\s/, 1)[0]
@@ -75,6 +77,7 @@ function describeContentReadFamily(
   });
   return { id: "content_read", source: sourceForToolId("content_read"),
     description: ["content_read is a namespace, not a tool; do not invent ids such as content_read.page. Describe a card id below for its inputs, then call that exact id without a resource argument.", ...lines].join("\n"),
+    targetToolIds: cards.map(entry => entry.id),
   };
 }
 
@@ -111,7 +114,7 @@ export function buildToolCatalogQuery(
     const source = { list: () => descriptors };
     // MOVE: derive the family from the same snapshot, so reloads cannot advertise retired cards.
     return {
-      family: describeContentReadFamily({ entries: listCatalogEntries({ source, enricher, classifier }) }),
+      entries: listCatalogEntries({ source, enricher, classifier }),
       query: buildCatalogSnapshot({
         source,
         storeFactory: createSqliteCatalogStoreFactory({ db }),
@@ -138,17 +141,17 @@ export function buildToolCatalogQuery(
       refresh();
       return snapshot.query.search({ query }, { limit });
     },
-    describe({ id }) {
+    describe({ id }, { visibleToolIds } = {}) {
       refresh();
       const entry = snapshot.query.describe({ id });
       if (entry) return entry;
       const currentId = currentToolIdFor(id);
       // A retired id is guidance only: never publish a schema/callable for an unregistered alias.
       if (currentId !== id && snapshot.query.describe({ id: currentId })) {
-        return { id, source: sourceForToolId(id), description: `${id} was renamed to ${currentId}. Describe ${currentId} for its inputs, then call that exact id.` };
+        return { id, source: sourceForToolId(id), description: `${id} was renamed to ${currentId}. Describe ${currentId} for its inputs, then call that exact id.`, targetToolIds: [currentId] };
       }
       // Only the namespace itself gets an overview; an unknown card must remain missing.
-      return snapshot.family && id === snapshot.family.id ? snapshot.family : null;
+      return id === "content_read" ? describeContentReadFamily({ entries: snapshot.entries }, { visibleToolIds }) : null;
     },
   };
 }
