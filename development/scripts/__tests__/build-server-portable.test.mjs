@@ -8,7 +8,7 @@ import { buildServer, stageServerRuntimeAssets } from '../build-server.mjs';
 test('asset-only refresh replaces stale plugin catalogs without invoking a compiler', () => {
   const repoRoot = mkdtempSync(path.join(tmpdir(), 'tovu-plugin-catalog-'));
   try {
-    for (const dir of ['templates', 'themes', 'agent-plugins', 'agent-plugin-overlays', 'plugins', 'public']) mkdirSync(path.join(repoRoot, 'content', dir), { recursive: true });
+    for (const dir of ['templates', 'themes', 'agent-plugins', 'agent-plugin-overlays', 'public']) mkdirSync(path.join(repoRoot, 'content', dir), { recursive: true });
     mkdirSync(path.join(repoRoot, 'apps/website/src/platform/db/drizzle'), { recursive: true });
     mkdirSync(path.join(repoRoot, 'dist/content/agent-plugins/tovuize-site'), { recursive: true });
     writeFileSync(path.join(repoRoot, 'dist/content/agent-plugins/tovuize-site/plugin.json'), 'retired');
@@ -17,10 +17,12 @@ test('asset-only refresh replaces stale plugin catalogs without invoking a compi
       writeFileSync(path.join(repoRoot, 'content/agent-plugins', id, 'plugin.json'), id);
       writeFileSync(path.join(repoRoot, 'content/agent-plugins', id, 'skills', id, 'SKILL.md'), `# ${id}`);
     }
-    mkdirSync(path.join(repoRoot, 'content/plugins/charts-recharts/0.1.0/client'), { recursive: true });
-    writeFileSync(path.join(repoRoot, 'content/plugins/charts-recharts/0.1.0/client/provider.js'), 'reviewed provider');
+    // content/plugins is gone (D-charts: the Recharts payload comes from @jini-ai/provider-plugins); a
+    // checkout without it must still stage, and a stale dist copy must not survive.
+    mkdirSync(path.join(repoRoot, 'dist/content/plugins/charts-recharts/0.1.0/client'), { recursive: true });
+    writeFileSync(path.join(repoRoot, 'dist/content/plugins/charts-recharts/0.1.0/client/provider.js'), 'stale provider');
     stageServerRuntimeAssets({ repoRoot }, { selection: new Map() });
-    assert.equal(readFileSync(path.join(repoRoot, 'dist/content/plugins/charts-recharts/0.1.0/client/provider.js'), 'utf8'), 'reviewed provider');
+    assert.equal(existsSync(path.join(repoRoot, 'dist/content/plugins')), false);
     assert.equal(existsSync(path.join(repoRoot, 'dist/content/agent-plugins/tovuize-site')), false);
     for (const id of ['site-import', 'tovu-theme', 'how-tovu-works', 'ui-ux-design']) {
       assert.equal(readFileSync(path.join(repoRoot, 'dist/content/agent-plugins', id, 'plugin.json'), 'utf8'), id);
@@ -32,7 +34,7 @@ test('asset-only refresh replaces stale plugin catalogs without invoking a compi
 test('portable build clears stale sources, runs compilers in order, and copies hidden content files', () => {
   const repoRoot = mkdtempSync(path.join(tmpdir(), 'tovu-build-server-'));
   try {
-    for (const dir of ['templates', 'themes', 'agent-plugins', 'agent-plugin-overlays', 'plugins', 'public']) {
+    for (const dir of ['templates', 'themes', 'agent-plugins', 'agent-plugin-overlays', 'public']) {
       mkdirSync(path.join(repoRoot, 'content', dir), { recursive: true });
       writeFileSync(path.join(repoRoot, 'content', dir, '.asset'), dir);
     }
@@ -55,7 +57,7 @@ test('portable build clears stale sources, runs compilers in order, and copies h
       ['/fake/tsc', '-p', 'tsconfig.json'],
       [path.join(repoRoot, 'development/scripts/emit-dist-package-json.mjs')],
     ]);
-    for (const dir of ['templates', 'themes', 'agent-plugins', 'agent-plugin-overlays', 'plugins', 'public']) {
+    for (const dir of ['templates', 'themes', 'agent-plugins', 'agent-plugin-overlays', 'public']) {
       assert.equal(readFileSync(path.join(repoRoot, 'dist/content', dir, '.asset'), 'utf8'), dir);
     }
     assert.equal(readFileSync(path.join(repoRoot, 'dist/src/platform/db/drizzle/fixture.sql'), 'utf8'), '-- fixture only');
@@ -82,27 +84,27 @@ function packagedRepo(prefix) {
     mkdirSync(path.dirname(path.join(repoRoot, relative)), { recursive: true });
     writeFileSync(path.join(repoRoot, relative), bytes);
   };
-  for (const dir of ['templates', 'themes', 'plugins', 'public']) mkdirSync(path.join(repoRoot, 'content', dir), { recursive: true });
+  for (const dir of ['templates', 'themes', 'public']) mkdirSync(path.join(repoRoot, 'content', dir), { recursive: true });
   mkdirSync(path.join(repoRoot, 'apps/website/src/platform/db/drizzle'), { recursive: true });
   write('content/agent-plugins/tovu-theme/plugin.json', JSON.stringify({ name: 'tovu-theme' }));
   write('content/agent-plugin-overlays/site-import/GUIDANCE.md', '# Tovu site-import rules');
   write('content/agent-plugin-overlays/site-import/host/content-mapping.md', '# mapping');
-  write('node_modules/@jini-ai/plugin-site-import/package.json', JSON.stringify({ name: '@jini-ai/plugin-site-import', exports: { './package.json': './package.json', './plugin.json': './site-import/plugin.json' } }));
-  write('node_modules/@jini-ai/plugin-site-import/site-import/plugin.json', JSON.stringify({ name: 'site-import' }));
-  write('node_modules/@jini-ai/plugin-site-import/site-import/skills/site-import/SKILL.md', '# site-import');
+  write('node_modules/@jini-ai/agent-plugins/package.json', JSON.stringify({ name: '@jini-ai/agent-plugins', exports: { './site-import': './site-import/plugin.json', './site-import/*': './site-import/*' } }));
+  write('node_modules/@jini-ai/agent-plugins/site-import/plugin.json', JSON.stringify({ name: 'site-import' }));
+  write('node_modules/@jini-ai/agent-plugins/site-import/skills/site-import/SKILL.md', '# site-import');
   return { repoRoot, write };
 }
 
 test('D0a: the runtime assets carry the composed plugin root and the Tovu overlays', () => {
   const { repoRoot } = packagedRepo('tovu-build-compose-');
   try {
-    const selection = new Map([['site-import', '@jini-ai/plugin-site-import']]);
+    const selection = new Map([['site-import', '@jini-ai/agent-plugins/site-import']]);
     const listPackageFiles = () => ['package.json', 'site-import/plugin.json', 'site-import/skills/site-import/SKILL.md'];
     stageServerRuntimeAssets({ repoRoot }, { selection, npmCli: undefined, listPackageFiles });
     assert.equal(readFileSync(path.join(repoRoot, 'dist/content/agent-plugins/site-import/skills/site-import/SKILL.md'), 'utf8'), '# site-import');
     assert.equal(readFileSync(path.join(repoRoot, 'dist/content/agent-plugins/tovu-theme/plugin.json'), 'utf8'), JSON.stringify({ name: 'tovu-theme' }));
     assert.equal(readFileSync(path.join(repoRoot, 'dist/content/agent-plugin-overlays/site-import/host/content-mapping.md'), 'utf8'), '# mapping');
-    assert.deepEqual(readdirSync(path.join(repoRoot, 'dist/content')).sort(), ['agent-plugin-overlays', 'agent-plugins', 'plugins', 'public', 'templates', 'themes']);
+    assert.deepEqual(readdirSync(path.join(repoRoot, 'dist/content')).sort(), ['agent-plugin-overlays', 'agent-plugins', 'public', 'templates', 'themes']);
   } finally { rmSync(repoRoot, { recursive: true, force: true }); }
 });
 

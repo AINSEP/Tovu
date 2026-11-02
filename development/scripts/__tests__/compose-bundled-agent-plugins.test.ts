@@ -6,7 +6,9 @@ import path from 'node:path';
 import test, { type TestContext } from 'node:test';
 import { composeBundledAgentPluginRoot, composeDevBundledAgentPlugins, DEV_COMPOSED_AGENT_PLUGINS_DIR } from '../compose-bundled-agent-plugins.mjs';
 
-const PACKAGE = '@jini-ai/plugin-jev';
+// Agent plugins ship as subpaths of one package: `@jini-ai/agent-plugins/<id>`.
+const PACKAGE = '@jini-ai/agent-plugins/jev';
+const PACKAGE_DIR = 'node_modules/@jini-ai/agent-plugins';
 
 /** A checkout with two Tovu content plugins and one installed plugin package; npm listing is a port. */
 function fixture(t: TestContext) {
@@ -25,11 +27,11 @@ function fixture(t: TestContext) {
     { id: 'fly', module: 'deploy-configs/fly.mjs', candidatePaths: [{ path: 'fly.toml', order: 1 }], workflowFile: 'fly-deploy.yml' },
   ] }));
   write('content/agent-plugins/fly/deploy-configs/fly.mjs', 'export {};');
-  write(`node_modules/${PACKAGE}/package.json`, JSON.stringify({ name: PACKAGE, exports: {
-    './package.json': './package.json', './plugin.json': './jev/plugin.json',
+  write(`${PACKAGE_DIR}/package.json`, JSON.stringify({ name: '@jini-ai/agent-plugins', exports: {
+    '.': './dist/index.js', './jev': './jev/plugin.json', './jev/*': './jev/*',
   } }));
-  write(`node_modules/${PACKAGE}/jev/plugin.json`, JSON.stringify({ name: 'jev' }));
-  write(`node_modules/${PACKAGE}/jev/skills/jev/SKILL.md`, '# jev v1');
+  write(`${PACKAGE_DIR}/jev/plugin.json`, JSON.stringify({ name: 'jev' }));
+  write(`${PACKAGE_DIR}/jev/skills/jev/SKILL.md`, '# jev v1');
   const files = ['package.json', 'jev/plugin.json', 'jev/skills/jev/SKILL.md'];
   const outputRoot = path.join(repoRoot, 'dist/content/agent-plugins');
   const options = { selection: new Map([['jev', PACKAGE]]), listPackageFiles: () => files };
@@ -55,7 +57,7 @@ test('repeat composition follows unchanged packages, changed bytes and a changed
   const first = composeBundledAgentPluginRoot(input, f.options);
   assert.deepEqual(composeBundledAgentPluginRoot(input, f.options), first);
   assert.equal(f.read('jev/skills/jev/SKILL.md'), '# jev v1');
-  f.write(`node_modules/${PACKAGE}/jev/skills/jev/SKILL.md`, '# jev v2');
+  f.write(`${PACKAGE_DIR}/jev/skills/jev/SKILL.md`, '# jev v2');
   composeBundledAgentPluginRoot(input, f.options);
   assert.equal(f.read('jev/skills/jev/SKILL.md'), '# jev v2');
   assert.deepEqual(composeBundledAgentPluginRoot(input, { selection: new Map() }).pluginIds, ['fly', 'how-tovu-works']);
@@ -75,8 +77,8 @@ test('an id in both content and a selected package fails and keeps the previous 
 
 test('a selected package that does not resolve fails the build', t => {
   const f = fixture(t);
-  const selection = new Map([...f.options.selection, ['missing', '@jini-ai/plugin-missing']]);
-  assert.throws(() => composeBundledAgentPluginRoot({ repoRoot: f.repoRoot, outputRoot: f.outputRoot }, { ...f.options, selection }), /plugin-missing/);
+  const selection = new Map([...f.options.selection, ['missing', '@jini-ai/agent-plugins/missing']]);
+  assert.throws(() => composeBundledAgentPluginRoot({ repoRoot: f.repoRoot, outputRoot: f.outputRoot }, { ...f.options, selection }), /missing\/plugin\.json/);
   assert.equal(fs.existsSync(f.outputRoot), false);
   assert.deepEqual(f.siblings(), []);
 });
@@ -116,7 +118,7 @@ test('every payload path a tovu-*.json contribution names must exist inside that
 
 test('a contribution check also covers selected package payloads', t => {
   const f = fixture(t);
-  f.write(`node_modules/${PACKAGE}/jev/tovu-agent-tools.json`, JSON.stringify({ tools: [{ module: 'tools/run.mjs' }] }));
+  f.write(`${PACKAGE_DIR}/jev/tovu-agent-tools.json`, JSON.stringify({ tools: [{ module: 'tools/run.mjs' }] }));
   const listPackageFiles = () => [...f.files, 'jev/tovu-agent-tools.json'];
   assert.throws(() => composeBundledAgentPluginRoot({ repoRoot: f.repoRoot, outputRoot: f.outputRoot }, { ...f.options, listPackageFiles }),
     /jev\/tovu-agent-tools\.json: tools\/run\.mjs/);
