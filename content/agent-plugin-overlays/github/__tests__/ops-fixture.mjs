@@ -1,15 +1,18 @@
-import { fileURLToPath } from "node:url";
-import { AesGcmSecretSealer } from "../../../../../apps/website/src/features/webhooks/secret-sealer.aesgcm.ts";
-import { InMemoryKeyring } from "../../../../../apps/website/src/features/webhooks/keyring.memory.ts";
-import { InMemoryCustomCredentialSetRepo } from "../../../../../apps/website/src/features/custom-credentials/repo.memory.ts";
-import { createCustomCredential } from "../../../../../apps/website/src/features/custom-credentials/store.ts";
-import { InMemoryCredentialedRequestAuditLog } from "../../../../../apps/website/src/features/custom-credentials/credentialed-request.ts";
-import { loadDeployOpsRegistryFromSource } from "../../../../../apps/website/src/features/deployments/deploy-ops/registry.ts";
+import { AesGcmSecretSealer } from "../../../../apps/website/src/features/webhooks/secret-sealer.aesgcm.ts";
+import { InMemoryKeyring } from "../../../../apps/website/src/features/webhooks/keyring.memory.ts";
+import { InMemoryCustomCredentialSetRepo } from "../../../../apps/website/src/features/custom-credentials/repo.memory.ts";
+import { createCustomCredential } from "../../../../apps/website/src/features/custom-credentials/store.ts";
+import { InMemoryCredentialedRequestAuditLog } from "../../../../apps/website/src/features/custom-credentials/credentialed-request.ts";
+import { loadDeployOpsRegistryFromSource } from "../../../../apps/website/src/features/deployments/deploy-ops/registry.ts";
+import { agentPluginSourceDir } from "../../../../development/test-support/agent-plugin-source.mjs";
+
+// Moved from content/agent-plugins/github (D-W): the plugin ships as @jini-ai/agent-plugins/github; this Tovu-bound test reads it from there.
+const PLUGIN_ROOT = agentPluginSourceDir({ pluginId: "github" });
 
 // Moved from core's deploy-ops/__tests__/ops-fixture.ts with the tests that drive the generic runners
 // through this plugin's real adapter: saved ops credentials, a scripted HTTP fake and this package's registry.
 export const AT = "2026-10-01T12:00:00.000Z";
-const PACKAGE_ROOT = fileURLToPath(new URL("../../", import.meta.url));
+const PACKAGE_ROOT = PLUGIN_ROOT;
 export async function fixture(optional = {}) {
   const { labels = ["ops"], host = "https://api.github.com", additionalHosts = [] } = optional;
   const repo = new InMemoryCustomCredentialSetRepo();

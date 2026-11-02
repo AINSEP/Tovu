@@ -6,6 +6,7 @@ import test from "node:test";
 import { parseAgentPluginManifest } from "@jini-ai/agent-plugins/lifecycle";
 import { parseAgentPluginMcpConfig } from "../../mcp-metadata.js";
 import { packAgentPluginDirectory } from "../../lifecycle.js";
+import { agentPluginSourceDir } from "../../../../../../../development/test-support/agent-plugin-source.mjs";
 
 /**
  * @file The `github` bundled Agent Plugin's package is VALID, INSTALLABLE, host-AGNOSTIC, and still
@@ -30,7 +31,7 @@ import { packAgentPluginDirectory } from "../../lifecycle.js";
  * committed where app source was needed.
  */
 
-const PACKAGE_ROOT = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins/github");
+const PACKAGE_ROOT = agentPluginSourceDir({ pluginId: "github" });
 const SKILL_DIR = path.join(PACKAGE_ROOT, "skills", "github");
 
 async function readPackageFile(relativePath: string): Promise<string> {
@@ -252,8 +253,8 @@ test("site-backup.md: a site backup is plan-then-push, private-only, and never f
   assert.match(backup, /CREDENTIAL_NOT_FOUND/);
   assert.match(backup, /CREDENTIAL_UNREADABLE/);
   assert.match(backup, /Site key/);
-  assert.match(backup, /npm run dev/);
-  assert.match(backup, /npm run desktop/);
+  // Tovu's Site key start commands (`npm run dev`, `npm run desktop`) moved to the overlay with
+  // D-W5; content/agent-plugin-overlays/github/__tests__/github-overlay.test.mjs pins them.
 
   // Every "the world moved since the plan" outcome is answered by planning again, never by force.
   for (const code of ["PLAN_EXPIRED", "PLAN_STALE", "DIVERGED_BRANCH", "LIMIT_EXCEEDED"]) {

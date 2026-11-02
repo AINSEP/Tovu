@@ -4,7 +4,7 @@ import path from 'node:path';
 import test from 'node:test';
 
 /**
- * @file Tovu's overlay for the portable `github` plugin (now `@jini-ai/plugin-github`). The plugin
+ * @file Tovu's overlay for the portable `github` plugin (now `@jini-ai/agent-plugins/github`). The plugin
  * dispatches `inputs.expected_sha` (pinned by its own Jini tests) but no longer explains it; this
  * overlay does, along with Tovu's Site key start commands and the missing restore tool (plan v2
  * §5.1). These pins tie that prose to the Tovu files it describes, so a renamed workflow input or

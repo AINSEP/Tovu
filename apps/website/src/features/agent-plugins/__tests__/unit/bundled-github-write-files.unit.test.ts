@@ -10,8 +10,9 @@ import type { HttpClientPort, HttpRequest, HttpResponse } from "#src/platform/ht
 
 import { loadSourceControlProviderRegistryFromSource } from "#src/features/source-control/provider-registry";
 import { validateWriteFilesInput } from "#src/features/custom-credentials/write-files-validation";
+import { agentPluginSourceDir } from "../../../../../../../development/test-support/agent-plugin-source.mjs";
 
-const GITHUB_PACKAGE_ROOT = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins/github");
+const GITHUB_PACKAGE_ROOT = agentPluginSourceDir({ pluginId: "github" });
 const registry = await loadSourceControlProviderRegistryFromSource({ pluginId: "github", packageRoot: GITHUB_PACKAGE_ROOT });
 
 /** The bundled `github` plugin's provider over `httpClient`, built with the real kit. */

@@ -1,9 +1,14 @@
+import path from 'node:path';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { parsePluginCredentialCards } from '../../../../apps/website/src/features/agent-plugins/credential-cards.ts';
+import { agentPluginSourceDir } from '../../../../development/test-support/agent-plugin-source.mjs';
 
-const card = (target = 'github') => JSON.parse(readFileSync(new URL('../plugin.json', import.meta.url), 'utf8')).extensions.tovu.credentialCards.find(c => c.target === target);
+// Moved from content/agent-plugins/github (D-W): the plugin ships as @jini-ai/agent-plugins/github; this Tovu-bound test reads it from there.
+const PLUGIN_ROOT = agentPluginSourceDir({ pluginId: 'github' });
+
+const card = (target = 'github') => JSON.parse(readFileSync(path.join(PLUGIN_ROOT, 'plugin.json'), 'utf8')).extensions.tovu.credentialCards.find(c => c.target === target);
 for (const [target, kind, title, permissions, helpUrl] of [
   ['github', 'api', 'Connect GitHub', /Contents.*Workflows.*Actions/, 'https://github.com/settings/personal-access-tokens/new'],
   ['github-source-control', 'source-control', 'Connect GitHub for source control', /Contents.*Read and write/, 'https://github.com/settings/personal-access-tokens/new'],
@@ -22,7 +27,7 @@ test('source control uses the GitHub save destination', () => {
 });
 
 test('every credential card parses its task purposes', () => {
-  const parsed = parsePluginCredentialCards({ raw: readFileSync(new URL('../plugin.json', import.meta.url), 'utf8') });
+  const parsed = parsePluginCredentialCards({ raw: readFileSync(path.join(PLUGIN_ROOT, 'plugin.json'), 'utf8') });
   assert.equal(parsed.ok, true);
   assert.deepEqual(parsed.descriptors.map(({ providerId, usedFor }) => ({ providerId, usedFor })), [
     {
@@ -43,7 +48,7 @@ test('every credential card parses its task purposes', () => {
 });
 
 test('only the API-token card declares a parsed, same-origin read-only user probe', () => {
-  const parsed = parsePluginCredentialCards({ raw: readFileSync(new URL('../plugin.json', import.meta.url), 'utf8') });
+  const parsed = parsePluginCredentialCards({ raw: readFileSync(path.join(PLUGIN_ROOT, 'plugin.json'), 'utf8') });
   assert.equal(parsed.ok, true);
   const api = parsed.descriptors.find(card => card.providerId === 'github');
   assert.equal(api.probeUrl, 'https://api.github.com/user');

@@ -1,6 +1,6 @@
+import path from 'node:path';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import { parseSourceControlProvidersFile, loadSourceControlProviderRegistryFromSource } from '../../../../apps/website/src/features/source-control/provider-registry.ts';
 import { parsePluginCredentialCards } from '../../../../apps/website/src/features/agent-plugins/credential-cards.ts';
@@ -8,9 +8,13 @@ import { createSourceControlCredential, resolveDefaultForSourceControl } from '.
 import { InMemorySourceControlCredentialSetRepo } from '../../../../apps/website/src/features/source-control/repo.memory.ts';
 import { InMemoryKeyring } from '../../../../apps/website/src/features/webhooks/keyring.memory.ts';
 import { AesGcmSecretSealer } from '../../../../apps/website/src/features/webhooks/secret-sealer.aesgcm.ts';
+import { agentPluginSourceDir } from '../../../../development/test-support/agent-plugin-source.mjs';
 
-const packageRoot = fileURLToPath(new URL('../', import.meta.url));
-const raw = readFileSync(new URL('../tovu-source-control.json', import.meta.url), 'utf8');
+// Moved from content/agent-plugins/github (D-W): the plugin ships as @jini-ai/agent-plugins/github; this Tovu-bound test reads it from there.
+const PLUGIN_ROOT = agentPluginSourceDir({ pluginId: 'github' });
+
+const packageRoot = PLUGIN_ROOT;
+const raw = readFileSync(path.join(PLUGIN_ROOT, 'tovu-source-control.json'), 'utf8');
 
 test('GitHub owns its token form and reuses its existing source-control credential card', () => {
   const parsed = parseSourceControlProvidersFile(raw);
@@ -21,7 +25,7 @@ test('GitHub owns its token form and reuses its existing source-control credenti
   assert.equal(descriptor.credential.tokenPageUrl, 'https://github.com/settings/personal-access-tokens/new');
   assert.match(descriptor.credential.help, /fine-grained personal access token/);
   assert.equal(descriptor.i18n.es['Access token'], 'Token de acceso');
-  const manifestRaw = readFileSync(new URL('../plugin.json', import.meta.url), 'utf8');
+  const manifestRaw = readFileSync(path.join(PLUGIN_ROOT, 'plugin.json'), 'utf8');
   const manifest = JSON.parse(manifestRaw);
   for (const keyword of ['github', 'source-control', 'commit']) assert.ok(manifest.keywords.includes(keyword));
   const cards = parsePluginCredentialCards({ raw: manifestRaw });

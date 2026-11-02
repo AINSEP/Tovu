@@ -1,20 +1,24 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import test, { after } from "node:test";
 import { cp, mkdtemp, readdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
-import { forceRemove } from "../../../../../apps/website/src/features/agent-plugins/__tests__/fixtures/force-remove.ts";
-import { resolveAgentPluginLayout } from "../../../../../apps/website/src/features/agent-plugins/layout.ts";
-import { createTovuAgentPluginLifecycle, seedBundledAgentPlugins } from "../../../../../apps/website/src/features/agent-plugins/lifecycle.ts";
-import { loadDeployOpsRegistry } from "../../../../../apps/website/src/features/deployments/deploy-ops/registry.ts";
+import { forceRemove } from "../../../../apps/website/src/features/agent-plugins/__tests__/fixtures/force-remove.ts";
+import { resolveAgentPluginLayout } from "../../../../apps/website/src/features/agent-plugins/layout.ts";
+import { createTovuAgentPluginLifecycle, seedBundledAgentPlugins } from "../../../../apps/website/src/features/agent-plugins/lifecycle.ts";
+import { loadDeployOpsRegistry } from "../../../../apps/website/src/features/deployments/deploy-ops/registry.ts";
+import { selectedPluginSourceRoot } from "../../../../apps/website/src/features/agent-plugins/__tests__/fixtures/bundled-source-root.ts";
+import { agentPluginSourceDir } from "../../../../development/test-support/agent-plugin-source.mjs";
 
 /**
  * Moved from core deploy-ops/__tests__/installed-deploy-verb.test.ts.
  * The bundled github plugin (owner of the github-actions platform) is digest-trusted: editing a deploy-ops `.mjs` changes its digest. These
  * prove the boot seeder re-trusts the new digest, so the deploy verb actually loads after an upgrade.
  */
-const CONTENT_ROOT = fileURLToPath(new URL("../../../", import.meta.url));
+// Moved from content/agent-plugins/github/deploy-ops/__tests__ (D-W5): github ships as
+// @jini-ai/agent-plugins/github; seed a bundled root holding just it, as the build stages it.
+const BUNDLED_SOURCE = await selectedPluginSourceRoot({ pluginIds: ["github"] });
+after(() => BUNDLED_SOURCE.dispose());
 const WORKSPACE_ID = "workspace-local";
 
 async function withAgentPluginsDir(fn) {
@@ -30,7 +34,7 @@ async function withAgentPluginsDir(fn) {
 
 test("seeded from this build, the installed github-actions adapter exports deploy", async () => {
   await withAgentPluginsDir(async layout => {
-    await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: CONTENT_ROOT });
+    await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: BUNDLED_SOURCE.root });
     const registry = await loadDeployOpsRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout() }).loadPluginContributions });
     assert.deepEqual(registry.refusals, []);
     assert.equal(typeof registry.get("github-actions")?.module.deploy, "function");
@@ -40,7 +44,7 @@ test("seeded from this build, the installed github-actions adapter exports deplo
 test("upgrade: a site holding the previous github digest loads the changed adapter after the next boot", async () => {
   const sourceRoot = await mkdtemp(path.join(tmpdir(), "tovu-deploy-ops-source-"));
   try {
-    await cp(path.join(CONTENT_ROOT, "github"), path.join(sourceRoot, "github"), { recursive: true });
+    await cp(agentPluginSourceDir({ pluginId: "github" }), path.join(sourceRoot, "github"), { recursive: true });
     await withAgentPluginsDir(async layout => {
       await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot });
       const modulePath = path.join(sourceRoot, "github", "deploy-ops", "github-actions.mjs");

@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
 import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/core/primitives';
@@ -14,6 +13,10 @@ import { buildSourceControlRegistrations } from '../../../../apps/website/src/fe
 import { InMemorySourceControlCredentialSetRepo } from '../../../../apps/website/src/features/source-control/repo.memory.ts';
 import { InMemoryKeyring } from '../../../../apps/website/src/features/webhooks/keyring.memory.ts';
 import { AesGcmSecretSealer } from '../../../../apps/website/src/features/webhooks/secret-sealer.aesgcm.ts';
+import { agentPluginSourceDir } from '../../../../development/test-support/agent-plugin-source.mjs';
+
+// Moved from content/agent-plugins/github (D-W): the plugin ships as @jini-ai/agent-plugins/github; this Tovu-bound test reads it from there.
+const PLUGIN_ROOT = agentPluginSourceDir({ pluginId: 'github' });
 
 // Regression (2026-09-24): production never passes `gitAdapter`, and the tool used to forward only an
 // injected one, so every confirmed commit answered "no GitHub commit adapter is configured — this is
@@ -24,7 +27,7 @@ test('with no gitAdapter override, a confirmed commit reaches the real GitHub ad
   const keyring = new InMemoryKeyring();
   const repo = new InMemorySourceControlCredentialSetRepo();
   const sealer = new AesGcmSecretSealer(keyring);
-  const packageRoot = fileURLToPath(new URL('../', import.meta.url));
+  const packageRoot = PLUGIN_ROOT;
   const loadSourceControlProviders = () => loadSourceControlProviderRegistryFromSource({ pluginId: 'github', packageRoot });
   await createSourceControlCredential({ deps: {
     repo, sealer, keyring, clock: createSystemClock(), idGen: createRandomUuidGenerator(), loadSourceControlProviders,

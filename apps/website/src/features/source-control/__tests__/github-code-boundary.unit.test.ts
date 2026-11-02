@@ -6,7 +6,7 @@ import ts from "typescript";
 
 /**
  * @file GitHub's REST calls live in the bundled `github` Agent Plugin
- * (`content/agent-plugins/github/source-control/`), not in core. This guards the three core features
+ * (`@jini-ai/agent-plugins/github/source-control/`), not in core. This guards the three core features
  * that used to carry them — site commit, write-files and site backup — against a helper creeping back.
  * Model-facing copy that names GitHub as an example is not API code and is not checked here.
  */

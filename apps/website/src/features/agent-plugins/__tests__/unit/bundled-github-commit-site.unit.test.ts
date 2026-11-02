@@ -8,8 +8,9 @@ import { createSourceControlProviderKit } from "#src/features/source-control/pro
 import type { CommitFile, SourceControlProvider } from "#src/features/source-control/provider-module";
 
 import { loadSourceControlProviderRegistryFromSource } from "#src/features/source-control/provider-registry";
+import { agentPluginSourceDir } from "../../../../../../../development/test-support/agent-plugin-source.mjs";
 
-const GITHUB_PACKAGE_ROOT = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins/github");
+const GITHUB_PACKAGE_ROOT = agentPluginSourceDir({ pluginId: "github" });
 const registry = await loadSourceControlProviderRegistryFromSource({ pluginId: "github", packageRoot: GITHUB_PACKAGE_ROOT });
 
 /** The bundled `github` plugin's site committer, built with the real kit (so `global.fetch` stubs apply). */

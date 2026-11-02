@@ -10,8 +10,9 @@ import type { CommitBackupTreeInput, SourceControlProviderOperations } from "#sr
 import type { HttpClientPort, HttpRequest, HttpResponse } from "#src/platform/http/index";
 
 import { loadSourceControlProviderRegistryFromSource } from "#src/features/source-control/provider-registry";
+import { agentPluginSourceDir } from "../../../../../../../development/test-support/agent-plugin-source.mjs";
 
-const GITHUB_PACKAGE_ROOT = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins/github");
+const GITHUB_PACKAGE_ROOT = agentPluginSourceDir({ pluginId: "github" });
 const registry = await loadSourceControlProviderRegistryFromSource({ pluginId: "github", packageRoot: GITHUB_PACKAGE_ROOT });
 
 /** Every retry wait the provider asked for, in order; no test ever really sleeps. */

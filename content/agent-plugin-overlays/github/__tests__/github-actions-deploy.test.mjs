@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { runDeploy } from "../../../../../apps/website/src/features/deployments/deploy-ops/run-ops.ts";
-import { buildDeployOpsRegistrations } from "../../../../../apps/website/src/features/deployments/deploy-ops/tool-registrations.ts";
+import { runDeploy } from "../../../../apps/website/src/features/deployments/deploy-ops/run-ops.ts";
+import { buildDeployOpsRegistrations } from "../../../../apps/website/src/features/deployments/deploy-ops/tool-registrations.ts";
 import { fixture, execution, AT } from "./ops-fixture.mjs";
-import github from "../github-actions.mjs";
+import github from "@jini-ai/agent-plugins/github/deploy-ops/github-actions.mjs";
 
 // Moved from core deploy-ops/__tests__/github-actions-deploy.test.ts: the Actions dispatcher's own deploy verb,
 // plus one pass through the generic runner and wait tool with this package's real registry.

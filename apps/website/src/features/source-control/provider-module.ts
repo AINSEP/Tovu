@@ -4,7 +4,7 @@ import type { HttpClientPort } from "../../platform/http/index.js";
  * @file The contract a git-host provider MODULE (shipped inside an Agent Plugin) is written against.
  *
  * Git-host vendors live in plugins, not core (the bundled `github` plugin ships
- * `content/agent-plugins/github/source-control/github.mjs` today). Core loads a plugin's module
+ * `@jini-ai/agent-plugins/github/source-control/github.mjs` today). Core loads a plugin's module
  * through `features/agent-plugins/source-control-registry.ts`, builds it with a
  * {@link SourceControlProviderKit}, and calls the generic operations below: committing the site's
  * static export (`source_control_execute_commit`), reading a token's account name (the admin Source

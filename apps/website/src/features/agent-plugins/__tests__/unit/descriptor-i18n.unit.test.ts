@@ -7,6 +7,7 @@ import { parseDeployTargetsFile } from "#src/features/deployments/deploy-targets
 import { parseSourceControlProvidersFile } from "#src/features/source-control/provider-registry";
 
 import { parseDescriptorI18n } from "../../descriptor-i18n.js";
+import { agentPluginSourceDir } from "../../../../../../../development/test-support/agent-plugin-source.mjs";
 
 /**
  * @file A plugin descriptor's optional `i18n` block: locale → English source text → translation.
@@ -106,7 +107,7 @@ for (const [file, listKey] of [
 test("every bundled descriptor file still parses with its i18n blocks", () => {
   assert.ok(DEPLOY_TARGET_FILES.length > 0);
   for (const file of DEPLOY_TARGET_FILES) assert.equal(parseDeployTargetsFile(readFileSync(path.join(CONTENT, file), "utf8")).ok, true, file);
-  assert.equal(parseSourceControlProvidersFile(readFileSync(path.join(CONTENT, "github/tovu-source-control.json"), "utf8")).ok, true);
+  assert.equal(parseSourceControlProvidersFile(readFileSync(path.join(agentPluginSourceDir({ pluginId: "github" }), "tovu-source-control.json"), "utf8")).ok, true);
 });
 
 // L025a pins validation order and exact boundaries before splitting the locale loop.
