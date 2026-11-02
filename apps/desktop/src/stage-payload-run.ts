@@ -121,13 +121,33 @@ function stageRuntimePackages(layout: StageLayout, ports: StagePorts): { roots: 
     if (isExcluded(name)) continue;
     const source = path.join(layout.repoRoot, "node_modules", name);
     if (!fs.existsSync(source)) fail(`Unresolved runtime dependency: ${layout.repoRoot} -> ${name}`);
+    const linked = fs.lstatSync(source).isSymbolicLink();
     roots.push(fs.realpathSync(source));
+    // An npm root is copied WITH its nested node_modules, so those nested versions already ship in
+    // place. They are roots too: otherwise the closure walker tries to flatten them to the top level,
+    // where a different version lives — @modelcontextprotocol/sdk's own express 5 next to the site's
+    // express 4 failed every 0.1.26 build ("Package version conflict while flattening express").
+    if (!linked) roots.push(...nestedPackageRoots(source, fs));
     const destination = path.join(layout.outDir, "node_modules", name);
     if (fs.existsSync(destination)) continue;
-    steps.stageDir(source, destination, fs.lstatSync(source).isSymbolicLink());
+    steps.stageDir(source, destination, linked);
     count += 1;
   }
   return { roots, count };
+}
+
+/** Real directories of every package nested under `packageDir/node_modules`, at any depth.
+ *  @complexity O(nested packages). */
+function nestedPackageRoots(packageDir: string, fs: StageFs): string[] {
+  const modules = path.join(packageDir, "node_modules");
+  if (!fs.existsSync(modules)) return [];
+  return fs.readdirSync(modules)
+    .filter((entry) => !entry.startsWith("."))
+    .flatMap((entry) => entry.startsWith("@")
+      ? fs.readdirSync(path.join(modules, entry)).map((scoped) => path.join(modules, entry, scoped))
+      : [path.join(modules, entry)])
+    .filter((directory) => fs.existsSync(path.join(directory, "package.json")))
+    .flatMap((directory) => [fs.realpathSync(directory), ...nestedPackageRoots(directory, fs)]);
 }
 
 /** Replace one symlink with a dereferenced copy of what it points at; a dangling link is dropped.
