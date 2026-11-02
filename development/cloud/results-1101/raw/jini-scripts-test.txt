@@ -1,0 +1,298 @@
+
+> jini@ test:scripts /home/user/Jini
+> vitest run scripts/__tests__ && pnpm run test:scripts:node
+
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+
+ RUN  v2.1.9 /home/user/Jini
+
+ ✓ packages/agent-runtime/src/skills/web-clone/scripts/__tests__/recon-site.unit.test.mjs (10 tests) 58ms
+ ✓ packages/agent-runtime/src/skills/web-clone/scripts/__tests__/interaction-probe.unit.test.mjs (20 tests) 93ms
+stdout | packages/agent-runtime/src/skills/web-clone/scripts/__tests__/asset-harvest.test.mjs > main > falls back to the real fs/console ports when none are injected
+▸ 候选资产 0 个(图片 0 / 字体 0)，开始下载…
+✅ 下载 0 成功 / 0 失败 → /tmp/wc1-qhMbSa/out
+/tmp/wc1-qhMbSa/out/asset-manifest.json
+
+ ✓ packages/agent-runtime/src/skills/web-clone/scripts/__tests__/asset-harvest.test.mjs (23 tests) 74ms
+stdout | packages/agent-runtime/src/skills/web-clone/scripts/__tests__/compare-recon.test.mjs > main > uses the real fs and console when no ports are injected
+/tmp/wc1-compare-34sSlw/R.md
+
+ ✓ packages/agent-runtime/src/skills/web-clone/scripts/__tests__/compare-recon.test.mjs (17 tests) 37ms
+ ✓ packages/cms/scripts/__tests__/check-packaging.test.ts (22 tests) 25ms
+ ✓ scripts/__tests__/check-subpath-isolation.test.ts (33 tests) 749ms
+stdout | packages/agent-runtime/src/skills/web-clone/scripts/__tests__/audit-clone.test.mjs > main > uses the real fs and console when no ports are injected
+/tmp/wc1-audit-I5xXCF/out.md
+
+ ✓ packages/agent-runtime/src/skills/web-clone/scripts/__tests__/audit-clone.test.mjs (21 tests) 55ms
+ ✓ scripts/__tests__/check-package-layers.test.ts (66 tests) 650ms
+ ✓ packages/agent-runtime/src/skills/web-clone/scripts/__tests__/route-crawl.unit.test.mjs (11 tests) 21ms
+stdout | packages/agent-runtime/src/skills/web-clone/scripts/__tests__/dna-scaffold.test.mjs > main > uses the real fs and console when no ports are injected
+✅ design-dna 骨架已写入: /tmp/wc1-dna-VA0MET/d.json
+   下一步: 人工 Analyze 补全 ""，并从 _recon_signals 指派颜色角色。schema → references/design-dna.md
+
+ ✓ packages/agent-runtime/src/skills/web-clone/scripts/__tests__/dna-scaffold.test.mjs (13 tests) 64ms
+ ✓ packages/agent-runtime/src/skills/web-clone/scripts/__tests__/visual-diff.unit.test.mjs (9 tests) 38ms
+npm warn Unknown env config "verify-deps-before-run". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+npm warn Unknown env config "npm-globalconfig". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+npm warn Unknown env config "link-workspace-packages". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+npm warn Unknown env config "_jsr-registry". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+npm notice
+npm notice New major version of npm available! 11.19.1 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > real seeding installs readable skills deterministically and repeat boots preserve operator disablement
+/tmp/standalone-agent-plugin-aZOFmN/seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > real seeding installs readable skills deterministically and repeat boots preserve operator disablement
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > real seeding installs readable skills deterministically and repeat boots preserve operator disablement
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > real seeding installs readable skills deterministically and repeat boots preserve operator disablement
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > real seeding installs readable skills deterministically and repeat boots preserve operator disablement
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > real seeding installs readable skills deterministically and repeat boots preserve operator disablement
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > the seeded digest selects the independent package over a retained legacy revision
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > the seeded digest selects the independent package over a retained legacy revision
+/tmp/standalone-agent-plugin-aZOFmN/digest-selection/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > the seeded digest selects the independent package over a retained legacy revision
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > the seeded digest selects the independent package over a retained legacy revision
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > the seeded digest selects the independent package over a retained legacy revision
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > the seeded digest selects the independent package over a retained legacy revision
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > the seeded digest selects the independent package over a retained legacy revision
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > the seeded digest selects the independent package over a retained legacy revision
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+
+ ✓ scripts/__tests__/assemble-agent-plugin-package.test.ts (8 tests) 4574ms
+   ✓ assembles exactly the authored runtime files, preserving manifests, references, examples and executable helpers 438ms
+   ✓ a missing required asset leaves the completed payload intact and removes staging 734ms
+   ✓ refuses a symlink within a selected asset tree without replacing completed output 856ms
+   ✓ the build CLI assembles a payload through a canonical path and reports assembly failures 813ms
+   ✓ the build CLI assembles a payload through a symlink path and reports assembly failures 1111ms
+ ✓ packages/agent-runtime/src/skills/web-clone/scripts/__tests__/network-capture.unit.test.mjs (7 tests) 49ms
+npm warn Unknown env config "verify-deps-before-run". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+npm warn Unknown env config "npm-globalconfig". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+npm warn Unknown env config "link-workspace-packages". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+npm warn Unknown env config "_jsr-registry". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > the seeded digest selects the independent package over a retained legacy revision
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+
+ ✓ packages/agent-runtime/src/skills/web-clone/scripts/__tests__/mirror-site.unit.test.mjs (8 tests) 43ms
+ ✓ scripts/__tests__/standalone-agent-plugin.integration.test.ts (4 tests) 5833ms
+   ✓ real seeding installs readable skills deterministically and repeat boots preserve operator disablement 1207ms
+   ✓ the seeded digest selects the independent package over a retained legacy revision 1243ms
+   ✓ packing the lifecycle library publishes no design assets or design export 2067ms
+ ✓ scripts/__tests__/check-plugin-isolation.test.ts (40 tests) 43ms
+ ✓ scripts/__tests__/optional-peer-contract.test.ts (57 tests) 11644ms
+   ✓ making a backend peer required must not disable neutral-driver isolation 344ms
+   ✓ agent-runtime default source entry never reaches an opt-in peer 1003ms
+   ✓ all real default entries keep runtime libraries required and classify opt-in subpaths 9367ms
+ ✓ packages/agent-runtime/src/skills/web-clone/scripts/__tests__/sourcemap-hunt.unit.test.mjs (9 tests) 35ms
+ ✓ scripts/__tests__/plugin-package-gates.test.ts (10 tests) 850ms
+   ✓ inspects actual tar bytes without executing package lifecycle hooks 542ms
+ ✓ packages/agent-runtime/src/skills/web-clone/scripts/__tests__/od-preview-rewrite.unit.test.mjs (11 tests) 56ms
+ ✓ packages/agent-runtime/src/skills/web-clone/scripts/__tests__/lib-wc2.unit.test.mjs (17 tests) 484ms
+   ✓ loadPlaywright > resolves with the real require/env defaults (result depends on the install) 439ms
+ ✓ scripts/__tests__/build-script-workspace-deps.test.ts (2 tests) 379ms
+   ✓ declares every workspace package a build script loads from a sibling package 337ms
+ ✓ scripts/__tests__/check-guard-drift.test.ts (10 tests) 23ms
+stdout | packages/agent-runtime/src/skills/web-clone/scripts/__tests__/init-clone.test.mjs > main > uses the real fs and console when no ports are injected
+/tmp/wc1-init-nz3GaS/demo-clone
+
+ ✓ packages/agent-runtime/src/skills/web-clone/scripts/__tests__/init-clone.test.mjs (10 tests) 18ms
+ ✓ scripts/__tests__/peer-range-compatibility.unit.test.ts (11 tests) 19ms
+ ✓ scripts/__tests__/script-entrypoints.test.ts (6 tests) 4314ms
+   ✓ patch canary applies a real patch and refuses missing arguments through a canonical entry 449ms
+   ✓ guard drift actually reports its result through a canonical entry 841ms
+   ✓ patch canary applies a real patch and refuses missing arguments through a symlink entry 517ms
+   ✓ guard drift actually reports its result through a symlink entry 571ms
+   ✓ patch-canary.ts remains importable from stdin without running the command 484ms
+   ✓ check-guard-drift.ts remains importable from stdin without running the command 1446ms
+ ✓ scripts/__tests__/walk-imports.test.ts (7 tests) 79ms
+ ✓ scripts/__tests__/leaf-import-closures.test.ts (7 tests) 12980ms
+   ✓ HTML viewer leaf imports > cannot reach the renderer barrel, Markdown renderers or srcdoc assembly 391ms
+   ✓ universal translation owner and SEO entries > keeps SEO and its HTTP adapter free of React and preserves the existing interpolation owner 12275ms
+ ✓ packages/agent-runtime/src/skills/web-clone/scripts/__tests__/script-cli.test.mjs (8 tests) 28ms
+ ✓ scripts/__tests__/packed-exports.unit.test.ts (11 tests) 18ms
+ ✓ scripts/__tests__/guard-drift-cli.unit.test.ts (1 test) 413ms
+   ✓ reports success when the command finds no drift against an empty baseline 413ms
+ ✓ scripts/__tests__/storage-public-entries.test.ts (23 tests) 1037ms
+ ✓ scripts/__tests__/npm-pack-json.test.ts (5 tests) 219ms
+ ✓ scripts/__tests__/packed-fixture.test.ts (2 tests) 13ms
+ ✓ scripts/__tests__/fetch-query-isolation.test.ts (3 tests) 18618ms
+   ✓ fetch-query optional adapter isolation > keeps TanStack out of the default runtime closure while the optional entry reaches it 18615ms
+ ✓ scripts/__tests__/check-model-fallback-freshness.test.ts (1 test) 1640ms
+   ✓ guards Antigravity against newly reported models missing from its fallback 1639ms
+ ✓ scripts/__tests__/guard-self-test.unit.test.ts (1 test) 162ms
+ ✓ scripts/__tests__/coupling-isolation.test.ts (20 tests) 33296ms
+   ✓ re-verify dependency and state regressions > keeps standalone plugin tooling on package public entries 17638ms
+   ✓ re-verify dependency and state regressions > declares the shared secret-input owner on the permitted optional UI layer edge 2526ms
+
+ Test Files  38 passed (38)
+      Tests  544 passed (544)
+   Start at  00:01:54
+   Duration  47.28s (transform 4.70s, setup 0ms, collect 14.55s, tests 98.73s, environment 21ms, prepare 4.32s)
+
+
+> jini@ test:scripts:node /home/user/Jini
+> node --import tsx --test --test-concurrency=1 scripts/__tests__/check-hardwiring.test.ts scripts/__tests__/integration/infra-retirement.integration.test.ts
+
+✔ boot identity waiver retains exact file, fingerprint and occurrence count (41.655756ms)
+✔ Jini guard scans nested package source and excludes tests; clean DI does not add debt (12.769355ms)
+✔ Jini package imports cannot connect site and agent plugin owners (4.976861ms)
+✔ the import observation sees static, type-only, re-export, dynamic and CommonJS reaches (8.875407ms)
+✔ Jini consumers have no imports or re-exports of the retired package (7188.277417ms)
+✔ Jini consumer manifests have no dependency on the retired package (5.496927ms)
+✖ Tovu consumers have no imports or re-exports of the retired package (7545.324798ms)
+✖ Tovu consumer manifests have no dependency on the retired package (1.524342ms)
+✖ j05 final state removes the infra workspace, including stale generated leftovers (0.338632ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 6
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 16281.635449
+
+✖ failing tests:
+
+test at scripts/__tests__/integration/infra-retirement.integration.test.ts:2:4626
+✖ Tovu consumers have no imports or re-exports of the retired package (7545.324798ms)
+  AssertionError [ERR_ASSERTION]: Retirement requires every consumer import to move first
+  + actual - expected
+  
+  + [
+  +   {
+  +     path: '/home/user/Tovu/apps/website/src/contracts/core/events/enqueue-only-outbox.ts',
+  +     specifier: '@jini-ai/infra/events/outbox'
+  +   },
+  +   {
+  +     path: '/home/user/Tovu/apps/website/src/contracts/core/events/jini-outbox-adapter.ts',
+  +     specifier: '@jini-ai/infra/events/outbox'
+  +   },
+  +   {
+  +     path: '/home/user/Tovu/apps/website/src/contracts/core/events/outbox-drainer.ts',
+  +     specifier: '@jini-ai/infra/events/outbox'
+  +   },
+  +   {
+  +     path: '/home/user/Tovu/apps/website/src/contracts/core/events/outbox-drainer.ts',
+  +     specifier: '@jini-ai/infra/events/outbox'
+  +   },
+  +   {
+  +     path: '/home/user/Tovu/apps/website/src/contracts/core/events/outbox-drainer.ts',
+  +     specifier: '@jini-ai/infra/events/outbox'
+  +   },
+  +   {
+  +     path: '/home/user/Tovu/apps/website/src/contracts/core/events/outbox-retry-policies.ts',
+  +     specifier: '@jini-ai/infra/events/outbox'
+  +   },
+  +   {
+  +     path: '/home/user/Tovu/apps/website/src/contracts/core/events/outbox-worker.ts',
+  +     specifier: '@jini-ai/infra/events/outbox'
+  +   },
+  +   {
+  +     path: '/home/user/Tovu/apps/website/src/contracts/core/events/outbox-worker.ts',
+  +     specifier: '@jini-ai/infra/events/outbox'
+  +   },
+  +   {
+  +     path: '/home/user/Tovu/apps/website/src/contracts/core/events/outbox-worker.ts',
+  +     specifier: '@jini-ai/infra/events/outbox'
+  +   },
+  +   {
+  +     path: '/home/user/Tovu/apps/website/src/contracts/core/events/outbox-worker.ts',
+  +     specifier: '@jini-ai/infra/events/outbox'
+  +   },
+  +   {
+  +     path: '/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/form-delivery-vertical-slice.integration.test.ts',
+  +     specifier: '@jini-ai/infra/events/outbox'
+  +   }
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (/home/user/Jini/scripts/__tests__/integration/infra-retirement.integration.test.ts:86:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ { path: '/home/user/Tovu/apps/website/src/contracts/core/events/enqueue-only-outbox.ts', specifier: '@jini-ai/infra/events/outbox' }, { path: '/home/user/Tovu/apps/website/src/contracts/core/events/jini-outbox-adapter.ts', specifier: '@jini-ai/infra/events/outbox' }, { path: '/home/user/Tovu/apps/website/src/contracts/core/events/outbox-drainer.ts', specifier: '@jini-ai/infra/events/outbox' }, { path: '/home/user/Tovu/apps/website/src/contracts/core/events/outbox-drainer.ts', specifier: '@jini-ai/infra/events/outbox' }, { path: '/home/user/Tovu/apps/website/src/contracts/core/events/outbox-drainer.ts', specifier: '@jini-ai/infra/events/outbox' }, { path: '/home/user/Tovu/apps/website/src/contracts/core/events/outbox-retry-policies.ts', specifier: '@jini-ai/infra/events/outbox' }, { path: '/home/user/Tovu/apps/website/src/contracts/core/events/outbox-worker.ts', specifier: '@jini-ai/infra/events/outbox' }, { path: '/home/user/Tovu/apps/website/src/contracts/core/events/outbox-worker.ts', specifier: '@jini-ai/infra/events/outbox' }, { path: '/home/user/Tovu/apps/website/src/contracts/core/events/outbox-worker.ts', specifier: '@jini-ai/infra/events/outbox' }, { path: '/home/user/Tovu/apps/website/src/contracts/core/events/outbox-worker.ts', specifier: '@jini-ai/infra/events/outbox' }, { path: '/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/form-delivery-vertical-slice.integration.test.ts', specifier: '@jini-ai/infra/events/outbox' } ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at scripts/__tests__/integration/infra-retirement.integration.test.ts:2:5238
+✖ Tovu consumer manifests have no dependency on the retired package (1.524342ms)
+  AssertionError [ERR_ASSERTION]: Retirement requires every consumer dependency to move first
+  + actual - expected
+  
+  + [
+  +   {
+  +     path: '/home/user/Tovu/package.json',
+  +     section: 'dependencies'
+  +   }
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (/home/user/Jini/scripts/__tests__/integration/infra-retirement.integration.test.ts:99:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ { path: '/home/user/Tovu/package.json', section: 'dependencies' } ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at scripts/__tests__/integration/infra-retirement.integration.test.ts:2:5992
+✖ j05 final state removes the infra workspace, including stale generated leftovers (0.338632ms)
+  AssertionError [ERR_ASSERTION]: Retirement is incomplete: retain infra until its release gate and outbox ownership are resolved
+  
+  true !== false
+  
+      at TestContext.<anonymous> (/home/user/Jini/scripts/__tests__/integration/infra-retirement.integration.test.ts:104:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+ ELIFECYCLE  Command failed with exit code 1.
+ ELIFECYCLE  Command failed with exit code 1.
+EXIT 1 ELAPSED 65s

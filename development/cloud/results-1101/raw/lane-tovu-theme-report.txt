@@ -1,0 +1,44 @@
+
+==== LANE tovu-confirm-github, theme task (2026-11-02 ~00:14 UTC) ====
+Local commits on cloud/verify-1101, not pushed: ca08c24ad, d8c7112ac
+None of these are ENV failures. Both causes are TEST DRIFT; no product change was needed.
+
+Root cause 1 (common to all 13 menu-tree-render failures + the sidebar canary): TEST DRIFT. FIXED in ca08c24ad.
+  dfea76018 (2026-10-31, visitor page tools SPEC-046; owner: "Theme menus keep their markup; only
+  data-toolname marks added") added data-toolname, data-tooldescription and data-tool-action:
+  - to every rendered menu control: static-render.ts:263 (flat/tree links), :273 (inert labels),
+    :1389 (dropdown toggles);
+  - to the shipped tovu-theme nav.html, including the Download CTA.
+  The byte-exact pins (e.g. '<a href="/docs">Docs</a>' and '<a href="/download" class="btn btn-solid nav-cta">Download</a>')
+  were never updated. The commit itself says "tests NOT green".
+  Bug class: an additive annotation attribute breaks byte-exact markup pins.
+  Guard: new apps/website/src/features/theme/__tests__/visitor-tool-marks.fixture.ts.
+  - withoutVisitorToolMarks strips only escaped mark values ([^"<>]*). An unescaped label leaves
+    the mark in place, so the exact pin still fails.
+  - The escaping test now runs all of its negative checks on the RAW output, and asserts that the
+    label is escaped inside data-tooldescription.
+  - New test "every rendered menu control carries its visitor tool mark, label escaped" covers flat
+    links, tree links, inert labels and dropdown toggles.
+  RED: 13 fail (menu-tree-render) and the sidebar canary fails. GREEN: menu-tree-render 27/27.
+  Mutations on static-render.ts:263, restored after each:
+  - unescaped tooldescription: 3 RED (the new test, "menu link labels and hrefs are HTML-escaped",
+    and the tree escaping test);
+  - marks dropped: 2 RED (the new test and the escaping test);
+  - test fix reverted: original failures return.
+
+Root cause 2 (the 2 "headers omit member sign-in" canaries, masked by cause 1): TEST DRIFT. FIXED in d8c7112ac.
+  ef1ae2ea7 (10-31) deliberately added pages-blank.html with no site header or footer, to tovu-theme
+  and to its __original-themes__ copy. The canary walks every manifest template and requires a
+  <header>, so once cause 1 was fixed it failed with "pages-blank: the header must render without JavaScript".
+  Bug class: a per-template sweep that assumes every template has site chrome.
+  Fix: reuse the existing CHROMELESS_TEMPLATES declaration (24ee23c39, already used by
+  theme-pages-render.canary). The exemption still asserts: the chromeless page must have no
+  <header>, and no sign-in anchor or data-member-nav hook anywhere.
+  GREEN: template-render.canary 12/12.
+  Mutations, restored after each:
+  - exemption disabled: 2 RED;
+  - a <header> with a /signin link injected into pages-blank.html: 2 RED
+    ("chromeless template must omit the site header").
+
+Not run: website typecheck, because the box is loaded. All changes are in test files plus one new
+fixture.

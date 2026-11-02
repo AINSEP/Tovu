@@ -1,0 +1,67 @@
+LANE tovu-confirm-github — branch cloud/verify-1101, local commits only (not pushed)
+Commits: 0e666b7d3 (A1 product), b8b05a174 (B1 test), 219ab66c7 (B2 test)
+None of these failures are ENV-only; all reproduce on their own, offline.
+
+A. site-assistant-confirm.unit.test.ts: 9 failures
+ Cause: dfea76018 (2026-10-31 wip(visitor), "review fix round 1 ... tests NOT green") removed the
+ Sec-Fetch-Site branch from allowsRequestOrigin (`if (site !== undefined) return site === "same-origin"`)
+ and now requires the trusted canonical Origin. ADS-memory/reports/2026-10-31-visitor-page-tools-fix-round1.md
+ item 2 says this was the owner's call: "Fetch metadata supplies no authorization shortcut ...
+ confirmation route also rejects forged same-origin metadata." The test file was last changed in
+ 385995271 (10-22) and was never updated.
+
+ A1 PRODUCT (security, defense in depth). FIXED 0e666b7d3.
+   4 tests: foreign origin/type {fetchSite: cross-site|same-site|none|""} refuses. The route accepted
+   (200) a confirmation that had a trusted Origin while the browser reported Sec-Fetch-Site as not
+   same-origin. Removing the allow shortcut also removed the deny side.
+   Bug class: a removed allow-shortcut also removed its deny side.
+   Fix: metadata can only narrow. If Sec-Fetch-Site is present and not "same-origin", refuse. The
+   trusted Origin is still required. No check was loosened.
+   This was not exploitable as CSRF (a browser cannot forge Origin), but the route accepted what the
+   browser itself flagged as cross-origin.
+   RED: 4x "200 !== 400". GREEN: those 4 pass (25 pass / 4 fail, rest = A2).
+   Mutation (check replaced with `void site`): 8 fail, including the 4 fetchSite cases. Restored.
+
+ A2 TEST DRIFT vs deliberate owner decision. NOT FIXED, NEEDS OWNER.
+   4 tests (3 hosts + one with no Origin) assume Sec-Fetch-Site: same-origin is enough on its own:
+   - "same-origin metadata supplies the browser origin guarantee even without an Origin header"
+   - "browser same-origin metadata accepts the actual widget host https://preview.site.test,
+     http://localhost:5174, http://127.0.0.1:4100 without a canonical lookup"
+   dfea76018 removed that on purpose. Restoring it would loosen a check the owner tightened, so I
+   did not.
+   Owner question: rewriting these to expect 400 would mean preview and desktop-port widget hosts
+   can never confirm Ask-first tools. But visitor-frontend-control.ts:20-24 (same fix round) DOES
+   accept an Origin that matches the request scheme://Host. So on those hosts a visitor can open a
+   page session, and then every confirmation is refused.
+   Owner picks one:
+   (a) the confirm route's allowsOrigin also accepts the request-Host origin, like frontend-control
+       (composition/modules/site-assistant.ts:620); tests then expect 200 via that path, with a lookup.
+   (b) canonical-only is intended; rewrite the 4 tests to expect refusal.
+
+B1 source-control-tool-wiring.test.mjs: TEST DRIFT. FIXED b8b05a174.
+   1485b4e49 + 0a0885ad7 (export, 10-30/10-31) made SourceControlToolDeps.staticSiteContext required
+   (tool-registrations.ts:228, forwarded at :306). Production composition supplies it
+   (deps.ts:2730, app.ts:1652). The untyped .mjs fixture did not, so the commit failed
+   "EXPORT_FAILED: input.staticSiteContext is not a function" before it reached the GitHub adapter.
+   Bug class: untyped fixture missing a newly required port member.
+   Fix: the fixture supplies staticSiteContext. It now also asserts the snapshotted themeId reaches
+   exportSiteBound.
+   RED: EXPORT_FAILED vs REPOSITORY_NOT_FOUND. GREEN: 1 pass.
+   Mutation (dropped the forward in tool-registrations.ts:306): RED with EXPORT_FAILED. Restored.
+
+B2 source-control/__tests__/commit-site.test.mjs: 6 failures. TEST DRIFT. FIXED 219ab66c7.
+   1485b4e49 (GitHub commit target folder) made kit.repositoryPaths required: commit-site.mjs:354-356
+   and :210, typedef github.mjs:16. The hand-built kit lacked it, so prepareCommitScope threw. The
+   catch at :360 turned that into "Invalid target folder or repository file path.", and all 6 died
+   before the edge path they pin.
+   Bug class: hand-built port fake missing a newly required member.
+   Fix: the kit carries @jini-ai/devops's real repositoryPaths (normalizeRepositoryFolder,
+   prefixRepositoryPath, repositoryPathContained), not a permissive fake. @jini-ai/devops is already
+   declared in the root package.json.
+   Vendor code untouched; the change is test-only, inside the plugin folder.
+   RED: 6 fail. GREEN: 6 pass. Mutation (removed repositoryPaths): 6 fail. Restored.
+
+Not run: typecheck (box loaded). The only TS change is 3 lines in site-assistant-confirm.ts using
+the existing req.get.
+Side effect: I ran `git fetch --deepen=400 origin` to get blame/log evidence. It only deepens the
+shallow clone; no refs pushed.

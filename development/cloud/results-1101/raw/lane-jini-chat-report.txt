@@ -1,0 +1,68 @@
+LANE jini-chat — branch cloud/verify-1101 (local commits only, not pushed)
+Commits: f5749db, b5be651, 6a256f7, 985e76e
+
+Caveat on git evidence: deaf9cc is a ROOT commit (squashed history, 57 commits total), so for code
+that first appears there the order of "test written" vs "code changed" cannot be recovered.
+
+1. chat dbpkg-chat-neutrality: rejects consumer identity... (ToolCard 'tovu')
+   PRODUCT. 1ecd43e ("every tool row shows a humanized label...") added a doc-comment example
+   `mcp__tovu__theme_list_files`; the neutrality guard rejects product names in comments as well.
+   FIXED f5749db: example now `mcp__acme__theme_list_files`, why-comment kept.
+   RED: token "tovu", 1 failed -> GREEN: 1 passed -> mutation (old file) RED (token "tovu") -> restored GREEN.
+   The guard already covers the class (every source file, comments included).
+
+2. chat embed-widget boundaries: browser extraction free of ... browser globals
+   NEEDS OWNER, not fixed. src/embed-widget/browser/frontend-session-bridge.ts falls back to
+   `globalThis.fetch` in two places: createFrontendSessionBridge (`fetch ?? globalThis.fetch`, line 198)
+   and openFetchFrontendStream (`fetch: send = globalThis.fetch`, line 398). The bridge and the boundary
+   test both first appear in root deaf9cc (the bridge moved there; react/agent-bridge/ is now a re-export).
+   Its siblings follow "host injects, no browser global is selected here" (session-store.ts: injected
+   storage; lazy-loader.ts: injected document), and almost every bridge test already passes
+   `fetch: globalThis.fetch` explicitly. So the code is the side that is out of line.
+   But the real fix makes `fetch` (or `request`) required on two public exports of a published 0.6.x
+   package. That is a breaking API change. Tovu's App.hooks.ts already passes `fetch`; the chat tests at
+   frontend-session-bridge.test.ts:468/476/482 do not. The other option is to allow the ambient fallback,
+   which weakens the guard, so I did not do it. Swapping in a bare `fetch` would only dodge the regex,
+   and line 198's destructured `fetch` param shadows the global anyway. Owner: pick required injection
+   (breaking) or a documented guard exception.
+
+3. chat store/manifest: peers optional, pinned dev Kysely/PGlite
+   TEST DRIFT. package.json declares @jini-ai/agentic, @jini-ai/db, @jini-ai/diagnostics and kysely as
+   regular dependencies. The sibling contract src/__tests__/dbpkg-chat-manifest.test.ts pins that exact
+   shape (passing) with the reason: "Default widget/bridge features need these at runtime". This older
+   test still expected them as optional peers. The change sits in root deaf9cc; release commits
+   b72fd6d/0da213f touched only versions.
+   FIXED 6a256f7: exact peers + exact dependencies map updated, comment names deaf9cc and the sibling test.
+   RED: 1 failed (missing agentic/db/diagnostics/kysely peers) -> GREEN 2 passed -> mutation (move
+   @jini-ai/diagnostics back to an optional peer in package.json) RED 1 failed -> restored GREEN 2 passed.
+
+4+5. chat frontend-session-bridge: page verb via driver / approval channel approved=true
+   PRODUCT, fixed in @jini-ai/agentic. executePageCapability(..., { signal }) wraps the driver in
+   cancellablePageDriver (packages/agentic/src/core/page-executor.ts), whose methods re-spelled
+   `(args, options) => driver.click(args, options)`. Every driver therefore got an explicit `undefined`
+   options argument that no caller passed. This is a decorator that changes arity, not a new option:
+   PageDriver.click's second param is `_optional?: Record<string, never>`, and the unwrapped path calls
+   `driver.click({ handle })`.
+   FIXED b5be651: each wrapper method forwards `...call` verbatim (typed by contextual rest params, no
+   casts). Class guard added: 7 new cases in agentic page-executor.test.ts. For every page verb, the driver
+   calls with a signal must toStrictEqual the calls without one.
+   RED: chat 2 failed (click called with ({handle}, undefined)) -> GREEN chat 55/55, agentic 97/97 ->
+   mutation (old page-executor.ts + rebuilt dist) agentic guard 6 failed (find_elements, highlight,
+   scroll_to, click, fill, navigate) and chat 2 failed -> restored + rebuilt -> GREEN.
+   agentic tsc --noEmit clean; dist rebuilt with the fix.
+
+6. (added) daemon store/agent-sessions/pack-refusal-m1: refuses an empty npm pack result
+   (packages/daemon, not chat). TEST DRIFT. 88e8f9f ("every npm pack --json reader handles npm 12")
+   replaced pack()'s inline `[0]` read and its 'npm pack returned no archive' error with
+   scripts/lib/npm-pack-json.js (from 2cda475). That reader refuses '[]' with "npm pack --json: expected
+   exactly one packed package, got 0". The refusal still happens before tar runs (execFileSync is still
+   called once); only the message moved.
+   FIXED 985e76e: exact new message, plus a one-line comment naming 88e8f9f. No other copies of the old
+   message remain.
+   RED 1 failed -> GREEN 1 passed -> mutation (parser accepts an empty list) RED ("entry has no
+   filename") -> restored GREEN.
+
+Final packages/chat full run (npx vitest run, after the fixes):
+  Test Files 1 failed | 275 passed | 1 skipped (277)
+  Tests      1 failed | 4031 passed | 1 skipped (4033)
+  The only failure left is #2 (NEEDS OWNER). Baseline was 5 failing.

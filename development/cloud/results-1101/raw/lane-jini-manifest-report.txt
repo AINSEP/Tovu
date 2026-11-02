@@ -1,0 +1,79 @@
+LANE: jini-manifest  (branch cloud/verify-1101, local commits only, not pushed)
+All 5 failures are TEST DRIFT. In every case the manifest matches the documented, deliberate policy.
+That policy is in packages/README.md, the per-package README/spec and scripts/__tests__/optional-peer-contract.test.ts.
+None of them needed a product change or owner judgment.
+Each fix replaces one exact assertion with the new exact value and adds a comment naming the commit.
+No matchers were loosened. No test was skipped or deleted.
+
+1. core settings-subpath-isolation.contract.test.ts: TEST DRIFT. FIXED 1e8755b
+   Cause: 5e48b4f dropped core's optional express peer on purpose. ./settings/express only has
+   `import type` from express. The changeset says "Drop peers no runtime entry loads: express from
+   core...". The core README was updated to "declares no Express peer", and
+   optional-peer-contract pins "removes core → express". The test still expected the old optional peer.
+   Fix: assert peerDependencies?.express, peerDependenciesMeta?.express and
+   jini.optionalPeers?.express are all undefined.
+   RED:  × isolates settings and its optional Express adapter ... Tests 1 failed (1)
+   GREEN: ✓ ... Tests 1 passed (1)
+   MUTATION (re-add the express optional peer to the manifest): AssertionError: expected '^4.21.0 || ^5.0.0' to be undefined. Restored: 1 passed
+
+2. platform secrets/__tests__/exports.test.ts: TEST DRIFT (not an owner question). FIXED 6f96b9a
+   Cause: 5e48b4f made undici a regular dependency. It rewrote the README ("undici@^7.25.0 is a
+   regular dependency"), api.spec ("there is no optional-peer installation branch"), the
+   asset-cache.adapter.ts doc comment and asset-cache-dispatcher.test.ts ("undici is a production
+   dependency"). The manifest already had it under dependencies. The default createAssetCache builds
+   the undici dispatcher eagerly, and the root barrel reaches it. The test still listed undici as an
+   optional peer.
+   Fix: dependencies toEqual {core, undici:^7.25.0}, plus devDependencies.undici. adapterPeers (exact
+   toEqual) is now the ./web HTML set without undici.
+   RED:  × retains published subpaths ... Tests 1 failed | 1 passed (2)
+   GREEN: Tests 2 passed (2)
+   MUTATION (move undici back to an optional peer): AssertionError: expected { '@jini-ai/core': '^0.6.13' } to deeply equal {...(1)}. Restored: 2 passed
+
+3. db __tests__/sqlite/index.test.ts "exports exactly the runtime surface": TEST DRIFT. FIXED ff49beb
+   Cause: 2375af6 (fix: free-space check and newest-five copy retention) deliberately added
+   `export { DATABASE_COPY_RETENTION, DatabaseDiskSpaceError, assertDatabaseCopySpace,
+   pruneDatabaseCopies }` to src/sqlite/index.ts. The exact key list was not updated.
+   Fix: the exact sorted key list now includes the 4 names.
+   RED:  × exports exactly the runtime surface it promises ... Tests 1 failed | 5 passed (6)
+   GREEN: Tests 6 passed (6)
+   MUTATION (comment out the backup-policy export line): × ... 1 failed. Restored: 6 passed
+
+4. cms identity-extraction.boundary.test.ts + integration-package.contract.test.ts: TEST DRIFT. FIXED 0d651a7
+   Cause: the manifest has mammoth and unpdf as production deps. It has done so since deaf9cc,
+   which carries a squashed history. packages/README.md: "Default-path production dependencies
+   include ... mammoth and unpdf in CMS". optional-peer-contract pins "keeps default-path cms →
+   mammoth/unpdf a production dependency" and "rejects demoting default library mammoth". The two
+   package tests, from the same deaf9cc, still pinned {core} only. Their comments are about the
+   core edge.
+   Fix: dependencies toEqual {core, unpdf:^1.8.1, mammoth:^1.12.3} in both files.
+   RED:  × CMS removes identity entry points ... × keeps exports and entry runtime metadata synchronized ... Tests 2 failed | 3 passed (5)
+   GREEN: Tests 5 passed (5)
+   MUTATION (delete mammoth from dependencies): both tests fail, 2 failed. Restored: 5 passed
+
+5. agent-runtime integration-contracts.test.ts: TEST DRIFT (two drifts). FIXED 993067e
+   Cause (a): root modules statically import @jini-ai/platform/{command,toolchain,net,proxy-env,
+   fetch-with-timeout,fs/guarded-reader} and @jini-ai/integrations. The manifest and
+   packages/README.md list both as required. optional-peer-contract pins both as production deps.
+   The test's exact map lacked them.
+   Cause (b), hidden behind (a): 5e48b4f removed the last peer (@github/copilot-sdk), so
+   peerDependencies and peerDependenciesMeta are now absent. After fixing (a), the test's
+   `expect(manifest.peerDependencies).not.toHaveProperty('@jini-ai/oauth')` threw
+   "TypeError: Cannot convert undefined or null to object".
+   Fix: an exact 5-entry dependencies map, and peerDependencies and peerDependenciesMeta
+   toBeUndefined(). This is stricter than before and still excludes oauth.
+   RED:  × declares each subpath runtime and both declaration resolution paths ... Tests 1 failed | 6 passed (7)
+   GREEN: Tests 7 passed (7)
+   MUTATION 1 (delete the @jini-ai/platform dep): AssertionError: expected {...} to deeply equal {...}
+   MUTATION 2 (add peerDependencies {"@jini-ai/oauth":"*"}): AssertionError: expected { '@jini-ai/oauth': '*' } to be undefined. Restored: 7 passed
+
+Commits (local, cloud/verify-1101): 1e8755b, 6f96b9a, ff49beb, 0d651a7, 993067e
+(72372cb in between is from another process, not this lane.)
+Only test files changed. No manifests, product source or CI config were touched.
+
+Follow-up for the owner (not fixed, outside this lane's scope):
+- packages/agent-runtime/src/model-discovery-adapters.ts:321. The error text still says "Install
+  the optional peer @jini-ai/integrations", but integrations is now a required dependency.
+- Core's published .d.ts for ./settings/express still references express types without any peer.
+  This is intentional per the 5e48b4f changeset ("type consumers keep @types/express").
+- Other processes have uncommitted changes in scripts/testing/packed-fixture.* and
+  scripts/__tests__/packed-fixture.test.ts. This lane left them untouched.

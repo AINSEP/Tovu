@@ -1,0 +1,1 @@
+EXIT 0 ELAPSED 47s

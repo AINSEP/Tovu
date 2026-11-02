@@ -1,0 +1,12 @@
+
+> @tovu/sdk@0.1.0 build
+> tsc -p tsconfig.json
+
+
+> tovu@0.1.0 link:jini
+> node development/scripts/link-jini.mjs
+
+
+Missing local Jini package(s) under /root/Programming/Jini/packages: agent-plugins, agent-runtime, agentic, analytics, capability-providers, chat, cli, cms, commerce, cookie-consent, core, daemon, db, desktop-host, devops, diagnostics, http-kit, infra, integrations, mcp, oauth, platform, plugin-catalog, plugin-ui-ux-design, plugins, protocol, registry, sandbox, search, server, sidecar, ui, user-management, vibecoding, plugin-observability-opentelemetry, admin, ui-kit
+Set JINI_PACKAGES_DIR if Jini lives somewhere else.
+
