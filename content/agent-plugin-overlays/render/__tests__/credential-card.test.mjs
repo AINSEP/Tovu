@@ -4,9 +4,14 @@ import test from 'node:test';
 import { parsePluginCredentialCards } from '../../../../apps/website/src/features/agent-plugins/credential-cards.ts';
 import { buildPluginCredentialForm } from "../../../../apps/website/src/contracts/core/plugin-credential-card.js";
 import { readPluginCredentialValues } from "../../../../apps/website/src/features/custom-credentials/plugin-credential-card.js";
+import path from 'node:path';
+import { agentPluginSourceDir } from '../../../../development/test-support/agent-plugin-source.mjs';
 
-const raw = readFileSync(new URL('../plugin.json', import.meta.url), 'utf8');
-const skill = readFileSync(new URL('../skills/render/SKILL.md', import.meta.url), 'utf8');
+// render ships from @jini-ai/agent-plugins/render: read it where Tovu takes it from.
+const PLUGIN_DIR = agentPluginSourceDir({ pluginId: 'render' });
+
+const raw = readFileSync(path.join(PLUGIN_DIR, 'plugin.json'), 'utf8');
+const skill = readFileSync(path.join(PLUGIN_DIR, 'skills/render/SKILL.md'), 'utf8');
 
 test('Render declares one owned API card with a fixed destination, accepted by the real parser', () => {
   const parsed = parsePluginCredentialCards({ raw });
@@ -36,7 +41,7 @@ test('Render guidance opens its own card, deploys only through the tools and nev
 });
 
 test('every credential card parses its task purposes', () => {
-  const parsed = parsePluginCredentialCards({ raw: readFileSync(new URL('../plugin.json', import.meta.url), 'utf8') });
+  const parsed = parsePluginCredentialCards({ raw: readFileSync(path.join(PLUGIN_DIR, 'plugin.json'), 'utf8') });
   assert.equal(parsed.ok, true);
   assert.deepEqual(parsed.descriptors.map(({ providerId, usedFor }) => ({ providerId, usedFor })), [
     {

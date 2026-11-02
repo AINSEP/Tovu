@@ -3,27 +3,28 @@ import test from "node:test";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
-import { forceRemove } from "../../../../../apps/website/src/features/agent-plugins/__tests__/fixtures/force-remove.ts";
-import { resolveAgentPluginLayout } from "../../../../../apps/website/src/features/agent-plugins/layout.ts";
-import { createTovuAgentPluginLifecycle, seedBundledAgentPlugins } from "../../../../../apps/website/src/features/agent-plugins/lifecycle.ts";
-import { agentPluginActivations } from "../../../../../apps/website/src/features/agent-plugins/activation-effects.ts";
-import { loadDeployOpsRegistry } from "../../../../../apps/website/src/features/deployments/deploy-ops/registry.ts";
-import { runDeploy, runDeployOps } from "../../../../../apps/website/src/features/deployments/deploy-ops/run-ops.ts";
-import { AesGcmSecretSealer } from "../../../../../apps/website/src/features/webhooks/secret-sealer.aesgcm.ts";
-import { InMemoryKeyring } from "../../../../../apps/website/src/features/webhooks/keyring.memory.ts";
-import { InMemoryCustomCredentialSetRepo } from "../../../../../apps/website/src/features/custom-credentials/repo.memory.ts";
-import { createCustomCredential } from "../../../../../apps/website/src/features/custom-credentials/store.ts";
+import { forceRemove } from "../../../../apps/website/src/features/agent-plugins/__tests__/fixtures/force-remove.ts";
+import { processComposedBundledSourceRoot } from "../../../../apps/website/src/features/agent-plugins/__tests__/fixtures/bundled-source-root.ts";
+import { resolveAgentPluginLayout } from "../../../../apps/website/src/features/agent-plugins/layout.ts";
+import { createTovuAgentPluginLifecycle, seedBundledAgentPlugins } from "../../../../apps/website/src/features/agent-plugins/lifecycle.ts";
+import { agentPluginActivations } from "../../../../apps/website/src/features/agent-plugins/activation-effects.ts";
+import { loadDeployOpsRegistry } from "../../../../apps/website/src/features/deployments/deploy-ops/registry.ts";
+import { runDeploy, runDeployOps } from "../../../../apps/website/src/features/deployments/deploy-ops/run-ops.ts";
+import { AesGcmSecretSealer } from "../../../../apps/website/src/features/webhooks/secret-sealer.aesgcm.ts";
+import { InMemoryKeyring } from "../../../../apps/website/src/features/webhooks/keyring.memory.ts";
+import { InMemoryCustomCredentialSetRepo } from "../../../../apps/website/src/features/custom-credentials/repo.memory.ts";
+import { createCustomCredential } from "../../../../apps/website/src/features/custom-credentials/store.ts";
 import { API, TARGET, RUN, SERVICE, AT, context, response } from "./fixtures.mjs";
 
 // Real installed lifecycle and credential/dispatch boundaries; simulated HTTP only, no network.
+// render ships from @jini-ai/agent-plugins/render: seed the bundle the build composes.
 test("installed Render deploys and observes the returned ID through the guarded host", async () => {
   const dir = await mkdtemp(path.join(tmpdir(), "tovu-render-installed-"));
   const previous = process.env.TOVU_AGENT_PLUGINS_DIR;
   process.env.TOVU_AGENT_PLUGINS_DIR = dir;
   try {
     const layout = resolveAgentPluginLayout(); const workspaceId = "workspace-local";
-    await seedBundledAgentPlugins({ layout, workspaceId, sourceRoot: fileURLToPath(new URL("../../../", import.meta.url)) });
+    await seedBundledAgentPlugins({ layout, workspaceId, sourceRoot: await processComposedBundledSourceRoot() });
     await agentPluginActivations.setAgentPluginActivation({ workspaceRoot: layout.forWorkspace(workspaceId).root, pluginId: "render", enabled: true, actor: "test:operator" }, { origin: "bundled" });
     const loadContributions = createTovuAgentPluginLifecycle({ layout }).loadPluginContributions;
     const loadDeployOps = input => loadDeployOpsRegistry(input, { loadContributions });
