@@ -4,10 +4,14 @@
  */
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createElement } from 'react';
+import React, { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { visibleSections } from '../contracts/sections.js';
-import { SectionIcon } from './icons.js';
+
+// `npm test` runs renderer tests through tsx without the renderer tsconfig, so `icons.tsx` compiles
+// with the classic JSX transform and reads a free `React`: publish it before importing the module.
+(globalThis as { React?: typeof React }).React = React;
+const { SectionIcon } = await import('./icons.js');
 
 test('every visible nav section draws its own icon; Marketplace does not reuse another section\'s', () => {
   const drawn = visibleSections().map(({ id }) => ({ id, svg: renderToStaticMarkup(createElement(SectionIcon, { id })) }));
