@@ -94,7 +94,7 @@ test('a linked data.nosync directory gives the copy independent content and chat
   fs.symlinkSync(path.dirname(f.sourcePath), path.join(f.copy, 'data.nosync'), 'junction');
   addSitePointer({ siteDir: f.copy, projectsPath: f.projectsPath }, { workspace: f.workspace });
   const meta = JSON.parse(fs.readFileSync(path.join(f.copy, '.site-meta.json'), 'utf8'));
-  for (const [filename, table, expected] of [['content.db', 'posts', 'committed in WAL'], ['chat.db', 'messages', 'copied history']]) {
+  for (const [filename, table, expected] of [['content.db', 'posts', 'committed in WAL'], ['chat.db', 'messages', 'copied history']] as const) {
     const dbPath = f.workspace.databasePath({ dir: f.copy, id: meta.siteId, filename });
     assert.notEqual(fs.realpathSync(dbPath), fs.realpathSync(path.join(path.dirname(f.sourcePath), filename)));
     const db = new DatabaseSync(dbPath);
