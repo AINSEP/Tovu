@@ -72,7 +72,6 @@
         "content/agent-plugins/cloudflare/targets/cloudflare-workers.mjs",
         "content/agent-plugins/fly/deploy-configs/fly.mjs",
         "content/agent-plugins/fly/deploy-ops/fly.mjs",
-        "content/agent-plugins/github-pages/targets/github-pages.mjs",
         "content/agent-plugins/github/deploy-ops/github-actions.mjs",
         "content/agent-plugins/github/source-control/github.mjs",
         "content/agent-plugins/google-workspace/form-destinations/sheets.mjs",
