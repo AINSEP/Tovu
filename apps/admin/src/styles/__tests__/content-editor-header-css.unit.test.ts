@@ -11,10 +11,15 @@ const CSS = readFileSync(resolve(process.cwd(), "src/styles/editor.css"), "utf8"
 
 /** Every `@container admin-content (<query>) { … }` block body for the query, joined. */
 function containerBlocks(query: string): string {
+  return atRuleBlocks(`@container admin-content (${query})`);
+}
+
+/** Every `<prelude> { … }` block body (e.g. `@media (max-width: 640px)`), joined. */
+function atRuleBlocks(prelude: string): string {
   const bodies: string[] = [];
   let from = 0;
   for (;;) {
-    const start = CSS.indexOf(`@container admin-content (${query})`, from);
+    const start = CSS.indexOf(prelude, from);
     if (start < 0) return bodies.join("\n");
     let depth = 0;
     let index = CSS.indexOf("{", start);
@@ -68,5 +73,43 @@ describe("desktop pane: the slug box is as wide as the slug", () => {
     const base = declarations(CSS, ".content-editor-header > .editor-slug input");
     expect(base).toMatch(/field-sizing:\s*content/);
     expect(base).toMatch(/max-width:\s*min\(100%, var\(--editor-slug-max-width\)\)/);
+  });
+});
+
+/** A declared length in px: `Npx`, `Nrem` (16px root) or a `--space-N` token (`admin.css`). */
+function lengthPx(rule: string, property: string): number {
+  const value = new RegExp(`(?:^|[;\\s])${property}:\\s*([^;]+)`).exec(rule)?.[1]?.trim() ?? "";
+  const SPACE: Record<string, number> = { "1": 4, "2": 8, "3": 12 };
+  const token = /^var\(--space-(\d)\)$/.exec(value)?.[1];
+  if (token) return SPACE[token] ?? Number.NaN;
+  const px = /^([\d.]+)px$/.exec(value)?.[1];
+  if (px) return Number(px);
+  const rem = /^([\d.]+)rem$/.exec(value)?.[1];
+  return rem ? Number(rem) * 16 : Number.NaN;
+}
+
+describe("phone: the view tabs and the device icons share one row (bug 11-01, Edit page header at 375px)", () => {
+  // Bug class: a phone toolbar row whose controls, at the 44px tap floor, need more than the row.
+  // Measured 11-01 at 375px (a 351px row) with the then-declared values: three tabs at 8px
+  // padding-inline, both segmented groups at a 0.25rem gap and 0.2rem padding — tabs + 3px +
+  // devices = 378px, so the device icons took a row of their own (6 header rows). The device
+  // buttons are 44px wide whatever their padding (phone tap floor), so only the tabs' padding and
+  // the two groups' gap and padding can give. This recomputes that row from what is declared now.
+  const MEASURED_ROW = 378;
+  const ROW = 351;
+  it("declares phone paddings and gaps that bring tabs + devices under the 351px row", () => {
+    const phone = atRuleBlocks("@media (max-width: 640px)");
+    const tabPadding = lengthPx(declarations(phone, ".content-editor-toolbar-start .segmented button"), "padding-inline");
+    const group = declarations(phone, ".content-editor-toolbar-start .segmented");
+    const gap = lengthPx(group, "gap");
+    const padding = lengthPx(group, "padding");
+    // 3 tabs × 2 sides; 2 groups × 2 gaps (3 buttons each); 2 groups × 2 sides.
+    const saved = 3 * 2 * (8 - tabPadding) + 2 * 2 * (4 - gap) + 2 * 2 * (3.2 - padding);
+    expect(MEASURED_ROW - saved).toBeLessThanOrEqual(ROW);
+  });
+
+  it("keeps every tab at least the 44px tap width: the tighter padding never shrinks a target", () => {
+    // The 44px floor lives in `styles.css` (phone tap targets); editor.css must not lower it.
+    expect(CSS).not.toMatch(/\.content-editor-toolbar-start[^{]*\{[^}]*min-(?:width|height):\s*(?:[0-3]?\d|4[0-3])px/);
   });
 });
