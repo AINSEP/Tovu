@@ -24,6 +24,7 @@ import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm"
 import { defaultResolveInstalledAgentPlugin, runAgentPluginConnect as runConnectWithOptions, type AgentPluginConnectToolDeps } from "../../connect-tool.js";
 import { ToolInputError } from "@jini-ai/core";
 import { provisionAgentPluginMcpServers } from "../../federate-mcp.js";
+import { createApplyConnectDefaults } from "../../apply-connect-defaults.js";
 import type { McpServerConfig } from "../../mcp-metadata.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
@@ -499,6 +500,46 @@ for (const credential of ["oauth", "static-token"] as const) {
   });
 }
 
+
+// Bug 2026-11-02 (Higgsfield Media): a site that signed in before its plugin declared default tools
+// kept a connected row with no allowlist and no may-write grant, and the chat sent the owner to
+// Settings → External MCP by hand. Connecting again must grant the declared defaults through the
+// sign-in's own `onConnected` (apply-connect-defaults.ts), without starting a second sign-in.
+test("agent_plugin_connect: an already signed-in OAuth row gets the plugin's declared default tools, with no new sign-in", async () => {
+  const store = makeStoreDeps();
+  const server: McpServerConfig = { ...OAUTH_SERVER, tovuDefaultTools: { allow: ["list_things", "make_thing"], write: ["make_thing"] } };
+  await provisionAgentPluginMcpServers(mcpTestPort(store), { workspaceId: WORKSPACE_ID, pluginId: "widget-store", servers: { widget: server }, principalId: PRINCIPAL_ID });
+  await flipRowConnected(store.repo, "widget");
+  let rosterNotifications = 0;
+  const onConnected = createApplyConnectDefaults({
+    workspaceId: WORKSPACE_ID, agentPluginLayout: testSiteLayoutContext({}).agentPluginLayout, repo: store.repo, clock: CLOCK,
+    resolveServers: async () => ({ widget: server }),
+    enablePlugin: async () => true,
+    isPluginOffByOperator: async () => false,
+    notifyRosterChanged: async () => { rosterNotifications += 1; },
+  });
+  let beginCalls = 0;
+  const oauth = fakeOAuth(store.repo, "https://mcp.example.com/authorize");
+  const emissions: SurfaceEmission[] = [];
+
+  const result = await runConnectWithOptions({
+    routeDeps: baseDeps(store, {
+      externalMcpOAuth: { ...oauth, beginConnect: async (input) => { beginCalls += 1; return oauth.beginConnect(input); } },
+      resolveInstalledPlugin: async () => ({ servers: { widget: server } }),
+    }),
+    surfaces: { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
+    ctx: fakeCtx(emissions), pluginId: "widget-store",
+  }, { onConnected });
+
+  assert.deepEqual(result, { status: "connected" });
+  assert.equal(beginCalls, 0, "an existing sign-in is reused, never restarted");
+  assert.deepEqual(emissions, []);
+  const row = (await store.repo.findByServerId({ workspaceId: WORKSPACE_ID, serverId: "widget" }))!;
+  assert.equal(row.enabled, true);
+  assert.deepEqual(JSON.parse(row.allowedToolNames ?? "[]"), ["list_things", "make_thing"]);
+  assert.deepEqual(JSON.parse(row.writeAllowedToolNames ?? "[]"), ["make_thing"]);
+  assert.equal(rosterNotifications, 1, "the assistant's tool list is refreshed, not left for a restart");
+});
 
 test("agent_plugin_connect resolves the installed package without an injected resolver", async () => {
   const dir = await mkdtemp(path.join(tmpdir(), "connect-installed-"));

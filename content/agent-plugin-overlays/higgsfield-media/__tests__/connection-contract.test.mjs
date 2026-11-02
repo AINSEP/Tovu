@@ -18,7 +18,11 @@ test('browser sign-in and operator read trust are declared without a token', asy
   const metadata = manifest.extensions.tovu.mcpServers.higgsfield;
   assert.equal(metadata.tovuAuthMode, 'oauth');
   assert.deepEqual(metadata.tovuDefaultTools.read, ['models_explore', 'job_status']);
-  assert.equal(metadata.tovuDefaultTools.allow, undefined, 'the package must not pre-grant generation');
+  // Owner 2026-11-02: enabling the plugin and signing in must be enough to generate, so the sign-in
+  // grants these declared tools, generators included (apply-connect-defaults.ts).
+  assert.ok(metadata.tovuDefaultTools.allow.includes('generate_image'), 'the sign-in allowlists generation');
+  assert.ok(metadata.tovuDefaultTools.allow.includes('jobs_wait'), 'the sign-in allowlists job polling');
+  assert.ok(metadata.tovuDefaultTools.write.includes('generate_image'), 'the sign-in grants may-write to the image generator');
   const skill = await readFile(path.join(PLUGIN_ROOT, 'skills/higgsfield-media/SKILL.md'), 'utf8');
   assert.match(skill, /agent_plugin_connect/);
   assert.match(skill, /media_import_from_url/);

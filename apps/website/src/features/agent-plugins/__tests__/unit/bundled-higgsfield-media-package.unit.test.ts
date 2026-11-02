@@ -98,7 +98,16 @@ test("mcp.json declares the real higgsfield connection, auto-admitted per classi
 
   assert.deepEqual(parsed.config.serverIds, ["higgsfield"]);
   const server = parsed.config.servers.higgsfield;
-  assert.deepEqual(server, { type: "streamable-http", url: "https://mcp.higgsfield.ai/mcp", tovuAuthMode: "oauth", tovuDefaultTools: { read: ["models_explore", "job_status"], write: [] } });
+  // The declared defaults the first sign-in grants (apply-connect-defaults.ts): enabling and signing
+  // in is enough to generate (owner, 2026-11-02).
+  assert.deepEqual(server, {
+    type: "streamable-http", url: "https://mcp.higgsfield.ai/mcp", tovuAuthMode: "oauth",
+    tovuDefaultTools: {
+      allow: ["generate_image", "generate_video", "models_explore", "job_status", "jobs_wait", "show_generations", "reveal_generation", "show_generation_by_ids"],
+      write: ["generate_image", "generate_video", "reveal_generation"],
+      read: ["models_explore", "job_status"],
+    },
+  });
 
   // Remote + oauth carries no secret and no local execution, so it auto-admits — never requires the
   // stdio confirmation gate. This is the one classification `federate-mcp.ts`'s wiring depends on.
@@ -172,10 +181,14 @@ test("SKILL.md documents the TWO-list write grant and quotes the exact refusal l
   assert.ok(skill.includes("**also** named it in a second list, `writeAllowedToolNames`."));
 });
 
-test("SKILL.md states that federation config is read at daemon start, so a saved grant needs a restart", async () => {
+test("host guidance: a sign-in needs no restart; only widening a running connection does", async () => {
   const hostGuidance = await readHostGuidance();
   assert.match(hostGuidance, /daemon start/i);
   assert.match(hostGuidance, /Restart the assistant/);
+  // Bug 2026-11-02: the chat told an owner who had just signed in to restart, quoting the old
+  // "read once, at daemon start" line. A sign-in grants the declared tools and reloads the tool list.
+  assert.match(hostGuidance, /Signing in needs no restart/);
+  assert.doesNotMatch(hostGuidance, /Federation config is read once, at daemon start/);
 });
 
 test("SKILL.md forbids inventing a cause for an absent or refused federated tool", async () => {
