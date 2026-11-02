@@ -6,6 +6,10 @@
  * test file runs under a different runner in the gate than in the suite, or in only one of them.
  * The runner is not cosmetic: probe P4 showed tsx corrupts lcov counters. This fails naming every
  * glob the two disagree on.
+ *
+ * It also holds the checks on the REAL `coverage-floors.json` that need no coverage run: the source
+ * inventory (every desktop source file in exactly one area or excluded with a why) runs here in
+ * seconds, so a file that lands outside every area fails `npm test`, not only the slow gate.
  */
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -13,7 +17,8 @@ import { globSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { TEST_PASSES, parseNodeTestScript, runnerSplitDrift } from "./coverage-floors.ts";
+import { TEST_PASSES, inventoryFailures, parseNodeTestScript, runnerSplitDrift } from "./coverage-floors.ts";
+import { sourceInventory } from "../scripts/check-coverage.ts";
 
 const PACKAGE_JSON = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "package.json");
 const DESKTOP_ROOT = path.dirname(PACKAGE_JSON);
@@ -56,5 +61,26 @@ test("every suite and coverage pass using module mocks enables Node's module-moc
       }
     }
     assert.ok(checked.length > 0, `${runner} must include the module-mocking preload tests`);
+  }
+});
+
+test("every real desktop source file is in exactly one coverage area, or excluded with a why", () => {
+  const config = JSON.parse(readFileSync(path.join(DESKTOP_ROOT, "coverage-floors.json"), "utf8"));
+  const files = sourceInventory({ root: DESKTOP_ROOT });
+  // Anchors that the scan really walked src, the renderer components and the preloads: an empty or
+  // misdirected scan would otherwise pass with no failures.
+  for (const anchor of ["src/coverage-floors.ts", "src/renderer/App.tsx", "src/preload/preload.mts", "src/speech/preload-speech.cts"]) {
+    assert.ok(files.includes(anchor), `the inventory must include ${anchor}`);
+  }
+  assert.deepEqual(inventoryFailures({ files, areas: config.areas }, { excluded: config.excluded ?? [] }), []);
+});
+
+test("the real per-file branch policy is well formed, and every debt entry sits under the floor", () => {
+  const { perFileBranch } = JSON.parse(readFileSync(path.join(DESKTOP_ROOT, "coverage-floors.json"), "utf8"));
+  assert.equal(typeof perFileBranch.floor, "number");
+  assert.equal(typeof perFileBranch.enforced, "boolean");
+  // A debt entry at or above the floor exempts nothing; one over 100 or under 0 is a typo.
+  for (const [file, floor] of Object.entries(perFileBranch.debt ?? {})) {
+    assert.ok(typeof floor === "number" && floor >= 0 && floor < perFileBranch.floor, `${file}: debt ${String(floor)} must be a number in [0, ${perFileBranch.floor})`);
   }
 });

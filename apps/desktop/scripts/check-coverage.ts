@@ -30,10 +30,20 @@
  * the same way, through `excludeDirs`. Renaming a main-process file from `.js` to `.ts` therefore
  * moves it between neither runners nor floors.
  *
+ * ## Three verdicts on top of the suite's own
+ *
+ * 1. Area floors: each area's line/branch/funcs totals, over a disk-scanned denominator.
+ * 2. Per-file branch floor: each measured area file's branch %, against `perFileBranch`.
+ * 3. Source inventory: every production source file under `src/`, `bin/` and the desktop root
+ *    belongs to exactly one area or is on the `excluded` list with a `why`. This is a disk check
+ *    and runs even when the suite fails; it is the one that would have caught `main.ts`, the
+ *    renderer `.tsx` and the preloads sitting outside every area.
+ *
  * Usage: node scripts/check-coverage.ts
- * Exit codes: 0 = every area at/above its floors with no undeclared unmeasured file.
- *             1 = an area failed, the suite failed or matched no test file, or the config is
- *                 missing/unusable.
+ * Exit codes: 0 = every area at/above its floors with no undeclared unmeasured file, every file at/
+ *                 above its per-file branch floor, and every source file owned exactly once.
+ *             1 = an area, the per-file floor or the inventory failed, the suite failed or matched
+ *                 no test file, or the config is missing/unusable.
  */
 import { spawnSync } from "node:child_process";
 import type { SpawnSyncOptionsWithStringEncoding, SpawnSyncReturns } from "node:child_process";
@@ -45,20 +55,27 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
+  INVENTORY_DIRS,
+  SOURCE_EXTENSIONS,
   TEST_PASSES,
   evaluateArea,
+  evaluatePerFileBranch,
   formatArea,
+  formatPerFileBranch,
+  inventoryFailures,
   isInExcludedDir,
-  isMeasurableSource,
+  isProductionSource,
 } from "../src/coverage-floors.ts";
-import type { CoverageArea, LcovCounters, TestPass } from "../src/coverage-floors.ts";
+import type { CoverageArea, ExcludedSource, LcovCounters, PerFileBranchPolicy, TestPass } from "../src/coverage-floors.ts";
 
-/** `coverage-floors.json`, as far as this file reads it. `_comment*` keys exist in the file but are
- *  never read here. */
+/** `coverage-floors.json`, as far as this file reads it. `_comment*` and `_todo` keys exist in the
+ *  file but are never read here. `perFileBranch` is required: a config without one fails the gate
+ *  rather than reading as "no per-file floor". */
 interface CoverageConfig {
   coverageInclude?: readonly string[];
   areas: readonly CoverageArea[];
-  notMeasured?: readonly { what: string; why: string }[];
+  perFileBranch?: PerFileBranchPolicy;
+  excluded?: readonly ExcludedSource[];
 }
 
 /** One test pass's outcome. `status` is `null` when the process never produced a numeric exit code
@@ -97,11 +114,22 @@ function filesOnDisk(dir: string, exts: readonly string[], excludeDirs: readonly
         walk(next);
         continue;
       }
-      if (exts.some((ext) => rel.endsWith(ext)) && isMeasurableSource(rel)) out.push(rel);
+      if (exts.some((ext) => rel.endsWith(ext)) && isProductionSource({ file: rel })) out.push(rel);
     }
   };
   walk(root);
   return out.sort();
+}
+
+/** Every production source file the inventory guard judges: {@link INVENTORY_DIRS} walked
+ *  recursively, plus the source files directly in the desktop root (not recursive — that is where
+ *  the Electron entry lived, and `node_modules`/`dist` must not be walked).
+ *  @complexity O(n) in files walked. */
+function sourceInventory({ root }: { root: string }): string[] {
+  const topLevel = readdirSync(root, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && isProductionSource({ file: entry.name }))
+    .map((entry) => entry.name);
+  return [...INVENTORY_DIRS.flatMap((dir) => filesOnDisk(dir, SOURCE_EXTENSIONS, [], root)), ...topLevel].sort();
 }
 
 /** Parse an lcov into `Map<relPath, counters>`. Paths outside this package (Jini's dist, anything
@@ -143,6 +171,7 @@ function runSuite(pass: TestPass, includes: readonly string[], lcovPath: string,
     "--experimental-test-coverage",
     ...includes.flatMap((glob) => [`--test-coverage-include=${glob}`]),
     "--test-coverage-exclude=src/**/*.test.ts",
+    "--test-coverage-exclude=src/**/*.test.tsx",
     "--test-reporter=lcov",
     `--test-reporter-destination=${lcovPath}`,
     "--test-reporter=dot",
@@ -188,11 +217,13 @@ function produceCoverage(config: CoverageConfig, lcovPaths: readonly string[], c
   return false;
 }
 
-/** Evaluates and prints every configured area. Returns true if any failed.
+/** Evaluates and prints every configured area. Returns whether any failed, and every file the
+ *  areas scanned on disk (the per-file floor judges exactly those).
  *  @complexity O(n) in areas. */
-function evaluateAreas(config: CoverageConfig, coverage: ReadonlyMap<string, LcovCounters>, ctx: CoverageGateContext): boolean {
+function evaluateAreas(config: CoverageConfig, coverage: ReadonlyMap<string, LcovCounters>, ctx: CoverageGateContext): { failed: boolean; files: string[] } {
   ctx.out("\n" + "=".repeat(66) + "\nDESKTOP COVERAGE FLOORS\n" + "=".repeat(66) + "\n");
   let failed = false;
+  const files: string[] = [];
   for (const area of config.areas) {
     // !: every area entry in coverage-floors.json sets both dirs and extensions; the type leaves
     // them optional because CoverageArea also describes narrower future config shapes.
@@ -200,23 +231,52 @@ function evaluateAreas(config: CoverageConfig, coverage: ReadonlyMap<string, Lco
     const result = evaluateArea(area, onDisk, coverage);
     ctx.out(`${formatArea(result, area)}\n`);
     if (result.failures.length > 0) failed = true;
+    files.push(...onDisk);
   }
-  return failed;
+  return { failed, files };
+}
+
+/** Evaluates and prints the per-file branch floor over the area files. Returns true if it failed;
+ *  a config with no `perFileBranch` fails, so dropping the key cannot switch the floor off.
+ *  @complexity O(f log f) in files. */
+function evaluatePerFile(
+  { config, coverage, files }: { config: CoverageConfig; coverage: ReadonlyMap<string, LcovCounters>; files: readonly string[] },
+  ctx: CoverageGateContext,
+): boolean {
+  if (!config.perFileBranch) {
+    ctx.out("  FAIL  per-file branch floor\n          ! coverage-floors.json has no perFileBranch. This gate cannot pass without one.\n");
+    return true;
+  }
+  const result = evaluatePerFileBranch({ files, coverage, policy: config.perFileBranch });
+  ctx.out(`${formatPerFileBranch({ result, policy: config.perFileBranch })}\n`);
+  return result.failures.length > 0;
+}
+
+/** Checks and prints the source inventory: every production source file owned by exactly one area
+ *  or excluded with a why. Returns true if it failed.
+ *  @complexity O(f × a) in files and areas. */
+function evaluateInventory({ config }: { config: CoverageConfig }, ctx: CoverageGateContext): boolean {
+  const files = sourceInventory({ root: ctx.root });
+  const failures = inventoryFailures({ files, areas: config.areas }, { excluded: config.excluded ?? [] });
+  ctx.out(`  ${failures.length === 0 ? "OK  " : "FAIL"}  source inventory — ${files.length} source file(s), each in exactly one area or excluded\n`);
+  for (const failure of failures) ctx.out(`          ! ${failure}\n`);
+  return failures.length > 0;
 }
 
 /** Printed every run, by name. An excluded file nobody is told about is the trap; an excluded file
  *  in every run's output is a decision.
  *  @complexity O(n). */
-function printNotMeasured(config: CoverageConfig, ctx: CoverageGateContext): void {
-  if (!config.notMeasured?.length) return;
-  ctx.out("\n  NOT MEASURED — no floor applies, and this is deliberate:\n");
-  for (const entry of config.notMeasured) ctx.out(`    - ${entry.what}: ${entry.why}\n`);
+function printExcluded(config: CoverageConfig, ctx: CoverageGateContext): void {
+  if (!config.excluded?.length) return;
+  ctx.out("\n  EXCLUDED — in no area, no floor applies, and this is deliberate:\n");
+  for (const entry of config.excluded) ctx.out(`    - ${entry.file}: ${entry.why}\n`);
 }
 
 /**
  * The whole gate: run every test pass under coverage, then judge each area's floors against a disk
- * scan of `ctx.root`.
- * @returns the exit code: 0 when the suite passed and every area met its floors, else 1.
+ * scan of `ctx.root`, each area file against the per-file branch floor, and the whole source
+ * inventory against the areas.
+ * @returns the exit code: 0 when the suite passed and all three verdicts passed, else 1.
  * @complexity O(n) in files on disk plus lcov records, plus the suites' own cost.
  */
 function runCoverageGate(ctx: CoverageGateContext): number {
@@ -231,11 +291,14 @@ function runCoverageGate(ctx: CoverageGateContext): number {
     const lcovPaths = TEST_PASSES.map((pass) => path.join(tmp, `${pass.id}.lcov`));
 
     const suitePassed = produceCoverage(config, lcovPaths, ctx);
-    const areasFailed = evaluateAreas(config, mergeCoverage(lcovPaths, ctx.root), ctx);
-    printNotMeasured(config, ctx);
+    const coverage = mergeCoverage(lcovPaths, ctx.root);
+    const areas = evaluateAreas(config, coverage, ctx);
+    const perFileFailed = evaluatePerFile({ config, coverage, files: areas.files }, ctx);
+    const inventoryFailed = evaluateInventory({ config }, ctx);
+    printExcluded(config, ctx);
     rmSync(tmp, { recursive: true, force: true });
 
-    if (!suitePassed || areasFailed) {
+    if ([!suitePassed, areas.failed, perFileFailed, inventoryFailed].some(Boolean)) {
       ctx.err("\ncheck-coverage: FAILED\n");
       return 1;
     }
@@ -269,5 +332,5 @@ if (process.argv[1] !== undefined && path.resolve(process.argv[1]) === fileURLTo
   });
 }
 
-export { rootFromArgv, runCoverageGate };
+export { rootFromArgv, runCoverageGate, sourceInventory };
 export type { CoverageGateContext };

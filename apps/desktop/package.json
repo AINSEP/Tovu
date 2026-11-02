@@ -16,7 +16,7 @@
     "watch:renderer": "vite build --watch",
     "typecheck": "tsc -p tsconfig.preload.json --noEmit && tsc -p tsconfig.renderer.json && tsc -p tsconfig.main.json && tsc -p tsconfig.live-verify.json",
     "pretest": "npm run build:preload",
-    "test": "node --experimental-test-module-mocks --import ./scripts/resolve-ts-ext.ts --test \"src/*.test.ts\" \"src/!(renderer|contracts)/**/*.test.ts\" && node --import tsx --test \"src/renderer/**/*.test.ts\" \"src/contracts/**/*.test.ts\"",
+    "test": "node --experimental-test-module-mocks --import ./scripts/resolve-ts-ext.ts --test \"src/*.test.ts\" \"src/!(renderer|contracts)/**/*.test.ts\" && node --import tsx --test \"src/renderer/**/*.test.ts\" \"src/renderer/**/*.test.tsx\" \"src/contracts/**/*.test.ts\"",
     "gates": "node scripts/check-gates.ts",
     "smoke:packaged-chat": "node scripts/smoke-packaged-chat.ts",
     "release:inputs": "node ../../development/scripts/check-no-linked-jini.mjs && cd ../.. && node development/scripts/check-no-linked-jini.mjs",

@@ -1,7 +1,8 @@
 /**
  * @file `scripts/check-coverage.ts` — the desktop coverage-floor gate — run against a temp desktop
  * root with a fake test-pass `spawn` that writes the lcov a real pass would. The disk scan, the lcov
- * parse/merge and the floor verdicts are all the real code; nothing here re-runs this suite.
+ * parse/merge, the area and per-file floor verdicts and the source inventory are all the real code;
+ * nothing here re-runs this suite.
  */
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -26,17 +27,22 @@ const AREAS = [
   { id: "renderer", dirs: ["src/renderer"], extensions: [".ts"], minFilesOnDisk: 1, floors: { line: 50 }, knownUnmeasured: ["src/renderer/legacy.ts"] },
 ];
 
-/** A temp desktop root: two measurable sources, test files for both passes, and noise the disk scan
- *  must skip (node_modules, a dot-dir, a test file, a .d.ts, an excluded dir's file, a wrong extension).
- *  `config: null` writes no coverage-floors.json at all. */
-function desktopRoot(config: unknown = { coverageInclude: ["src/**"], areas: AREAS, notMeasured: [{ what: "main.ts", why: "Electron entry" }] }): string {
+const PER_FILE = { floor: 80, enforced: true, debt: {} };
+const DEFAULT_CONFIG = { coverageInclude: ["src/**"], areas: AREAS, perFileBranch: PER_FILE, excluded: [{ file: "main.ts", why: "Electron entry" }] };
+
+/** A temp desktop root: measurable sources, test files for both passes, a root-level `main.ts` the
+ *  default config excludes, and noise the disk scan must skip (node_modules, a dot-dir, a test file,
+ *  a .d.ts, an excluded dir's file, a wrong extension). `config: null` writes no coverage-floors.json
+ *  at all; `extra` adds files, `omit` leaves default ones out. */
+function desktopRoot(config: unknown = DEFAULT_CONFIG, { extra = [], omit = [] }: { extra?: string[]; omit?: string[] } = {}): string {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-cov-gate-"));
   const write = (rel: string, text = "x") => {
     fs.mkdirSync(path.dirname(path.join(root, rel)), { recursive: true });
     fs.writeFileSync(path.join(root, rel), text);
   };
-  for (const rel of ["src/a.ts", "src/nested/b.ts", "src/renderer/r.ts", "src/renderer/legacy.ts", "src/a.test.ts", "src/renderer/r.test.ts",
-    "src/types.d.ts", "src/readme.md", "src/node_modules/dep/index.ts", "src/.cache/c.ts"]) write(rel);
+  const files = ["main.ts", "src/a.ts", "src/nested/b.ts", "src/renderer/r.ts", "src/renderer/legacy.ts", "src/a.test.ts", "src/renderer/r.test.ts",
+    "src/types.d.ts", "src/readme.md", "src/node_modules/dep/index.ts", "src/.cache/c.ts", ...extra];
+  for (const rel of files.filter((file) => !omit.includes(file))) write(rel);
   if (config !== null) write("coverage-floors.json", typeof config === "string" ? config : JSON.stringify(config));
   return root;
 }
@@ -66,7 +72,7 @@ function context(root: string, replies: PassReply[]) {
 const fullMain = (root: string) =>
   record(path.join(root, "src/a.ts"), [10, 10], [2, 2], [1, 1]) + record("src/nested/b.ts", [5, 5], [0, 0], [1, 1]);
 
-test("a passing suite whose areas meet their floors is OK, and the not-measured list is printed by name", () => {
+test("a passing suite whose areas meet their floors is OK, and the excluded list is printed by name", () => {
   const root = desktopRoot();
   const { ctx, out, err, calls } = context(root, [{ lcov: fullMain(root), stdout: "....\n" }, { lcov: record("src/renderer/r.ts", [3, 4]) }]);
 
@@ -74,12 +80,15 @@ test("a passing suite whose areas meet their floors is OK, and the not-measured 
   const report = out.join("");
   assert.match(report, /OK {4}main/);
   assert.match(report, /OK {4}renderer/);
-  assert.match(report, /NOT MEASURED — no floor applies, and this is deliberate:\n {4}- main\.ts: Electron entry/);
+  assert.match(report, /OK {4}per-file branch floor 80%\n/);
+  assert.match(report, /OK {4}source inventory — 5 source file\(s\), each in exactly one area or excluded/);
+  assert.match(report, /EXCLUDED — in no area, no floor applies, and this is deliberate:\n {4}- main\.ts: Electron entry/);
   assert.match(report, /\ncheck-coverage: OK\n$/);
   assert.match(report, /\.\.\.\./, "the pass's own output is echoed");
   assert.equal(calls.length, 2);
   assert.ok(calls[0]!.includes("--test-coverage-include=src/**"));
   assert.ok(calls[0]!.includes("--test-coverage-exclude=src/**/*.test.ts"));
+  assert.ok(calls[1]!.includes("--test-coverage-exclude=src/**/*.test.tsx"), "a .tsx component test is not counted as source");
   assert.ok(calls[0]!.includes("--test"));
 });
 
@@ -141,7 +150,7 @@ test("a pass whose globs match no test file is refused before spawning — node 
   assert.match(err.join(""), /tsx=no test file matches src\/renderer\/\*\*\/\*\.test\.ts src\/contracts\/\*\*\/\*\.test\.ts, which node would pass as 0 tests/);
 });
 
-test("a missing config, a corrupt config, and a config with no coverageInclude/notMeasured", () => {
+test("a missing config, a corrupt config, and a config with no coverageInclude/excluded", () => {
   const missing = context(desktopRoot(null), []);
   assert.equal(runCoverageGate(missing.ctx), 1);
   assert.deepEqual(missing.err, ["check-coverage: FAIL — no coverage-floors.json. This gate cannot pass without one.\n"]);
@@ -150,11 +159,70 @@ test("a missing config, a corrupt config, and a config with no coverageInclude/n
   assert.equal(runCoverageGate(corrupt.ctx), 1);
   assert.match(corrupt.err.join(""), /JSON/);
 
-  const root = desktopRoot({ areas: [{ ...AREAS[0], dirs: ["src", "absent-dir"] }] });
-  const bare = context(root, [{ lcov: fullMain(root) }, {}]);
-  assert.equal(runCoverageGate(bare.ctx), 0, bare.err.join(""));
+  // One area over all of src (renderer included) and no root main.ts, so nothing needs excluding.
+  const root = desktopRoot({ areas: [{ ...AREAS[0], excludeDirs: [], dirs: ["src", "absent-dir"] }], perFileBranch: PER_FILE }, { omit: ["main.ts"] });
+  const lcov = fullMain(root) + record("src/renderer/r.ts", [4, 4]) + record("src/renderer/legacy.ts", [4, 4]);
+  const bare = context(root, [{ lcov }, {}]);
+  assert.equal(runCoverageGate(bare.ctx), 0, bare.out.join("") + bare.err.join(""));
   assert.ok(!bare.calls[0]!.some((arg) => arg.startsWith("--test-coverage-include=")));
-  assert.ok(!bare.out.join("").includes("NOT MEASURED"));
+  assert.ok(!bare.out.join("").includes("EXCLUDED"));
+});
+
+// --- per-file branch floor and source inventory, through the real gate ---------------------------
+
+test("a config with no perFileBranch fails, so deleting the key cannot switch the per-file floor off", () => {
+  const root = desktopRoot({ ...DEFAULT_CONFIG, perFileBranch: undefined });
+  const { ctx, out, err } = context(root, [{ lcov: fullMain(root) }, { lcov: record("src/renderer/r.ts", [4, 4]) }]);
+  assert.equal(runCoverageGate(ctx), 1);
+  assert.match(out.join(""), /FAIL {2}per-file branch floor\n {10}! coverage-floors\.json has no perFileBranch\. This gate cannot pass without one\./);
+  assert.match(err.join(""), /check-coverage: FAILED/);
+});
+
+test("an enforced per-file floor fails the gate for one weak file, though its area total passes", () => {
+  const root = desktopRoot({ ...DEFAULT_CONFIG, areas: [{ ...AREAS[0], floors: { branch: 70 } }, AREAS[1]] });
+  // a.ts 19/20 and b.ts 1/4 branches: 83% for the area, 25% for b.ts alone.
+  const lcov = record("src/a.ts", [10, 10], [19, 20]) + record("src/nested/b.ts", [5, 5], [1, 4]);
+  const { ctx, out } = context(root, [{ lcov }, { lcov: record("src/renderer/r.ts", [4, 4]) }]);
+  assert.equal(runCoverageGate(ctx), 1);
+  const report = out.join("");
+  assert.match(report, /OK {4}main/, "the area total passes");
+  assert.match(report, /! src\/nested\/b\.ts branch 25\.00% < per-file floor 80%/);
+});
+
+test("an unenforced per-file floor lists the weak file with its number and still passes", () => {
+  // The area floors only line here, so the per-file verdict is the one under test.
+  const root = desktopRoot({ ...DEFAULT_CONFIG, areas: [{ ...AREAS[0], floors: { line: 90 } }, AREAS[1]], perFileBranch: { ...PER_FILE, enforced: false } });
+  const lcov = record("src/a.ts", [10, 10], [2, 2]) + record("src/nested/b.ts", [5, 5], [1, 4]);
+  const { ctx, out, err } = context(root, [{ lcov }, { lcov: record("src/renderer/r.ts", [4, 4]) }]);
+  assert.equal(runCoverageGate(ctx), 0, err.join(""));
+  assert.match(out.join(""), /per-file branch floor 80% — NOT ENFORCED yet[^\n]*\n {10}under floor \(1\):\n {12}- {2}25\.00% {2}src\/nested\/b\.ts/);
+});
+
+test("a source file no area scans fails the gate by name, even with every area green", () => {
+  const root = desktopRoot(DEFAULT_CONFIG, { extra: ["src/renderer/View.tsx", "src/speech/preload.cts"] });
+  const { ctx, out } = context(root, [{ lcov: fullMain(root) }, { lcov: record("src/renderer/r.ts", [4, 4]) }]);
+  assert.equal(runCoverageGate(ctx), 1);
+  const report = out.join("");
+  assert.match(report, /OK {4}main/);
+  assert.match(report, /OK {4}renderer/);
+  assert.match(report, /FAIL {2}source inventory — 7 source file\(s\)/);
+  assert.match(report, /! src\/renderer\/View\.tsx is in no coverage area and not on the excluded list/);
+  assert.match(report, /! src\/speech\/preload\.cts is in no coverage area/);
+});
+
+test("a source file at the desktop root fails unless excluded, and a stale exclusion fails too", () => {
+  const unlisted = desktopRoot({ ...DEFAULT_CONFIG, excluded: [] });
+  const first = context(unlisted, [{ lcov: fullMain(unlisted) }, { lcov: record("src/renderer/r.ts", [4, 4]) }]);
+  assert.equal(runCoverageGate(first.ctx), 1);
+  assert.match(first.out.join(""), /! main\.ts is in no coverage area and not on the excluded list/);
+
+  // main.ts moved into src/main/: the main area takes it, and the old root exclusion is now stale.
+  const moved = desktopRoot(DEFAULT_CONFIG, { omit: ["main.ts"], extra: ["src/main/index.ts"] });
+  const second = context(moved, [{ lcov: fullMain(moved) + record("src/main/index.ts", [3, 3]) }, { lcov: record("src/renderer/r.ts", [4, 4]) }]);
+  assert.equal(runCoverageGate(second.ctx), 1);
+  const report = second.out.join("");
+  assert.match(report, /OK {4}main\n[\s\S]*files: {2}3 measured of 3 on disk/, "src/main/index.ts is counted in the main area");
+  assert.match(report, /! excluded main\.ts is not on disk\. Remove the stale entry\./);
 });
 
 test("a non-Error thrown from the spawn port still fails the gate with a readable line", () => {

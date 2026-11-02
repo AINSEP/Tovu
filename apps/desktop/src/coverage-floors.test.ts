@@ -11,15 +11,20 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  areaOwns,
   evaluateArea,
+  evaluatePerFileBranch,
   formatArea,
+  formatPerFileBranch,
+  inventoryFailures,
   pct,
   isMeasurableSource,
   isInExcludedDir,
+  isProductionSource,
   parseNodeTestScript,
   runnerSplitDrift,
 } from "./coverage-floors.ts";
-import type { LcovCounters } from "./coverage-floors.ts";
+import type { ExcludedSource, LcovCounters, PerFileBranchPolicy } from "./coverage-floors.ts";
 
 const perfect = { lf: 100, lh: 100, brf: 10, brh: 10, fnf: 5, fnh: 5 };
 const poor = { lf: 100, lh: 50, brf: 10, brh: 5, fnf: 5, fnh: 1 };
@@ -253,4 +258,228 @@ test("a command the guard cannot read throws instead of comparing as zero globs"
   assert.throws(() => parseNodeTestScript("node src/main.js"), {
     message: 'not a "node [args] --test <globs>" command: node src/main.js',
   });
+});
+
+// --- source inventory: every source file in exactly one area, or excluded with a why -------------
+// The 2026-11-02 finding this exists for: main.ts, the renderer .tsx and both preloads matched no
+// area, so they sat outside every denominator and could never fail. Each test below is a way a
+// file could again end up counted nowhere, or twice, without the gate saying so.
+
+test("production source covers every JS/TS extension and drops tests and declarations in all of them", () => {
+  for (const file of ["src/a.ts", "src/A.tsx", "src/preload/p.mts", "src/speech/s.cts", "src/old.js", "src/old.cjs", "src/x.mjs", "src/y.jsx"]) {
+    assert.equal(isProductionSource({ file }), true, file);
+  }
+  for (const file of ["src/a.test.ts", "src/A.test.tsx", "src/s.test.cts", "src/y.spec.jsx", "src/x.test.mjs", "src/t.d.ts", "src/t.d.mts", "src/t.d.cts"]) {
+    assert.equal(isProductionSource({ file }), false, file);
+  }
+  for (const file of ["src/readme.md", "src/renderer/app.css", "coverage-floors.json"]) {
+    assert.equal(isProductionSource({ file }), false, file);
+  }
+});
+
+test("a name that merely CONTAINS test or spec is still production source", () => {
+  // A loose /test/ match would drop these from the inventory, and with it from every area.
+  assert.equal(isProductionSource({ file: "src/latest.ts" }), true);
+  assert.equal(isProductionSource({ file: "src/a.testing.ts" }), true);
+  assert.equal(isProductionSource({ file: "src/inspector.tsx" }), true);
+});
+
+const MAIN_AREA = { id: "main", dirs: ["src"], excludeDirs: ["src/renderer", "src/contracts"], extensions: [".ts", ".mts", ".cts"] };
+const RENDERER_AREA = { id: "renderer", dirs: ["src/renderer", "src/contracts"], extensions: [".ts"] };
+const COMPONENTS_AREA = { id: "components", dirs: ["src/renderer"], extensions: [".tsx"] };
+const AREAS = [MAIN_AREA, RENDERER_AREA, COMPONENTS_AREA];
+
+test("an area owns a file under its dirs, outside its excludeDirs, with one of its extensions", () => {
+  assert.equal(areaOwns({ area: MAIN_AREA, file: "src/tovu-server.ts" }), true);
+  assert.equal(areaOwns({ area: MAIN_AREA, file: "src/preload/preload.mts" }), true);
+  assert.equal(areaOwns({ area: MAIN_AREA, file: "src/speech/preload-speech.cts" }), true);
+  assert.equal(areaOwns({ area: MAIN_AREA, file: "src/renderer/App.hooks.ts" }), false, "excluded dir");
+  assert.equal(areaOwns({ area: COMPONENTS_AREA, file: "src/renderer/app/TabStrip.tsx" }), true, "nested component");
+});
+
+test("the Electron entry's new home, src/main/index.ts, lands in the main-process area with no special case", () => {
+  assert.equal(areaOwns({ area: MAIN_AREA, file: "src/main/index.ts" }), true);
+  assert.equal(areaOwns({ area: MAIN_AREA, file: "src/main/windows/app-window.ts" }), true);
+  assert.equal(inventoryFailures({ files: ["src/main/index.ts"], areas: AREAS }).length, 0);
+});
+
+test("an extension is matched whole: .ts does not own .mts, .tsx or .d.ts-shaped names by suffix accident", () => {
+  const tsOnly = { id: "ts", dirs: ["src"], extensions: [".ts"] };
+  assert.equal(areaOwns({ area: tsOnly, file: "src/p.mts" }), false);
+  assert.equal(areaOwns({ area: tsOnly, file: "src/View.tsx" }), false);
+  assert.equal(areaOwns({ area: tsOnly, file: "src/s.cts" }), false);
+});
+
+test("a dir is matched on a whole segment, and a root file is under no src area", () => {
+  assert.equal(areaOwns({ area: MAIN_AREA, file: "src-legacy/x.ts" }), false);
+  assert.equal(areaOwns({ area: MAIN_AREA, file: "main.ts" }), false);
+});
+
+test("an area with no dirs or no extensions owns nothing", () => {
+  assert.equal(areaOwns({ area: { id: "empty" }, file: "src/a.ts" }), false);
+  assert.equal(areaOwns({ area: { id: "no-ext", dirs: ["src"] }, file: "src/a.ts" }), false);
+});
+
+test("every file owned exactly once is a clean inventory", () => {
+  const files = ["src/a.ts", "src/main/index.ts", "src/preload/preload.mts", "src/renderer/r.ts", "src/contracts/c.ts", "src/renderer/App.tsx"];
+  assert.deepEqual(inventoryFailures({ files, areas: AREAS }), []);
+});
+
+test("a file no area scans FAILS by name — the .tsx-outside-every-area shape", () => {
+  const failures = inventoryFailures({ files: ["src/a.ts", "src/renderer/App.tsx"], areas: [MAIN_AREA, RENDERER_AREA] });
+  assert.deepEqual(failures, ["src/renderer/App.tsx is in no coverage area and not on the excluded list. Add it to an area, or exclude it with a why."]);
+});
+
+test("a root-level entry is in no area and fails unless it is excluded", () => {
+  assert.equal(inventoryFailures({ files: ["main.ts"], areas: AREAS }).length, 1);
+  const excluded: ExcludedSource[] = [{ file: "main.ts", why: "Electron entry until it moves" }];
+  assert.deepEqual(inventoryFailures({ files: ["main.ts"], areas: AREAS }, { excluded }), []);
+});
+
+test("a file two areas scan fails naming both, since its lines would count twice", () => {
+  const overlapping = [MAIN_AREA, { id: "speech", dirs: ["src/speech"], extensions: [".cts"] }];
+  assert.deepEqual(inventoryFailures({ files: ["src/speech/preload-speech.cts"], areas: overlapping }), [
+    "src/speech/preload-speech.cts is in 2 areas (main, speech). Areas must not overlap, or its lines count twice.",
+  ]);
+});
+
+test("a file both in an area and excluded fails — exactly one, not both", () => {
+  const excluded = [{ file: "src/a.ts", why: "reason" }];
+  assert.deepEqual(inventoryFailures({ files: ["src/a.ts"], areas: AREAS }, { excluded }), [
+    "src/a.ts is in area main AND on the excluded list. It must be one or the other.",
+  ]);
+});
+
+test("an exclusion with no why fails — empty, blank, or missing", () => {
+  const excluded = [
+    { file: "a.ts", why: "" },
+    { file: "b.ts", why: "   " },
+    { file: "c.ts" } as unknown as ExcludedSource,
+  ];
+  const failures = inventoryFailures({ files: ["a.ts", "b.ts", "c.ts"], areas: AREAS }, { excluded });
+  assert.deepEqual(failures, [
+    'excluded a.ts has no "why". Every exclusion must say why it is outside every area.',
+    'excluded b.ts has no "why". Every exclusion must say why it is outside every area.',
+    'excluded c.ts has no "why". Every exclusion must say why it is outside every area.',
+  ]);
+});
+
+test("an exclusion naming a file that is not on disk fails as stale — after main.ts moves, its entry must go", () => {
+  const excluded = [{ file: "main.ts", why: "Electron entry until it moves" }];
+  assert.deepEqual(inventoryFailures({ files: ["src/main/index.ts"], areas: AREAS }, { excluded }), [
+    "excluded main.ts is not on disk. Remove the stale entry.",
+  ]);
+});
+
+test("an exclusion is an exact path, never a prefix or basename: excluding main.ts covers no other main.ts", () => {
+  const excluded = [{ file: "main.ts", why: "root entry" }];
+  const failures = inventoryFailures({ files: ["main.ts", "src/renderer/main.ts.tsx", "lib/main.ts"], areas: [RENDERER_AREA] }, { excluded });
+  assert.deepEqual(failures, [
+    "src/renderer/main.ts.tsx is in no coverage area and not on the excluded list. Add it to an area, or exclude it with a why.",
+    "lib/main.ts is in no coverage area and not on the excluded list. Add it to an area, or exclude it with a why.",
+  ]);
+});
+
+test("a mixed batch reports every problem, not just the first", () => {
+  const excluded = [{ file: "gone.ts", why: "" }];
+  const failures = inventoryFailures({ files: ["src/a.ts", "stray.js", "src/renderer/V.jsx"], areas: AREAS }, { excluded });
+  assert.equal(failures.length, 4, failures.join("\n"));
+  assert.ok(failures.some((f) => f.startsWith('excluded gone.ts has no "why"')));
+  assert.ok(failures.some((f) => f.startsWith("excluded gone.ts is not on disk")));
+  assert.ok(failures.some((f) => f.startsWith("stray.js is in no coverage area")));
+  assert.ok(failures.some((f) => f.startsWith("src/renderer/V.jsx is in no coverage area")));
+});
+
+// --- per-file branch floor -----------------------------------------------------------------------
+// An area total can sit at 94% while one file in it is at 40%. These pin that each file is judged on
+// its own, that a debt entry is enforced from the moment it is written, and that the unenforced
+// policy floor still names every file under it with its number.
+
+const branches = (brh: number, brf: number): LcovCounters => ({ lf: 10, lh: 10, brf, brh, fnf: 1, fnh: 1 });
+const policy = (over: Partial<PerFileBranchPolicy> = {}): PerFileBranchPolicy => ({ floor: 80, enforced: true, ...over });
+
+test("an enforced floor fails a file under it even when the area total would hide it", () => {
+  // 1 + 9 of 2 + 10 branches = 83% for the pair; the small file alone is at 50%.
+  const records = cov([["src/big.ts", branches(9, 10)], ["src/small.ts", branches(1, 2)]]);
+  const result = evaluatePerFileBranch({ files: ["src/big.ts", "src/small.ts"], coverage: records, policy: policy() });
+  assert.deepEqual(result.failures, ["src/small.ts branch 50.00% < per-file floor 80%"]);
+  assert.deepEqual(result.below, [{ file: "src/small.ts", branch: 50, floor: 80, fromDebt: false }]);
+});
+
+test("a file exactly at the floor passes", () => {
+  const result = evaluatePerFileBranch({ files: ["src/a.ts"], coverage: cov([["src/a.ts", branches(4, 5)]]), policy: policy() });
+  assert.deepEqual(result.failures, []);
+  assert.deepEqual(result.below, []);
+});
+
+test("an unenforced floor names every file under it with its number, and fails nothing", () => {
+  const records = cov([["src/a.ts", branches(1, 4)], ["src/b.ts", branches(3, 5)], ["src/ok.ts", branches(5, 5)]]);
+  const result = evaluatePerFileBranch({ files: ["src/b.ts", "src/a.ts", "src/ok.ts"], coverage: records, policy: policy({ enforced: false }) });
+  assert.deepEqual(result.failures, []);
+  assert.deepEqual(result.below.map((b) => [b.file, b.branch]), [["src/a.ts", 25], ["src/b.ts", 60]], "lowest first");
+});
+
+test("a debt floor is enforced even while the policy floor is not", () => {
+  const records = cov([["src/a.ts", branches(1, 4)]]);
+  const result = evaluatePerFileBranch({ files: ["src/a.ts"], coverage: records, policy: policy({ enforced: false, debt: { "src/a.ts": 40 } }) });
+  assert.deepEqual(result.failures, ["src/a.ts branch 25.00% < per-file floor 40%"]);
+  assert.deepEqual(result.below, [{ file: "src/a.ts", branch: 25, floor: 40, fromDebt: true }]);
+});
+
+test("a file at its debt floor passes, though it is still under the policy floor", () => {
+  const records = cov([["src/a.ts", branches(2, 4)]]);
+  const result = evaluatePerFileBranch({ files: ["src/a.ts"], coverage: records, policy: policy({ debt: { "src/a.ts": 50 } }) });
+  assert.deepEqual(result.failures, []);
+  assert.deepEqual(result.repaid, []);
+});
+
+test("a debt file that reached the policy floor is reported repaid, so the debt list shrinks", () => {
+  const records = cov([["src/a.ts", branches(4, 5)]]);
+  const result = evaluatePerFileBranch({ files: ["src/a.ts"], coverage: records, policy: policy({ debt: { "src/a.ts": 50 } }) });
+  assert.deepEqual(result.repaid, ["src/a.ts"]);
+  assert.deepEqual(result.failures, [], "repaying is a prompt, not a failure");
+});
+
+test("a debt entry for a file with no coverage record fails as stale", () => {
+  const result = evaluatePerFileBranch({ files: [], coverage: cov([]), policy: policy({ debt: { "src/renamed.ts": 30 } }) });
+  assert.deepEqual(result.failures, ["per-file debt names src/renamed.ts, which has no coverage record. Remove the stale entry."]);
+  assert.deepEqual(result.repaid, []);
+});
+
+test("a file with no lcov record is left to the area's unmeasured check, and a branchless file reads 100%", () => {
+  const records = cov([["src/flat.ts", branches(0, 0)]]);
+  const result = evaluatePerFileBranch({ files: ["src/flat.ts", "src/untested.ts"], coverage: records, policy: policy({ floor: 100 }) });
+  assert.deepEqual(result.failures, []);
+  assert.deepEqual(result.below, []);
+});
+
+test("a file scanned by the areas twice is judged once", () => {
+  const records = cov([["src/a.ts", branches(1, 2)]]);
+  const result = evaluatePerFileBranch({ files: ["src/a.ts", "src/a.ts"], coverage: records, policy: policy() });
+  assert.equal(result.failures.length, 1);
+  assert.equal(result.below.length, 1);
+});
+
+test("files tied on branch % are listed by name", () => {
+  const records = cov([["src/z.ts", branches(1, 2)], ["src/a.ts", branches(1, 2)]]);
+  const result = evaluatePerFileBranch({ files: ["src/z.ts", "src/a.ts"], coverage: records, policy: policy({ enforced: false }) });
+  assert.deepEqual(result.below.map((b) => b.file), ["src/a.ts", "src/z.ts"]);
+});
+
+test("the per-file report says when the floor is not enforced and lists each file with its number", () => {
+  const records = cov([["src/a.ts", branches(1, 4)], ["src/d.ts", branches(1, 4)], ["src/r.ts", branches(5, 5)]]);
+  const p = policy({ enforced: false, debt: { "src/d.ts": 30, "src/r.ts": 10 } });
+  const text = formatPerFileBranch({ result: evaluatePerFileBranch({ files: ["src/a.ts", "src/d.ts", "src/r.ts"], coverage: records, policy: p }), policy: p });
+  assert.match(text, /^ {2}FAIL {2}per-file branch floor 80% — NOT ENFORCED yet, see coverage-floors\.json perFileBranch\._todo/);
+  assert.match(text, /under floor \(2\):/);
+  assert.match(text, / 25\.00% {2}src\/a\.ts\n/);
+  assert.match(text, / 25\.00% {2}src\/d\.ts \(debt floor 30%\)/);
+  assert.match(text, /REPAID, remove from debt: src\/r\.ts/);
+  assert.match(text, /! src\/d\.ts branch 25\.00% < per-file floor 30%/);
+});
+
+test("a clean enforced per-file report is one OK line", () => {
+  const p = policy();
+  const text = formatPerFileBranch({ result: evaluatePerFileBranch({ files: ["src/a.ts"], coverage: cov([["src/a.ts", perfect]]), policy: p }), policy: p });
+  assert.equal(text, "  OK    per-file branch floor 80%");
 });

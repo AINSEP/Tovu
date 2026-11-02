@@ -1,24 +1,26 @@
 {
   "_comment": "Per-area coverage floors for apps/desktop, enforced by scripts/check-coverage.ts. Floors were captured a few points under the 2026-09-12 measured baseline so the gate is GREEN on arrival and fails only on real backsliding. The denominator for every area is a DISK SCAN, never the lcov — see src/coverage-floors.ts's header for why, and for the measurement in this repo that the omission silently corrupted.",
   "_comment_not_comparable": "These percentages come from node's own --experimental-test-coverage lcov, whose LF counts EVERY line including comments and blanks (verified: keyed-serializer.ts LF:51 / wc -l 51; App.hooks.ts 1272/1272). This codebase is exceptionally comment-dense, so these line numbers read HIGHER than a statement-based tool's and are NOT comparable to any c8, vitest or istanbul figure — including apps/admin's vitest coverage. Do not put a desktop number and an admin number in the same table and draw a conclusion from the gap.",
-  "coverageInclude": ["src/**", "bin/**", "main.ts"],
+  "_comment_2026_11_02_honest_scope": "2026-11-02 (ADS-memory/reports/2026-11-02-desktop-coverage-structure.md): the areas used to describe about 60% of the desktop code. The Electron entry main.ts, the ten renderer .tsx components, preload.mts and preload-speech.cts sat outside every area and were only PRINTED as 'not measured', so none of them could ever fail a floor. Now every production source file under src/, bin/ and the desktop root must be in exactly one area or on the `excluded` list below with a `why`; any other file FAILS the gate by name (inventoryFailures in src/coverage-floors.ts). main.ts moves to src/main/index.ts, where the main-process area covers it with no special case. Area floors stay aggregate, and a per-file BRANCH floor (perFileBranch) now gates each file on its own, because line % counts comment lines and an aggregate hides a badly tested file behind a well tested one.",
+  "coverageInclude": ["src/**", "bin/**"],
+  "perFileBranch": {
+    "_todo": "TODO(cloud coverage run): this is the ONE table to calibrate. Run `node scripts/check-coverage.ts` once (ADS-memory/reports/2026-11-02-desktop-coverage-structure.md, section 6). Its 'per-file branch floor' block lists every area file under `floor`, lowest first, with its branch %. Copy each into `debt` as \"path\": <that % rounded DOWN to an integer>, set `enforced` to true, and set floors on the 'src renderer components' area a few points under its measured totals (the 2026-09-12 convention, see the area comments). Remove this _todo then.",
+    "_comment_why_not_enforced": "Why `enforced` is false and `debt` is empty today: no per-file number exists. The 2026-11-02 local run was stopped before the first pass wrote an lcov, and no earlier run kept per-file data. Any per-file number written now would be invented: one too high turns `npm run package` red (this gate runs in `npm run gates`) on a guess, and one low enough to be safe (0) would read as a real gate while gating nothing. So the policy floor is the TARGET (80, the report's suggested per-file minimum; `bin` already floors its whole area at 80) and the gate PRINTS every file under it, with its number, on every run, without failing on it yet. Every `debt` entry IS enforced from the moment it is written. The ratchet: a debt number may only go up, a file that reaches the floor is reported REPAID and its entry must go, and a debt entry for a file with no coverage record fails as stale. Branch, not line: node's LF counts every line including comments, and this codebase is comment-dense.",
+    "floor": 80,
+    "enforced": false,
+    "debt": {}
+  },
   "areas": [
     {
       "id": "src main-process",
-      "_comment_role_cut": "Cut by ROLE, not extension (2026-09-12, TypeScript migration Phase 1): every source file under src except the renderer, contracts and preload trees. The extension list spanned both the pre-migration .js/.cjs and the .ts/.cts landing extensions through Phase 4, so the .js-to-.ts rename could not move a file out of these floors. Narrowed to .ts/.cjs at Phase 5 close-out, now that no .js remains: .cjs stays for the one named exception, preload-speech.cjs. See ADS-memory/reports/2026-09-12-desktop-typescript-migration-plan.md, Phases 1 and 5.",
+      "_comment_role_cut": "Cut by ROLE, not extension (2026-09-12, TypeScript migration Phase 1): every source file under src except the renderer and contracts trees. The extension list spanned both the pre-migration .js/.cjs and the .ts/.cts landing extensions through Phase 4, so the .js-to-.ts rename could not move a file out of these floors. Narrowed to .ts/.cjs at Phase 5 close-out, now that no .js remains. See ADS-memory/reports/2026-09-12-desktop-typescript-migration-plan.md, Phases 1 and 5. 2026-11-02: widened to everything that runs in Electron's main or preload context. src/main/** (the Electron entry's new home, src/main/index.ts, and the modules split out of it) lands here with no special case. src/preload is no longer carved out, and .mts/.cts are listed, so preload.mts and preload-speech.cts are counted; .cjs is dropped because preload-speech.cjs, its one named reason, became preload-speech.cts, and a stray .cjs under src now fails the source inventory instead of being silently uncounted.",
       "dirs": ["src"],
-      "excludeDirs": ["src/renderer", "src/contracts", "src/preload"],
-      "extensions": [".ts", ".cjs"],
+      "excludeDirs": ["src/renderer", "src/contracts"],
+      "extensions": [".ts", ".mts", ".cts"],
       "minFilesOnDisk": 27,
       "floors": { "line": 96, "branch": 90, "funcs": 90 },
-      "_comment_knownUnmeasured": "preload-speech.cjs is a sandboxed Electron preload: it calls contextBridge at module scope, so importing it outside a preload context throws. preload-speech.test.ts reads it as source text, the same convention main.ts uses. Grandfathered 2026-09-12; this list is printed on every run and a SECOND entry fails the gate. 2026-10-06: unwired desktop-chat WIP (0091b84d7), paused by the owner; remove these entries when the chat is wired with tests (the six desktop-agent*/desktop-chat-main/workspace-chat-ipc/workspace-conversation-store entries). 2026-10-21: workspace-chat-ipc.ts and workspace-conversation-store.ts now have their own test files (workspace-chat-ipc.test.ts, workspace-conversation-store.test.ts) and are removed; the four desktop-agent*/desktop-chat-main entries remain.",
-      "knownUnmeasured": [
-        "src/speech/preload-speech.cjs",
-        "src/desktop-agent-inventory.ts",
-        "src/desktop-agent-tools.ts",
-        "src/desktop-agent.ts",
-        "src/desktop-chat-main.ts"
-      ]
+      "_comment_knownUnmeasured": "src/speech/preload-speech.cts is a sandboxed Electron preload: it calls contextBridge at module scope, so importing it outside a preload context throws. preload-speech.test.ts runs the COMPILED dist bundle in a vm, which credits nothing to the source file. Grandfathered 2026-09-12 as preload-speech.cjs; repointed 2026-11-02 to its .cts successor, which until then matched no area extension and was silently uncounted. src/main/index.ts is the Electron composition root after the 2026-11-02 refactor: it imports electron at module scope (outside a real Electron process that resolves to a path string), and is meant to hold only construction and wiring, with every decision in a tested src/ module. Declared before the file lands, so its arrival is a listed gap rather than a red gate; if a test ever loads it, the gate reports it NOW COVERED. 2026-10-06: unwired desktop-chat WIP (0091b84d7), paused by the owner; remove these entries when the chat is wired with tests (the six desktop-agent*/desktop-chat-main/workspace-chat-ipc/workspace-conversation-store entries). 2026-10-21: workspace-chat-ipc.ts and workspace-conversation-store.ts now have their own test files (workspace-chat-ipc.test.ts, workspace-conversation-store.test.ts) and are removed; the four desktop-agent*/desktop-chat-main entries remain. This list is printed on every run, and an unmeasured file NOT on it fails the gate. preload.mts is deliberately absent: preload.test.ts imports it (through tsx's register, with electron mocked), so it is expected to be measured; if the cloud run shows otherwise the gate names it.",
+      "knownUnmeasured": ["src/speech/preload-speech.cts", "src/main/index.ts", "src/desktop-agent-inventory.ts", "src/desktop-agent-tools.ts", "src/desktop-agent.ts", "src/desktop-chat-main.ts"]
     },
     {
       "id": "src renderer+contracts",
@@ -31,6 +33,16 @@
       "knownUnmeasured": []
     },
     {
+      "id": "src renderer components",
+      "_comment_own_area": "2026-11-02: the renderer's .tsx React components, counted for the first time. Before this they matched no area extension, so the ten components (3,447 lines) were outside every denominator even though most of them ARE loaded by the tsx pass (App.render, SiteGrid.jsdom, SitesFolders.jsdom, ResourcesPanel.render, SharedKeys.render, WorkspaceChatPane.render, CreateWebsiteOnboarding and icons tests import them). They get their own area rather than joining 'src renderer+contracts' because that area's floors (76/88/66) were measured over .ts only; folding 3,447 unmeasured-by-anyone lines into them would change what those numbers mean on a guess. Components versus hooks/rules is a role split, and a .ts/.tsx rename is decided by whether the file holds JSX, so the 'cut by role, not extension' reason (a mechanical rename moving files between floors) does not bite here.",
+      "_todo_floors": "No floors yet: they have never been measured, and a guessed floor either fails packaging or gates nothing. The cloud run sets them; see perFileBranch._todo. The disk denominator, the unmeasured check and minFilesOnDisk already apply, and every component is judged by the per-file branch floor.",
+      "dirs": ["src/renderer"],
+      "extensions": [".tsx"],
+      "minFilesOnDisk": 10,
+      "_comment_knownUnmeasured": "main.tsx is the renderer entry: it calls createRoot and renders App at module scope against the real document, so no test imports it; App itself is measured through app-render-harness.ts. Grandfathered 2026-11-02. Until 2026-11-02 the whole .tsx set was listed under notMeasured instead, as 'a separate coverage decision'; this area is that decision.",
+      "knownUnmeasured": ["src/renderer/main.tsx"]
+    },
+    {
       "id": "bin",
       "dirs": ["bin"],
       "extensions": [".ts"],
@@ -39,18 +51,14 @@
       "knownUnmeasured": []
     }
   ],
-  "notMeasured": [
+  "excluded": [
     {
-      "what": "main.ts",
-      "why": "no test loads it — it requires \"electron\" at module scope, which outside a real Electron process resolves to a path string rather than the module. The six main-*-wiring.test.ts files read it as SOURCE TEXT instead. Real coverage needs the extract-and-test path already in motion (desktop-auth.ts, shutdown-tracker.ts, speech-ipc.ts are why the main-process area reads 99%+), not a new runner. Excluded from every denominator ON PURPOSE, and printed here so that is a decision rather than an omission."
+      "file": "main.ts",
+      "why": "The Electron entry at the desktop root, until the 2026-11-02 refactor moves it to src/main/index.ts, where the main-process area covers it. No test loads it: it requires \"electron\" at module scope, which outside a real Electron process resolves to a path string rather than the module, so its main-*-wiring tests read it as SOURCE TEXT instead. Real coverage needs the extract-and-test path already in motion (desktop-auth.ts, shutdown-tracker.ts, speech-ipc.ts are why the main-process area reads as high as it does), not a new runner; that refactor is what moves this file. Delete this entry in the same commit that moves the file: once main.ts is gone this entry is stale and FAILS the gate."
     },
     {
-      "what": "src/renderer/*.tsx",
-      "why": "The measured renderer area includes .ts hooks and rules; their React hook tests use desktop's own jsdom dependency. The .tsx components remain outside this area's disk denominator, and their wiring tests read source text. Measuring the components requires rendering the actual .tsx modules and explicitly adding them to the denominator, which remains a separate coverage decision."
-    },
-    {
-      "what": "src/preload/preload.mts",
-      "why": "preload.test.ts reads it as source text; nothing imports it. Measurable only via a test that imports the COMPILED dist/preload/preload.mjs, or by running the suite through tsx."
+      "file": "vite.config.mts",
+      "why": "Vite build configuration for the renderer bundle. It runs only at build time and never ships in the app."
     }
   ]
 }
