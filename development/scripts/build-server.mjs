@@ -4,7 +4,7 @@ import { spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { composeBundledAgentPluginRoot } from './compose-bundled-agent-plugins.mjs';
+import { composeBundledAgentPluginRoot, skipTestFolders } from './compose-bundled-agent-plugins.mjs';
 
 export function buildServer({ repoRoot }, { npmCli = process.env.npm_execpath,
   tscCli = createRequire(path.join(repoRoot, 'package.json')).resolve('typescript/bin/tsc'),
@@ -46,7 +46,7 @@ export function stageServerRuntimeAssets({ repoRoot }, composition = {}) {
     const source = relative.startsWith('src/') ? path.join(repoRoot, 'apps/website', relative) : path.join(repoRoot, relative);
     const destination = path.join(repoRoot, 'dist', relative);
     mkdirSync(destination, { recursive: true });
-    cpSync(source, destination, { recursive: true });
+    cpSync(source, destination, { recursive: true, filter: skipTestFolders });
   }
   composeBundledAgentPluginRoot({ repoRoot, outputRoot: path.join(repoRoot, 'dist/content/agent-plugins') }, composition);
 }

@@ -25,6 +25,10 @@ import { isDeepStrictEqual } from 'node:util';
 import { SELECTED_AGENT_PLUGIN_PACKAGES } from '../../apps/website/src/features/agent-plugins/bundled-catalog.ts';
 import { stageSelectedAgentPluginAssets } from './stage-selected-agent-plugin-assets.ts';
 
+/** `cpSync` filter for runtime content: `__tests__` folders hold test fixtures that import repo
+ * sources (`apps/website/src/...`) the server never ships, so they stay out of every composed root. */
+export const skipTestFolders = source => path.basename(source) !== '__tests__';
+
 /** Where development composes; gitignored (`.generated/`). */
 export const DEV_COMPOSED_AGENT_PLUGINS_DIR = '.generated/bundled-agent-plugins';
 
@@ -55,7 +59,7 @@ export function composeBundledAgentPluginRoot(
   const work = mkdtempSync(path.join(path.dirname(outputRoot), '.compose-agent-plugins-'));
   try {
     const composed = path.join(work, 'root');
-    cpSync(path.join(repoRoot, 'content/agent-plugins'), composed, { recursive: true });
+    cpSync(path.join(repoRoot, 'content/agent-plugins'), composed, { recursive: true, filter: skipTestFolders });
     // A fresh destination per run: the staging helper rejects any existing output that differs.
     addSelectedPackages({ repoRoot, selection, composed, packagesRoot: path.join(work, 'packages') }, { npmCli, listPackageFiles });
     assertContributionPaths({ root: composed });

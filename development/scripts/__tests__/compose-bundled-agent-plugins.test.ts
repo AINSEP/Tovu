@@ -46,7 +46,8 @@ test('composes Tovu content and the selected package payload into one root and l
   assert.deepEqual(composed, { outputRoot: f.outputRoot, pluginIds: ['fly', 'how-tovu-works', 'jev'] });
   assert.equal(f.read('jev/skills/jev/SKILL.md'), '# jev v1');
   assert.equal(f.read('fly/deploy-configs/fly.mjs'), 'export {};');
-  assert.equal(f.read('__tests__/shared.test.mjs'), '// shared content tests');
+  // Test fixtures import repo sources the payload never ships; they stay in content/, not the composed root.
+  assert.equal(fs.existsSync(path.join(f.outputRoot, '__tests__')), false);
   assert.equal(fs.existsSync(path.join(f.outputRoot, 'package.json')), false, 'only the payload folder is staged');
   assert.deepEqual(f.siblings(), ['agent-plugins']);
 });

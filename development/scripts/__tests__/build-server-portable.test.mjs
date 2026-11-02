@@ -116,3 +116,17 @@ test('D0a: a composition refusal fails the asset step instead of shipping a part
     assert.equal(existsSync(path.join(repoRoot, 'dist/content/agent-plugins')), false);
   } finally { rmSync(repoRoot, { recursive: true, force: true }); }
 });
+
+test('runtime assets leave out __tests__ folders: test fixtures import repo sources the payload never ships', () => {
+  const { repoRoot, write } = packagedRepo('tovu-build-no-tests-');
+  try {
+    write('content/agent-plugins/tovu-theme/__tests__/bundled-package.test.mjs', "import '../../../../apps/website/src/x.ts';");
+    write('content/agent-plugin-overlays/site-import/__tests__/fixtures/ops-fixture.mjs', "import '../../../../../apps/website/src/x.ts';");
+    write('content/themes/__tests__/theme.test.mjs', '');
+    stageServerRuntimeAssets({ repoRoot }, { selection: new Map() });
+    const tests = readdirSync(path.join(repoRoot, 'dist/content'), { recursive: true }).filter(entry => String(entry).split(path.sep).includes('__tests__'));
+    assert.deepEqual(tests, []);
+    assert.equal(readFileSync(path.join(repoRoot, 'dist/content/agent-plugin-overlays/site-import/host/content-mapping.md'), 'utf8'), '# mapping');
+    assert.equal(readFileSync(path.join(repoRoot, 'dist/content/agent-plugins/tovu-theme/plugin.json'), 'utf8'), JSON.stringify({ name: 'tovu-theme' }));
+  } finally { rmSync(repoRoot, { recursive: true, force: true }); }
+});

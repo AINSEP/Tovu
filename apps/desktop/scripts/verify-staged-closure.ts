@@ -7,6 +7,7 @@ import { extractAll } from '@electron/asar';
 import ts from 'typescript';
 import { auditStagedClosure, createNodePackagingFilesystem, createNodeRuntimeResolver } from '@jini-ai/devops/packaging/electron';
 import { createTypeScriptImportReader } from '@jini-ai/devops/packaging/electron/typescript';
+import { payloadClosureScan } from '../src/staged-closure-scan.ts';
 const fs = createNodePackagingFilesystem({});
 const imports = createTypeScriptImportReader({ compiler: ts });
 const resolver = createNodeRuntimeResolver({});
@@ -16,7 +17,8 @@ function check({ payload, resources, app }: { payload: string; resources: string
     if (!existsSync(entry)) throw new Error(`staged closure input missing: ${entry}`);
   }
   const inputs = [
-    { root: payload, scan: [path.join(payload, 'dist')], hostModules: new Set<string>() },
+    // All of dist/ except agent-plugin skill folders, which agents read and the server never imports.
+    { root: payload, scan: payloadClosureScan({ dist: path.join(payload, 'dist') }, { fs }), hostModules: new Set<string>() },
     { root: resources, packageRoots: [app], scan: [path.join(app, 'src', 'main', 'index.ts'), path.join(app, 'bin')], hostModules: new Set(['electron']) },
   ];
   const results = inputs.map(input => auditStagedClosure({ ...input, fs, imports, resolver }));
