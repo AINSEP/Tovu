@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 
@@ -8,14 +8,13 @@ import { parseSourceControlProvidersFile } from "#src/features/source-control/pr
 
 import { parseDescriptorI18n } from "../../descriptor-i18n.js";
 import { agentPluginSourceDir } from "../../../../../../../development/test-support/agent-plugin-source.mjs";
+import { composedBundledPluginDirs } from "../fixtures/bundled-source-root.js";
 
 /**
  * @file A plugin descriptor's optional `i18n` block: locale → English source text → translation.
  * Parsed generically, carried on the deploy-target and git-host descriptors, and checked against the
  * two bundled descriptor files so a translation never outlives the English it translates.
  */
-
-const CONTENT = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins");
 
 test("absent i18n parses to undefined; a well-formed block round-trips", () => {
   assert.equal(parseDescriptorI18n(undefined, "i18n"), undefined);
@@ -86,15 +85,21 @@ function declaredStrings(entry: Record<string, any>): Set<string> {
   return out;
 }
 
-/** Each hosting plugin ships its own descriptor file: every bundled `<id>/tovu-deploy-targets.json`. */
-const DEPLOY_TARGET_FILES = readdirSync(CONTENT).sort().map((dir) => `${dir}/tovu-deploy-targets.json`).filter((file) => existsSync(path.join(CONTENT, file)));
+/**
+ * Each hosting plugin ships its own descriptor file: every shipped `<id>/tovu-deploy-targets.json`,
+ * read where the build takes each plugin from (Tovu's content folder or its `@jini-ai/agent-plugins` package).
+ */
+const DEPLOY_TARGET_FILES = composedBundledPluginDirs()
+  .map(({ pluginId, dir }) => ({ file: `${pluginId}/tovu-deploy-targets.json`, absolute: path.join(dir, "tovu-deploy-targets.json") }))
+  .filter(({ absolute }) => existsSync(absolute));
+const SOURCE_CONTROL_FILE = { file: "github/tovu-source-control.json", absolute: path.join(agentPluginSourceDir({ pluginId: "github" }), "tovu-source-control.json") };
 
-for (const [file, listKey] of [
-  ...DEPLOY_TARGET_FILES.map((file) => [file, "targets"] as const),
-  ["github/tovu-source-control.json", "providers"] as const,
+for (const [{ file, absolute }, listKey] of [
+  ...DEPLOY_TARGET_FILES.map((descriptorFile) => [descriptorFile, "targets"] as const),
+  [SOURCE_CONTROL_FILE, "providers"] as const,
 ]) {
   test(`${file}: every i18n key is a string that entry declares (no stale translation)`, () => {
-    const json = JSON.parse(readFileSync(path.join(CONTENT, file), "utf8")) as Record<string, Record<string, any>[]>;
+    const json = JSON.parse(readFileSync(absolute, "utf8")) as Record<string, Record<string, any>[]>;
     for (const entry of json[listKey]!) {
       const declared = declaredStrings(entry);
       for (const [locale, entries] of Object.entries((entry.i18n ?? {}) as Record<string, Record<string, string>>)) {
@@ -106,8 +111,8 @@ for (const [file, listKey] of [
 
 test("every bundled descriptor file still parses with its i18n blocks", () => {
   assert.ok(DEPLOY_TARGET_FILES.length > 0);
-  for (const file of DEPLOY_TARGET_FILES) assert.equal(parseDeployTargetsFile(readFileSync(path.join(CONTENT, file), "utf8")).ok, true, file);
-  assert.equal(parseSourceControlProvidersFile(readFileSync(path.join(agentPluginSourceDir({ pluginId: "github" }), "tovu-source-control.json"), "utf8")).ok, true);
+  for (const { file, absolute } of DEPLOY_TARGET_FILES) assert.equal(parseDeployTargetsFile(readFileSync(absolute, "utf8")).ok, true, file);
+  assert.equal(parseSourceControlProvidersFile(readFileSync(SOURCE_CONTROL_FILE.absolute, "utf8")).ok, true);
 });
 
 // L025a pins validation order and exact boundaries before splitting the locale loop.
