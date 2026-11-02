@@ -11,6 +11,7 @@ import { PUBLISH_CONTENT_BLOB_PROBE_MAX_SHAS } from "#src/features/publish-conte
 import { computeBlobStorageKey, TOVU_MAX_UPLOAD_BYTES } from "#src/features/media/index";
 import { createCapturingResponse, extractRouteHandler } from "../helpers/http-test-server.js";
 import { lastRouteHandler } from "../helpers/last-route-handler.js";
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 
 /**
  * @file Task 6 of the publish-content (Publish Content) feature —
@@ -358,7 +359,10 @@ test("PUT .../blobs/:sha 500s generically (no internals) when the blob store wri
     body: JSON.stringify({ dataBase64: bytes.toString("base64") }),
   });
   assert.equal(res.status, 500);
-  assert.deepEqual(await res.json(), { error: "internal error" });
+  // Shared admin failure envelope: a correlatable id, never the blob store's cause.
+  const resBody: unknown = await res.json();
+  assertAdminResponse({ actual: resBody, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assert.doesNotMatch(JSON.stringify(resBody), /EACCES|\/var\/private\/blobs/);
 });
 
 /** Express guarantees matched params and body-parser always assigns `req.body` (and a body over
@@ -418,7 +422,10 @@ test("POST .../blobs/probe 404s a foreign workspace, 400s an empty shas array, a
   };
   const failed = await probe(WORKSPACE, { shas: [sha256Of("y")] });
   assert.equal(failed.status, 500);
-  assert.deepEqual(await failed.json(), { error: "internal error" });
+  // Shared admin failure envelope: a correlatable id, never the blob store's cause.
+  const failedBody: unknown = await failed.json();
+  assertAdminResponse({ actual: failedBody, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assert.doesNotMatch(JSON.stringify(failedBody), /store offline/);
 });
 
 test("POST .../blobs/probe (direct invoke): a missing :workspaceId 404s and a body-less request is the shas 400", async () => {
