@@ -19,6 +19,8 @@ for (const platform of ["win32", "linux"]) {
       ["free-port", "pickFreePort", "null"], ["load-repo-root-env", "loadRepoRootEnvFile", "false"],
       ["local-dev-plugin-install", "localDevPluginInstallEnv", "({})"], ["port-listeners", "listenersOn", "[]"],
       ["prune-tsx-cache", "pruneTsxCache", "undefined"],
+      // The composed agent-plugin bundle is staged through npm; this test pins only the launches.
+      ["compose-bundled-agent-plugins", "composeDevBundledAgentPlugins", JSON.stringify(path.join(root, "bundled-agent-plugins"))],
     ]) fs.writeFileSync(path.join(scripts, `${file}.mjs`), `export const ${name} = () => ${value};`);
     const preload = path.join(root, "spawn-port.mjs");
     fs.writeFileSync(preload, `
