@@ -7,7 +7,7 @@ import { RETIRED_READ_TOOL_TO_CARD } from '../../../../apps/website/src/assistan
 import { nativeToolMetadata } from '../../../../apps/website/src/contracts/core/tool-metadata/index.ts';
 
 /**
- * @file Tovu's overlay for the portable `site-import` plugin (now `@jini-ai/plugin-site-import`).
+ * @file Tovu's overlay for the portable `site-import` plugin (now `@jini-ai/agent-plugins/site-import`).
  * The plugin names jobs; this overlay names Tovu's tools for them, so the tool-name drift guard
  * that lived in `bundled-site-import-package.unit.test.ts` runs here, on the overlay text: a
  * renamed or removed tool would leave the guidance telling every agent to call something that does

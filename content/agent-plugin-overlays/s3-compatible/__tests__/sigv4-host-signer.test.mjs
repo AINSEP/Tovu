@@ -5,7 +5,7 @@ import test from "node:test";
 import { createDeployHostKit } from "../../../../apps/website/src/features/deployments/deploy-targets/host-kit.ts";
 
 /**
- * @file Tovu's half of the portable `s3-compatible` plugin (now `@jini-ai/plugin-s3-compatible`):
+ * @file Tovu's half of the portable `s3-compatible` plugin (now `@jini-ai/agent-plugins/s3-compatible`):
  * the SigV4 signer this host hands every S3-compatible module through `kit.createSigV4Client`.
  * Moved from the plugin's `object-store.test.mjs` case "put() sends a real SigV4-signed request"
  * (2026-11-02), which drove the plugin's store with `aws4fetch` directly. The plugin half (the store

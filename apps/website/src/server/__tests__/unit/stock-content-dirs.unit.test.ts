@@ -93,7 +93,8 @@ test("bundled agent plugins resolve to content/agent-plugins via the product-roo
     path.join("..", "..", "..", "..", "content", "agent-plugins"),
   );
   assert.equal(bundledAgentPluginsDir(), path.join(REPO_ROOT, "content", "agent-plugins"));
-  assert.ok(existsSync(path.join(bundledAgentPluginsDir(), "site-compliance")));
+  // how-tovu-works stays Tovu content; site-compliance ships from @jini-ai/agent-plugins since D-W1.
+  assert.ok(existsSync(path.join(bundledAgentPluginsDir(), "how-tovu-works")));
 });
 
 test("stock resolvers work from a dist/src module layout independently of cwd", (t) => {
