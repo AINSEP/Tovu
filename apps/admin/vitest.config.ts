@@ -67,9 +67,6 @@ export default defineConfig({
     // Match production: Jini's adapter, application probes and Devtools share one context.
     dedupe: ["react", "react-dom", "@jini-ai/ui", "@tanstack/react-query", "@tanstack/query-core"],
     alias: {
-      // Transform Recharts' browser ESM entry: its CommonJS build requires the linked Jini
-      // React directly, bypassing Vite's dedupe and breaking hooks in the app renderer.
-      "recharts": path.resolve(__dirname, "node_modules/recharts/es6/index.js"),
       "@": path.resolve(__dirname, "src"),
       "@tovu/headless": path.resolve(__dirname, "../website/src/contracts/headless"),
       // Mirrors `vite.config.ts`'s identical alias — see that file's own comment.
