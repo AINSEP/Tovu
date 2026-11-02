@@ -30,7 +30,7 @@ test('host budget refusal: a write becomes quota-delay with the host retryAfterM
   const { client, state } = clientWith([new ConnectionBudgetExceededError({ retryAfterMs: 60_000 })]);
   await assert.rejects(client.request(REQUEST), (error) => {
     assert.deepEqual(error.toJSON(), {
-      code: 'quota-delay', message: 'Google asked Tovu to slow down. Nothing was lost; retry after the delay.',
+      code: 'quota-delay', message: 'Google asked this site to slow down. Nothing was lost; retry after the delay.',
       retryable: true, outcome: 'not-applied', nextAction: 'retry-later', retryAfterMs: 60_000,
     });
     assert.ok(error.cause instanceof ConnectionBudgetExceededError);
