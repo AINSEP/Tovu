@@ -13,6 +13,7 @@ import { createAssistantSettingsModule } from "../runtime/composition/modules/as
 import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
 import type { KeyringPort } from "../../features/webhooks/index.js";
 import type { RouteDeps } from "../routes/types.js";
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 
 /**
  * @file Route-level tests for ADR-058's 3 site-credential routes (GET/PUT/DELETE
@@ -228,7 +229,10 @@ test("PUT 500s (generic) when the repo explodes on an otherwise-valid request", 
 
   const res = await put(baseUrl, CREDENTIAL_PATH, cookie, { apiKey: "would-be-a-real-key" });
   assert.equal(res.status, 500);
-  assert.deepEqual(await res.json(), { error: "internal error", code: "INTERNAL_ERROR" });
+  // Shared admin failure envelope: a correlatable id, never the repository cause or the submitted key.
+  const body: unknown = await res.json();
+  assertAdminResponse({ actual: body, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assert.doesNotMatch(JSON.stringify(body), /db exploded|would-be-a-real-key/);
 });
 
 test("PUT with an apiKey fails closed with 503 SECRET_STORE_UNCONFIGURED when the site key is unavailable", async (t) => {
