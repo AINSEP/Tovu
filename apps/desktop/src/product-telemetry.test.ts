@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createNoopObservabilityPort, createNoopTracker, type Tracker } from '@jini-ai/diagnostics/observability';
-import type { ProductTelemetry, ProductConsent } from '../../website/src/server/runtime/composition/product-telemetry.ts';
+import type { ProductTelemetry, ProductConsent, bootProductTelemetry } from '../../website/src/server/runtime/composition/product-telemetry.ts';
 import { bootDesktopProductTelemetry, desktopProductLaunch, reportDesktopProcessGone, reportDesktopServerExit } from './product-telemetry.ts';
 import { buildServeEnv } from './tovu-server.ts';
 import { createSiteSupervisor } from './site-supervisor.ts';
@@ -12,6 +12,7 @@ const on: ProductConsent = { crashes: true, usage: true, installationId: 'FAKE_I
 function fixture() {
   const starts: unknown[] = [], uploads: boolean[] = [], events: unknown[] = [], errors: unknown[] = [];
   let consent = off, loads = 0, disposed = 0;
+  const boots: Parameters<typeof bootProductTelemetry>[] = [];
   const raw: ProductTelemetry = { active: true,
     observability: { ...createNoopObservabilityPort({}), reportError: report => { errors.push(report); } },
     productAnalytics: { capture: event => { events.push(event); }, identify() {} },
@@ -19,9 +20,9 @@ function fixture() {
     dispose: async () => { disposed++; },
   };
   const crashReporter = { start: (options: unknown) => { starts.push(options); }, setUploadToServer: (value: boolean) => { uploads.push(value); } };
-  return { raw, starts, uploads, events, errors, crashReporter, readConsent: () => consent,
+  return { raw, starts, uploads, events, errors, crashReporter, boots, readConsent: () => consent,
     consent: (value: ProductConsent) => { consent = value; }, loads: () => loads, disposed: () => disposed,
-    boot: async (): Promise<ProductTelemetry> => { loads++; return raw; } };
+    boot: async (...args: Parameters<typeof bootProductTelemetry>): Promise<ProductTelemetry> => { boots.push(args); loads++; return raw; } };
 }
 
 test('no config in dev means noop tracker, no provider reads, no child launch, and crashReporter never starts', async () => {
@@ -117,4 +118,16 @@ test('packaging fact is cleared before setting it from main, independently of pr
   assert.equal(packaged.TOVU_PACKAGED_DESKTOP, '1');
   assert.equal(packaged.TOVU_PRODUCT_TELEMETRY_CONFIG, undefined);
   assert.equal(baseEnv.TOVU_PACKAGED_DESKTOP, '1', 'inherited input remains immutable');
+});
+
+// A boot fake that ignores its inputs cannot catch an export-policy forwarding regression.
+test('desktop launch forwards the explicit or default export policy into shared telemetry boot', async () => {
+  for (const observabilityExportEnabled of [undefined, false, true]) {
+    const f = fixture();
+    const product = await bootDesktopProductTelemetry({ launch, readConsent: f.readConsent, crashReporter: f.crashReporter,
+      ...(observabilityExportEnabled === undefined ? {} : { observabilityExportEnabled }) }, { boot: f.boot });
+    assert.deepEqual(f.boots, [[{ ...launch, observabilityExportEnabled: observabilityExportEnabled ?? false, processRole: 'desktop-main' },
+      { readConsent: f.readConsent }]]);
+    await product.dispose();
+  }
 });
