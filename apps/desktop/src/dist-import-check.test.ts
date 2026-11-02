@@ -7,6 +7,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import ts from "typescript";
 
 import { assertDistImportsDeclared, undeclaredDistImports } from "./dist-import-check.ts";
 
@@ -79,4 +80,16 @@ test("files unreachable from the entry are not checked; comments and a local `re
 test("a missing relative target is reported rather than silently skipped", () => {
   const { distDir, entry } = fakeDist({ "src/cli/main.js": `import "./gone.js";\n` });
   assert.deepEqual(undeclaredDistImports({ distDir, entry, declared }), ["./gone.js (src/cli/main.js: file not found)"]);
+});
+
+test("the compiled daemon supervisor pulls no package outside root `dependencies` (0.1.26: dev-only tsx resolve failed every build)", () => {
+  // The real source, compiled on its own: its relative imports are absent here, so only bare packages count.
+  const repo = path.resolve(import.meta.dirname, "../../..");
+  const source = fs.readFileSync(path.join(repo, "apps/website/src/server/runtime/lifecycle/daemon-supervisor.ts"), "utf8");
+  const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText;
+  const { distDir } = fakeDist({ "src/server/runtime/lifecycle/daemon-supervisor.js": compiled });
+  const rootDeps = new Set(Object.keys(JSON.parse(fs.readFileSync(path.join(repo, "package.json"), "utf8")).dependencies));
+  const entry = path.join(distDir, "src/server/runtime/lifecycle/daemon-supervisor.js");
+  const packages = undeclaredDistImports({ distDir, entry, declared: rootDeps }).filter(problem => !problem.endsWith("file not found)"));
+  assert.deepEqual(packages, []);
 });

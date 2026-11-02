@@ -18,7 +18,6 @@
  */
 import { isDaemonLifecycleLogQuiet } from "./daemon-lifecycle-log.js";
 import { execFileSync } from "node:child_process";
-import { createRequire } from "node:module";
 import {
   createNodeDaemonProcessAdapter,
   createNodeSupervisorScheduler,
@@ -27,7 +26,6 @@ import {
 import { createDaemonSupervisor as createSidecarSupervisor } from "@jini-ai/sidecar/supervisor";
 import type { DaemonSupervisorRequired, SpawnedDaemonProcess as SidecarDaemonProcess, SupervisorScheduler } from "@jini-ai/sidecar/supervisor";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
 import { redactLocalText } from "../../../platform/server-logs/redact-local-text.js";
 import { createRedactedOutputSink } from "../../../platform/server-logs/console-tee.js";
 
@@ -409,7 +407,8 @@ export function createRealDaemonProcessPorts(input: DaemonSpawnEnvInput, optiona
       // Every --import is a file URL; a bare `C:\` path is read as a URL scheme on Windows.
       args: isCompiled ? args : ["--import",
         new URL("../../../../../../development/scripts/prune-tsx-cache.mjs?prune", import.meta.url).href,
-        "--import", pathToFileURL(createRequire(import.meta.url).resolve("tsx")).href,
+        // tsx is a devDependency, so its loader is registered from a dev script, never resolved here.
+        "--import", new URL("../../../../../../development/scripts/dev-tsx-loader.mjs", import.meta.url).href,
         "--import", new URL("../../../../../../development/scripts/dev-source-maps-off.mjs", import.meta.url).href,
         ...args],
       cwd: process.cwd(),
