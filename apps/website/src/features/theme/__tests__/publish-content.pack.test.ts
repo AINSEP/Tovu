@@ -400,3 +400,20 @@ test("display labels: trimmed nonempty string names only; missing, malformed, nu
     ["static/a", "Trimmed"], ["static/b", undefined], ["static/c", undefined], ["static/d", undefined], ["static/e", undefined], ["static/f", undefined],
   ]);
 });
+
+
+test("a theme publishes its vendor license notices instead of rejecting the whole tree", async (t) => {
+  const themesDir = makeThemesDir();
+  t.after(() => rmSync(themesDir, { recursive: true, force: true }));
+  const themeDir = path.join(themesDir, "static", "licensed");
+  const vendorDir = path.join(themeDir, "assets", "vendor", "library");
+  mkdirSync(vendorDir, { recursive: true });
+  writeFileSync(path.join(themeDir, "theme.json"), '{"id":"licensed"}');
+  for (const name of ["LICENSE", "COPYING", "NOTICE"]) writeFileSync(path.join(vendorDir, name), "Redistribution permitted with this notice.");
+  const packed = await packThemeFilesEntities({ themesDir });
+  assert.deepEqual(packed.skipped, []);
+  assert.equal(packed.entities.length, 1);
+  assert.deepEqual((packed.entities[0]!.state.files as { path: string }[]).map(file => file.path), [
+    "assets/vendor/library/COPYING", "assets/vendor/library/LICENSE", "assets/vendor/library/NOTICE", "theme.json",
+  ]);
+});

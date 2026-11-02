@@ -339,3 +339,17 @@ function listFilesRecursive(dir: string): string[] {
   }
   return out;
 }
+
+
+test("license documents are text: accepted by identity, scanned for secrets, and never a blanket extensionless allowance", () => {
+  for (const name of ["LICENSE", "COPYING", "NOTICE", "license"]) {
+    const path = `assets/vendor/library/${name}`;
+    assert.equal(checkTreeFiles("theme-files", [{ path, size: 12, mode: 0o644, textSample: "License text" }]), null);
+    assert.match(checkTreeFiles("theme-files", [{ path, size: 12, mode: 0o644 }]) ?? "", /missing the text required for its secret scan/);
+    const secret = "sk-" + "AbCdEfGhIjKlMnOpQrStUvWxYz0123456789longpathsegment";
+    assert.match(checkTreeFiles("theme-files", [{ path, size: secret.length, mode: 0o644, textSample: secret }]) ?? "", /looks like it holds a key/);
+  }
+  for (const path of ["assets/vendor/library/RUN", "assets/vendor/library/LICENSE.sh"]) {
+    assert.notEqual(checkTreeFiles("theme-files", [{ path, size: 12, mode: 0o644, textSample: "License text" }]), null);
+  }
+});

@@ -460,7 +460,9 @@ function treeFileReason({ file, spec, seenLowercase }: {
 /** Applies the kind's allowlist, refusing missing scan input before checking text.
  * @complexity O(b) in sample length. */
 function treeFileContentReason({ file, spec }: { file: FileTreeFileInput; spec: FileTreeKindSpec }, _options = {}): string | null {
-  const ext = extensionOf(file.path);
+  // Bundled vendor attribution must travel with the theme. Treat canonical extensionless notices
+  // as text so they get the same mandatory secret scan, never a blanket extensionless exemption.
+  const ext = /^(?:LICENSE|COPYING|NOTICE)$/i.test(baseNameOf(file.path)) ? "txt" : extensionOf(file.path);
   if (spec.allowedExtensions && !spec.allowedExtensions.includes(ext)) {
     return disallowedExtensionReason(file.path);
   }
