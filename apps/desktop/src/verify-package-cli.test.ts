@@ -195,7 +195,7 @@ test("scripts/verify-package.ts exits 1 and names the file when a real asar carr
       cwd: DESKTOP_ROOT, encoding: "utf8", timeout: 60_000,
     });
     assert.equal(run.status, 1, run.stderr);
-    assert.match(run.stdout, new RegExp(`verify-package: checking ${asarPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} against source under src, bin, main\\.ts, dist\\n`));
+    assert.match(run.stdout, new RegExp(`verify-package: checking ${asarPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} against source under src, bin, src/main/index\\.ts, dist\\n`));
     assert.match(run.stdout, /verify-package: 1 file\(s\) checked/);
     assert.match(run.stderr, new RegExp(`src/${probe.replace(/\./g, "\\.")}`));
   } finally {
