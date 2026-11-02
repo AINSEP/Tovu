@@ -161,7 +161,8 @@ export function createSiteDiscoveryLanes<T>({ discover }: {
   let siteDiscoveryAbort: AbortController | undefined;
   let siteValidationAbort: AbortController | undefined;
   return {
-    discoverSites({ scanRoots }: { scanRoots?: string[] }, _options = {}): Promise<T> {
+    // `async`, as the inline original was: a synchronous throw from `discover` still rejects.
+    async discoverSites({ scanRoots }: { scanRoots?: string[] }, _options = {}): Promise<T> {
       // Picker validation must not cancel a live rescan, or be cancelled by one.
       if (scanRoots) siteValidationAbort?.abort();
       else siteDiscoveryAbort?.abort();
