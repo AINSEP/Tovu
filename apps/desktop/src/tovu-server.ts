@@ -361,6 +361,20 @@ interface BuildServeEnvInput {
   nodeToolchainEnv?: Record<string, string>;
 }
 
+/** Only main's successfully booted config authorizes child telemetry; inherited values cannot. O(1). */
+function applyProductTelemetryEnv({ env, productTelemetry }: {
+  env: NodeJS.ProcessEnv; productTelemetry: BuildServeEnvInput['productTelemetry'];
+}, _options = {}): void {
+  delete env.TOVU_PRODUCT_TELEMETRY_CONFIG;
+  delete env.TOVU_PRODUCT_TELEMETRY_PREFS;
+  delete env.TOVU_PRODUCT_RELEASE;
+  if (productTelemetry) {
+    env.TOVU_PRODUCT_TELEMETRY_CONFIG = productTelemetry.configPath;
+    env.TOVU_PRODUCT_TELEMETRY_PREFS = productTelemetry.preferencePath;
+    env.TOVU_PRODUCT_RELEASE = productTelemetry.release;
+  }
+}
+
 /**
  * Build the child's environment for `tovu serve`.
  *
@@ -453,15 +467,7 @@ function buildServeEnv(input: BuildServeEnvInput, { warn = console.warn }: { war
   const env = buildCliEnv({ baseEnv: input.baseEnv, siteDir: input.siteDir }, { warn });
   // buildCliEnv cleared inherited copies; main now supplies the authoritative launch fact.
   if (input.isPackaged !== undefined) env.TOVU_PACKAGED_DESKTOP = input.isPackaged ? '1' : '0';
-  // Only main's successfully booted config authorizes child telemetry; inherited values cannot.
-  delete env.TOVU_PRODUCT_TELEMETRY_CONFIG;
-  delete env.TOVU_PRODUCT_TELEMETRY_PREFS;
-  delete env.TOVU_PRODUCT_RELEASE;
-  if (input.productTelemetry) {
-    env.TOVU_PRODUCT_TELEMETRY_CONFIG = input.productTelemetry.configPath;
-    env.TOVU_PRODUCT_TELEMETRY_PREFS = input.productTelemetry.preferencePath;
-    env.TOVU_PRODUCT_RELEASE = input.productTelemetry.release;
-  }
+  applyProductTelemetryEnv({ env, productTelemetry: input.productTelemetry });
   delete env.TOVU_PUBLIC_URL;
   // Ownership comes from the host that registers this connection, never from its display name.
   env.TOVU_BUILT_IN_MCP_SERVER_IDS = JSON.stringify([SITES_MCP_SERVER_ID]);
