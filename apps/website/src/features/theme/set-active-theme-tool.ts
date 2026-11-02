@@ -33,8 +33,11 @@ import { verifyActiveThemeResolves } from "./verify-active-theme.js";
  * touches the ACTIVE theme selection", for the boundary this keeps.
  *
  * Reversible (switching back is calling this again with the id this call returns as
- * `previousThemeId`), so per the owner's standing rule it gets no confirm — same posture
- * `patch-active-theme.ts`'s own PATCH route already has.
+ * `previousThemeId`), which under the owner's standing rule once meant no confirm — the posture
+ * `patch-active-theme.ts`'s own PATCH route still has for a human. Superseded for the AGENT by the
+ * owner decision of 2026-11-02: a demo chat switched the live site to a theme it had just rebuilt
+ * without asking, so the tool's approval metadata (`contracts/core/tool-metadata/theme.ts`) is now
+ * `publish`/`policy` and the shared approval wrapper shows the confirmation card first.
  *
  * `writableThemeIds` (moved to `features/theme/active-theme.ts` this same slice) is the ONE
  * allowlist this tool and the admin PATCH route both validate against — see that function's own doc
@@ -58,8 +61,9 @@ export interface SetActiveThemeToolDeps {
 const SET_ACTIVE_THEME_CATALOG: AgentToolDefinition = {
   name: "theme_set_active",
   description:
-    "Switches which theme the live site uses. Pass 'none' to turn the theme off. Returns the " +
-    "previous theme id, so the switch can be undone by calling this again with it.",
+    "Switches which theme the live site uses. Pass 'none' to turn the theme off. The person " +
+    "confirms the switch on a card first. Returns the previous theme id, so the switch can be " +
+    "undone by calling this again with it.",
   sideEffects: "mutates-durable-state",
   authorization: { permission: "theme.set" },
   inputSchema: {

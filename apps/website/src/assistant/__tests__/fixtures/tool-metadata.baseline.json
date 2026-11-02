@@ -3284,8 +3284,8 @@
       "confirmation": "direct"
     },
     "theme_set_active": {
-      "class": "edit",
-      "confirmation": "direct"
+      "class": "publish",
+      "confirmation": "policy"
     },
     "theme_set_page_published": {
       "class": "edit",
@@ -3723,6 +3723,7 @@
     "theme_reset_file",
     "theme_trash",
     "theme_trash_file",
+    "theme_set_active",
     "trash_empty",
     "trash_item",
     "trash_purge_item",
@@ -3815,6 +3816,7 @@
     "theme_reset_file",
     "theme_trash",
     "theme_trash_file",
+    "theme_set_active",
     "trash_empty",
     "trash_item",
     "trash_purge_item",
@@ -3887,6 +3889,7 @@
     "theme_reset_file",
     "theme_trash",
     "theme_trash_file",
+    "theme_set_active",
     "trash_empty",
     "trash_item",
     "trash_purge_item",

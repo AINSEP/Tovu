@@ -154,7 +154,12 @@ export const toolMetadata = {
     approval: { class: 'edit', confirmation: 'direct' },
   },
   // Switching the rendered theme is distinct from editing one theme's files (F7a).
+  // Owner decision 2026-11-02 (YC demo): the chat switched the LIVE site to a theme it had just
+  // rebuilt without asking. Activation changes what every visitor sees, so it is `publish` (the
+  // action leaves this site's draft state) and goes through the confirmation card.
   "theme_set_active": {
+    title: 'Switch the live site theme',
+    summary: 'This changes the theme every visitor of the live site sees.',
     search: {
       keywords: "theme switch activate change active theme live site look design",
       queries: [
@@ -165,7 +170,7 @@ export const toolMetadata = {
         "Turn off the theme on my site.",
       ],
     },
-    approval: { class: 'edit', confirmation: 'direct' },
+    approval: { class: 'publish', confirmation: 'policy' },
   },
   "theme_set_page_published": {
     search: {
