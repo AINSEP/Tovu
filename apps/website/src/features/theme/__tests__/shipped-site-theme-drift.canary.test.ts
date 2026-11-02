@@ -59,7 +59,8 @@ test("release stock declares current content templates and an explicit publicati
   // The authored `pages` declaration is not exposed on the runtime ThemeManifest.
   const manifest = JSON.parse(fs.readFileSync(path.join(STOCK_DIR, "theme.json"), "utf8"));
   assert.deepEqual(manifest.pages, ["index", "about", "pricing", "docs", "changelog", "download", "signin", "signup"]);
-  assert.deepEqual(theme.manifest.templates, ["posts-default.html", "posts-sidebar.html", "pages-default.html", "index", "listing-default.html"]);
+  // pages-blank.html: ef1ae2ea7's chromeless brand-landing template (see chromeless-templates.fixture.ts).
+  assert.deepEqual(theme.manifest.templates, ["posts-default.html", "posts-sidebar.html", "pages-default.html", "pages-blank.html", "index", "listing-default.html"]);
   for (const choice of theme.manifest.templates ?? []) {
     assert.ok(theme.pages[choice.replace(/\.html$/, "")], `${choice}: declared template must exist`);
   }
