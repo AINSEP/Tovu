@@ -527,41 +527,6 @@
       "fingerprint": "55c2f091f6875bb4f547545b52827c664f518d7d9bb1bd5834256dc6983d9c01"
     },
     {
-      "rule": "HW8-provider-url",
-      "file": "content/agent-plugins/github/deploy-ops/github-actions.mjs",
-      "line": 6,
-      "reason": "Vendor API URL belongs in a provider, adapter or catalog.",
-      "fingerprint": "bc93d1acbea31b622a7f7f78639e38d73cf1d99f701bbf1eee2d4c532ce833ba"
-    },
-    {
-      "rule": "HW8-provider-url",
-      "file": "content/agent-plugins/cloudflare-pages/targets/cloudflare-pages.mjs",
-      "line": 61,
-      "reason": "Vendor API URL belongs in a provider, adapter or catalog.",
-      "fingerprint": "11b159d41dd90aaf8794a7aaa70a825221bbdf5d5de3ce512ba494bda6f95f02"
-    },
-    {
-      "rule": "HW8-provider-url",
-      "file": "content/agent-plugins/cloudflare-pages/targets/cloudflare-pages.mjs",
-      "line": 1028,
-      "reason": "Vendor API URL belongs in a provider, adapter or catalog.",
-      "fingerprint": "f59a1fffda4459e08bd280d81ab4144e3c10e3b04ccefc862126b0ebd067f19d"
-    },
-    {
-      "rule": "HW8-provider-url",
-      "file": "content/agent-plugins/github/source-control/commit-site.mjs",
-      "line": 29,
-      "reason": "Vendor API URL belongs in a provider, adapter or catalog.",
-      "fingerprint": "b2fd47bfbc5a4de17a621c69c1407b826d21731da4f7ea0c3c01cb6e044b8b9c"
-    },
-    {
-      "rule": "HW8-provider-url",
-      "file": "content/agent-plugins/github/source-control/github.mjs",
-      "line": 27,
-      "reason": "Vendor API URL belongs in a provider, adapter or catalog.",
-      "fingerprint": "b2fd47bfbc5a4de17a621c69c1407b826d21731da4f7ea0c3c01cb6e044b8b9c"
-    },
-    {
       "rule": "HW7-public-react",
       "file": "apps/site-chat/src/main.tsx",
       "line": 1,
