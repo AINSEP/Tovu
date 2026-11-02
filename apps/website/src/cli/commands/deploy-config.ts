@@ -12,7 +12,7 @@ import {
   type RenderDeployConfigOptions,
 } from "../../features/deployments/index.js";
 import { isSiteIdToken, readSiteMetaId } from "../../features/webhooks/index.js";
-import { bundledAgentPluginsDir, resolveSiteRoot, ValidationError } from "../../platform/site-dir/index.js";
+import { bundledAgentPluginsDir, resolveProductRoot, resolveSiteRoot, ValidationError } from "../../platform/site-dir/index.js";
 
 /**
  * @file `tovu deploy config --target <id> --region <region> [--out <file>]` — wires parsed argv to
@@ -158,7 +158,11 @@ export async function runDeployConfigCommand(input: RunDeployConfigCommandInput,
   const descriptor = buildDeploymentDescriptor();
   // The generators are host-neutral Jini plugin modules: Tovu supplies its production switch and notes.
   const options: RenderDeployConfigOptions = { region: input.region ?? "", env: { ...HOST_DEPLOY_ENV, ...siteIdentityEnv(env, stderr, input.site) } };
-  const rendered = appendHostDeployNotes({ pluginId: generator.pluginId, targetId: targetRaw, rendered: generator.module.render(descriptor, options, createDeployConfigKit()) });
+  const rendered = appendHostDeployNotes(
+    { pluginId: generator.pluginId, targetId: targetRaw, rendered: generator.module.render(descriptor, options, createDeployConfigKit()) },
+    // Host overlays ship with the product; the caller's deployment directory need not contain them.
+    { overlaysDir: path.join(resolveProductRoot(), "content", "agent-plugin-overlays") },
+  );
 
   if (input.out !== undefined) {
     const outPath = path.resolve(input.out);

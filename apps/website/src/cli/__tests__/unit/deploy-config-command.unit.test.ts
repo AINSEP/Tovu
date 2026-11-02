@@ -32,6 +32,33 @@ test("renders the generator's config to stdout and its operator notes to stderr"
   assert.ok(io.err.every((line) => line.startsWith("tovu deploy config: ")));
 });
 
+test("keeps the product's Chromium note when cwd has deployment inputs but no overlays", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "tovu-deploy-config-cwd-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const pluginRoot = path.join(root, "plugins", "fly");
+  await mkdir(pluginRoot, { recursive: true });
+  // Reuse the neutral renderer so this pins the CLI's host-note wiring, not Fly's generator rules.
+  await writeFile(path.join(pluginRoot, "generator.mjs"), await readFile(path.join(FIXTURE_PLUGINS_DIR, "example-host/deploy-configs/example-host.mjs")));
+  await writeFile(path.join(pluginRoot, "plugin.json"), JSON.stringify({ name: "fly", version: "1.0.0" }));
+  await writeFile(path.join(pluginRoot, "tovu-deploy-configs.json"), JSON.stringify({ schemaVersion: 1, generators: [{ id: "fly", label: "Fixture host", module: "generator.mjs" }] }));
+  // Descriptor inputs still come from cwd; this directory deliberately has no product overlays.
+  await writeFile(path.join(root, "Dockerfile"), 'FROM node:24\nVOLUME ["/data/sites"]\nEXPOSE 4321\n');
+  await writeFile(path.join(root, "package.json"), '{"name":"fixture"}\n');
+  const healthRoute = path.join(root, "apps/website/src/server/inbound/public-http/routes/ops/health.ts");
+  await mkdir(path.dirname(healthRoute), { recursive: true });
+  await writeFile(healthRoute, 'export const registerReadyzRoute = () => app.get("/readyz", handler);');
+  t.mock.method(process, "cwd", () => root);
+  const io = capture({ TOVU_BUNDLED_AGENT_PLUGINS_DIR: path.dirname(pluginRoot), TOVU_SITE_DIR: root });
+
+  await runDeployConfigCommand({ target: "fly", region: "ams" }, io.ports);
+
+  assert.match(io.out[0]!, /^app = "fixture"$/m);
+  assert.doesNotMatch(io.out[0]!, /Headless Chromium|TOVU_INSTALL_BROWSER/);
+  assert.match(io.err[0]!, /example-host volumes create fixture_sites/);
+  assert.equal(io.err.length, 2);
+  assert.match(io.err[1]!, /^tovu deploy config: Headless Chromium is not installed by default\..*TOVU_INSTALL_BROWSER/);
+});
+
 test("the deployed server is named by the local site's .site-meta.json siteId (TOVU_SITE_ID in the generated env)", async (t) => {
   const site = await mkdtemp(path.join(tmpdir(), "tovu-deploy-config-site-")); t.after(() => rm(site, { recursive: true, force: true }));
   const io = capture({ TOVU_BUNDLED_AGENT_PLUGINS_DIR: FIXTURE_PLUGINS_DIR, TOVU_SITE_DIR: site });
