@@ -1,0 +1,36 @@
+✔ authenticated bootstrap cannot substitute a different site directory (49.542083ms)
+✖ two sites times two instances retain separate configuration and sessions (memory) (41.870891ms)
+✔ two sites times two instances retain separate configuration and sessions (sqlite) (103.57887ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 2
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1562.0303
+
+✖ failing tests:
+
+test at apps/website/src/server/runtime/composition/__tests__/agent-daemon-core-isolation.integration.test.ts:1:1206
+✖ two sites times two instances retain separate configuration and sessions (memory) (41.870891ms)
+  Error [ZodError]: [
+    {
+      "code": "invalid_type",
+      "expected": "string",
+      "received": "undefined",
+      "path": [
+        "sourceLayer"
+      ],
+      "message": "Required"
+    }
+  ]
+      at get error (file:///home/user/Tovu/node_modules/zod/v3/types.js:39:31)
+      at ZodObject.parse (file:///home/user/Tovu/node_modules/zod/v3/types.js:114:22)
+      at Object.readEffective (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/agent-daemon-core-client.ts:111:63)
+      at async TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/__tests__/agent-daemon-core-isolation.integration.test.ts:58:44)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    issues: [ { code: 'invalid_type', expected: 'string', received: 'undefined', path: [Array], message: 'Required' } ],
+    [errors]: [ { code: 'invalid_type', expected: 'string', received: 'undefined', path: [Array], message: 'Required' } ]
+  }

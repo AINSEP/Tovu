@@ -1,0 +1,81 @@
+✔ the generated script executes each staged package and reports its individual failure (211.521754ms)
+✔ the generated script preserves hostile require paths exactly without executing injected statements (1.996169ms)
+✔ resolves a mac-prefixed *.app layout (e.g. release/mac-arm64/Tovu.app) (0.343947ms)
+✔ resolves a plain 'mac' output directory the same way as 'mac-arm64' (0.173979ms)
+✔ resolves a win-unpacked layout when no mac-prefixed directory is present (0.692208ms)
+✔ a mac-prefixed directory takes precedence over win-unpacked when both are present (0.15757ms)
+✔ throws a clear error when neither layout is found under platformDir (3.371127ms)
+✔ an entry merely starting with 'mac' as a substring elsewhere is not mistaken for the mac layout (e.g. 'macos-notes') (0.573594ms)
+✔ all three checks ok -> overall ok true (0.465758ms)
+✔ any single check failing makes the overall result false, and the failing check's error is preserved (0.703596ms)
+✔ malformed JSON is a parse failure, not a silent pass -- a safe stdout excerpt is included for diagnosis (0.740395ms)
+✔ empty stdout (process crashed before printing) is a parse failure (0.263221ms)
+✔ a missing check key (e.g. the child process died between checks) is treated as a failure, not skipped (0.253986ms)
+✔ JSON that parses but is not an object (e.g. a bare number or array) is treated as every check missing, not a crash (0.304428ms)
+✔ embeds the resolved node_modules dir as a JSON-quoted absolute require path for each package (0.375353ms)
+✔ a node_modules dir containing a quote or backslash is embedded safely (JSON.stringify escaping), not string-concatenated raw (0.450606ms)
+✔ the generated script is syntactically valid JavaScript (constructible, never invoked) (0.317342ms)
+✔ desktop main's source module graph resolves without the test-only TypeScript remapper (568.462215ms)
+✔ shared desktop source platform/site-dir/sites-home imports without a test remapper (114.247663ms)
+✔ shared desktop source contracts/core/assistant-native-fallbacks imports without a test remapper (82.730886ms)
+✔ every desktop source import has a real JavaScript target or an owning compiler (378.219824ms)
+✔ entry-load check fails and reports missing named export (108.645826ms)
+✔ entry-load check fails and reports invalid syntax (102.28146ms)
+✔ entry-load check fails and reports unsupported file extension (88.252391ms)
+✖ the entry-load script names the HTTP module and all shipped process entries (5.275901ms)
+✖ the entry-load script reports every unresolvable static import without evaluating any module (73.479552ms)
+✔ entry-load output that is not JSON throws; any other shape fails (0.470917ms)
+✔ native smoke malformed JSON and module errors expose only bounded redacted diagnostics (6.588937ms)
+✔ owner-store status requires no legacy owner store and zero entries/grants without echoing diagnostics (0.441427ms)
+ℹ tests 29
+ℹ suites 0
+ℹ pass 27
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2249.964399
+
+✖ failing tests:
+
+test at src/smoke-native.test.ts:297:1
+✖ the entry-load script names the HTTP module and all shipped process entries (5.275901ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(script.includes('join(asar, "src", "desktop-mcp-http.ts")'))
+  
+      at TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/smoke-native.test.ts:304:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at src/smoke-native.test.ts:307:1
+✖ the entry-load script reports every unresolvable static import without evaluating any module (73.479552ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  3 !== 1
+  
+      at TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/smoke-native.test.ts:332:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 3,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

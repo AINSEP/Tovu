@@ -1,0 +1,25 @@
+✔ an attempted call to a not-in-operator-allowlist federated tool comes back naming the tool, the server, and the fix — not a bare 'unknown tool' (3.295758ms)
+✔ this is a REAL 400-mappable outcome, not a thrown exception — the property that lets it reach the model at all (0.8681ms)
+✔ a refused tool whose remote-advertised name is secret-shaped is redacted, not leaked verbatim (0.431673ms)
+✔ a write-grant refusal attempted directly is also legible, with its own distinct fix text (0.306744ms)
+✔ an admitted federated tool's normal completion is untouched (0.798736ms)
+✔ a native (non-federated) unknown tool id still throws unchanged — this decorator only ever touches mcp__-prefixed ids (2.713131ms)
+✔ a federated-SHAPED id this boot never refused still throws unchanged — no snapshot entry means nothing to diagnose (0.511727ms)
+✔ a genuinely unrelated throw (not 'unknown tool') passes straight through, never reinterpreted as a refusal (0.323933ms)
+✔ the snapshot is read LIVE at call time — a refusal that only exists after boot is still diagnosed (0.568255ms)
+✔ a federated id with no snapshot refusal, while the boot pass has not settled, is diagnosed as still connecting (0.476428ms)
+✔ a federated id with no snapshot refusal, once the boot pass has settled with a recorded connect failure, gets that failure's own reason (1.176775ms)
+✔ a federated id whose connectionId IS in the known boot roster, while the boot pass has not settled, is still diagnosed as still connecting (1.314006ms)
+✔ a federated id whose connectionId is NOT in the known boot roster, while the boot pass has not settled, still throws unchanged — a server that was never configured is not told to 'wait' (0.328349ms)
+✔ configuredConnectionIds omitted (the boot roster is not yet known) still defaults to 'still connecting' — same as before this field existed (0.441284ms)
+✔ a settled boot pass with no matching connect failure still throws unchanged — a genuinely unrelated/hallucinated id is not reinterpreted as 'still connecting' (0.225612ms)
+✔ getBootStatus omitted (the daemon's own call site) is byte-identical to before this parameter existed — still throws for an undiagnosed federated id (0.183669ms)
+✔ resumeConfirmation, cancel, and getAuditRecord are untouched pass-throughs (0.214042ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1115.694421

@@ -1,13 +1,13 @@
-✔ a region keeps its operator default unless a block replaces the whole region (1.533171ms)
-✔ an empty default region renders nothing, and a block with a trailing blank line keeps it (1.335915ms)
-✔ placeholders are filled in the template and inside blocks; a missing value throws instead of shipping the token (0.725142ms)
-✔ a block for a region the template does not have throws, so a stale values file cannot drop a step (0.169334ms)
-✔ malformed regions are template errors (0.396927ms)
-✔ the shipped template is host-neutral: its operator render has placeholders but no host text or markers (0.768597ms)
-✔ renderFromValues resolves block files against the values file's own folder (1.151961ms)
-✔ the CLI refuses a missing --values or --repo-root, writes the render, and --check reports a stale file (0.535902ms)
-✔ an empty replacement block removes the region without adding a blank workflow line (0.712462ms)
-✔ Windows workflow checkouts recognize regions and normalize template and block line endings (0.387179ms)
+✔ a region keeps its operator default unless a block replaces the whole region (2.311805ms)
+✔ an empty default region renders nothing, and a block with a trailing blank line keeps it (0.399277ms)
+✔ placeholders are filled in the template and inside blocks; a missing value throws instead of shipping the token (0.488366ms)
+✔ a block for a region the template does not have throws, so a stale values file cannot drop a step (0.176255ms)
+✔ malformed regions are template errors (0.286434ms)
+✔ the shipped template is host-neutral: its operator render has placeholders but no host text or markers (0.800147ms)
+✔ renderFromValues resolves block files against the values file's own folder (1.097606ms)
+✔ the CLI refuses a missing --values or --repo-root, writes the render, and --check reports a stale file (0.544444ms)
+✔ an empty replacement block removes the region without adding a blank workflow line (0.310593ms)
+✔ Windows workflow checkouts recognize regions and normalize template and block line endings (0.466006ms)
 ℹ tests 10
 ℹ suites 0
 ℹ pass 10
@@ -15,4 +15,4 @@
 ℹ cancelled 0
 ℹ skipped 0
 ℹ todo 0
-ℹ duration_ms 103.486279
+ℹ duration_ms 81.833193

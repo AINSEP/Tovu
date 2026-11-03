@@ -1,0 +1,6 @@
+FAIL(1)	apps/desktop/src/main/updates/settings-menu.test.ts
+FAIL(1)	apps/desktop/src/preload/preload.test.ts
+FAIL(1)	apps/desktop/src/renderer/app/LoadedSitesStepper.render.test.ts
+FAIL(1)	apps/desktop/src/renderer/app/SiteWorkspace.live-views.render.test.ts
+FAIL(1)	apps/desktop/src/renderer/use-live-views.hooks.test.ts
+FAIL(1)	apps/desktop/src/site-view-preference.test.ts

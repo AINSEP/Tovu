@@ -1,0 +1,11 @@
+FAIL(1)	apps/website/src/assistant/__tests__/agent-daemon-port.barrel.test.ts
+FAIL(1)	apps/website/src/assistant/__tests__/federated-refusal-diagnosis.test.ts
+FAIL(1)	apps/website/src/server/__tests__/assistant-proxy-routes.test.ts
+FAIL(1)	apps/website/src/server/inbound/assistant/__tests__/agent-daemon-idle-park.integration.test.ts
+FAIL(1)	apps/website/src/server/inbound/assistant/__tests__/agent-daemon-import-graph.unit.test.ts
+FAIL(1)	apps/website/src/server/inbound/assistant/__tests__/agent-daemon-remote-tools.integration.test.ts
+FAIL(1)	apps/website/src/server/runtime/composition/modules/__tests__/assistant-cold-start.unit.test.ts
+FAIL(1)	apps/website/src/server/runtime/composition/modules/__tests__/assistant-daemon-client.unit.test.ts
+FAIL(1)	apps/website/src/server/runtime/composition/modules/__tests__/assistant-run-finalizer.http-client.unit.test.ts
+FAIL(1)	apps/website/src/server/runtime/lifecycle/__tests__/assistant-daemon-demand.unit.test.ts
+FAIL(1)	apps/website/src/server/runtime/lifecycle/__tests__/daemon-demand-fetch.unit.test.ts

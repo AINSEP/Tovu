@@ -1,7 +1,7 @@
 
  RUN  v2.1.9 /home/user/wt-Jini/packages/mcp
 
- ❯ src/server/__tests__/tool-argument-recovery.test.ts (6 tests | 1 failed) 38ms
+ ❯ src/server/__tests__/tool-argument-recovery.test.ts (6 tests | 1 failed) 39ms
    × first-call tool argument recovery for every MCP CLI > prefix recovery keeps exact names, foreign server names and read-only enforcement intact 4ms
      → expected undefined to be true // Object.is equality
 
@@ -28,6 +28,6 @@ undefined
 
  Test Files  1 failed (1)
       Tests  1 failed | 5 passed (6)
-   Start at  21:12:41
-   Duration  1.13s (transform 481ms, setup 0ms, collect 818ms, tests 38ms, environment 0ms, prepare 76ms)
+   Start at  21:19:18
+   Duration  1.08s (transform 429ms, setup 0ms, collect 765ms, tests 39ms, environment 0ms, prepare 84ms)
 

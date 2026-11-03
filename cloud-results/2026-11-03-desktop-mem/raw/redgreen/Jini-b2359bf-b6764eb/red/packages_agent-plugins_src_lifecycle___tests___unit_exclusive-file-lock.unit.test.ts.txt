@@ -1,12 +1,12 @@
 
  RUN  v2.1.9 /home/user/wt-Jini/packages/agent-plugins
 
- ✓ src/lifecycle/__tests__/unit/exclusive-file-lock.unit.test.ts (14 tests) 1943ms
-   ✓ U9: pid 0, -1, 1.5, a string, and 2**60 never reach the liveness probe, and each times out 537ms
-   ✓ U14: a lock that is re-taken the instant each stale break removes it still times out, instead of spinning past timeoutMs 394ms
+ ✓ src/lifecycle/__tests__/unit/exclusive-file-lock.unit.test.ts (14 tests) 1895ms
+   ✓ U9: pid 0, -1, 1.5, a string, and 2**60 never reach the liveness probe, and each times out 547ms
+   ✓ U14: a lock that is re-taken the instant each stale break removes it still times out, instead of spinning past timeoutMs 352ms
 
  Test Files  1 passed (1)
       Tests  14 passed (14)
-   Start at  21:11:03
-   Duration  3.25s (transform 622ms, setup 0ms, collect 1.02s, tests 1.94s, environment 0ms, prepare 85ms)
+   Start at  21:17:56
+   Duration  2.92s (transform 517ms, setup 0ms, collect 751ms, tests 1.90s, environment 0ms, prepare 71ms)
 

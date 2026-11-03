@@ -1,15 +1,15 @@
 
  RUN  v2.1.9 /home/user/wt-Jini/packages/agent-plugins
 
- ❯ src/lifecycle/__tests__/unit/manifest-default-namespace.unit.test.ts (9 tests | 4 failed) 62ms
-   × portable plugin identity without a host namespace > a host-neutral caller reads jini identity and compatibility metadata before legacy metadata 41ms
+ ❯ src/lifecycle/__tests__/unit/manifest-default-namespace.unit.test.ts (9 tests | 4 failed) 24ms
+   × portable plugin identity without a host namespace > a host-neutral caller reads jini identity and compatibility metadata before legacy metadata 16ms
      → expected { ok: true, manifest: { …(11) }, …(1) } to match object { ok: true, manifest: { …(4) } }
 (10 matching properties omitted from actual)
-   × portable plugin identity without a host namespace > an invalid jini identity is refused even when the legacy identity is valid 7ms
+   × portable plugin identity without a host namespace > an invalid jini identity is refused even when the legacy identity is valid 2ms
      → expected true to be false // Object.is equality
-   × portable plugin identity without a host namespace > a malformed jini extension is refused rather than replaced with legacy metadata 3ms
+   × portable plugin identity without a host namespace > a malformed jini extension is refused rather than replaced with legacy metadata 1ms
      → expected true to be false // Object.is equality
-   × portable plugin identity without a host namespace > a present empty jini extension does not inherit legacy identity or capabilities 4ms
+   × portable plugin identity without a host namespace > a present empty jini extension does not inherit legacy identity or capabilities 2ms
      → expected { ok: true, manifest: { …(11) }, …(1) } to match object { ok: true, manifest: { …(2) } }
 (12 matching properties omitted from actual)
 
@@ -119,6 +119,6 @@ AssertionError: expected { ok: true, manifest: { …(11) }, …(1) } to match ob
 
  Test Files  1 failed (1)
       Tests  4 failed | 5 passed (9)
-   Start at  21:11:07
-   Duration  716ms (transform 218ms, setup 0ms, collect 315ms, tests 62ms, environment 0ms, prepare 91ms)
+   Start at  21:18:00
+   Duration  523ms (transform 152ms, setup 0ms, collect 227ms, tests 24ms, environment 0ms, prepare 79ms)
 

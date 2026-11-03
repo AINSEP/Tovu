@@ -1,8 +1,8 @@
 
  RUN  v2.1.9 /home/user/wt-Jini/packages/mcp
 
-daemon URL http://daemon.example is neither loopback nor HTTPS; traffic to a remote, non-HTTPS daemon is not encrypted. ❯ src/bin/__tests__/serve.test.ts (57 tests | 2 failed) 2067ms
-   × serve() — wiring, with a fully-injected fake createMcpToolServer > builds a tool list of RUN_TOOLS plus TOOL_CATALOG_TOOLS plus COMPONENT_CATALOG_TOOLS plus one execute_delegated_tool def, resources, name/version/instructions 14ms
+daemon URL http://daemon.example is neither loopback nor HTTPS; traffic to a remote, non-HTTPS daemon is not encrypted. ❯ src/bin/__tests__/serve.test.ts (57 tests | 2 failed) 2081ms
+   × serve() — wiring, with a fully-injected fake createMcpToolServer > builds a tool list of RUN_TOOLS plus TOOL_CATALOG_TOOLS plus COMPONENT_CATALOG_TOOLS plus one execute_delegated_tool def, resources, name/version/instructions 6ms
      → expected [ 'start_run', 'get_run', …(9) ] to deeply equal [ 'start_run', 'get_run', …(10) ]
    × every CLI bootstrap advertises a working wait and paged reads instead of shell sleep and spill files 2ms
      → expected [ 'start_run', 'get_run', …(9) ] to include 'wait_for'
@@ -54,6 +54,6 @@ AssertionError: expected [ 'start_run', 'get_run', …(9) ] to include 'wait_for
 
  Test Files  1 failed (1)
       Tests  2 failed | 55 passed (57)
-   Start at  21:11:22
-   Duration  6.69s (transform 2.48s, setup 0ms, collect 4.28s, tests 2.07s, environment 0ms, prepare 77ms)
+   Start at  21:18:12
+   Duration  6.33s (transform 2.22s, setup 0ms, collect 3.97s, tests 2.08s, environment 0ms, prepare 83ms)
 

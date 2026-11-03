@@ -1,0 +1,17 @@
+tovu dev: preparing prebuilt admin…
+tovu dev: preparing prebuilt admin…
+tovu dev: preparing prebuilt admin…
+tovu dev: preparing prebuilt admin…
+✔ dev:lite opens the ready API admin without starting an admin Vite process (1.211992ms)
+✔ dev:lite reuses a current admin without starting Vite or rebuilding (0.561771ms)
+✔ dev:lite builds missing or stale admin once and marks only a successful build current (1.75695ms)
+✔ dev:lite rebuilds a missing admin entry even when its freshness marker survived (0.358408ms)
+✔ dev:lite never marks a failed build current (0.652277ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 857.022547

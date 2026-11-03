@@ -1,0 +1,22 @@
+✔ SiteWorkspaces: only the visible workspace is on screen; the rest stay mounted but hidden (89.859364ms)
+✔ SiteWorkspace: a stopped site shows its start panel, and the bar disables what needs a server (41.827015ms)
+✔ SiteWorkspace: a site attached to another app's server says it is connecting, then why the attach failed (12.366844ms)
+✔ SiteWorkspace: a running site mounts its guest on its own partition, registered for find and zoom, under a loading overlay (27.561157ms)
+✔ SiteWorkspace: the view toggle switches surfaces and Open in browser opens the one on screen (20.316373ms)
+✔ ExpandToggle: names the move it makes, and reports a press (11.489582ms)
+✔ SiteWorkspace: a tab opened on an admin page loads that page (7.854293ms)
+✔ SiteWorkspace: a slow guest gets the stall panel over it; a failed one is replaced by a retry panel (23.451432ms)
+✔ SiteWorkspaces: each open site's guest is on that site's own partition, never one shared jar (18.323085ms)
+✔ SiteWorkspace: the bar reads history first, then the status dot and views, with the url pushed right beside Open in browser (12.083181ms)
+✔ SiteWorkspace: Back and Forward enable from the guest's live history and step that guest (16.809814ms)
+✔ SiteWorkspace: Reload on a healthy guest reloads that same guest past the cache, and shows its loading state again (13.129395ms)
+✔ SiteWorkspace: both recovery panels retry by remounting the guest, and the new guest is still listened to (33.447207ms)
+✔ SiteWorkspace: a guest that mounts late, when a stopped tab's site comes up, is still listened to (12.458723ms)
+ℹ tests 14
+ℹ suites 0
+ℹ pass 14
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2165.782269

@@ -1,0 +1,2 @@
+FAIL(1)	apps/admin/src/__tests__/unit/admin-route-lazy-loading.unit.test.tsx
+FAIL(1)	apps/admin/src/__tests__/unit/panels-render.unit.test.tsx

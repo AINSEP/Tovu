@@ -1,0 +1,9 @@
+
+ RUN  v4.1.11 /home/user/wt-Tovu/apps/admin
+
+
+ Test Files  1 passed (1)
+      Tests  4 passed (4)
+   Start at  21:18:19
+   Duration  1.34s (transform 332ms, setup 443ms, import 29ms, tests 40ms, environment 639ms)
+

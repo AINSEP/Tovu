@@ -1,0 +1,7 @@
+FAIL(1)	apps/admin/src/hooks/__tests__/use-desktop-view-release.unit.test.tsx
+FAIL(1)	apps/desktop/src/main/boot/site-preview-guests.test.ts
+FAIL(1)	apps/desktop/src/main/boot/site-preview.test.ts
+FAIL(1)	apps/desktop/src/main/updates/settings-menu.test.ts
+FAIL(1)	apps/desktop/src/site-preview-scheduler.test.ts
+FAIL(1)	apps/desktop/src/site-view-preference.test.ts
+FAIL(1)	apps/website/src/assistant/__tests__/mcp-injection.unit.test.ts

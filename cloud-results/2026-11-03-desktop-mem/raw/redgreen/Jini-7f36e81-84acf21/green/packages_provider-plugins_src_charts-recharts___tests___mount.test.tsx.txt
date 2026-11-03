@@ -1,10 +1,10 @@
 
  RUN  v2.1.9 /home/user/wt-Jini/packages/provider-plugins
 
- ✓ src/charts-recharts/__tests__/mount.test.tsx (12 tests) 622ms
+ ✓ src/charts-recharts/__tests__/mount.test.tsx (12 tests) 578ms
 
  Test Files  1 passed (1)
       Tests  12 passed (12)
-   Start at  21:10:35
-   Duration  2.02s (transform 216ms, setup 0ms, collect 622ms, tests 622ms, environment 491ms, prepare 76ms)
+   Start at  21:17:30
+   Duration  1.96s (transform 235ms, setup 0ms, collect 672ms, tests 578ms, environment 385ms, prepare 85ms)
 

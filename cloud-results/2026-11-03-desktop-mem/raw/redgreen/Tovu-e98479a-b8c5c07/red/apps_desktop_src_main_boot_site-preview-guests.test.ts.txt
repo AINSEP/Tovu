@@ -1,0 +1,35 @@
+node:internal/modules/esm/resolve:272
+    throw new ERR_MODULE_NOT_FOUND(
+          ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/user/wt-Tovu/apps/desktop/src/main/boot/site-preview-guests.ts' imported from /home/user/wt-Tovu/apps/desktop/src/main/boot/site-preview-guests.test.ts
+    at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+    at moduleResolve (node:internal/modules/esm/resolve:879:10)
+    at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolve (file:///home/user/wt-Tovu/apps/desktop/scripts/resolve-ts-ext.ts:19:14)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolveWithHooks (node:internal/modules/customization_hooks:417:10)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:751:16) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-preview-guests.ts'
+}
+
+Node.js v24.22.2
+✖ src/main/boot/site-preview-guests.test.ts (100.790912ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 110.148459
+
+✖ failing tests:
+
+test at src/main/boot/site-preview-guests.test.ts:1:1
+✖ src/main/boot/site-preview-guests.test.ts (100.790912ms)
+  'test failed'

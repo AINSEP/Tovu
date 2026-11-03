@@ -1,0 +1,4 @@
+✔ site scopes never read ambient environment or working directory (6.691634ms)
+✔ credential selects site despite forged tenant and principal hints (87.312534ms)
+✔ equal identifiers remain isolated across two sites and two hosts (memory) (75.367397ms)
+✔ equal identifiers remain isolated across two sites and two hosts (sqlite) (76.862626ms)

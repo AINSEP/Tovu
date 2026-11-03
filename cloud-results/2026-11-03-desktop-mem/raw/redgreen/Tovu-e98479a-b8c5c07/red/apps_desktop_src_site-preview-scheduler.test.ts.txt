@@ -1,0 +1,81 @@
+✖ P1: debounce reserves once and resolves the current port/partition when it fires (3.174041ms)
+✔ P1: a site no longer running when the timer fires is skipped and can be started later (0.295692ms)
+✔ P1: stop cancels the pending debounce without a hidden navigation (0.317218ms)
+✔ P1: restart within the debounce cancels the old work and captures only the new port (1.675935ms)
+✔ P1: restart after a successful capture re-arms the lifecycle reservation (0.413453ms)
+✖ P1: false and rejected capture results both permit a later successful capture (0.445371ms)
+✖ P1: an old in-flight failure cannot erase the replacement lifecycle's reservation (0.389933ms)
+✔ P1: a timer callback that was already dispatched when Stop cancelled it captures nothing (0.256942ms)
+✖ release cancels stale capture and the next public visit permits refresh (0.543147ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 5
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 173.680276
+
+✖ failing tests:
+
+test at src/site-preview-scheduler.test.ts:39:1
+✖ P1: debounce reserves once and resolves the current port/partition when it fires (3.174041ms)
+  AssertionError [ERR_ASSERTION]: a later public visit permits refresh
+  
+  0 !== 1
+  
+      at TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/site-preview-scheduler.test.ts:50:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at src/site-preview-scheduler.test.ts:99:1
+✖ P1: false and rejected capture results both permit a later successful capture (0.445371ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  0 !== 1
+  
+      at TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/site-preview-scheduler.test.ts:110:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at src/site-preview-scheduler.test.ts:114:1
+✖ P1: an old in-flight failure cannot erase the replacement lifecycle's reservation (0.389933ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  0 !== 1
+  
+      at TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/site-preview-scheduler.test.ts:127:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at src/site-preview-scheduler.test.ts:144:1
+✖ release cancels stale capture and the next public visit permits refresh (0.543147ms)
+  TypeError [Error]: valid is not a function
+      at TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/site-preview-scheduler.test.ts:155:16)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)

@@ -7,8 +7,8 @@ agent-daemon mcp-federation: 'media' registered 0 federated tool(s): (none)
 stderr | src/federation/__tests__/reload-empty-grants.test.ts > makes tools available after granting an already-on connection without restarting the assistant
 agent-daemon mcp-federation: 'media' refused remote tool 'list_media' — not-in-operator-allowlist
 
- ❯ src/federation/__tests__/reload-empty-grants.test.ts (2 tests | 1 failed) 17ms
-   × makes tools available after granting an already-on connection without restarting the assistant 15ms
+ ❯ src/federation/__tests__/reload-empty-grants.test.ts (2 tests | 1 failed) 14ms
+   × makes tools available after granting an already-on connection without restarting the assistant 12ms
      → an empty grant must not retain an unused session across re-admission: expected [ InMemoryMcpSession{ …(5) } ] to deeply equal []
 
 ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
@@ -53,6 +53,6 @@ AssertionError: an empty grant must not retain an unused session across re-admis
 
  Test Files  1 failed (1)
       Tests  1 failed | 1 passed (2)
-   Start at  21:08:49
-   Duration  952ms (transform 435ms, setup 0ms, collect 642ms, tests 17ms, environment 0ms, prepare 95ms)
+   Start at  21:16:03
+   Duration  823ms (transform 378ms, setup 0ms, collect 560ms, tests 14ms, environment 0ms, prepare 77ms)
 

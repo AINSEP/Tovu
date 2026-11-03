@@ -1,0 +1,58 @@
+✖ a watched tab's stream opens when its site first starts, against that server's port, workspace and partition (1.615424ms)
+✖ after Stop a late frame from the old server is dropped, and a restart streams from the new server (0.513482ms)
+✖ an open with no tab watching the site starts its server but opens no stream (0.245467ms)
+✖ reopening a site that is already open reuses its server and keeps its one stream (0.23946ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 0
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 141.630372
+
+✖ failing tests:
+
+test at src/main/boot/site-backend-theme-preview.test.ts:64:1
+✖ a watched tab's stream opens when its site first starts, against that server's port, workspace and partition (1.615424ms)
+  TypeError [Error]: Cannot read properties of undefined (reading 'TOVU_DESKTOP_USER_DATA_DIR')
+      at announceDesktopToolsToSite (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend.ts:173:42)
+      at adoptSpawnedServer (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend.ts:264:5)
+      at async startSiteBackend (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend.ts:300:18)
+      at async Object.openSiteServer (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend.ts:330:24)
+      at async TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend-theme-preview.test.ts:69:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+
+test at src/main/boot/site-backend-theme-preview.test.ts:78:1
+✖ after Stop a late frame from the old server is dropped, and a restart streams from the new server (0.513482ms)
+  TypeError [Error]: Cannot read properties of undefined (reading 'TOVU_DESKTOP_USER_DATA_DIR')
+      at announceDesktopToolsToSite (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend.ts:173:42)
+      at adoptSpawnedServer (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend.ts:264:5)
+      at async startSiteBackend (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend.ts:300:18)
+      at async Object.openSiteServer (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend.ts:330:24)
+      at async TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend-theme-preview.test.ts:82:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at src/main/boot/site-backend-theme-preview.test.ts:98:1
+✖ an open with no tab watching the site starts its server but opens no stream (0.245467ms)
+  TypeError [Error]: Cannot read properties of undefined (reading 'TOVU_DESKTOP_USER_DATA_DIR')
+      at announceDesktopToolsToSite (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend.ts:173:42)
+      at adoptSpawnedServer (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend.ts:264:5)
+      at async startSiteBackend (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend.ts:300:18)
+      at async Object.openSiteServer (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend.ts:330:24)
+      at async TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend-theme-preview.test.ts:100:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at src/main/boot/site-backend-theme-preview.test.ts:105:1
+✖ reopening a site that is already open reuses its server and keeps its one stream (0.23946ms)
+  TypeError [Error]: Cannot read properties of undefined (reading 'TOVU_DESKTOP_USER_DATA_DIR')
+      at announceDesktopToolsToSite (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend.ts:173:42)
+      at adoptSpawnedServer (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend.ts:264:5)
+      at async startSiteBackend (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend.ts:300:18)
+      at async Object.openSiteServer (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend.ts:330:24)
+      at async TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend-theme-preview.test.ts:108:17)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)

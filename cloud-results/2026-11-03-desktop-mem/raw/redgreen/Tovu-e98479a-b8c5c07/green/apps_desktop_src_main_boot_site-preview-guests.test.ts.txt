@@ -1,0 +1,12 @@
+✔ only ready public visits schedule thumbnails and a later visit can refresh (2.61044ms)
+✔ foreign shell wrong partition and loading guests cannot be captured (0.354366ms)
+✔ destroyed guests cancel pending captures without detaching another instance (0.398991ms)
+✔ a replacement guest invalidates an older capture of the same canonical site (0.464175ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 164.626839

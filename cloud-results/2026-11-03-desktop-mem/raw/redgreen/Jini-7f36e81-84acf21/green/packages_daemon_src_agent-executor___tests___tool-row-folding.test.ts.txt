@@ -1,10 +1,10 @@
 
  RUN  v2.1.9 /home/user/wt-Jini/packages/daemon
 
- ✓ src/agent-executor/__tests__/tool-row-folding.test.ts (4 tests) 16ms
+ ✓ src/agent-executor/__tests__/tool-row-folding.test.ts (4 tests) 11ms
 
  Test Files  1 passed (1)
       Tests  4 passed (4)
-   Start at  21:10:01
-   Duration  3.88s (transform 2.11s, setup 0ms, collect 3.62s, tests 16ms, environment 0ms, prepare 73ms)
+   Start at  21:17:01
+   Duration  3.33s (transform 1.79s, setup 0ms, collect 3.05s, tests 11ms, environment 0ms, prepare 88ms)
 

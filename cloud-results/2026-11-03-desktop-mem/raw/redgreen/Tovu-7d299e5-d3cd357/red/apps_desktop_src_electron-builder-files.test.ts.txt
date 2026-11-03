@@ -1,0 +1,40 @@
+✖ the packaged app exposes desktop HTTP and excludes the retired stdio child (16.185062ms)
+✔ the pre-fix files: list is REFUSED, so the check above cannot pass vacuously (4.794307ms)
+✔ the files: list still excludes test files it is meant to exclude (9.359379ms)
+✔ the packaged shell does NOT ship the Bun runtimes or the Rollup natives (3.750807ms)
+✔ those exclusions are narrow — the packages the shell actually loads still ship (1.619344ms)
+✔ the node_modules matcher is not the main matcher — proved on the same patterns (1.894423ms)
+✔ extraResources ships the bundled npm package staged at staging/npm (0.689934ms)
+✔ npm's own node_modules ships as a SEPARATE extraResources entry, not folded into staging/npm -> npm (0.709403ms)
+  • file source doesn't exist  from=/tmp/tovu-builder-fixture-zh0Bdn/staging/website-shared
+✔ production extraResources copies Electron notices, npm CLIs, dependencies and Tovu payload (37.956254ms)
+✔ production files includes every shell runtime entry point (13.579307ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 9
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 307.421759
+
+✖ failing tests:
+
+test at src/electron-builder-files.test.ts:101:1
+✖ the packaged app exposes desktop HTTP and excludes the retired stdio child (16.185062ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/electron-builder-files.test.ts:102:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

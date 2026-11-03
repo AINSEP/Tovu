@@ -1,0 +1,100 @@
+✖ a spawned site: boot token always emitted, toolchain env merged, then record and session in order (2.509205ms)
+✖ an unpinned start passes port undefined and a missing toolchain env still yields the Desktop marker (0.756617ms)
+✖ the capture bridge closes when the spawned child exits, not before (0.4608ms)
+✖ an owner sign-in capability arms the partition's session before the session is ensured (0.395537ms)
+✔ a site another app already runs is attached: no spawn, no registry row, no session work (1.277844ms)
+✔ a site opened after losing the spawn race still appears in Open Recent (0.374391ms)
+✔ a failed spawn with no winner to attach closes the bridge and rethrows the spawn error (2.149305ms)
+✔ authenticate: a child with no boot token logs and never redeems (0.549846ms)
+✔ authenticate: redeems this site's token on its own partition and admin URL (0.353474ms)
+✔ authenticate: a refused redeem logs its reason and reports false (0.412672ms)
+✔ authenticate: a rejecting redeem (non-loopback wiring bug) is loud on error and reports false (0.257395ms)
+✖ a start whose session is still valid never redeems a boot token (0.707184ms)
+✖ only freshly spawned servers receive the main's automatic capability recovery (0.329562ms)
+✔ openSiteServer: a site already open returns its server without any start (0.333534ms)
+✖ openSiteServer: a new site is published to openSites, then its previews are scheduled (0.254046ms)
+✔ openSiteServer: a failed start publishes nothing and schedules no preview (0.865825ms)
+✔ spawn receives runtime capability without registration or launcher (0.251353ms)
+✔ attached server retains its spawning instance (1.063476ms)
+✔ listener failure leaves site hosting available without falling back to a launcher (0.511376ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 12
+ℹ fail 7
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 161.484817
+
+✖ failing tests:
+
+test at src/main/boot/site-backend.test.ts:61:1
+✖ a spawned site: boot token always emitted, toolchain env merged, then record and session in order (2.509205ms)
+  TypeError [Error]: Cannot read properties of undefined (reading 'TOVU_DESKTOP_USER_DATA_DIR')
+      at announceDesktopToolsToSite (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend.ts:173:42)
+      at adoptSpawnedServer (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend.ts:264:5)
+      at async Object.startSiteBackend (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend.ts:300:18)
+      at async TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend.test.ts:63:18)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+
+test at src/main/boot/site-backend.test.ts:76:1
+✖ an unpinned start passes port undefined and a missing toolchain env still yields the Desktop marker (0.756617ms)
+  TypeError [Error]: Cannot read properties of undefined (reading 'TOVU_DESKTOP_USER_DATA_DIR')
+      at announceDesktopToolsToSite (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend.ts:173:42)
+      at adoptSpawnedServer (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend.ts:264:5)
+      at async Object.startSiteBackend (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend.ts:300:18)
+      at async TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend.test.ts:78:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at src/main/boot/site-backend.test.ts:84:1
+✖ the capture bridge closes when the spawned child exits, not before (0.4608ms)
+  TypeError [Error]: Cannot read properties of undefined (reading 'TOVU_DESKTOP_USER_DATA_DIR')
+      at announceDesktopToolsToSite (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend.ts:173:42)
+      at adoptSpawnedServer (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend.ts:264:5)
+      at async Object.startSiteBackend (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend.ts:300:18)
+      at async TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend.test.ts:86:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at src/main/boot/site-backend.test.ts:93:1
+✖ an owner sign-in capability arms the partition's session before the session is ensured (0.395537ms)
+  TypeError [Error]: Cannot read properties of undefined (reading 'TOVU_DESKTOP_USER_DATA_DIR')
+      at announceDesktopToolsToSite (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend.ts:173:42)
+      at adoptSpawnedServer (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend.ts:264:5)
+      at async Object.startSiteBackend (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend.ts:300:18)
+      at async TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend.test.ts:96:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at src/main/boot/site-backend.test.ts:158:1
+✖ a start whose session is still valid never redeems a boot token (0.707184ms)
+  TypeError [Error]: Cannot read properties of undefined (reading 'TOVU_DESKTOP_USER_DATA_DIR')
+      at announceDesktopToolsToSite (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend.ts:173:42)
+      at adoptSpawnedServer (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend.ts:264:5)
+      at async Object.startSiteBackend (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend.ts:300:18)
+      at async TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend.test.ts:160:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at src/main/boot/site-backend.test.ts:164:1
+✖ only freshly spawned servers receive the main's automatic capability recovery (0.329562ms)
+  TypeError [Error]: Cannot read properties of undefined (reading 'TOVU_DESKTOP_USER_DATA_DIR')
+      at announceDesktopToolsToSite (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend.ts:173:42)
+      at adoptSpawnedServer (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend.ts:264:5)
+      at async Object.startSiteBackend (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend.ts:300:18)
+      at async TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend.test.ts:167:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at src/main/boot/site-backend.test.ts:181:1
+✖ openSiteServer: a new site is published to openSites, then its previews are scheduled (0.254046ms)
+  TypeError [Error]: Cannot read properties of undefined (reading 'TOVU_DESKTOP_USER_DATA_DIR')
+      at announceDesktopToolsToSite (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend.ts:173:42)
+      at adoptSpawnedServer (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend.ts:264:5)
+      at async startSiteBackend (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend.ts:300:18)
+      at async Object.openSiteServer (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend.ts:330:24)
+      at async TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend.test.ts:183:18)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)

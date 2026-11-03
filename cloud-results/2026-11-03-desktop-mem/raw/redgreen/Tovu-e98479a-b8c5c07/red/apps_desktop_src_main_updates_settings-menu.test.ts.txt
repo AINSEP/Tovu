@@ -1,0 +1,113 @@
+✔ the preferences file lives in Electron's userData (1.529628ms)
+✖ Settings carries Automatic updates, checked from the persisted choice (2.928633ms)
+✔ the Automatic updates checkbox hands the new state to the updater (0.980063ms)
+✔ a failed update-preference save shows the localized error with the failure's text (0.683107ms)
+✖ with no product launch config the sharing checkboxes are absent (0.605617ms)
+✖ a booted product adds both sharing checkboxes, checked from the stored consent (0.905895ms)
+✔ a sharing checkbox persists, then tells the product the saved consent (0.527675ms)
+✔ a failed sharing save shows the sharing error and changes no consent (0.458221ms)
+✔ the default ports read and write the real preferences file (10.260186ms)
+✔ after the first-run dialog the installed sharing checkboxes follow the stored consent in place (0.74438ms)
+✔ with no installed menu the refresh does nothing (0.310089ms)
+✔ the refresh reads the real file by default: a missing file is OFF (0.441428ms)
+✔ own-server menu: macOS gets the app menu first; other platforms start at File (0.530828ms)
+✔ own-server menu carries the given Settings menu unchanged (0.210064ms)
+✔ File › Open Site… is Cmd/Ctrl+O and opens a new site (0.260777ms)
+✔ Open Recent lists each recent site and opens the one clicked (0.273212ms)
+✔ Open Recent with no recent sites shows one disabled placeholder (0.2808ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 14
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 276.383332
+
+✖ failing tests:
+
+test at src/main/updates/settings-menu.test.ts:51:1
+✖ Settings carries Automatic updates, checked from the persisted choice (2.928633ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+      [
+        'Automatically update Tovu',
+        true
+      ],
+  -   [
+  -     'Maximum live site views',
+  -     undefined
+  -   ]
+    ]
+  
+      at TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/main/updates/settings-menu.test.ts:56:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ [ 'Automatically update Tovu', true ] ],
+    expected: [ [ 'Automatically update Tovu', true ], [ 'Maximum live site views', undefined ] ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at src/main/updates/settings-menu.test.ts:82:1
+✖ with no product launch config the sharing checkboxes are absent (0.605617ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  1 !== 2
+  
+      at TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/main/updates/settings-menu.test.ts:83:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 2,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at src/main/updates/settings-menu.test.ts:86:1
+✖ a booted product adds both sharing checkboxes, checked from the stored consent (0.905895ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  ... Skipped lines
+  
+    [
+      [
+        'Send crash reports to Tovu',
+        true
+      ],
+  ...
+      ],
+  -   [
+  -     'Maximum live site views',
+  -     undefined
+  -   ]
+    ]
+  
+      at TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/main/updates/settings-menu.test.ts:88:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ [ 'Send crash reports to Tovu', true ], [ 'Send usage statistics to Tovu', false ] ],
+    expected: [ [ 'Send crash reports to Tovu', true ], [ 'Send usage statistics to Tovu', false ], [ 'Maximum live site views', undefined ] ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

@@ -2,11 +2,11 @@
 
  RUN  v2.1.9 /home/user/wt-Jini
 
- ✓ scripts/__tests__/check-agent-plugin-content.test.ts (20 tests) 606ms
-   ✓ agent plugin content imports > the checked-in agent plugin content passes 500ms
+ ✓ scripts/__tests__/check-agent-plugin-content.test.ts (20 tests) 627ms
+   ✓ agent plugin content imports > the checked-in agent plugin content passes 550ms
 
  Test Files  1 passed (1)
       Tests  20 passed (20)
-   Start at  21:10:44
-   Duration  1.74s (transform 162ms, setup 0ms, collect 631ms, tests 606ms, environment 0ms, prepare 83ms)
+   Start at  21:17:38
+   Duration  1.83s (transform 143ms, setup 0ms, collect 626ms, tests 627ms, environment 0ms, prepare 111ms)
 

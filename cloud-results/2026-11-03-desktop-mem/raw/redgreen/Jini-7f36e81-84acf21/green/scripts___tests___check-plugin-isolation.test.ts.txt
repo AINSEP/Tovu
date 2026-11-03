@@ -2,8 +2,8 @@
 
  RUN  v2.1.9 /home/user/wt-Jini
 
- ❯ scripts/__tests__/check-plugin-isolation.test.ts (83 tests | 1 failed) 45ms
-   × plugin package installation isolation > the legacy ui-ux-design package ships only its own payload; a subpath-only plugin has no package 10ms
+ ❯ scripts/__tests__/check-plugin-isolation.test.ts (83 tests | 1 failed) 58ms
+   × plugin package installation isolation > the legacy ui-ux-design package ships only its own payload; a subpath-only plugin has no package 13ms
      → expected [Function] to throw error including 'another plugin\'s payload' but got '@jini-ai/plugin-slide-design: unexpec…'
 
 ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
@@ -26,6 +26,6 @@ Received: "@jini-ai/plugin-slide-design: unexpected packed file slide-design/ski
 
  Test Files  1 failed (1)
       Tests  1 failed | 82 passed (83)
-   Start at  21:10:46
-   Duration  692ms (transform 96ms, setup 0ms, collect 146ms, tests 45ms, environment 0ms, prepare 73ms)
+   Start at  21:17:40
+   Duration  680ms (transform 113ms, setup 0ms, collect 145ms, tests 58ms, environment 0ms, prepare 75ms)
 

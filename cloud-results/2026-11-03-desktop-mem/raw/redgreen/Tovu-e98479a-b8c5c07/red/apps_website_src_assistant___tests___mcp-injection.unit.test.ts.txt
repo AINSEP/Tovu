@@ -1,0 +1,51 @@
+✔ under Electron, launches the bridge with the app binary and ELECTRON_RUN_AS_NODE=1 (3.649131ms)
+✔ treats an inherited ELECTRON_RUN_AS_NODE as Electron even without process.versions.electron (0.522618ms)
+✔ under plain Node, launches the bridge with node and adds no env (1.561651ms)
+✔ defaults to this process's own runtime (0.407786ms)
+✔ hands the bridge the per-run credential minted for that run, never the proxy's boot-wide token (0.483198ms)
+✖ HTTP preparation receives only run-scoped inputs (0.628248ms)
+✖ unavailable HTTP support preserves stdio delivery (0.472924ms)
+✖ stateless HTTP support is refused before minting a callback credential (0.661227ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 5
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1086.020049
+
+✖ failing tests:
+
+test at apps/website/src/assistant/__tests__/mcp-injection.unit.test.ts:1:2604
+✖ HTTP preparation receives only run-scoped inputs (0.628248ms)
+  TypeError [Error]: injection.prepareHttp is not a function
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/assistant/__tests__/mcp-injection.unit.test.ts:101:36)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at apps/website/src/assistant/__tests__/mcp-injection.unit.test.ts:1:3931
+✖ unavailable HTTP support preserves stdio delivery (0.472924ms)
+  TypeError [Error]: injection.prepareHttp is not a function
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/assistant/__tests__/mcp-injection.unit.test.ts:115:34)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at apps/website/src/assistant/__tests__/mcp-injection.unit.test.ts:1:4439
+✖ stateless HTTP support is refused before minting a callback credential (0.661227ms)
+  TypeError [Error]: injection.prepareHttp is not a function
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/assistant/__tests__/mcp-injection.unit.test.ts:130:34)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)

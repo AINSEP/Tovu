@@ -1,10 +1,10 @@
 
  RUN  v2.1.9 /home/user/wt-Jini/packages/daemon
 
- ✓ src/__tests__/image-prompt-delivery.test.ts (13 tests) 10ms
+ ✓ src/__tests__/image-prompt-delivery.test.ts (13 tests) 6ms
 
  Test Files  1 passed (1)
       Tests  13 passed (13)
-   Start at  21:12:26
-   Duration  445ms (transform 73ms, setup 0ms, collect 97ms, tests 10ms, environment 0ms, prepare 94ms)
+   Start at  21:19:06
+   Duration  342ms (transform 67ms, setup 0ms, collect 69ms, tests 6ms, environment 0ms, prepare 81ms)
 

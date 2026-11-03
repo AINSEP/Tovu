@@ -1,0 +1,30 @@
+✖ a warm source site reloads server edits through tsx watch and keeps one management host (54.211819ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2900.25695
+
+✖ failing tests:
+
+test at apps/website/src/server/runtime/lifecycle/__tests__/warm-site-watch.unit.test.ts:1:509
+✖ a warm source site reloads server edits through tsx watch and keeps one management host (54.211819ms)
+  AssertionError [ERR_ASSERTION]: server dependencies must be watched, not imported just once
+      at Object.spawn (/home/user/wt-Tovu/apps/website/src/server/runtime/lifecycle/__tests__/warm-site-watch.unit.test.ts:24:14)
+      at Object.spawnDaemonProcess (/home/user/Jini/packages/sidecar/src/supervisor-node.ts:132:19)
+      at Object.launch (/home/user/wt-Tovu/apps/website/src/server/runtime/lifecycle/local-site-process.ts:161:29)
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/server/runtime/lifecycle/__tests__/warm-site-watch.unit.test.ts:33:14)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

@@ -13,6 +13,6 @@ Error: Failed to load url ../tool-result-pages.js (resolved id: ../tool-result-p
 
  Test Files  1 failed (1)
       Tests  no tests
-   Start at  21:11:37
-   Duration  356ms (transform 59ms, setup 0ms, collect 0ms, tests 0ms, environment 0ms, prepare 83ms)
+   Start at  21:18:25
+   Duration  380ms (transform 65ms, setup 0ms, collect 0ms, tests 0ms, environment 0ms, prepare 83ms)
 

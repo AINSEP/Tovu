@@ -1,9 +1,9 @@
-✔ the higgsfield-media package ships its skill and both references, each cited (20.590096ms)
-✔ browser sign-in and operator read trust are declared without a token (10.896833ms)
-✔ the one connection card is browser sign-in with its task purposes (2.685231ms)
-✔ the skill still teaches the asynchronous job pipeline and forbids sync polling (1.621324ms)
-✔ the shipped text is host-neutral (3.547262ms)
-✔ polling and generation history remain available to read-only assistants after sign-in (1.573267ms)
+✔ the higgsfield-media package ships its skill and both references, each cited (13.025352ms)
+✔ browser sign-in and operator read trust are declared without a token (5.637808ms)
+✔ the one connection card is browser sign-in with its task purposes (2.7255ms)
+✔ the skill still teaches the asynchronous job pipeline and forbids sync polling (1.662169ms)
+✔ the shipped text is host-neutral (3.455933ms)
+✔ polling and generation history remain available to read-only assistants after sign-in (0.832131ms)
 ℹ tests 6
 ℹ suites 0
 ℹ pass 6
@@ -11,4 +11,4 @@
 ℹ cancelled 0
 ℹ skipped 0
 ℹ todo 0
-ℹ duration_ms 123.0196
+ℹ duration_ms 95.507568

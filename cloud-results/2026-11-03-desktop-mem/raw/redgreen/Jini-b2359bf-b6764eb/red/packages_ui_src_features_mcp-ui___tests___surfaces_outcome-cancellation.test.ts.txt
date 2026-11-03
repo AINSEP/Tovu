@@ -1,12 +1,12 @@
 
  RUN  v2.1.9 /home/user/wt-Jini/packages/ui
 
- ❯ src/features/mcp-ui/__tests__/surfaces/outcome-cancellation.test.ts (3 tests | 3 failed) 99ms
-   × Skip releases a waiting sign-in card through its exchange without opening the sign-in link 62ms
+ ❯ src/features/mcp-ui/__tests__/surfaces/outcome-cancellation.test.ts (3 tests | 3 failed) 57ms
+   × Skip releases a waiting sign-in card through its exchange without opening the sign-in link 38ms
      → no button for action "cancel": expected null not to be null
    × exposes the pending Skip action to the chat host without exposing its exchange parameters 4ms
      → expected undefined to deeply equal { title: 'Connect Example', …(1) }
-   × a rejected Skip stays retryable and an expired sign-in card explains that it expired 33ms
+   × a rejected Skip stays retryable and an expired sign-in card explains that it expired 15ms
      → no button for action "cancel": expected null not to be null
 
 ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
@@ -75,6 +75,6 @@ AssertionError: no button for action "cancel": expected null not to be null
 
  Test Files  1 failed (1)
       Tests  3 failed (3)
-   Start at  21:12:04
-   Duration  1.64s (transform 377ms, setup 228ms, collect 449ms, tests 99ms, environment 455ms, prepare 89ms)
+   Start at  21:18:47
+   Duration  1.29s (transform 312ms, setup 162ms, collect 418ms, tests 57ms, environment 350ms, prepare 79ms)
 

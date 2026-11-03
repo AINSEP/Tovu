@@ -1,0 +1,7 @@
+PASS	apps/admin/src/hooks/__tests__/use-desktop-view-release.unit.test.tsx
+PASS	apps/desktop/src/main/boot/site-preview-guests.test.ts
+PASS	apps/desktop/src/main/boot/site-preview.test.ts
+PASS	apps/desktop/src/main/updates/settings-menu.test.ts
+PASS	apps/desktop/src/site-preview-scheduler.test.ts
+PASS	apps/desktop/src/site-view-preference.test.ts
+PASS	apps/website/src/assistant/__tests__/mcp-injection.unit.test.ts

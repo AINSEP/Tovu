@@ -13,6 +13,6 @@ Error: Failed to load url ../wait.js (resolved id: ../wait.js) in /home/user/wt-
 
  Test Files  1 failed (1)
       Tests  no tests
-   Start at  21:11:38
-   Duration  1.06s (transform 441ms, setup 0ms, collect 0ms, tests 0ms, environment 0ms, prepare 90ms)
+   Start at  21:18:26
+   Duration  861ms (transform 348ms, setup 0ms, collect 0ms, tests 0ms, environment 0ms, prepare 81ms)
 

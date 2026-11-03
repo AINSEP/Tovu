@@ -2,8 +2,8 @@
 
  RUN  v2.1.9 /home/user/wt-Jini
 
- ❯ scripts/__tests__/engine-neutrality-json.test.ts (1 test | 1 failed) 27ms
-   × engine neutrality rejects product identity in JSON plugin manifests 26ms
+ ❯ scripts/__tests__/engine-neutrality-json.test.ts (1 test | 1 failed) 25ms
+   × engine neutrality rejects product identity in JSON plugin manifests 24ms
      → expected [] to deeply equal [ …(2) ]
 
 ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
@@ -40,6 +40,6 @@ AssertionError: expected [] to deeply equal [ …(2) ]
 
  Test Files  1 failed (1)
       Tests  1 failed (1)
-   Start at  21:12:06
-   Duration  1.28s (transform 187ms, setup 0ms, collect 658ms, tests 27ms, environment 0ms, prepare 87ms)
+   Start at  21:18:49
+   Duration  1.00s (transform 113ms, setup 0ms, collect 497ms, tests 25ms, environment 0ms, prepare 96ms)
 

@@ -1,0 +1,11 @@
+✔ two live views default persists a menu choice without overwriting other preferences (17.155952ms)
+✔ the live view menu offers radio 1/2/3/5 and restores the last saved choice after failure (0.675866ms)
+✔ only the shell may read the live view preference and teardown removes the IPC handler (0.345845ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 184.933827

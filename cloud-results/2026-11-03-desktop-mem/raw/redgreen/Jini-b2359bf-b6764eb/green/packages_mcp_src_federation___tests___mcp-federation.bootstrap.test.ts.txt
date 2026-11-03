@@ -20,11 +20,11 @@ agent-daemon mcp-federation: 'namecom' failed, continuing without its tools — 
     at runFiles (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
     at startTests (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1271:3)
 
- ✓ src/federation/__tests__/mcp-federation.bootstrap.test.ts (6 tests) 468ms
-   ✓ defaultConnect hands the hosted transport callTimeoutMs as its per-request bound, matching the stdio arm — not connectTimeoutMs 449ms
+ ✓ src/federation/__tests__/mcp-federation.bootstrap.test.ts (6 tests) 345ms
+   ✓ defaultConnect hands the hosted transport callTimeoutMs as its per-request bound, matching the stdio arm — not connectTimeoutMs 327ms
 
  Test Files  1 passed (1)
       Tests  6 passed (6)
-   Start at  21:12:37
-   Duration  1.11s (transform 504ms, setup 0ms, collect 344ms, tests 468ms, environment 0ms, prepare 87ms)
+   Start at  21:19:14
+   Duration  866ms (transform 390ms, setup 0ms, collect 269ms, tests 345ms, environment 0ms, prepare 77ms)
 

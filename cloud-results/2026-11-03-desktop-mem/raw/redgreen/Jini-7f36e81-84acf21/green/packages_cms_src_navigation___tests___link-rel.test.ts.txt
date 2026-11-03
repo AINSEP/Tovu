@@ -1,10 +1,10 @@
 
  RUN  v2.1.9 /home/user/wt-Jini/packages/cms
 
- ✓ src/navigation/__tests__/link-rel.test.ts (7 tests) 4ms
+ ✓ src/navigation/__tests__/link-rel.test.ts (7 tests) 5ms
 
  Test Files  1 passed (1)
       Tests  7 passed (7)
-   Start at  21:09:45
-   Duration  973ms (transform 412ms, setup 0ms, collect 596ms, tests 4ms, environment 0ms, prepare 104ms)
+   Start at  21:16:48
+   Duration  751ms (transform 334ms, setup 0ms, collect 478ms, tests 5ms, environment 0ms, prepare 69ms)
 

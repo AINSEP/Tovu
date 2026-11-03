@@ -1,0 +1,33 @@
+
+ RUN  v4.1.11 /home/user/wt-Tovu/apps/admin
+
+ ❯ src/hooks/__tests__/use-desktop-view-release.unit.test.tsx (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/hooks/__tests__/use-desktop-view-release.unit.test.tsx [ src/hooks/__tests__/use-desktop-view-release.unit.test.tsx ]
+Error: Failed to resolve import "../use-desktop-view-release.hooks" from "src/hooks/__tests__/use-desktop-view-release.unit.test.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/wt-Tovu/apps/admin/src/hooks/__tests__/use-desktop-view-release.unit.test.tsx:3:38
+  1  |  import { renderHook } from "@testing-library/react";
+  2  |  import { describe, expect, it } from "vitest";
+  3  |  import { useDesktopViewRelease } from "../use-desktop-view-release.hooks";
+     |                                         ^
+  4  |  const release = () => window.dispatchEvent(new Event("jini:release-check", { cancelable: true }));
+  5  |  describe("admin release eligibility", () => {
+ ❯ TransformPluginContext._formatLog ../../../Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:29079:43
+ ❯ TransformPluginContext.error ../../../Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:29076:14
+ ❯ normalizeUrl ../../../Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:27199:18
+ ❯ ../../../Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:27257:32
+ ❯ TransformPluginContext.transform ../../../Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:27225:4
+ ❯ EnvironmentPluginContainer.transform ../../../Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:28877:14
+ ❯ loadAndTransform ../../../Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22746:26
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  21:18:13
+   Duration  1.21s (transform 235ms, setup 353ms, import 0ms, tests 0ms, environment 645ms)
+

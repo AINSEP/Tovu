@@ -1,0 +1,8 @@
+PASS	apps/admin/src/features/sites/__tests__/use-local-sites.unit.test.tsx
+PASS	apps/website/src/features/sites/__tests__/warm-switch.unit.test.ts
+PASS	apps/website/src/platform/site-dir/__tests__/unit/local-site-child.unit.test.ts
+PASS	apps/website/src/platform/site-dir/__tests__/unit/warm-sites.unit.test.ts
+PASS	apps/website/src/server/inbound/admin-http/routes/sites/__tests__/warm-site-control.unit.test.ts
+FAIL(1)	apps/website/src/server/runtime/lifecycle/__tests__/warm-site-retirement.unit.test.ts
+PASS	apps/website/src/server/runtime/lifecycle/__tests__/warm-site-watch.unit.test.ts
+PASS	development/scripts/__tests__/dev-lite.test.mjs

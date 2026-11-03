@@ -1,12 +1,12 @@
 
  RUN  v2.1.9 /home/user/wt-Jini/packages/mcp
 
- ❯ src/server/__tests__/delegated-local-tools.integration.test.ts (10 tests | 3 failed) 124ms
-   × prefixed direct and delegated tool names use the same published handler and validation 12ms
+ ❯ src/server/__tests__/delegated-local-tools.integration.test.ts (10 tests | 3 failed) 97ms
+   × prefixed direct and delegated tool names use the same published handler and validation 9ms
      → expected { Object (isError, content) } to deeply equal { content: [ { type: 'text', …(1) } ] }
    × an oversized tool result is read through the advertised local tool and either gateway without HTTP file access 4ms
      → expected 22818 to be less than 12000
-   × a generation poll can pause through either delegated gateway without shell sleep or a delegated HTTP call 3ms
+   × a generation poll can pause through either delegated gateway without shell sleep or a delegated HTTP call 5ms
      → expected [ 'start_run', 'get_run', …(10) ] to include 'wait_for'
 
 ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
@@ -64,6 +64,6 @@ AssertionError: expected [ 'start_run', 'get_run', …(10) ] to include 'wait_fo
 
  Test Files  1 failed (1)
       Tests  3 failed | 7 passed (10)
-   Start at  21:11:32
-   Duration  1.58s (transform 616ms, setup 0ms, collect 1.11s, tests 124ms, environment 0ms, prepare 89ms)
+   Start at  21:18:21
+   Duration  1.36s (transform 510ms, setup 0ms, collect 959ms, tests 97ms, environment 0ms, prepare 89ms)
 

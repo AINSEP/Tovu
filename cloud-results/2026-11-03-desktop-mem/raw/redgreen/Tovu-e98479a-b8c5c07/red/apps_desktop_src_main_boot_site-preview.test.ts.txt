@@ -1,0 +1,77 @@
+✖ capture uses the eligible live public guest and writes its resized image (1.945194ms)
+✔ admin redirect during capture preserves the old thumbnail (0.744367ms)
+✔ no eligible guest creates no window and does not capture (0.220208ms)
+✖ failed capture or storage preserves the prior thumbnail and permits retry (0.45791ms)
+✔ a hung live capture times out without writing or closing the guest (0.686428ms)
+✔ admin API auth errors query strings and foreign origins never reach capturePage (0.683464ms)
+✔ release navigation and scheduler cancellation invalidate in-flight captures (0.363907ms)
+✔ the target is this launch's own server first, without consulting any lease (0.388138ms)
+✔ a site another app runs is captured through its lease's port and scheme (0.171872ms)
+✔ no own server and no lease, or a lease still starting (port 0), means nothing to capture (0.23886ms)
+✖ list polling never schedules a thumbnail capture (0.459604ms)
+✔ the boot sweep hands every tracked site dir to the store's sweep (0.293224ms)
+✔ a failing read or sweep is reported, never thrown — hygiene must not fail a launch (0.458827ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 10
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 161.766475
+
+✖ failing tests:
+
+test at src/main/boot/site-preview.test.ts:52:1
+✖ capture uses the eligible live public guest and writes its resized image (1.945194ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  false !== true
+  
+      at TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-preview.test.ts:54:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at src/main/boot/site-preview.test.ts:73:1
+✖ failed capture or storage preserves the prior thumbnail and permits retry (0.45791ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-preview.test.ts:78:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at src/main/boot/site-preview.test.ts:150:1
+✖ list polling never schedules a thumbnail capture (0.459604ms)
+  AssertionError [ERR_ASSERTION]: only public visits schedule captures
+      at schedule (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-preview.test.ts:151:72)
+      at requestListedSitePreview (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-preview.ts:143:5)
+      at TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-preview.test.ts:152:3)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }

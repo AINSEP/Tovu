@@ -1,0 +1,29 @@
+
+ RUN  v4.1.11 /home/user/wt-Tovu/apps/admin
+
+ ❯ src/features/sites/__tests__/use-local-sites.unit.test.tsx (19 tests | 1 failed) 186ms
+     × Switch now navigates to the warm site's own server without polling for a restarted backend 29ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/features/sites/__tests__/use-local-sites.unit.test.tsx > local site card controller > Switch now navigates to the warm site's own server without polling for a restarted backend
+AssertionError: expected "vi.fn()" to be called once with arguments: [ 'http://localhost:3101/admin/' ]
+
+Number of calls: 0
+
+ ❯ src/features/sites/__tests__/use-local-sites.unit.test.tsx:48:18
+     46|     const { result, unmount } = renderHook(() => useLocalSites({ port,…
+     47|     await act(async () => { await result.current.run('alpha', 'switch'…
+     48|     expect(open).toHaveBeenCalledExactlyOnceWith('http://localhost:310…
+       |                  ^
+     49|     expect(polling.active.size).toBe(0);
+     50|     expect(result.current.error).toBeNull();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 18 passed (19)
+   Start at  21:16:09
+   Duration  7.77s (transform 5.30s, setup 463ms, import 6.23s, tests 186ms, environment 745ms)
+

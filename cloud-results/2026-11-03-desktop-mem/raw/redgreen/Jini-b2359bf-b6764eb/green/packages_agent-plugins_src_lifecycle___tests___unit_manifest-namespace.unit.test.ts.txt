@@ -5,6 +5,6 @@
 
  Test Files  1 passed (1)
       Tests  4 passed (4)
-   Start at  21:12:14
-   Duration  618ms (transform 201ms, setup 0ms, collect 248ms, tests 5ms, environment 0ms, prepare 139ms)
+   Start at  21:18:56
+   Duration  462ms (transform 145ms, setup 0ms, collect 201ms, tests 5ms, environment 0ms, prepare 70ms)
 

@@ -1,0 +1,16 @@
+✔ under Electron, launches the bridge with the app binary and ELECTRON_RUN_AS_NODE=1 (2.620708ms)
+✔ treats an inherited ELECTRON_RUN_AS_NODE as Electron even without process.versions.electron (0.665751ms)
+✔ under plain Node, launches the bridge with node and adds no env (0.791119ms)
+✔ defaults to this process's own runtime (0.707476ms)
+✔ hands the bridge the per-run credential minted for that run, never the proxy's boot-wide token (0.941577ms)
+✔ HTTP preparation receives only run-scoped inputs (1.403714ms)
+✔ unavailable HTTP support preserves stdio delivery (1.475518ms)
+✔ stateless HTTP support is refused before minting a callback credential (0.900302ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1113.994085

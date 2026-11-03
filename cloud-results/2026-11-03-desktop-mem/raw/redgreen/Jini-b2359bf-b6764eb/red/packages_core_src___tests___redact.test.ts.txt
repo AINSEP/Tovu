@@ -1,12 +1,12 @@
 
  RUN  v2.1.9 /home/user/wt-Jini/packages/core
 
- ❯ src/__tests__/redact.test.ts (111 tests | 4 failed) 95ms
-   × @jini-ai/core — redact — redactSecrets > keeps the next field's secret private after an empty credential hint: password 19ms
+ ❯ src/__tests__/redact.test.ts (111 tests | 4 failed) 67ms
+   × @jini-ai/core — redact — redactSecrets > keeps the next field's secret private after an empty credential hint: password 14ms
      → expected '{"hint": "password="[REDACTED:labeled…' not to contain 'secret123'
-   × @jini-ai/core — redact — redactSecrets > keeps the next field's secret private after an empty credential hint: client_secret 6ms
+   × @jini-ai/core — redact — redactSecrets > keeps the next field's secret private after an empty credential hint: client_secret 3ms
      → expected '{"hint": "password="[REDACTED:labeled…' not to contain 'secret123'
-   × @jini-ai/core — redact — redactSecrets > keeps the next field's secret private after an empty credential hint: token 1ms
+   × @jini-ai/core — redact — redactSecrets > keeps the next field's secret private after an empty credential hint: token 2ms
      → expected '{"hint": "password="[REDACTED:labeled…' not to contain 'secret123'
    × @jini-ai/core — redact — redactSecrets > keeps the next field's secret private after an empty credential hint: api key 1ms
      → expected '{"hint": "password="[REDACTED:labeled…' not to contain 'secret123'
@@ -34,6 +34,6 @@ Received: "{"hint": "password="[REDACTED:labeled_secret]"password": "secret123"}
 
  Test Files  1 failed (1)
       Tests  4 failed | 107 passed (111)
-   Start at  21:11:19
-   Duration  592ms (transform 181ms, setup 0ms, collect 189ms, tests 95ms, environment 0ms, prepare 89ms)
+   Start at  21:18:10
+   Duration  443ms (transform 99ms, setup 0ms, collect 103ms, tests 67ms, environment 0ms, prepare 85ms)
 

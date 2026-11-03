@@ -1,0 +1,12 @@
+✔ reopening a warm site makes the other idle site the next eviction candidate (3.40735ms)
+✔ opening a fourth warm site evicts the least recently opened idle site and keeps busy work alive (1.013875ms)
+✔ a source-watch host restart retains the URLs of evicted sites too (1.006322ms)
+✔ a full warm pool refuses admission when every child has active or unprovable work (0.931561ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1086.814953

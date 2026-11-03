@@ -20,11 +20,11 @@ agent-daemon mcp-federation: 'namecom' failed, continuing without its tools — 
     at runFiles (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
     at startTests (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1271:3)
 
- ❯ src/federation/__tests__/mcp-federation.bootstrap.test.ts (6 tests | 2 failed) 383ms
-   ✓ defaultConnect hands the hosted transport callTimeoutMs as its per-request bound, matching the stdio arm — not connectTimeoutMs 356ms
+ ❯ src/federation/__tests__/mcp-federation.bootstrap.test.ts (6 tests | 2 failed) 354ms
+   ✓ defaultConnect hands the hosted transport callTimeoutMs as its per-request bound, matching the stdio arm — not connectTimeoutMs 333ms
    × connection failure details keep credentials private after connect fails 5ms
      → caller-visible reason leaked operator
-   × connection failure details keep credentials private after listTools fails 2ms
+   × connection failure details keep credentials private after listTools fails 1ms
      → caller-visible reason leaked operator
 
 ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
@@ -51,6 +51,6 @@ AssertionError: caller-visible reason leaked operator
 
  Test Files  1 failed (1)
       Tests  2 failed | 4 passed (6)
-   Start at  21:11:30
-   Duration  1.10s (transform 504ms, setup 0ms, collect 354ms, tests 383ms, environment 0ms, prepare 106ms)
+   Start at  21:18:19
+   Duration  936ms (transform 410ms, setup 0ms, collect 303ms, tests 354ms, environment 0ms, prepare 73ms)
 

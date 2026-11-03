@@ -4,14 +4,14 @@
 stderr | src/charts-recharts/__tests__/provider.test.tsx > Recharts artifact through the neutral UI host and A2UI catalog > shows the data table for pie shares that cannot be drawn faithfully: -1
 Attempted to synchronously unmount a root while React was already rendering. React cannot finish unmounting the root until the current render has completed, which may lead to a race condition.
 
- ❯ src/charts-recharts/__tests__/provider.test.tsx (6 tests | 5 failed) 134ms
-   × Recharts artifact through the neutral UI host and A2UI catalog > preserves the bar-chart wire alias while drawing real SVG 21ms
+ ❯ src/charts-recharts/__tests__/provider.test.tsx (6 tests | 5 failed) 123ms
+   × Recharts artifact through the neutral UI host and A2UI catalog > preserves the bar-chart wire alias while drawing real SVG 13ms
      → expected [Function RegisteredChart] to be [Function RegisteredChart] // Object.is equality
    × Recharts artifact through the neutral UI host and A2UI catalog > preserves the line-chart wire alias while drawing real SVG 2ms
      → expected [Function RegisteredChart] to be [Function RegisteredChart] // Object.is equality
-   × Recharts artifact through the neutral UI host and A2UI catalog > preserves the pie-chart wire alias while drawing real SVG 3ms
+   × Recharts artifact through the neutral UI host and A2UI catalog > preserves the pie-chart wire alias while drawing real SVG 2ms
      → expected [Function RegisteredChart] to be [Function RegisteredChart] // Object.is equality
-   × Recharts artifact through the neutral UI host and A2UI catalog > shows the data table for pie shares that cannot be drawn faithfully: -1 84ms
+   × Recharts artifact through the neutral UI host and A2UI catalog > shows the data table for pie shares that cannot be drawn faithfully: -1 85ms
      → expected "spy" to not be called at all, but actually been called 1 times
 
 Received: 
@@ -25,7 +25,7 @@ Received:
 
 Number of calls: 1
 
-   × Recharts artifact through the neutral UI host and A2UI catalog > shows the data table for pie shares that cannot be drawn faithfully: 0 21ms
+   × Recharts artifact through the neutral UI host and A2UI catalog > shows the data table for pie shares that cannot be drawn faithfully: 0 17ms
      → expected "spy" to not be called at all, but actually been called 1 times
 
 Received: 
@@ -112,6 +112,6 @@ Number of calls: 1
 
  Test Files  1 failed (1)
       Tests  5 failed | 1 passed (6)
-   Start at  21:09:16
-   Duration  2.77s (transform 785ms, setup 0ms, collect 1.78s, tests 134ms, environment 531ms, prepare 95ms)
+   Start at  21:16:25
+   Duration  2.10s (transform 543ms, setup 0ms, collect 1.32s, tests 123ms, environment 372ms, prepare 84ms)
 

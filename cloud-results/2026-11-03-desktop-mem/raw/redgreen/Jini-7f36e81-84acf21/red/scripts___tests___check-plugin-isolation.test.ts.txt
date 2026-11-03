@@ -2,16 +2,16 @@
 
  RUN  v2.1.9 /home/user/wt-Jini
 
- ❯ scripts/__tests__/check-plugin-isolation.test.ts (83 tests | 21 failed) 106ms
-   × plugin package installation isolation > the legacy ui-ux-design package ships only its own payload; a subpath-only plugin has no package 25ms
+ ❯ scripts/__tests__/check-plugin-isolation.test.ts (83 tests | 21 failed) 48ms
+   × plugin package installation isolation > the legacy ui-ux-design package ships only its own payload; a subpath-only plugin has no package 10ms
      → expected [Function] to throw error including 'another plugin\'s payload' but got '@jini-ai/plugin-slide-design: unexpec…'
-   × distribution packages retain dependency isolation > @jini-ai/agent-plugins refuses a sibling in dependencies 2ms
+   × distribution packages retain dependency isolation > @jini-ai/agent-plugins refuses a sibling in dependencies 1ms
      → expected [Function] to throw an error
-   × distribution packages retain dependency isolation > @jini-ai/agent-plugins refuses a sibling in optionalDependencies 2ms
+   × distribution packages retain dependency isolation > @jini-ai/agent-plugins refuses a sibling in optionalDependencies 1ms
      → expected [Function] to throw an error
    × distribution packages retain dependency isolation > @jini-ai/agent-plugins refuses a sibling in peerDependencies 1ms
      → expected [Function] to throw an error
-   × distribution packages retain dependency isolation > @jini-ai/agent-plugins refuses a sibling in devDependencies 1ms
+   × distribution packages retain dependency isolation > @jini-ai/agent-plugins refuses a sibling in devDependencies 0ms
      → expected [Function] to throw an error
    × distribution packages retain dependency isolation > @jini-ai/agent-plugins refuses a sibling in bundledDependencies 1ms
      → expected [Function] to throw an error
@@ -23,27 +23,27 @@
      → expected [Function] to throw an error
    × distribution packages retain dependency isolation > @jini-ai/provider-plugins refuses a sibling in optionalDependencies 1ms
      → expected [Function] to throw an error
-   × distribution packages retain dependency isolation > @jini-ai/provider-plugins refuses a sibling in peerDependencies 3ms
+   × distribution packages retain dependency isolation > @jini-ai/provider-plugins refuses a sibling in peerDependencies 2ms
      → expected [Function] to throw an error
    × distribution packages retain dependency isolation > @jini-ai/provider-plugins refuses a sibling in devDependencies 1ms
      → expected [Function] to throw an error
-   × distribution packages retain dependency isolation > @jini-ai/provider-plugins refuses a sibling in bundledDependencies 1ms
+   × distribution packages retain dependency isolation > @jini-ai/provider-plugins refuses a sibling in bundledDependencies 0ms
      → expected [Function] to throw an error
-   × distribution packages retain dependency isolation > @jini-ai/provider-plugins refuses a sibling in bundleDependencies 2ms
+   × distribution packages retain dependency isolation > @jini-ai/provider-plugins refuses a sibling in bundleDependencies 1ms
      → expected [Function] to throw an error
-   × distribution packages retain dependency isolation > @jini-ai/provider-plugins refuses a local alias resolving to a sibling 2ms
+   × distribution packages retain dependency isolation > @jini-ai/provider-plugins refuses a local alias resolving to a sibling 0ms
      → expected [Function] to throw an error
    × refuses a library export hiding plugin content in conditional or normalized targets: {"import":"./vercel/plugin.json"} 1ms
      → expected [Function] to throw an error
-   × refuses a library export hiding plugin content in conditional or normalized targets: {"node":{"import":"./vercel/plugin.json","default":"./dist/index.js"}} 1ms
+   × refuses a library export hiding plugin content in conditional or normalized targets: {"node":{"import":"./vercel/plugin.json","default":"./dist/index.js"}} 0ms
      → expected [Function] to throw an error
-   × refuses a library export hiding plugin content in conditional or normalized targets: "./dist/index.js" 1ms
+   × refuses a library export hiding plugin content in conditional or normalized targets: "./dist/index.js" 0ms
      → expected [Function] to throw an error
    × refuses a library export hiding plugin content in conditional or normalized targets: "./dist/../vercel/plugin.json" 1ms
      → expected [Function] to throw an error
-   × refuses a library export hiding plugin content in conditional or normalized targets: "./%76ercel/plugin.json" 1ms
+   × refuses a library export hiding plugin content in conditional or normalized targets: "./%76ercel/plugin.json" 0ms
      → expected [Function] to throw an error
-   × refuses a library export hiding plugin content in conditional or normalized targets: "./vercel\\plugin.json" 1ms
+   × refuses a library export hiding plugin content in conditional or normalized targets: "./vercel\\plugin.json" 0ms
      → expected [Function] to throw an error
 
 ⎯⎯⎯⎯⎯⎯ Failed Tests 21 ⎯⎯⎯⎯⎯⎯⎯
@@ -140,6 +140,6 @@ undefined
 
  Test Files  1 failed (1)
       Tests  21 failed | 62 passed (83)
-   Start at  21:09:32
-   Duration  807ms (transform 96ms, setup 0ms, collect 114ms, tests 106ms, environment 0ms, prepare 81ms)
+   Start at  21:16:38
+   Duration  616ms (transform 99ms, setup 0ms, collect 127ms, tests 48ms, environment 0ms, prepare 75ms)
 

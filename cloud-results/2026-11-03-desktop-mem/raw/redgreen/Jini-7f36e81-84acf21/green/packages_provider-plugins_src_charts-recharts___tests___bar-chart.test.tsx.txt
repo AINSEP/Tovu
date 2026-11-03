@@ -1,10 +1,10 @@
 
  RUN  v2.1.9 /home/user/wt-Jini/packages/provider-plugins
 
- ✓ src/charts-recharts/__tests__/bar-chart.test.tsx (18 tests) 1337ms
+ ✓ src/charts-recharts/__tests__/bar-chart.test.tsx (18 tests) 976ms
 
  Test Files  1 passed (1)
       Tests  18 passed (18)
-   Start at  21:10:31
-   Duration  2.80s (transform 194ms, setup 0ms, collect 617ms, tests 1.34s, environment 483ms, prepare 105ms)
+   Start at  21:17:27
+   Duration  2.17s (transform 113ms, setup 0ms, collect 444ms, tests 976ms, environment 452ms, prepare 91ms)
 

@@ -1,10 +1,10 @@
 
  RUN  v2.1.9 /home/user/wt-Jini/packages/daemon
 
- ✓ src/__tests__/idle-monitor.test.ts (9 tests) 10ms
+ ✓ src/__tests__/idle-monitor.test.ts (9 tests) 7ms
 
  Test Files  1 passed (1)
       Tests  9 passed (9)
-   Start at  21:09:55
-   Duration  394ms (transform 86ms, setup 0ms, collect 79ms, tests 10ms, environment 0ms, prepare 96ms)
+   Start at  21:16:55
+   Duration  320ms (transform 60ms, setup 0ms, collect 60ms, tests 7ms, environment 0ms, prepare 76ms)
 

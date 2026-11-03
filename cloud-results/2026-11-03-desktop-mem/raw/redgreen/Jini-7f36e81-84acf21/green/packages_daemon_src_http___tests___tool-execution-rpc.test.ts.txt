@@ -1,10 +1,10 @@
 
  RUN  v2.1.9 /home/user/wt-Jini/packages/daemon
 
- ✓ src/http/__tests__/tool-execution-rpc.test.ts (38 tests) 938ms
+ ✓ src/http/__tests__/tool-execution-rpc.test.ts (38 tests) 738ms
 
  Test Files  1 passed (1)
       Tests  38 passed (38)
-   Start at  21:10:06
-   Duration  5.74s (transform 2.72s, setup 0ms, collect 4.41s, tests 938ms, environment 0ms, prepare 91ms)
+   Start at  21:17:05
+   Duration  4.29s (transform 1.93s, setup 0ms, collect 3.30s, tests 738ms, environment 0ms, prepare 71ms)
 

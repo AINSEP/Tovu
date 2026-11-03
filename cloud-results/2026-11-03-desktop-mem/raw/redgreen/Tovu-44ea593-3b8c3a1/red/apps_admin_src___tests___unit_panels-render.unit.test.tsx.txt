@@ -1,0 +1,33 @@
+
+ RUN  v4.1.11 /home/user/wt-Tovu/apps/admin
+
+ ❯ src/__tests__/unit/panels-render.unit.test.tsx (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/__tests__/unit/panels-render.unit.test.tsx [ src/__tests__/unit/panels-render.unit.test.tsx ]
+Error: Failed to resolve import "../../panel-pages" from "src/__tests__/unit/panels-render.unit.test.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/wt-Tovu/apps/admin/src/__tests__/unit/panels-render.unit.test.tsx:60:7
+  57 |    Library,
+  58 |    Skills
+  59 |  } from "../../panel-pages";
+     |          ^
+  60 |  import { Placeholder } from "../../components/Placeholder";
+  61 |  import { ModulePanel } from "../../integrations/jini-admin/ModulePanel";
+ ❯ TransformPluginContext._formatLog ../../../Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:29079:43
+ ❯ TransformPluginContext.error ../../../Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:29076:14
+ ❯ normalizeUrl ../../../Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:27199:18
+ ❯ ../../../Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:27257:32
+ ❯ TransformPluginContext.transform ../../../Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:27225:4
+ ❯ EnvironmentPluginContainer.transform ../../../Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:28877:14
+ ❯ loadAndTransform ../../../Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22746:26
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  21:16:53
+   Duration  1.26s (transform 276ms, setup 409ms, import 0ms, tests 0ms, environment 620ms)
+

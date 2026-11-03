@@ -1,10 +1,10 @@
 
  RUN  v2.1.9 /home/user/wt-Jini/packages/platform
 
- ❯ src/http/guarded/__tests__/own-origin.test.ts (6 tests | 3 failed) 19ms
-   × the configured site origin can read its own localhost page through a pinned peer 10ms
+ ❯ src/http/guarded/__tests__/own-origin.test.ts (6 tests | 3 failed) 24ms
+   × the configured site origin can read its own localhost page through a pinned peer 12ms
      → egress to 'localhost' (127.0.0.1) rejected: resolved address is loopback
-   × own-site redirects recheck every destination and refuse other private services 4ms
+   × own-site redirects recheck every destination and refuse other private services 3ms
      → http://localhost:43128/
 
 0 !== 1
@@ -68,6 +68,6 @@ EgressRefusedError: egress to '127.0.0.1' (127.0.0.1) rejected: resolved address
 
  Test Files  1 failed (1)
       Tests  3 failed | 3 passed (6)
-   Start at  21:11:42
-   Duration  507ms (transform 157ms, setup 0ms, collect 202ms, tests 19ms, environment 1ms, prepare 75ms)
+   Start at  21:18:30
+   Duration  454ms (transform 127ms, setup 0ms, collect 168ms, tests 24ms, environment 0ms, prepare 71ms)
 

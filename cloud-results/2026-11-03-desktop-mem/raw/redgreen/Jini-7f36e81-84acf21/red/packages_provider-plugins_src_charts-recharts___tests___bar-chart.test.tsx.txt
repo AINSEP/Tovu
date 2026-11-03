@@ -1,8 +1,8 @@
 
  RUN  v2.1.9 /home/user/wt-Jini/packages/provider-plugins
 
- ❯ src/charts-recharts/__tests__/bar-chart.test.tsx (18 tests | 1 failed) 1459ms
-   × recharts BarChart > x-axis label density > keeps the first and last category when the frame is narrower than two label slots 37ms
+ ❯ src/charts-recharts/__tests__/bar-chart.test.tsx (18 tests | 1 failed) 1152ms
+   × recharts BarChart > x-axis label density > keeps the first and last category when the frame is narrower than two label slots 46ms
      → expected [ 'Feb' ] to deeply equal [ 'Jan', 'Feb' ]
 
 ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
@@ -30,6 +30,6 @@ AssertionError: expected [ 'Feb' ] to deeply equal [ 'Jan', 'Feb' ]
 
  Test Files  1 failed (1)
       Tests  1 failed | 17 passed (18)
-   Start at  21:09:08
-   Duration  2.84s (transform 217ms, setup 0ms, collect 554ms, tests 1.46s, environment 484ms, prepare 112ms)
+   Start at  21:16:18
+   Duration  2.32s (transform 116ms, setup 0ms, collect 477ms, tests 1.15s, environment 402ms, prepare 91ms)
 

@@ -1,0 +1,217 @@
+✖ agent-daemon-server.ts builds routeDeps with createAgentDaemonCoreDeps (5.277974ms)
+✖ agent-daemon-server.ts never calls a RouteDeps factory directly, or starts plugin polling (2.510571ms)
+✔ agent-daemon-server.ts starts no outbox drain of its own (1.19318ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 1
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1029.457858
+
+✖ failing tests:
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.outbox-enqueue-only-wiring.unit.test.ts:1:332
+✖ agent-daemon-server.ts builds routeDeps with createAgentDaemonCoreDeps (5.277974ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /import\s*\{[^}]*\bcreateAgentDaemonCoreDeps\b[^}]*\}\s*from\s*["'][^"']*agent-daemon-core-deps(\.js)?["']/. Input:
+  
+  'import { createDaemonSiteTools } from "./agent-daemon-site-tools.js";\n' +
+    'import { registerAgentPluginEvents } from "./agent-plugin-preflight-events.js";\n' +
+    'import { ensureJsonAgentInstall } from "./ensure-json-agent-install.js";\n' +
+    'import { buildAssistantFilesystemNotices } from "./assistant-filesystem-notices.js";\n' +
+    'import { readLoginShellEnvironment } from "@jini-ai/platform/child-environment";\n' +
+    'import { resolveNativeToolPolicy } from "@jini-ai/agent-runtime/native-tool-policy";\n' +
+    'import { resolveFullCliAccess, resolveAssistantCliPermissions } from "#src/contracts/core/assistant-native-fallbacks";\n' +
+    'import { resolveHostSignals } from "#src/server/runtime/composition/host-signals";\n' +
+    'import { assistantCliPermissions } from "#src/assistant/runtime-settings";\n' +
+    'import { type AssistantCliPermissions } from "#src/contracts/headless/index";\n' +
+    'import { createToolGapCollector } from "@jini-ai/daemon/tool-audit";\n' +
+    'import { redactSecretShapes } from "@tovu/contracts/secret-redaction";\n' +
+    'import { AsyncLocalStorage } from "node:async_hooks";\n' +
+    'import { sniffContentType } from "#src/features/media/index";\n' +
+    'import { prepareByokMessageAttachments } from "./byok-message-attachments.js";\n' +
+    'import { createSupervisorRegistry } from "@jini-ai/sidecar/supervisor/node";\n' +
+    'import { ensureToolExecToken, registerDaemonAttachmentLookup } from "#src/assistant/daemon-access";\n' +
+    '/**\n' +
+    " * @file The standalone agent daemon — a separate OS process from Tovu's own server, per the\n" +
+    ' * architecture correction to ADR-049: Tovu does not spawn coding-agent CLIs itself.\n' +
+    ' *\n' +
+    " * ADR-070 amends ADR-049's former co-location constraint. The daemon's DelegatedToolBridge\n" +
+    " * still records tool_use/tool_result into this process's real lifecycle, wrapping a routed\n" +
+    ' * executor. Site handlers run exclusively in the server through /internal/tool-executions;\n' +
+    ' * in-memory site writes therefore reach the serving store too. Only frontend/page/chat tools\n' +
+    ' * execute here. The server also owns plugin consent, installed tools and external federation.\n' +
+    ' *\n' +
+    ' * Full retained-port composition is the separate C2 cut-over; until then this entry still opens\n' +
+    ' * the older site deps for sessions/settings/telemetry, without registering their site tools.\n' +
+    ' *\n' +
+    " * Principal propagation: this process has no browser session/cookie of its own. Tovu's proxy\n" +
+    " * layer stamps the authenticated principal's id into `contextRef` (`{prompt, principalId}`,\n" +
+    " * Tovu's own wire format) before forwarding a run-start request here; `onStarted` decodes it and\n" +
+    ' * records `runId -> principal` locally so `resolveDelegatedPrincipal` (called later, out of band,\n' +
+    " * by this run's own spawned `jini-mcp` subprocess) can answer without needing Tovu at all.\n" +
+    ' *\n' +
+    " * Authorization: the bearer gate below establishes that a caller is Tovu's proxy, not which admin\n" +
+    ' * the proxy speaks for — so on its own it lets any logged-in admin read, stream, or cancel any\n' +
+    " * other admin's run by id. `run-ownership.ts` closes that: the proxy asserts its verified principal\n" +
+    " * in a header on every forwarded request, and this process compares it against the run's recorded\n" +
+    ' * owner. Enforcement is here rather than in the proxy because this is the process that owns run\n' +
+    ' * state, so the ownership record and the run it protects live and die together.\n' +
+    ' *\n' +
+    ' * Authentication: the relay claim POST has its own live-run credential gate; all other routes use\n' +
+    " * `daemon-auth.ts`'s `requireAgentDaemonToken()`. Both gates run before their `express.json()`,\n" +
+    " * so an unauthenticated caller's body is never even parsed. It requires an exact\n" +
+    ' * `Authorization: Bearer <TOVU_AGENT_DAEMON_TOKEN>` match, has no loopback exemption (binding to\n' +
+    ' * `127.0.0.1` keeps remote hosts out but does nothing about other local processes, which is the\n' +
+    ' * actual threat for a daemon that can start real agent runs and write to `content.db`), and fails\n' +
+    ' * closed with 503 when the token env var is unset. The token is minted once per boot by\n' +
+    " * `src/index.ts`'s `main()` and inherited by this process through every `child_process.spawn`\n" +
+    ' * `daemon-supervisor.ts` makes (the first one and every automatic respawn alike, since all of them\n' +
+    " * spread `process.env`); `src/server/modules/assistant.ts`'s proxy is the only caller that holds\n" +
+    " * it. Deliberately NOT `@jini-ai/http-kit`'s `registerApiBearerAuthMiddleware` — see\n" +
+    " * `daemon-auth.ts`'s header for why its loopback short-circuit makes it a no-op here.\n" +
+    ' *\n' +
+    ' * `/api/delegated-tool-calls` also requires a bearer: the Claude/Codex `jini-mcp` subprocess\n' +
+    ' * receives its per-run `JINI_DAEMON_TOKEN` through `mcp-injection.ts` and forwards it on callbacks.\n' +
+    " * After JSON parsing, a second gate binds body.runId to that credential's run. BYOK executes\n" +
+    ' * in process and the proxy does not expose this route; no credential-less exemption is needed.\n' +
+    ' */\n' +
+    'import { isDaemonLifecycleLogQuiet } from "#src/server/runtime/lifecycle/daemon-lifecycle-log";\n' +
+    'import { randomUUID } from "node:crypto";\n' +
+    'import { existsSync } from "node:fs";\n' +
+    'import { readFile } from "node:fs/promises";\n' +
+    'import { homedir } from "node:os";\n' +
+    '\n' +
+    'import express from "express";\n' +
+    '\n' +
+    'import { createToolRegistry } from "@jini-ai/core";\n' +
+    'import type { Principal } from "@jini-ai/core";\n' +
+    "import type { RunAgentPayload } from '@jini-ai/protocol';\n" +
+    'import { traceRunLifecycle } from "./run-lifecycle-tracing.js";\n' +
+    'import { createRoutingToolExecutor, createAgentExecutor, createInMemoryEventLog, createRunLifecycle, prepareMessageAttachments, probeMcpBridge, type MessageAttachmentImage, type UserMessageDelivery } from "@jini-ai/daemon";\n' +
+    'import { formatBridgePreflightLogLine, formatRunEndLogLine, formatRunErrorLogLine } from "./run-log-lines.js";\n' +
+    'import { bridgePreflightEntry } from "./bridge-preflight-entry.js";\n' +
+    '// @jini-ai/agent-runtime owns this seam; @jini-ai/daemon accepts it as an option.\n' +
+    'import type { PromptAugmenter } from "@jini-ai/agent-runtime";\n' +
+    'import { createAgentSelectionResolver, createNativeAgentRuntime, ensureAgentCapabilities } from "@jini-ai/agent-runtime";\n' +
+    'import { createDaemonAuthMiddleware, createDiskAttachmentStore, stageAttachmentClaim, createFrontendControl, registerAgentRoutes, registerAttachmentRoutes, registerComponentCatalogRoutes, registerDelegatedToolRoutes, registerMessageRelayRoutes, registerRunRoutes, registerToolCatalogRoutes } from "@jini-ai/daemon/http";\n' +
+    'import { bearerTokenFromHeader } from "@jini-ai/http-kit";\n' +
+    'import type { AdapterContext } from "@jini-ai/http-kit";\n' +
+    'import type { AttachmentStore, DelegatedToolExecuteRequest, RunMessageRequest, RunStartHandler, StoredAttachment } from "@jini-ai/daemon/http";\n' +
+    '\n' +
+    '/** The `run`/`lifecycle` shape `RunStartHandler` receives — derived rather than imported directly\n' +
+    ' *  from `@jini-ai/daemon`/`@jini-ai/protocol` so this file adds no new package-import edge just to\n' +
+    ' *  name a type its one existing `RunStartHandler` import already carries structurally. */\n' +
+    'type OnStartedContext = Parameters<RunStartHandler>[0];\n' +
+    '\n' +
+    '/** The extra `AgentExecutor.run()` fields a claimed attachment batch contributes. */\n' +
+    'type AttachmentRunFields = { imagePaths?: readonly string[]; imageContents?: readonly MessageAttachmentImage[]; attachmentNotice?: string;\n' +
+    '  extraAllowedDirs?: readonly string[]; uploadRoot?: string };\n' +
+    '\n' +
+    "/** A run's session-binding decision: the agent it runs and the session fields handed to the CLI. */\n" +
+    'type RunSessionBinding = {\n' +
+    '  readonly agentId: string;\n' +
+    '  readonly sessionFields: { resumeSessionId?: string; newSessionId?: string };\n' +
+    '};\n' +
+    '\n' +
+    'import { assemblePromptWithPluginPrefix } from "./plugin-prompt-prefix.js";\n' +
+    'import { buildCapabilityManifestPrefix, resolveCapabilityManifestArm } from "./capability-manifest-prefix.js";\n' +
+    'import {\n' +
+    '  resolveAssistantDisallowedTools,\n' +
+    '  ASSISTANT_SETTING_SOURCES,\n' +
+    '  buildBaseSystemOverlay,\n' +
+    '  buildAssistantSubagentsOverlay,\n' +
+    '  resolveAssistantRunSettings,\n' +
+    '  resolveBashProhibitionEnabled,\n' +
+    '} from "./assistant-system-overlay.js";\n' +
+    'import { buildAssistantRuntimeGuidance, createAssistantChromeProbe, resolveAssistantRuntimeLaunch, type AssistantRuntimeGuidanceInput } from "./assistant-runtime-guidance.js";\n' +
+    'import { getCustomFsRoot } from "../../../features/fs-files/custom-root-store.js";\n' +
+    'import { createAgentDaemonRouteDeps, startPluginActivationPolling } from "../../runtime/composition/agent-daemon-deps.js";\n' +
+    'import { installProcessErrorReporting, installUnhandledRejectionGuard } from "../../runtime/boot/process-error-guards.js";\n' +
+    'import { attachServerLogFile, installServerLogCapture, serverLogFilePaths } from "../../../platform/server-logs/index.js";\n' +
+    "import { processBuildRelease, telemetryEnvironment } from '../../runtime/composition/build-release.js';\n" +
+    'import { siteDir } from "../../runtime/composition/deps.js";\n' +
+    'import { resolveAgentPermissionMode } from "#src/contracts/core/agent-permission-mode";\n' +
+    'import {\n' +
+    '  applyToolApprovalPolicy,\n' +
+    '  createAssistantAgentInventory,\n' +
+    '  agentCarriesOwnMemory,\n' +
+    '  extractSessionRefFromEndEvent,\n' +
+    '  resolveResumeSessionField,\n' +
+    '  shouldClearSessionOnFailedResume,\n' +
+    '  wouldForcedColdStartLoseConversationContext,\n' +
+    '  CONCURRENT_RUN_REFUSAL_MESSAGE,\n' +
+    '  createLiveRunTracker,\n' +
+    '  failRunBeforeStart,\n' +
+    '  STOPPING_RUN_WAIT_MS,\n' +
+    '  waitForStoppingRuns,\n' +
+    '  agentAcceptsHostMintedSessionId,\n' +
+    '  resolveHostMintedSessionId,\n' +
+    '  resolveNewSessionField,\n' +
+    '  createConversationStartLock,\n' +
+    '  readAssistantCliPermissions,\n' +
+    '  createCustomInstructionsCache,\n' +
+    '  DELEGATED_TOOL_CALLS_PATH,\n' +
+    '  requireAgentDaemonToken,\n' +
+    '  AGENT_DAEMON_EXIT_CODE,\n' +
+    '  FRONTEND_CONTROL_CAPABILITIES,\n' +
+    '  withReadOnlyFrontendCapabilities,\n' +
+    '  registerA2uiActionsRoute,\n' +
+    '  registerMcpUiToolCallsRoute,\n' +
+    '  resolveMcpJsonInjection,\n' +
+    '  createOwnedRunListHandler,\n' +
+    '  createRunOwnerRegistry,\n' +
+    '  requireRunOwnership,\n' +
+    '  RUN_PRINCIPAL_HEADER,\n' +
+    '  parseRunStartContextRef,\n' +
+    '  buildPageContextPromptBlock,\n' +
+    '  constrainPrincipalToReadOnlyTools,\n' +
+    '  withReadOnlyToolConstraint,\n' +
+    '  createAssistantToolExecutor,\n' +
+    '  createLostFrontendBindings,\n' +
+    '  withPageNavigateErrorRewrap,\n' +
+    '  delegatedToolErrorDisclosure,\n' +
+    '  createRunActiveContextStore,\n' +
+    '  registerRunActiveContextRoute,\n' +
+    '  createRunScopedCredentials,\n' +
+    '  type RunPageContext,\n' +
+    '} from "#src/assistant/agent-daemon-p'... 97766 more characters
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.outbox-enqueue-only-wiring.unit.test.ts:24:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'import { createDaemonSiteTools } from "./agent-daemon-site-tools.js";\nimport { registerAgentPluginEvents } from "./agent-plugin-preflight-events.js";\nimport { ensureJsonAgentInstall } from "./ensure-json-agent-install.js";\nimport { buildAssistantFilesystemNotices } from "./assistant-filesystem-notices.js";\nimport { readLoginShellEnvironment } from "@jini-ai/platform/child-environment";\nimport { resolveNativeToolPolicy } from "@jini-ai/agent-runtime/native-tool-policy";\nimport { resolveFullCliAccess, resolveAssistantCliPermissions } from "#src/contracts/core/assistant-native-fallbacks";\nimport { resolveHostSignals } from "#src/server/runtime/composition/host-signals";\nimport { assistantCliPermissions } from "#src/assistant/runtime-settings";\nimport { type AssistantCliPermissions } from "#src/contracts/headless/index";\nimport { createToolGapCollector } from "@jini-ai/daemon/tool-audit";\nimport { redactSecretShapes } from "@tovu/contracts/secret-redaction";\nimport { AsyncLocalStorage } from "node:async_hooks";\nimport { sniffContentType } from "#src/features/media/index";\nimport { prepareByokMessageAttachments } from "./byok-message-attachments.js";\nimport { createSupervisorRegistry } from "@jini-ai/sidecar/supervisor/node";\nimport { ensureToolExecToken, registerDaemonAttachmentLookup } from "#src/assistant/daemon-access";\n/**\n * @file The standalone agent daemon — a separate OS process from Tovu\'s own server, per the\n * architecture correction to ADR-049: Tovu does not spawn coding-agent CLIs itself.\n *\n * ADR-070 amends ADR-049\'s former co-location constraint. The daemon\'s DelegatedToolBridge\n * still records tool_use/tool_result into this process\'s real lifecycle, wrapping a routed\n * executor. Site handlers run exclusively in the server through /internal/tool-executions;\n * in-memory site writes therefore reach the serving store too. Only frontend/page/chat tools\n * execute here. The server also owns plugin consent, installed tools and external federation.\n *\n * Full retained-port composition is the separate C2 cut-over; until then this entry still opens\n * the older site deps for sessions/settings/telemetry, without registering their site tools.\n *\n * Principal propagation: this process has no browser session/cookie of its own. Tovu\'s proxy\n * layer stamps the authenticated principal\'s id into `contextRef` (`{prompt, principalId}`,\n * Tovu\'s own wire format) before forwarding a run-start request here; `onStarted` decodes it and\n * records `runId -> principal` locally so `resolveDelegatedPrincipal` (called later, out of band,\n * by this run\'s own spawned `jini-mcp` subprocess) can answer without needing Tovu at all.\n *\n * Authorization: the bearer gate below establishes that a caller is Tovu\'s proxy, not which admin\n * the proxy speaks for — so on its own it lets any logged-in admin read, stream, or cancel any\n * other admin\'s run by id. `run-ownership.ts` closes that: the proxy asserts its verified principal\n * in a header on every forwarded request, and this process compares it against the run\'s recorded\n * owner. Enforcement is here rather than in the proxy because this is the process that owns run\n * state, so the ownership record and the run it protects live and die together.\n *\n * Authentication: the relay claim POST has its own live-run credential gate; all other routes use\n * `daemon-auth.ts`\'s `requireAgentDaemonToken()`. Both gates run before their `express.json()`,\n * so an unauthenticated caller\'s body is never even parsed. It requires an exact\n * `Authorization: Bearer <TOVU_AGENT_DAEMON_TOKEN>` match, has no loopback exemption (binding to\n * `127.0.0.1` keeps remote hosts out but does nothing about other local processes, which is the\n * actual threat for a daemon that can start real agent runs and write to `content.db`), and fails\n * closed with 503 when the token env var is unset. The token is minted once per boot by\n * `src/index.ts`\'s `main()` and inherited by this process through every `child_process.spawn`\n * `daemon-supervisor.ts` makes (the first one and every automatic respawn alike, since all of them\n * spread `process.env`); `src/server/modules/assistant.ts`\'s proxy is the only caller that holds\n * it. Deliberately NOT `@jini-ai/http-kit`\'s `registerApiBearerAuthMiddleware` — see\n * `daemon-auth.ts`\'s header for why its loopback short-circuit makes it a no-op here.\n *\n * `/api/delegated-tool-calls` also requires a bearer: the Claude/Codex `jini-mcp` subprocess\n * receives its per-run `JINI_DAEMON_TOKEN` through `mcp-injection.ts` and forwards it on callbacks.\n * After JSON parsing, a second gate binds body.runId to that credential\'s run. BYOK executes\n * in process and the proxy does not expose this route; no credential-less exemption is needed.\n */\nimport { isDaemonLifecycleLogQuiet } from "#src/server/runtime/lifecycle/daemon-lifecycle-log";\nimport { randomUUID } from "node:crypto";\nimport { existsSync } from "node:fs";\nimport { readFile } from "node:fs/promises";\nimport { homedir } from "node:os";\n\nimport express from "express";\n\nimport { createToolRegistry } from "@jini-ai/core";\nimport type { Principal } from "@jini-ai/core";\nimport type { RunAgentPayload } from \'@jini-ai/protocol\';\nimport { traceRunLifecycle } from "./run-lifecycle-tracing.js";\nimport { createRoutingToolExecutor, createAgentExecutor, createInMemoryEventLog, createRunLifecycle, prepareMessageAttachments, probeMcpBridge, type MessageAttachmentImage, type UserMessageDelivery } from "@jini-ai/daemon";\nimport { formatBridgePreflightLogLine, formatRunEndLogLine, formatRunErrorLogLine } from "./run-log-lines.js";\nimport { bridgePreflightEntry } from "./bridge-preflight-entry.js";\n// @jini-ai/agent-runtime owns this seam; @jini-ai/daemon accepts it as an option.\nimport type { PromptAugmenter } from "@jini-ai/agent-runtime";\nimport { createAgentSelectionResolver, createNativeAgentRuntime, ensureAgentCapabilities } from "@jini-ai/agent-runtime";\nimport { createDaemonAuthMiddleware, createDiskAttachmentStore, stageAttachmentClaim, createFrontendControl, registerAgentRoutes, registerAttachmentRoutes, registerComponentCatalogRoutes, registerDelegatedToolRoutes, registerMessageRelayRoutes, registerRunRoutes, registerToolCatalogRoutes } from "@jini-ai/daemon/http";\nimport { bearerTokenFromHeader } from "@jini-ai/http-kit";\nimport type { AdapterContext } from "@jini-ai/http-kit";\nimport type { AttachmentStore, DelegatedToolExecuteRequest, RunMessageRequest, RunStartHandler, StoredAttachment } from "@jini-ai/daemon/http";\n\n/** The `run`/`lifecycle` shape `RunStartHandler` receives — derived rather than imported directly\n *  from `@jini-ai/daemon`/`@jini-ai/protocol` so this file adds no new package-import edge just to\n *  name a type its one existing `RunStartHandler` import already carries structurally. */\ntype OnStartedContext = Parameters<RunStartHandler>[0];\n\n/** The extra `AgentExecutor.run()` fields a claimed attachment batch contributes. */\ntype AttachmentRunFields = { imagePaths?: readonly string[]; imageContents?: readonly MessageAttachmentImage[]; attachmentNotice?: string;\n  extraAllowedDirs?: readonly string[]; uploadRoot?: string };\n\n/** A run\'s session-binding decision: the agent it runs and the session fields handed to the CLI. */\ntype RunSessionBinding = {\n  readonly agentId: string;\n  readonly sessionFields: { resumeSessionId?: string; newSessionId?: string };\n};\n\nimport { assemblePromptWithPluginPrefix } from "./plugin-prompt-prefix.js";\nimport { buildCapabilityManifestPrefix, resolveCapabilityManifestArm } from "./capability-manifest-prefix.js";\nimport {\n  resolveAssistantDisallowedTools,\n  ASSISTANT_SETTING_SOURCES,\n  buildBaseSystemOverlay,\n  buildAssistantSubagentsOverlay,\n  resolveAssistantRunSettings,\n  resolveBashProhibitionEnabled,\n} from "./assistant-system-overlay.js";\nimport { buildAssistantRuntimeGuidance, createAssistantChromeProbe, resolveAssistantRuntimeLaunch, type AssistantRuntimeGuidanceInput } from "./assistant-runtime-guidance.js";\nimport { getCustomFsRoot } from "../../../features/fs-files/custom-root-store.js";\nimport { createAgentDaemonRouteDeps, startPluginActivationPolling } from "../../runtime/composition/agent-daemon-deps.js";\nimport { installProcessErrorReporting, installUnhandledRejectionGuard } from "../../runtime/boot/process-error-guards.js";\nimport { attachServerLogFile, installServerLogCapture, serverLogFilePaths } from "../../../platform/server-logs/index.js";\nimport { processBuildRelease, telemetryEnvironment } from \'../../runtime/composition/build-release.js\';\nimport { siteDir } from "../../runtime/composition/deps.js";\nimport { resolveAgentPermissionMode } from "#src/contracts/core/agent-permission-mode";\nimport {\n  applyToolApprovalPolicy,\n  createAssistantAgentInventory,\n  agentCarriesOwnMemory,\n  extractSessionRefFromEndEvent,\n  resolveResumeSessionField,\n  shouldClearSessionOnFailedResume,\n  wouldForcedColdStartLoseConversationContext,\n  CONCURRENT_RUN_REFUSAL_MESSAGE,\n  createLiveRunTracker,\n  failRunBeforeStart,\n  STOPPING_RUN_WAIT_MS,\n  waitForStoppingRuns,\n  agentAcceptsHostMintedSessionId,\n  resolveHostMintedSessionId,\n  resolveNewSessionField,\n  createConversationStartLock,\n  readAssistantCliPermissions,\n  createCustomInstructionsCache,\n  DELEGATED_TOOL_CALLS_PATH,\n  requireAgentDaemonToken,\n  AGENT_DAEMON_EXIT_CODE,\n  FRONTEND_CONTROL_CAPABILITIES,\n  withReadOnlyFrontendCapabilities,\n  registerA2uiActionsRoute,\n  registerMcpUiToolCallsRoute,\n  resolveMcpJsonInjection,\n  createOwnedRunListHandler,\n  createRunOwnerRegistry,\n  requireRunOwnership,\n  RUN_PRINCIPAL_HEADER,\n  parseRunStartContextRef,\n  buildPageContextPromptBlock,\n  constrainPrincipalToReadOnlyTools,\n  withReadOnlyToolConstraint,\n  createAssistantToolExecutor,\n  createLostFrontendBindings,\n  withPageNavigateErrorRewrap,\n  delegatedToolErrorDisclosure,\n  createRunActiveContextStore,\n  registerRunActiveContextRoute,\n  createRunScopedCredentials,\n  type RunPageContext,\n} from "#src/assistant/agent-daemon-p'... 97766 more characters,
+    expected: /import\s*\{[^}]*\bcreateAgentDaemonCoreDeps\b[^}]*\}\s*from\s*["'][^"']*agent-daemon-core-deps(\.js)?["']/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.outbox-enqueue-only-wiring.unit.test.ts:1:747
+✖ agent-daemon-server.ts never calls a RouteDeps factory directly, or starts plugin polling (2.510571ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + [
+  +   'const pluginPolling = startPluginActivationPolling(routeDeps);'
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.outbox-enqueue-only-wiring.unit.test.ts:36:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'const pluginPolling = startPluginActivationPolling(routeDeps);' ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

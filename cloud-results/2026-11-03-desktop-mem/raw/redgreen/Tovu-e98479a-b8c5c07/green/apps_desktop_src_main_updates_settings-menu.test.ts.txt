@@ -1,0 +1,25 @@
+✔ the preferences file lives in Electron's userData (1.871594ms)
+✔ Settings carries Automatic updates, checked from the persisted choice (2.898555ms)
+✔ the Automatic updates checkbox hands the new state to the updater (0.878185ms)
+✔ a failed update-preference save shows the localized error with the failure's text (1.048678ms)
+✔ with no product launch config the sharing checkboxes are absent (0.327828ms)
+✔ a booted product adds both sharing checkboxes, checked from the stored consent (0.305931ms)
+✔ a sharing checkbox persists, then tells the product the saved consent (0.456394ms)
+✔ a failed sharing save shows the sharing error and changes no consent (0.552206ms)
+✔ the default ports read and write the real preferences file (14.533343ms)
+✔ after the first-run dialog the installed sharing checkboxes follow the stored consent in place (1.740801ms)
+✔ with no installed menu the refresh does nothing (0.46739ms)
+✔ the refresh reads the real file by default: a missing file is OFF (1.653317ms)
+✔ own-server menu: macOS gets the app menu first; other platforms start at File (0.506ms)
+✔ own-server menu carries the given Settings menu unchanged (0.100586ms)
+✔ File › Open Site… is Cmd/Ctrl+O and opens a new site (0.674216ms)
+✔ Open Recent lists each recent site and opens the one clicked (0.221197ms)
+✔ Open Recent with no recent sites shows one disabled placeholder (0.231982ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 336.646395

@@ -1,12 +1,12 @@
 
  RUN  v2.1.9 /home/user/wt-Jini/packages/platform
 
- ❯ src/fs/__tests__/directory-running-lock-stale-address.test.ts (4 tests | 3 failed) 11ms
-   × a dead site's invalid address is recovered automatically before attaching or starting 7ms
+ ❯ src/fs/__tests__/directory-running-lock-stale-address.test.ts (4 tests | 3 failed) 10ms
+   × a dead site's invalid address is recovered automatically before attaching or starting 6ms
      → The running lock is invalid; refusing to open this directory's database.
    × claim recovers a stale invalid address even when no observer read it first 1ms
      → The running lock is invalid; refusing to open this directory's database.
-   × a stale invalid address from an earlier boot cannot strand a recycled live PID 1ms
+   × a stale invalid address from an earlier boot cannot strand a recycled live PID 0ms
      → The running lock is invalid; refusing to open this directory's database.
 
 ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
@@ -62,6 +62,6 @@ Error: The running lock is invalid; refusing to open this directory's database.
 
  Test Files  1 failed (1)
       Tests  3 failed | 1 passed (4)
-   Start at  21:08:59
-   Duration  841ms (transform 179ms, setup 0ms, collect 211ms, tests 11ms, environment 1ms, prepare 109ms)
+   Start at  21:16:12
+   Duration  395ms (transform 80ms, setup 0ms, collect 105ms, tests 10ms, environment 0ms, prepare 82ms)
 

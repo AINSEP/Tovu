@@ -1,8 +1,8 @@
 
  RUN  v2.1.9 /home/user/wt-Jini/packages/platform
 
- ❯ src/fs/__tests__/directory-running-lock.characterization.test.ts (64 tests | 8 failed) 34ms
-   × stored string port fails closed without mutation while its owner may be alive 13ms
+ ❯ src/fs/__tests__/directory-running-lock.characterization.test.ts (64 tests | 8 failed) 26ms
+   × stored string port fails closed without mutation while its owner may be alive 8ms
      → expected [] to deeply equal [ 'probe' ]
    × stored negative port fails closed without mutation while its owner may be alive 1ms
      → expected [] to deeply equal [ 'probe' ]
@@ -51,6 +51,6 @@ AssertionError: expected [] to deeply equal [ 'probe' ]
 
  Test Files  1 failed (1)
       Tests  8 failed | 56 passed (64)
-   Start at  21:09:01
-   Duration  517ms (transform 125ms, setup 0ms, collect 165ms, tests 34ms, environment 0ms, prepare 93ms)
+   Start at  21:16:13
+   Duration  363ms (transform 69ms, setup 0ms, collect 78ms, tests 26ms, environment 0ms, prepare 79ms)
 

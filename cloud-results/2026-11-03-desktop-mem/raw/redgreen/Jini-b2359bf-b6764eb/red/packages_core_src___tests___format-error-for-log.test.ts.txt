@@ -1,12 +1,12 @@
 
  RUN  v2.1.9 /home/user/wt-Jini/packages/core
 
- ❯ src/__tests__/format-error-for-log.test.ts (12 tests | 3 failed) 29ms
-   × nested diagnostic credential privacy > keeps password in nested cause messages and stacks private before JSON escaping 12ms
+ ❯ src/__tests__/format-error-for-log.test.ts (12 tests | 3 failed) 22ms
+   × nested diagnostic credential privacy > keeps password in nested cause messages and stacks private before JSON escaping 9ms
      → expected 'Error: provider unavailable\n    at /…' not to contain 'secret123'
-   × nested diagnostic credential privacy > keeps x-api-key in nested cause messages and stacks private before JSON escaping 5ms
+   × nested diagnostic credential privacy > keeps x-api-key in nested cause messages and stacks private before JSON escaping 2ms
      → expected 'Error: provider unavailable\n    at /…' not to contain 'secret123'
-   × nested diagnostic credential privacy > keeps credentials private in nested non-Error diagnostic strings and honors caller rules 2ms
+   × nested diagnostic credential privacy > keeps credentials private in nested non-Error diagnostic strings and honors caller rules 3ms
      → expected '{"details":[{"message":"{\"password\"…' not to contain 'secret123'
 
 ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
@@ -60,6 +60,6 @@ Received: "{"details":[{"message":"{\"password\": \"secret123\", \"x-api-key\": 
 
  Test Files  1 failed (1)
       Tests  3 failed | 9 passed (12)
-   Start at  21:11:17
-   Duration  1.11s (transform 591ms, setup 0ms, collect 757ms, tests 29ms, environment 0ms, prepare 97ms)
+   Start at  21:18:08
+   Duration  795ms (transform 357ms, setup 0ms, collect 499ms, tests 22ms, environment 0ms, prepare 92ms)
 

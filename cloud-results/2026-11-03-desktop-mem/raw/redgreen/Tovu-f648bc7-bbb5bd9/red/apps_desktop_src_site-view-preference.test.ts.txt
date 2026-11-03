@@ -1,0 +1,25 @@
+file:///home/user/wt-Tovu/apps/desktop/src/site-view-preference.test.ts:7
+import { LIVE_SITE_VIEWS, SITE_VIEW_PREFERENCE_CHANNELS, clampLiveSiteViews } from './contracts/site-view-preference.ts';
+         ^^^^^^^^^^^^^^^
+SyntaxError: The requested module './contracts/site-view-preference.ts' does not provide an export named 'LIVE_SITE_VIEWS'
+    at #asyncInstantiate (node:internal/modules/esm/module_job:455:21)
+    at async ModuleJob.run (node:internal/modules/esm/module_job:553:5)
+    at async node:internal/modules/esm/loader:647:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v24.22.2
+✖ src/site-view-preference.test.ts (121.158841ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 129.778658
+
+✖ failing tests:
+
+test at src/site-view-preference.test.ts:1:1
+✖ src/site-view-preference.test.ts (121.158841ms)
+  'test failed'

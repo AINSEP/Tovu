@@ -1,21 +1,21 @@
 
  RUN  v2.1.9 /home/user/wt-Jini/packages/sidecar
 
- ❯ src/__tests__/supervisor.test.ts (32 tests | 7 failed) 5050ms
-   × park exit records parked without respawn or failure 12ms
+ ❯ src/__tests__/supervisor.test.ts (32 tests | 7 failed) 5024ms
+   × park exit records parked without respawn or failure 7ms
      → h.supervisor.getState is not a function
-   × ensureStarted wakes parked immediately inside the crash cooldown 4ms
+   × ensureStarted wakes parked immediately inside the crash cooldown 2ms
      → h.supervisor.getState is not a function
-   × concurrent wake requests spawn once 7ms
+   × concurrent wake requests spawn once 3ms
      → Expected values to be strictly equal:
 
 1 !== 2
 
    × crash after wake still follows the existing retry policy 1ms
      → Cannot read properties of undefined (reading 'emitter')
-   × shutdown racing park cannot resurrect a child 4ms
+   × shutdown racing park cannot resurrect a child 1ms
      → h.supervisor.getState is not a function
-   × park cancels readiness polling until fresh demand 5011ms
+   × park cancels readiness polling until fresh demand 5001ms
      → Test timed out in 5000ms.
 If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
    × a fresh wake owns readiness even when parked discovery completes late 2ms
@@ -136,6 +136,6 @@ The latest test that might've caused the error is "src/__tests__/supervisor.test
  Test Files  1 failed (1)
       Tests  7 failed | 25 passed (32)
      Errors  1 error
-   Start at  21:09:20
-   Duration  5.63s (transform 195ms, setup 0ms, collect 209ms, tests 5.05s, environment 0ms, prepare 84ms)
+   Start at  21:16:28
+   Duration  5.39s (transform 106ms, setup 0ms, collect 114ms, tests 5.02s, environment 0ms, prepare 71ms)
 

@@ -1,0 +1,2 @@
+PASS	apps/admin/src/__tests__/unit/admin-route-lazy-loading.unit.test.tsx
+PASS	apps/admin/src/__tests__/unit/panels-render.unit.test.tsx

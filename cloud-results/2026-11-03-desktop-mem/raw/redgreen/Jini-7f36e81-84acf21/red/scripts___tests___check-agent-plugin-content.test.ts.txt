@@ -2,9 +2,9 @@
 
  RUN  v2.1.9 /home/user/wt-Jini
 
- ❯ scripts/__tests__/check-agent-plugin-content.test.ts (20 tests | 1 failed) 766ms
-   ✓ agent plugin content imports > the checked-in agent plugin content passes 556ms
-   × accepts a plugin’s own relative imports with relative or trailing-slash roots 17ms
+ ❯ scripts/__tests__/check-agent-plugin-content.test.ts (20 tests | 1 failed) 579ms
+   ✓ agent plugin content imports > the checked-in agent plugin content passes 408ms
+   × accepts a plugin’s own relative imports with relative or trailing-slash roots 12ms
      → expected 'imports a path outside its own plugin…' to be undefined
 
 ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
@@ -30,6 +30,6 @@ undefined
 
  Test Files  1 failed (1)
       Tests  1 failed | 19 passed (20)
-   Start at  21:09:29
-   Duration  1.98s (transform 157ms, setup 0ms, collect 605ms, tests 766ms, environment 0ms, prepare 95ms)
+   Start at  21:16:36
+   Duration  1.57s (transform 92ms, setup 0ms, collect 543ms, tests 579ms, environment 0ms, prepare 69ms)
 

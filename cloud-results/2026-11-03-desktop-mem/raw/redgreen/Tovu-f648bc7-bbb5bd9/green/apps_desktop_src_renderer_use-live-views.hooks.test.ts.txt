@@ -1,0 +1,17 @@
+✔ the live limit is a positive whole number, and anything else is the default of 1 (1.00438ms)
+✔ the focused tab leads the live order, closed tabs drop out, the rest keep their recency (0.957697ms)
+✔ nothing is released at or under the limit; over it, hidden tabs are offered least recently focused first (0.255702ms)
+✔ only an explicit yes releases, and only a web url is kept as the route to restore (0.515172ms)
+✔ a tab with no guest is released at once; a guest that throws, rejects or never answers is kept (1.261777ms)
+✔ the probe is the release script, and its yes comes back with the route (0.293541ms)
+✔ releasing stops once enough agreed, and a veto moves on to the next candidate (0.465264ms)
+✔ the scroll script carries only numbers (0.309105ms)
+✔ a restored guest gets its scroll back on its first finished load only, and a teardown detaches it (0.497012ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 217.352377

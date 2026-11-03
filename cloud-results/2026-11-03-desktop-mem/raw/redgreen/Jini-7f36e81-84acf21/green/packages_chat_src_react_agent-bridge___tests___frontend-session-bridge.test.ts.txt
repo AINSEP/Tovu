@@ -1,10 +1,10 @@
 
  RUN  v2.1.9 /home/user/wt-Jini/packages/chat
 
- ✓ src/react/agent-bridge/__tests__/frontend-session-bridge.test.ts (55 tests) 158ms
+ ✓ src/react/agent-bridge/__tests__/frontend-session-bridge.test.ts (55 tests) 163ms
 
  Test Files  1 passed (1)
       Tests  55 passed (55)
-   Start at  21:09:41
-   Duration  3.10s (transform 1.07s, setup 172ms, collect 1.77s, tests 158ms, environment 692ms, prepare 85ms)
+   Start at  21:16:45
+   Duration  2.20s (transform 911ms, setup 156ms, collect 1.26s, tests 163ms, environment 345ms, prepare 76ms)
 

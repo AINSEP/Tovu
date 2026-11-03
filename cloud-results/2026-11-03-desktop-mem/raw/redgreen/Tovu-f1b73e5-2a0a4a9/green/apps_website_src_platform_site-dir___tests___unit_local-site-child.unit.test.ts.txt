@@ -1,0 +1,23 @@
+✔ T47/site-dir-1#3: owner loss during a pending bundle build prevents the later site import (2.411879ms)
+✔ ownerPidFrom accepts only a positive integer owner pid (0.58272ms)
+✔ parentGone: re-parented or ESRCH means gone; a live or permission-guarded owner is present (0.348803ms)
+✔ a warm site's source watcher may be its parent while its serving host remains alive (0.126555ms)
+✔ selfAsDaemonProcess signals this process, SIGTERM unless a signal is named, and ignores subscriptions (0.278043ms)
+✔ the reaper's registry holds no record (0.146773ms)
+✔ createOwnTreeReaper stops this process's own group; a stop that leaves processes running exits 1 (0.696136ms)
+✔ an owner already gone reaps before any bundle work or site import (0.253293ms)
+✔ a live owner builds the shared admin bundle when none is supplied, then boots the site entry (0.35589ms)
+✔ a supplied admin bundle is reused without building; the watchdog reaps once the owner goes away (0.439988ms)
+✔ default importer and timers: the named site entry is really imported, and the real watchdog is cleared (1.41736ms)
+✔ without an injected reaper the child builds its own tree reaper (constructed, not run, while the owner lives) (3.113118ms)
+✔ run as a process entry, a missing owner pid fails before any boot work (355.268746ms)
+✔ isEntrypoint is true when the launched script resolves to this module (0.258714ms)
+✔ isEntrypoint is false when the module is imported or no script was launched (0.175606ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 15
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1725.88932

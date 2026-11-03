@@ -1,10 +1,10 @@
 
  RUN  v2.1.9 /home/user/wt-Jini/packages/daemon
 
- ✓ src/__tests__/read-only-tools.test.ts (24 tests) 17ms
+ ✓ src/__tests__/read-only-tools.test.ts (24 tests) 14ms
 
  Test Files  1 passed (1)
       Tests  24 passed (24)
-   Start at  21:09:56
-   Duration  4.44s (transform 2.52s, setup 0ms, collect 4.13s, tests 17ms, environment 0ms, prepare 75ms)
+   Start at  21:16:56
+   Duration  4.24s (transform 2.34s, setup 0ms, collect 3.94s, tests 14ms, environment 0ms, prepare 74ms)
 

@@ -1,0 +1,57 @@
+tovu desktop: dropped inherited TOVU_DESKTOP_MCP_URL, TOVU_DESKTOP_MCP_TOKEN; spawned sites use their own plugin and skill folders. Set overrides only for a direct single-site run.
+✖ only the spawning main can supply a desktop capability to a site server (3.160136ms)
+✖ unrelated desktop CLI children never inherit the desktop capability (0.466308ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 332.717121
+
+✖ failing tests:
+
+test at src/tovu-server.desktop-mcp.test.ts:7:1
+✖ only the spawning main can supply a desktop capability to a site server (3.160136ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+  - undefined
+  
+      at TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/tovu-server.desktop-mcp.test.ts:11:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+    expected: undefined,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at src/tovu-server.desktop-mcp.test.ts:17:1
+✖ unrelated desktop CLI children never inherit the desktop capability (0.466308ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+  - undefined
+  
+      at TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/tovu-server.desktop-mcp.test.ts:21:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+    expected: undefined,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

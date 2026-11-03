@@ -1,0 +1,38 @@
+✖ reopening a warm site makes the other idle site the next eviction candidate (2.178164ms)
+✖ opening a fourth warm site evicts the least recently opened idle site and keeps busy work alive (1.857034ms)
+✖ a source-watch host restart retains the URLs of evicted sites too (0.5616ms)
+✔ a full warm pool refuses admission when every child has active or unprovable work (1.306972ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 1
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1300.281675
+
+✖ failing tests:
+
+test at apps/website/src/platform/site-dir/__tests__/unit/warm-sites.unit.test.ts:1:252
+✖ reopening a warm site makes the other idle site the next eviction candidate (2.178164ms)
+  Error [LocalSiteError]: SITE_LIMIT
+      at start (/home/user/wt-Tovu/apps/website/src/platform/site-dir/local-site-supervisor.ts:131:13)
+      at <anonymous> (/home/user/wt-Tovu/apps/website/src/platform/site-dir/local-site-supervisor.ts:207:39) {
+    code: 'SITE_LIMIT'
+  }
+
+test at apps/website/src/platform/site-dir/__tests__/unit/warm-sites.unit.test.ts:1:947
+✖ opening a fourth warm site evicts the least recently opened idle site and keeps busy work alive (1.857034ms)
+  Error [LocalSiteError]: SITE_LIMIT
+      at start (/home/user/wt-Tovu/apps/website/src/platform/site-dir/local-site-supervisor.ts:131:13)
+      at <anonymous> (/home/user/wt-Tovu/apps/website/src/platform/site-dir/local-site-supervisor.ts:207:39) {
+    code: 'SITE_LIMIT'
+  }
+
+test at apps/website/src/platform/site-dir/__tests__/unit/warm-sites.unit.test.ts:1:2063
+✖ a source-watch host restart retains the URLs of evicted sites too (0.5616ms)
+  Error [LocalSiteError]: SITE_LIMIT
+      at start (/home/user/wt-Tovu/apps/website/src/platform/site-dir/local-site-supervisor.ts:131:13)
+      at <anonymous> (/home/user/wt-Tovu/apps/website/src/platform/site-dir/local-site-supervisor.ts:207:39) {
+    code: 'SITE_LIMIT'
+  }

@@ -1,0 +1,13 @@
+✔ one loaded site by default; a saved choice persists without overwriting other preferences (18.362255ms)
+✔ loaded sites are a whole number from 1 to 5: larger saved or chosen values clamp to 5 (10.755155ms)
+✔ the Loaded sites menu offers radio 1 to 5 and restores the last saved choice after failure (0.538183ms)
+✔ a choice made in the window checks the matching native radio; no installed menu is a no-op (0.359993ms)
+✔ only the shell may read or save the loaded-sites preference and teardown removes both IPC handlers (0.449104ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 182.876847

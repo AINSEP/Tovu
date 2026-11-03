@@ -1,8 +1,8 @@
 
  RUN  v2.1.9 /home/user/wt-Jini/packages/ui
 
- ❯ src/features/mcp-ui/__tests__/surfaces/outcome-cancellation.test.ts (3 tests | 1 failed) 98ms
-   × Skip releases a waiting sign-in card through its exchange without opening the sign-in link 65ms
+ ❯ src/features/mcp-ui/__tests__/surfaces/outcome-cancellation.test.ts (3 tests | 1 failed) 77ms
+   × Skip releases a waiting sign-in card through its exchange without opening the sign-in link 49ms
      → expect(received).toHaveTextContent()
 
 received value must be a Node.
@@ -27,6 +27,6 @@ received value must be a Node.
 
  Test Files  1 failed (1)
       Tests  1 failed | 2 passed (3)
-   Start at  21:13:15
-   Duration  1.47s (transform 339ms, setup 164ms, collect 428ms, tests 98ms, environment 400ms, prepare 86ms)
+   Start at  21:19:48
+   Duration  1.38s (transform 381ms, setup 143ms, collect 459ms, tests 77ms, environment 383ms, prepare 86ms)
 

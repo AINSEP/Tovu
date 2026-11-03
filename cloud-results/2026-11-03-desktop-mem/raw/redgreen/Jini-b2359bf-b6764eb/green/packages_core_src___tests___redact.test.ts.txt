@@ -1,10 +1,10 @@
 
  RUN  v2.1.9 /home/user/wt-Jini/packages/core
 
- ✓ src/__tests__/redact.test.ts (111 tests) 63ms
+ ✓ src/__tests__/redact.test.ts (111 tests) 43ms
 
  Test Files  1 passed (1)
       Tests  111 passed (111)
-   Start at  21:12:25
-   Duration  576ms (transform 156ms, setup 0ms, collect 176ms, tests 63ms, environment 0ms, prepare 84ms)
+   Start at  21:19:05
+   Duration  379ms (transform 88ms, setup 0ms, collect 94ms, tests 43ms, environment 0ms, prepare 76ms)
 

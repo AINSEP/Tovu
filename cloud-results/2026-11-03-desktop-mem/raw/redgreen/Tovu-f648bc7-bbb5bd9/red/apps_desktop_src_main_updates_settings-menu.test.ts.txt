@@ -1,0 +1,93 @@
+✔ the preferences file lives in Electron's userData (1.29005ms)
+✖ Settings carries Automatic updates, checked from the persisted choice (2.962255ms)
+✔ the Automatic updates checkbox hands the new state to the updater (0.540693ms)
+✔ a failed update-preference save shows the localized error with the failure's text (0.717486ms)
+✔ with no product launch config the sharing checkboxes are absent (0.27634ms)
+✖ a booted product adds both sharing checkboxes, checked from the stored consent (0.754032ms)
+✔ a sharing checkbox persists, then tells the product the saved consent (0.376195ms)
+✔ a failed sharing save shows the sharing error and changes no consent (0.536728ms)
+✔ the default ports read and write the real preferences file (7.007514ms)
+✔ after the first-run dialog the installed sharing checkboxes follow the stored consent in place (0.603229ms)
+✔ with no installed menu the refresh does nothing (0.17792ms)
+✔ the refresh reads the real file by default: a missing file is OFF (0.287738ms)
+✔ own-server menu: macOS gets the app menu first; other platforms start at File (0.3756ms)
+✔ own-server menu carries the given Settings menu unchanged (0.108162ms)
+✔ File › Open Site… is Cmd/Ctrl+O and opens a new site (0.232311ms)
+✔ Open Recent lists each recent site and opens the one clicked (0.137644ms)
+✔ Open Recent with no recent sites shows one disabled placeholder (0.469393ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 15
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 314.27176
+
+✖ failing tests:
+
+test at src/main/updates/settings-menu.test.ts:51:1
+✖ Settings carries Automatic updates, checked from the persisted choice (2.962255ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+      [
+        'Automatically update Tovu',
+        true
+      ],
+      [
+  +     'Maximum live site views',
+  -     'Loaded sites',
+        undefined
+      ]
+    ]
+  
+      at TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/main/updates/settings-menu.test.ts:56:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ [ 'Automatically update Tovu', true ], [ 'Maximum live site views', undefined ] ],
+    expected: [ [ 'Automatically update Tovu', true ], [ 'Loaded sites', undefined ] ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at src/main/updates/settings-menu.test.ts:86:1
+✖ a booted product adds both sharing checkboxes, checked from the stored consent (0.754032ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  ... Skipped lines
+  
+    [
+      [
+        'Send crash reports to Tovu',
+        true
+      ],
+  ...
+      [
+  +     'Maximum live site views',
+  -     'Loaded sites',
+        undefined
+      ]
+    ]
+  
+      at TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/main/updates/settings-menu.test.ts:88:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ [ 'Send crash reports to Tovu', true ], [ 'Send usage statistics to Tovu', false ], [ 'Maximum live site views', undefined ] ],
+    expected: [ [ 'Send crash reports to Tovu', true ], [ 'Send usage statistics to Tovu', false ], [ 'Loaded sites', undefined ] ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

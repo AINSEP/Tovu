@@ -1,16 +1,16 @@
 
  RUN  v2.1.9 /home/user/wt-Jini/packages/ui
 
- ❯ src/features/charts/__tests__/catalog-registry.test.tsx (12 tests | 5 failed) 164ms
-   × direct chart.spec rendering refuses invalid rows or series just like its catalog schema: {"kind":"bar","categoryKey":"month","series":[{"key":"revenue"},{"key":"cost"}],"data":[]} 12ms
+ ❯ src/features/charts/__tests__/catalog-registry.test.tsx (12 tests | 5 failed) 120ms
+   × direct chart.spec rendering refuses invalid rows or series just like its catalog schema: {"kind":"bar","categoryKey":"month","series":[{"key":"revenue"},{"key":"cost"}],"data":[]} 9ms
      → expected function to throw an error, but it didn't
-   × direct chart.spec rendering refuses invalid rows or series just like its catalog schema: {"kind":"bar","categoryKey":"month","series":[],"data":[{"month":"Sep","revenue":4,"cost":2},{"month":"Oct","revenue":9,"cost":3}]} 7ms
+   × direct chart.spec rendering refuses invalid rows or series just like its catalog schema: {"kind":"bar","categoryKey":"month","series":[],"data":[{"month":"Sep","revenue":4,"cost":2},{"month":"Oct","revenue":9,"cost":3}]} 4ms
      → expected function to throw an error, but it didn't
-   × direct chart.spec rendering refuses invalid rows or series just like its catalog schema: {"kind":"bar","categoryKey":"month","series":[{"key":"revenue"},{"key":"cost"}],"data":[{"month":"Sep","revenue":"invalid","cost":2}]} 9ms
+   × direct chart.spec rendering refuses invalid rows or series just like its catalog schema: {"kind":"bar","categoryKey":"month","series":[{"key":"revenue"},{"key":"cost"}],"data":[{"month":"Sep","revenue":"invalid","cost":2}]} 5ms
      → expected function to throw an error, but it didn't
-   × direct chart.spec rendering refuses invalid rows or series just like its catalog schema: {"kind":"bar","categoryKey":"month","series":[{"key":"revenue"},{"key":"cost"}],"data":[{"month":"Sep","revenue":2}]} 7ms
+   × direct chart.spec rendering refuses invalid rows or series just like its catalog schema: {"kind":"bar","categoryKey":"month","series":[{"key":"revenue"},{"key":"cost"}],"data":[{"month":"Sep","revenue":2}]} 4ms
      → expected function to throw an error, but it didn't
-   × direct chart.spec rendering refuses invalid rows or series just like its catalog schema: {"kind":"bar","categoryKey":"month","series":[{"key":"revenue"},{"key":"revenue"}],"data":[{"month":"Sep","revenue":4,"cost":2},{"month":"Oct","revenue":9,"cost":3}]} 5ms
+   × direct chart.spec rendering refuses invalid rows or series just like its catalog schema: {"kind":"bar","categoryKey":"month","series":[{"key":"revenue"},{"key":"revenue"}],"data":[{"month":"Sep","revenue":4,"cost":2},{"month":"Oct","revenue":9,"cost":3}]} 3ms
      → expected function to throw an error, but it didn't
 
 ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
@@ -33,6 +33,6 @@ AssertionError: expected function to throw an error, but it didn't
 
  Test Files  1 failed (1)
       Tests  5 failed | 7 passed (12)
-   Start at  21:09:27
-   Duration  1.45s (transform 225ms, setup 192ms, collect 243ms, tests 164ms, environment 427ms, prepare 105ms)
+   Start at  21:16:34
+   Duration  1.01s (transform 137ms, setup 134ms, collect 154ms, tests 120ms, environment 321ms, prepare 71ms)
 

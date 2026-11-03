@@ -1,0 +1,4 @@
+FAIL(1)	apps/desktop/src/renderer/app/SiteWorkspace.live-views.render.test.ts
+PASS	apps/desktop/src/renderer/app/SiteWorkspace.render.test.ts
+FAIL(1)	apps/desktop/src/renderer/use-live-views.hooks.test.ts
+FAIL(1)	apps/desktop/src/renderer/use-site-workspace.hooks.test.ts

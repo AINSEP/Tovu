@@ -1,0 +1,76 @@
+✖ packaged desktop HTTP and both CLI bridges are checked from the isolated copy (2.054646ms)
+✖ a Windows package needs no launcher script and still smokes every bridge (1.130348ms)
+✔ a missing executable or node_modules is refused before anything is copied (1.649078ms)
+✔ a failed resolver run fails the gate with its status or spawn error, signal and stderr (1.229387ms)
+✖ one failing bridge stops the gate and still removes the user-data dir (1.646191ms)
+✔ formatGateFailure prints an Error's message or a non-Error value, redacted and bounded (3.90177ms)
+✔ the real entry with no target prints the usage refusal and exits 1 (484.541892ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 4
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1036.76849
+
+✖ failing tests:
+
+test at src/smoke-bridge-gate.test.ts:45:1
+✖ packaged desktop HTTP and both CLI bridges are checked from the isolated copy (2.054646ms)
+  Error: expected two packaged Jini entries
+      at parseJiniEntries (file:///home/user/wt-Tovu/apps/desktop/src/smoke-bridge.ts:93:62)
+      at runGate (file:///home/user/wt-Tovu/apps/desktop/scripts/smoke-bridge.ts:54:19)
+      at run (file:///home/user/wt-Tovu/apps/desktop/scripts/smoke-bridge.ts:41:64)
+      at Object.isolate (file:///home/user/wt-Tovu/apps/desktop/src/smoke-bridge-gate.test.ts:32:42)
+      at runSmokeBridgeGate (file:///home/user/wt-Tovu/apps/desktop/scripts/smoke-bridge.ts:41:15)
+      at TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/smoke-bridge-gate.test.ts:47:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17)
+
+test at src/smoke-bridge-gate.test.ts:61:1
+✖ a Windows package needs no launcher script and still smokes every bridge (1.130348ms)
+  Error: expected two packaged Jini entries
+      at parseJiniEntries (file:///home/user/wt-Tovu/apps/desktop/src/smoke-bridge.ts:93:62)
+      at runGate (file:///home/user/wt-Tovu/apps/desktop/scripts/smoke-bridge.ts:54:19)
+      at run (file:///home/user/wt-Tovu/apps/desktop/scripts/smoke-bridge.ts:41:64)
+      at Object.isolate (file:///home/user/wt-Tovu/apps/desktop/src/smoke-bridge-gate.test.ts:32:42)
+      at runSmokeBridgeGate (file:///home/user/wt-Tovu/apps/desktop/scripts/smoke-bridge.ts:41:15)
+      at TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/smoke-bridge-gate.test.ts:63:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+
+test at src/smoke-bridge-gate.test.ts:84:1
+✖ one failing bridge stops the gate and still removes the user-data dir (1.646191ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    Comparison {
+  +   message: 'expected two packaged Jini entries'
+  -   message: 'desktop jini-mcp: watchdog'
+    }
+  
+      at async TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/smoke-bridge-gate.test.ts:86:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: Error: expected two packaged Jini entries
+        at parseJiniEntries (file:///home/user/wt-Tovu/apps/desktop/src/smoke-bridge.ts:93:62)
+        at runGate (file:///home/user/wt-Tovu/apps/desktop/scripts/smoke-bridge.ts:54:19)
+        at run (file:///home/user/wt-Tovu/apps/desktop/scripts/smoke-bridge.ts:41:64)
+        at Object.isolate (file:///home/user/wt-Tovu/apps/desktop/src/smoke-bridge-gate.test.ts:32:42)
+        at runSmokeBridgeGate (file:///home/user/wt-Tovu/apps/desktop/scripts/smoke-bridge.ts:41:15)
+        at TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/smoke-bridge-gate.test.ts:86:24)
+        at Test.runInAsyncScope (node:async_hooks:227:14)
+        at Test.run (node:internal/test_runner/test:1402:25)
+        at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+        at Test.postRun (node:internal/test_runner/test:1542:19),
+    expected: { message: 'desktop jini-mcp: watchdog' },
+    operator: 'rejects',
+    diff: 'simple'
+  }

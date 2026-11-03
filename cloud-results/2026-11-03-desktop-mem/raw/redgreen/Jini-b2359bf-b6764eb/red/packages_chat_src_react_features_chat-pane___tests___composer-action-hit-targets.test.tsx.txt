@@ -1,10 +1,10 @@
 
  RUN  v2.1.9 /home/user/wt-Jini/packages/chat
 
- ❯ src/react/features/chat-pane/__tests__/composer-action-hit-targets.test.tsx (2 tests | 2 failed) 321ms
-   × Send remains clickable beside the effort selector at dock width 260ms
+ ❯ src/react/features/chat-pane/__tests__/composer-action-hit-targets.test.tsx (2 tests | 2 failed) 221ms
+   × Send remains clickable beside the effort selector at dock width 172ms
      → expected '0' to be 'min-content' // Object.is equality
-   × Stop run remains clickable beside the effort selector at dock width 60ms
+   × Stop run remains clickable beside the effort selector at dock width 47ms
      → expected '0' to be 'min-content' // Object.is equality
 
 ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
@@ -28,6 +28,6 @@ Received: "0"
 
  Test Files  1 failed (1)
       Tests  2 failed (2)
-   Start at  21:11:10
-   Duration  6.21s (transform 3.05s, setup 160ms, collect 4.92s, tests 321ms, environment 450ms, prepare 88ms)
+   Start at  21:18:02
+   Duration  5.25s (transform 2.70s, setup 137ms, collect 4.30s, tests 221ms, environment 327ms, prepare 78ms)
 

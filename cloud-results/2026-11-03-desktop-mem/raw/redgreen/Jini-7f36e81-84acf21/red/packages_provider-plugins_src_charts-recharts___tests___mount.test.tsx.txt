@@ -1,12 +1,13 @@
 
  RUN  v2.1.9 /home/user/wt-Jini/packages/provider-plugins
 
- ❯ src/charts-recharts/__tests__/mount.test.tsx (12 tests | 3 failed) 1641ms
-   × standalone Recharts vanilla lifecycle > keeps pie data with invalid shares in the host fallback rather than drawing it: -1 9ms
+ ❯ src/charts-recharts/__tests__/mount.test.tsx (12 tests | 3 failed) 1600ms
+   ✓ standalone Recharts vanilla lifecycle > draws real SVG, updates data and theme, and releases its separate root 302ms
+   × standalone Recharts vanilla lifecycle > keeps pie data with invalid shares in the host fallback rather than drawing it: -1 8ms
      → expected true to be false // Object.is equality
    × standalone Recharts vanilla lifecycle > keeps pie data with invalid shares in the host fallback rather than drawing it: 0 1ms
      → expected true to be false // Object.is equality
-   × standalone Recharts vanilla lifecycle > draws a healthy update and settles its acknowledgement after a caught render error 1013ms
+   × standalone Recharts vanilla lifecycle > draws a healthy update and settles its acknowledgement after a caught render error 1010ms
      → expected false to be true // Object.is equality
 
 Ignored nodes: comments, script, style
@@ -89,6 +90,6 @@ Ignored nodes: comments, script, style
 
  Test Files  1 failed (1)
       Tests  3 failed | 9 passed (12)
-   Start at  21:09:12
-   Duration  3.14s (transform 223ms, setup 0ms, collect 659ms, tests 1.64s, environment 405ms, prepare 108ms)
+   Start at  21:16:21
+   Duration  2.93s (transform 196ms, setup 0ms, collect 637ms, tests 1.60s, environment 410ms, prepare 81ms)
 

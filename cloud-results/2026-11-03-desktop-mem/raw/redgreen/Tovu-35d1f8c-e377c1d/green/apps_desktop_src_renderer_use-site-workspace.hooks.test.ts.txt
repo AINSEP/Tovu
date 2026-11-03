@@ -1,0 +1,43 @@
+✔ soft-load retains populated history, the live URL, and the existing guest identity (1.929134ms)
+✔ a guest that is not attached yet reads as no history rather than throwing (0.319304ms)
+✔ did-navigate re-reads canGoBack/canGoForward from the guest and reports the new url (0.34137ms)
+✔ did-navigate-in-page (the admin router pushState) updates the arrows too (0.274429ms)
+✔ an in-page navigation inside a SUBFRAME refreshes the arrows but never replaces the main url (0.227901ms)
+✔ the teardown detaches both navigation listeners (0.147776ms)
+✔ the reducer stores what a navigation reported, and a new guest node starts with no history (0.15828ms)
+✔ Back calls goBack only when the guest can go back (0.260313ms)
+✔ Forward calls goForward only when the guest can go forward (0.215851ms)
+✔ Back and Forward are no-ops with no guest mounted or a guest not attached yet (0.348602ms)
+✔ the toolbar actions route goBack/goForward to the guest (0.360072ms)
+✔ Reload on a healthy guest ignores the HTTP cache and does NOT remount, so history survives (0.266669ms)
+✔ Reload while the load FAILED remounts the guest instead of calling reload() (0.138465ms)
+✔ Reload while the load STALLED remounts, even though the guest is still mounted (0.091537ms)
+✔ Reload on a guest that is not attached yet falls back to the remount (0.246583ms)
+✔ the recovery panel retry always remounts, and a remount changes the <webview> key (0.186512ms)
+✔ surfaceOfUrl reads the admin from its path and everything else as the site (0.322639ms)
+✔ neither surface invents an address for zero, missing or stopped ports (0.119123ms)
+✔ choosing the surface already on screen does nothing (0.297736ms)
+✔ choosing a surface other than the requested one changes src (0.176961ms)
+✔ after Back crossed to the other surface, choosing the requested one loads it imperatively (21.237012ms)
+✔ that imperative load falls back to a remount when the guest cannot take it (0.367059ms)
+✔ selecting a view highlights it at once, until the guest reports where it landed (0.099777ms)
+✔ a released tab pins its last route as the next src, on the surface it was on, until a recovery remount (0.122862ms)
+✔ a pinned route opens only on the site's current origin (0.353438ms)
+✔ on a restored guest the view toggle loads the other surface imperatively, because src no longer follows the view (2.551588ms)
+✔ Open in browser sends the surface on screen, not the one last requested (0.838985ms)
+✔ a HIDDEN tab does not subscribe to the accelerator, so only the active tab moves (0.465526ms)
+✔ the visible tab steps its own guest back and forward on the accelerator (0.254428ms)
+✔ the accelerator is a no-op on a visible tab whose guest is not mounted (0.171074ms)
+✔ with no desktop bridge there is nothing to subscribe to (0.064036ms)
+✔ history steps and navigation listener setup/teardown contain every detached guest exception (0.232004ms)
+✔ shared running websites retain their HTTPS origin for both admin and public surfaces (0.105977ms)
+✔ a foreign workspace waits for main to attach before using its URL (0.845804ms)
+✔ foreign running sites have no stop action and cannot restart the owning app (0.666919ms)
+ℹ tests 35
+ℹ suites 0
+ℹ pass 35
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 462.24612

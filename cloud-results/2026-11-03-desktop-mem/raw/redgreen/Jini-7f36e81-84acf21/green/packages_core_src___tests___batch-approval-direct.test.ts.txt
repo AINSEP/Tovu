@@ -1,10 +1,10 @@
 
  RUN  v2.1.9 /home/user/wt-Jini/packages/core
 
- ✓ src/__tests__/batch-approval-direct.test.ts (2 tests) 4ms
+ ✓ src/__tests__/batch-approval-direct.test.ts (2 tests) 5ms
 
  Test Files  1 passed (1)
       Tests  2 passed (2)
-   Start at  21:09:46
-   Duration  573ms (transform 198ms, setup 0ms, collect 255ms, tests 4ms, environment 0ms, prepare 94ms)
+   Start at  21:16:49
+   Duration  458ms (transform 153ms, setup 0ms, collect 177ms, tests 5ms, environment 0ms, prepare 97ms)
 

@@ -1,0 +1,215 @@
+
+ RUN  v4.1.11 /home/user/wt-Tovu/apps/admin
+
+ ❯ src/__tests__/unit/admin-route-lazy-loading.unit.test.tsx (45 tests | 45 failed) 2502ms
+     × opening navigation leaves pages unloaded except the required Forms list bridge 1219ms
+     × a direct link to /skills renders the matching page without loading unrelated routes 36ms
+     × a direct link to /themes renders the matching page without loading unrelated routes 37ms
+     × a direct link to /admin-ui renders the matching page without loading unrelated routes 48ms
+     × a direct link to /dashboard renders the matching page without loading unrelated routes 74ms
+     × a direct link to /import-export renders the matching page without loading unrelated routes 28ms
+     × a direct link to /consent renders the matching page without loading unrelated routes 29ms
+     × a direct link to /posts renders the matching page without loading unrelated routes 25ms
+     × a direct link to /pages renders the matching page without loading unrelated routes 24ms
+     × a direct link to /members renders the matching page without loading unrelated routes 24ms
+     × a direct link to /comments renders the matching page without loading unrelated routes 29ms
+     × a direct link to /analytics renders the matching page without loading unrelated routes 29ms
+     × a direct link to /library renders the matching page without loading unrelated routes 27ms
+     × a direct link to /menus renders the matching page without loading unrelated routes 38ms
+     × a direct link to /providers renders the matching page without loading unrelated routes 34ms
+     × a direct link to /users renders the matching page without loading unrelated routes 28ms
+     × a direct link to /authentication renders the matching page without loading unrelated routes 43ms
+     × a direct link to /roles renders the matching page without loading unrelated routes 23ms
+     × a direct link to /settings renders the matching page without loading unrelated routes 23ms
+     × a direct link to /seo renders the matching page without loading unrelated routes 27ms
+     × a direct link to /redirects renders the matching page without loading unrelated routes 22ms
+     × a direct link to /plugins renders the matching page without loading unrelated routes 41ms
+     × a direct link to /forms renders the matching page without loading unrelated routes 22ms
+     × a direct link to /collections renders the matching page without loading unrelated routes 21ms
+     × a direct link to /taxonomy renders the matching page without loading unrelated routes 28ms
+     × a direct link to /trash renders the matching page without loading unrelated routes 27ms
+     × a direct link to /email renders the matching page without loading unrelated routes 34ms
+     × a direct link to /database renders the matching page without loading unrelated routes 22ms
+     × a direct link to /recovery renders the matching page without loading unrelated routes 22ms
+     × a direct link to /deployment renders the matching page without loading unrelated routes 22ms
+     × a direct link to /source-control renders the matching page without loading unrelated routes 28ms
+     × a direct link to /access-tokens renders the matching page without loading unrelated routes 31ms
+     × a direct link to /observability renders the matching page without loading unrelated routes 22ms
+     × a direct link to /widgets renders the matching page without loading unrelated routes 22ms
+     × a direct link to /ai-assistant renders the matching page without loading unrelated routes 23ms
+     × a direct link to /playground renders the matching page without loading unrelated routes 20ms
+     × a direct link to /sites renders the matching page without loading unrelated routes 32ms
+     × a direct link to /media renders the matching page without loading unrelated routes 27ms
+     × a direct link to /integrations/sub-1 renders the matching page without loading unrelated routes 27ms
+     × a direct link to /posts/hello renders the matching page without loading unrelated routes 33ms
+     × a direct link to /posts?create=1 renders the matching page without loading unrelated routes 25ms
+     × a direct link to /pages/about-us renders the matching page without loading unrelated routes 35ms
+     × a direct link to /media?tab=videos&id=asset-1 renders the matching page without loading unrelated routes 23ms
+     × a direct link to /settings?tab=interface renders the matching page without loading unrelated routes 21ms
+     × a direct link to /collections/articles/new renders the matching page without loading unrelated routes 22ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 45 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/__tests__/unit/admin-route-lazy-loading.unit.test.tsx > admin routes load only the page being visited > opening navigation leaves pages unloaded except the required Forms list bridge
+AssertionError: expected [ 'skills', 'themes', …(36) ] to deeply equal [ 'forms' ]
+
+- Expected
++ Received
+
+  [
++   "skills",
++   "themes",
++   "admin-ui",
++   "dashboard",
++   "import-export",
++   "consent",
++   "posts",
++   "pages",
++   "members",
++   "comments",
++   "analytics",
++   "media",
++   "library",
++   "menus",
++   "integrations",
++   "providers",
++   "users",
++   "authentication",
++   "roles",
++   "settings",
++   "seo",
++   "redirects",
++   "plugins",
+    "forms",
++   "collections",
++   "taxonomy",
++   "trash",
++   "email",
++   "database",
++   "recovery",
++   "deployment",
++   "source-control",
++   "security",
++   "observability",
++   "widgets",
++   "ai-assistant",
++   "playground",
++   "sites",
+  ]
+
+ ❯ src/__tests__/unit/admin-route-lazy-loading.unit.test.tsx:90:25
+     88|     expect(getNav().flatMap(group => group.items).length).toBeGreaterT…
+     89|     // Jini's Forms List deliberately avoids a native import before it…
+     90|     expect([...loaded]).toEqual(["forms"]);
+       |                         ^
+     91|
+     92|     const posts = ADMIN_PANELS.find(panel => panel.id === "posts")!;
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/45]⎯
+
+ FAIL  src/__tests__/unit/admin-route-lazy-loading.unit.test.tsx > admin routes load only the page being visited > a direct link to /skills renders the matching page without loading unrelated routes
+ FAIL  src/__tests__/unit/admin-route-lazy-loading.unit.test.tsx > admin routes load only the page being visited > a direct link to /themes renders the matching page without loading unrelated routes
+ FAIL  src/__tests__/unit/admin-route-lazy-loading.unit.test.tsx > admin routes load only the page being visited > a direct link to /admin-ui renders the matching page without loading unrelated routes
+ FAIL  src/__tests__/unit/admin-route-lazy-loading.unit.test.tsx > admin routes load only the page being visited > a direct link to /dashboard renders the matching page without loading unrelated routes
+ FAIL  src/__tests__/unit/admin-route-lazy-loading.unit.test.tsx > admin routes load only the page being visited > a direct link to /import-export renders the matching page without loading unrelated routes
+ FAIL  src/__tests__/unit/admin-route-lazy-loading.unit.test.tsx > admin routes load only the page being visited > a direct link to /consent renders the matching page without loading unrelated routes
+ FAIL  src/__tests__/unit/admin-route-lazy-loading.unit.test.tsx > admin routes load only the page being visited > a direct link to /posts renders the matching page without loading unrelated routes
+ FAIL  src/__tests__/unit/admin-route-lazy-loading.unit.test.tsx > admin routes load only the page being visited > a direct link to /pages renders the matching page without loading unrelated routes
+ FAIL  src/__tests__/unit/admin-route-lazy-loading.unit.test.tsx > admin routes load only the page being visited > a direct link to /members renders the matching page without loading unrelated routes
+ FAIL  src/__tests__/unit/admin-route-lazy-loading.unit.test.tsx > admin routes load only the page being visited > a direct link to /comments renders the matching page without loading unrelated routes
+ FAIL  src/__tests__/unit/admin-route-lazy-loading.unit.test.tsx > admin routes load only the page being visited > a direct link to /analytics renders the matching page without loading unrelated routes
+ FAIL  src/__tests__/unit/admin-route-lazy-loading.unit.test.tsx > admin routes load only the page being visited > a direct link to /library renders the matching page without loading unrelated routes
+ FAIL  src/__tests__/unit/admin-route-lazy-loading.unit.test.tsx > admin routes load only the page being visited > a direct link to /menus renders the matching page without loading unrelated routes
+ FAIL  src/__tests__/unit/admin-route-lazy-loading.unit.test.tsx > admin routes load only the page being visited > a direct link to /providers renders the matching page without loading unrelated routes
+ FAIL  src/__tests__/unit/admin-route-lazy-loading.unit.test.tsx > admin routes load only the page being visited > a direct link to /users renders the matching page without loading unrelated routes
+ FAIL  src/__tests__/unit/admin-route-lazy-loading.unit.test.tsx > admin routes load only the page being visited > a direct link to /authentication renders the matching page without loading unrelated routes
+ FAIL  src/__tests__/unit/admin-route-lazy-loading.unit.test.tsx > admin routes load only the page being visited > a direct link to /roles renders the matching page without loading unrelated routes
+ FAIL  src/__tests__/unit/admin-route-lazy-loading.unit.test.tsx > admin routes load only the page being visited > a direct link to /settings renders the matching page without loading unrelated routes
+ FAIL  src/__tests__/unit/admin-route-lazy-loading.unit.test.tsx > admin routes load only the page being visited > a direct link to /seo renders the matching page without loading unrelated routes
+ FAIL  src/__tests__/unit/admin-route-lazy-loading.unit.test.tsx > admin routes load only the page being visited > a direct link to /redirects renders the matching page without loading unrelated routes
+ FAIL  src/__tests__/unit/admin-route-lazy-loading.unit.test.tsx > admin routes load only the page being visited > a direct link to /plugins renders the matching page without loading unrelated routes
+ FAIL  src/__tests__/unit/admin-route-lazy-loading.unit.test.tsx > admin routes load only the page being visited > a direct link to /forms renders the matching page without loading unrelated routes
+ FAIL  src/__tests__/unit/admin-route-lazy-loading.unit.test.tsx > admin routes load only the page being visited > a direct link to /collections renders the matching page without loading unrelated routes
+ FAIL  src/__tests__/unit/admin-route-lazy-loading.unit.test.tsx > admin routes load only the page being visited > a direct link to /taxonomy renders the matching page without loading unrelated routes
+ FAIL  src/__tests__/unit/admin-route-lazy-loading.unit.test.tsx > admin routes load only the page being visited > a direct link to /trash renders the matching page without loading unrelated routes
+ FAIL  src/__tests__/unit/admin-route-lazy-loading.unit.test.tsx > admin routes load only the page being visited > a direct link to /email renders the matching page without loading unrelated routes
+ FAIL  src/__tests__/unit/admin-route-lazy-loading.unit.test.tsx > admin routes load only the page being visited > a direct link to /database renders the matching page without loading unrelated routes
+ FAIL  src/__tests__/unit/admin-route-lazy-loading.unit.test.tsx > admin routes load only the page being visited > a direct link to /recovery renders the matching page without loading unrelated routes
+ FAIL  src/__tests__/unit/admin-route-lazy-loading.unit.test.tsx > admin routes load only the page being visited > a direct link to /deployment renders the matching page without loading unrelated routes
+ FAIL  src/__tests__/unit/admin-route-lazy-loading.unit.test.tsx > admin routes load only the page being visited > a direct link to /source-control renders the matching page without loading unrelated routes
+ FAIL  src/__tests__/unit/admin-route-lazy-loading.unit.test.tsx > admin routes load only the page being visited > a direct link to /access-tokens renders the matching page without loading unrelated routes
+ FAIL  src/__tests__/unit/admin-route-lazy-loading.unit.test.tsx > admin routes load only the page being visited > a direct link to /observability renders the matching page without loading unrelated routes
+ FAIL  src/__tests__/unit/admin-route-lazy-loading.unit.test.tsx > admin routes load only the page being visited > a direct link to /widgets renders the matching page without loading unrelated routes
+ FAIL  src/__tests__/unit/admin-route-lazy-loading.unit.test.tsx > admin routes load only the page being visited > a direct link to /ai-assistant renders the matching page without loading unrelated routes
+ FAIL  src/__tests__/unit/admin-route-lazy-loading.unit.test.tsx > admin routes load only the page being visited > a direct link to /playground renders the matching page without loading unrelated routes
+ FAIL  src/__tests__/unit/admin-route-lazy-loading.unit.test.tsx > admin routes load only the page being visited > a direct link to /sites renders the matching page without loading unrelated routes
+ FAIL  src/__tests__/unit/admin-route-lazy-loading.unit.test.tsx > admin routes load only the page being visited > a direct link to /media renders the matching page without loading unrelated routes
+ FAIL  src/__tests__/unit/admin-route-lazy-loading.unit.test.tsx > admin routes load only the page being visited > a direct link to /integrations/sub-1 renders the matching page without loading unrelated routes
+ FAIL  src/__tests__/unit/admin-route-lazy-loading.unit.test.tsx > admin routes load only the page being visited > a direct link to /posts/hello renders the matching page without loading unrelated routes
+ FAIL  src/__tests__/unit/admin-route-lazy-loading.unit.test.tsx > admin routes load only the page being visited > a direct link to /posts?create=1 renders the matching page without loading unrelated routes
+ FAIL  src/__tests__/unit/admin-route-lazy-loading.unit.test.tsx > admin routes load only the page being visited > a direct link to /pages/about-us renders the matching page without loading unrelated routes
+ FAIL  src/__tests__/unit/admin-route-lazy-loading.unit.test.tsx > admin routes load only the page being visited > a direct link to /media?tab=videos&id=asset-1 renders the matching page without loading unrelated routes
+ FAIL  src/__tests__/unit/admin-route-lazy-loading.unit.test.tsx > admin routes load only the page being visited > a direct link to /settings?tab=interface renders the matching page without loading unrelated routes
+ FAIL  src/__tests__/unit/admin-route-lazy-loading.unit.test.tsx > admin routes load only the page being visited > a direct link to /collections/articles/new renders the matching page without loading unrelated routes
+AssertionError: expected [ 'skills', 'themes', …(36) ] to deeply equal [ 'forms' ]
+
+- Expected
++ Received
+
+  [
++   "skills",
++   "themes",
++   "admin-ui",
++   "dashboard",
++   "import-export",
++   "consent",
++   "posts",
++   "pages",
++   "members",
++   "comments",
++   "analytics",
++   "media",
++   "library",
++   "menus",
++   "integrations",
++   "providers",
++   "users",
++   "authentication",
++   "roles",
++   "settings",
++   "seo",
++   "redirects",
++   "plugins",
+    "forms",
++   "collections",
++   "taxonomy",
++   "trash",
++   "email",
++   "database",
++   "recovery",
++   "deployment",
++   "source-control",
++   "security",
++   "observability",
++   "widgets",
++   "ai-assistant",
++   "playground",
++   "sites",
+  ]
+
+ ❯ src/__tests__/unit/admin-route-lazy-loading.unit.test.tsx:157:25
+    155|     const { ADMIN_PANELS } = await import("../../panels");
+    156|     const route = matchRoute({ routePath, panels: ADMIN_PANELS });
+    157|     expect([...loaded]).toEqual(["forms"]);
+       |                         ^
+    158|     const panel = ADMIN_PANELS.find(candidate => candidate.id === rout…
+    159|     render(<>{panel.render({ ...route, Placeholder })}</>);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/45]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  45 failed (45)
+   Start at  21:16:48
+   Duration  4.00s (transform 1.43s, setup 489ms, import 161ms, tests 2.50s, environment 690ms)
+

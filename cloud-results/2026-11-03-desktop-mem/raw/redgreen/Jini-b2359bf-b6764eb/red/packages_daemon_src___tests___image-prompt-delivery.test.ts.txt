@@ -1,12 +1,12 @@
 
  RUN  v2.1.9 /home/user/wt-Jini/packages/daemon
 
- ❯ src/__tests__/image-prompt-delivery.test.ts (13 tests | 3 failed) 34ms
-   × augmentPromptWithImageAttachments > names a single image as an attachment the user provided, not a bare path dump 17ms
+ ❯ src/__tests__/image-prompt-delivery.test.ts (13 tests | 3 failed) 20ms
+   × augmentPromptWithImageAttachments > names a single image as an attachment the user provided, not a bare path dump 12ms
      → expected 'describe this\n\n---\nThe user attach…' to be 'describe this\n\n---\nThe user attach…' // Object.is equality
-   × augmentPromptWithImageAttachments > pluralizes and numbers multiple images 5ms
+   × augmentPromptWithImageAttachments > pluralizes and numbers multiple images 2ms
      → expected 'compare these\n\n---\nThe user attach…' to be 'compare these\n\n---\nThe user attach…' // Object.is equality
-   × an attached picture directs the first read to an image tool without a failed Bash attempt 6ms
+   × an attached picture directs the first read to an image tool without a failed Bash attempt 2ms
      → expected 'Use this as the hero\n\n---\nThe user…' to contain 'host attachment/image tool first'
 
 ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
@@ -83,6 +83,6 @@ AssertionError: expected 'Use this as the hero\n\n---\nThe user…' to contain '
 
  Test Files  1 failed (1)
       Tests  3 failed | 10 passed (13)
-   Start at  21:11:21
-   Duration  523ms (transform 84ms, setup 0ms, collect 85ms, tests 34ms, environment 0ms, prepare 82ms)
+   Start at  21:18:11
+   Duration  442ms (transform 116ms, setup 0ms, collect 102ms, tests 20ms, environment 0ms, prepare 105ms)
 

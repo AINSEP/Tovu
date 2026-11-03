@@ -1,0 +1,92 @@
+✖ Loaded sites: a labelled 1-to-5 spinbutton under Theme, showing the saved value, with the memory tip on the control (63.930985ms)
+✖ Loaded sites: + and − step by one, save each step at once, and stop at 1 and 5 (15.100126ms)
+✖ Loaded sites: − is off at one loaded site (14.36102ms)
+✖ Loaded sites: a typed digit saves at once, clamped to 1-5; a cleared field shows the saved value again on leaving it (11.046602ms)
+✖ Loaded sites: Up, Down, Home and End change the value and keep focus in the field instead of moving through the menu (10.888658ms)
+✖ Loaded sites: a choice from the native Settings menu shows at once (9.049718ms)
+✖ Loaded sites: a failed save puts the saved value back and says so (9.525904ms)
+✔ Loaded sites: an older preload with no save channel leaves the row out (11.875786ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 1
+ℹ fail 7
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2092.912583
+
+✖ failing tests:
+
+test at src/renderer/app/LoadedSitesStepper.render.test.ts:1:2041
+✖ Loaded sites: a labelled 1-to-5 spinbutton under Theme, showing the saved value, with the memory tip on the control (63.930985ms)
+  AssertionError [ERR_ASSERTION]: the stepper has the accessible name "Loaded sites"
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/desktop/src/renderer/app/LoadedSitesStepper.render.test.ts:54:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: null,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at src/renderer/app/LoadedSitesStepper.render.test.ts:1:3041
+✖ Loaded sites: + and − step by one, save each step at once, and stop at 1 and 5 (15.100126ms)
+  TypeError [Error]: Cannot read properties of null (reading 'disabled')
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/desktop/src/renderer/app/LoadedSitesStepper.render.test.ts:74:21)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at src/renderer/app/LoadedSitesStepper.render.test.ts:1:3718
+✖ Loaded sites: − is off at one loaded site (14.36102ms)
+  TypeError [Error]: Cannot read properties of null (reading 'disabled')
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/desktop/src/renderer/app/LoadedSitesStepper.render.test.ts:87:50)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at src/renderer/app/LoadedSitesStepper.render.test.ts:1:3958
+✖ Loaded sites: a typed digit saves at once, clamped to 1-5; a cleared field shows the saved value again on leaving it (11.046602ms)
+  TypeError [Error]: 'set value' called on an object that is not a valid instance of HTMLInputElement.
+      at set value (/home/user/Tovu/apps/desktop/node_modules/jsdom/lib/generated/idl/HTMLInputElement.js:1565:15)
+      at <anonymous> (/home/user/wt-Tovu/apps/desktop/src/renderer/app/component-harness.ts:63:95)
+      at process.env.NODE_ENV.exports.act (/home/user/Tovu/apps/desktop/node_modules/react/cjs/react.development.js:814:22)
+      at Object.type (/home/user/wt-Tovu/apps/desktop/src/renderer/app/component-harness.ts:62:13)
+      at Object.typeIn (/home/user/wt-Tovu/apps/desktop/src/renderer/app/LoadedSitesStepper.render.test.ts:47:56)
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/desktop/src/renderer/app/LoadedSitesStepper.render.test.ts:93:14)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at src/renderer/app/LoadedSitesStepper.render.test.ts:1:4747
+✖ Loaded sites: Up, Down, Home and End change the value and keep focus in the field instead of moving through the menu (10.888658ms)
+  TypeError [Error]: Cannot read properties of null (reading 'focus')
+      at <anonymous> (/home/user/wt-Tovu/apps/desktop/src/renderer/app/LoadedSitesStepper.render.test.ts:113:38)
+      at process.env.NODE_ENV.exports.act (/home/user/Tovu/apps/desktop/node_modules/react/cjs/react.development.js:814:22)
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/desktop/src/renderer/app/LoadedSitesStepper.render.test.ts:113:9)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at src/renderer/app/LoadedSitesStepper.render.test.ts:1:5307
+✖ Loaded sites: a choice from the native Settings menu shows at once (9.049718ms)
+  TypeError [Error]: changed is not a function
+      at <anonymous> (/home/user/wt-Tovu/apps/desktop/src/renderer/app/LoadedSitesStepper.render.test.ts:48:114)
+      at process.env.NODE_ENV.exports.act (/home/user/Tovu/apps/desktop/node_modules/react/cjs/react.development.js:814:22)
+      at Object.change (/home/user/wt-Tovu/apps/desktop/src/renderer/app/LoadedSitesStepper.render.test.ts:48:96)
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/desktop/src/renderer/app/LoadedSitesStepper.render.test.ts:126:14)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at src/renderer/app/LoadedSitesStepper.render.test.ts:1:5575
+✖ Loaded sites: a failed save puts the saved value back and says so (9.525904ms)
+  AssertionError [ERR_ASSERTION]: element to click is on screen
+      at Object.click (/home/user/wt-Tovu/apps/desktop/src/renderer/app/component-harness.ts:57:14)
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/desktop/src/renderer/app/LoadedSitesStepper.render.test.ts:135:14)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: null,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

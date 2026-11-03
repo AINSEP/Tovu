@@ -1,8 +1,8 @@
 
  RUN  v2.1.9 /home/user/wt-Jini/packages/provider-plugins
 
- ❯ src/charts-recharts/__tests__/provider.test.tsx (6 tests | 3 failed) 110ms
-   × Recharts artifact through the neutral UI host and A2UI catalog > preserves the bar-chart wire alias while drawing real SVG 11ms
+ ❯ src/charts-recharts/__tests__/provider.test.tsx (6 tests | 3 failed) 115ms
+   × Recharts artifact through the neutral UI host and A2UI catalog > preserves the bar-chart wire alias while drawing real SVG 9ms
      → expected [Function RegisteredChart] to be [Function RegisteredChart] // Object.is equality
    × Recharts artifact through the neutral UI host and A2UI catalog > preserves the line-chart wire alias while drawing real SVG 2ms
      → expected [Function RegisteredChart] to be [Function RegisteredChart] // Object.is equality
@@ -30,6 +30,6 @@ Compared values have no visual difference.
 
  Test Files  1 failed (1)
       Tests  3 failed | 3 passed (6)
-   Start at  21:10:38
-   Duration  1.79s (transform 416ms, setup 0ms, collect 1.01s, tests 110ms, environment 392ms, prepare 76ms)
+   Start at  21:17:32
+   Duration  1.68s (transform 385ms, setup 0ms, collect 966ms, tests 115ms, environment 329ms, prepare 83ms)
 

@@ -1,18 +1,18 @@
 
  RUN  v2.1.9 /home/user/wt-Jini/packages/mcp
 
- ❯ src/server/__tests__/tool-argument-recovery.test.ts (6 tests | 6 failed) 51ms
-   × first-call tool argument recovery for every MCP CLI > turning on a plugin accepts an agreeing extra id before strict MCP validation 16ms
+ ❯ src/server/__tests__/tool-argument-recovery.test.ts (6 tests | 6 failed) 37ms
+   × first-call tool argument recovery for every MCP CLI > turning on a plugin accepts an agreeing extra id before strict MCP validation 14ms
      → expected true not to be true // Object.is equality
    × first-call tool argument recovery for every MCP CLI > switching a theme accepts its declared argument alias through direct and delegated calls 2ms
      → expected true not to be true // Object.is equality
-   × first-call tool argument recovery for every MCP CLI > conflicting plugin identifiers fail without executing or exposing their values 8ms
+   × first-call tool argument recovery for every MCP CLI > conflicting plugin identifiers fail without executing or exposing their values 5ms
      → expected '{"isError":true,"content":[{"type":"t…' to contain 'Send only \'pluginId\''
-   × first-call tool argument recovery for every MCP CLI > a wrong wait argument returns the complete declared contract in one repair message 9ms
+   × first-call tool argument recovery for every MCP CLI > a wrong wait argument returns the complete declared contract in one repair message 5ms
      → expected 'invalid arguments for jobs_wait: remo…' to contain 'Input schema: {"type":"object","addit…'
-   × first-call tool argument recovery for every MCP CLI > the prefixed connect name reaches the same trusted run through either call surface 2ms
+   × first-call tool argument recovery for every MCP CLI > the prefixed connect name reaches the same trusted run through either call surface 1ms
      → expected true not to be true // Object.is equality
-   × first-call tool argument recovery for every MCP CLI > prefix recovery keeps exact names, foreign server names and read-only enforcement intact 13ms
+   × first-call tool argument recovery for every MCP CLI > prefix recovery keeps exact names, foreign server names and read-only enforcement intact 10ms
      → expected undefined to be true // Object.is equality
 
 ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 6 ⎯⎯⎯⎯⎯⎯⎯
@@ -106,6 +106,6 @@ undefined
 
  Test Files  1 failed (1)
       Tests  6 failed (6)
-   Start at  21:11:35
-   Duration  1.17s (transform 473ms, setup 0ms, collect 780ms, tests 51ms, environment 0ms, prepare 106ms)
+   Start at  21:18:23
+   Duration  1.32s (transform 555ms, setup 0ms, collect 979ms, tests 37ms, environment 0ms, prepare 92ms)
 

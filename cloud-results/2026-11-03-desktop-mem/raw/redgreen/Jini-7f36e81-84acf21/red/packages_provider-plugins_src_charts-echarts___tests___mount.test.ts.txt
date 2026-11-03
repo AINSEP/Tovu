@@ -46,8 +46,8 @@ stderr | src/charts-echarts/__tests__/mount.test.ts > ECharts vanilla lifecycle 
 stderr | src/charts-echarts/__tests__/mount.test.ts > updates a formatted bar to plain line and pie without retaining tooltip formatting or its shadow cursor
 [ECharts] Can't get DOM width or height. Please check dom.clientWidth and dom.clientHeight. They should not be 0.For example, you may need to call this in the callback of window.onload.
 
- ❯ src/charts-echarts/__tests__/mount.test.ts (15 tests | 1 failed) 980ms
-   × updates a formatted bar to plain line and pie without retaining tooltip formatting or its shadow cursor 53ms
+ ❯ src/charts-echarts/__tests__/mount.test.ts (15 tests | 1 failed) 578ms
+   × updates a formatted bar to plain line and pie without retaining tooltip formatting or its shadow cursor 34ms
      → expected [Function valueFormatter] to be falsy
 
 ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
@@ -73,6 +73,6 @@ false
 
  Test Files  1 failed (1)
       Tests  1 failed | 14 passed (15)
-   Start at  21:09:04
-   Duration  2.67s (transform 212ms, setup 0ms, collect 918ms, tests 980ms, environment 421ms, prepare 92ms)
+   Start at  21:16:16
+   Duration  1.98s (transform 133ms, setup 0ms, collect 721ms, tests 578ms, environment 373ms, prepare 76ms)
 

@@ -1,10 +1,10 @@
 
  RUN  v2.1.9 /home/user/wt-Jini/packages/agent-runtime
 
- ✓ src/__tests__/json-event-stream.test.ts (152 tests) 68ms
+ ✓ src/__tests__/json-event-stream.test.ts (152 tests) 54ms
 
  Test Files  1 passed (1)
       Tests  152 passed (152)
-   Start at  21:09:34
-   Duration  750ms (transform 310ms, setup 0ms, collect 390ms, tests 68ms, environment 0ms, prepare 82ms)
+   Start at  21:16:40
+   Duration  595ms (transform 239ms, setup 0ms, collect 266ms, tests 54ms, environment 0ms, prepare 89ms)
 
