@@ -153,10 +153,9 @@ export const registerAdminExternalMcpPutRoute: ExternalMcpRouteRegistrar = (app,
       );
 
       // Fire-and-forget: never awaited, so this route's own response time and shape are unaffected
-      // by daemon reachability — see this file's own header for why `restartRequired` stays `true`
+      // by federation latency — see this file's own header for why `restartRequired` stays `true`
       // unconditionally regardless of what this trigger ends up doing. Fans out to every registered
-      // federation runtime (agent-daemon, BYOK) via `external-mcp-roster-change.ts`, not just the
-      // daemon's own `triggerFederationReload` — see that module's own header.
+      // server federation via `external-mcp-roster-change.ts`; the slim daemon owns no federation.
       void notifyExternalMcpRosterChanged();
       res.json({ server: describeExternalMcpOwnership({ server, ids: deps.builtInExternalMcpServerIds }), restartRequired: true });
     } catch (err) {

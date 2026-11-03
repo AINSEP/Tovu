@@ -82,7 +82,8 @@ import { contributeEntriesTools } from "#src/features/entries/tool-registrations
 import { contributeExternalMcpTools } from "#src/features/external-mcp/tool-registrations";
 import { contributeExternalMcpOperationsTools } from "#src/features/external-mcp/operations-tools";
 import { probeExternalMcpServer } from "#src/server/runtime/services/external-mcp-probe";
-import { fetchDaemonAdmissions } from "#src/server/runtime/services/external-mcp-admissions";
+import { readServerAdmissions } from "#src/server/runtime/services/external-mcp-admissions";
+import type { ExternalMcpOperations } from "#src/features/external-mcp/operations-tools";
 import { contributeFilesCopyTools } from "#src/features/asset-transfer/copy-tool";
 import { contributeFsFilesTools } from "#src/features/fs-files/tool-registrations";
 import { contributePagesTools } from "#src/features/pages/tool-registrations";
@@ -335,8 +336,8 @@ import { contributeWidgetsTools } from "#src/features/widgets/tool-registrations
  * what makes the tool's per-resource permission resolution load-bearing rather than decorative.
  *
  * `options.observability` (the composition root's `RouteDeps.observability`) traces the tools' own
- * egress built here: the domain-DNS and live-page guarded HTTP clients and the daemon admissions
- * read. `createHttpClient`/`fetchAdmissions` are those collaborators, injectable so that wiring is
+ * egress built here: the domain-DNS and live-page guarded HTTP clients. `readAdmissions`
+ * is the injected in-process reader; it creates no daemon span. Both collaborators let wiring stay
  * provable without a public network or a running daemon.
  */
 export function installFirstPartyToolContributors(
@@ -345,8 +346,7 @@ export function installFirstPartyToolContributors(
     deployOpsRegistry,
     observability,
     createHttpClient = createDefaultHttpClient,
-    fetchAdmissions = fetchDaemonAdmissions,
-    ensureDaemonReady,
+    readAdmissions = () => readServerAdmissions({}, {}),
     chatAttachmentsDir,
     mediaVideoPorts = createMediaVideoToolPorts({}, { uploadDirectory: chatAttachmentsDir }),
     readInstallAttachment = createPluginInstallAttachmentReader({}, { uploadDirectory: chatAttachmentsDir }),
@@ -354,8 +354,9 @@ export function installFirstPartyToolContributors(
     deployOpsRegistry?: DeployOpsRegistry;
     observability?: ObservabilityPort;
     createHttpClient?: typeof createDefaultHttpClient;
-    fetchAdmissions?: typeof fetchDaemonAdmissions;
-    /** Only the API supplies a supervisor gate; daemon-local admissions must never wait on it. */
+    /** Server-owned reader; omitted until composition binds the surface, diagnostics fail closed. */
+    readAdmissions?: ExternalMcpOperations["admissions"];
+    /** Temporary source compatibility for W3-C's concurrent entry rewrite. Never called. */
     ensureDaemonReady?: () => Promise<void>;
     /** The booted site's `RouteDeps.siteStoragePaths.chatAttachmentsDir`, which the two default
      *  attachment readers below read from. Both production callers pass it; omitted (hermetic
@@ -429,7 +430,7 @@ export function installFirstPartyToolContributors(
   }) }) });
   contributions.contributors.register({ contribution: contributeEntriesTools() });
   contributions.contributors.register({ contribution: contributeExternalMcpTools({ probe: probeExternalMcpServer }) });
-  contributions.contributors.register({ contribution: contributeExternalMcpOperationsTools({ probe: probeExternalMcpServer, admissions: () => fetchAdmissions({ observability, ensureReady: ensureDaemonReady }) }) });
+  contributions.contributors.register({ contribution: contributeExternalMcpOperationsTools({ probe: probeExternalMcpServer, admissions: readAdmissions }) });
   contributions.contributors.register({ contribution: contributeFsFilesTools() });
   contributions.contributors.register({ contribution: contributeFilesCopyTools() });
   contributions.contributors.register({ contribution: contributeFormsTools() });

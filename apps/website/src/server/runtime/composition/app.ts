@@ -109,9 +109,8 @@ import { InMemoryPagesHtmlDocumentStore } from "#src/features/pages/index";
 // 2026-09-05 (fix-cycle) — used to be a lazy `require()` here; see `runExportSite`'s doc below for
 // why a plain static import is now correct.
 import { exportSite } from "#src/features/site-export/index";
-import { createInMemoryChatHistory, createInMemoryAgentSessionStore, InMemorySiteAssistantCredentialRepo, InMemoryAdminExecutionCredentialRepo, InMemoryExternalMcpToolApprovalRepo, createInMemoryConversationToolApprovalStore, ensurePublicAssistantSettingDefinitions, ensureExecutionSettingDefinitions, onExternalMcpRosterChanged } from "../../../assistant/index.js";
+import { createInMemoryChatHistory, createInMemoryAgentSessionStore, InMemorySiteAssistantCredentialRepo, InMemoryAdminExecutionCredentialRepo, InMemoryExternalMcpToolApprovalRepo, createInMemoryConversationToolApprovalStore, ensurePublicAssistantSettingDefinitions, ensureExecutionSettingDefinitions } from "../../../assistant/index.js";
 import { InMemoryExternalMcpServerRepo } from "../../../features/external-mcp/external-mcp-store.memory.js";
-import { triggerFederationReload } from "#src/server/runtime/composition/modules/assistant-daemon-client";
 // Deep-imported rather than routed through the barrel above: `assistant/index.ts`'s Section D
 // ("Admin Daemon Proxy / Process Composition") is documented as consumed by the DAEMON's own proxy
 // composition (`server/modules/assistant.ts`) — this route is the opposite of that, a plain static
@@ -2251,15 +2250,11 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // Through the handle, not a direct import, for the same zero-new-edge reason as `toolSurface` above.
   byokAssistantModule.registerToolExecRoutes({ router: internalRouter });
 
-  // Roster-change fan-out (S6, 2026-09-24): this web-server process holds two federation runtimes
-  // — the agent daemon (a separate process, reached over HTTP) and BYOK's own in-process
-  // `FederationRuntime` on `byokAssistantModule.toolSurface.federation` — and `put.ts`/
-  // `oauth-callback.ts`/`features/external-mcp/tool-registrations.ts` must reload both, not just the
-  // one this file used to reach directly. See `external-mcp-roster-change.ts`'s own header. `"byok"`
-  // is a no-op when BYOK has no federated connections configured (`federation` is `undefined` in that
-  // case — same optionality `byok-tool-surface.ts` documents on that field).
-  onExternalMcpRosterChanged("agent-daemon", () => triggerFederationReload({ observability: routeDeps.observability }));
-  onExternalMcpRosterChanged("byok", () => byokAssistantModule.toolSurface.federation?.reload());
+  // W3-D preparation: server-only federation composition is available in
+  // modules/assistant-server-federation.ts, but activation belongs to integration alongside
+  // BRIDGE-HTTP. Binding it here before replacing the managed desktop stdio row would retain
+  // a permanent desktop child. Integration must bind its admissions reader, register its single
+  // roster listener and use its daemonCalls on THIS tool surface. Never notify the slim daemon.
 
   // `TOVU_ADMIN_ASSISTANT=off` — a real disable: the four admin-assistant route modules below are
   // never mounted, matching ADR-054's visitor-assistant posture (no endpoint, not a hidden widget).

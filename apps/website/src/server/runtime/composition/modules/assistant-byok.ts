@@ -1,4 +1,3 @@
-import { ensureAssistantDaemonReady } from "../../lifecycle/daemon-supervisor.js";
 import { ASSISTANT_CONTENT_EDIT_GUIDANCE } from "#src/contracts/core/assistant-content-guidance";
 import { createAutomaticPluginRuns } from "#src/features/agent-plugins/automatic-agent-plugins";
 import { askAgentPluginChoice } from "#src/assistant/ask-choice-tool";
@@ -87,6 +86,7 @@ import type { AgentRunStatus } from "#src/platform/observability/index";
 import { redactedError } from "#src/platform/observability/report-error";
 import { registerInstalledExtensionTools } from "../installed-extension-tools.js";
 import { installFirstPartyToolContributors } from "../tool-catalog-manifest.js";
+import { readServerAdmissions } from "../../services/external-mcp-admissions.js";
 import type { ServerModuleHandle } from "./types.js";
 import { buildDaemonAttachmentTools, createDaemonApprovalMemory, createDaemonAwareInstallAttachmentReader, registerAssistantToolExecRoutes } from "./assistant-tool-exec.js";
 import type { ToolExecutionRouteTarget } from "@jini-ai/daemon/http";
@@ -479,7 +479,7 @@ export function createAssistantByokModule(
   // `createDefaultHttpClient` itself (`platform/http/test-origin-allowlist.ts`).
   // The agent daemon's tool RPC runs on this same surface (`assistant-tool-exec.ts`); the daemon-call
   // adapters below change nothing for a BYOK turn.
-  installFirstPartyToolContributors({ contributions }, { ensureDaemonReady: () => ensureAssistantDaemonReady({}, {}), observability: routeDeps.observability, chatAttachmentsDir: routeDeps.siteStoragePaths.chatAttachmentsDir,
+  installFirstPartyToolContributors({ contributions }, { readAdmissions: () => routeDeps.externalMcpAdmissions?.() ?? readServerAdmissions({}, {}), observability: routeDeps.observability, chatAttachmentsDir: routeDeps.siteStoragePaths.chatAttachmentsDir,
     createHttpClient: createTestOriginHttpClientFactory({ allowedOrigins: routeDeps.outboundTestOrigins ?? [] }),
     readInstallAttachment: createDaemonAwareInstallAttachmentReader({ uploadDirectory: routeDeps.siteStoragePaths.chatAttachmentsDir }) });
   const surfaceDeps = routeDeps.conversationToolApprovals ? { ...routeDeps, nativeApprovalMemory: routeDeps.nativeApprovalMemory ?? createDaemonApprovalMemory({

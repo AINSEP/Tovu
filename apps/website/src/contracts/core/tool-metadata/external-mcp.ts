@@ -14,7 +14,8 @@ export const toolMetadata = {
         "I allowed tools in Settings but the assistant cannot use them; show configuration failures.",
       ],
     },
-    approval: { class: 'read', confirmation: 'direct' },
+    // Starting server federation may refresh a stored OAuth grant, like the probe below.
+    approval: { class: 'edit', confirmation: 'direct' },
   },
   "external_mcp_list": {
     search: {

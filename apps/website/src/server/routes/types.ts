@@ -382,6 +382,9 @@ export interface CredentialsDeps {
    * table, usable as soon as migrations run.
    */
   externalMcpServerRepo: ExternalMcpServerRepoPort;
+  /** Server federation's live admissions reader. Integration binds it to the SAME tool surface
+   * used by /internal/tool-executions; an unwired preparation build answers unavailable. */
+  externalMcpAdmissions?: import("../../features/external-mcp/operations-tools.js").ExternalMcpOperations["admissions"];
   bundledSourceRoot: string;
   mcp: import("../../features/agent-plugins/service-ports.js").AgentPluginMcpPort;
   preferences: import("../../features/agent-plugins/service-ports.js").AgentPluginPreferencesPort;

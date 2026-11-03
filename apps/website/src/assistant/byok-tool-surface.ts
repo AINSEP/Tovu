@@ -115,6 +115,15 @@ export interface ByokToolSurface {
    * `attachAssistantToolExtensions`'s own doc for why the two are one registrar).
    */
   readonly federation?: FederationRuntime;
+  /** Starts this same server runtime and reads live admissions, including pre-connection failures.
+   * Integration binds this to admin diagnostics and server-side daemon-call adapters.
+   * Example: await surface.readFederationAdmissions({}, {}). */
+  readonly readFederationAdmissions: (
+    required: Record<string, never>, optional?: Record<string, never>,
+  ) => Promise<{
+    readonly connections: ReturnType<FederationRuntime["reports"]>;
+    readonly configFailures: ReturnType<StoredExternalMcpConnectionSource["failures"]>;
+  }>;
   /**
    * Starts (or, if already started, awaits) `federation.start()`, racing it against a `timeoutMs`
    * timer so a turn that touches an external-MCP tool never blocks forever on a slow or wedged
@@ -648,10 +657,33 @@ export function createByokToolSurface(routeDeps: ByokToolSurfaceDeps, options: B
       })
     : Promise.resolve();
 
+  let federationReady: Promise<void> | undefined;
+
+  /** One admission/catalog completion shared by bounded BYOK waits and server demand adapters.
+   * A timed-out caller leaves startup running; its eventual tools still become discoverable.
+   * @complexity One startup and O(t) catalog rebuild for t registered tools; O(1) on later calls. */
+  function startFederation(): Promise<void> {
+    if (!federation) return Promise.resolve();
+    federationReady ??= federation.start().then(() => {
+      catalog = buildToolCatalogQuery(registry);
+    });
+    return federationReady;
+  }
+
+  /** Read the live source and connection failures after admission, never a copied boot snapshot.
+   * Connection-source failures have no admission report; omitting them would hide saved rows that
+   * never reached a handshake. Both failure owners replace their own accounting on reload.
+   * @returns This surface's current reports and combined configuration/connection failures.
+   * @complexity O(f) time/space for f failure entries, beyond the single-flight startup. */
+  async function readFederationAdmissions(_required: Record<string, never>, _optional: Record<string, never> = {}) {
+    await startFederation();
+    return { connections: federation?.reports() ?? [], configFailures: [...connectionSource.failures(), ...(federation?.connectFailures() ?? [])] };
+  }
+
   /**
    * Starts (or awaits) `federation.start()`, racing it against `timeoutMs` — see
-   * `ByokToolSurface.awaitFederation`'s own doc for the full contract. Rebuilds `catalog` itself
-   * on a successful boot pass, mirroring `ready`'s own `.then(rebuildCatalog)`: unlike the daemon
+   * `ByokToolSurface.awaitFederation`'s own doc for the full contract. `startFederation` rebuilds
+   * `catalog` on completion, mirroring `ready`'s own `.then(rebuildCatalog)`: unlike the daemon
    * (which starts federation and builds its FIRST catalog snapshot in the same sequential boot,
    * sequence), BYOK's `catalog` above is already
    * built and possibly already searched by the time federation's lazy boot pass resolves, so
@@ -661,10 +693,7 @@ export function createByokToolSurface(routeDeps: ByokToolSurfaceDeps, options: B
     if (!federation) return { settled: true };
     let timer: ReturnType<typeof setTimeout> | undefined;
     const outcome = await Promise.race([
-      federation.start().then((): "started" => {
-        catalog = buildToolCatalogQuery(registry);
-        return "started";
-      }),
+      startFederation().then((): "started" => "started"),
       new Promise<"timed-out">((resolve) => {
         timer = setTimeout(() => resolve("timed-out"), timeoutMs);
       }),
@@ -747,6 +776,7 @@ export function createByokToolSurface(routeDeps: ByokToolSurfaceDeps, options: B
     executeMetaTool,
     ready,
     federation,
+    readFederationAdmissions,
     awaitFederation,
     daemonCalls: {
       executor: {

@@ -24,6 +24,7 @@ import { createSupervisorRegistry } from "@jini-ai/sidecar/supervisor/node";
 import type { ToolContributor, DerivedToolContributor } from "@jini-ai/core";
 import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { createSkillRefreshMiddleware } from "#src/features/skills/live-registration";
+import { registerDaemonAttachmentLookup } from "#src/assistant/daemon-access";
 /**
  * @file The standalone agent daemon — a separate OS process from Tovu's own server, per the
  * architecture correction to ADR-049: Tovu does not spawn coding-agent CLIs itself.
@@ -1935,6 +1936,9 @@ async function start(): Promise<void> {
     retainAcrossRestarts: true,
     maxBatchBytes: ATTACHMENT_MAX_BATCH_BYTES,
   });
+  // Server-side attachment tools consult the sole live owner, including uploads made after boot.
+  // The adapter adds its own full-daemon-token gate; run credentials cannot access this route.
+  registerDaemonAttachmentLookup({ app, store: attachmentStore }, {});
   // Registered ahead of `express.json()` in spirit (see `attachments.ts`'s own "mount before any
   // global body parser" note) even though call order here is necessarily after it (`express.json()`
   // is synchronous module-scope code above; this file's own body-parser-skip behavior for a

@@ -30,8 +30,8 @@ export const externalMcpOperationsToolCatalog: readonly AgentToolDefinition[] = 
   },
   {
     name: "external_mcp_get_admissions",
-    description: "Reads the assistant daemon's current external MCP tool admissions: the tools actually admitted, refused, missing from allowlists, and configuration failures. Call when saved tool selections differ from what the assistant can use. Returns { connections, configFailures? }, preserving the live daemon report. Read-only; does not connect to vendors, change server settings or grant tool access. An unavailable daemon produces an actionable error, never an empty roster. Use content_read.external_mcp for saved server configuration and status, external_mcp_probe_connection to test a hosted endpoint, or external_mcp_save to open the human setup form.",
-    sideEffects: "none",
+    description: "Reads the server's current external MCP tool admissions: the tools actually admitted, refused, missing from allowlists, and configuration failures. Call when saved tool selections differ from what the assistant can use. Returns { connections, configFailures? }, preserving the live server report. Starts server federation if needed and may refresh saved OAuth grants; does not change tool grants or server settings. An unavailable report produces an actionable error, never an empty roster. Use content_read.external_mcp for saved server configuration and status, external_mcp_probe_connection to test a hosted endpoint, or external_mcp_save to open the human setup form.",
+    sideEffects: "mutates-durable-state",
     authorization: { permission: EXTERNAL_MCP_MANAGE_PERMISSION },
     inputSchema: { type: "object", additionalProperties: false, properties: {} },
   },
@@ -40,8 +40,8 @@ export const externalMcpOperationsToolCatalog: readonly AgentToolDefinition[] = 
 export const externalMcpOperationsDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
   // probeExternalMcpServer -> readEnabledExternalMcpConfigs -> OAuth token resolution may persist a refreshed grant.
   ["external_mcp_probe_connection", "mutates-durable-state"],
-  // fetchDaemonAdmissions -> bounded authenticated GET to the local daemon; no writes.
-  ["external_mcp_get_admissions", "none"],
+  // Server admission startup resolves OAuth tokens and may persist a refreshed grant.
+  ["external_mcp_get_admissions", "mutates-durable-state"],
 ]);
 
 /** Rejects secret-bearing or unsupported arguments before any I/O, including direct delegated calls.
@@ -60,8 +60,8 @@ function readOperationInput(input: unknown, toolId: string, allowedKeys: readonl
 
 /** Builds two diagnostics handlers. Permission runs before I/O; live probes share a workspace budget.
  * @param deps - Workspace, permission checker and clock shared with the setup tools.
- * @param operations - Shared admin probe and daemon admissions services, injected by composition.
- * @returns Registrations for the hosted probe and read-only live admissions tools.
+ * @param operations - Shared admin probe and server admissions services, injected by composition.
+ * @returns Registrations for the hosted probe and live admissions tools.
  * @throws {ToolInputError} Handlers refuse invalid arguments, rate limits or unavailable services.
  * @complexity O(1) wiring; services bound their own I/O and collection costs.
  */
@@ -90,7 +90,7 @@ export function buildExternalMcpOperationsRegistrations(deps: ExternalMcpToolDep
         await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }),
         workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: EXTERNAL_MCP_MANAGE_PERMISSION }, { entityType: "integration" });
         const result = await operations.admissions();
-        if (!result.ok) throw new ToolInputError({ message: `external_mcp_get_admissions: ${result.body.error}. Start the assistant and try again; no live admissions report is available.` });
+        if (!result.ok) throw new ToolInputError({ message: `external_mcp_get_admissions: ${result.body.error}. Try again shortly; no live admissions report is available.` });
         return result.configFailures === undefined ? { connections: result.connections } : { connections: result.connections, configFailures: result.configFailures };
       },
     },
@@ -100,7 +100,7 @@ export function buildExternalMcpOperationsRegistrations(deps: ExternalMcpToolDep
 /** Adds diagnostics under a distinct domain so the existing setup/OAuth contributor remains installed.
  * @param operations - Shared admin services; no credentials are exposed through tool arguments.
  * @returns The contributor installed by the composition root.
- * @example contributeExternalMcpOperationsTools({ probe: probeExternalMcpServer, admissions: fetchDaemonAdmissions })
+ * @example contributeExternalMcpOperationsTools({ probe: probeExternalMcpServer, admissions: serverFederation.admissions })
  * @complexity O(1) time and space.
  */
 export function contributeExternalMcpOperationsTools(operations: ExternalMcpOperations): ToolContributor<ExternalMcpToolDeps, unknown> {
