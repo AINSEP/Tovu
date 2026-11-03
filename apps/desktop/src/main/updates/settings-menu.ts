@@ -6,6 +6,7 @@
 import path from "node:path";
 import type { MenuItemConstructorOptions } from "electron";
 import { automaticUpdatesMenu, readAutomaticUpdates } from "../../desktop-update-preference.ts";
+import { maximumLiveSiteViewsMenu, readMaximumLiveSiteViews, writeMaximumLiveSiteViews } from "../../site-view-preference.ts";
 import { desktopCopy } from "../../desktop-i18n.ts";
 import { productTelemetryMenu, readProductTelemetryPreference, writeProductTelemetryPreference } from "../../product-telemetry-preference.ts";
 import type { ProductTelemetryPreference } from "../../product-telemetry-preference.ts";
@@ -33,20 +34,23 @@ export interface ProductMenuSource {
  * Every checkbox persists before it applies; a failed save shows a native error box.
  * @complexity O(1) plus the preference reads.
  */
-export function desktopSettingsMenu({ locale, preferencePath, product, setAutomaticUpdates, showErrorBox }: {
+export function desktopSettingsMenu({ locale, preferencePath, product, setAutomaticUpdates, setMaximumLiveSiteViews, showErrorBox }: {
   locale: string;
   preferencePath: string;
   product: ProductMenuSource;
   setAutomaticUpdates: (args: { enabled: boolean }) => void;
+  setMaximumLiveSiteViews?: (args: { maximumLiveSiteViews: number }) => void;
   showErrorBox: (title: string, content: string) => void;
 }, {
   readAutomatic = readAutomaticUpdates,
   readSharing = readProductTelemetryPreference,
   writeSharing = writeProductTelemetryPreference,
+  readViewMaximum = readMaximumLiveSiteViews,
 }: {
   readAutomatic?: typeof readAutomaticUpdates;
   readSharing?: typeof readProductTelemetryPreference;
   writeSharing?: typeof writeProductTelemetryPreference;
+  readViewMaximum?: typeof readMaximumLiveSiteViews;
 } = {}): MenuItemConstructorOptions & { submenu: MenuItemConstructorOptions[] } {
   const settings = automaticUpdatesMenu({
     locale,
@@ -61,6 +65,11 @@ export function desktopSettingsMenu({ locale, preferencePath, product, setAutoma
     save: patch => writeSharing({ preferencePath, patch }),
     changed: preference => product.consentChanged(preference),
     onError: () => showErrorBox("Tovu", SHARING_SAVE_ERROR),
+  }));
+  submenu.push(maximumLiveSiteViewsMenu({
+    maximumLiveSiteViews: readViewMaximum({ preferencePath }),
+    setMaximum: setMaximumLiveSiteViews ?? (input => writeMaximumLiveSiteViews({ preferencePath, ...input })),
+    onError: ({ error }) => showErrorBox('Tovu', error instanceof Error ? error.message : String(error)),
   }));
   return { label: settings.label, submenu };
 }

@@ -15,6 +15,7 @@ import { matchRoute, resolveAgentPageId, type AdminRoute } from "@jini-ai/admin/
 import { ConfirmDialog, ConfirmDialogDefaultsProvider, Sidebar, useSidebar } from "@jini-ai/admin/react";
 import { Toast } from "@jini-ai/ui";
 import { useRouteLocation } from "./lib/router";
+import { useDesktopViewRelease } from "./hooks/use-desktop-view-release.hooks";
 import { resolveAddonsRoute } from "./lib/addons-routes";
 import { resolveImportExportRoute } from "./lib/import-export-routes";
 import { IntegrationsRedirect } from "./features/integrations";
@@ -590,6 +591,7 @@ function AdminShell(props: AppProps & { session: ReturnType<typeof useAdminSessi
   const siteSection = useSiteSectionAvailability(user);
   const sidebarSiteSection = useSidebarSiteSection(siteSection);
   const routePath = useRouteLocation();
+  useDesktopViewRelease({ routePath, signedIn: Boolean(user) && !checking });
   const route = useMemo(() => parseRoute(routePath), [routePath]);
   // Tells the assistant which screen each message is sent from; an editor adds its open entry.
   useAgentScreenRoute({ path: routePath, section: agentPageId(route), view: route.view });

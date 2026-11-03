@@ -1,98 +1,57 @@
-/**
- * @file The Projects-card preview's Electron half, extracted from `main.ts`: where a capture points
- * (this launch's own server or another app's lease), the hidden-window capture itself, the list
- * poll's once-per-port ask, and the boot hygiene sweep. `site-preview-scheduler.ts` owns WHEN a
- * capture runs; `site-preview-store.ts` owns the cache files. Electron, storage and timers are ports.
- */
-import type { PreviewTarget } from "../../site-preview-scheduler.ts";
-import { withRenderTimeout } from "@jini-ai/desktop-host";
+/** Live PUBLIC guest thumbnails. The scheduler owns timing and the preview store owns files.
+ * No view is created or navigated for decoration; failed eligibility retains the previous image. */
+import type { PreviewTarget } from '../../site-preview-scheduler.ts';
+import { withRenderTimeout } from '@jini-ai/desktop-host';
 
-/** The capture window's own size, at the SAME 16:10 ratio `.card__tile` renders (`app.css`) — so
- *  downscaling to {@link PREVIEW_WIDTH_PX} below never crops a different ratio than the one the
- *  card actually shows. */
-export const PREVIEW_CAPTURE_WIDTH_PX = 1280;
-export const PREVIEW_CAPTURE_HEIGHT_PX = 800;
-
-/** The stored preview's width in px; height follows automatically — `nativeImage`'s own `resize()`
- *  keeps the source's aspect ratio when only one dimension is given. */
 export const PREVIEW_WIDTH_PX = 640;
-
-/** How long to wait after the hidden capture window finishes loading before taking the screenshot.
- *  A fixed settle rather than a network-idle wait: a site's own public page is server-rendered, not
- *  an SPA polling for data, so this is enough and needs no new dependency to detect idleness. */
-export const PREVIEW_PAINT_SETTLE_MS = 1200;
-
-/** Bound hidden-window navigation even when a page's subresources never finish loading. */
-export const PREVIEW_LOAD_TIMEOUT_MS = 10_000;
-
-/** How long to wait, after a site's server first publishes into `openSites`, before capturing it —
- *  separate from and additional to {@link PREVIEW_PAINT_SETTLE_MS}'s post-navigation settle inside
- *  the capture itself. "The listener answered ready" is not "there is a first paint worth a
- *  screenshot yet". */
 export const PREVIEW_CAPTURE_DEBOUNCE_MS = 1500;
+const PREVIEW_CAPTURE_TIMEOUT_MS = 10_000;
 
-/** The slice of a hidden `BrowserWindow` a capture drives. */
-export interface PreviewWindow {
-  loadURL(url: string): Promise<unknown>;
-  isDestroyed(): boolean;
-  destroy(): void;
-  webContents: { capturePage(): Promise<{ resize(options: { width: number }): { toPNG(): Buffer } }> };
+export interface LivePreviewGuest {
+  partition: string;
+  getURL(): string;
+  /** Rechecks owning shell, canonical site, session, readiness and navigation generation. */
+  isCurrent(): boolean;
+  capturePage(): Promise<{ resize(options: { width: number }): { toPNG(): Buffer } }>;
 }
-
 export interface PreviewCapturePorts {
-  /** `new BrowserWindow(options)`. */
-  createHiddenWindow: (options: { show: false; width: number; height: number; webPreferences: { partition: string } }) => PreviewWindow;
-  /** Resolves after `ms` (a `setTimeout` promise). */
-  delay: (ms: number) => Promise<void>;
-  /** `site-preview-store.ts`'s `writePreview`, bound to this launch's `userData`. */
-  writePreview: (required: { siteDir: string; png: Buffer }) => number | null;
+  liveGuest: (input: { siteDir: string }) => LivePreviewGuest | undefined;
+  writePreview: (input: { siteDir: string; png: Buffer }) => number | null;
   warn: (message: string) => void;
 }
 
-/**
- * Capture `siteDir`'s own PUBLIC surface — `http://127.0.0.1:<port>/`, never `/admin/` — into its
- * preview cache, then discard the window that took it.
- *
- * **Offscreen, not the live embedded guest.** `App.tsx` defaults a project tab's workspace view to
- * `'admin'`, and both surfaces are the same origin on different paths — a passive capture of the
- * guest would screenshot the Tovu ADMIN for most operators most of the time, confidently and
- * uniformly wrong. A dedicated hidden window loading the site's own root sidesteps that question
- * entirely, and needs no `did-attach-webview`/partition-tracking machinery to do it.
- *
- * A hidden (`show: false`) `BrowserWindow` rather than Electron's separate offscreen-rendering mode:
- * `capturePage()` works on an ordinary hidden window (Electron paints a hidden window by default —
- * `paintWhenInitiallyHidden` — so there is a frame to capture), and the offscreen mode is a
- * different API built for streaming frames out through a `paint` event, none of which this needs.
- *
- * Loaded on the site's OWN session partition, so a route the site itself gates on a cookie behaves
- * for this capture exactly as it would for a real visit.
- *
- * Best-effort and silent on every failure, same discipline as `announceDesktopToolsToSite`: a
- * preview is decoration, and failing to capture one must never surface as a problem with the site
- * that just opened, or delay it.
- *
- * Its signature is the scheduler's `capture` port, so the composition root passes it directly.
- * @returns whether a preview was stored.
- * @complexity O(1) beyond the hidden window's own load/capture/destroy cost.
- */
-export function createSitePreviewCapture({ ports }: { ports: PreviewCapturePorts }, _optional = {}) {
+/** Same-origin public pages only. Query/fragment state and reserved private surfaces fail closed.
+ * O(url length); the host's canonical server origin is supplied by the existing target resolver. */
+export function isPublicPreviewUrl({ url, origin }: { url: string; origin: string }, _options = {}): boolean {
+  try {
+    const parsed = new URL(url);
+    const path = decodeURIComponent(parsed.pathname).toLowerCase();
+    if (parsed.origin !== origin || parsed.username || parsed.password || parsed.search || parsed.hash || path.includes('%')) return false;
+    return !/(^|[/\\])(admin|api|auth|oauth|login|logout|signin|signout|sign-in|sign-out|signup|sign-up|register|callback|account|profile|private|error|404|500)([/\\]|$)/.test(path);
+  } catch { return false; }
+}
+
+/** Capture the registered live guest, validating its identity on both sides of asynchronous I/O.
+ * O(image pixels) for capture/resize. Timeout, navigation or release stores nothing. */
+export function createSitePreviewCapture({ ports }: { ports: PreviewCapturePorts }, _options = {}) {
   return async function captureSitePreview(
-    { siteDir, port, partition, scheme = "http" }: PreviewTarget & { siteDir: string }, _opts = {},
+    { siteDir, port, partition, scheme = 'http' }: PreviewTarget & { siteDir: string },
+    { isCurrent = () => true }: { isCurrent?: () => boolean } = {},
   ): Promise<boolean> {
-    let window: PreviewWindow | undefined;
     try {
-      window = ports.createHiddenWindow({ show: false, width: PREVIEW_CAPTURE_WIDTH_PX, height: PREVIEW_CAPTURE_HEIGHT_PX, webPreferences: { partition } });
-      // An https dev server's certificate names `localhost`, not the loopback IP.
-      await withRenderTimeout({ promise: window.loadURL(scheme === "https" ? `https://localhost:${port}/` : `http://127.0.0.1:${port}/`) }, { timeoutMs: PREVIEW_LOAD_TIMEOUT_MS });
-      await ports.delay(PREVIEW_PAINT_SETTLE_MS);
-      if (window.isDestroyed()) return false;
-      const captured = await window.webContents.capturePage();
+      const guest = ports.liveGuest({ siteDir });
+      if (!guest || guest.partition !== partition) return false;
+      // An https dev server's certificate names localhost, not the loopback IP.
+      const origin = scheme === 'https' ? `https://localhost:${port}` : `http://127.0.0.1:${port}`;
+      const url = guest.getURL();
+      const eligible = () => isCurrent() && guest.isCurrent() && guest.getURL() === url && isPublicPreviewUrl({ url: guest.getURL(), origin });
+      if (!eligible()) return false;
+      const captured = await withRenderTimeout({ promise: guest.capturePage() }, { timeoutMs: PREVIEW_CAPTURE_TIMEOUT_MS });
+      if (!eligible()) return false;
       return ports.writePreview({ siteDir, png: captured.resize({ width: PREVIEW_WIDTH_PX }).toPNG() }) !== null;
     } catch (error) {
-      ports.warn(`tovu desktop: could not capture a preview for ${siteDir} — ${(error as Error).message}`);
+      ports.warn(`tovu desktop: could not capture a preview for ${siteDir} — ${error instanceof Error ? error.message : String(error)}`);
       return false;
-    } finally {
-      if (window && !window.isDestroyed()) window.destroy();
     }
   };
 }
@@ -121,27 +80,11 @@ export function createPreviewTargetResolver({ ports }: { ports: PreviewTargetPor
   };
 }
 
-/**
- * The list poll's ask: capture a running site that has no preview yet. ONE attempt per site per
- * port: the poll runs every 4 s, and a capture that keeps failing (an untrusted certificate, a page
- * that never loads) must not open a hidden window on every tick. A restart on a new port earns a
- * fresh attempt. Goes through the same scheduler, so an open's own capture and this one never race.
- *
- * @param required.schedule `sitePreviewScheduler.schedule`.
- * @returns `requestListedSitePreview`, the shape `project-ipc.ts`'s `requestPreviewCapture` expects.
- * @complexity O(1) per request.
- */
+/** Legacy server/list callers remain inert: only a ready public guest schedules thumbnails. */
 export function createListedPreviewRequests(
-  { schedule }: { schedule: (required: { siteDir: string }, optional: {}) => void }, _optional = {},
+  _input: { schedule: (required: { siteDir: string }, optional: {}) => void }, _options = {},
 ) {
-  /** Every `siteDir` + port the list poll has already asked to capture. */
-  const listedPreviewRequests = new Set<string>();
-  return function requestListedSitePreview({ siteDir, port }: { siteDir: string; port: number }, _opts = {}): void {
-    const key = `${siteDir}\0${port}`;
-    if (listedPreviewRequests.has(key)) return;
-    listedPreviewRequests.add(key);
-    schedule({ siteDir }, {});
-  };
+  return function requestListedSitePreview(_input: { siteDir: string; port: number }, _options = {}): void {};
 }
 
 /**

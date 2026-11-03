@@ -1,4 +1,5 @@
 /**
+ * Host transport adapter: eligible CLIs use in-process HTTP; stdio remains the prelaunch fallback.
  * @file ADR-049 Decision 2 — resolves the `jini-mcp` bin `@jini-ai/daemon`'s `AgentExecutor` spawns
  * as a CLI-injected MCP server, so a spawned coding-agent CLI (Claude Code today — the one def
  * whose `externalMcpInjection` is `'claude-mcp-json'`) can reach Tovu's own registered tools
@@ -24,8 +25,15 @@ import type { McpJsonInjectionOptions } from "@jini-ai/daemon";
 
 const require = createRequire(import.meta.url);
 
+/** Library-only HTTP surface, loaded when an eligible run prepares its listener. */
+type HttpMcpModule = Pick<typeof import("@jini-ai/mcp"), "assembleRunToolHost" | "startMcpHttpToolServer"> & {
+  readonly MCP_HTTP_SESSION_MODE_SUPPORTED?: boolean;
+};
+
 /** The process facts that decide how the bridge is launched; injectable so both runtimes are testable. */
 export interface BridgeRuntime {
+  /** Lazy library seam; no MCP listener or tool assembly until an eligible run prepares HTTP. */
+  readonly loadHttpMcp?: () => Promise<HttpMcpModule>;
   readonly execPath: string;
   /** `process.versions.electron`: set whenever this process is the Electron binary, even as Node. */
   readonly electronVersion: string | undefined;
@@ -61,5 +69,18 @@ export function resolveMcpJsonInjection(
     ...(underElectron ? { env: { ELECTRON_RUN_AS_NODE: "1" } } : {}),
     daemonUrl,
     credential: ({ runId }) => mintRunCredential(runId),
+    prepareHttp: async ({ runId }, options = {}) => {
+      const mcp = await (runtime.loadHttpMcp ?? (() => import("@jini-ai/mcp")))();
+      // The integration owner adds session mode. Until then retain the working stdio path;
+      // stateless HTTP would silently lose published definitions and paged results.
+      if (!("MCP_HTTP_SESSION_MODE_SUPPORTED" in mcp) || mcp.MCP_HTTP_SESSION_MODE_SUPPORTED !== true) {
+        throw new Error("MCP HTTP session support unavailable");
+      }
+      const assembled = await mcp.assembleRunToolHost({ runId, resolveBaseUrl: () => daemonUrl }, {
+        credential: mintRunCredential(runId), ...options,
+      });
+      const httpOptions = { ...assembled.options, sessionMode: true, warn: (message: string) => console.warn(`[assistant-mcp] ${message}`) };
+      return mcp.startMcpHttpToolServer(assembled.required, httpOptions);
+    },
   };
 }

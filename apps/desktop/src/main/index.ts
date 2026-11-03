@@ -158,10 +158,13 @@ import { resolveDesktopRoots } from "../packaged-paths.ts";
 import { readWindowBounds, writeWindowBounds } from "../window-bounds-store.ts";
 import { registerSpellCheckContextMenu } from "../spellcheck-menu.ts";
 import { readAutomaticUpdates, writeAutomaticUpdates } from "../desktop-update-preference.ts";
+import { readMaximumLiveSiteViews, writeMaximumLiveSiteViews, registerSiteViewPreferenceIpc } from "../site-view-preference.ts";
+import { SITE_VIEW_PREFERENCE_CHANNELS } from "../contracts/site-view-preference.ts";
+import { createLivePreviewGuests } from "./boot/site-preview-guests.ts";
 import { presenceDirPath } from "../instance-presence.ts";
 // Owner 2026-10-06: DMG window already shows drag-to-Applications; prompt redundant.
 // Restore the removed prompt imports, helper and call from git history, then re-enable wiring tests.
-import type { MenuItemConstructorOptions } from "electron";
+import type { MenuItemConstructorOptions, WebContents } from "electron";
 import type { QuitPhase } from "@jini-ai/desktop-host/shutdown";
 import type { SelftestTracker } from "../selftest-tracker.ts";
 // The decisions this file wires live beside it in src/main/: windows/ (window and navigation policy), boot/
@@ -486,6 +489,7 @@ function openSitesHomeWindow(): BrowserWindow | null {
     userDataDir: app.getPath("userData"), fileExists: (file) => fs.existsSync(file),
     createBrowserWindow: (options) => new BrowserWindow(options), getAllDisplays: () => screen.getAllDisplays(),
     readWindowBounds, writeWindowBounds, isSupervisedGuestUrl,
+    registerPreviewGuest: ({ window, webContents: contents }) => livePreviewGuests.register({ owner: window, guest: contents as WebContents }),
     openExternal: (target) => void shell.openExternal(target),
     relayFindResults, registerSpellCheck: ({ webContents }) => registerSpellCheckContextMenu({ webContents, menuBuilder: Menu }),
     showErrorBox: (title, message) => dialog.showErrorBox(title, message), logError: (message) => console.error(message),
@@ -520,47 +524,44 @@ const siteBackend = createSiteBackend<TovuServerHandle>({ ports: {
   redeemBootSession: ({ partition, adminUrl, bootToken }) => redeemBootSession({ net, session: session.fromPartition(partition), adminUrl, bootToken }),
   log: (message) => console.log(message), warn: (message) => console.warn(message), error: (message) => console.error(message),
   openSites,
-  schedulePreview: ({ siteDir }) => sitePreviewScheduler.schedule({ siteDir }, {}),
+  schedulePreview: () => {}, // Readiness of a public live guest owns thumbnail scheduling.
   syncThemePreview: ({ siteDir }) => siteThemePreviews.sync({ siteDir }, {}),
 } });
 
-/** Hidden-window capture of a site's public page for its card — see `site-preview.ts`. */
-const captureSitePreview = createSitePreviewCapture({ ports: { createHiddenWindow: (options) => new BrowserWindow(options),
-  delay: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
-  writePreview: ({ siteDir, png }) => writePreview(app.getPath("userData"), siteDir, png), warn: (message) => console.warn(message) } });
-
-/**
- * Every site this process has already captured (or scheduled a capture for) this live lifecycle —
- * see {@link scheduleSitePreview}. A reservation avoids repeated captures on tab reuse
- * (`site-preview-store.ts`'s own header argues staleness is correct behaviour here). Stop/restart
- * releases it: a pending timer must not navigate to a port the old server no longer owns.
- */
+/** Resolve through the existing canonical site/server owner, never through a renderer claim. */
+const currentPreviewTarget = createPreviewTargetResolver({ ports: { openSite: ({ siteDir }) => openSites.get(siteDir),
+  readLease: ({ siteDir }) => sharedSites.running({ path: siteDir }).read({}), partitionFor: ({ siteDir }) => sitePartition(siteDir) } });
+const livePreviewGuests = createLivePreviewGuests<BrowserWindow, WebContents>({
+  resolve: ({ url }) => {
+    let origin: string;
+    try { origin = new URL(url).origin; } catch { return undefined; }
+    for (const [siteDir, entry] of openSites) {
+      if (new URL(entry.server.origin).origin !== origin) continue;
+      const target = currentPreviewTarget({ siteDir });
+      if (target) return { siteDir, ...target };
+    }
+    return undefined;
+  },
+  allowed: ({ owner, guest, target }) => !owner.isDestroyed()
+    && owner.webContents.getURL() === pathToFileURL(SITES_RENDERER_PATH).href
+    && guest.hostWebContents === owner.webContents
+    && guest.session === session.fromPartition(target.partition),
+  schedule: input => sitePreviewScheduler.schedule(input),
+  cancel: input => sitePreviewScheduler.cancel(input),
+});
+const captureSitePreview = createSitePreviewCapture({ ports: {
+  liveGuest: input => livePreviewGuests.liveGuest(input),
+  writePreview: ({ siteDir, png }) => writePreview(app.getPath("userData"), siteDir, png),
+  warn: message => console.warn(message),
+} });
 const sitePreviewScheduler = createSitePreviewScheduler<ReturnType<typeof setTimeout>>({ ports: {
-  current: createPreviewTargetResolver({ ports: { openSite: ({ siteDir }) => openSites.get(siteDir),
-    readLease: ({ siteDir }) => sharedSites.running({ path: siteDir }).read({}), partitionFor: ({ siteDir }) => sitePartition(siteDir) } }),
-  capture: captureSitePreview,
-  schedule: ({ work, delayMs }) => setTimeout(work, delayMs),
-  cancel: ({ timer }) => clearTimeout(timer),
+  current: currentPreviewTarget, capture: captureSitePreview,
+  schedule: ({ work, delayMs }) => setTimeout(work, delayMs), cancel: ({ timer }) => clearTimeout(timer),
 } }, { debounceMs: PREVIEW_CAPTURE_DEBOUNCE_MS });
 
-/**
- * Schedule ONE offscreen capture of `siteDir`'s preview, the moment its server publishes into
- * `openSites` — never on the tab-open hot path, and never more than once per successful live
- * lifecycle (see {@link sitePreviewScheduler}).
- *
- * Reserves the site BEFORE the timer fires, not after: two opens back to back must not
- * both slip through this check while the first's timer is still pending. The scheduler looks up
- * the live port at fire time; Stop cancels and re-arms it, and a failed capture releases it.
- *
- * @complexity O(1) — one reservation check, one timer.
- */
-function scheduleSitePreview(siteDir: string): void {
-  sitePreviewScheduler.schedule({ siteDir }, {});
-}
-
-/** The list poll's ask: capture a running site with no preview yet, once per site per port — see
- *  `createListedPreviewRequests`. Goes through the same scheduler, so it never races an open's capture. */
-const requestListedSitePreview = createListedPreviewRequests({ schedule: (request, options) => sitePreviewScheduler.schedule(request, options) });
+/** Legacy server-window callers stay inert: never allocate a guest solely for a thumbnail. */
+function scheduleSitePreview(_siteDir: string): void {}
+const requestListedSitePreview = createListedPreviewRequests({ schedule: () => {} });
 
 /** Open (or focus) one own-server site's window — see `site-window.ts`. Run through `serializer.run(siteDir, …)`. */
 async function openSiteWindow(siteDir: string, ctx: SiteOpenCtx, options: SiteOpenOptions = {}): Promise<BrowserWindow> {
@@ -722,7 +723,15 @@ function desktopPreferencesPath(): string {
 /** Settings: Automatic updates, plus the sharing checkboxes once product telemetry booted. */
 function desktopUpdateSettingsMenu(): MenuItemConstructorOptions {
   return desktopSettingsMenu({ locale: app.getLocale(), preferencePath: desktopPreferencesPath(), product: productState.product,
-    setAutomaticUpdates: desktopUpdater.setAutomaticUpdates, showErrorBox: (title, content) => dialog.showErrorBox(title, content) });
+    setAutomaticUpdates: desktopUpdater.setAutomaticUpdates,
+    setMaximumLiveSiteViews: ({ maximumLiveSiteViews }) => {
+      writeMaximumLiveSiteViews({ preferencePath: desktopPreferencesPath(), maximumLiveSiteViews });
+      for (const window of BrowserWindow.getAllWindows()) {
+        if (!window.isDestroyed() && window.webContents.getURL() === pathToFileURL(SITES_RENDERER_PATH).href)
+          window.webContents.send(SITE_VIEW_PREFERENCE_CHANNELS.changed, maximumLiveSiteViews);
+      }
+    },
+    showErrorBox: (title, content) => dialog.showErrorBox(title, content) });
 }
 
 /**
@@ -753,6 +762,10 @@ function registerAppWideIpc(): void {
   // harmless to register even for a boot mode whose window never calls it (no preload exposes
   // these channels outside the sites home window today). See `find-in-page-ipc.ts`.
   registerFindInPageIpc({ ipcMain, browserWindow: BrowserWindow });
+  registerSiteViewPreferenceIpc({ ipcMain,
+    allowed: (sender: WebContents) => !sender.isDestroyed() && sender.getURL() === pathToFileURL(SITES_RENDERER_PATH).href,
+    read: () => readMaximumLiveSiteViews({ preferencePath: desktopPreferencesPath() }),
+  });
   registerSiteThemePreviewIpc({ ipcMain, subscriptions: siteThemePreviews,
     allowed: (sender) => !sender.isDestroyed() && sender.getURL() === pathToFileURL(SITES_RENDERER_PATH).href,
   });

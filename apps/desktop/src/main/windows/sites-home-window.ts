@@ -57,6 +57,7 @@ interface SitesHomePorts<W extends SitesHomeWindow> {
   openExternal: (url: string) => void;
   relayFindResults: (args: { window: W }) => unknown;
   registerSpellCheck: (args: { webContents: SpellCheckWebContents }) => unknown;
+  registerPreviewGuest?: (args: { window: W; webContents: SpellCheckWebContents }) => unknown;
   showErrorBox: (title: string, message: string) => void;
   logError: (message: string) => void;
   setExitCode: (code: number) => void;
@@ -153,6 +154,7 @@ function installGuestAttachPolicy<W extends SitesHomeWindow>({ window, ports }: 
   // Electron's own `webPreferences` default (`spellcheck: true`) already covers it.
   window.webContents.on("did-attach-webview", (_event, contents) => {
     ports.registerSpellCheck({ webContents: contents });
+    ports.registerPreviewGuest?.({ window, webContents: contents });
   });
 }
 

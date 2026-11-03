@@ -29,6 +29,7 @@ import { createSpeechBridge } from '@jini-ai/desktop-host/speech';
 import { RUNNER_AGENT_INVENTORY_CHANNELS } from '../contracts/runtime-inventory.js';
 import { RUNNER_APP_CHECK_FOR_UPDATES_CHANNEL, RUNNER_APP_VERSION_CHANNEL } from '../contracts/app-version.js';
 import { RUNNER_RESOURCES_GET_CHANNEL, type ResourcesRequest } from '../contracts/resources.js';
+import { SITE_VIEW_PREFERENCE_CHANNELS } from '../contracts/site-view-preference.js';
 import { OWNER_STORE_CHANNELS, type OwnerStoreBridge } from '../contracts/owner-store.js';
 import {
   SITE_HISTORY_CHANNEL,
@@ -93,6 +94,8 @@ contextBridge.exposeInMainWorld(
   'tovuRunner',
   Object.freeze({
     getAppVersion: () => ipcRenderer.invoke(RUNNER_APP_VERSION_CHANNEL),
+    getMaximumLiveSiteViews: () => ipcRenderer.invoke(SITE_VIEW_PREFERENCE_CHANNELS.read),
+    onMaximumLiveSiteViewsChanged: (listener: (maximum: number) => void) => subscribe(SITE_VIEW_PREFERENCE_CHANNELS.changed, listener),
     getResources: (input: ResourcesRequest, _options = {}) => ipcRenderer.invoke(RUNNER_RESOURCES_GET_CHANNEL, input),
     checkForUpdates: () => ipcRenderer.invoke(RUNNER_APP_CHECK_FOR_UPDATES_CHANNEL),
     listAgents: () => ipcRenderer.invoke(RUNNER_AGENT_INVENTORY_CHANNELS.list),
