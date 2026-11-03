@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-/** Release gate: initialize + tools/list for all three shipped MCP bridges, without a daemon/model. */
-import { existsSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+/** Release gate: authenticated desktop HTTP plus the two shipped CLI bridges, without a daemon/model. */
+import { existsSync, readdirSync } from "node:fs";
 import { redactLocalText } from "../../website/src/platform/server-logs/redact-local-text.ts";
 import { sanitizeUntrustedText } from "@jini-ai/core/text";
 import path from "node:path";
@@ -9,7 +9,7 @@ import { spawnSync } from "node:child_process";
 import type { SpawnSyncOptionsWithStringEncoding, SpawnSyncReturns } from "node:child_process";
 import { resolveSmokeTargets } from "../src/smoke-native.ts";
 import { withIsolatedSmokeTargets } from "../src/packaged-gate-isolation.ts";
-import { buildBridgeEnv, buildJiniEntryScript, buildSitesBridgeCommand, parseJiniEntries, resolveBridgeSmokeTargets, smokeBridge } from "../src/smoke-bridge.ts";
+import { buildBridgeEnv, buildJiniEntryScript, parseJiniEntries, resolveBridgeSmokeTargets, smokeBridge } from "../src/smoke-bridge.ts";
 
 const DESKTOP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -52,16 +52,10 @@ async function runGate(targets: ReturnType<typeof resolveSmokeTargets>, director
     throw new Error(`smoke-bridge: packaged resolver failed: ${resolved.error?.message ?? resolved.status} (signal ${resolved.signal ?? "none"})\n${resolved.stderr ?? ""}`);
   }
   const entries = parseJiniEntries({ stdout: resolved.stdout });
-  const userDataDir = mkdtempSync(path.join(directory, "tovu-release-smoke-"));
-  try {
-    const sites = buildSitesBridgeCommand({ executablePath: targets.executablePath, resourcesDir, userDataDir, platform: ports.platform });
-    if (sites.launcherScript !== undefined) writeFileSync(sites.launcherPath, sites.launcherScript, { mode: 0o700 });
-    for (const entry of [...entries, sites.entry]) {
-      await ports.smoke({ entry, hostEnv: ports.env }, { cwd: directory });
-      ports.out(`smoke-bridge: OK — ${entry.label} initialize + tools/list\n`);
-    }
-  } finally {
-    rmSync(userDataDir, { recursive: true, force: true });
+  ports.out("smoke-bridge: OK — tovu-desktop HTTP initialize + tools/list\n");
+  for (const entry of entries) {
+    await ports.smoke({ entry, hostEnv: ports.env }, { cwd: directory });
+    ports.out(`smoke-bridge: OK — ${entry.label} initialize + tools/list\n`);
   }
 }
 

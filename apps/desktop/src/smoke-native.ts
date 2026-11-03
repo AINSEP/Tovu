@@ -227,7 +227,7 @@ export function buildEntryLoadScript({ resourcesDir }: { resourcesDir: string },
       // Match mcp-injection.ts: the exports map exposes the root, not the bin subpath.
       join(dirname(createRequire(join(tovu, "package.json")).resolve("@jini-ai/mcp")), "bin", "serve.js"),
       join(dirname(createRequire(join(asar, "package.json")).resolve("@jini-ai/mcp")), "bin", "serve.js"),
-      join(asar, "bin", "mcp-bridge.ts"),
+      join(asar, "src", "desktop-mcp-http.ts"),
     );
     const loaded = new Set();
     registerHooks({

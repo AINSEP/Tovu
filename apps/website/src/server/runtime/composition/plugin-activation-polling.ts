@@ -1,33 +1,16 @@
-import type { ByokToolSurfaceDeps } from "#src/assistant/index";
-import { toEnqueueOnlyOutbox } from "#src/contracts/core/events/index";
-import type { NewsletterRouteDeps } from "../../inbound/admin-http/routes/newsletter/deps.js";
 import type { PluginActivationRepoPort } from "@jini-ai/plugins/host";
-import { createRouteDeps } from "./app.js";
-import { createSiteRouteDepsForWorkspace } from "./deps.js";
-import type { SiteStore } from "./open-site-store.js";
 
-/**
- * @file The agent daemon's `RouteDeps` composition, moved out of `agent-daemon-server.ts` (a
- * top-level script no test can import) so its outbox rule is testable against the real factories.
+/** Server-owned hook activation polling. The registry is process-local, while durable row
+ * revisions can be changed by another server/client. Polling reuses those revisions instead
+ * of claiming outbox events on a bus whose subscribers belong to another process.
  *
- * Rule: the daemon only ENQUEUES outbox events; it never drains them. The daemon shares the site's
- * `content.db` but not its bus. The site's subscribers are attached by `createApp` in the serving
- * process only, so a drain here marks rows delivered that no real subscriber ever saw (see
- * `contracts/core/events/enqueue-only-outbox.ts`). The serving process's background drainer
- * (`serving-app.ts`) is the one owner of delivery.
- *
- * P0b fix (hooks v2 plan, 2026-09-23): the admin process and this daemon each build their OWN
- * `composePluginRuntime()` (via `createSiteRouteDepsForWorkspace`/`createSiteRouteDeps`), so
- * each has its own in-memory hook registry. Enabling/disabling a plugin through the admin HTTP
- * path updates only the admin process's registry — this daemon's registry is a snapshot from
- * whenever IT last booted (`pluginRuntimeReady`/P0a fixes THAT staleness at boot, not while
- * running). Rather than a new outbox event (the daemon shares `content.db` but not the bus, and is
- * enqueue-only — see the rule above), `startPluginActivationPolling` below periodically re-reads
- * the same durable `pluginActivationRepo` rows the admin process just wrote and reconciles this
- * process's registry to match — the "poll the activation repo row versions" option the plan left
- * as this lane's own sustainable-option call.
- */
-
+ * P0b's original failure was two composePluginRuntime registries: an admin enable/disable updated
+ * only its own registry, while the daemon kept its boot snapshot. Boot readiness fixed initial
+ * staleness, not later changes. Polling durable activation row versions was chosen because sharing
+ * content.db did not share either bus or hook registry; an enqueue-only daemon could not consume
+ * an outbox notification safely. ADR-070 removes that daemon registry, while the serving process
+ * retains this reconciliation against changes from another process. Never remove the server's
+ * poll merely because the daemon no longer has one. */
 /** The narrow slice `startPluginActivationPolling` needs — never the whole `RouteDeps`, so a
  * caller (or a test) can pass a hand-built fake without satisfying the full interface. */
 export interface PluginActivationPollDeps {
@@ -73,7 +56,6 @@ async function attachActivatedPlugin(
     await deps.onPluginEnabled(pluginId);
     attachedIds.add(pluginId);
   } catch (error) {
-    // eslint-disable-next-line no-console
     console.warn(
       `[plugin-runtime] plugin activation poll failed to attach '${pluginId}': ${error instanceof Error ? error.message : String(error)}`
     );
@@ -114,8 +96,7 @@ export function startPluginActivationPolling(
     void seeded
       .then(() => stopped ? undefined : reconcilePluginActivationsOnce(pollingDeps, attachedIds))
       .catch((error: unknown) => {
-        // eslint-disable-next-line no-console
-        console.warn(`[plugin-runtime] plugin activation poll failed: ${error instanceof Error ? error.message : String(error)}`);
+            console.warn(`[plugin-runtime] plugin activation poll failed: ${error instanceof Error ? error.message : String(error)}`);
       });
   }, intervalMs);
   timer.unref();
@@ -128,31 +109,3 @@ export function startPluginActivationPolling(
   };
 }
 
-/**
- * Builds the daemon's `RouteDeps`: in-memory when `env.TOVU_DB === "memory"`, otherwise SQLite bound
- * to `env.TOVU_WORKSPACE`.
- *
- * @param required.env the daemon's environment (`process.env` in production).
- * @param optional.dbPath content database path; defaults to `defaultContentDbPath()`. Tests only.
- * @param optional.onStoreOpened receives the owned composition store for daemon teardown.
- * @returns the composed deps.
- * @throws (rejects) whatever `createSiteRouteDepsForWorkspace` rejects with for an unknown `TOVU_WORKSPACE`.
- * @complexity O(1) beyond the wrapped factory's own boot cost.
- */
-export async function createAgentDaemonRouteDeps(
-  required: { env: NodeJS.ProcessEnv },
-  optional: { dbPath?: string; onStoreOpened?: (store: SiteStore) => void } = {}
-): Promise<NewsletterRouteDeps & ByokToolSurfaceDeps> {
-  const { env } = required;
-  const routeDeps =
-    env.TOVU_DB === "memory" ? createRouteDeps() : await createSiteRouteDepsForWorkspace(
-      { workspaceIdOverride: env.TOVU_WORKSPACE },
-      { dbPath: optional.dbPath, storeRole: "client", onStoreOpened: optional.onStoreOpened }
-    );
-  // Mutated, not spread into a copy: `createSiteApp` is closed over this exact object (see
-  // `RouteDeps.exportSiteBound`'s doc in `routes/types.ts`), so a copy would leave the export app's
-  // routes on the claiming outbox. Services the factory built earlier kept the raw outbox, which is
-  // fine: they only enqueue. Every drain reads `routeDeps.outbox` at call time.
-  routeDeps.outbox = toEnqueueOnlyOutbox(routeDeps.outbox);
-  return routeDeps;
-}

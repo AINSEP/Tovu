@@ -11,7 +11,7 @@ import {
   writeNodeToolchain as writeToolchain,
 } from "@jini-ai/desktop-host/node-toolchain";
 import type { NodeToolchainPaths, ToolchainFilesystemPort } from "@jini-ai/desktop-host/node-toolchain";
-import { isReadOnlyVolumeRoot, isTransientAppPath, launcherNamesDurableInstall } from "./sites-mcp-registration.ts";
+import { isReadOnlyVolumeRoot, isTransientAppPath, launcherNamesDurableInstall } from "@jini-ai/desktop-host/node-toolchain";
 
 interface BuildNodeToolchainShimsInput {
   electronPath: string;
@@ -43,7 +43,7 @@ function buildNodeToolchainShims({ electronPath, npmRoot, platform = process.pla
 
 /** Bind existing directory names and transient-install probes; I/O failures propagate. @complexity O(n) shim bytes. */
 function writeNodeToolchain({
-  userDataDir, electronPath, npmRoot, platform = process.platform, isReadOnlyVolume = isReadOnlyVolumeRoot,
+  userDataDir, electronPath, npmRoot, platform = process.platform, isReadOnlyVolume = (volumeRoot: string) => isReadOnlyVolumeRoot({ volumeRoot }),
 }: WriteNodeToolchainInput): NodeToolchainPaths | null {
   const toolchainDir = path.join(userDataDir, "node-toolchain");
   return writeToolchain({
@@ -56,8 +56,8 @@ function writeNodeToolchain({
     },
     filesystem,
     writerPid: process.pid,
-    isTransientPath: ({ executablePath }) => isTransientAppPath(executablePath, { isReadOnlyVolume }),
-    launcherNamesDurableInstall: ({ launcherPath }) => launcherNamesDurableInstall(launcherPath, isReadOnlyVolume),
+    isTransientPath: ({ executablePath }) => isTransientAppPath({ executablePath }, { isReadOnlyVolume }),
+    launcherNamesDurableInstall: ({ launcherPath }) => launcherNamesDurableInstall({ launcherPath }, { isReadOnlyVolume }),
     // The node shim names Electron alone in the MCP launcher's exec form, so that same durable-path
     // parser can inspect it; npm/npx also include their CLI script paths and are not the probe target.
   });

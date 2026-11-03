@@ -9,6 +9,7 @@
  * daemon-owned attachment store, through its lookup route), the plugin-install attachment reader,
  * and native approval memory keyed to the daemon's conversation.
  */
+import { registerAgentDaemonCoreRoutes } from "./agent-daemon-core-rpc.js";
 import { stat, readFile } from "node:fs/promises";
 import { json, type Response } from "express";
 import { z } from "zod";
@@ -62,6 +63,7 @@ type PluginPreflightPorts = {
 type ComponentCatalogDeps = {
   runStore: Pick<DurableRunStore, "find"> | undefined; workspaceId: string;
   plugins?: PluginPreflightPorts;
+  core?: Parameters<typeof registerAgentDaemonCoreRoutes>[0]["deps"];
   components?: { pluginRuntimeReady: Promise<void>; siteTitleReady: Promise<void>;
     chartProviderSnapshot?: (required: Record<string, never>) => Promise<AdminChartProviderSnapshot> };
 };
@@ -72,9 +74,10 @@ type ComponentCatalogDeps = {
  * module memory (`currentToolExecToken`), never from `process.env`.
  * @complexity O(1) setup.
  */
-export function registerAssistantToolExecRoutes({ router, toolSurface, runStore, workspaceId, components, plugins }: {
+export function registerAssistantToolExecRoutes({ router, toolSurface, runStore, workspaceId, components, plugins, core }: {
   router: ToolExecutionRouteTarget; toolSurface: Pick<ByokToolSurface, "daemonCalls">;
 } & ComponentCatalogDeps, _optional = {}): void {
+  if (core) registerAgentDaemonCoreRoutes({ router, deps: core });
   const tokenEnv: NodeJS.ProcessEnv = { get [TOOL_EXEC_TOKEN_ENV_VAR]() { return currentToolExecToken(); } };
   registerToolExecutionRoutes({ app: router, executor: toolSurface.daemonCalls.executor, listToolsFor: toolSurface.daemonCalls.listToolsFor }, {
     tokenEnvVar: TOOL_EXEC_TOKEN_ENV_VAR,

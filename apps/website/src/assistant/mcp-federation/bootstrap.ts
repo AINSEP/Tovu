@@ -6,6 +6,8 @@ import type { ToolRegistration, ToolRegistry } from "@jini-ai/core";
 import { createDefaultConnect as createJiniConnect, stdioLaunchResolverFromEnv, type McpStdioLaunchResolver, type ResolvedStdioLaunch, type StdioLaunchResolverFromEnvOptions } from "@jini-ai/mcp/federation/stdio";
 import type { ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
 import type { McpSessionPort, McpStdioChannel } from "@jini-ai/mcp/federation";
+import type { McpBearerTokenSupplier } from "@jini-ai/mcp/federation";
+import { desktopMcpRuntime } from "../desktop-mcp-runtime.js";
 import { tovuFederationMessages, TOVU_MCP_CLIENT_INFO } from "./presets.js";
 import { buildFederatedMcpRegistrations, toJiniFederationDeps, type FederationDeps } from "./registrations.js";
 // The shared admission report is canonical in Jini; the host registration adapter does not redeclare it.
@@ -246,16 +248,17 @@ function resolveRegisteredPresets(env: NodeJS.ProcessEnv, logger: FederationLogg
 }
 
 /** Bind Tovu's client identity, presentation and optional host channel to Jini's bounded factory.
- * Static authenticating headers remain the credential source; resolution and spawn deadlines,
+ * Stored connections keep their authenticating headers; the spawning desktop supplies a bearer
+ * only for its exact runtime endpoint. Resolution and spawn deadlines,
  * warning deduplication and hostile-server handling live in the package.
  * @complexity O(1) to construct; returned connections inherit Jini's bounded transport costs.
  */
 export function createDefaultConnect({ resolver }: { resolver: McpStdioLaunchResolver }, {
-  spawnChannel, logger = consoleLogger,
-}: { spawnChannel?: (resolved: ResolvedStdioLaunch) => McpStdioChannel; logger?: FederationLogger } = {}):
+  spawnChannel, logger = consoleLogger, bearerToken = desktopMcpRuntime.bearerToken,
+}: { spawnChannel?: (resolved: ResolvedStdioLaunch) => McpStdioChannel; logger?: FederationLogger; bearerToken?: McpBearerTokenSupplier } = {}):
   (connection: ResolvedFederatedConnection) => Promise<McpSessionPort> {
   const connect = createJiniConnect({ resolver, clientInfo: TOVU_MCP_CLIENT_INFO,
-    messages: tovuFederationMessages, bearerToken: () => undefined,
+    messages: tovuFederationMessages, bearerToken,
   }, {
     logger: { warn: ({ message }) => logger.warn(message) },
     ...(spawnChannel ? { spawnChannel: ({ resolved }: { resolved: ResolvedStdioLaunch }) => spawnChannel(resolved) } : {}),

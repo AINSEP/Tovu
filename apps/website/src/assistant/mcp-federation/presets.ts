@@ -1,4 +1,13 @@
 import { defaultFederationMessages, type FederationMessages } from "@jini-ai/mcp/federation";
+import type { FederatedMcpPresetRegistry } from "@jini-ai/mcp/federation";
+import { DESKTOP_MCP_ID, type DesktopMcpRuntime } from "../desktop-mcp-runtime.js";
+
+/** Register only the spawning main's runtime endpoint; no stored row or launch rewrite.
+ * Resolution is live so a late successful bind is available on the next admission pass.
+ * @complexity O(1), no I/O. */
+export function registerDesktopMcpPreset({ registry, runtime }: { registry: FederatedMcpPresetRegistry; runtime: DesktopMcpRuntime }, _options = {}): void {
+  registry.register({ preset: { presetId: DESKTOP_MCP_ID, resolve: () => runtime.connection({}, {}) } });
+}
 
 /**
  * @file Host-owned federation identity and operator-facing messages. Ordered per-host preset

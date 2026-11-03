@@ -6,12 +6,12 @@ import { readLoginShellEnvironment } from "@jini-ai/platform/child-environment";
 import { resolveNativeToolPolicy } from "@jini-ai/agent-runtime/native-tool-policy";
 import { resolveFullCliAccess, resolveAssistantCliPermissions } from "#src/contracts/core/assistant-native-fallbacks";
 import { resolveHostSignals } from "#src/server/runtime/composition/host-signals";
-import { assistantCliPermissions } from "#src/assistant/runtime-settings";
+import { assistantCliPermissions } from "#src/assistant/assistant-subagents-policy";
 import { type AssistantCliPermissions } from "#src/contracts/headless/index";
 import { createToolGapCollector } from "@jini-ai/daemon/tool-audit";
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 import { AsyncLocalStorage } from "node:async_hooks";
-import { sniffContentType } from "#src/features/media/index";
+import { sniffContentType } from "@jini-ai/cms/media";
 import { prepareByokMessageAttachments } from "./byok-message-attachments.js";
 import { createSupervisorRegistry } from "@jini-ai/sidecar/supervisor/node";
 import { ensureToolExecToken, registerDaemonAttachmentLookup } from "#src/assistant/daemon-access";
@@ -25,8 +25,8 @@ import { ensureToolExecToken, registerDaemonAttachmentLookup } from "#src/assist
  * in-memory site writes therefore reach the serving store too. Only frontend/page/chat tools
  * execute here. The server also owns plugin consent, installed tools and external federation.
  *
- * Full retained-port composition is the separate C2 cut-over; until then this entry still opens
- * the older site deps for sessions/settings/telemetry, without registering their site tools.
+ * Retained composition opens only the configured leaf database client. The site owns durable
+ * attempts and provider telemetry; memory-local sessions/approvals never replace that authority.
  *
  * Principal propagation: this process has no browser session/cookie of its own. Tovu's proxy
  * layer stamps the authenticated principal's id into `contextRef` (`{prompt, principalId}`,
@@ -97,7 +97,7 @@ type RunSessionBinding = {
   readonly sessionFields: { resumeSessionId?: string; newSessionId?: string };
 };
 
-import { assemblePromptWithPluginPrefix } from "./plugin-prompt-prefix.js";
+import { assemblePromptWithPluginPrefix } from "./plugin-prompt-assembly.js";
 import { buildCapabilityManifestPrefix, resolveCapabilityManifestArm } from "./capability-manifest-prefix.js";
 import {
   resolveAssistantDisallowedTools,
@@ -109,58 +109,32 @@ import {
 } from "./assistant-system-overlay.js";
 import { buildAssistantRuntimeGuidance, createAssistantChromeProbe, resolveAssistantRuntimeLaunch, type AssistantRuntimeGuidanceInput } from "./assistant-runtime-guidance.js";
 import { getCustomFsRoot } from "../../../features/fs-files/custom-root-store.js";
-import { createAgentDaemonRouteDeps, startPluginActivationPolling } from "../../runtime/composition/agent-daemon-deps.js";
+import { createAgentDaemonCoreDeps, type AgentDaemonResource } from "../../runtime/composition/agent-daemon-core-deps.js";
 import { installProcessErrorReporting, installUnhandledRejectionGuard } from "../../runtime/boot/process-error-guards.js";
 import { attachServerLogFile, installServerLogCapture, serverLogFilePaths } from "../../../platform/server-logs/index.js";
 import { processBuildRelease, telemetryEnvironment } from '../../runtime/composition/build-release.js';
-import { siteDir } from "../../runtime/composition/deps.js";
+import { siteDir } from "../../runtime/composition/site-paths.js";
 import { resolveAgentPermissionMode } from "#src/contracts/core/agent-permission-mode";
-import {
-  applyToolApprovalPolicy,
-  createAssistantAgentInventory,
-  agentCarriesOwnMemory,
-  extractSessionRefFromEndEvent,
-  resolveResumeSessionField,
-  shouldClearSessionOnFailedResume,
-  wouldForcedColdStartLoseConversationContext,
-  CONCURRENT_RUN_REFUSAL_MESSAGE,
-  createLiveRunTracker,
-  failRunBeforeStart,
-  STOPPING_RUN_WAIT_MS,
-  waitForStoppingRuns,
-  agentAcceptsHostMintedSessionId,
-  resolveHostMintedSessionId,
-  resolveNewSessionField,
-  createConversationStartLock,
-  readAssistantCliPermissions,
-  createCustomInstructionsCache,
-  DELEGATED_TOOL_CALLS_PATH,
-  requireAgentDaemonToken,
-  AGENT_DAEMON_EXIT_CODE,
-  FRONTEND_CONTROL_CAPABILITIES,
-  withReadOnlyFrontendCapabilities,
-  registerA2uiActionsRoute,
-  registerMcpUiToolCallsRoute,
-  resolveMcpJsonInjection,
-  createOwnedRunListHandler,
-  createRunOwnerRegistry,
-  requireRunOwnership,
-  RUN_PRINCIPAL_HEADER,
-  parseRunStartContextRef,
-  buildPageContextPromptBlock,
-  constrainPrincipalToReadOnlyTools,
-  withReadOnlyToolConstraint,
-  createAssistantToolExecutor,
-  createLostFrontendBindings,
-  withPageNavigateErrorRewrap,
-  delegatedToolErrorDisclosure,
-  createRunActiveContextStore,
-  registerRunActiveContextRoute,
-  createRunScopedCredentials,
-  type RunPageContext,
-} from "#src/assistant/agent-daemon-port";
+import { applyToolApprovalPolicy } from "#src/assistant/tool-approval-policy";
+import { createAssistantAgentInventory } from "#src/assistant/agents";
+import { agentCarriesOwnMemory, extractSessionRefFromEndEvent, resolveResumeSessionField, shouldClearSessionOnFailedResume, wouldForcedColdStartLoseConversationContext, CONCURRENT_RUN_REFUSAL_MESSAGE, createLiveRunTracker, failRunBeforeStart, STOPPING_RUN_WAIT_MS, waitForStoppingRuns, agentAcceptsHostMintedSessionId, resolveHostMintedSessionId, resolveNewSessionField, createConversationStartLock } from "#src/assistant/agent-session-preset";
+import { readAssistantCliPermissions } from "#src/assistant/subagent-settings";
+import { createCustomInstructionsCache } from "#src/assistant/custom-instructions";
+import { DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken, createOwnedRunListHandler, createRunOwnerRegistry, requireRunOwnership, RUN_PRINCIPAL_HEADER, createRunScopedCredentials } from "#src/assistant/daemon-access";
+import { AGENT_DAEMON_EXIT_CODE } from "#src/assistant/daemon-exit-codes";
+import { FRONTEND_CONTROL_CAPABILITIES, withReadOnlyFrontendCapabilities } from "#src/assistant/frontend-control-capabilities";
+import { registerA2uiActionsRoute } from "#src/assistant/a2ui-actions-route";
+import { registerMcpUiToolCallsRoute } from "#src/assistant/mcp-ui-tool-calls-route";
+import { resolveMcpJsonInjection } from "#src/assistant/mcp-injection";
+import { parseRunStartContextRef } from "#src/assistant/run-start-context";
+import { buildPageContextPromptBlock, type RunPageContext } from "#src/assistant/run-page-context";
+import { constrainPrincipalToReadOnlyTools, withReadOnlyToolConstraint } from "#src/assistant/read-only-tool-constraint";
+import { createAssistantToolExecutor, delegatedToolErrorDisclosure } from "#src/assistant/tool-recovery-preset";
+import { createLostFrontendBindings } from "#src/assistant/lost-frontend-binding";
+import { withPageNavigateErrorRewrap } from "#src/assistant/rewrap-page-navigate-error";
+import { createRunActiveContextStore, registerRunActiveContextRoute } from "#src/assistant/run-active-context";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import { TOVU_MAX_UPLOAD_BYTES } from "#src/features/media/index";
+import { TOVU_MAX_UPLOAD_BYTES } from "#src/contracts/core/upload-limits";
 import { registerCredentialRunIntake, registerDurableRunStartRoute, registerDurableToolGuard } from "./durable-run-routes.js";
 import { createEarlySessionCapture } from "./early-run-session.js";
 import { agentReceivesImageAttachments, durableAttemptOwnsAnswer, resolveStoredSessionId, selectRunHistoryPrompt } from "./run-start-decisions.js";
@@ -168,7 +142,6 @@ import { readProcessStart } from "./attempt-process-identity.js";
 import { checkReadOnlyTool, defaultDaemonMessages } from "@jini-ai/daemon/read-only-tools";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
-import type { SiteStore } from "../../runtime/composition/open-site-store.js";
 import { closeWithinBound, stopServingWithinGrace } from "../../runtime/lifecycle/close-store-on-shutdown.js";
 import { awaitBootWorkWithinBound } from "../../runtime/lifecycle/await-boot-work.js";
 
@@ -193,9 +166,8 @@ const daemonRegistryPath = process.env.TOVU_AGENT_DAEMON_REGISTRY_PATH;
 const daemonRegistry = daemonRegistryPath ? createSupervisorRegistry({ registryPath: daemonRegistryPath }) : undefined;
 let registryPublication: Promise<void> = Promise.resolve();
 let daemonExiting = false;
-let daemonStore: SiteStore | undefined;
+let daemonStore: AgentDaemonResource | undefined;
 let stopDaemonServing: () => Promise<void> = async () => {};
-let stopPluginPolling: () => void = () => {};
 let disposeAiTracing: () => void = () => {};
 const daemonBootWork: Promise<unknown>[] = [];
 
@@ -207,7 +179,6 @@ async function exitDaemon(exitCode: number): Promise<void> {
   if (daemonExiting) return;
   daemonExiting = true;
   await closeWithinBound(async () => {
-    stopPluginPolling();
     await stopDaemonServing();
     // Before the store closes, which flushes and disposes the provider plugins' sinks.
     disposeAiTracing();
@@ -218,7 +189,8 @@ async function exitDaemon(exitCode: number): Promise<void> {
       console.error("[agent-daemon] failed to remove its discovery record", error);
     }
     await awaitBootWorkWithinBound({ work: daemonBootWork });
-    // The composition owns content/chat and the ops journal; process.exit alone leaves WALs.
+    // The retained client owns content/chat; process.exit alone leaves WALs. The site server
+    // alone owns its ops journal and providers. Drain this daemon before closing its client.
     try { await assistantInventory.dispose({}); }
     finally { await daemonStore?.close(); }
   }, { label: "the agent daemon store" });
@@ -388,27 +360,13 @@ function resolvePermissionMode(): "bypass" | "restricted" {
   return resolveAgentPermissionMode({ env: process.env }, { hostSignals: resolveHostSignals({ env: process.env }) });
 }
 
-// Mirrors `src/index.ts`'s own `useMemory` branch exactly — see this file's module doc on why
-// memory mode gives this process a disconnected store rather than sharing Tovu's.
-//
-// D10 fix: `TOVU_WORKSPACE`, when present, is the main process's own already-resolved
-// `deps.workspaceId` (`daemon-supervisor.ts`'s `spawnRealDaemonProcessFor` sets it from the SAME
-// value `index.ts` passed to `startAssistantDaemon`, on every spawn including every automatic
-// respawn) — binding this process to that exact workspace instead of letting it
-// independently re-resolve `resolveWorkspace`'s default. Irrelevant in memory mode: each process
-// gets its own disconnected in-memory store regardless (see module doc above), so there is no
-// second process to agree with.
-//
-// Outbox (2026-09-14): that branch now lives in `agent-daemon-deps.ts`, which also makes this
-// process's outbox enqueue-only. This process shares `content.db` with the serving process but not
-// its bus or subscribers, so a drain here (the post tools drain after every write) marked rows
-// delivered that the serving process never saw. The serving process's background drainer
-// (`serving-app.ts`) delivers them instead.
-const routeDeps = await createAgentDaemonRouteDeps({ env: process.env }, { onStoreOpened: (store) => { daemonStore = store; } });
-// The same boot tail `index.ts` waits for before its store closes.
-if (routeDeps.legacyPublishCredentialsReady) daemonBootWork.push(routeDeps.legacyPublishCredentialsReady);
-// This process boots its own provider plugins (the same `createSiteRouteDeps` composition), so its
-// unhandled rejections/exceptions reach the error tracker, labelled `process: daemon`.
+// The supervisor pins the site's workspace. The authenticated bootstrap also checks it, so a
+// daemon cannot silently attach to another workspace's settings, files or attempt authority.
+// Site writes now execute in the server: its bus/drainer delivers their outbox events. There is
+// no enqueue-only outbox or disconnected durable ledger in this process, including memory mode.
+const routeDeps = await createAgentDaemonCoreDeps({ env: process.env, token: siteToolToken }, { onStoreOpened: (store) => { daemonStore = store; } });
+// Provider plugins stay at the site owner (including project settings/migrations). Forward process
+// diagnostics with their daemon attribution; a fatal drain never disposes the server's providers.
 installProcessErrorReporting({ tracker: routeDeps.tracker, processRole: "daemon" }, { flush: routeDeps.flushTelemetry });
 
 /**
@@ -431,13 +389,6 @@ installProcessErrorReporting({ tracker: routeDeps.tracker, processRole: "daemon"
  * `__tests__/helpers/daemon-tool-surface.ts`).
  */
 const ATTACHMENT_UPLOAD_DIRECTORY = routeDeps.siteStoragePaths.chatAttachmentsDir;
-
-// P0b fix (hooks v2 plan, 2026-09-23): this process's hook registry is built once, here, from a
-// snapshot of the activation table — an enable/disable through the admin process afterwards never
-// reaches it on its own. See `agent-daemon-deps.ts`'s own header for why polling, not an outbox
-// event, is this lane's chosen mechanism.
-const pluginPolling = startPluginActivationPolling(routeDeps);
-stopPluginPolling = pluginPolling.stop;
 
 // The in-memory log bounds itself (a run's payloads are compacted 15 min after its `end`; at most
 // 1000 runs are held), and the durable transcript is `ai_chat_messages.events_json`. Dropping a run's
@@ -560,15 +511,10 @@ for (const registration of withPageNavigateErrorRewrap(withReadOnlyFrontendCapab
 // appends a `requested` row before delegating, which is the only ordering under which those cases
 // are recorded. Audit is observation — a sink failure can never change a tool call's outcome.
 // See `tool-executor-audit.ts`.
-// Read off `routeDeps` rather than hand-built here (2026-09-06). This process IS a composition
-// root, so constructing a sink here was legitimate — but `routeDeps` above is already the product
-// of one of the two real roots, chosen on the SAME `TOVU_DB === "memory"` branch this const used to
-// repeat, so the field it now carries (`RouteDeps.toolAttemptAuditSink`) is that same choice made
-// once instead of twice. Same rows, same database: the sqlite branch's
-// `createSiteRouteDepsForWorkspace(...)` defaults its `dbPath` to `defaultContentDbPath()`, the
-// exact path the deleted `openContentDb(defaultContentDbPath())` call opened — the only difference
-// an operator can observe is that this process no longer opens a SECOND connection to that file
-// (and no longer runs `openContentDb`'s unconditional `migrate()` a second time) at boot.
+// The retained root chooses this same site's content-kernel sink once (or the bounded local
+// memory sink). Reuse that connection: a second openContentDb here used to open/migrate a second
+// content.db solely for audit. Site tool audit runs at the server owner; this sink observes local
+// frontend calls and discovery without constructing site handlers or a second site composition.
 const auditSink = routeDeps.toolAttemptAuditSink;
 // Local UI effects retain their approved gating/audit stack. Site effects use the server's
 // complete stack; the outer descriptor gate verifies read-only authority before either route.
@@ -995,6 +941,15 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
       }
       const pluginPromptPrefix = pluginPreparation.prefix;
 
+      /** A durable memory attempt reads its site's locator: local memory sessions deliberately
+       * survive only this daemon, while early capture writes at the site owner. Called inside the
+       * existing conversation lock. O(1), one session lookup; no identity comes from wire fields. */
+      async function readPriorSessionId(_required: Record<string, never>, _options = {}): Promise<string | null> {
+        if (durableMessageId && routeDeps.getSessionForAttempt) return routeDeps.getSessionForAttempt({ runId: run.id });
+        if (conversationId === undefined) return null;
+        return routeDeps.agentSessions.getSessionId({ conversationId, agentId });
+      }
+
       /*
        * This run's entire session-binding decision, in ONE function so it can be handed to
        * `conversationStartLock` as a single critical section (Defect 1, 2026-09-11). It reads the
@@ -1023,7 +978,7 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
         // Defect 1 fix a cold start is no longer id-less: `resolveHostMintedSessionId` below mints
         // one and persists it before the CLI is spawned, which is what this comment used to say was
         // deliberately NOT happening.
-        const priorSessionId = conversationId !== undefined ? await routeDeps.agentSessions.getSessionId({ conversationId, agentId }) : null;
+        const priorSessionId = await readPriorSessionId({}, {});
         // Recovery is authoritative about native resume (see `resolveStoredSessionId`).
         const storedSessionId = resolveStoredSessionId({ recoveryMode, recoverySessionId, priorSessionId }, {});
         // A run the user just stopped is still exiting for a few seconds. Wait for it, so a message

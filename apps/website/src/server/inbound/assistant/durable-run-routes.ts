@@ -1,7 +1,6 @@
+import type { DaemonDurableRunStore } from "#src/assistant/daemon-core-protocol";
 import {
   redactAdminRunContextRef,
-  type ChatRunLedger,
-  type DurableRunStore,
   UNKNOWN_MUTATION_ERROR,
   RUN_PRINCIPAL_HEADER,
 } from "#src/assistant/session-services";
@@ -26,7 +25,7 @@ export function registerCredentialRunIntake({ app }: { app: Express }, _optional
 /** Tovu chooses the attempt id before dispatch. The published daemon lifecycle already accepts
  * runId; this host route exposes it only for an authenticated, persisted staff-chat binding. */
 export function registerDurableRunStartRoute(
-  { app, lifecycle, onStarted, store }: { app: Express; lifecycle: Lifecycle; onStarted: RunStartHandler; store: DurableRunStore }, _optional = {},
+  { app, lifecycle, onStarted, store }: { app: Express; lifecycle: Lifecycle; onStarted: RunStartHandler; store: DaemonDurableRunStore }, _optional = {},
 ): void {
   app.post("/api/runs", (req, res, next) => {
     const body = (req.body ?? {}) as { runId?: unknown; contextRef?: unknown; agentId?: string };
@@ -49,7 +48,7 @@ export function registerDurableRunStartRoute(
  * this gateway. Registered tools without read-only metadata fail closed as potentially mutating.
  * Unregistered ids reach the daemon's not-found response without creating mutation orphans. */
 export function registerDurableToolGuard(
-  { app, ledger, isRegistered, isReadOnly, messageIdForAttempt }: { app: Express; ledger: ChatRunLedger;
+  { app, ledger, isRegistered, isReadOnly, messageIdForAttempt }: { app: Express; ledger: { durable?: DaemonDurableRunStore };
     isRegistered: (required: { toolId: string }, optional: {}) => boolean; isReadOnly: (required: { toolId: string }, optional: {}) => boolean;
     messageIdForAttempt: (required: { runId: string }, optional: {}) => Promise<string | null> }, _optional = {},
 ): void {
@@ -87,7 +86,7 @@ export function registerDurableToolGuard(
 }
 
 function captureCompletedToolResponse(
-  { res, store, runId, toolUseId }: { res: import("express").Response; store: DurableRunStore; runId: string; toolUseId: string }, _optional = {},
+  { res, store, runId, toolUseId }: { res: import("express").Response; store: DaemonDurableRunStore; runId: string; toolUseId: string }, _optional = {},
 ): void {
   const send = res.json.bind(res);
   res.json = (body: unknown) => {

@@ -2,7 +2,7 @@ import { createFederatedMcpPresetRegistry } from "@jini-ai/mcp/federation";
 import { tovuFederationMessages } from "./mcp-federation/presets.js";
 import type { ToolRegistry } from "@jini-ai/core";
 
-import { attachFederatedMcpTools, type FederationLogger } from "./mcp-federation/bootstrap.js";
+import { attachFederatedMcpTools, resolveRegisteredPresets, type FederationLogger } from "./mcp-federation/bootstrap.js";
 import type { ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
 import type { McpSessionPort } from "@jini-ai/mcp/federation";
 import { buildFederatedRefusalPrefix } from "@jini-ai/mcp/federation";
@@ -151,7 +151,12 @@ export function createFederationRuntime(params: CreateFederationRuntimeParams): 
       coordinator = createFederationReloadCoordinator({ coordDeps: {
           registry: params.registry,
           deps: params.deps,
-          resolveConnections: params.resolveConnections,
+          // Presets can arrive after a failed desktop listener bind. The existing coordinator
+          // retries only unadmitted identities and still freezes every successfully admitted tool.
+          resolveConnections: async () => [
+            ...resolveRegisteredPresets(process.env, logger, presetRegistry).map(connection => ({ ...connection, config: { ...connection.config, origin: { kind: "preset" as const } } })),
+            ...await params.resolveConnections(),
+          ],
           attach,
           logger,
           ...(params.connect ? { connect: params.connect } : {}),

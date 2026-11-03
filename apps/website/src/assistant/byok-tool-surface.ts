@@ -8,6 +8,10 @@
  * falling back to the daemon only on unknown-or-closed exchanges. The A2UI proxy does likewise.
  */
 import type { AssistantToolContributions } from "./tool-registrations.js";
+import { createFederatedMcpPresetRegistry } from "@jini-ai/mcp/federation";
+import { desktopMcpRuntime, type DesktopMcpRuntime } from "./desktop-mcp-runtime.js";
+import { registerDesktopMcpPreset } from "./mcp-federation/presets.js";
+import { createDefaultConnect, tovuStdioLaunchResolverFromEnv } from "./mcp-federation/bootstrap.js";
 import {
   createToolRegistry,
   createToolExposure,
@@ -463,6 +467,7 @@ export interface ByokToolSurfaceOptions {
    * `assistant-byok.ts` (the only production caller) wants.
    */
   readonly federationConnect?: (connection: ResolvedFederatedConnection) => Promise<McpSessionPort>;
+  readonly desktopMcpRuntime?: DesktopMcpRuntime;
   /** Server-owned remembered grants. A daemon call supplies its run's conversation through the
    * injected resolver; missing stores preserve per-call confirmation without remembered choices. */
   readonly federationApprovals?: Omit<FederatedApprovalDeps, "workspaceId" | "authorize">;
@@ -494,8 +499,8 @@ function createDiscoveryRegistry(required: { readonly registry: ToolRegistry; re
 // `agent-daemon-server.ts`'s own `resolveStoredExternalMcpConnections`: omitted (not merely
 // `undefined`-valued) when this surface's `routeDeps` carries no OAuth service, so an
 // `authMode: "oauth"` row degrades to a reported failure rather than launching credential-free.
-function createSurfaceConnectionSource(required: { readonly routeDeps: ByokToolSurfaceDeps }): StoredExternalMcpConnectionSource {
-  const { routeDeps } = required;
+function createSurfaceConnectionSource(required: { readonly routeDeps: ByokToolSurfaceDeps; readonly desktop: DesktopMcpRuntime }): StoredExternalMcpConnectionSource {
+  const { routeDeps, desktop } = required;
   return createStoredExternalMcpConnectionSource({
     agentPluginLayout: routeDeps.agentPluginLayout,
     repo: routeDeps.externalMcpServerRepo,
@@ -503,6 +508,7 @@ function createSurfaceConnectionSource(required: { readonly routeDeps: ByokToolS
     ...(routeDeps.externalMcpOAuth ? { oauth: routeDeps.externalMcpOAuth.tokenResolver } : {}),
     workspaceId: routeDeps.workspaceId,
     log: "[assistant-byok]",
+    desktopOwned: desktop.owned,
   });
 }
 
@@ -634,12 +640,17 @@ export function createByokToolSurface(routeDeps: ByokToolSurfaceDeps, options: B
   // operator has opted in.
   options.registerFederationPresets?.();
 
-  const connectionSource = createSurfaceConnectionSource({ routeDeps });
+  const desktop = options.desktopMcpRuntime ?? desktopMcpRuntime;
+  const presetRegistry = routeDeps.federatedMcpPresetRegistry ?? createFederatedMcpPresetRegistry({});
+  registerDesktopMcpPreset({ registry: presetRegistry, runtime: desktop }, {});
+  const connectionSource = createSurfaceConnectionSource({ routeDeps, desktop });
   const extensions = attachSurfaceExtensions(
-    { registry, deps, routeDeps, surfaceExchanges, connectionSource, onAdmitted: () => {
+    { registry, deps, routeDeps: { ...routeDeps, federatedMcpPresetRegistry: presetRegistry }, surfaceExchanges, connectionSource, onAdmitted: () => {
       catalog = buildToolCatalogQuery(registry);
     } },
-    options,
+    { ...options, federationConnect: options.federationConnect ?? createDefaultConnect({ resolver: {
+      resolve: ({ spec }) => tovuStdioLaunchResolverFromEnv(process.env).resolve({ spec }),
+    } }, { bearerToken: desktop.bearerToken }) },
   );
   const federation: FederationRuntime | undefined = extensions?.federation;
   const executor = composeSurfaceExecutor({ registry, surfaceExchanges, federation }, options);

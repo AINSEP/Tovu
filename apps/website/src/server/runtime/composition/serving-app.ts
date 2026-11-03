@@ -22,9 +22,9 @@ import { startSiteSearchMaintenance, type SiteSearchMaintenance } from "./module
  * spawns per site window. Pinned by `server/__tests__/unit/serving-app-boot-wiring.unit.test.ts`.
  *
  * Why not inside `createApp`: `createApp` also runs where no site is served and nothing may drain.
- * That covers the static exporter (`routeDeps.createSiteApp()`, including inside the agent daemon)
- * and `app.ts`'s eager module-level `app`, which every importer of `app.ts` builds. The agent daemon
- * itself only enqueues (`agent-daemon-deps.ts`).
+ * That covers the static exporter (`routeDeps.createSiteApp()`) and `app.ts`'s eager module-level
+ * `app`, which every importer of `app.ts` builds. ADR-070's daemon has no site composition or
+ * outbox: its remote site writes execute here, with this serving process's real subscribers.
  * Assistant recovery has the same ownership rule: an export app built by a live chat run is not
  * a web restart. Sweeping during its route registration canceled that very run's transcript while
  * its daemon still held the conversation (2026-10-05); only a serving boot may probe and recover.
@@ -72,7 +72,7 @@ export function createServingApp(
 ): { app: Express; outboxDrainer: OutboxDrainer; trashSweeper: TrashSweeper; themeWatcher: ReturnType<typeof startThemeWatcher>; formPullTrigger: { stop(): Promise<void> }; postGoLiveSweep: { stop(): Promise<void> }; webhookDeliveryWorker: WebhookDeliveryWorker; domainBindingSweeper: DomainBindingSweeper; siteSearchMaintenance: SiteSearchMaintenance; bootWork: Promise<void>[] } {
   const bootWork: Promise<void>[] = [];
   const formPull = createServingFormPullTrigger({ autoPull: routeDeps.formSubmissionsAutoPull, workspaceId: routeDeps.workspaceId });
-  const app = createApp(routeDeps, { recoverAssistantChatRuns: true, onBootWork: (work) => bootWork.push(work), onAdminSignIn: formPull.signIn });
+  const app = createApp(routeDeps, { activateAssistantFederation: true, recoverAssistantChatRuns: true, onBootWork: (work) => bootWork.push(work), onAdminSignIn: formPull.signIn });
   const outboxDrainer = startOutboxDrainer(
     { outbox: routeDeps.outbox, bus: routeDeps.bus, clock: routeDeps.clock },
     { intervalMs: optional.outboxDrainIntervalMs, tracker: routeDeps.tracker }

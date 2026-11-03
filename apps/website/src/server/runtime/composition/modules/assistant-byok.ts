@@ -91,6 +91,8 @@ import type { ServerModuleHandle } from "./types.js";
 import { buildDaemonAttachmentTools, createDaemonApprovalMemory, createDaemonAwareInstallAttachmentReader, registerAssistantToolExecRoutes, publishDaemonPluginEvent, findLiveSiteToolRun } from "./assistant-tool-exec.js";
 import { assistantRunFinalizerFor } from "./assistant-run-finalizer.js";
 import { createAssistantServerFederation } from "./assistant-server-federation.js";
+import { desktopMcpRuntime } from "#src/assistant/desktop-mcp-runtime";
+import { registerDesktopMcpHandoff } from "./desktop-mcp-handoff.js";
 import { readDaemonCallContext } from "#src/assistant/daemon-call-context";
 import type { ToolExecutionRouteTarget } from "@jini-ai/daemon/http";
 import type { AttachmentLookup } from "@jini-ai/daemon/http";
@@ -357,6 +359,8 @@ export interface AssistantByokModuleHandle extends ServerModuleHandle {
   readonly toolSurface: ByokToolSurface;
   /** Mounts the agent daemon's tool RPC over `toolSurface` (`assistant-tool-exec.ts`). */
   readonly registerToolExecRoutes: (required: { readonly router: ToolExecutionRouteTarget }) => void;
+  /** Serving owner only: export/preview compositions must never replace its listener or reader. */
+  readonly activateServerFederation: (required: { readonly router: ToolExecutionRouteTarget }, optional?: Record<string, never>) => void;
 }
 
 /**
@@ -521,7 +525,6 @@ export function createAssistantByokModule(
   // Reuse the server's admission-aware adapters. No daemon federation or second registrar:
   // both catalog demand and execution await this same server surface's lazy startup.
   serverFederation = createAssistantServerFederation({ toolSurface: resolvedToolSurface }, {});
-  serverFederation.registerRosterListener({}, {});
   const runStore = routeDeps.chatRunLedger.durable;
   if (runStore) assistantRunFinalizerFor({ ledger: routeDeps.chatRunLedger, tracker: routeDeps.tracker, observability: routeDeps.observability,
     onAttemptEnded: async ({ runId }) => {
@@ -536,8 +539,17 @@ export function createAssistantByokModule(
   return {
     name: "assistant-byok",
     toolSurface: resolvedToolSurface,
+    activateServerFederation: ({ router }) => {
+      routeDeps.externalMcpAdmissions = serverFederation.admissions;
+      serverFederation.registerRosterListener({}, {});
+      registerDesktopMcpHandoff({ router, runtime: desktopMcpRuntime, reload: async () => {
+        await serverFederation.reload({}, {});
+        const report = await resolvedToolSurface.readFederationAdmissions({}, {});
+        return report.connections.some(connection => connection.connectionId === "tovu-desktop");
+      } }, {});
+    },
     registerToolExecRoutes: ({ router }) => registerAssistantToolExecRoutes({ router, toolSurface: { daemonCalls: serverFederation.daemonCalls },
-      runStore: routeDeps.chatRunLedger.durable, workspaceId: routeDeps.workspaceId, components: routeDeps,
+      runStore: routeDeps.chatRunLedger.durable, workspaceId: routeDeps.workspaceId, components: routeDeps, core: routeDeps,
       plugins: { controller: automaticPluginRuns, emit: publishDaemonPluginEvent,
         pinnedPrefix: async ({ pluginRefIds }) => {
           await Promise.all([routeDeps.pluginRuntimeReady, routeDeps.siteTitleReady]);

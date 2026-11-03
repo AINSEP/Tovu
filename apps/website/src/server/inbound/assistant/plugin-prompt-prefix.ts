@@ -70,6 +70,4 @@ export async function resolveAgentPluginPromptPrefix(
  * an empty prefix (the common case — a run pinning no plugin ref) leaves `basePrompt` untouched
  * rather than prepending an empty section plus a blank-line separator for nothing.
  */
-export function assemblePromptWithPluginPrefix(basePrompt: string, pluginPromptPrefix: string): string {
-  return pluginPromptPrefix.length > 0 ? `${pluginPromptPrefix}\n\n${basePrompt}` : basePrompt;
-}
+export { assemblePromptWithPluginPrefix } from "./plugin-prompt-assembly.js";

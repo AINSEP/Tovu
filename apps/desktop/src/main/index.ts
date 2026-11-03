@@ -153,7 +153,6 @@ import { registerSiteIpcHandlers, rescanSites } from "../project-ipc.ts";
 import { createSiteFolders } from "../site-folders.ts";
 import { discoverDesktopSites, startDesktopSiteDiscovery } from "../site-discovery.ts";
 import { addSitePointer } from "../add-site-pointer.ts";
-import { registerSitesMcpServer, writeSitesMcpLauncher } from "../sites-mcp-registration.ts";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { resolveDesktopRoots } from "../packaged-paths.ts";
 import { readWindowBounds, writeWindowBounds } from "../window-bounds-store.ts";
@@ -246,9 +245,6 @@ const SITES_PRELOAD_PATH = path.join(DESKTOP_ROOT, "dist", "preload", "preload.m
  *  from the tovu-theme theme rather than referenced out of `sites/tovu-dev/`, which is a user's live
  *  site folder and not an asset source this app may depend on. */
 const APP_ICON_PATH = path.join(DESKTOP_ROOT, "src", "renderer", "public", "brand", "tovu-app-icon.png");
-
-/** The MCP bridge the generated launcher execs — see `site-backend.ts`'s desktop-tools announce. */
-const MCP_BRIDGE_PATH = path.join(DESKTOP_ROOT, "bin", "mcp-bridge.ts");
 
 const REPO_ROOT = path.resolve(DESKTOP_ROOT, "..", "..");
 
@@ -504,7 +500,7 @@ const desktopMcpHttp = createDesktopMcpHttpRuntime({ context: {
   revealPath: async (target) => { shell.showItemInFolder(target); },
 }, warn: (message) => console.warn(message) });
 
-/** Spawn-or-attach one site's `tovu serve`, seed its admin session, announce the desktop tools —
+/** Spawn-or-attach one site's `tovu serve`, seed its admin session, bind the desktop capability —
  *  see `site-backend.ts`. Shared by own-server windows and sites-home tabs. */
 const siteBackend = createSiteBackend<TovuServerHandle>({ ports: {
   partitionFor: ({ siteDir }) => sitePartition(siteDir),
@@ -512,9 +508,9 @@ const siteBackend = createSiteBackend<TovuServerHandle>({ ports: {
   rememberOpen: ({ siteDir }) => rememberSharedSiteOpen({ workspace: sharedSites, dir: siteDir }),
   resolveAdminDevProxyUrl: () => resolveAdminDevProxyUrl({ isPackaged: app.isPackaged, env: process.env }),
   startCaptureBridge: () => startDesktopCaptureBridge({ createWindow: (options) => new BrowserWindow(options), capturePool }),
-  // Preparation lane: give only newly spawned servers the runtime capability. Keep the legacy
-  // announcement until website federation consumes it; then bind the desktopMcpEnv port instead.
-  startServer: async (input) => startTovuServer({ ...input, desktopMcpEnv: await desktopMcpHttp.environment({}),
+  desktopMcpEnv: () => desktopMcpHttp.environment({}),
+  connectDesktopMcp: server => desktopMcpHttp.connectSite({ adminUrl: server.adminUrl, onExit: listener => server.onExit(listener) }),
+  startServer: (input) => startTovuServer({ ...input,
     isPackaged: app.isPackaged, productTelemetry: productState.product.launch, repoRoot: PAYLOAD_ROOT }),
   baseToolchainEnv: NODE_TOOLCHAIN_ENV,
   recordSiteOpened: ({ registryPath, row }) => recordSiteOpened(registryPath, row),
@@ -522,10 +518,6 @@ const siteBackend = createSiteBackend<TovuServerHandle>({ ports: {
   armOwnerSignIn: ({ partition, adminUrl, capability }) => armDesktopOwnerSignIn({ session: session.fromPartition(partition), adminUrl, capability }),
   ensureSession: ({ partition, adminUrl, redeem }) => ensureSiteSession({ net, session: session.fromPartition(partition), adminUrl, redeem }),
   redeemBootSession: ({ partition, adminUrl, bootToken }) => redeemBootSession({ net, session: session.fromPartition(partition), adminUrl, bootToken }),
-  env: process.env, electronPath: () => process.execPath, bridgePath: MCP_BRIDGE_PATH,
-  userDataDir: () => app.getPath("userData"),
-  writeMcpLauncher: (input) => writeSitesMcpLauncher(input),
-  registerMcpServer: ({ partition, ...rest }) => registerSitesMcpServer({ net, session: session.fromPartition(partition), ...rest }),
   log: (message) => console.log(message), warn: (message) => console.warn(message), error: (message) => console.error(message),
   openSites,
   schedulePreview: ({ siteDir }) => sitePreviewScheduler.schedule({ siteDir }, {}),

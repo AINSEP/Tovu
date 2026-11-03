@@ -3,10 +3,9 @@ import { onExternalMcpRosterChanged } from "#src/assistant/external-mcp-roster-c
 import { readServerAdmissions } from "../../services/external-mcp-admissions.js";
 
 /**
- * Preparation ports over the server's existing tool surface. Constructing this starts nothing.
- * Integration must bind admissions, register the roster listener and use these daemon-call
- * adapters together with the desktop HTTP cutover; otherwise a managed desktop stdio row could
- * become a permanent server child. This module never constructs a second federation or executor.
+ * Demand ports over the server's single existing tool surface. Constructing this starts nothing.
+ * Only the serving app registers the roster listener. The connection source suppresses the legacy
+ * desktop stdio identity before admission. No second federation or executor is constructed here.
  */
 export interface AssistantServerFederation {
   readonly admissions: () => ReturnType<typeof readServerAdmissions>;

@@ -1,7 +1,9 @@
 /** Electron-main adapter: Jini owns HTTP/SDK hosting, the desktop table owns tool behavior. */
 import type { McpHttpToolServerHandle } from '@jini-ai/mcp';
+import { randomBytes } from 'node:crypto';
+import { assertLoopbackAdminUrl } from './desktop-auth.ts';
 import { createSitesMcpToolHost, type ToolContext } from './sites-mcp-tools.ts';
-import { DESKTOP_MCP_URL_ENV, DESKTOP_MCP_TOKEN_ENV, SITES_MCP_SERVER_ID } from './sites-mcp-identity.ts';
+import { DESKTOP_MCP_URL_ENV, DESKTOP_MCP_TOKEN_ENV, DESKTOP_MCP_HANDOFF_ENV, SITES_MCP_SERVER_ID } from './sites-mcp-identity.ts';
 
 /** Start the owning main's endpoint without a launcher, keyring or saved connection.
  * @example const bridge = await startDesktopMcpHttp({ context }, { warn });
@@ -26,9 +28,14 @@ export async function startDesktopMcpHttp({ context }: { context: ToolContext },
  * @complexity O(1) state; per-call work belongs to the table/HTTP host.
  */
 export function createDesktopMcpHttpRuntime({ context, warn }: { context: ToolContext; warn: (message: string) => void },
-  { start }: { start?: typeof startDesktopMcpHttp } = {},
-): { environment(required: Record<string, never>, optional?: Record<string, never>): Promise<Record<string, string>>; close(required: Record<string, never>, optional?: Record<string, never>): Promise<void> } {
+  { start, fetch: fetchImpl = globalThis.fetch }: { start?: typeof startDesktopMcpHttp; fetch?: typeof fetch } = {},
+): { environment(required: Record<string, never>, optional?: Record<string, never>): Promise<Record<string, string>>;
+  connectSite(required: { adminUrl: string; onExit: (listener: () => void) => void }, optional?: Record<string, never>): void;
+  close(required: Record<string, never>, optional?: Record<string, never>): Promise<void> } {
   const table = createSitesMcpToolHost({ context });
+  const handoffToken = randomBytes(32).toString('hex');
+  const disconnects = new Set<() => void>();
+  let stopped = false;
   // The package is loaded behind a best-effort boundary so missing runtime exports cannot refuse
   // site boot during the preparation/release handoff. Jini owns listener retries once available.
   const runtime = import('@jini-ai/mcp').then(({ createMcpHttpToolServerRuntime }) => createMcpHttpToolServerRuntime({
@@ -39,10 +46,37 @@ export function createDesktopMcpHttpRuntime({ context, warn }: { context: ToolCo
   });
   return {
     async environment(required, optional = {}) {
+      if (stopped) return {};
       const capability = await (await runtime)?.capability(required, optional);
-      return capability ? { [DESKTOP_MCP_URL_ENV]: capability.url, [DESKTOP_MCP_TOKEN_ENV]: capability.token } : {};
+      if (stopped) return {};
+      return { [DESKTOP_MCP_HANDOFF_ENV]: handoffToken,
+        ...(capability ? { [DESKTOP_MCP_URL_ENV]: capability.url, [DESKTOP_MCP_TOKEN_ENV]: capability.token } : {}) };
+    },
+    connectSite({ adminUrl, onExit }, _optional = {}) {
+      if (stopped) return;
+      const endpoint = new URL('/internal/desktop-mcp-capability', assertLoopbackAdminUrl(adminUrl));
+      const abort = new AbortController();
+      let unsubscribe: (() => void) | undefined;
+      const disconnect = () => { abort.abort(); unsubscribe?.(); disconnects.delete(disconnect); };
+      disconnects.add(disconnect);
+      onExit(disconnect);
+      void runtime.then(host => {
+        if (abort.signal.aborted) return;
+        // Delivery retries belong to the same Jini runtime that repairs the listener. Only this
+        // spawning main has the handoff token. Attaching windows never call connectSite.
+        unsubscribe = host?.subscribe({ listener: async capability => {
+          const response = await fetchImpl(endpoint, { method: 'POST', redirect: 'error',
+            headers: { authorization: `Bearer ${handoffToken}`, 'content-type': 'application/json' },
+            body: JSON.stringify(capability), signal: AbortSignal.any([abort.signal, AbortSignal.timeout(5000)]),
+          });
+          await response.body?.cancel();
+          if (!response.ok) throw new Error('Desktop capability handoff unavailable');
+        } });
+      }).catch(() => { warn('tovu-desktop: desktop capability recovery unavailable for this application release.'); });
     },
     async close(required, optional = {}) {
+      stopped = true;
+      for (const disconnect of disconnects) disconnect();
       await (await runtime)?.close(required, optional);
       await table.drain({});
     },

@@ -1,5 +1,5 @@
 import { resolveOnPath } from '@jini-ai/agent-runtime';
-import { SITES_MCP_SERVER_ID, DESKTOP_MCP_URL_ENV, DESKTOP_MCP_TOKEN_ENV } from "./sites-mcp-identity.ts";
+import { SITES_MCP_SERVER_ID, DESKTOP_MCP_URL_ENV, DESKTOP_MCP_TOKEN_ENV, DESKTOP_MCP_HANDOFF_ENV } from "./sites-mcp-identity.ts";
 /**
  * @file Own-server mode: spawn Tovu's own `tovu serve <dir>` CLI, learn the port it bound, and
  * supervise it for the life of the window.
@@ -308,7 +308,7 @@ function buildCliEnv({ baseEnv, siteDir }: { baseEnv?: NodeJS.ProcessEnv; siteDi
       // Each site gets a fresh native-render capability from its launcher, never an inherited one.
       "JINI_DESKTOP_RENDER_URL", "JINI_DESKTOP_RENDER_TOKEN",
       // Only a main that spawned this server may supply its desktop capability.
-      DESKTOP_MCP_URL_ENV, DESKTOP_MCP_TOKEN_ENV,
+      DESKTOP_MCP_URL_ENV, DESKTOP_MCP_TOKEN_ENV, DESKTOP_MCP_HANDOFF_ENV,
       ...(siteDir ? ["TOVU_SITE_DIR", "TOVU_AGENT_CWD"] : [])],
   }, { caseInsensitive: process.platform === "win32" });
   const env = isolated.env;
@@ -566,6 +566,7 @@ function buildServeEnv(input: BuildServeEnvInput, { warn = console.warn }: { war
   if (input.desktopMcpEnv) {
     env[DESKTOP_MCP_URL_ENV] = input.desktopMcpEnv[DESKTOP_MCP_URL_ENV];
     env[DESKTOP_MCP_TOKEN_ENV] = input.desktopMcpEnv[DESKTOP_MCP_TOKEN_ENV];
+    env[DESKTOP_MCP_HANDOFF_ENV] = input.desktopMcpEnv[DESKTOP_MCP_HANDOFF_ENV];
   }
 
   return env;

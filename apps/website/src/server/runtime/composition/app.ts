@@ -1836,6 +1836,10 @@ function subscribeSiteEventHandlersOnce(routeDeps: NewsletterRouteDeps): void {
 
 /** Optional {@link createApp} hooks. */
 export interface CreateAppOptions {
+  /** Only createServingApp activates process-owned federation listeners and capability recovery. */
+  activateAssistantFederation?: true;
+  /** Hermetic integration seam; production uses the module's single default surface. */
+  assistantToolSurface?: ReturnType<typeof createAssistantByokModule>["toolSurface"];
   /** Serving boot only; exporter/eager apps do not own recovery of assistant turns. */
   recoverAssistantChatRuns?: boolean;
   /**
@@ -2245,16 +2249,12 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // both fan-in and fan-out above the graph median) — this file already transitively reaches that
   // module THROUGH `createAssistantByokModule`, so reading the value off its return object is free.
   // See `AssistantByokModuleHandle`'s own doc for the full trace.
-  const byokAssistantModule = createAssistantByokModule(routeDeps);
+  const byokAssistantModule = createAssistantByokModule(routeDeps, options.assistantToolSurface);
   trackByokBootWork({ routeDeps, byokAssistantModule, bootWorkByDeps: siteAppBootWorkByDeps }, options);
   // Through the handle, not a direct import, for the same zero-new-edge reason as `toolSurface` above.
   byokAssistantModule.registerToolExecRoutes({ router: internalRouter });
 
-  // W3-D preparation: server-only federation composition is available in
-  // modules/assistant-server-federation.ts, but activation belongs to integration alongside
-  // BRIDGE-HTTP. Binding it here before replacing the managed desktop stdio row would retain
-  // a permanent desktop child. Integration must bind its admissions reader, register its single
-  // roster listener and use its daemonCalls on THIS tool surface. Never notify the slim daemon.
+  if (options.activateAssistantFederation) byokAssistantModule.activateServerFederation({ router: internalRouter }, {});
 
   // `TOVU_ADMIN_ASSISTANT=off` — a real disable: the four admin-assistant route modules below are
   // never mounted, matching ADR-054's visitor-assistant posture (no endpoint, not a hidden widget).

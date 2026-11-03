@@ -1,4 +1,5 @@
-import type { DurableRunStore, AgentSessionStore } from "#src/assistant/session-services";
+import type { DaemonDurableRunStore } from "#src/assistant/daemon-core-protocol";
+import type { AgentSessionStore } from "#src/assistant/session-services";
 import type { ProcessStartReader } from "./attempt-process-identity.js";
 
 interface SessionEvent { readonly kind: string; readonly payload: unknown }
@@ -12,7 +13,7 @@ export function sessionIdFromRunEvent({ event }: { event: SessionEvent }, _optio
 }
 
 async function saveSessionLocator(
-  { sessions, attemptStore, runId, conversationId, agentId, sessionId }: { sessions: AgentSessionStore; attemptStore?: DurableRunStore;
+  { sessions, attemptStore, runId, conversationId, agentId, sessionId }: { sessions: AgentSessionStore; attemptStore?: DaemonDurableRunStore;
     runId: string; conversationId: string; agentId: string; sessionId: string }, _optional = {},
 ): Promise<boolean> {
   // The durable port writes the conversation locator atomically with its generation guard.
@@ -23,7 +24,7 @@ async function saveSessionLocator(
 }
 
 export function createEarlySessionCapture(
-  { sessions, durable, readStart }: { sessions: AgentSessionStore; durable?: DurableRunStore; readStart: ProcessStartReader }, _optional = {},
+  { sessions, durable, readStart }: { sessions: AgentSessionStore; durable?: DaemonDurableRunStore; readStart: ProcessStartReader }, _optional = {},
 ) {
   return async function capture(
     { event, runId, conversationId, agentId }: { event: SessionEvent; runId: string; conversationId: string; agentId: string }, { durableBinding = true }: { durableBinding?: boolean } = {},

@@ -10,7 +10,7 @@ import { notifyExternalMcpRosterChanged } from "#src/assistant/index";
 import type { BootModule, BootResult } from "../lifecycle/boot-lifecycle.js";
 import { bundledAgentPluginsDir } from "../composition/site-paths.js";
 import { applyPendingAgentPluginTokens, listPendingAgentPluginTokenIds } from "../composition/pending-agent-plugin-tokens.js";
-import { startPluginActivationPolling } from "../composition/agent-daemon-deps.js";
+import { startPluginActivationPolling } from "../composition/plugin-activation-polling.js";
 import type { NewsletterRouteDeps } from "../../inbound/admin-http/routes/newsletter/deps.js";
 
 /**
@@ -245,8 +245,9 @@ export function buildBootModules(deps: NewsletterRouteDeps, options: BuildBootMo
       // `start` keeps this process's registry reconciled with the durable activation table after
       // boot. `plugins_set_enabled` runs in the AGENT DAEMON process, so a chat-driven disable
       // detached the hook only there; without this poll, every save served here kept running the
-      // disabled plugin's beforeSave hook until restart. Same poll the daemon runs for the reverse
-      // direction (`agent-daemon-deps.ts`).
+      // disabled plugin's beforeSave hook until restart. ADR-070 now routes chat writes here too;
+      // this server-owned poll still reconciles durable version changes made by other processes
+      // (`plugin-activation-polling.ts`), without recreating a daemon hook registry.
       name: "plugin-runtime-attach",
       owner: "features/plugin-runtime",
       criticality: "optional",

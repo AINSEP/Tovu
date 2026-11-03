@@ -13,6 +13,7 @@ import { type ExternalMcpOAuthTokenResolverPort, type ExternalMcpServerConfig, t
 import type { ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
 import type { McpAuthFailedError } from "@jini-ai/mcp/federation";
 import type { FederationDeps } from "./mcp-federation/registrations.js";
+import { DESKTOP_MCP_ID } from "./desktop-mcp-runtime.js";
 
 /**
  * @file Shared stored-roster resolution and federation dependency binding for daemon and BYOK.
@@ -47,6 +48,8 @@ export interface StoredExternalMcpConnectionSourceDeps {
   readonly log: string;
   /** Local manifest lookup, never remote annotations. Injected to exercise roster reloads. */
   readonly resolvePluginReadOnlyRemoteNames?: ResolvePluginReadOnlyRemoteNames;
+  /** The spawning desktop owns its exact legacy stdio identity. No label-based cleanup. */
+  readonly desktopOwned?: boolean;
 }
 
 export interface StoredExternalMcpConnectionSource {
@@ -82,8 +85,9 @@ export function createStoredExternalMcpConnectionSource(
   return {
     async resolve(): Promise<ResolvedFederatedConnection[]> {
       try {
+        const repo = await withoutLegacyDesktop({ deps });
         const { configs, failures } = await readEnabledExternalMcpConfigs(
-          { repo: deps.repo, sealer: deps.sealer, oauth: deps.oauth },
+          { repo, sealer: deps.sealer, oauth: deps.oauth },
           deps.workspaceId,
         );
         for (const failure of failures) {
@@ -102,6 +106,28 @@ export function createStoredExternalMcpConnectionSource(
     failures(): readonly StoredExternalMcpConnectionFailure[] {
       return configFailures;
     },
+  };
+}
+
+/** Never launch the retired desktop stdio identity, even in a web-only server. An owned desktop
+ * launch also removes its exact managed row before secrets/OAuth resolution can touch it.
+ * Filtering fails closed if deletion fails; other rows retain their repository behavior.
+ * @complexity One indexed lookup/delete, then O(c) filtering of the existing bounded roster. */
+async function withoutLegacyDesktop({ deps }: { deps: StoredExternalMcpConnectionSourceDeps }, _options = {}): Promise<ExternalMcpServerRepoPort> {
+  const legacy = (row: { serverId: string; transport: string }) => row.serverId === DESKTOP_MCP_ID && row.transport === "stdio";
+  if (deps.desktopOwned) {
+    try {
+      const row = await deps.repo.findByServerId({ workspaceId: deps.workspaceId, serverId: DESKTOP_MCP_ID });
+      if (row && legacy(row)) await deps.repo.deleteByServerId({ workspaceId: deps.workspaceId, serverId: DESKTOP_MCP_ID });
+    } catch { console.warn(`${deps.log} legacy desktop MCP cleanup unavailable; stdio admission suppressed`); }
+  }
+  return {
+    listByWorkspaceId: async workspaceId => (await deps.repo.listByWorkspaceId(workspaceId)).filter(row => !legacy(row)),
+    findByServerId: input => deps.repo.findByServerId(input),
+    upsert: record => deps.repo.upsert(record),
+    deleteByServerId: input => deps.repo.deleteByServerId(input),
+    tryClaimOAuthRefreshLease: input => deps.repo.tryClaimOAuthRefreshLease(input),
+    releaseOAuthRefreshLease: input => deps.repo.releaseOAuthRefreshLease(input),
   };
 }
 

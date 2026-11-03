@@ -3,7 +3,6 @@ import { spawn } from "node:child_process";
 import path from "node:path";
 import { redactLocalText } from "../../website/src/platform/server-logs/redact-local-text.ts";
 import { sanitizeUntrustedText } from "@jini-ai/core/text";
-import { buildSitesMcpLauncherScript, buildSitesMcpRegistration } from "./sites-mcp-registration.ts";
 import { resolveSmokeTargets } from "./smoke-native.ts";
 
 /** --app copies the exact mounted DMG app; --platform-dir reuses the native smoke layout.
@@ -80,7 +79,31 @@ export function buildJiniEntryScript(
   const desktopScript = join(dirname(createRequire(join(asar, "package.json")).resolve("@jini-ai/mcp")), "bin", "serve.js");
   const entries = [injection, { ...injection, args: [desktopScript] }].map(options =>
     buildMcpJsonServerEntry({ runId: "release-smoke", options }, { credential: "smoke" }));
-  console.log(JSON.stringify(entries));
+  const { mkdtempSync, rmSync } = require("node:fs");
+  const temporary = mkdtempSync(join(require("node:os").tmpdir(), "desktop-http-smoke-"));
+  const { startDesktopMcpHttp } = await import(pathToFileURL(join(asar, "src/desktop-mcp-http.ts")).href);
+  const host = await startDesktopMcpHttp({ context: { projectsPath: join(temporary, "projects.json"), revealPath: async () => {} } });
+  try {
+    const send = async (method, params = {}) => {
+      const response = await fetch(host.url, { method: "POST", headers: { Authorization: "Bearer " + host.token,
+        "Content-Type": "application/json", Accept: "application/json, text/event-stream" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }), signal: AbortSignal.timeout(5000) });
+      if (!response.ok) throw new Error("desktop HTTP request failed");
+      const reply = await response.json();
+      if (reply.error || reply.result?.isError) throw new Error("desktop HTTP protocol failed");
+      return reply.result;
+    };
+    const refused = await fetch(host.url, { method: "POST", body: "malformed", signal: AbortSignal.timeout(5000) });
+    await refused.body?.cancel();
+    if (refused.status !== 403) throw new Error("desktop HTTP accepted an anonymous request");
+    const initialized = await send("initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "smoke", version: "1" } });
+    if (initialized.serverInfo?.name !== "tovu-desktop") throw new Error("desktop HTTP identity mismatch");
+    const listed = await send("tools/list");
+    if (listed.tools?.map(tool => tool.name).join(",") !== "list_sites,add_site_pointer,reveal_site_folder") throw new Error("desktop HTTP roster mismatch");
+    const called = await send("tools/call", { name: "list_sites", arguments: {} });
+    if (called.structuredContent?.count !== 0) throw new Error("desktop HTTP result mismatch");
+  } finally { await host.close({}); rmSync(temporary, { recursive: true, force: true }); }
+  console.log(JSON.stringify({ entries, desktopHttp: true }));
 })().catch(error => { console.error(error.stack || error.message); process.exitCode = 1; });
 `;
 }
@@ -90,6 +113,8 @@ export function parseJiniEntries({ stdout }: { stdout: string }, _options = {}):
   let entries: unknown;
   try { entries = JSON.parse(stdout); }
   catch { throw new Error(`invalid packaged Jini entries: ${sanitizeUntrustedText({ text: redactLocalText({ text: stdout }) })}`); }
+  if (!isRecord(entries) || entries.desktopHttp !== true) throw new Error("packaged desktop HTTP smoke did not complete");
+  entries = entries.entries;
   if (!Array.isArray(entries) || entries.length !== 2) throw new Error("expected two packaged Jini entries");
   return entries.map((entry: unknown, index) => {
     if (!isRecord(entry)) throw new Error("malformed packaged Jini entry");
@@ -121,32 +146,6 @@ export function parseJiniEntryEnv(
     throw new Error("malformed packaged Jini entry");
   }
   return env as Record<string, string>;
-}
-
-/** Uses the production launcher on POSIX, and production registration argv on Windows. Pure. */
-export function buildSitesBridgeCommand(
-  { executablePath, resourcesDir, userDataDir, platform }: {
-    executablePath: string; resourcesDir: string; userDataDir: string; platform: NodeJS.Platform;
-  },
-): { entry: BridgeCommand; launcherPath: string; launcherScript: string | undefined } {
-  const bridgePath = path.join(resourcesDir, "app.asar", "bin", "mcp-bridge.ts");
-  const launcherPath = path.join(userDataDir, "tovu-desktop-mcp-launcher.sh");
-  const windows = platform === "win32";
-  const registration = buildSitesMcpRegistration({
-    launcherPath: windows ? executablePath : launcherPath, platform, bridgePath, userDataDir,
-  });
-  // Registration stores a string; consume its quoted tokens just as the stdio adapter does.
-  const args = windows
-    ? Array.from(registration.args.matchAll(/"([^"]*)"|(\S+)/g), match => match[1] ?? match[2]!)
-    : [registration.command];
-  return {
-    entry: {
-      label: "tovu-desktop", command: windows ? registration.command : "/bin/sh", args,
-      env: windows ? { ELECTRON_RUN_AS_NODE: "1" } : {}, serverName: "tovu-desktop", toolName: "list_sites",
-    },
-    launcherPath,
-    launcherScript: windows ? undefined : buildSitesMcpLauncherScript({ electronPath: executablePath, bridgePath, userDataDir }),
-  };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

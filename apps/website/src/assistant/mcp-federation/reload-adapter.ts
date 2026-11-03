@@ -33,7 +33,8 @@ export function createFederationReloadCoordinator({ coordDeps, initiallyAdmitted
     // Keep the existing host attach injection usable without running a second boot/preset pass.
     attach: async (_required, options = {}) => {
       return attach({ registry: coordDeps.registry, deps: coordDeps.deps, connect,
-        connections: options.connections, extraConnections: options.extraConnections,
+        connections: (options.extraConnections ?? []).filter(connection => connection.config.origin?.kind === "preset"),
+        extraConnections: (options.extraConnections ?? []).filter(connection => connection.config.origin?.kind !== "preset"),
         ...(coordDeps.logger ? { logger: coordDeps.logger } : {}),
       });
     },

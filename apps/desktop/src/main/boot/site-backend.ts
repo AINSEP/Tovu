@@ -49,7 +49,7 @@ export interface SiteBackendPorts<TServer extends SiteBackendServer> {
   resolveAdminDevProxyUrl: () => Promise<string | null>;
   /** `desktop-capture.ts`'s bridge, bound to a `BrowserWindow` factory and the capture pool. */
   startCaptureBridge: () => Promise<{ env: Record<string, string>; close(): void }>;
-  /** HTTP preparation seam. When supplied, no launcher/roster announcement is performed.
+  /** Runtime-only capability passed beside the capture environment.
    * Listener startup is best-effort; its owner retries independently of site hosting.
    */
   desktopMcpEnv?: () => Promise<Record<string, string>>;
@@ -64,17 +64,8 @@ export interface SiteBackendPorts<TServer extends SiteBackendServer> {
   ensureSession: (required: { partition: string; adminUrl: string; redeem: () => Promise<boolean> }) => Promise<unknown>;
   /** `desktop-auth.ts`'s `redeemBootSession` on this partition's session. May reject. */
   redeemBootSession: (required: { partition: string; adminUrl: string; bootToken: string }) => Promise<{ ok: boolean; reason?: string }>;
-  /** The live environment; only `TOVU_DESKTOP_USER_DATA_DIR`'s presence is read. */
-  env: Readonly<Record<string, string | undefined>>;
-  /** Electron's own executable, read on every announce. */
-  electronPath: () => string;
-  /** `bin/mcp-bridge.ts` next to `main.ts`. */
-  bridgePath: string;
-  userDataDir: () => string;
-  /** `sites-mcp-registration.ts`'s `writeSitesMcpLauncher`. May throw. */
-  writeMcpLauncher: (required: { userDataDir: string; electronPath: string; bridgePath: string }) => string;
-  /** `sites-mcp-registration.ts`'s `registerSitesMcpServer` on this partition's session. */
-  registerMcpServer: (required: { partition: string; adminUrl: string; workspaceId: string; launcherPath: string; bridgePath: string; userDataDir: string }) => Promise<{ ok: boolean; reason?: string }>;
+  /** Subscribe only this main's own child to automatic capability recovery. */
+  connectDesktopMcp?: (server: TServer) => void;
   log: (message: string) => void;
   warn: (message: string) => void;
   error: (message: string) => void;
@@ -95,13 +86,12 @@ export interface OpenSitesPort<TServer> {
 export interface SiteBackend<TServer extends SiteBackendServer> {
   authenticateSiteSession(required: { siteDir: string; server: TServer; partition: string }, optional?: {}): Promise<boolean>;
   startSiteBackend(required: { siteDir: string; ctx: SiteBackendCtx }, optional?: { port?: number }): Promise<{ server: TServer; partition: string }>;
-  announceDesktopToolsToSite(required: { server: TServer; partition: string }, optional?: {}): void;
   openSiteServer(required: { siteDir: string; ctx: SiteBackendCtx }, optional?: { port?: number }): Promise<TServer>;
 }
 
 /**
  * Bind the site-open steps to their ports.
- * @returns `{ authenticateSiteSession, startSiteBackend, announceDesktopToolsToSite, openSiteServer }`.
+ * @returns `{ authenticateSiteSession, startSiteBackend, openSiteServer }`.
  * @complexity O(1).
  */
 export function createSiteBackend<TServer extends SiteBackendServer>(
@@ -140,64 +130,6 @@ export function createSiteBackend<TServer extends SiteBackendServer>(
       ports.log(`tovu desktop: desktop sign-in did not apply to ${siteDir} (${result.reason}) — the admin will ask for a login.`);
     }
     return result.ok;
-  }
-
-  /**
-   * Register this shell's MCP tool server with the site that just booted, so its assistant can reach
-   * the desktop's own capabilities (list the operator's websites, add one, reveal one's folder).
-   *
-   * **Runs on every ordinary-profile site open; scratch profiles never register.** Both halves
-   * are re-asserted rather than created once. The
-   * launcher is regenerated because it embeds an absolute path to the Electron binary inside the
-   * `.app` bundle — which goes stale the instant the operator drags the app to `/Applications` or an
-   * update replaces it, and a stale one fails at connect with a spawn error naming neither cause.
-   * The row is re-PUT because `external-mcp-repo.sqlite.ts` hard-deletes with no tombstone, so an
-   * operator who removed the connection in Settings removed it unrecoverably; an idempotent PUT makes
-   * both app-moves and that accident self-healing by the same mechanism.
-   *
-   * Placed immediately after `ensureSiteSession` because it depends on it: the PUT authenticates
-   * with the session cookie that call just put in this partition's jar.
-   *
-   * **Fire-and-forget, and never awaited.** A site whose assistant lacks the desktop tools is
-   * degraded, not broken, and the operator is mid-launch — so this must not be able to delay or fail
-   * opening their window. `registerSitesMcpServer` never rejects for a registration outcome; the
-   * `catch` is for a genuinely unexpected fault (an unwritable `userData`, a non-loopback admin URL)
-   * and reports rather than propagating, for the same reason.
-   *
-   * @complexity O(1) — one file write and one request.
-   */
-  function announceDesktopToolsToSite({ server, partition }: { server: TServer; partition: string }, _opts = {}): void {
-    // 2026-10-13 scratch-QA incident: opening tovu-dev wrote a temporary launcher's path into
-    // the SHARED content.db, replacing the real desktop row; deleting scratch userData left
-    // the owner's assistant with spawn ENOENT. A profile override must never publish that path.
-    if (ports.desktopMcpEnv || ports.env.TOVU_DESKTOP_USER_DATA_DIR !== undefined) return;
-    try {
-      // Read live, never persisted as truth — see this function's own note on staleness.
-      const electronPath = ports.electronPath();
-      const bridgePath = ports.bridgePath;
-      const userDataDir = ports.userDataDir();
-      const launcherPath = ports.writeMcpLauncher({ userDataDir, electronPath, bridgePath });
-      void ports.registerMcpServer({
-        partition,
-        adminUrl: server.adminUrl,
-        // The site's OWN workspace id, from `tovu serve`'s parsed boot line — never a hard-coded
-        // `"workspace-local"`. `resolveWorkspace` picks the single or oldest workspace row and
-        // `--workspace` can name another, so an assumed id would 404 on exactly the sites that differ.
-        workspaceId: server.workspaceId,
-        launcherPath,
-        // Unused on POSIX (`writeSitesMcpLauncher` already embedded them in the launcher script);
-        // on win32, where that call wrote no script and `launcherPath` is `electronPath` itself,
-        // `registerSitesMcpServer`/`buildSitesMcpRegistration` need these to build `args`/`env`.
-        bridgePath,
-        userDataDir,
-      }).then((result) => {
-        if (!result.ok) ports.warn(`tovu-desktop: the assistant's desktop tools are unavailable for this site — ${result.reason}`);
-      }).catch((error: unknown) => {
-        ports.warn(`tovu-desktop: could not register the desktop MCP tools — ${(error as Error).message}`);
-      });
-    } catch (error) {
-      ports.warn(`tovu-desktop: could not register the desktop MCP tools — ${(error as Error).message}`);
-    }
   }
 
   /** Spawn this site's child, or attach to a server a concurrent Web start won the race with.
@@ -244,7 +176,7 @@ export function createSiteBackend<TServer extends SiteBackendServer>(
     return { server, spawned: true };
   }
 
-  /** Record, arm, authenticate and announce a freshly spawned child. */
+  /** Record, arm, authenticate and subscribe a freshly spawned child. */
   async function adoptSpawnedServer(siteDir: string, ctx: SiteBackendCtx, server: TServer, partition: string): Promise<void> {
     ports.rememberOpen({ siteDir });
     ports.recordSiteOpened({ registryPath: ctx.registryPath, row: {
@@ -261,7 +193,7 @@ export function createSiteBackend<TServer extends SiteBackendServer>(
       partition, adminUrl: server.adminUrl,
       redeem: () => authenticateSiteSession({ siteDir, server, partition }),
     });
-    announceDesktopToolsToSite({ server, partition });
+    ports.connectDesktopMcp?.(server);
   }
 
   /**
@@ -334,5 +266,5 @@ export function createSiteBackend<TServer extends SiteBackendServer>(
     return server;
   }
 
-  return { authenticateSiteSession, startSiteBackend, announceDesktopToolsToSite, openSiteServer };
+  return { authenticateSiteSession, startSiteBackend, openSiteServer };
 }
