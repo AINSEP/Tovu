@@ -23,6 +23,7 @@ import { constrainPrincipalToReadOnlyTools } from "../../../../../assistant/read
 import { ensureAgentDaemonToken, ensureToolExecToken, TOOL_EXEC_TOKEN_ENV_VAR } from "../../../../../assistant/daemon-access.js";
 import { hasUnknownToolCall } from "#src/assistant/durable-runs/continuation";
 import type { RouteDeps } from "../../../../routes/types.js";
+import { acceptToolRun } from "./assistant-tool-exec.fixture.js";
 
 /**
  * @file The server end of the agent daemon's tool RPC (ADR-070), through the real `createApp` on a
@@ -37,6 +38,9 @@ async function boot(t: import("node:test").TestContext) {
   const deps = createRouteDeps();
   const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
   const ownerId = await deps.ownerPrincipalId;
+  for (const runId of ["rpc-run", "rpc-abort-run", "r", "rpc-drop-run"]) {
+    await acceptToolRun({ deps, runId, principalId: ownerId });
+  }
   return { deps, baseUrl, cookie, owner: { id: ownerId } as Principal };
 }
 
@@ -107,7 +111,8 @@ test("the tool RPC route is mounted on the real app and answers like the in-proc
 test("the server's own gates refuse a bare principal and a read-only-constrained one", async (t) => {
   const { deps, baseUrl, owner } = await boot(t);
   await loginAsBarePrincipal(deps, baseUrl, { username: "rpc-bare" });
-  const bare = await remote(baseUrl).execute(call({ id: "bare-rpc-bare" }, "content_read.site", {}));
+  await acceptToolRun({ deps, runId: "bare-rpc-run", principalId: "bare-rpc-bare" });
+  const bare = await remote(baseUrl).execute(call({ id: "bare-rpc-bare" }, "content_read.site", {}, "bare-rpc-run"));
   assert.equal(bare.status, "failed");
   assert.match(String((bare as { error?: unknown }).error), /'bare-rpc-bare' is not authorized .*no_grant/);
   const before = (await deps.postRepo.list({ workspaceId: deps.workspaceId })).length;
@@ -155,8 +160,10 @@ test("aborting the daemon's call while it is parked cancels it on the server", a
 test("the catalog is per principal and fresh on every request", async (t) => {
   const { deps, baseUrl, owner } = await boot(t);
   await loginAsBarePrincipal(deps, baseUrl, { username: "rpc-cat" });
+  await acceptToolRun({ deps, runId: "bare-cat-run", principalId: "bare-rpc-cat" });
   const catalog = async (principalId: string) => {
-    const res = await fetch(`${baseUrl}/internal/tool-catalog?principalId=${encodeURIComponent(principalId)}`, { headers: { authorization: `Bearer ${TOKEN}` } });
+    const runId = principalId === owner.id ? "rpc-run" : "bare-cat-run";
+    const res = await fetch(`${baseUrl}/internal/tool-catalog?runId=${runId}&principalId=${encodeURIComponent(principalId)}`, { headers: { authorization: `Bearer ${TOKEN}` } });
     assert.equal(res.status, 200);
     return ((await res.json()) as { tools: Array<{ id: string }> }).tools.map((tool) => tool.id);
   };
@@ -192,7 +199,7 @@ test("the tool-exec token never reaches process.env, refusals, the catalog, or t
   assert.ok(!Object.values(process.env).includes(TOKEN));
   const texts = [
     await (await postTool(baseUrl, "{}", {})).text(),
-    await (await fetch(`${baseUrl}/internal/tool-catalog?principalId=${owner.id}`, { headers: { authorization: `Bearer ${TOKEN}` } })).text(),
+    await (await fetch(`${baseUrl}/internal/tool-catalog?runId=rpc-run&principalId=${owner.id}`, { headers: { authorization: `Bearer ${TOKEN}` } })).text(),
     await (await fetch(`${baseUrl}/api/admin/v1/auth/me`, { headers: { cookie } })).text(),
     await (await fetch(`${baseUrl}/api/admin/v1/auth/login`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ username: "admin", password: "tovu-dev" }) })).text(),
   ];

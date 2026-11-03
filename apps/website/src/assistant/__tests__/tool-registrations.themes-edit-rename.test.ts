@@ -1,3 +1,4 @@
+import { buildConfirmedAssistantToolRegistrations } from './fixtures/confirmed-registrations.js';
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
@@ -10,7 +11,6 @@ import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import { discoverAllBuiltInThemes } from "../../features/theme/index.js";
 import type { DiscoveredTheme } from "../../features/theme/theme.js";
-import { buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 import { executeRegisteredTool } from "./fixtures/execute-registered-tool.js";
 
@@ -86,7 +86,7 @@ function executionContext(input: Record<string, unknown> | undefined): ToolExecu
 }
 
 function wired(deps: RegistryDepsWithoutLimiter, toolId: string): ToolRegistration {
-  const found = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).find((r) => r.descriptor.id === toolId);
+  const found = buildConfirmedAssistantToolRegistrations({ routeDeps: toAssistantRegistryDeps({ routeDeps: deps }), options: { contributions } }).find((r) => r.descriptor.id === toolId);
   assert.ok(found, `expected '${toolId}' to be wired`);
   return found;
 }
@@ -113,7 +113,7 @@ test("chat-input regression: theme_edit_file deletes exact text with an empty re
       themeId: "plain", items: [{ path: "styles.css", oldString: "body{padding:0}", newString: " ", intent: "delete" }],
     } });
     assert.equal(blanked.status, "completed");
-    assert.equal((blanked.output as { succeeded: number }).succeeded, 1);
+    assert.equal((blanked.output as { total: number }).total, 1);
     assert.equal(readFile(themesDir, "styles.css"), " \n", "whitespace is literal replacement text");
   } finally {
     fs.rmSync(themesDir, { recursive: true, force: true });

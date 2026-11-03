@@ -1,3 +1,4 @@
+import { buildConfirmedThemesRegistrations } from '../../../assistant/__tests__/fixtures/confirmed-registrations.js';
 /** Spec/ADR: ADS-memory/.local-artifacts/theme-preview-refresh/design.md */
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -9,7 +10,6 @@ import {
   requestThemePreviewRefresh,
   validatePreviewPath,
 } from "../preview-refresh.js";
-import { buildThemesRegistrations } from "../tool-registrations.js";
 
 test("refresh marker crosses independent readers and clears navigation after a save", (t) => {
   const themesDir = fs.mkdtempSync(path.join(os.tmpdir(), "theme-refresh-"));
@@ -54,7 +54,7 @@ test("preview_reload is registered by category, authorizes before signaling, and
       return { allowed: true };
     },
   };
-  const registration = buildThemesRegistrations(deps as never).find(
+  const registration = buildConfirmedThemesRegistrations(deps as never).find(
     (r) => r.descriptor.id === "preview_reload",
   );
   assert.ok(registration);
@@ -94,11 +94,12 @@ test("admin and assistant save chokepoints both signal, rejected writes do not",
   reloadTheme(deps as never, "plain");
   const first = readThemePreviewRefresh({ themesDir });
   assert.ok(first);
-  const writer = buildThemesRegistrations(deps).find((r) => r.descriptor.id === "theme_write_file");
+  const writer = buildConfirmedThemesRegistrations(deps).find((r) => r.descriptor.id === "theme_write_file");
   assert.ok(writer);
   await writer.handler({
     input: { themeId: "plain", path: "tokens.json", content: '{"--ink":"#fff"}' },
     principal: { id: "owner" },
+    executionId: 'save', run: { id: 'run' }, signal: new AbortController().signal,
   } as never);
   const second = readThemePreviewRefresh({ themesDir });
   assert.ok(second);
@@ -107,6 +108,7 @@ test("admin and assistant save chokepoints both signal, rejected writes do not",
     writer.handler({
       input: { themeId: "plain", path: "../escape", content: "bad" },
       principal: { id: "owner" },
+      executionId: 'invalid-save', run: { id: 'run' }, signal: new AbortController().signal,
     } as never),
   );
   assert.deepEqual(readThemePreviewRefresh({ themesDir }), second);

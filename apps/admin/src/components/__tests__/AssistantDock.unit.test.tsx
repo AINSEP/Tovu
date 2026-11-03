@@ -193,6 +193,7 @@ function fakeAgentBridge(overrides: Partial<FrontendSessionBridge> = {}): Fronte
   return {
     bridgeAccess: { subscribe: vi.fn(() => vi.fn()), respondSuccess: vi.fn(), respondError: vi.fn() },
     ready: Promise.resolve({ sessionId: "session-1", bindToken: "token-1" }),
+    rebind: async () => ({ sessionId: "session-1", bindToken: "token-1" }),
     bindToken: () => "token-1",
     close: vi.fn(),
     ...overrides,

@@ -43,6 +43,7 @@ function mountDock({ locale = "en", attached = true } = {}, _options = {}) {
   };
   const bridge: FrontendSessionBridge = {
     ready: attachment.promise, bindToken: () => "current-bind", close: vi.fn(),
+    rebind: () => attachment.promise,
     bridgeAccess: { subscribe: vi.fn(() => vi.fn()), respondSuccess: vi.fn(), respondError: vi.fn() },
   };
   const panes: PaneProps[] = [];
@@ -149,7 +150,7 @@ describe("daemon activation sendingLabel at the dock's ChatPane boundary", () =>
     await expect(send.outcome).resolves.toEqual({ value: { runId: "accepted-run" } });
   });
 
-  it("clears on activation rejection and preserves the existing send fallback", async () => {
+  it("clears on activation rejection and rejects the required page-bound send", async () => {
     const dock = mountDock();
     const send = dock.begin();
     await advance();
@@ -158,12 +159,10 @@ describe("daemon activation sendingLabel at the dock's ChatPane boundary", () =>
     act(() => dock.activation.reject(new Error("the assistant could not start")));
     await advance();
     expect(dock.pane().sendingLabel).toBeUndefined();
-    expect(dock.startRun).toHaveBeenCalledOnce();
-    expect(dock.startRun.mock.calls[0]![0].context).toMatchObject({ frontendBindToken: "current-bind" });
+    expect(dock.startRun).not.toHaveBeenCalled();
     await advance({ ms: 1_000 });
     expect(dock.pane().sendingLabel).toBeUndefined();
-    act(() => dock.acceptance.resolve());
-    await expect(send.outcome).resolves.toEqual({ value: { runId: "accepted-run" } });
+    await expect(send.outcome).resolves.toEqual({ error: expect.objectContaining({ message: "the assistant could not start" }) });
   });
 
   it("clears immediately on Stop even while activation remains pending, and stays clear after late completion", async () => {

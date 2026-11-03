@@ -11,6 +11,7 @@ import { createAssistantByokModule } from "../assistant-byok.js";
 import { createDaemonApprovalMemory, createDaemonAwareInstallAttachmentReader } from "../assistant-tool-exec.js";
 import { runWithDaemonCallContext } from "../../../../../assistant/daemon-call-context.js";
 import { ensureToolExecToken } from "../../../../../assistant/daemon-access.js";
+import { acceptToolRun } from "./assistant-tool-exec.fixture.js";
 
 /**
  * @file The daemon-call adapters `assistant-tool-exec.ts` composes into the BYOK surface. Each must
@@ -20,6 +21,7 @@ import { ensureToolExecToken } from "../../../../../assistant/daemon-access.js";
 test("the chat-attachment tools read the daemon's store over the lookup, and only inside a daemon call", async (t) => {
   const deps = createRouteDeps();
   const ownerId = await deps.ownerPrincipalId;
+  await acceptToolRun({ deps, runId: "att-run", principalId: ownerId });
   const lookups: unknown[] = [];
   const attachmentLookup = {
     resolveForRun: async () => undefined,

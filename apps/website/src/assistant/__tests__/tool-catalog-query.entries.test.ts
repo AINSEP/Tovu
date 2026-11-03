@@ -100,8 +100,12 @@ test("describe_tool guidance declares its target tools so a read-only caller see
   ];
   const registry = { list: () => descriptors };
   const catalog = buildToolCatalogQuery(registry);
-  assert.deepEqual(catalog.describe({ id: "content_read.content_region" })?.targetToolIds, ["content_read.widget_region"]);
-  assert.deepEqual(catalog.describe({ id: "content_read" })?.targetToolIds, descriptors.map(descriptor => descriptor.id));
+  const alias = catalog.describe({ id: "content_read.content_region" });
+  const guidance = catalog.describe({ id: "content_read" });
+  assert.ok(alias && "targetToolIds" in alias);
+  assert.ok(guidance && "targetToolIds" in guidance);
+  assert.deepEqual(alias.targetToolIds, ["content_read.widget_region"]);
+  assert.deepEqual(guidance.targetToolIds, descriptors.map(descriptor => descriptor.id));
 
   // The BYOK chain: read-only filter over the permanent-delete gate over this host's catalog.
   const principal = constrainPrincipalToReadOnlyTools({ principal: { id: "peer", roles: ["operator"] } });
@@ -109,6 +113,7 @@ test("describe_tool guidance declares its target tools so a read-only caller see
   assert.ok(visible.describe({ id: "content_read.content_region" })?.description.includes("content_read.widget_region"));
   assert.equal(visible.describe({ id: "content_read.form" }), null, "an alias to a writing card must not reach a read-only caller");
   const overview = visible.describe({ id: "content_read" });
-  assert.deepEqual(overview?.targetToolIds, ["content_read.widget_region", "content_read.post"]);
+  assert.ok(overview && "targetToolIds" in overview);
+  assert.deepEqual(overview.targetToolIds, ["content_read.widget_region", "content_read.post"]);
   assert.ok(!overview?.description.includes("content_read.form_definition"), "the overview must not list a writing card");
 });

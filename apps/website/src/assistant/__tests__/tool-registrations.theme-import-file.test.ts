@@ -1,3 +1,4 @@
+import { buildConfirmedThemeImportRegistrations } from './fixtures/confirmed-registrations.js';
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
@@ -12,7 +13,6 @@ import { EgressRefusedError, type HttpClientPort, type HttpRequest, type HttpRes
 import { discoverAllBuiltInThemes } from "#src/features/theme/index";
 import { nativeToolMetadata } from "#src/contracts/core/tool-metadata/index";
 import {
-  buildImportThemeFileRegistrations,
   contributeImportThemeFileTools,
   importThemeFileAgentToolCatalog,
   importThemeFileDerivedRisk,
@@ -96,7 +96,7 @@ function ctxFor(input: unknown): ToolExecutionContext {
 }
 
 function handlerFor(routeDeps: ImportThemeFileToolDeps, toolId = "theme_import_file_from_url"): ToolHandler {
-  const registration = buildImportThemeFileRegistrations(routeDeps).find((r) => r.descriptor.id === toolId);
+  const registration = buildConfirmedThemeImportRegistrations(routeDeps).find((r) => r.descriptor.id === toolId);
   assert.ok(registration, "expected a registration for " + toolId);
   return registration.handler;
 }
@@ -104,7 +104,7 @@ function handlerFor(routeDeps: ImportThemeFileToolDeps, toolId = "theme_import_f
 const FONT_INPUT = { themeId: "match", path: "assets/fonts/display.woff2", url: "https://fonts.example.com/display.woff2" };
 
 test("theme_import_file_from_url: wires with its catalog schema, a mutating risk class, and search metadata", () => {
-  const registrations = buildImportThemeFileRegistrations(fakeDeps());
+  const registrations = buildConfirmedThemeImportRegistrations(fakeDeps());
 
   assert.deepEqual(registrations.map((r) => r.descriptor.id), ["theme_import_file_from_url", "theme_import_local_file"]);
   assert.deepEqual(registrations[0]?.descriptor.inputSchema, importThemeFileAgentToolCatalog[0]?.inputSchema);
@@ -135,7 +135,7 @@ test("theme_import_file_from_url: writes the font into the theme and reports the
     errors: [],
   });
   assert.deepEqual(new Uint8Array(fs.readFileSync(path.join(routeDeps.themesDir, "match", "assets/fonts/display.woff2"))), WOFF2);
-  assert.deepEqual(routeDeps.asked, ["theme.edit"]);
+  assert.deepEqual(routeDeps.asked, ["theme.edit", "theme.edit"]);
 });
 
 test("theme_import_file_from_url: a principal without theme.edit is refused before any fetch", async () => {
@@ -198,11 +198,11 @@ test("theme_import_local_file: uses the same contributor, theme.edit gate, disco
   const result = await handlerFor(deps, "theme_import_local_file")(ctxFor({ themeId: "match", path: "assets/local.woff2", root: "custom", sourcePath: "font.woff2" }));
   assert.deepEqual(result, { themeId: "match", path: "assets/local.woff2", contentType: "font/woff2", bytes: WOFF2.length, sourcePath: "font.woff2", status: "valid", errors: [] });
   assert.deepEqual(new Uint8Array(fs.readFileSync(path.join(deps.themesDir, "match/assets/local.woff2"))), WOFF2);
-  assert.deepEqual(deps.asked, ["theme.edit"]);
+  assert.deepEqual(deps.asked, ["theme.edit", "theme.edit"]);
   assert.equal(deps.client.calls.length, 0);
   assert.equal(importThemeFileDerivedRisk.get("theme_import_local_file"), "mutates-durable-state");
   assert.match(String(nativeToolMetadata.byId.theme_import_local_file?.search?.keywords), /local.*folder.*font/);
-  const registration = buildImportThemeFileRegistrations(deps).find(r => r.descriptor.id === "theme_import_local_file")!;
+  const registration = buildConfirmedThemeImportRegistrations(deps).find(r => r.descriptor.id === "theme_import_local_file")!;
   assert.equal(registration.descriptor.readOnly, false);
   assert.deepEqual((registration.descriptor.inputSchema as { properties: { root: { enum: string[] } } }).properties.root.enum, ["repo", "site", "custom"]);
 });

@@ -565,6 +565,35 @@ test("agent_plugin_connect resolves the installed package without an injected re
   }
 });
 
+test("agent_plugin_connect: signed-in servers recover their tools while another server still needs sign-in", { timeout: 5_000 }, async t => {
+  const store = makeStoreDeps();
+  const servers = { widget: OAUTH_SERVER, other: { ...OAUTH_SERVER, url: "https://other.example.com/mcp" } };
+  await provisionAgentPluginMcpServers(mcpTestPort(store), { workspaceId: WORKSPACE_ID, pluginId: "widget-store", servers, principalId: PRINCIPAL_ID });
+  await flipRowConnected(store.repo, "widget");
+  const granted: string[] = [];
+  const controller = new AbortController();
+  t.after(() => controller.abort());
+  const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  let cardSent!: () => void;
+  const card = new Promise<void>(resolve => { cardSent = resolve; });
+  const pending = runConnectWithOptions({
+    routeDeps: baseDeps(store, {
+      externalMcpOAuth: fakeOAuth(store.repo, "https://other.example.com/authorize"),
+      resolveInstalledPlugin: async () => ({ servers }),
+      pollIntervalMs: 60_000, waitTimeoutMs: 60_000,
+    }),
+    surfaces: { surfaceExchanges: exchanges }, ctx: fakeCtx([], controller.signal), pluginId: "widget-store",
+  }, { onConnected: async id => { granted.push(id); }, emitSurface: async () => { cardSent(); } });
+  try {
+    await card;
+    assert.deepEqual(granted, ["widget"], "only the already signed-in server receives defaults before the other sign-in completes");
+  } finally {
+    controller.abort();
+    await pending;
+  }
+  assert.equal(exchanges.size(), 0, "the pending sign-in card is disposed on abort");
+});
+
 test("agent_plugin_connect aborts during the polling sleep and cleans up promptly", { timeout: 2_000 }, async () => {
   const store = makeStoreDeps();
   const controller = new AbortController();

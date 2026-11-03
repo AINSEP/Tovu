@@ -71,6 +71,8 @@ const DYNAMIC_BINDINGS = new Map<string, ReadonlySet<string>>([
   ["contracts/core/human-confirm.ts", new Set(["toolId", "description"])],
   ["assistant/external-mcp-call-confirmation.ts", new Set(["actionConfirmSpec(spec, context.approvalRequest)"])],
   ["assistant/tool-approval-policy.ts", new Set(["toolId", "description"])],
+  // All five replacement tools are exercised against real exchanges by theme-file-safety.test.ts.
+  ["features/theme/file-mutation-tools.ts", new Set(["description"])],
   ["assistant/ask-choice-tool.ts", new Set(["toolId"])],
   ["features/settings/tool-registrations.ts", new Set(["toolId"])],
   ["features/identity/tool-registrations.ts", new Set(["registration.descriptor.id"])],

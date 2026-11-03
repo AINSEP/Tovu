@@ -9,6 +9,7 @@ import assert from "node:assert/strict";
 import {
   createListedPreviewRequests, createPreviewTargetResolver, createSitePreviewCapture, sweepSitePreviewsOnBoot,
   PREVIEW_CAPTURE_HEIGHT_PX, PREVIEW_CAPTURE_WIDTH_PX, PREVIEW_PAINT_SETTLE_MS, PREVIEW_WIDTH_PX,
+  PREVIEW_LOAD_TIMEOUT_MS,
   type PreviewCapturePorts,
 } from "./site-preview.ts";
 
@@ -112,6 +113,28 @@ test("a window destroyed while settling is not captured and not destroyed twice"
   assert.equal(await h.capture({ siteDir: "/sites/x", port: 1, partition: "p" }), false);
   assert.deepEqual(h.resizes, []);
   assert.equal(h.destroyCalls(), 0);
+});
+
+test("a site preview that never finishes loading releases its hidden window at the deadline", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  let destroyed = false;
+  const warnings: string[] = [];
+  const capture = createSitePreviewCapture({ ports: {
+    createHiddenWindow: () => ({
+      loadURL: () => new Promise(() => {}),
+      isDestroyed: () => destroyed,
+      destroy: () => { destroyed = true; },
+      webContents: { capturePage: async () => assert.fail('a hung page cannot be captured') },
+    }),
+    delay: async () => assert.fail('a hung page never reaches paint settle'),
+    writePreview: () => assert.fail('a hung page cannot be stored'),
+    warn: (message) => warnings.push(message),
+  } });
+  const pending = capture({ siteDir: '/hung', port: 4100, partition: 'p' });
+  t.mock.timers.tick(PREVIEW_LOAD_TIMEOUT_MS);
+  assert.equal(await pending, false);
+  assert.equal(destroyed, true);
+  assert.match(warnings[0]!, /timed out/);
 });
 
 function resolver(openSite?: { server: { port: number } }, lease?: { port: number; scheme: "http" | "https" } | null) {

@@ -304,6 +304,7 @@ test("publishStaticSite: an asset that fails to export blocks publishing, the sa
   const exportSiteBound = deps.exportSiteBound;
   deps.exportSiteBound = async input => ({
     ...await exportSiteBound(input),
+    outputDir: input.outputDir,
     droppedReferences: [{ page: "/", url: "/submit", attribute: "action", reason: "needs-server" }],
   });
 

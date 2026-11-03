@@ -131,6 +131,25 @@ test('an empty selection composes Tovu content alone without npm', t => {
   assert.deepEqual(composed.pluginIds, ['fly', 'how-tovu-works']);
 });
 
+test('relative output paths compose valid contribution files just like absolute paths', t => {
+  const f = fixture(t);
+  const outputRoot = path.relative(process.cwd(), f.outputRoot);
+  const composed = composeBundledAgentPluginRoot({ repoRoot: f.repoRoot, outputRoot }, f.options);
+  assert.deepEqual(composed.pluginIds, ['fly', 'how-tovu-works', 'jev']);
+  assert.equal(f.read('fly/deploy-configs/fly.mjs'), 'export {};');
+});
+
+test('swapped selection keys fail the build even when the complete set of plugin names matches', t => {
+  const f = fixture(t);
+  f.write(`${PACKAGE_DIR}/package.json`, JSON.stringify({ name: '@jini-ai/agent-plugins', exports: { './*': './*' } }));
+  f.write(`${PACKAGE_DIR}/other/plugin.json`, JSON.stringify({ name: 'other' }));
+  const selection = new Map([['other', PACKAGE], ['jev', '@jini-ai/agent-plugins/other']]);
+  assert.throws(() => composeBundledAgentPluginRoot({ repoRoot: f.repoRoot, outputRoot: f.outputRoot }, {
+    selection, listPackageFiles: () => [...f.files, 'other/plugin.json'],
+  }), /differ from the plugin names their packages declare/);
+  assert.equal(fs.existsSync(f.outputRoot), false);
+});
+
 test('development composes into the gitignored folder unless the operator already points at a bundled root', t => {
   const f = fixture(t);
   assert.equal(composeDevBundledAgentPlugins({ repoRoot: f.repoRoot, env: { TOVU_BUNDLED_AGENT_PLUGINS_DIR: '/operator/root' } }, f.options), '/operator/root');

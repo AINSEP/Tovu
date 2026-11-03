@@ -92,6 +92,55 @@ afterEach(() => {
 });
 
 describe("new posts stay local until their first Save", () => {
+  it("Publish clicked during the first Save publishes the one created post", async () => {
+    const port = createFakePostEditorPort();
+    const createPost = port.createPost.bind(port);
+    let release!: () => void;
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    const create = vi.spyOn(port, "createPost").mockImplementation(async input => { await gate; return createPost(input); });
+    const update = vi.spyOn(port, "updatePost");
+    const { result } = renderHook(() => usePostEditor("", { port, navigate: fakeNavigate(), t: fakeT }));
+    await waitFor(() => expect(result.current.post).not.toBeNull());
+    let saving!: Promise<void>;
+    let publishing!: Promise<void>;
+    act(() => { saving = result.current.save(); publishing = result.current.save("published"); });
+    await act(async () => { release(); await Promise.all([saving, publishing]); });
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(update).toHaveBeenCalledWith({ id: port.post.id }, expect.objectContaining({ status: "published", expectedVersion: 1 }));
+    expect(port.post.status).toBe("published");
+    expect(result.current.post?.status).toBe("published");
+    expect(result.current.saving).toBe(false);
+  });
+
+  it("Save clicked with newer text during creation saves the latest intent to the same post", async () => {
+    const port = createFakePostEditorPort();
+    const createPost = port.createPost.bind(port);
+    let release!: () => void;
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    const create = vi.spyOn(port, "createPost").mockImplementation(async input => { await gate; return createPost(input); });
+    const update = vi.spyOn(port, "updatePost");
+    const { result, rerender } = renderHook(({ segment }) => usePostEditor(segment, { port, navigate: fakeNavigate(), t: fakeT }), { initialProps: { segment: "" } });
+    await waitFor(() => expect(result.current.post).not.toBeNull());
+    let first!: Promise<void>;
+    let second!: Promise<void>;
+    let last!: Promise<void>;
+    act(() => { first = result.current.save(); });
+    act(() => result.current.setTitle("Intermediate title"));
+    act(() => { second = result.current.save(); });
+    act(() => result.current.setTitle("Latest title"));
+    act(() => { last = result.current.save(); });
+    await act(async () => { release(); await Promise.all([first, second, last]); });
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(update).toHaveBeenCalledTimes(1);
+    expect(port.post.title).toBe("Latest title");
+    expect(result.current.dirty).toBe(false);
+    rerender({ segment: port.post.slug });
+    act(() => result.current.setTitle("Saved again"));
+    await act(() => result.current.save());
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(port.post.title).toBe("Saved again");
+  });
+
   it("opens a local editor and typing never creates or autosaves a row", async () => {
     const port = createFakePostEditorPort();
     const get = vi.spyOn(port, "getPost");

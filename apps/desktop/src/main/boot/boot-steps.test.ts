@@ -24,12 +24,13 @@ function userData(env: Record<string, string | undefined>) {
   return { result, sets, env };
 }
 
-test("a real launch uses the packaged/dev default profile and leaves the env untouched", () => {
+test("a blank profile override uses the normal profile without disabling desktop tools", () => {
   for (const value of [undefined, "", "   "]) {
     const u = userData({ TOVU_DESKTOP_USER_DATA_DIR: value });
     assert.deepEqual(u.sets, ["/Users/x/Library/Application Support/tovu-desktop"]);
     assert.equal(u.result.overridden, false);
-    assert.equal(u.env.TOVU_DESKTOP_USER_DATA_DIR, value);
+    assert.equal(u.env.TOVU_DESKTOP_USER_DATA_DIR, undefined);
+    assert.equal(Object.hasOwn(u.env, "TOVU_DESKTOP_USER_DATA_DIR"), false);
   }
 });
 

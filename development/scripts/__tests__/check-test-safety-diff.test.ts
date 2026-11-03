@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
 import test from 'node:test';
 
-import { countUnsafeAsserts, findRegressions, parseNameStatus } from '../check-test-safety-diff.js';
+import { changedTestFiles, countUnsafeAsserts, findRegressions, parseNameStatus } from '../check-test-safety-diff.js';
 
 /**
  * @file The rollout gate for the tsx assert-message hang (open-bugs 10-31): a failing message-less
@@ -55,4 +59,26 @@ test('files outside the tsx-run test roots and inline disables are handled by th
   assert.equal(countUnsafeAsserts({ text: `${HEADER}assert.ok(a);\n`, file: 'apps/site-chat/src/chat/__tests__/chat.test.ts' }), 1, 'site-chat tests also run under tsx');
   const disabled = `${HEADER}// eslint-disable-next-line no-restricted-syntax\nassert.ok(a);\n`;
   assert.equal(countUnsafeAsserts({ text: disabled, file: TEST_FILE }), 1, 'an inline disable cannot hide a hang risk');
+});
+
+test('copying an unchanged test preserves its source allowance while new unsafe assertions still fail', t => {
+  const cwd = mkdtempSync(join(tmpdir(), 'test-safety-copies-'));
+  t.after(() => rmSync(cwd, { recursive: true, force: true }));
+  const git = (args: string[]) => execFileSync('git', args, { cwd, encoding: 'utf8' });
+  git(['init', '-q']);
+  git(['config', 'user.email', 'test@example.invalid']);
+  git(['config', 'user.name', 'Test']);
+  const source = TEST_FILE;
+  const copy = source.replace('example.test.ts', 'copied.test.ts');
+  const text = `${HEADER}${Array.from({ length: 30 }, (_, index) => `// existing case ${index}\n`).join('')}assert.ok(a);\n`;
+  mkdirSync(dirname(join(cwd, source)), { recursive: true });
+  writeFileSync(join(cwd, source), text);
+  git(['add', '.']); git(['commit', '-qm', 'base']);
+  const mergeBase = git(['rev-parse', 'HEAD']).trim();
+  writeFileSync(join(cwd, copy), text);
+  git(['add', '.']); git(['commit', '-qm', 'copy']);
+  const files = changedTestFiles({ mergeBase }, { git });
+  assert.deepEqual(files, [{ path: copy, basePath: source }], 'Git must identify a copy even when the source is unchanged');
+  assert.deepEqual(findRegressions({ files, ...readers({ [copy]: text }, { [source]: text }) }), []);
+  assert.deepEqual(findRegressions({ files, ...readers({ [copy]: `${text}assert.ok(b);\n` }, { [source]: text }) }), [{ file: copy, before: 1, after: 2 }]);
 });

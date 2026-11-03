@@ -129,7 +129,7 @@ test("resume waits for a foreign record and its preferred port to clear", async 
   const foreign: LocalSiteState = { name: "old", status: "running", pid: 99, port: 3201, daemonPort: null, adminUrl: null };
   const next = host(t, dir, "dev-42", { existing: () => occupied ? foreign : null, isPortFree: async ({ port }) => port !== 3201 || !occupied });
   const resuming = next.supervisor.resume(); await settle();
-  assert.deepEqual(next.launches, []);
+  assert.equal(next.launches.length, 0);
   assert.equal(next.jobs[0]?.delayMs, 500);
   occupied = false; next.jobs.shift()!.run(); await resuming;
   assert.equal(next.launches[0]?.port, 3201);

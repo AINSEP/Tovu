@@ -51,7 +51,7 @@ for (const notNull of [false, true]) test(`sharing plugin BLOB columns omits cre
   }
   assert.ok(bytes);
   const shared = new Database(bytes); t.after(() => shared.close());
-  const read = shared.prepare("SELECT payload_json, text, typeof(payload_json) AS kind FROM p_blobfixture__records WHERE id = ?");
+  const read = shared.prepare<[string], { payload_json: Buffer | null; text: string | null; kind: string }>("SELECT payload_json, text, typeof(payload_json) AS kind FROM p_blobfixture__records WHERE id = ?");
   for (const id of ["vendor", "bearer", "mixed"]) {
     assert.deepEqual(read.get(id)!.payload_json, Buffer.alloc(0), id);
     assert.equal(read.get(id)!.kind, "blob", "blanking preserves BLOB storage type");

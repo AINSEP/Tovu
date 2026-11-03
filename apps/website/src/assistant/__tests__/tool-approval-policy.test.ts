@@ -37,7 +37,7 @@ test('unclassified registration fails closed, regardless of readOnly hint', () =
   assert.throws(()=>fixture('new_unclassified_tool'), /has no approval classification/);
 });
 test('ordinary edits and draft creation run without an approval channel', async()=> {
-  for (const id of ['media_update_metadata','theme_write_file','content_post_create']) {
+  for (const id of ['media_update_metadata','content_post_create']) {
     const f=fixture(id);
     const result=await f.executor.execute({toolId:id,principal:{id:'owner'},run:{id:'run'},input:{title:'Draft'}});
     assert.equal(result.status,'completed'); assert.equal(f.calls(),1);
@@ -74,7 +74,7 @@ test('only read, edit and trash run directly; every other class, including an un
 });
 test('permanent deletes and actions that leave this site refuse without a human confirmation channel',async()=>{
   const calls:[string,unknown][]=[
-    ['page.click',{handle:'trash-purge-confirm'}], ['change_sets_revert',{}], ['theme_reset_file',{}],
+    ['page.click',{handle:'trash-purge-confirm'}], ['change_sets_revert',{}],
     ['publish_content_publish',{}], ['deployment_execute_static_publish',{}], ['deployment_ops_deploy',{}], ['source_control_execute_commit',{}],
     // Demo 2026-11-02: the chat switched the live site to a rebuilt theme without asking.
     ['theme_set_active',{themeId:'ground'}],

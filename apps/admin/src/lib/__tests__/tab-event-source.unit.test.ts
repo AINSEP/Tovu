@@ -50,12 +50,12 @@ it("forwards with no on* handlers set", () => {
 it("reports the native readyState while connected, CONNECTING while paused, and CLOSED once closed (idempotently)", () => {
   const { tab, sources, managed } = open();
   expect(managed.readyState).toBe(1);
-  const errors: string[] = [];
-  managed.onerror = () => errors.push("error");
+  const suspended: string[] = [];
+  managed.addEventListener("suspended", () => suspended.push("suspended"));
   tab.hide(); tab.advance(30_000);
   expect(sources[0]!.closed).toBe(true);
   expect(managed.readyState).toBe(0);
-  expect(errors).toEqual(["error"]);
+  expect(suspended).toEqual(["suspended"]);
   // The paused source can no longer reach the bridge, even if it fires late.
   const late: string[] = [];
   managed.addEventListener("message", () => late.push("late"));
@@ -67,7 +67,7 @@ it("reports the native readyState while connected, CONNECTING while paused, and 
   managed.close();
   expect(managed.readyState).toBe(2);
   expect(sources[1]!.closed).toBe(true);
-  expect(errors).toEqual(["error"]);
+  expect(suspended).toEqual(["suspended"]);
   managed.close();
   expect(managed.readyState).toBe(2);
   sources[1]!.dispatchEvent(new MessageEvent("message", { data: "after close" }));

@@ -35,6 +35,7 @@ it("uses the tab-stream adapter in the bridge's openStream port", () => {
   let closed = false;
   const bridge: FrontendSessionBridge = {
     ready: Promise.resolve({ sessionId: "a", bindToken: "b" }), bindToken: () => "b",
+    rebind: async () => ({ sessionId: "a", bindToken: "b" }),
     close: () => { closed = true; },
     bridgeAccess: { subscribe: () => () => {}, respondSuccess: async () => {}, respondError: async () => {} },
   };
@@ -58,6 +59,7 @@ it("closes the previous bridge when the content root changes, and clears it when
     const bridge = {
       closed: false,
       ready: Promise.resolve({ sessionId: `s${made.length}`, bindToken: "b" }), bindToken: () => "b",
+      rebind: async () => ({ sessionId: "attached", bindToken: "b" }),
       close: () => { bridge.closed = true; },
       bridgeAccess: { subscribe: () => () => {}, respondSuccess: async () => {}, respondError: async () => {} },
     };

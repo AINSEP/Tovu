@@ -15,7 +15,7 @@ import { getThemesAgentToolCatalog } from "../../features/theme/agent-tools.js";
 import { discoverAllBuiltInThemes } from "../../features/theme/index.js";
 import { THEME_CATALOG_DIR } from "../../features/theme/theme.js";
 import { assertRiskMetadataIsWirable } from "../tool-registrations.js";
-import { resolveBatchableTools, batchDescriptorFor } from "../batch-tool-inputs.js";
+import { resolveBatchableTools, batchDescriptorFor, withBatchInput } from "../batch-tool-inputs.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { contributeThemesTools } from "../../features/theme/tool-registrations.js";
@@ -203,7 +203,11 @@ test("every wired themes registration publishes its catalog entry's inputSchema 
     // A batchable tool publishes its catalog entry plus `items`, via the real `batchDescriptorFor`.
     const catalogDescriptor = { id, description: catalogEntry(id).description, inputSchema: catalogEntry(id).inputSchema };
     const [batchable] = resolveBatchableTools({ registrations: [{ ...registration, descriptor: { ...registration.descriptor, ...catalogDescriptor } }] });
-    const expected = batchable ? batchDescriptorFor({ descriptor: catalogDescriptor, tool: batchable }) : catalogDescriptor;
+    const expected = batchable
+      ? registration.descriptor.metadata?.approval?.confirmation === 'plan'
+        ? withBatchInput({ registration: { ...registration, descriptor: catalogDescriptor }, tool: batchable }, { mode: 'plan' }).descriptor
+        : batchDescriptorFor({ descriptor: catalogDescriptor, tool: batchable })
+      : catalogDescriptor;
     assert.deepEqual(registration.descriptor.inputSchema, expected.inputSchema, `${id}'s published schema must be its catalog entry's`);
     assert.equal(registration.descriptor.description, expected.description);
   }
@@ -272,9 +276,11 @@ test("each themes tool checks exactly the permission its catalog entry declares"
     if (toolId === "theme_trash_file") {
       assert.equal(emitted.length, 0, "reversible theme trash runs without a policy approval card");
     }
-    assert.deepEqual(authorizeCalls.map((call) => [call.permission, call.principalId, call.workspaceId]), [
-      [toolId === "content_read.theme" ? "theme.set" : catalogEntry(toolId).authorization.permission, PRINCIPAL_ID, WORKSPACE_ID],
-    ], `${toolId} must request exactly its declared permission for this caller`);
+    const permission = toolId === 'content_read.theme' ? 'theme.set' : catalogEntry(toolId).authorization.permission;
+    const expectedCalls = ['theme_write_file', 'theme_edit_file', 'theme_reset_file'].includes(toolId) ? 2 : 1;
+    assert.deepEqual(authorizeCalls.map((call) => [call.permission, call.principalId, call.workspaceId]),
+      Array.from({ length: expectedCalls }, () => [permission, PRINCIPAL_ID, WORKSPACE_ID]),
+      `${toolId} must check its declared permission before review and again before replacement`);
     return result;
   }
   await checkPermission("theme_read_file", { themeId: "plain", path: "tokens.json" });

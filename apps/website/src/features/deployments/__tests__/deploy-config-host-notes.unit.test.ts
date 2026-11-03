@@ -48,6 +48,18 @@ test("a malformed notes entry fails loudly, naming the file", () => {
   assert.throws(() => appendHostDeployNotes({ pluginId: "fly", targetId: "fly", rendered }, { overlaysDir: "/o", readFile }), /\/o\/fly\/deploy-notes\.json must map each target id/);
 });
 
+test("a malformed deploy notes document fails loudly instead of silently dropping host notes", () => {
+  for (const document of [[], null, false, 42, "notes"]) {
+    const readFile = files({ "/o/fly/deploy-notes.json": JSON.stringify(document) });
+    assert.throws(() => appendHostDeployNotes({ pluginId: "fly", targetId: "fly", rendered }, { overlaysDir: "/o", readFile }), /\/o\/fly\/deploy-notes\.json must map each target id/);
+  }
+});
+
+test("only an own deploy target entry contributes host notes", () => {
+  const readFile = files({ "/o/fly/deploy-notes.json": "{}" });
+  assert.equal(appendHostDeployNotes({ pluginId: "fly", targetId: "constructor", rendered }, { overlaysDir: "/o", readFile }), rendered);
+});
+
 test("Tovu's real fly, render and railway overlays each add the headless-Chromium opt-in for their own target", () => {
   for (const id of ["fly", "render", "railway"]) {
     const result = appendHostDeployNotes({ pluginId: `tovu/${id}`, targetId: id, rendered }, { overlaysDir: REPO_OVERLAYS });

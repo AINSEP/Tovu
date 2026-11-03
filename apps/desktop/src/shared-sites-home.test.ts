@@ -93,7 +93,7 @@ test("missing-volume MRU import remains pending and imports the original entry a
 });
 for (const address of [{ scheme: "file", port: 3456 }, { scheme: "http", port: -1 }, { scheme: "https", port: 65536 }]) test(`attach refuses invalid lease address ${address.scheme}/${address.port}`, () => {
   const workspace = { running: () => ({ read: () => ({ ...address, pid: 10, token: "fake", app: "Web" }) }) } as unknown as Parameters<typeof attachRunningSite>[0]["workspace"];
-  assert.throws(() => attachRunningSite({ workspace, dir: "/fixture" }), { message: "Invalid running site address. Stop the owning app and repair its lease before attaching." });
+  assert.throws(() => attachRunningSite({ workspace, dir: "/fixture" }), { message: "Invalid running site address. Waiting for the owning app to publish a valid address." });
 });
 
 test("discovery cannot steal an unavailable appData site's reserved identity with a Finder copy", () => {

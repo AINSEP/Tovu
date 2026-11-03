@@ -1,3 +1,4 @@
+import { buildConfirmedThemesRegistrations } from '../../../assistant/__tests__/fixtures/confirmed-registrations.js';
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -7,7 +8,7 @@ import test from "node:test";
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import { discoverAllBuiltInThemes } from "../theme.js";
-import { buildThemesRegistrations, type ThemeToolDeps } from "../tool-registrations.js";
+import { type ThemeToolDeps } from "../tool-registrations.js";
 
 /**
  * @file Security parity fix (2026-08-18): `src/server/routes/admin/themes/explore.ts`'s PUT route has
@@ -60,7 +61,7 @@ function executionContext(input: Record<string, unknown>): ToolExecutionContext 
 }
 
 function writeFileHandler(deps: ThemeToolDeps): ToolRegistration["handler"] {
-  const registration = buildThemesRegistrations(deps).find((r) => r.descriptor.id === "theme_write_file");
+  const registration = buildConfirmedThemesRegistrations(deps).find((r) => r.descriptor.id === "theme_write_file");
   assert.ok(registration, "theme_write_file must be wired");
   return registration.handler;
 }

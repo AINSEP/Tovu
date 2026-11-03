@@ -10,6 +10,7 @@ import { setBrowserAgentEnabled } from "../../features/webmcp/browser-agent-sett
 // Inject the transport factory; no module replacement or network is needed for page registration.
 const createBridge = vi.fn((): FrontendSessionBridge => ({
   ready: Promise.resolve({ sessionId: "session-1", bindToken: "bind-1" }),
+  rebind: async () => ({ sessionId: "session-1", bindToken: "bind-1" }),
   bindToken: () => "bind-1", close: vi.fn(),
   bridgeAccess: { subscribe: () => () => {}, respondSuccess: async () => {}, respondError: async () => {} },
 }));

@@ -215,7 +215,7 @@ test("the real composition: every default batchable tool publishes items with it
   for (const { toolId } of BATCH_OPT_OUT) assert.equal(tools.some(tool => tool.toolId === toolId), false, `${toolId} is opted out`);
 });
 
-test("a real theme batch writes then reads several files in one call each, through the single-call handlers", async () => {
+test("a theme batch validates every destination before writing, then reads the completed files", async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-batch-theme-"));
   const dir = path.join(root, "plain");
   fs.mkdirSync(path.join(dir, "pages"), { recursive: true });
@@ -236,12 +236,18 @@ test("a real theme batch writes then reads several files in one call each, throu
     } as unknown as RegistryDepsWithoutLimiter;
     const byId = new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).map((r) => [r.descriptor.id, r]));
 
-    const written = await invokeRegistration(byId.get("theme_write_file")!, executionContext({
+    await assert.rejects(() => invokeRegistration(byId.get("theme_write_file")!, executionContext({
       themeId: "plain",
       items: [{ path: "assets/a.css", content: "a{}" }, { path: "../escape.css", content: "x" }, { path: "assets/b.css", content: "b{}" }],
-    })) as BatchResult;
-    assert.equal(written.total, 3);
-    assert.deepEqual(written.results.map((r) => r.ok), [true, false, true]);
+    })), /outside the theme folder/);
+    assert.equal(fs.existsSync(path.join(dir, 'assets', 'a.css')), false);
+    assert.equal(fs.existsSync(path.join(dir, 'assets', 'b.css')), false);
+    const written = await invokeRegistration(byId.get('theme_write_file')!, executionContext({ themeId: 'plain',
+      items: [{ path: 'assets/a.css', content: 'a{}' }, { path: 'assets/b.css', content: 'b{}' }],
+    })) as { batch: boolean; total: number; results: { path: string }[] };
+    assert.equal(written.batch, true);
+    assert.equal(written.total, 2);
+    assert.deepEqual(written.results.map(result => result.path), ['assets/a.css', 'assets/b.css']);
     assert.equal(fs.readFileSync(path.join(dir, "assets", "b.css"), "utf8"), "b{}");
     assert.equal(fs.existsSync(path.join(root, "escape.css")), false);
 

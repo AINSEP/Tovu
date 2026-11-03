@@ -1093,7 +1093,7 @@ test("execute: exported bytes reach publishStaticSite and the same call reports 
   deps.workspaceId = "ws-confirm-export";
   const exportSite = createRouteDeps().exportSiteBound;
   const exportInputs: unknown[] = [];
-  deps.exportSiteBound = async (input) => { exportInputs.push(input); return exportSite(input); };
+  deps.exportSiteBound = async (input) => { exportInputs.push(input); return { ...await exportSite(input), outputDir: input.outputDir }; };
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_execute_static_publish");
 

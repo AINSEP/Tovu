@@ -146,15 +146,37 @@ test("a quit drain that began during the load creates no controller", async () =
   assert.equal(h.updater.state.controller, null);
 });
 
-test("start is single-flight: a second call while starting, or once started, does nothing", async () => {
+test("concurrent updater starts wait for one controller to be listening", async () => {
   let release!: (value: NativeUpdater) => void;
   const h = harness({ load: () => new Promise(resolve => { release = resolve; }) });
   const first = h.updater.start();
-  await h.updater.start();
+  let secondReady = false;
+  const second = h.updater.start().then(() => { secondReady = true; });
+  await settle();
+  assert.equal(secondReady, false);
   release(fakeNative());
-  await first;
+  await Promise.all([first, second]);
   await h.updater.start();
   assert.deepEqual(h.calls, ["create", "start"]);
+});
+
+test("Check for updates waits for an in-flight automatic startup before returning the updater", async () => {
+  let release!: (value: NativeUpdater) => void;
+  const loading = new Promise<NativeUpdater>((resolve) => { release = resolve; });
+  let loads = 0;
+  const h = harness({ load: () => ++loads === 1 ? loading : Promise.resolve(fakeNative()) });
+  const starting = h.updater.start();
+  let ready = false;
+  const checking = h.updater.loadUpdaterForCheck().then(() => {
+    assert.notEqual(h.updater.state.controller, null);
+    ready = true;
+  });
+  await settle();
+  assert.equal(ready, false);
+  assert.equal(loads, 1, 'manual check cannot race the lazy import');
+  release(fakeNative());
+  await Promise.all([starting, checking]);
+  assert.equal(ready, true);
 });
 
 test("a failed load clears the starting flag, so a later start can retry", async () => {

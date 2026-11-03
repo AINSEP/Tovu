@@ -5,6 +5,7 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
+import express from "express";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { exportSite } from "#src/features/site-export/site-exporter";
 import { runExportCommand, type RunExportCommandOptional } from "../../commands/export.js";
@@ -39,7 +40,7 @@ for (const [publicUrl, basePath, expectedPath, ignored] of [
     const deps = createRouteDeps();
     deps.themes = [];
     deps.resolveActiveThemeId = async () => "none";
-    deps.createSiteApp = () => (_req, res) => res.end();
+    deps.createSiteApp = () => express();
     const warnings: string[] = [];
     t.mock.method(process.stderr, "write", (chunk: unknown) => { warnings.push(String(chunk)); return true; });
     t.mock.method(process.stdout, "write", () => true);

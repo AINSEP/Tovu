@@ -239,6 +239,32 @@ test("the crash-safety row outlives a pending stop", async () => {
   assert.ok(h.log.includes("row-closed /registry /a 1"));
 });
 
+test("a failed window open remains recoverable and holds quit until its child stops", async () => {
+  let release!: () => void;
+  const pending = new Promise<void>((resolve) => { release = resolve; });
+  const h = harness({
+    createWindow: () => { throw new Error("no window"); },
+    startSiteBackend: async () => ({ server: fakeServer(1, () => pending), partition: "p" }),
+  });
+  const opening = assert.rejects(openSiteWindow({ siteDir: "/a", ctx: CTX, ports: h.ports }), /no window/);
+  await flush();
+  assert.equal(h.log.some((step) => step.startsWith("row-closed")), false, "keep the recovery row while stop is pending");
+  assert.equal(h.tracker.size, 1, "quit must wait for rollback even though no window was published");
+  release();
+  await opening;
+  await h.tracker.drain();
+  assert.ok(h.log.includes("row-closed /registry /a 1"));
+});
+
+test("a failed window rollback keeps its recovery row when stopping fails", async () => {
+  const h = harness({
+    createWindow: () => { throw new Error("no window"); },
+    startSiteBackend: async () => ({ server: fakeServer(1, async () => { throw new Error("still running"); }), partition: "p" }),
+  });
+  await assert.rejects(openSiteWindow({ siteDir: "/a", ctx: CTX, ports: h.ports }), /still running/);
+  assert.equal(h.log.some((step) => step.startsWith("row-closed")), false);
+});
+
 test("a failed logout never blocks the stop", async () => {
   const h = harness({ endSiteSession: async () => { throw new Error("offline"); } });
   const window = await openSiteWindow({ siteDir: "/a", ctx: CTX, ports: h.ports });
@@ -272,4 +298,19 @@ test("closing a stale window stops ITS server but never deletes the replacement 
   assert.equal(replacement.server.stops, 0);
   assert.equal(h.log.includes("preview-cancel /a"), false);
   assert.equal(h.log.includes("theme-stop /a"), false);
+  assert.equal(h.log.some((step) => step.startsWith("logout")), false, "the partition now belongs to the replacement window");
+});
+
+test("closing an old window cannot stop the server reused by its replacement window", async () => {
+  const h = harness();
+  const stale = await openSiteWindow({ siteDir: "/a", ctx: CTX, ports: h.ports });
+  const server = h.openSites.get("/a")!.server;
+  const replacement = { server, window: fakeWindow("new"), siteDir: "/a" };
+  h.openSites.set("/a", replacement);
+  h.log.length = 0;
+  stale.closed!();
+  await h.tracker.drain();
+  assert.equal(h.openSites.get("/a"), replacement);
+  assert.equal(server.stops, 0);
+  assert.deepEqual(h.log, []);
 });

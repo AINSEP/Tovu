@@ -17,7 +17,8 @@ test("all share routes including static export require authentication, site-back
   const inputs: unknown[] = [];
   const registry = new SiteShareRegistry({ directory: path.join(directory, ".hidden", "shares") });
   const operation = async (input: unknown) => { calls++; inputs.push(input); return { ok: true }; };
-  deps.siteShareBackend = { registry, staticOptions: operation as never, create: operation, revoke: operation as never, list: async () => { calls++; return []; } };
+  deps.siteShareBackend = { registry, staticOptions: operation as never, create: operation, revoke: operation as never, list: async () => { calls++; return []; },
+    revealPassword: async () => assert.fail("these share routes must not reveal passwords") };
   const app = createApp(deps);
   const base = await startTestServer(app, t);
   const owner = await loginAsOwner(base);
@@ -63,7 +64,7 @@ test("HTTP and tool selected exports deliver inactive HTML and shared public med
   const { buildSiteBackupRegistrations } = await import("#src/features/site-backup/tool-registrations");
   const { createShareArchiveReader } = await import("#src/features/site-backup/import-archive-reader");
   const { uploadMedia } = await import("#src/features/media/index");
-  const { default: yauzl } = await import("yauzl");
+  const yauzl = await import("yauzl");
   const directory = await mkdtemp(path.join(tmpdir(), "selected-export-composition-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const deps = createRouteDeps();

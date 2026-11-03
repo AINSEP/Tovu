@@ -42,18 +42,19 @@ for (const url of ["/api/admin/v1/workspaces/ws/site-imports", "/api/admin/v1/re
     const secret = "ghp_" + "x".repeat(36), tracked: unknown[] = [], logs: unknown[][] = [];
     t.mock.method(console, "error", (...args: unknown[]) => logs.push(args));
     const response = await dispatchJsonRequest(fixture(new Error(`disk /private/site.db unavailable ${secret}`), tracked), "POST", url);
+    const body = response.body as Record<string, string>;
     assert.equal(response.status, 500);
-    assert.equal(typeof response.body.errorId, "string");
-    assert.match(response.body.message ?? response.body.error, new RegExp(response.body.errorId));
-    assert.equal(JSON.stringify(response.body).includes("/private/site.db"), false);
+    assert.equal(typeof body.errorId, "string");
+    assert.match(body.message ?? body.error, new RegExp(body.errorId));
+    assert.equal(JSON.stringify(body).includes("/private/site.db"), false);
     assert.equal(logs.length, 1);
     assert.match(JSON.stringify(logs), /disk \/private\/site.db unavailable/);
     assert.equal(JSON.stringify(logs).includes(secret), false);
     assert.equal(tracked.length, 1);
     assert.match(String((tracked[0] as any[])[0].error.message), /disk/);
     assert.equal(String((tracked[0] as any[])[0].error.message).includes(secret), false);
-    assert.ok(JSON.stringify(logs).includes(response.body.errorId));
-    assert.ok(JSON.stringify(tracked).includes(response.body.errorId));
+    assert.ok(JSON.stringify(logs).includes(body.errorId));
+    assert.ok(JSON.stringify(tracked).includes(body.errorId));
   });
 }
 
@@ -61,8 +62,9 @@ test("import expected refusals keep their diagnosis without reporting an inciden
   const logs: unknown[][] = [], tracked: unknown[] = [];
   t.mock.method(console, "error", (...args: unknown[]) => logs.push(args));
   const response = await dispatchJsonRequest(fixture(new SiteShareRefusal({ code: "NOT_FOUND", message: "Upload expired." }), tracked), "POST", "/api/admin/v1/workspaces/ws/site-imports");
+  const body = response.body as Record<string, string>;
   assert.equal(response.status, 404);
-  assert.deepEqual(response.body, { code: "NOT_FOUND", message: "Upload expired." });
+  assert.deepEqual(body, { code: "NOT_FOUND", message: "Upload expired." });
   assert.deepEqual(logs, []); assert.deepEqual(tracked, []);
 });
 
@@ -96,11 +98,12 @@ test("the recorded duplicate-skill-name refusal remains actionable while unexpec
   app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; next(); });
   registerSkillsListRoute(app, { ...site.deps, workspaceId: "workspace-local", authorize: async () => ({ allowed: true, reason: "test" }) });
   const response = await dispatchJsonRequest(app, "GET", "/api/admin/v1/workspaces/workspace-local/skills");
+  const body = response.body as Record<string, string>;
   assert.equal(response.status, 500);
-  assert.equal(response.body.code, "INTERNAL_ERROR");
+  assert.equal(body.code, "INTERNAL_ERROR");
   const prefix = "skills: 'duplicate' is declared by more than one installed skill folder ";
   const suffix = " — both would register the same tool id 'skill_duplicate'; rename one skill's frontmatter 'name' to disambiguate";
-  assert.ok(["('first' and 'second')", "('second' and 'first')"].some(order => response.body.error === prefix + order + suffix));
+  assert.ok(["('first' and 'second')", "('second' and 'first')"].some(order => body.error === prefix + order + suffix));
   assert.deepEqual(logs, []);
 });
 

@@ -159,3 +159,22 @@ test('useWebviewLoadFailure: only did-finish-load marks the admin loaded, and ev
   act(() => { guest.dispatchEvent(loadEvent('did-fail-load', { isMainFrame: true, errorCode: -102 })); });
   assert.deepEqual([hook.current().failed, hook.current().loaded], [true, false]);
 });
+
+test('a restarted site shows loading and gets a fresh stall judgment with the same navigation key', (t) => {
+  const clock = fakeTimers();
+  const hook = renderHook(t, () => useWebviewLoadFailure('same-key', { timers: clock.timers }));
+  const first = guestNode();
+  act(() => hook.current().guestRef(first));
+  act(() => { first.dispatchEvent(loadEvent('did-finish-load')); });
+  assert.equal(hook.current().loaded, true);
+  act(() => hook.current().guestRef(null));
+  const second = guestNode();
+  act(() => hook.current().guestRef(second));
+  assert.deepEqual([hook.current().loaded, hook.current().stalled], [false, false]);
+  act(() => clock.fireAll());
+  assert.equal(hook.current().stalled, true);
+  act(() => hook.current().guestRef(null));
+  act(() => hook.current().guestRef(guestNode()));
+  assert.deepEqual([hook.current().loaded, hook.current().stalled], [false, false]);
+  assert.equal(clock.pending.size, 1);
+});

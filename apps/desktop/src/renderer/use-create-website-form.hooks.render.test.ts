@@ -126,6 +126,28 @@ test('useCreateWebsiteForm: a Supabase key without a URL is not ready', (t) => {
   assert.equal(hook.current().canCreate, false);
 });
 
+test('a failed Supabase create requires re-entering the cleared key before retrying', async (t) => {
+  const created: CreateSiteInput[] = [];
+  const { hook, submit, field } = formHarness(t, async (input) => { created.push(input); throw new Error('create failed'); });
+  act(() => {
+    hook.current().setName('Shop');
+    hook.current().setDatabase('supabase');
+    hook.current().setSupabaseUrl('https://db.example');
+    hook.current().setHasSupabaseKey(true);
+  });
+  field('supabase-key').value = 'first-key';
+  submit();
+  await settle();
+  assert.equal(field('supabase-key').value, '');
+  assert.equal(hook.current().canCreate, false);
+  submit();
+  await settle();
+  assert.equal(created.length, 1, 'an empty-key retry never reaches main');
+  field('supabase-key').value = 'replacement-key';
+  act(() => hook.current().setHasSupabaseKey(true));
+  assert.equal(hook.current().canCreate, true);
+});
+
 // D-02/D-17: Create and Rename are two ways of naming the same site, so they refuse the same drafts
 // locally with the same exact inline sentence, and accept the same ones.
 test('useCreateWebsiteForm: Create refuses the drafts Rename refuses, with the same message, and accepts the ones it accepts', async (t) => {

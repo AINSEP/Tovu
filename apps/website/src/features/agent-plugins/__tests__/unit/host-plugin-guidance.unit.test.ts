@@ -139,6 +139,26 @@ test("Bash leaves delivered frontmatter allowed-tools only; other tools, body te
   }
 });
 
+test("Markdown rules before another plugin do not hide its refused tool permissions", () => {
+  const body = '# Host instructions\n\n---\n\nUse the supported tools.\n\n';
+  const skill = '---\nname: next-plugin\nallowed-tools:\n  - "Read"\n  - "Bash"\n---\n\n# Next plugin';
+  const framed = `${body}<<AGENT_PLUGIN pluginId="next-plugin">>\n${skill}\n<</AGENT_PLUGIN>>`;
+  assert.equal(removeChatRefusedToolPermissions(framed), framed.replace('  - "Bash"\n', ''));
+  assert.equal(removeChatRefusedToolPermissions(body + skill), (body + skill).replace('  - "Bash"\n', ''));
+});
+
+test("Markdown rules and fenced frontmatter examples leave body Bash lists unchanged", () => {
+  const body = '# Instructions\n\n---\n\nallowed-tools:\n  - "Bash"\n\n```yaml\n\n---\nname: example\nallowed-tools:\n  - "Bash"\n---\n```\n';
+  assert.equal(removeChatRefusedToolPermissions(body), body);
+});
+
+test("frontmatter with leading YAML comments or blank lines still removes refused tools", () => {
+  for (const lead of ["\n", "# Tool permissions\n\n"]) {
+    const skill = `---\n${lead}name: commented\nallowed-tools:\n  - Bash\n  - Read\n---\n# Body`;
+    assert.equal(removeChatRefusedToolPermissions(skill), skill.replace('  - Bash\n', ''));
+  }
+});
+
 test("tool delivery: GUIDANCE goes before the plugin's text, a maturity notice stays first, and host names join the plugin's files", async t => {
   const overlaysDir = await overlays(t);
   const result = { pluginId: "roastery", guidance: "SKILL", files: ["references/a.md"], note: "plugin note" };

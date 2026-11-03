@@ -103,7 +103,7 @@ test(`publishing with ${scenario} renders canonical and og:url for the deploy ta
     credentialSource: { resolve: async () => ({ ok: true, token: "test-token" }), isConfigured: async () => ({ configured: true }) },
     loadDeployTargets: async () => ({ get: () => target, list: () => [target], refusals: [] }),
   }, { workspaceId: deps.workspaceId, config: { target: "fixture" }, projectName: "zoran", publishOutputRootDir: root,
-    idGen: deps.idGen, exportSiteBound: options => deps.exportSiteBound(options) });
+    idGen: deps.idGen, exportSiteBound: async options => ({ ...await deps.exportSiteBound(options), outputDir: options.outputDir }) });
   assert.equal(outcome.ok, true, JSON.stringify(outcome));
   const html = String(uploaded.find(file => file.file === "index.html")?.data);
   assert.ok(html.includes(`rel="canonical" href="${url}/"`), `canonical must use ${url}/`);

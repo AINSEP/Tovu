@@ -130,7 +130,7 @@ for (const placement of ["inSite", "appData"] as const) for (const scenario of [
     const dir = path.join(h.workspace.home({}), ready.newSiteName!), dbPath = resolveSiteDatabasePaths({ dir }, { workspace: h.workspace }).contentDbPath;
     const imported = openContentDb({ filePath: dbPath }); t.after(() => closeSqliteConnection(imported));
     assert.equal(imported.$client.serialize().includes(Buffer.from(bearer)), false);
-    const ids = imported.$client.prepare("SELECT id FROM secrets_vault ORDER BY id").all().map(row => row.id);
+    const ids = imported.$client.prepare<[], { id: string }>("SELECT id FROM secrets_vault ORDER BY id").all().map(row => row.id);
     assert.deepEqual(ids, scenario === "correct" ? ["attached", "site-key"] : []);
     const settings = imported.$client.prepare("SELECT value_json FROM setting_values_workspace WHERE setting_id='saved-secret'").all();
     assert.deepEqual(settings, scenario === "correct" ? [{ value_json: JSON.stringify(settingSecret) }] : []);

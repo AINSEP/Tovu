@@ -73,7 +73,7 @@ function readTheme(
     // it under `render/`. Every real v2-migrated static theme lost its `pages/` folder permanently once
     // migrated — not staging debris — so a hardcoded v1 path here breaks every one of them for good.
     pages: readHtmlDir(path.join(dir, isV2 ? "render/pages" : "pages")),
-    partials: loadTheme({ themeDir: dir, id: themeId, source: "builtin" }).partials,
+    partials: loadTheme({ themeDir: dir, id: themeId, source: "built-in" }).partials,
     css: "",
     source: "builtin",
     status: "valid",

@@ -243,7 +243,7 @@ test("comment submissions immediately honor a changed per-IP budget without rese
   let sequence = 0;
   const idGen = { newId: () => `live-budget-${++sequence}` };
   const settingsRepo = new InMemorySettingsRepo();
-  const settingsDeps = { settingsRepo, clock, idGen, outbox: new InMemoryOutbox(), authorize: async () => ({ allowed: true, reason: "matched" }), principals: new InMemoryPrincipalRepo({}, { initialRows: [] }) };
+  const settingsDeps = { settingsRepo, clock, ids: idGen, outbox: new InMemoryOutbox(), authorize: async () => ({ allowed: true, reason: "matched" }), principals: new InMemoryPrincipalRepo({}, { initialRows: [] }) };
   await ensureCommentsSettingDefinitions(settingsDeps, { workspaceId: WORKSPACE_ID, systemPrincipalId: "system-comments" });
   const patch = (maxPerIpPerHour: number) => setCommentsSettings(settingsDeps, {
     workspaceId: WORKSPACE_ID, callerPrincipalId: "operator", patch: { maxPerIpPerHour },

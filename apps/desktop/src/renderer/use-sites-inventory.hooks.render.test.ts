@@ -178,3 +178,10 @@ test('useApplySiteRecord: keeps one stable callback per setter', (t) => {
   hook.rerender();
   assert.equal(hook.current().apply, first);
 });
+
+test('a late Locate result cannot remove the existing destination card after the source card disappears', (t) => {
+  const destination = site('destination', { status: 'running' });
+  const hook = renderHook(t, () => useProjectsWith([destination, site('kept')], (set) => ({ apply: useApplySiteRecord(set) })));
+  act(() => hook.current().apply(site('destination', { displayName: 'stale locate' }), 'removed-source'));
+  assert.deepEqual(hook.current().projects, [destination, site('kept')]);
+});

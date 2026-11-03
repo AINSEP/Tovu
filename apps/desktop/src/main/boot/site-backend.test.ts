@@ -118,7 +118,7 @@ test("a site another app already runs is attached: no spawn, no registry row, no
   assert.deepEqual(h.calls, ["remember:/sites/dev"]);
 });
 
-test("losing the spawn race to a concurrent Web start attaches the winner without bookkeeping", async () => {
+test("a site opened after losing the spawn race still appears in Open Recent", async () => {
   const winner = fakeServer({ label: "winner" });
   let attachCalls = 0;
   const h = harness({
@@ -128,7 +128,7 @@ test("losing the spawn race to a concurrent Web start attaches the winner withou
   const result = await h.backend.startSiteBackend({ siteDir: "/sites/a", ctx });
   assert.equal(result.server, winner);
   assert.equal(h.bridgeClosed(), 1, "the unused capture bridge is closed");
-  assert.deepEqual(h.calls, ["proxy", "bridge"], "no remember/record/session/announce for the attached winner");
+  assert.deepEqual(h.calls, ["proxy", "bridge", "remember:/sites/a"], "remember the open without claiming or authenticating a foreign child");
 });
 
 test("a failed spawn with no winner to attach closes the bridge and rethrows the spawn error", async () => {
@@ -192,6 +192,13 @@ test("announce: a successful registration stays silent", async () => {
   assert.deepEqual(h.warns, []);
 });
 
+test("desktop tools registration rejected asynchronously warns without failing the site open", async () => {
+  const h = harness({ registerMcpServer: async () => { throw new Error("connection reset"); } });
+  await h.backend.startSiteBackend({ siteDir: "/sites/a", ctx });
+  await flush();
+  assert.deepEqual(h.warns, ["tovu-desktop: could not register the desktop MCP tools — connection reset"]);
+});
+
 test("announce: a failed launcher write is reported, never thrown, and nothing is registered", () => {
   const h = harness({ writeMcpLauncher: () => { throw new Error("disk denied"); } });
   assert.doesNotThrow(() => h.backend.announceDesktopToolsToSite({ server: fakeServer(), partition: "p" }));
@@ -235,4 +242,35 @@ test("openSiteServer: a failed start publishes nothing and schedules no preview"
   await assert.rejects(h.backend.openSiteServer({ siteDir: "/sites/c", ctx }), /boom/);
   assert.equal(h.openSites.has("/sites/c"), false);
   assert.equal(h.calls.some((call) => call.startsWith("preview:")), false);
+});
+
+test("spawn receives runtime capability without registration or launcher", async () => {
+  const capabilityEnv = { TOVU_DESKTOP_MCP_URL: "http://127.0.0.1:4199/mcp", TOVU_DESKTOP_MCP_TOKEN: "a".repeat(64) };
+  const h = harness({ desktopMcpEnv: async () => capabilityEnv,
+    writeMcpLauncher: () => assert.fail("HTTP hosting must not write a launcher"),
+    registerMcpServer: async () => assert.fail("HTTP hosting must not register a stored row"),
+  });
+  await h.backend.startSiteBackend({ siteDir: "/sites/a", ctx });
+  assert.deepEqual((h.starts[0] as { desktopMcpEnv: unknown }).desktopMcpEnv, capabilityEnv);
+  assert.deepEqual(h.registrations, []);
+  assert.deepEqual(h.launchers, []);
+});
+
+test("attached server retains its spawning instance", async () => {
+  const owner = fakeServer({ label: "another-main" });
+  const h = harness({ attachRunning: () => owner,
+    desktopMcpEnv: async () => assert.fail("attaching must not replace the spawning main's capability"),
+  });
+  assert.equal((await h.backend.startSiteBackend({ siteDir: "/sites/a", ctx })).server, owner);
+  assert.deepEqual(h.starts, []);
+  assert.deepEqual(h.registrations, []);
+});
+
+test("listener failure leaves site hosting available without falling back to a launcher", async () => {
+  const h = harness({ desktopMcpEnv: async () => { throw new Error("bind failed"); },
+    writeMcpLauncher: () => assert.fail("listener failure must not spawn a bridge"),
+  });
+  assert.equal((await h.backend.startSiteBackend({ siteDir: "/sites/a", ctx })).server, h.spawned);
+  assert.equal(h.warns.length, 1);
+  assert.match(h.warns[0]!, /desktop tools.*retry/i);
 });

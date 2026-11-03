@@ -37,11 +37,11 @@ test("share routes validate sources and authorize before effects, preserve downl
   available = false; assert.equal((await fetch(root)).status, 503); available = true;
   allowed = false; assert.equal((await fetch(root)).status, 403); assert.equal((await post({})).status, 403); allowed = true;
   trusted = true; assert.equal((await fetch(root)).status, 403); assert.equal((await post({})).status, 403); trusted = false;
-  assert.deepEqual(calls, []);
+  assert.equal(calls.length, 0);
   assert.deepEqual(await (await fetch(root)).json(), { shares: [] });
   assert.deepEqual(calls.pop(), ["list", {}]);
   for (const body of [[], "text", 1, { other: true }, { jobId: 1 }, { jobId: "bad-id" }, { jobId: "A".repeat(36) }]) { const result = await post(body); assert.equal(result.status, 400); assert.equal((await result.json()).code, "INVALID_INPUT"); }
-  assert.deepEqual(calls, []);
+  assert.equal(calls.length, 0);
   const jobId = randomUUID(); assert.deepEqual(await (await post({ jobId })).json(), { status: "active" });
   assert.deepEqual(calls.pop(), ["create", { principalId: "owner", jobId, signal: true }]);
   assert.equal((await fetch(root, { method: "POST" })).status, 200);
@@ -170,7 +170,7 @@ test("static HTTP options and start share exact selection validation and export 
   for (const input of [[], null, "text", { themeIds: [] }, { themeIds: [1] }, { themeIds: ["a", "a"] }, { themeIds: ["../x"] }, { themeIds: ["a"], jobId }, { extra: true }]) {
     const response = await post(input); assert.equal(response.status, 400); assert.equal((response.body as { code: string }).code, "INVALID_INPUT");
   }
-  assert.deepEqual(calls, []);
+  assert.equal(calls.length, 0);
   assert.deepEqual((await dispatchJsonRequest(app, "GET", root + "/options")).body, { activeThemeId: "poster", themes: [{ themeId: "poster", name: "poster" }] });
   assert.equal(calls.pop(), "options");
   for (const input of [{}, { themeIds: ["editorial", "poster"] }, { jobId }]) {
@@ -179,5 +179,5 @@ test("static HTTP options and start share exact selection validation and export 
     assert.deepEqual({ ...call, signal: true }, { principalId: "owner", signal: true, format: "static", ...input });
   }
   assert.ok(permissions.every(permission => permission === "site-backup.push"));
-  assert.deepEqual(calls, []);
+  assert.equal(calls.length, 0);
 });

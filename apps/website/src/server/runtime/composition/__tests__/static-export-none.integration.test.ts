@@ -22,7 +22,9 @@ test('production composition preserves the none sentinel and legacy unstyled sta
   await deps.identityReady;
   deps.resolveActiveThemeId = async () => 'none';
   const overrides: (string | undefined)[] = [];
-  deps.exportSiteBound = async ({ outputDir, themeId }) => {
+  deps.exportSiteBound = async input => {
+    const { outputDir } = input;
+    const themeId = 'themeId' in input && typeof input.themeId === 'string' ? input.themeId : undefined;
     overrides.push(themeId);
     return { outputDir, routes: { succeeded: [{ path: '/', kind: 'home', outputFile: 'index.html', data: '<main>Unstyled site</main>' }], failed: [] },
       assets: { succeeded: [], failed: [] }, skippedManifestEntries: [], unreferencedThemeFiles: [], droppedReferences: [] };

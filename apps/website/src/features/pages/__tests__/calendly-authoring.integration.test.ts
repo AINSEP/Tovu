@@ -17,6 +17,7 @@ test('H2: chat permits the vetted Calendly script and saves the embed through th
   const context = (input: unknown) => ({ executionId: 'embed', principal: { id: 'owner' }, run: { id: 'chat' }, input, signal: new AbortController().signal });
   for (const name of ['pages_write_html', 'pages_write_region']) {
     const tool = tools.find(entry => entry.descriptor.id === name)!;
+    assert.ok(tool.descriptor.description);
     assert.match(tool.descriptor.description, /https:\/\/assets\.calendly\.com/, 'the model must learn the vetted origin');
     assert.doesNotMatch(tool.descriptor.description, /no <script src>/i, 'a blanket ban prevents the owner request');
     assert.match(tool.descriptor.description, /other external script origins.*forbidden/i);

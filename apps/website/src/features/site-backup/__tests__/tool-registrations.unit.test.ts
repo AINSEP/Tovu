@@ -348,11 +348,12 @@ test("share tools use the site-bound backend and authorize before every effect",
     create: async ({ principalId, format }) => { calls.push(`create:${principalId}`); return format === "static" ? staticRow : row; },
     list: async () => { calls.push("list"); return [row]; },
     revoke: async ({ shareId }) => { calls.push(`revoke:${shareId}`); return { ...row, status: "revoked" as const }; },
+    revealPassword: async () => assert.fail("these share tools must not reveal passwords"),
   } }, { surfaceExchanges: h.surfaceExchanges });
   const tools = new Map(registrations.map(r => [r.descriptor.id, r]));
   assert.deepEqual(await call(tools.get("site_share_create")!, {}), row);
   assert.deepEqual(await call(tools.get("site_export_static")!, {}), staticRow);
-  assert.match(tools.get("site_export_static")!.descriptor.description, /extract the ZIP, then double-click Open website.html/i);
+  assert.match(tools.get("site_export_static")!.descriptor.description ?? "", /extract the ZIP, then double-click Open website.html/i);
   assert.deepEqual(await call(tools.get("site_share_list")!, {}), { shares: [row] });
   assert.equal((await call(tools.get("site_share_revoke")!, { shareId: row.shareId }) as Result).status, "revoked");
   const before = [...calls];

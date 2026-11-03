@@ -111,7 +111,7 @@ function bootHarness(overrides: Partial<OwnServerBootPorts> = {}) {
     quitPhase: () => "idle",
     openSiteDirs: () => [],
     promptAndOpenNewSite: async () => { events.push("prompt"); },
-    reportBootFailure: async () => { events.push("report"); },
+    reportOpenFailure: () => { events.push("report"); },
     ...overrides,
   };
   return { ports, events, opens, warnings, activate: () => activate!() };
@@ -177,11 +177,23 @@ test("Dock activation does nothing while a window remains or a quit drains", () 
   }
 });
 
-test("a restore that fails is reported through the boot-failure reporter; an entry without a dir is skipped", async () => {
+test("a failed Dock restore reports an open error and keeps the other retained sites available", async () => {
   const h = bootHarness({ openSiteDirs: () => ["", "/a"], openSiteWindow: async () => { throw new Error("restore failed"); } });
   createOwnServerActivate({ ctx: baseCtx(), ports: h.ports })();
   await new Promise((r) => setImmediate(r));
   assert.deepEqual(h.events, ["serial:/a", "report"]);
+});
+
+test("Dock restore failures use the recoverable open reporter for each failed site", async () => {
+  const failures: string[] = [];
+  const h = bootHarness({
+    openSiteDirs: () => ["/a", "/b"],
+    openSiteWindow: async ({ siteDir }) => { throw new Error(`cannot reopen ${siteDir}`); },
+    reportOpenFailure: (error) => { failures.push(error.message); },
+  });
+  createOwnServerActivate({ ctx: baseCtx(), ports: h.ports })();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(failures, ["cannot reopen /a", "cannot reopen /b"]);
 });
 
 test("the activate handler bootOwnServerMode registers is the restore handler", async () => {

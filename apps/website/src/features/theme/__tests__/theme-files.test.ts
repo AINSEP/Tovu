@@ -39,7 +39,7 @@ test("an oversized existing file refuses reads and ordinary replacement, but per
   assert.deepEqual(fs.readFileSync(target), bytes);
   assert.equal(writeThemeFile({ ...required, content: "short" }, { overwriteOversized: true }), fs.realpathSync(target));
   assert.equal(readThemeFile(required), "short");
-  assert.deepEqual(fs.readdirSync(themeDir).sort(), ["large.css", "templates", "theme.json"]);
+  assert.deepEqual(fs.readdirSync(themeDir).sort(), [".trash", "large.css", "templates", "theme.json"]);
 });
 
 test("rename moves the original bytes and inode, creates parents, and refuses collisions and escapes", (t) => {

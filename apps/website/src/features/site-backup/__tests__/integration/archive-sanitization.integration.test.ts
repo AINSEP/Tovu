@@ -51,7 +51,7 @@ test("Bearer post is blanked before SQLite insertion and FTS, with a safe locati
   const archive = await buildShareZip({ plan: { ...plan(safe.bytes), notices: safe.notices }, zip: zipFolderFiles });
   const imported = await verifySiteImport({ archive, reader, sanitize: rebuildImportDatabase, schema: runtimeSchemaVersion() });
   assert.equal(imported.database.includes(Buffer.from("exampleCredentialValue987654321")), false);
-  assert.equal(db.$client.prepare("SELECT body_json FROM posts").get()!.body_json, JSON.stringify({ text: bearer }), "source is untouched");
+  assert.equal(db.$client.prepare<[], { body_json: string }>("SELECT body_json FROM posts").get()!.body_json, JSON.stringify({ text: bearer }), "source is untouched");
 });
 test("correctly checksummed imported Bearer post is sanitized by the real worker", { timeout: 120000 }, async t => {
   const db = source(); t.after(() => closeSqliteConnection(db));
@@ -109,8 +109,8 @@ test("import omits a suspicious media file and prunes its database references wi
   assert.match(imported.warnings.join(), /media\/image.bin/);
   assert.equal(imported.files.has("uploads/" + key), false);
   const fresh = new Database(imported.database); t.after(() => fresh.close());
-  assert.equal(fresh.prepare("SELECT count(*) as n FROM media").get()!.n, 0);
-  assert.equal(fresh.prepare("SELECT featured_media_id FROM posts").get()!.featured_media_id, null);
+  assert.equal(fresh.prepare<[], { n: number }>("SELECT count(*) as n FROM media").get()!.n, 0);
+  assert.equal(fresh.prepare<[], { featured_media_id: string | null }>("SELECT featured_media_id FROM posts").get()!.featured_media_id, null);
 });
 
 test("production preparation omits suspicious media through the projection owner", { timeout: 120000 }, async t => {

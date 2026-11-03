@@ -118,7 +118,7 @@ describe("page-bound bridge stream", () => {
     tab.advance(1);
     expect(sources[0]!.closed).toBe(true);
     expect(bridge.bindToken()).toBeUndefined();
-    expect(errors).toHaveLength(1);
+    expect(errors).toHaveLength(0);
     tab.show();
     sources[1]!.emit("message", '{"type":"attached","sessionId":"b","bindToken":"token-b"}');
     expect(bridge.bindToken()).toBe("token-b");

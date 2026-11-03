@@ -1,3 +1,4 @@
+import { buildConfirmedThemesRegistrations } from '../../../assistant/__tests__/fixtures/confirmed-registrations.js';
 /**
  * @file Theme agent tools — the edges no feature-specific suite reaches: handlers called with no
  * input at all, refusals for a missing rename source / empty rename name / non-static publish
@@ -64,7 +65,7 @@ function makeDeps(t: TestContext): { deps: ThemeToolDeps; themesDir: string } {
 }
 
 function handler(deps: ThemeToolDeps, toolId: string): ToolRegistration["handler"] {
-  const registration = buildThemesRegistrations(deps).find((r) => r.descriptor.id === toolId);
+  const registration = buildConfirmedThemesRegistrations(deps).find((r) => r.descriptor.id === toolId);
   assert.ok(registration, `${toolId} must be wired`);
   return registration.handler;
 }

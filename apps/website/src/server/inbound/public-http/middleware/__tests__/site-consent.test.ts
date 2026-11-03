@@ -19,14 +19,32 @@ import { ensureSiteConsentDefinitions, SITE_CONSENT_NAMESPACE } from '#src/featu
 import { SITE_CONSENT_DEFAULT_CSS } from '#src/features/consent/config';
 import type { DiscoveredTheme } from '#src/features/theme/index';
 import { consentDryRun } from '#src/features/consent/readiness';
+import { createTempSiteLayoutFixture } from '#src/__tests__/fixtures/site-layout-context';
+import { onTeardown } from '#src/__tests__/fixtures/teardown';
 
 async function publicFixture({ t }: { t: import('node:test').TestContext }, _options = {}) {
   const f = consentFixture({ t });
   const saved = await f.service.saveDraft({ principalId: 'owner', config: f.config, expectedDraftId: null });
   await f.service.publish({ principalId: 'owner', draftId: saved.revision.id, expectedPublishedId: null });
-  const deps = createRouteDeps(); deps.consentStore = f.store;
+  const layout = createTempSiteLayoutFixture({});
+  onTeardown({ t, step: layout.cleanup });
+  const deps = Object.assign(createRouteDeps(), layout.deps); deps.consentStore = f.store;
   return { ...f, deps, revisionId: saved.revision.id };
 }
+
+test('accepting consent in a public test writes its receipt only to a temporary site', async t => {
+  const f = await publicFixture({ t });
+  const relative = path.relative(await fs.realpath(os.tmpdir()), await fs.realpath(f.deps.siteBinding.dir));
+  assert.ok(relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative));
+  const app = express(); applySiteConsent({ app, deps: f.deps });
+  const base = await startTestServer(app, t);
+  const response = await fetch(base + '/api/site-consent', { method: 'POST',
+    headers: { origin: base, accept: 'application/json', 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ action: 'accept', policyVersion: `${f.config.policyVersion}:${f.revisionId}` }) });
+  assert.equal(response.status, 200);
+  const receipts = await fs.readdir(path.join(f.deps.siteBinding.dir, CONSENT_RECEIPTS_DIR_NAME));
+  assert.equal(receipts.filter(file => file.endsWith('.json')).length, 1);
+});
 
 /** Static consent keeps the UI while optional scripts remain in inert templates. */
 async function assertGatedStaticExport({ response }: { response: Response }, _options = {}) {

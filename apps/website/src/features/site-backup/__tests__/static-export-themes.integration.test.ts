@@ -114,7 +114,7 @@ for (const themeIds of [["tovu-starter"], ["tovu-theme"], ["tovu-starter", "tovu
     const deps = createRouteDeps();
     await Promise.all([deps.siteTitleReady, deps.identityReady]);
     const mediaSlug = await contentFixture({ deps });
-    const copies = [];
+    const copies: Exclude<Awaited<ReturnType<typeof captureStaticSite>>, { reason: string }>[] = [];
     for (const themeId of themeIds) {
       const copy = await captureStaticSite({
         render: required => deps.exportSiteBound(required),

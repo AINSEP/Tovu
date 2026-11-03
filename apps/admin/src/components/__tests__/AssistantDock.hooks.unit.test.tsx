@@ -1370,16 +1370,73 @@ describe("useAssistantTransport — the send-time execution re-read", () => {
     expect(sent.context).not.toHaveProperty("model", "frozen");
   });
 
-  it("a failed daemon wake never fails a Local CLI send: it dispatches with the bridge's current token", async () => {
+  it("a failed required bind does not dispatch with a stale token", async () => {
     const { startRun, createTransport } = fakeTransport();
     const executionConfigRef = { current: { ...localCliConfig({ agentId: "codex" }), mode: "local-cli" } as ExecutionConfig };
     const agentBridge = { ready: new Promise(() => {}), bindToken: () => "bind-current" } as unknown as FrontendSessionBridge;
     const prepareBinding = vi.fn().mockRejectedValue(new Error("the assistant could not start"));
     const { result } = renderHook(() => useAssistantTransport({ executionConfigRef, agentBridge }, { createTransport, prepareBinding }));
-    await result.current.startRun({ agentId: "codex", context: {} } as unknown as RunInput, handlers);
+    await expect(result.current.startRun({ agentId: "codex", context: { frontendBindToken: "frozen" } } as unknown as RunInput, handlers)).rejects.toThrow("the assistant could not start");
     expect(prepareBinding).toHaveBeenCalledTimes(1);
+    expect(startRun).not.toHaveBeenCalled();
+  });
+
+  it("a successful required bind reads the live token at dispatch", async () => {
+    const { startRun, createTransport } = fakeTransport();
+    const executionConfigRef = { current: { ...localCliConfig({ agentId: "codex" }), mode: "local-cli" } as ExecutionConfig };
+    const agentBridge = { bindToken: () => "fresh-at-dispatch" } as unknown as FrontendSessionBridge;
+    const { result } = renderHook(() => useAssistantTransport({ executionConfigRef, agentBridge }, {
+      createTransport, prepareBinding: async () => "older-at-attachment",
+    }));
+    await result.current.startRun({ agentId: "codex", context: { frontendBindToken: "frozen" } } as unknown as RunInput, handlers);
     expect(startRun).toHaveBeenCalledTimes(1);
-    expect((startRun.mock.calls[0]![0] as { context: Record<string, unknown> }).context.frontendBindToken).toBe("bind-current");
+    expect(startRun.mock.calls[0]![0].context.frontendBindToken).toBe("fresh-at-dispatch");
+  });
+
+  it("a bridge losing its token before dispatch fails the required bind", async () => {
+    const { startRun, createTransport } = fakeTransport();
+    const executionConfigRef = { current: { ...localCliConfig({ agentId: "codex" }), mode: "local-cli" } as ExecutionConfig };
+    const agentBridge = { bindToken: () => undefined } as unknown as FrontendSessionBridge;
+    const { result } = renderHook(() => useAssistantTransport({ executionConfigRef, agentBridge }, {
+      createTransport, prepareBinding: async () => undefined,
+    }));
+    await expect(result.current.startRun({ agentId: "codex" } as unknown as RunInput, handlers)).rejects.toThrow(/not attached/);
+    expect(startRun).not.toHaveBeenCalled();
+  });
+
+  it("parking as bind feedback settles does not dispatch a stale token", async () => {
+    const { startRun, createTransport } = fakeTransport();
+    let token: string | undefined = "live-before-settlement";
+    const executionConfigRef = { current: { ...localCliConfig({ agentId: "codex" }), mode: "local-cli" } as ExecutionConfig };
+    const agentBridge = { bindToken: () => token } as unknown as FrontendSessionBridge;
+    const { result } = renderHook(() => useAssistantTransport({ executionConfigRef, agentBridge,
+      onDaemonStartingChange: starting => { if (!starting) token = undefined; },
+    }, { createTransport, prepareBinding: async () => "live-before-settlement" }));
+    await expect(result.current.startRun({ agentId: "codex" } as unknown as RunInput, handlers)).rejects.toThrow(/not attached/);
+    expect(startRun).not.toHaveBeenCalled();
+  });
+
+  it("Stop as bind feedback settles prevents dispatch even with a live page token", async () => {
+    const { startRun, createTransport } = fakeTransport();
+    const stop = new AbortController();
+    const reason = new DOMException("stopped", "AbortError");
+    const executionConfigRef = { current: { ...localCliConfig({ agentId: "codex" }), mode: "local-cli" } as ExecutionConfig };
+    const agentBridge = { bindToken: () => "live" } as unknown as FrontendSessionBridge;
+    const { result } = renderHook(() => useAssistantTransport({ executionConfigRef, agentBridge,
+      onDaemonStartingChange: starting => { if (!starting) stop.abort(reason); },
+    }, { createTransport, prepareBinding: async () => "live" }));
+    await expect(result.current.startRun({ agentId: "codex", signal: stop.signal } as unknown as RunInput, handlers)).rejects.toBe(reason);
+    expect(startRun).not.toHaveBeenCalled();
+  });
+
+  it("a surface without page control preserves cold-start dispatch after a failed pre-wake", async () => {
+    const { startRun, createTransport } = fakeTransport();
+    const executionConfigRef = { current: { ...localCliConfig({ agentId: "codex" }), mode: "local-cli" } as ExecutionConfig };
+    const { result } = renderHook(() => useAssistantTransport({ executionConfigRef }, {
+      createTransport, prepareBinding: async () => { throw new Error("wake timed out"); },
+    }));
+    await result.current.startRun({ agentId: "codex" } as unknown as RunInput, handlers);
+    expect(startRun).toHaveBeenCalledTimes(1);
   });
 
   it("Stop during the wake still cancels the send", async () => {
@@ -1433,6 +1490,30 @@ describe("useLocalCliDaemonPrewarm", () => {
     rerender({ mode: "local-cli" });
     expect(activate).toHaveBeenCalledTimes(1);
     await Promise.resolve();
+  });
+
+  it("dock activation rebinds its page bridge after readiness", async () => {
+    let ready!: () => void;
+    const activate = vi.fn(() => new Promise<void>(resolve => { ready = resolve; }));
+    const rebind = vi.fn().mockResolvedValue({ sessionId: "new", bindToken: "fresh" });
+    const agentBridge = { rebind, bindToken: () => "fresh" } as unknown as FrontendSessionBridge;
+    renderHook(() => useLocalCliDaemonPrewarm({ mode: "local-cli", configLoaded: true, agentBridge }, { activate }));
+    act(() => publishAssistantDockState(true));
+    expect(rebind).not.toHaveBeenCalled();
+    await act(async () => { ready(); });
+    expect(rebind).toHaveBeenCalledTimes(1);
+  });
+
+  it("closing the dock during activation cancels its rebind", async () => {
+    let ready!: () => void;
+    const activate = vi.fn(() => new Promise<void>(resolve => { ready = resolve; }));
+    const rebind = vi.fn().mockResolvedValue({ sessionId: "new", bindToken: "fresh" });
+    const agentBridge = { rebind, bindToken: () => "fresh" } as unknown as FrontendSessionBridge;
+    renderHook(() => useLocalCliDaemonPrewarm({ mode: "local-cli", configLoaded: true, agentBridge }, { activate }));
+    act(() => publishAssistantDockState(true));
+    act(() => publishAssistantDockState(false));
+    await act(async () => { ready(); });
+    expect(rebind).not.toHaveBeenCalled();
   });
 });
 

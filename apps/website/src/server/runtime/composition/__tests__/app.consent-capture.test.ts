@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createRouteDeps } from '../app.js';
 import { startTestServer } from '#src/server/__tests__/helpers/http-test-server';
+import { consentFixture } from '#src/features/consent/__tests__/fixture';
 
 /**
  * @file The assistant's own-site screenshots render through `routeDeps.createSiteApp({ consentAudit })`,
