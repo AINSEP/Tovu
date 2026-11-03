@@ -11,8 +11,8 @@ import { NpmNodeModulesCollector } from "app-builder-lib/out/node-module-collect
 
 const DESKTOP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const GUARD = path.resolve(DESKTOP_ROOT, "../../development/scripts/check-no-linked-jini.mjs");
-const SELECTED = "@jini-ai/plugin-observability-sentry";
-const UNUSED = "@jini-ai/plugin-analytics-posthog";
+const SELECTED = "@jini-ai/provider-plugins";
+const UNUSED = "@jini-ai/agent-plugins";
 
 /** Create an installed package with real manifest metadata for npm's production collector. */
 function writePackage({ directory, name, fields = {} }: {

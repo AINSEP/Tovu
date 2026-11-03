@@ -133,7 +133,8 @@ export async function loadProductProviders(required: ProductProviderInput, { res
       if (!entry) continue;
       const selected = catalog.find(item => item.kind === 'provider' && item.id === entry.plugin && item.contract?.id === contract);
       if (!selected) throw new Error('ProductProviderUnavailable');
-      // Metadata names the owner; only an explicitly configured, installed package is resolved.
+      // Metadata names the provider distribution; only the configured artifact is loaded.
+      // Discovery reads sibling manifests without importing or enabling their runtime code.
       const packagePath = resolvePackage(`${selected.packageName}/package.json`, resolveOptions);
       const installDir = path.join(path.dirname(packagePath), 'plugins');
       const records = await discoverPlugins({ ...pluginHostBinding, builtIns: [], installDir });

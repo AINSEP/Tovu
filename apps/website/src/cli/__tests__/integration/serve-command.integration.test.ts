@@ -678,13 +678,13 @@ test("Constitution Article VIII proof: a request against a REALLY SPAWNED `tovu 
   let child = spawnServe([dir, "--port", String(port)], childEnv);
   try {
     await waitForHttpReady(port, child);
-    // Provider wave 2 retired env selection. Install the standalone package's real artifact, enable it,
+    // Provider wave 2 retired env selection. Install the provider distribution's real artifact, enable it,
     // and save through the same settings owner the admin uses, then prove selection on restart.
-    const packagePath = require.resolve("@jini-ai/plugin-observability-opentelemetry/package.json");
+    const packagePath = require.resolve("@jini-ai/provider-plugins/package.json");
     const providerPackage = JSON.parse(fs.readFileSync(packagePath, "utf8")) as { name: string; version: string };
-    assert.equal(providerPackage.name, "@jini-ai/plugin-observability-opentelemetry");
+    assert.equal(providerPackage.name, "@jini-ai/provider-plugins");
     const artifact = { id: "observability-opentelemetry", path: path.join(path.dirname(packagePath), "plugins", "observability-opentelemetry", providerPackage.version) };
-    assert.ok(fs.existsSync(path.join(artifact.path, "jini.plugin.json")), "ENV: the prebuilt standalone OpenTelemetry artifact is required for the CLI OTLP integration");
+    assert.ok(fs.existsSync(path.join(artifact.path, "jini.plugin.json")), "ENV: the prebuilt OpenTelemetry provider subpath is required for the CLI OTLP integration");
     const baseUrl = `http://127.0.0.1:${port}`;
     const cookie = await loginAsOwner(baseUrl);
     const headers = { cookie, "content-type": "application/json" };

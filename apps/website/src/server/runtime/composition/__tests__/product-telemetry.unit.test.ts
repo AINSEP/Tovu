@@ -308,23 +308,23 @@ test('maker errors discard site trace IDs and arbitrary attributes while preserv
   } finally { await f.close(); }
 });
 
-/** Separate installed packages exercise the real discovery, integrity and provider lifecycle owners.
- * The resolver port isolates npm lookup; no vendor SDK, aggregate package or sibling checkout is used. */
+/** A shared provider distribution exercises real discovery, integrity and provider lifecycles.
+ * The resolver port isolates npm lookup; selecting one artifact never imports its siblings. */
 async function standaloneFixture() {
   const f = await fixture();
   const logPath = path.join(f.root, 'signals.jsonl');
   const catalogPath = path.join(f.root, 'catalog.json');
   await writeFile(logPath, '');
   const catalog = [
-    { kind: 'provider', id: 'fake-errors', packageName: '@jini-ai/plugin-fixture-errors', contract: { id: 'observability' } },
-    { kind: 'provider', id: 'fake-usage', packageName: '@jini-ai/plugin-fixture-usage', contract: { id: 'product_analytics' } },
-    { kind: 'provider', id: 'unselected', packageName: '@jini-ai/plugin-not-installed', contract: { id: 'observability' } },
+    { kind: 'provider', id: 'fake-errors', packageName: '@jini-ai/provider-plugins', contract: { id: 'observability' } },
+    { kind: 'provider', id: 'fake-usage', packageName: '@jini-ai/provider-plugins', contract: { id: 'product_analytics' } },
+    { kind: 'provider', id: 'unselected', packageName: '@jini-ai/provider-plugins', contract: { id: 'observability' } },
   ];
   await writeFile(catalogPath, JSON.stringify(catalog));
   const packages = new Map<string, string>([['@jini-ai/plugin-catalog/catalog', catalogPath]]);
   const entries = new Map<string, string>();
   for (const entry of catalog.slice(0, 2)) {
-    const packageRoot = path.join(f.root, entry.id);
+    const packageRoot = path.join(f.root, 'provider-distribution');
     const artifactRoot = path.join(packageRoot, 'plugins', entry.id, '0.7.0');
     await mkdir(path.join(artifactRoot, 'server'), { recursive: true });
     const source = `import { appendFileSync } from 'node:fs';
@@ -373,13 +373,13 @@ async function standaloneFixture() {
     loadProviders: (input: ProductProviderInput) => loadProductProviders(input, { resolvePackage }) };
 }
 
-test('standalone catalog resolves only configured packages; real provider ports retain live consent and attribution', async () => {
+test('shared distribution resolves only configured artifacts; real provider ports retain live consent and attribution', async () => {
   const f = await standaloneFixture();
   let consent: ProductConsent = { crashes: false, usage: false, installationId: INSTALL };
   try {
     const product = await bootProductTelemetry(f.required, { loadProviders: f.loadProviders, readConsent: () => consent });
     assert.equal(product.active, true);
-    assert.deepEqual(f.resolved, ['@jini-ai/plugin-catalog/catalog', '@jini-ai/plugin-fixture-errors/package.json', '@jini-ai/plugin-fixture-usage/package.json']);
+    assert.deepEqual(f.resolved, ['@jini-ai/plugin-catalog/catalog', '@jini-ai/provider-plugins/package.json', '@jini-ai/provider-plugins/package.json']);
     const event = { name: 'app_started', userId: 'site-principal', properties: { launchMode: 'fresh' } };
     const report = { error: new Error('safe fixture'), context: { operation: 'fixture' } };
     await product.productAnalytics.capture(event);
@@ -406,27 +406,29 @@ test('standalone catalog resolves only configured packages; real provider ports 
   } finally { await f.close(); }
 });
 
-test('one configured standalone provider leaves the other noop without resolving its package', async () => {
-  for (const [key, packageName] of [['observability', 'fixture-errors'], ['productAnalytics', 'fixture-usage']] as const) {
+test('one configured provider leaves its sibling noop without importing its artifact', async () => {
+  for (const key of ['observability', 'productAnalytics'] as const) {
     const f = await standaloneFixture();
     try {
       await writeFile(f.required.configPath, JSON.stringify({ [key]: CONFIG[key] }));
       const product = await bootProductTelemetry(f.required, { loadProviders: f.loadProviders });
       assert.equal(product.active, true);
-      assert.deepEqual(f.resolved, ['@jini-ai/plugin-catalog/catalog', `@jini-ai/plugin-${packageName}/package.json`]);
+      assert.deepEqual(f.resolved, ['@jini-ai/plugin-catalog/catalog', '@jini-ai/provider-plugins/package.json']);
       assert.equal(product.observability.reportError({ error: new Error('denied'), context: { operation: 'fixture' } }), false);
       await product.productAnalytics.capture({ name: 'app_started', userId: 'site-principal' });
       assert.equal((await f.signals()).some(signal => signal.type === 'event'), false);
+      assert.deepEqual((await f.signals()).filter(signal => signal.type === 'import').map(signal => signal.id),
+        [key === 'observability' ? 'fake-errors' : 'fake-usage'], 'the sibling provider is never imported');
       await product.dispose();
     } finally { await f.close(); }
   }
 });
 
 test('standalone lookup, discovery, integrity and init failures release earlier providers and disable both outputs', async () => {
-  for (const failure of ['missing-package', 'catalog-contract', 'manifest-contract', 'invalid-manifest', 'integrity', 'init']) {
+  for (const failure of ['missing-artifact', 'catalog-contract', 'manifest-contract', 'invalid-manifest', 'integrity', 'init']) {
     const f = await standaloneFixture();
     try {
-      if (failure === 'missing-package') f.packages.delete('@jini-ai/plugin-fixture-usage/package.json');
+      if (failure === 'missing-artifact') await rm(path.resolve(f.entries.get('fake-usage')!, '../../..'), { recursive: true, force: true });
       if (failure === 'catalog-contract') {
         f.catalog[1]!.contract.id = 'observability';
         await writeFile(f.catalogPath, JSON.stringify(f.catalog));
@@ -456,10 +458,11 @@ test('standalone lookup, discovery, integrity and init failures release earlier 
 });
 
 test('missing or malformed catalog and unknown selections fail closed before importing any provider', async () => {
-  for (const failure of ['missing-catalog', 'malformed-catalog', 'unknown-plugin']) {
+  for (const failure of ['missing-catalog', 'malformed-catalog', 'unknown-plugin', 'missing-distribution']) {
     const f = await standaloneFixture();
     try {
       if (failure === 'missing-catalog') f.packages.delete('@jini-ai/plugin-catalog/catalog');
+      if (failure === 'missing-distribution') f.packages.delete('@jini-ai/provider-plugins/package.json');
       if (failure === 'malformed-catalog') await writeFile(f.catalogPath, '{broken');
       if (failure === 'unknown-plugin') await writeFile(f.required.configPath, JSON.stringify({ observability: { plugin: 'unknown', input: {} } }));
       const warnings: string[] = [];
@@ -467,36 +470,35 @@ test('missing or malformed catalog and unknown selections fail closed before imp
       assert.equal(isNoopObservabilityPort(product.observability), true, failure);
       assert.equal(isNoopProductAnalytics(product.productAnalytics), true, failure);
       assert.deepEqual(warnings, ['[product-telemetry] unavailable; product reporting is disabled'], failure);
-      assert.deepEqual(f.resolved, ['@jini-ai/plugin-catalog/catalog'], failure);
+      assert.deepEqual(f.resolved, failure === 'missing-distribution'
+        ? ['@jini-ai/plugin-catalog/catalog', '@jini-ai/provider-plugins/package.json']
+        : ['@jini-ai/plugin-catalog/catalog'], failure);
       assert.deepEqual(await f.signals(), [], failure);
     } finally { await f.close(); }
   }
 });
 
-test('Tovu declares no production vendor plugins; OTLP is development-only and lock entries match the selected packages', async () => {
+test('Tovu consumes agent and provider subpaths and declares no standalone vendor packages', async () => {
   const manifest = JSON.parse(await readFile(new URL('../../../../../../../package.json', import.meta.url), 'utf8'));
   const lock = JSON.parse(await readFile(new URL('../../../../../../../package-lock.json', import.meta.url), 'utf8'));
   // Agent plugins (ui-ux-design included) ship as @jini-ai/agent-plugins/<id> subpaths, never per-plugin packages.
   assert.deepEqual(Object.keys(manifest.dependencies).filter(name => name.startsWith('@jini-ai/plugin-')).sort(),
     ['@jini-ai/plugin-catalog']);
-  // @jini-ai/provider-plugins carries Tovu's default chart provider (Recharts). Installing it enables no
+  // @jini-ai/provider-plugins carries the provider runtimes. Installing it enables no
   // telemetry vendor: loadProductProviders resolves only an explicitly configured provider's package.
   for (const name of ['@jini-ai/agent-plugins', '@jini-ai/provider-plugins']) {
     assert.equal(typeof manifest.dependencies[name], 'string', name);
     assert.equal(lock.packages[''].dependencies[name], manifest.dependencies[name], name);
   }
-  assert.equal(manifest.optionalDependencies?.['@jini-ai/plugin-observability-opentelemetry'], undefined);
+  for (const field of ['dependencies', 'devDependencies', 'optionalDependencies']) {
+    assert.deepEqual(Object.keys(manifest[field] ?? {}).filter(name => name.startsWith('@jini-ai/plugin-') && name !== '@jini-ai/plugin-catalog'), []);
+  }
   for (const name of ['@jini-ai/plugin-catalog']) {
     assert.equal(manifest.dependencies[name], '^0.6.17');
     assert.equal(lock.packages[''].dependencies[name], manifest.dependencies[name]);
     assert.equal(lock.packages[`node_modules/${name}`].version, '0.6.17');
     assert.equal(lock.packages[`node_modules/${name}`].dev, undefined);
   }
-  const otlp = '@jini-ai/plugin-observability-opentelemetry';
-  assert.equal(manifest.devDependencies[otlp], '^0.6.17');
-  assert.equal(lock.packages[''].devDependencies[otlp], manifest.devDependencies[otlp]);
-  assert.equal(lock.packages[`node_modules/${otlp}`].version, '0.6.17');
-  assert.equal(lock.packages[`node_modules/${otlp}`].dev, true);
 });
 
 

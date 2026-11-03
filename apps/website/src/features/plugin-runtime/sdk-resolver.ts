@@ -1,7 +1,8 @@
 /**
  * @file `registerPluginSdkResolver()` — the boot-time SDK module-resolution hook
  * (SPEC-005 ADR "SDK Resolution Mechanism"; CIC U-002, `ESCALATE_SECURITY`).
- * `@jini-ai/plugin-sdk` and `@tovu/sdk` (legacy alias) share the bundled SDK module below.
+ * The host SDK import aliases share the bundled SDK module below.
+ * They are virtual resolver contracts, not standalone plugin npm packages.
  *
  * Purpose:
  * A plugin's prebuilt `server/index.mjs` does `import { definePlugin } from '@tovu/sdk'`, but

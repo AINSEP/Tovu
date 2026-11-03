@@ -968,8 +968,8 @@ test("declared closure includes required peers and installed optionals, but excl
   t.after(() => fs.rmSync(tmp, { recursive: true, force: true }));
   const source = path.join(tmp, "source");
   const modules = path.join(source, "node_modules");
-  const selected = "@jini-ai/plugin-observability-sentry";
-  const unused = "@jini-ai/plugin-analytics-posthog";
+  const selected = "@jini-ai/provider-plugins";
+  const unused = "@jini-ai/agent-plugins";
   writePackage(source);
   fs.writeFileSync(path.join(source, "package.json"), JSON.stringify({
     dependencies: { runtime: "1", "absent-optional": "1" },
@@ -985,7 +985,7 @@ test("declared closure includes required peers and installed optionals, but excl
   assert.deepEqual(declaredDependencies(source), ["runtime", "requiredPeer", selected]);
   const outDir = path.join(tmp, "out");
   assert.equal(stageTransitiveDependencies({ roots: [source], outDir }), 3);
-  assert.deepEqual(fs.readdirSync(path.join(outDir, "node_modules/@jini-ai")), ["plugin-observability-sentry"]);
+  assert.deepEqual(fs.readdirSync(path.join(outDir, "node_modules/@jini-ai")), ["provider-plugins"]);
   assert.doesNotThrow(() => assertClosureComplete({ outDir }));
   // The closure check must also refuse a lost required peer after copying/stripping.
   fs.rmSync(path.join(outDir, "node_modules/requiredPeer"), { recursive: true });

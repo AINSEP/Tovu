@@ -378,11 +378,11 @@ for (const selection of ["none", "dependency", "optional"] as const) {
   test(`provider selection ${selection}: stages only declared packages, never linked siblings or development plugins`, async (t) => {
     const fx = fixture();
     t.after(fx.cleanup);
-    const selected = "@jini-ai/plugin-observability-sentry";
-    const unused = "@jini-ai/plugin-analytics-posthog";
+    const selected = "@jini-ai/provider-plugins";
+    const unused = "@jini-ai/agent-plugins";
     const rootManifest = path.join(fx.repo, "package.json");
     const manifest = JSON.parse(readFileSync(rootManifest, "utf8"));
-    manifest.optionalDependencies = { "@jini-ai/plugin-not-installed": "1" };
+    manifest.optionalDependencies = { "@jini-ai/missing-fixture-package": "1" };
     manifest.devDependencies = { [unused]: "1" };
     if (selection === "dependency") manifest.dependencies[selected] = "1";
     if (selection === "optional") manifest.optionalDependencies[selected] = "1";
@@ -397,11 +397,11 @@ for (const selection of ["none", "dependency", "optional"] as const) {
     run();
     const scope = path.join(fx.outDir, "node_modules/@jini-ai");
     const expected = ["core", "platform"];
-    if (selection !== "none") expected.push("plugin-observability-sentry");
+    if (selection !== "none") expected.push("provider-plugins");
     assert.deepEqual(readdirSync(scope).sort(), expected.sort());
-    assert.equal(existsSync(path.join(scope, "plugin-analytics-posthog")), false);
+    assert.equal(existsSync(path.join(scope, "agent-plugins")), false);
     if (selection !== "none") {
-      assert.equal(readFileSync(path.join(scope, "plugin-observability-sentry/plugins/artifact.json"), "utf8"), selected);
+      assert.equal(readFileSync(path.join(scope, "provider-plugins/plugins/artifact.json"), "utf8"), selected);
     }
     // Inspect the payload at its final Resources/tovu location using electron-builder's real copy.
     const config = yaml.load(readFileSync(path.join(DESKTOP_ROOT, "electron-builder.yml"), "utf8")) as {
@@ -418,7 +418,7 @@ for (const selection of ["none", "dependency", "optional"] as const) {
     const shippedScope = path.join(output, "tovu/node_modules/@jini-ai");
     assert.deepEqual(readdirSync(shippedScope).sort(), expected.sort());
     if (selection !== "none") {
-      assert.equal(readFileSync(path.join(shippedScope, "plugin-observability-sentry/plugins/artifact.json"), "utf8"), selected);
+      assert.equal(readFileSync(path.join(shippedScope, "provider-plugins/plugins/artifact.json"), "utf8"), selected);
     }
     // Changing the owner's selection and staging again must remove the formerly selected payload.
     delete manifest.dependencies[selected];
@@ -426,6 +426,6 @@ for (const selection of ["none", "dependency", "optional"] as const) {
     write(rootManifest, JSON.stringify(manifest));
     run();
     assert.deepEqual(readdirSync(scope).sort(), ["core", "platform"]);
-    assert.equal(readFileSync(path.join(fx.tmp, "jini/packages/plugin-observability-sentry/plugins/artifact.json"), "utf8"), selected);
+    assert.equal(readFileSync(path.join(fx.tmp, "jini/packages/provider-plugins/plugins/artifact.json"), "utf8"), selected);
   });
 }
