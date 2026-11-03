@@ -3,6 +3,9 @@ import type { ToolApprovalPolicy } from './approval-policy.js';
 
 const THEME_AUTHORING = "theme-authoring";
 
+/** These tools share one content-replacement plan, including when the caller passes items. */
+export const THEME_CONTENT_REPLACEMENT_TOOL_IDS = ['theme_write_file', 'theme_edit_file', 'theme_reset_file', 'theme_import_file_from_url', 'theme_import_local_file'] as const;
+
 /** theme registration declarations; shared placement rationale is in ./index.ts. */
 export const toolMetadata = {
   "theme_get_preview_switcher": {
@@ -45,7 +48,7 @@ export const toolMetadata = {
     search: {
       keywords: "theme stylesheet css template edit change design code file one line small change patch replace single word snippet section footer copyright text font fonts typography color colors colour primary brand palette style styles look",
     },
-    approval: { class: 'edit', confirmation: 'direct' },
+    approval: { class: 'edit', confirmation: 'plan' },
   },
   // URL binary import (2026-10-08); local imports share its validation and persistence.
   "theme_import_file_from_url": {
@@ -59,7 +62,7 @@ export const toolMetadata = {
         "Import the favicon from that URL into the theme.",
       ],
     },
-    approval: { class: 'edit', confirmation: 'direct' },
+    approval: { class: 'edit', confirmation: 'plan' },
   },
   "theme_import_local_file": {
     guidanceCapabilities: [THEME_AUTHORING, "ui-design"],
@@ -70,7 +73,7 @@ export const toolMetadata = {
         "Import a local favicon into this theme.",
       ],
     },
-    approval: { class: 'edit', confirmation: 'direct' },
+    approval: { class: 'edit', confirmation: 'plan' },
   },
   "theme_list": {
     search: {
@@ -145,7 +148,7 @@ export const toolMetadata = {
         "Can you revert this theme file from its stored pristine copy?",
       ],
     },
-    approval: { class: 'restore-over-existing', confirmation: 'policy' },
+    approval: { class: 'restore-over-existing', confirmation: 'plan' },
   },
   "theme_restore_trashed_file": {
     search: {
@@ -209,7 +212,7 @@ export const toolMetadata = {
         "Can you create a new file inside the theme folder?",
       ],
     },
-    approval: { class: 'edit', confirmation: 'direct' },
+    approval: { class: 'edit', confirmation: 'plan' },
   },
 
   // --- theme ---------------------------------------------------------------------------------------

@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { VENDOR_API_BASE_URLS } from "@jini-ai/integrations/media-providers/catalog";
 import { listProviderModels, type ProviderModelOption } from "@jini-ai/agent-runtime";
 import { ModelCatalogCache, unionModels as unionModelCatalog } from "@jini-ai/agent-runtime/model-catalog/cache";
 import type { Clock } from "@jini-ai/core/primitives";
@@ -89,7 +90,7 @@ export function createLiveModelDiscovery(
     async getLiveClaudeModels(key) {
       const stored = await resolveExecutionCredential({ repo, sealer }, key);
       if (!stored || stored.protocol !== "anthropic" || !stored.apiKey.trim()) return null;
-      const baseUrl = stored.baseUrl ?? "https://api.anthropic.com";
+      const baseUrl = stored.baseUrl ?? VENDOR_API_BASE_URLS.anthropic;
       const credentialFingerprint = createHash("sha256").update(stored.apiKey).digest("hex");
       const outcomes = await cache.get({
         cacheKey: [key.workspaceId, key.principalId, stored.protocol, stored.providerId ?? "", baseUrl, credentialFingerprint],

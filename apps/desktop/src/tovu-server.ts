@@ -1,5 +1,5 @@
 import { resolveOnPath } from '@jini-ai/agent-runtime';
-import { SITES_MCP_SERVER_ID } from "./sites-mcp-identity.ts";
+import { SITES_MCP_SERVER_ID, DESKTOP_MCP_URL_ENV, DESKTOP_MCP_TOKEN_ENV } from "./sites-mcp-identity.ts";
 /**
  * @file Own-server mode: spawn Tovu's own `tovu serve <dir>` CLI, learn the port it bound, and
  * supervise it for the life of the window.
@@ -307,6 +307,8 @@ function buildCliEnv({ baseEnv, siteDir }: { baseEnv?: NodeJS.ProcessEnv; siteDi
       'TOVU_PACKAGED_DESKTOP',
       // Each site gets a fresh native-render capability from its launcher, never an inherited one.
       "JINI_DESKTOP_RENDER_URL", "JINI_DESKTOP_RENDER_TOKEN",
+      // Only a main that spawned this server may supply its desktop capability.
+      DESKTOP_MCP_URL_ENV, DESKTOP_MCP_TOKEN_ENV,
       ...(siteDir ? ["TOVU_SITE_DIR", "TOVU_AGENT_CWD"] : [])],
   }, { caseInsensitive: process.platform === "win32" });
   const env = isolated.env;
@@ -358,6 +360,8 @@ interface BuildServeEnvInput {
    *  delete rather than merely leave unmerged any inherited value of either key — see this
    *  function's own doc below. */
   nodeToolchainEnv?: Record<string, string>;
+  /** Runtime-only server capability from the spawning main, never ambient CLI environment. */
+  desktopMcpEnv?: Record<string, string>;
 }
 
 /** Only main's successfully booted config authorizes child telemetry; inherited values cannot. O(1). */
@@ -557,6 +561,11 @@ function buildServeEnv(input: BuildServeEnvInput, { warn = console.warn }: { war
   delete env.TOVU_BUNDLED_NPM_ROOT;
   if (input.nodeToolchainEnv) {
     Object.assign(env, input.nodeToolchainEnv);
+  }
+
+  if (input.desktopMcpEnv) {
+    env[DESKTOP_MCP_URL_ENV] = input.desktopMcpEnv[DESKTOP_MCP_URL_ENV];
+    env[DESKTOP_MCP_TOKEN_ENV] = input.desktopMcpEnv[DESKTOP_MCP_TOKEN_ENV];
   }
 
   return env;
@@ -852,6 +861,8 @@ interface StartTovuServerInput {
   /** Forwarded to {@link buildServeEnv}'s own field of the same name; see its doc there. Omitted by
    *  every existing caller and every existing test. */
   nodeToolchainEnv?: Record<string, string>;
+  /** Runtime-only server capability from the spawning main, never ambient CLI environment. */
+  desktopMcpEnv?: Record<string, string>;
   emitBootToken?: boolean;
   /** Test seam: injects the OS platform {@link stopChild} branches its kill escalation on. Defaults
    *  to the real `process.platform`; production never passes this. */
@@ -932,7 +943,7 @@ async function startTovuServer(input: StartTovuServerInput): Promise<TovuServerH
     ],
   });
 
-  const serveEnv = buildServeEnv({ repoRoot: input.repoRoot, siteDir: input.siteDir, baseEnv: input.baseEnv, desktopCredential: input.desktopCredential, adminDevProxyUrl: input.adminDevProxyUrl, nodeToolchainEnv: input.nodeToolchainEnv, productTelemetry: input.productTelemetry, isPackaged: input.isPackaged });
+  const serveEnv = buildServeEnv({ repoRoot: input.repoRoot, siteDir: input.siteDir, baseEnv: input.baseEnv, desktopCredential: input.desktopCredential, adminDevProxyUrl: input.adminDevProxyUrl, nodeToolchainEnv: input.nodeToolchainEnv, desktopMcpEnv: input.desktopMcpEnv, productTelemetry: input.productTelemetry, isPackaged: input.isPackaged });
   // Windows has no SIGTERM to send: Stop closes this stdin pipe instead (see `stopChild`).
   const win32 = (input.platform ?? process.platform) === "win32";
   const child = spawnFn(

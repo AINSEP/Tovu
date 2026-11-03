@@ -6,10 +6,11 @@ type Source = Pick<EventSource, "addEventListener" | "close" | "readyState">;
 
 /**
  * Preserve the bridge's EventSource contract across idle close/reopen, including native errors.
- * Pausing emits an error so the bridge clears its now-invalid bind token; reconnect attaches anew.
+ * Visibility pauses emit `suspended` to clear the token while retaining the visibility owner.
+ * Named `parked` events let the bridge close this facade until an explicit wake/rebind.
  * Message/command frames remain local: rebroadcasting them could click another tab's page.
  * @returns A disposable EventSource facade; native sources retain their own reconnect/backoff.
- * @complexity O(1) state and three listeners per live source.
+ * @complexity O(1) state and four listeners per live source.
  */
 export function openTabEventSource(
   { url }: { url: string },
@@ -43,17 +44,17 @@ export function openTabEventSource(
   const stop = startBrowserStream({ key: url, connect: () => {
     const current = open(url);
     source = current;
-    for (const kind of ["message", "error", "open"] as const) {
+    for (const kind of ["message", "error", "open", "parked"] as const) {
       current.addEventListener(kind, (event) => {
         if (source !== current || disposed) return;
         const message = event as MessageEvent<string>;
-        const forwarded = kind === "message"
-          ? new MessageEvent("message", { data: message.data, lastEventId: message.lastEventId, origin: message.origin })
+        const forwarded = kind === "message" || kind === "parked"
+          ? new MessageEvent(kind, { data: message.data, lastEventId: message.lastEventId, origin: message.origin })
           : new Event(kind);
         managed.dispatchEvent(forwarded);
         if (kind === "message") managed.onmessage?.call(managed, forwarded as MessageEvent);
         else if (kind === "error") managed.onerror?.call(managed, forwarded);
-        else managed.onopen?.call(managed, forwarded);
+        else if (kind === "open") managed.onopen?.call(managed, forwarded);
       });
     }
     return () => {
@@ -61,9 +62,7 @@ export function openTabEventSource(
       current.close();
       // The daemon revokes its token on close. Clear the bridge's copy before another run starts.
       if (!disposed) {
-        const event = new Event("error");
-        managed.dispatchEvent(event);
-        managed.onerror?.call(managed, event);
+        managed.dispatchEvent(new Event("suspended"));
       }
     };
   } }, { ports, scope: "tab", activity });

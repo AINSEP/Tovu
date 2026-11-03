@@ -1,4 +1,5 @@
 import { applyBatchInputs as applyCoreBatchInputs, batchEligibilityFor, defaultBatchableTools, ToolInputError, type ToolRegistration, type BatchableTool, type BatchOptOut } from '@jini-ai/core';
+import { THEME_CONTENT_REPLACEMENT_TOOL_IDS } from '../contracts/core/tool-metadata/theme.js';
 import { PERMANENT_DELETE_TOOLS } from '../contracts/headless/index.js';
 export { batchDescriptorFor, batchEligibilityFor, withBatchInput, DEFAULT_MAX_BATCH_ITEMS, type BatchableTool, type BatchOptOut, type BatchResult, type BatchItemResult } from '@jini-ai/core';
 
@@ -8,8 +9,9 @@ export { batchDescriptorFor, batchEligibilityFor, withBatchInput, DEFAULT_MAX_BA
 const ROW_LEVEL_MAX_ITEMS = 100;
 
 /** Per-tool settings over the default `{ toolId }` entry; eligibility is selected below.
- * This list only raises or lowers a cap or adds item defaults/validation. */
+ * This list chooses combined plans, raises or lowers caps, or adds item defaults/validation. */
 export const BATCH_TOOL_SETTINGS: readonly BatchableTool[] = [
+  ...THEME_CONTENT_REPLACEMENT_TOOL_IDS.map(toolId => ({ toolId, mode: 'plan' as const })),
   ...[
     "redirects_create", "redirects_update", "redirects_tombstone",
     "taxonomy_create_term", "taxonomy_rename_term", "taxonomy_assign_terms", "taxonomy_unassign_terms",
@@ -64,7 +66,6 @@ export const BATCH_OPT_OUT: readonly BatchOptOut[] = [
   { toolId: "database_execute_migrate_forward", reason: `migrates the whole database; ${ASKS}` },
   { toolId: "database_transfer_run", reason: `overwrites the destination database; ${ASKS}` },
   { toolId: "backup_execute_restore", reason: `restores the whole site over current data; ${ASKS}` },
-  { toolId: "theme_reset_file", reason: `overwrites current theme data; ${ASKS}` },
   { toolId: "change_sets_revert", reason: `overwrites current data; ${ASKS}` },
   { toolId: "taxonomy_execute_merge_term", reason: `permanently merges terms; ${ASKS}` },
   { toolId: "plugin_source_delete", reason: `permanently deletes plugin source; ${ASKS}` },

@@ -146,7 +146,10 @@ function readOptionalFile(file: string): string | undefined {
 /** The notes array for `targetId`, or a loud error naming the malformed overlay file. */
 function hostNotesFor(raw: string, targetId: string, file: string): readonly string[] {
   const parsed: unknown = JSON.parse(raw);
-  const entry = parsed !== null && typeof parsed === "object" ? (parsed as Record<string, unknown>)[targetId] : undefined;
+  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error(`tovu deploy config: ${file} must map each target id to an array of note strings (target "${targetId}")`);
+  }
+  const entry = Object.hasOwn(parsed, targetId) ? (parsed as Record<string, unknown>)[targetId] : undefined;
   if (entry === undefined) return [];
   if (!Array.isArray(entry) || !entry.every((note) => typeof note === "string")) {
     throw new Error(`tovu deploy config: ${file} must map each target id to an array of note strings (target "${targetId}")`);

@@ -70,6 +70,22 @@ function listOncePerRoot({ listPackageFiles }: { listPackageFiles: PackageFilesP
   };
 }
 
+/** Claim a validated manifest identity, checking its specific selection before copying bytes.
+ * @throws Unsafe, mismatched or repeated identities. @complexity O(1) manifest reads and set work. */
+function claimPluginIdentity({ manifestPath, packageName, expectedPluginId, ids, fs }: {
+  manifestPath: string; packageName: string; expectedPluginId: string | undefined;
+  ids: Set<string>; fs: StagingFilesystem;
+}, _options = {}): string {
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8')) as { name: string };
+  if (typeof manifest.name !== 'string' || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(manifest.name)) throw new Error(`Unsafe agent plugin identity: ${manifest.name}`);
+  if (expectedPluginId !== undefined && manifest.name !== expectedPluginId) {
+    throw new Error(`Selected agent plugin ids [${expectedPluginId}] differ from the plugin names their packages declare [${manifest.name}] for ${packageName}.`);
+  }
+  if (ids.has(manifest.name)) throw new Error(`Duplicate selected agent plugin identity: ${manifest.name}`);
+  ids.add(manifest.name);
+  return manifest.name;
+}
+
 /** Stage one installed package's exported payload; npm, rather than host exclusion rules, selects files.
  * `packageName` is a package (`./plugin.json` export) or a subpath (`@jini-ai/agent-plugins/<id>`, whose
  * `<id>/plugin.json` the package's `./<id>/*` export serves).
@@ -77,9 +93,10 @@ function listOncePerRoot({ listPackageFiles }: { listPackageFiles: PackageFilesP
  * @complexity O(f log f + b) for f listed files and b copied bytes, O(f) selection memory.
  */
 function copySelectedPackage(
-  { packageName, resolve, staging, ids, fs, listPackageFiles }: {
+  { packageName, resolve, staging, ids, fs, listPackageFiles, expectedPluginId }: {
     packageName: string; resolve: (name: string) => string; staging: string; ids: Set<string>;
     fs: StagingFilesystem; listPackageFiles: PackageFilesPort;
+    expectedPluginId?: string | undefined;
   },
 ): void {
   const manifestPath = resolve(`${packageName}/plugin.json`);
@@ -91,14 +108,11 @@ function copySelectedPackage(
   const filenames = [...new Set(listPackageFiles({ packageRoot }))].sort();
   for (const filename of filenames) assertNpmPath({ filename });
   if (!filenames.includes(manifestRelative)) throw new Error(`Agent manifest is absent from npm payload: ${packageName}`);
-  const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8')) as { name: string };
-  if (typeof manifest.name !== 'string' || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(manifest.name)) throw new Error(`Unsafe agent plugin identity: ${manifest.name}`);
-  if (ids.has(manifest.name)) throw new Error(`Duplicate selected agent plugin identity: ${manifest.name}`);
-  ids.add(manifest.name);
+  const pluginId = claimPluginIdentity({ manifestPath, packageName, expectedPluginId, ids, fs });
   for (const filename of filenames.filter(filename => filename.startsWith(payloadPrefix))) {
     const source = path.join(packageRoot, filename);
     if (!fs.lstatSync(source).isFile() || fs.realpathSync(source) !== source) throw new Error(`Agent payload must be a regular file without symlinks: ${filename}`);
-    const target = path.join(staging, manifest.name, filename.slice(payloadPrefix.length));
+    const target = path.join(staging, pluginId, filename.slice(payloadPrefix.length));
     fs.mkdirSync(path.dirname(target), { recursive: true });
     fs.copyFileSync(source, target);
   }
@@ -134,8 +148,9 @@ function snapshot({ root, fs }: { root: string; fs: StagingFilesystem }): [strin
  */
 export function stageSelectedAgentPluginAssets(
   { repoRoot, packageNames, outputRoot }: { repoRoot: string; packageNames: readonly string[]; outputRoot: string },
-  { filesystem: fs = filesystem, npmCli, runNode, listPackageFiles = input => listAgentPluginPackageFiles(input, { npmCli, runNode }) }: {
+  { filesystem: fs = filesystem, npmCli, runNode, expectedPluginIds, listPackageFiles = input => listAgentPluginPackageFiles(input, { npmCli, runNode }) }: {
     filesystem?: StagingFilesystem; npmCli?: string; runNode?: RunNodePort; listPackageFiles?: PackageFilesPort;
+    expectedPluginIds?: ReadonlyMap<string, string>;
   } = {},
 ): { sourceRoot: string; pluginIds: string[] } {
   const resolve = createRequire(path.join(repoRoot, 'package.json')).resolve;
@@ -144,7 +159,7 @@ export function stageSelectedAgentPluginAssets(
   const ids = new Set<string>();
   const listOnce = listOncePerRoot({ listPackageFiles });
   try {
-    for (const packageName of [...new Set(packageNames)].sort()) copySelectedPackage({ packageName, resolve, staging, ids, fs, listPackageFiles: listOnce });
+    for (const packageName of [...new Set(packageNames)].sort()) copySelectedPackage({ packageName, resolve, staging, ids, fs, listPackageFiles: listOnce, expectedPluginId: expectedPluginIds?.get(packageName) });
     if (fs.existsSync(outputRoot)) {
       if (!isDeepStrictEqual(snapshot({ root: staging, fs }), snapshot({ root: outputRoot, fs }))) {
         throw new Error(`Preserved agent asset output differs from selected npm payload: ${outputRoot}`);

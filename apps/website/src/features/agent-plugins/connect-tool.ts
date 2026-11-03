@@ -394,9 +394,11 @@ export async function runAgentPluginConnect(
     throw new ToolInputError({ message: `agent_plugin_connect: '${pluginId}''s '${refusal.serverKey}' connection could not be set up in this Tovu version.` });
   }
   const pending = await resolvePendingOAuthServers(routeDeps, pluginId, oauthServerKeys);
+  const pendingKeys = new Set(pending.map(server => server.serverKey));
+  await grantDefaultsToSignedInServers(oauthServerKeys.filter(key => !pendingKeys.has(key)), optional);
   const [server] = pending;
   // Every declared OAuth server is already connected: no sign-in to start.
-  if (!server) return grantDefaultsToSignedInServers(oauthServerKeys, optional);
+  if (!server) return { status: "connected" };
   if (pending.length > 1) {
     throw new ToolInputError({ message: `agent_plugin_connect: '${pluginId}' declares ${pending.length} unconnected OAuth servers (${pending.map((p) => p.serverKey).join(", ")}) — connect them one at a time.` });
   }
@@ -406,7 +408,7 @@ export async function runAgentPluginConnect(
 }
 
 /**
- * Every declared OAuth server is already signed in. Re-runs the sign-in's own `onConnected` on each,
+ * For declared OAuth servers already signed in, re-runs the sign-in's own `onConnected` on each,
  * so a site that signed in before its plugin declared default tools (Higgsfield Media, 2026-11-02:
  * a connected row with no allowlist and no may-write grant) gets them now, with no second sign-in and
  * no trip to Settings. `onConnected` writes only to a still-empty row this plugin provisioned and

@@ -2,11 +2,15 @@ import { toolMetadata } from '../../contracts/core/tool-metadata/theme.js';
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, withSchemaOnRejection, type AgentToolDefinition, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import type { ToolContributor } from "@jini-ai/core";
+import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from '@jini-ai/daemon/surface-exchanges';
+import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/core/primitives';
+import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
+import { protectThemeFileTools } from './file-mutation-tools.js';
 
 import { isImportShapeRejection, resolveLocalImportRequest, withCallerSafeEgressRefusal, type MediaImportToolDeps } from "../media-import/tool-registrations.js";
 import { FsFilePathError } from "../fs-files/fs-files.js";
 import { FS_ROOT_IDS } from "../fs-files/layout.js";
-import { THEME_WRITE_PERMISSION } from "./agent-tools.js";
+import { THEME_WRITE_PERMISSION, THEME_FILE_REPLACEMENT_GUIDANCE } from "./agent-tools.js";
 import { importThemeFileFromLocalFile, importThemeFileFromUrl, THEME_IMPORT_MAX_BYTES } from "./theme-file-import.js";
 import { assertThemeFileWritable, findThemeOrThrow, isShapeRejection, reloadThemeInPlace, type ThemeToolDeps } from "./asset-operations.js";
 
@@ -39,7 +43,7 @@ const IMPORT_THEME_FILE_CATALOG: AgentToolDefinition = {
     "into a theme's folder at the given path, e.g. assets/fonts/display.woff2 — then reference it from the theme's CSS " +
     "(`@font-face { src: url(\"../assets/fonts/display.woff2\") }`) or markup. The file's type is read from its bytes and must match the " +
     `path's extension. Replaces a file already at that path. Max ${THEME_IMPORT_MAX_BYTES / 1_000_000} MB. ` +
-    "SVG and other text files: use web_fetch_page + theme_write_file. To put an image in the media library instead, use media_import_from_url.",
+    "SVG and other text files: use web_fetch_page + theme_write_file. To put an image in the media library instead, use media_import_from_url." + THEME_FILE_REPLACEMENT_GUIDANCE,
   sideEffects: "mutates-durable-state",
   authorization: { permission: THEME_WRITE_PERMISSION },
   inputSchema: {
@@ -75,7 +79,7 @@ export const importThemeFileAgentToolCatalog: AgentToolDefinition[] = [IMPORT_TH
     "Requires theme.edit; refuses generated/trash/compiled output, unsafe paths, unsupported or mismatched bytes. " +
     "Replaces the destination atomically and reloads the theme. Max 10 MB. " +
     "Returns {themeId,path,contentType,bytes,sourcePath,status,errors}. For editable content images use media_import_local_file. " +
-    "SVG/text: fs_read_file then theme_write_file. For an https source use theme_import_file_from_url.",
+    "SVG/text: fs_read_file then theme_write_file. For an https source use theme_import_file_from_url." + THEME_FILE_REPLACEMENT_GUIDANCE,
   sideEffects: "mutates-durable-state",
   authorization: { permission: THEME_WRITE_PERMISSION },
   inputSchema: {
@@ -144,8 +148,11 @@ function buildImportThemeFileHandler(
   };
 }
 
-export function buildImportThemeFileRegistrations(routeDeps: ImportThemeFileToolDeps): ToolRegistration[] {
-  return buildDomainRegistrations({ metadata: toolMetadata,
+export function buildImportThemeFileRegistrations(
+  routeDeps: ImportThemeFileToolDeps,
+  surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' }) },
+): ToolRegistration[] {
+  return protectThemeFileTools({ deps: routeDeps, surfaces, catalog: CATALOG_BY_ID, registrations: buildDomainRegistrations({ metadata: toolMetadata,
     domain: "theme-import-file",
     catalogModule: "features/theme/import-theme-file-tool.ts",
     catalog: CATALOG_BY_ID,
@@ -154,7 +161,7 @@ export function buildImportThemeFileRegistrations(routeDeps: ImportThemeFileTool
       theme_import_local_file: buildImportThemeFileHandler({ routeDeps, toolId: "theme_import_local_file" }),
     },
     derivedRisk: importThemeFileDerivedRisk,
-  });
+  }) });
 }
 
 /**
@@ -162,7 +169,7 @@ export function buildImportThemeFileRegistrations(routeDeps: ImportThemeFileTool
  * `server/runtime/composition/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`.
  * Own domain key for the same reason `contributeDuplicateThemeTools()` has one (see this file's header).
  */
-export function contributeImportThemeFileTools(): ToolContributor<ImportThemeFileToolDeps, unknown> {
+export function contributeImportThemeFileTools(): ToolContributor<ImportThemeFileToolDeps, AssistantSurfaceDeps> {
   return {
     domain: "theme-import-file",
     build: buildImportThemeFileRegistrations,

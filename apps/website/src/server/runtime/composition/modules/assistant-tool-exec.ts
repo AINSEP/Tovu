@@ -10,11 +10,14 @@
  * and native approval memory keyed to the daemon's conversation.
  */
 import { stat, readFile } from "node:fs/promises";
+import type { RequestHandler } from "express";
 import type { RememberedApprovalPort, ToolRegistration } from "@jini-ai/core";
 import type { Clock } from "@jini-ai/core/primitives";
 import { MAX_DOCUMENT_BYTES } from "@jini-ai/cms/media";
 import { createRemoteAttachmentLookup, registerToolExecutionRoutes, type AttachmentLookup, type ToolExecutionRouteTarget } from "@jini-ai/daemon/http";
 import type { ByokToolSurface } from "#src/assistant/index";
+import type { DurableRunStore } from "#src/assistant/durable-runs/ports";
+import { durableAttemptOwnsAnswer } from "#src/server/inbound/assistant/run-start-decisions";
 import { AGENT_DAEMON_TOKEN_ENV_VAR, TOOL_EXEC_TOKEN_ENV_VAR, currentToolExecToken } from "#src/assistant/daemon-access";
 import { parseDaemonCallContext, readDaemonCallContext, runWithDaemonCallContext } from "#src/assistant/daemon-call-context";
 import type { ConversationToolApprovalStore } from "#src/assistant/external-mcp-tool-approval-ports";
@@ -33,13 +36,40 @@ import { createPluginInstallAttachmentReader } from "../plugin-install-attachmen
  * module memory (`currentToolExecToken`), never from `process.env`.
  * @complexity O(1) setup.
  */
-export function registerAssistantToolExecRoutes({ router, toolSurface }: { router: ToolExecutionRouteTarget; toolSurface: Pick<ByokToolSurface, "daemonCalls"> }, _optional = {}): void {
+export function registerAssistantToolExecRoutes({ router, toolSurface, runStore, workspaceId }: {
+  router: ToolExecutionRouteTarget; toolSurface: Pick<ByokToolSurface, "daemonCalls">;
+  runStore: Pick<DurableRunStore, "find"> | undefined; workspaceId: string;
+}, _optional = {}): void {
   const tokenEnv: NodeJS.ProcessEnv = { get [TOOL_EXEC_TOKEN_ENV_VAR]() { return currentToolExecToken(); } };
   registerToolExecutionRoutes({ app: router, executor: toolSurface.daemonCalls.executor, listToolsFor: toolSurface.daemonCalls.listToolsFor }, {
     tokenEnvVar: TOOL_EXEC_TOKEN_ENV_VAR,
     env: tokenEnv,
+    authorizeRun: requireSiteToolRun({ runStore, workspaceId }),
     runWithContext: ({ context, fn }) => runWithDaemonCallContext({ context: parseDaemonCallContext({ value: context }), fn }),
   });
+}
+
+/** Binds both RPC routes to this site's current answer attempt. Wire identity and roles confer no
+ * authority; only the stored principal is forwarded. A read-only request may still attenuate it.
+ * Missing storage fails closed. One indexed lookup per request; O(1) extra space. */
+function requireSiteToolRun({ runStore, workspaceId }: {
+  runStore: Pick<DurableRunStore, "find"> | undefined; workspaceId: string;
+}, _optional = {}): RequestHandler {
+  return (req, res, next) => {
+    const body = req.body as { run?: { id?: unknown }; principal?: { id?: unknown; toolAccess?: unknown } } | undefined;
+    const execution = req.method === "POST";
+    const runId = execution ? body?.run?.id : req.query.runId;
+    const principalId = execution ? body?.principal?.id : req.query.principalId;
+    const refuse = () => { res.status(403).json({ error: { code: "FORBIDDEN", message: "a live site run with its recorded principal is required" } }); };
+    if (!runStore || typeof runId !== "string" || typeof principalId !== "string") { refuse(); return; }
+    void runStore.find({ runId }, {}).then((run) => {
+      if (!durableAttemptOwnsAnswer({ attempt: run }) || run?.runId !== runId || run.workspaceId !== workspaceId || run.principalId !== principalId) {
+        refuse(); return;
+      }
+      if (execution) req.body.principal = { id: run.principalId, ...(body?.principal?.toolAccess === "read-only" ? { toolAccess: "read-only" } : {}) };
+      next();
+    }).catch(next);
+  };
 }
 
 /** The daemon's attachment store, reached over its lookup route with the daemon token; `undefined` with no token. */

@@ -197,7 +197,8 @@ export function trashDestinationFor(relativePath: string, existingPaths: Readonl
 
 /**
  * The inverse of {@link trashDestinationFor}: recovers the original relative path from a
- * `.trash/<epoch-ms>/<original>` path, or `null` if `trashedPath` is not shaped that way (not under
+ * `.trash/<epoch-ms>/<original>` or `.trash/revisions/<epoch-ms>/<original>` path,
+ * or `null` if `trashedPath` is not shaped that way (not under
  * `.trash/` at all, or missing the timestamp segment) — a caller-supplied `trashedPath` that does not
  * match this shape is a shape error the caller should report (`tool-registrations.ts`'s
  * `theme_restore_trashed_file` throws `theme-files.ts`'s `ThemePathError` for it), not a value this
@@ -206,6 +207,7 @@ export function trashDestinationFor(relativePath: string, existingPaths: Readonl
 export function originalPathFromTrashedPath(trashedPath: string): string | null {
   const segments = normalizedPathSegments(trashedPath);
   if (segments.length < 3 || segments[0] !== TRASH_DIR_NAME) return null;
+  if (segments[1] === 'revisions') return segments.length >= 4 && /^\d+$/.test(segments[2]!) ? segments.slice(3).join('/') : null;
   return segments.slice(2).join("/");
 }
 

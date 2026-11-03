@@ -33,7 +33,7 @@ export function countUnsafeAsserts({ text, file }: { text: string; file: string 
   return messages.filter(message => message.ruleId === RULE_ID).length;
 }
 
-/** Parses `git diff --name-status -M` lines: `A\tnew`, `M\tpath`, `R091\told\tnew`, `C100\tsource\tcopy`. */
+/** Parses `git diff --name-status -C` lines: `A\tnew`, `M\tpath`, `R091\told\tnew`, `C100\tsource\tcopy`. */
 export function parseNameStatus(raw: string): ChangedFile[] {
   return raw.split('\n').filter(line => line.trim()).map(line => {
     const [status = '', first = '', second] = line.split('\t');
@@ -68,10 +68,16 @@ function mergeBaseOf(baseRef: string): string {
   }
 }
 
+/** Preserve source allowances for copies, including sources untouched by this diff.
+ * @complexity Git's copy detection compares candidate files; scoped to TypeScript paths. */
+export function changedTestFiles({ mergeBase }: { mergeBase: string }, { git: runGit = git }: { git?: (args: string[]) => string } = {}): ChangedFile[] {
+  return parseNameStatus(runGit(['diff', '--name-status', '-C', '--find-copies-harder', '--diff-filter=ACMR', mergeBase, 'HEAD', '--', '*.ts']));
+}
+
 function main(): void {
   const baseRef = resolveBaseRef(process.argv);
   const mergeBase = mergeBaseOf(baseRef);
-  const files = parseNameStatus(git(['diff', '--name-status', '-M', '--diff-filter=ACMR', mergeBase, 'HEAD', '--', '*.ts']));
+  const files = changedTestFiles({ mergeBase });
   const regressions = findRegressions({
     files,
     readHead: path => git(['show', `HEAD:${path}`]),

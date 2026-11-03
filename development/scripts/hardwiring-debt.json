@@ -39,13 +39,6 @@
     {
       "rule": "HW8-provider-url",
       "file": "apps/admin/src/features/security/AccessTokensTab.tsx",
-      "line": 809,
-      "reason": "Vendor API URL belongs in a provider, adapter or catalog.",
-      "fingerprint": "dde8a19d53eff031ad0773ea789ec17e0059a68a38c9f9e48dc086b2e2c46d53"
-    },
-    {
-      "rule": "HW8-provider-url",
-      "file": "apps/admin/src/features/security/AccessTokensTab.tsx",
       "line": 876,
       "reason": "Vendor API URL belongs in a provider, adapter or catalog.",
       "fingerprint": "137b9e5e4e13211ce3487cb1f3148ad0ef4147e2a4647ca12191bd2c8528b646"
@@ -63,13 +56,6 @@
       "line": 83,
       "reason": "Export createFakeUsersPort duplicates a Jini function without using its owner.",
       "fingerprint": "69d895dbd44eb85c9ee27974cabde11ae66ace5eb12ffed0cb739cc43c9f4aaf"
-    },
-    {
-      "rule": "HW8-provider-url",
-      "file": "apps/admin/src/lib/execution-settings.ts",
-      "line": 253,
-      "reason": "Vendor API URL belongs in a provider, adapter or catalog.",
-      "fingerprint": "85f13dfe69cdbb330d13438aeb5c3242dfa646d8a5e4e28ac81e7056b6ee2fb4"
     },
     {
       "rule": "HW2-vendor-adapter",
@@ -129,178 +115,10 @@
     },
     {
       "rule": "HW5-jini-export",
-      "file": "apps/desktop/src/site-process-registry.ts",
-      "line": 351,
-      "reason": "Export isProcessAlive duplicates a Jini function without using its owner.",
-      "fingerprint": "09183f97801256f96774392a30713ee09a9b9e264fafbf35009c31bdf2fe6833"
-    },
-    {
-      "rule": "HW5-jini-export",
-      "file": "apps/desktop/src/stage-payload-lib.ts",
-      "line": 88,
-      "reason": "Export isExcluded duplicates a Jini function without using its owner.",
-      "fingerprint": "50c869f1450b1528af2f8424d809ec2b8365e89d32e39b06549025dd33ada168"
-    },
-    {
-      "rule": "HW5-jini-export",
-      "file": "apps/desktop/src/stage-payload-lib.ts",
-      "line": 94,
-      "reason": "Export stageDir duplicates a Jini function without using its owner.",
-      "fingerprint": "e4f615ad574d1746489aefe48a48a0f9255d80908b2340d1b41707872f69efa4"
-    },
-    {
-      "rule": "HW5-jini-export",
-      "file": "apps/desktop/src/stage-payload-lib.ts",
-      "line": 103,
-      "reason": "Export declaredDependencies duplicates a Jini function without using its owner.",
-      "fingerprint": "87a18761aafa0f47d62304e8a09d42c1b0f27cf269c48ba44a9dcbb24896209e"
-    },
-    {
-      "rule": "HW5-jini-export",
-      "file": "apps/desktop/src/stage-payload-lib.ts",
-      "line": 151,
-      "reason": "Export stageTransitiveDependencies duplicates a Jini function without using its owner.",
-      "fingerprint": "8e16e0e45a65a19a507fb91cef3148084dae50026d1653bea54b3bff70cf2485"
-    },
-    {
-      "rule": "HW5-jini-export",
-      "file": "apps/desktop/src/stage-payload-lib.ts",
-      "line": 168,
-      "reason": "Export stagedPackageDirs duplicates a Jini function without using its owner.",
-      "fingerprint": "7def75ba323f80e010cd6fc71e06f35a049bf50cc76cef57708f9e514002f2d6"
-    },
-    {
-      "rule": "HW5-jini-export",
-      "file": "apps/desktop/src/stage-payload-lib.ts",
-      "line": 199,
-      "reason": "Export assertClosureComplete duplicates a Jini function without using its owner.",
-      "fingerprint": "9d3ba282e9f965dbdcdf00cd2c8d12a9ce67b0c12f029be18158cf4d4e7d055e"
-    },
-    {
-      "rule": "HW5-jini-export",
-      "file": "apps/desktop/src/stage-payload-lib.ts",
-      "line": 253,
-      "reason": "Export strippableReason duplicates a Jini function without using its owner.",
-      "fingerprint": "7623834c20638d5701d4e4204774b3583736d50b3203603c6170d01ddec2422d"
-    },
-    {
-      "rule": "HW5-jini-export",
-      "file": "apps/desktop/src/stage-payload-lib.ts",
-      "line": 264,
-      "reason": "Export diskBytes duplicates a Jini function without using its owner.",
-      "fingerprint": "6451734cb2d51fb8c7ee51f799b93f2b5ca9912bb80f4c73543c73d048661a8e"
-    },
-    {
-      "rule": "HW5-jini-export",
-      "file": "apps/desktop/src/stage-payload-lib.ts",
-      "line": 325,
-      "reason": "Export stripNonRuntimeFiles duplicates a Jini function without using its owner.",
-      "fingerprint": "a2e1f503bde797a4321cbca643c46690d669117016ebb6d79d48d399b6bfe5f7"
-    },
-    {
-      "rule": "HW5-jini-export",
-      "file": "apps/desktop/src/stage-payload-lib.ts",
-      "line": 360,
-      "reason": "Export prebuildTarget duplicates a Jini function without using its owner.",
-      "fingerprint": "81a188c03c96711dd0b38c0c9a485c341aad7c795e965463b7d710bf7867786f"
-    },
-    {
-      "rule": "HW5-jini-export",
-      "file": "apps/desktop/src/stage-payload-lib.ts",
-      "line": 403,
-      "reason": "Export resolveTargets duplicates a Jini function without using its owner.",
-      "fingerprint": "e309131edff06822e2e5f7e6ecc8bfaa82671d4d10a9fdd439ec53d39f93f9c2"
-    },
-    {
-      "rule": "HW5-jini-export",
-      "file": "apps/desktop/src/stage-payload-lib.ts",
-      "line": 426,
-      "reason": "Export resolveNpmLsCommand duplicates a Jini function without using its owner.",
-      "fingerprint": "545cb2186580eda022778db03470b4dc01489f61fc670bb3f64bd602bf708b10"
-    },
-    {
-      "rule": "HW5-jini-export",
-      "file": "apps/desktop/src/stage-payload-lib.ts",
-      "line": 477,
-      "reason": "Export pruneNativePrebuilds duplicates a Jini function without using its owner.",
-      "fingerprint": "36fc2cfaec5e31dff6a15a07a734cc70286759e1fbe1c782b2b4a9f986dbdef9"
-    },
-    {
-      "rule": "HW5-jini-export",
-      "file": "apps/desktop/src/stage-payload-lib.ts",
-      "line": 504,
-      "reason": "Export newestMtime duplicates a Jini function without using its owner.",
-      "fingerprint": "dd7b02f92b4c91b8257a7f329571529c851c1ad478a5f00ab7a6d2468f134a7f"
-    },
-    {
-      "rule": "HW5-jini-export",
-      "file": "apps/desktop/src/stage-payload-lib.ts",
-      "line": 527,
-      "reason": "Export parseNpmLsPaths duplicates a Jini function without using its owner.",
-      "fingerprint": "590703a2b2871f86a54c13e776a9cb7261145b57127bf9532158b6dbd776dad4"
-    },
-    {
-      "rule": "HW5-jini-export",
-      "file": "apps/desktop/src/stage-payload-lib.ts",
-      "line": 566,
-      "reason": "Export hasNativeBinaryMagic duplicates a Jini function without using its owner.",
-      "fingerprint": "e775ab2fa0ffc594a7b5f7013fa4f95b3e114ae2e7ac1d8920fa4a1af20b449c"
-    },
-    {
-      "rule": "HW5-jini-export",
-      "file": "apps/desktop/src/stage-payload-lib.ts",
-      "line": 626,
-      "reason": "Export stageBundledNpm duplicates a Jini function without using its owner.",
-      "fingerprint": "50742484a56ccfdc95d4fa2784bc5ef7411f31dcd018a55b238c6f1b8963034c"
-    },
-    {
-      "rule": "HW5-jini-export",
-      "file": "apps/desktop/src/stage-payload-lib.ts",
-      "line": 697,
-      "reason": "Export stagePayloadFiles duplicates a Jini function without using its owner.",
-      "fingerprint": "73b8a28a88c30fb63fd3a7b959ab2c7ad4a19b730a4d84e00cca45b73b63d2ca"
-    },
-    {
-      "rule": "HW5-jini-export",
-      "file": "apps/desktop/src/tovu-server.ts",
-      "line": 558,
-      "reason": "Export allocatePort duplicates a Jini function without using its owner.",
-      "fingerprint": "97b110dea3ec93ff20a154ce9894be0b44f9c62eb19f3b42555d3c8b6091f867"
-    },
-    {
-      "rule": "HW5-jini-export",
       "file": "apps/desktop/src/tree-quiet.ts",
       "line": 88,
       "reason": "Export treeQuietProblems duplicates a Jini function without using its owner.",
       "fingerprint": "31ecdcd28cf5d2c9ab0483f6f85319ab4fbe3ba30674eac1e61afd7eaa96fd47"
-    },
-    {
-      "rule": "HW5-jini-export",
-      "file": "apps/site-chat/src/highlight.ts",
-      "line": 68,
-      "reason": "Export findTargetElement duplicates a Jini function without using its owner.",
-      "fingerprint": "db1b43c146a5c17609f175a66995fa7670a29a2efd439f60dbbca1daaa636fc2"
-    },
-    {
-      "rule": "HW8-provider-url",
-      "file": "apps/website/src/assistant/execution-mode-settings.ts",
-      "line": 105,
-      "reason": "Vendor API URL belongs in a provider, adapter or catalog.",
-      "fingerprint": "85f13dfe69cdbb330d13438aeb5c3242dfa646d8a5e4e28ac81e7056b6ee2fb4"
-    },
-    {
-      "rule": "HW8-provider-url",
-      "file": "apps/website/src/assistant/live-model-cache.ts",
-      "line": 76,
-      "reason": "Vendor API URL belongs in a provider, adapter or catalog.",
-      "fingerprint": "85f13dfe69cdbb330d13438aeb5c3242dfa646d8a5e4e28ac81e7056b6ee2fb4"
-    },
-    {
-      "rule": "HW2-vendor-adapter",
-      "file": "apps/website/src/assistant/tool-catalog-query.ts",
-      "line": 1,
-      "reason": "Driver/vendor dependency belongs in an adapter, kernel or provider.",
-      "fingerprint": "696a1c4c44390d69fa9bf5787097d24230daae8bce74538f5117515410968210"
     },
     {
       "rule": "HW5-jini-export",
@@ -338,27 +156,6 @@
       "fingerprint": "d964a5f3963d20cc36f7218b4971cfbec8c0ea622e91e25607d9f2292285e115"
     },
     {
-      "rule": "HW8-provider-url",
-      "file": "apps/website/src/features/custom-credentials/credential-save-tool.ts",
-      "line": 30,
-      "reason": "Vendor API URL belongs in a provider, adapter or catalog.",
-      "fingerprint": "7011e20641c8cc4aaa52bf162fd90055a39ba8c43f3a7645c24f25064de99b43"
-    },
-    {
-      "rule": "HW8-provider-url",
-      "file": "apps/website/src/features/custom-credentials/custom-credential-create-ui.ts",
-      "line": 90,
-      "reason": "Vendor API URL belongs in a provider, adapter or catalog.",
-      "fingerprint": "4c7155c81f8e7aeb5b61a6c0ee38a9194d63f2f1e86a243e5083ca9554040f63"
-    },
-    {
-      "rule": "HW2-vendor-adapter",
-      "file": "apps/website/src/features/database-transfer/sqlite-source.ts",
-      "line": 2,
-      "reason": "Driver/vendor dependency belongs in an adapter, kernel or provider.",
-      "fingerprint": "696a1c4c44390d69fa9bf5787097d24230daae8bce74538f5117515410968210"
-    },
-    {
       "rule": "HW5-jini-export",
       "file": "apps/website/src/features/entries/repo.rows.ts",
       "line": 15,
@@ -378,13 +175,6 @@
       "line": 51,
       "reason": "Export toRevisionRow duplicates a Jini function without using its owner.",
       "fingerprint": "0c473c90452c5dd2165e6e5c4e92de83be1cf058374c50682c1be1f85cfe734a"
-    },
-    {
-      "rule": "HW2-vendor-adapter",
-      "file": "apps/website/src/features/media/view-image-tool.ts",
-      "line": 6,
-      "reason": "Driver/vendor dependency belongs in an adapter, kernel or provider.",
-      "fingerprint": "632e93023886160a2a5494cd49aeb72994fc61f6834355d175a423b99715a9df"
     },
     {
       "rule": "HW2-vendor-adapter",
@@ -422,60 +212,11 @@
       "fingerprint": "d6114bf0100c0b61db95bed38164a356ee02e2008ea2bf2df0c802d09333999d"
     },
     {
-      "rule": "HW2-vendor-adapter",
-      "file": "apps/website/src/features/site-evidence/tool-registrations.ts",
-      "line": 91,
-      "reason": "Driver/vendor dependency belongs in an adapter, kernel or provider.",
-      "fingerprint": "7827e8eb2cb3b95f4d0ffac324b65208ff813b66884d08327ab0abb04fe780fb"
-    },
-    {
-      "rule": "HW5-jini-export",
-      "file": "apps/website/src/features/site-glue/attachment-points/events.ts",
-      "line": 45,
-      "reason": "Export subscribeGlueEvent duplicates a Jini function without using its owner.",
-      "fingerprint": "cda6e66fd7fddbb26c3d6ff50cbcd8a7fdfe1058d6bf3c7d013f24376baae077"
-    },
-    {
-      "rule": "HW2-vendor-adapter",
-      "file": "apps/website/src/features/web-screenshot/screenshot-image.ts",
-      "line": 9,
-      "reason": "Driver/vendor dependency belongs in an adapter, kernel or provider.",
-      "fingerprint": "632e93023886160a2a5494cd49aeb72994fc61f6834355d175a423b99715a9df"
-    },
-    {
       "rule": "HW5-jini-export",
       "file": "apps/website/src/features/webmcp/generated/annotated-actions-script.ts",
       "line": 9,
       "reason": "Export createAnnotatedActionsScript duplicates a Jini function without using its owner.",
       "fingerprint": "a52297023f06ef84743f30339f0ddf130224ca30b613549fa564ee4c0fb647f3"
-    },
-    {
-      "rule": "HW2-vendor-adapter",
-      "file": "apps/website/src/platform/db/sqlite/chat-db.ts",
-      "line": 1,
-      "reason": "Driver/vendor dependency belongs in an adapter, kernel or provider.",
-      "fingerprint": "696a1c4c44390d69fa9bf5787097d24230daae8bce74538f5117515410968210"
-    },
-    {
-      "rule": "HW2-vendor-adapter",
-      "file": "apps/website/src/platform/db/sqlite/content-db.ts",
-      "line": 5,
-      "reason": "Driver/vendor dependency belongs in an adapter, kernel or provider.",
-      "fingerprint": "696a1c4c44390d69fa9bf5787097d24230daae8bce74538f5117515410968210"
-    },
-    {
-      "rule": "HW2-vendor-adapter",
-      "file": "apps/website/src/platform/headless-browser/lazy-browser.ts",
-      "line": 95,
-      "reason": "Driver/vendor dependency belongs in an adapter, kernel or provider.",
-      "fingerprint": "7827e8eb2cb3b95f4d0ffac324b65208ff813b66884d08327ab0abb04fe780fb"
-    },
-    {
-      "rule": "HW2-vendor-adapter",
-      "file": "apps/website/src/platform/headless-browser/lazy-browser.ts",
-      "line": 107,
-      "reason": "Driver/vendor dependency belongs in an adapter, kernel or provider.",
-      "fingerprint": "632e93023886160a2a5494cd49aeb72994fc61f6834355d175a423b99715a9df"
     },
     {
       "rule": "HW5-jini-export",
@@ -525,13 +266,6 @@
       "line": 231,
       "reason": "Automatic JSX runtime imports React into the public-site bundle.",
       "fingerprint": "1a57a919dcf6659f0df693a805c8232ee74c1ae82f447eaf48c467c053d50a96"
-    },
-    {
-      "rule": "HW7-public-react",
-      "file": "apps/site-chat/src/SiteAssistantHeader.tsx",
-      "line": 1,
-      "reason": "Public-site runtime graph must not load React or React DOM.",
-      "fingerprint": "275976081ce1abf67779eb3c388b5e14531082e52137502e264776e1a6a11595"
     },
     {
       "rule": "HW7-public-react",
@@ -602,13 +336,6 @@
       "line": 1,
       "reason": "Public-site dependency package loads React or React DOM.",
       "fingerprint": "678e83d1c14aee4d5087f9d39ae4aa8d54379402175ce829ce9d25105c63700e"
-    },
-    {
-      "rule": "HW7-public-react",
-      "file": "node_modules/recharts",
-      "line": 1,
-      "reason": "Public-site dependency package loads React or React DOM.",
-      "fingerprint": "7dee6385225507f94183222a77fcd7b190157d0f39407d3ee0add8ddf1240e12"
     },
     {
       "rule": "HW7-public-react",
@@ -777,20 +504,6 @@
       "line": 1,
       "reason": "Public-site dependency package loads React or React DOM.",
       "fingerprint": "e27e925afd8f9585a97ac958145c6327a8092068909b44b335ba020a3485aa9f"
-    },
-    {
-      "rule": "HW7-public-react",
-      "file": "node_modules/react-redux",
-      "line": 1,
-      "reason": "Public-site dependency package loads React or React DOM.",
-      "fingerprint": "0e5546be9ff33adfe467e2e66191c44c7731750f9d6b04f8a21b1661f396de4d"
-    },
-    {
-      "rule": "HW7-public-react",
-      "file": "node_modules/use-sync-external-store",
-      "line": 1,
-      "reason": "Public-site dependency package loads React or React DOM.",
-      "fingerprint": "6ea4d325df56b2e9cbf683e9712ea645779c61a4dd8d03c61b9ff689425f991b"
     },
     {
       "rule": "HW7-public-react",

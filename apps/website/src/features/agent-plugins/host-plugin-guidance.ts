@@ -1,5 +1,7 @@
 import { readdir, readFile, stat } from "node:fs/promises";
 import path from "node:path";
+import { isNonArrayRecord } from "@jini-ai/core";
+import { load, FAILSAFE_SCHEMA } from "js-yaml";
 import type { AgentPluginDeliveryMode } from "@jini-ai/agent-plugins/lifecycle";
 import { resolveProductRoot } from "#src/platform/site-dir/product-root";
 
@@ -124,15 +126,23 @@ export async function readHostPluginFile(required: { pluginId: string; file: str
 const REFUSED_TOOL_ITEM = /^\s+-\s*["']?Bash["']?\s*$/;
 type FrontmatterState = "body" | "frontmatter" | "allowedTools";
 
-/** A `---` opens frontmatter only at the top of a text, after a blank line, or right after a run
- *  section's `<<AGENT_PLUGIN …>>` header — never inside a fenced example, whose fence line precedes it. */
-function opensFrontmatter(previous: string | undefined): boolean {
-  return previous === undefined || previous.trim() === "" || previous.startsWith("<<AGENT_PLUGIN");
+/** A `---` opens frontmatter only around a YAML mapping, at the top of a text, after a blank
+ * line, or right after a run section's `<<AGENT_PLUGIN …>>` header. Markdown rules stay body text.
+ * Reuse the same failsafe YAML reader as platform/markdown/frontmatter; retain original bytes.
+ * @complexity O(candidate bytes). Candidates end at the next delimiter, so scans do not overlap. */
+function opensFrontmatter({ lines, index }: { lines: readonly string[]; index: number }, _options = {}): boolean {
+  const previous = lines[index - 1];
+  if (previous !== undefined && previous.trim() !== "" && !previous.startsWith("<<AGENT_PLUGIN")) return false;
+  let end = index + 1;
+  while (end < lines.length && lines[end]!.trimEnd() !== "---") end++;
+  if (end === lines.length) return false;
+  try { return isNonArrayRecord(load(lines.slice(index + 1, end).join("\n"), { schema: FAILSAFE_SCHEMA })); }
+  catch { return false; }
 }
 
-function nextFrontmatterState(required: { state: FrontmatterState; line: string; previous: string | undefined }): FrontmatterState {
+function nextFrontmatterState(required: { state: FrontmatterState; line: string; lines: readonly string[]; index: number }): FrontmatterState {
   const line = required.line.trimEnd();
-  if (required.state === "body") return line === "---" && opensFrontmatter(required.previous) ? "frontmatter" : "body";
+  if (required.state === "body") return line === "---" && opensFrontmatter(required) ? "frontmatter" : "body";
   if (line === "---") return "body";
   if (/^allowed-tools:$/.test(line)) return "allowedTools";
   return required.state === "allowedTools" && /^\s+-\s/.test(line) ? "allowedTools" : "frontmatter";
@@ -146,8 +156,16 @@ function nextFrontmatterState(required: { state: FrontmatterState; line: string;
 export function removeChatRefusedToolPermissions(text: string): string {
   const lines = text.split("\n");
   let state: FrontmatterState = "body";
+  let fence: string | undefined;
   return lines.filter((line, index) => {
-    state = nextFrontmatterState({ state, line, previous: lines[index - 1] });
+    const marker = line.match(/^ {0,3}(`{3,}|~{3,})(.*)$/);
+    if (state === "body" && marker) {
+      if (fence === undefined) fence = marker[1]!;
+      else if (marker[1]![0] === fence[0] && marker[1]!.length >= fence.length && marker[2]!.trim() === "") fence = undefined;
+      return true;
+    }
+    if (fence !== undefined) return true;
+    state = nextFrontmatterState({ state, line, lines, index });
     return !(state === "allowedTools" && REFUSED_TOOL_ITEM.test(line));
   }).join("\n");
 }

@@ -84,6 +84,7 @@ import {
 } from "./file-identity-lock.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { protectThemeFileTools } from './file-mutation-tools.js';
 
 const MUTATES_DURABLE_STATE = "mutates-durable-state";
 
@@ -985,14 +986,14 @@ export function buildThemesRegistrations(
     return handler(ctx, options);
   }]));
 
-  return buildDomainRegistrations({ metadata: toolMetadata,
+  return protectThemeFileTools({ deps: routeDeps, surfaces, catalog: CATALOG_BY_ID, registrations: buildDomainRegistrations({ metadata: toolMetadata,
     domain: "themes",
     catalogModule: "features/theme/agent-tools.ts",
     catalog: CATALOG_BY_ID,
     handlers: syncedHandlers,
     derivedRisk: themesDerivedRisk,
     inputNormalizers: { theme_read_file: normalizeThemeReadInput },
-  });
+  }) });
 }
 
 /**

@@ -945,11 +945,18 @@ export function useAssistantTransport(
         }
         // The pane froze context while the cold bridge was parked. Read its token after attach.
         if (fresh.executionConfigRef.current.mode === "local-cli") {
-          const token = await pageBindToken({ bridge: fresh.agentBridge, signal: runInput.cancelSignal ?? runInput.signal }, {
+          const signals = [runInput.cancelSignal, runInput.signal].filter((signal): signal is AbortSignal => Boolean(signal));
+          const signal = AbortSignal.any(signals);
+          await pageBindToken({ bridge: fresh.agentBridge, signal }, {
             prepareBinding: io.current.prepareBinding,
             onDaemonStartingChange: (starting) => io.current.input.onDaemonStartingChange?.(starting),
           });
-          if (fresh.agentBridge) runInput = { ...runInput, context: { ...runInput.context, frontendBindToken: token } };
+          signal.throwIfAborted();
+          if (fresh.agentBridge) {
+            const token = fresh.agentBridge.bindToken();
+            if (!token) throw new Error("the assistant page is not attached");
+            runInput = { ...runInput, context: { ...runInput.context, frontendBindToken: token } };
+          }
         }
         return transport.startRun(runInput, handlers);
       },
@@ -961,21 +968,24 @@ export function useAssistantTransport(
  * API · BYOK runs in the API process, so it never wakes the daemon; neither does the default mode
  * before the saved one has loaded. A failed wake is left to the first send, which retries it. */
 export function useLocalCliDaemonPrewarm(
-  { mode, configLoaded }: { mode: ExecutionConfig["mode"]; configLoaded: boolean },
+  { mode, configLoaded, agentBridge }: { mode: ExecutionConfig["mode"]; configLoaded: boolean; agentBridge?: FrontendSessionBridge | null },
   { activate = activateAssistantDaemon }: { activate?: typeof activateAssistantDaemon } = {},
 ): void {
   const dockOpen = useSyncExternalStore(subscribeToAssistantDock, getAssistantDockOpen);
   const wake = useRef(activate);
   wake.current = activate;
   useEffect(() => {
-    if (dockOpen && configLoaded && mode === "local-cli") void wake.current({}, {}).catch(() => undefined);
-  }, [dockOpen, configLoaded, mode]);
+    if (!dockOpen || !configLoaded || mode !== "local-cli") return;
+    const controller = new AbortController();
+    void prepareAssistantPageBinding({ bridge: agentBridge, signal: controller.signal }, { activate: wake.current }).catch(() => undefined);
+    return () => controller.abort();
+  }, [dockOpen, configLoaded, mode, agentBridge]);
 }
 
-/** A failed or slow wake must never fail the send: run acceptance waits for the daemon itself, so
- * fall back to the bridge's current token. Only the caller's own Stop propagates.
+/** A required page binding must succeed before dispatch; failures and Stop reject the send.
+ * Surfaces without page control retain run acceptance's existing cold-start path if wake fails.
  * Startup feedback covers only activation, never the subsequent page-attachment wait.
- * @returns The prepared or fallback token; throws the caller's abort reason on Stop.
+ * @returns The prepared token; the caller must re-read it at dispatch after this async boundary.
  * @complexity O(1), one timer and one abort listener, both released when the wait ends.
  */
 async function pageBindToken(
@@ -1001,9 +1011,10 @@ async function pageBindToken(
     signal?.throwIfAborted();
     return token;
   }
-  catch {
+  catch (error) {
     if (signal?.aborted) throw signal.reason;
-    return bridge?.bindToken() ?? undefined;
+    if (!bridge) return undefined;
+    throw error;
   }
   finally {
     finishActivation();

@@ -110,6 +110,7 @@ import { createElectronUrlCapturePool } from "@jini-ai/desktop-host/electron";
 
 import { startTovuServer, DEFAULT_STOP_GRACE_MS } from "../tovu-server.ts";
 import { startDesktopCaptureBridge } from "../desktop-capture.ts";
+import { createDesktopMcpHttpRuntime } from "../desktop-mcp-http.ts";
 import { writeNodeToolchain, buildNodeToolchainEnv } from "../node-toolchain.ts";
 import { resolveAdminDevProxyUrl } from "../admin-dev-proxy.ts";
 // Launch-time env decisions (boot mode, CLI mode, pinned site dirs, the rejected-default clause)
@@ -496,6 +497,13 @@ function openSitesHomeWindow(): BrowserWindow | null {
   } }, { selftest: SELFTEST, trackWindow: (window) => selftestTracker?.add(window) });
 }
 
+/** One main owns the desktop capability, regardless of its window/site count. It is never
+ * republished when this instance attaches to another main's server. */
+const desktopMcpHttp = createDesktopMcpHttpRuntime({ context: {
+  projectsPath: sitesFilePath(app.getPath("userData")),
+  revealPath: async (target) => { shell.showItemInFolder(target); },
+}, warn: (message) => console.warn(message) });
+
 /** Spawn-or-attach one site's `tovu serve`, seed its admin session, announce the desktop tools —
  *  see `site-backend.ts`. Shared by own-server windows and sites-home tabs. */
 const siteBackend = createSiteBackend<TovuServerHandle>({ ports: {
@@ -504,7 +512,10 @@ const siteBackend = createSiteBackend<TovuServerHandle>({ ports: {
   rememberOpen: ({ siteDir }) => rememberSharedSiteOpen({ workspace: sharedSites, dir: siteDir }),
   resolveAdminDevProxyUrl: () => resolveAdminDevProxyUrl({ isPackaged: app.isPackaged, env: process.env }),
   startCaptureBridge: () => startDesktopCaptureBridge({ createWindow: (options) => new BrowserWindow(options), capturePool }),
-  startServer: (input) => startTovuServer({ ...input, isPackaged: app.isPackaged, productTelemetry: productState.product.launch, repoRoot: PAYLOAD_ROOT }),
+  // Preparation lane: give only newly spawned servers the runtime capability. Keep the legacy
+  // announcement until website federation consumes it; then bind the desktopMcpEnv port instead.
+  startServer: async (input) => startTovuServer({ ...input, desktopMcpEnv: await desktopMcpHttp.environment({}),
+    isPackaged: app.isPackaged, productTelemetry: productState.product.launch, repoRoot: PAYLOAD_ROOT }),
   baseToolchainEnv: NODE_TOOLCHAIN_ENV,
   recordSiteOpened: ({ registryPath, row }) => recordSiteOpened(registryPath, row),
   now: Date.now,
@@ -685,7 +696,8 @@ async function bootOwnServerMode(): Promise<void> {
     openSiteWindow: ({ siteDir, ctx: openCtx }, options) => openSiteWindow(siteDir, openCtx, options),
     onActivate: (listener) => { app.on("activate", listener); },
     windowCount: () => BrowserWindow.getAllWindows().length, quitPhase: () => quitPhase,
-    openSiteDirs: () => [...openSites.values()].map((entry) => entry.siteDir), promptAndOpenNewSite, reportBootFailure } });
+    openSiteDirs: () => [...openSites.values()].map((entry) => entry.siteDir), promptAndOpenNewSite,
+    reportOpenFailure: (error) => dialog.showErrorBox("Tovu could not open that site", error.message) } });
 }
 
 function currentUpdaterSkipReason(): string | null {
@@ -957,6 +969,7 @@ app.on("before-quit", (event) => {
     for (const dispose of productState.disposers) dispose();
     pendingTeardowns.track({ promise: productState.product.dispose() });
     pendingTeardowns.track({ promise: desktopAgentRuntime.dispose({}) });
+    pendingTeardowns.track({ promise: desktopMcpHttp.close({}) });
   }
   // `pendingTeardowns` as well as `openSites` (D-09). A window's `closed` handler removes its entry
   // from `openSites` synchronously and only THEN starts stopping the child, so closing the last

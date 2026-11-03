@@ -160,6 +160,8 @@ export function useCreateWebsiteForm(
     // secret longer than it takes to read it — even if the submit fails.
     if (supabaseKeyRef.current) supabaseKeyRef.current.value = '';
     if (customCredentialRef.current) customCredentialRef.current.value = '';
+    setHasSupabaseKey(false);
+    setHasCustomCredential(false);
 
     setFormError(null);
     setIsSubmitting(true);

@@ -5,6 +5,7 @@
  * capture runs; `site-preview-store.ts` owns the cache files. Electron, storage and timers are ports.
  */
 import type { PreviewTarget } from "../../site-preview-scheduler.ts";
+import { withRenderTimeout } from "@jini-ai/desktop-host";
 
 /** The capture window's own size, at the SAME 16:10 ratio `.card__tile` renders (`app.css`) — so
  *  downscaling to {@link PREVIEW_WIDTH_PX} below never crops a different ratio than the one the
@@ -20,6 +21,9 @@ export const PREVIEW_WIDTH_PX = 640;
  *  A fixed settle rather than a network-idle wait: a site's own public page is server-rendered, not
  *  an SPA polling for data, so this is enough and needs no new dependency to detect idleness. */
 export const PREVIEW_PAINT_SETTLE_MS = 1200;
+
+/** Bound hidden-window navigation even when a page's subresources never finish loading. */
+export const PREVIEW_LOAD_TIMEOUT_MS = 10_000;
 
 /** How long to wait, after a site's server first publishes into `openSites`, before capturing it —
  *  separate from and additional to {@link PREVIEW_PAINT_SETTLE_MS}'s post-navigation settle inside
@@ -79,7 +83,7 @@ export function createSitePreviewCapture({ ports }: { ports: PreviewCapturePorts
     try {
       window = ports.createHiddenWindow({ show: false, width: PREVIEW_CAPTURE_WIDTH_PX, height: PREVIEW_CAPTURE_HEIGHT_PX, webPreferences: { partition } });
       // An https dev server's certificate names `localhost`, not the loopback IP.
-      await window.loadURL(scheme === "https" ? `https://localhost:${port}/` : `http://127.0.0.1:${port}/`);
+      await withRenderTimeout({ promise: window.loadURL(scheme === "https" ? `https://localhost:${port}/` : `http://127.0.0.1:${port}/`) }, { timeoutMs: PREVIEW_LOAD_TIMEOUT_MS });
       await ports.delay(PREVIEW_PAINT_SETTLE_MS);
       if (window.isDestroyed()) return false;
       const captured = await window.webContents.capturePage();

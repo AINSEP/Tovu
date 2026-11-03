@@ -49,7 +49,7 @@ import { useEffect, useState } from 'react';
  * nothing in its inputs changed when the node appeared. Holding the node in STATE makes it a
  * dependency that really does change on attach, so the effect's lifetime IS the node's.
  *
- * The reset is deliberately a SECOND effect keyed on `resetKey` alone. Folding it back into the
+ * The failure reset is deliberately a SECOND effect keyed on `resetKey` alone. Folding it back into the
  * node-keyed effect looks tidier and reintroduces a worse bug: `failed` going true unmounts the
  * guest, which fires `guestRef(null)`, which would re-run a combined effect and clear the very
  * flag that unmounted it — the guest remounts, fails again, and the panel flickers forever.
@@ -96,6 +96,10 @@ export function useWebviewLoadFailure(
 
   useEffect(() => {
     if (guest === null) return undefined;
+    // A stopped site can remount a guest without changing resetKey. Reset only on attach:
+    // detaching a failed guest must keep the recovery panel's failure flag intact.
+    setLoaded(false);
+    setStalled(false);
 
     const STALL_TIMEOUT_MS = 8000;
     const stallTimer = timers.setTimeout(() => setStalled(true), STALL_TIMEOUT_MS);

@@ -412,8 +412,8 @@ function restartNoteFor(request: SetEnabledRequest): string {
   if (request.family === AGENT_PLUGIN_FAMILY) {
     return request.enabled
       ? `Enabled and saved. Read its guidance now with load_agent_plugin({pluginId:"${request.pluginId}"}) and use ` +
-          `agent_plugin_connect for account sign-in when needed. Its legacy agent_plugin_${request.pluginId} tool may ` +
-          `still be unavailable in this session; use the available tools and explain any remaining limitation. Do not ask the person to restart Tovu.`
+          `agent_plugin_connect for account sign-in when needed. Tool discovery refreshes without restarting; ` +
+          `search for agent_plugin_${request.pluginId} to read its guidance. Do not ask the person to restart Tovu.`
       : `Disabled and saved. This takes effect immediately, with no restart: the activation record is re-read at ` +
           `the start of every run AND again before every agent_plugin_${request.pluginId} call, so the plugin's own ` +
           `tool stops answering at once rather than lingering until Tovu restarts. This does NOT change any external ` +
@@ -469,7 +469,7 @@ async function applyAgentPluginDecision(routeDeps: PluginsToolDeps, principalId:
       family: request.family,
       agentPlugin: { pluginId: result.pluginId, enabled: result.enabled },
       warnings: result.warnings ?? [],
-      restartRequired: result.enabled,
+      restartRequired: false,
       note: restartNoteFor(request),
     };
   } catch (error) {

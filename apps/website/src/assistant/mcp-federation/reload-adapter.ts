@@ -19,7 +19,7 @@ export interface FederationReloadCoordinatorDeps {
  */
 export function createFederationReloadCoordinator({ coordDeps, initiallyAdmitted }: {
   coordDeps: FederationReloadCoordinatorDeps; initiallyAdmitted: Iterable<string>;
-}, _optional: Record<string, never> = {}): {
+}, { initiallyAwaitingGrants = [] }: { initiallyAwaitingGrants?: Iterable<string> } = {}): {
   reload(): Promise<FederationReloadResult>; admittedConnectionIds(): ReadonlySet<string>;
 } {
   const connect = coordDeps.connect ?? createDefaultConnect({ resolver: {
@@ -42,6 +42,6 @@ export function createFederationReloadCoordinator({ coordDeps, initiallyAdmitted
       warn: ({ message }: { message: string }) => coordDeps.logger!.warn(message),
       error: ({ message }: { message: string }) => coordDeps.logger!.warn(message),
     } } : {}),
-  } });
+  } }, { initiallyAwaitingGrants });
   return { reload: () => coordinator.reload({}), admittedConnectionIds: () => coordinator.admittedConnectionIds() };
 }

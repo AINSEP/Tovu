@@ -82,6 +82,7 @@ export function createDesktopUpdater({ ports }: { ports: DesktopUpdaterPorts }, 
   state = createDesktopUpdaterState(),
   createController = createAutoUpdateController,
 }: { state?: DesktopUpdaterState; createController?: typeof createAutoUpdateController } = {}): DesktopUpdater {
+  let startup: Promise<void> | null = null;
   /** May this launch start a controller now? Logs the policy reason when it may not. */
   function eligible(): boolean {
     const skip = ports.skipReason();
@@ -108,18 +109,24 @@ export function createDesktopUpdater({ ports }: { ports: DesktopUpdaterPorts }, 
    * Starts the auto-updater (`electron-updater`, GitHub releases of this repo) unless this launch must
    * not run one — see `update-policy.ts`'s `updaterSkipReason`.
    */
-  async function start(): Promise<void> {
-    if (state.controller || state.starting || !ports.automaticUpdates()) return;
+  function start(): Promise<void> {
+    if (startup) return startup;
+    if (state.controller || !ports.automaticUpdates()) return Promise.resolve();
     state.starting = true;
-    try {
-      if (!eligible()) return;
-      const updater = await ports.loadNativeUpdater();
-      // The operator may turn updates off while the lazy import is resolving.
-      if (!ports.automaticUpdates() || !ports.quitIdle()) return;
-      bind(updater);
-    } finally {
+    // A manual check must await the same lazy import and listener binding as background start.
+    startup = loadController().finally(() => {
       state.starting = false;
-    }
+      startup = null;
+    });
+    return startup;
+  }
+
+  async function loadController(): Promise<void> {
+    if (!eligible()) return;
+    const updater = await ports.loadNativeUpdater();
+    // The operator may turn updates off while the lazy import is resolving.
+    if (!ports.automaticUpdates() || !ports.quitIdle()) return;
+    bind(updater);
   }
 
   // Not awaited: the updater's first check waits on its own timer, and a failure to load it must

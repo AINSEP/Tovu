@@ -43,8 +43,8 @@ const MUTATES_DURABLE_STATE = "mutates-durable-state";
  * load-time validator for "any file on the disk".
  *
  * Deliberate absences (the point of a catalog, not an oversight):
- * - `theme_delete_file` (HARD delete). Destructive and irreversible: this repo has no theme-file
- *   revision history to restore from, so a deleted `home.liquid` is gone, and the theme it belonged
+ * - `theme_delete_file` (HARD delete). Destructive and irreversible: not every file has a retained
+ *   replacement revision, so a deleted `home.liquid` can be gone, and the theme it belonged
  *   to silently drops to `status: "invalid"`. Same caution class as every other domain's excluded
  *   irreversible operation (`redirects_import`'s mass live-routing change, Recovery's
  *   `backup_execute_restore`, Database's `database_execute_migrate_forward`).
@@ -126,6 +126,9 @@ export const THEME_READ_PERMISSION = "theme.set";
  * `admin` but not `editor` in the built-in seed — while `theme.set` stays granted to both.
  */
 export const THEME_WRITE_PERMISSION = "theme.edit";
+
+/** Shared discovery guidance for the five tools using the content-replacement plan. */
+export const THEME_FILE_REPLACEMENT_GUIDANCE = ' Existing files require one confirmation per call or items batch. Previous bytes are retained in .trash/revisions (latest 20 per theme). Read text revisions with theme_read_file; theme_restore_trashed_file can recover to an unoccupied path where the existing file-identity rules allow. New files need no replacement confirmation.';
 
 const THEME_ID_PROPERTY = {
   type: "string",
@@ -398,7 +401,7 @@ export function getThemesAgentToolCatalog(): AgentToolDefinition[] {
     {
       name: "theme_write_file",
       description:
-        "Writes (creates or overwrites) one file inside a theme's folder, then immediately re-validates the whole theme and returns its resulting status and errors. This is a full-file overwrite, not a patch — for changing one line or a short section of an EXISTING file, use theme_edit_file instead, which is cheaper and cannot accidentally drop the rest of the file. The path must stay inside that theme's own folder — absolute paths and '../' escapes are refused. ALWAYS read the returned status: 'invalid' means what you wrote did not pass validation (bad JSON, a disallowed Liquid/Handlebars construct, a syntax error, a missing required template) and the errors array says exactly what to fix. The re-validated theme also becomes what the live site serves, so an invalid write degrades that theme's pages to the built-in fallback body until it is corrected. Replacing an EXISTING file over the 1 MB read limit is refused unless you pass overwriteOversized: true: theme_read_file cannot read a file that size, so set it only when you mean to discard its whole current contents. If you created a NEW theme folder, call theme_rescan so the site picks it up.",
+        "Writes (creates or overwrites) one file inside a theme's folder, then immediately re-validates the whole theme and returns its resulting status and errors. This is a full-file overwrite, not a patch — for changing one line or a short section of an EXISTING file, use theme_edit_file instead, which is cheaper and cannot accidentally drop the rest of the file. The path must stay inside that theme's own folder — absolute paths and '../' escapes are refused. ALWAYS read the returned status: 'invalid' means what you wrote did not pass validation (bad JSON, a disallowed Liquid/Handlebars construct, a syntax error, a missing required template) and the errors array says exactly what to fix. The re-validated theme also becomes what the live site serves, so an invalid write degrades that theme's pages to the built-in fallback body until it is corrected. Replacing an EXISTING file over the 1 MB read limit is refused unless you pass overwriteOversized: true: theme_read_file cannot read a file that size, so set it only when you mean to discard its whole current contents. If you created a NEW theme folder, call theme_rescan so the site picks it up." + THEME_FILE_REPLACEMENT_GUIDANCE,
       sideEffects: MUTATES_DURABLE_STATE,
       authorization: { permission: THEME_WRITE_PERMISSION },
       inputSchema: WRITE_FILE_SCHEMA,
@@ -406,7 +409,7 @@ export function getThemesAgentToolCatalog(): AgentToolDefinition[] {
     {
       name: "theme_edit_file",
       description:
-        "Makes a targeted change to one EXISTING file inside a theme's folder by replacing one exact occurrence of oldString with newString — a patch, not an overwrite, so you never have to re-send content you are not changing. Read the file with theme_read_file first so oldString matches byte-for-byte; a find window with enough context is sufficient. Refused (no write happens) if oldString does not appear in the file, or appears more than once and replaceAll was left false — pass more surrounding context in oldString to make it unique, or pass replaceAll: true to change every occurrence deliberately. To DELETE text, pass newString: '' (empty string). An edit that would leave the whole file empty is refused unless intent: 'delete' is passed. Immediately re-validates the whole theme afterward and returns its resulting status and errors, exactly like theme_write_file — ALWAYS read the returned status the same way.",
+        "Makes a targeted change to one EXISTING file inside a theme's folder by replacing one exact occurrence of oldString with newString — a patch, not an overwrite, so you never have to re-send content you are not changing. Read the file with theme_read_file first so oldString matches byte-for-byte; a find window with enough context is sufficient. Refused (no write happens) if oldString does not appear in the file, or appears more than once and replaceAll was left false — pass more surrounding context in oldString to make it unique, or pass replaceAll: true to change every occurrence deliberately. To DELETE text, pass newString: '' (empty string). An edit that would leave the whole file empty is refused unless intent: 'delete' is passed. Immediately re-validates the whole theme afterward and returns its resulting status and errors, exactly like theme_write_file — ALWAYS read the returned status the same way." + THEME_FILE_REPLACEMENT_GUIDANCE,
       sideEffects: MUTATES_DURABLE_STATE,
       authorization: { permission: THEME_WRITE_PERMISSION },
       inputSchema: EDIT_FILE_SCHEMA,
@@ -414,7 +417,7 @@ export function getThemesAgentToolCatalog(): AgentToolDefinition[] {
     {
       name: "theme_reset_file",
       description:
-        "Resets one file inside a theme's folder back to its pristine original — the exact bytes captured when this theme was installed or downloaded — discarding whatever is there now, whether it was changed by theme_write_file, theme_edit_file, or a human editing it directly. This is the undo for those tools when 'undo' means 'go back to where it started', not 'go back one step': there is no history, so a reset cannot be reset again except by re-editing. Refused if this theme has no stored original at all (a hand-authored theme with nothing to reset to), or if this particular file has no original of its own — for example a file created after the theme was installed, or landed here via theme_copy_file. If the live file already matches its original byte-for-byte, nothing is written: the call succeeds with wasModified: false and bytesWritten: 0. Otherwise the original's exact bytes are copied back, binary files and files over the 1 MB read limit included, and wasModified is true. The result's content is the restored file as text, or null for a file over that limit. The comparison is exact bytes, so a line-ending-only difference (CRLF vs LF) counts as modified and is reset.",
+        "Resets one file inside a theme's folder back to its pristine original — the exact bytes captured when this theme was installed or downloaded — discarding whatever is there now, whether it was changed by theme_write_file, theme_edit_file, or a human editing it directly. This returns to the installed original; to recover a recent replacement instead, read its retained revision in .trash/revisions. Refused if this theme has no stored original at all (a hand-authored theme with nothing to reset to), or if this particular file has no original of its own — for example a file created after the theme was installed, or landed here via theme_copy_file. If the live file already matches its original byte-for-byte, nothing is written: the call succeeds with wasModified: false and bytesWritten: 0. Otherwise the original's exact bytes are copied back, binary files and files over the 1 MB read limit included, and wasModified is true. The result's content is the restored file as text, or null for a file over that limit. The comparison is exact bytes, so a line-ending-only difference (CRLF vs LF) counts as modified and is reset." + THEME_FILE_REPLACEMENT_GUIDANCE,
       sideEffects: MUTATES_DURABLE_STATE,
       authorization: { permission: THEME_WRITE_PERMISSION },
       inputSchema: RESET_FILE_SCHEMA,

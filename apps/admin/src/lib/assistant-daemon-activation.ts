@@ -11,8 +11,7 @@ export async function activateAssistantDaemon(
   if (!response.ok) throw new Error("the assistant could not start");
 }
 
-/** Wait for the first real attachment after waking, then read the live token at dispatch time.
- * A clean close of the API's parked SSE stream reconnects through the ordinary daemon proxy.
+/** Wake through the authenticated API, then ensure a current page attachment.
  * @returns The current token, or undefined on surfaces with no page bridge.
  * @param options.onActivationSettled - Optional notification on activation success or failure,
  * before waiting for page attachment, so host startup feedback ends at the activation boundary.
@@ -20,7 +19,7 @@ export async function activateAssistantDaemon(
  * @complexity O(1), one activation and one bounded attachment wait.
  */
 export async function prepareAssistantPageBinding(
-  { bridge, signal }: { bridge?: Pick<FrontendSessionBridge, "ready" | "bindToken"> | null; signal?: AbortSignal },
+  { bridge, signal }: { bridge?: Pick<FrontendSessionBridge, "rebind" | "bindToken"> | null; signal?: AbortSignal },
   { activate = activateAssistantDaemon, onActivationSettled }: {
     activate?: typeof activateAssistantDaemon;
     onActivationSettled?: () => void;
@@ -28,15 +27,14 @@ export async function prepareAssistantPageBinding(
 ): Promise<string | undefined> {
   try { await activate({ signal }, {}); }
   finally { onActivationSettled?.(); }
+  signal?.throwIfAborted();
   if (!bridge) return undefined;
   const deadline = AbortSignal.timeout(5_000);
   const waitSignal = signal ? AbortSignal.any([signal, deadline]) : deadline;
   waitSignal.throwIfAborted();
-  await new Promise<void>((resolve, reject) => {
-    const abort = () => reject(waitSignal.reason);
-    waitSignal.addEventListener("abort", abort, { once: true });
-    bridge.ready.then(() => resolve(), reject).finally(() => waitSignal.removeEventListener("abort", abort));
-  });
+  await bridge.rebind({ signal: waitSignal }, {});
   signal?.throwIfAborted();
-  return bridge.bindToken();
+  const token = bridge.bindToken();
+  if (!token) throw new Error("the assistant page is not attached");
+  return token;
 }

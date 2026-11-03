@@ -24,6 +24,7 @@
  * (`"[agent-daemon]"` / `"[assistant-byok]"`), so the warning text a reader already recognizes from
  * the daemon's boot log is unchanged for that caller.
  */
+import type { ToolRegistration } from "@jini-ai/core";
 import type { InstalledExtensionRegistrar } from "#src/assistant/installed-extension-tools";
 import { registerInstalledAgentPluginTools } from "#src/features/agent-plugins/tool-registrations";
 import { createRetiredPluginToolAliases } from "#src/features/agent-plugins/retired-plugin-tool-aliases";
@@ -44,14 +45,22 @@ import { applyToolApprovalPolicy } from "#src/assistant/tool-approval-policy";
  *  @complexity O(p + s + c) in the installed-plugin, installed-skill, and enabled-capability counts
  *  for this one workspace — each family's own loader is the cost driver, not this function. */
 export const registerInstalledExtensionTools: InstalledExtensionRegistrar = async (registry, deps, log) => {
-  try {
-    // A retired plugin's tool name (`agent_plugin_deploy`) stays a gated alias of its successor's.
-    const aliases = createRetiredPluginToolAliases({ registry });
-    await registerInstalledAgentPluginTools(aliases.registry, { ...deps, withExtensionApprovalPolicy });
-    aliases.registerAliases();
-  } catch (error) {
-    warnFamilySkipped({ log, family: "agent-plugin tools", error });
-  }
+  registry.refreshInstalledAgentPlugins = async () => {
+    try {
+      // A retired plugin's tool name (`agent_plugin_deploy`) stays a gated alias of its successor's.
+      const registrations: ToolRegistration[] = [];
+      const aliases = createRetiredPluginToolAliases({ registry: { register: registration => { registrations.push(registration); } } });
+      await registerInstalledAgentPluginTools(aliases.registry, { ...deps, withExtensionApprovalPolicy });
+      aliases.registerAliases();
+      // The executor's core scope owns replacement and collision/revocation checks. Standalone
+      // registrars without that host port retain their one-pass registration contract.
+      if (registry.replaceAgentPluginRegistrations) registry.replaceAgentPluginRegistrations({ registrations });
+      else for (const registration of registrations) registry.register(registration);
+    } catch (error) {
+      warnFamilySkipped({ log, family: "agent-plugin tools", error });
+    }
+  };
+  await registry.refreshInstalledAgentPlugins();
 
   try {
     await registerInstalledSkillTools(registry, { ...deps, withExtensionApprovalPolicy });

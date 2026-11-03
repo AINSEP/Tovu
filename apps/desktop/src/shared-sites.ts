@@ -183,7 +183,7 @@ export function shareSiteDirectories(
 export function attachRunningSite({ workspace, dir }: { workspace: SitesWorkspace; dir: string }, _options = {}) {
   const running = workspace.running({ path: dir }).read({});
   if (!running) return null;
-  if (!["http", "https"].includes(running.scheme) || !Number.isInteger(running.port) || running.port < 0 || running.port > 65535) throw new Error("Invalid running site address. Stop the owning app and repair its lease before attaching.");
+  if (!["http", "https"].includes(running.scheme) || !Number.isInteger(running.port) || running.port < 0 || running.port > 65535) throw new Error("Invalid running site address. Waiting for the owning app to publish a valid address.");
   if (!running.port) throw new Error(`Running in ${running.app} (starting). Wait for this site to finish starting.`);
   const origin = `${running.scheme}://localhost:${running.port}`;
   const timers = new Set<ReturnType<typeof setInterval>>();

@@ -145,7 +145,8 @@ export interface OwnServerBootPorts {
   /** The site dir of every `openSites` entry. */
   openSiteDirs: () => string[];
   promptAndOpenNewSite: (ctx: OwnServerCtx) => Promise<void>;
-  reportBootFailure: (error: Error) => Promise<void>;
+  /** Recoverable restore failure: show the open error without quitting the running app. */
+  reportOpenFailure: (error: Error) => void;
 }
 
 /**
@@ -162,7 +163,7 @@ export function createOwnServerActivate({ ctx, ports }: { ctx: OwnServerCtx; por
       return;
     }
     for (const siteDir of siteDirs) {
-      if (siteDir) void ports.runSerialized(siteDir, () => ports.openSiteWindow({ siteDir, ctx }, {})).catch(ports.reportBootFailure);
+      if (siteDir) void ports.runSerialized(siteDir, () => ports.openSiteWindow({ siteDir, ctx }, {})).catch(ports.reportOpenFailure);
     }
   };
 }

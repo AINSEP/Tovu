@@ -657,9 +657,9 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
   // The slug this editor's own save just moved the URL to — the load effect skips that `postId` change:
   // it is the record already on screen, not a new one to fetch (see `runSave`).
   const savedRouteSlug = useRef<string | null>(null);
-  // First Save has no row id for compare-and-set yet. Lock synchronously so same-tick
-  // Save/Publish clicks cannot create two records; a failed request releases the lock.
-  const firstSavePending = useRef(false);
+  // First Save has no row id for compare-and-set yet. Share its request synchronously so
+  // same-tick Save/Publish clicks use one record, then apply the latest intent to its real id.
+  const firstSaveRequest = useRef<{ patch: Parameters<PostEditorPort["updatePost"]>[1]; response: Promise<{ post: AdminPost }> } | null>(null);
 
   const editor = useEditor({
     // Link and Underline ship as part of StarterKit already (verified against its own bundle) —
@@ -859,7 +859,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
 
   useEffect(() => {
     if (postId === savedRouteSlug.current) return;
-    firstSavePending.current = false;
+    firstSaveRequest.current = null;
     setPost(null);
     setError(null);
     // Loaded together (not two independent effects) so the template default below never races: the
@@ -1056,8 +1056,6 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
    * ordinary save.
    */
   async function runSave(statusOverride: SaveStatusOverride, expectedVersion: number | undefined) {
-    if (!entryId && firstSavePending.current) return;
-    firstSavePending.current = !entryId;
     // Claim this call's generation BEFORE the first `await` — see `useSettlementGeneration`'s own
     // doc for why a synchronous ref bump, not `useState`, is what makes two same-tick calls (a
     // double-click, or Save then Publish before either disables) each see the other's claim.
@@ -1074,14 +1072,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
         original,
         expectedVersion,
       });
-      let response: { post: AdminPost };
-      if (entryId) response = await port.updatePost({ id: entryId }, patch);
-      else {
-        // Create derives an automatic slug itself. Do not send a version basis for a row
-        // that does not exist, and do not create a blank row followed by a fallible PUT.
-        const { expectedVersion: _basis, slugFromTitle: _automatic, ...fields } = patch;
-        response = await port.createPost({ ...fields, title });
-      }
+      const response = await persistWorkingPost({ patch, generation });
       const { post: saved } = response;
       // A newer save/publish was issued after this one — that later call owns the outcome now, so
       // this stale response must not paint over it (root cause 1, 2026-09-05 stale-settlement sweep:
@@ -1090,7 +1081,6 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
       applySavedPost({ saved, statusOverride, expectedVersion, nextStatus, bodyJson });
     } catch (e) {
       if (!settlement.isCurrent({ generation })) return;
-      firstSavePending.current = false;
       applySaveFailure(e, statusOverride);
     } finally {
       // Same generation check as the two branches above: only the call that is still current should
@@ -1098,6 +1088,31 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
       // re-enable Save/Publish while a newer call is still in flight. Mirrors
       // `use-page-editor.hooks.ts`'s identical `finally` in `runSave`.
       if (settlement.isCurrent({ generation })) setSaving(false);
+    }
+  }
+
+  /** Share creation until a real id is available; only the latest queued intent may update it.
+   * Identical double-clicks reuse the create result. Failed creates release the request for retry.
+   * @complexity O(snapshot bytes) comparison, at most one create and one subsequent update. */
+  async function persistWorkingPost({ patch, generation }: {
+    patch: Parameters<PostEditorPort["updatePost"]>[1]; generation: ReturnType<typeof settlement.next>;
+  }, _options = {}): Promise<{ post: AdminPost }> {
+    if (entryId) return port.updatePost({ id: entryId }, patch);
+    const first = firstSaveRequest.current;
+    if (first) {
+      const created = await first.response;
+      if (!settlement.isCurrent({ generation }) || JSON.stringify(first.patch) === JSON.stringify(patch)) return created;
+      return port.updatePost({ id: created.post.id }, { ...patch, expectedVersion: created.post.version });
+    }
+    // Create derives an automatic slug itself. Do not send a version basis for a row
+    // that does not exist, and do not create a blank row followed by a fallible PUT.
+    const { expectedVersion: _basis, slugFromTitle: _automatic, ...fields } = patch;
+    const request = { patch, response: port.createPost({ ...fields, title }) };
+    firstSaveRequest.current = request;
+    try { return await request.response; }
+    catch (error) {
+      if (firstSaveRequest.current === request) firstSaveRequest.current = null;
+      throw error;
     }
   }
 

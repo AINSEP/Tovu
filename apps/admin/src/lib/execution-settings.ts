@@ -1,3 +1,5 @@
+import { VENDOR_API_BASE_URLS } from "@jini-ai/integrations/media-providers/catalog";
+
 /**
  * @file Tovu adapter for `@jini-ai/ui`'s `ExecutionTab` — the Open Design
  * settings-dialog port, now wired to a real backend end to end.
@@ -255,7 +257,7 @@ export const DEFAULT_EXECUTION_CONFIG: ExecutionConfig = {
     protocol: "anthropic",
     providerId: "anthropic",
     apiKey: "",
-    baseUrl: "https://api.anthropic.com",
+    baseUrl: VENDOR_API_BASE_URLS.anthropic,
     model: "",
   },
   localCli: { agentId: null },

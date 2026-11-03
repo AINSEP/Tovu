@@ -81,13 +81,23 @@ function retainsSiteOnClose({ platform, quitPhase }: { platform: string; quitPha
   return platform === "darwin" && quitPhase === "idle";
 }
 
+/** Keep the crash-recovery row until stop confirms exit, for both close and failed-open rollback.
+ * A rejected stop deliberately leaves the row for the next launch. @complexity O(1) beyond stop. */
+async function stopSiteServer<S extends SiteWindowServer, W extends SiteWindow, C extends { registryPath: string }>(
+  { siteDir, ctx, server, ports }: Pick<ClosedWindow<S, W, C>, "siteDir" | "ctx" | "server" | "ports">,
+  _optional = {},
+): Promise<void> {
+  await server.stop();
+  ports.recordSiteClosed({ registryPath: ctx.registryPath, siteDir, pid: server.pid });
+}
+
 /**
  * Stop a closed window's site: end its session, stop its child, and only then drop its row.
  * @complexity O(1) beyond the stop itself.
  */
 function trackSiteTeardown<S extends SiteWindowServer, W extends SiteWindow, C extends { registryPath: string }>(
   { siteDir, ctx, server, partition, ports }: ClosedWindow<S, W, C>,
-  _optional = {},
+  { revokeSession = true }: { revokeSession?: boolean } = {},
 ): void {
   // Ends this window's session for real instead of leaving it to expire on its own up to 30 days
   // later — the other half of the accumulation fix above. Best-effort and awaited before
@@ -101,10 +111,9 @@ function trackSiteTeardown<S extends SiteWindowServer, W extends SiteWindow, C e
   // promise, which is what stops `app.quit()` racing an unfinished `server.stop()` when this is
   // the last window (see `shutdown-tracker.ts`).
   ports.trackTeardown({
-    promise: ports.endSiteSession({ partition, adminUrl: server.adminUrl })
+    promise: (revokeSession ? ports.endSiteSession({ partition, adminUrl: server.adminUrl }) : Promise.resolve())
       .catch(() => {})
-      .then(() => server.stop())
-      .then(() => ports.recordSiteClosed({ registryPath: ctx.registryPath, siteDir, pid: server.pid }))
+      .then(() => stopSiteServer({ siteDir, ctx, server, ports }))
       .catch((error: unknown) => ports.logError(`[tovu-desktop] site shutdown failed: ${(error as Error).message}`)),
   });
 }
@@ -131,12 +140,16 @@ function handleSiteWindowClosed<S extends SiteWindowServer, W extends SiteWindow
   // reported the site as stopped, and "Start" spawned a THIRD child over the same `content.db`.
   // The supervisor's own `handleExit` guards by entry identity for exactly this reason; this is
   // its missing sibling.
-  if (ports.openSites.get(siteDir)?.window === window) {
+  const entry = ports.openSites.get(siteDir);
+  if (entry?.window === window) {
     ports.sitePreviewScheduler.cancel({ siteDir }, {});
     ports.siteThemePreviews.stop({ siteDir }, {});
     ports.openSites.delete(siteDir);
   }
-  trackSiteTeardown(closed);
+  // A replacement can reuse both the child and the partition. A stale close owns neither;
+  // when only the child differs, retire that old child without revoking the shared cookie jar.
+  else if (entry?.server === closed.server) return;
+  trackSiteTeardown(closed, { revokeSession: entry === undefined || entry.window === window });
 }
 
 /**
@@ -185,8 +198,11 @@ async function openSiteWindow<S extends SiteWindowServer, W extends SiteWindow, 
     window = ports.createWindow({ url: server.adminUrl, title: ports.readSiteName(siteDir), partition });
   } catch (error) {
     if (!already) {
-      ports.recordSiteClosed({ registryPath: ctx.registryPath, siteDir, pid: server.pid });
-      await server.stop();
+      // No window was published, so only the tracker can make quit wait for this rollback.
+      // Keep the recovery row until the child has confirmed its exit, including on stop failure.
+      const rollback = stopSiteServer({ siteDir, ctx, server, ports });
+      ports.trackTeardown({ promise: rollback });
+      await rollback;
     }
     throw error;
   }

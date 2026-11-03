@@ -1458,6 +1458,7 @@ export async function createPost(
 ): Promise<{ post: PublicPostRecord; revisionId: string; previousRevisionId: string | null }> {
   const { deps, input } = required;
   assertOptionalBoolean({ value: input.hideCoverImageInBody, name: "hideCoverImageInBody" });
+  assertPostPresentationFields(input);
   const { title, explicitSlug, bodyJson, status, bodyFormat, bodyHtml } = resolveCreateFields(input);
   const scheduleFields = presentScheduleFields({
     publishAt: normalizePublishAt(input.publishAt),
@@ -1537,6 +1538,15 @@ function assertOptionalBoolean(required: { value: unknown; name: string }): void
   if (required.value !== undefined && typeof required.value !== "boolean") throw new PostValidationError(`${required.name} must be a boolean`);
 }
 
+/** Keep presentation's tri-state contract at both write boundaries. Null resets the choice;
+ * empty template and false are explicit choices and must not be coerced away. @complexity O(1). */
+function assertPostPresentationFields(required: { templateChoice?: string | null; overridesThemePage?: boolean | null }, _options = {}): void {
+  if (required.templateChoice !== undefined && required.templateChoice !== null && typeof required.templateChoice !== "string") {
+    throw new PostValidationError("templateChoice must be a string or null");
+  }
+  assertOptionalBoolean({ value: required.overridesThemePage ?? undefined, name: "overridesThemePage" });
+}
+
 /**
  * Validates and normalizes `updatePost`'s caller-supplied `title`/`slug`, and validates
  * `bodyJson`/`status` in place, in behavior.spec.md's documented order (first failure wins):
@@ -1550,6 +1560,7 @@ function validateUpdatePostInput(
   const title = input.title.trim();
   assertOptionalBoolean({ value: input.slugFromTitle, name: "slugFromTitle" });
   assertOptionalBoolean({ value: input.hideCoverImageInBody, name: "hideCoverImageInBody" });
+  assertPostPresentationFields(input);
   const slug = input.slugFromTitle === true ? existing.slug : (input.slug ?? "").trim().toLowerCase();
 
   if (!title) throw new PostValidationError("title is required");

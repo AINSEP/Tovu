@@ -1,4 +1,5 @@
 import type { UUID } from "@jini-ai/core/primitives";
+import { VENDOR_API_BASE_URLS } from "@jini-ai/integrations/media-providers/catalog";
 import { ASSISTANT_PERMANENT_DELETES_NAMESPACE, ASSISTANT_PERMANENT_DELETES_KEY } from "../contracts/headless/index.js";
 import { ASSISTANT_SUBAGENTS_NAMESPACE, ASSISTANT_SUBAGENTS_KEY, ASSISTANT_CLI_PERMISSIONS_KEY } from "#src/contracts/headless/index";
 import { SCOPE_BIT } from "@jini-ai/core/settings";
@@ -106,7 +107,7 @@ const EXECUTION_DEFINITIONS: readonly SettingDefinitionSpec<ExecutionSettingKey>
   // `@jini-ai/ui`'s `ByokConfig.providerId` contract) — nullable, but the
   // registered default is the non-null string "anthropic" (ADR-028 totality).
   { key: "byok.providerId", schema: { type: "string", nullable: true }, defaultValue: "anthropic" },
-  { key: "byok.baseUrl", schema: { type: "string" }, defaultValue: "https://api.anthropic.com" },
+  { key: "byok.baseUrl", schema: { type: "string" }, defaultValue: VENDOR_API_BASE_URLS.anthropic },
   { key: "byok.model", schema: { type: "string" }, defaultValue: "" },
   // See `MAX_TOKENS_UNSET_SENTINEL`'s doc comment for why this is a plain
   // (non-nullable) number definition defaulting to the sentinel rather than

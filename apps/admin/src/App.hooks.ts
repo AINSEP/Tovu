@@ -1127,8 +1127,8 @@ export function useAgentPageBridge(
       executors,
       onError: logFrontendSessionError,
     });
-    // Attach failure is not fatal: the assistant still works, it just cannot drive the page, and
-    // every `page.*` call it makes is refused by name rather than hanging.
+    // `ready` reports only first attachment. Dock wake/send uses rebind for the current one;
+    // a parked or failed stream remains closed until that explicit activation succeeds.
     bridge.ready.catch((error: unknown) => console.error("[admin] page control never attached", error));
     setAgentBridge(bridge);
 

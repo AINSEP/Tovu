@@ -91,7 +91,7 @@ function addSelectedPackages({ repoRoot, selection, composed, packagesRoot }, { 
   if (selection.size === 0) return;
   const { pluginIds } = stageSelectedAgentPluginAssets(
     { repoRoot, packageNames: [...selection.values()], outputRoot: packagesRoot },
-    { npmCli, listPackageFiles },
+    { npmCli, listPackageFiles, expectedPluginIds: new Map([...selection].map(([id, packageName]) => [packageName, id])) },
   );
   const selectedIds = [...selection.keys()].sort();
   if (!isDeepStrictEqual(pluginIds, selectedIds)) {
@@ -148,7 +148,7 @@ function collectPayloadRefs({ value, key, refs }) {
 /** True only for a regular file contained in `pluginDir` (no absolute or `..` escape). @complexity O(1) I/O. */
 function isPayloadFile({ pluginDir, ref }) {
   const target = path.resolve(pluginDir, ref);
-  if (!target.startsWith(pluginDir + path.sep)) return false;
+  if (!target.startsWith(path.resolve(pluginDir) + path.sep)) return false;
   return existsSync(target) && lstatSync(target).isFile();
 }
 

@@ -18,7 +18,7 @@
  * `byok-tool-surface.ts` exposes the same promise as its returned surface's `ready` field, which
  * `modules/assistant-byok.ts`'s turn route awaits once before dispatching a turn.
  */
-import type { ToolRegistration, ToolRegistry } from "@jini-ai/core";
+import { createToolRegistrationScope, toolRegistryRevision, type ToolRegistration, type ToolRegistry } from "@jini-ai/core";
 import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { toolApprovalPolicyFor } from "./assistant-tool-approval-policy.js";
 
@@ -55,7 +55,9 @@ export interface InstalledExtensionToolDeps extends Omit<PluginCapabilityToolDep
  *  prefixed with `log`. See `server/runtime/composition/installed-extension-tools.ts` for the real
  *  one. */
 export type InstalledExtensionRegistrar = (
-  registry: { readonly register: (registration: ToolRegistration) => void; readonly has?: ToolRegistry["has"]; readonly list?: ToolRegistry["list"] },
+  registry: { readonly register: (registration: ToolRegistration) => void; readonly has?: ToolRegistry["has"]; readonly list?: ToolRegistry["list"];
+    refreshInstalledAgentPlugins?: () => Promise<void>;
+    replaceAgentPluginRegistrations?: (required: { registrations: readonly ToolRegistration[] }, optional?: Record<string, never>) => void },
   deps: InstalledExtensionToolDeps,
   log: string,
 ) => Promise<void>;
@@ -108,7 +110,8 @@ export function attachAssistantToolExtensions(
   // at the registration boundary too. A new family cannot silently bypass the native guard.
   // Live skills replace discovery methods and attach a refresh hook. Forward those writes to
   // the executor's registry so the guarded registration view cannot strand their lifecycle.
-  const liveRegistry = registry as ToolRegistry & { refreshInstalledSkills?: () => Promise<boolean> };
+  const liveRegistry = registry as ToolRegistry & { refreshInstalledSkills?: () => Promise<boolean>; refreshInstalledAgentPlugins?: () => Promise<void> };
+  let agentPluginScope: ReturnType<typeof createToolRegistrationScope> | undefined;
   const installedRegistry = {
     get has() { return registry.has; },
     set has(value: ToolRegistry["has"]) { registry.has = value; },
@@ -116,6 +119,14 @@ export function attachAssistantToolExtensions(
     set list(value: ToolRegistry["list"]) { registry.list = value; },
     get refreshInstalledSkills() { return liveRegistry.refreshInstalledSkills; },
     set refreshInstalledSkills(value: (() => Promise<boolean>) | undefined) { liveRegistry.refreshInstalledSkills = value; },
+    get refreshInstalledAgentPlugins() { return liveRegistry.refreshInstalledAgentPlugins; },
+    set refreshInstalledAgentPlugins(value: (() => Promise<void>) | undefined) { liveRegistry.refreshInstalledAgentPlugins = value; },
+    replaceAgentPluginRegistrations({ registrations }: { registrations: readonly ToolRegistration[] }, _options = {}) {
+      for (const registration of registrations) toolApprovalPolicyFor({ registration });
+      if (!agentPluginScope && registrations.length === 0) return;
+      agentPluginScope ??= createToolRegistrationScope({ registry });
+      agentPluginScope.replace({ registrations });
+    },
     register(registration: ToolRegistration) {
       toolApprovalPolicyFor({ registration });
       registry.register(registration);
@@ -128,6 +139,12 @@ export function attachAssistantToolExtensions(
     deps: deps.federation.deps,
     resolveConnections: deps.federation.resolveConnections,
     after: installed,
+    beforeReload: async () => {
+      await installed;
+      const revision = toolRegistryRevision({ registry });
+      await liveRegistry.refreshInstalledAgentPlugins?.();
+      return toolRegistryRevision({ registry }) !== revision;
+    },
     log,
     ...(deps.federation.onAdmitted ? { onAdmitted: deps.federation.onAdmitted } : {}),
     ...(deps.federation.connect ? { connect: deps.federation.connect } : {}),

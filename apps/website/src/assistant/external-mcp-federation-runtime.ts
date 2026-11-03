@@ -42,6 +42,8 @@ export interface CreateFederationRuntimeParams {
   /** Called once per reload pass that actually admitted something new — never for a no-op reload.
    *  The daemon rebinds its live tool catalog here; BYOK rebuilds its search index. */
   readonly onAdmitted?: (result: FederationReloadResult) => void;
+  /** Refresh installed guidance on the same operator-triggered path; true invalidates discovery. */
+  readonly beforeReload?: () => Promise<boolean>;
   /** The calling process's own console prefix — `"[agent-daemon]"` or `"[assistant-byok]"` — so both
    *  processes' boot logs stay byte-identical to what they printed before this runtime existed. */
   readonly log: string;
@@ -63,7 +65,8 @@ export interface FederationRuntime {
   start(): Promise<void>;
   /** Re-admits every roster connection not yet admitted. Resolves `{newlyAdmittedConnectionIds: [],
    *  reports: []}` with no roster read at all if `start()` was never called — there is nothing yet to
-   *  extend. If a `start()` is in flight, waits for it first, so a reload can never run against a
+   *  extend. Installed guidance can refresh independently before BYOK's lazy federation boot.
+   *  If a `start()` is in flight, waits for it first, so a reload can never run against a
    *  boot pass's stale pre-seed state. */
   reload(): Promise<FederationReloadResult>;
   /** A live read of the merged boot-plus-every-reload admission accounting. */
@@ -144,6 +147,7 @@ export function createFederationRuntime(params: CreateFederationRuntimeParams): 
       mergedReports = attached.reports;
       mergedConnectFailures = attached.connectFailures;
       recomputePrefix();
+      const emptyGrantIds = new Set(connections.filter(connection => connection.config.allowedToolNames.length === 0).map(connection => connection.config.connectionId));
       coordinator = createFederationReloadCoordinator({ coordDeps: {
           registry: params.registry,
           deps: params.deps,
@@ -152,7 +156,9 @@ export function createFederationRuntime(params: CreateFederationRuntimeParams): 
           logger,
           ...(params.connect ? { connect: params.connect } : {}),
         }, initiallyAdmitted: mergedReports.map((entry) => entry.connectionId),
-      });
+      }, { initiallyAwaitingGrants: mergedReports.filter(entry => !entry.isPreset && entry.report.admitted.length === 0
+        && emptyGrantIds.has(entry.connectionId))
+        .map(entry => entry.connectionId) });
     } catch (error) {
       logger.warn(`mcp-federation: boot pass failed, continuing without federated tools — ${messageOf(error)}`);
     } finally {
@@ -166,14 +172,13 @@ export function createFederationRuntime(params: CreateFederationRuntimeParams): 
   }
 
   async function reload(): Promise<FederationReloadResult> {
-    // Nothing to extend yet — matches `start()` never having run, rather than treating "not started"
-    // as an error. A caller unsure whether `start()` has happened yet (BYOK's lazy start) can always
-    // call `reload()` first and get a harmless no-op.
-    if (!startPromise) return { newlyAdmittedConnectionIds: [], reports: [], connectFailures: [] };
-    await startPromise;
-    if (!coordinator) return { newlyAdmittedConnectionIds: [], reports: [], connectFailures: [] };
+    // Federation remains lazy before the first BYOK turn; installed guidance still needs the
+    // operator's reload now. An in-flight boot must finish before refreshing either catalog.
+    if (startPromise) await startPromise;
 
-    const result = await coordinator.reload();
+    const installedChanged = await params.beforeReload?.() ?? false;
+    const result: FederationReloadResult = coordinator ? await coordinator.reload()
+      : { newlyAdmittedConnectionIds: [], reports: [], connectFailures: [] };
     // A reload's own connect failures are merged unconditionally, even when nothing was newly
     // admitted — a reload that only ever fails a connection must still make that failure visible,
     // not just a reload that also happened to admit something else alongside it. Every connection
@@ -186,9 +191,10 @@ export function createFederationRuntime(params: CreateFederationRuntimeParams): 
     if (attemptedIds.size > 0) {
       mergedConnectFailures = [...mergedConnectFailures.filter((entry) => !attemptedIds.has(entry.connectionId)), ...result.connectFailures];
     }
-    if (result.newlyAdmittedConnectionIds.length === 0) return result;
+    if (result.newlyAdmittedConnectionIds.length === 0 && !installedChanged) return result;
 
-    mergedReports = [...mergedReports, ...result.reports];
+    const refreshedIds = new Set(result.reports.map(entry => entry.connectionId));
+    mergedReports = [...mergedReports.filter(entry => !refreshedIds.has(entry.connectionId)), ...result.reports];
     recomputePrefix();
     params.onAdmitted?.(result);
     return result;

@@ -37,12 +37,13 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { parseEnv } from "node:util";
-import { omitEnvironmentKeys } from "@jini-ai/platform";
+import { omitEnvironmentKeys, waitForHttpOk } from "@jini-ai/platform";
+import { probeLoopbackHttp } from "@jini-ai/platform/net";
 import { createNodeAtomicFilesystem, upsertEnvLine, writeFileAtomic } from "@jini-ai/platform/fs";
 import { createCommandInvocation } from "@jini-ai/platform/command";
 import { collectProcessTreePids, listProcessSnapshots, stopProcesses } from "@jini-ai/platform/process";
 
-import { devSitesHome } from "./dev-sites-home.mjs";
+import { devSitesHome, prepareDevSitesHome } from "./dev-sites-home.mjs";
 import { apiWatchArgs } from "./dev-api-watch.mjs";
 import { composeDevBundledAgentPlugins } from "./compose-bundled-agent-plugins.mjs";
 import { pruneTsxCache } from "./prune-tsx-cache.mjs";
@@ -209,13 +210,14 @@ function shutdown(code) {
 /**
  * Resolve once something is accepting TCP connections on `port`, or after `timeoutMs`.
  *
- * Exists to order Vite AFTER the API, which is the whole of the first boot race. Vite is ready in
+ * Originally used to order Vite AFTER the API for the first boot race. Vite is ready in
  * ~240ms; the API takes 5-10s because `tsx` compiles TypeScript on the way up. Any browser tab
  * already open on :5173 starts polling `/api/*` immediately, and Vite's proxy answers every one with
  * a multi-line `AggregateError [ECONNREFUSED]` — pages of alarming output describing nothing wrong.
  *
- * Resolves rather than rejects on timeout: a slow API should still get a Vite, so a bad guess here
- * degrades to today's behaviour instead of refusing to start the admin at all.
+ * Boot now reserves TCP before it can fail, so readiness uses /readyz in waitForDevApi instead.
+ * This TCP-only helper remains for confirming that shutdown freed the API and daemon ports.
+ * Resolves rather than rejects on timeout so the port-drain owner can retry until its deadline.
  */
 function waitForPort(port, timeoutMs = 30_000) {
   return new Promise((resolve) => {
@@ -679,6 +681,40 @@ export function startAdminVite({ apiPort, vitePort, apiScheme, extraCaCerts }, s
   return startChild("admin vite", "npm", ["--prefix", "apps/admin", "run", "dev"], env);
 }
 
+/** Wait for the boot result, not the early 503 listener. Reuse the shared polling owner and the
+ * configured loopback TLS trust policy; neither the watcher nor a bound TCP port proves boot.
+ * @returns False on a failed/timed-out boot. @complexity Bounded probes for at most 90 seconds.
+ */
+export async function waitForDevApi({ apiPort, scheme }, { certificate, wait = waitForHttpOk, probe = probeLoopbackHttp } = {}) {
+  try {
+    await wait(`${scheme}://127.0.0.1:${apiPort}/readyz`, { timeoutMs: 90_000,
+      probe: ({ url, timeoutMs }) => probe({ url }, { certificate, servername: "localhost", timeoutMs: Math.min(1500, timeoutMs) }),
+    });
+    return true;
+  } catch { return false; }
+}
+
+/** Complete initial stack startup only after the API is ready. A watch wrapper can survive a fatal
+ * server boot, so its continued existence is not evidence of readiness. O(1) effects after waiting.
+ * @returns Whether admin startup was completed; failure shuts down the entire watcher group.
+ */
+export async function finishDevStartup(
+  { apiPort, vitePort, scheme, extraCaCerts, certificate },
+  { waitForReady = () => waitForDevApi({ apiPort, scheme }, { certificate }), isShuttingDown = () => shuttingDown,
+    log = console.log, warn = console.warn, stop = shutdown, startAdmin = startAdminVite } = {},
+) {
+  const ready = await waitForReady();
+  if (isShuttingDown()) return false;
+  if (!ready) {
+    warn(`tovu dev: API did not become ready; stopping the dev stack. Inspect the API startup output above.`);
+    stop(1);
+    return false;
+  }
+  log(`tovu dev: API is up. Open ${scheme}://localhost:${apiPort}/admin/ (Vite direct: ${scheme}://localhost:${vitePort}/admin/)\n`);
+  startAdmin({ apiPort, vitePort, apiScheme: scheme, extraCaCerts });
+  return true;
+}
+
 /**
  * NODE_EXTRA_CA_CERTS resolution — split out of `main()` (no logic change) purely to bring that
  * function's complexity under the repo's ceiling of 9 (`.mjs` files sit outside the ESLint gate
@@ -739,7 +775,7 @@ function openRunningSite({ record }, _options = {}) {
 
 async function main() {
   warnInheritedAdminPassword({ env: process.env });
-  const selectedSite = devSitesHome({ repoRoot: REPO_ROOT });
+  const selectedSite = await prepareDevSitesHome({ repoRoot: REPO_ROOT });
   if (selectedSite.warning) console.warn(`tovu dev: ${selectedSite.warning.message} Open admin Sites settings to choose appData or ${selectedSite.warning.localHome}.`);
   if (selectedSite.running) {
     openRunningSite({ record: selectedSite.running });
@@ -757,6 +793,7 @@ async function main() {
     disableFlag: isDevTlsExplicitlyDisabled(process.env.TOVU_DISABLE_DEV_TLS),
   });
   const scheme = deriveDevScheme(tlsActive);
+  const certificate = tlsActive ? readFileSync(CERT_PATH) : undefined;
   const extraCaCerts = resolveMkcertRootCaPath(tlsActive);
 
   console.log(
@@ -766,9 +803,10 @@ async function main() {
     `tovu dev: Ctrl-C stops everything.\n`
   );
 
-  const apiEnv = buildApiEnv({ scheme, apiPort: API_PORT, vitePort: VITE_PORT, supervisorPid: process.pid });
+  const apiEnv = { ...selectedSite.env, ...buildApiEnv({ scheme, apiPort: API_PORT, vitePort: VITE_PORT, supervisorPid: process.pid }, { env: selectedSite.env }) };
+  apiEnv.TOVU_BUNDLED_AGENT_PLUGINS_DIR = process.env.TOVU_BUNDLED_AGENT_PLUGINS_DIR;
   // Snapshot the actual boot selection, including the implicit default, before .env can change.
-  apiEnv.TOVU_SITE = process.env.TOVU_SITE ?? "tovu-dev";
+  apiEnv.TOVU_SITE = selectedSite.env.TOVU_SITE ?? "tovu-dev";
   if (extraCaCerts) apiEnv.NODE_EXTRA_CA_CERTS = extraCaCerts;
   // Per-supervisor request file (OD-S1): two `npm run dev`s on different ports never cross.
   const restartRequestFile = path.join(os.tmpdir(), `tovu-dev-restart-${process.pid}.json`);
@@ -785,7 +823,7 @@ async function main() {
     markPlanned: (child) => plannedExits.add(child),
     markRunning: (child) => plannedExits.delete(child),
     waitForPortsFree: () => waitForPortsFree([API_PORT, DAEMON_PORT]),
-    waitForReady: () => waitForPort(API_PORT, 90_000),
+    waitForReady: () => waitForDevApi({ apiPort: API_PORT, scheme }, { certificate }),
     shutdown,
     checkTarget: async ({ env, currentEnv, child }) => devRestartRefusal({
       repoRoot: REPO_ROOT, env: { ...process.env, ...env }, currentEnv: { ...process.env, ...currentEnv },
@@ -795,7 +833,13 @@ async function main() {
     envForRestart: () => {
       const site = siteEnvForRestart({ shellSite: SHELL_TOVU_SITE, envFileText: readRepoEnvFile() });
       if (site.warning) console.warn(site.warning);
-      return { ...apiEnv, ...site.env };
+      const next = { ...apiEnv, ...site.env };
+      // A launcher pin follows a requested site switch; an explicit directory remains pinned.
+      if (next.TOVU_SITE_SELECTION_PINNED === "1") {
+        delete next.TOVU_SITE_DIR;
+        next.TOVU_SITE_DIR = devSitesHome({ repoRoot: REPO_ROOT }, { env: next }).dir;
+      }
+      return next;
     },
     isShuttingDown: () => shuttingDown,
     log: (message) => console.log(message),
@@ -825,19 +869,7 @@ async function main() {
    * seconds before the daemon binds :4319. That one is handled where it belongs, in
    * `server/modules/assistant.ts`'s proxy — see its retry note.
    */
-  if (!(await waitForPort(API_PORT))) {
-    console.warn(
-      `\ntovu dev: API did not come up within 30s — starting the admin anyway.\n` +
-      `tovu dev: expect proxy errors on :${VITE_PORT} until it does.\n`
-    );
-  }
-  if (!shuttingDown) {
-    console.log(
-      `tovu dev: API is up. Open ${scheme}://localhost:${API_PORT}/admin/` +
-      ` (Vite direct: ${scheme}://localhost:${VITE_PORT}/admin/)\n`
-    );
-    startAdminVite({ apiPort: API_PORT, vitePort: VITE_PORT, apiScheme: scheme, extraCaCerts });
-  }
+  await finishDevStartup({ apiPort: API_PORT, vitePort: VITE_PORT, scheme, extraCaCerts, certificate });
 
   for (const sig of ["SIGINT", "SIGTERM", "SIGHUP"]) {
     process.on(sig, () => {

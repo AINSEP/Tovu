@@ -50,6 +50,8 @@
  * never opens a real Finder window.
  */
 import path from "node:path";
+import type { McpToolDef } from "@jini-ai/mcp";
+import { appendSerialTask } from "@jini-ai/core/primitives";
 
 import { AddSitePointerError, addSitePointer } from "./add-site-pointer.ts";
 import { readTrackedSites } from "./tracked-sites.ts";
@@ -359,6 +361,31 @@ async function runSitesMcpTool(name: string, args: ToolArgs, context: ToolContex
 /** One failed tool result. @complexity O(1). */
 function toolError(message: string, structured: Record<string, unknown> = {}): McpToolResult {
   return { content: [{ type: "text", text: message }], structuredContent: { error: message, ...structured }, isError: true };
+}
+
+/** Project the existing desktop table into Jini's validated host, keeping a single mutation
+ * queue across every HTTP connection. A failed call never poisons later work.
+ * @example const { tools } = createSitesMcpToolHost({ context });
+ * @complexity O(tool count) construction; O(1) scheduling plus each handler's registry cost.
+ */
+export function createSitesMcpToolHost({ context }: { context: ToolContext }, _options = {}): {
+  tools: readonly McpToolDef[];
+  drain(required: Record<string, never>, optional?: Record<string, never>): Promise<void>;
+} {
+  let pending = Promise.resolve();
+  const tools = SITES_MCP_TOOLS.map((tool): McpToolDef => ({
+    name: tool.name, description: tool.description, annotations: tool.annotations,
+    inputSchema: tool.inputSchema as McpToolDef['inputSchema'],
+    handler: ({ args, ctx }) => new Promise<McpToolResult>((resolve, reject) => {
+      // Preserve the stdio bridge's read-modify-write ordering across all HTTP connections.
+      // Reuse core's serial task owner so rejection still permits the next accepted call.
+      pending = appendSerialTask({ previous: pending, onError: reject, task: async () => {
+        if (ctx.signal?.aborted) { resolve(toolError("Desktop call cancelled before dispatch.")); return; }
+        resolve(await runSitesMcpTool(tool.name, args, context));
+      } });
+    }),
+  }));
+  return { tools, drain: (_required, _optional = {}) => pending };
 }
 
 export { SITES_MCP_TOOLS, ToolInputError, describeSitesMcpTools, runSitesMcpTool };

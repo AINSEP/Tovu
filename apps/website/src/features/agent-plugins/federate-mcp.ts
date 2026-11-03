@@ -513,7 +513,7 @@ async function adoptOrRecognizeExistingAgentPluginMcpServer(
  * one create or adopt.
  */
 export async function provisionAgentPluginMcpServers(
-  deps: Pick<AgentPluginMcpPort, "repo" | "saveServer">,
+  deps: Pick<AgentPluginMcpPort, "repo" | "saveServer"> & Partial<Pick<AgentPluginMcpPort, "notifyRosterChanged">>,
   input: ProvisionAgentPluginMcpServersInput,
 ): Promise<ProvisionAgentPluginMcpServersResult> {
   const plan = planAgentPluginMcpFederation(input);
@@ -530,6 +530,9 @@ export async function provisionAgentPluginMcpServers(
     else alreadyProvisioned.push(planned.connectionId);
   }
 
+  // Both admin and chat enable use this owner. Even a plugin with no MCP servers contributes
+  // guidance, so notify after provisioning settles rather than only after a connection write.
+  await deps.notifyRosterChanged?.({}, {});
   return { provisioned, alreadyProvisioned, adopted, skipped: plan.skipped, failed };
 }
 

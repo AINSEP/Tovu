@@ -20,6 +20,7 @@ import {
 } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { fileDigest } from '@jini-ai/platform/fs';
 
 import type { ThemeManifest } from "./render-contract.js";
 import { resolveThemeLayout, ENGINE_SUBFOLDERS, THEME_CATALOG_DIR } from "./theme-layout.js";
@@ -601,7 +602,8 @@ export function themeFileDiffersFromOriginal(
  * so a failed write leaves no artifact behind in the theme folder.
  * @complexity O(s) in the size of what `fillTemp` writes.
  */
-function writeFileAtomically(target: string, relativePathForError: string, fillTemp: (tempPath: string) => void, stat: typeof statSync = statSync): void {
+function writeFileAtomically(target: string, relativePathForError: string, fillTemp: (tempPath: string) => void, stat: typeof statSync = statSync,
+  revisionFile?: { themeDir: string; themesRoot: string; relativePath: string }): void {
   // statOrThemePathError, NEVER a bare statSync — same circular-symlink ELOOP escape the other
   // post-resolve stat calls in this file were fixed for (see that wrapper's own doc). In practice
   // both callers (`writeThemeFile`, `resetThemeFileToOriginal`) already run an identical stat on the
@@ -615,14 +617,85 @@ function writeFileAtomically(target: string, relativePathForError: string, fillT
     accessSync(target, fsConstants.W_OK);
   }
   const tempPath = join(dirname(target), `.${basename(target)}.${process.pid}-${randomUUID()}.tmp`);
+  let revision: string | undefined;
   try {
     fillTemp(tempPath);
     if (existing) chmodSync(tempPath, existing.mode);
+    if (existing && revisionFile) revision = saveThemeFileRevision({ ...revisionFile, target });
     renameSync(tempPath, target);
   } catch (err) {
     rmSync(tempPath, { force: true });
+    if (revision) rmSync(revision, { recursive: true, force: true });
     throw err;
   }
+  if (revision && revisionFile) pruneThemeFileRevisions(revisionFile);
+}
+
+/** Pin contained theme bytes for a replacement review, including binaries past the text read cap.
+ * @returns Canonical target and SHA-256; null means a new file. Symlinks use the normal theme rules.
+ * @throws ThemePathError for invalid/nonregular paths; other read failures propagate.
+ * @complexity O(file bytes) time, O(64 KiB) space through Jini's shared digest reader. */
+export function readThemeFileVersion(required: { themeDir: string; themesRoot: string; relativePath: string }, _options = {}): { target: string; version: string | null } {
+  const target = resolveThemeFilePath(required);
+  const existing = statOrThemePathError(target, required.relativePath);
+  if (!existing) return { target, version: null };
+  if (!existing.isFile()) throw new ThemePathError(`path '${required.relativePath}' exists and is not a regular file`);
+  return { target, version: fileDigest({ path: target }).toString('hex') };
+}
+
+/** Replacement revisions are separate from manually trashed files, which retention never deletes. */
+const THEME_REVISION_ROOT = '.trash/revisions';
+const MAX_THEME_FILE_REVISIONS = 20;
+type ThemeRevisionFile = { themeDir: string; themesRoot: string; relativePath: string };
+
+/** Real numeric revision directories only; never follow or delete a symlink during retention.
+ * @complexity O(r log r) for r stored revisions (normally at most 21). */
+function themeRevisionDirectories({ root }: { root: string }, _options = {}): string[] {
+  return readdirSync(root, { withFileTypes: true }).filter(entry => entry.isDirectory() && /^\d+$/.test(entry.name) && Number.isSafeInteger(Number(entry.name)))
+    .map(entry => entry.name).sort((a, b) => Number(a) - Number(b));
+}
+
+/** Copies current theme bytes to the existing restorable trash layout before replacement.
+ * Numeric directory creation is exclusive; parallel writes cannot overwrite a previous revision.
+ * @returns The owned revision directory, or undefined for a write already inside trash.
+ * @throws Containment/copy failures before the live file changes; partial revisions are removed.
+ * @complexity O(file bytes + r log r) time, O(r) space; copyFileSync never buffers the whole file. */
+function saveThemeFileRevision(
+  required: ThemeRevisionFile & { target: string }, _options = {},
+): string | undefined {
+  const normalized = relative(resolve(required.themeDir), required.target).split(sep).join('/');
+  if (normalized.split('/')[0] === '.trash') return undefined;
+  const root = resolveThemeFilePath({ ...required, relativePath: THEME_REVISION_ROOT });
+  mkdirSync(root, { recursive: true });
+  const previous = themeRevisionDirectories({ root });
+  let next = Math.max(Date.now(), Number(previous.at(-1) ?? 0) + 1);
+  let directory = join(root, String(next));
+  for (;;) {
+    if (!Number.isSafeInteger(next)) throw new ThemePathError('theme revision sequence is exhausted');
+    try { mkdirSync(directory); break; }
+    catch (error) {
+      if (!(error instanceof Error && 'code' in error && error.code === 'EEXIST')) throw error;
+      directory = join(root, String(++next));
+    }
+  }
+  try {
+    const destination = resolveThemeFilePath({ ...required, relativePath: `${THEME_REVISION_ROOT}/${next}/${normalized}` });
+    mkdirSync(dirname(destination), { recursive: true });
+    copyFileSync(required.target, destination, fsConstants.COPYFILE_EXCL);
+    return directory;
+  } catch (error) {
+    rmSync(directory, { recursive: true, force: true });
+    throw error;
+  }
+}
+
+/** Keep only the latest 20 theme replacement revisions; manual trash is outside this root.
+ * @throws Filesystem/containment errors rather than silently claiming successful retention.
+ * @complexity O(r log r + removed bytes) time, O(r) space. */
+function pruneThemeFileRevisions(required: ThemeRevisionFile, _options = {}): void {
+  const root = resolveThemeFilePath({ ...required, relativePath: THEME_REVISION_ROOT });
+  const directories = themeRevisionDirectories({ root });
+  for (const directory of directories.slice(0, -MAX_THEME_FILE_REVISIONS)) rmSync(join(root, directory), { recursive: true, force: true });
 }
 
 /**
@@ -647,21 +720,20 @@ function assertOverwritableTarget(existing: Stats | undefined, relativePath: str
 }
 
 /**
- * Write (create or overwrite) one file inside a theme's folder, creating any
- * intermediate directories — which are themselves inside the folder, since the
- * resolved path already passed containment.
+ * Validate a proposed text write without creating directories, revisions or files.
+ * Both approval preparation and execution use these same containment and size rules.
  *
  * @param optional.overwriteOversized - Must be `true` to replace an existing file past the
  * {@link MAX_THEME_FILE_BYTES} read limit. The admin editor never sets it.
  * @param optional.stat - Filesystem stat dependency, shared by the pre-check and atomic write.
- * @returns The absolute path written.
+ * @returns The absolute path permitted for the write.
  * @throws {ThemePathError} On any containment failure, an oversized body, a
  * target that exists and is not a regular file, or an existing target past the
  * {@link MAX_THEME_FILE_BYTES} read limit without `overwriteOversized`.
  * @complexity O(s) in the content size.
  * @overallScore 100/100
  */
-export function writeThemeFile(
+export function validateThemeFileWrite(
   required: { themeDir: string; themesRoot: string; relativePath: string; content: string },
   optional: { overwriteOversized?: boolean; stat?: typeof statSync } = {}
 ): string {
@@ -677,8 +749,20 @@ export function writeThemeFile(
   // any other existing target.
   const existing = statOrThemePathError(target, required.relativePath, optional.stat);
   assertOverwritableTarget(existing, required.relativePath, optional.overwriteOversized === true);
+  return target;
+}
+
+/** Write validated theme text, retaining the previous bytes only after every precondition passes.
+ * Preparation and execution share validation so impossible writes never require approval.
+ * @returns The canonical path written. @throws ThemePathError for invalid paths or oversized files.
+ * @complexity O(content bytes + previous file bytes) time, bounded content memory. */
+export function writeThemeFile(
+  required: { themeDir: string; themesRoot: string; relativePath: string; content: string },
+  optional: { overwriteOversized?: boolean; stat?: typeof statSync } = {}
+): string {
+  const target = validateThemeFileWrite(required, optional);
   mkdirSync(dirname(target), { recursive: true });
-  writeFileAtomically(target, required.relativePath, (tempPath) => writeFileSync(tempPath, required.content, "utf8"), optional.stat);
+  writeFileAtomically(target, required.relativePath, (tempPath) => writeFileSync(tempPath, required.content, "utf8"), optional.stat, required);
   return target;
 }
 
@@ -702,7 +786,7 @@ export function writeThemeBinaryFile(
   const existing = statOrThemePathError(target, required.relativePath, undefined);
   assertOverwritableTarget(existing, required.relativePath, true);
   mkdirSync(dirname(target), { recursive: true });
-  writeFileAtomically(target, required.relativePath, (tempPath) => writeFileSync(tempPath, required.bytes), undefined);
+  writeFileAtomically(target, required.relativePath, (tempPath) => writeFileSync(tempPath, required.bytes), undefined, required);
   return target;
 }
 
@@ -752,7 +836,7 @@ export function resetThemeFileToOriginal(
     return { wasModified: false, bytes: original.size };
   }
   mkdirSync(dirname(target), { recursive: true });
-  writeFileAtomically(target, relativePath, (tempPath) => copyFileSync(original.path, tempPath));
+  writeFileAtomically(target, relativePath, (tempPath) => copyFileSync(original.path, tempPath), undefined, required);
   return { wasModified: true, bytes: original.size };
 }
 

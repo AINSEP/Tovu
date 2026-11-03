@@ -142,12 +142,13 @@ export function useApplySiteRecord(
 ): (record: SiteRecord, previousId?: string) => void {
   return useCallback(
     (record: SiteRecord, previousId: string = record.id) => {
-      setProjects((current) =>
-        current.flatMap((project) => {
+      setProjects((current) => {
+        if (!current.some((project) => project.id === previousId)) return current;
+        return current.flatMap((project) => {
           if (project.id === previousId) return [record];
           return project.id === record.id ? [] : [project];
-        }),
-      );
+        });
+      });
     },
     [setProjects],
   );

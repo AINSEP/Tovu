@@ -33,6 +33,8 @@ export interface SiteServerStartInput {
   emitBootToken: true;
   adminDevProxyUrl: string | null;
   nodeToolchainEnv: Record<string, string>;
+  /** Explicit main-owned capability; never supplied for an attached server. */
+  desktopMcpEnv?: Record<string, string>;
 }
 
 /** Electron, spawn, registry and lease effects, bound once by the composition root. */
@@ -47,6 +49,10 @@ export interface SiteBackendPorts<TServer extends SiteBackendServer> {
   resolveAdminDevProxyUrl: () => Promise<string | null>;
   /** `desktop-capture.ts`'s bridge, bound to a `BrowserWindow` factory and the capture pool. */
   startCaptureBridge: () => Promise<{ env: Record<string, string>; close(): void }>;
+  /** HTTP preparation seam. When supplied, no launcher/roster announcement is performed.
+   * Listener startup is best-effort; its owner retries independently of site hosting.
+   */
+  desktopMcpEnv?: () => Promise<Record<string, string>>;
   startServer: (required: SiteServerStartInput) => Promise<TServer>;
   /** The bundled node toolchain's env, or `undefined` when it could not be written this launch. */
   baseToolchainEnv: Record<string, string> | undefined;
@@ -164,7 +170,7 @@ export function createSiteBackend<TServer extends SiteBackendServer>(
     // 2026-10-13 scratch-QA incident: opening tovu-dev wrote a temporary launcher's path into
     // the SHARED content.db, replacing the real desktop row; deleting scratch userData left
     // the owner's assistant with spawn ENOENT. A profile override must never publish that path.
-    if (ports.env.TOVU_DESKTOP_USER_DATA_DIR !== undefined) return;
+    if (ports.desktopMcpEnv || ports.env.TOVU_DESKTOP_USER_DATA_DIR !== undefined) return;
     try {
       // Read live, never persisted as truth — see this function's own note on staleness.
       const electronPath = ports.electronPath();
@@ -186,6 +192,8 @@ export function createSiteBackend<TServer extends SiteBackendServer>(
         userDataDir,
       }).then((result) => {
         if (!result.ok) ports.warn(`tovu-desktop: the assistant's desktop tools are unavailable for this site — ${result.reason}`);
+      }).catch((error: unknown) => {
+        ports.warn(`tovu-desktop: could not register the desktop MCP tools — ${(error as Error).message}`);
       });
     } catch (error) {
       ports.warn(`tovu-desktop: could not register the desktop MCP tools — ${(error as Error).message}`);
@@ -193,7 +201,7 @@ export function createSiteBackend<TServer extends SiteBackendServer>(
   }
 
   /** Spawn this site's child, or attach to a server a concurrent Web start won the race with.
-   *  `spawned: false` means the returned handle is that attached server, needing no bookkeeping. */
+   *  `spawned: false` means the returned handle is attached: remember the open, but never claim it. */
   async function spawnSiteServer(siteDir: string, ctx: SiteBackendCtx, port: number | undefined): Promise<{ server: TServer; spawned: boolean }> {
     // ALWAYS emitted (DS-01). `emitBootToken` is what makes `server.bootToken` non-null below — see
     // `desktop-auth.ts`'s header for why this replaced a shell-minted, shell-stored password
@@ -215,10 +223,14 @@ export function createSiteBackend<TServer extends SiteBackendServer>(
     // rather than set optimistically.
     const adminDevProxyUrl = await ports.resolveAdminDevProxyUrl();
     const captureBridge = await ports.startCaptureBridge();
+    let desktopMcpEnv: Record<string, string> | undefined;
+    try { desktopMcpEnv = await ports.desktopMcpEnv?.(); }
+    catch { ports.warn("tovu-desktop: desktop tools listener unavailable; retrying automatically."); }
     let server: TServer;
     try {
       server = await ports.startServer({
         siteDir, cliMode: ctx.cliMode, port, emitBootToken: true, adminDevProxyUrl,
+        ...(desktopMcpEnv === undefined ? {} : { desktopMcpEnv }),
         nodeToolchainEnv: { ...ports.baseToolchainEnv, ...captureBridge.env, TOVU_RUNNING_APP: "Desktop" },
       });
     } catch (error) {
@@ -286,6 +298,7 @@ export function createSiteBackend<TServer extends SiteBackendServer>(
     }
     const { server, spawned } = await spawnSiteServer(siteDir, ctx, port);
     if (spawned) await adoptSpawnedServer(siteDir, ctx, server, partition);
+    else ports.rememberOpen({ siteDir });
     return { server, partition };
   }
 

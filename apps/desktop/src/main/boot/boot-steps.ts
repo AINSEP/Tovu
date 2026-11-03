@@ -49,6 +49,7 @@ export function applyUserDataDir({ env, defaultUserDataDir, resolvePath, setUser
   // Share the resolved profile with CLI children too; a relative override otherwise changes meaning
   // when a child runs from another cwd. Normal launches retain the shared Web/CLI app-data owner.
   if (override) env.TOVU_DESKTOP_USER_DATA_DIR = getUserDataDir();
+  else delete env.TOVU_DESKTOP_USER_DATA_DIR;
   return { overridden: override !== undefined };
 }
 

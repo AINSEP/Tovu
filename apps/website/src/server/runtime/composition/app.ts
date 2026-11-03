@@ -528,6 +528,10 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     )
     .then(() => undefined);
 
+  // Consent no longer observes this detached branch. Observe it now while preserving rejection
+  // for consumers that await title readiness later, as the persistent composition root does.
+  void siteTitleReady.catch(() => undefined);
+
   // SPEC-011 (Newsletter) — declared here (not inline in the return object) so `newsletterReady`
   // below can seed the default list against the SAME repo instance the returned deps expose.
   const newsletterListRepoInMemory = new InMemoryNewsletterListRepo();
