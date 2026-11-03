@@ -27,7 +27,7 @@ import { buildAssistantRuntimeGuidance } from "../assistant-runtime-guidance.js"
  * without updating the runtime plumbing (`AgentExecutorRunInput.disallowedTools`).
  */
 
-const DAEMON_ENTRY_SOURCE = readFileSync(path.join(import.meta.dirname, "../agent-daemon-server.ts"), "utf8");
+const DAEMON_ENTRY_SOURCE = readFileSync(path.join(import.meta.dirname, "../agent-daemon-scope.ts"), "utf8");
 
 describe("Finding 2 wiring — the spawned assistant's tool grant is actually restricted, not just prompted", () => {
   test("imports the shared tool policy resolver from assistant-system-overlay.ts", () => {

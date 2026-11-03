@@ -43,6 +43,28 @@ function fixture({ t }: { t: TestContext }) {
     spawnFn: () => child, baseEnv: {}, mirror, readyTimeoutMs: 1000, stopGraceMs: 10_000 } };
 }
 
+test("owned site control inherits IPC without daemon credentials in its spawn environment", async t => {
+  const f = fixture({ t });
+  let bound = false; let identity = "";
+  const started = startTovuServer({ ...f.input,
+    baseEnv: { TOVU_AGENT_DAEMON_TOKEN: "inherited-proxy", TOVU_TOOL_EXEC_TOKEN: "inherited-rpc" },
+    spawnFn: (_command, _args, options) => {
+      assert.deepEqual(options.stdio, ["ignore", "pipe", "pipe", "ipc"]);
+      assert.equal(options.env?.TOVU_AGENT_DAEMON_TOKEN, undefined);
+      assert.equal(options.env?.TOVU_TOOL_EXEC_TOKEN, undefined);
+      return f.child;
+    },
+    agentService: { bindServer: ({ child, siteDir }) => {
+      assert.equal(child, f.child); assert.equal(siteDir, f.input.siteDir); bound = true;
+      return { setIdentity: ({ siteId }) => { identity = siteId; }, dispose() {} };
+    } }, platform: "linux",
+  });
+  assert.equal(bound, true);
+  f.child.stdout.write(`tovu serve: dir=${f.input.siteDir} port=4321 schemaVersion=1 workspaceId=site-a\n`);
+  await started;
+  assert.equal(identity, "site-a");
+});
+
 test("T5: a boot failure after long startup logs reports the final CLI error", async (t) => {
   const f = fixture({ t });
   const started = startTovuServer(f.input);

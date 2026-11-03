@@ -1,0 +1,190 @@
+import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
+import assert from "node:assert/strict";
+import test from "node:test";
+import express from "express";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { createSiteScope } from "../agent-daemon-scope.js";
+import { createAgentDaemonIdlePark } from "../agent-daemon-idle-park.js";
+import { captureDaemonRun } from "./helpers/daemon-source.js";
+
+test("site scopes never read ambient environment or working directory", async () => {
+  const source = await readFile(new URL("../agent-daemon-scope.ts", import.meta.url), "utf8");
+  assert.doesNotMatch(source, /process\s*\.\s*(env|cwd)\b/);
+});
+
+async function harness() {
+  const root = await mkdtemp(join(tmpdir(), "shared-daemon-"));
+  const scopes: Awaited<ReturnType<typeof createSiteScope>>[] = [];
+  const app = express();
+  const mounted = new Map<string, Awaited<ReturnType<typeof createSiteScope>>>();
+  app.use("/s/:scopeId", (req, res, next) => {
+    const scope = mounted.get(req.params.scopeId);
+    if (!scope) { res.status(404).end(); return; }
+    scope.app(req, res, next);
+  });
+  const server = app.listen(0, "127.0.0.1");
+  await new Promise<void>(resolve => server.once("listening", resolve));
+  const address = server.address(); assert.ok(address && typeof address !== "string");
+  const url = `http://127.0.0.1:${address.port}`;
+  const idlePark = createAgentDaemonIdlePark({ isBusy: () => false, exit: () => assert.fail("unexpected park") }, { env: { TOVU_AGENT_DAEMON_IDLE_MINUTES: "0" } });
+  async function site(instance: number, siteId: string, db: "memory" | "sqlite" = "memory") {
+    const dir = join(root, `${instance}-${siteId}`);
+    await mkdir(dir, { recursive: true });
+    if (db === "sqlite") {
+      await writeFile(join(dir, "content.db"), ""); await writeFile(join(dir, "chat.db"), "");
+    }
+    const token = `proxy-${instance}-${siteId}-${scopes.length}`;
+    const env = { PATH: "", HOME: dir, TOVU_SITE_DIR: dir, TOVU_DB: db,
+      TOVU_WORKSPACE: siteId, TOVU_SITE_LISTENER_ORIGIN: "http://127.0.0.1:1",
+      TOVU_AGENT_DAEMON_TOKEN: token, TOVU_AGENT_PERMISSION_MODE: instance ? "restricted" : "bypass",
+      JINI_AGENT_DAEMON_URL: `${url}/s/${instance}-${siteId}` };
+    const scope = await createSiteScope({ siteId, env, token: `rpc-${instance}-${siteId}` }, {
+      idlePark, probeBridge: async () => {}, coreOptions: {
+        storage: { kind: "sqlite" },
+        fetch: async (_input, init) => {
+          assert.equal(new Headers(init?.headers).get("authorization"), `Bearer rpc-${instance}-${siteId}`);
+          const request = JSON.parse(String(init?.body)) as { operation: string };
+          return Response.json({ value: request.operation === "bootstrap" ? {
+            workspaceId: siteId, ownerPrincipalId: "owner", siteBinding: { dir, name: siteId },
+            siteStoragePaths: { contentDbPath: join(dir, "content.db"), mediaUploadsDir: join(dir, "uploads"), chatAttachmentsDir: join(dir, "attachments") },
+            traceCapture: "off", traceEnabled: false,
+          } : null });
+        },
+      },
+    });
+    scopes.push(scope);
+    mounted.set(`${instance}-${siteId}`, scope);
+    return { scope, env, token, base: `${url}/s/${instance}-${siteId}` };
+  }
+  return { site, close: async () => {
+    await Promise.all(scopes.map(scope => scope.dispose({}, {})));
+    idlePark.stop({}, {}); server.closeAllConnections();
+    await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
+    await rm(root, { recursive: true, force: true });
+  } };
+}
+
+test("credential selects site despite forged tenant and principal hints", async () => {
+  const h = await harness();
+  try {
+    const a = await h.site(0, "a"); const b = await h.site(0, "b");
+    const headers = { authorization: `Bearer ${a.token}`, "x-tovu-principal-id": "owner", "x-site-id": "a" };
+    const forged = await fetch(`${b.base}/api/runs`, { headers });
+    assert.equal(forged.status, 401); await forged.body?.cancel();
+    const own = await fetch(`${a.base}/api/runs`, { headers });
+    assert.equal(own.status, 200); assert.deepEqual(await own.json(), { runs: [] });
+    assert.equal(a.env.TOVU_AGENT_DAEMON_TOKEN, a.token, "scope construction copies its input");
+  } finally { await h.close(); }
+});
+
+for (const db of ["memory", "sqlite"] as const) {
+test(`equal identifiers remain isolated across two sites and two hosts (${db})`, async () => {
+  const h = await harness();
+  try {
+    const sites = await Promise.all([h.site(0, "a", db), h.site(0, "b", db), h.site(1, "a", db), h.site(1, "b", db)]);
+    for (const [index, site] of sites.entries()) {
+      await site.scope.lifecycle.start({ contextRef: `instructions-${index}` }, { runId: "same" });
+      await site.scope.lifecycle.emit({ runId: "same", input: { event: "stdout", data: { chunk: `event-${index}` } } });
+    }
+    for (const [index, site] of sites.entries()) {
+      for (const other of sites.filter(candidate => candidate !== site)) {
+        const response = await fetch(`${site.base}/api/runs`, { headers: { authorization: `Bearer ${other.token}`, "x-tovu-principal-id": "owner" } });
+        assert.equal(response.status, 401); await response.body?.cancel();
+      }
+      const events: string[] = [];
+      const subscription = await site.scope.lifecycle.stream({ runId: "same", onEvent: event => { events.push(JSON.stringify(event)); } });
+      assert.equal(subscription.kind, "ok");
+      if (subscription.kind === "ok") subscription.unsubscribe();
+      assert.ok(events.join("").includes(`event-${index}`));
+      assert.ok(!events.join("").includes(`event-${(index + 1) % 4}`));
+      await site.scope.lifecycle.finish({ runId: "same", status: "succeeded", code: 0, signal: null, resumable: false });
+    }
+  } finally { await h.close(); }
+});
+
+}
+
+test("disposing one site leaves another run streaming and refuses late callbacks", async () => {
+  const h = await harness();
+  try {
+    const a = await h.site(0, "a"); const b = await h.site(0, "b");
+    await b.scope.lifecycle.start({ contextRef: "b" }, { runId: "same" });
+    await a.scope.dispose({}, {});
+    const closed = await fetch(`${a.base}/api/runs`, { headers: { authorization: `Bearer ${a.token}` } });
+    assert.equal(closed.status, 503); await closed.body?.cancel();
+    const replacement = await h.site(0, "a");
+    const late = await fetch(`${replacement.base}/internal/agent-plugin-events`, {
+      method: "POST", headers: { authorization: `Bearer ${a.token}`, "content-type": "application/json" },
+      body: JSON.stringify({ runId: "same", principalId: "owner", payload: { type: "agent_plugins" } }),
+    });
+    assert.equal(late.status, 401); await late.body?.cancel();
+    await b.scope.lifecycle.emit({ runId: "same", input: { event: "stdout", data: { chunk: "still running" } } });
+    assert.equal((await b.scope.lifecycle.get({ runId: "same" }))?.state, "queued");
+    await b.scope.lifecycle.finish({ runId: "same", status: "succeeded", code: 0, signal: null, resumable: false });
+  } finally { await h.close(); }
+});
+
+test("identical upload batches and principal IDs remain scoped to their site", async () => {
+  const h = await harness();
+  try {
+    const sites = await Promise.all([h.site(0, "a"), h.site(0, "b"), h.site(1, "a"), h.site(1, "b")]);
+    const refs: string[] = [];
+    for (const [index, site] of sites.entries()) {
+      const response = await fetch(`${site.base}/api/attachments?batch=same&name=note.txt`, {
+        method: "POST", headers: { authorization: `Bearer ${site.token}`, "x-tovu-principal-id": "same-principal", "content-type": "application/octet-stream" },
+        body: `site-specific attachment ${index}`,
+      });
+      assert.equal(response.status, 201);
+      const body = await response.json() as { attachment: { path: string } }; refs.push(body.attachment.path);
+    }
+    assert.equal(new Set(refs).size, 4);
+    for (const [index, site] of sites.entries()) {
+      const pending = await fetch(`${site.base}/internal/attachment-lookup`, {
+        method: "POST", headers: { authorization: `Bearer ${site.token}`, "content-type": "application/json" },
+        body: JSON.stringify({ op: "listPendingForOwner", ownerId: "same-principal" }),
+      });
+      assert.equal(pending.status, 200);
+      const body = await pending.json() as { value: { ref: string }[] };
+      assert.deepEqual(body.value.map(value => value.ref), [refs[index]]);
+    }
+  } finally { await h.close(); }
+});
+
+test("concurrent scope launches keep filesystem roots and host permission signals separate", async () => {
+  const launches = await Promise.all(Array.from({ length: 4 }, (_, index) => captureDaemonRun({ prompt: `scope-${index}` }, {
+    bindings: {
+      env: { TOVU_RUNTIME_MODE: index % 2 === 0 ? "local" : "production", TOVU_AGENT_NATIVE_FALLBACKS: "1", HOME: `/home/scope-${index}` },
+      routeDeps: { workspaceId: index % 2 === 0 ? "site-a" : "site-b", ownerPrincipalId: Promise.resolve("daemon-test-principal"), siteBinding: { dir: `/sites/scope-${index}` } },
+      createToolGapCollector: () => ({ observe() {} }),
+    },
+  })));
+  for (const [index, launch] of launches.entries()) {
+    assert.equal(launch.cwd, `/sites/scope-${index}`);
+    assert.equal(launch.nativeToolAccess, index % 2 === 0);
+    assert.ok(launch.prompt.endsWith(`scope-${index}`));
+  }
+});
+
+test("withdrawing a site releases its finished-run owner retention timers", async t => {
+  const h = await harness();
+  const scheduled = t.mock.method(globalThis, "setTimeout");
+  const cleared = t.mock.method(globalThis, "clearTimeout");
+  try {
+    const site = await h.site(0, "a");
+    const response = await fetch(`${site.base}/api/runs`, { method: "POST",
+      headers: { authorization: `Bearer ${site.token}`, "x-tovu-principal-id": "owner", "content-type": "application/json" },
+      body: JSON.stringify({ contextRef: JSON.stringify({ prompt: "hello", principalId: "owner" }) }),
+    });
+    assert.equal(response.status, 201);
+    const { run } = await response.json() as { run: { id: string } };
+    // The fixture's absent site-tool listener fails preparation before any CLI can launch.
+    await site.scope.lifecycle.waitForTerminal({ runId: run.id }, { signal: AbortSignal.timeout(2_000) });
+    await new Promise<void>(resolve => setImmediate(resolve));
+    const retention = scheduled.mock.calls.filter(call => call.arguments[1] === 24 * 60 * 60 * 1000);
+    assert.equal(retention.length, 1);
+    await site.scope.dispose({}, {});
+    assert.ok(cleared.mock.calls.some(call => call.arguments[0] === retention[0]!.result));
+  } finally { await h.close(); }
+});

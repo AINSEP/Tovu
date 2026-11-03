@@ -1,3 +1,4 @@
+import { daemonSource, daemonStatements } from "./helpers/daemon-source.js";
 import assert from "node:assert/strict";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { readFileSync } from "node:fs";
@@ -29,13 +30,13 @@ import { daemonInitializer, evaluateDaemonExpression, withDaemonLifecycle } from
  * until a terminal event that a dying run never reaches.
  */
 
-const DAEMON_ENTRY_SOURCE = readFileSync(path.join(import.meta.dirname, "../agent-daemon-server.ts"), "utf8");
+const DAEMON_ENTRY_SOURCE = readFileSync(path.join(import.meta.dirname, "../agent-daemon-scope.ts"), "utf8");
 
 /** Execute the real handler's AST with isolated ports; importing the entrypoint would boot a daemon. */
 function sessionHarness(coldStartContext?: string, options: { env?: Record<string, string> } = {}) {
-  const source = ts.createSourceFile("daemon.ts", DAEMON_ENTRY_SOURCE, ts.ScriptTarget.Latest, true);
+  const source = daemonSource;
   let initializer: ts.Expression | undefined;
-  for (const statement of source.statements) {
+  for (const statement of daemonStatements) {
     if (!ts.isVariableStatement(statement)) continue;
     for (const declaration of statement.declarationList.declarations) {
       if (ts.isIdentifier(declaration.name) && declaration.name.text === "onStarted") initializer = declaration.initializer;
@@ -59,7 +60,7 @@ function sessionHarness(coldStartContext?: string, options: { env?: Record<strin
     parseRunStartContextRef: (ref: string) => ({ ...contexts.get(ref), principalId: "principal-1", attachmentIds: [], pluginRefIds: [] }),
     assemblePromptWithPluginPrefix: (prompt: string, prefix: string) => prefix ? `${prefix}\n\n${prompt}` : prompt,
     buildPageContextPromptBlock: () => "",
-    principalByRunId: new Map(), messageAttachmentRefsByRunId: new Map(), durableMessageIdsByRunId: new Map(), runOwners: { record() {} },
+    principalByRunId: new Map(), messageAttachmentRefsByRunId: new Map(), durableMessageIdsByRunId: new Map(), runOwners: { record() {} }, ownerRetentionTimers: new Set(),
     // No live executor in this harness: isolate serialization of the binding, not the live-run gate.
     liveRunTracker: { register() {}, hasConcurrentLiveRun: () => false },
     frontendControl: { bindOnStarted() {} }, customInstructionsCache: { refresh: async () => {} },
@@ -90,7 +91,7 @@ function sessionHarness(coldStartContext?: string, options: { env?: Record<strin
       prompts.push(input.prompt);
       launches.push({ runId: input.runId, cwd: input.cwd, newSessionId: options.newSessionId, resumeSessionId: options.resumeSessionId, stored: bindings.get("conv-1:claude") ?? null });
     } },
-    process: { env: options.env ?? {}, cwd: () => "/repo" }, resolvePermissionMode: () => "default",
+    env: options.env ?? {}, siteId: "test-scope", disposed: false, process: { env: options.env ?? {}, cwd: () => "/repo" }, resolvePermissionMode: () => "default",
     ASSISTANT_DISALLOWED_TOOLS: [], ASSISTANT_SETTING_SOURCES: [],
     resolveAssistantDisallowedTools: () => [], readAssistantCliPermissions: async () => assistantCliPermissions({ enabled: false }),
     resolveFullCliAccess, resolveAssistantCliPermissions, assistantCliPermissions, resolveNativeToolPolicy,

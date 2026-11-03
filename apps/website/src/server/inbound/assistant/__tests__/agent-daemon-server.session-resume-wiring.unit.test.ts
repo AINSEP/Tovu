@@ -34,7 +34,7 @@ import { captureDaemonRun, daemonInitializer, evaluateDaemonExpression } from ".
  * kept passing.
  */
 
-const DAEMON_ENTRY_SOURCE = readFileSync(path.join(import.meta.dirname, "../agent-daemon-server.ts"), "utf8");
+const DAEMON_ENTRY_SOURCE = readFileSync(path.join(import.meta.dirname, "../agent-daemon-scope.ts"), "utf8");
 
 /** Everything from `onStarted`'s own declaration through the end of the file — scopes every
  * assertion below to the handler these bugs actually live in, so a coincidental match elsewhere in

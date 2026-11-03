@@ -15,7 +15,7 @@ import test from "node:test";
  * `agent-daemon-installs-unhandled-rejection-guard.unit.test.ts` for the same reasoning).
  */
 
-const DAEMON_ENTRY_SOURCE = readFileSync(path.join(import.meta.dirname, "../agent-daemon-server.ts"), "utf8");
+const DAEMON_ENTRY_SOURCE = readFileSync(path.join(import.meta.dirname, "../agent-daemon-scope.ts"), "utf8");
 
 /** Code lines only: the file's doc comments name the bypassing factories in prose. */
 const CODE_LINES = DAEMON_ENTRY_SOURCE.split("\n").filter((line) => !/^\s*(\/\/|\*|\/\*)/.test(line));

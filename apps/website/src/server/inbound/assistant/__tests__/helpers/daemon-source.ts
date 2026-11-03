@@ -28,14 +28,24 @@ import { resolveAssistantRuntimeLaunch } from "../../assistant-runtime-guidance.
 import { createAgentSelectionResolver, getAgentDef } from "@jini-ai/agent-runtime";
 import { createTracker } from "@jini-ai/diagnostics/observability/node";
 
-export const daemonSource = ts.createSourceFile(
-  "agent-daemon-server.ts",
-  readFileSync(path.join(import.meta.dirname, "../../agent-daemon-server.ts"), "utf8"),
+const rawSource = ts.createSourceFile(
+  "agent-daemon-scope.ts",
+  readFileSync(path.join(import.meta.dirname, "../../agent-daemon-scope.ts"), "utf8"),
   ts.ScriptTarget.Latest, true, ts.ScriptKind.TS,
 );
 
+// Inspect only the actual factory's unconditional body and its failure-cleanup try block.
+// Arbitrary nested conditionals or dead helpers must never satisfy the wiring assertions.
+const scopeFactory = rawSource.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === "createSiteScope");
+assert.ok(scopeFactory && ts.isFunctionDeclaration(scopeFactory) && scopeFactory.body);
+export const daemonStatements = [
+  ...rawSource.statements.filter(statement => statement !== scopeFactory),
+  ...scopeFactory.body.statements.flatMap(statement => ts.isTryStatement(statement) ? [...statement.tryBlock.statements] : [statement]),
+];
+export const daemonSource = ts.factory.updateSourceFile(rawSource, daemonStatements);
+
 export function daemonInitializer(name: string): ts.Expression {
-  for (const statement of daemonSource.statements) {
+  for (const statement of daemonStatements) {
     if (!ts.isVariableStatement(statement)) continue;
     const declaration = statement.declarationList.declarations.find((entry) => entry.name.getText(daemonSource) === name);
     if (declaration?.initializer) return declaration.initializer;
@@ -50,7 +60,8 @@ export function evaluateDaemonExpression<T>(expression: ts.Node, bindings: Recor
   const code = ts.transpileModule(`return (${expression.getText(daemonSource)});`, {
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None },
   }).outputText;
-  return new Function(...Object.keys(bindings), code)(...Object.values(bindings)) as T;
+  const scopedBindings = { env: { ...process.env }, authEnv: { ...process.env }, siteId: "test-scope", disposed: false, ownerRetentionTimers: new Set(), ...bindings };
+  return new Function(...Object.keys(scopedBindings), code)(...Object.values(scopedBindings)) as T;
 }
 
 /** Run the complete onStarted callback through its async continuation to the executor boundary.
@@ -66,8 +77,10 @@ export async function captureDaemonRun(
   const timer = setTimeout(() => reject(new Error("onStarted did not call the executor")), 1000);
   const fixtureDeps = options.bindings?.routeDeps as { agentSessions?: AgentSessionStore } | undefined;
   const bindings = {
+    env: { ...((options.bindings?.process as { env?: NodeJS.ProcessEnv } | undefined)?.env ?? process.env), HOME: "/home/daemon-test" },
     idlePark: { hold: () => () => {} },
     stagedAttachmentCleanupByRunId: new Map(),
+    ownerRetentionTimers: new Set(),
     captureEarlySession: createEarlySessionCapture({ sessions: fixtureDeps?.agentSessions ?? { getSessionId: async () => null, setSessionId: async () => {}, clearSessionId: async () => {} }, readStart: async () => null }, {}),
     parseRunStartContextRef, buildPageContextPromptBlock, assemblePromptWithPluginPrefix,
     agentCarriesOwnMemory, resolveResumeSessionField, wouldForcedColdStartLoseConversationContext,
@@ -159,7 +172,7 @@ export function withDaemonLifecycle({ lifecycle }: { lifecycle: unknown }, _opti
 
 /** Select only direct statements: a commented-out or unreachable lookalike cannot satisfy a seam. */
 export function daemonFunction(name: string): ts.FunctionDeclaration {
-  const declaration = daemonSource.statements.find((statement) => ts.isFunctionDeclaration(statement) && statement.name?.text === name);
+  const declaration = daemonStatements.find((statement) => ts.isFunctionDeclaration(statement) && statement.name?.text === name);
   assert.ok(declaration && ts.isFunctionDeclaration(declaration), `No module-level function ${name}`);
   return declaration;
 }
@@ -174,5 +187,6 @@ export function evaluateDaemonStatements<T>(statements: readonly ts.Statement[],
   const code = ts.transpileModule(`return (async () => { ${statements.map((statement) => statement.getText(daemonSource)).join("\n")} return (${result}); })();`, {
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None },
   }).outputText;
-  return new Function(...Object.keys(bindings), code)(...Object.values(bindings)) as Promise<T>;
+  const scopedBindings = { env: { ...process.env }, authEnv: { ...process.env }, siteId: "test-scope", disposed: false, ownerRetentionTimers: new Set(), ...bindings };
+  return new Function(...Object.keys(scopedBindings), code)(...Object.values(scopedBindings)) as Promise<T>;
 }

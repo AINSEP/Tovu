@@ -18,7 +18,7 @@ import test, { describe } from "node:test";
  * side effect of being loaded.
  */
 
-const DAEMON_ENTRY_SOURCE = fs.readFileSync(path.join(import.meta.dirname, "../agent-daemon-server.ts"), "utf8");
+const DAEMON_ENTRY_SOURCE = fs.readFileSync(path.join(import.meta.dirname, "../agent-daemon-scope.ts"), "utf8");
 
 test("imports withPageNavigateErrorRewrap directly from the Tovu-side implementation leaf", () => {
   assert.match(

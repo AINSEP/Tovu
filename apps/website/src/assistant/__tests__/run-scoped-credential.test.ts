@@ -1,3 +1,4 @@
+import { daemonSource, daemonStatements } from "../../server/inbound/assistant/__tests__/helpers/daemon-source.js";
 import assert from "node:assert/strict";
 import { once } from "node:events";
 import { readFileSync } from "node:fs";
@@ -574,13 +575,13 @@ test("SCOPE: proxy credentials retain sibling-run access and delegated execution
 });
 
 test("SCOPE: production closes the exemption and binds delegated runId after parsing, before routes", () => {
-  const source = readFileSync(new URL("../../server/inbound/assistant/agent-daemon-server.ts", import.meta.url), "utf8");
-  const parsed = ts.createSourceFile("agent-daemon-server.ts", source, ts.ScriptTarget.Latest, true);
+  const source = readFileSync(new URL("../../server/inbound/assistant/agent-daemon-scope.ts", import.meta.url), "utf8");
+  const parsed = daemonSource;
   const printer = ts.createPrinter({ removeComments: true });
-  const statements = parsed.statements.map((node) => printer.printNode(ts.EmitHint.Unspecified, node, parsed).replace(/\s+/g, " ").trim());
-  const auth = statements.indexOf("app.use(requireAgentDaemonToken({ runScopedCallers: runCredentials }, {}));");
+  const statements = daemonStatements.map((node) => printer.printNode(ts.EmitHint.Unspecified, node, parsed).replace(/\s+/g, " ").trim());
+  const auth = statements.indexOf("app.use(requireAgentDaemonToken({ env: authEnv, runScopedCallers: runCredentials }, {}));");
   const json = statements.indexOf('app.use(express.json({ limit: "6mb" }));');
-  const binding = statements.indexOf("app.post(DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken({ runScopedCallers: runCredentials, validateDelegatedRunId: true }, {}));");
+  const binding = statements.indexOf("app.post(DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken({ env: authEnv, runScopedCallers: runCredentials, validateDelegatedRunId: true }, {}));");
   const route = statements.indexOf("registerDelegatedToolRoutes({ app, deps: delegatedToolRouteDeps, adapter });");
   assert.notEqual(auth, -1, "production must authenticate delegated callers without exemptPaths");
   assert.equal(auth < json && json < binding && binding < route, true,

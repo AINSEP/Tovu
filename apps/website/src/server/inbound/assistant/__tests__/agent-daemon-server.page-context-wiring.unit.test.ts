@@ -16,7 +16,7 @@ import { captureDaemonRun } from "./helpers/daemon-source.js";
  * module opens a real SQLite connection and binds a real port as a side effect of being loaded.
  */
 
-const DAEMON_ENTRY_SOURCE = fs.readFileSync(path.join(import.meta.dirname, "../agent-daemon-server.ts"), "utf8");
+const DAEMON_ENTRY_SOURCE = fs.readFileSync(path.join(import.meta.dirname, "../agent-daemon-scope.ts"), "utf8");
 
 test("the run prompt renders decoded.pageContext directly after the dispatch marker", () => {
   assert.match(

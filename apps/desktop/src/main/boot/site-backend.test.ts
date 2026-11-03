@@ -58,6 +58,21 @@ function harness(overrides: Partial<SiteBackendPorts<FakeServer>> = {}) {
 
 const ctx = { cliMode: "source" as const, registryPath: "/user-data/registry" };
 
+test("attachment preserves the owner's service binding", async () => {
+  const external = fakeServer({ label: "external" });
+  const agentService = { bindServer: () => assert.fail("an attached server must retain its owner's binding") };
+  const h = harness({ attachRunning: () => external, agentService });
+  assert.equal((await h.backend.startSiteBackend({ siteDir: "/sites/dev", ctx })).server, external);
+  assert.deepEqual(h.starts, []);
+});
+
+test("owned spawns receive this instance's shared agent service", async () => {
+  const agentService = { bindServer: () => assert.fail("the actual spawned child is bound by startTovuServer") };
+  const h = harness({ agentService });
+  await h.backend.startSiteBackend({ siteDir: "/sites/a", ctx });
+  assert.equal((h.starts[0] as { agentService: unknown }).agentService, agentService);
+});
+
 test("a spawned site: boot token always emitted, toolchain env merged, then record and session in order", async () => {
   const h = harness();
   const result = await h.backend.startSiteBackend({ siteDir: "/sites/a", ctx }, { port: 4100 });
