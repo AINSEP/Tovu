@@ -76,6 +76,12 @@ const INSTANCE_FILE_PATTERN = /^(\d+)-[0-9a-f]+\.json$/;
  *  ever adopting that instance's file as its own. */
 const OWN_INSTANCE_ID = `${process.pid}-${randomBytes(4).toString("hex")}`;
 
+/** Reuse this launch's existing nonce. No site authority is stored in the discovery record.
+ * The suffix deliberately differs from a site-process row file, so orphan-row readers ignore it. */
+export function agentServiceRegistryPath({ registryDir }: { registryDir: string }, _optional = {}): string {
+  return path.join(registryDir, `${OWN_INSTANCE_ID}.agent-daemon`);
+}
+
 /** SIGTERM-to-SIGKILL window for a reconciled orphan — matches `tovu-server.ts`'s own
  *  `DEFAULT_STOP_GRACE_MS`, the same grace `serve.ts`'s BR-07 drain gets when this app spawned the
  *  child itself this boot. */

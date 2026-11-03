@@ -1,4 +1,5 @@
 import { createServer, type Server } from "node:net";
+import { delegatedAssistantDaemonConnection } from "./assistant-daemon-connection.js";
 
 /**
  * @file Self-contained per-instance agent-daemon origin resolution (2026-08-28 dispatch — daemon
@@ -146,7 +147,7 @@ export function ensureAgentDaemonPortResolved(): Promise<void> {
 
 /** Production entry point — see {@link AgentDaemonOriginResolver.getUrl}. */
 export function getAgentDaemonUrl(): string {
-  return productionResolver.getUrl();
+  return delegatedAssistantDaemonConnection({}, {})?.url ?? productionResolver.getUrl();
 }
 
 /** Production entry point — see {@link AgentDaemonOriginResolver.getPortForSpawnEnv}. */

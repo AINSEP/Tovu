@@ -23,8 +23,9 @@ import { redactLocalText } from "../../website/src/platform/server-logs/redact-l
 import { createRedactedOutputSink } from "../../website/src/platform/server-logs/console-tee.ts";
 import { spawn as nodeSpawn, execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
+import type { DesktopAgentService } from "./desktop-agent-service.ts";
 import { omitEnvironmentKeys } from "@jini-ai/platform/child-environment";
-import type { SpawnOptions } from "node:child_process";
+import type { ChildProcess, SpawnOptions } from "node:child_process";
 import type { Readable, Writable } from "node:stream";
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 
@@ -846,6 +847,8 @@ interface MirrorStreams {
 
 /** Input to {@link startTovuServer}. */
 interface StartTovuServerInput {
+  /** Main's instance-owned daemon. Attached servers keep their original owner's binding. */
+  agentService?: Pick<DesktopAgentService, "bindServer">;
   isPackaged?: boolean;
   productTelemetry?: BuildServeEnvInput['productTelemetry'];
   repoRoot: string;
@@ -945,6 +948,10 @@ async function startTovuServer(input: StartTovuServerInput): Promise<TovuServerH
   });
 
   const serveEnv = buildServeEnv({ repoRoot: input.repoRoot, siteDir: input.siteDir, baseEnv: input.baseEnv, desktopCredential: input.desktopCredential, adminDevProxyUrl: input.adminDevProxyUrl, nodeToolchainEnv: input.nodeToolchainEnv, desktopMcpEnv: input.desktopMcpEnv, productTelemetry: input.productTelemetry, isPackaged: input.isPackaged });
+  if (input.agentService) {
+    delete serveEnv.TOVU_AGENT_DAEMON_TOKEN;
+    delete serveEnv.TOVU_TOOL_EXEC_TOKEN;
+  }
   // Windows has no SIGTERM to send: Stop closes this stdin pipe instead (see `stopChild`).
   const win32 = (input.platform ?? process.platform) === "win32";
   const child = spawnFn(
@@ -952,7 +959,7 @@ async function startTovuServer(input: StartTovuServerInput): Promise<TovuServerH
     plan.args,
     {
       env: win32 ? { ...serveEnv, TOVU_STOP_ON_STDIN_EOF: "1" } : serveEnv,
-      stdio: [win32 ? "pipe" : "ignore", "pipe", "pipe"],
+      stdio: [win32 ? "pipe" : "ignore", "pipe", "pipe", ...(input.agentService ? ["ipc" as const] : [])],
       // Own process group, so `stopChild`'s SIGKILL escalation can reap the agent daemon
       // `tovu serve` spawns rather than just the immediate child. Same reason
       // `development/scripts/dev.mjs` and `daemon-supervisor.ts` both detach.
@@ -962,6 +969,8 @@ async function startTovuServer(input: StartTovuServerInput): Promise<TovuServerH
       windowsHide: true,
     },
   );
+
+  const agentBinding = input.agentService?.bindServer({ child: child as ChildProcess, siteDir: input.siteDir }, {});
 
   const exitSignal = createExitSignal(child);
 
@@ -998,6 +1007,7 @@ async function startTovuServer(input: StartTovuServerInput): Promise<TovuServerH
 
         const boot = parseBootLine(output);
         if (boot === null) return;
+        agentBinding?.setIdentity({ siteId: boot.workspaceId }, {});
         const origin = `http://127.0.0.1:${boot.port}`;
         if (!finish()) return;
         resolve({

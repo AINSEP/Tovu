@@ -181,6 +181,8 @@ import { explainOthersOpen, promptUpdateReady, showDesktopNotice as showNativeNo
 import { desktopPreferencesPath as preferencesPathIn, desktopSettingsMenu, ownServerMenuTemplate } from "./updates/settings-menu.ts";
 import { armFirstProductConsent, createDesktopProductState, initializeDesktopProductTelemetry as initializeProductTelemetryIn } from "./updates/product-telemetry-boot.ts";
 import { createSiteBackend } from "./boot/site-backend.ts";
+import { createDesktopAgentService } from "../desktop-agent-service.ts";
+import { agentServiceRegistryPath } from "../site-process-registry.ts";
 import { createSitePreviewCapture, createPreviewTargetResolver, createListedPreviewRequests, sweepSitePreviewsOnBoot as sweepSitePreviewsOnBootIn, PREVIEW_CAPTURE_DEBOUNCE_MS } from "./boot/site-preview.ts";
 import { reportBootFailure as reportBootFailureIn, buildSelftestTracker as buildSelftestTrackerIn } from "./boot/boot-failure.ts";
 import { resolveStartupSiteDirs as resolveStartupSiteDirsIn, reconcileOrphansOnBoot as reconcileOrphansOnBootIn, bootOwnServerMode as bootOwnServerModeIn } from "./boot/own-server-boot.ts";
@@ -506,7 +508,12 @@ const desktopMcpHttp = createDesktopMcpHttpRuntime({ context: {
 
 /** Spawn-or-attach one site's `tovu serve`, seed its admin session, bind the desktop capability —
  *  see `site-backend.ts`. Shared by own-server windows and sites-home tabs. */
+const desktopAgentService = createDesktopAgentService({
+  repoRoot: PAYLOAD_ROOT, cliMode: resolveCliMode(),
+  registryPath: agentServiceRegistryPath({ registryDir: registryDirPath(app.getPath("userData")) }, {}),
+}, {});
 const siteBackend = createSiteBackend<TovuServerHandle>({ ports: {
+  agentService: desktopAgentService,
   partitionFor: ({ siteDir }) => sitePartition(siteDir),
   attachRunning: ({ siteDir }) => attachRunningSite({ workspace: sharedSites, dir: siteDir }),
   rememberOpen: ({ siteDir }) => rememberSharedSiteOpen({ workspace: sharedSites, dir: siteDir }),
@@ -1007,6 +1014,7 @@ app.on("before-quit", (event) => {
   const stops = [...openSites.values()].map((entry) => entry.server.stop()
     .catch((error) => console.error(`[tovu-desktop] site shutdown failed: ${error.message}`)));
   Promise.all(stops)
+    .then(() => desktopAgentService.shutdown({}, {}))
     .then(() => pendingTeardowns.drain())
     .finally(() => {
       clearTimeout(drainDeadline);

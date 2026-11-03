@@ -6,6 +6,7 @@
  * registry, the shared-sites lease and the clock all arrive as ports. This module does no I/O itself.
  */
 import type { CliMode } from "../../startup-env.ts";
+import type { DesktopAgentService } from "../../desktop-agent-service.ts";
 
 /** The `startTovuServer` / `attachRunningSite` handle fields a site open reads. */
 export interface SiteBackendServer {
@@ -27,6 +28,7 @@ export interface SiteBackendCtx {
 /** What `startTovuServer` is asked for; the composition root adds `isPackaged`, `repoRoot` and the
  *  live product-telemetry launch. */
 export interface SiteServerStartInput {
+  agentService?: Pick<DesktopAgentService, "bindServer">;
   siteDir: string;
   cliMode: CliMode;
   port: number | undefined;
@@ -39,6 +41,8 @@ export interface SiteServerStartInput {
 
 /** Electron, spawn, registry and lease effects, bound once by the composition root. */
 export interface SiteBackendPorts<TServer extends SiteBackendServer> {
+  /** Supplied only on owned spawns, never adopted from an attached server. */
+  agentService?: Pick<DesktopAgentService, "bindServer">;
   /** `desktop-auth.ts`'s `sitePartition`. */
   partitionFor: (required: { siteDir: string }) => string;
   /** `shared-sites.ts`'s `attachRunningSite` against the shared workspace. */
@@ -162,6 +166,7 @@ export function createSiteBackend<TServer extends SiteBackendServer>(
     try {
       server = await ports.startServer({
         siteDir, cliMode: ctx.cliMode, port, emitBootToken: true, adminDevProxyUrl,
+        ...(ports.agentService ? { agentService: ports.agentService } : {}),
         ...(desktopMcpEnv === undefined ? {} : { desktopMcpEnv }),
         nodeToolchainEnv: { ...ports.baseToolchainEnv, ...captureBridge.env, TOVU_RUNNING_APP: "Desktop" },
       });

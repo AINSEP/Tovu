@@ -259,16 +259,20 @@ export function createAssistantAgentInventory(
 }
 
 // Published process-level functions remain compatibility wrappers; native hosts create inventories.
-let defaultInventory = createAssistantAgentInventory({ runtime: createNativeAgentRuntime({ env: process.env }) });
+let defaultInventory: AssistantAgentInventory | undefined;
+/** Compatibility callers share a lazy process inventory; injected daemon scopes never create it. */
+function processInventory(): AssistantAgentInventory {
+  return defaultInventory ??= createAssistantAgentInventory({ runtime: createNativeAgentRuntime({ env: process.env }) });
+}
 export function listDetectedAssistantAgents(input: { force?: boolean } = {}, options = {}): Promise<DetectedAgent[]> {
-  return defaultInventory.listDetectedAssistantAgents(input, options);
+  return processInventory().listDetectedAssistantAgents(input, options);
 }
 export function assistantAgentDiscoveryPending(input = {}, options = {}): boolean {
-  return defaultInventory.assistantAgentDiscoveryPending(input, options);
+  return processInventory().assistantAgentDiscoveryPending(input, options);
 }
 export function listAssistantAgents(input = {}, options: { waitForProbe?: boolean } = {}): Promise<AssistantAgentSummary[]> {
-  return defaultInventory.listAssistantAgents(input, options);
+  return processInventory().listAssistantAgents(input, options);
 }
 export function rescanAssistantAgents(input = {}, options: { waitForProbe?: boolean } = {}): Promise<AssistantAgentSummary[]> {
-  return defaultInventory.rescanAssistantAgents(input, options);
+  return processInventory().rescanAssistantAgents(input, options);
 }

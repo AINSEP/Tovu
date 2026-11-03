@@ -1,3 +1,4 @@
+import { assistantDaemonToken, delegatedAssistantDaemonConnection, type AssistantDaemonConnection } from "../../lifecycle/assistant-daemon-connection.js";
 /**
  * @file The server end of the agent daemon's tool RPC (ADR-070, memory-savings plan §2.3-§2.4): the
  * daemon keeps the run, this process runs the site tools. `POST /internal/tool-executions` and
@@ -22,7 +23,7 @@ import type { AdminChartProviderSnapshot } from "#src/contracts/headless/index";
 import type { ByokToolSurface } from "#src/assistant/index";
 import type { DurableRunHead, DurableRunStore } from "#src/assistant/durable-runs/ports";
 import { durableAttemptOwnsAnswer } from "#src/server/inbound/assistant/run-start-decisions";
-import { AGENT_DAEMON_TOKEN_ENV_VAR, TOOL_EXEC_TOKEN_ENV_VAR, currentToolExecToken } from "#src/assistant/daemon-access";
+import { TOOL_EXEC_TOKEN_ENV_VAR, currentToolExecToken } from "#src/assistant/daemon-access";
 import { parseDaemonCallContext, readDaemonCallContext, runWithDaemonCallContext } from "#src/assistant/daemon-call-context";
 import type { ConversationToolApprovalStore } from "#src/assistant/external-mcp-tool-approval-ports";
 import { createNativeApprovalMemory } from "#src/contracts/core/native-approval-memory";
@@ -43,12 +44,14 @@ import { fetchTextWithTimeout } from "@jini-ai/platform/fetch-with-timeout";
  * @complexity O(payload bytes), bounded to 1 MiB with a five-second transport deadline.
  * @example await publishDaemonPluginEvent({ runId, principalId, payload });
  */
-export async function publishDaemonPluginEvent(required: { runId: string; principalId: string; payload: Record<string, unknown> }, _options = {}): Promise<void> {
-  const token = process.env[AGENT_DAEMON_TOKEN_ENV_VAR];
+export async function publishDaemonPluginEvent(required: { runId: string; principalId: string; payload: Record<string, unknown> },
+  optional: { connection?: Pick<AssistantDaemonConnection, "url" | "token"> } = {},
+): Promise<void> {
+  const token = optional.connection?.token ?? assistantDaemonToken({}, {});
   if (!token) throw new Error("daemon plugin event delivery is unavailable");
   const body = JSON.stringify(required);
   if (Buffer.byteLength(body) > 1024 * 1024) throw new Error("plugin event is too large");
-  const { response } = await fetchTextWithTimeout({ url: new URL("/internal/agent-plugin-events", getAgentDaemonUrl()), timeoutMs: 5_000,
+  const { response } = await fetchTextWithTimeout({ url: new URL(`${optional.connection?.url ?? getAgentDaemonUrl()}/internal/agent-plugin-events`), timeoutMs: 5_000,
     init: { method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, body, redirect: "error" } }, { maxResponseBytes: 1024 });
   if (!response.ok) throw new Error("daemon plugin event delivery was refused");
 }
@@ -56,7 +59,7 @@ export async function publishDaemonPluginEvent(required: { runId: string; princi
 type PluginPreflightPorts = {
   controller: Pick<ReturnType<typeof createAutomaticPluginRuns>, "start" | "forget">;
   pinnedPrefix: (required: { pluginRefIds: readonly string[] }) => Promise<string | null>;
-  emit: (required: { runId: string; principalId: string; payload: Record<string, unknown> }) => Promise<void>;
+  emit: typeof publishDaemonPluginEvent;
   refusalPrefix: () => string;
 };
 
@@ -138,6 +141,9 @@ async function prepareAutomaticSitePlugins({ run, context, pinnedPrefix, plugins
 }, _options = {}): Promise<string | null> {
   if (pinnedPrefix === null) return null;
   const runId = run.runId;
+  // Capture both halves before any controller work can outlive this daemon scope. A late plugin
+  // answer must never be re-authorized with the replacement scope's fresh proxy credential.
+  const connection = delegatedAssistantDaemonConnection({}, {});
   const abort = new AbortController();
   // A dropped preparation request releases this attempt. Durable pending answers can still
   // rejoin their logical turn. Normal response completion leaves the controller live for tools.
@@ -147,7 +153,7 @@ async function prepareAutomaticSitePlugins({ run, context, pinnedPrefix, plugins
     plugins.controller.forget({ runId }, { preservePending: true });
   });
   const emit = async (payload: Record<string, unknown>) => {
-    if (await lookup()) await plugins.emit({ runId, principalId: run.principalId, payload });
+    if (await lookup()) await plugins.emit({ runId, principalId: run.principalId, payload }, connection ? { connection } : {});
   };
   const pluginContext: AutomaticPluginRun = {
     principal: { id: run.principalId }, conversationId: run.conversationId, state: context.agentPluginState,
@@ -230,8 +236,8 @@ function requireSiteToolRun({ runStore, workspaceId, plugins }: {
 
 /** The daemon's attachment store, reached over its lookup route with the daemon token; `undefined` with no token. */
 function defaultDaemonAttachmentLookup(): AttachmentLookup | undefined {
-  const token = process.env[AGENT_DAEMON_TOKEN_ENV_VAR];
-  return token ? createRemoteAttachmentLookup({ baseUrl: getAgentDaemonUrl(), token }) : undefined;
+  const token = assistantDaemonToken({}, {});
+  return token ? createRemoteAttachmentLookup({ baseUrl: getAgentDaemonUrl(), token }, { pathPrefix: new URL(getAgentDaemonUrl()).pathname.replace(/\/$/, "") }) : undefined;
 }
 
 /** The attached refs of the message that started the daemon's run; none outside a daemon call. */

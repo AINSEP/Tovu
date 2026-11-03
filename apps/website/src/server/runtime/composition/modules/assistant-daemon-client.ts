@@ -1,3 +1,4 @@
+import { assistantDaemonToken } from "../../lifecycle/assistant-daemon-connection.js";
 /**
  * @file Shared plumbing for talking to the standalone agent daemon
  * (`src/assistant/agent-daemon-server.ts`) over HTTP — extracted from `assistant.ts` (2026-08-18,
@@ -20,7 +21,7 @@ import { Readable } from "node:stream";
 
 import type { Request, Response } from "express";
 
-import { AGENT_DAEMON_TOKEN_ENV_VAR, RUN_PRINCIPAL_HEADER } from "#src/assistant/index";
+import { RUN_PRINCIPAL_HEADER } from "#src/assistant/index";
 import { ensureAssistantDaemonReady, isAssistantDaemonReady } from "../../lifecycle/daemon-supervisor.js";
 import { fetchWithDaemonParkRecovery } from "../../lifecycle/daemon-demand-fetch.js";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -55,7 +56,7 @@ export { getAgentDaemonUrl } from "../../lifecycle/agent-daemon-port.js";
 export function outboundHeaders(req: Request, res: Response): Record<string, string> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
 
-  const token = process.env[AGENT_DAEMON_TOKEN_ENV_VAR];
+  const token = assistantDaemonToken({}, {});
   if (token) headers.Authorization = `Bearer ${token}`;
 
   // Who the daemon is being asked to act for. The bearer token above says "this is Tovu's proxy";

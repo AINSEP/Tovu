@@ -58,7 +58,7 @@ export function siteSecretSealer(
   siteKeyId: string | undefined = resolveSiteKeyId({ siteDir })
 ): SiteSecretSealer {
   const keyring = new EnvOrFileKeyring({
-    sources: siteKeySources({ mode: resolveRuntimeMode({ env }), env, home: homedir(), cwd: process.cwd(), siteKeyId }),
+    sources: siteKeySources({ mode: resolveRuntimeMode({ env }), env, home: env.HOME ?? env.USERPROFILE ?? homedir(), cwd: env.TOVU_SITE_PROCESS_CWD ?? process.cwd(), siteKeyId }),
   }, { env: () => env });
   return { keyring, sealer: new AesGcmSecretSealer(keyring) };
 }
@@ -123,14 +123,14 @@ export async function sealConnectionStringForNewSite(
  * @throws {StorageSecretError} when the file is missing or malformed, or does not open with this
  *   site's key (a different key, a tampered file).
  */
-export async function readSealedConnectionString(required: { siteDir: string }, optional: { sealer?: SecretSealerPort } = {}): Promise<string> {
+export async function readSealedConnectionString(required: { siteDir: string }, optional: { sealer?: SecretSealerPort; env?: NodeJS.ProcessEnv } = {}): Promise<string> {
   const target = path.join(required.siteDir, STORAGE_SECRET_FILENAME);
   const file = readStorageSecretFile({ target });
   const sealed = file?.sealed;
   if (file?.version !== 1 || typeof sealed?.ciphertext !== "string" || typeof sealed.nonce !== "string") {
     throw new StorageSecretError(`${target} is not a sealed connection string (version 1)`);
   }
-  const sealer = optional.sealer ?? siteSecretSealer(required.siteDir).sealer;
+  const sealer = optional.sealer ?? siteSecretSealer(required.siteDir, optional.env).sealer;
   try {
     return await sealer.open({ sealed }, { aad: STORAGE_SECRET_AAD });
   } catch {
@@ -166,7 +166,7 @@ export async function resolvePostgresConnectionString(
   optional: { env?: NodeJS.ProcessEnv; sealer?: SecretSealerPort } = {}
 ): Promise<string> {
   const { secretRef } = storage;
-  if (secretRef === "site") return readSealedConnectionString(required, { sealer: optional.sealer });
+  if (secretRef === "site") return readSealedConnectionString(required, { sealer: optional.sealer, env: optional.env });
   const value = (optional.env ?? process.env)[secretRef.env];
   if (value === undefined || value.trim() === "") {
     throw new StorageSecretError(`this site reads its Postgres connection string from the environment variable ${secretRef.env}, which is not set`);

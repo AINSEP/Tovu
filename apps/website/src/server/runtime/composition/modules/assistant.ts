@@ -1,3 +1,4 @@
+import { assistantDaemonToken } from "../../lifecycle/assistant-daemon-connection.js";
 import { redactAdminRunContextRef } from "#src/assistant/credential-chat-intake";
 /**
  * @file ADR-049 (process-shape correction) — Tovu never spawns a coding-agent CLI itself. This
@@ -53,7 +54,6 @@ import type { Express, NextFunction, Request, Response } from "express";
 import {
   A2UI_ACTIONS_PATH,
   a2uiNotPendingBody,
-  AGENT_DAEMON_TOKEN_ENV_VAR,
   deliverA2uiAction,
   createLiveModelDiscovery,
   fetchLiveClaudeModels,
@@ -474,7 +474,7 @@ async function forwardAttachmentUpload(req: Request, res: Response, daemon: Daem
   const headers: Record<string, string> = {
     "content-type": req.get("content-type") ?? "application/octet-stream",
   };
-  const token = process.env[AGENT_DAEMON_TOKEN_ENV_VAR];
+  const token = assistantDaemonToken({}, {});
   if (token) headers.Authorization = `Bearer ${token}`;
   // See this function's own doc: not for run ownership (no run exists yet), but so the daemon can
   // record who this attachment belongs to.

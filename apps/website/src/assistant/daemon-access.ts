@@ -39,11 +39,11 @@ const toolExecTokenHolder: NodeJS.ProcessEnv = {};
  * Mints the per-boot tool RPC token once, adopting (and removing from `env`) an operator-set value.
  * @returns The token, the same for the life of this process.
  */
-export function ensureToolExecToken({ env = process.env }: { env?: NodeJS.ProcessEnv }, optional = {}): string {
+export function ensureToolExecToken({ env = process.env, holder = toolExecTokenHolder }: { env?: NodeJS.ProcessEnv; holder?: NodeJS.ProcessEnv }, optional = {}): string {
   const operatorToken = env[TOOL_EXEC_TOKEN_ENV_VAR];
   delete env[TOOL_EXEC_TOKEN_ENV_VAR];
-  if (operatorToken && !toolExecTokenHolder[TOOL_EXEC_TOKEN_ENV_VAR]) toolExecTokenHolder[TOOL_EXEC_TOKEN_ENV_VAR] = operatorToken;
-  return ensureDaemonToken({ env: toolExecTokenHolder, envVarName: TOOL_EXEC_TOKEN_ENV_VAR, crypto }, optional);
+  if (operatorToken && !holder[TOOL_EXEC_TOKEN_ENV_VAR]) holder[TOOL_EXEC_TOKEN_ENV_VAR] = operatorToken;
+  return ensureDaemonToken({ env: holder, envVarName: TOOL_EXEC_TOKEN_ENV_VAR, crypto }, optional);
 }
 /** The minted tool RPC token, or `undefined` before {@link ensureToolExecToken} ran. */
 export function currentToolExecToken(_required = {}, _optional = {}): string | undefined {

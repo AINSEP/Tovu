@@ -23,7 +23,10 @@ import {
   createNodeDaemonProcessAdapter,
   createNodeSupervisorScheduler,
   type NodeDaemonProcessOptions,
+  createNodeIpcChannel,
+  type NodeIpcPeer,
 } from "@jini-ai/sidecar/supervisor/node";
+import { daemonConnection, daemonControlRequest, delegatedAssistantDaemonConnection, resetAssistantDaemonConnectionForTests, setAssistantDaemonConnection } from "./assistant-daemon-connection.js";
 import { createDaemonSupervisor as createSidecarSupervisor } from "@jini-ai/sidecar/supervisor";
 import type { DaemonSupervisorRequired, DaemonSupervisorState, SpawnedDaemonProcess as SidecarDaemonProcess, SupervisorScheduler } from "@jini-ai/sidecar/supervisor";
 import path from "node:path";
@@ -455,6 +458,7 @@ export function createRealDaemonProcessPorts(input: DaemonSpawnEnvInput, optiona
 // Module-singleton wrapper: the only place in this file that touches real process.on.
 // Boot registers without spawning; restart and demand callers share the readiness-gated lifecycle.
 let singleton: DaemonSupervisor | undefined;
+let delegated: { ready(): Promise<void>; isReady(): boolean; parking(pid: number): void; stop(): Promise<void> } | undefined;
 let prepareStart: (() => Promise<void>) | undefined;
 // The package owns termination; this host only retains its completion for site-store teardown.
 let daemonStopWork: Promise<void> = Promise.resolve();
@@ -479,9 +483,13 @@ export function resetAssistantDaemonSingletonForTests(): void {
   prepareStart = undefined;
   shutdownRequested = false;
   daemonStopWork = Promise.resolve();
+  delegated = undefined;
+  resetAssistantDaemonConnectionForTests({}, {});
 }
 
 export interface StartAssistantDaemonOptions {
+  /** Default: the inherited channel when present. False is the existing local fallback path. */
+  parentIpc?: NodeIpcPeer | false;
   /** Await API-owned seeders and eligibility before the first demand starts a child. */
   beforeStart?: () => Promise<void>;
   readDiscovery?: () => Promise<{ pid: number; url: string } | null>;
@@ -515,6 +523,64 @@ export interface StartAssistantDaemonOptions {
   nativeSpawn?: NodeDaemonProcessOptions["spawn"];
 }
 
+/** Bind one site's inherited parent channel; local supervision remains the fallback owner.
+ * @complexity O(e) configuration snapshot and O(1) bounded/single-flight control work.
+ */
+function registerDelegatedDaemon({ input, parent }: {
+  input: { workspaceId: string; siteDir: string; pgSocketPath?: string; siteApiOrigin?: string }; parent: NodeIpcPeer;
+}, options: StartAssistantDaemonOptions = {}): void {
+  let ready = false;
+  const channel = createNodeIpcChannel({ peer: parent }, { handle: async payload => {
+    const notice = daemonControlRequest.parse(payload);
+    if (notice.operation !== "unavailable") throw new Error("unexpected desktop notice");
+    if (delegatedAssistantDaemonConnection({}, {})?.pid === notice.pid) ready = false;
+    return {};
+  } });
+  let pending: Promise<void> | undefined;
+  const config = { siteId: input.workspaceId, token: currentToolExecToken(), env: {
+    ...process.env, TOVU_SITE_DIR: input.siteDir, TOVU_WORKSPACE: input.workspaceId,
+    TOVU_SITE_LISTENER_ORIGIN: input.siteApiOrigin, TOVU_SITE_PROCESS_CWD: process.cwd(),
+    ...(input.pgSocketPath ? { TOVU_PG_SOCKET: input.pgSocketPath } : {}),
+  } };
+  // The private credential is a separate IPC field, never inherited by a later CLI child.
+  delete config.env[TOOL_EXEC_TOKEN_ENV_VAR];
+  delegated = {
+    ready() {
+      return pending ??= (async () => {
+        await options.beforeStart?.();
+        if (!config.token) throw new Error("site tool credential is unavailable");
+        try {
+          const connection = daemonConnection.parse(await channel.request({ payload: { operation: "register", ...config } }, {}));
+          if (shutdownRequested) throw new Error("shutting down");
+          setAssistantDaemonConnection({ connection }, {}); ready = true;
+          clearAssistantDaemonFailure();
+        } catch (error) {
+          if (!(error instanceof Error) || !/^IPC (disconnected|request timed out|send failed)$/.test(error.message)) throw error;
+          console.warn("[daemon-supervisor] desktop connection lost; using local agent supervision");
+          channel.dispose({}); delegated = undefined;
+          setAssistantDaemonConnection({ connection: undefined }, {});
+          startAssistantDaemon(input, { ...options, parentIpc: false, registerProcessSignalHandlers: false });
+          await ensureAssistantDaemonReady({}, {});
+        }
+      })().finally(() => { pending = undefined; });
+    },
+    isReady: () => ready && parent.connected === true,
+    parking(pid) {
+      ready = false;
+      void channel.request({ payload: { operation: "parking", pid } }, {}).catch(() => {});
+    },
+    async stop() {
+      ready = false;
+      try { await channel.request({ payload: { operation: "withdraw", siteId: input.workspaceId } }, {}); }
+      finally { channel.dispose({}); setAssistantDaemonConnection({ connection: undefined }, {}); }
+    },
+  };
+  if (options.registerProcessSignalHandlers !== false) {
+    for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"] as const) process.on(signal, () => { void shutdownAssistantDaemon().finally(() => process.exit(0)); });
+  }
+
+}
+
 /**
  * Register the assistant daemon supervisor without spawning for this process boot. Safe to call only once — a second
  * call is ignored (logged, not thrown) rather than silently spawning a second supervisor that
@@ -529,8 +595,14 @@ export function startAssistantDaemon(
     return;
   }
 
-  if (singleton !== undefined) {
+  if (singleton !== undefined || delegated !== undefined) {
     console.error("[daemon-supervisor] startAssistantDaemon called more than once this process boot — ignoring");
+    return;
+  }
+
+  const parent = options.parentIpc ?? (process.send ? process : false);
+  if (parent) {
+    registerDelegatedDaemon({ input, parent }, options);
     return;
   }
 
@@ -595,6 +667,7 @@ export function shutdownAssistantDaemon(): Promise<void> {
   // Set unconditionally, BEFORE the `singleton?.shutdown()` no-op-when-absent check below — see
   // `shutdownRequested`'s own doc for why this must latch even when no supervisor exists yet.
   shutdownRequested = true;
+  if (delegated) return delegated.stop().catch(() => console.warn("[daemon-supervisor] desktop scope withdrawal unavailable"));
   singleton?.shutdown();
   return daemonStopWork;
 }
@@ -608,6 +681,7 @@ export type RestartAssistantDaemonResult = DaemonSupervisorActionResult;
  * shutting down; see `DaemonSupervisor.restart()`'s own doc for why that second case must refuse).
  */
 export function restartAssistantDaemon(): RestartAssistantDaemonResult {
+  if (delegated) return ensureAssistantDaemonStarted();
   if (singleton === undefined) {
     return { ok: false, reason: "the assistant daemon was never started this process boot" };
   }
@@ -628,6 +702,10 @@ export type EnsureAssistantDaemonStartedResult = DaemonSupervisorActionResult;
  * just the first one.
  */
 export function ensureAssistantDaemonStarted(): EnsureAssistantDaemonStartedResult {
+  if (delegated && !shutdownRequested) {
+    void delegated.ready().catch((error: unknown) => recordAssistantDaemonFailure(String(error)));
+    return { ok: true };
+  }
   if (singleton === undefined) {
     return { ok: false, reason: "the assistant daemon was never started this process boot" };
   }
@@ -646,6 +724,7 @@ export async function ensureAssistantDaemonReady(
 ): Promise<void> {
   signal?.throwIfAborted();
   if (shutdownRequested) throw new Error("shutting down");
+  if (delegated) { await delegated.ready(); return; }
   if (!singleton) throw new Error("the assistant daemon lifecycle is not configured");
   await prepareStart?.();
   signal?.throwIfAborted();
@@ -656,12 +735,13 @@ export async function ensureAssistantDaemonReady(
 
 /** Passive observers never call ensureStarted: cold page streams and saved roster changes stay cold. */
 export function isAssistantDaemonReady(): boolean {
-  return singleton?.isReady() ?? false;
+  return delegated?.isReady() ?? singleton?.isReady() ?? false;
 }
 
 /** A pre-dispatch park refusal fences stale readiness. Jini waits for the old child's exit;
  * concurrent demand shares its one replacement instead of colliding with the retiring listener.
  * @complexity O(1). No signal or process kill; graceful teardown is already running in the child. */
 export function noteAssistantDaemonParking(required: { pid: number }, _optional = {}): void {
+  delegated?.parking(required.pid);
   singleton?.markParking(required, {});
 }

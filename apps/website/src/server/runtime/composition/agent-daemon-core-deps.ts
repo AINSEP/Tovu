@@ -66,6 +66,7 @@ export async function createAgentDaemonCoreDeps(required: { env: NodeJS.ProcessE
   const site = createDaemonCoreClient({ baseUrl: env.TOVU_SITE_LISTENER_ORIGIN ?? "", token }, { fetch: optional.fetch });
   const snapshot = await site.bootstrap();
   if (env.TOVU_WORKSPACE && env.TOVU_WORKSPACE !== snapshot.workspaceId) throw new DaemonCoreError({ reason: "the daemon workspace does not match its site server" });
+  if (env.TOVU_SITE_DIR && path.resolve(env.TOVU_SITE_DIR) !== path.resolve(snapshot.siteBinding.dir)) throw new DaemonCoreError({ reason: "the daemon directory does not match its site server" });
   const client = await openRetainedClient({ env, snapshot }, optional);
   let closing: Promise<void> | undefined;
   /** Telemetry failure cannot leave a borrowed DB connection alive. Idempotence shares the drain. */
@@ -110,6 +111,6 @@ async function openRetainedClient({ env, snapshot }: { env: NodeJS.ProcessEnv; s
   const dbPath = optional.dbPath ?? snapshot.siteStoragePaths.contentDbPath;
   return (optional.openClient ?? openSiteDbClient)({
     storage: optional.storage ?? resolveSiteStorage(snapshot.siteBinding.dir), dbPath, chatDbPath: path.join(path.dirname(dbPath), "chat.db"),
-    resolvePostgresConnectionString: optional.resolvePostgresConnectionString ?? resolvePostgresConnectionString,
+    resolvePostgresConnectionString: optional.resolvePostgresConnectionString ?? ((storage, required) => resolvePostgresConnectionString(storage, required, { env })),
   }, { env, importDriver: optional.importDriver });
 }

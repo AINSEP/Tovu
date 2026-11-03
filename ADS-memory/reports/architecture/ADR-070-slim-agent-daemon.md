@@ -1,6 +1,7 @@
 # ADR-070: The agent daemon is a slim, on-demand process; site tools run in the server
 
-- Status: Proposed (flip to Accepted when W3-C lands; record parking when W5-E1 lands)
+- Status: Accepted; desktop placement amended by the approved lane-a review (2026-11-03).
+  Shared desktop activation/acceptance still requires coordinator wiring and cloud validation.
 - Date: 2026-10-26
 - Amends: ADR-049 (the architecture correction recorded in `agent-daemon-server.ts:24–41`,
   "tool execution could not be split off"). ADR-049's process split and Decision 2 (gated Jini
@@ -29,11 +30,23 @@ identical gated tool surface for BYOK chat. Most sites are idle most of the time
 7. The daemon starts on first chat use and exits after N idle minutes (default 15, 0 = never).
    Passive streams do not hold it awake; every active run, pending approval and in-flight tool
    call does. The supervisor treats the park exit code as "parked", not a crash.
+8. A desktop instance supervises one shared slim daemon, with a private scope per authenticated
+   server workspace. Each scope keeps the existing composition, credential/ownership middleware,
+   leaf DB client, runtime/inventory, settings, attachments, events and run maps. Explicit copied
+   environments and site credentials arrive only through inherited native child IPC; the shared
+   child environment/argv and per-instance discovery record contain no site credentials. A URL
+   prefix names only a routing candidate: that scope's own existing auth must pass before effects.
+   Standalone serve and a disconnected desktop server's local fallback use the same scope factory.
+   Jini's supervisor, Node adapter and atomic registry remain the process lifecycle owners.
 
 ## Consequences
 + ~95–115 MB less per site while chatting; ~174 MB less while parked; tools no longer duplicated.
 + One gate, one audit trail, one federation per site.
-− A server restart still ends the daemon; runs resume through durable recovery, not live survival.
+− A desktop server restart withdraws/drains that site's scope and ends its runs. Other sites keep
+  using the same process. Standalone restarts still end their local daemon. Interrupted runs use
+  durable recovery and fencing, never automatic replay of a possibly dispatched mutation.
+− Attached desktop instances retain the owning server's binding. Automatic takeover after owner
+  exit is deliberately deferred by the lane-a review; it is not an implemented acceptance gate.
 − Heavy tools share the server event loop (already true for BYOK).
 − First chat after a park pays a 1–3 s (compiled) wake, mostly hidden by the chat-open pre-warm.
 
@@ -43,5 +56,5 @@ The daemon entry must not statically import `composition/deps.ts`, `composition/
 `agent-daemon-import-graph.unit.test.ts`.
 
 ## Re-evaluation triggers
-Daemon idle footprint > 80 MB after the lean cut; multi-site desktops routinely chatting on 3+
-sites at once (revisit a shared daemon); a need for runs to survive server restarts.
+Daemon idle footprint > 80 MB after the lean cut; shared crash impact or scope-isolation failures;
+a need for runs to survive server restarts or automatic hosting takeover after owner exit.
