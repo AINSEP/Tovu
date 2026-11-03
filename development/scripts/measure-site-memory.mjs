@@ -30,7 +30,22 @@
  *    `NODE_OPTIONS=--inspect=127.0.0.1:0`; its inspector port is found with `lsof`.
  * 6. Kills every process it started by pid, checks their ports are closed, deletes the temp dir.
  *
- * Prints one JSON object on stdout (MB values); progress goes to stderr. macOS only.
+ * Attach-only desktop mode (macOS/Windows; never copies, launches, compiles, GCs or stops targets):
+ *   node development/scripts/measure-site-memory.mjs --mode desktop --attach desktop.json
+ *     --workload idle-after-use|chatting
+ * Run once during each real workload. The manifest names app/site roots and every identified PID:
+ *   { "groups": [{ "name": "app", "rootPids": [123] }],
+ *     "processes": [{ "pid": 123, "family": "main", "budgetMiB": 100 }] }
+ * The budget above illustrates the schema, not a proposed main-process limit. Supply measured
+ * budgets per PID (including each CLI/helper); all descendants are discovered and require metadata.
+ * Include detached servers/daemons/helpers as roots or process entries. Use families main, GPU,
+ * network, shell-renderer, site-guest, server, daemon, cli and mcp-helper as appropriate; mark a
+ * warm slim daemon `warm-slim-daemon` to enforce W3-C's <=80 MiB gate. No command lines are emitted.
+ * Missing PIDs/readings/metadata or a changing tree null the total and fail the run; budget overruns
+ * also exit 1. Re-run a changing sample; the harness never freezes or stops target processes.
+ *
+ * Prints one JSON object on stdout (site mode: MiB; desktop: primary bytes plus MiB budgets).
+ * Progress goes to stderr. The original site mode is macOS only.
  * Run one measurement at a time, never during a test batch, and never against a site in use
  * without reason: the copy is read-only for the source, but it does read the whole site.
  */
@@ -42,6 +57,9 @@ import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { collectProcessTreePids, listProcessSnapshots, listProcessUsage, parseProcessFootprint as parseFootprint, sampleProcessPrivateMemory } from "@jini-ai/platform/process";
+
+export { parseFootprint };
 
 import { deriveDistImports } from "./emit-dist-package-json.mjs";
 
@@ -62,12 +80,13 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const log = (message) => process.stderr.write(`measure-site-memory: ${message}\n`);
 const toMb = (bytes) => (bytes === null ? null : Math.round((bytes / MB) * 10) / 10);
 
-/** `--site <dir> --mode compiled|tsx [--idle-seconds N] [--idle-minutes N] [--expect-daemon running|parked]` → options. */
+/** Parse the existing site options or `--mode desktop --attach <manifest> --workload <name>`. */
 export function parseArgs({ argv }, _options = {}) {
   const options = { site: null, mode: null, idleSeconds: 240, idleMinutes: null, expectDaemon: null };
   const flags = { "--site": (v) => { options.site = path.resolve(v); }, "--mode": (v) => { options.mode = v; },
     "--idle-seconds": (v) => { options.idleSeconds = Number(v); }, "--idle-minutes": (v) => { options.idleMinutes = Number(v); },
-    "--expect-daemon": (v) => { options.expectDaemon = v; } };
+    "--expect-daemon": (v) => { options.expectDaemon = v; }, "--attach": (v) => { options.attach = path.resolve(v); },
+    "--workload": (v) => { options.workload = v; } };
   for (let i = 0; i < argv.length; i += 2) {
     const apply = flags[argv[i]];
     if (!apply || argv[i + 1] === undefined) throw new Error(`unknown option or missing value: ${argv[i]}`);
@@ -78,6 +97,13 @@ export function parseArgs({ argv }, _options = {}) {
 
 /** Validate parsed options and fill `expectDaemon`'s default. */
 function checkOptions({ options }) {
+  if (options.mode === "desktop") return checkDesktopOptions({ options });
+  if (options.attach || options.workload) throw new Error("--attach and --workload require --mode desktop");
+  return checkSiteOptions({ options });
+}
+
+/** Validate the existing launched-site workload and derive the expected park state. */
+function checkSiteOptions({ options }) {
   if (!options.site || !["compiled", "tsx"].includes(options.mode)) throw new Error("usage: --site <dir> --mode compiled|tsx [--idle-seconds N] [--idle-minutes N] [--expect-daemon running|parked]");
   if (!Number.isFinite(options.idleSeconds) || options.idleSeconds < 0) throw new Error("--idle-seconds must be a number ≥ 0");
   // A park phase waits past the idle limit, so the daemon should have exited by the time we sample.
@@ -86,27 +112,23 @@ function checkOptions({ options }) {
   return options;
 }
 
-/** `footprint -p` → bytes, or `null` when the process is gone. Parses "Footprint: 187 MB". */
-export function parseFootprint({ text }, _options = {}) {
-  const match = /Footprint:\s+([\d.]+)\s+(B|KB|MB|GB)\b/.exec(text);
-  if (!match) return null;
-  return Number(match[1]) * { B: 1, KB: 1024, MB, GB: 1024 * MB }[match[2]];
+/** Desktop workload state is prepared by the operator; site lifecycle flags do not apply. */
+function checkDesktopOptions({ options }) {
+  if (!options.attach || !["idle-after-use", "chatting"].includes(options.workload)) throw new Error("desktop usage: --mode desktop --attach <manifest.json> --workload idle-after-use|chatting");
+  if (options.site || options.idleMinutes !== null || options.expectDaemon !== null) throw new Error("desktop mode accepts only attach and workload options");
+  return options;
 }
 
-function footprintBytes({ pid }) {
-  try { return parseFootprint({ text: execFileSync("footprint", ["-p", String(pid)], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }) }); } catch { return null; }
+/** Site-mode adapter over the same bounded OS reader as desktop mode. */
+async function footprintBytes({ pid }) {
+  const sample = await sampleProcessPrivateMemory({ pids: [pid] });
+  return sample.readings[0]?.bytes ?? null;
 }
 
-/** Every live process in `rootPid`'s tree (pid, ppid, executable name). `ps` argv only, never env. */
-function listTree({ rootPid }) {
-  const rows = execFileSync("ps", ["-A", "-o", "pid=,ppid=,comm="], { encoding: "utf8" }).split("\n")
-    .map((line) => line.trim().match(/^(\d+)\s+(\d+)\s+(.*)$/)).filter(Boolean)
-    .map(([, pid, ppid, comm]) => ({ pid: Number(pid), ppid: Number(ppid), name: path.basename(comm) }));
-  const inTree = new Set([rootPid]);
-  for (let grew = true; grew;) {
-    grew = false;
-    for (const row of rows) if (!inTree.has(row.pid) && inTree.has(row.ppid)) { inTree.add(row.pid); grew = true; }
-  }
+/** Every live process in `rootPid`'s tree; Jini owns traversal and bounded OS enumeration. */
+async function listTree({ rootPid }) {
+  const rows = (await listProcessSnapshots({}, { commandLines: false })).map((row) => ({ ...row, name: path.basename(row.command) }));
+  const inTree = new Set(collectProcessTreePids(rows, [rootPid]));
   return rows.filter((row) => inTree.has(row.pid));
 }
 
@@ -120,8 +142,8 @@ function roleOf({ pid, rootPid, name }) {
 }
 
 /** The server's tree with each process's role: the real `listProcesses` port of `measureTree`. */
-function listProcesses({ rootPid }) {
-  return listTree({ rootPid }).map((row) => ({ pid: row.pid, name: row.name, role: roleOf({ ...row, rootPid }) }));
+async function listProcesses({ rootPid }) {
+  return (await listTree({ rootPid })).map((row) => ({ pid: row.pid, name: row.name, role: roleOf({ ...row, rootPid }) }));
 }
 
 function listeningPorts({ pid }) {
@@ -183,7 +205,7 @@ async function moduleCount({ cdp }) {
 
 /** Natural numbers for one process, then a forced GC; the after-GC read happens once all have settled. */
 async function measureNatural({ process: proc, ports }) {
-  const footprintNatural = toMb(ports.readFootprint({ pid: proc.pid }));
+  const footprintNatural = toMb(await ports.readFootprint({ pid: proc.pid }));
   const url = await ports.inspectorUrl({ pid: proc.pid });
   if (!url) return { ...proc, cdp: null, footprint: { natural: footprintNatural }, heap: null, modules: null };
   const cdp = await openCdp({ url });
@@ -195,7 +217,7 @@ async function measureNatural({ process: proc, ports }) {
 
 async function measureAfterGc({ sample, ports }) {
   const { cdp, ...rest } = sample;
-  const footprint = { ...rest.footprint, afterGc: toMb(ports.readFootprint({ pid: rest.pid })) };
+  const footprint = { ...rest.footprint, afterGc: toMb(await ports.readFootprint({ pid: rest.pid })) };
   if (!cdp) return { ...rest, footprint };
   const afterGc = await memoryUsage({ cdp });
   cdp.close();
@@ -218,7 +240,7 @@ const REAL_TREE_PORTS = { listProcesses, readFootprint: footprintBytes, inspecto
  */
 export async function measureTree({ rootPid, expectDaemon }, optional = {}) {
   const ports = { ...REAL_TREE_PORTS, ...optional };
-  const processes = ports.listProcesses({ rootPid });
+  const processes = await ports.listProcesses({ rootPid });
   assertSampleable({ processes, rootPid, expectDaemon });
   const samples = [];
   for (const proc of processes) samples.push(await measureNatural({ process: proc, ports }));
@@ -228,6 +250,103 @@ export async function measureTree({ rootPid, expectDaemon }, optional = {}) {
   const missing = measured.flatMap((row) => ["natural", "afterGc"].filter((key) => row.footprint[key] === null).map((key) => `${row.role} ${row.pid} footprint.${key}`));
   const total = (key) => (missing.length > 0 ? null : Math.round(measured.reduce((sum, row) => sum + row.footprint[key], 0) * 10) / 10);
   return { complete: missing.length === 0, missing, processCount: measured.length, totalFootprint: { natural: total("natural"), afterGc: total("afterGc") }, processes: measured };
+}
+
+const validPid = (pid) => Number.isSafeInteger(pid) && pid > 0;
+const validBudget = (budget) => Number.isFinite(budget) && budget > 0;
+
+function checkDesktopGroup(group) {
+  if (typeof group?.name !== "string" || !group.name.trim()) throw new Error("desktop groups require a name");
+  if (!Array.isArray(group.rootPids) || !group.rootPids.length || !group.rootPids.every(validPid)) throw new Error("desktop groups require positive rootPids");
+}
+
+/** Validate operator-provided identities; budgets/classification may be absent for a discovery run. */
+function checkDesktopManifest({ groups, processes, workload }) {
+  if (!["idle-after-use", "chatting"].includes(workload)) throw new Error("desktop workload must be idle-after-use or chatting");
+  if (!Array.isArray(groups) || !groups.length) throw new Error("desktop groups must contain app/site roots");
+  groups.forEach(checkDesktopGroup);
+  if (!Array.isArray(processes) || !processes.every((row) => validPid(row?.pid))) throw new Error("desktop processes require positive PIDs");
+  if (new Set(processes.map((row) => row.pid)).size !== processes.length) throw new Error("duplicate desktop PID metadata");
+}
+
+function desktopBudget({ family, budgetMiB }) {
+  if (family === "warm-slim-daemon") return Math.min(budgetMiB ?? 80, 80);
+  return budgetMiB;
+}
+
+/** Attach-only row: never infer an identity or turn RSS into the primary memory reading. */
+function desktopRow({ pid, snapshots, usage, metadata, memberships, readings }) {
+  const { family = null, budgetMiB = null } = metadata.get(pid) ?? {};
+  const { ppid = null, command = "" } = snapshots.get(pid) ?? {};
+  const { name = command, rssBytes = null } = usage.get(pid) ?? {};
+  const bytes = readings.get(pid);
+  return { pid, ppid, name, family,
+    groups: memberships.filter((group) => group.pids.has(pid)).map((group) => group.name),
+    primaryBytes: Number.isFinite(bytes) && bytes >= 0 ? bytes : null, rssBytes,
+    budgetMiB: desktopBudget({ family, budgetMiB }),
+  };
+}
+
+/** Null aggregate budgets/readings when a member is unavailable; planning targets are never gates. */
+function desktopFamilyBudgets({ processes }) {
+  const families = new Map();
+  for (const row of processes) {
+    const family = families.get(row.family) ?? { family: row.family, budgetMiB: 0, primaryBytes: 0 };
+    family.budgetMiB = validBudget(row.budgetMiB) && family.budgetMiB !== null ? family.budgetMiB + row.budgetMiB : null;
+    family.primaryBytes = row.primaryBytes !== null && family.primaryBytes !== null ? family.primaryBytes + row.primaryBytes : null;
+    families.set(row.family, family);
+  }
+  return [...families.values()];
+}
+
+/**
+ * Sample the union of app/site trees and explicitly identified detached PIDs. Unknown descendants,
+ * absent expected PIDs, missing budgets and unreadable primary data make complete=false and total=null.
+ * A second identity snapshot rejects churn during sampling. Ports only enumerate and sample;
+ * this path owns no target lifecycle, inspector or GC connection.
+ * @example await measureDesktop({ ...manifest, workload: "chatting" })
+ * @complexity Bounded identity/usage snapshots plus one private-memory sample; tree traversal is delegated
+ * to Jini for each group and the union. Sequential footprint probes are capped at 512 unique PIDs.
+ */
+export async function measureDesktop(input, optional = {}) {
+  checkDesktopManifest(input);
+  const ports = { listSnapshots: listProcessSnapshots, listUsage: listProcessUsage, sampleMemory: sampleProcessPrivateMemory, platform: process.platform, ...optional };
+  const identities = await ports.listSnapshots({ platform: ports.platform }, { commandLines: false });
+  const usages = await ports.listUsage({ platform: ports.platform });
+  const metadata = new Map(input.processes.map((row) => [row.pid, row]));
+  const roots = [...input.groups.flatMap((group) => group.rootPids), ...metadata.keys()];
+  const pids = collectProcessTreePids(identities, roots);
+  const sample = await ports.sampleMemory({ pids, platform: ports.platform });
+  const after = await ports.listSnapshots({ platform: ports.platform }, { commandLines: false });
+  const allIdentities = [...identities, ...after];
+  const memberships = input.groups.map((group) => ({ name: group.name, pids: new Set(collectProcessTreePids(allIdentities, group.rootPids)) }));
+  const allPids = [...new Set([...pids, ...collectProcessTreePids(after, roots)])];
+  const liveBefore = new Set(identities.map((row) => row.pid));
+  const liveAfter = new Set(after.map((row) => row.pid));
+  const usage = new Map(usages.map((row) => [row.pid, row]));
+  const snapshots = new Map(allIdentities.map((row) => [row.pid, row]));
+  const readings = new Map(sample.readings.map((row) => [row.pid, row.bytes]));
+  const processes = allPids.map((pid) => desktopRow({ pid, snapshots, usage, metadata, memberships, readings }));
+  const missing = processes.flatMap((row) => {
+    const reasons = [];
+    if (!liveBefore.has(row.pid) || !liveAfter.has(row.pid)) reasons.push(`${row.pid} not in both live snapshots`);
+    if (row.primaryBytes === null) reasons.push(`${row.pid} ${sample.metric} unreadable`);
+    if (typeof row.family !== "string" || !row.family.trim() || !validBudget(row.budgetMiB)) reasons.push(`${row.pid} family/budget unavailable`);
+    return reasons;
+  });
+  return { mode: "desktop", workload: input.workload, metric: sample.metric, complete: missing.length === 0, missing,
+    duplicatePidCount: processes.length - new Set(processes.map((row) => row.pid)).size, processCount: processes.length,
+    totalPrimaryBytes: missing.length ? null : processes.reduce((sum, row) => sum + row.primaryBytes, 0), processes,
+    withinBudgets: missing.length ? null : processes.every((row) => row.primaryBytes <= row.budgetMiB * MB),
+    budgets: { families: desktopFamilyBudgets({ processes }) },
+    gatesMiB: { warmSlimDaemon: 80 }, planningTargetsMiB: { sharedElectron: [600, 900], server: [180, 300], guest: [250, 450] } };
+}
+
+/** Dispatch before entering the site lifecycle; attach cannot reach copy/build/GC/cleanup code. */
+export async function runMeasurement({ options }, optional = {}) {
+  const ports = { measureSite, measureDesktop, readManifest: ({ file }) => JSON.parse(fs.readFileSync(file, "utf8")), ...optional };
+  if (options.mode === "desktop") return ports.measureDesktop({ ...ports.readManifest({ file: options.attach }), workload: options.workload });
+  return ports.measureSite(options);
 }
 
 function walkFiles({ dir }, { skipDir = () => false } = {}) {
@@ -371,16 +490,16 @@ async function launch({ temp, options, started }) {
 }
 
 /** Add every process now in the server's tree, and the ports it listens on, to what must be stopped. */
-function recordTree({ started }) {
+async function recordTree({ started }) {
   if (started.root === null) return;
-  for (const row of listTree({ rootPid: started.root })) {
+  for (const row of await listTree({ rootPid: started.root })) {
     started.pids.add(row.pid);
     for (const port of listeningPorts({ pid: row.pid })) started.ports.add(port);
   }
 }
 
 async function cleanUp({ temp, started }) {
-  recordTree({ started });
+  await recordTree({ started });
   const stopped = await stopAll({ pids: [...started.pids], ports: [...started.ports] });
   if (stopped.survivors.length > 0 || stopped.stillListening.length > 0) {
     log(`WARNING: survivors [${stopped.survivors.join(",")}], ports still listening [${stopped.stillListening.join(",")}]`);
@@ -395,7 +514,7 @@ async function measureSite(options) {
   try {
     const child = await launch({ temp, options, started });
     await sleep(options.idleSeconds * 1000);
-    recordTree({ started });
+    await recordTree({ started });
     const result = await measureTree({ rootPid: child.pid, expectDaemon: options.expectDaemon });
     return { mode: options.mode, idleSeconds: options.idleSeconds, idleMinutes: options.idleMinutes, expectDaemon: options.expectDaemon, ...result };
   } catch (error) {
@@ -409,18 +528,19 @@ async function measureSite(options) {
 }
 
 async function main() {
-  if (process.platform !== "darwin") {
+  const options = parseArgs({ argv: process.argv.slice(2) });
+  if (options.mode !== "desktop" && process.platform !== "darwin") {
     console.error("measure-site-memory: macOS only (it reads `footprint` and `lsof`).");
     process.exitCode = 2;
     return;
   }
-  const options = parseArgs({ argv: process.argv.slice(2) });
-  const result = await measureSite(options);
+  const result = await runMeasurement({ options });
   console.log(JSON.stringify(result, null, 2));
   if (!result.complete) {
-    console.error(`measure-site-memory: INCOMPLETE, footprint unreadable for ${result.missing.join(", ")}`);
+    console.error(`measure-site-memory: INCOMPLETE: ${result.missing.join(", ")}`);
     process.exitCode = 1;
   }
+  if (result.withinBudgets === false) { console.error("measure-site-memory: process budget exceeded"); process.exitCode = 1; }
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
