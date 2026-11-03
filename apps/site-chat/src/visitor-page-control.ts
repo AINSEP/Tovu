@@ -14,6 +14,7 @@ export function createVisitorPageControl({ document, beforeNavigate }: { documen
   const attachAbort = new AbortController();
   let token: () => string | undefined = () => undefined;
   let readHeaders: () => Record<string, string> = () => ({});
+  let rebind: () => Promise<unknown> = async () => {};
   let acceptedPath: string | undefined;
   let terminal = false;
   let terminalMessages: ChatMessage[] | undefined;
@@ -32,7 +33,11 @@ export function createVisitorPageControl({ document, beforeNavigate }: { documen
     else void submit?.().catch(() => undefined);
   };
   let ready: Promise<void> | undefined;
-  const ensureAttached = () => ready ??= attach().catch(() => undefined);
+  const ensureAttached = () => ready ??= attach().catch(error => {
+    ready = undefined;
+    close();
+    throw error;
+  });
   async function attach(): Promise<void> {
     const config = document.getElementById('tovu-visitor-publication');
     const root = document.querySelector<HTMLElement>('[data-visitor-page-root]');
@@ -78,6 +83,9 @@ export function createVisitorPageControl({ document, beforeNavigate }: { documen
       },
     });
     close = () => bridge.close(); token = bridge.bindToken;
+    // ready records only the first attachment. A disconnected/parked stream needs a fresh bind
+    // before a later send can give the run authority to execute page actions in this document.
+    rebind = () => bridge.rebind({ signal: AbortSignal.any([attachAbort.signal, AbortSignal.timeout(10_000)]) });
     readHeaders = () => ({ ...headers(), 'x-frontend-bind-token': token() ?? '' });
     await Promise.race([bridge.ready, new Promise((_, reject) => {
       const timer = setTimeout(() => { bridge.close(); reject(new Error('Page attachment expired')); }, 10_000);
@@ -85,7 +93,7 @@ export function createVisitorPageControl({ document, beforeNavigate }: { documen
     })]);
   }
   return { get ready() { return ensureAttached(); },
-    async headers(_required = {}, _options = {}) { await ensureAttached(); terminal = false; terminalMessages = undefined; acceptedPath = undefined; acceptedSubmission = undefined; deferredSubmission = undefined; return readHeaders(); },
+    async headers(_required = {}, _options = {}) { await ensureAttached(); await rebind(); terminal = false; terminalMessages = undefined; acceptedPath = undefined; acceptedSubmission = undefined; deferredSubmission = undefined; return readHeaders(); },
     currentHeaders(_required = {}, _options = {}) { return readHeaders(); },
     finish({ navigation, messages }: { navigation: boolean; messages?: ChatMessage[] }, _options = {}) { if (navigation) { terminalMessages = messages; terminal = true; navigateWhenReady(); } },
     close(_required = {}, _options = {}) { disposed = true; attachAbort.abort(); close(); readHeaders = () => ({}); },

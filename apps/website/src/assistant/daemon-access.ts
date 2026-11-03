@@ -1,5 +1,6 @@
 /** Tovu route/env/header bindings for Jini's credential and ownership policies. */
 import type { RunLifecycle } from "@jini-ai/daemon";
+import { startupSecretEnvironment } from '../server/runtime/boot/startup-secrets.js';
 import type { RequestHandler } from "express";
 import { createNodeCredentialCrypto, authorizeDaemonRequest, createRouteAccessPolicy,
   ensureAgentDaemonToken as ensureDaemonToken, authorizeRunOwnership, listOwnedRuns,
@@ -29,18 +30,28 @@ const RUN_SCOPED_ROUTES: readonly { method: string; path: RegExp }[] = [
 const crypto = createNodeCredentialCrypto({}, {});
 const routes = createRouteAccessPolicy({ runPathPrefix: "/api/runs", delegatedToolCallsPath: DELEGATED_TOOL_CALLS_PATH,
   eventStreamSuffix: "/events", allowedRoutes: RUN_SCOPED_ROUTES }, {});
-export function ensureAgentDaemonToken({ env = process.env }: { env?: NodeJS.ProcessEnv }, optional = {}): string {
-  return ensureDaemonToken({ env, envVarName: AGENT_DAEMON_TOKEN_ENV_VAR, crypto }, optional);
+const daemonTokenHolder: NodeJS.ProcessEnv = {};
+/** Keep the server's proxy capability in memory; custom env records retain their existing DI contract. */
+export function ensureAgentDaemonToken({ env }: { env?: NodeJS.ProcessEnv }, optional = {}): string {
+  if (env !== undefined && env !== process.env) return ensureDaemonToken({ env, envVarName: AGENT_DAEMON_TOKEN_ENV_VAR, crypto }, optional);
+  const token = startupSecretEnvironment({ env: process.env })[AGENT_DAEMON_TOKEN_ENV_VAR];
+  delete process.env[AGENT_DAEMON_TOKEN_ENV_VAR];
+  if (token && !daemonTokenHolder[AGENT_DAEMON_TOKEN_ENV_VAR]) daemonTokenHolder[AGENT_DAEMON_TOKEN_ENV_VAR] = token;
+  return ensureDaemonToken({ env: daemonTokenHolder, envVarName: AGENT_DAEMON_TOKEN_ENV_VAR, crypto }, optional);
+}
+/** Resolve this server's authority; an explicit scope never falls back to another scope's holder. */
+export function currentAgentDaemonToken({ env = process.env }: { env?: NodeJS.ProcessEnv }, _optional: Record<string, never> = {}): string | undefined {
+  return env[AGENT_DAEMON_TOKEN_ENV_VAR] ?? (env === process.env ? daemonTokenHolder[AGENT_DAEMON_TOKEN_ENV_VAR] : undefined);
 }
 // Module memory, never `process.env`: every `...process.env` child (plugin hosts, the import fork,
-// CLI agents) would otherwise inherit it. Only the daemon spawn is handed it, by name.
+// CLI agents) would otherwise inherit it. The daemon receives it only over private startup/control IPC.
 const toolExecTokenHolder: NodeJS.ProcessEnv = {};
 /**
  * Mints the per-boot tool RPC token once, adopting (and removing from `env`) an operator-set value.
  * @returns The token, the same for the life of this process.
  */
 export function ensureToolExecToken({ env = process.env, holder = toolExecTokenHolder }: { env?: NodeJS.ProcessEnv; holder?: NodeJS.ProcessEnv }, optional = {}): string {
-  const operatorToken = env[TOOL_EXEC_TOKEN_ENV_VAR];
+  const operatorToken = startupSecretEnvironment({ env })[TOOL_EXEC_TOKEN_ENV_VAR];
   delete env[TOOL_EXEC_TOKEN_ENV_VAR];
   if (operatorToken && !holder[TOOL_EXEC_TOKEN_ENV_VAR]) holder[TOOL_EXEC_TOKEN_ENV_VAR] = operatorToken;
   return ensureDaemonToken({ env: holder, envVarName: TOOL_EXEC_TOKEN_ENV_VAR, crypto }, optional);
@@ -68,7 +79,8 @@ export interface AgentDaemonTokenGateOptions {
 export function requireAgentDaemonToken(required: AgentDaemonTokenGateOptions, optional = {}) {
   const { env = process.env, exemptPaths, runScopedCallers, validateDelegatedRunId } = required;
   return createDaemonAuthMiddleware({ authorizationHeaderName: "authorization",
-    authorize: ({ request }, gateOptions) => authorizeDaemonRequest({ request, env,
+    authorize: ({ request }, gateOptions) => authorizeDaemonRequest({ request,
+      env: env === process.env ? { [AGENT_DAEMON_TOKEN_ENV_VAR]: currentAgentDaemonToken({}, {}) } : env,
       envVarName: AGENT_DAEMON_TOKEN_ENV_VAR, principalHeaderName: RUN_PRINCIPAL_HEADER,
       authorizationHeaderName: "authorization", crypto, routes }, { ...gateOptions,
       ...(exemptPaths ? { exemptPaths } : {}), ...(runScopedCallers ? { runScopedCallers } : {}) }) },

@@ -19,6 +19,7 @@ import {
   type Stats,
 } from "node:fs";
 import { randomUUID } from "node:crypto";
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileDigest } from '@jini-ai/platform/fs';
 
@@ -621,6 +622,9 @@ function writeFileAtomically(target: string, relativePathForError: string, fillT
   try {
     fillTemp(tempPath);
     if (existing) chmodSync(tempPath, existing.mode);
+    // Source I/O and authorization may have yielded since approval. Check in the persistence
+    // owner, with no await before revision capture and replacement.
+    assertReviewedThemeFileCurrent({ target });
     if (existing && revisionFile) revision = saveThemeFileRevision({ ...revisionFile, target });
     renameSync(tempPath, target);
   } catch (err) {
@@ -628,7 +632,39 @@ function writeFileAtomically(target: string, relativePathForError: string, fillT
     if (revision) rmSync(revision, { recursive: true, force: true });
     throw err;
   }
-  if (revision && revisionFile) pruneThemeFileRevisions(revisionFile);
+  if (revision && revisionFile) {
+    try { pruneThemeFileRevisions(revisionFile); }
+    catch (error) {
+      // The rename already committed. Report cleanup separately so callers still reload; the
+      // next replacement retries retention, including revisions left by this attempt.
+      console.warn('[theme-files] File saved; revision cleanup failed and will retry on the next replacement.', error);
+    }
+  }
+}
+
+type ReviewedThemeFile = {
+  file: { themeDir: string; themesRoot: string; relativePath: string };
+  target: string;
+  version: string | null;
+};
+const reviewedThemeWrite = new AsyncLocalStorage<ReviewedThemeFile>();
+
+/** Carry a tool's reviewed destination through asynchronous source reads to every theme writer.
+ * Async-local scope keeps concurrent imports isolated without putting trusted state in tool input.
+ * @returns The original handler's result; a stale destination fails before persistence.
+ * @complexity O(1) scope setup; the commit compares O(destination bytes).
+ */
+export function withReviewedThemeFileWrite<T>({ prepared, run }: { prepared: ReviewedThemeFile; run: () => T }, _options = {}): T {
+  return reviewedThemeWrite.run(prepared, run);
+}
+
+function assertReviewedThemeFileCurrent({ target }: { target: string }, _options = {}): void {
+  const prepared = reviewedThemeWrite.getStore();
+  if (!prepared) return;
+  const current = readThemeFileVersion(prepared.file);
+  if (target !== prepared.target || current.target !== prepared.target || current.version !== prepared.version) {
+    throw new ThemePathError('The theme file changed during review. Read it again and retry; this file was not replaced.');
+  }
 }
 
 /** Pin contained theme bytes for a replacement review, including binaries past the text read cap.

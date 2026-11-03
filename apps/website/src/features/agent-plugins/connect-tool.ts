@@ -419,8 +419,8 @@ export async function runAgentPluginConnect(
 async function grantDefaultsToSignedInServers(
   oauthServerKeys: readonly string[],
   { onConnected }: Pick<AgentPluginConnectOptions, "onConnected"> = {},
-): Promise<{ readonly status: "connected" }> {
-  if (!onConnected) return { status: "connected" };
+): Promise<void> {
+  if (!onConnected) return;
   for (const serverKey of oauthServerKeys) {
     // resolvePendingOAuthServers already refused a key with no usable connection id.
     const connectionId = deriveAgentPluginConnectionId(serverKey) ?? serverKey;
@@ -430,7 +430,6 @@ async function grantDefaultsToSignedInServers(
       console.warn(`[agent-plugins] agent_plugin_connect: granting '${connectionId}' its declared tools failed — ${error instanceof Error ? error.message : String(error)}`);
     }
   }
-  return { status: "connected" };
 }
 
 /** Show one MCP sign-in and always release its surface exchange after the bounded wait. */

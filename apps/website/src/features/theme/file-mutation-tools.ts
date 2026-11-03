@@ -3,7 +3,7 @@ import { adaptLegacyAuthorize, requireToolPermission } from '@jini-ai/cms/core';
 import type { AssistantSurfaceDeps } from '@jini-ai/daemon/surface-exchanges';
 import { requireHumanConfirm, notConfirmedResult, type HumanConfirmSpec } from '../../contracts/core/human-confirm.js';
 import { assertThemeFileWritable, findThemeOrThrow, isShapeRejection, type ThemeToolDeps } from './asset-operations.js';
-import { readThemeFileVersion, validateThemeFileWrite } from './theme-files.js';
+import { readThemeFileVersion, validateThemeFileWrite, withReviewedThemeFileWrite } from './theme-files.js';
 import { THEME_WRITE_PERMISSION } from './agent-tools.js';
 import { syncThemeRoster } from './theme-roster-sync.js';
 import { THEME_CONTENT_REPLACEMENT_TOOL_IDS } from '../../contracts/core/tool-metadata/theme.js';
@@ -12,7 +12,7 @@ const CONTENT_TOOLS: ReadonlySet<string> = new Set(THEME_CONTENT_REPLACEMENT_TOO
 
 type PreparedThemeFile = {
   file: { themeDir: string; themesRoot: string; relativePath: string };
-  target: string; version: string | null; themeId: string; relativePath: string;
+  target: string; version: string | null; themeId: string;
 };
 
 /** Theme replacements use the existing Jini prepare/approve/run owner, with one card per batch.
@@ -48,12 +48,12 @@ export function protectThemeFileTools(
             assertThemeFileWritable(theme, relativePath);
             const file = { themeDir: theme.dir, themesRoot: deps.themesDir, relativePath };
             if (toolId === 'theme_write_file') validateThemeFileWrite({ ...file, content: requireString({ input, key: 'content' }) }, { overwriteOversized: input.overwriteOversized === true });
-            return { file, ...readThemeFileVersion(file), themeId, relativePath };
+            return { file, ...readThemeFileVersion(file), themeId };
           } });
         },
         describe: ({ prepared }) => ({ ask: prepared.version !== null, description: {
           toolId, errorCode: 'THEME_REPLACE', title: 'Replace theme file content?',
-          details: [{ label: 'Theme', value: prepared.themeId }, { label: 'File', value: prepared.relativePath },
+          details: [{ label: 'Theme', value: prepared.themeId }, { label: 'File', value: prepared.file.relativePath },
             { label: 'Proposed change', value: toolId }],
           warning: 'Previous bytes are kept in .trash/revisions. The latest 20 revisions per theme are retained.',
           confirmLabel: 'Apply changes',
@@ -64,7 +64,7 @@ export function protectThemeFileTools(
           if (current.target !== prepared.target || current.version !== prepared.version) {
             throw new ToolInputError({ message: 'The theme file changed during review. Read it again and retry; this file was not replaced.' });
           }
-          return registration.handler(ctx, options);
+          return withReviewedThemeFileWrite({ prepared, run: () => registration.handler(ctx, options) });
         },
         notConfirmed: ({ reason }) => ({ executed: false, ...notConfirmedResult({ confirmed: false, reason }) }),
       },

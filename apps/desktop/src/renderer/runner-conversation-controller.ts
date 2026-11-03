@@ -73,6 +73,8 @@ interface ControllerCore {
   readonly written: Map<string, Set<string>>;
   /** Guards `select`/`create` against a slower one resolving after a faster, later one already won. */
   switchSeq: number;
+  /** A navigation intent owns the pane even before its load/create settles. */
+  navigating: boolean;
   /** In-flight lazy conversation creation, so concurrent deltas before it resolves adopt ONE conversation, not many. */
   adopting: Promise<string | null> | null;
   /** Bumped whenever an in-flight adoption stops belonging to the pane that started it (a `select`/
@@ -104,7 +106,7 @@ export function createRunnerConversationController(
 ): RunnerConversationController {
   const core: ControllerCore = {
     bridge, log, onChange, listeners: new Set(), state: INITIAL_STATE, written: new Map(),
-    switchSeq: 0, adopting: null, adoptionGen: 0, paneNonce: 0, deleted: new Set(),
+    switchSeq: 0, navigating: false, adopting: null, adoptionGen: 0, paneNonce: 0, deleted: new Set(),
   };
   return {
     getState: () => core.state,
@@ -137,6 +139,16 @@ function resetAdoption(core: ControllerCore): void {
   core.adoptionGen += 1;
 }
 
+/** Invalidate pane adoption at navigation intent, retaining its promise for outgoing deltas.
+ * @returns The latest navigation sequence. @complexity O(1), controller state only.
+ */
+function beginSwitch(core: ControllerCore, _options: Record<string, never> = {}): number {
+  core.switchSeq += 1;
+  core.adoptionGen += 1;
+  core.navigating = true;
+  return core.switchSeq;
+}
+
 function withConversation(
   core: ControllerCore,
   conversation: WorkspaceConversationSummary,
@@ -151,7 +163,9 @@ function withConversation(
 async function refresh(core: ControllerCore): Promise<readonly WorkspaceConversationSummary[]> {
   if (core.bridge === undefined) return core.state.conversations;
   try {
-    const list = await core.bridge.listConversations();
+    // A list requested before deletion may finish afterwards. Tombstones govern every
+    // publication, not only remove's own follow-up request.
+    const list = (await core.bridge.listConversations()).filter(c => !core.deleted.has(c.id));
     publish(core, { conversations: list });
     return list;
   } catch (err) {
@@ -162,9 +176,8 @@ async function refresh(core: ControllerCore): Promise<readonly WorkspaceConversa
 
 function select(core: ControllerCore, id: string): void {
   const bridge = core.bridge;
-  if (bridge === undefined) return;
-  core.switchSeq += 1;
-  const seq = core.switchSeq;
+  if (bridge === undefined || core.deleted.has(id)) return;
+  const seq = beginSwitch(core);
   const commit = (messages: ChatMessage[]) => commitSelection(core, { id, seq, messages });
   void bridge
     .loadConversationMessages(id)
@@ -187,6 +200,8 @@ function commitSelection(
 ): void {
   // A slower load for a conversation the operator has since navigated away from must not land.
   if (core.switchSeq !== seq) return;
+  core.navigating = false;
+  if (core.deleted.has(id)) return;
   core.written.set(id, new Set(messages.map((m) => m.id)));
   resetAdoption(core);
   // A deliberate switch is exactly when remounting the pane IS the intent.
@@ -199,9 +214,11 @@ async function create(core: ControllerCore): Promise<void> {
   // Claimed BEFORE the request and re-checked after, so a selection made after the click (while
   // the create is still in flight) wins rather than yanking the operator back into a new, empty
   // pane the moment the slower create resolves.
-  core.switchSeq += 1;
-  const seq = core.switchSeq;
-  const conversation = await bridge.createConversation();
+  const seq = beginSwitch(core);
+  let conversation: WorkspaceConversationSummary;
+  try { conversation = await bridge.createConversation(); }
+  finally { if (core.switchSeq === seq) core.navigating = false; }
+  if (core.deleted.has(conversation.id)) return;
   const conversations = withConversation(core, conversation);
   if (core.switchSeq !== seq) {
     publish(core, { conversations });
@@ -239,6 +256,7 @@ function landOnFreshPane(core: ControllerCore): void {
   // Nothing left to land on. Bump the token so a switch already in flight cannot resurrect a
   // transcript into what is about to become an empty pane.
   core.switchSeq += 1;
+  core.navigating = false;
   core.paneNonce += 1;
   // This is the one place `activeId` goes back to `null`, which is the only state that
   // re-enters the lazy-adoption path below — without this reset, the fresh pane would
@@ -341,6 +359,8 @@ function adoptConversation(
   return bridge
     .createConversation()
     .then((conversation) => {
+      // The persisted row can be listed and deleted before its create acknowledgement arrives.
+      if (core.deleted.has(conversation.id)) return null;
       core.written.set(conversation.id, new Set());
       // Superseded: the row exists and shows up in the switcher, but the pane that asked for
       // it is gone (the operator switched away while this was in flight) — pointing
@@ -348,7 +368,7 @@ function adoptConversation(
       // `afterAdoption` still runs regardless: these messages came from the pane that asked for
       // this conversation, and dropping them would be exactly the data loss lazy adoption exists
       // to prevent.
-      const adopt = core.adoptionGen === generation ? { activeId: conversation.id } : {};
+      const adopt = core.adoptionGen === generation && !core.navigating ? { activeId: conversation.id } : {};
       publish(core, { conversations: withConversation(core, conversation), ...adopt });
       return conversation.id;
     })

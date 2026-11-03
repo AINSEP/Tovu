@@ -7,6 +7,7 @@ import type { ToolExecutionResult, ToolExecutor } from "@jini-ai/daemon";
 
 import { RUN_PRINCIPAL_HEADER } from "./daemon-access.js";
 import { isMcpUiToolCallPermitted } from "./mcp-ui-tool-calls.js";
+import { tryRestoreSurface } from '@jini-ai/daemon/http';
 import {
   SURFACE_EXCHANGE_ID_PARAM,
   SURFACE_TYPED_ANSWER_PARAM,
@@ -213,13 +214,23 @@ function parseMcpUiToolCallRequest(req: Request, res: Response): ParsedMcpUiTool
  * Split out of {@link registerMcpUiToolCallsRoute} purely to keep that function's complexity under
  * the shop ceiling.
  */
-function deliverMcpUiExchange(
+async function deliverMcpUiExchange(
   res: Response,
   deps: Pick<McpUiToolCallsRouteDeps, "surfaceExchanges">,
   input: { exchangeId: string; params: Record<string, unknown>; toolId: string; principalId: string },
-): void {
+  req?: Request,
+): Promise<void> {
+  const restoreOnly = (req?.body as { restore?: unknown } | undefined)?.restore === true;
+  if (restoreOnly && req) {
+    if (await tryRestoreSurface({ res, store: deps.surfaceExchanges, ...input })) return;
+    res.status(409).json({ code: 'SURFACE_NOT_PENDING' });
+    return;
+  }
   const delivered = deps.surfaceExchanges.deliver(input, { toolId: input.toolId });
   if (!delivered.ok) {
+    if (delivered.reason === 'unknown-or-closed' && req && await tryRestoreSurface(
+      { res, store: deps.surfaceExchanges, ...input }, { params: input.params },
+    )) return;
     // 409, not 404: from the browser's side both reasons mean "this dialog is no longer the
     // one waiting on you" — a second click, a reload of stale scrollback, or an expired form.
     // The distinction between them is not the human's to act on, and reporting it would only
@@ -288,7 +299,7 @@ function deliverTypedSurfaceAnswer(
     });
     return;
   }
-  deliverMcpUiExchange(res, deps, { exchangeId, params: input.params, toolId: input.toolId, principalId: input.principalId });
+  void deliverMcpUiExchange(res, deps, { exchangeId, params: input.params, toolId: input.toolId, principalId: input.principalId });
 }
 
 /**
@@ -335,7 +346,7 @@ export function registerMcpUiToolCallsRoute(app: Express, deps: McpUiToolCallsRo
 
     // ---- Shape 1: an open exchange is waiting for this message. ----
     if (parsed.exchangeId !== undefined) {
-      deliverMcpUiExchange(res, deps, { exchangeId: parsed.exchangeId, params: parsed.params, toolId: parsed.toolName, principalId });
+      await deliverMcpUiExchange(res, deps, { exchangeId: parsed.exchangeId, params: parsed.params, toolId: parsed.toolName, principalId }, req);
       return;
     }
 

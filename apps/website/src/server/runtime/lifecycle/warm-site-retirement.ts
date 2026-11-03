@@ -5,16 +5,9 @@ import { readLiveDaemonRegistryRecord } from '@jini-ai/sidecar';
 import { delegatedAssistantDaemonConnection } from './assistant-daemon-connection.js';
 import { isAssistantDaemonReady } from './daemon-supervisor.js';
 import { createDevServerRetirement as createWarmSiteRetirement } from '@jini-ai/devops/local-dev';
+import { getExportRunSnapshot } from '../../../features/deployments/export-run.js';
+import { getPublishRunSnapshot } from '../../../features/deployments/static-publish/publish-run.js';
 export { createWarmSiteRetirement };
-
-/** Existing local jobs use HTTP 202 or a returned jobId. Keep unobservable jobs protected after
- * their request completes too; explicit Stop remains available. @complexity O(1).
- */
-export function isPendingWarmSiteResponse({ status, body }: { status: number; body: unknown }, _options = {}): boolean {
-  if (status === 202) return true;
-  if (typeof body !== 'object' || body === null) return false;
-  return 'jobId' in body && typeof body.jobId === 'string';
-}
 
 /** A registered assistant may have work beyond an HTTP response; protect it until its process
  * parks. This covers all CLI types without guessing from conversation IDs or run descriptions.
@@ -31,14 +24,17 @@ async function assistantMayHaveWork({ siteDir }: { siteDir: string }): Promise<b
 }
 
 /** Mount before routing: retirement uses a parent-only random capability and has no public auth
- * bypass. Once fenced, even daemon/tool callbacks cannot start new site work. HTTP 202 jobs have
- * no universal completion port, so they stay protected until explicit Stop. @complexity O(1).
+ * bypass. Once fenced, even daemon/tool callbacks cannot start new site work. Background work
+ * is read from its existing status owners, never inferred from HTTP 202. O(1) local status reads
+ * plus the injected domain-job probe, bounded by the retirement owner's timeout.
  */
-export function registerWarmSiteRetirement({ app, siteDir }: { app: Express; siteDir: string },
-  { env = process.env }: { env?: NodeJS.ProcessEnv } = {}): void {
+export function registerWarmSiteRetirement({ app, siteDir, jobs = async () => false }: { app: Express; siteDir: string; jobs?: () => Promise<boolean> },
+  { env = process.env, hasWork = async () => getExportRunSnapshot().status === 'running'
+    || getPublishRunSnapshot().status === 'running' || await assistantMayHaveWork({ siteDir }) || await jobs() }:
+  { env?: NodeJS.ProcessEnv; hasWork?: () => Promise<boolean> } = {}): void {
   const token = env.TOVU_DEV_RETIRE_TOKEN;
   if (!token || env.TOVU_DEV_WARM_SITES !== '1') return;
-  const guard = createWarmSiteRetirement({ hasWork: () => assistantMayHaveWork({ siteDir }) });
+  const guard = createWarmSiteRetirement({ hasWork });
   app.use((req, res, next) => {
     if (req.path === '/internal/dev-site-retire') {
       if (req.headers['x-tovu-retire'] !== token) { res.sendStatus(404); return; }
@@ -50,14 +46,10 @@ export function registerWarmSiteRetirement({ app, siteDir }: { app: Express; sit
     if (!guard.accepting()) { res.status(503).json({ error: 'This idle dev site is stopping. Reopen it from Sites.' }); return; }
     if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) { next(); return; }
     const release = guard.begin();
-    let pendingResponse = false;
-    const json = res.json.bind(res);
-    res.json = (body: unknown) => {
-      pendingResponse ||= isPendingWarmSiteResponse({ status: res.statusCode, body });
-      return json(body);
-    };
-    res.once('finish', () => release({ background: pendingResponse || res.statusCode === 202 }));
-    res.once('close', () => release({ background: !res.writableFinished || pendingResponse || res.statusCode === 202 }));
+    res.once('finish', () => release({}));
+    // A dropped response does not prove its handler finished. Preserve that uncertain request;
+    // completed responses and known background jobs release through their respective owners.
+    res.once('close', () => { if (res.writableFinished) release({}); });
     next();
   });
 }

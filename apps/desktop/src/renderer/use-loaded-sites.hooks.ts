@@ -3,8 +3,9 @@
  * followed (the native Settings menu changes it too), saved through the shell's write channel.
  * `use-live-views.hooks.ts` follows the same change event, so a save applies to the tabs at once.
  */
-import { useEffect, useState } from 'react';
-import { LIVE_SITE_VIEWS, clampLiveSiteViews } from '../contracts/site-view-preference.js';
+import { useState } from 'react';
+import { clampLiveSiteViews } from '../contracts/site-view-preference.js';
+import { useSiteViewPreference } from './use-site-view-preference.hooks.js';
 import { runnerInventoryBridge } from './runner-api.js';
 import type { BridgeLookup } from './bridge-lookup.js';
 
@@ -41,18 +42,8 @@ export function useLoadedSites(
   _input: Record<string, never> = {},
   { getBridge = runnerInventoryBridge }: { getBridge?: LoadedSitesBridge } = {},
 ): LoadedSitesSetting {
-  const [value, setValue] = useState<number>(LIVE_SITE_VIEWS.fallback);
+  const { value, setValue } = useSiteViewPreference({ getBridge });
   const [error, setError] = useState<string | null>(null);
-  useEffect(() => {
-    const bridge = getBridge();
-    let active = true;
-    void bridge?.getMaximumLiveSiteViews?.().then(
-      (saved) => { if (active) setValue((current) => shownValue({ value: saved, current })); },
-      () => undefined,
-    );
-    const off = bridge?.onMaximumLiveSiteViewsChanged?.((saved) => setValue((current) => shownValue({ value: saved, current })));
-    return () => { active = false; off?.(); };
-  }, [getBridge]);
   const write = getBridge()?.setMaximumLiveSiteViews;
   const save = (next: number) => {
     if (!write || next === value) return;
@@ -60,7 +51,7 @@ export function useLoadedSites(
     setValue(next);
     setError(null);
     void write(next).then(
-      (saved) => setValue((current) => shownValue({ value: saved, current })),
+      (saved) => setValue(shownValue({ value: saved, current: next })),
       (failure: unknown) => {
         console.error(`[tovu-desktop] save loaded sites: ${failure instanceof Error ? failure.message : String(failure)}`);
         setValue(previous);

@@ -1,6 +1,6 @@
 /** Private inherited-IPC grammar and site server's current endpoint capability. Never persisted. */
 import { z } from "zod";
-import { AGENT_DAEMON_TOKEN_ENV_VAR } from "#src/assistant/daemon-access";
+import { currentAgentDaemonToken } from "#src/assistant/daemon-access";
 
 export const daemonSiteRegistration = z.object({
   siteId: z.string().min(1).max(1024), env: z.record(z.string().optional()), token: z.string().min(1),
@@ -35,5 +35,5 @@ export function previousAssistantDaemonConnection(_required = {}, _optional = {}
 export function resetAssistantDaemonConnectionForTests(_required = {}, _optional = {}): void { delegated = undefined; previous = undefined; }
 /** Legacy standalone credential remains per-server; delegated callers use the IPC capability. */
 export function assistantDaemonToken(_required = {}, { env = process.env }: { env?: NodeJS.ProcessEnv } = {}): string | undefined {
-  return delegated?.token ?? env[AGENT_DAEMON_TOKEN_ENV_VAR];
+  return delegated?.token ?? currentAgentDaemonToken({ env }, {});
 }

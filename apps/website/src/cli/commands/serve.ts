@@ -6,6 +6,7 @@ import path from "node:path";
 import { createServingApp } from "../../server/runtime/composition/serving-app.js";
 import { createSiteRouteDeps } from "../../server/runtime/composition/deps.js";
 import { pinSiteListenerOrigin } from "../../server/runtime/boot/site-listener-origin.js";
+import { startSiteDaemonListener } from "../../server/runtime/boot/site-daemon-listener.js";
 import { ValidationError, type ConfigJson } from "../../platform/site-dir/index.js";
 import { SITE_BINDING_NOT_SWITCHABLE_ENV } from "../../platform/site-dir/site-registry.js";
 import { mintBootSessionToken } from "#src/features/identity/boot-session-token";
@@ -24,6 +25,7 @@ import { attachServerLogFile, installServerLogCapture, serverLogFilePaths } from
 import { processBuildRelease, telemetryEnvironment } from '../../server/runtime/composition/build-release.js';
 import { registerPluginSdkResolver } from "../../features/plugin-runtime/sdk-resolver.js";
 import { ensureAgentDaemonToken, ensureToolExecToken } from "../../assistant/index.js";
+import { initializeStartupSecrets } from '../../server/runtime/boot/startup-secrets.js';
 import { runProductionReadinessGateOrExit } from "../../server/runtime/boot/boot-readiness-gate.js";
 import { warnIfNoSiteKeyAtBoot } from "../../server/runtime/boot/site-key-boot-notice.js";
 import { ensureSiteKeyForBoot } from "../../features/webhooks/site-key-ensure.js";
@@ -185,18 +187,17 @@ export async function runServeCommand(input: RunServeCommandInput, optional: Run
   // right after the rejection guard so boot-time failures are captured too.
   installServerLogCapture({ release: processBuildRelease({}), environment: telemetryEnvironment({ env: process.env }) });
 
-  // Mints `TOVU_AGENT_DAEMON_TOKEN` (unless the operator already set one) into this process's env
-  // so `startAssistantDaemon()` — called later, from inside `app.listen()`'s callback — hands it to
-  // the daemon child through the inherited env. See this file's header for the ordering contract.
-  ensureAgentDaemonToken({}, {});
-  // The tool RPC token (ADR-070) stays in module memory, NOT this env: see `daemon-access.ts`.
-  ensureToolExecToken({}, {});
-
   // CIC U-002/ADR-005 (ESCALATE_SECURITY) — see this file's header. Must precede `createApp()`
   // below (and therefore every route it mounts, including the `plugins` module's
   // `PLUGIN_SET_ENABLED`) and every boot step that could lead there; placed here, with no `await`
   // ahead of it, for the same reason `index.ts`'s own call site gives.
   (optional.registerPluginSdkResolver ?? registerPluginSdkResolver)();
+
+  // The resolver must remain synchronous before startup IPC's first await. Never put the
+  // received capabilities back into process.env: every later child inherits that environment.
+  await initializeStartupSecrets({}, {});
+  ensureAgentDaemonToken({}, {});
+  ensureToolExecToken({}, {});
 
   // The shared gate contains unsafe defaults for production CLI boots and is inert locally.
   // See runtime/boot/boot-readiness-gate.ts for the policy.
@@ -395,6 +396,11 @@ async function serveBootedSite(input: RunServeCommandInput, target: string, owne
     });
 
     server.once("listening", () => {
+      void (async () => {
+      const siteApiOrigin = pinSiteListenerOrigin({ scheme: "http", host, port: (server.address() as import("node:net").AddressInfo).port });
+      const daemonCallback = await startSiteDaemonListener({ publicOrigin: siteApiOrigin, handler: app });
+      owned.workers.push({ stop: () => daemonCallback.close() });
+      server.once("close", () => { void daemonCallback.close(); });
       try { owned.runningLease.ready({ port }); }
       catch (error) { server.close(); reject(error); return; }
       const runtime = runtimeSchemaVersion();
@@ -434,7 +440,7 @@ async function serveBootedSite(input: RunServeCommandInput, target: string, owne
       // `startAssistantDaemon`'s own option doc for why a second listener here would race it.
       startAssistantDaemon(
         { workspaceId: deps.workspaceId, siteDir: target, pgSocketPath: bootResult.store?.pgliteSocketPath,
-          siteApiOrigin: pinSiteListenerOrigin({ scheme: "http", host, port: (server.address() as import("node:net").AddressInfo).port }) },
+          siteApiOrigin, siteCallbackOrigin: daemonCallback.origin },
         { registerProcessSignalHandlers: false, beforeStart: async () => {
           await awaitSiteBootReadiness({ deps });
           if (!(await agentDaemonWanted(deps))) throw new Error("the assistant daemon is disabled for this site");
@@ -463,11 +469,12 @@ async function serveBootedSite(input: RunServeCommandInput, target: string, owne
       }, {
         bootWork: () => owned.bootWork,
         stopServing: () => stopServingWithinGrace({ server, workers: [
-          { stop: stopOutbox }, { stop: stopTrash }, themeWatcher, formPullTrigger, postGoLiveSweep, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance,
+          { stop: () => daemonCallback.close() }, { stop: stopOutbox }, { stop: stopTrash }, themeWatcher, formPullTrigger, postGoLiveSweep, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance,
         ] }),
         // Opt-in (the desktop on Windows): an ignored or terminal stdin must never stop the site.
         stopOnEnd: process.env.TOVU_STOP_ON_STDIN_EOF === "1" ? process.stdin : undefined,
       });
+      })().catch(error => { server.close(); reject(error); });
     });
   });
 }

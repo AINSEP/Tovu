@@ -183,7 +183,6 @@ export async function createSiteScope(
   let closing: Promise<void> | undefined;
   let daemonStore: AgentDaemonResource | undefined;
   let disposeAiTracing: () => void = () => {};
-  const daemonBootWork: Promise<unknown>[] = [];
   const responses = new Set<express.Response>();
   let activeWork = 0;
   let resolveDrained: (() => void) | undefined;
@@ -304,7 +303,7 @@ const idlePark = { ...processActivity,
 // server's BYOK composition. Only browser-tab capabilities have executable registrations here.
 const registry = createToolRegistry({});
 const siteTools = createDaemonSiteTools({
-  baseUrl: env.TOVU_SITE_LISTENER_ORIGIN ?? "",
+  baseUrl: env.TOVU_SITE_CALLBACK_ORIGIN ?? env.TOVU_SITE_LISTENER_ORIGIN ?? "",
   token: siteToolToken, localRegistry: registry,
   audit: { sink: routeDeps.toolAttemptAuditSink, workspaceId: routeDeps.workspaceId },
   contextFor: ({ runId }) => ({
@@ -1092,7 +1091,12 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
     });
     const runWithCapabilities = () => assistantCliCapabilitiesContext.run(nativeCapabilities,
       () => siteTools.withRun({ runId: run.id, fn: executeRun }));
-    if (disposed) return; // Preparation may have awaited site I/O while the scope was withdrawn.
+    if (disposed) {
+      // Cancellation records intent; no executor exists yet to emit the terminal event and
+      // release this run's activity hold after withdrawal during preparation.
+      await runLifecycle.finish({ runId: run.id, status: "canceled", code: null, signal: null, resumable: false });
+      return;
+    }
     await assistantRuntimeGuidanceContext.run(runGuidance,
       () => assistantNativeToolsContext.run(nativeToolAccess, runWithCapabilities));
   }
@@ -1408,7 +1412,7 @@ void probeMcpBridge({ entry: bridgePreflightEntry({ injection: bridgeInjection }
           await lifecycle.cancel({ runId: run.id });
           await lifecycle.waitForTerminal({ runId: run.id }, { signal: AbortSignal.timeout(5_000) });
         });
-        await awaitBootWorkWithinBound({ work: [...daemonBootWork, ...drains] }, { timeoutMs: 5_000 });
+        await awaitBootWorkWithinBound({ work: drains }, { timeoutMs: 5_000 });
         // Terminal callbacks own session saves and attachment cleanup beyond the run's end.
         const drained = activeWork === 0 ? Promise.resolve() : new Promise<void>(resolve => { resolveDrained = resolve; });
         // Keep the retained client alive until accepted preparation/cleanup really settles.

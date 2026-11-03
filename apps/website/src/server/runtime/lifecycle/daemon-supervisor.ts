@@ -17,7 +17,8 @@
  * Node adapter; this host supplies the site-scoped registry path and launch identity.
  */
 import { isDaemonLifecycleLogQuiet } from "./daemon-lifecycle-log.js";
-import { currentToolExecToken, TOOL_EXEC_TOKEN_ENV_VAR } from "#src/assistant/daemon-access";
+import { currentAgentDaemonToken, currentToolExecToken, TOOL_EXEC_TOKEN_ENV_VAR, AGENT_DAEMON_TOKEN_ENV_VAR } from "#src/assistant/daemon-access";
+import { STARTUP_SECRET_KEYS, DESKTOP_AGENT_SERVICE_ENV } from '../boot/startup-secrets.js';
 import { execFileSync } from "node:child_process";
 import {
   createNodeDaemonProcessAdapter,
@@ -25,6 +26,7 @@ import {
   type NodeDaemonProcessOptions,
   createNodeIpcChannel,
   type NodeIpcPeer,
+  splitNodeStartupSecrets,
 } from "@jini-ai/sidecar/supervisor/node";
 import { daemonConnection, daemonControlRequest, delegatedAssistantDaemonConnection, resetAssistantDaemonConnectionForTests, setAssistantDaemonConnection } from "./assistant-daemon-connection.js";
 import { createDaemonSupervisor as createSidecarSupervisor } from "@jini-ai/sidecar/supervisor";
@@ -309,6 +311,8 @@ export interface DaemonSpawnEnvInput {
   workspaceId: string;
   /** Actual bound site listener, including TLS and an OS-allocated port. */
   siteApiOrigin?: string;
+  /** Authenticated internal loopback listener; separate from the public LAN origin. */
+  siteCallbackOrigin?: string;
   /** This process's own already-resolved site root (`deps.ts`'s `siteDir()` for `index.ts`, or the
    *  CLI's `<dir>` argument for `cli/commands/serve.ts`) — see {@link buildDaemonSpawnEnvOverrides}. */
   siteDir: string;
@@ -342,8 +346,7 @@ export function buildDaemonSpawnEnvOverrides(input: DaemonSpawnEnvInput): NodeJS
     TOVU_WORKSPACE: input.workspaceId,
     TOVU_PARENT_PID: String(process.pid),
     ...(input.siteApiOrigin === undefined ? {} : { TOVU_SITE_LISTENER_ORIGIN: input.siteApiOrigin }),
-    // Only the daemon child receives this secret; generic plugin/CLI spawns never inherit it.
-    [TOOL_EXEC_TOKEN_ENV_VAR]: currentToolExecToken(),
+    TOVU_SITE_CALLBACK_ORIGIN: input.siteCallbackOrigin ?? input.siteApiOrigin,
     // Self-allocation fix (2026-08-28): when neither `JINI_AGENT_DAEMON_URL` nor
     // `JINI_AGENT_DAEMON_PORT` was set, `agent-daemon-port.ts` picked a free port for THIS process
     // — the child would otherwise fall back to its own module-scope default (4319,
@@ -416,6 +419,13 @@ export function createRealDaemonProcessPorts(input: DaemonSpawnEnvInput, optiona
   const { registryPath, registry } = createAssistantDaemonRegistry({ siteDir: input.siteDir }, {});
   function createProcessAdapter() {
     const isCompiled = daemonPath.endsWith(".js");
+    const launch = splitNodeStartupSecrets({ env: {
+      ...process.env, ...buildDaemonSpawnEnvOverrides(input),
+      [AGENT_DAEMON_TOKEN_ENV_VAR]: currentAgentDaemonToken({}, {}),
+      [TOOL_EXEC_TOKEN_ENV_VAR]: currentToolExecToken({}, {}),
+    }, keys: STARTUP_SECRET_KEYS });
+    // Native page capture belongs to site tools, which execute in the server (ADR-070).
+    delete launch.secrets.JINI_DESKTOP_RENDER_TOKEN;
     return createNodeDaemonProcessAdapter({
       command: process.execPath,
       // Preload awaits pruning before tsx starts; keep the supervisor's synchronous child contract.
@@ -431,12 +441,12 @@ export function createRealDaemonProcessPorts(input: DaemonSpawnEnvInput, optiona
       // Every respawn binds the same workspace and parent pid (D10/watchdog contract),
       // while refreshing process.env so repaired launch configuration can take effect.
       env: {
-        ...process.env,
-        ...buildDaemonSpawnEnvOverrides(input),
+        ...launch.env,
+        TOVU_AGENT_DAEMON_STANDALONE: '1',
         TOVU_AGENT_DAEMON_REGISTRY_PATH: registryPath,
       },
       registry,
-    }, { ...optional,
+    }, { ...optional, startupSecrets: launch.secrets,
       stdout: createRedactedOutputSink({ sink: optional.stdout ?? process.stdout,
         redact: text => redactLocalText({ text }) }),
       stderr: createRedactedOutputSink({ sink: optional.stderr ?? process.stderr,
@@ -527,7 +537,7 @@ export interface StartAssistantDaemonOptions {
  * @complexity O(e) configuration snapshot and O(1) bounded/single-flight control work.
  */
 function registerDelegatedDaemon({ input, parent }: {
-  input: { workspaceId: string; siteDir: string; pgSocketPath?: string; siteApiOrigin?: string }; parent: NodeIpcPeer;
+  input: { workspaceId: string; siteDir: string; pgSocketPath?: string; siteApiOrigin?: string; siteCallbackOrigin?: string }; parent: NodeIpcPeer;
 }, options: StartAssistantDaemonOptions = {}): void {
   let ready = false;
   const channel = createNodeIpcChannel({ peer: parent }, { handle: async payload => {
@@ -539,6 +549,7 @@ function registerDelegatedDaemon({ input, parent }: {
   let pending: Promise<void> | undefined;
   const config = { siteId: input.workspaceId, token: currentToolExecToken(), env: {
     ...process.env, TOVU_SITE_DIR: input.siteDir, TOVU_WORKSPACE: input.workspaceId,
+    TOVU_SITE_CALLBACK_ORIGIN: input.siteCallbackOrigin ?? input.siteApiOrigin,
     TOVU_SITE_LISTENER_ORIGIN: input.siteApiOrigin, TOVU_SITE_PROCESS_CWD: process.cwd(),
     ...(input.pgSocketPath ? { TOVU_PG_SOCKET: input.pgSocketPath } : {}),
   } };
@@ -587,7 +598,7 @@ function registerDelegatedDaemon({ input, parent }: {
  * would fight the first one for the same port and the same `process.on(signal, ...)` slot.
  */
 export function startAssistantDaemon(
-  input: { workspaceId: string; siteDir: string; pgSocketPath?: string; siteApiOrigin?: string },
+  input: { workspaceId: string; siteDir: string; pgSocketPath?: string; siteApiOrigin?: string; siteCallbackOrigin?: string },
   options: StartAssistantDaemonOptions = {},
 ): void {
   if (shutdownRequested) {
@@ -600,7 +611,7 @@ export function startAssistantDaemon(
     return;
   }
 
-  const parent = options.parentIpc ?? (process.send ? process : false);
+  const parent = options.parentIpc ?? (process.send && process.env[DESKTOP_AGENT_SERVICE_ENV] === '1' ? process : false);
   if (parent) {
     registerDelegatedDaemon({ input, parent }, options);
     return;
@@ -617,6 +628,7 @@ export function startAssistantDaemon(
     daemonPortOverride,
     pgSocketPath: input.pgSocketPath,
     siteApiOrigin: input.siteApiOrigin,
+    siteCallbackOrigin: input.siteCallbackOrigin,
   };
   let prepared: Promise<void> | undefined;
   prepareStart = () => prepared ??= (async () => {

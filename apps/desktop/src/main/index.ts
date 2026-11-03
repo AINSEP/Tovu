@@ -110,6 +110,7 @@ import { createElectronUrlCapturePool } from "@jini-ai/desktop-host/electron";
 
 import { startTovuServer, DEFAULT_STOP_GRACE_MS } from "../tovu-server.ts";
 import { startDesktopCaptureBridge } from "../desktop-capture.ts";
+import { initializeStartupSecrets } from '../../../website/src/server/runtime/boot/startup-secrets.ts';
 import { createDesktopMcpHttpRuntime } from "../desktop-mcp-http.ts";
 import { writeNodeToolchain, buildNodeToolchainEnv } from "../node-toolchain.ts";
 import { resolveAdminDevProxyUrl } from "../admin-dev-proxy.ts";
@@ -160,7 +161,7 @@ import { registerSpellCheckContextMenu } from "../spellcheck-menu.ts";
 import { readAutomaticUpdates, writeAutomaticUpdates } from "../desktop-update-preference.ts";
 import { readMaximumLiveSiteViews, writeMaximumLiveSiteViews, refreshMaximumLiveSiteViewsMenu, registerSiteViewPreferenceIpc } from "../site-view-preference.ts";
 import { SITE_VIEW_PREFERENCE_CHANNELS } from "../contracts/site-view-preference.ts";
-import { createLivePreviewGuests } from "./boot/site-preview-guests.ts";
+import { createLivePreviewGuests, isLivePreviewGuestAllowed } from "./boot/site-preview-guests.ts";
 import { presenceDirPath } from "../instance-presence.ts";
 // Owner 2026-10-06: DMG window already shows drag-to-Applications; prompt redundant.
 // Restore the removed prompt imports, helper and call from git history, then re-enable wiring tests.
@@ -183,7 +184,7 @@ import { armFirstProductConsent, createDesktopProductState, initializeDesktopPro
 import { createSiteBackend } from "./boot/site-backend.ts";
 import { createDesktopAgentService } from "../desktop-agent-service.ts";
 import { agentServiceRegistryPath } from "../site-process-registry.ts";
-import { createSitePreviewCapture, createPreviewTargetResolver, createListedPreviewRequests, sweepSitePreviewsOnBoot as sweepSitePreviewsOnBootIn, PREVIEW_CAPTURE_DEBOUNCE_MS } from "./boot/site-preview.ts";
+import { createSitePreviewCapture, createPreviewTargetResolver, sweepSitePreviewsOnBoot as sweepSitePreviewsOnBootIn, PREVIEW_CAPTURE_DEBOUNCE_MS } from "./boot/site-preview.ts";
 import { reportBootFailure as reportBootFailureIn, buildSelftestTracker as buildSelftestTrackerIn } from "./boot/boot-failure.ts";
 import { resolveStartupSiteDirs as resolveStartupSiteDirsIn, reconcileOrphansOnBoot as reconcileOrphansOnBootIn, bootOwnServerMode as bootOwnServerModeIn } from "./boot/own-server-boot.ts";
 import { applyUserDataDir, chooseBootMode, prepareNodeToolchainEnv, settleDevFallbackRows, createSiteDiscoveryLanes, settleLegacyOwnerStoreOnStart as settleLegacyOwnerStoreOnStartIn } from "./boot/boot-steps.ts";
@@ -191,6 +192,9 @@ import { appWideMenuTemplate, openSingleWindow, runDesktopBoot, runSitesHomeBoot
 
 /** `apps/desktop` (the `.asar` root when packaged). This file lives two levels below it, in
  *  `src/main/`; every bundled path below — preloads, renderer, icon, MCP bridge — is resolved from here. */
+// Consume operator-supplied capabilities before runtime probes, git helpers or site children
+// can inherit them. Per-site serve/render capabilities are delivered privately at each launch.
+await initializeStartupSecrets({}, {});
 const DESKTOP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 
 
@@ -531,7 +535,6 @@ const siteBackend = createSiteBackend<TovuServerHandle>({ ports: {
   redeemBootSession: ({ partition, adminUrl, bootToken }) => redeemBootSession({ net, session: session.fromPartition(partition), adminUrl, bootToken }),
   log: (message) => console.log(message), warn: (message) => console.warn(message), error: (message) => console.error(message),
   openSites,
-  schedulePreview: () => {}, // Readiness of a public live guest owns thumbnail scheduling.
   syncThemePreview: ({ siteDir }) => siteThemePreviews.sync({ siteDir }, {}),
 } });
 
@@ -549,10 +552,8 @@ const livePreviewGuests = createLivePreviewGuests<BrowserWindow, WebContents>({
     }
     return undefined;
   },
-  allowed: ({ owner, guest, target }) => !owner.isDestroyed()
-    && owner.webContents.getURL() === pathToFileURL(SITES_RENDERER_PATH).href
-    && guest.hostWebContents === owner.webContents
-    && guest.session === session.fromPartition(target.partition),
+  allowed: ({ owner, guest, target }) => isLivePreviewGuestAllowed({ owner, guest,
+    shellUrl: pathToFileURL(SITES_RENDERER_PATH).href, partitionSession: session.fromPartition(target.partition) }),
   schedule: input => sitePreviewScheduler.schedule(input),
   cancel: input => sitePreviewScheduler.cancel(input),
 });
@@ -566,9 +567,6 @@ const sitePreviewScheduler = createSitePreviewScheduler<ReturnType<typeof setTim
   schedule: ({ work, delayMs }) => setTimeout(work, delayMs), cancel: ({ timer }) => clearTimeout(timer),
 } }, { debounceMs: PREVIEW_CAPTURE_DEBOUNCE_MS });
 
-/** Legacy server-window callers stay inert: never allocate a guest solely for a thumbnail. */
-function scheduleSitePreview(_siteDir: string): void {}
-const requestListedSitePreview = createListedPreviewRequests({ schedule: () => {} });
 
 /** Open (or focus) one own-server site's window — see `site-window.ts`. Run through `serializer.run(siteDir, …)`. */
 async function openSiteWindow(siteDir: string, ctx: SiteOpenCtx, options: SiteOpenOptions = {}): Promise<BrowserWindow> {
@@ -578,7 +576,7 @@ async function openSiteWindow(siteDir: string, ctx: SiteOpenCtx, options: SiteOp
     sitePartition, readSiteName,
     createWindow: ({ url, title, partition }) => createWindow(url, title, partition),
     recordSiteClosed: ({ registryPath, siteDir: dir, pid }) => recordSiteClosed(registryPath, dir, { pid }),
-    scheduleSitePreview, siteThemePreviews, sitePreviewScheduler,
+    siteThemePreviews, sitePreviewScheduler,
     endSiteSession: ({ partition, adminUrl }) => endSiteSession({ net, session: session.fromPartition(partition), adminUrl }),
     trackTeardown: ({ promise }) => pendingTeardowns.track({ promise }),
     platform: process.platform, quitPhase: () => quitPhase, logError: (message) => console.error(message),
@@ -838,7 +836,6 @@ function buildProjectDeps(sitesCtx: SitesHomeCtx) {
     readPreviewVersion: (siteDir: string) => readPreviewVersion(app.getPath("userData"), siteDir),
     readPreviewDataUrl: (siteDir: string) => readPreviewDataUrl(app.getPath("userData"), siteDir),
     deletePreview: (siteDir: string) => deletePreview(app.getPath("userData"), siteDir),
-    requestPreviewCapture: requestListedSitePreview,
     cancelPreviewCapture: ({ siteDir }: { siteDir: string }, _optional = {}) => {
       sitePreviewScheduler.cancel({ siteDir }, {});
       siteThemePreviews.stop({ siteDir }, {});

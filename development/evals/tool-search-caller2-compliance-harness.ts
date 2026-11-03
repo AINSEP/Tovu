@@ -70,7 +70,6 @@
  * the only holder of the DB connection; the spawned `jini-mcp` child only ever talks HTTP to this
  * process), so the documented `TOVU_DB=memory` two-process/RBAC trap does not apply here.
  */
-import { randomUUID } from "node:crypto";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -90,6 +89,7 @@ import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/prim
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { buildToolCatalogQuery } from "../../apps/website/src/assistant/tool-catalog-query.js";
 import { resolveMcpJsonInjection } from "../../apps/website/src/assistant/mcp-injection.js";
+import { initializeStartupSecrets } from '../../apps/website/src/server/runtime/boot/startup-secrets.js';
 import { createRunScopedCredentials } from "../../apps/website/src/assistant/daemon-access.js";
 
 /** CHANGE THIS before each run — confirm free first. See module doc's Safety section. */
@@ -183,13 +183,10 @@ async function assertSchemaIsFresh(): Promise<void> {
 }
 
 async function main(): Promise<void> {
+  await initializeStartupSecrets({}, {});
   await assertSchemaIsFresh();
-  if (!process.env.TOVU_AGENT_DAEMON_TOKEN) {
-    // Not enforced by this harness's own routes (loopback-only, nothing else can reach it), but
-    // resolveMcpJsonInjection's credential() throws if unset, matching production's fail-closed
-    // contract — set a throwaway value so the real code path executes unchanged.
-    process.env.TOVU_AGENT_DAEMON_TOKEN = `harness-${randomUUID()}`;
-  }
+  // The bridge uses the existing per-run credential registry below; no full-daemon token
+  // is needed, and exporting one would expose it to the very CLI shells being evaluated.
 
   const routeDeps = createRouteDeps(); // fully in-memory, pre-seeded — see module doc.
   const magicLinkPerEmailLimiter = createRateLimiter({ profile: MAGIC_LINK_PER_EMAIL, clock: routeDeps.clock });

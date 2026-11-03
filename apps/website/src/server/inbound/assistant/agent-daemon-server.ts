@@ -11,11 +11,15 @@ import { installServerLogCapture } from "../../../platform/server-logs/index.js"
 import { processBuildRelease, telemetryEnvironment } from "../../runtime/composition/build-release.js";
 import { AGENT_DAEMON_EXIT_CODE } from "#src/assistant/daemon-exit-codes";
 import { TOOL_EXEC_TOKEN_ENV_VAR } from "#src/assistant/daemon-access";
+import { initializeStartupSecrets, startupSecretEnvironment } from '../../runtime/boot/startup-secrets.js';
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 
 const scopes = new Map<string, Promise<Awaited<ReturnType<typeof createSiteScope>>>>();
 const scopeEnvironments = new Map<string, string>();
 const scopedExchanges = new Map<string, () => boolean>();
+// Standalone launch also has IPC now, solely for startup credentials. It retains its own
+// fixed listener/root scope; the desktop's shared host still receives scopes through control.
+const sharedHost = Boolean(process.send) && process.env.TOVU_AGENT_DAEMON_STANDALONE !== '1';
 let listenerUrl = "";
 // A standalone manual daemon has no discovery path; the supervisor supplies the scoped path.
 const daemonRegistryPath = process.env.TOVU_AGENT_DAEMON_REGISTRY_PATH;
@@ -204,7 +208,7 @@ async function control(payload: unknown) {
     return { url: listenerUrl, pid: process.pid };
   }
   const { siteId, env, token } = request;
-  const binding = JSON.stringify([env.TOVU_SITE_DIR, env.TOVU_SITE_LISTENER_ORIGIN, token, env.TOVU_AGENT_DAEMON_TOKEN]);
+  const binding = JSON.stringify([env.TOVU_SITE_DIR, env.TOVU_SITE_LISTENER_ORIGIN, env.TOVU_SITE_CALLBACK_ORIGIN, token, env.TOVU_AGENT_DAEMON_TOKEN]);
   if (scopes.has(siteId) && scopeEnvironments.get(siteId) !== binding) throw new Error("site scope already bound");
   const url = `${listenerUrl}/s/${encodeURIComponent(siteId)}`;
   if (!scopes.has(siteId)) {
@@ -218,21 +222,22 @@ async function control(payload: unknown) {
 }
 
 async function start(): Promise<void> {
+  await initializeStartupSecrets({}, {});
   // Shared hosts bind first so no runtime snapshots port 0 into its bridge injection.
-  const port = process.send ? 0 : Number(process.env.JINI_AGENT_DAEMON_PORT ?? 4319);
+  const port = sharedHost ? 0 : Number(process.env.JINI_AGENT_DAEMON_PORT ?? 4319);
   const server = app.listen(port, "127.0.0.1");
   stopDaemonServing = () => stopServingWithinGrace({ server, workers: [] });
   await new Promise<void>((resolve, reject) => { server.once("listening", resolve); server.once("error", reject); });
   const address = server.address();
   if (!address || typeof address === "string") throw new Error("daemon has no listening address");
   listenerUrl = `http://127.0.0.1:${address.port}`;
-  if (!process.send) {
+  if (!sharedHost) {
     // Standalone uses exactly the same factory and middleware at its historical root routes.
-    const siteId = process.env.TOVU_WORKSPACE;
-    const token = process.env[TOOL_EXEC_TOKEN_ENV_VAR];
-    delete process.env[TOOL_EXEC_TOKEN_ENV_VAR];
+    const env = startupSecretEnvironment({ env: process.env });
+    const siteId = env.TOVU_WORKSPACE;
+    const token = env[TOOL_EXEC_TOKEN_ENV_VAR];
     if (!siteId || !token) throw new Error("standalone daemon requires its site binding");
-    const scope = createSiteScope({ siteId, env: { ...process.env, JINI_AGENT_DAEMON_URL: listenerUrl,
+    const scope = createSiteScope({ siteId, env: { ...env, JINI_AGENT_DAEMON_URL: listenerUrl,
       TOVU_SITE_PROCESS_CWD: process.env.TOVU_SITE_PROCESS_CWD ?? process.cwd() }, token }, { idlePark });
     scopes.set(siteId, scope);
     const ready = await scope;
@@ -248,8 +253,8 @@ async function start(): Promise<void> {
 }
 const startup = start();
 if (process.send) {
-  const channel = createNodeIpcChannel({ peer: process }, { handle: async payload => { await startup; return control(payload); } });
-  process.once("disconnect", () => { channel.dispose({}); void exitDaemon(0); });
+  const channel = sharedHost ? createNodeIpcChannel({ peer: process }, { handle: async payload => { await startup; return control(payload); } }) : undefined;
+  process.once("disconnect", () => { channel?.dispose({}); void exitDaemon(0); });
 }
 void startup.catch(error => {
   // Never forward a bootstrap/control payload (which contains per-site secrets) into diagnostics.

@@ -12,6 +12,19 @@ interface PreviewGuestContents {
   removeListener(event: GuestEvent, listener: () => void): unknown;
 }
 
+/** Electron identity checks shared by registration and capture revalidation. Matching URL text
+ * never substitutes for the host webContents or partition Session identity. O(1).
+ */
+export function isLivePreviewGuestAllowed({ owner, guest, shellUrl, partitionSession }: {
+  owner: { isDestroyed(): boolean; webContents: { getURL(): string } };
+  guest: { hostWebContents?: unknown; session: object };
+  shellUrl: string;
+  partitionSession: object;
+}, _options = {}): boolean {
+  return !owner.isDestroyed() && owner.webContents.getURL() === shellUrl
+    && guest.hostWebContents === owner.webContents && guest.session === partitionSession;
+}
+
 /** Bind eligible guests to canonical sites. Ownership and session validation stay at composition.
  * O(1) per event/lookup, O(registered guests) memory; teardown removes all guest listeners. */
 export function createLivePreviewGuests<Owner extends { isDestroyed(): boolean }, Guest extends PreviewGuestContents>({ resolve, allowed, schedule, cancel }: {

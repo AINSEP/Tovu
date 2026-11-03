@@ -2,7 +2,7 @@
  * @file The fleet chat pane's bridge-backed surfaces. Split out of `App.hooks.ts` (which still
  * re-exports it) with no behaviour change.
  */
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type {
   ChatPaneProps,
   ChatPaneRuntimeAccess,
@@ -52,17 +52,16 @@ export function useWorkspaceChatTransport(
     };
   }, [bridge]);
 
-  // One transport per pane lifetime. It installs the single run-event listener every subscription
-  // multiplexes over, so rebuilding it per render would stack duplicate listeners on that channel.
-  const transport = useMemo(
-    () => (bridge === undefined ? undefined : createWorkspaceChatTransport(bridge)),
-    [bridge],
-  );
-
-  // The pane that uses this hook is unmounted, not hidden, when the operator closes it —
-  // including mid-run. Without this the listener and every live subscription outlive the pane
-  // that owned them.
-  useEffect(() => () => transport?.dispose(), [transport]);
+  const [binding, setBinding] = useState<{ bridge: RunnerInventoryBridge; transport: WorkspaceChatTransport }>();
+  // Construction installs a listener, so setup and disposal must share an effect lifetime.
+  // StrictMode can discard a render and replay setup/cleanup without rebuilding memoized values.
+  useEffect(() => {
+    if (bridge === undefined) { setBinding(undefined); return; }
+    const transport = createWorkspaceChatTransport(bridge);
+    setBinding({ bridge, transport });
+    return () => transport.dispose();
+  }, [bridge]);
+  const transport = binding?.bridge === bridge ? binding?.transport : undefined;
 
   // Runner has no HTTP server (`AGENTS.md`), so this is the IPC uploader
   // (`chat-attachments.ts`), not `@jini-ai/chat`'s daemon-backed one — see that module's doc.

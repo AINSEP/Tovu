@@ -21,6 +21,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { runnerInventoryBridge, type RunnerInventoryBridge } from './runner-api.js';
 import { LIVE_SITE_VIEWS } from '../contracts/site-view-preference.js';
+import { useSiteViewPreference } from './use-site-view-preference.hooks.js';
+export { liveViewLimit } from './use-site-view-preference.hooks.js';
 
 export const DEFAULT_LIVE_VIEW_LIMIT = LIVE_SITE_VIEWS.fallback;
 /** How long a hidden guest gets to answer the probe before it is kept as it is. */
@@ -56,6 +58,9 @@ const KEEP: ReleaseAnswer = { release: false, parked: null };
  */
 export const RELEASE_PROBE = `(() => {
   try {
+    // Only the admin has audited release guards. Public forms and embedded widgets can own
+    // unsaved state without listeners, so absence of a veto there is not consent to destruction.
+    if (!/^\\/admin(?:\\/|$)/.test(window.location.pathname)) return { release: false };
     let unload;
     try { unload = document.createEvent('BeforeUnloadEvent'); unload.initEvent('beforeunload', false, true); }
     catch { unload = new window.Event('beforeunload', { cancelable: true }); }
@@ -68,11 +73,6 @@ export const RELEASE_PROBE = `(() => {
     return { release: !kept, url: window.location.href, x: window.scrollX, y: window.scrollY, innerY: inner ? inner.scrollTop : 0 };
   } catch { return { release: false }; }
 })()`;
-
-/** A positive whole number from the bridge, or the default for anything else. */
-export function liveViewLimit({ value }: { value: unknown }, _options = {}): number {
-  return typeof value === 'number' && Number.isInteger(value) && value > 0 ? value : DEFAULT_LIVE_VIEW_LIMIT;
-}
 
 /**
  * The live tabs, most recently focused first: the focused tab leads, closed tabs drop out.
@@ -227,23 +227,6 @@ function applyReleases({ state, released }: { state: LiveViewsState; released: r
   return { order: state.order.filter((id) => !gone.has(id)), parked };
 }
 
-/** The menu's limit, read once and then followed. An older preload leaves the default. */
-function useLiveViewLimit({ getBridge }: { getBridge: () => RunnerInventoryBridge | undefined }, _options = {}): number {
-  const [limit, setLimit] = useState(DEFAULT_LIVE_VIEW_LIMIT);
-  useEffect(() => {
-    const bridge = getBridge();
-    let changed = false;
-    let active = true;
-    void bridge?.getMaximumLiveSiteViews?.().then(
-      (value) => { if (active && !changed) setLimit(liveViewLimit({ value })); },
-      () => undefined,
-    );
-    const off = bridge?.onMaximumLiveSiteViewsChanged?.((value) => { changed = true; setLimit(liveViewLimit({ value })); });
-    return () => { active = false; off?.(); };
-  }, [getBridge]);
-  return limit;
-}
-
 export interface LiveViews {
   /** Whether this tab may mount its guest: the focused tab always may. */
   isLive: (id: string) => boolean;
@@ -262,7 +245,7 @@ export function useLiveViews({ openIds, focusedId }: { openIds: readonly string[
   timeoutMs = RELEASE_PROBE_TIMEOUT_MS,
 }: { getBridge?: () => RunnerInventoryBridge | undefined; timeoutMs?: number } = {}): LiveViews {
   const [state, setState] = useState<LiveViewsState>({ order: [], parked: {} });
-  const limit = useLiveViewLimit({ getBridge });
+  const { value: limit } = useSiteViewPreference({ getBridge });
   const guests = useRef(new Map<string, LiveGuest>());
   const registerGuest = useCallback((id: string, node: LiveGuest | null) => {
     if (node === null) guests.current.delete(id);

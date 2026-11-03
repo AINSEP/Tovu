@@ -356,8 +356,6 @@ export function installFirstPartyToolContributors(
     createHttpClient?: typeof createDefaultHttpClient;
     /** Server-owned reader; omitted until composition binds the surface, diagnostics fail closed. */
     readAdmissions?: ExternalMcpOperations["admissions"];
-    /** Temporary source compatibility for W3-C's concurrent entry rewrite. Never called. */
-    ensureDaemonReady?: () => Promise<void>;
     /** The booted site's `RouteDeps.siteStoragePaths.chatAttachmentsDir`, which the two default
      *  attachment readers below read from. Both production callers pass it; omitted (hermetic
      *  tests), those readers refuse every ref instead of resolving a directory from env. */

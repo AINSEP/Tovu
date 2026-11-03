@@ -15,6 +15,8 @@ import { checkShareLimits, SiteShareRefusal } from "./share-policy.js";
 
 export interface SiteShareBackend {
   readonly registry: SiteShareRegistry;
+  /** Current export/upload lifecycle, independent of polling and retained finished job records. */
+  hasWork?(required: Record<string, never>, optional?: Record<string, never>): boolean;
   staticOptions(required: Record<string, never>, optional?: Record<string, never>): Promise<StaticExportOptions>;
   create(required: { principalId: string; jobId?: string; signal: AbortSignal; includeSavedKeys?: boolean; format?: "static"; themeIds?: readonly string[]; publicUrl?: string }, optional?: { waitMs?: number }): Promise<unknown>;
   revealPassword(required: { principalId: string; shareId: string }, optional?: Record<string, never>): Promise<{ password: string }>;
@@ -158,6 +160,7 @@ export function createSiteShareBackend(required: {
   };
   return {
     registry: required.registry,
+    hasWork: () => active !== null,
     async staticOptions() {
       if (!required.staticSite) throw new SiteShareRefusal({ code: "UNAVAILABLE", message: "Static exporter is unavailable in this context." });
       const { activeThemeId, themes } = staticRoster({ ports: required.staticSite, context: await required.staticSite.context() });

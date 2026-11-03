@@ -71,6 +71,8 @@ export interface RunDaemonClient {
   runStatus(required: RunDaemonRequest, optional?: { signal?: AbortSignal }): Promise<number | null>;
   launch?(required: { run: DurableRun; request: { contextRef: string; agentId?: string } }, optional: {}): Promise<void>;
   cancel?(required: RunDaemonRequest, optional: {}): Promise<void>;
+  /** Release this principal/run's retained endpoint and capability after its watch ends. Idempotent. */
+  release?(required: RunDaemonRequest, optional?: Record<string, never>): void;
 }
 
 export interface AssistantRunFinalizerOptions {
@@ -140,7 +142,9 @@ function daemonHeaders(principalId: string, token: string | undefined): Record<s
 
 /** The real daemon, over loopback HTTP — the same URL, token and principal header the proxy uses.
  *  Each request is one outbound span through `observability` (host/port and status, never the run id
- *  or token); the events request's span ends at the response headers, not with the stream. */
+ *  or token); the events request's span ends at the response headers, not with the stream.
+ *  Successful status probes pin the owning endpoint/capability until the watch calls `release`.
+ *  @complexity O(1) per request beyond transport; O(w) retained addresses for w active run/principal watches. */
 export function createHttpRunDaemonClient(
   { observability }: { observability: ObservabilityPort },
   optional: {
@@ -171,6 +175,15 @@ export function createHttpRunDaemonClient(
   // another run to a replacement scope or pair its old URL with the replacement credential.
   const replayOrigins = new Map<string, Address>();
   const replayKey = ({ runId, principalId }: RunDaemonRequest, _optional = {}) => JSON.stringify([principalId, runId]);
+  /** A timed-out probe can resolve after watch cleanup. Never let it retain a retired capability.
+   * @complexity O(1) time/space per still-live probe; the owning watch releases its map entry. */
+  function retainLiveOrigin(
+    { run, address, status }: { run: RunDaemonRequest; address: Address; status: number | null },
+    { signal }: { signal?: AbortSignal } = {},
+  ): void {
+    if (status !== 200 || signal?.aborted) return;
+    replayOrigins.set(replayKey(run), address);
+  }
   async function statusAt(
     { url, token, runId, principalId }: RunDaemonRequest & Address,
     { signal }: { signal?: AbortSignal } = {},
@@ -187,6 +200,7 @@ export function createHttpRunDaemonClient(
     }
   }
   return {
+    release(required, _options = {}) { replayOrigins.delete(replayKey(required)); },
     async launch({ run, request }, _options) {
       await (optional.ensureReady ?? ensureAssistantDaemonReady)({}, {});
       const response = await fetchWithDaemonParkRecovery({ send: () => {
@@ -216,7 +230,7 @@ export function createHttpRunDaemonClient(
         const address = replayOrigins.get(replayKey(required)) ?? await origin();
         const status = await statusAt({ ...required, ...address }, requestOptions);
         if (status !== null && status !== 404) {
-          if (status === 200) replayOrigins.set(replayKey(required), address);
+          retainLiveOrigin({ run: required, address, status }, requestOptions);
           return status;
         }
         const replacement = current();
@@ -226,7 +240,7 @@ export function createHttpRunDaemonClient(
         // before declaring death; a live prior response always wins. A registry read error still
         // fails closed because the owning address is then unknown.
         const currentStatus = await statusAt({ ...required, ...replacement }, requestOptions);
-        if (currentStatus === 200) replayOrigins.set(replayKey(required), replacement);
+        if (currentStatus === 200) retainLiveOrigin({ run: required, address: replacement, status: currentStatus }, requestOptions);
         else replayOrigins.delete(replayKey(required));
         return currentStatus;
       } catch {
@@ -651,7 +665,13 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
           watch.abortStream.abort();
           clearTimeout(watch.trailing);
           newAttempts.delete(runId);
-          try { await options.onAttemptEnded?.({ runId }); }
+          try {
+            // Preserve a successor's pin on the same client, but release an old client's
+            // credentials when a replacement watch uses a different daemon client.
+            const successor = active.get(runId)?.watch;
+            if (successor === watch || successor?.daemon !== watch.daemon) watch.daemon.release?.({ runId, principalId: watch.principalId }, {});
+            await options.onAttemptEnded?.({ runId });
+          }
           catch { console.warn("[assistant-run-finalizer] attempt resource cleanup unavailable"); }
           finally { if (active.get(runId)?.watch === watch) active.delete(runId); }
         });

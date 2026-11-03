@@ -41,7 +41,6 @@ export interface AgentDaemonCoreDeps extends AgentDaemonResource, RetainedReposi
   readonly tracker: Tracker;
   readonly aiTraceSink: AiTraceSink | undefined;
   getSessionForAttempt(input: { runId: string }, options?: Record<string, never>): Promise<string | null>;
-  flushTelemetry(): Promise<void>;
 }
 export interface AgentDaemonCoreOptions {
   dbPath?: string;
@@ -63,7 +62,7 @@ export interface AgentDaemonCoreOptions {
  */
 export async function createAgentDaemonCoreDeps(required: { env: NodeJS.ProcessEnv; token: string }, optional: AgentDaemonCoreOptions = {}): Promise<AgentDaemonCoreDeps> {
   const { env, token } = required;
-  const site = createDaemonCoreClient({ baseUrl: env.TOVU_SITE_LISTENER_ORIGIN ?? "", token }, { fetch: optional.fetch });
+  const site = createDaemonCoreClient({ baseUrl: env.TOVU_SITE_CALLBACK_ORIGIN ?? env.TOVU_SITE_LISTENER_ORIGIN ?? "", token }, { fetch: optional.fetch });
   const snapshot = await site.bootstrap();
   if (env.TOVU_WORKSPACE && env.TOVU_WORKSPACE !== snapshot.workspaceId) throw new DaemonCoreError({ reason: "the daemon workspace does not match its site server" });
   if (env.TOVU_SITE_DIR && path.resolve(env.TOVU_SITE_DIR) !== path.resolve(snapshot.siteBinding.dir)) throw new DaemonCoreError({ reason: "the daemon directory does not match its site server" });
@@ -82,7 +81,7 @@ export async function createAgentDaemonCoreDeps(required: { env: NodeJS.ProcessE
       getEffective: client ? getEffective : site.getEffective,
       getSessionForAttempt: site.getSessionForAttempt, chatRunLedger: { durable: site.durable }, tracker: site.tracker,
       aiTraceSink: snapshot.traceEnabled ? site.trace({ capture: snapshot.traceCapture }) : undefined,
-      flushTelemetry: site.flush, close,
+      close,
     };
     optional.onStoreOpened?.({ close });
     return deps;

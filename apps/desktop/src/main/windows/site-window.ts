@@ -29,7 +29,7 @@ interface SiteWindowEntry<S, W> {
   siteDir: string;
 }
 
-/** Per-site preview hooks: `sitePreviewScheduler`, `siteThemePreviews` and `scheduleSitePreview`. */
+/** Per-site preview cancellation and theme snapshot hooks. */
 type SiteHook = (required: { siteDir: string }, optional: Readonly<Record<string, never>>) => unknown;
 
 /** Everything one site-window open needs from `main.ts`. */
@@ -48,7 +48,6 @@ interface SiteWindowPorts<S extends SiteWindowServer, W extends SiteWindow, C ex
   readSiteName: (siteDir: string) => string;
   /** Drop this child's crash-safety row — `site-process-registry.ts`'s `recordSiteClosed`. */
   recordSiteClosed: (required: { registryPath: string; siteDir: string; pid: number }) => void;
-  scheduleSitePreview: (siteDir: string) => void;
   siteThemePreviews: { sync: SiteHook; stop: SiteHook };
   sitePreviewScheduler: { cancel: SiteHook };
   /** Revoke the window's admin session over loopback — `desktop-auth.ts`'s `endSiteSession`. */
@@ -208,7 +207,6 @@ async function openSiteWindow<S extends SiteWindowServer, W extends SiteWindow, 
   }
 
   ports.openSites.set(siteDir, { server, window, siteDir });
-  ports.scheduleSitePreview(siteDir);
   ports.siteThemePreviews.sync({ siteDir }, {});
   window.on("closed", () => handleSiteWindowClosed({ siteDir, ctx, window, server, partition, ports }));
   return window;

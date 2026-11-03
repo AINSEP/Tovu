@@ -93,9 +93,14 @@ export function useSiteStart(
   const [error, setError] = useState<string | null>(null);
 
   const start = async () => {
+    const bridge = getBridge();
+    if (bridge === undefined) {
+      setError('Tovu desktop connection required to start a website.');
+      return false;
+    }
     setStarting(true);
     setError(null);
-    const result = await performSiteStart(project.id, getBridge());
+    const result = await performSiteStart(project.id, bridge);
     try {
       if (result.error !== undefined) {
         setError(result.error);

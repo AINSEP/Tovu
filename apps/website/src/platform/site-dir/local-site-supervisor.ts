@@ -129,6 +129,24 @@ export function createLocalSiteSupervisor(
   function scheduleProbe(entry: Entry) {
     entry.cancel = processPort.schedule({ run: () => { void probe(entry); }, delayMs: entry.state.status === "starting" ? 500 : 5000 });
   }
+  /** A failed reap still owns a live child and its ports. Reopen intake and resume observation
+   * before propagating the admission failure; a later open can retry the same retirement.
+   */
+  async function reapRetiredSite({ entry }: { entry: Entry }, _options = {}): Promise<void> {
+    const previous = entry.state.status;
+    entry.state.status = "stopped";
+    try { await reap(entry, "stopped"); }
+    catch (error) {
+      try { await entry.child?.cancelRetirement?.(); }
+      finally {
+        entry.state.status = previous;
+        entry.probes = 0; entry.misses = 0;
+        scheduleProbe(entry);
+        if (entry.state.port !== null) updateIntent({ name: entry.state.name, port: entry.state.port });
+      }
+      throw error;
+    }
+  }
   /** Admission and retirement run in the same lane; only positively idle owned children stop.
    * External leases never become eviction candidates. @complexity O(s log s), bounded by the cap.
    */
@@ -140,8 +158,7 @@ export function createLocalSiteSupervisor(
         if (!await entry.child?.tryRetire?.().catch(() => false)) continue;
         try { updateIntent({ name: entry.state.name }); }
         catch (error) { await entry.child?.cancelRetirement?.(); throw error; }
-        entry.state.status = "stopped";
-        await reap(entry, "stopped");
+        await reapRetiredSite({ entry });
         return;
       }
     }

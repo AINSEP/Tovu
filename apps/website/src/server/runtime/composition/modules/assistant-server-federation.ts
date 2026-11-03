@@ -42,12 +42,14 @@ export function createAssistantServerFederation(
       executor: {
         ...toolSurface.daemonCalls.executor,
         execute: async (call, optional) => {
-          await readAdmissions();
+          await toolSurface.awaitFederation(5_000);
           return toolSurface.daemonCalls.executor.execute(call, optional);
         },
       },
       listToolsFor: async (required, optional) => {
-        await readAdmissions();
+        // Native tools remain usable while optional remote connections finish admission.
+        // The next catalog read picks up late admissions from the same live surface.
+        await toolSurface.awaitFederation(5_000);
         return toolSurface.daemonCalls.listToolsFor(required, optional);
       },
     },

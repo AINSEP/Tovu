@@ -409,7 +409,6 @@ function serveEnv({ temp, siteCopy }, { idleMinutes = null } = {}) {
     HOME: path.join(temp, "home"), TOVU_DESKTOP_USER_DATA_DIR: path.join(temp, "profile"),
     ELECTRON_RUN_AS_NODE: "1", NODE_OPTIONS: "--inspect=127.0.0.1:0",
     TOVU_SITE_DIR: siteCopy, TOVU_HOST: "127.0.0.1",
-    TOVU_AGENT_DAEMON_TOKEN: randomBytes(32).toString("hex"),
     TOVU_ADMIN_USER: "admin", TOVU_ADMIN_PASSWORD: randomBytes(32).toString("hex"),
     ...(idleMinutes === null ? {} : { TOVU_AGENT_DAEMON_IDLE_MINUTES: String(idleMinutes) }),
   };

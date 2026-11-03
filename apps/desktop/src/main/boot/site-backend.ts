@@ -75,8 +75,6 @@ export interface SiteBackendPorts<TServer extends SiteBackendServer> {
   error: (message: string) => void;
   /** The `openSites` supervisor surface {@link SiteBackend.openSiteServer} reads and writes. */
   openSites: OpenSitesPort<TServer>;
-  /** `sitePreviewScheduler.schedule`. */
-  schedulePreview: (required: { siteDir: string }) => void;
   /** `siteThemePreviews.sync`. */
   syncThemePreview: (required: { siteDir: string }) => void;
 }
@@ -266,7 +264,6 @@ export function createSiteBackend<TServer extends SiteBackendServer>(
     if (already) return already.server;
     const { server } = await startSiteBackend({ siteDir, ctx }, { port });
     ports.openSites.set(siteDir, { server, siteDir });
-    ports.schedulePreview({ siteDir });
     ports.syncThemePreview({ siteDir });
     return server;
   }

@@ -1,5 +1,6 @@
 import { assistantDaemonToken } from "../../lifecycle/assistant-daemon-connection.js";
 import { redactAdminRunContextRef } from "#src/assistant/credential-chat-intake";
+import { tryRestoreSurface } from '@jini-ai/daemon/http';
 /**
  * @file ADR-049 (process-shape correction) — Tovu never spawns a coding-agent CLI itself. This
  * module is a thin, session-authenticated reverse proxy in front of the standalone agent daemon
@@ -408,7 +409,7 @@ function localMcpUiTarget({ exchangeId, params, toolName, res, byokSurfaceExchan
 }
 
 async function proxyMcpUiToolCall(req: Request, res: Response, byokSurfaceExchanges: SurfaceExchangeStore, daemon: DaemonCallOptions): Promise<void> {
-  const body = (req.body ?? {}) as { toolName?: unknown; params?: unknown; exchangeId?: unknown };
+  const body = (req.body ?? {}) as { toolName?: unknown; params?: unknown; exchangeId?: unknown; restore?: unknown };
   const toolName = body.toolName;
   if (typeof toolName !== "string" || toolName.length === 0) {
     res.status(400).json({ error: "'toolName' must be a non-empty string", code: "VALIDATION_ERROR" });
@@ -428,7 +429,11 @@ async function proxyMcpUiToolCall(req: Request, res: Response, byokSurfaceExchan
     return;
   }
   const target = localMcpUiTarget({ exchangeId, params, toolName, res, byokSurfaceExchanges });
-  if (tryLocalMcpUiDelivery(res, byokSurfaceExchanges, target, params, toolName)) return;
+  const restoreOnly = (req.body as { restore?: unknown } | undefined)?.restore === true;
+  if (!restoreOnly && tryLocalMcpUiDelivery(res, byokSurfaceExchanges, target, params, toolName)) return;
+  if (typeof target === 'string' && await tryRestoreSurface({
+    res, store: byokSurfaceExchanges, exchangeId: target, principalId: getAuthedPrincipal(res).id, toolId: toolName,
+  }, restoreOnly ? {} : { params })) return;
 
   // `forwardToAgentDaemon` deliberately does NOT relay (see its doc comment) — each caller relays
   // for itself. Without the relay in `proxyPassthrough` this route fetches the daemon's answer and

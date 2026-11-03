@@ -29,10 +29,12 @@ import { shutdownAssistantDaemon, startAssistantDaemon } from "./server/inbound/
 import { closeStoreOnShutdown, stopServingWithinGrace } from "./server/runtime/lifecycle/close-store-on-shutdown.js";
 import { ensureAgentDaemonPortResolved } from "./server/runtime/lifecycle/agent-daemon-port.js";
 import { ensureAgentDaemonToken, ensureToolExecToken } from "./assistant/index.js";
+import { initializeStartupSecrets } from './server/runtime/boot/startup-secrets.js';
 import { registerAdminDevProxyUpgrade } from "./server/inbound/admin-http/admin-dev-proxy.js";
 import { resolveBindHost } from "./server/runtime/boot/bind-host.js";
 import { reserveBootListener } from "./server/runtime/boot/boot-listener.js";
 import { pinSiteListenerOrigin } from "./server/runtime/boot/site-listener-origin.js";
+import { startSiteDaemonListener } from "./server/runtime/boot/site-daemon-listener.js";
 import { resolveCheckoutRoot } from "./platform/site-dir/product-root.js";
 // The parent-watchdog doc (why, checks, escape hatch, platform posture) moved with the code.
 import { startOwnParentWatchdog } from "./server/runtime/boot/parent-watchdog.js";
@@ -139,18 +141,6 @@ async function prepareSiteBoot(
     attachServerLogFile({ filePath: logFiles.server }, { alsoRead: [logFiles.daemon] });
   }
 
-  // Mints `TOVU_AGENT_DAEMON_TOKEN` (unless the operator already set one) into this process's env
-  // so `startAssistantDaemon()` — called much later, from inside `app.listen()`'s callback — hands
-  // it to the daemon child (and every respawn after it) through the inherited env, and so
-  // `server/modules/assistant.ts`'s proxy
-  // can read it at request time. Must precede the spawn; placed first because it is the one boot
-  // step with no dependency on anything at all. It is a single synchronous env assignment (no
-  // import, no await, no I/O), so it does not weaken `registerPluginSdkResolver`'s ordering
-  // guarantee documented immediately below — there is still no `await` point ahead of it.
-  ensureAgentDaemonToken({}, {});
-  // The tool RPC token (ADR-070) stays in module memory, NOT this env: see `daemon-access.ts`.
-  ensureToolExecToken({}, {});
-
   // SPEC-005 (ADR-005-ARCH, CIC U-002, ESCALATE_SECURITY): must run synchronously, before any
   // other boot step, and unconditionally before `createApp(deps)` wires any route or before any
   // code path could reach `loadPlugin()`'s dynamic `import()`. Placed first in `main()` — even
@@ -160,6 +150,12 @@ async function prepareSiteBoot(
   // path (never imported by a test), so it is the safe place to enforce this ordering without
   // touching `app.ts`/`deps.ts`'s synchronous, widely-tested call signatures (W-001).
   registerPluginSdkResolver();
+
+  // Keep resolver registration ahead of the first await. Credentials arrive over startup IPC
+  // and remain in memory, so plugin hosts and coding-agent shells cannot inherit them.
+  await initializeStartupSecrets({}, {});
+  ensureAgentDaemonToken({}, {});
+  ensureToolExecToken({}, {});
 
   await runProductionReadinessGateOrExit();
 
@@ -290,7 +286,11 @@ async function main(): Promise<void> {
   // process open.
   const { app, outboxDrainer, trashSweeper, themeWatcher, formPullTrigger, postGoLiveSweep, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance, bootWork: servingBootWork } = createServingApp(deps);
   bootWork.push(...servingBootWork);
-  stopServing = () => stopServingWithinGrace({ server, workers: [outboxDrainer, { stop: () => trashSweeper.stop({}) }, themeWatcher, formPullTrigger, postGoLiveSweep, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance] });
+  const daemonCallback = await startSiteDaemonListener({
+    publicOrigin: pinSiteListenerOrigin({ scheme: devTls.active ? "https" : "http", host: bindHost, port }), handler: app,
+  });
+  server.once("close", () => { void daemonCallback.close(); });
+  stopServing = () => stopServingWithinGrace({ server, workers: [{ stop: () => daemonCallback.close() }, outboxDrainer, { stop: () => trashSweeper.stop({}) }, themeWatcher, formPullTrigger, postGoLiveSweep, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance] });
   // TLS-gated the same way `apps/admin/vite.config.ts` gates Vite's own dev server: cert pair
   // present -> HTTPS, absent -> plain HTTP/1.1 (`devTls`/`devScheme`, computed above at module
   // load). Express 4 has no native HTTP/2 support (no `spdy`/`http2` compat shim added here), so
@@ -358,7 +358,7 @@ async function main(): Promise<void> {
     // and `core.execution.mode` rows). The list and the full why live in
     // `server/runtime/boot/site-boot-readiness.ts`, shared with `cli/commands/serve.ts`.
     startAssistantDaemon(
-      { workspaceId: deps.workspaceId, siteDir: siteDir(), pgSocketPath: siteStore?.pgliteSocketPath, siteApiOrigin },
+      { workspaceId: deps.workspaceId, siteDir: siteDir(), pgSocketPath: siteStore?.pgliteSocketPath, siteApiOrigin, siteCallbackOrigin: daemonCallback.origin },
       { registerProcessSignalHandlers: !storeOwnsShutdown, beforeStart: async () => {
         await awaitSiteBootReadiness({ deps });
         if (!(await agentDaemonWanted(deps))) throw new Error("the assistant daemon is disabled for this site");

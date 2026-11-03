@@ -1946,7 +1946,13 @@ function registerAdminSpa({ app, routeDeps }: { app: Express; routeDeps: RouteDe
 
 export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps = createRouteDeps(), options: CreateAppOptions = {}) {
   const app = express();
-  registerWarmSiteRetirement({ app, siteDir: routeDeps.siteBinding.dir });
+  registerWarmSiteRetirement({ app, siteDir: routeDeps.siteBinding.dir, jobs: async () => {
+    // Read the lifecycle owners now: a completed job must not pin a warm child forever.
+    if (routeDeps.siteShareBackend && routeDeps.siteShareBackend.hasWork?.({}) !== false) return true;
+    await routeDeps.newsletterReady;
+    return (await routeDeps.newsletterCampaignRepo.list({ workspaceId: routeDeps.workspaceId }))
+      .some(campaign => campaign.status === 'sending');
+  } });
   // All admin error mappers share this request-scoped diagnostic port, including narrow route deps.
   app.use("/api/admin", (_req, res, next) => { res.locals.adminFailureTracker = routeDeps.tracker; next(); });
   const internalRouter = express.Router();

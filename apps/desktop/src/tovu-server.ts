@@ -25,6 +25,8 @@ import { spawn as nodeSpawn, execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import type { DesktopAgentService } from "./desktop-agent-service.ts";
 import { omitEnvironmentKeys } from "@jini-ai/platform/child-environment";
+import { provideNodeStartupSecrets, splitNodeStartupSecrets, STARTUP_SECRETS_ENV } from '@jini-ai/sidecar/supervisor/node';
+import { STARTUP_SECRET_KEYS, DESKTOP_AGENT_SERVICE_ENV } from '../../website/src/server/runtime/boot/startup-secrets.ts';
 import type { ChildProcess, SpawnOptions } from "node:child_process";
 import type { Readable, Writable } from "node:stream";
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
@@ -303,6 +305,8 @@ function buildCliEnv({ baseEnv, siteDir }: { baseEnv?: NodeJS.ProcessEnv; siteDi
   // Desktop launches many sites: a relocation exported for one CLI run must not become shared state.
   const isolated = omitEnvironmentKeys({ env: baseEnv ?? process.env,
     keys: ["TOVU_PLUGINS_DIR", "TOVU_SKILLS_DIR", "TOVU_AGENT_PLUGINS_DIR",
+      ...STARTUP_SECRET_KEYS,
+      STARTUP_SECRETS_ENV, DESKTOP_AGENT_SERVICE_ENV,
       // Packaging evidence is supplied afresh by main for serve, never inherited (including
       // differently-cased Windows copies) by serve or another CLI command.
       'TOVU_PACKAGED_DESKTOP',
@@ -311,7 +315,7 @@ function buildCliEnv({ baseEnv, siteDir }: { baseEnv?: NodeJS.ProcessEnv; siteDi
       // Only a main that spawned this server may supply its desktop capability.
       DESKTOP_MCP_URL_ENV, DESKTOP_MCP_TOKEN_ENV, DESKTOP_MCP_HANDOFF_ENV,
       ...(siteDir ? ["TOVU_SITE_DIR", "TOVU_AGENT_CWD"] : [])],
-  }, { caseInsensitive: process.platform === "win32" });
+  }, { caseInsensitive: true });
   const env = isolated.env;
   if (isolated.omitted.length) {
     warn(`tovu desktop: dropped inherited ${isolated.omitted.join(", ")}; spawned sites use their own plugin and skill folders. Set overrides only for a direct single-site run.`);
@@ -395,12 +399,11 @@ function applyProductTelemetryEnv({ env, productTelemetry }: {
  *   `daemon-supervisor.ts` spawns the agent daemon with `process.execPath` too and inherits this
  *   variable through `{...process.env}`, so the daemon comes up the same way.
  *
- * - **`TOVU_AGENT_DAEMON_TOKEN` is minted here.** `apps/website/src/index.ts` calls
- *   `ensureAgentDaemonToken()` as the first statement of `main()`; `cli/commands/serve.ts` does
- *   NOT (verified — no `cli/` file references it). `daemon-auth.ts` is fail-closed by design: an
- *   unset token makes the daemon answer **503**, so without this line the assistant is dead in
- *   own-server mode with no error anywhere that names the cause. An operator-set value wins, since
- *   someone who exported a token to reach the daemon from outside must not have it replaced.
+ * - **`TOVU_AGENT_DAEMON_TOKEN` is private launch configuration.** An explicit value in baseEnv
+ *   wins; otherwise this builder mints one. `startTovuServer` removes it from the OS environment
+ *   and delivers it through startup IPC. Both server entrypoints also mint a private token when
+ *   launched directly. Desktop agent-service mode instead registers authority over its existing
+ *   control channel, so that launch does not need a pre-minted daemon token.
  *
  * - **`TOVU_ADMIN_DIST` and `TOVU_SITE_CHAT_DIST` are set when their builds exist.** `app.ts`
  *   resolves BOTH from `import.meta.dirname` six levels up when unset (`:1316` and `:1340`), which
@@ -468,6 +471,8 @@ function applyProductTelemetryEnv({ env, productTelemetry }: {
  */
 function buildServeEnv(input: BuildServeEnvInput, { warn = console.warn }: { warn?: (message: string) => void } = {}): NodeJS.ProcessEnv {
   const repoRoot = input.repoRoot;
+  // Serve alone consumes this capability over startup IPC. Other CLI commands need none.
+  const inherited = splitNodeStartupSecrets({ env: input.baseEnv ?? process.env, keys: STARTUP_SECRET_KEYS });
   const env = buildCliEnv({ baseEnv: input.baseEnv, siteDir: input.siteDir }, { warn });
   // buildCliEnv cleared inherited copies; main now supplies the authoritative launch fact.
   if (input.isPackaged !== undefined) env.TOVU_PACKAGED_DESKTOP = input.isPackaged ? '1' : '0';
@@ -476,9 +481,7 @@ function buildServeEnv(input: BuildServeEnvInput, { warn = console.warn }: { war
   // Ownership comes from the host that registers this connection, never from its display name.
   env.TOVU_BUILT_IN_MCP_SERVER_IDS = JSON.stringify([SITES_MCP_SERVER_ID]);
 
-  if (!env.TOVU_AGENT_DAEMON_TOKEN) {
-    env.TOVU_AGENT_DAEMON_TOKEN = randomBytes(32).toString("hex");
-  }
+  env.TOVU_AGENT_DAEMON_TOKEN = inherited.secrets.TOVU_AGENT_DAEMON_TOKEN || randomBytes(32).toString("hex");
 
   // LAN-bind plan (2026-09-23). Overwritten on purpose, like the PORT drop in `buildCliEnv` above —
   // NOT merely defaulted like TOVU_AGENT_DAEMON_TOKEN above, whose inherited value wins. Every
@@ -952,14 +955,18 @@ async function startTovuServer(input: StartTovuServerInput): Promise<TovuServerH
     delete serveEnv.TOVU_AGENT_DAEMON_TOKEN;
     delete serveEnv.TOVU_TOOL_EXEC_TOKEN;
   }
+  const startup = splitNodeStartupSecrets({ env: serveEnv, keys: STARTUP_SECRET_KEYS });
+  // Startup IPC is separate from desktop agent control and from Windows' stdin EOF stop pipe.
+  const childEnv = { ...startup.env, [STARTUP_SECRETS_ENV]: '1',
+    [DESKTOP_AGENT_SERVICE_ENV]: input.agentService ? '1' : '0' };
   // Windows has no SIGTERM to send: Stop closes this stdin pipe instead (see `stopChild`).
   const win32 = (input.platform ?? process.platform) === "win32";
   const child = spawnFn(
     plan.command,
     plan.args,
     {
-      env: win32 ? { ...serveEnv, TOVU_STOP_ON_STDIN_EOF: "1" } : serveEnv,
-      stdio: [win32 ? "pipe" : "ignore", "pipe", "pipe", ...(input.agentService ? ["ipc" as const] : [])],
+      env: win32 ? { ...childEnv, TOVU_STOP_ON_STDIN_EOF: "1" } : childEnv,
+      stdio: [win32 ? "pipe" : "ignore", "pipe", "pipe", "ipc"],
       // Own process group, so `stopChild`'s SIGKILL escalation can reap the agent daemon
       // `tovu serve` spawns rather than just the immediate child. Same reason
       // `development/scripts/dev.mjs` and `daemon-supervisor.ts` both detach.
@@ -969,6 +976,10 @@ async function startTovuServer(input: StartTovuServerInput): Promise<TovuServerH
       windowsHide: true,
     },
   );
+
+  const delivery = provideNodeStartupSecrets({ peer: child as ChildProcess, secrets: startup.secrets });
+  child.once('exit', () => delivery.dispose({}));
+  child.once('error', () => delivery.dispose({}));
 
   const agentBinding = input.agentService?.bindServer({ child: child as ChildProcess, siteDir: input.siteDir }, {});
 

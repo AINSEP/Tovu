@@ -80,13 +80,6 @@ export function createPreviewTargetResolver({ ports }: { ports: PreviewTargetPor
   };
 }
 
-/** Legacy server/list callers remain inert: only a ready public guest schedules thumbnails. */
-export function createListedPreviewRequests(
-  _input: { schedule: (required: { siteDir: string }, optional: {}) => void }, _options = {},
-) {
-  return function requestListedSitePreview(_input: { siteDir: string; port: number }, _options = {}): void {};
-}
-
 /**
  * Delete every cached preview no tracked site claims, once at boot. Hygiene, not correctness — see
  * `site-preview-store.ts`'s own doc on why an orphaned file can never reach the UI on its own, since

@@ -11,8 +11,9 @@ async function adminSourceRoots({ repoRoot, read }) {
   const manifest = await read(path.join(repoRoot, 'apps/admin/package.json'));
   const dependencies = manifest ? Object.keys(JSON.parse(manifest).dependencies ?? {}) : [];
   const roots = [path.join(repoRoot, 'apps/admin'), path.join(repoRoot, 'packages/contracts/src'),
-    path.join(repoRoot, 'apps/website/src/contracts'), path.join(repoRoot, 'apps/website/src/features/publish-content/ui'),
-    path.join(repoRoot, 'apps/website/src/features/theme/theme-layout.ts'), path.join(repoRoot, 'package-lock.json')];
+    // Admin imports website contracts, helpers and their transitive dependencies. Hash the source
+    // owner as a whole so a newly added cross-app import cannot silently escape freshness checks.
+    path.join(repoRoot, 'apps/website/src'), path.join(repoRoot, 'package-lock.json')];
   for (const name of dependencies.filter(name => name.startsWith('@jini-ai/'))) {
     const installed = await realpath(path.join(repoRoot, 'apps/admin/node_modules', name)).catch(() =>
       realpath(path.join(repoRoot, 'node_modules', name)).catch(() => undefined));
