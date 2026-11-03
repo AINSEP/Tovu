@@ -1,57 +1,73 @@
-import type { ReactElement } from "react";
+import { Suspense, type ReactElement } from "react";
 import { describe, expect, it } from "vitest";
 import { buildAgentPageMap, buildNav } from "@jini-ai/admin/core";
 
 import { ADMIN_PANELS, type PanelRenderContext as PanelRouteContext } from "../../panels";
 import { agentPageId, parseRoute } from "../../App";
-import { Themes, ThemeExplore } from "../../features/themes";
-import { AdminUi } from "../../features/admin-ui";
-import { Dashboard } from "../../features/dashboard";
+import {
+  Themes,
+  ThemeExplore,
+  AdminUi,
+  Dashboard,
+  PostEditor,
+  Posts,
+  PageEditor,
+  Pages,
+  Members,
+  Comments,
+  Analytics,
+  CookieConsent,
+  Media,
+  Menus,
+  MenuEditor,
+  IntegrationDeliveries,
+  IntegrationsRedirect,
+  Providers,
+  Users,
+  Authentication,
+  Roles,
+  SettingsUi,
+  Seo,
+  Redirects,
+  Plugins,
+  AgentPlugins,
+  FormsList,
+  FormEditor,
+  Collections,
+  CollectionEntries,
+  CollectionEntryEditor,
+  Taxonomy,
+  Trash,
+  Email,
+  EmailTemplateEditor,
+  Database,
+  Recovery,
+  ImportExport,
+  Deployment,
+  SourceControl,
+  Security,
+  Observability,
+  WidgetsLibrary,
+  WidgetInstanceEditor,
+  WidgetRegions,
+  WidgetRegionEditor,
+  WorkspaceRedirect,
+  AiAssistant,
+  Playground,
+  Sites,
+  Library,
+  Skills,
+} from "../../panel-pages";
 import { Placeholder } from "../../components/Placeholder";
-import { PostEditor, Posts } from "../../features/posts";
-import { PageEditor, Pages } from "../../features/pages";
-import { Members } from "../../features/members";
-import { Comments } from "../../features/comments";
-import { Analytics } from "../../features/analytics";
-import { CookieConsent } from "../../features/consent";
 import { ModulePanel } from "../../integrations/jini-admin/ModulePanel";
-import { Media } from "../../features/media";
-import { Menus, MenuEditor } from "../../features/menus";
-import { IntegrationDeliveries, IntegrationsRedirect } from "../../features/integrations";
-import { Providers } from "../../features/providers";
-import { Users } from "../../features/users";
-import { Authentication } from "../../features/authentication";
-import { Roles } from "../../features/roles";
-import { SettingsUi } from "../../features/settings";
-import { Seo } from "../../features/seo";
-import { Redirects } from "../../features/redirects";
-import { Plugins, AgentPlugins } from "../../features/plugins";
-import { FormsList, FormEditor } from "../../features/forms";
-import { Collections, CollectionEntries, CollectionEntryEditor } from "../../features/collections";
-import { Taxonomy } from "../../features/taxonomy";
-import { Trash } from "../../features/trash";
-import { Email, EmailTemplateEditor } from "../../features/email";
-import { Database } from "../../features/database";
-import { Recovery } from "../../features/recovery";
-import { ImportExport } from "../../features/import-export";
-import { Deployment } from "../../features/deployment";
-import { SourceControl } from "../../features/source-control";
-import { Security } from "../../features/security";
-import { Observability } from "../../features/observability";
-import { WidgetsLibrary, WidgetInstanceEditor, WidgetRegions, WidgetRegionEditor } from "../../features/widgets";
-import { WorkspaceRedirect } from "../../features/workspace";
-import { AiAssistant } from "../../features/ai-assistant";
-import { Playground } from "../../features/playground";
-import { Sites } from "../../features/sites";
-import { Library } from "../../features/library";
-import { Skills } from "../../features/skills/Skills";
 
 /**
  * @file Coverage for `panels.tsx`'s `ADMIN_PANELS` (4/45 funcs — one `render` thunk per panel).
  *
  * `PanelRenderer` returns a `ReactNode` via `React.createElement` (JSX) — calling `panel.render(ctx)`
- * directly does NOT invoke the referenced component's own body, only builds the element description
- * (`.type`/`.props`/`.key`). That is what makes exercising all 45 renderers tractable in one file
+ * directly builds a Suspense boundary; unwrapping it does NOT invoke the lazy component's body,
+ * only builds the element description (`.type`/`.props`/`.key`). That is what makes exercising all
+ * 45 renderers tractable in one file
  * without mounting (and therefore needing to stub the dependencies of) every feature screen in this
  * app: this file proves each panel wires to the RIGHT component with the RIGHT props for the RIGHT
  * route, the same class of regression `app-agent-page-identity.unit.test.tsx` guards against by
@@ -68,7 +84,14 @@ import { Skills } from "../../features/skills/Skills";
 function panel(id: string) {
   const found = ADMIN_PANELS.find((p) => p.id === id);
   if (!found) throw new Error(`panel not found in ADMIN_PANELS: ${id}`);
-  return found;
+  return {
+    ...found,
+    render: (context: PanelRouteContext) => {
+      const boundary = found.render(context) as ReactElement<{ children: ReactElement }>;
+      expect(boundary.type).toBe(Suspense);
+      return boundary.props.children;
+    },
+  };
 }
 
 function ctx(overrides: Partial<PanelRouteContext> = {}): PanelRouteContext {
