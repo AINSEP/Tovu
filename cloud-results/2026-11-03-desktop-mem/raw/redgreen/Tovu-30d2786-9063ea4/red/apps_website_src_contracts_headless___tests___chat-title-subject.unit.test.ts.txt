@@ -1,0 +1,104 @@
+✖ a new theme chat is named for Lucky Goat rather than a page in its brief (3.676867ms)
+✖ a theme title stops before the next paragraph of page requirements (2.431479ms)
+✖ a theme title stops before page requirements on the next line (0.602608ms)
+✖ the first named CMS subject wins over later page and article examples (0.535506ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 0
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 375.833905
+
+✖ failing tests:
+
+test at apps/website/src/contracts/headless/__tests__/chat-title-subject.unit.test.ts:1:209
+✖ a new theme chat is named for Lucky Goat rather than a page in its brief (3.676867ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'Page: Roast type'
+  - 'Theme: Lucky Goat'
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/contracts/headless/__tests__/chat-title-subject.unit.test.ts:11:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'Page: Roast type',
+    expected: 'Theme: Lucky Goat',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/contracts/headless/__tests__/chat-title-subject.unit.test.ts:1:527
+✖ a theme title stops before the next paragraph of page requirements (2.431479ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'NEW theme'
+  - 'Theme: Lucky Goat'
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/contracts/headless/__tests__/chat-title-subject.unit.test.ts:19:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'NEW theme',
+    expected: 'Theme: Lucky Goat',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/contracts/headless/__tests__/chat-title-subject.unit.test.ts:1:823
+✖ a theme title stops before page requirements on the next line (0.602608ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'NEW theme'
+  - 'Theme: Lucky Goat'
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/contracts/headless/__tests__/chat-title-subject.unit.test.ts:27:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'NEW theme',
+    expected: 'Theme: Lucky Goat',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/contracts/headless/__tests__/chat-title-subject.unit.test.ts:1:1112
+✖ the first named CMS subject wins over later page and article examples (0.535506ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'Page: Roast type'
+  - 'Theme: Lucky Goat'
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/contracts/headless/__tests__/chat-title-subject.unit.test.ts:36:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'Page: Roast type',
+    expected: 'Theme: Lucky Goat',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

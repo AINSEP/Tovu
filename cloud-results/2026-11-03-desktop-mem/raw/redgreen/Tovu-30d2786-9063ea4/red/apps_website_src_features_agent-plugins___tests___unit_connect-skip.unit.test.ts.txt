@@ -1,0 +1,478 @@
+✖ Skip on an OAuth sign-in card lets the assistant continue without stopping the run (13.631313ms)
+✖ Skip also releases a plugin API-connection wait and aborts only that wait (2.18805ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 728.167462
+
+✖ failing tests:
+
+test at apps/website/src/features/agent-plugins/__tests__/unit/connect-skip.unit.test.ts:1:809
+✖ Skip on an OAuth sign-in card lets the assistant continue without stopping the run (13.631313ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression />Skip<\/button>/. Input:
+  
+  '<!doctype html>\n' +
+    '<html lang="en">\n' +
+    '<head>\n' +
+    '<meta charset="utf-8">\n' +
+    '<meta name="viewport" content="width=device-width, initial-scale=1">\n' +
+    `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:; form-action 'none'; base-uri 'none'">\n` +
+    '<title>Let&#39;s connect Example</title>\n' +
+    '<style>\n' +
+    ':root {\n' +
+    '  --jini-mcpui-bg: #ffffff;\n' +
+    '  --jini-mcpui-panel: #f5f5f5;\n' +
+    '  --jini-mcpui-border: #d9d9d9;\n' +
+    '  --jini-mcpui-border-strong: #d9d9d9;\n' +
+    '  --jini-mcpui-text: #202020;\n' +
+    '  --jini-mcpui-text-strong: #202020;\n' +
+    '  --jini-mcpui-text-muted: #666666;\n' +
+    '  --jini-mcpui-text-soft: #666666;\n' +
+    '  --jini-mcpui-text-faint: #666666;\n' +
+    '  --jini-mcpui-accent: #363636;\n' +
+    '  --jini-mcpui-accent-strong: #363636;\n' +
+    '  --jini-mcpui-accent-ink: #ffffff;\n' +
+    '  --jini-mcpui-danger: #b42318;\n' +
+    '  --jini-mcpui-radius-xs: 4px;\n' +
+    '  --jini-mcpui-radius-sm: 6px;\n' +
+    '  --jini-mcpui-radius-md: 8px;\n' +
+    '  --jini-mcpui-radius-lg: 10px;\n' +
+    '  --jini-mcpui-radius-xl: 12px;\n' +
+    '  --jini-mcpui-radius-pill: 999px;\n' +
+    '  --jini-mcpui-font: system-ui, sans-serif;\n' +
+    '  --jini-mcpui-font-mono: ui-monospace, monospace;\n' +
+    '  --jini-mcpui-accent-hover: color-mix(in srgb, var(--jini-mcpui-accent) 88%, var(--jini-mcpui-text));\n' +
+    '  --jini-mcpui-accent-tint: color-mix(in srgb, var(--jini-mcpui-accent) 10%, transparent);\n' +
+    '  --jini-mcpui-accent-ring: color-mix(in srgb, var(--jini-mcpui-accent) 35%, transparent);\n' +
+    '  --jini-mcpui-danger-hover: color-mix(in srgb, var(--jini-mcpui-danger) 88%, var(--jini-mcpui-text));\n' +
+    '  --jini-mcpui-danger-tint: color-mix(in srgb, var(--jini-mcpui-danger) 10%, transparent);\n' +
+    '  --jini-mcpui-danger-ring: color-mix(in srgb, var(--jini-mcpui-danger) 35%, transparent);\n' +
+    '  --jini-mcpui-surface-shadow: 0 1px 2px color-mix(in srgb, var(--jini-mcpui-text) 8%, transparent);\n' +
+    '}\n' +
+    '*, *::before, *::after { box-sizing: border-box; }\n' +
+    'html, body { margin: 0; padding: 0; }\n' +
+    'body {\n' +
+    '  /* Transparent, not var(--jini-mcpui-bg): this document has no page of its own to paint. It is an\n' +
+    "     allow-scripts-only sandboxed iframe embedded directly in a host's chat transcript, and html's\n" +
+    "     background is left at its (also transparent) initial value, so the host's own pane shows\n" +
+    '     straight through to .mcpui-surface below rather than through a second, unrelated rectangle of\n' +
+    '     fill color sitting between the two. --jini-mcpui-bg stays declared for a caller styling\n' +
+    '     something else via extraCss -- nothing in this stylesheet reads it anymore. */\n' +
+    '  background: transparent;\n' +
+    '  color: var(--jini-mcpui-text);\n' +
+    '  font-family: var(--jini-mcpui-font);\n' +
+    '  font-size: 14px;\n' +
+    '  line-height: 1.5;\n' +
+    '  padding: 16px;\n' +
+    '  -webkit-font-smoothing: antialiased;\n' +
+    '}\n' +
+    '.mcpui-surface {\n' +
+    '  background: linear-gradient(135deg,\n' +
+    '    color-mix(in srgb, var(--jini-mcpui-accent) 5%, var(--jini-mcpui-panel)) 0%,\n' +
+    '    var(--jini-mcpui-panel) 60%);\n' +
+    '  border: 1px solid color-mix(in srgb, var(--jini-mcpui-accent) 18%, var(--jini-mcpui-border));\n' +
+    '  border-radius: var(--jini-mcpui-radius-md);\n' +
+    '  box-shadow: var(--jini-mcpui-surface-shadow);\n' +
+    '  padding: 18px 20px 16px;\n' +
+    '  max-width: 640px;\n' +
+    '  margin: 0 auto;\n' +
+    '}\n' +
+    '.mcpui-title {\n' +
+    '  margin: 0;\n' +
+    '  font-size: 16px;\n' +
+    '  font-weight: 600;\n' +
+    '  letter-spacing: -0.01em;\n' +
+    '  color: var(--jini-mcpui-text-strong);\n' +
+    '}\n' +
+    '.mcpui-description { margin: 6px 0 0; color: var(--jini-mcpui-text-muted); }\n' +
+    '/* fit-content(40%), not max-content: one long label used to take the whole row and squeeze every\n' +
+    '   value to one character per line. Labels wrap at 40% instead. */\n' +
+    '.mcpui-details {\n' +
+    '  display: grid;\n' +
+    '  grid-template-columns: fit-content(40%) minmax(0, 1fr);\n' +
+    '  gap: 4px 14px;\n' +
+    '  margin: 14px 0 0;\n' +
+    '}\n' +
+    '.mcpui-details dt { color: var(--jini-mcpui-text-soft); font-weight: 500; overflow-wrap: anywhere; }\n' +
+    '.mcpui-details dd { margin: 0; overflow-wrap: anywhere; color: var(--jini-mcpui-text); }\n' +
+    '.mcpui-details dt .mcpui-hint { display: block; font-weight: 400; }\n' +
+    "/* A nested group (a tool's input fields) gets the card's full width, not the narrow value column. */\n" +
+    '.mcpui-details > dt:has(+ dd > .mcpui-detail-group),\n' +
+    '.mcpui-details > dd:has(> .mcpui-detail-group) { grid-column: 1 / -1; }\n' +
+    '.mcpui-details > dt:has(+ dd > .mcpui-detail-group) { margin-bottom: 6px; }\n' +
+    '.mcpui-details-outcome { display: flex; flex-direction: column; gap: 8px; }\n' +
+    '.mcpui-outcome-row { display: flex; align-items: flex-start; gap: 14px; }\n' +
+    '.mcpui-outcome-row dt { flex: 1; min-width: 0; overflow-wrap: anywhere; }\n' +
+    '.mcpui-outcome-row dt .mcpui-hint { display: block; font-weight: 400; }\n' +
+    '.mcpui-outcome-row dd { flex: 1; min-width: 0; }\n' +
+    '/* Capped so a long status cannot squeeze the label back to one character per line; the full text\n' +
+    "   stays in the cell's title. */\n" +
+    '.mcpui-outcome-row dd.mcpui-detail-status {\n' +
+    '  flex: 0 1 auto; max-width: 60%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;\n' +
+    '}\n' +
+    '/* Frames up to 480px: stack each label above its value so the value gets the full width.\n' +
+    '   Outcome lists keep their own row layout. */\n' +
+    '@media (max-width: 480px) {\n' +
+    '  .mcpui-details:not(.mcpui-details-outcome) { grid-template-columns: minmax(0, 1fr); row-gap: 0; }\n' +
+    '  .mcpui-details:not(.mcpui-details-outcome) dd { margin-bottom: 8px; }\n' +
+    '}\n' +
+    '/* The iframe has 16px body padding on each side: 352px viewport = 320px card. Stacked, the value\n' +
+    '   has the full width, so it wraps between words instead of truncating. */\n' +
+    '@media (max-width: 352px) {\n' +
+    '  .mcpui-outcome-row { flex-direction: column; gap: 2px; }\n' +
+    '  .mcpui-outcome-row dd.mcpui-detail-status { max-width: 100%; white-space: normal; overflow-wrap: normal; }\n' +
+    '}\n' +
+    '.mcpui-code {\n' +
+    '  margin: 0;\n' +
+    '  white-space: pre-wrap;\n' +
+    '  overflow-wrap: anywhere;\n' +
+    '  max-height: 16em;\n' +
+    '  overflow: auto;\n' +
+    '  font-family: var(--jini-mcpui-font-mono);\n' +
+    '  font-size: 12.5px;\n' +
+    '  line-height: 1.45;\n' +
+    '  padding: 6px 8px;\n' +
+    '  border: 1px solid var(--jini-mcpui-border);\n' +
+    '  border-radius: var(--jini-mcpui-radius-sm);\n' +
+    '  background: var(--jini-mcpui-bg);\n' +
+    '}\n' +
+    '.mcpui-warning {\n' +
+    '  margin: 14px 0 0;\n' +
+    '  padding: 9px 11px;\n' +
+    '  border-radius: var(--jini-mcpui-radius-md);\n' +
+    '  border: 1px solid var(--jini-mcpui-danger);\n' +
+    '  background: var(--jini-mcpui-danger-tint);\n' +
+    '  color: var(--jini-mcpui-text-strong);\n' +
+    '}\n' +
+    '.mcpui-fields { display: flex; flex-direction: column; gap: 12px; margin: 16px 0 0; border: 0; padding: 0; }\n' +
+    '.mcpui-field { display: flex; flex-direction: column; gap: 4px; }\n' +
+    '.mcpui-field-inline { flex-direction: row; align-items: flex-start; gap: 8px; }\n' +
+    '.mcpui-label { font-weight: 500; color: var(--jini-mcpui-text-strong); }\n' +
+    '.mcpui-visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }\n' +
+    '.mcpui-required { color: var(--jini-mcpui-accent); margin-left: 2px; }\n' +
+    '.mcpui-hint { color: var(--jini-mcpui-text-soft); font-size: 13px; }\n' +
+    '.mcpui-input, .mcpui-select, .mcpui-textarea {\n' +
+    '  font: inherit;\n' +
+    '  color: var(--jini-mcpui-text);\n' +
+    '  background: var(--jini-mcpui-panel);\n' +
+    '  border: 1px solid color-mix(in srgb, var(--jini-mcpui-accent) 14%, var(--jini-mcpui-border-strong));\n' +
+    '  border-radius: var(--jini-mcpui-radius-sm);\n' +
+    '  padding: 7px 9px;\n' +
+    '  width: 100%;\n' +
+    '  min-width: 0;\n' +
+    '}\n' +
+    '.mcpui-textarea { resize: vertical; min-height: 72px; font-family: var(--jini-mcpui-font); }\n' +
+    "/* A secret control's eye toggle sits inside the field's right edge. The control is padded so long\n" +
+    '   values never run under it; the button is a 40px tap target centred on the input, transparent,\n' +
+    '   so it overhangs the ~36px input invisibly instead of resizing the field. */\n' +
+    '.mcpui-secret { position: relative; display: flex; flex-direction: column; }\n' +
+    '.mcpui-secret > .mcpui-input, .mcpui-secret > .mcpui-textarea { padding-right: 44px; }\n' +
+    '.mcpui-secret-toggle {\n' +
+    '  position: absolute;\n' +
+    '  top: 50%;\n' +
+    '  right: 0;\n' +
+    '  width: 40px;\n' +
+    '  height: 40px;\n' +
+    '  margin-top: -20px;\n' +
+    '  padding: 0;\n' +
+    '  display: inline-flex;\n' +
+    '  align-items: center;\n' +
+    '  justify-content: center;\n' +
+    '  border: 0;\n' +
+    '  border-radius: var(--jini-mcpui-radius-sm);\n' +
+    '  background: transparent;\n' +
+    '  color: var(--jini-mcpui-text-soft);\n' +
+    '  cursor: pointer;\n' +
+    '}\n' +
+    '.mcpui-secret > .mcpui-textarea + .mcpui-secret-toggle { top: 0; margin-top: -2px; }\n' +
+    '.mcpui-secret-toggle:hover:not([disabled]) { color: var(--jini-mcpui-text-strong); }\n' +
+    '.mcpui-secret-toggle[disabled] { opacity: 0.55; cursor: default; }\n' +
+    '.mcpui-secret-toggle:focus-visible { outline: 2px solid var(--jini-mcpui-accent-ring); outline-offset: -6px; }\n' +
+    '.mcpui-secret-toggle[aria-pressed="true"] .mcpui-secret-icon-show,\n' +
+    '.mcpui-secret-toggle:not([aria-pressed="true"]) .mcpui-secret-icon-hide { display: none; }\n' +
+    '.mcpui-checkbox { margin: 3px 0 0; accent-color: var(--jini-mcpui-accent); }\n' +
+    '.mcpui-choice-group { border: 0; padding: 0; margin: 0; min-width: 0; }\n' +
+    '.mcpui-choice { display: flex; flex-direction: row; align-items: flex-start; gap: 8px; margin: 6px 0 0; }\n' +
+    '.mcpui-choice-label { color: var(--jini-mcpui-text); font-weight: 400; }\n' +
+    '.mcpui-input:focus-visible, .mcpui-select:focus-visible, .mcpui-textarea:focus-visible,\n' +
+    '.mcpui-checkbox:focus-visible, .mcpui-button:focus-visible {\n' +
+    '  outline: 2px solid var(--jini-mcpui-accent-ring);\n' +
+    '  outline-offset: 1px;\n' +
+    '  border-color: var(--jini-mcpui-accent);\n' +
+    '}\n' +
+    '.mcpui-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 0; }\n' +
+    '.mcpui-button {\n' +
+    '  font: inherit;\n' +
+    '  font-weight: 500;\n' +
+    '  padding: 7px 15px;\n' +
+    '  border-radius: var(--jini-mcpui-radius-pill);\n' +
+    '  border: 1px solid color-mix(in srgb, var(--jini-mcpui-accent) 14%, var(--jini-mcpui-border-strong));\n' +
+    '  background: var(--jini-mcpui-panel);\n' +
+    '  color: var(--jini-mcpui-text);\n' +
+    '  cursor: pointer;\n' +
+    '}\n' +
+    '.mcpui-button:hover:not([disabled]) { background: var(--jini-mcpui-accent-tint); }\n' +
+    '.mcpui-button-primary {\n' +
+    '  background: var(--jini-mcpui-accent);\n' +
+    '  border-color: var(--jini-mcpui-accent);\n' +
+    '  color: var(--jini-mcpui-accent-ink);\n' +
+    '}\n' +
+    '.mcpui-button-primary:hover:not([disabled]) { background: var(--jini-mcpui-accent-hover); border-color: var(--jini-mcpui-accent-hover); }\n' +
+    '.mcpui-button-danger {\n' +
+    '  background: var(--jini-mcpui-danger);\n' +
+    '  border-color: var(--jini-mcpui-danger);\n' +
+    '  color: var(--jini-mcpui-panel);\n' +
+    '}\n' +
+    '.mcpui-button-danger:hover:not([disabled]) { background: var(--ji'... 8831 more characters
+  
+      at emitSurface (/home/user/wt-Tovu/apps/website/src/features/agent-plugins/__tests__/unit/connect-skip.unit.test.ts:35:14)
+      at Object.send (/home/user/Jini/packages/daemon/src/surface-exchanges.ts:213:17)
+      at async waitAtMcpSignInCard (/home/user/wt-Tovu/apps/website/src/features/agent-plugins/connect-tool.ts:461:5)
+      at async TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/agent-plugins/__tests__/unit/connect-skip.unit.test.ts:30:18)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: `<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1">\n<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:; form-action 'none'; base-uri 'none'">\n<title>Let&#39;s connect Example</title>\n<style>\n:root {\n  --jini-mcpui-bg: #ffffff;\n  --jini-mcpui-panel: #f5f5f5;\n  --jini-mcpui-border: #d9d9d9;\n  --jini-mcpui-border-strong: #d9d9d9;\n  --jini-mcpui-text: #202020;\n  --jini-mcpui-text-strong: #202020;\n  --jini-mcpui-text-muted: #666666;\n  --jini-mcpui-text-soft: #666666;\n  --jini-mcpui-text-faint: #666666;\n  --jini-mcpui-accent: #363636;\n  --jini-mcpui-accent-strong: #363636;\n  --jini-mcpui-accent-ink: #ffffff;\n  --jini-mcpui-danger: #b42318;\n  --jini-mcpui-radius-xs: 4px;\n  --jini-mcpui-radius-sm: 6px;\n  --jini-mcpui-radius-md: 8px;\n  --jini-mcpui-radius-lg: 10px;\n  --jini-mcpui-radius-xl: 12px;\n  --jini-mcpui-radius-pill: 999px;\n  --jini-mcpui-font: system-ui, sans-serif;\n  --jini-mcpui-font-mono: ui-monospace, monospace;\n  --jini-mcpui-accent-hover: color-mix(in srgb, var(--jini-mcpui-accent) 88%, var(--jini-mcpui-text));\n  --jini-mcpui-accent-tint: color-mix(in srgb, var(--jini-mcpui-accent) 10%, transparent);\n  --jini-mcpui-accent-ring: color-mix(in srgb, var(--jini-mcpui-accent) 35%, transparent);\n  --jini-mcpui-danger-hover: color-mix(in srgb, var(--jini-mcpui-danger) 88%, var(--jini-mcpui-text));\n  --jini-mcpui-danger-tint: color-mix(in srgb, var(--jini-mcpui-danger) 10%, transparent);\n  --jini-mcpui-danger-ring: color-mix(in srgb, var(--jini-mcpui-danger) 35%, transparent);\n  --jini-mcpui-surface-shadow: 0 1px 2px color-mix(in srgb, var(--jini-mcpui-text) 8%, transparent);\n}\n*, *::before, *::after { box-sizing: border-box; }\nhtml, body { margin: 0; padding: 0; }\nbody {\n  /* Transparent, not var(--jini-mcpui-bg): this document has no page of its own to paint. It is an\n     allow-scripts-only sandboxed iframe embedded directly in a host's chat transcript, and html's\n     background is left at its (also transparent) initial value, so the host's own pane shows\n     straight through to .mcpui-surface below rather than through a second, unrelated rectangle of\n     fill color sitting between the two. --jini-mcpui-bg stays declared for a caller styling\n     something else via extraCss -- nothing in this stylesheet reads it anymore. */\n  background: transparent;\n  color: var(--jini-mcpui-text);\n  font-family: var(--jini-mcpui-font);\n  font-size: 14px;\n  line-height: 1.5;\n  padding: 16px;\n  -webkit-font-smoothing: antialiased;\n}\n.mcpui-surface {\n  background: linear-gradient(135deg,\n    color-mix(in srgb, var(--jini-mcpui-accent) 5%, var(--jini-mcpui-panel)) 0%,\n    var(--jini-mcpui-panel) 60%);\n  border: 1px solid color-mix(in srgb, var(--jini-mcpui-accent) 18%, var(--jini-mcpui-border));\n  border-radius: var(--jini-mcpui-radius-md);\n  box-shadow: var(--jini-mcpui-surface-shadow);\n  padding: 18px 20px 16px;\n  max-width: 640px;\n  margin: 0 auto;\n}\n.mcpui-title {\n  margin: 0;\n  font-size: 16px;\n  font-weight: 600;\n  letter-spacing: -0.01em;\n  color: var(--jini-mcpui-text-strong);\n}\n.mcpui-description { margin: 6px 0 0; color: var(--jini-mcpui-text-muted); }\n/* fit-content(40%), not max-content: one long label used to take the whole row and squeeze every\n   value to one character per line. Labels wrap at 40% instead. */\n.mcpui-details {\n  display: grid;\n  grid-template-columns: fit-content(40%) minmax(0, 1fr);\n  gap: 4px 14px;\n  margin: 14px 0 0;\n}\n.mcpui-details dt { color: var(--jini-mcpui-text-soft); font-weight: 500; overflow-wrap: anywhere; }\n.mcpui-details dd { margin: 0; overflow-wrap: anywhere; color: var(--jini-mcpui-text); }\n.mcpui-details dt .mcpui-hint { display: block; font-weight: 400; }\n/* A nested group (a tool's input fields) gets the card's full width, not the narrow value column. */\n.mcpui-details > dt:has(+ dd > .mcpui-detail-group),\n.mcpui-details > dd:has(> .mcpui-detail-group) { grid-column: 1 / -1; }\n.mcpui-details > dt:has(+ dd > .mcpui-detail-group) { margin-bottom: 6px; }\n.mcpui-details-outcome { display: flex; flex-direction: column; gap: 8px; }\n.mcpui-outcome-row { display: flex; align-items: flex-start; gap: 14px; }\n.mcpui-outcome-row dt { flex: 1; min-width: 0; overflow-wrap: anywhere; }\n.mcpui-outcome-row dt .mcpui-hint { display: block; font-weight: 400; }\n.mcpui-outcome-row dd { flex: 1; min-width: 0; }\n/* Capped so a long status cannot squeeze the label back to one character per line; the full text\n   stays in the cell's title. */\n.mcpui-outcome-row dd.mcpui-detail-status {\n  flex: 0 1 auto; max-width: 60%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;\n}\n/* Frames up to 480px: stack each label above its value so the value gets the full width.\n   Outcome lists keep their own row layout. */\n@media (max-width: 480px) {\n  .mcpui-details:not(.mcpui-details-outcome) { grid-template-columns: minmax(0, 1fr); row-gap: 0; }\n  .mcpui-details:not(.mcpui-details-outcome) dd { margin-bottom: 8px; }\n}\n/* The iframe has 16px body padding on each side: 352px viewport = 320px card. Stacked, the value\n   has the full width, so it wraps between words instead of truncating. */\n@media (max-width: 352px) {\n  .mcpui-outcome-row { flex-direction: column; gap: 2px; }\n  .mcpui-outcome-row dd.mcpui-detail-status { max-width: 100%; white-space: normal; overflow-wrap: normal; }\n}\n.mcpui-code {\n  margin: 0;\n  white-space: pre-wrap;\n  overflow-wrap: anywhere;\n  max-height: 16em;\n  overflow: auto;\n  font-family: var(--jini-mcpui-font-mono);\n  font-size: 12.5px;\n  line-height: 1.45;\n  padding: 6px 8px;\n  border: 1px solid var(--jini-mcpui-border);\n  border-radius: var(--jini-mcpui-radius-sm);\n  background: var(--jini-mcpui-bg);\n}\n.mcpui-warning {\n  margin: 14px 0 0;\n  padding: 9px 11px;\n  border-radius: var(--jini-mcpui-radius-md);\n  border: 1px solid var(--jini-mcpui-danger);\n  background: var(--jini-mcpui-danger-tint);\n  color: var(--jini-mcpui-text-strong);\n}\n.mcpui-fields { display: flex; flex-direction: column; gap: 12px; margin: 16px 0 0; border: 0; padding: 0; }\n.mcpui-field { display: flex; flex-direction: column; gap: 4px; }\n.mcpui-field-inline { flex-direction: row; align-items: flex-start; gap: 8px; }\n.mcpui-label { font-weight: 500; color: var(--jini-mcpui-text-strong); }\n.mcpui-visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }\n.mcpui-required { color: var(--jini-mcpui-accent); margin-left: 2px; }\n.mcpui-hint { color: var(--jini-mcpui-text-soft); font-size: 13px; }\n.mcpui-input, .mcpui-select, .mcpui-textarea {\n  font: inherit;\n  color: var(--jini-mcpui-text);\n  background: var(--jini-mcpui-panel);\n  border: 1px solid color-mix(in srgb, var(--jini-mcpui-accent) 14%, var(--jini-mcpui-border-strong));\n  border-radius: var(--jini-mcpui-radius-sm);\n  padding: 7px 9px;\n  width: 100%;\n  min-width: 0;\n}\n.mcpui-textarea { resize: vertical; min-height: 72px; font-family: var(--jini-mcpui-font); }\n/* A secret control's eye toggle sits inside the field's right edge. The control is padded so long\n   values never run under it; the button is a 40px tap target centred on the input, transparent,\n   so it overhangs the ~36px input invisibly instead of resizing the field. */\n.mcpui-secret { position: relative; display: flex; flex-direction: column; }\n.mcpui-secret > .mcpui-input, .mcpui-secret > .mcpui-textarea { padding-right: 44px; }\n.mcpui-secret-toggle {\n  position: absolute;\n  top: 50%;\n  right: 0;\n  width: 40px;\n  height: 40px;\n  margin-top: -20px;\n  padding: 0;\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  border: 0;\n  border-radius: var(--jini-mcpui-radius-sm);\n  background: transparent;\n  color: var(--jini-mcpui-text-soft);\n  cursor: pointer;\n}\n.mcpui-secret > .mcpui-textarea + .mcpui-secret-toggle { top: 0; margin-top: -2px; }\n.mcpui-secret-toggle:hover:not([disabled]) { color: var(--jini-mcpui-text-strong); }\n.mcpui-secret-toggle[disabled] { opacity: 0.55; cursor: default; }\n.mcpui-secret-toggle:focus-visible { outline: 2px solid var(--jini-mcpui-accent-ring); outline-offset: -6px; }\n.mcpui-secret-toggle[aria-pressed="true"] .mcpui-secret-icon-show,\n.mcpui-secret-toggle:not([aria-pressed="true"]) .mcpui-secret-icon-hide { display: none; }\n.mcpui-checkbox { margin: 3px 0 0; accent-color: var(--jini-mcpui-accent); }\n.mcpui-choice-group { border: 0; padding: 0; margin: 0; min-width: 0; }\n.mcpui-choice { display: flex; flex-direction: row; align-items: flex-start; gap: 8px; margin: 6px 0 0; }\n.mcpui-choice-label { color: var(--jini-mcpui-text); font-weight: 400; }\n.mcpui-input:focus-visible, .mcpui-select:focus-visible, .mcpui-textarea:focus-visible,\n.mcpui-checkbox:focus-visible, .mcpui-button:focus-visible {\n  outline: 2px solid var(--jini-mcpui-accent-ring);\n  outline-offset: 1px;\n  border-color: var(--jini-mcpui-accent);\n}\n.mcpui-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 0; }\n.mcpui-button {\n  font: inherit;\n  font-weight: 500;\n  padding: 7px 15px;\n  border-radius: var(--jini-mcpui-radius-pill);\n  border: 1px solid color-mix(in srgb, var(--jini-mcpui-accent) 14%, var(--jini-mcpui-border-strong));\n  background: var(--jini-mcpui-panel);\n  color: var(--jini-mcpui-text);\n  cursor: pointer;\n}\n.mcpui-button:hover:not([disabled]) { background: var(--jini-mcpui-accent-tint); }\n.mcpui-button-primary {\n  background: var(--jini-mcpui-accent);\n  border-color: var(--jini-mcpui-accent);\n  color: var(--jini-mcpui-accent-ink);\n}\n.mcpui-button-primary:hover:not([disabled]) { background: var(--jini-mcpui-accent-hover); border-color: var(--jini-mcpui-accent-hover); }\n.mcpui-button-danger {\n  background: var(--jini-mcpui-danger);\n  border-color: var(--jini-mcpui-danger);\n  color: var(--jini-mcpui-panel);\n}\n.mcpui-button-danger:hover:not([disabled]) { background: var(--ji`... 8831 more characters,
+    expected: />Skip<\/button>/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/agent-plugins/__tests__/unit/connect-skip.unit.test.ts:1:3134
+✖ Skip also releases a plugin API-connection wait and aborts only that wait (2.18805ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression />Skip<\/button>/. Input:
+  
+  '<!doctype html>\n' +
+    '<html lang="en">\n' +
+    '<head>\n' +
+    '<meta charset="utf-8">\n' +
+    '<meta name="viewport" content="width=device-width, initial-scale=1">\n' +
+    `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:; form-action 'none'; base-uri 'none'">\n` +
+    '<title>Let&#39;s connect Example</title>\n' +
+    '<style>\n' +
+    ':root {\n' +
+    '  --jini-mcpui-bg: #ffffff;\n' +
+    '  --jini-mcpui-panel: #f5f5f5;\n' +
+    '  --jini-mcpui-border: #d9d9d9;\n' +
+    '  --jini-mcpui-border-strong: #d9d9d9;\n' +
+    '  --jini-mcpui-text: #202020;\n' +
+    '  --jini-mcpui-text-strong: #202020;\n' +
+    '  --jini-mcpui-text-muted: #666666;\n' +
+    '  --jini-mcpui-text-soft: #666666;\n' +
+    '  --jini-mcpui-text-faint: #666666;\n' +
+    '  --jini-mcpui-accent: #363636;\n' +
+    '  --jini-mcpui-accent-strong: #363636;\n' +
+    '  --jini-mcpui-accent-ink: #ffffff;\n' +
+    '  --jini-mcpui-danger: #b42318;\n' +
+    '  --jini-mcpui-radius-xs: 4px;\n' +
+    '  --jini-mcpui-radius-sm: 6px;\n' +
+    '  --jini-mcpui-radius-md: 8px;\n' +
+    '  --jini-mcpui-radius-lg: 10px;\n' +
+    '  --jini-mcpui-radius-xl: 12px;\n' +
+    '  --jini-mcpui-radius-pill: 999px;\n' +
+    '  --jini-mcpui-font: system-ui, sans-serif;\n' +
+    '  --jini-mcpui-font-mono: ui-monospace, monospace;\n' +
+    '  --jini-mcpui-accent-hover: color-mix(in srgb, var(--jini-mcpui-accent) 88%, var(--jini-mcpui-text));\n' +
+    '  --jini-mcpui-accent-tint: color-mix(in srgb, var(--jini-mcpui-accent) 10%, transparent);\n' +
+    '  --jini-mcpui-accent-ring: color-mix(in srgb, var(--jini-mcpui-accent) 35%, transparent);\n' +
+    '  --jini-mcpui-danger-hover: color-mix(in srgb, var(--jini-mcpui-danger) 88%, var(--jini-mcpui-text));\n' +
+    '  --jini-mcpui-danger-tint: color-mix(in srgb, var(--jini-mcpui-danger) 10%, transparent);\n' +
+    '  --jini-mcpui-danger-ring: color-mix(in srgb, var(--jini-mcpui-danger) 35%, transparent);\n' +
+    '  --jini-mcpui-surface-shadow: 0 1px 2px color-mix(in srgb, var(--jini-mcpui-text) 8%, transparent);\n' +
+    '}\n' +
+    '*, *::before, *::after { box-sizing: border-box; }\n' +
+    'html, body { margin: 0; padding: 0; }\n' +
+    'body {\n' +
+    '  /* Transparent, not var(--jini-mcpui-bg): this document has no page of its own to paint. It is an\n' +
+    "     allow-scripts-only sandboxed iframe embedded directly in a host's chat transcript, and html's\n" +
+    "     background is left at its (also transparent) initial value, so the host's own pane shows\n" +
+    '     straight through to .mcpui-surface below rather than through a second, unrelated rectangle of\n' +
+    '     fill color sitting between the two. --jini-mcpui-bg stays declared for a caller styling\n' +
+    '     something else via extraCss -- nothing in this stylesheet reads it anymore. */\n' +
+    '  background: transparent;\n' +
+    '  color: var(--jini-mcpui-text);\n' +
+    '  font-family: var(--jini-mcpui-font);\n' +
+    '  font-size: 14px;\n' +
+    '  line-height: 1.5;\n' +
+    '  padding: 16px;\n' +
+    '  -webkit-font-smoothing: antialiased;\n' +
+    '}\n' +
+    '.mcpui-surface {\n' +
+    '  background: linear-gradient(135deg,\n' +
+    '    color-mix(in srgb, var(--jini-mcpui-accent) 5%, var(--jini-mcpui-panel)) 0%,\n' +
+    '    var(--jini-mcpui-panel) 60%);\n' +
+    '  border: 1px solid color-mix(in srgb, var(--jini-mcpui-accent) 18%, var(--jini-mcpui-border));\n' +
+    '  border-radius: var(--jini-mcpui-radius-md);\n' +
+    '  box-shadow: var(--jini-mcpui-surface-shadow);\n' +
+    '  padding: 18px 20px 16px;\n' +
+    '  max-width: 640px;\n' +
+    '  margin: 0 auto;\n' +
+    '}\n' +
+    '.mcpui-title {\n' +
+    '  margin: 0;\n' +
+    '  font-size: 16px;\n' +
+    '  font-weight: 600;\n' +
+    '  letter-spacing: -0.01em;\n' +
+    '  color: var(--jini-mcpui-text-strong);\n' +
+    '}\n' +
+    '.mcpui-description { margin: 6px 0 0; color: var(--jini-mcpui-text-muted); }\n' +
+    '/* fit-content(40%), not max-content: one long label used to take the whole row and squeeze every\n' +
+    '   value to one character per line. Labels wrap at 40% instead. */\n' +
+    '.mcpui-details {\n' +
+    '  display: grid;\n' +
+    '  grid-template-columns: fit-content(40%) minmax(0, 1fr);\n' +
+    '  gap: 4px 14px;\n' +
+    '  margin: 14px 0 0;\n' +
+    '}\n' +
+    '.mcpui-details dt { color: var(--jini-mcpui-text-soft); font-weight: 500; overflow-wrap: anywhere; }\n' +
+    '.mcpui-details dd { margin: 0; overflow-wrap: anywhere; color: var(--jini-mcpui-text); }\n' +
+    '.mcpui-details dt .mcpui-hint { display: block; font-weight: 400; }\n' +
+    "/* A nested group (a tool's input fields) gets the card's full width, not the narrow value column. */\n" +
+    '.mcpui-details > dt:has(+ dd > .mcpui-detail-group),\n' +
+    '.mcpui-details > dd:has(> .mcpui-detail-group) { grid-column: 1 / -1; }\n' +
+    '.mcpui-details > dt:has(+ dd > .mcpui-detail-group) { margin-bottom: 6px; }\n' +
+    '.mcpui-details-outcome { display: flex; flex-direction: column; gap: 8px; }\n' +
+    '.mcpui-outcome-row { display: flex; align-items: flex-start; gap: 14px; }\n' +
+    '.mcpui-outcome-row dt { flex: 1; min-width: 0; overflow-wrap: anywhere; }\n' +
+    '.mcpui-outcome-row dt .mcpui-hint { display: block; font-weight: 400; }\n' +
+    '.mcpui-outcome-row dd { flex: 1; min-width: 0; }\n' +
+    '/* Capped so a long status cannot squeeze the label back to one character per line; the full text\n' +
+    "   stays in the cell's title. */\n" +
+    '.mcpui-outcome-row dd.mcpui-detail-status {\n' +
+    '  flex: 0 1 auto; max-width: 60%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;\n' +
+    '}\n' +
+    '/* Frames up to 480px: stack each label above its value so the value gets the full width.\n' +
+    '   Outcome lists keep their own row layout. */\n' +
+    '@media (max-width: 480px) {\n' +
+    '  .mcpui-details:not(.mcpui-details-outcome) { grid-template-columns: minmax(0, 1fr); row-gap: 0; }\n' +
+    '  .mcpui-details:not(.mcpui-details-outcome) dd { margin-bottom: 8px; }\n' +
+    '}\n' +
+    '/* The iframe has 16px body padding on each side: 352px viewport = 320px card. Stacked, the value\n' +
+    '   has the full width, so it wraps between words instead of truncating. */\n' +
+    '@media (max-width: 352px) {\n' +
+    '  .mcpui-outcome-row { flex-direction: column; gap: 2px; }\n' +
+    '  .mcpui-outcome-row dd.mcpui-detail-status { max-width: 100%; white-space: normal; overflow-wrap: normal; }\n' +
+    '}\n' +
+    '.mcpui-code {\n' +
+    '  margin: 0;\n' +
+    '  white-space: pre-wrap;\n' +
+    '  overflow-wrap: anywhere;\n' +
+    '  max-height: 16em;\n' +
+    '  overflow: auto;\n' +
+    '  font-family: var(--jini-mcpui-font-mono);\n' +
+    '  font-size: 12.5px;\n' +
+    '  line-height: 1.45;\n' +
+    '  padding: 6px 8px;\n' +
+    '  border: 1px solid var(--jini-mcpui-border);\n' +
+    '  border-radius: var(--jini-mcpui-radius-sm);\n' +
+    '  background: var(--jini-mcpui-bg);\n' +
+    '}\n' +
+    '.mcpui-warning {\n' +
+    '  margin: 14px 0 0;\n' +
+    '  padding: 9px 11px;\n' +
+    '  border-radius: var(--jini-mcpui-radius-md);\n' +
+    '  border: 1px solid var(--jini-mcpui-danger);\n' +
+    '  background: var(--jini-mcpui-danger-tint);\n' +
+    '  color: var(--jini-mcpui-text-strong);\n' +
+    '}\n' +
+    '.mcpui-fields { display: flex; flex-direction: column; gap: 12px; margin: 16px 0 0; border: 0; padding: 0; }\n' +
+    '.mcpui-field { display: flex; flex-direction: column; gap: 4px; }\n' +
+    '.mcpui-field-inline { flex-direction: row; align-items: flex-start; gap: 8px; }\n' +
+    '.mcpui-label { font-weight: 500; color: var(--jini-mcpui-text-strong); }\n' +
+    '.mcpui-visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }\n' +
+    '.mcpui-required { color: var(--jini-mcpui-accent); margin-left: 2px; }\n' +
+    '.mcpui-hint { color: var(--jini-mcpui-text-soft); font-size: 13px; }\n' +
+    '.mcpui-input, .mcpui-select, .mcpui-textarea {\n' +
+    '  font: inherit;\n' +
+    '  color: var(--jini-mcpui-text);\n' +
+    '  background: var(--jini-mcpui-panel);\n' +
+    '  border: 1px solid color-mix(in srgb, var(--jini-mcpui-accent) 14%, var(--jini-mcpui-border-strong));\n' +
+    '  border-radius: var(--jini-mcpui-radius-sm);\n' +
+    '  padding: 7px 9px;\n' +
+    '  width: 100%;\n' +
+    '  min-width: 0;\n' +
+    '}\n' +
+    '.mcpui-textarea { resize: vertical; min-height: 72px; font-family: var(--jini-mcpui-font); }\n' +
+    "/* A secret control's eye toggle sits inside the field's right edge. The control is padded so long\n" +
+    '   values never run under it; the button is a 40px tap target centred on the input, transparent,\n' +
+    '   so it overhangs the ~36px input invisibly instead of resizing the field. */\n' +
+    '.mcpui-secret { position: relative; display: flex; flex-direction: column; }\n' +
+    '.mcpui-secret > .mcpui-input, .mcpui-secret > .mcpui-textarea { padding-right: 44px; }\n' +
+    '.mcpui-secret-toggle {\n' +
+    '  position: absolute;\n' +
+    '  top: 50%;\n' +
+    '  right: 0;\n' +
+    '  width: 40px;\n' +
+    '  height: 40px;\n' +
+    '  margin-top: -20px;\n' +
+    '  padding: 0;\n' +
+    '  display: inline-flex;\n' +
+    '  align-items: center;\n' +
+    '  justify-content: center;\n' +
+    '  border: 0;\n' +
+    '  border-radius: var(--jini-mcpui-radius-sm);\n' +
+    '  background: transparent;\n' +
+    '  color: var(--jini-mcpui-text-soft);\n' +
+    '  cursor: pointer;\n' +
+    '}\n' +
+    '.mcpui-secret > .mcpui-textarea + .mcpui-secret-toggle { top: 0; margin-top: -2px; }\n' +
+    '.mcpui-secret-toggle:hover:not([disabled]) { color: var(--jini-mcpui-text-strong); }\n' +
+    '.mcpui-secret-toggle[disabled] { opacity: 0.55; cursor: default; }\n' +
+    '.mcpui-secret-toggle:focus-visible { outline: 2px solid var(--jini-mcpui-accent-ring); outline-offset: -6px; }\n' +
+    '.mcpui-secret-toggle[aria-pressed="true"] .mcpui-secret-icon-show,\n' +
+    '.mcpui-secret-toggle:not([aria-pressed="true"]) .mcpui-secret-icon-hide { display: none; }\n' +
+    '.mcpui-checkbox { margin: 3px 0 0; accent-color: var(--jini-mcpui-accent); }\n' +
+    '.mcpui-choice-group { border: 0; padding: 0; margin: 0; min-width: 0; }\n' +
+    '.mcpui-choice { display: flex; flex-direction: row; align-items: flex-start; gap: 8px; margin: 6px 0 0; }\n' +
+    '.mcpui-choice-label { color: var(--jini-mcpui-text); font-weight: 400; }\n' +
+    '.mcpui-input:focus-visible, .mcpui-select:focus-visible, .mcpui-textarea:focus-visible,\n' +
+    '.mcpui-checkbox:focus-visible, .mcpui-button:focus-visible {\n' +
+    '  outline: 2px solid var(--jini-mcpui-accent-ring);\n' +
+    '  outline-offset: 1px;\n' +
+    '  border-color: var(--jini-mcpui-accent);\n' +
+    '}\n' +
+    '.mcpui-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 0; }\n' +
+    '.mcpui-button {\n' +
+    '  font: inherit;\n' +
+    '  font-weight: 500;\n' +
+    '  padding: 7px 15px;\n' +
+    '  border-radius: var(--jini-mcpui-radius-pill);\n' +
+    '  border: 1px solid color-mix(in srgb, var(--jini-mcpui-accent) 14%, var(--jini-mcpui-border-strong));\n' +
+    '  background: var(--jini-mcpui-panel);\n' +
+    '  color: var(--jini-mcpui-text);\n' +
+    '  cursor: pointer;\n' +
+    '}\n' +
+    '.mcpui-button:hover:not([disabled]) { background: var(--jini-mcpui-accent-tint); }\n' +
+    '.mcpui-button-primary {\n' +
+    '  background: var(--jini-mcpui-accent);\n' +
+    '  border-color: var(--jini-mcpui-accent);\n' +
+    '  color: var(--jini-mcpui-accent-ink);\n' +
+    '}\n' +
+    '.mcpui-button-primary:hover:not([disabled]) { background: var(--jini-mcpui-accent-hover); border-color: var(--jini-mcpui-accent-hover); }\n' +
+    '.mcpui-button-danger {\n' +
+    '  background: var(--jini-mcpui-danger);\n' +
+    '  border-color: var(--jini-mcpui-danger);\n' +
+    '  color: var(--jini-mcpui-panel);\n' +
+    '}\n' +
+    '.mcpui-button-danger:hover:not([disabled]) { background: var(--ji'... 8831 more characters
+  
+      at emitSurface (/home/user/wt-Tovu/apps/website/src/features/agent-plugins/__tests__/unit/connect-skip.unit.test.ts:77:14)
+      at Object.send (/home/user/Jini/packages/daemon/src/surface-exchanges.ts:213:17)
+      at async showSignIn (/home/user/wt-Tovu/apps/website/src/features/agent-plugins/connect-tool.ts:551:9)
+      at async Object.connect (/home/user/wt-Tovu/apps/website/src/features/agent-plugins/__tests__/unit/connect-skip.unit.test.ts:59:7)
+      at async connectDeclaredApiConnectionOrRefuse (/home/user/wt-Tovu/apps/website/src/features/agent-plugins/connect-tool.ts:544:20)
+      at async TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/agent-plugins/__tests__/unit/connect-skip.unit.test.ts:72:18)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: `<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1">\n<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:; form-action 'none'; base-uri 'none'">\n<title>Let&#39;s connect Example</title>\n<style>\n:root {\n  --jini-mcpui-bg: #ffffff;\n  --jini-mcpui-panel: #f5f5f5;\n  --jini-mcpui-border: #d9d9d9;\n  --jini-mcpui-border-strong: #d9d9d9;\n  --jini-mcpui-text: #202020;\n  --jini-mcpui-text-strong: #202020;\n  --jini-mcpui-text-muted: #666666;\n  --jini-mcpui-text-soft: #666666;\n  --jini-mcpui-text-faint: #666666;\n  --jini-mcpui-accent: #363636;\n  --jini-mcpui-accent-strong: #363636;\n  --jini-mcpui-accent-ink: #ffffff;\n  --jini-mcpui-danger: #b42318;\n  --jini-mcpui-radius-xs: 4px;\n  --jini-mcpui-radius-sm: 6px;\n  --jini-mcpui-radius-md: 8px;\n  --jini-mcpui-radius-lg: 10px;\n  --jini-mcpui-radius-xl: 12px;\n  --jini-mcpui-radius-pill: 999px;\n  --jini-mcpui-font: system-ui, sans-serif;\n  --jini-mcpui-font-mono: ui-monospace, monospace;\n  --jini-mcpui-accent-hover: color-mix(in srgb, var(--jini-mcpui-accent) 88%, var(--jini-mcpui-text));\n  --jini-mcpui-accent-tint: color-mix(in srgb, var(--jini-mcpui-accent) 10%, transparent);\n  --jini-mcpui-accent-ring: color-mix(in srgb, var(--jini-mcpui-accent) 35%, transparent);\n  --jini-mcpui-danger-hover: color-mix(in srgb, var(--jini-mcpui-danger) 88%, var(--jini-mcpui-text));\n  --jini-mcpui-danger-tint: color-mix(in srgb, var(--jini-mcpui-danger) 10%, transparent);\n  --jini-mcpui-danger-ring: color-mix(in srgb, var(--jini-mcpui-danger) 35%, transparent);\n  --jini-mcpui-surface-shadow: 0 1px 2px color-mix(in srgb, var(--jini-mcpui-text) 8%, transparent);\n}\n*, *::before, *::after { box-sizing: border-box; }\nhtml, body { margin: 0; padding: 0; }\nbody {\n  /* Transparent, not var(--jini-mcpui-bg): this document has no page of its own to paint. It is an\n     allow-scripts-only sandboxed iframe embedded directly in a host's chat transcript, and html's\n     background is left at its (also transparent) initial value, so the host's own pane shows\n     straight through to .mcpui-surface below rather than through a second, unrelated rectangle of\n     fill color sitting between the two. --jini-mcpui-bg stays declared for a caller styling\n     something else via extraCss -- nothing in this stylesheet reads it anymore. */\n  background: transparent;\n  color: var(--jini-mcpui-text);\n  font-family: var(--jini-mcpui-font);\n  font-size: 14px;\n  line-height: 1.5;\n  padding: 16px;\n  -webkit-font-smoothing: antialiased;\n}\n.mcpui-surface {\n  background: linear-gradient(135deg,\n    color-mix(in srgb, var(--jini-mcpui-accent) 5%, var(--jini-mcpui-panel)) 0%,\n    var(--jini-mcpui-panel) 60%);\n  border: 1px solid color-mix(in srgb, var(--jini-mcpui-accent) 18%, var(--jini-mcpui-border));\n  border-radius: var(--jini-mcpui-radius-md);\n  box-shadow: var(--jini-mcpui-surface-shadow);\n  padding: 18px 20px 16px;\n  max-width: 640px;\n  margin: 0 auto;\n}\n.mcpui-title {\n  margin: 0;\n  font-size: 16px;\n  font-weight: 600;\n  letter-spacing: -0.01em;\n  color: var(--jini-mcpui-text-strong);\n}\n.mcpui-description { margin: 6px 0 0; color: var(--jini-mcpui-text-muted); }\n/* fit-content(40%), not max-content: one long label used to take the whole row and squeeze every\n   value to one character per line. Labels wrap at 40% instead. */\n.mcpui-details {\n  display: grid;\n  grid-template-columns: fit-content(40%) minmax(0, 1fr);\n  gap: 4px 14px;\n  margin: 14px 0 0;\n}\n.mcpui-details dt { color: var(--jini-mcpui-text-soft); font-weight: 500; overflow-wrap: anywhere; }\n.mcpui-details dd { margin: 0; overflow-wrap: anywhere; color: var(--jini-mcpui-text); }\n.mcpui-details dt .mcpui-hint { display: block; font-weight: 400; }\n/* A nested group (a tool's input fields) gets the card's full width, not the narrow value column. */\n.mcpui-details > dt:has(+ dd > .mcpui-detail-group),\n.mcpui-details > dd:has(> .mcpui-detail-group) { grid-column: 1 / -1; }\n.mcpui-details > dt:has(+ dd > .mcpui-detail-group) { margin-bottom: 6px; }\n.mcpui-details-outcome { display: flex; flex-direction: column; gap: 8px; }\n.mcpui-outcome-row { display: flex; align-items: flex-start; gap: 14px; }\n.mcpui-outcome-row dt { flex: 1; min-width: 0; overflow-wrap: anywhere; }\n.mcpui-outcome-row dt .mcpui-hint { display: block; font-weight: 400; }\n.mcpui-outcome-row dd { flex: 1; min-width: 0; }\n/* Capped so a long status cannot squeeze the label back to one character per line; the full text\n   stays in the cell's title. */\n.mcpui-outcome-row dd.mcpui-detail-status {\n  flex: 0 1 auto; max-width: 60%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;\n}\n/* Frames up to 480px: stack each label above its value so the value gets the full width.\n   Outcome lists keep their own row layout. */\n@media (max-width: 480px) {\n  .mcpui-details:not(.mcpui-details-outcome) { grid-template-columns: minmax(0, 1fr); row-gap: 0; }\n  .mcpui-details:not(.mcpui-details-outcome) dd { margin-bottom: 8px; }\n}\n/* The iframe has 16px body padding on each side: 352px viewport = 320px card. Stacked, the value\n   has the full width, so it wraps between words instead of truncating. */\n@media (max-width: 352px) {\n  .mcpui-outcome-row { flex-direction: column; gap: 2px; }\n  .mcpui-outcome-row dd.mcpui-detail-status { max-width: 100%; white-space: normal; overflow-wrap: normal; }\n}\n.mcpui-code {\n  margin: 0;\n  white-space: pre-wrap;\n  overflow-wrap: anywhere;\n  max-height: 16em;\n  overflow: auto;\n  font-family: var(--jini-mcpui-font-mono);\n  font-size: 12.5px;\n  line-height: 1.45;\n  padding: 6px 8px;\n  border: 1px solid var(--jini-mcpui-border);\n  border-radius: var(--jini-mcpui-radius-sm);\n  background: var(--jini-mcpui-bg);\n}\n.mcpui-warning {\n  margin: 14px 0 0;\n  padding: 9px 11px;\n  border-radius: var(--jini-mcpui-radius-md);\n  border: 1px solid var(--jini-mcpui-danger);\n  background: var(--jini-mcpui-danger-tint);\n  color: var(--jini-mcpui-text-strong);\n}\n.mcpui-fields { display: flex; flex-direction: column; gap: 12px; margin: 16px 0 0; border: 0; padding: 0; }\n.mcpui-field { display: flex; flex-direction: column; gap: 4px; }\n.mcpui-field-inline { flex-direction: row; align-items: flex-start; gap: 8px; }\n.mcpui-label { font-weight: 500; color: var(--jini-mcpui-text-strong); }\n.mcpui-visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }\n.mcpui-required { color: var(--jini-mcpui-accent); margin-left: 2px; }\n.mcpui-hint { color: var(--jini-mcpui-text-soft); font-size: 13px; }\n.mcpui-input, .mcpui-select, .mcpui-textarea {\n  font: inherit;\n  color: var(--jini-mcpui-text);\n  background: var(--jini-mcpui-panel);\n  border: 1px solid color-mix(in srgb, var(--jini-mcpui-accent) 14%, var(--jini-mcpui-border-strong));\n  border-radius: var(--jini-mcpui-radius-sm);\n  padding: 7px 9px;\n  width: 100%;\n  min-width: 0;\n}\n.mcpui-textarea { resize: vertical; min-height: 72px; font-family: var(--jini-mcpui-font); }\n/* A secret control's eye toggle sits inside the field's right edge. The control is padded so long\n   values never run under it; the button is a 40px tap target centred on the input, transparent,\n   so it overhangs the ~36px input invisibly instead of resizing the field. */\n.mcpui-secret { position: relative; display: flex; flex-direction: column; }\n.mcpui-secret > .mcpui-input, .mcpui-secret > .mcpui-textarea { padding-right: 44px; }\n.mcpui-secret-toggle {\n  position: absolute;\n  top: 50%;\n  right: 0;\n  width: 40px;\n  height: 40px;\n  margin-top: -20px;\n  padding: 0;\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  border: 0;\n  border-radius: var(--jini-mcpui-radius-sm);\n  background: transparent;\n  color: var(--jini-mcpui-text-soft);\n  cursor: pointer;\n}\n.mcpui-secret > .mcpui-textarea + .mcpui-secret-toggle { top: 0; margin-top: -2px; }\n.mcpui-secret-toggle:hover:not([disabled]) { color: var(--jini-mcpui-text-strong); }\n.mcpui-secret-toggle[disabled] { opacity: 0.55; cursor: default; }\n.mcpui-secret-toggle:focus-visible { outline: 2px solid var(--jini-mcpui-accent-ring); outline-offset: -6px; }\n.mcpui-secret-toggle[aria-pressed="true"] .mcpui-secret-icon-show,\n.mcpui-secret-toggle:not([aria-pressed="true"]) .mcpui-secret-icon-hide { display: none; }\n.mcpui-checkbox { margin: 3px 0 0; accent-color: var(--jini-mcpui-accent); }\n.mcpui-choice-group { border: 0; padding: 0; margin: 0; min-width: 0; }\n.mcpui-choice { display: flex; flex-direction: row; align-items: flex-start; gap: 8px; margin: 6px 0 0; }\n.mcpui-choice-label { color: var(--jini-mcpui-text); font-weight: 400; }\n.mcpui-input:focus-visible, .mcpui-select:focus-visible, .mcpui-textarea:focus-visible,\n.mcpui-checkbox:focus-visible, .mcpui-button:focus-visible {\n  outline: 2px solid var(--jini-mcpui-accent-ring);\n  outline-offset: 1px;\n  border-color: var(--jini-mcpui-accent);\n}\n.mcpui-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 0; }\n.mcpui-button {\n  font: inherit;\n  font-weight: 500;\n  padding: 7px 15px;\n  border-radius: var(--jini-mcpui-radius-pill);\n  border: 1px solid color-mix(in srgb, var(--jini-mcpui-accent) 14%, var(--jini-mcpui-border-strong));\n  background: var(--jini-mcpui-panel);\n  color: var(--jini-mcpui-text);\n  cursor: pointer;\n}\n.mcpui-button:hover:not([disabled]) { background: var(--jini-mcpui-accent-tint); }\n.mcpui-button-primary {\n  background: var(--jini-mcpui-accent);\n  border-color: var(--jini-mcpui-accent);\n  color: var(--jini-mcpui-accent-ink);\n}\n.mcpui-button-primary:hover:not([disabled]) { background: var(--jini-mcpui-accent-hover); border-color: var(--jini-mcpui-accent-hover); }\n.mcpui-button-danger {\n  background: var(--jini-mcpui-danger);\n  border-color: var(--jini-mcpui-danger);\n  color: var(--jini-mcpui-panel);\n}\n.mcpui-button-danger:hover:not([disabled]) { background: var(--ji`... 8831 more characters,
+    expected: />Skip<\/button>/,
+    operator: 'match',
+    diff: 'simple'
+  }

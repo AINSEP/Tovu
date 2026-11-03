@@ -1,0 +1,14 @@
+✔ a test change that adds a message-less assert.ok is reported against its merge-base copy (39.681382ms)
+✔ a brand-new test file counts every message-less assertion as new (3.834031ms)
+✔ historical violations in a touched file pass while the count holds or shrinks (10.797653ms)
+✔ a renamed test file keeps the allowance of its source path (4.979137ms)
+✔ files outside the tsx-run test roots and inline disables are handled by the shared config (6.047119ms)
+✔ copying an unchanged test preserves its source allowance while new unsafe assertions still fail (286.915121ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2634.052852

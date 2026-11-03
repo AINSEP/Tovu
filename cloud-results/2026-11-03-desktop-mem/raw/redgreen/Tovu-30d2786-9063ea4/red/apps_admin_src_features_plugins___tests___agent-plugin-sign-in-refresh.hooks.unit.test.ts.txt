@@ -1,0 +1,41 @@
+
+ RUN  v4.1.11 /home/user/wt-Tovu/apps/admin
+
+ ❯ src/features/plugins/__tests__/agent-plugin-sign-in-refresh.hooks.unit.test.ts (1 test | 1 failed) 1090ms
+   × returning from a plugin sign-in tab refreshes its signed-in badge 1088ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/features/plugins/__tests__/agent-plugin-sign-in-refresh.hooks.unit.test.ts > returning from a plugin sign-in tab refreshes its signed-in badge
+AssertionError: expected 'disconnected' to be 'connected' // Object.is equality
+
+Ignored nodes: comments, script, style
+[36m<html>[39m
+  [36m<head />[39m
+  [36m<body>[39m
+    [36m<div />[39m
+  [36m</body>[39m
+[36m</html>[39m
+
+Expected: "connected"
+Received: "disconnected"
+
+ ❯ src/features/plugins/__tests__/agent-plugin-sign-in-refresh.hooks.unit.test.ts:16:82
+     14|   plugin.connectionStatus = 'connected';
+     15|   act(() => window.dispatchEvent(new Event('focus')));
+     16|   await waitFor(() => expect(result.current.agentPlugins?.[0]?.connect…
+       |                                                                                  ^
+     17| });
+     18|
+ ❯ runWithExpensiveErrorDiagnosticsDisabled ../../../Tovu/apps/admin/node_modules/@testing-library/dom/dist/config.js:47:12
+ ❯ checkCallback ../../../Tovu/apps/admin/node_modules/@testing-library/dom/dist/wait-for.js:124:77
+ ❯ Timeout.checkRealTimersCallback ../../../Tovu/apps/admin/node_modules/@testing-library/dom/dist/wait-for.js:118:16
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed (1)
+   Start at  21:55:05
+   Duration  8.64s (transform 5.19s, setup 432ms, import 6.24s, tests 1.09s, environment 679ms)
+

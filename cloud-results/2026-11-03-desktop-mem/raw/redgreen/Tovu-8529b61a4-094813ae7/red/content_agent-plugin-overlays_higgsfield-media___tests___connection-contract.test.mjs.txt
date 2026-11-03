@@ -1,0 +1,35 @@
+✖ browser sign-in and operator read trust are declared without a token (16.199723ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 308.536059
+
+✖ failing tests:
+
+test at content/agent-plugin-overlays/higgsfield-media/__tests__/connection-contract.test.mjs:12:1
+✖ browser sign-in and operator read trust are declared without a token (16.199723ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+      'models_explore',
+      'job_status',
+  +   'jobs_wait',
+  +   'show_generations',
+  +   'show_generation_by_ids'
+    ]
+  
+      at TestContext.<anonymous> (file:///home/user/wt-Tovu/content/agent-plugin-overlays/higgsfield-media/__tests__/connection-contract.test.mjs:20:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'models_explore', 'job_status', 'jobs_wait', 'show_generations', 'show_generation_by_ids' ],
+    expected: [ 'models_explore', 'job_status' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

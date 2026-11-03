@@ -1,0 +1,15 @@
+✔ create_omitted_kind_defaults_to_post (31.438119ms)
+✔ creating a Visit us page accepts type page and updating it needs only its id (5.617959ms)
+✔ updating content without kind preserves post and page boundaries in a batch (7.384899ms)
+✔ updating a page without kind checks permission before looking up its stored kind (2.69874ms)
+✔ create_documented_body_example_round_trips (4.759862ms)
+✔ delete_id_only_resolves_post_and_page (9.166096ms)
+✔ delete_id_only_preserves_boundaries: missing, trashed, foreign and template rows (3.246889ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2398.607708

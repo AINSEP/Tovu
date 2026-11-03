@@ -1,0 +1,44 @@
+[@jini-ai/http-kit] internal error (delegated-tool-execute, correlationId=98ca9c60-205d-48c3-a4c7-1210c04731ee) 'SQLITE_IOERR: disk I/O error at /var/tovu/sites/tovu-com/content.db'
+✔ authorized content_post_search forwards normalized options and returns complete hits through the real tool harness (18.977ms)
+✔ invalid templates reach the model as BAD_REQUEST with valid choices and no writes (7.072848ms)
+✔ a named template with no active theme reports an empty valid list to the model (1.071148ms)
+✔ template permission denial prevents presentation lookup and any saved change (1.032929ms)
+✔ content_post_get for an unknown id is BAD_REQUEST with the real not-found reason, not a redacted 500 (1.463304ms)
+✔ content_post_delete for an unknown id says not-found rather than 'an internal error occurred' (1.33395ms)
+✔ a version conflict keeps the VERSION_CONFLICT code and its re-read guidance — the subclass rule is matched FIRST (5.125127ms)
+✔ a plain slug conflict still answers on the GENERIC conflict arm, so the subclass rule is not shadowing it (1.585649ms)
+✔ a denied principal gets the real authorization reason, naming the permission (0.899275ms)
+✔ EVERY wired Posts/Pages tool surfaces the denial, not just the first one — the sibling-arm check (2.805267ms)
+✖ a shape rejection keeps its schema decoration and gains no second code prefix (5.195504ms)
+✔ an UNLISTED failure stays redacted — the allowlist is not a blanket unwrap (3.694756ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 11
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1623.050757
+
+✖ failing tests:
+
+test at apps/website/src/features/post/__tests__/tool-registrations.model-facing-errors.test.ts:1:10771
+✖ a shape rejection keeps its schema decoration and gains no second code prefix (5.195504ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+      'id',
+  +   'kind'
+    ]
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/post/__tests__/tool-registrations.model-facing-errors.test.ts:335:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'id', 'kind' ],
+    expected: [ 'id' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

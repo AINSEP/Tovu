@@ -1,0 +1,45 @@
+✔ relay guidance is included verbatim only when enabled for the run (1.477808ms)
+✔ resolveBashProhibitionEnabled defaults to false with no env var set (0.148898ms)
+✔ resolveBashProhibitionEnabled is false for anything other than the exact sentinel '1' (0.114969ms)
+✔ resolveBashProhibitionEnabled reads the '1' sentinel exactly (0.092608ms)
+✔ buildBashProhibitionBlock(false) is BASH_GUIDANCE_BLOCK verbatim, unmodified (0.087362ms)
+✔ buildBashProhibitionBlock(true) is BASH_PROHIBITION_BLOCK verbatim, unmodified (0.14131ms)
+✔ default (flag off): the base overlay carries the original steering text, not the prohibition (0.104806ms)
+✔ flag on: the base overlay contains the prohibition block verbatim, not the steering text (0.19092ms)
+✔ the rest of the base overlay is identical whether the flag is on or off (0.840172ms)
+✔ search-first applies when no visible tool fits or before a native fallback (0.546908ms)
+✔ native file fallbacks and Tool gap reports require a search and retry with named queries (0.200496ms)
+✔ native fallback guidance maps shell intents to existing tools and states the PDF limit (0.237002ms)
+✔ native fallback guidance stops after one denial and confines genuine shell gaps for every CLI (0.132616ms)
+✔ every overlay prefers Tovu visual tools and requires fresh Chrome DevTools page ids (0.26099ms)
+✔ every overlay names where file searches may run, so the no-system-search hook and 20 s search timeouts are avoided (0.295371ms)
+✔ every overlay tells the model a miss at the default cutoff is weak evidence, not proof no tool exists, and to retry before giving up (0.204745ms)
+✔ neither overlay names a coverage percentage — a hardcoded retrieval number here is the exact shape of the defect this fixes, regardless of whether the number happens to be true today (0.167267ms)
+✔ ASSISTANT_DISALLOWED_TOOLS names exactly the host-CLI-builtin tools the security report flagged as dangerous and unused (0.820019ms)
+✔ one full-access grant controls native tools on every CLI while preserving Read path denies (0.230172ms)
+✔ delegation guidance follows the subagent capability without claiming full CLI access (0.320121ms)
+✔ enabled subagents require budget handoffs and immediate successors with a no-progress limit (0.16941ms)
+✔ disabled subagents omit budget, handoff and successor instructions (0.232089ms)
+✔ shell OFF with subagents ON names the disabled capabilities without denying delegation (0.09685ms)
+✔ disabled subagents do not claim independently enabled workflows are unavailable (0.082321ms)
+✔ ASSISTANT_DISALLOWED_TOOLS also blocks the other host-CLI write and background-shell builtins: MultiEdit, NotebookEdit, BashOutput, KillShell (0.074804ms)
+✔ ASSISTANT_DISALLOWED_TOOLS denies Read on the .tovu folder at any depth, in home, on legacy key filenames, and on /proc (0.120095ms)
+✔ ASSISTANT_DISALLOWED_TOOLS does not name a tool the assistant has real observed use of (Read, ToolSearch, or Tovu's own catalog names) (0.063079ms)
+✔ ASSISTANT_SETTING_SOURCES is empty: an assistant run loads no user, project or local CLI settings (0.058858ms)
+✔ resolveAssistantRunSettings: auto-memory is disabled alongside the no-system-search hook, same matcher and timeout (0.322023ms)
+✔ resolveAssistantRunSettings: absent hook still disables auto-memory without adding hooks (0.104106ms)
+✔ published content guidance prioritizes the live URL and requires explicit overwrite (0.149865ms)
+✔ every assistant overlay explains automatic editor updates and slug navigation after content edits (0.259546ms)
+✔ all post/page write descriptions explain editor synchronization without recommending a reload (0.459178ms)
+✔ default prompt describes the enforced host tool grant (0.093207ms)
+✔ every overlay tells the model to batch the same operation on several items into one items call (0.161844ms)
+✔ buildBashGuidanceBlock: the live grant disallows Bash, so the default block is the 'unavailable' text (0.056913ms)
+✔ buildBashGuidanceBlock: a grant that leaves Bash available narrows it to reading Tovu's own source (0.165577ms)
+ℹ tests 37
+ℹ suites 0
+ℹ pass 37
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4324.736711

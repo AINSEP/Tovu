@@ -1,6 +1,6 @@
 # Cloud verify run — integ/desktop-mem-1103 (report-only)
 
-Run date 2026-11-03, started 20:58 UTC. **Minutes used: ~52.** Node v24.22.2 (from the nodejs.org tarball in `~/.local/node24`) and pnpm via corepack.
+Run date 2026-11-03, started 20:58 UTC. **Minutes used: ~60.** Node v24.22.2 (from the nodejs.org tarball in `~/.local/node24`) and pnpm via corepack.
 Tovu HEAD `3d0fa7d` (base `bfdbf1be7`); Jini HEAD `3763ffe` (base `09a36d561`). I edited no source or test files; this folder is the only thing committed.
 
 ## Summary
@@ -37,9 +37,9 @@ For each pair I checked out the `test:` commit in a git worktree (`node_modules`
 
 | repo | pair (test → fix) | files | red? | green? | notes |
 |---|---|---|---|---|---|
-| Tovu | 30d2786 → 9063ea4 | – | NOT RUN | NOT RUN | ran out of time |
-| Tovu | 98457c9 → 7c7eb59 | – | NOT RUN | NOT RUN | ran out of time |
-| Tovu | 0ef3583 → 20871ad | – | NOT RUN | NOT RUN | ran out of time |
+| Tovu | 30d2786 → 9063ea4 | 20 | PARTIAL (17/20) | YES | passed at test commit (not red): `site-theme-preview-ipc.test.ts`, `newsletter-draft-discovery.test.ts`, `supporting-files-fixture-isolation.unit.test.ts` |
+| Tovu | 98457c9 → 7c7eb59 | 1 | YES | YES |  |
+| Tovu | 0ef3583 → 20871ad | 82 | PARTIAL (54/82) | NO (73/82 pass) | passed at test commit (not red): `app-hooks-admin-webmcp.unit.test.tsx`, `app-stream-wiring.unit.test.tsx`, `AssistantDock.unit.test.tsx`, `mcp-ui-allowlist-completeness.test.ts`, `tool-catalog-query.entries.test.ts`, `tool-registrations.plugins-uninstall.test.ts`, `visitor-frontend-control.unit.test.ts`, `export-base-path-notice.unit.test.ts`, `index.test.ts`, `publish-agent-tools.unit.test.ts`, `deploy-public-url.integration.test.ts`, `calendly-authoring.integration.test.ts`, `archive-sanitization.integration.test.ts`, `share-database-blobs.integration.test.ts`, `static-export-themes.integration.test.ts`, `tool-registrations.unit.test.ts`, `propose-credential-tool.test.ts`, `theme-pages-render.canary.test.ts`, `theme-write-preflight.unit.test.ts`, `local-site-resume.unit.test.ts`, `analytics-error-envelope.test.ts`, `unexpected-route-errors.test.ts`, `site-shares.integration.test.ts`, `site-shares.integration.test.ts`, `site-consent.test.ts`, `app.consent-capture.test.ts`, `static-export-none.integration.test.ts`, `assistant-tool-exec.unit.test.ts`; failed at fix commit: `daemon-starting-label.integration.test.tsx`, `batch-tool-inputs.test.ts`, `tool-approval-policy.test.ts`, `connect-tool.unit.test.ts`, `host-plugin-guidance.unit.test.ts`, `post.presentation-validation.unit.test.ts`, `theme-files.test.ts`, `theme-write-file-built-gate.test.ts`, `assistant-tool-exec.integration.test.ts` |
 | Tovu | 30491f3 → 9c2fac3 | 10 | PARTIAL (9/10) | NO (8/10 pass) | passed at test commit (not red): `assistant-daemon-client.unit.test.ts`; failed at fix commit: `external-mcp-federation-runtime.test.ts`, `assistant-server-federation.integration.test.ts` |
 | Tovu | 7def946 → 0cb1197 | 6 | YES | NO (3/6 pass) | failed at fix commit: `tool-catalog-query.test.ts`, `agent-daemon-remote-tools.integration.test.ts`, `assistant-tool-exec.integration.test.ts` |
 | Tovu | d7f2f6c → b389d72 | 18 | PARTIAL (17/18) | NO (13/18 pass) | passed at test commit (not red): `agent-daemon-server.session-binding-wiring.unit.test.ts`; failed at fix commit: `assistant-byok-routes.test.ts`, `agent-daemon-remote-tools.integration.test.ts`, `agent-daemon-server.federation-runtime-wiring.unit.test.ts`, `assistant-agent-plugin-preflight.integration.test.ts`, `assistant-server-federation.integration.test.ts` |
@@ -66,11 +66,17 @@ For each pair I checked out the `test:` commit in a git worktree (`node_modules`
 | Jini | f59d346 → 6ab2226 | 2 | YES | YES |  |
 | Jini | 185f1b0 → 6271be6 | 1 | YES | YES |  |
 | Jini | cf19763 → 3763ffe | 14 | PARTIAL (11/14) | NO (13/14 pass) | passed at test commit (not red): `composer-action-hit-targets.test.tsx`, `delegated-local-tools.integration.test.ts`, `tool-argument-recovery.test.ts`; failed at fix commit: `composer-hit-targets.test.mjs` |
-| Tovu | b901bc8a0 → bfdbf1be7 | – | NOT RUN | NOT RUN | ran out of time |
+| Tovu | b901bc8a0 → bfdbf1be7 | 1 | YES | YES |  |
 | Jini | 78d991e9c → 09a36d561 | 1 | YES | YES |  |
-| Tovu | 8529b61a4 → 094813ae7 | – | NOT RUN | NOT RUN | ran out of time |
+| Tovu | 8529b61a4 → 094813ae7 | 3 | YES | NO (0/3 pass) | failed at fix commit: `bundled-higgsfield-media-package.unit.test.ts`, `connect-tool.unit.test.ts`, `connection-contract.test.mjs` |
 
 Per-file logs: `raw/redgreen/<Repo>-<test>-<fix>/{red,green}/`. Most fix-commit failures in Tovu match HEAD failures with the same root causes listed below (`resolveRegisteredPresets` not exported, etc.). The intermediate commits ran against Jini **HEAD** build output, not the Jini of their own time, so drift between the two repos can cause failures there.
+
+**How to read PARTIAL / NO:**
+- *PARTIAL red* means some files the test commit touched already passed before the fix. These are usually files where the commit edited or added cases to an existing test file and the new case alone was the red one. A file-level PASS at the test commit means **no** case in it was red, so for those files the red proof is missing. Big combined commits (`0ef3583`, 82 files; `7d299e5`, 32) have the most of these.
+- *NO green* at an intermediate fix commit is mostly the same root causes as HEAD (`resolveRegisteredPresets` export break from `d3cd357` onward, Jini timeouts, provider-plugins build break, Playwright ENV).
+- `8529b61a4 → 094813ae7` (Higgsfield grants, Tovu) is **0/3 green** in this run: `bundled-higgsfield-media-package.unit.test.ts` (✖ mcp.json declares the real higgsfield connection…; ✖ failure-modes.md maps every observed failure string…), `connect-tool.unit.test.ts` (✖ an already signed-in OAuth row gets the plugin's declared default tools…), `content/agent-plugin-overlays/higgsfield-media/__tests__/connection-contract.test.mjs` (✖ browser sign-in and operator read trust are declared without a token). This old commit ran against **Jini HEAD + Tovu HEAD node_modules**, so cross-repo drift is the likely cause, but **unproven**. Rerun it against the matching Jini commit (`09a36d561`) before treating it as a regression. The paired Jini side (`78d991e9c → 09a36d561`) went cleanly red→green.
+- Fully clean red→green pairs: Tovu `98457c9→7c7eb59`, `e98479a→b8c5c07`, `44ea593→3b8c3a1`, `b901bc8a0→bfdbf1be7` (Vercel keys); Jini `6d7da80→0a86e64`, `ca0b8d9→cffc859`, `e1dbc33→7003af8`, `4d906a2→a6a67f0`, `ceef987→91fc896`, `f59d346→6ab2226`, `185f1b0→6271be6`, `78d991e9c→09a36d561` (Higgsfield grants).
 
 
 ## Step 1 — every failing changed test file at HEAD
@@ -441,9 +447,5 @@ Per-file raw output: `raw/head-tovu/`, `raw/head-jini/` (path with `/`→`_`). R
 
 ## NOT RUN
 
-- red/green pair tovu 30d2786→9063ea4
-- red/green pair tovu 98457c9→7c7eb59
-- red/green pair tovu 0ef3583→20871ad
-- red/green pair tovu b901bc8a0→bfdbf1be7
-- red/green pair tovu 8529b61a4→094813ae7
+- Nothing in scope. Every changed test file and every listed red/green pair ran.
 - Full-repo suites were deliberately not run (out of scope per instructions). No subagents were used.

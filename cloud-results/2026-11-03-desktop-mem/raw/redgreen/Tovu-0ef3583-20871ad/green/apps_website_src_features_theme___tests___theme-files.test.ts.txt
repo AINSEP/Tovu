@@ -1,0 +1,78 @@
+✔ theme file APIs expose reversible moves without the unused hard-delete capability (890.929128ms)
+✔ an oversized existing file refuses reads and ordinary replacement, but permits an explicit replacement (17.827429ms)
+✔ rename moves the original bytes and inode, creates parents, and refuses collisions and escapes (12.597484ms)
+✔ filename allocation preserves the extension and selects the first free suffix (0.334664ms)
+✔ a direct child of the themes root is a recognized theme root (4.299695ms)
+✔ a child of a named engine subfolder is a recognized theme root (4.353052ms)
+✔ a folder outside the themes root is NOT a recognized theme root (4.509457ms)
+✔ a folder nested too deep under an UNRECOGNIZED subfolder is not a theme root, even inside the themes root (4.368206ms)
+✔ a file operation against a theme folder that is not at a recognized root is refused outright (4.235201ms)
+✔ an ordinary relative path inside the theme folder resolves (4.289246ms)
+✔ a ../ traversal out of the theme folder is refused (4.488027ms)
+✔ the specific ../../themes/evil shape a string-prefix check would admit is refused (4.368842ms)
+✔ a SIBLING folder whose name merely extends the theme folder's is refused (the classic startsWith defect) (4.964531ms)
+✔ an absolute path is refused even when it points inside the theme folder (4.153816ms)
+✔ an empty path and a NUL-byte path are refused (4.134183ms)
+✔ a symlinked DIRECTORY inside the theme folder cannot be written through (5.182062ms)
+✔ a symlinked FILE inside the theme folder cannot be read through (5.604741ms)
+✔ readThemeFile raises ThemePathError (never a raw ELOOP) for a CIRCULAR symlink (a -> b -> a) as the target itself (5.385984ms)
+✔ listThemeFiles does not follow or report symlinks out of the theme folder (6.174927ms)
+✔ listThemeFiles returns cleanly (never throws ELOOP) when the theme folder contains a CIRCULAR symlink (a -> b -> a) (5.119533ms)
+✔ listThemeFiles returns every regular file as a sorted, forward-slash relative path (4.676798ms)
+✔ writeThemeFile creates intermediate directories inside the theme folder and readThemeFile reads it back (5.288694ms)
+✔ writeThemeFile overwrites an existing file rather than appending (7.218508ms)
+✖ writeThemeFile replaces an existing target via rename rather than truncating it in place, and leaves no temp file behind (12.171828ms)
+✔ reading a missing file, or a directory, is a clear refusal rather than a crash (4.689811ms)
+✔ an oversized write is refused (5.419399ms)
+✔ the generated directory itself is matched (0.279206ms)
+✔ a file nested inside the generated directory is matched (0.273674ms)
+✔ a sibling directory merely PREFIXED with the generated dir's name is NOT matched (0.111155ms)
+✔ a backslash-separated (Windows-shaped) relative path is normalized before matching (0.121312ms)
+✔ an ordinary theme file is NOT matched (0.192935ms)
+✔ the generated root file itself is matched (0.110451ms)
+✔ a similarly-named sibling file is NOT matched (0.05008ms)
+✔ the authored source page the generated root file is derived from is NOT matched (0.077866ms)
+✔ sourceDir naming a generated directory exactly is a conflict (0.109262ms)
+✔ sourceDir nested inside a generated directory is a conflict (0.045725ms)
+✔ sourceDir naming the theme root ('.') is a conflict — it would contain every generated directory (0.032662ms)
+✔ sourceDir merely PREFIXED with a generated dir's name is NOT a conflict (0.10576ms)
+✔ an ordinary sourceDir unrelated to any generated directory is NOT a conflict (0.067884ms)
+✔ a backslash-separated (Windows-shaped) sourceDir is normalized before matching (0.040697ms)
+✔ copyThemeFile refuses to silently overwrite an existing destination (5.193016ms)
+✔ writeThemeFile raises ThemePathError (never a raw ELOOP) for a CIRCULAR symlink (a -> b -> a) as the write target (5.241021ms)
+✔ copyThemeFile raises ThemePathError (never a raw ELOOP) for a CIRCULAR symlink (a -> b -> a) as the copy SOURCE (5.090972ms)
+ℹ tests 43
+ℹ suites 0
+ℹ pass 42
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2337.744194
+
+✖ failing tests:
+
+test at apps/website/src/features/theme/__tests__/theme-files.test.ts:1:11114
+✖ writeThemeFile replaces an existing target via rename rather than truncating it in place, and leaves no temp file behind (12.171828ms)
+  AssertionError [ERR_ASSERTION]: expected no temp file left behind in the theme folder, found: .trash
+  + actual - expected
+  
+  + [
+  +   '.trash'
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/theme/__tests__/theme-files.test.ts:320:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ '.trash' ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

@@ -1,0 +1,21 @@
+{"timestamp":"2026-11-03T21:56:50.491Z","level":"info","service":"web","message":"web_fetch_page","context":{"origin":"http://localhost:43127","durationMs":8,"outcome":"response","status":200}}
+{"timestamp":"2026-11-03T21:56:50.498Z","level":"info","service":"web","message":"web_fetch_page","context":{"origin":"http://localhost:43128","durationMs":1,"outcome":"refused"}}
+{"timestamp":"2026-11-03T21:56:50.499Z","level":"info","service":"web","message":"web_fetch_page","context":{"origin":"https://localhost:43127","durationMs":0,"outcome":"refused"}}
+{"timestamp":"2026-11-03T21:56:50.500Z","level":"info","service":"web","message":"web_fetch_page","context":{"origin":"http://127.0.0.1:43127","durationMs":1,"outcome":"refused"}}
+{"timestamp":"2026-11-03T21:56:50.501Z","level":"info","service":"web","message":"web_fetch_page","context":{"origin":"http://10.0.0.1","durationMs":1,"outcome":"refused"}}
+{"timestamp":"2026-11-03T21:56:50.501Z","level":"info","service":"web","message":"web_fetch_page","context":{"origin":"http://169.254.169.254","durationMs":0,"outcome":"refused"}}
+{"timestamp":"2026-11-03T21:56:50.502Z","level":"info","service":"web","message":"web_fetch_page","context":{"origin":"http://localhost:43128","durationMs":1,"outcome":"response","status":200}}
+{"timestamp":"2026-11-03T21:56:50.503Z","level":"info","service":"web","message":"web_fetch_page","context":{"origin":"http://localhost:43127","durationMs":1,"outcome":"refused"}}
+{"timestamp":"2026-11-03T21:56:50.503Z","level":"info","service":"web","message":"web_fetch_page","context":{"origin":"https://localhost:43128","durationMs":0,"outcome":"refused"}}
+{"timestamp":"2026-11-03T21:56:50.504Z","level":"info","service":"web","message":"web_fetch_page","context":{"origin":"http://127.0.0.1:43128","durationMs":0,"outcome":"refused"}}
+{"timestamp":"2026-11-03T21:56:50.505Z","level":"info","service":"web","message":"web_fetch_page","context":{"origin":"http://10.0.0.1","durationMs":0,"outcome":"refused"}}
+{"timestamp":"2026-11-03T21:56:50.505Z","level":"info","service":"web","message":"web_fetch_page","context":{"origin":"http://169.254.169.254","durationMs":0,"outcome":"refused"}}
+✔ web_fetch_page reads the configured local site and refuses other local origins across site bindings (38.614744ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4162.347977

@@ -1,0 +1,25 @@
+✔ theme_write_file: replacing two theme files asks once and keeps both previous files restorable (90.937594ms)
+✔ theme_write_file: declining a replacement leaves files and revision history untouched (41.852219ms)
+✔ theme_edit_file: replacing two theme files asks once and keeps both previous files restorable (26.938575ms)
+✔ theme_edit_file: declining a replacement leaves files and revision history untouched (12.863507ms)
+✔ theme_reset_file: replacing two theme files asks once and keeps both previous files restorable (27.115097ms)
+✔ theme_reset_file: declining a replacement leaves files and revision history untouched (13.992702ms)
+✔ theme_import_file_from_url: replacing two theme files asks once and keeps both previous files restorable (28.969938ms)
+✔ theme_import_file_from_url: declining a replacement leaves files and revision history untouched (15.902969ms)
+✔ theme_import_local_file: replacing two theme files asks once and keeps both previous files restorable (30.62773ms)
+✔ theme_import_local_file: declining a replacement leaves files and revision history untouched (13.156467ms)
+✔ a newly created theme file needs no replacement card or revision (13.6049ms)
+✔ a theme replacement with no confirmation channel leaves current content unchanged (12.031799ms)
+✔ the previous theme revision can be restored through the existing restore tool (22.495371ms)
+✔ a later invalid theme destination prevents both earlier writes and a confirmation card (12.25801ms)
+✔ theme revisions refuse a trash symlink escaping the theme before replacing any bytes (12.911625ms)
+✔ a file changed while its confirmation is open is never overwritten (13.717273ms)
+✔ theme replacement history retains the latest 20 revisions without purging manually trashed files (82.747681ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3546.422518

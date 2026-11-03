@@ -1,0 +1,24 @@
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+▶ a member cannot execute or discover tools as another run's owner
+  ✔ refuses member-run for owner (42.306643ms)
+  ✔ refuses missing-run for owner (12.405454ms)
+  ✔ refuses ended-run for member (7.246964ms)
+  ✔ refuses cancelled-run for member (7.281765ms)
+  ✔ refuses foreign-run for member (7.314455ms)
+  ✔ refuses superseded-run for member (4.213742ms)
+  ✔ refuses absent run for member (4.003464ms)
+✔ a member cannot execute or discover tools as another run's owner (375.415252ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6190.009662

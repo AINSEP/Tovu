@@ -1,0 +1,208 @@
+✔ plugin.json parses under the Agent Plugins v1.0.0 validator (14.568884ms)
+✔ plugin.json's keywords carry the vocabulary an operator would actually search for (11.62829ms)
+✖ mcp.json declares the real higgsfield connection, auto-admitted per classifyAgentPluginMcpServerTrust (8.301486ms)
+✔ the eponymous skill folder exists — run-start injection resolves skills/<pluginId>/SKILL.md by that exact name (2.740561ms)
+✔ the package packs through the real installer's own packer, references included (5.725253ms)
+✔ SKILL.md points at every reference file that exists — an unreferenced reference is never read (1.241854ms)
+✔ SKILL.md says EARLY and plainly that generate_image returns a job id, not an image (0.943806ms)
+✔ SKILL.md forbids sync:true AND carries the two numbers that make it unarguable (2.634108ms)
+✔ SKILL.md documents the TWO-list write grant and quotes the exact refusal line (2.17118ms)
+✔ host guidance: a sign-in needs no restart; only widening a running connection does (1.443145ms)
+✔ SKILL.md forbids inventing a cause for an absent or refused federated tool (1.051823ms)
+✔ SKILL.md records the plan gate's exact string and defers model facts to the account; the reference keeps the observed table (1.522283ms)
+✔ SKILL.md says the auth is OAuth — never an API key — and that Tovu mints its own client (1.093238ms)
+✔ SKILL.md is honest that the cold start leaves chat — the enable step, and TOVU_PUBLIC_URL (1.272197ms)
+✔ plugin.json's keywords also reach an operator who says 'photo' or 'illustration' (1.161562ms)
+✔ SKILL.md forbids the two wrong recoveries — silent media_generate_asset, and re-attaching by hand (1.482188ms)
+✖ failure-modes.md maps every observed failure string to a real cause (1.189001ms)
+✖ failure-modes.md routes an expired OAuth token to the one tool that can surface it (2.057686ms)
+✔ no file in the package carries credential material (6.723736ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 16
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 375.666977
+
+✖ failing tests:
+
+test at apps/website/src/features/agent-plugins/__tests__/unit/bundled-higgsfield-media-package.unit.test.ts:1:2382
+✖ mcp.json declares the real higgsfield connection, auto-admitted per classifyAgentPluginMcpServerTrust (8.301486ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  ... Skipped lines
+  
+    {
+      tovuAuthMode: 'oauth',
+      tovuDefaultTools: {
+        allow: [
+          'generate_image',
+  ...
+          'job_status',
+  +       'jobs_wait',
+  +       'show_generations',
+  +       'show_generation_by_ids'
+        ],
+        write: [
+          'generate_image',
+          'generate_video',
+          'reveal_generation'
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/agent-plugins/__tests__/unit/bundled-higgsfield-media-package.unit.test.ts:103:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { type: 'streamable-http', url: 'https://mcp.higgsfield.ai/mcp', tovuAuthMode: 'oauth', tovuDefaultTools: { allow: [Array], write: [Array], read: [Array] } },
+    expected: { type: 'streamable-http', url: 'https://mcp.higgsfield.ai/mcp', tovuAuthMode: 'oauth', tovuDefaultTools: { allow: [Array], write: [Array], read: [Array] } },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/agent-plugins/__tests__/unit/bundled-higgsfield-media-package.unit.test.ts:1:9794
+✖ failure-modes.md maps every observed failure string to a real cause (1.189001ms)
+  AssertionError [ERR_ASSERTION]: failure-modes.md must carry the observed string 'remote-declares-not-read-only'
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/agent-plugins/__tests__/unit/bundled-higgsfield-media-package.unit.test.ts:331:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/agent-plugins/__tests__/unit/bundled-higgsfield-media-package.unit.test.ts:1:11436
+✖ failure-modes.md routes an expired OAuth token to the one tool that can surface it (2.057686ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /Settings\s*(->|→)\s*External MCP/. Input:
+  
+  '# Failure modes\n' +
+    '\n' +
+    "Every failure in this file was observed on this integration; the host guidance has the host's\n" +
+    'exact log lines. Match the symptom, then act — do not reason from first principles about what a\n' +
+    'federated failure "probably" means. That habit is what produced an invented explanation and cost\n' +
+    'this project two sessions.\n' +
+    '\n' +
+    '---\n' +
+    '\n' +
+    '## 1. The tool is not there at all\n' +
+    '\n' +
+    '**Symptom:** `search_tools` finds no `mcp__higgsfield__generate_image`; `describe_tool` cannot\n' +
+    'describe it. From inside a run this is indistinguishable from the tool never having existed.\n' +
+    '\n' +
+    '**Three different causes, all invisible from here:**\n' +
+    '\n' +
+    '- the tool declares that it writes and is not in `writeAllowedToolNames`;\n' +
+    "- the tool is not in the operator's allowlist (`allowedToolNames`);\n" +
+    '- the connection is disabled or absent entirely.\n' +
+    '\n' +
+    "**What to do:** do **not** guess which. Report what the host's admissions or refusal notices say\n" +
+    '(the host guidance names where they appear). If none of them tells you anything, say exactly that\n' +
+    "and send the operator to the host's connection settings.\n" +
+    '\n' +
+    '**Remember the restart where the host freezes admissions.** A grant saved mid-session may not be\n' +
+    'live until the assistant restarts, and no amount of retrying will make it live.\n' +
+    '\n' +
+    '---\n' +
+    '\n' +
+    '## 2. `Error starting generation: Requires basic plan or higher.`\n' +
+    '\n' +
+    '**Cause:** an account entitlement gate on the selected model. Not a bad model id, not a broken\n' +
+    'connection, not an auth problem.\n' +
+    '\n' +
+    '**Do:** try a model that is not gated (`z_image` is verified working on this account). If they\n' +
+    'are all gated, stop and put the choice to the operator.\n' +
+    '\n' +
+    '**Do not:** retry the same model; conclude the integration is broken; silently switch to\n' +
+    "`media_generate_asset`, which spends money on a *different* vendor's credential.\n" +
+    '\n' +
+    'Full detail in `models-and-plan-gates.md`.\n' +
+    '\n' +
+    '---\n' +
+    '\n' +
+    '## 3. The request timed out\n' +
+    '\n' +
+    '**Cause, when it follows a `job_status` call with `sync: true`:** a structural incompatibility,\n' +
+    "not a slow network. Higgsfield's `sync` mode polls server-side for **up to ~25 seconds**. The\n" +
+    "host's hosted-MCP transport aborts a federated request sooner (the host guidance gives its\n" +
+    'ceiling), so the request is always killed before it can answer.\n' +
+    '\n' +
+    '**Do:** call `job_status` again **without** `sync`, and poll. It returns instantly and it works.\n' +
+    '\n' +
+    '**Do not:** tell the operator Higgsfield is slow or down. Nothing is wrong with Higgsfield here.\n' +
+    '\n' +
+    '---\n' +
+    '\n' +
+    '## 4. A bare internal error after a federated call\n' +
+    '\n' +
+    '**Cause:** the host lost the real reason on the way out to you. The true reason may exist in the\n' +
+    'run detail. On this integration it most often wraps the timeout above.\n' +
+    '\n' +
+    '**Do:** treat it as "the reason was lost", not as "an unknown catastrophe". Re-run the same call\n' +
+    'on a path that reports properly, or drop the flag that most likely caused it (`sync: true` is the\n' +
+    'usual culprit on this integration). Report it honestly as a lost error message.\n' +
+    '\n' +
+    '**Do not:** invent a cause. **Do not** report it to the operator as though `INTERNAL_ERROR` were\n' +
+    'the actual diagnosis.\n' +
+    '\n' +
+    '---\n' +
+    '\n' +
+    '## 5. The server "is disconnected: its authorization expired or was revoked"\n' +
+    '\n' +
+    '**Cause:** the OAuth access token has expired. It is short-lived — on the order of a day.\n' +
+    '\n' +
+    '**Do:** call `external_mcp_reauth_prompt`. It shows the operator a real in-chat notice naming the\n' +
+    'server and pointing them at where to sign in again. **You cannot finish an OAuth sign-in\n' +
+    'yourself**, and neither can that tool.\n' +
+    '\n' +
+    'After the operator confirms they have reconnected, retry the **original** failed call exactly\n' +
+    'once, and report its real outcome.\n' +
+    '\n' +
+    '**Do not:** call this tool for any other kind of failure. **Do not** keep retrying the failing\n' +
+    'call while the notice is up.\n' +
+    '\n' +
+    '---\n' +
+    '\n' +
+    '## 6. `media_import_from_url` returns 403 or 404\n' +
+    '\n' +
+    "**Cause:** almost always an expired vendor URL. Higgsfield's CDN links are time-limited.\n" +
+    '\n' +
+    '**Do:** get a fresh URL from `job_status` for the same job id and import that.\n' +
+    '\n' +
+    '**Do not:** retry the same dead URL, and do not fall back to downloading the file and re-uploading\n' +
+    'it — you do not need to hold the bytes, and there is no path for you to do so anyway.\n' +
+    '\n' +
+    '---\n' +
+    '\n' +
+    '## 7. `media_import_from_url` rejects the file\n' +
+    '\n' +
+    '**Cause:** the format is outside the accepted set. The host checks the **actual bytes**, not the\n' +
+    'served `Content-Type`, and accepts only the image and video formats it supports. A URL that\n' +
+    'returns HTML (an error page, a login wall) is refused rather than stored as a broken asset.\n' +
+    '\n' +
+    '**Do:** check that the URL you passed is the `uri` from the completed `job_status` resource link,\n' +
+    'not a page URL. Report the refusal as-is — it is the guard working.\n' +
+    '\n' +
+    '---\n' +
+    '\n' +
+    '## 8. Everything succeeded but nothing is in Media\n' +
+    '\n' +
+    '**Cause:** you stopped after `generate_image`, or after `job_status`. Neither one puts anything in\n' +
+    'the Media library. Only `media_import_from_url` does.\n' +
+    '\n' +
+    '**Do:** run step 4. Then confirm by the returned `media.id` and `media.publicUrl` — not by the\n' +
+    'fact that earlier calls returned 200.\n'
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/agent-plugins/__tests__/unit/bundled-higgsfield-media-package.unit.test.ts:354:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '# Failure modes\n\nEvery failure in this file was observed on this integration; the host guidance has the host\'s\nexact log lines. Match the symptom, then act — do not reason from first principles about what a\nfederated failure "probably" means. That habit is what produced an invented explanation and cost\nthis project two sessions.\n\n---\n\n## 1. The tool is not there at all\n\n**Symptom:** `search_tools` finds no `mcp__higgsfield__generate_image`; `describe_tool` cannot\ndescribe it. From inside a run this is indistinguishable from the tool never having existed.\n\n**Three different causes, all invisible from here:**\n\n- the tool declares that it writes and is not in `writeAllowedToolNames`;\n- the tool is not in the operator\'s allowlist (`allowedToolNames`);\n- the connection is disabled or absent entirely.\n\n**What to do:** do **not** guess which. Report what the host\'s admissions or refusal notices say\n(the host guidance names where they appear). If none of them tells you anything, say exactly that\nand send the operator to the host\'s connection settings.\n\n**Remember the restart where the host freezes admissions.** A grant saved mid-session may not be\nlive until the assistant restarts, and no amount of retrying will make it live.\n\n---\n\n## 2. `Error starting generation: Requires basic plan or higher.`\n\n**Cause:** an account entitlement gate on the selected model. Not a bad model id, not a broken\nconnection, not an auth problem.\n\n**Do:** try a model that is not gated (`z_image` is verified working on this account). If they\nare all gated, stop and put the choice to the operator.\n\n**Do not:** retry the same model; conclude the integration is broken; silently switch to\n`media_generate_asset`, which spends money on a *different* vendor\'s credential.\n\nFull detail in `models-and-plan-gates.md`.\n\n---\n\n## 3. The request timed out\n\n**Cause, when it follows a `job_status` call with `sync: true`:** a structural incompatibility,\nnot a slow network. Higgsfield\'s `sync` mode polls server-side for **up to ~25 seconds**. The\nhost\'s hosted-MCP transport aborts a federated request sooner (the host guidance gives its\nceiling), so the request is always killed before it can answer.\n\n**Do:** call `job_status` again **without** `sync`, and poll. It returns instantly and it works.\n\n**Do not:** tell the operator Higgsfield is slow or down. Nothing is wrong with Higgsfield here.\n\n---\n\n## 4. A bare internal error after a federated call\n\n**Cause:** the host lost the real reason on the way out to you. The true reason may exist in the\nrun detail. On this integration it most often wraps the timeout above.\n\n**Do:** treat it as "the reason was lost", not as "an unknown catastrophe". Re-run the same call\non a path that reports properly, or drop the flag that most likely caused it (`sync: true` is the\nusual culprit on this integration). Report it honestly as a lost error message.\n\n**Do not:** invent a cause. **Do not** report it to the operator as though `INTERNAL_ERROR` were\nthe actual diagnosis.\n\n---\n\n## 5. The server "is disconnected: its authorization expired or was revoked"\n\n**Cause:** the OAuth access token has expired. It is short-lived — on the order of a day.\n\n**Do:** call `external_mcp_reauth_prompt`. It shows the operator a real in-chat notice naming the\nserver and pointing them at where to sign in again. **You cannot finish an OAuth sign-in\nyourself**, and neither can that tool.\n\nAfter the operator confirms they have reconnected, retry the **original** failed call exactly\nonce, and report its real outcome.\n\n**Do not:** call this tool for any other kind of failure. **Do not** keep retrying the failing\ncall while the notice is up.\n\n---\n\n## 6. `media_import_from_url` returns 403 or 404\n\n**Cause:** almost always an expired vendor URL. Higgsfield\'s CDN links are time-limited.\n\n**Do:** get a fresh URL from `job_status` for the same job id and import that.\n\n**Do not:** retry the same dead URL, and do not fall back to downloading the file and re-uploading\nit — you do not need to hold the bytes, and there is no path for you to do so anyway.\n\n---\n\n## 7. `media_import_from_url` rejects the file\n\n**Cause:** the format is outside the accepted set. The host checks the **actual bytes**, not the\nserved `Content-Type`, and accepts only the image and video formats it supports. A URL that\nreturns HTML (an error page, a login wall) is refused rather than stored as a broken asset.\n\n**Do:** check that the URL you passed is the `uri` from the completed `job_status` resource link,\nnot a page URL. Report the refusal as-is — it is the guard working.\n\n---\n\n## 8. Everything succeeded but nothing is in Media\n\n**Cause:** you stopped after `generate_image`, or after `job_status`. Neither one puts anything in\nthe Media library. Only `media_import_from_url` does.\n\n**Do:** run step 4. Then confirm by the returned `media.id` and `media.publicUrl` — not by the\nfact that earlier calls returned 200.\n',
+    expected: /Settings\s*(->|→)\s*External MCP/,
+    operator: 'match',
+    diff: 'simple'
+  }

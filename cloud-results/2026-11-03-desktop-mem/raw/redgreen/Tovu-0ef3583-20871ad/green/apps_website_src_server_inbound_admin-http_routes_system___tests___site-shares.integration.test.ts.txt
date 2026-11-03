@@ -1,0 +1,61 @@
+[site-share] {
+  errorId: 'c834c741-b2cd-428b-a10e-4683273a8e51',
+  diagnostic: 'Error: SECRET disk details\n' +
+    '    at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/server/inbound/admin-http/routes/system/__tests__/site-shares.integration.test.ts:61:24)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n' +
+    '    at async Test.run (node:internal/test_runner/test:1409:7)\n' +
+    '    at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)'
+}
+[site-share] {
+  errorId: '5b740b81-ce48-4531-b1ce-122d6a2cec10',
+  diagnostic: 'Error: SECRET disk details\n' +
+    '    at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/server/inbound/admin-http/routes/system/__tests__/site-shares.integration.test.ts:61:24)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n' +
+    '    at async Test.run (node:internal/test_runner/test:1409:7)\n' +
+    '    at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)'
+}
+[site-share] {
+  errorId: 'e10a1a75-5a6c-468b-9d4b-d134f793a02c',
+  diagnostic: 'Error: SECRET disk details\n' +
+    '    at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/server/inbound/admin-http/routes/system/__tests__/site-shares.integration.test.ts:61:24)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n' +
+    '    at async Test.run (node:internal/test_runner/test:1409:7)\n' +
+    '    at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)'
+}
+✔ share routes validate sources and authorize before effects, preserve downloads, and sanitize every backend failure (236.476736ms)
+✔ public share namespace terminates safely when no registry is configured (12.836038ms)
+✔ share creation accepts a non-UUID job id (reported, not fixed) (9.137152ms)
+[site-share] {
+  errorId: 'e9ae30ea-a4cf-474c-a390-0b7d4340de0c',
+  diagnostic: 'Error: SECRET authorizer detail\n' +
+    '    at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/server/inbound/admin-http/routes/system/__tests__/site-shares.integration.test.ts:146:20)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n' +
+    '    at async Test.run (node:internal/test_runner/test:1409:7)\n' +
+    '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)'
+}
+[site-share] {
+  errorId: 'f1648307-d50b-451e-a84c-b2be30c48b9c',
+  diagnostic: 'Error: SECRET disk detail\n' +
+    '    at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/server/inbound/admin-http/routes/system/__tests__/site-shares.integration.test.ts:151:19)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n' +
+    '    at async Test.run (node:internal/test_runner/test:1409:7)\n' +
+    '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)'
+}
+[site-share] {
+  errorId: 'd948c2b1-193c-47eb-9d62-255e4e91d6e8',
+  diagnostic: 'Error: SECRET disk detail\n' +
+    '    at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/server/inbound/admin-http/routes/system/__tests__/site-shares.integration.test.ts:151:19)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n' +
+    '    at async Test.run (node:internal/test_runner/test:1409:7)\n' +
+    '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)'
+}
+✔ share artifact routes admit a connected-computer grant, and every route refuses or sanitizes before effects (12.795644ms)
+✔ static HTTP options and start share exact selection validation and export permission (8.98989ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3204.482093

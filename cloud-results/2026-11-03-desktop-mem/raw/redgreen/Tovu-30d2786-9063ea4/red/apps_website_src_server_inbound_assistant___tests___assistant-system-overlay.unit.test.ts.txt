@@ -1,0 +1,68 @@
+✔ relay guidance is included verbatim only when enabled for the run (2.463567ms)
+✔ resolveBashProhibitionEnabled defaults to false with no env var set (0.289987ms)
+✔ resolveBashProhibitionEnabled is false for anything other than the exact sentinel '1' (0.299545ms)
+✔ resolveBashProhibitionEnabled reads the '1' sentinel exactly (0.161675ms)
+✔ buildBashProhibitionBlock(false) is BASH_GUIDANCE_BLOCK verbatim, unmodified (0.133153ms)
+✔ buildBashProhibitionBlock(true) is BASH_PROHIBITION_BLOCK verbatim, unmodified (0.243686ms)
+✔ default (flag off): the base overlay carries the original steering text, not the prohibition (0.17712ms)
+✔ flag on: the base overlay contains the prohibition block verbatim, not the steering text (0.243994ms)
+✔ the rest of the base overlay is identical whether the flag is on or off (0.501075ms)
+✔ search-first applies when no visible tool fits or before a native fallback (0.807857ms)
+✔ native file fallbacks and Tool gap reports require a search and retry with named queries (0.340835ms)
+✔ native fallback guidance maps shell intents to existing tools and states the PDF limit (0.322174ms)
+✔ native fallback guidance stops after one denial and confines genuine shell gaps for every CLI (0.21663ms)
+✔ every overlay prefers Tovu visual tools and requires fresh Chrome DevTools page ids (0.427387ms)
+✔ every overlay names where file searches may run, so the no-system-search hook and 20 s search timeouts are avoided (0.512638ms)
+✔ every overlay tells the model a miss at the default cutoff is weak evidence, not proof no tool exists, and to retry before giving up (0.282871ms)
+✔ neither overlay names a coverage percentage — a hardcoded retrieval number here is the exact shape of the defect this fixes, regardless of whether the number happens to be true today (0.479064ms)
+✔ ASSISTANT_DISALLOWED_TOOLS names exactly the host-CLI-builtin tools the security report flagged as dangerous and unused (1.183794ms)
+✔ one full-access grant controls native tools on every CLI while preserving Read path denies (0.481649ms)
+✔ delegation guidance follows the subagent capability without claiming full CLI access (0.55324ms)
+✔ enabled subagents require budget handoffs and immediate successors with a no-progress limit (0.399598ms)
+✔ disabled subagents omit budget, handoff and successor instructions (0.390058ms)
+✔ shell OFF with subagents ON names the disabled capabilities without denying delegation (0.290585ms)
+✔ disabled subagents do not claim independently enabled workflows are unavailable (0.290549ms)
+✔ ASSISTANT_DISALLOWED_TOOLS also blocks the other host-CLI write and background-shell builtins: MultiEdit, NotebookEdit, BashOutput, KillShell (0.142401ms)
+✔ ASSISTANT_DISALLOWED_TOOLS denies Read on the .tovu folder at any depth, in home, on legacy key filenames, and on /proc (0.231668ms)
+✔ ASSISTANT_DISALLOWED_TOOLS does not name a tool the assistant has real observed use of (Read, ToolSearch, or Tovu's own catalog names) (0.118205ms)
+✔ ASSISTANT_SETTING_SOURCES is empty: an assistant run loads no user, project or local CLI settings (0.05826ms)
+✔ resolveAssistantRunSettings: auto-memory is disabled alongside the no-system-search hook, same matcher and timeout (0.473134ms)
+✔ resolveAssistantRunSettings: absent hook still disables auto-memory without adding hooks (0.133325ms)
+✔ published content guidance prioritizes the live URL and requires explicit overwrite (0.125513ms)
+✔ every assistant overlay explains automatic editor updates and slug navigation after content edits (0.251597ms)
+✔ all post/page write descriptions explain editor synchronization without recommending a reload (0.667082ms)
+✖ default prompt describes the enforced host tool grant (4.567311ms)
+✔ every overlay tells the model to batch the same operation on several items into one items call (0.243313ms)
+✔ buildBashGuidanceBlock: the live grant disallows Bash, so the default block is the 'unavailable' text (0.195326ms)
+✔ buildBashGuidanceBlock: a grant that leaves Bash available narrows it to reading Tovu's own source (0.298758ms)
+ℹ tests 37
+ℹ suites 0
+ℹ pass 36
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4541.305794
+
+✖ failing tests:
+
+test at apps/website/src/server/inbound/assistant/__tests__/assistant-system-overlay.unit.test.ts:1:15797
+✖ default prompt describes the enforced host tool grant (4.567311ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  false !== true
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/assistant-system-overlay.unit.test.ts:349:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

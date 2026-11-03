@@ -1,0 +1,52 @@
+✔ a template-only patch persists the page choice, exposes it on reads and records a working undo (8.678879ms)
+✖ the existing update tool advertises the optional template field and how to discover choices (3.935927ms)
+✔ template omission keeps the saved choice; empty and null choices retain their distinct meanings (3.388356ms)
+✔ template-only patches retain the existing version-conflict guard (1.315605ms)
+✔ content_post_update: a title-only patch changes ONLY title — slug/bodyJson/status stay the stored values (1.364356ms)
+✔ content_post_update: {id, kind, status:'published'} alone publishes the row (1.18576ms)
+✔ content_post_update: {id, kind} alone is REJECTED — nothing to change (0.450309ms)
+✔ content_post_update: a partial patch with no expectedVersion is still CAS-checked — VERSION_CONFLICT, not a silent clobber (1.327729ms)
+✔ content_post_update: a title-only patch on a bespoke-HTML page SUCCEEDS — the omitted bodyJson never reaches the S3 guard as a change (5.213839ms)
+✔ content_post_update: an empty title or slug on a partial patch is rejected exactly as the full-record shape rejected it (1.579623ms)
+✔ content_post_update: a FULL four-field call with no expectedVersion is NOT auto-guarded — same last-write-wins save as before S7 (1.438305ms)
+✔ create results link to the public slug when published, and update removes that link when drafted (1.837744ms)
+▶ T33: the update body schema accepts an empty editor paragraph and preserves existing widget styling
+  ✔ empty paragraph without content (3.450788ms)
+  ✔ widget cssClass and htmlAttributes (1.647191ms)
+✔ T33: the update body schema accepts an empty editor paragraph and preserves existing widget styling (5.641658ms)
+✔ T33b: a partial update with a TipTap body passes MCP's full tool-schema validation and reaches the handler (192.488455ms)
+ℹ tests 16
+ℹ suites 0
+ℹ pass 15
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2810.293938
+
+✖ failing tests:
+
+test at apps/website/src/features/post/__tests__/tool-registrations.partial-update.test.ts:1:4305
+✖ the existing update tool advertises the optional template field and how to discover choices (3.935927ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+      'id',
+  +   'kind'
+    ]
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/post/__tests__/tool-registrations.partial-update.test.ts:122:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'id', 'kind' ],
+    expected: [ 'id' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

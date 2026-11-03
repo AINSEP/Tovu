@@ -1,0 +1,13 @@
+✔ a clone's implicit dev start migrates a scratch DB instead of the owner's default site (18.265677ms)
+✔ both dev launchers prepare the selection before starting a writing API child (0.541165ms)
+✔ a scratch initialization failure warns and degrades to memory without selecting an owner DB (4.590755ms)
+✔ two checkouts with the same home get distinct default scratch databases (14.010716ms)
+✔ explicit development site selections retain their site and announce the DB target (8.037161ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1264.108771

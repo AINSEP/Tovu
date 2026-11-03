@@ -1,0 +1,3 @@
+FAIL(1)	apps/website/src/features/agent-plugins/__tests__/unit/bundled-higgsfield-media-package.unit.test.ts
+FAIL(1)	apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.unit.test.ts
+FAIL(1)	content/agent-plugin-overlays/higgsfield-media/__tests__/connection-contract.test.mjs

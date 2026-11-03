@@ -1,0 +1,11 @@
+✔ IPC claims are scoped to a trusted sender and tab; closing tabs or destroying windows releases them (1.906203ms)
+✔ disposing releases every live claim of every sender, unhooks their destroy listeners, and removes both handlers (0.346754ms)
+✔ IPC ignores untrusted, destroyed or malformed claims and never pushes to a destroyed sender (1.811081ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 129.319486

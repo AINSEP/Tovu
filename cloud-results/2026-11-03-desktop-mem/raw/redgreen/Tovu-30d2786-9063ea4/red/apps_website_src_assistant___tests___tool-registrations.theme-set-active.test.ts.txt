@@ -1,0 +1,61 @@
+✔ theme_set_active: wires with a published schema and a cross-checked risk class (6.040954ms)
+✖ switching a theme advertises themeId as the single canonical argument before the first call (4.964975ms)
+✖ switching a theme accepts activeThemeId through the shared execution gate (4.296884ms)
+✔ theme_set_active: the contributor registers under its own domain key, distinct from the themes file-op domain (0.243773ms)
+✔ theme_set_active: switches from basic to a second valid theme, returning the previous id, and resolveActiveThemeId reflects the switch (2.976529ms)
+✔ theme_set_active: accepts the no-theme sentinel — the write allowlist `writableThemeIds` shares with the admin PATCH route (2.648996ms)
+✔ theme_set_active: an unknown theme id is rejected by name, and settings are left unchanged (3.010798ms)
+✔ theme_set_active: refuses a principal without theme.set, without writing (2.377085ms)
+✔ theme_set_active: checks exactly the theme.set permission (2.572684ms)
+✔ theme_set_active: activates a theme another process created after this one booted (2026-10-08 luvira) (6.05767ms)
+✔ theme_set_active: fails loudly — and restores the previous theme — when the public render of / would not resolve the theme (4.860664ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 9
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1554.471043
+
+✖ failing tests:
+
+test at apps/website/src/assistant/__tests__/tool-registrations.theme-set-active.test.ts:1:3568
+✖ switching a theme advertises themeId as the single canonical argument before the first call (4.964975ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /Send only.*themeId/. Input:
+  
+  "Switches which theme the live site uses. Pass 'none' to turn the theme off. Returns the previous theme id, so the switch can be undone by calling this again with it."
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/assistant/__tests__/tool-registrations.theme-set-active.test.ts:116:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: "Switches which theme the live site uses. Pass 'none' to turn the theme off. Returns the previous theme id, so the switch can be undone by calling this again with it.",
+    expected: /Send only.*themeId/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at apps/website/src/assistant/__tests__/tool-registrations.theme-set-active.test.ts:1:3958
+✖ switching a theme accepts activeThemeId through the shared execution gate (4.296884ms)
+  AssertionError [ERR_ASSERTION]: {"executionId":"abaf7e04-8343-4767-b67e-e25bfc7b5668","status":"failed","error":"Unknown input 'activeThemeId'. Declared inputs: themeId (required). Resend with the declared name.","errorKind":"validation"}
+  + actual - expected
+  
+  + 'failed'
+  - 'completed'
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/assistant/__tests__/tool-registrations.theme-set-active.test.ts:128:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'failed',
+    expected: 'completed',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

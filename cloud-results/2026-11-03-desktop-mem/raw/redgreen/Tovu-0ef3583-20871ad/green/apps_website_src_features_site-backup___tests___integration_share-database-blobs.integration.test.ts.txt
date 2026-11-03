@@ -1,0 +1,10 @@
+✔ sharing plugin BLOB columns omits credentials with notices (notNull=false) (477.735816ms)
+✔ sharing plugin BLOB columns omits credentials with notices (notNull=true) (446.392456ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4246.902347

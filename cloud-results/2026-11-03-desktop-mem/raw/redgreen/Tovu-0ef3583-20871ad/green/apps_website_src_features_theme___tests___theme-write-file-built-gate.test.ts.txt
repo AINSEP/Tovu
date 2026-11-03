@@ -1,0 +1,52 @@
+✔ sanity: the compiled fixture loads valid before any write is attempted (17.014925ms)
+✔ writing to a compiled theme's generated output is refused, and the file is left untouched (15.573311ms)
+✔ writing a NEW file into the compiled theme's generated tree (outside sourceDir) is also refused (11.461276ms)
+✖ writing inside a compiled theme's declared sourceDir is still allowed (25.70749ms)
+✔ writing a NEW file inside a compiled theme's sourceDir, with an extension the framework allowlist excludes, is refused (9.592867ms)
+✖ writing a compiled theme's own theme.json is still allowed (16.566198ms)
+✔ a compiled manifest cannot redefine its write boundary and unlock generated output (36.39845ms)
+✔ an authored theme's write behavior is completely unaffected — every path stays writable (15.421401ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 6
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3408.543586
+
+✖ failing tests:
+
+test at apps/website/src/features/theme/__tests__/theme-write-file-built-gate.test.ts:1:4214
+✖ writing inside a compiled theme's declared sourceDir is still allowed (25.70749ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  'invalid' !== 'valid'
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/theme/__tests__/theme-write-file-built-gate.test.ts:135:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'invalid',
+    expected: 'valid',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/theme/__tests__/theme-write-file-built-gate.test.ts:1:5100
+✖ writing a compiled theme's own theme.json is still allowed (16.566198ms)
+  AssertionError [ERR_ASSERTION]: renaming via theme.json must still succeed for a compiled theme
+  
+  'invalid' !== 'valid'
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/theme/__tests__/theme-write-file-built-gate.test.ts:173:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'invalid',
+    expected: 'valid',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

@@ -1,0 +1,21 @@
+✔ refresh marker crosses independent readers and clears navigation after a save (10.748881ms)
+✔ preview paths are local public paths, with exact actionable refusals (0.823808ms)
+✔ preview_reload is registered by category, authorizes before signaling, and accepts optional path (7.002504ms)
+✔ admin and assistant save chokepoints both signal, rejected writes do not (283.454242ms)
+✔ feed starts silently, deduplicates ticks and delivers optional navigation on new writes (0.684072ms)
+✔ theme settings publish also signals previews (13.928639ms)
+✔ a tool navigation between connection and first tick is delivered, not treated as historical (0.861478ms)
+✔ both active-theme settings writers signal a new preview revision (44.344503ms)
+✔ a resumed desktop feed delivers the revision saved during its disconnected interval (0.852629ms)
+✔ deskfx M1: a refresh may create themes inside an existing site but never recreate a moved site (7.124993ms)
+✔ preview path refusals: control characters, undecodable escapes and URL-normalised admin paths (0.705544ms)
+✔ a marker with an invalid revision or an unsafe stored path reads as no refresh (4.746659ms)
+✔ a feed that starts with no marker stays silent until one appears, and ignores a vanished marker (0.78022ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3652.059031

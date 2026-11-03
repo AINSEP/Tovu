@@ -1,0 +1,22 @@
+{"timestamp":"2026-11-03T21:55:59.383Z","level":"info","service":"web","message":"web_fetch_page","context":{"origin":"http://localhost:43127","durationMs":5,"outcome":"refused"}}
+✖ web_fetch_page reads the configured local site and refuses other local origins across site bindings (21.444374ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4200.045203
+
+✖ failing tests:
+
+test at apps/website/src/server/runtime/composition/__tests__/web-fetch-own-origin.integration.test.ts:1:448
+✖ web_fetch_page reads the configured local site and refuses other local origins across site bindings (21.444374ms)
+  Error [ToolInputError]: web_fetch_page: egress to 'localhost' rejected: resolved address is loopback. Only public internet pages can be fetched.
+      at toToolError (/home/user/Jini/packages/platform/src/web/web-page.ts:253:51)
+      at fetchWebPage (/home/user/Jini/packages/platform/src/web/web-page.ts:317:11)
+      at async Object.web_fetch_page (/home/user/wt-Tovu/apps/website/src/features/web/tool-registrations.ts:44:20)
+      at async TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/__tests__/web-fetch-own-origin.integration.test.ts:26:20)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)

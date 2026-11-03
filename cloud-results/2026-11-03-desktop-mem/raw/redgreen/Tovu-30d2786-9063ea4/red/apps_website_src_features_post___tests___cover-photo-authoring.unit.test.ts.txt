@@ -1,0 +1,30 @@
+✖ post creation and editing teach cover-only requests without a second copy in the body (2.366223ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 289.255338
+
+✖ failing tests:
+
+test at apps/website/src/features/post/__tests__/cover-photo-authoring.unit.test.ts:1:120
+✖ post creation and editing teach cover-only requests without a second copy in the body (2.366223ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /cover/i. Input:
+  
+  "The post/page's featured image: the id or slug of an EXISTING image in the media library (from content_read.media_asset, media_upload_asset, media_generate_asset or media_import_from_url). Stored as the asset's id. Themes show it as the post's lead image and it becomes the og:image/twitter:image social preview unless the SEO settings override it. Rejected if no asset has that id or slug, if the asset is in Trash, or if it is a video or other non-image. null removes it."
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/post/__tests__/cover-photo-authoring.unit.test.ts:9:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: "The post/page's featured image: the id or slug of an EXISTING image in the media library (from content_read.media_asset, media_upload_asset, media_generate_asset or media_import_from_url). Stored as the asset's id. Themes show it as the post's lead image and it becomes the og:image/twitter:image social preview unless the SEO settings override it. Rejected if no asset has that id or slug, if the asset is in Trash, or if it is a video or other non-image. null removes it.",
+    expected: /cover/i,
+    operator: 'match',
+    diff: 'simple'
+  }

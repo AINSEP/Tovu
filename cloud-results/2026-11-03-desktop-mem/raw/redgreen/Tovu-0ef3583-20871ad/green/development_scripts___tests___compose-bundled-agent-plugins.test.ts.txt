@@ -1,0 +1,20 @@
+✔ composes Tovu content and the selected package payload into one root and leaves no staging folder (29.412956ms)
+✔ repeat composition follows unchanged packages, changed bytes and a changed selection (57.302531ms)
+✔ an id in both content and a selected package fails and keeps the previous output (38.177621ms)
+✔ a selected package that does not resolve fails the build (23.766703ms)
+✔ a payload without plugin.json fails the build (17.642052ms)
+✔ a selection key that differs from the plugin name its package declares fails the build (18.705954ms)
+✔ every payload path a tovu-*.json contribution names must exist inside that plugin (27.515937ms)
+✔ a contribution check also covers selected package payloads (21.748886ms)
+✔ an empty selection composes Tovu content alone without npm (16.687426ms)
+✔ relative output paths compose valid contribution files just like absolute paths (21.160862ms)
+✔ swapped selection keys fail the build even when the complete set of plugin names matches (19.285067ms)
+✔ development composes into the gitignored folder unless the operator already points at a bundled root (21.367849ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1094.011039

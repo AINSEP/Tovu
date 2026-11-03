@@ -1,0 +1,50 @@
+✔ the overlay retains exactly the approved Tovu chat rules before the theme QA rules (9.318721ms)
+✖ theme QA fails clipped headlines, horizontal overflow and large dead gaps (3.166516ms)
+✖ theme guidance scales display type to its container and refuses overflow masking (2.346333ms)
+✔ the overlay keeps the safety rules the in-skill copy carried (1.652606ms)
+✔ the overlay ships guidance only: no supporting files, nothing else to stage (1.636046ms)
+✔ the overlay is vendor-neutral: no model or vendor names (1.808996ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 4
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 189.508474
+
+✖ failing tests:
+
+test at content/agent-plugin-overlays/ui-ux-design/__tests__/ui-ux-design-overlay.test.mjs:26:1
+✖ theme QA fails clipped headlines, horizontal overflow and large dead gaps (3.166516ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /FAIL[^.]*clipped text[^.]*horizontal overflow/. Input:
+  
+  '## Tovu chat rules Load design guidance and references with `agent_plugin_ui_ux_design`, passing `skill` and optional `file`. Discover available theme, page, media and screenshot tools with `search_tools` and `describe_tool`. Use theme/page tools for actual site edits. Never use Bash, curl, npx or package installers from chat. CLI and React examples apply only to an authorized coding-agent checkout, not an authored HTML Tovu theme. If shadcn MCP or another capability is unavailable, explain the limitation; do not invent tools or install dependencies to work around it. Project specs and design notes are optional context. Tovu chat requires neither an AI Dev Shop checkout nor `<ADS_MEMORY_ROOT>`. Return the design in chat unless the user asks to save it through an available tool. '
+  
+      at TestContext.<anonymous> (file:///home/user/wt-Tovu/content/agent-plugin-overlays/ui-ux-design/__tests__/ui-ux-design-overlay.test.mjs:28:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '## Tovu chat rules Load design guidance and references with `agent_plugin_ui_ux_design`, passing `skill` and optional `file`. Discover available theme, page, media and screenshot tools with `search_tools` and `describe_tool`. Use theme/page tools for actual site edits. Never use Bash, curl, npx or package installers from chat. CLI and React examples apply only to an authorized coding-agent checkout, not an authored HTML Tovu theme. If shadcn MCP or another capability is unavailable, explain the limitation; do not invent tools or install dependencies to work around it. Project specs and design notes are optional context. Tovu chat requires neither an AI Dev Shop checkout nor `<ADS_MEMORY_ROOT>`. Return the design in chat unless the user asks to save it through an available tool. ',
+    expected: /FAIL[^.]*clipped text[^.]*horizontal overflow/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at content/agent-plugin-overlays/ui-ux-design/__tests__/ui-ux-design-overlay.test.mjs:35:1
+✖ theme guidance scales display type to its container and refuses overflow masking (2.346333ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /clamp\(\)/. Input:
+  
+  '## Tovu chat rules Load design guidance and references with `agent_plugin_ui_ux_design`, passing `skill` and optional `file`. Discover available theme, page, media and screenshot tools with `search_tools` and `describe_tool`. Use theme/page tools for actual site edits. Never use Bash, curl, npx or package installers from chat. CLI and React examples apply only to an authorized coding-agent checkout, not an authored HTML Tovu theme. If shadcn MCP or another capability is unavailable, explain the limitation; do not invent tools or install dependencies to work around it. Project specs and design notes are optional context. Tovu chat requires neither an AI Dev Shop checkout nor `<ADS_MEMORY_ROOT>`. Return the design in chat unless the user asks to save it through an available tool. '
+  
+      at TestContext.<anonymous> (file:///home/user/wt-Tovu/content/agent-plugin-overlays/ui-ux-design/__tests__/ui-ux-design-overlay.test.mjs:37:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '## Tovu chat rules Load design guidance and references with `agent_plugin_ui_ux_design`, passing `skill` and optional `file`. Discover available theme, page, media and screenshot tools with `search_tools` and `describe_tool`. Use theme/page tools for actual site edits. Never use Bash, curl, npx or package installers from chat. CLI and React examples apply only to an authorized coding-agent checkout, not an authored HTML Tovu theme. If shadcn MCP or another capability is unavailable, explain the limitation; do not invent tools or install dependencies to work around it. Project specs and design notes are optional context. Tovu chat requires neither an AI Dev Shop checkout nor `<ADS_MEMORY_ROOT>`. Return the design in chat unless the user asks to save it through an available tool. ',
+    expected: /clamp\(\)/,
+    operator: 'match',
+    diff: 'simple'
+  }

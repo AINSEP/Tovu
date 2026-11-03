@@ -1,0 +1,98 @@
+Plugin 'example-media' has no publisher-qualified id; using 'unknown/example-media'.
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+Plugin 'example-media' has no publisher-qualified id; using 'unknown/example-media'.
+✔ Agent Plugins HTTP response exposes saved sign-in independently of the enable switch (405.591983ms)
+Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+Plugin 'example-host-deploy' has no publisher-qualified id; using 'unknown/example-host-deploy'.
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+Plugin 'example-host-deploy' has no publisher-qualified id; using 'unknown/example-host-deploy'.
+Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+✔ AGENT_PLUGINS_LIST: returns real installed Agent Plugins with skills, keywords, and per-workspace enabled state (298.803866ms)
+Plugin 'minimal-plugin' has no publisher-qualified id; using 'unknown/minimal-plugin'.
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+Plugin 'minimal-plugin' has no publisher-qualified id; using 'unknown/minimal-plugin'.
+✔ AGENT_PLUGINS_LIST: absent version and description are explicit nulls (260.980528ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+✔ AGENT_PLUGINS_LIST: requires an authenticated session (201.251078ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+✔ AGENT_PLUGINS_LIST: a workspace id that does not match the route's own workspace is 404 (208.917758ms)
+[routes/agent-plugins/list] {
+  errorId: '7e9ea7c8-23b5-46d1-9685-ed33f79ff0e1',
+  diagnostic: 'Error: private /secret/packages\n' +
+    '    at Object.<anonymous> (/home/user/wt-Tovu/apps/website/src/server/inbound/admin-http/routes/agent-plugins/__tests__/integration/agent-plugins-http.integration.test.ts:267:97)\n' +
+    '    at Object.apply (node:internal/test_runner/mock/mock:805:20)\n' +
+    '    at loadAgentPluginSearchCandidates (/home/user/wt-Tovu/apps/website/src/features/agent-plugins/tool-registrations.ts:883:49)\n' +
+    '    at <anonymous> (/home/user/wt-Tovu/apps/website/src/server/inbound/admin-http/routes/agent-plugins/list.ts:56:32)'
+}
+✔ AGENT_PLUGINS_LIST: discovery failure is redacted (198.972296ms)
+Plugin 'future-only' has no publisher-qualified id; using 'unknown/future-only'.
+Plugin 'needs-db' has no publisher-qualified id; using 'unknown/needs-db'.
+Plugin 'consumer' has no publisher-qualified id; using 'unknown/consumer'.
+Plugin 'mailer' has no publisher-qualified id; using 'unknown/mailer'.
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+Plugin 'consumer' has no publisher-qualified id; using 'unknown/consumer'.
+Plugin 'future-only' has no publisher-qualified id; using 'unknown/future-only'.
+Plugin 'mailer' has no publisher-qualified id; using 'unknown/mailer'.
+Plugin 'needs-db' has no publisher-qualified id; using 'unknown/needs-db'.
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+✔ AGENT_PLUGINS_LIST: rows carry origin, host compatibility, unmet and dependent capabilities, and the installed digest (319.280303ms)
+✔ AGENT_PLUGINS_LIST: `req.params.workspaceId ?? ""` fallback, forced via a direct handler call, is the workspace 404 (121.305657ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7312.99674

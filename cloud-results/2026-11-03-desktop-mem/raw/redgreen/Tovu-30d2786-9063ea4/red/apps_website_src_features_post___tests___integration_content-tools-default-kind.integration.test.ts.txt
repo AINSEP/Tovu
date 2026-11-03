@@ -1,0 +1,75 @@
+✔ create_omitted_kind_defaults_to_post (36.73367ms)
+✖ creating a Visit us page accepts type page and updating it needs only its id (7.604262ms)
+✖ updating content without kind preserves post and page boundaries in a batch (5.773214ms)
+✖ updating a page without kind checks permission before looking up its stored kind (3.21144ms)
+✔ create_documented_body_example_round_trips (6.023876ms)
+✔ delete_id_only_resolves_post_and_page (13.313394ms)
+✔ delete_id_only_preserves_boundaries: missing, trashed, foreign and template rows (3.822867ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 4
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2827.952041
+
+✖ failing tests:
+
+test at apps/website/src/features/post/__tests__/integration/content-tools-default-kind.integration.test.ts:1:3752
+✖ creating a Visit us page accepts type page and updating it needs only its id (7.604262ms)
+  AssertionError [ERR_ASSERTION]: {"executionId":"b7effd73-fd0c-49b5-89c1-1edd9894b920","status":"failed","error":"Unknown input 'type'. Declared inputs: title (required), kind (optional), slug (optional), bodyJson (optional), status (optional), publishAt (optional), featuredImage (optional), author (optional), showAuthor (optional). Resend with the declared name.","errorKind":"validation"}
+  + actual - expected
+  
+  + 'failed'
+  - 'completed'
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/post/__tests__/integration/content-tools-default-kind.integration.test.ts:91:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'failed',
+    expected: 'completed',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/post/__tests__/integration/content-tools-default-kind.integration.test.ts:1:4632
+✖ updating content without kind preserves post and page boundaries in a batch (5.773214ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+  +   0,
+      2,
+  -   0
+    ]
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/post/__tests__/integration/content-tools-default-kind.integration.test.ts:113:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 0, 2 ],
+    expected: [ 2, 0 ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/post/__tests__/integration/content-tools-default-kind.integration.test.ts:1:6268
+✖ updating a page without kind checks permission before looking up its stored kind (3.21144ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /not authorized|FORBIDDEN/i. Input:
+  
+  'content_post_update: missing required inputs: kind. Required inputs: id (string), kind (string).'
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/post/__tests__/integration/content-tools-default-kind.integration.test.ts:145:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'content_post_update: missing required inputs: kind. Required inputs: id (string), kind (string).',
+    expected: /not authorized|FORBIDDEN/i,
+    operator: 'match',
+    diff: 'simple'
+  }
