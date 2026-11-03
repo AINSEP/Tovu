@@ -1,0 +1,124 @@
+✖ runtime: cold and resumed CLI cwd defaults to the site directory (108.002948ms)
+✖ runtime: cold and resumed CLI cwd ignores TOVU_AGENT_CWD (owner 2026-10-23) (36.235158ms)
+✖ runtime: a new CLI session receives prior conversation context, while a resumed session keeps its compact prompt (38.989122ms)
+✖ runtime: first switches, A→B→A repeats and lost sessions select one transcript and isolate conversations (38.327373ms)
+✖ runtime: a cold dispatch waits for durable persistence and resumes that exact executor session next turn (24.484461ms)
+✖ runtime: concurrent dispatches serialize the lookup and pending write, minting only one session (28.096212ms)
+▶ Defect 1 wiring — the conversation/session binding must be written at DISPATCH
+  ✔ imports the host-minting decisions from the pure decision module (1.228812ms)
+  ✔ a binding write exists at dispatch rather than only in the event subscription (0.321309ms)
+  ✔ the dispatch-time write is awaited, so the binding is durable before the CLI is ever spawned (0.33963ms)
+  ✔ the minted id is both persisted and handed to AgentExecutor.run — one id, not two (0.424329ms)
+  ✔ the mint decision is gated on the def actually accepting a host-minted id (0.549356ms)
+✔ Defect 1 wiring — the conversation/session binding must be written at DISPATCH (3.602768ms)
+▶ Defect 1 wiring — run starts must be serialized per conversation
+  ✔ imports createConversationStartLock and constructs exactly one module-level instance (0.322681ms)
+  ✖ the stored-session lookup AND the dispatch-time write both run inside the lock (4.218668ms)
+  ✔ agentExecutor.run is NOT inside the locked section (0.271316ms)
+✖ Defect 1 wiring — run starts must be serialized per conversation (5.147355ms)
+ℹ tests 14
+ℹ suites 2
+ℹ pass 7
+ℹ fail 7
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2559.005255
+
+✖ failing tests:
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-binding-wiring.unit.test.ts:4:4609
+✖ runtime: cold and resumed CLI cwd defaults to the site directory (108.002948ms)
+  ReferenceError [Error]: idlePark is not defined
+      at onStarted (evalmachine.<anonymous>:5:24)
+      at Object.start (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-binding-wiring.unit.test.ts:114:14)
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-binding-wiring.unit.test.ts:128:13)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17)
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-binding-wiring.unit.test.ts:4:4609
+✖ runtime: cold and resumed CLI cwd ignores TOVU_AGENT_CWD (owner 2026-10-23) (36.235158ms)
+  ReferenceError [Error]: idlePark is not defined
+      at onStarted (evalmachine.<anonymous>:5:24)
+      at Object.start (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-binding-wiring.unit.test.ts:114:14)
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-binding-wiring.unit.test.ts:128:13)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-binding-wiring.unit.test.ts:4:5460
+✖ runtime: a new CLI session receives prior conversation context, while a resumed session keeps its compact prompt (38.989122ms)
+  ReferenceError [Error]: idlePark is not defined
+      at onStarted (evalmachine.<anonymous>:5:24)
+      at Object.start (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-binding-wiring.unit.test.ts:114:14)
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-binding-wiring.unit.test.ts:149:11)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-binding-wiring.unit.test.ts:4:6290
+✖ runtime: first switches, A→B→A repeats and lost sessions select one transcript and isolate conversations (38.327373ms)
+  ReferenceError [Error]: idlePark is not defined
+      at onStarted (evalmachine.<anonymous>:5:24)
+      at Object.start (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-binding-wiring.unit.test.ts:114:14)
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-binding-wiring.unit.test.ts:171:11)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-binding-wiring.unit.test.ts:6:1696
+✖ runtime: a cold dispatch waits for durable persistence and resumes that exact executor session next turn (24.484461ms)
+  ReferenceError [Error]: idlePark is not defined
+      at onStarted (evalmachine.<anonymous>:5:24)
+      at Object.start (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-binding-wiring.unit.test.ts:114:14)
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-binding-wiring.unit.test.ts:201:11)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-binding-wiring.unit.test.ts:6:2500
+✖ runtime: concurrent dispatches serialize the lookup and pending write, minting only one session (28.096212ms)
+  ReferenceError [Error]: idlePark is not defined
+      at onStarted (evalmachine.<anonymous>:5:24)
+      at Object.start (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-binding-wiring.unit.test.ts:114:14)
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-binding-wiring.unit.test.ts:217:11)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-binding-wiring.unit.test.ts:6:8404
+✖ the stored-session lookup AND the dispatch-time write both run inside the lock (4.218668ms)
+  AssertionError [ERR_ASSERTION]: the stored-session lookup must live inside the locked critical section
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-binding-wiring.unit.test.ts:359:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Promise.all (index 0)
+      at async Suite.run (node:internal/test_runner/test:1905:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

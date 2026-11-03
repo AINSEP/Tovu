@@ -1,0 +1,32 @@
+node:fs:483
+    return binding.readFileUtf8(path, stringToFlags(options.flag));
+                   ^
+
+Error: ENOENT: no such file or directory, open '/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/agent-daemon-scope.ts'
+    at readFileSync (node:fs:483:20)
+    at <anonymous> (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:33:3)
+    at ModuleJob.run (node:internal/modules/esm/module_job:561:25)
+    at async node:internal/modules/esm/loader:647:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5) {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/agent-daemon-scope.ts'
+}
+
+Node.js v24.22.2
+✖ apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-binding-wiring.unit.test.ts (2494.620832ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2503.552903
+
+✖ failing tests:
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-binding-wiring.unit.test.ts:1:1
+✖ apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-binding-wiring.unit.test.ts (2494.620832ms)
+  'test failed'

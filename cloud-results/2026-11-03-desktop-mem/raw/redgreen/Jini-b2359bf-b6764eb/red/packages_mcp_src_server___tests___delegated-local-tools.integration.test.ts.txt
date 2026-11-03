@@ -1,0 +1,69 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/mcp
+
+ ❯ src/server/__tests__/delegated-local-tools.integration.test.ts (10 tests | 3 failed) 124ms
+   × prefixed direct and delegated tool names use the same published handler and validation 12ms
+     → expected { Object (isError, content) } to deeply equal { content: [ { type: 'text', …(1) } ] }
+   × an oversized tool result is read through the advertised local tool and either gateway without HTTP file access 4ms
+     → expected 22818 to be less than 12000
+   × a generation poll can pause through either delegated gateway without shell sleep or a delegated HTTP call 3ms
+     → expected [ 'start_run', 'get_run', …(10) ] to include 'wait_for'
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/server/__tests__/delegated-local-tools.integration.test.ts > prefixed direct and delegated tool names use the same published handler and validation
+AssertionError: expected { Object (isError, content) } to deeply equal { content: [ { type: 'text', …(1) } ] }
+
+- Expected
++ Received
+
+  Object {
+    "content": Array [
+      Object {
+-       "text": "found {\"query\":\"hello\"}",
++       "text": "unknown tool: mcp__jini__fixture_read",
+        "type": "text",
+      },
+    ],
++   "isError": true,
+  }
+
+ ❯ src/server/__tests__/delegated-local-tools.integration.test.ts:112:22
+    110|       const input = { query: 'hello' };
+    111|       const result = await h.call(name, name.startsWith('mcp__') ? inp…
+    112|       expect(result).toEqual({ content: [{ type: 'text', text: 'found …
+       |                      ^
+    113|       expect(h.requests.filter(request => request.url.endsWith('/api/d…
+    114|         .toMatchObject({ runId: 'run-a', toolId: 'fixture_read', requi…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  src/server/__tests__/delegated-local-tools.integration.test.ts > an oversized tool result is read through the advertised local tool and either gateway without HTTP file access
+AssertionError: expected 22818 to be less than 12000
+ ❯ src/server/__tests__/delegated-local-tools.integration.test.ts:219:31
+    217|     const block = original.content[0];
+    218|     if (block?.type !== 'text') throw new Error('Expected saved result…
+    219|     expect(block.text.length).toBeLessThan(12000);
+       |                               ^
+    220|     const match = /"resultId":"([^"]+)"/.exec(block.text);
+    221|     expect(match).not.toBeNull();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  src/server/__tests__/delegated-local-tools.integration.test.ts > a generation poll can pause through either delegated gateway without shell sleep or a delegated HTTP call
+AssertionError: expected [ 'start_run', 'get_run', …(10) ] to include 'wait_for'
+ ❯ src/server/__tests__/delegated-local-tools.integration.test.ts:249:59
+    247|   const h = await host();
+    248|   try {
+    249|     expect((await h.list()).tools.map(tool => tool.name)).toContain('w…
+       |                                                           ^
+    250|     for (const gateway of ['execute_delegated_tool', 'execute_readonly…
+    251|       const result = await h.call(gateway, { toolId: 'wait_for', input…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+ Test Files  1 failed (1)
+      Tests  3 failed | 7 passed (10)
+   Start at  21:11:32
+   Duration  1.58s (transform 616ms, setup 0ms, collect 1.11s, tests 124ms, environment 0ms, prepare 89ms)
+

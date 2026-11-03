@@ -1,8 +1,8 @@
 
  RUN  v2.1.9 /home/user/wt-Jini/packages/cms
 
- ❯ src/navigation/__tests__/link-rel.test.ts (7 tests | 2 failed) 12ms
-   × normalizeMenuRel keeps allowed tokens, drops unknown ones, lowercases and dedupes 6ms
+ ❯ src/navigation/__tests__/link-rel.test.ts (7 tests | 2 failed) 15ms
+   × normalizeMenuRel keeps allowed tokens, drops unknown ones, lowercases and dedupes 8ms
      → Expected values to be strictly equal:
 + actual - expected
 
@@ -61,6 +61,6 @@ simple
 
  Test Files  1 failed (1)
       Tests  2 failed | 5 passed (7)
-   Start at  21:08:18
-   Duration  1.01s (transform 447ms, setup 0ms, collect 633ms, tests 12ms, environment 0ms, prepare 107ms)
+   Start at  21:15:38
+   Duration  874ms (transform 402ms, setup 0ms, collect 588ms, tests 15ms, environment 0ms, prepare 75ms)
 

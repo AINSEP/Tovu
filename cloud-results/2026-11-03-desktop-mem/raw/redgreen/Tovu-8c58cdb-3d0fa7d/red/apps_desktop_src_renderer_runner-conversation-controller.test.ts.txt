@@ -1,0 +1,170 @@
+✖ a deleted conversation stays absent when an older list request finishes last (51.883199ms)
+✖ a deleted conversation cannot reopen when its pending transcript arrives (3.291171ms)
+✖ lazy conversation creation preserves pending select navigation and saves the outgoing turn (2.026802ms)
+✖ lazy conversation creation preserves pending create navigation and saves the outgoing turn (1.321108ms)
+✖ a first outgoing turn arriving during navigation is saved without replacing the pending choice (3.499654ms)
+✖ a deleted thread stays deleted when its delayed adoption acknowledgement arrives (1.04225ms)
+✖ a deleted thread stays deleted when its delayed explicit acknowledgement arrives (1.542539ms)
+✔ starts empty, keeps one state object until a change, then publishes a new one to subscribers and onChange (0.937525ms)
+✔ refresh: a failed list logs and resolves to the list already published, without publishing (0.337217ms)
+✔ refresh: failures go to console.error when no log port is given, looked up when the failure happens (0.854282ms)
+✔ select publishes id, pane key and transcript together, once, only after the load resolves (1.491672ms)
+✔ a slower select resolving after a newer select never lands, and the newer transcript counts as already saved (0.900922ms)
+✔ a slower select resolving after a newer create never lands (0.661115ms)
+✔ a failed load logs and still switches, to an empty pane (1.242776ms)
+✔ create opens a new empty thread on top of the switcher, ready to receive writes (0.647834ms)
+✔ create is claimed before its request: a select made while it is in flight wins, whichever settles first (1.48178ms)
+✔ a failed create rejects and leaves the state alone (0.722769ms)
+✔ removing a thread that is not open drops its row at once and leaves the open one alone (1.040155ms)
+✔ removing the open thread selects the first survivor of the re-read list, never the deleted row (0.895979ms)
+✔ removing the open thread when the re-read fails falls back to the on-screen list without the deleted row (0.618674ms)
+✔ removing the last thread lands on a fresh pane with a new key each time, and drops a switch already in flight (0.655724ms)
+✔ removing a lazily adopted last thread resets adoption, so the fresh pane adopts a new thread (1.30638ms)
+✔ a failed delete rejects and keeps the thread, open and listed (0.471181ms)
+✔ rename shows the new title at once on that row only, then re-reads the list (0.865486ms)
+✔ a failed rename logs and still re-reads, so the stored title comes back (0.589693ms)
+✔ an open thread saves only settled, unsaved messages, and re-reads the list only when it wrote (0.671072ms)
+✔ a message is marked saved before its write resolves, so a delta mid-flight does not queue it twice (0.797101ms)
+✔ a failed save logs and is un-marked, so the next delta writes it again (0.541144ms)
+✔ a message settling between deleting the open thread and loading the next is not written anywhere (2.203503ms)
+✔ with nothing open, the mount echo and a still-streaming reply create nothing and publish nothing (0.334711ms)
+✔ a first message with nothing open adopts ONE thread for every delta before it exists, without a remount (1.897152ms)
+✔ an adoption overtaken by a select or create still saves its messages but does not take over (0.894116ms)
+✔ a failed adoption logs, saves nothing, and lets a later turn try again (0.526085ms)
+✔ an old adoption failing late does not clear a newer one still in flight (0.661437ms)
+✔ without a bridge every action is a quiet no-op (1.328882ms)
+ℹ tests 35
+ℹ suites 0
+ℹ pass 28
+ℹ fail 7
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 622.83079
+
+✖ failing tests:
+
+test at src/renderer/runner-conversation-controller.test.ts:1:2709
+✖ a deleted conversation stays absent when an older list request finishes last (51.883199ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+  +   'gone',
+      'kept'
+    ]
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/desktop/src/renderer/runner-conversation-controller.test.ts:134:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'gone', 'kept' ],
+    expected: [ 'kept' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at src/renderer/runner-conversation-controller.test.ts:1:3259
+✖ a deleted conversation cannot reopen when its pending transcript arrives (3.291171ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  'gone' !== null
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/desktop/src/renderer/runner-conversation-controller.test.ts:147:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'gone',
+    expected: null,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at src/renderer/runner-conversation-controller.test.ts:1:3763
+✖ lazy conversation creation preserves pending select navigation and saves the outgoing turn (2.026802ms)
+  AssertionError [ERR_ASSERTION]: adoption must not claim the pane while navigation is pending
+  
+  'adopted' !== null
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/desktop/src/renderer/runner-conversation-controller.test.ts:162:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'adopted',
+    expected: null,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at src/renderer/runner-conversation-controller.test.ts:1:3763
+✖ lazy conversation creation preserves pending create navigation and saves the outgoing turn (1.321108ms)
+  AssertionError [ERR_ASSERTION]: adoption must not claim the pane while navigation is pending
+  
+  'adopted' !== null
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/desktop/src/renderer/runner-conversation-controller.test.ts:162:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'adopted',
+    expected: null,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at src/renderer/runner-conversation-controller.test.ts:1:4772
+✖ a first outgoing turn arriving during navigation is saved without replacing the pending choice (3.499654ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'outgoing-thread'
+  - null
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/desktop/src/renderer/runner-conversation-controller.test.ts:178:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'outgoing-thread',
+    expected: null,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at src/renderer/runner-conversation-controller.test.ts:1:5334
+✖ a deleted thread stays deleted when its delayed adoption acknowledgement arrives (1.04225ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  'gone' !== null
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/desktop/src/renderer/runner-conversation-controller.test.ts:199:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'gone',
+    expected: null,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at src/renderer/runner-conversation-controller.test.ts:1:5334
+✖ a deleted thread stays deleted when its delayed explicit acknowledgement arrives (1.542539ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  'gone' !== null
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/desktop/src/renderer/runner-conversation-controller.test.ts:199:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'gone',
+    expected: null,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

@@ -1,0 +1,72 @@
+✔ memory daemon composition does not build site route dependencies (52.206706ms)
+✔ only the configured database driver loads: sqlite (5.020921ms)
+✔ only the configured database driver loads: pglite (2.898836ms)
+✖ only the configured database driver loads: postgres (2.417905ms)
+✖ a retained resource closes on composition failure and shutdown (3.167178ms)
+✔ daemon telemetry preserves event order and bounds a slow site's queue (54.011799ms)
+✖ a slow telemetry drain cannot keep the daemon database client open (1.746837ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 4
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1724.321154
+
+✖ failing tests:
+
+test at apps/website/src/server/runtime/composition/__tests__/agent-daemon-core-deps.unit.test.ts:1:3376
+✖ only the configured database driver loads: postgres (2.417905ms)
+  Error [AgentSessionStoreError]: invalid agent session kernel
+      at validateSessionKernel (/home/user/Jini/packages/daemon/src/store/agent-sessions/sql.ts:17:91)
+      at createPostgresAgentSessionStore (/home/user/Jini/packages/daemon/src/store/agent-sessions/postgres.ts:9:2)
+      at createSqliteAgentSessionStore (/home/user/wt-Tovu/apps/website/src/assistant/persistence/agent-session-store.ts:40:21)
+      at retainedRepositories (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/agent-daemon-core-deps.ts:102:78)
+      at createAgentDaemonCoreDeps (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/agent-daemon-core-deps.ts:77:19)
+      at async TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/__tests__/agent-daemon-core-deps.unit.test.ts:69:18)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    code: 'invalid-input'
+  }
+
+test at apps/website/src/server/runtime/composition/__tests__/agent-daemon-core-deps.unit.test.ts:1:4752
+✖ a retained resource closes on composition failure and shutdown (3.167178ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /shutdown registration failed/. Input:
+  
+  'AgentSessionStoreError: invalid agent session kernel'
+  
+      at async TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/__tests__/agent-daemon-core-deps.unit.test.ts:86:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: AgentSessionStoreError: invalid agent session kernel
+        at validateSessionKernel (/home/user/Jini/packages/daemon/src/store/agent-sessions/sql.ts:17:91)
+        at createSqliteAgentSessionStore (/home/user/Jini/packages/daemon/src/store/agent-sessions/sqlite.ts:194:2)
+        at createSqliteAgentSessionStore (/home/user/wt-Tovu/apps/website/src/assistant/persistence/agent-session-store.ts:37:35)
+        at retainedRepositories (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/agent-daemon-core-deps.ts:102:78)
+        at createAgentDaemonCoreDeps (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/agent-daemon-core-deps.ts:77:19)
+        at async waitForActual (node:assert:646:5)
+        at async strict.rejects (node:assert:769:25)
+        at async TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/__tests__/agent-daemon-core-deps.unit.test.ts:86:3)
+        at async Test.run (node:internal/test_runner/test:1409:7)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:974:7),
+    expected: /shutdown registration failed/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/runtime/composition/__tests__/agent-daemon-core-deps.unit.test.ts:1:6329
+✖ a slow telemetry drain cannot keep the daemon database client open (1.746837ms)
+  Error [AgentSessionStoreError]: invalid agent session kernel
+      at validateSessionKernel (/home/user/Jini/packages/daemon/src/store/agent-sessions/sql.ts:17:91)
+      at createSqliteAgentSessionStore (/home/user/Jini/packages/daemon/src/store/agent-sessions/sqlite.ts:194:2)
+      at createSqliteAgentSessionStore (/home/user/wt-Tovu/apps/website/src/assistant/persistence/agent-session-store.ts:37:35)
+      at retainedRepositories (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/agent-daemon-core-deps.ts:102:78)
+      at createAgentDaemonCoreDeps (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/agent-daemon-core-deps.ts:77:19)
+      at async TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/__tests__/agent-daemon-core-deps.unit.test.ts:121:16)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    code: 'invalid-input'
+  }

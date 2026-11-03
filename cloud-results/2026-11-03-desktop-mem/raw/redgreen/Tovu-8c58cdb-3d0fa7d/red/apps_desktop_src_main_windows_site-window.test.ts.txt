@@ -1,0 +1,170 @@
+✔ retainsSiteOnClose: only macOS with no quit under way keeps the site running (1.866732ms)
+✖ a first open spawns the server, creates its titled window on the site's partition, publishes it, then schedules previews (0.851463ms)
+✖ with no options the backend gets no pinned port (0.269689ms)
+✖ an open site's live window is shown and focused, never re-created or re-spawned (2.359989ms)
+✖ a retained server (macOS window closed) is reused with its own partition — no second spawn (0.481413ms)
+✖ an entry whose window was destroyed reuses the server and replaces the window (0.466008ms)
+✔ a window that cannot be created after a fresh spawn drops the row, stops the child, and rethrows (2.299052ms)
+✔ a window that cannot be created over a REUSED server leaves that server and its row alone (6.982845ms)
+✔ a failed rollback stop surfaces instead of the window error (0.743791ms)
+✔ a backend that fails to start opens nothing (0.922896ms)
+✖ macOS close (not quitting) releases only the window: the server, row and session stay (0.451276ms)
+✖ macOS close of a stale window leaves a replacement entry's window in place (0.803485ms)
+✔ macOS close with no entry left does nothing (0.219749ms)
+✖ win32 close during idle: unpublish, then logout → stop → row, tracked until done (0.4778ms)
+✖ linux close during idle: unpublish, then logout → stop → row, tracked until done (0.53673ms)
+✖ darwin close during draining: unpublish, then logout → stop → row, tracked until done (0.218321ms)
+✖ darwin close during drained: unpublish, then logout → stop → row, tracked until done (0.128798ms)
+✖ the crash-safety row outlives a pending stop (0.209861ms)
+✔ a failed window open remains recoverable and holds quit until its child stops (36.796095ms)
+✔ a failed window rollback keeps its recovery row when stopping fails (0.732616ms)
+✖ a failed logout never blocks the stop (0.289013ms)
+✖ a stop that cannot confirm exit is logged and keeps its recovery row (0.163276ms)
+✖ closing a stale window stops ITS server but never deletes the replacement entry (0.29308ms)
+✖ closing an old window cannot stop the server reused by its replacement window (0.186584ms)
+ℹ tests 24
+ℹ suites 0
+ℹ pass 8
+ℹ fail 16
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 259.816588
+
+✖ failing tests:
+
+test at src/main/windows/site-window.test.ts:93:1
+✖ a first open spawns the server, creates its titled window on the site's partition, publishes it, then schedules previews (0.851463ms)
+  TypeError [Error]: ports.scheduleSitePreview is not a function
+      at openSiteWindow (file:///home/user/wt-Tovu/apps/desktop/src/main/windows/site-window.ts:211:9)
+      at async TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/main/windows/site-window.test.ts:95:18)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at src/main/windows/site-window.test.ts:105:1
+✖ with no options the backend gets no pinned port (0.269689ms)
+  TypeError [Error]: ports.scheduleSitePreview is not a function
+      at openSiteWindow (file:///home/user/wt-Tovu/apps/desktop/src/main/windows/site-window.ts:211:9)
+      at async TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/main/windows/site-window.test.ts:107:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at src/main/windows/site-window.test.ts:111:1
+✖ an open site's live window is shown and focused, never re-created or re-spawned (2.359989ms)
+  TypeError [Error]: ports.scheduleSitePreview is not a function
+      at openSiteWindow (file:///home/user/wt-Tovu/apps/desktop/src/main/windows/site-window.ts:211:9)
+      at async TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/main/windows/site-window.test.ts:113:17)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at src/main/windows/site-window.test.ts:122:1
+✖ a retained server (macOS window closed) is reused with its own partition — no second spawn (0.481413ms)
+  TypeError [Error]: ports.scheduleSitePreview is not a function
+      at openSiteWindow (file:///home/user/wt-Tovu/apps/desktop/src/main/windows/site-window.ts:211:9)
+      at TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/main/windows/site-window.test.ts:126:24)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at src/main/windows/site-window.test.ts:133:1
+✖ an entry whose window was destroyed reuses the server and replaces the window (0.466008ms)
+  TypeError [Error]: ports.scheduleSitePreview is not a function
+      at openSiteWindow (file:///home/user/wt-Tovu/apps/desktop/src/main/windows/site-window.ts:211:9)
+      at TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/main/windows/site-window.test.ts:139:24)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at src/main/windows/site-window.test.ts:177:1
+✖ macOS close (not quitting) releases only the window: the server, row and session stay (0.451276ms)
+  TypeError [Error]: ports.scheduleSitePreview is not a function
+      at openSiteWindow (file:///home/user/wt-Tovu/apps/desktop/src/main/windows/site-window.ts:211:9)
+      at async TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/main/windows/site-window.test.ts:179:18)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at src/main/windows/site-window.test.ts:189:1
+✖ macOS close of a stale window leaves a replacement entry's window in place (0.803485ms)
+  TypeError [Error]: ports.scheduleSitePreview is not a function
+      at openSiteWindow (file:///home/user/wt-Tovu/apps/desktop/src/main/windows/site-window.ts:211:9)
+      at async TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/main/windows/site-window.test.ts:191:17)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at src/main/windows/site-window.test.ts:208:3
+✖ win32 close during idle: unpublish, then logout → stop → row, tracked until done (0.4778ms)
+  TypeError [Error]: ports.scheduleSitePreview is not a function
+      at openSiteWindow (file:///home/user/wt-Tovu/apps/desktop/src/main/windows/site-window.ts:211:9)
+      at async TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/main/windows/site-window.test.ts:210:20)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at src/main/windows/site-window.test.ts:208:3
+✖ linux close during idle: unpublish, then logout → stop → row, tracked until done (0.53673ms)
+  TypeError [Error]: ports.scheduleSitePreview is not a function
+      at openSiteWindow (file:///home/user/wt-Tovu/apps/desktop/src/main/windows/site-window.ts:211:9)
+      at async TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/main/windows/site-window.test.ts:210:20)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at src/main/windows/site-window.test.ts:208:3
+✖ darwin close during draining: unpublish, then logout → stop → row, tracked until done (0.218321ms)
+  TypeError [Error]: ports.scheduleSitePreview is not a function
+      at openSiteWindow (file:///home/user/wt-Tovu/apps/desktop/src/main/windows/site-window.ts:211:9)
+      at async TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/main/windows/site-window.test.ts:210:20)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at src/main/windows/site-window.test.ts:208:3
+✖ darwin close during drained: unpublish, then logout → stop → row, tracked until done (0.128798ms)
+  TypeError [Error]: ports.scheduleSitePreview is not a function
+      at openSiteWindow (file:///home/user/wt-Tovu/apps/desktop/src/main/windows/site-window.ts:211:9)
+      at async TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/main/windows/site-window.test.ts:210:20)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at src/main/windows/site-window.test.ts:227:1
+✖ the crash-safety row outlives a pending stop (0.209861ms)
+  TypeError [Error]: ports.scheduleSitePreview is not a function
+      at openSiteWindow (file:///home/user/wt-Tovu/apps/desktop/src/main/windows/site-window.ts:211:9)
+      at async TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/main/windows/site-window.test.ts:231:18)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at src/main/windows/site-window.test.ts:267:1
+✖ a failed logout never blocks the stop (0.289013ms)
+  TypeError [Error]: ports.scheduleSitePreview is not a function
+      at openSiteWindow (file:///home/user/wt-Tovu/apps/desktop/src/main/windows/site-window.ts:211:9)
+      at async TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/main/windows/site-window.test.ts:269:18)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at src/main/windows/site-window.test.ts:277:1
+✖ a stop that cannot confirm exit is logged and keeps its recovery row (0.163276ms)
+  TypeError [Error]: ports.scheduleSitePreview is not a function
+      at openSiteWindow (file:///home/user/wt-Tovu/apps/desktop/src/main/windows/site-window.ts:211:9)
+      at async TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/main/windows/site-window.test.ts:279:18)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at src/main/windows/site-window.test.ts:286:1
+✖ closing a stale window stops ITS server but never deletes the replacement entry (0.29308ms)
+  TypeError [Error]: ports.scheduleSitePreview is not a function
+      at openSiteWindow (file:///home/user/wt-Tovu/apps/desktop/src/main/windows/site-window.ts:211:9)
+      at async TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/main/windows/site-window.test.ts:288:17)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at src/main/windows/site-window.test.ts:303:1
+✖ closing an old window cannot stop the server reused by its replacement window (0.186584ms)
+  TypeError [Error]: ports.scheduleSitePreview is not a function
+      at openSiteWindow (file:///home/user/wt-Tovu/apps/desktop/src/main/windows/site-window.ts:211:9)
+      at async TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/main/windows/site-window.test.ts:305:17)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)

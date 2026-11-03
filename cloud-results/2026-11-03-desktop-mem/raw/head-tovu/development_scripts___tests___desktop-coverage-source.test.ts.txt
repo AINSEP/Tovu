@@ -1,0 +1,10 @@
+✔ desktop coverage policy can be parsed by the hardwiring gate (193.0458ms)
+✔ measured desktop main entry is no longer listed as unmeasured (0.506109ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1890.254579

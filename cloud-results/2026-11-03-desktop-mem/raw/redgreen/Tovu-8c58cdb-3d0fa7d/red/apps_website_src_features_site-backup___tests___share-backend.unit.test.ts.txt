@@ -1,0 +1,76 @@
+✔ a create without a wait budget waits for a quick export and returns the ZIP-only share (266.512258ms)
+✖ archive progress reaches its totals: buffered files plus the database, and the planned bytes (6.19188ms)
+✖ a share plan without a database is refused before delivery (6.200462ms)
+✔ static selection snapshots roster, active identity and time, captures sequentially and encodes once across polling (33.081572ms)
+✔ static backend refuses unknown selections before rendering and unusable captures without creating a ZIP (14.905135ms)
+✔ theme none offers only Current site and preserves both legacy and picked unstyled exports (31.903507ms)
+✔ static completion discloses omitted discovery only without a request domain (none) (12.951531ms)
+✔ static completion discloses omitted discovery only without a request domain (https://download.example) (18.354029ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 6
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4985.162358
+
+✖ failing tests:
+
+test at apps/website/src/features/site-backup/__tests__/share-backend.unit.test.ts:1:3122
+✖ archive progress reaches its totals: buffered files plus the database, and the planned bytes (6.19188ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - false
+  
+      at progressAtDelivery (/home/user/wt-Tovu/apps/website/src/features/site-backup/__tests__/share-backend.unit.test.ts:43:10)
+      at async TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/site-backup/__tests__/share-backend.unit.test.ts:62:31)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/site-backup/__tests__/share-backend.unit.test.ts:1:3450
+✖ a share plan without a database is refused before delivery (6.200462ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    Comparison {
+  +   code: 'ERR_ASSERTION',
+  +   message: 'Expected values to be strictly equal:\n' +
+  +     '+ actual - expected\n' +
+  +     '\n' +
+  +     '+ undefined\n' +
+  +     '- false\n'
+  -   code: 'INVALID_ARCHIVE',
+  -   message: 'Invalid v2 share manifest, inventory or schema identity.'
+    }
+  
+      at async TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/site-backup/__tests__/share-backend.unit.test.ts:69:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+    + actual - expected
+    
+    + undefined
+    - false
+    
+        at progressAtDelivery (/home/user/wt-Tovu/apps/website/src/features/site-backup/__tests__/share-backend.unit.test.ts:43:10)
+        at async waitForActual (node:assert:646:5)
+        at async strict.rejects (node:assert:769:25)
+        at async TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/site-backup/__tests__/share-backend.unit.test.ts:69:3)
+        at async Test.run (node:internal/test_runner/test:1409:7)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:974:7),
+    expected: { code: 'INVALID_ARCHIVE', message: 'Invalid v2 share manifest, inventory or schema identity.' },
+    operator: 'rejects',
+    diff: 'simple'
+  }

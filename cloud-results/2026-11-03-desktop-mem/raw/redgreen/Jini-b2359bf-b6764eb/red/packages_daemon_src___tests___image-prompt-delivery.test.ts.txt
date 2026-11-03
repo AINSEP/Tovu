@@ -1,0 +1,88 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/daemon
+
+ ❯ src/__tests__/image-prompt-delivery.test.ts (13 tests | 3 failed) 34ms
+   × augmentPromptWithImageAttachments > names a single image as an attachment the user provided, not a bare path dump 17ms
+     → expected 'describe this\n\n---\nThe user attach…' to be 'describe this\n\n---\nThe user attach…' // Object.is equality
+   × augmentPromptWithImageAttachments > pluralizes and numbers multiple images 5ms
+     → expected 'compare these\n\n---\nThe user attach…' to be 'compare these\n\n---\nThe user attach…' // Object.is equality
+   × an attached picture directs the first read to an image tool without a failed Bash attempt 6ms
+     → expected 'Use this as the hero\n\n---\nThe user…' to contain 'host attachment/image tool first'
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/__tests__/image-prompt-delivery.test.ts > augmentPromptWithImageAttachments > names a single image as an attachment the user provided, not a bare path dump
+AssertionError: expected 'describe this\n\n---\nThe user attach…' to be 'describe this\n\n---\nThe user attach…' // Object.is equality
+
+- Expected
++ Received
+
+  describe this
+
+  ---
+- The user attached the following image file to this message. It is a real file on disk — read it with the host attachment/image tool first, or your native Read/image tool for this supplied path. Never use Bash, a shell command or a script to inspect attachments:
++ The user attached the following image file to this message. It is a real file on disk — read it directly (e.g. with your file-reading tool) before responding:
+  1. /tmp/screenshot.png
+
+ ❯ src/__tests__/image-prompt-delivery.test.ts:11:20
+      9|   it('names a single image as an attachment the user provided, not a b…
+     10|     const result = augmentPromptWithImageAttachments({ prompt: 'descri…
+     11|     expect(result).toBe(
+       |                    ^
+     12|       'describe this\n\n---\n' +
+     13|         'The user attached the following image file to this message. '…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  src/__tests__/image-prompt-delivery.test.ts > augmentPromptWithImageAttachments > pluralizes and numbers multiple images
+AssertionError: expected 'compare these\n\n---\nThe user attach…' to be 'compare these\n\n---\nThe user attach…' // Object.is equality
+
+- Expected
++ Received
+
+  compare these
+
+  ---
+- The user attached the following image files to this message. These are real files on disk — read each one with the host attachment/image tool first, or your native Read/image tool for this supplied path. Never use Bash, a shell command or a script to inspect attachments:
++ The user attached the following image files to this message. These are real files on disk — read each one directly (e.g. with your file-reading tool) before responding:
+  1. /tmp/a.png
+  2. /tmp/b.png
+
+ ❯ src/__tests__/image-prompt-delivery.test.ts:21:20
+     19|   it('pluralizes and numbers multiple images', () => {
+     20|     const result = augmentPromptWithImageAttachments({ prompt: 'compar…
+     21|     expect(result).toBe(
+       |                    ^
+     22|       'compare these\n\n---\n' +
+     23|         'The user attached the following image files to this message. …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  src/__tests__/image-prompt-delivery.test.ts > an attached picture directs the first read to an image tool without a failed Bash attempt
+AssertionError: expected 'Use this as the hero\n\n---\nThe user…' to contain 'host attachment/image tool first'
+
+- Expected
++ Received
+
+- host attachment/image tool first
++ Use this as the hero
++
++ ---
++ The user attached the following image file to this message. It is a real file on disk — read it directly (e.g. with your file-reading tool) before responding:
++ 1. /site/uploads/hero.png
+
+ ❯ src/__tests__/image-prompt-delivery.test.ts:102:25
+    100|   const result = applyImagePromptDelivery({ imageDelivery: 'prompt-pat…
+    101|     imagePaths: ['/site/uploads/hero.png'], extraAllowedDirs: undefine…
+    102|   expect(result.prompt).toContain('host attachment/image tool first');
+       |                         ^
+    103|   expect(result.prompt).toContain('native Read/image tool for this sup…
+    104|   expect(result.prompt).toContain('Never use Bash, a shell command or …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+ Test Files  1 failed (1)
+      Tests  3 failed | 10 passed (13)
+   Start at  21:11:21
+   Duration  523ms (transform 84ms, setup 0ms, collect 85ms, tests 34ms, environment 0ms, prepare 82ms)
+

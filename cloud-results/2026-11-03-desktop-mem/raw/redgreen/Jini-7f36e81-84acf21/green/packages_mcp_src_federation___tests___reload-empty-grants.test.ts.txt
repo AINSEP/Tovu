@@ -1,0 +1,17 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/mcp
+
+stdout | src/federation/__tests__/reload-empty-grants.test.ts > makes tools available after granting an already-on connection without restarting the assistant
+agent-daemon mcp-federation: 'media' registered 0 federated tool(s): (none)
+agent-daemon mcp-federation: 'media' registered 1 federated tool(s): mcp__media__list_media
+
+stderr | src/federation/__tests__/reload-empty-grants.test.ts > makes tools available after granting an already-on connection without restarting the assistant
+agent-daemon mcp-federation: 'media' refused remote tool 'list_media' — not-in-operator-allowlist
+
+ ✓ src/federation/__tests__/reload-empty-grants.test.ts (2 tests) 9ms
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  21:10:14
+   Duration  1.15s (transform 579ms, setup 0ms, collect 829ms, tests 9ms, environment 0ms, prepare 98ms)
+

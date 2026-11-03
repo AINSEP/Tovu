@@ -1,0 +1,34 @@
+✖ workspace chat keeps one working listener after StrictMode replays setup and removes it on close (1347.247839ms)
+✔ reconnecting the same desktop bridge never hands the pane its disposed transport (5.822916ms)
+✔ useWorkspaceChatTransport: wires every surface from one bridge, and disposing the pane drops its run listener (3.700506ms)
+✔ useWorkspaceChatTransport: the bridge is looked up once per lookup, not once per render (3.874984ms)
+✔ useWorkspaceChatTransport: without a bridge every surface is absent (2.853198ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 4
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1966.687541
+
+✖ failing tests:
+
+test at src/renderer/use-workspace-chat-transport.hooks.render.test.ts:1:2490
+✖ workspace chat keeps one working listener after StrictMode replays setup and removes it on close (1347.247839ms)
+  AssertionError [ERR_ASSERTION]: render-discarded transports must not leak listeners
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/desktop/src/renderer/use-workspace-chat-transport.hooks.render.test.ts:49:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

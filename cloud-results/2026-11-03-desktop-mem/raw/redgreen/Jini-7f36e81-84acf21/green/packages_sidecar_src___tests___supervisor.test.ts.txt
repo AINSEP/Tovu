@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/sidecar
+
+ ✓ src/__tests__/supervisor.test.ts (32 tests) 14ms
+
+ Test Files  1 passed (1)
+      Tests  32 passed (32)
+   Start at  21:10:40
+   Duration  418ms (transform 124ms, setup 0ms, collect 137ms, tests 14ms, environment 0ms, prepare 79ms)
+

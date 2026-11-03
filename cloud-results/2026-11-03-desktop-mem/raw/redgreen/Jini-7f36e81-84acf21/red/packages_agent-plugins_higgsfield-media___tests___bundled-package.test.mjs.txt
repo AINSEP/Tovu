@@ -1,9 +1,9 @@
-✔ the higgsfield-media package ships its skill and both references, each cited (19.441346ms)
-✖ browser sign-in and operator read trust are declared without a token (9.257606ms)
-✔ the one connection card is browser sign-in with its task purposes (5.184393ms)
-✔ the skill still teaches the asynchronous job pipeline and forbids sync polling (3.101654ms)
-✔ the shipped text is host-neutral (6.201241ms)
-✖ polling and generation history remain available to read-only assistants after sign-in (1.681186ms)
+✔ the higgsfield-media package ships its skill and both references, each cited (20.794731ms)
+✖ browser sign-in and operator read trust are declared without a token (9.362979ms)
+✔ the one connection card is browser sign-in with its task purposes (3.830106ms)
+✔ the skill still teaches the asynchronous job pipeline and forbids sync polling (1.145379ms)
+✔ the shipped text is host-neutral (5.70318ms)
+✖ polling and generation history remain available to read-only assistants after sign-in (1.505538ms)
 ℹ tests 6
 ℹ suites 0
 ℹ pass 4
@@ -11,12 +11,12 @@
 ℹ cancelled 0
 ℹ skipped 0
 ℹ todo 0
-ℹ duration_ms 137.246034
+ℹ duration_ms 130.159891
 
 ✖ failing tests:
 
 test at packages/agent-plugins/higgsfield-media/__tests__/bundled-package.test.mjs:43:1
-✖ browser sign-in and operator read trust are declared without a token (9.257606ms)
+✖ browser sign-in and operator read trust are declared without a token (9.362979ms)
   AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
   + actual - expected
   
@@ -40,7 +40,7 @@ test at packages/agent-plugins/higgsfield-media/__tests__/bundled-package.test.m
   }
 
 test at packages/agent-plugins/higgsfield-media/__tests__/bundled-package.test.mjs:94:1
-✖ polling and generation history remain available to read-only assistants after sign-in (1.681186ms)
+✖ polling and generation history remain available to read-only assistants after sign-in (1.505538ms)
   AssertionError [ERR_ASSERTION]: jobs_wait must be classified as read-only
       at TestContext.<anonymous> (file:///home/user/wt-Jini/packages/agent-plugins/higgsfield-media/__tests__/bundled-package.test.mjs:98:12)
       at async Test.run (node:internal/test_runner/test:1409:7)

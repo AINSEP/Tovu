@@ -1,0 +1,25 @@
+✔ tsx launch imports the maps-off preload after tsx, like the real dev launchers (4.048112ms)
+✔ the daemon is expected running unless the idle wait outlasts --idle-minutes (0.841622ms)
+✔ a dead server is never measured as zero (0.438404ms)
+✔ the daemon state must match the phase before a sample is taken (0.30245ms)
+✔ a complete sample totals every process's footprint (0.712091ms)
+✔ a missing footprint makes the sample incomplete, never a zero contribution (0.809459ms)
+✔ site sampling preserves null totals with the shared asynchronous OS footprint reader (1.237542ms)
+✔ desktop sampling counts each PID once across app and site groups (2.182422ms)
+✔ an unreadable live process nulls the total (0.904715ms)
+✔ attach mode never launches builds forces GC or terminates the target (1.310439ms)
+✔ desktop sampling includes detached helpers and rejects unclassified descendants (0.914487ms)
+✔ desktop sampling never reports a missing root or an empty snapshot as zero (0.577215ms)
+✔ a live descendant without RSS or CPU diagnostics still requires a primary reading (0.475795ms)
+✔ processes appearing or disappearing during desktop sampling fail the run explicitly (0.65175ms)
+✔ the warm slim daemon keeps its 80 MiB gate and planning targets stay advisory (0.303322ms)
+✔ desktop attach requires a workload, process groups and unique PID metadata (1.744312ms)
+✔ both desktop workloads account for every Electron, server, daemon, CLI and MCP family (0.663193ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1460.885149

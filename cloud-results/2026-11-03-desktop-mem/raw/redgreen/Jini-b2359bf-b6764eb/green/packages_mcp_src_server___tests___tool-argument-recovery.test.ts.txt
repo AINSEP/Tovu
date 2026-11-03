@@ -1,0 +1,33 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/mcp
+
+ ❯ src/server/__tests__/tool-argument-recovery.test.ts (6 tests | 1 failed) 38ms
+   × first-call tool argument recovery for every MCP CLI > prefix recovery keeps exact names, foreign server names and read-only enforcement intact 4ms
+     → expected undefined to be true // Object.is equality
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/server/__tests__/tool-argument-recovery.test.ts > first-call tool argument recovery for every MCP CLI > prefix recovery keeps exact names, foreign server names and read-only enforcement intact
+AssertionError: expected undefined to be true // Object.is equality
+
+- Expected: 
+true
+
++ Received: 
+undefined
+
+ ❯ src/server/__tests__/tool-argument-recovery.test.ts:99:30
+     97|     const h = harness({ id: 'agent_plugin_connect', inputSchema: { typ…
+     98|     const readonly = await h.call('execute_readonly_delegated_tool', {…
+     99|     expect(readonly.isError).toBe(true);
+       |                              ^
+    100|     expect(JSON.stringify(readonly)).toContain('read-only');
+    101|     expect((await h.call('mcp__other__agent_plugin_connect', {})).isEr…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 5 passed (6)
+   Start at  21:12:41
+   Duration  1.13s (transform 481ms, setup 0ms, collect 818ms, tests 38ms, environment 0ms, prepare 76ms)
+

@@ -1,0 +1,86 @@
+✖ owner: SIGTERM closes its owned databases before exit (14368.083751ms)
+✖ owner: SIGINT closes its owned databases before exit (16091.526778ms)
+✖ workspace-client: SIGTERM closes its owned databases before exit (17326.679316ms)
+✖ workspace-client: SIGINT closes its owned databases before exit (14059.274447ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 0
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 62520.443795
+
+✖ failing tests:
+
+test at apps/website/src/server/runtime/lifecycle/__tests__/sqlite-shutdown.integration.test.ts:1:523
+✖ owner: SIGTERM closes its owned databases before exit (14368.083751ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  1 !== 'ready'
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/lifecycle/__tests__/sqlite-shutdown.integration.test.ts:70:16)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 'ready',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/runtime/lifecycle/__tests__/sqlite-shutdown.integration.test.ts:1:523
+✖ owner: SIGINT closes its owned databases before exit (16091.526778ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  1 !== 'ready'
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/lifecycle/__tests__/sqlite-shutdown.integration.test.ts:70:16)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 'ready',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/runtime/lifecycle/__tests__/sqlite-shutdown.integration.test.ts:1:523
+✖ workspace-client: SIGTERM closes its owned databases before exit (17326.679316ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  1 !== 'ready'
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/lifecycle/__tests__/sqlite-shutdown.integration.test.ts:70:16)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 'ready',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/runtime/lifecycle/__tests__/sqlite-shutdown.integration.test.ts:1:523
+✖ workspace-client: SIGINT closes its owned databases before exit (14059.274447ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  1 !== 'ready'
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/lifecycle/__tests__/sqlite-shutdown.integration.test.ts:70:16)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 'ready',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

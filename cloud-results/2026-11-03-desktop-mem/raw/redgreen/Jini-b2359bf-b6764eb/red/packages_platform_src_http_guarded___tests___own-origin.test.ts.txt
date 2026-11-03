@@ -1,0 +1,73 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/platform
+
+ ❯ src/http/guarded/__tests__/own-origin.test.ts (6 tests | 3 failed) 19ms
+   × the configured site origin can read its own localhost page through a pinned peer 10ms
+     → egress to 'localhost' (127.0.0.1) rejected: resolved address is loopback
+   × own-site redirects recheck every destination and refuse other private services 4ms
+     → http://localhost:43128/
+
+0 !== 1
+
+   × configured IPv4 and IPv6 loopback literals pin their exact own-site origin 0ms
+     → egress to '127.0.0.1' (127.0.0.1) rejected: resolved address is loopback
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/http/guarded/__tests__/own-origin.test.ts > the configured site origin can read its own localhost page through a pinned peer
+EgressRefusedError: egress to 'localhost' (127.0.0.1) rejected: resolved address is loopback
+ ❯ assertNoPrivateAddress src/http/guarded/client.ts:63:13
+     61|     const addressClass = classifyAddress({ ip: address });
+     62|     if (addressClass !== "public") {
+     63|       throw new EgressRefusedError({ message: `egress to '${hostname}'…
+       |             ^
+     64|         callerSafeMessage: `egress to '${hostname}' rejected: resolved…
+     65|       });
+ ❯ resolvePinnedPeer src/http/guarded/client.ts:84:5
+ ❯ sendOneHop src/http/guarded/client.ts:162:16
+ ❯ sendWithPolicy src/http/guarded/client.ts:142:20
+ ❯ Object.send src/http/guarded/client.ts:246:14
+ ❯ src/http/guarded/__tests__/own-origin.test.ts:31:17
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  src/http/guarded/__tests__/own-origin.test.ts > own-site redirects recheck every destination and refuse other private services
+AssertionError: http://localhost:43128/
+
+0 !== 1
+
+
+- Expected
++ Received
+
+- 1
++ 0
+
+ ❯ src/http/guarded/__tests__/own-origin.test.ts:48:12
+     46|     const h = harness({ replies: [{ status: 302, headers: { location }…
+     47|     await assert.rejects(h.send(`${origin}/redirect`), EgressRefusedEr…
+     48|     assert.equal(h.sent.length, 1, location);
+       |            ^
+     49|   }
+     50|   const h = harness({ replies: [{ status: 302, headers: { location: '/…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  src/http/guarded/__tests__/own-origin.test.ts > configured IPv4 and IPv6 loopback literals pin their exact own-site origin
+EgressRefusedError: egress to '127.0.0.1' (127.0.0.1) rejected: resolved address is loopback
+ ❯ assertNoPrivateAddress src/http/guarded/client.ts:63:13
+     61|     const addressClass = classifyAddress({ ip: address });
+     62|     if (addressClass !== "public") {
+     63|       throw new EgressRefusedError({ message: `egress to '${hostname}'…
+       |             ^
+     64|         callerSafeMessage: `egress to '${hostname}' rejected: resolved…
+     65|       });
+ ❯ resolvePinnedPeer src/http/guarded/client.ts:84:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+ Test Files  1 failed (1)
+      Tests  3 failed | 3 passed (6)
+   Start at  21:11:42
+   Duration  507ms (transform 157ms, setup 0ms, collect 202ms, tests 19ms, environment 1ms, prepare 75ms)
+

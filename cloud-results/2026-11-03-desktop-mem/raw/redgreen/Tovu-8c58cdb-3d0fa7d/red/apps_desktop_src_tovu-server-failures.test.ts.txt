@@ -1,0 +1,39 @@
+✔ owned site control inherits IPC without daemon credentials in its spawn environment (15.184821ms)
+✖ the site server receives daemon and render credentials over IPC, with no token keys in its spawn environment (15.854929ms)
+✔ T5: a boot failure after long startup logs reports the final CLI error (23.772013ms)
+✔ a native spawn error preserves its cause and rejects only after child cleanup (11.693384ms)
+✔ an error after readiness cannot replace the handle, and the supervisor still receives exit (5.944895ms)
+✔ the default Windows stop invokes taskkill for the whole tree and waits for child exit (16.90269ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 5
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 30577.428288
+
+✖ failing tests:
+
+test at src/tovu-server-failures.test.ts:69:1
+✖ the site server receives daemon and render credentials over IPC, with no token keys in its spawn environment (15.854929ms)
+  AssertionError [ERR_ASSERTION]: TOVU_AGENT_DAEMON_TOKEN
+  
+  true !== false
+  
+      at spawnFn (file:///home/user/wt-Tovu/apps/desktop/src/tovu-server-failures.test.ts:88:14)
+      at startTovuServer (file:///home/user/wt-Tovu/apps/desktop/src/tovu-server.ts:957:17)
+      at TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/tovu-server-failures.test.ts:82:19)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

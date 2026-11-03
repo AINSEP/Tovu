@@ -1,0 +1,16 @@
+tovu desktop: dropped inherited TOVU_AGENT_DAEMON_TOKEN, TOVU_TOOL_EXEC_TOKEN; spawned sites use their own plugin and skill folders. Set overrides only for a direct single-site run.
+tovu desktop: dropped inherited TOVU_AGENT_DAEMON_TOKEN, TOVU_TOOL_EXEC_TOKEN; spawned sites use their own plugin and skill folders. Set overrides only for a direct single-site run.
+✔ owned site control inherits IPC without daemon credentials in its spawn environment (15.860535ms)
+✔ the site server receives daemon and render credentials over IPC, with no token keys in its spawn environment (9.084594ms)
+✔ T5: a boot failure after long startup logs reports the final CLI error (13.627224ms)
+✔ a native spawn error preserves its cause and rejects only after child cleanup (21.245327ms)
+✔ an error after readiness cannot replace the handle, and the supervisor still receives exit (3.735205ms)
+✔ the default Windows stop invokes taskkill for the whole tree and waits for child exit (10.723428ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 549.798209

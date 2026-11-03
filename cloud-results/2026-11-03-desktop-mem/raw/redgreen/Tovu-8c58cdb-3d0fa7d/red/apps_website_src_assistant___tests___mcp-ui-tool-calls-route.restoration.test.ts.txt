@@ -1,0 +1,30 @@
+✖ a late credential answer restores the same request and saves once without asking the owner to re-ask (163.124304ms)
+✔ a different owner cannot restore someone else's expired credential card (19.634767ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 1
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2532.808347
+
+✖ failing tests:
+
+test at apps/website/src/assistant/__tests__/mcp-ui-tool-calls-route.restoration.test.ts:1:2465
+✖ a late credential answer restores the same request and saves once without asking the owner to re-ask (163.124304ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  409 !== 200
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/assistant/__tests__/mcp-ui-tool-calls-route.restoration.test.ts:53:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 409,
+    expected: 200,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

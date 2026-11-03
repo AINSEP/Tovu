@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/platform
+
+ ✓ src/fs/__tests__/directory-running-lock.characterization.test.ts (64 tests) 21ms
+
+ Test Files  1 passed (1)
+      Tests  64 passed (64)
+   Start at  21:10:25
+   Duration  462ms (transform 93ms, setup 0ms, collect 143ms, tests 21ms, environment 0ms, prepare 84ms)
+

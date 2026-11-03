@@ -1,10 +1,10 @@
 
  RUN  v2.1.9 /home/user/wt-Jini/packages/daemon
 
- ✓ src/__tests__/routing-tool-executor.test.ts (4 tests) 14ms
+ ✓ src/__tests__/routing-tool-executor.test.ts (4 tests) 13ms
 
  Test Files  1 passed (1)
       Tests  4 passed (4)
-   Start at  21:07:42
-   Duration  991ms (transform 390ms, setup 0ms, collect 587ms, tests 14ms, environment 0ms, prepare 130ms)
+   Start at  21:15:06
+   Duration  735ms (transform 288ms, setup 0ms, collect 462ms, tests 13ms, environment 0ms, prepare 78ms)
 

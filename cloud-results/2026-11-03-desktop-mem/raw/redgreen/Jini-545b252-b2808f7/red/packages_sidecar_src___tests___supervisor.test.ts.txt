@@ -1,10 +1,10 @@
 
  RUN  v2.1.9 /home/user/wt-Jini/packages/sidecar
 
- ❯ src/__tests__/supervisor.test.ts (35 tests | 3 failed) 35ms
-   × demand racing a parking child waits for exit and starts one replacement 5ms
+ ❯ src/__tests__/supervisor.test.ts (35 tests | 3 failed) 43ms
+   × demand racing a parking child waits for exit and starts one replacement 11ms
      → h.supervisor.markParking is not a function
-   × a delayed park refusal from the previous child cannot fence its replacement 0ms
+   × a delayed park refusal from the previous child cannot fence its replacement 1ms
      → h.supervisor.markParking is not a function
    × demand already discovering a parking child carries over to its replacement 1ms
      → h.supervisor.markParking is not a function
@@ -49,6 +49,6 @@ TypeError: h.supervisor.markParking is not a function
 
  Test Files  1 failed (1)
       Tests  3 failed | 32 passed (35)
-   Start at  21:07:39
-   Duration  627ms (transform 186ms, setup 0ms, collect 190ms, tests 35ms, environment 0ms, prepare 96ms)
+   Start at  21:15:04
+   Duration  497ms (transform 149ms, setup 0ms, collect 165ms, tests 43ms, environment 0ms, prepare 83ms)
 

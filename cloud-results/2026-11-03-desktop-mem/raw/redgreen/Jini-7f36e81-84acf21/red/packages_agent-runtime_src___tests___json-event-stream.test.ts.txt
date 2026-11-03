@@ -1,8 +1,8 @@
 
  RUN  v2.1.9 /home/user/wt-Jini/packages/agent-runtime
 
- ❯ src/__tests__/json-event-stream.test.ts (152 tests | 1 failed) 121ms
-   × pinned behaviour before the complexity refactor > names codex MCP tool uses for jini, external and nameless servers 51ms
+ ❯ src/__tests__/json-event-stream.test.ts (152 tests | 1 failed) 76ms
+   × pinned behaviour before the complexity refactor > names codex MCP tool uses for jini, external and nameless servers 16ms
      → expected [ { type: 'tool_use', …(3) }, …(4) ] to deeply equal [ { type: 'tool_use', …(3) }, …(4) ]
 
 ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
@@ -63,6 +63,6 @@ AssertionError: expected [ { type: 'tool_use', …(3) }, …(4) ] to deeply equa
 
  Test Files  1 failed (1)
       Tests  1 failed | 151 passed (152)
-   Start at  21:08:07
-   Duration  911ms (transform 308ms, setup 0ms, collect 385ms, tests 121ms, environment 0ms, prepare 114ms)
+   Start at  21:15:29
+   Duration  635ms (transform 254ms, setup 0ms, collect 303ms, tests 76ms, environment 0ms, prepare 68ms)
 

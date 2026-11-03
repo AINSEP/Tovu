@@ -1,8 +1,8 @@
 
  RUN  v2.1.9 /home/user/wt-Jini/packages/daemon
 
- ❯ src/__tests__/routing-tool-executor.test.ts (4 tests | 1 failed) 21ms
-   × createRoutingToolExecutor > holds routed work until completion even when its caller disconnects or cancels 10ms
+ ❯ src/__tests__/routing-tool-executor.test.ts (4 tests | 1 failed) 16ms
+   × createRoutingToolExecutor > holds routed work until completion even when its caller disconnects or cancels 7ms
      → expected "spy" to be called 1 times, but got 0 times
 
 ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
@@ -21,6 +21,6 @@ AssertionError: expected "spy" to be called 1 times, but got 0 times
 
  Test Files  1 failed (1)
       Tests  1 failed | 3 passed (4)
-   Start at  21:07:34
-   Duration  1.04s (transform 454ms, setup 0ms, collect 650ms, tests 21ms, environment 0ms, prepare 136ms)
+   Start at  21:15:00
+   Duration  733ms (transform 334ms, setup 0ms, collect 464ms, tests 16ms, environment 0ms, prepare 69ms)
 

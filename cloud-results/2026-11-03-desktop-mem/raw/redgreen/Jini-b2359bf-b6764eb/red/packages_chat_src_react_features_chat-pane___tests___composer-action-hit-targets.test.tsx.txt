@@ -1,0 +1,33 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/chat
+
+ ❯ src/react/features/chat-pane/__tests__/composer-action-hit-targets.test.tsx (2 tests | 2 failed) 321ms
+   × Send remains clickable beside the effort selector at dock width 260ms
+     → expected '0' to be 'min-content' // Object.is equality
+   × Stop run remains clickable beside the effort selector at dock width 60ms
+     → expected '0' to be 'min-content' // Object.is equality
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/react/features/chat-pane/__tests__/composer-action-hit-targets.test.tsx > Send remains clickable beside the effort selector at dock width
+ FAIL  src/react/features/chat-pane/__tests__/composer-action-hit-targets.test.tsx > Stop run remains clickable beside the effort selector at dock width
+AssertionError: expected '0' to be 'min-content' // Object.is equality
+
+Expected: "min-content"
+Received: "0"
+
+ ❯ src/react/features/chat-pane/__tests__/composer-action-hit-targets.test.tsx:32:50
+     30|   // jsdom has no hit testing or flex geometry. Protect the intrinsic …
+     31|   // fixed effort control overflowing this wrapper across the adjacent…
+     32|   expect(getComputedStyle(accessories).minWidth).toBe('min-content');
+       |                                                  ^
+     33|   expect(getComputedStyle(accessories.closest('.jini-composer-footer')…
+     34|   const action = screen.getByRole('button', { name: running ? 'Stop ru…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ Test Files  1 failed (1)
+      Tests  2 failed (2)
+   Start at  21:11:10
+   Duration  6.21s (transform 3.05s, setup 160ms, collect 4.92s, tests 321ms, environment 450ms, prepare 88ms)
+

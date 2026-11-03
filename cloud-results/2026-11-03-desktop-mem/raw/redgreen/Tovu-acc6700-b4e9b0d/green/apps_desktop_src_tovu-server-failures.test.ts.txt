@@ -1,0 +1,13 @@
+✔ owned site control inherits IPC without daemon credentials in its spawn environment (10.460264ms)
+✔ T5: a boot failure after long startup logs reports the final CLI error (10.256366ms)
+✔ a native spawn error preserves its cause and rejects only after child cleanup (6.249781ms)
+✔ an error after readiness cannot replace the handle, and the supervisor still receives exit (3.390264ms)
+✔ the default Windows stop invokes taskkill for the whole tree and waits for child exit (8.345576ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 433.968133

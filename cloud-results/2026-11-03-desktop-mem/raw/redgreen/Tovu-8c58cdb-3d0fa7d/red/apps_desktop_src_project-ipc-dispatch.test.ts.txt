@@ -1,0 +1,63 @@
+✔ registered list joins current server state and returns fresh names on consecutive polls (47.175878ms)
+✖ registered list never requests a capture for running sites without a preview (26.838432ms)
+✔ registered create forwards the display name to init and records the newly created identity (67.402187ms)
+✔ registered create refuses hosted databases before opening a folder picker (5.810162ms)
+tovu desktop: could not remember the created website folder; the website was created successfully.
+✔ created website and its name survive a discovery-settings write failure (44.897474ms)
+✔ registered asynchronous discovery uses the injected worker port and respects dismissals (33.954984ms)
+✔ a discovery timeout rejects without adopting partial candidates (1.896744ms)
+✔ registered delete drains the selected adopted site and removes only its card and preview (16.863654ms)
+✔ registered browser handoff routes each requested surface to the selected running site (4.851013ms)
+✔ registered rename updates the selected config, returned name and native window title (19.467849ms)
+✔ registered add-site tracks the picked existing folder without initializing or rewriting it (17.001112ms)
+✔ registered preview reads the requested site's image and returns null for uncaptured sites (6.785037ms)
+✔ registered locate replaces the selected stale path with the folder the operator picked (17.80221ms)
+✔ registered service discovery returns the CLI-backed lister's result using host configuration (1.93823ms)
+✔ settings save accepts only placement; native setHome owns paths and cancellation (25.881025ms)
+✔ shared-home Create holds its creation lock, reports the destination, and refuses an unmounted volume (59.036855ms)
+tovu desktop: skipped shared catalog entry /tmp/tovu-ipc-dispatch-VpZrvt/websites/copy; its metadata, identity or folder is unavailable/invalid.
+tovu desktop: skipped shared catalog entry /tmp/tovu-ipc-dispatch-VpZrvt/websites/broken; its metadata, identity or folder is unavailable/invalid.
+✔ shared-home Create refuses another app winning the reserved folder without adopting it (18.780333ms)
+✔ registered list skips bad catalog siblings and repeats import without duplicate cards (54.977077ms)
+✔ removing a local adopted card retains the shared catalog, and external leases cannot be stopped or erased (57.063885ms)
+✔ registered Start attaches through the host port and retains the external owner's lease (42.148434ms)
+✔ deskfx M1: a themes-only stale folder offers recovery and cannot spawn (13.479387ms)
+✔ deskfx S3: picker admission scans proposed aggregate roots before saving, and overflow saves nothing (11.688197ms)
+✔ deskfx NIT: consecutive polls preserve createdAt and report each invalid catalog row once (18.816201ms)
+✔ deskfx2 MUST-2: desktop default catalog is isolated without a production test guard (12.107438ms)
+✔ deskfx2 NIT: create reports a missing tracked row clearly and preserves the created site (44.225096ms)
+✔ registered destination preview and Create share suffix selection; preview never writes (47.481879ms)
+✔ without shared settings the settings channels refuse clearly and the folder list is the built-in scan roots (2.172486ms)
+✔ setHome refuses a picked file or relative path, and without folder settings reports just the new home (24.586822ms)
+✔ a lease held under this window's own server pid lets Delete erase, unless that entry is an attached external server (38.647114ms)
+ℹ tests 29
+ℹ suites 0
+ℹ pass 28
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1573.595607
+
+✖ failing tests:
+
+test at src/project-ipc-dispatch.test.ts:113:1
+✖ registered list never requests a capture for running sites without a preview (26.838432ms)
+  AssertionError [ERR_ASSERTION]: list polling cannot schedule capture
+      at Object.requestPreviewCapture (file:///home/user/wt-Tovu/apps/desktop/src/project-ipc-dispatch.test.ts:122:63)
+      at requestMissingPreviews (file:///home/user/wt-Tovu/apps/desktop/src/project-ipc.ts:443:35)
+      at file:///home/user/wt-Tovu/apps/desktop/src/project-ipc.ts:1360:53
+      at Object.invoke (file:///home/user/wt-Tovu/apps/desktop/src/project-ipc-dispatch.test.ts:90:14)
+      at TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/project-ipc-dispatch.test.ts:124:23)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }

@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/platform
+
+ ✓ src/__tests__/http-custom-probe.test.ts (2 tests) 309ms
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  21:10:22
+   Duration  726ms (transform 101ms, setup 0ms, collect 107ms, tests 309ms, environment 0ms, prepare 82ms)
+

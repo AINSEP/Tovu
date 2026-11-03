@@ -1,0 +1,39 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/core
+
+ ❯ src/__tests__/redact.test.ts (111 tests | 4 failed) 95ms
+   × @jini-ai/core — redact — redactSecrets > keeps the next field's secret private after an empty credential hint: password 19ms
+     → expected '{"hint": "password="[REDACTED:labeled…' not to contain 'secret123'
+   × @jini-ai/core — redact — redactSecrets > keeps the next field's secret private after an empty credential hint: client_secret 6ms
+     → expected '{"hint": "password="[REDACTED:labeled…' not to contain 'secret123'
+   × @jini-ai/core — redact — redactSecrets > keeps the next field's secret private after an empty credential hint: token 1ms
+     → expected '{"hint": "password="[REDACTED:labeled…' not to contain 'secret123'
+   × @jini-ai/core — redact — redactSecrets > keeps the next field's secret private after an empty credential hint: api key 1ms
+     → expected '{"hint": "password="[REDACTED:labeled…' not to contain 'secret123'
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/__tests__/redact.test.ts > @jini-ai/core — redact — redactSecrets > keeps the next field's secret private after an empty credential hint: password
+ FAIL  src/__tests__/redact.test.ts > @jini-ai/core — redact — redactSecrets > keeps the next field's secret private after an empty credential hint: client_secret
+ FAIL  src/__tests__/redact.test.ts > @jini-ai/core — redact — redactSecrets > keeps the next field's secret private after an empty credential hint: token
+ FAIL  src/__tests__/redact.test.ts > @jini-ai/core — redact — redactSecrets > keeps the next field's secret private after an empty credential hint: api key
+AssertionError: expected '{"hint": "password="[REDACTED:labeled…' not to contain 'secret123'
+
+Expected: "secret123"
+Received: "{"hint": "password="[REDACTED:labeled_secret]"password": "secret123"}"
+
+ ❯ src/__tests__/redact.test.ts:13:34
+     11|             const input = `{${quote}hint${quote}: ${quote}${hint}${quo…
+     12|             const redacted = redactSecrets({ input }, { redactPii: fal…
+     13|             expect(redacted).not.toContain('secret123');
+       |                                  ^
+     14|             expect(redacted).toContain(`${keyQuote}${key}${keyQuote}: …
+     15|             expect(redacted).toContain(`${quote}hint${quote}: ${quote}…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ Test Files  1 failed (1)
+      Tests  4 failed | 107 passed (111)
+   Start at  21:11:19
+   Duration  592ms (transform 181ms, setup 0ms, collect 189ms, tests 95ms, environment 0ms, prepare 89ms)
+

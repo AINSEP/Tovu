@@ -1,0 +1,31 @@
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+
+ RUN  v2.1.9 /home/user/wt-Jini
+
+ ❯ scripts/__tests__/check-plugin-isolation.test.ts (83 tests | 1 failed) 45ms
+   × plugin package installation isolation > the legacy ui-ux-design package ships only its own payload; a subpath-only plugin has no package 10ms
+     → expected [Function] to throw error including 'another plugin\'s payload' but got '@jini-ai/plugin-slide-design: unexpec…'
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  scripts/__tests__/check-plugin-isolation.test.ts > plugin package installation isolation > the legacy ui-ux-design package ships only its own payload; a subpath-only plugin has no package
+AssertionError: expected [Function] to throw error including 'another plugin\'s payload' but got '@jini-ai/plugin-slide-design: unexpec…'
+
+Expected: "another plugin's payload"
+Received: "@jini-ai/plugin-slide-design: unexpected packed file slide-design/skills/slide-design/SKILL.md"
+
+ ❯ scripts/__tests__/check-plugin-isolation.test.ts:89:8
+     87|     expect(() => check({ name: '@jini-ai/plugin-ui-ux-design' }, [...d…
+     88|     expect(() => check({ name: '@jini-ai/plugin-slide-design' }, [...d…
+     89|       .toThrow("another plugin's payload");
+       |        ^
+     90|   });
+     91| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 82 passed (83)
+   Start at  21:10:46
+   Duration  692ms (transform 96ms, setup 0ms, collect 146ms, tests 45ms, environment 0ms, prepare 73ms)
+

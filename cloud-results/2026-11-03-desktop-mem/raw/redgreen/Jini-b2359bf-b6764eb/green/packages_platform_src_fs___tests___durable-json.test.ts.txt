@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/platform
+
+ ✓ src/fs/__tests__/durable-json.test.ts (15 tests) 213ms
+
+ Test Files  1 passed (1)
+      Tests  15 passed (15)
+   Start at  21:12:53
+   Duration  743ms (transform 206ms, setup 0ms, collect 273ms, tests 213ms, environment 0ms, prepare 80ms)
+

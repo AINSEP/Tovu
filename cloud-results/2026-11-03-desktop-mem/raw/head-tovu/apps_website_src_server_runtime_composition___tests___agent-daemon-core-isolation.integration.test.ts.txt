@@ -1,0 +1,11 @@
+✔ authenticated bootstrap cannot substitute a different site directory (36.857872ms)
+✔ two sites times two instances retain separate configuration and sessions (memory) (37.460276ms)
+✔ two sites times two instances retain separate configuration and sessions (sqlite) (204.627422ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2196.86524

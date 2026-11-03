@@ -1,0 +1,65 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/core
+
+ ❯ src/__tests__/format-error-for-log.test.ts (12 tests | 3 failed) 29ms
+   × nested diagnostic credential privacy > keeps password in nested cause messages and stacks private before JSON escaping 12ms
+     → expected 'Error: provider unavailable\n    at /…' not to contain 'secret123'
+   × nested diagnostic credential privacy > keeps x-api-key in nested cause messages and stacks private before JSON escaping 5ms
+     → expected 'Error: provider unavailable\n    at /…' not to contain 'secret123'
+   × nested diagnostic credential privacy > keeps credentials private in nested non-Error diagnostic strings and honors caller rules 2ms
+     → expected '{"details":[{"message":"{\"password\"…' not to contain 'secret123'
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/__tests__/format-error-for-log.test.ts > nested diagnostic credential privacy > keeps password in nested cause messages and stacks private before JSON escaping
+ FAIL  src/__tests__/format-error-for-log.test.ts > nested diagnostic credential privacy > keeps x-api-key in nested cause messages and stacks private before JSON escaping
+AssertionError: expected 'Error: provider unavailable\n    at /…' not to contain 'secret123'
+
+- Expected
++ Received
+
+- secret123
++ Error: provider unavailable
++     at /home/user/wt-Jini/packages/core/src/__tests__/format-error-for-log.test.ts:62:21
++     at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:633:57
++     at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
++     at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
++     at runWithTimeout (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
++     at runTest (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
++     at processTicksAndRejections (node:internal/process/task_queues:104:5)
++     at runSuite (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
++     at runSuite (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
++     at runFiles (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
++ {"cause":{"stack":"Error: {\"password\": \"stack-secret\"}\n    at send (/app/provider.ts:7:3)","message":"request failed {\"password\": \"secret123\"}"}}
+
+ ❯ src/__tests__/format-error-for-log.test.ts:64:30
+     62|       const error = new Error('provider unavailable', { cause });
+     63|       const diagnostic = formatErrorForLog({ error });
+     64|       expect(diagnostic).not.toContain('secret123');
+       |                              ^
+     65|       expect(diagnostic).not.toContain('stack-secret');
+     66|       expect(diagnostic).toContain('provider unavailable');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  src/__tests__/format-error-for-log.test.ts > nested diagnostic credential privacy > keeps credentials private in nested non-Error diagnostic strings and honors caller rules
+AssertionError: expected '{"details":[{"message":"{\"password\"…' not to contain 'secret123'
+
+Expected: "secret123"
+Received: "{"details":[{"message":"{\"password\": \"secret123\", \"x-api-key\": \"header-secret\"}","hint":"exact-quote\"secret","code":"[REDACTED:host]"}]}"
+
+ ❯ src/__tests__/format-error-for-log.test.ts:78:30
+     76|       extraPatterns: [{ name: 'host', regex: /EXTRA_SECRET/g }] });
+     77|     for (const secret of ['secret123', 'header-secret', 'exact-quote',…
+     78|       expect(diagnostic).not.toContain(secret);
+       |                              ^
+     79|     }
+     80|     expect(diagnostic).toContain('[REDACTED:host]');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ Test Files  1 failed (1)
+      Tests  3 failed | 9 passed (12)
+   Start at  21:11:17
+   Duration  1.11s (transform 591ms, setup 0ms, collect 757ms, tests 29ms, environment 0ms, prepare 97ms)
+

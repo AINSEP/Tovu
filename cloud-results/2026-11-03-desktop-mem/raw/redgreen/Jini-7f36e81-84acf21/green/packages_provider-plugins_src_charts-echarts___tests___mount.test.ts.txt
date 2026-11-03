@@ -1,0 +1,55 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/provider-plugins
+
+stderr | src/charts-echarts/__tests__/mount.test.ts > ECharts vanilla lifecycle > draws bar as SVG (never canvas) inside a labelled figure
+[ECharts] Can't get DOM width or height. Please check dom.clientWidth and dom.clientHeight. They should not be 0.For example, you may need to call this in the callback of window.onload.
+
+stderr | src/charts-echarts/__tests__/mount.test.ts > ECharts vanilla lifecycle > draws stacked-bar as SVG (never canvas) inside a labelled figure
+[ECharts] Can't get DOM width or height. Please check dom.clientWidth and dom.clientHeight. They should not be 0.For example, you may need to call this in the callback of window.onload.
+
+stderr | src/charts-echarts/__tests__/mount.test.ts > ECharts vanilla lifecycle > draws line as SVG (never canvas) inside a labelled figure
+[ECharts] Can't get DOM width or height. Please check dom.clientWidth and dom.clientHeight. They should not be 0.For example, you may need to call this in the callback of window.onload.
+
+stderr | src/charts-echarts/__tests__/mount.test.ts > ECharts vanilla lifecycle > draws area as SVG (never canvas) inside a labelled figure
+[ECharts] Can't get DOM width or height. Please check dom.clientWidth and dom.clientHeight. They should not be 0.For example, you may need to call this in the callback of window.onload.
+
+stderr | src/charts-echarts/__tests__/mount.test.ts > ECharts vanilla lifecycle > draws pie as SVG (never canvas) inside a labelled figure
+[ECharts] Can't get DOM width or height. Please check dom.clientWidth and dom.clientHeight. They should not be 0.For example, you may need to call this in the callback of window.onload.
+
+stderr | src/charts-echarts/__tests__/mount.test.ts > ECharts vanilla lifecycle > draws donut as SVG (never canvas) inside a labelled figure
+[ECharts] Can't get DOM width or height. Please check dom.clientWidth and dom.clientHeight. They should not be 0.For example, you may need to call this in the callback of window.onload.
+
+stderr | src/charts-echarts/__tests__/mount.test.ts > ECharts vanilla lifecycle > draws scatter as SVG (never canvas) inside a labelled figure
+[ECharts] Can't get DOM width or height. Please check dom.clientWidth and dom.clientHeight. They should not be 0.For example, you may need to call this in the callback of window.onload.
+
+stderr | src/charts-echarts/__tests__/mount.test.ts > ECharts vanilla lifecycle > puts the title and description in the hidden caption as text, never as markup
+[ECharts] Can't get DOM width or height. Please check dom.clientWidth and dom.clientHeight. They should not be 0.For example, you may need to call this in the callback of window.onload.
+
+stderr | src/charts-echarts/__tests__/mount.test.ts > ECharts vanilla lifecycle > replaces series on update, so dropped series and a former kind's axes are gone
+[ECharts] Can't get DOM width or height. Please check dom.clientWidth and dom.clientHeight. They should not be 0.For example, you may need to call this in the callback of window.onload.
+
+stderr | src/charts-echarts/__tests__/mount.test.ts > ECharts vanilla lifecycle > applies the ChartTheme mode and chart tokens to its element on mount and update
+[ECharts] Can't get DOM width or height. Please check dom.clientWidth and dom.clientHeight. They should not be 0.For example, you may need to call this in the callback of window.onload.
+
+stderr | src/charts-echarts/__tests__/mount.test.ts > ECharts vanilla lifecycle > shares category colors and one legend across rings, and identifies the hovered ring, category and formatted value
+[ECharts] Can't get DOM width or height. Please check dom.clientWidth and dom.clientHeight. They should not be 0.For example, you may need to call this in the callback of window.onload.
+
+stderr | src/charts-echarts/__tests__/mount.test.ts > ECharts vanilla lifecycle > refuses an unsupported spec at mount (leaving nothing behind) and at update (keeping the chart)
+[ECharts] Can't get DOM width or height. Please check dom.clientWidth and dom.clientHeight. They should not be 0.For example, you may need to call this in the callback of window.onload.
+
+stderr | src/charts-echarts/__tests__/mount.test.ts > ECharts vanilla lifecycle > disposes ECharts on destroy, empties its element, is idempotent and ignores later updates
+[ECharts] Can't get DOM width or height. Please check dom.clientWidth and dom.clientHeight. They should not be 0.For example, you may need to call this in the callback of window.onload.
+
+stderr | src/charts-echarts/__tests__/mount.test.ts > ECharts vanilla lifecycle > resizes with its frame and stops observing once destroyed
+[ECharts] Can't get DOM width or height. Please check dom.clientWidth and dom.clientHeight. They should not be 0.For example, you may need to call this in the callback of window.onload.
+
+stderr | src/charts-echarts/__tests__/mount.test.ts > updates a formatted bar to plain line and pie without retaining tooltip formatting or its shadow cursor
+[ECharts] Can't get DOM width or height. Please check dom.clientWidth and dom.clientHeight. They should not be 0.For example, you may need to call this in the callback of window.onload.
+
+ ✓ src/charts-echarts/__tests__/mount.test.ts (15 tests) 816ms
+
+ Test Files  1 passed (1)
+      Tests  15 passed (15)
+   Start at  21:10:28
+   Duration  2.75s (transform 246ms, setup 0ms, collect 1.10s, tests 816ms, environment 447ms, prepare 106ms)
+

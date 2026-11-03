@@ -1,0 +1,111 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/mcp
+
+ ❯ src/server/__tests__/tool-argument-recovery.test.ts (6 tests | 6 failed) 51ms
+   × first-call tool argument recovery for every MCP CLI > turning on a plugin accepts an agreeing extra id before strict MCP validation 16ms
+     → expected true not to be true // Object.is equality
+   × first-call tool argument recovery for every MCP CLI > switching a theme accepts its declared argument alias through direct and delegated calls 2ms
+     → expected true not to be true // Object.is equality
+   × first-call tool argument recovery for every MCP CLI > conflicting plugin identifiers fail without executing or exposing their values 8ms
+     → expected '{"isError":true,"content":[{"type":"t…' to contain 'Send only \'pluginId\''
+   × first-call tool argument recovery for every MCP CLI > a wrong wait argument returns the complete declared contract in one repair message 9ms
+     → expected 'invalid arguments for jobs_wait: remo…' to contain 'Input schema: {"type":"object","addit…'
+   × first-call tool argument recovery for every MCP CLI > the prefixed connect name reaches the same trusted run through either call surface 2ms
+     → expected true not to be true // Object.is equality
+   × first-call tool argument recovery for every MCP CLI > prefix recovery keeps exact names, foreign server names and read-only enforcement intact 13ms
+     → expected undefined to be true // Object.is equality
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 6 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/server/__tests__/tool-argument-recovery.test.ts > first-call tool argument recovery for every MCP CLI > turning on a plugin accepts an agreeing extra id before strict MCP validation
+AssertionError: expected true not to be true // Object.is equality
+ ❯ src/server/__tests__/tool-argument-recovery.test.ts:42:32
+     40|     const input = { family: 'agent-plugin', pluginId: 'charts', id: 'c…
+     41|     const result = await h.call('plugins_set_enabled', input);
+     42|     expect(result.isError).not.toBe(true);
+       |                                ^
+     43|     expect(h.calls).toHaveLength(1);
+     44|     expect(h.calls[0]).toMatchObject({ runId: 'trusted-run', toolId: '…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/6]⎯
+
+ FAIL  src/server/__tests__/tool-argument-recovery.test.ts > first-call tool argument recovery for every MCP CLI > switching a theme accepts its declared argument alias through direct and delegated calls
+AssertionError: expected true not to be true // Object.is equality
+ ❯ src/server/__tests__/tool-argument-recovery.test.ts:57:34
+     55|       const input = { active_theme_id: 'lucky-goat' };
+     56|       const result = await h.call(name, name === 'theme_set_active' ? …
+     57|       expect(result.isError).not.toBe(true);
+       |                                  ^
+     58|     }
+     59|     expect(h.calls).toHaveLength(2);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/6]⎯
+
+ FAIL  src/server/__tests__/tool-argument-recovery.test.ts > first-call tool argument recovery for every MCP CLI > conflicting plugin identifiers fail without executing or exposing their values
+AssertionError: expected '{"isError":true,"content":[{"type":"t…' to contain 'Send only \'pluginId\''
+
+Expected: "Send only 'pluginId'"
+Received: "{"isError":true,"content":[{"type":"text","text":"invalid arguments for plugins_set_enabled: remove unknown argument `id`"}]}"
+
+ ❯ src/server/__tests__/tool-argument-recovery.test.ts:67:36
+     65|     const result = await h.call('plugins_set_enabled', { family: 'agen…
+     66|     expect(result.isError).toBe(true);
+     67|     expect(JSON.stringify(result)).toContain("Send only 'pluginId'");
+       |                                    ^
+     68|     expect(JSON.stringify(result)).not.toMatch(/private-one|private-tw…
+     69|     expect(h.calls).toEqual([]);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/6]⎯
+
+ FAIL  src/server/__tests__/tool-argument-recovery.test.ts > first-call tool argument recovery for every MCP CLI > a wrong wait argument returns the complete declared contract in one repair message
+AssertionError: expected 'invalid arguments for jobs_wait: remo…' to contain 'Input schema: {"type":"object","addit…'
+
+Expected: "Input schema: {"type":"object","additionalProperties":false,"properties":{"jobIds":{"type":"array","items":{"type":"string"}},"maxWaitSeconds":{"type":"integer"}}}"
+Received: "invalid arguments for jobs_wait: remove unknown argument `timeout_seconds`"
+
+ ❯ src/server/__tests__/tool-argument-recovery.test.ts:80:18
+     78|     expect(result.isError).toBe(true);
+     79|     const text = (result.content[0] as { text: string }).text;
+     80|     expect(text).toContain(`Input schema: ${JSON.stringify(inputSchema…
+       |                  ^
+     81|     expect(h.calls).toEqual([]);
+     82|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/6]⎯
+
+ FAIL  src/server/__tests__/tool-argument-recovery.test.ts > first-call tool argument recovery for every MCP CLI > the prefixed connect name reaches the same trusted run through either call surface
+AssertionError: expected true not to be true // Object.is equality
+ ❯ src/server/__tests__/tool-argument-recovery.test.ts:90:34
+     88|       const input = { pluginId: 'media' };
+     89|       const result = await h.call(name, name === 'execute_delegated_to…
+     90|       expect(result.isError).not.toBe(true);
+       |                                  ^
+     91|     }
+     92|     expect(h.calls).toHaveLength(2);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/6]⎯
+
+ FAIL  src/server/__tests__/tool-argument-recovery.test.ts > first-call tool argument recovery for every MCP CLI > prefix recovery keeps exact names, foreign server names and read-only enforcement intact
+AssertionError: expected undefined to be true // Object.is equality
+
+- Expected: 
+true
+
++ Received: 
+undefined
+
+ ❯ src/server/__tests__/tool-argument-recovery.test.ts:99:30
+     97|     const h = harness({ id: 'agent_plugin_connect', inputSchema: { typ…
+     98|     const readonly = await h.call('execute_readonly_delegated_tool', {…
+     99|     expect(readonly.isError).toBe(true);
+       |                              ^
+    100|     expect(JSON.stringify(readonly)).toContain('read-only');
+    101|     expect((await h.call('mcp__other__agent_plugin_connect', {})).isEr…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/6]⎯
+
+ Test Files  1 failed (1)
+      Tests  6 failed (6)
+   Start at  21:11:35
+   Duration  1.17s (transform 473ms, setup 0ms, collect 780ms, tests 51ms, environment 0ms, prepare 106ms)
+

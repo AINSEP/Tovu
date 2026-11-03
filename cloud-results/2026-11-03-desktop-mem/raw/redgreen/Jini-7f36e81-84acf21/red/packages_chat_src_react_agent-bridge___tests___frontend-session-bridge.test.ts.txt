@@ -1,8 +1,8 @@
 
  RUN  v2.1.9 /home/user/wt-Jini/packages/chat
 
- ❯ src/react/agent-bridge/__tests__/frontend-session-bridge.test.ts (55 tests | 1 failed) 177ms
-   × attachment > picks the new token up when the host rebinds after a failure 12ms
+ ❯ src/react/agent-bridge/__tests__/frontend-session-bridge.test.ts (55 tests | 1 failed) 140ms
+   × attachment > picks the new token up when the host rebinds after a failure 7ms
      → bridge.rebind is not a function
 
 ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
@@ -21,6 +21,6 @@ TypeError: bridge.rebind is not a function
 
  Test Files  1 failed (1)
       Tests  1 failed | 54 passed (55)
-   Start at  21:08:14
-   Duration  2.79s (transform 1.03s, setup 178ms, collect 1.50s, tests 177ms, environment 548ms, prepare 85ms)
+   Start at  21:15:35
+   Duration  2.25s (transform 836ms, setup 164ms, collect 1.28s, tests 140ms, environment 369ms, prepare 88ms)
 

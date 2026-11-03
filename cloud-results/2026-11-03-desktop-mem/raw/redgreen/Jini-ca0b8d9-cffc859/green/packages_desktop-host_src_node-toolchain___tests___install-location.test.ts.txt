@@ -1,10 +1,10 @@
 
  RUN  v2.1.9 /home/user/wt-Jini/packages/desktop-host
 
- ✓ src/node-toolchain/__tests__/install-location.test.ts (4 tests) 19ms
+ ✓ src/node-toolchain/__tests__/install-location.test.ts (4 tests) 11ms
 
  Test Files  1 passed (1)
       Tests  4 passed (4)
-   Start at  21:08:00
-   Duration  462ms (transform 77ms, setup 0ms, collect 89ms, tests 19ms, environment 0ms, prepare 96ms)
+   Start at  21:15:23
+   Duration  419ms (transform 70ms, setup 0ms, collect 65ms, tests 11ms, environment 0ms, prepare 105ms)
 

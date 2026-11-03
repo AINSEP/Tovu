@@ -2,7 +2,7 @@
  RUN  v2.1.9 /home/user/wt-Jini/packages/daemon
 
  ❯ src/__tests__/idle-monitor.test.ts (11 tests | 2 failed) 22ms
-   × createIdleMonitor > brief activity between observations restarts the full idle interval 9ms
+   × createIdleMonitor > brief activity between observations restarts the full idle interval 8ms
      → monitor.acquire is not a function
    × createIdleMonitor > overlapping work stays busy until the last idempotent release 1ms
      → monitor.acquire is not a function
@@ -35,6 +35,6 @@ TypeError: monitor.acquire is not a function
 
  Test Files  1 failed (1)
       Tests  2 failed | 9 passed (11)
-   Start at  21:07:33
-   Duration  492ms (transform 73ms, setup 0ms, collect 69ms, tests 22ms, environment 0ms, prepare 86ms)
+   Start at  21:14:59
+   Duration  409ms (transform 78ms, setup 0ms, collect 68ms, tests 22ms, environment 0ms, prepare 89ms)
 

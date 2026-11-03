@@ -1,0 +1,30 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/mcp
+
+stdout | src/federation/__tests__/mcp-federation.bootstrap.test.ts > defaultConnect hands the hosted transport callTimeoutMs as its per-request bound, matching the stdio arm — not connectTimeoutMs
+agent-daemon mcp-federation: 'hosted-vendor' registered 0 federated tool(s): (none)
+
+stdout | src/federation/__tests__/mcp-federation.bootstrap.test.ts > attachFederatedMcpTools stamps preset connections with a preset origin, for external-mcp-revocation.ts's roster/preset split
+agent-daemon mcp-federation: 'hosted-vendor' registered 1 federated tool(s): mcp__hosted-vendor__ping
+
+stderr | src/federation/__tests__/mcp-federation.bootstrap.test.ts > a connect timeout produces a human-readable connectFailures entry with no report entry, for the connection admin admissions must surface
+agent-daemon mcp-federation: 'namecom' failed, continuing without its tools — Error: connect timed out after 15000ms
+    at connect (/home/user/wt-Jini/packages/mcp/src/federation/__tests__/mcp-federation.bootstrap.test.ts:221:13)
+    at attachOneFederatedConnection (/home/user/wt-Jini/packages/mcp/src/federation/bootstrap.ts:275:21)
+    at attachFederatedMcpTools (/home/user/wt-Jini/packages/mcp/src/federation/bootstrap.ts:196:28)
+    at /home/user/wt-Jini/packages/mcp/src/federation/__tests__/mcp-federation.bootstrap.test.ts:220:24
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:5
+    at runTest (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:11)
+    at runSuite (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
+    at startTests (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1271:3)
+
+ ✓ src/federation/__tests__/mcp-federation.bootstrap.test.ts (6 tests) 468ms
+   ✓ defaultConnect hands the hosted transport callTimeoutMs as its per-request bound, matching the stdio arm — not connectTimeoutMs 449ms
+
+ Test Files  1 passed (1)
+      Tests  6 passed (6)
+   Start at  21:12:37
+   Duration  1.11s (transform 504ms, setup 0ms, collect 344ms, tests 468ms, environment 0ms, prepare 87ms)
+

@@ -1,0 +1,15 @@
+✔ the dev entrypoint gates its admin startup through the API readiness result (7.858716ms)
+✔ a failed API boot never announces success or leaves admin Vite running (0.416546ms)
+✔ admin Vite starts and success is announced only after API readiness (1.23716ms)
+✔ an API that exits during readiness cannot start admin Vite (0.221026ms)
+✔ a bound API socket cannot announce readiness until readyz accepts the configured TLS leaf (0.512252ms)
+✔ failed HTTP readiness returns false to the dev stack shutdown owner (0.302053ms)
+✔ an API that binds before boot completes must answer readyz successfully before dev reports success (182.136053ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1615.337328

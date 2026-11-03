@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/agent-plugins
+
+ ✓ src/lifecycle/__tests__/unit/manifest-default-namespace.unit.test.ts (9 tests) 13ms
+
+ Test Files  1 passed (1)
+      Tests  9 passed (9)
+   Start at  21:12:12
+   Duration  602ms (transform 157ms, setup 0ms, collect 240ms, tests 13ms, environment 0ms, prepare 95ms)
+

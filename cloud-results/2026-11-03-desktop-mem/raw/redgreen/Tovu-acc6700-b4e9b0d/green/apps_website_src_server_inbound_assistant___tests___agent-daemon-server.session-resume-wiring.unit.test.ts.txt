@@ -1,0 +1,36 @@
+▶ H1 wiring — a failed resume must clear its dead stored session id
+  ✔ imports shouldClearSessionOnFailedResume from the pure decision module (0.976814ms)
+  ✔ the stream subscription calls shouldClearSessionOnFailedResume and, when true, clears the stored session id (0.229309ms)
+  ✔ attemptedResumeSessionId is assigned from the gated resume value actually attempted — the value the decision checks must reflect what onStarted really passed to agentExecutor.run, not the raw pre-gating lookup (0.195288ms)
+✔ H1 wiring — a failed resume must clear its dead stored session id (2.570787ms)
+▶ H2 wiring — overlapping runs on one conversation must not both resume
+  ✔ imports createLiveRunTracker and constructs exactly one module-level instance (0.413039ms)
+  ✔ a run registers itself in the tracker before any await in onStarted's synchronous prefix (0.160511ms)
+  ✔ a run unregisters itself from the tracker on its own terminal event (245.156278ms)
+  ✔ hasConcurrentLiveRun gates whether this run may read/pass a stored resumeSessionId (0.423456ms)
+✔ H2 wiring — overlapping runs on one conversation must not both resume (248.579893ms)
+▶ H2-context-loss wiring — a forced-cold run must not silently drop conversation history
+  ✔ imports agentCarriesOwnMemory and wouldForcedColdStartLoseConversationContext from the pure decision module (0.418745ms)
+  ✔ getSessionId is looked up unconditionally (not gated behind !hasConcurrentLiveRun) so the risky case is even detectable (0.343854ms)
+  ✔ the context-loss check runs, and refuses the run (finish + return), strictly before agentExecutor.run is called (0.38754ms)
+  ✔ effectiveResumeSessionId (not the raw storedSessionId) is what attemptedResumeSessionId and resolveResumeSessionField consume (0.390016ms)
+✔ H2-context-loss wiring — a forced-cold run must not silently drop conversation history (1.908404ms)
+▶ Send right after Stop — wait for the stopped run, and say why when refusing
+  ✔ waits for a stopped run on the same chat before deciding whether another run holds the session (0.221547ms)
+  ✔ the concurrent-run refusal puts its plain reason on the run's stream (0.064209ms)
+✔ Send right after Stop — wait for the stopped run, and say why when refusing (0.392004ms)
+✔ onStarted's real stream clears only the resumed conversation-agent binding (74.561417ms)
+✔ onStarted's real stream persists the CLI's reconfirmed session (26.923397ms)
+✔ onStarted refuses a concurrent memory-carrying run and never dispatches a cold executor call (42.396715ms)
+✔ onStarted registers the conversation synchronously while instruction refresh is held (28.585202ms)
+✔ fresh and resumed in-app launches honor user MCP undefined and disclose native permissions (106.553007ms)
+✔ fresh and resumed in-app launches honor user MCP false and disclose native permissions (89.095321ms)
+✔ fresh and resumed in-app launches honor user MCP true and disclose native permissions (56.534159ms)
+ℹ tests 20
+ℹ suites 4
+ℹ pass 20
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3224.184808

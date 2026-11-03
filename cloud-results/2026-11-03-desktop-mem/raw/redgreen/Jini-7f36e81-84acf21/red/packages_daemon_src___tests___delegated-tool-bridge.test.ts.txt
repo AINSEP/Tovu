@@ -1,8 +1,8 @@
 
  RUN  v2.1.9 /home/user/wt-Jini/packages/daemon
 
- ❯ src/__tests__/delegated-tool-bridge.test.ts (23 tests | 3 failed) 75ms
-   × DelegatedToolBridge > routes one allowed and one denied delegated call through ToolExecutor with matching run events and audits 18ms
+ ❯ src/__tests__/delegated-tool-bridge.test.ts (23 tests | 3 failed) 52ms
+   × DelegatedToolBridge > routes one allowed and one denied delegated call through ToolExecutor with matching run events and audits 17ms
      → expected [ { type: 'tool_use', …(3) }, …(3) ] to deeply equal [ { type: 'tool_use', …(4) }, …(3) ]
    × DelegatedToolBridge > rethrows and records an error tool_result when ToolExecutor.execute throws before producing a result 3ms
      → expected [ { type: 'tool_use', …(3) }, …(1) ] to deeply equal [ { type: 'tool_use', …(4) }, …(1) ]
@@ -125,6 +125,6 @@ AssertionError: expected [ { type: 'tool_use', …(3) }, …(1) ] to deeply equa
 
  Test Files  1 failed (1)
       Tests  3 failed | 20 passed (23)
-   Start at  21:08:23
-   Duration  4.65s (transform 2.67s, setup 0ms, collect 4.23s, tests 75ms, environment 0ms, prepare 96ms)
+   Start at  21:15:42
+   Duration  3.35s (transform 1.89s, setup 0ms, collect 3.04s, tests 52ms, environment 0ms, prepare 74ms)
 

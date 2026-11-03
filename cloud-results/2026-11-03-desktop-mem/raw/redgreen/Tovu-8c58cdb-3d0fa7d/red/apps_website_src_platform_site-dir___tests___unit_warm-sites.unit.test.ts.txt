@@ -1,0 +1,32 @@
+✔ reopening a warm site makes the other idle site the next eviction candidate (2.681462ms)
+✔ opening a fourth warm site evicts the least recently opened idle site and keeps busy work alive (0.853337ms)
+✔ a source-watch host restart retains the URLs of evicted sites too (0.996917ms)
+✔ a full warm pool refuses admission when every child has active or unprovable work (0.920971ms)
+✖ a warm site resumes serving and readiness observation after its termination fails (2.981654ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 4
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 832.460064
+
+✖ failing tests:
+
+test at apps/website/src/platform/site-dir/__tests__/unit/warm-sites.unit.test.ts:1:3606
+✖ a warm site resumes serving and readiness observation after its termination fails (2.981654ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/platform/site-dir/__tests__/unit/warm-sites.unit.test.ts:79:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

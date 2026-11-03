@@ -1,0 +1,44 @@
+✖ owned site control inherits IPC without daemon credentials in its spawn environment (6.115578ms)
+✔ T5: a boot failure after long startup logs reports the final CLI error (10.107488ms)
+✔ a native spawn error preserves its cause and rejects only after child cleanup (6.866929ms)
+✔ an error after readiness cannot replace the handle, and the supervisor still receives exit (2.535349ms)
+✔ the default Windows stop invokes taskkill for the whole tree and waits for child exit (5.50088ms)
+ℹ Error: Test "owned site control inherits IPC without daemon credentials in its spawn environment" at src/tovu-server-failures.test.ts:46:1 generated asynchronous activity after the test ended. This activity created the error "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
++ actual - expected
+
+  [
+    'ignore',
+    'pipe',
+    'pipe',
+-   'ipc'
+  ]
+" and would have caused the test to fail, but instead triggered an unhandledRejection event.
+ℹ tests 5
+ℹ suites 0
+ℹ pass 4
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 384.129528
+
+✖ failing tests:
+
+test at src/tovu-server-failures.test.ts:46:1
+✖ owned site control inherits IPC without daemon credentials in its spawn environment (6.115578ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  false !== true
+  
+      at TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/tovu-server-failures.test.ts:62:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

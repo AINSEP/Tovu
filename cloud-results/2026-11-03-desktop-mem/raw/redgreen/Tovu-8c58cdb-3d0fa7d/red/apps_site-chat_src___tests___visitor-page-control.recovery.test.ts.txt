@@ -1,0 +1,28 @@
+✖ visitor page actions recover after a dropped stream before the next message is sent (129.36643ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2436.708962
+
+✖ failing tests:
+
+test at apps/site-chat/src/__tests__/visitor-page-control.recovery.test.ts:1:269
+✖ visitor page actions recover after a dropped stream before the next message is sent (129.36643ms)
+  AssertionError [ERR_ASSERTION]: the next send must wait for a new binding
+  
+  true !== false
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/site-chat/src/__tests__/visitor-page-control.recovery.test.ts:34:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

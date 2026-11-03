@@ -1,0 +1,12 @@
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+
+ RUN  v2.1.9 /home/user/wt-Jini
+
+ ✓ scripts/__tests__/check-agent-plugin-content.test.ts (20 tests) 606ms
+   ✓ agent plugin content imports > the checked-in agent plugin content passes 500ms
+
+ Test Files  1 passed (1)
+      Tests  20 passed (20)
+   Start at  21:10:44
+   Duration  1.74s (transform 162ms, setup 0ms, collect 631ms, tests 606ms, environment 0ms, prepare 83ms)
+

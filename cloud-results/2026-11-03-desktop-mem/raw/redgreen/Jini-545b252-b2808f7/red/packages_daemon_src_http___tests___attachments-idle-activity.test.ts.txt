@@ -1,8 +1,8 @@
 
  RUN  v2.1.9 /home/user/wt-Jini/packages/daemon
 
- ❯ src/http/__tests__/attachments-idle-activity.test.ts (2 tests | 2 failed) 10ms
-   × upload holds activity through cleanup after the response closes 8ms
+ ❯ src/http/__tests__/attachments-idle-activity.test.ts (2 tests | 2 failed) 17ms
+   × upload holds activity through cleanup after the response closes 12ms
      → expected "spy" to be called 1 times, but got 0 times
    × cleanup holds activity through cleanup after the response closes 1ms
      → expected "spy" to be called 1 times, but got 0 times
@@ -24,6 +24,6 @@ AssertionError: expected "spy" to be called 1 times, but got 0 times
 
  Test Files  1 failed (1)
       Tests  2 failed (2)
-   Start at  21:07:36
-   Duration  1.44s (transform 694ms, setup 0ms, collect 1.11s, tests 10ms, environment 0ms, prepare 95ms)
+   Start at  21:15:02
+   Duration  1.40s (transform 651ms, setup 0ms, collect 1.13s, tests 17ms, environment 0ms, prepare 71ms)
 

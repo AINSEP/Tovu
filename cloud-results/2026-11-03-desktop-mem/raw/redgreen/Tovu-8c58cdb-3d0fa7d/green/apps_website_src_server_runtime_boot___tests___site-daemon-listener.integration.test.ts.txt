@@ -1,0 +1,65 @@
+SyntaxError: Expected property name or '}' in JSON at position 1 (line 1 column 2)
+    at JSON.parse (<anonymous>)
+    at parse (/home/user/Tovu/node_modules/body-parser/lib/types/json.js:92:19)
+    at /home/user/Tovu/node_modules/body-parser/lib/read.js:128:18
+    at AsyncResource.runInAsyncScope (node:async_hooks:227:14)
+    at invokeCallback (/home/user/Tovu/node_modules/raw-body/index.js:238:16)
+    at done (/home/user/Tovu/node_modules/raw-body/index.js:227:7)
+    at IncomingMessage.onEnd (/home/user/Tovu/node_modules/raw-body/index.js:287:7)
+    at IncomingMessage.emit (node:events:514:28)
+    at endReadableNT (node:internal/streams/readable:1783:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+✖ chat can reach authenticated retained state when the site listens on http://192.168.1.20:4200 (83.140189ms)
+SyntaxError: Expected property name or '}' in JSON at position 1 (line 1 column 2)
+    at JSON.parse (<anonymous>)
+    at parse (/home/user/Tovu/node_modules/body-parser/lib/types/json.js:92:19)
+    at /home/user/Tovu/node_modules/body-parser/lib/read.js:128:18
+    at AsyncResource.runInAsyncScope (node:async_hooks:227:14)
+    at invokeCallback (/home/user/Tovu/node_modules/raw-body/index.js:238:16)
+    at done (/home/user/Tovu/node_modules/raw-body/index.js:227:7)
+    at IncomingMessage.onEnd (/home/user/Tovu/node_modules/raw-body/index.js:287:7)
+    at IncomingMessage.emit (node:events:514:28)
+    at endReadableNT (node:internal/streams/readable:1783:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+✖ chat can reach authenticated retained state when the site listens on https://[2001:db8::20]:4200 (30.882164ms)
+✔ a loopback-bound site reuses its existing callback listener (0.671599ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 1
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2407.569365
+
+✖ failing tests:
+
+test at apps/website/src/server/runtime/boot/__tests__/site-daemon-listener.integration.test.ts:1:676
+✖ chat can reach authenticated retained state when the site listens on http://192.168.1.20:4200 (83.140189ms)
+  AssertionError [ERR_ASSERTION]: authentication precedes parsing and browser origins stay refused
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/server/runtime/boot/__tests__/site-daemon-listener.integration.test.ts:37:16)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/runtime/boot/__tests__/site-daemon-listener.integration.test.ts:1:676
+✖ chat can reach authenticated retained state when the site listens on https://[2001:db8::20]:4200 (30.882164ms)
+  AssertionError [ERR_ASSERTION]: authentication precedes parsing and browser origins stay refused
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/server/runtime/boot/__tests__/site-daemon-listener.integration.test.ts:37:16)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

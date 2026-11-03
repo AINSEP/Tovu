@@ -1,0 +1,56 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/mcp
+
+stdout | src/federation/__tests__/mcp-federation.bootstrap.test.ts > defaultConnect hands the hosted transport callTimeoutMs as its per-request bound, matching the stdio arm — not connectTimeoutMs
+agent-daemon mcp-federation: 'hosted-vendor' registered 0 federated tool(s): (none)
+
+stdout | src/federation/__tests__/mcp-federation.bootstrap.test.ts > attachFederatedMcpTools stamps preset connections with a preset origin, for external-mcp-revocation.ts's roster/preset split
+agent-daemon mcp-federation: 'hosted-vendor' registered 1 federated tool(s): mcp__hosted-vendor__ping
+
+stderr | src/federation/__tests__/mcp-federation.bootstrap.test.ts > a connect timeout produces a human-readable connectFailures entry with no report entry, for the connection admin admissions must surface
+agent-daemon mcp-federation: 'namecom' failed, continuing without its tools — Error: connect timed out after 15000ms
+    at connect (/home/user/wt-Jini/packages/mcp/src/federation/__tests__/mcp-federation.bootstrap.test.ts:221:13)
+    at attachOneFederatedConnection (/home/user/wt-Jini/packages/mcp/src/federation/bootstrap.ts:276:21)
+    at attachFederatedMcpTools (/home/user/wt-Jini/packages/mcp/src/federation/bootstrap.ts:197:28)
+    at /home/user/wt-Jini/packages/mcp/src/federation/__tests__/mcp-federation.bootstrap.test.ts:220:24
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:5
+    at runTest (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:11)
+    at runSuite (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
+    at startTests (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1271:3)
+
+ ❯ src/federation/__tests__/mcp-federation.bootstrap.test.ts (6 tests | 2 failed) 383ms
+   ✓ defaultConnect hands the hosted transport callTimeoutMs as its per-request bound, matching the stdio arm — not connectTimeoutMs 356ms
+   × connection failure details keep credentials private after connect fails 5ms
+     → caller-visible reason leaked operator
+   × connection failure details keep credentials private after listTools fails 2ms
+     → caller-visible reason leaked operator
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/federation/__tests__/mcp-federation.bootstrap.test.ts > connection failure details keep credentials private after connect fails
+ FAIL  src/federation/__tests__/mcp-federation.bootstrap.test.ts > connection failure details keep credentials private after listTools fails
+AssertionError: caller-visible reason leaked operator
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/federation/__tests__/mcp-federation.bootstrap.test.ts:246:14
+    244|     const reason = result.connectFailures[0]!.reason;
+    245|     for (const secret of ['operator', 'url-password', 'query-secret', …
+    246|       assert.ok(!reason.includes(secret), `caller-visible reason leake…
+       |              ^
+    247|       assert.ok(messages.every(message => !message.includes(secret)), …
+    248|     }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 4 passed (6)
+   Start at  21:11:30
+   Duration  1.10s (transform 504ms, setup 0ms, collect 354ms, tests 383ms, environment 0ms, prepare 106ms)
+

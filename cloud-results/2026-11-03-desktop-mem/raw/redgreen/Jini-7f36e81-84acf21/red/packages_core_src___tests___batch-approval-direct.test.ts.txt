@@ -1,8 +1,8 @@
 
  RUN  v2.1.9 /home/user/wt-Jini/packages/core
 
- ❯ src/__tests__/batch-approval-direct.test.ts (2 tests | 1 failed) 15ms
-   × a batch of actions needing no approval completes without opening a card 13ms
+ ❯ src/__tests__/batch-approval-direct.test.ts (2 tests | 1 failed) 13ms
+   × a batch of actions needing no approval completes without opening a card 12ms
      → expected { executed: false } to deeply equal { batch: true, total: 2, …(1) }
 
 ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
@@ -35,6 +35,6 @@ AssertionError: expected { executed: false } to deeply equal { batch: true, tota
 
  Test Files  1 failed (1)
       Tests  1 failed | 1 passed (2)
-   Start at  21:08:20
-   Duration  529ms (transform 179ms, setup 0ms, collect 232ms, tests 15ms, environment 0ms, prepare 82ms)
+   Start at  21:15:40
+   Duration  496ms (transform 167ms, setup 0ms, collect 203ms, tests 13ms, environment 0ms, prepare 83ms)
 

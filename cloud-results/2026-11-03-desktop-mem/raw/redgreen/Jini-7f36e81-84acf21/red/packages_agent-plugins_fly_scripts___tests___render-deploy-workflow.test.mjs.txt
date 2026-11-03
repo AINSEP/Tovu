@@ -1,13 +1,13 @@
-✔ a region keeps its operator default unless a block replaces the whole region (1.788163ms)
-✔ an empty default region renders nothing, and a block with a trailing blank line keeps it (0.32603ms)
-✔ placeholders are filled in the template and inside blocks; a missing value throws instead of shipping the token (0.596999ms)
-✔ a block for a region the template does not have throws, so a stale values file cannot drop a step (0.214983ms)
-✔ malformed regions are template errors (0.333202ms)
-✔ the shipped template is host-neutral: its operator render has placeholders but no host text or markers (0.710364ms)
-✔ renderFromValues resolves block files against the values file's own folder (1.185497ms)
-✔ the CLI refuses a missing --values or --repo-root, writes the render, and --check reports a stale file (1.809815ms)
-✖ an empty replacement block removes the region without adding a blank workflow line (1.538746ms)
-✖ Windows workflow checkouts recognize regions and normalize template and block line endings (0.911352ms)
+✔ a region keeps its operator default unless a block replaces the whole region (1.811422ms)
+✔ an empty default region renders nothing, and a block with a trailing blank line keeps it (1.022367ms)
+✔ placeholders are filled in the template and inside blocks; a missing value throws instead of shipping the token (0.6967ms)
+✔ a block for a region the template does not have throws, so a stale values file cannot drop a step (0.207426ms)
+✔ malformed regions are template errors (0.348848ms)
+✔ the shipped template is host-neutral: its operator render has placeholders but no host text or markers (0.715225ms)
+✔ renderFromValues resolves block files against the values file's own folder (1.467066ms)
+✔ the CLI refuses a missing --values or --repo-root, writes the render, and --check reports a stale file (0.556764ms)
+✖ an empty replacement block removes the region without adding a blank workflow line (1.329231ms)
+✖ Windows workflow checkouts recognize regions and normalize template and block line endings (0.689263ms)
 ℹ tests 10
 ℹ suites 0
 ℹ pass 8
@@ -15,12 +15,12 @@
 ℹ cancelled 0
 ℹ skipped 0
 ℹ todo 0
-ℹ duration_ms 109.313783
+ℹ duration_ms 122.92402
 
 ✖ failing tests:
 
 test at packages/agent-plugins/fly/scripts/__tests__/render-deploy-workflow.test.mjs:97:1
-✖ an empty replacement block removes the region without adding a blank workflow line (1.538746ms)
+✖ an empty replacement block removes the region without adding a blank workflow line (1.329231ms)
   AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
   + actual - expected
   
@@ -44,7 +44,7 @@ test at packages/agent-plugins/fly/scripts/__tests__/render-deploy-workflow.test
   }
 
 test at packages/agent-plugins/fly/scripts/__tests__/render-deploy-workflow.test.mjs:102:1
-✖ Windows workflow checkouts recognize regions and normalize template and block line endings (0.911352ms)
+✖ Windows workflow checkouts recognize regions and normalize template and block line endings (0.689263ms)
   AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
   + actual - expected
   

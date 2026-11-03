@@ -1,0 +1,25 @@
+/home/user/Tovu/apps/website/src/server/runtime/lifecycle/local-site-host.ts:7
+import { LocalSiteError, startLocalSiteWhenRunning } from "#src/platform/site-dir/index";
+                         ^
+SyntaxError: The requested module '#src/platform/site-dir/index' does not provide an export named 'startLocalSiteWhenRunning'
+    at #asyncInstantiate (node:internal/modules/esm/module_job:455:21)
+    at async ModuleJob.run (node:internal/modules/esm/module_job:553:5)
+    at async node:internal/modules/esm/loader:647:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v24.22.2
+✖ apps/website/src/server/runtime/composition/__tests__/create-site-route-deps.pglite.integration.test.ts (9050.319227ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9064.527099
+
+✖ failing tests:
+
+test at apps/website/src/server/runtime/composition/__tests__/create-site-route-deps.pglite.integration.test.ts:1:1
+✖ apps/website/src/server/runtime/composition/__tests__/create-site-route-deps.pglite.integration.test.ts (9050.319227ms)
+  'test failed'

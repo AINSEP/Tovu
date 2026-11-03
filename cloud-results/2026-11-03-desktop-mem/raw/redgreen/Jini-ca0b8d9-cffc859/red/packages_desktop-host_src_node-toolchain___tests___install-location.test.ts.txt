@@ -13,6 +13,6 @@ Error: Failed to load url ../install-location.js (resolved id: ../install-locati
 
  Test Files  1 failed (1)
       Tests  no tests
-   Start at  21:07:53
-   Duration  448ms (transform 77ms, setup 0ms, collect 0ms, tests 0ms, environment 0ms, prepare 105ms)
+   Start at  21:15:16
+   Duration  392ms (transform 71ms, setup 0ms, collect 0ms, tests 0ms, environment 0ms, prepare 95ms)
 

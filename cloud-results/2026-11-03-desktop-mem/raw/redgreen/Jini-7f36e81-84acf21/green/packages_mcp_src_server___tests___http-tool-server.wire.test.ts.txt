@@ -1,0 +1,11 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/mcp
+
+ ✓ src/server/__tests__/http-tool-server.wire.test.ts (6 tests) 3250ms
+   ✓ closing the listener drains accepted tool work without cutting it off 3025ms
+
+ Test Files  1 passed (1)
+      Tests  6 passed (6)
+   Start at  21:10:16
+   Duration  4.88s (transform 613ms, setup 0ms, collect 1.26s, tests 3.25s, environment 0ms, prepare 79ms)
+

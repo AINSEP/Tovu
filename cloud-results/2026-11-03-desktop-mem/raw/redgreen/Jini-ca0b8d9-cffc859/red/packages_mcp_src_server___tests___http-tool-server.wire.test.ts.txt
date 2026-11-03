@@ -1,12 +1,12 @@
 
  RUN  v2.1.9 /home/user/wt-Jini/packages/mcp
 
- ❯ src/server/__tests__/http-tool-server.wire.test.ts (8 tests | 2 failed) 3324ms
-   × an embedding waiting during initial bind failure receives the recovered capability 14ms
+ ❯ src/server/__tests__/http-tool-server.wire.test.ts (8 tests | 2 failed) 3201ms
+   × an embedding waiting during initial bind failure receives the recovered capability 8ms
      → runtime.subscribe is not a function
    × capability delivery retries failures and unsubscribe cancels further delivery 1ms
      → runtime.subscribe is not a function
-   ✓ closing the listener drains accepted tool work without cutting it off 3031ms
+   ✓ closing the listener drains accepted tool work without cutting it off 3015ms
 
 ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
 
@@ -36,6 +36,6 @@ TypeError: runtime.subscribe is not a function
 
  Test Files  1 failed (1)
       Tests  2 failed | 6 passed (8)
-   Start at  21:07:54
-   Duration  4.67s (transform 502ms, setup 0ms, collect 971ms, tests 3.32s, environment 0ms, prepare 74ms)
+   Start at  21:15:17
+   Duration  4.39s (transform 455ms, setup 0ms, collect 925ms, tests 3.20s, environment 1ms, prepare 79ms)
 

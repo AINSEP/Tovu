@@ -1,0 +1,9 @@
+✔ daemon attachment and catalog fixtures inspect the site factory while shutdown fixtures inspect the process entry (1.74933ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2139.501199

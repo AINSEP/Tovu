@@ -1,0 +1,124 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/agent-plugins
+
+ ❯ src/lifecycle/__tests__/unit/manifest-default-namespace.unit.test.ts (9 tests | 4 failed) 62ms
+   × portable plugin identity without a host namespace > a host-neutral caller reads jini identity and compatibility metadata before legacy metadata 41ms
+     → expected { ok: true, manifest: { …(11) }, …(1) } to match object { ok: true, manifest: { …(4) } }
+(10 matching properties omitted from actual)
+   × portable plugin identity without a host namespace > an invalid jini identity is refused even when the legacy identity is valid 7ms
+     → expected true to be false // Object.is equality
+   × portable plugin identity without a host namespace > a malformed jini extension is refused rather than replaced with legacy metadata 3ms
+     → expected true to be false // Object.is equality
+   × portable plugin identity without a host namespace > a present empty jini extension does not inherit legacy identity or capabilities 4ms
+     → expected { ok: true, manifest: { …(11) }, …(1) } to match object { ok: true, manifest: { …(2) } }
+(12 matching properties omitted from actual)
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lifecycle/__tests__/unit/manifest-default-namespace.unit.test.ts > portable plugin identity without a host namespace > a host-neutral caller reads jini identity and compatibility metadata before legacy metadata
+AssertionError: expected { ok: true, manifest: { …(11) }, …(1) } to match object { ok: true, manifest: { …(4) } }
+(10 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  Object {
+    "manifest": Object {
+-     "hostRange": "^2.0.0",
+-     "id": "publisher/stock",
++     "hostRange": "^1.0.0",
++     "id": "publisher/legacy-stock",
+      "provides": Array [
+-       "stock-data",
++       "legacy-data",
+      ],
+      "requires": Array [
+-       "quotes",
++       "account",
+      ],
+    },
+    "ok": true,
+  }
+
+ ❯ src/lifecycle/__tests__/unit/manifest-default-namespace.unit.test.ts:13:49
+     11|   test('a host-neutral caller reads jini identity and compatibility me…
+     12|     const value = { ...base, extensions: { jini: neutral, tovu: legacy…
+     13|     expect(parseAgentPluginManifest({ value })).toMatchObject({ ok: tr…
+       |                                                 ^
+     14|     expect(validatePluginManifest({ value })).toBe(true);
+     15|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  src/lifecycle/__tests__/unit/manifest-default-namespace.unit.test.ts > portable plugin identity without a host namespace > an invalid jini identity is refused even when the legacy identity is valid
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ src/lifecycle/__tests__/unit/manifest-default-namespace.unit.test.ts:19:52
+     17|   test('an invalid jini identity is refused even when the legacy ident…
+     18|     const value = { ...base, extensions: { jini: { id: 'invalid identi…
+     19|     expect(parseAgentPluginManifest({ value }).ok).toBe(false);
+       |                                                    ^
+     20|     expect(validatePluginManifest({ value })).toBe(false);
+     21|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ FAIL  src/lifecycle/__tests__/unit/manifest-default-namespace.unit.test.ts > portable plugin identity without a host namespace > a malformed jini extension is refused rather than replaced with legacy metadata
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ src/lifecycle/__tests__/unit/manifest-default-namespace.unit.test.ts:25:52
+     23|   test('a malformed jini extension is refused rather than replaced wit…
+     24|     const value = { ...base, extensions: { jini: null, tovu: legacy } …
+     25|     expect(parseAgentPluginManifest({ value }).ok).toBe(false);
+       |                                                    ^
+     26|     expect(validatePluginManifest({ value })).toBe(false);
+     27|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+ FAIL  src/lifecycle/__tests__/unit/manifest-default-namespace.unit.test.ts > portable plugin identity without a host namespace > a present empty jini extension does not inherit legacy identity or capabilities
+AssertionError: expected { ok: true, manifest: { …(11) }, …(1) } to match object { ok: true, manifest: { …(2) } }
+(12 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  Object {
+    "manifest": Object {
+-     "id": "unknown/stock",
+-     "provides": Array [],
++     "id": "publisher/legacy-stock",
++     "provides": Array [
++       "legacy-data",
++     ],
+    },
+    "ok": true,
+  }
+
+ ❯ src/lifecycle/__tests__/unit/manifest-default-namespace.unit.test.ts:31:49
+     29|   test('a present empty jini extension does not inherit legacy identit…
+     30|     const value = { ...base, extensions: { jini: {}, tovu: legacy } };
+     31|     expect(parseAgentPluginManifest({ value })).toMatchObject({ ok: tr…
+       |                                                 ^
+     32|   });
+     33| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
+
+ Test Files  1 failed (1)
+      Tests  4 failed | 5 passed (9)
+   Start at  21:11:07
+   Duration  716ms (transform 218ms, setup 0ms, collect 315ms, tests 62ms, environment 0ms, prepare 91ms)
+

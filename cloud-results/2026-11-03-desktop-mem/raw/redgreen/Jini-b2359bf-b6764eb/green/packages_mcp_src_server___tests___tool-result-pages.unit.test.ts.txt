@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/mcp
+
+ ✓ src/server/__tests__/tool-result-pages.unit.test.ts (11 tests) 18ms
+
+ Test Files  1 passed (1)
+      Tests  11 passed (11)
+   Start at  21:12:43
+   Duration  931ms (transform 395ms, setup 0ms, collect 598ms, tests 18ms, environment 0ms, prepare 101ms)
+

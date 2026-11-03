@@ -1,0 +1,108 @@
+✔ post-boot uploaded attachment resolves through the daemon owner (147.990687ms)
+✔ attachment lookup refuses missing and run-scoped credentials before parsing (40.917163ms)
+✖ delegation records tool_use and tool_result (4035.848043ms)
+✖ cancel aborts the server handler (0.95786ms)
+✖ committed write with dropped response dispatches once (0.780277ms)
+✖ memory site writes are visible in the server (2.502587ms)
+✖ read-only delegation refuses a server write before routing it (0.628378ms)
+✖ a dropped remote write remains unknown to the durable gateway and a blind repeat is refused (0.877101ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 2
+ℹ fail 6
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6946.087105
+
+✖ failing tests:
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-remote-tools.integration.test.ts:1:8697
+✖ delegation records tool_use and tool_result (4035.848043ms)
+  /home/user/wt-Tovu/apps/website/src/assistant/external-mcp-federation-runtime.ts:5
+  import { attachFederatedMcpTools, resolveRegisteredPresets, type FederationLogger } from "./mcp-federation/bootstrap.js";
+                                    ^
+  SyntaxError: The requested module './mcp-federation/bootstrap.js' does not provide an export named 'resolveRegisteredPresets'
+      at #asyncInstantiate (node:internal/modules/esm/module_job:455:21)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async ModuleJob.run (node:internal/modules/esm/module_job:553:5)
+      at async node:internal/modules/esm/loader:647:26
+      at async bootDaemonRpc (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-remote-tools.integration.test.ts:83:31)
+      at async TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-remote-tools.integration.test.ts:140:19)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-remote-tools.integration.test.ts:1:9062
+✖ cancel aborts the server handler (0.95786ms)
+  /home/user/wt-Tovu/apps/website/src/assistant/external-mcp-federation-runtime.ts:5
+  import { attachFederatedMcpTools, resolveRegisteredPresets, type FederationLogger } from "./mcp-federation/bootstrap.js";
+                                    ^
+  SyntaxError: The requested module './mcp-federation/bootstrap.js' does not provide an export named 'resolveRegisteredPresets'
+      at #asyncInstantiate (node:internal/modules/esm/module_job:455:21)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async ModuleJob.run (node:internal/modules/esm/module_job:553:5)
+      at async node:internal/modules/esm/loader:647:26
+      at async bootDaemonRpc (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-remote-tools.integration.test.ts:83:31)
+      at async TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-remote-tools.integration.test.ts:140:19)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-remote-tools.integration.test.ts:1:9313
+✖ committed write with dropped response dispatches once (0.780277ms)
+  /home/user/wt-Tovu/apps/website/src/assistant/external-mcp-federation-runtime.ts:5
+  import { attachFederatedMcpTools, resolveRegisteredPresets, type FederationLogger } from "./mcp-federation/bootstrap.js";
+                                    ^
+  SyntaxError: The requested module './mcp-federation/bootstrap.js' does not provide an export named 'resolveRegisteredPresets'
+      at #asyncInstantiate (node:internal/modules/esm/module_job:455:21)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async ModuleJob.run (node:internal/modules/esm/module_job:553:5)
+      at async node:internal/modules/esm/loader:647:26
+      at async bootDaemonRpc (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-remote-tools.integration.test.ts:83:31)
+      at async TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-remote-tools.integration.test.ts:140:19)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-remote-tools.integration.test.ts:1:9738
+✖ memory site writes are visible in the server (2.502587ms)
+  /home/user/wt-Tovu/apps/website/src/assistant/external-mcp-federation-runtime.ts:5
+  import { attachFederatedMcpTools, resolveRegisteredPresets, type FederationLogger } from "./mcp-federation/bootstrap.js";
+                                    ^
+  SyntaxError: The requested module './mcp-federation/bootstrap.js' does not provide an export named 'resolveRegisteredPresets'
+      at #asyncInstantiate (node:internal/modules/esm/module_job:455:21)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async ModuleJob.run (node:internal/modules/esm/module_job:553:5)
+      at async node:internal/modules/esm/loader:647:26
+      at async bootDaemonRpc (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-remote-tools.integration.test.ts:83:31)
+      at async TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-remote-tools.integration.test.ts:140:19)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-remote-tools.integration.test.ts:1:10051
+✖ read-only delegation refuses a server write before routing it (0.628378ms)
+  /home/user/wt-Tovu/apps/website/src/assistant/external-mcp-federation-runtime.ts:5
+  import { attachFederatedMcpTools, resolveRegisteredPresets, type FederationLogger } from "./mcp-federation/bootstrap.js";
+                                    ^
+  SyntaxError: The requested module './mcp-federation/bootstrap.js' does not provide an export named 'resolveRegisteredPresets'
+      at #asyncInstantiate (node:internal/modules/esm/module_job:455:21)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async ModuleJob.run (node:internal/modules/esm/module_job:553:5)
+      at async node:internal/modules/esm/loader:647:26
+      at async bootDaemonRpc (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-remote-tools.integration.test.ts:83:31)
+      at async TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-remote-tools.integration.test.ts:140:19)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-remote-tools.integration.test.ts:1:10668
+✖ a dropped remote write remains unknown to the durable gateway and a blind repeat is refused (0.877101ms)
+  /home/user/wt-Tovu/apps/website/src/assistant/external-mcp-federation-runtime.ts:5
+  import { attachFederatedMcpTools, resolveRegisteredPresets, type FederationLogger } from "./mcp-federation/bootstrap.js";
+                                    ^
+  SyntaxError: The requested module './mcp-federation/bootstrap.js' does not provide an export named 'resolveRegisteredPresets'
+      at #asyncInstantiate (node:internal/modules/esm/module_job:455:21)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async ModuleJob.run (node:internal/modules/esm/module_job:553:5)
+      at async node:internal/modules/esm/loader:647:26
+      at async bootDaemonRpc (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-remote-tools.integration.test.ts:83:31)
+      at async TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-remote-tools.integration.test.ts:140:19)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)

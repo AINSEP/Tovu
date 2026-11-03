@@ -1,8 +1,8 @@
 
  RUN  v2.1.9 /home/user/wt-Jini/packages/sidecar
 
- ❯ src/__tests__/supervisor.test.ts (35 tests | 1 failed) 5020ms
-   × demand already discovering a parking child carries over to its replacement 5006ms
+ ❯ src/__tests__/supervisor.test.ts (35 tests | 1 failed) 5017ms
+   × demand already discovering a parking child carries over to its replacement 5003ms
      → Test timed out in 5000ms.
 If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
 
@@ -15,6 +15,6 @@ If this is a long-running test, pass a timeout value as the last argument or con
 
  Test Files  1 failed (1)
       Tests  1 failed | 34 passed (35)
-   Start at  21:07:46
-   Duration  5.58s (transform 176ms, setup 0ms, collect 209ms, tests 5.02s, environment 0ms, prepare 101ms)
+   Start at  21:15:10
+   Duration  5.40s (transform 101ms, setup 0ms, collect 115ms, tests 5.02s, environment 0ms, prepare 78ms)
 

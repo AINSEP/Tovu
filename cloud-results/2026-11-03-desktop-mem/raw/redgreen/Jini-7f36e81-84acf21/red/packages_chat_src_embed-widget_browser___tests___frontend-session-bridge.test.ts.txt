@@ -1,18 +1,18 @@
 
  RUN  v2.1.9 /home/user/wt-Jini/packages/chat
 
- ❯ src/embed-widget/browser/__tests__/frontend-session-bridge.test.ts (15 tests | 10 failed) 326ms
-   × park closes the stream and clears the token 18ms
+ ❯ src/embed-widget/browser/__tests__/frontend-session-bridge.test.ts (15 tests | 10 failed) 310ms
+   × park closes the stream and clears the token 11ms
      → expected "spy" to be called once, but got 0 times
-   × rebind waits for a fresh attached frame after prior readiness 7ms
+   × rebind waits for a fresh attached frame after prior readiness 1ms
      → bridge.rebind is not a function
    × concurrent rebinds share one stream and Stop cancels only its own wait 1ms
      → bridge.rebind is not a function
-   × a visibility suspension invalidates the token and retains transport ownership 2ms
+   × a visibility suspension invalidates the token and retains transport ownership 3ms
      → expected 'old-token' to be undefined
-   × park aborts page work before a fresh attachment can execute it 59ms
+   × park aborts page work before a fresh attachment can execute it 55ms
      → expected false to be true // Object.is equality
-   × park cannot acknowledge an old result into a fresh session 52ms
+   × park cannot acknowledge an old result into a fresh session 54ms
      → bridge.rebind is not a function
    × parked rejects a pending current attachment wait 1ms
      → bridge.rebind is not a function
@@ -20,7 +20,7 @@
      → bridge.rebind is not a function
    × close rejects a pending current attachment wait 1ms
      → bridge.rebind is not a function
-   × a parked fetch stream stays closed without scheduling native reconnect 18ms
+   × a parked fetch stream stays closed without scheduling native reconnect 9ms
      → expected false to be true // Object.is equality
 
 ⎯⎯⎯⎯⎯⎯ Failed Tests 10 ⎯⎯⎯⎯⎯⎯⎯
@@ -146,6 +146,6 @@ AssertionError: expected false to be true // Object.is equality
 
  Test Files  1 failed (1)
       Tests  10 failed | 5 passed (15)
-   Start at  21:08:11
-   Duration  2.12s (transform 787ms, setup 216ms, collect 1.20s, tests 326ms, environment 0ms, prepare 108ms)
+   Start at  21:15:32
+   Duration  2.10s (transform 854ms, setup 176ms, collect 1.32s, tests 310ms, environment 0ms, prepare 96ms)
 

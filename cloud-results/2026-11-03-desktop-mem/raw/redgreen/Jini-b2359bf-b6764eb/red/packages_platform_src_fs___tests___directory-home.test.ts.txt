@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/platform
+
+ ✓ src/fs/__tests__/directory-home.test.ts (8 tests) 19ms
+
+ Test Files  1 passed (1)
+      Tests  8 passed (8)
+   Start at  21:11:40
+   Duration  386ms (transform 93ms, setup 0ms, collect 93ms, tests 19ms, environment 0ms, prepare 89ms)
+

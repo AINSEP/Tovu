@@ -1,0 +1,72 @@
+✔ theme_write_file: replacing two theme files asks once and keeps both previous files restorable (96.984816ms)
+✔ theme_write_file: declining a replacement leaves files and revision history untouched (36.712997ms)
+✔ theme_edit_file: replacing two theme files asks once and keeps both previous files restorable (16.032227ms)
+✔ theme_edit_file: declining a replacement leaves files and revision history untouched (12.759631ms)
+✔ theme_reset_file: replacing two theme files asks once and keeps both previous files restorable (49.975294ms)
+✔ theme_reset_file: declining a replacement leaves files and revision history untouched (49.317719ms)
+✔ theme_import_file_from_url: replacing two theme files asks once and keeps both previous files restorable (15.36761ms)
+✔ theme_import_file_from_url: declining a replacement leaves files and revision history untouched (6.170536ms)
+✔ theme_import_local_file: replacing two theme files asks once and keeps both previous files restorable (34.795061ms)
+✔ theme_import_local_file: declining a replacement leaves files and revision history untouched (4.59535ms)
+✔ a newly created theme file needs no replacement card or revision (4.371302ms)
+✔ a theme replacement with no confirmation channel leaves current content unchanged (4.118079ms)
+✔ the previous theme revision can be restored through the existing restore tool (9.8875ms)
+✔ a later invalid theme destination prevents both earlier writes and a confirmation card (4.625087ms)
+✔ theme revisions refuse a trash symlink escaping the theme before replacing any bytes (3.214329ms)
+✔ a file changed while its confirmation is open is never overwritten (8.646515ms)
+✔ theme replacement history retains the latest 20 revisions without purging manually trashed files (28.199518ms)
+✖ a URL import preserves a destination created while its download waits (10.351585ms)
+✖ a URL import preserves a destination changed while its download waits (8.880136ms)
+✖ a committed theme replacement reloads even when an old revision cannot be pruned (29.149019ms)
+ℹ tests 20
+ℹ suites 0
+ℹ pass 17
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4005.956318
+
+✖ failing tests:
+
+test at apps/website/src/features/theme/__tests__/theme-file-safety.test.ts:1:8628
+✖ a URL import preserves a destination created while its download waits (10.351585ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/theme/__tests__/theme-file-safety.test.ts:182:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /changed.*review|changed.*retry/i,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/theme/__tests__/theme-file-safety.test.ts:1:8628
+✖ a URL import preserves a destination changed while its download waits (8.880136ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/theme/__tests__/theme-file-safety.test.ts:182:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /changed.*review|changed.*retry/i,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/theme/__tests__/theme-file-safety.test.ts:1:9620
+✖ a committed theme replacement reloads even when an old revision cannot be pruned (29.149019ms)
+  Error: EPERM: revision held open
+      at <anonymous> (/home/user/wt-Tovu/apps/website/src/features/theme/__tests__/theme-file-safety.test.ts:195:73)
+      at Object.apply (node:internal/test_runner/mock/mock:805:20)
+      at pruneThemeFileRevisions (/home/user/wt-Tovu/apps/website/src/features/theme/theme-files.ts:698:76)
+      at writeFileAtomically (/home/user/wt-Tovu/apps/website/src/features/theme/theme-files.ts:631:33)
+      at writeThemeFile (/home/user/wt-Tovu/apps/website/src/features/theme/theme-files.ts:765:3)
+      at Object.fn (/home/user/wt-Tovu/apps/website/src/features/theme/tool-registrations.ts:684:9)
+      at withSchemaOnRejection (/home/user/Jini/packages/core/src/registration-kit.ts:342:23)
+      at theme_write_file (/home/user/wt-Tovu/apps/website/src/features/theme/tool-registrations.ts:675:14)
+      at async TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/theme/__tests__/theme-file-safety.test.ts:203:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)

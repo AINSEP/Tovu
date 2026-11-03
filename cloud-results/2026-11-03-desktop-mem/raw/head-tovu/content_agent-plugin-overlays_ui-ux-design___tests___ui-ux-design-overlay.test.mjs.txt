@@ -1,0 +1,14 @@
+✔ the overlay retains exactly the approved Tovu chat rules before the theme QA rules (6.61076ms)
+✔ theme QA fails clipped headlines, horizontal overflow and large dead gaps (3.191916ms)
+✔ theme guidance scales display type to its container and refuses overflow masking (2.862956ms)
+✔ the overlay keeps the safety rules the in-skill copy carried (1.58431ms)
+✔ the overlay ships guidance only: no supporting files, nothing else to stage (2.427138ms)
+✔ the overlay is vendor-neutral: no model or vendor names (2.209815ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 721.245261

@@ -1,0 +1,46 @@
+✔ fxpid: plugin-host.ts has no imports or re-exports into feature/server/app layers (27.462575ms)
+✔ fxpid: plugin-install-source.ts has no imports or re-exports into feature/server/app layers (8.185499ms)
+✖ fxpid: plugin-export-catalog.ts has no imports or re-exports into feature/server/app layers (1.085625ms)
+✔ fxpid: chat-attachment.ts has no imports or re-exports into feature/server/app layers (6.545481ms)
+✔ fxpid: moved attachment vocabulary still validates and reads opaque install refs (1.474526ms)
+✔ install rejects a non-object source: undefined (0.295494ms)
+✔ install rejects a non-object source: null (0.141588ms)
+✔ install rejects a non-object source: "zip" (0.095125ms)
+✔ install rejects a non-object source: [] (0.103957ms)
+✔ install request refuses {"kind":"tar","path":"/tmp/plugin"} (0.233685ms)
+✔ install request refuses {"kind":"zip"} (0.118669ms)
+✔ install request refuses {"kind":"zip","path":"/tmp/plugin.zip","attachmentRef":"attachment:12345678"} (0.056678ms)
+✔ install request refuses {"kind":"folder","attachmentRef":"attachment:12345678"} (0.091654ms)
+✔ install request refuses {"kind":"zip","attachmentRef":12345678} (0.091764ms)
+✔ install request refuses {"kind":"zip","path":42} (0.061882ms)
+✔ install request refuses {"kind":"zip","path":"~/plugin.zip"} (0.490089ms)
+✔ install preserves absolute folder and ZIP paths and only accepts boolean replacement (0.408667ms)
+✔ install refuses unavailable attachments without interpreting their refs as disk paths (0.309322ms)
+✔ local archive reads accept the byte limit and reject missing and oversized files (13.980834ms)
+✔ local archive reads grown bytes before the final size refusal (reported, not fixed) (0.468182ms)
+✔ L079: invalid kind precedes source exclusivity and invalid path precedes replacement (0.182139ms)
+✔ L079: oversized stat prevents allocation and read failures propagate unchanged (0.374051ms)
+ℹ tests 22
+ℹ suites 0
+ℹ pass 21
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2069.692386
+
+✖ failing tests:
+
+test at apps/website/src/contracts/headless/__tests__/plugin-boundaries.test.ts:1:644
+✖ fxpid: plugin-export-catalog.ts has no imports or re-exports into feature/server/app layers (1.085625ms)
+  Error: ENOENT: no such file or directory, open '/home/user/wt-Tovu/apps/website/src/contracts/headless/plugin-export-catalog.ts'
+      at async open (node:internal/fs/promises:1345:25)
+      at async readFile (node:internal/fs/promises:2003:14)
+      at async TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/contracts/headless/__tests__/plugin-boundaries.test.ts:16:43)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '/home/user/wt-Tovu/apps/website/src/contracts/headless/plugin-export-catalog.ts'
+  }

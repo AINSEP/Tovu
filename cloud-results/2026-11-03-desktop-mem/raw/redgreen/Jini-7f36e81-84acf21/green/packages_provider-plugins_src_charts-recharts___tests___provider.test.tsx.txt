@@ -1,0 +1,35 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/provider-plugins
+
+ ❯ src/charts-recharts/__tests__/provider.test.tsx (6 tests | 3 failed) 110ms
+   × Recharts artifact through the neutral UI host and A2UI catalog > preserves the bar-chart wire alias while drawing real SVG 11ms
+     → expected [Function RegisteredChart] to be [Function RegisteredChart] // Object.is equality
+   × Recharts artifact through the neutral UI host and A2UI catalog > preserves the line-chart wire alias while drawing real SVG 2ms
+     → expected [Function RegisteredChart] to be [Function RegisteredChart] // Object.is equality
+   × Recharts artifact through the neutral UI host and A2UI catalog > preserves the pie-chart wire alias while drawing real SVG 2ms
+     → expected [Function RegisteredChart] to be [Function RegisteredChart] // Object.is equality
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/charts-recharts/__tests__/provider.test.tsx > Recharts artifact through the neutral UI host and A2UI catalog > preserves the bar-chart wire alias while drawing real SVG
+ FAIL  src/charts-recharts/__tests__/provider.test.tsx > Recharts artifact through the neutral UI host and A2UI catalog > preserves the line-chart wire alias while drawing real SVG
+ FAIL  src/charts-recharts/__tests__/provider.test.tsx > Recharts artifact through the neutral UI host and A2UI catalog > preserves the pie-chart wire alias while drawing real SVG
+AssertionError: expected [Function RegisteredChart] to be [Function RegisteredChart] // Object.is equality
+
+Compared values have no visual difference.
+
+ ❯ src/charts-recharts/__tests__/provider.test.tsx:29:29
+     27|     const selected = snapshot.resolveByCapability({ capability: kind }…
+     28|     expect(entry.provider).toBe('plugin.recharts');
+     29|     expect(entry.Component).toBe(selected.Component);
+       |                             ^
+     30|     expect(entry.propsSchema).toBe(selected.propsSchema);
+     31|     const props = kind === 'pie-chart' ? { data: [{ name: 'Draft', val…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ Test Files  1 failed (1)
+      Tests  3 failed | 3 passed (6)
+   Start at  21:10:38
+   Duration  1.79s (transform 416ms, setup 0ms, collect 1.01s, tests 110ms, environment 392ms, prepare 76ms)
+

@@ -1,0 +1,32 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/ui
+
+ ❯ src/features/mcp-ui/__tests__/surfaces/outcome-cancellation.test.ts (3 tests | 1 failed) 98ms
+   × Skip releases a waiting sign-in card through its exchange without opening the sign-in link 65ms
+     → expect(received).toHaveTextContent()
+
+received value must be a Node.
+
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/features/mcp-ui/__tests__/surfaces/outcome-cancellation.test.ts > Skip releases a waiting sign-in card through its exchange without opening the sign-in link
+Error: expect(received).toHaveTextContent()
+
+received value must be a Node.
+
+ ❯ src/features/mcp-ui/__tests__/surfaces/outcome-cancellation.test.ts:14:36
+     12| it('Skip releases a waiting sign-in card through its exchange without …
+     13|   const surface = mountSurface(renderOutcomeDocument(spec));
+     14|   expect(surface.button('cancel')).toHaveTextContent('Skip');
+       |                                    ^
+     15|   surface.trustedClick('open-link');
+     16|   expect(surface.api.openLink).toHaveBeenCalledWith(spec.openLinkUrl);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 2 passed (3)
+   Start at  21:13:15
+   Duration  1.47s (transform 339ms, setup 164ms, collect 428ms, tests 98ms, environment 400ms, prepare 86ms)
+

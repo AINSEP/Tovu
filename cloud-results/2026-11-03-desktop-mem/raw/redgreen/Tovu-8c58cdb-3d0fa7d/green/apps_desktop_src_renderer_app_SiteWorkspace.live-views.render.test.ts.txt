@@ -1,0 +1,19 @@
+✔ live views: five visited clean tabs keep at most two guests, the two most recently focused (183.465467ms)
+✔ live views: a hidden guest that vetoes keeps its guest, the focused tab mounts anyway, and the next focus change retries (87.940562ms)
+✔ live views: a guest that throws or never answers is kept (45.092792ms)
+✔ live views: focusing a released tab brings it back on its last route, then puts its scroll back once it loads (77.804836ms)
+✔ live views: the menu's limit is read from the bridge, and a change applies at once (115.050097ms)
+✔ live views: an older preload with no saved limit keeps one loaded site, the one on screen (39.496489ms)
+✔ live views: closing a tab forgets its released route (40.281968ms)
+✔ release probe: an editor's beforeunload guard says no (3.103857ms)
+✔ release probe: a jini:release-check veto says no (1.48022ms)
+✔ release probe: with no guard objecting it says yes, with the page url and scroll (5.293803ms)
+✔ release probe: an unsent public comment survives switching sites without a release listener (6.946161ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 10287.063521

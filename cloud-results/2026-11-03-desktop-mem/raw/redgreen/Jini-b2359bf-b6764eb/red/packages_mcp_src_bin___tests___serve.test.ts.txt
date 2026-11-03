@@ -1,0 +1,59 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/mcp
+
+daemon URL http://daemon.example is neither loopback nor HTTPS; traffic to a remote, non-HTTPS daemon is not encrypted. ❯ src/bin/__tests__/serve.test.ts (57 tests | 2 failed) 2067ms
+   × serve() — wiring, with a fully-injected fake createMcpToolServer > builds a tool list of RUN_TOOLS plus TOOL_CATALOG_TOOLS plus COMPONENT_CATALOG_TOOLS plus one execute_delegated_tool def, resources, name/version/instructions 14ms
+     → expected [ 'start_run', 'get_run', …(9) ] to deeply equal [ 'start_run', 'get_run', …(10) ]
+   × every CLI bootstrap advertises a working wait and paged reads instead of shell sleep and spill files 2ms
+     → expected [ 'start_run', 'get_run', …(9) ] to include 'wait_for'
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/bin/__tests__/serve.test.ts > serve() — wiring, with a fully-injected fake createMcpToolServer > builds a tool list of RUN_TOOLS plus TOOL_CATALOG_TOOLS plus COMPONENT_CATALOG_TOOLS plus one execute_delegated_tool def, resources, name/version/instructions
+AssertionError: expected [ 'start_run', 'get_run', …(9) ] to deeply equal [ 'start_run', 'get_run', …(10) ]
+
+- Expected
++ Received
+
+  Array [
+    "start_run",
+    "get_run",
+    "cancel_run",
+    "get_active_context",
+    "list_agents",
+    "search_tools",
+    "describe_tool",
+    "search_components",
+    "describe_component",
+    "execute_delegated_tool",
+    "execute_readonly_delegated_tool",
+-   "wait_for",
+  ]
+
+ ❯ src/bin/__tests__/serve.test.ts:142:23
+    140|     expect(seenOptions?.instructions).toContain('execute_delegated_too…
+    141|     const toolNames = seenOptions?.tools.map((t) => t.name);
+    142|     expect(toolNames).toEqual([
+       |                       ^
+    143|       'start_run',
+    144|       'get_run',
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/bin/__tests__/serve.test.ts > every CLI bootstrap advertises a working wait and paged reads instead of shell sleep and spill files
+AssertionError: expected [ 'start_run', 'get_run', …(9) ] to include 'wait_for'
+ ❯ src/bin/__tests__/serve.test.ts:824:17
+    822|     return { run: async () => {} };
+    823|   } }));
+    824|   expect(names).toContain('wait_for');
+       |                 ^
+    825|   expect(seen?.resultPaging).toBe(true);
+    826|   expect(seen?.instructions).toContain('wait_for({seconds:');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 55 passed (57)
+   Start at  21:11:22
+   Duration  6.69s (transform 2.48s, setup 0ms, collect 4.28s, tests 2.07s, environment 0ms, prepare 77ms)
+

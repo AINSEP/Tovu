@@ -1,0 +1,30 @@
+✔ fxpid: plugin-host.ts has no imports or re-exports into feature/server/app layers (24.802729ms)
+✔ fxpid: plugin-install-source.ts has no imports or re-exports into feature/server/app layers (5.497338ms)
+✔ fxpid: plugin-export-catalog.ts has no imports or re-exports into feature/server/app layers (2.313141ms)
+✔ fxpid: chat-attachment.ts has no imports or re-exports into feature/server/app layers (2.609469ms)
+✔ fxpid: moved attachment vocabulary still validates and reads opaque install refs (1.439865ms)
+✔ install rejects a non-object source: undefined (0.170328ms)
+✔ install rejects a non-object source: null (0.157731ms)
+✔ install rejects a non-object source: "zip" (0.099824ms)
+✔ install rejects a non-object source: [] (0.127307ms)
+✔ install request refuses {"kind":"tar","path":"/tmp/plugin"} (0.24825ms)
+✔ install request refuses {"kind":"zip"} (0.147556ms)
+✔ install request refuses {"kind":"zip","path":"/tmp/plugin.zip","attachmentRef":"attachment:12345678"} (0.071418ms)
+✔ install request refuses {"kind":"folder","attachmentRef":"attachment:12345678"} (0.054329ms)
+✔ install request refuses {"kind":"zip","attachmentRef":12345678} (0.060003ms)
+✔ install request refuses {"kind":"zip","path":42} (0.077942ms)
+✔ install request refuses {"kind":"zip","path":"~/plugin.zip"} (0.063103ms)
+✔ install preserves absolute folder and ZIP paths and only accepts boolean replacement (0.26758ms)
+✔ install refuses unavailable attachments without interpreting their refs as disk paths (0.260836ms)
+✔ local archive reads accept the byte limit and reject missing and oversized files (9.050221ms)
+✔ local archive reads grown bytes before the final size refusal (reported, not fixed) (0.474558ms)
+✔ L079: invalid kind precedes source exclusivity and invalid path precedes replacement (0.152564ms)
+✔ L079: oversized stat prevents allocation and read failures propagate unchanged (0.396333ms)
+ℹ tests 22
+ℹ suites 0
+ℹ pass 22
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1948.53655

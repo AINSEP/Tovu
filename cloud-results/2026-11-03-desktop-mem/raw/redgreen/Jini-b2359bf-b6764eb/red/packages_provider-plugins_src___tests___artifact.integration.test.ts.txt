@@ -1,0 +1,219 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/provider-plugins
+
+stderr | src/__tests__/artifact.integration.test.ts > charts-echarts: the built client bundle mounts and draws a stacked bar chart as SVG
+Error: Not implemented: HTMLCanvasElement.prototype.getContext (without installing the canvas npm package)
+    at module.exports (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)
+    at HTMLCanvasElementImpl.getContext (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/living/nodes/HTMLCanvasElement-impl.js:42:5)
+    at HTMLCanvasElement.getContext (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/living/generated/HTMLCanvasElement.js:131:58)
+    at Object.mt.measureText (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:14:2645)
+    at yr (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:14:71449)
+    at S_ (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:14:72069)
+    at Du (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:15:31)
+    at d1 (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:35:120125)
+    at e.t.calculateCategoryInterval (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:35:123441)
+    at yR (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:35:119580) undefined
+Error: Not implemented: HTMLCanvasElement.prototype.getContext (without installing the canvas npm package)
+    at module.exports (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)
+    at HTMLCanvasElementImpl.getContext (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/living/nodes/HTMLCanvasElement-impl.js:42:5)
+    at HTMLCanvasElement.getContext (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/living/generated/HTMLCanvasElement.js:131:58)
+    at Object.mt.measureText (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:14:2645)
+    at yr (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:14:71497)
+    at S_ (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:14:72069)
+    at Du (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:15:31)
+    at d1 (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:35:120125)
+    at e.t.calculateCategoryInterval (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:35:123441)
+    at yR (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:35:119580) undefined
+Error: Not implemented: HTMLCanvasElement.prototype.getContext (without installing the canvas npm package)
+    at module.exports (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)
+    at HTMLCanvasElementImpl.getContext (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/living/nodes/HTMLCanvasElement-impl.js:42:5)
+    at HTMLCanvasElement.getContext (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/living/generated/HTMLCanvasElement.js:131:58)
+    at Object.mt.measureText (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:14:2645)
+    at _r (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:14:71997)
+    at S_ (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:14:72066)
+    at Du (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:15:31)
+    at d1 (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:35:120125)
+    at e.t.calculateCategoryInterval (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:35:123441)
+    at yR (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:35:119580) undefined
+Error: Not implemented: HTMLCanvasElement.prototype.getContext (without installing the canvas npm package)
+    at module.exports (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)
+    at HTMLCanvasElementImpl.getContext (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/living/nodes/HTMLCanvasElement-impl.js:42:5)
+    at HTMLCanvasElement.getContext (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/living/generated/HTMLCanvasElement.js:131:58)
+    at Object.mt.measureText (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:14:2645)
+    at _r (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:14:71997)
+    at S_ (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:14:72066)
+    at Du (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:15:31)
+    at d1 (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:35:120125)
+    at e.t.calculateCategoryInterval (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:35:123441)
+    at yR (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:35:119580) undefined
+Error: Not implemented: HTMLCanvasElement.prototype.getContext (without installing the canvas npm package)
+    at module.exports (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)
+    at HTMLCanvasElementImpl.getContext (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/living/nodes/HTMLCanvasElement-impl.js:42:5)
+    at HTMLCanvasElement.getContext (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/living/generated/HTMLCanvasElement.js:131:58)
+    at Object.mt.measureText (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:14:2645)
+    at _r (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:14:71997)
+    at p0 (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:26:342)
+    at e._updatePlainTexts (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:29:31155)
+    at e._updateSubTexts (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:29:29545)
+    at e.getBoundingRect (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:29:29985)
+    at Tm (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:35:127104) undefined
+Error: Not implemented: HTMLCanvasElement.prototype.getContext (without installing the canvas npm package)
+    at module.exports (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)
+    at HTMLCanvasElementImpl.getContext (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/living/nodes/HTMLCanvasElement-impl.js:42:5)
+    at HTMLCanvasElement.getContext (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/living/generated/HTMLCanvasElement.js:131:58)
+    at Object.mt.measureText (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:14:2645)
+    at _r (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:14:71997)
+    at p0 (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:26:342)
+    at e._updatePlainTexts (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:29:31155)
+    at e._updateSubTexts (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:29:29545)
+    at e.getBoundingRect (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:29:29985)
+    at Tm (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:35:127104) undefined
+Error: Not implemented: HTMLCanvasElement.prototype.getContext (without installing the canvas npm package)
+    at module.exports (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)
+    at HTMLCanvasElementImpl.getContext (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/living/nodes/HTMLCanvasElement-impl.js:42:5)
+    at HTMLCanvasElement.getContext (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/living/generated/HTMLCanvasElement.js:131:58)
+    at Object.mt.measureText (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:14:2645)
+    at _r (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:14:71997)
+    at p0 (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:26:342)
+    at e._updatePlainTexts (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:29:31155)
+    at e._updateSubTexts (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:29:29545)
+    at e.getBoundingRect (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:29:29985)
+    at Tm (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:35:127104) undefined
+Error: Not implemented: HTMLCanvasElement.prototype.getContext (without installing the canvas npm package)
+    at module.exports (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)
+    at HTMLCanvasElementImpl.getContext (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/living/nodes/HTMLCanvasElement-impl.js:42:5)
+    at HTMLCanvasElement.getContext (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/living/generated/HTMLCanvasElement.js:131:58)
+    at Object.mt.measureText (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:14:2645)
+    at _r (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:14:71997)
+    at p0 (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:26:342)
+    at e._updatePlainTexts (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:29:31155)
+    at e._updateSubTexts (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:29:29545)
+    at e.getBoundingRect (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:29:29985)
+    at Tm (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:35:127104) undefined
+Error: Not implemented: HTMLCanvasElement.prototype.getContext (without installing the canvas npm package)
+    at module.exports (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)
+    at HTMLCanvasElementImpl.getContext (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/living/nodes/HTMLCanvasElement-impl.js:42:5)
+    at HTMLCanvasElement.getContext (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/living/generated/HTMLCanvasElement.js:131:58)
+    at Object.mt.measureText (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:14:2645)
+    at _r (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:14:71997)
+    at p0 (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:26:342)
+    at e._updatePlainTexts (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:29:31155)
+    at e._updateSubTexts (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:29:29545)
+    at e.getBoundingRect (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:29:29985)
+    at Tm (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:35:127104) undefined
+Error: Not implemented: HTMLCanvasElement.prototype.getContext (without installing the canvas npm package)
+    at module.exports (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)
+    at HTMLCanvasElementImpl.getContext (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/living/nodes/HTMLCanvasElement-impl.js:42:5)
+    at HTMLCanvasElement.getContext (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/living/generated/HTMLCanvasElement.js:131:58)
+    at Object.mt.measureText (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:14:2645)
+    at _r (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:14:71997)
+    at p0 (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:26:342)
+    at e._updatePlainTexts (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:29:31155)
+    at e._updateSubTexts (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:29:29545)
+    at e.getBoundingRect (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:29:29985)
+    at e.getBoundingRect (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:15:17448) undefined
+Error: Not implemented: HTMLCanvasElement.prototype.getContext (without installing the canvas npm package)
+    at module.exports (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)
+    at HTMLCanvasElementImpl.getContext (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/living/nodes/HTMLCanvasElement-impl.js:42:5)
+    at HTMLCanvasElement.getContext (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/living/generated/HTMLCanvasElement.js:131:58)
+    at Object.mt.measureText (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:14:2645)
+    at _r (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:14:71997)
+    at p0 (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:26:342)
+    at e._updatePlainTexts (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:29:31155)
+    at e._updateSubTexts (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:29:29545)
+    at e.getBoundingRect (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:29:29985)
+    at e.getBoundingRect (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:15:17448) undefined
+Error: Not implemented: HTMLCanvasElement.prototype.getContext (without installing the canvas npm package)
+    at module.exports (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)
+    at HTMLCanvasElementImpl.getContext (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/living/nodes/HTMLCanvasElement-impl.js:42:5)
+    at HTMLCanvasElement.getContext (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/living/generated/HTMLCanvasElement.js:131:58)
+    at Object.mt.measureText (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:14:2645)
+    at _r (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:14:71997)
+    at p0 (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:26:342)
+    at e._updatePlainTexts (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:29:31155)
+    at e._updateSubTexts (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:29:29545)
+    at e.getBoundingRect (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:29:29985)
+    at file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:29:93467 undefined
+Error: Not implemented: HTMLCanvasElement.prototype.getContext (without installing the canvas npm package)
+    at module.exports (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)
+    at HTMLCanvasElementImpl.getContext (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/living/nodes/HTMLCanvasElement-impl.js:42:5)
+    at HTMLCanvasElement.getContext (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/living/generated/HTMLCanvasElement.js:131:58)
+    at Object.mt.measureText (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:14:2645)
+    at _r (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:14:71997)
+    at p0 (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:26:342)
+    at e._updatePlainTexts (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:29:31155)
+    at e._updateSubTexts (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:29:29545)
+    at e.update (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:29:28706)
+    at t._updateAndAddDisplayable (file:///tmp/provider-artifact-JQqHqN/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:14:34036) undefined
+
+ ❯ src/__tests__/artifact.integration.test.ts (12 tests | 2 failed) 12827ms
+   ✓ ai-trace-langfuse: packs, installs and loads identical standalone bytes with both host SDK ABIs outside the workspace 363ms
+   ✓ analytics-posthog: packs, installs and loads identical standalone bytes with both host SDK ABIs outside the workspace 610ms
+   ✓ observability-opentelemetry: packs, installs and loads identical standalone bytes with both host SDK ABIs outside the workspace 1403ms
+   ✓ observability-sentry: packs, installs and loads identical standalone bytes with both host SDK ABIs outside the workspace 907ms
+   × charts-recharts: packs, installs, loads and admits identical browser-only bytes with both host SDK ABIs outside the workspace 351ms
+     → expected { loaded: false, …(1) } to deeply equal { loaded: true }
+   × charts-echarts: packs, installs, loads and admits identical browser-only bytes with both host SDK ABIs outside the workspace 303ms
+     → expected { loaded: false, …(1) } to deeply equal { loaded: true }
+   ✓ charts-recharts: the built client bundle mounts and draws a bar chart with whole-number ticks 433ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/__tests__/artifact.integration.test.ts > charts-recharts: packs, installs, loads and admits identical browser-only bytes with both host SDK ABIs outside the workspace
+ FAIL  src/__tests__/artifact.integration.test.ts > charts-echarts: packs, installs, loads and admits identical browser-only bytes with both host SDK ABIs outside the workspace
+AssertionError: expected { loaded: false, …(1) } to deeply equal { loaded: true }
+
+- Expected
++ Received
+
+  Object {
+-   "loaded": true,
++   "loaded": false,
++   "reason": "BROWSER_PROVIDER_FORBIDDEN",
+  }
+
+ ❯ installAndLoad src/__tests__/artifact.integration.test.ts:164:18
+    162|     coreDeps: { getCurrentEntry() { throw new Error('unused'); }, writ…
+    163|   });
+    164|   expect(loaded).toEqual({ loaded: true });
+       |                  ^
+    165|   return { registry, installedRoot };
+    166| }
+ ❯ src/__tests__/artifact.integration.test.ts:275:41
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+⎯⎯⎯⎯⎯⎯ Unhandled Errors ⎯⎯⎯⎯⎯⎯
+
+Vitest caught 2 unhandled errors during the test run.
+This might cause false positive tests. Resolve unhandled errors to make sure your tests are not affected.
+
+⎯⎯⎯⎯⎯ Uncaught Exception ⎯⎯⎯⎯⎯
+ReferenceError: cancelAnimationFrame is not defined
+ ❯ Timeout.o [as _onTimeout] ../../../../../tmp/provider-artifact-JQqHqN/charts-recharts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-recharts/0.6.13/client/provider.js:81:15574
+ ❯ listOnTimeout node:internal/timers:685:17
+ ❯ processTimers node:internal/timers:618:7
+
+This error originated in "src/__tests__/artifact.integration.test.ts" test file. It doesn't mean the error was thrown inside the file itself, but while it was running.
+The latest test that might've caused the error is "src/__tests__/artifact.integration.test.ts". It might mean one of the following:
+- The error was thrown, while Vitest was running this test.
+- If the error occurred after the test had been completed, this was the last documented test before it was thrown.
+
+⎯⎯⎯⎯⎯ Uncaught Exception ⎯⎯⎯⎯⎯
+ReferenceError: cancelAnimationFrame is not defined
+ ❯ Timeout.o [as _onTimeout] ../../../../../tmp/provider-artifact-JQqHqN/charts-recharts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-recharts/0.6.13/client/provider.js:81:15574
+ ❯ listOnTimeout node:internal/timers:685:17
+ ❯ processTimers node:internal/timers:618:7
+
+This error originated in "src/__tests__/artifact.integration.test.ts" test file. It doesn't mean the error was thrown inside the file itself, but while it was running.
+The latest test that might've caused the error is "src/__tests__/artifact.integration.test.ts". It might mean one of the following:
+- The error was thrown, while Vitest was running this test.
+- If the error occurred after the test had been completed, this was the last documented test before it was thrown.
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 10 passed (12)
+     Errors  2 errors
+   Start at  21:11:44
+   Duration  14.87s (transform 2.15s, setup 0ms, collect 1.65s, tests 12.83s, environment 0ms, prepare 103ms)
+

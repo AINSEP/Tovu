@@ -1,0 +1,11 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/chat
+
+ ✓ src/react/features/chat-pane/__tests__/composer-action-hit-targets.test.tsx (2 tests) 403ms
+   ✓ Send remains clickable beside the effort selector at dock width 306ms
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  21:12:15
+   Duration  6.82s (transform 3.05s, setup 152ms, collect 5.54s, tests 403ms, environment 393ms, prepare 93ms)
+

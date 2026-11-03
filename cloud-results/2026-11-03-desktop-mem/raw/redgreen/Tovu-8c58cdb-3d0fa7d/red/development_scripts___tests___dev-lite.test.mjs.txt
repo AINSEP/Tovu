@@ -1,0 +1,76 @@
+tovu dev: preparing prebuilt admin…
+✖ dev:lite rebuilds after an admin dependency changes in website features/post/slug.ts (48.656781ms)
+tovu dev: preparing prebuilt admin…
+✖ dev:lite rebuilds after an admin dependency changes in website platform/html/slug.ts (16.568235ms)
+tovu dev: preparing prebuilt admin…
+tovu dev: preparing prebuilt admin…
+tovu dev: preparing prebuilt admin…
+tovu dev: preparing prebuilt admin…
+tovu dev: preparing prebuilt admin…
+✖ dev:lite rebuilds after an admin dependency changes in website assistant/assistant-tool-approval-policy.ts (12.077127ms)
+✔ dev:lite opens the ready API admin without starting an admin Vite process (1.028573ms)
+✔ dev:lite reuses a current admin without starting Vite or rebuilding (0.51016ms)
+✔ dev:lite builds missing or stale admin once and marks only a successful build current (2.823218ms)
+✔ dev:lite rebuilds a missing admin entry even when its freshness marker survived (1.232417ms)
+✔ dev:lite never marks a failed build current (1.481548ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 5
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1466.315716
+
+✖ failing tests:
+
+test at development/scripts/__tests__/dev-lite.test.mjs:10:3
+✖ dev:lite rebuilds after an admin dependency changes in website features/post/slug.ts (48.656781ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  1 !== 2
+  
+      at TestContext.<anonymous> (file:///home/user/wt-Tovu/development/scripts/__tests__/dev-lite.test.mjs:25:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 2,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at development/scripts/__tests__/dev-lite.test.mjs:10:3
+✖ dev:lite rebuilds after an admin dependency changes in website platform/html/slug.ts (16.568235ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  1 !== 2
+  
+      at TestContext.<anonymous> (file:///home/user/wt-Tovu/development/scripts/__tests__/dev-lite.test.mjs:25:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 2,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at development/scripts/__tests__/dev-lite.test.mjs:10:3
+✖ dev:lite rebuilds after an admin dependency changes in website assistant/assistant-tool-approval-policy.ts (12.077127ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  1 !== 2
+  
+      at TestContext.<anonymous> (file:///home/user/wt-Tovu/development/scripts/__tests__/dev-lite.test.mjs:25:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 2,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

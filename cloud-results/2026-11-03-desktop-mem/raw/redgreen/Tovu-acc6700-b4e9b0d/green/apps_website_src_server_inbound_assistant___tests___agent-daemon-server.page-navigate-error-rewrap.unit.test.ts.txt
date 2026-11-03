@@ -1,0 +1,16 @@
+✔ imports withPageNavigateErrorRewrap directly from the Tovu-side implementation leaf (1.06021ms)
+▶ the toolRegistrations registration loop
+  ✔ the loop iterates withPageNavigateErrorRewrap(frontendControl.toolRegistrations), not the bare array (0.325717ms)
+  ✔ the loop marks the read-only frontend capabilities before registering (0.245976ms)
+  ✔ every registration is still handed to registry.register — the rewrap must not replace registration itself (0.214578ms)
+  ✔ a run whose bind token was unknown gets the reload message: bind errors are recorded and every tool is wrapped (0.205689ms)
+✔ the toolRegistrations registration loop (1.797519ms)
+✔ the daemon loop registers every frontend tool and preserves navigation success, rewrap and lost-binding guidance (1369.566247ms)
+ℹ tests 6
+ℹ suites 1
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2648.706358

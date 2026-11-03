@@ -1,8 +1,8 @@
 
  RUN  v2.1.9 /home/user/wt-Jini/packages/daemon
 
- ❯ src/__tests__/read-only-tools.test.ts (24 tests | 1 failed) 40ms
-   × a read-only namespace overview honors the caller’s narrower visible-tool set 16ms
+ ❯ src/__tests__/read-only-tools.test.ts (24 tests | 1 failed) 23ms
+   × a read-only namespace overview honors the caller’s narrower visible-tool set 9ms
      → Expected values to be strictly deep-equal:
 + actual - expected
 
@@ -44,6 +44,6 @@ AssertionError: Expected values to be strictly deep-equal:
 
  Test Files  1 failed (1)
       Tests  1 failed | 23 passed (24)
-   Start at  21:08:30
-   Duration  4.89s (transform 2.83s, setup 0ms, collect 4.47s, tests 40ms, environment 0ms, prepare 117ms)
+   Start at  21:15:47
+   Duration  4.40s (transform 2.56s, setup 0ms, collect 4.10s, tests 23ms, environment 0ms, prepare 70ms)
 

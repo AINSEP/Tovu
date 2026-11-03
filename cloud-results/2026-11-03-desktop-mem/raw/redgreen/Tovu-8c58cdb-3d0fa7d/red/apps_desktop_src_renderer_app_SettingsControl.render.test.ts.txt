@@ -1,0 +1,34 @@
+✖ Loaded sites keeps a newer menu preference when the initial read arrives late (48.928966ms)
+✔ SettingsControl: the gear toggles the menu and reports opening it (64.582699ms)
+✔ SettingsControl: Sites settings… opens the sites dialog and closes the menu (29.448236ms)
+✔ SettingsControl: Appearance opens the Appearance page (31.945361ms)
+✔ SettingsControl: the theme radios mark the current theme and report the one picked (22.854766ms)
+✔ SettingsControl: without checkForUpdates on the bridge there is no update row (19.881819ms)
+✔ SettingsControl: Check for updates… reads Checking… until main answers, then the menu closes (16.789702ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 6
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3249.533403
+
+✖ failing tests:
+
+test at src/renderer/app/SettingsControl.render.test.ts:1:494
+✖ Loaded sites keeps a newer menu preference when the initial read arrives late (48.928966ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  '1' !== '4'
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/desktop/src/renderer/app/SettingsControl.render.test.ts:33:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '1',
+    expected: '4',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
