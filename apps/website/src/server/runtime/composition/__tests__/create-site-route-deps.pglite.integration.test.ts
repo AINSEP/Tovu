@@ -5,7 +5,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { after, before, test, type TestContext } from "node:test";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 
 import { type RawBuilder, sql } from "kysely";
@@ -103,7 +103,7 @@ interface DaemonView {
 }
 
 /**
- * The agent daemon's composition in ANOTHER process — `createAgentDaemonRouteDeps` (role client),
+ * The agent daemon's leaf DB client in ANOTHER process — `openSiteDbClient`,
  * bound to the API's workspace, socket from `TOVU_PG_SOCKET` as the daemon supervisor passes it —
  * printing what it reads through the owner's socket. `execFile` (async) keeps this process's event
  * loop, which runs the owner's socket server, free while the child talks to it.
@@ -112,11 +112,10 @@ async function readAsDaemonProcess(workspaceId: string): Promise<DaemonView> {
   const script = path.join(parent, "daemon-probe.mts");
   fs.writeFileSync(
     script,
-    `import { createAgentDaemonRouteDeps } from ${JSON.stringify(path.join(HERE, "..", "agent-daemon-deps.ts"))};
-const deps = await createAgentDaemonRouteDeps({ env: process.env }, { dbPath: ${JSON.stringify(path.join(siteDir, "content.db"))} });
-await Promise.all([deps.identityReady, deps.settingsReady, deps.seoReady, deps.commentsReady, deps.commentsSettingsReady,
-  deps.executionSettingsReady, deps.settingsUiTabsReady, deps.analyticsSettingsReady, deps.siteTitleReady]);
-const k = deps.contentKernel;
+    `import { openSiteDbClient } from ${JSON.stringify(pathToFileURL(path.resolve(HERE, "../../../../platform/db/client/open-site-db-client.ts")).href)};
+const client = await openSiteDbClient({ storage: { kind: 'pglite' }, dbPath: ${JSON.stringify(path.join(siteDir, "content.db"))},
+  chatDbPath: ${JSON.stringify(path.join(siteDir, "chat.db"))}, resolvePostgresConnectionString: async () => { throw new Error('PGlite must never resolve a Postgres secret'); } });
+const k = client.content;
 const col = async (build, name) => (await k.run((db) => build(db).execute())).map((r) => r[name]);
 const view = {
   titles: await col((db) => db.selectFrom("posts").select("title").where("kind", "=", "post"), "title"),
@@ -127,6 +126,7 @@ const view = {
   transport: k.transport,
 };
 console.log(JSON.stringify(view));
+await client.close();
 process.exit(0);
 `
   );
@@ -249,7 +249,7 @@ test("owner boot: PGlite data dir in the site folder, no SQLite store, routes re
   assert.equal(fs.existsSync(socketPath), false, "closing the store stops serving");
 });
 
-test("a daemon composition started before the owner serves waits for the socket, then connects and sees the owner's rows", async (t) => {
+test("a site composition client started before the owner serves waits for the socket, then connects and sees the owner's rows", async (t) => {
   const dbPath = path.join(siteDir, "content.db");
   // Own the fixture and stopped-owner state even when this test runs alone.
   const postId = "daemon-startup-post";
@@ -263,7 +263,8 @@ test("a daemon composition started before the owner serves waits for the socket,
   await closeSiteDirBoot(seedBoot);
   assert.equal(fs.existsSync(socketPath), false, "this test's seed owner stopped serving before the client starts");
 
-  // The agent daemon's composition (`createAgentDaemonRouteDeps` → role "client"), socket from TOVU_PG_SOCKET.
+  // A server composition client retains its existing readiness wait. The lean daemon starts only
+  // after the site listens and uses the leaf client exercised above; it never boots site services.
   const opened: { client?: SiteStore } = {};
   const clientDeps = createSiteRouteDeps(dbPath, { storeRole: "client", onStoreOpened: (store) => (opened.client = store) });
   const openedClient = (): SiteStore | undefined => opened.client;

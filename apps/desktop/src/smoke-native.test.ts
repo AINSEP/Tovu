@@ -294,14 +294,14 @@ for (const fixture of [
   });
 }
 
-test("the entry-load script names all five shipped process entries", () => {
+test("the entry-load script names the HTTP module and all shipped process entries", () => {
   const script = buildEntryLoadScript({ resourcesDir: "/packaged/Resources" });
   assert.ok(script.includes('require(join(asar, "package.json")).main'));
   assert.ok(script.includes('require(join(tovu, "dist", "runtime-manifest.json")).cliEntry'));
   for (const root of ["tovu", "asar"]) {
     assert.ok(script.includes(`join(dirname(createRequire(join(${root}, "package.json")).resolve("@jini-ai/mcp")), "bin", "serve.js")`));
   }
-  assert.ok(script.includes('join(asar, "bin", "mcp-bridge.ts")'));
+  assert.ok(script.includes('join(asar, "src", "desktop-mcp-http.ts")'));
 });
 
 test("the entry-load script reports every unresolvable static import without evaluating any module", () => {
@@ -321,7 +321,7 @@ test("the entry-load script reports every unresolvable static import without eva
     write(`${root}/node_modules/@jini-ai/mcp/dist/index.js`, "export {};");
     write(`${root}/node_modules/@jini-ai/mcp/dist/bin/serve.js`, "export {};");
   }
-  write("app.asar/bin/mcp-bridge.ts", "export {};");
+  write("app.asar/src/desktop-mcp-http.ts", "export {};");
   const run = () => spawnSync(process.execPath, ["-e", buildEntryLoadScript({ resourcesDir: resources })], { cwd: resources, encoding: "utf8", timeout: 5000 });
   try {
     write("app.asar/main.mjs", `import { app } from "electron"; import { value } from "present"; export default [app, value];`);

@@ -15,7 +15,10 @@ test('one two and five sites share one main endpoint', async () => {
     } });
     const environments = await Promise.all(Array.from({ length: sites }, () => runtime.environment({})));
     assert.equal(starts, 1);
-    for (const actual of environments) assert.deepEqual(actual, env);
+    for (const { TOVU_DESKTOP_MCP_HANDOFF_TOKEN: handoff, ...actual } of environments) {
+      assert.match(handoff!, /^[a-f0-9]{64}$/);
+      assert.deepEqual(actual, env);
+    }
     await runtime.close({});
     assert.equal(closes, 1);
   }
@@ -31,11 +34,13 @@ test('listener startup repairs automatically without delaying site hosting', asy
     return { url: env.TOVU_DESKTOP_MCP_URL, token: env.TOVU_DESKTOP_MCP_TOKEN, env, close: async () => {} };
   } });
   t.after(() => runtime.close({}));
-  assert.deepEqual(await runtime.environment({}), {});
+  const first = await runtime.environment({});
+  assert.equal(first.TOVU_DESKTOP_MCP_URL, undefined);
+  assert.match(first.TOVU_DESKTOP_MCP_HANDOFF_TOKEN!, /^[a-f0-9]{64}$/);
   assert.equal(warnings.length, 1);
   assert.doesNotMatch(warnings[0]!, /private details/);
   t.mock.timers.tick(1000);
-  assert.deepEqual(await runtime.environment({}), env);
+  assert.deepEqual(await runtime.environment({}), { ...env, TOVU_DESKTOP_MCP_HANDOFF_TOKEN: first.TOVU_DESKTOP_MCP_HANDOFF_TOKEN });
   assert.equal(starts, 2);
 });
 
@@ -52,4 +57,31 @@ test('quit drains an in-flight listener start and cancels retries', async () => 
   await Promise.all([starting, closing]);
   assert.equal(closes, 1);
   assert.deepEqual(await runtime.environment({}), {});
+});
+
+test('a site spawned during listener failure receives the recovered capability automatically', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  let starts = 0;
+  const requests: { url: string; body: unknown; token: string | null }[] = [];
+  const runtime = createDesktopMcpHttpRuntime({ context, warn: () => {} }, {
+    start: async () => {
+      if (++starts === 1) throw new Error('bind failed');
+      return { url: env.TOVU_DESKTOP_MCP_URL, token: env.TOVU_DESKTOP_MCP_TOKEN, env, close: async () => {} };
+    },
+    fetch: async (url, init) => {
+      requests.push({ url: String(url), body: JSON.parse(String(init?.body)), token: new Headers(init?.headers).get('authorization') });
+      return new Response(null, { status: 204 });
+    },
+  });
+  t.after(() => runtime.close({}));
+  const launch = await runtime.environment({});
+  assert.ok(launch.TOVU_DESKTOP_MCP_HANDOFF_TOKEN);
+  assert.equal(launch.TOVU_DESKTOP_MCP_URL, undefined);
+  let exited!: () => void;
+  runtime.connectSite({ adminUrl: 'http://127.0.0.1:4102/admin/', onExit: listener => { exited = listener; } });
+  t.mock.timers.tick(1000);
+  for (let turn = 0; turn < 20; turn++) await Promise.resolve();
+  assert.deepEqual(requests, [{ url: 'http://127.0.0.1:4102/internal/desktop-mcp-capability',
+    body: { url: env.TOVU_DESKTOP_MCP_URL, token: env.TOVU_DESKTOP_MCP_TOKEN }, token: `Bearer ${launch.TOVU_DESKTOP_MCP_HANDOFF_TOKEN}` }]);
+  exited();
 });

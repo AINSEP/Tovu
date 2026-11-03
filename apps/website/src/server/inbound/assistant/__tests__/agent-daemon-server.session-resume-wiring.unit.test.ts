@@ -50,8 +50,8 @@ describe("H1 wiring — a failed resume must clear its dead stored session id", 
   test("imports shouldClearSessionOnFailedResume from the pure decision module", () => {
     assert.match(
       DAEMON_ENTRY_SOURCE,
-      /import\s*\{[^}]*shouldClearSessionOnFailedResume[^}]*\}\s*from\s*["'][^"']*agent-daemon-port(\.js)?["']/,
-      "onStarted must import the H1 decision function through agent-daemon-port.ts, not reimplement the check inline",
+      /import\s*\{[^}]*shouldClearSessionOnFailedResume[^}]*\}\s*from\s*["'][^"']*agent-session-preset(\.js)?["']/,
+      "onStarted must import the H1 decision function through agent-session-preset.ts, not reimplement the check inline",
     );
   });
 
@@ -82,8 +82,8 @@ describe("H2 wiring — overlapping runs on one conversation must not both resum
   test("imports createLiveRunTracker and constructs exactly one module-level instance", () => {
     assert.match(
       DAEMON_ENTRY_SOURCE,
-      /import\s*\{[^}]*createLiveRunTracker[^}]*\}\s*from\s*["'][^"']*agent-daemon-port(\.js)?["']/,
-      "agent-daemon-server.ts must import createLiveRunTracker through agent-daemon-port.ts",
+      /import\s*\{[^}]*createLiveRunTracker[^}]*\}\s*from\s*["'][^"']*agent-session-preset(\.js)?["']/,
+      "agent-daemon-server.ts must import createLiveRunTracker through agent-session-preset.ts",
     );
     assert.match(
       DAEMON_ENTRY_SOURCE,
@@ -180,13 +180,13 @@ describe("H2-context-loss wiring — a forced-cold run must not silently drop co
   test("imports agentCarriesOwnMemory and wouldForcedColdStartLoseConversationContext from the pure decision module", () => {
     assert.match(
       DAEMON_ENTRY_SOURCE,
-      /import\s*\{[^}]*agentCarriesOwnMemory[^}]*\}\s*from\s*["'][^"']*agent-daemon-port(\.js)?["']/,
-      "onStarted must import agentCarriesOwnMemory through agent-daemon-port.ts, not reimplement the def lookup inline",
+      /import\s*\{[^}]*agentCarriesOwnMemory[^}]*\}\s*from\s*["'][^"']*agent-session-preset(\.js)?["']/,
+      "onStarted must import agentCarriesOwnMemory through agent-session-preset.ts, not reimplement the def lookup inline",
     );
     assert.match(
       DAEMON_ENTRY_SOURCE,
-      /import\s*\{[^}]*wouldForcedColdStartLoseConversationContext[^}]*\}\s*from\s*["'][^"']*agent-daemon-port(\.js)?["']/,
-      "onStarted must import wouldForcedColdStartLoseConversationContext through agent-daemon-port.ts",
+      /import\s*\{[^}]*wouldForcedColdStartLoseConversationContext[^}]*\}\s*from\s*["'][^"']*agent-session-preset(\.js)?["']/,
+      "onStarted must import wouldForcedColdStartLoseConversationContext through agent-session-preset.ts",
     );
   });
 

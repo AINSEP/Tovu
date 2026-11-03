@@ -12,9 +12,30 @@ import { isAssistantDaemonReady, resetAssistantDaemonSingletonForTests } from ".
 import { createAssistantServerFederation } from "../runtime/composition/modules/assistant-server-federation.js";
 import { serverFederationFixture } from "../runtime/composition/modules/__tests__/helpers/server-federation-fixture.js";
 import { InMemoryMcpSession } from "../../assistant/mcp-federation/adapter.memory.js";
+import { createApp } from "../runtime/composition/app.js";
+import { notifyExternalMcpRosterChanged, resetExternalMcpRosterChangeListenersForTests } from "../../assistant/external-mcp-roster-change.js";
 import type { ExternalMcpOperations } from "../../features/external-mcp/operations-tools.js";
 
 const PATH = "/api/admin/v1/workspaces/workspace-local/mcp-servers/admissions";
+
+test("the serving app exposes admissions while export apps cannot replace its federation", async t => {
+  resetExternalMcpRosterChangeListenersForTests();
+  t.after(resetExternalMcpRosterChangeListenersForTests);
+  const { deps, surface, save } = serverFederationFixture({ connect: async () => new InMemoryMcpSession({ tools: [{ name: "echo", inputSchema: { type: "object" } }] }) });
+  deps.authorize = async () => ({ allowed: true, reason: "matched" });
+  await save();
+  const app = createApp(deps, { activateAssistantFederation: true, assistantToolSurface: surface });
+  const reader = deps.externalMcpAdmissions;
+  assert.equal(typeof reader, "function");
+  const { cookie } = await bootAuthenticated(app, t);
+  assert.equal((await request(app, cookie)).status, 200);
+  createApp(deps);
+  assert.equal(deps.externalMcpAdmissions, reader);
+  await save({ serverId: "after-export" });
+  await notifyExternalMcpRosterChanged();
+  assert.ok((await surface.readFederationAdmissions({}, {})).connections.some(entry => entry.connectionId === "after-export"));
+  assert.equal(isAssistantDaemonReady(), false);
+});
 
 function buildApp({ admissions, allowed = true }: { admissions?: ExternalMcpOperations["admissions"]; allowed?: boolean } = {}, _options: Record<string, never> = {}) {
   const deps = createRouteDeps();

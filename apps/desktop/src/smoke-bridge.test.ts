@@ -6,11 +6,10 @@ import type { spawn } from "node:child_process";
 import path from "node:path";
 import os from "node:os";
 import {
-  assertBridgeReplies, buildBridgeEnv, buildJiniEntryScript, buildSitesBridgeCommand,
+  assertBridgeReplies, buildBridgeEnv, buildJiniEntryScript,
   parseBridgeReply, parseJiniEntries, parseJiniEntryEnv, resolveBridgeSmokeTargets, smokeBridge,
 } from "./smoke-bridge.ts";
 import type { BridgeCommand } from "./smoke-bridge.ts";
-import { buildSitesMcpLauncherScript, buildSitesMcpRegistration } from "./sites-mcp-registration.ts";
 
 test("bridge CLI layout keeps app precedence and delegates platform layouts to the native resolver", () => {
   const reads: string[] = [];
@@ -87,36 +86,23 @@ test("packaged resolver script calls the real resolver and entry builder with is
 test("resolver output requires both bridge entries, preserving their command/argv/env", () => {
   const site = { command: "/Tovu", args: ["/site/serve.js"], env: { ELECTRON_RUN_AS_NODE: "1", JINI_RUN_ID: "release-smoke" } };
   const desktop = { ...site, args: ["/app.asar/serve.js"] };
-  const parsed = parseJiniEntries({ stdout: JSON.stringify([site, desktop]) });
+  const parsed = parseJiniEntries({ stdout: JSON.stringify({ entries: [site, desktop], desktopHttp: true }) });
   assert.deepEqual(parsed.map(({ command, args, env }) => ({ command, args, env })), [site, desktop]);
   assert.deepEqual(parsed.map(entry => entry.label), ["site jini-mcp", "desktop jini-mcp"]);
   assert.ok(parsed.every(entry => entry.serverName === "jini-mcp" && entry.toolName === "execute_delegated_tool"));
   for (const entries of [null, [], [site], [site, { ...desktop, env: {} }], [site, { ...desktop, args: [42] }]]) {
-    assert.throws(() => parseJiniEntries({ stdout: JSON.stringify(entries) }));
+    assert.throws(() => parseJiniEntries({ stdout: JSON.stringify({ entries, desktopHttp: true }) }));
   }
   assert.throws(() => parseJiniEntries({ stdout: "not json" }));
 });
 
-test("POSIX bridge command executes the production launcher with a disposable user-data path", () => {
-  const input = { executablePath: "/bundle with spaces/Tovu", resourcesDir: "/bundle/Resources", userDataDir: "/scratch/user data", platform: "darwin" as const };
-  const result = buildSitesBridgeCommand(input);
-  assert.equal(result.entry.command, "/bin/sh");
-  assert.deepEqual(result.entry.args, [result.launcherPath]);
-  assert.deepEqual(result.entry.env, {}, "Node mode must be set by the launcher itself");
-  assert.equal(result.launcherScript, buildSitesMcpLauncherScript({
-    electronPath: input.executablePath, bridgePath: path.join(input.resourcesDir, "app.asar", "bin", "mcp-bridge.ts"), userDataDir: input.userDataDir,
-  }));
-});
-
-test("Windows bridge command uses registration argv and explicitly enables Electron Node mode", () => {
-  const input = { executablePath: String.raw`C:\Program Files\Tovu\Tovu.exe`, resourcesDir: String.raw`C:\Program Files\Tovu\resources`, userDataDir: String.raw`C:\Temp\user data`, platform: "win32" as const };
-  const result = buildSitesBridgeCommand(input);
-  const bridgePath = path.join(input.resourcesDir, "app.asar", "bin", "mcp-bridge.ts");
-  const registration = buildSitesMcpRegistration({ launcherPath: input.executablePath, platform: input.platform, bridgePath, userDataDir: input.userDataDir });
-  assert.equal(result.entry.command, registration.command);
-  assert.deepEqual(result.entry.args, [bridgePath, "--user-data-dir", input.userDataDir]);
-  assert.deepEqual(result.entry.env, { ELECTRON_RUN_AS_NODE: "1" });
-  assert.equal(result.launcherScript, undefined);
+test("packaged desktop smoke exercises authenticated HTTP without a launcher or keyring", () => {
+  const script = buildJiniEntryScript({ resourcesDir: '/bundle/Resources', executablePath: '/bundle/Tovu' });
+  assert.ok(script.includes('startDesktopMcpHttp'));
+  assert.ok(script.includes('Authorization:'));
+  assert.ok(script.includes('desktopHttp: true'));
+  assert.ok(script.includes('tools/call'));
+  assert.ok(!script.includes('mcp-bridge.ts'));
 });
 
 test("reply parser correlates ids and rejects malformed/error replies", () => {

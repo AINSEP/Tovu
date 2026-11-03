@@ -95,40 +95,11 @@ for (const heldStep of ["readiness", "activation read"] as const) {
   });
 }
 
-// F1.4/F2.3: run the daemon's actual module-level start call with the real timer/reconciler.
-test("the daemon polling call reconciles external activation changes and stop halts it", async (t) => {
-  const { default: ts } = await import("typescript");
-  const { daemonSource, evaluateDaemonExpression } = await import("../../../inbound/assistant/__tests__/helpers/daemon-source.js");
-  const { startPluginActivationPolling } = await import("../../composition/agent-daemon-deps.js");
-  const declaration = daemonSource.statements.flatMap((entry) => ts.isVariableStatement(entry) ? [...entry.declarationList.declarations] : [])
-    .find((entry) => entry.name.getText(daemonSource) === "pluginPolling");
-  assert.ok(declaration?.initializer && ts.isCallExpression(declaration.initializer));
-  t.mock.timers.enable({ apis: ["setInterval"] });
-  let rows = [row("word-count", true)];
-  let reads = 0;
-  const activeHooks = new Set(["word-count"]);
-  const poller = evaluateDaemonExpression<{ stop(): void }>(declaration.initializer, {
-    startPluginActivationPolling,
-    routeDeps: { workspaceId: WORKSPACE_ID, pluginRuntimeReady: Promise.resolve(),
-      pluginActivationRepo: { listAll: async () => { reads += 1; return rows; } },
-      onPluginEnabled: async (id: string) => { activeHooks.add(id); },
-      onPluginDisabled: (id: string) => { activeHooks.delete(id); },
-    },
-  });
-  t.after(() => poller.stop());
-  await new Promise<void>((resolve) => setImmediate(resolve));
-  assert.equal(reads, 1, "the initial enabled snapshot must seed the poller");
-  rows = [row("word-count", false), row("reading-time", true)];
-  t.mock.timers.tick(5000);
-  await new Promise<void>((resolve) => setImmediate(resolve));
-  assert.deepEqual([...activeHooks], ["reading-time"]);
-  poller.stop();
-  const stoppedReads = reads;
-  rows = [row("word-count", true)];
-  t.mock.timers.tick(10000);
-  await new Promise<void>((resolve) => setImmediate(resolve));
-  assert.equal(reads, stoppedReads);
-  assert.deepEqual([...activeHooks], ["reading-time"]);
+test("server polling survives removal of daemon site composition", async () => {
+  const { readFileSync } = await import("node:fs");
+  const source = readFileSync(new URL("../bootstrap.ts", import.meta.url), "utf8");
+  assert.match(source, /from "..\/composition\/plugin-activation-polling.js"/);
+  assert.doesNotMatch(source, /from .*agent-daemon-deps/);
 });
 
 test("waitFor rejects at its deadline instead of silently accepting missing reconciliation", async (t) => {

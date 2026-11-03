@@ -5,9 +5,9 @@ import test from "node:test";
 
 /**
  * @file Wiring proof that `agent-daemon-server.ts` builds its `RouteDeps` through
- * `createAgentDaemonRouteDeps`, the composition whose outbox is enqueue-only (2026-09-14).
+ * `createAgentDaemonCoreDeps`, which has no site tools or outbox (ADR-070).
  *
- * The behavior itself (a daemon drain claims nothing, and the serving process delivers the rows) is
+ * The behavior itself (remote writes use the server outbox and reach its subscribers) is
  * proven against the real factories in
  * `server/__tests__/integration/agent-daemon-outbox-event-loss.integration.test.ts`. This file only
  * pins that the daemon entry point actually uses that composition. It reads the SOURCE because
@@ -20,19 +20,19 @@ const DAEMON_ENTRY_SOURCE = readFileSync(path.join(import.meta.dirname, "../agen
 /** Code lines only: the file's doc comments name the bypassing factories in prose. */
 const CODE_LINES = DAEMON_ENTRY_SOURCE.split("\n").filter((line) => !/^\s*(\/\/|\*|\/\*)/.test(line));
 
-test("agent-daemon-server.ts builds routeDeps with createAgentDaemonRouteDeps", () => {
+test("agent-daemon-server.ts builds routeDeps with createAgentDaemonCoreDeps", () => {
   assert.match(
     DAEMON_ENTRY_SOURCE,
-    /import\s*\{[^}]*\bcreateAgentDaemonRouteDeps\b[^}]*\}\s*from\s*["'][^"']*agent-daemon-deps(\.js)?["']/,
+    /import\s*\{[^}]*\bcreateAgentDaemonCoreDeps\b[^}]*\}\s*from\s*["'][^"']*agent-daemon-core-deps(\.js)?["']/,
   );
   assert.ok(
-    CODE_LINES.some((line) => /^\s*const routeDeps\s*=\s*await\s+createAgentDaemonRouteDeps\(/.test(line)),
-    "the daemon's module-level routeDeps must come from createAgentDaemonRouteDeps",
+    CODE_LINES.some((line) => /^\s*const routeDeps\s*=\s*await\s+createAgentDaemonCoreDeps\(/.test(line)),
+    "the daemon's module-level routeDeps must come from createAgentDaemonCoreDeps",
   );
 });
 
-test("agent-daemon-server.ts never calls a RouteDeps factory directly, which would bypass the enqueue-only outbox", () => {
-  const bypasses = CODE_LINES.filter((line) => /\b(createSiteRouteDepsForWorkspace|createSiteRouteDeps|createRouteDeps)\(/.test(line));
+test("agent-daemon-server.ts never calls a RouteDeps factory directly, or starts plugin polling", () => {
+  const bypasses = CODE_LINES.filter((line) => /\b(createSiteRouteDepsForWorkspace|createSiteRouteDeps|createRouteDeps|startPluginActivationPolling)\(/.test(line));
   assert.deepEqual(bypasses, []);
 });
 

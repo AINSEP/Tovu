@@ -32,7 +32,7 @@ function ports(overrides: Partial<SmokeBridgeGatePorts> = {}) {
     isolate: async ({ targets, run }) => run(targets, directory),
     spawnResolver: ((command: string, args: string[], options: unknown) => {
       resolverCalls.push([command, args, options]);
-      return { status: 0, signal: null, stdout: JSON.stringify([SITE, DESKTOP]), stderr: "", pid: 1, output: [] };
+      return { status: 0, signal: null, stdout: JSON.stringify({ entries: [SITE, DESKTOP], desktopHttp: true }), stderr: "", pid: 1, output: [] };
     }) as SmokeBridgeGatePorts["spawnResolver"],
     smoke: async ({ entry }) => { smoked.push(entry); },
     out: (text) => printed.push(text),
@@ -42,12 +42,11 @@ function ports(overrides: Partial<SmokeBridgeGatePorts> = {}) {
   return { ports: { ...base, ...overrides }, directory, smoked, printed, resolverCalls };
 }
 
-test("all three shipped bridges are smoked from the isolated copy, each reported, and the user-data dir is removed", async () => {
+test("packaged desktop HTTP and both CLI bridges are checked from the isolated copy", async () => {
   const fixture = ports();
   await runSmokeBridgeGate({ argv: ["--app", APP] }, fixture.ports);
 
-  assert.deepEqual(fixture.smoked.map((entry) => entry.label), ["site jini-mcp", "desktop jini-mcp", "tovu-desktop"]);
-  assert.equal(fixture.smoked[2]!.command, "/bin/sh", "the sites bridge runs through the written POSIX launcher");
+  assert.deepEqual(fixture.smoked.map((entry) => entry.label), ["site jini-mcp", "desktop jini-mcp"]);
   assert.equal(fixture.printed.length, 3);
   assert.ok(fixture.printed.every((line) => /^smoke-bridge: OK — .+ initialize \+ tools\/list\n$/.test(line)));
   const [command, args, options] = fixture.resolverCalls[0] as [string, string[], { cwd: string; env: NodeJS.ProcessEnv; encoding: string }];
@@ -55,16 +54,15 @@ test("all three shipped bridges are smoked from the isolated copy, each reported
   assert.equal(args[0], "-e");
   assert.equal(options.cwd, fixture.directory);
   assert.equal(options.env.ELECTRON_RUN_AS_NODE, "1");
-  // The disposable user-data dir lived under the isolated directory and is gone afterwards; the
-  // POSIX launcher the sites bridge execs was written there with it.
+  // HTTP smoke cleans its own temporary projects store; no shell launcher is written.
   assert.deepEqual(fs.readdirSync(fixture.directory).filter((name) => name.startsWith("tovu-release-smoke-")), []);
 });
 
 test("a Windows package needs no launcher script and still smokes every bridge", async () => {
   const fixture = ports({ platform: "win32" });
   await runSmokeBridgeGate({ argv: ["--app", APP] }, fixture.ports);
-  assert.equal(fixture.smoked.length, 3);
-  assert.deepEqual(fixture.smoked[2]!.env, { ELECTRON_RUN_AS_NODE: "1" });
+  assert.equal(fixture.smoked.length, 2);
+  assert.match(String(fixture.resolverCalls[0]?.[1]), /startDesktopMcpHttp/);
 });
 
 test("a missing executable or node_modules is refused before anything is copied", async () => {
@@ -86,7 +84,7 @@ test("a failed resolver run fails the gate with its status or spawn error, signa
 test("one failing bridge stops the gate and still removes the user-data dir", async () => {
   const fixture = ports({ smoke: async ({ entry }) => { if (entry.label === "desktop jini-mcp") throw new Error("desktop jini-mcp: watchdog"); } });
   await assert.rejects(runSmokeBridgeGate({ argv: ["--app", APP] }, fixture.ports), { message: "desktop jini-mcp: watchdog" });
-  assert.equal(fixture.printed.length, 1);
+  assert.equal(fixture.printed.length, 2);
   assert.deepEqual(fs.readdirSync(fixture.directory).filter((name) => name.startsWith("tovu-release-smoke-")), []);
 });
 

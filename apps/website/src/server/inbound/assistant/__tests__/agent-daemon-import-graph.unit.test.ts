@@ -1,9 +1,8 @@
 /**
  * @file ADR-070 fitness rule (`ADS-memory/reports/architecture/ADR-070-slim-agent-daemon.md`): the
  * agent daemon is a slim process, so its entry must not statically load the server's composition
- * root, the tool catalog, admin HTTP routes or DB migrations. Today it does: the daemon boots a
- * second full site (~4,993 modules, ~174 MB idle; `2026-10-26-memory-baseline.md`). The guard lands
- * skipped and W3-C un-skips it once the daemon runs tools through the server.
+ * root, the tool catalog, admin HTTP routes or DB migrations. W3-C cuts over to the retained
+ * leaf-client composition and site RPC; this guard is active for that actual entry graph.
  *
  * Method: walk the static RUNTIME import graph from `agent-daemon-server.ts` by parsing each file
  * (no type checker, so no full program build). An `import type`/`export type`, or one whose every
@@ -115,7 +114,7 @@ function importChain({ file, importers }: { file: string; importers: Map<string,
   return chain.join(" <- ");
 }
 
-test("the daemon entry's static runtime graph reaches none of ADR-070's forbidden modules", { skip: "un-skipped by W3-C" }, () => {
+test("the daemon entry's static runtime graph reaches none of ADR-070's forbidden modules", () => {
   const importers = walkRuntimeGraph({ entry: DAEMON_ENTRY });
   const reached = [...importers.keys()].filter((file) => FORBIDDEN.some((rule) => rule.test(relativeToSrc(file))));
   assert.deepEqual(
@@ -160,7 +159,7 @@ test("the forbidden list matches the ADR's modules and nothing next to them", ()
     "features/a/b/tool-registrations/index.ts", "server/inbound/admin-http/routes/x.ts", "platform/db/migrations/runner.ts",
   ]) assert.equal(forbidden(rel), true, rel);
   for (const rel of [
-    "server/runtime/composition/agent-daemon-deps.ts", "server/runtime/composition/deps-helpers.ts",
+    "server/runtime/composition/agent-daemon-core-deps.ts", "server/runtime/composition/deps-helpers.ts",
     "assistant/tool-registrations.ts", "platform/db/client/open-site-db-client.ts",
   ]) assert.equal(forbidden(rel), false, rel);
 });

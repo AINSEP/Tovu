@@ -26,11 +26,8 @@ function harness(overrides: Partial<SiteBackendPorts<FakeServer>> = {}) {
   const starts: unknown[] = [];
   const rows: unknown[] = [];
   const arms: unknown[] = [];
-  const registrations: unknown[] = [];
-  const launchers: unknown[] = [];
   const openSites = new Map<string, { server: FakeServer; siteDir?: string }>();
   let bridgeClosed = 0;
-  let registerResult: Promise<{ ok: boolean; reason?: string }> = Promise.resolve({ ok: true });
   const spawned = fakeServer();
   const ports: SiteBackendPorts<FakeServer> = {
     partitionFor: ({ siteDir }) => `persist:${siteDir}`,
@@ -45,12 +42,6 @@ function harness(overrides: Partial<SiteBackendPorts<FakeServer>> = {}) {
     armOwnerSignIn: (input) => { calls.push("arm"); arms.push(input); },
     ensureSession: async ({ redeem }) => { calls.push("ensure"); return redeem(); },
     redeemBootSession: async () => { calls.push("redeem"); return { ok: true }; },
-    env: {},
-    electronPath: () => "/Applications/Tovu.app/Tovu",
-    bridgePath: "/app/bin/mcp-bridge.ts",
-    userDataDir: () => "/user-data",
-    writeMcpLauncher: (input) => { calls.push("launcher"); launchers.push(input); return "/user-data/launcher"; },
-    registerMcpServer: (input) => { calls.push("register"); registrations.push(input); return registerResult; },
     log: (message) => logs.push(message),
     warn: (message) => warns.push(message),
     error: (message) => errors.push(message),
@@ -60,16 +51,14 @@ function harness(overrides: Partial<SiteBackendPorts<FakeServer>> = {}) {
     ...overrides,
   };
   return {
-    backend: createSiteBackend({ ports }), ports, calls, logs, warns, errors, starts, rows, arms, registrations,
-    launchers, openSites, spawned, bridgeClosed: () => bridgeClosed,
-    setRegisterResult: (result: Promise<{ ok: boolean; reason?: string }>) => { registerResult = result; },
+    backend: createSiteBackend({ ports }), ports, calls, logs, warns, errors, starts, rows, arms,
+    openSites, spawned, bridgeClosed: () => bridgeClosed,
   };
 }
 
 const ctx = { cliMode: "source" as const, registryPath: "/user-data/registry" };
-const flush = () => new Promise((resolve) => setImmediate(resolve));
 
-test("a spawned site: boot token always emitted, toolchain env merged, then record, session, announce in order", async () => {
+test("a spawned site: boot token always emitted, toolchain env merged, then record and session in order", async () => {
   const h = harness();
   const result = await h.backend.startSiteBackend({ siteDir: "/sites/a", ctx }, { port: 4100 });
   assert.equal(result.server, h.spawned);
@@ -79,7 +68,7 @@ test("a spawned site: boot token always emitted, toolchain env merged, then reco
     // The capture bridge's keys win over the toolchain's; TOVU_RUNNING_APP is always "Desktop".
     nodeToolchainEnv: { TOVU_NODE_TOOLCHAIN_DIR: "/tc", TOVU_CAPTURE: "bridge", TOVU_RUNNING_APP: "Desktop" },
   }]);
-  assert.deepEqual(h.calls, ["proxy", "bridge", "start", "remember:/sites/a", "record", "ensure", "redeem", "launcher", "register"]);
+  assert.deepEqual(h.calls, ["proxy", "bridge", "start", "remember:/sites/a", "record", "ensure", "redeem"]);
   assert.deepEqual(h.rows, [{ registryPath: "/user-data/registry", row: { siteDir: "/sites/a", port: 4100, workspaceId: "ws-own", pid: 77, updatedAt: 1234 } }]);
   assert.deepEqual(h.arms, [], "no capability, no owner sign-in arm");
 });
@@ -172,52 +161,13 @@ test("a start whose session is still valid never redeems a boot token", async ()
   assert.equal(h.calls.includes("redeem"), false);
 });
 
-test("announce: writes the launcher first, then registers with the site's own workspace and session", async () => {
-  const h = harness();
-  h.setRegisterResult(Promise.resolve({ ok: false, reason: "site refused" }));
-  const server = fakeServer({ workspaceId: "custom-workspace" });
-  h.backend.announceDesktopToolsToSite({ server, partition: "persist:custom" });
-  await flush();
-  assert.deepEqual(h.calls, ["launcher", "register"]);
-  assert.deepEqual(h.launchers, [{ userDataDir: "/user-data", electronPath: "/Applications/Tovu.app/Tovu", bridgePath: "/app/bin/mcp-bridge.ts" }]);
-  assert.deepEqual(h.registrations, [{ partition: "persist:custom", adminUrl: server.adminUrl, workspaceId: "custom-workspace",
-    launcherPath: "/user-data/launcher", bridgePath: "/app/bin/mcp-bridge.ts", userDataDir: "/user-data" }]);
-  assert.match(h.warns[0]!, /desktop tools are unavailable for this site — site refused/);
-});
-
-test("announce: a successful registration stays silent", async () => {
-  const h = harness();
-  h.backend.announceDesktopToolsToSite({ server: fakeServer(), partition: "p" });
-  await flush();
-  assert.deepEqual(h.warns, []);
-});
-
-test("desktop tools registration rejected asynchronously warns without failing the site open", async () => {
-  const h = harness({ registerMcpServer: async () => { throw new Error("connection reset"); } });
+test("only freshly spawned servers receive the main's automatic capability recovery", async () => {
+  const delivered: FakeServer[] = [];
+  const h = harness({ connectDesktopMcp: server => { delivered.push(server); } });
   await h.backend.startSiteBackend({ siteDir: "/sites/a", ctx });
-  await flush();
-  assert.deepEqual(h.warns, ["tovu-desktop: could not register the desktop MCP tools — connection reset"]);
-});
-
-test("announce: a failed launcher write is reported, never thrown, and nothing is registered", () => {
-  const h = harness({ writeMcpLauncher: () => { throw new Error("disk denied"); } });
-  assert.doesNotThrow(() => h.backend.announceDesktopToolsToSite({ server: fakeServer(), partition: "p" }));
-  assert.deepEqual(h.registrations, []);
-  assert.match(h.warns[0]!, /could not register the desktop MCP tools — disk denied/);
-});
-
-test("announce: any user-data override (even blank) skips before touching Electron or the filesystem", () => {
-  for (const override of ["/tmp/tovu-desktop-qa", "", "   "]) {
-    const h = harness({
-      env: { TOVU_DESKTOP_USER_DATA_DIR: override },
-      userDataDir: () => assert.fail("must not read userData"),
-      electronPath: () => assert.fail("must not read the executable path"),
-    });
-    h.backend.announceDesktopToolsToSite({ server: fakeServer(), partition: "p" });
-    assert.deepEqual(h.launchers, []);
-    assert.deepEqual(h.registrations, []);
-    assert.deepEqual(h.warns, []);
-  }
+  assert.deepEqual(delivered, [h.spawned]);
+  const attached = harness({ attachRunning: () => fakeServer(), connectDesktopMcp: () => assert.fail("foreign main must retain ownership") });
+  await attached.backend.startSiteBackend({ siteDir: "/sites/b", ctx });
 });
 
 test("openSiteServer: a site already open returns its server without any start", async () => {
@@ -247,13 +197,9 @@ test("openSiteServer: a failed start publishes nothing and schedules no preview"
 test("spawn receives runtime capability without registration or launcher", async () => {
   const capabilityEnv = { TOVU_DESKTOP_MCP_URL: "http://127.0.0.1:4199/mcp", TOVU_DESKTOP_MCP_TOKEN: "a".repeat(64) };
   const h = harness({ desktopMcpEnv: async () => capabilityEnv,
-    writeMcpLauncher: () => assert.fail("HTTP hosting must not write a launcher"),
-    registerMcpServer: async () => assert.fail("HTTP hosting must not register a stored row"),
   });
   await h.backend.startSiteBackend({ siteDir: "/sites/a", ctx });
   assert.deepEqual((h.starts[0] as { desktopMcpEnv: unknown }).desktopMcpEnv, capabilityEnv);
-  assert.deepEqual(h.registrations, []);
-  assert.deepEqual(h.launchers, []);
 });
 
 test("attached server retains its spawning instance", async () => {
@@ -263,12 +209,10 @@ test("attached server retains its spawning instance", async () => {
   });
   assert.equal((await h.backend.startSiteBackend({ siteDir: "/sites/a", ctx })).server, owner);
   assert.deepEqual(h.starts, []);
-  assert.deepEqual(h.registrations, []);
 });
 
 test("listener failure leaves site hosting available without falling back to a launcher", async () => {
   const h = harness({ desktopMcpEnv: async () => { throw new Error("bind failed"); },
-    writeMcpLauncher: () => assert.fail("listener failure must not spawn a bridge"),
   });
   assert.equal((await h.backend.startSiteBackend({ siteDir: "/sites/a", ctx })).server, h.spawned);
   assert.equal(h.warns.length, 1);

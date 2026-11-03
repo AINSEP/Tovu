@@ -59,9 +59,9 @@ test("agent-daemon-server.ts calls installUnhandledRejectionGuard() unconditiona
 
   // "Before any heavier boot work" — same placement rationale index.ts's own main() comment gives for
   // its identical call ("before any boot step below has a chance to reject unguarded"). Opening this
-  // process's own SQLite connection (`createAgentDaemonRouteDeps`, which calls
-  // `createSiteRouteDepsForWorkspace`/`createRouteDeps`) is the first real I/O this file performs.
-  const routeDepsIndex = DAEMON_ENTRY_SOURCE.indexOf("createAgentDaemonRouteDeps({ env: process.env },");
+  // retained composition (`createAgentDaemonCoreDeps`, site bootstrap then leaf DB client)
+  // is the first composition I/O this file performs.
+  const routeDepsIndex = DAEMON_ENTRY_SOURCE.indexOf("createAgentDaemonCoreDeps({ env: process.env, token: siteToolToken },");
   assert.ok(routeDepsIndex > -1, "this test's own anchor (the routeDeps line) must still exist verbatim — update the anchor if that line's shape changes");
   assert.ok(routeDepsIndex > callIndex, "the guard must be installed before this process's first real I/O (opening its own SQLite connection), not after");
   const guardStatement = daemonSource.statements.find((statement) =>

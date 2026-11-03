@@ -2,9 +2,9 @@
  * @file The `files:` list in `electron-builder.yml` must actually ship every file the main process
  * resolves at runtime — asserted against the real config, with the real matcher semantics.
  *
- * ## The defect this exists for
+ * ## Historical defect this exists for
  *
- * `main.ts`'s `announceDesktopToolsToSite` generates the MCP launcher with
+ * The former `announceDesktopToolsToSite` generated the MCP launcher with
  * `bridgePath: path.join(__dirname, "bin", "mcp-bridge.ts")`. In a packaged app `__dirname` is the
  * `app.asar` root, so that path is only real if `bin/` was packed. It was not: the `files:` list
  * named `main.js`, `package.json`, `dist/**` and `src/**`, and `bin/` matched none of them.
@@ -23,7 +23,7 @@
  *
  * Measured consequence before the fix, against a real signed bundle: the launcher pointed at a
  * nonexistent script, the spawned child produced nothing, and `attachFederatedMcpTools` gave up
- * with `connect timed out after 15000ms`. Because `announceDesktopToolsToSite` is fire-and-forget,
+ * with `connect timed out after 15000ms`. Because that announcement was fire-and-forget,
  * that surfaced as a 15-second stall at every site open and an assistant silently missing its
  * desktop tools — no error the operator could see.
  *
@@ -98,27 +98,22 @@ function configuredFilePatterns(): string[] {
   return config.files as string[];
 }
 
-test("the packaged app ships bin/mcp-bridge.ts, which the generated MCP launcher execs", () => {
-  assert.equal(
-    shipsPath(configuredFilePatterns(), "bin/mcp-bridge.ts"),
-    true,
-    "electron-builder.yml's files: list does not ship bin/mcp-bridge.ts. main.ts builds the MCP " +
-      "launcher's bridgePath as __dirname/bin/mcp-bridge.ts, which in a packaged app is inside " +
-      "app.asar — so omitting it makes every federated connect time out after 15s with no visible error.",
-  );
+test("the packaged app exposes desktop HTTP and excludes the retired stdio child", () => {
+  assert.equal(shipsPath(configuredFilePatterns(), "bin/mcp-bridge.ts"), false);
+  assert.equal(shipsPath(configuredFilePatterns(), "src/desktop-mcp-http.ts"), true);
 });
 
 test("the pre-fix files: list is REFUSED, so the check above cannot pass vacuously", () => {
   assert.equal(shipsPath(PRE_FIX_PATTERNS, "bin/mcp-bridge.ts"), false);
   // Same list, a path it really did ship — proves the refusal above is about bin/, not a broken matcher.
-  assert.equal(shipsPath(PRE_FIX_PATTERNS, "src/sites-mcp-registration.ts"), true);
+  assert.equal(shipsPath(PRE_FIX_PATTERNS, "src/desktop-mcp-http.ts"), true);
   assert.equal(shipsPath(PRE_FIX_PATTERNS, "main.ts"), true);
 });
 
 test("the files: list still excludes test files it is meant to exclude", () => {
   const patterns = configuredFilePatterns();
-  assert.equal(shipsPath(patterns, "src/sites-mcp-registration.test.ts"), false);
-  assert.equal(shipsPath(patterns, "src/sites-mcp-registration.ts"), true);
+  assert.equal(shipsPath(patterns, "src/desktop-mcp-http.test.ts"), false);
+  assert.equal(shipsPath(patterns, "src/desktop-mcp-http.ts"), true);
   for (const helper of ["src/renderer/app-hooks.test-support.ts", "src/renderer/app/component-harness.ts", "src/renderer/app-shell-source.ts"]) {
     assert.equal(shipsPath(patterns, helper), false, `${helper} is test-only`);
   }
@@ -245,7 +240,7 @@ test("production extraResources copies Electron notices, npm CLIs, dependencies 
 });
 
 test("production files includes every shell runtime entry point", () => {
-  for (const filename of ["src/main/index.ts", "bin/mcp-bridge.ts", "src/sites-mcp-registration.ts", "src/tovu-server.ts",
+  for (const filename of ["src/main/index.ts", "bin/tovu-desktop.ts", "src/desktop-mcp-http.ts", "src/tovu-server.ts",
     "dist/preload/preload.mjs", "dist/speech/preload-speech.cjs", "dist/contracts/project.js", "dist/renderer/index.html"]) {
     assert.equal(shipsPath(configuredFilePatterns(), filename), true, `${filename} must ship`);
   }

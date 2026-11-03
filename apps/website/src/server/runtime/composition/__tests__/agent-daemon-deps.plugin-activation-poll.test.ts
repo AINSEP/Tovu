@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { reconcilePluginActivationsOnce, type PluginActivationPollDeps } from "../agent-daemon-deps.js";
+import { reconcilePluginActivationsOnce, type PluginActivationPollDeps } from "../plugin-activation-polling.js";
 import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
 
 /**

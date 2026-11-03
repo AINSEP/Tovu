@@ -247,8 +247,8 @@ describe("Defect 1 wiring — the conversation/session binding must be written a
     // buries the one-line reason under a screenful of unrelated text.
     for (const name of ["agentAcceptsHostMintedSessionId", "resolveHostMintedSessionId", "resolveNewSessionField"]) {
       assert.ok(
-        new RegExp(`import\\s*\\{[^}]*${name}[^}]*\\}\\s*from\\s*["'][^"']*agent-daemon-port(\\.js)?["']`, "s").test(DAEMON_ENTRY_SOURCE),
-        `onStarted must import ${name} through agent-daemon-port.ts, not reimplement that decision inline`,
+        new RegExp(`import\\s*\\{[^}]*${name}[^}]*\\}\\s*from\\s*["'][^"']*agent-session-preset(\\.js)?["']`, "s").test(DAEMON_ENTRY_SOURCE),
+        `onStarted must import ${name} through agent-session-preset.ts, not reimplement that decision inline`,
       );
     }
   });
@@ -327,8 +327,8 @@ describe("Defect 1 wiring — the conversation/session binding must be written a
 describe("Defect 1 wiring — run starts must be serialized per conversation", () => {
   test("imports createConversationStartLock and constructs exactly one module-level instance", () => {
     assert.ok(
-      /import\s*\{[^}]*createConversationStartLock[^}]*\}\s*from\s*["'][^"']*agent-daemon-port(\.js)?["']/s.test(DAEMON_ENTRY_SOURCE),
-      "agent-daemon-server.ts must import createConversationStartLock through agent-daemon-port.ts",
+      /import\s*\{[^}]*createConversationStartLock[^}]*\}\s*from\s*["'][^"']*agent-session-preset(\.js)?["']/s.test(DAEMON_ENTRY_SOURCE),
+      "agent-daemon-server.ts must import createConversationStartLock through agent-session-preset.ts",
     );
     assert.ok(
       /const\s+conversationStartLock\s*=\s*createConversationStartLock\(\{\},\s*\{\}\)\s*;/.test(DAEMON_ENTRY_SOURCE),

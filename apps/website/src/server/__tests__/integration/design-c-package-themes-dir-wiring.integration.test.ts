@@ -7,7 +7,7 @@ import test from "node:test";
 
 import { resolveThemeOriginalSource } from "#src/features/theme/theme-files";
 import { builtInThemesDir, createSiteRouteDeps } from "../../runtime/composition/deps.js";
-import { createAgentDaemonRouteDeps } from "../../runtime/composition/agent-daemon-deps.js";
+import { createSiteRouteDepsForWorkspace } from "../../runtime/composition/deps.js";
 
 /**
  * @file Design C production-wiring regression (dispatch 2026-09-16, w7-design-c-wiring-test).
@@ -23,8 +23,7 @@ import { createAgentDaemonRouteDeps } from "../../runtime/composition/agent-daem
  * Production sets it in exactly ONE place: `createSiteRouteDeps` (`deps.ts:~1382`),
  * `packageThemesDir: builtInThemesDir()`. Both real consumers inherit that one line:
  *  - admin HTTP routes (`routes/themes/explore.ts`) via `createSiteRouteDeps` directly.
- *  - the agent daemon's `theme_reset_file` tool via `createAgentDaemonRouteDeps` ->
- *    `createSiteRouteDepsForWorkspace` -> `createSiteRouteDeps` (same line).
+ *  - remote `theme_reset_file` executes at the site server through the same workspace composition.
  *
  * `TOVU_DB === "memory"` (`composition/app.ts`'s `createRouteDeps()`) deliberately does NOT set it —
  * that is the documented hermetic/test-only contract, not a gap, and is NOT exercised here.
@@ -95,7 +94,7 @@ test("admin HTTP routes path: createSiteRouteDeps wires packageThemesDir to the 
   }
 });
 
-test("agent daemon path (theme_reset_file's own composition): createAgentDaemonRouteDeps -> createSiteRouteDepsForWorkspace -> createSiteRouteDeps wires packageThemesDir the same way", async () => {
+test("site RPC owner path (theme_reset_file's composition): createSiteRouteDepsForWorkspace -> createSiteRouteDeps wires packageThemesDir the same way", async () => {
   const dbPath = mkTempDbPath();
   const themesDir = mkTempThemesDir();
   // `createSiteRouteDepsForWorkspace`/`createSiteRouteDeps` have no themesDir-override parameter
@@ -110,14 +109,14 @@ test("agent daemon path (theme_reset_file's own composition): createAgentDaemonR
     delete daemonEnv.TOVU_DB;
     delete daemonEnv.TOVU_WORKSPACE;
 
-    const deps = await createAgentDaemonRouteDeps({ env: daemonEnv }, { dbPath });
+    const deps = await createSiteRouteDepsForWorkspace({ workspaceIdOverride: daemonEnv.TOVU_WORKSPACE }, { dbPath });
 
     assert.equal(
       deps.packageThemesDir,
       builtInThemesDir(),
-      "the agent daemon's RouteDeps (what theme_reset_file actually runs against) must also carry packageThemesDir wired to builtInThemesDir()"
+      "the site's RouteDeps (what remote theme_reset_file actually runs against) must also carry packageThemesDir wired to builtInThemesDir()"
     );
-    assert.ok(deps.packageThemesDir !== undefined, "packageThemesDir must not be undefined on the daemon's composition root");
+    assert.ok(deps.packageThemesDir !== undefined, "packageThemesDir must not be undefined on the site tool owner's composition root");
     assert.ok(fs.existsSync(deps.packageThemesDir!), `packageThemesDir must point at a real directory: ${deps.packageThemesDir}`);
     assert.ok(
       fs.existsSync(path.join(deps.packageThemesDir!, "__original-themes__")),

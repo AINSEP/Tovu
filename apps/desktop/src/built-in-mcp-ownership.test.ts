@@ -4,7 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { buildServeEnv } from "./tovu-server.ts";
-import { SITES_MCP_SERVER_ID } from "./sites-mcp-registration.ts";
+import { SITES_MCP_SERVER_ID } from "./sites-mcp-identity.ts";
 
 test("desktop declares ownership using the same id its registration source uses", () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-mcp-owner-"));

@@ -20,18 +20,13 @@ import test, { describe } from "node:test";
 
 const DAEMON_ENTRY_SOURCE = fs.readFileSync(path.join(import.meta.dirname, "../agent-daemon-server.ts"), "utf8");
 
-test("imports withPageNavigateErrorRewrap through the daemon port from the Tovu-side rewrap module", () => {
+test("imports withPageNavigateErrorRewrap directly from the Tovu-side implementation leaf", () => {
   assert.match(
     DAEMON_ENTRY_SOURCE,
-    /import\s*\{[^}]*\bwithPageNavigateErrorRewrap\b[^}]*\}\s*from\s*["']#src\/assistant\/agent-daemon-port["']/,
-    "expected withPageNavigateErrorRewrap in the daemon port's top-level import",
+    /import\s*\{[^}]*\bwithPageNavigateErrorRewrap\b[^}]*\}\s*from\s*["']#src\/assistant\/rewrap-page-navigate-error["']/,
+    "expected the Tovu-side navigation error wrapper's direct top-level import",
   );
-  const portSource = fs.readFileSync(path.join(import.meta.dirname, "../../../../assistant/agent-daemon-port.ts"), "utf8");
-  assert.match(
-    portSource,
-    /export\s*\{\s*withPageNavigateErrorRewrap\s*\}\s*from\s*["']\.\/rewrap-page-navigate-error\.js["']/,
-    "the daemon port must re-export the Tovu-side navigation error wrapper",
-  );
+
 });
 
 describe("the toolRegistrations registration loop", () => {
@@ -66,7 +61,7 @@ describe("the toolRegistrations registration loop", () => {
   // wrapper marked them; a correct wrapper the loop never calls would leave that refusal in place.
   test("the loop marks the read-only frontend capabilities before registering", () => {
     assert.match(registrationLoopSource, /withReadOnlyFrontendCapabilities\(frontendControl\.toolRegistrations\)/);
-    assert.match(DAEMON_ENTRY_SOURCE, /^\s+withReadOnlyFrontendCapabilities,$/m, "expected withReadOnlyFrontendCapabilities in the agent-daemon-port import list");
+    assert.match(DAEMON_ENTRY_SOURCE, /import\s*\{[^}]*withReadOnlyFrontendCapabilities[^}]*\}\s*from\s*["']#src\/assistant\/frontend-control-capabilities["']/, "expected the read-only capability wrapper from its implementation leaf");
   });
 
   test("every registration is still handed to registry.register — the rewrap must not replace registration itself", () => {

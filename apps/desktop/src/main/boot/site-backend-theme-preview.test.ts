@@ -48,13 +48,6 @@ function launch() {
     armOwnerSignIn: () => {},
     ensureSession: async () => true,
     redeemBootSession: async () => ({ ok: true }),
-    // Any user-data override skips the desktop-tools announce, which this file is not about.
-    env: { TOVU_DESKTOP_USER_DATA_DIR: "" },
-    electronPath: () => "/electron",
-    bridgePath: "/bridge.ts",
-    userDataDir: () => "/user-data",
-    writeMcpLauncher: () => assert.fail("the announce is skipped"),
-    registerMcpServer: () => assert.fail("the announce is skipped"),
     log: () => {}, warn: () => {}, error: () => {},
     openSites,
     schedulePreview: () => {},

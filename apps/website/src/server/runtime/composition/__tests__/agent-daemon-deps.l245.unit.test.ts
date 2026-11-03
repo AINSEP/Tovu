@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { PluginActivationRecord } from "@jini-ai/plugins/host";
-import { reconcilePluginActivationsOnce, type PluginActivationPollDeps } from "../agent-daemon-deps.js";
+import { reconcilePluginActivationsOnce, type PluginActivationPollDeps } from "../plugin-activation-polling.js";
 
 function row(required: { id: string; version?: string; enabled?: boolean; workspaceId?: string }, _optional: Record<string, never> = {}): PluginActivationRecord {
   return { pluginId: required.id, version: required.version ?? "2", enabled: required.enabled ?? true,
