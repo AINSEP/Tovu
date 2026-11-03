@@ -344,6 +344,9 @@ async function main(): Promise<void> {
   onListening();
 
   function onListening() {
+    const address = server.address();
+    if (address === null || typeof address === "string") throw new Error("the site listener has no TCP address");
+    const siteApiOrigin = pinSiteListenerOrigin({ scheme: devTls.active ? "https" : "http", host: bindHost, port: address.port });
     const store = useMemory ? "in-memory" : `sqlite (${defaultContentDbPath()})`;
     console.log(`tovu server running on ${devScheme}://localhost:${port} — store: ${store}`);
     // Watch restarts keep dev.mjs's session; boot must not wait for a Sites request to recover.
@@ -355,7 +358,7 @@ async function main(): Promise<void> {
     // and `core.execution.mode` rows). The list and the full why live in
     // `server/runtime/boot/site-boot-readiness.ts`, shared with `cli/commands/serve.ts`.
     startAssistantDaemon(
-      { workspaceId: deps.workspaceId, siteDir: siteDir(), pgSocketPath: siteStore?.pgliteSocketPath },
+      { workspaceId: deps.workspaceId, siteDir: siteDir(), pgSocketPath: siteStore?.pgliteSocketPath, siteApiOrigin },
       { registerProcessSignalHandlers: !storeOwnsShutdown, beforeStart: async () => {
         await awaitSiteBootReadiness({ deps });
         if (!(await agentDaemonWanted(deps))) throw new Error("the assistant daemon is disabled for this site");

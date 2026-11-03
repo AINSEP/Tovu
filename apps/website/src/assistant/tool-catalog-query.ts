@@ -104,7 +104,7 @@ export function buildToolCatalogQuery(
    *  caller is `tool-search-quality.eval.ts`, which needs a true before/after on the same case set to
    *  make its improvement attributable rather than asserted. Production always wants the default. */
   options: { readonly includeSearchKeywords?: boolean; readonly includeDoc2query?: boolean; readonly clock?: Clock } = {},
-): ToolCatalogQuery {
+): ToolCatalogQuery & { dispose(): void } {
   const db = openNativeSqlite(":memory:");
   // Indexed text, not the raw description — see `tool-search-keywords.ts` for why. Short
   // version: BM25 can only rank words that are in the index, and this catalog's descriptions
@@ -137,6 +137,8 @@ export function buildToolCatalogQuery(
   // with synonyms to game the index would degrade that in order to fix search. Stripping here keeps
   // the two concerns separate — the index sees the vocabulary, every caller sees the authored text.
   return {
+    /** Release the owned FTS connection when its principal's last live run ends. O(1). */
+    dispose() { if (db.open) db.close(); },
     search({ query }, { limit = 10 } = {}) {
       refresh();
       return snapshot.query.search({ query }, { limit });

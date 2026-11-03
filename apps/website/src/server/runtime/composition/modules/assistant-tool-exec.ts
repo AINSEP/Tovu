@@ -14,7 +14,8 @@ import type { RequestHandler } from "express";
 import type { RememberedApprovalPort, ToolRegistration } from "@jini-ai/core";
 import type { Clock } from "@jini-ai/core/primitives";
 import { MAX_DOCUMENT_BYTES } from "@jini-ai/cms/media";
-import { createRemoteAttachmentLookup, registerToolExecutionRoutes, type AttachmentLookup, type ToolExecutionRouteTarget } from "@jini-ai/daemon/http";
+import { createRemoteAttachmentLookup, registerToolExecutionRoutes, requireToolExecutionCaller, type AttachmentLookup, type ToolExecutionRouteTarget } from "@jini-ai/daemon/http";
+import type { AdminChartProviderSnapshot } from "#src/contracts/headless/index";
 import type { ByokToolSurface } from "#src/assistant/index";
 import type { DurableRunStore } from "#src/assistant/durable-runs/ports";
 import { durableAttemptOwnsAnswer } from "#src/server/inbound/assistant/run-start-decisions";
@@ -30,16 +31,21 @@ import type { InstallAttachmentReader } from '#src/contracts/headless/index';
 import { getAgentDaemonUrl } from "../../lifecycle/agent-daemon-port.js";
 import { createPluginInstallAttachmentReader } from "../plugin-install-attachment-reader.js";
 
+type ComponentCatalogDeps = {
+  runStore: Pick<DurableRunStore, "find"> | undefined; workspaceId: string;
+  components?: { pluginRuntimeReady: Promise<void>; siteTitleReady: Promise<void>;
+    chartProviderSnapshot?: (required: Record<string, never>) => Promise<AdminChartProviderSnapshot> };
+};
+
 /**
  * Mounts the tool RPC on `router`, which `app.ts` mounts ahead of the public JSON parser (the route
  * gates on token + loopback, then parses its own 16 MiB body). The token is read per request from
  * module memory (`currentToolExecToken`), never from `process.env`.
  * @complexity O(1) setup.
  */
-export function registerAssistantToolExecRoutes({ router, toolSurface, runStore, workspaceId }: {
+export function registerAssistantToolExecRoutes({ router, toolSurface, runStore, workspaceId, components }: {
   router: ToolExecutionRouteTarget; toolSurface: Pick<ByokToolSurface, "daemonCalls">;
-  runStore: Pick<DurableRunStore, "find"> | undefined; workspaceId: string;
-}, _optional = {}): void {
+} & ComponentCatalogDeps, _optional = {}): void {
   const tokenEnv: NodeJS.ProcessEnv = { get [TOOL_EXEC_TOKEN_ENV_VAR]() { return currentToolExecToken(); } };
   registerToolExecutionRoutes({ app: router, executor: toolSurface.daemonCalls.executor, listToolsFor: toolSurface.daemonCalls.listToolsFor }, {
     tokenEnvVar: TOOL_EXEC_TOKEN_ENV_VAR,
@@ -47,6 +53,48 @@ export function registerAssistantToolExecRoutes({ router, toolSurface, runStore,
     authorizeRun: requireSiteToolRun({ runStore, workspaceId }),
     runWithContext: ({ context, fn }) => runWithDaemonCallContext({ context: parseDaemonCallContext({ value: context }), fn }),
   });
+  // Same private caller gate as execution; never mounted through browser-auth routes.
+  router.get("/internal/component-catalog", requireToolExecutionCaller({}, { tokenEnvVar: TOOL_EXEC_TOKEN_ENV_VAR, env: tokenEnv }),
+    componentCatalogHandler({ runStore, workspaceId, ...(components ? { components } : {}) }));
+}
+
+/** Read metadata only after readiness, checking the live attempt across asynchronous boundaries.
+ * Missing/foreign/terminal runs are indistinguishable (404); no principal is accepted on the wire.
+ * @complexity Three indexed lookups and O(p + k) projection for p providers and k kinds; no cache.
+ */
+function componentCatalogHandler({ runStore, workspaceId, components }: ComponentCatalogDeps, _optional = {}): RequestHandler {
+  return (req, res, next) => {
+    const runId = req.query.runId;
+    const refuse = () => { res.status(404).json({ error: { code: "NOT_FOUND", message: "a live site run is required" } }); };
+    if (typeof runId !== "string" || !runId || req.query.principalId !== undefined || !runStore) { refuse(); return; }
+    void (async () => {
+      if (!(await findLiveSiteToolRun({ runId, runStore, workspaceId }))) { refuse(); return; }
+      if (!components?.chartProviderSnapshot) { res.status(503).json({ error: "component catalog is unavailable", code: "COMPONENT_CATALOG_UNAVAILABLE" }); return; }
+      await Promise.all([components.pluginRuntimeReady, components.siteTitleReady]);
+      if (!(await findLiveSiteToolRun({ runId, runStore, workspaceId }))) { refuse(); return; }
+      const snapshot = await components.chartProviderSnapshot({});
+      if (!(await findLiveSiteToolRun({ runId, runStore, workspaceId }))) { refuse(); return; }
+      // res.json would let Express add an ETag and turn a later request into a stale 304.
+      res.status(200).setHeader("content-type", "application/json; charset=utf-8");
+      res.setHeader("cache-control", "no-store");
+      res.end(JSON.stringify({ snapshot: { generation: snapshot.generation, siteProvider: snapshot.siteProvider,
+        providers: snapshot.providers.map(({ id, kinds, javascript, stylesheet }) => ({ id, kinds, javascript,
+          ...(stylesheet === undefined ? {} : { stylesheet }) })),
+      } }));
+    })().catch(next);
+  };
+}
+
+/** Shared authority for execution and both catalogs. The stored live attempt supplies identity;
+ * a supplied principal only constrains it. Missing, foreign and terminal records fail closed.
+ * @complexity One indexed lookup and O(1) extra space. Storage failures propagate to the route.
+ */
+async function findLiveSiteToolRun({ runId, runStore, workspaceId, principalId }: {
+  runId: string; runStore: Pick<DurableRunStore, "find">; workspaceId: string; principalId?: string;
+}, _optional = {}) {
+  const run = await runStore.find({ runId }, {});
+  if (!durableAttemptOwnsAnswer({ attempt: run }) || run?.runId !== runId || run.workspaceId !== workspaceId) return undefined;
+  return principalId === undefined || run.principalId === principalId ? run : undefined;
 }
 
 /** Binds both RPC routes to this site's current answer attempt. Wire identity and roles confer no
@@ -62,10 +110,8 @@ function requireSiteToolRun({ runStore, workspaceId }: {
     const principalId = execution ? body?.principal?.id : req.query.principalId;
     const refuse = () => { res.status(403).json({ error: { code: "FORBIDDEN", message: "a live site run with its recorded principal is required" } }); };
     if (!runStore || typeof runId !== "string" || typeof principalId !== "string") { refuse(); return; }
-    void runStore.find({ runId }, {}).then((run) => {
-      if (!durableAttemptOwnsAnswer({ attempt: run }) || run?.runId !== runId || run.workspaceId !== workspaceId || run.principalId !== principalId) {
-        refuse(); return;
-      }
+    void findLiveSiteToolRun({ runStore, runId, workspaceId, principalId }).then((run) => {
+      if (!run) { refuse(); return; }
       if (execution) req.body.principal = { id: run.principalId, ...(body?.principal?.toolAccess === "read-only" ? { toolAccess: "read-only" } : {}) };
       next();
     }).catch(next);

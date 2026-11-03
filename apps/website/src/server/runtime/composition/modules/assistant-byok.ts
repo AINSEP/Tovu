@@ -513,7 +513,7 @@ export function createAssistantByokModule(
     name: "assistant-byok",
     toolSurface: resolvedToolSurface,
     registerToolExecRoutes: ({ router }) => registerAssistantToolExecRoutes({ router, toolSurface: resolvedToolSurface,
-      runStore: routeDeps.chatRunLedger.durable, workspaceId: routeDeps.workspaceId }, {}),
+      runStore: routeDeps.chatRunLedger.durable, workspaceId: routeDeps.workspaceId, components: routeDeps }, {}),
     registerRoutes: (app: Express) => {
       app.use(BYOK_TURN_PATH, requireAdminSession(routeDeps));
       app.post(BYOK_TURN_PATH, (req: Request, res: Response, next: NextFunction) => {

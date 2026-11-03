@@ -17,6 +17,7 @@
  * Node adapter; this host supplies the site-scoped registry path and launch identity.
  */
 import { isDaemonLifecycleLogQuiet } from "./daemon-lifecycle-log.js";
+import { currentToolExecToken, TOOL_EXEC_TOKEN_ENV_VAR } from "#src/assistant/daemon-access";
 import { execFileSync } from "node:child_process";
 import {
   createNodeDaemonProcessAdapter,
@@ -296,6 +297,8 @@ export function resolveDaemonScriptPath(): string {
 /** Host-owned site/workspace identity supplied consistently across daemon respawns. */
 export interface DaemonSpawnEnvInput {
   workspaceId: string;
+  /** Actual bound site listener, including TLS and an OS-allocated port. */
+  siteApiOrigin?: string;
   /** This process's own already-resolved site root (`deps.ts`'s `siteDir()` for `index.ts`, or the
    *  CLI's `<dir>` argument for `cli/commands/serve.ts`) — see {@link buildDaemonSpawnEnvOverrides}. */
   siteDir: string;
@@ -328,6 +331,9 @@ export function buildDaemonSpawnEnvOverrides(input: DaemonSpawnEnvInput): NodeJS
   return {
     TOVU_WORKSPACE: input.workspaceId,
     TOVU_PARENT_PID: String(process.pid),
+    ...(input.siteApiOrigin === undefined ? {} : { TOVU_SITE_LISTENER_ORIGIN: input.siteApiOrigin }),
+    // Only the daemon child receives this secret; generic plugin/CLI spawns never inherit it.
+    [TOOL_EXEC_TOKEN_ENV_VAR]: currentToolExecToken(),
     // Self-allocation fix (2026-08-28): when neither `JINI_AGENT_DAEMON_URL` nor
     // `JINI_AGENT_DAEMON_PORT` was set, `agent-daemon-port.ts` picked a free port for THIS process
     // — the child would otherwise fall back to its own module-scope default (4319,
@@ -508,7 +514,7 @@ export interface StartAssistantDaemonOptions {
  * would fight the first one for the same port and the same `process.on(signal, ...)` slot.
  */
 export function startAssistantDaemon(
-  input: { workspaceId: string; siteDir: string; pgSocketPath?: string },
+  input: { workspaceId: string; siteDir: string; pgSocketPath?: string; siteApiOrigin?: string },
   options: StartAssistantDaemonOptions = {},
 ): void {
   if (shutdownRequested) {
@@ -531,6 +537,7 @@ export function startAssistantDaemon(
     siteDir: input.siteDir,
     daemonPortOverride,
     pgSocketPath: input.pgSocketPath,
+    siteApiOrigin: input.siteApiOrigin,
   };
   let prepared: Promise<void> | undefined;
   prepareStart = () => prepared ??= (async () => {

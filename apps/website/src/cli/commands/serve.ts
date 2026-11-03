@@ -433,7 +433,8 @@ async function serveBootedSite(input: RunServeCommandInput, target: string, owne
       // false` because this command already owns SIGINT/SIGTERM below (BR-07) — see
       // `startAssistantDaemon`'s own option doc for why a second listener here would race it.
       startAssistantDaemon(
-        { workspaceId: deps.workspaceId, siteDir: target, pgSocketPath: bootResult.store?.pgliteSocketPath },
+        { workspaceId: deps.workspaceId, siteDir: target, pgSocketPath: bootResult.store?.pgliteSocketPath,
+          siteApiOrigin: pinSiteListenerOrigin({ scheme: "http", host, port: (server.address() as import("node:net").AddressInfo).port }) },
         { registerProcessSignalHandlers: false, beforeStart: async () => {
           await awaitSiteBootReadiness({ deps });
           if (!(await agentDaemonWanted(deps))) throw new Error("the assistant daemon is disabled for this site");

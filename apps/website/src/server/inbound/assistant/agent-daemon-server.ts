@@ -24,7 +24,7 @@ import { createSupervisorRegistry } from "@jini-ai/sidecar/supervisor/node";
 import type { ToolContributor, DerivedToolContributor } from "@jini-ai/core";
 import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { createSkillRefreshMiddleware } from "#src/features/skills/live-registration";
-import { registerDaemonAttachmentLookup } from "#src/assistant/daemon-access";
+import { ensureToolExecToken, registerDaemonAttachmentLookup } from "#src/assistant/daemon-access";
 /**
  * @file The standalone agent daemon — a separate OS process from Tovu's own server, per the
  * architecture correction to ADR-049: Tovu does not spawn coding-agent CLIs itself.
@@ -227,6 +227,8 @@ import { awaitBootWorkWithinBound } from "../../runtime/lifecycle/await-boot-wor
 const port = Number(process.env.JINI_AGENT_DAEMON_PORT ?? 4319);
 const daemonUrl = `http://127.0.0.1:${port}`;
 const DEFAULT_AGENT_ID = "claude";
+// Adopt the supervisor's private RPC credential before CLI probes or plugin hosts can spawn.
+const siteToolToken = ensureToolExecToken({ env: process.env }, {});
 const assistantRuntime = createNativeAgentRuntime({ env: process.env });
 const assistantInventory = createAssistantAgentInventory({ runtime: assistantRuntime });
 const { getAgentDef, resolveAgentLaunch } = assistantRuntime;
