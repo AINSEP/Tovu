@@ -1,0 +1,33 @@
+[durable-recovery] {"runId":"f9ca10da-351c-4614-9bf9-091a771d5699","trigger":"attempt-failed","probe":"dead","decision":"finalized","failureClass":"retryable"}
+✖ an actual executor failure remains failed through Tovu recovery, chat.db and UI history (103.946531ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3052.017929
+
+✖ failing tests:
+
+test at apps/website/src/server/runtime/composition/modules/__tests__/assistant-run-finalizer.failed-run.integration.test.ts:1:687
+✖ an actual executor failure remains failed through Tovu recovery, chat.db and UI history (103.946531ms)
+  AssertionError [ERR_ASSERTION]: server-owned plugin consent must release when the durable observer ends its attempt
+  + actual - expected
+  
+  + []
+  - [
+  -   'f9ca10da-351c-4614-9bf9-091a771d5699'
+  - ]
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/modules/__tests__/assistant-run-finalizer.failed-run.integration.test.ts:58:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [],
+    expected: [ 'f9ca10da-351c-4614-9bf9-091a771d5699' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

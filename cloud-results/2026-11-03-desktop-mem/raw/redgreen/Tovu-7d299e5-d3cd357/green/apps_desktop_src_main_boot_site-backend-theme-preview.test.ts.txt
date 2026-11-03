@@ -1,0 +1,12 @@
+✔ a watched tab's stream opens when its site first starts, against that server's port, workspace and partition (2.179447ms)
+✔ after Stop a late frame from the old server is dropped, and a restart streams from the new server (0.468909ms)
+✔ an open with no tab watching the site starts its server but opens no stream (0.214636ms)
+✔ reopening a site that is already open reuses its server and keeps its one stream (0.245718ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 130.676746

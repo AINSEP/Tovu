@@ -1,0 +1,17 @@
+✔ concurrent principals have isolated catalogs and terminal cleanup (35.966563ms)
+✔ component requests refresh the server snapshot and fail closed without a core fallback (9.915733ms)
+[agent-daemon] site catalog unavailable: /internal/component-catalog
+✔ a catalog read completing after terminal cleanup cannot resurrect its principal (8.188593ms)
+✔ component snapshot reads reject oversized and malformed provider metadata (6.469502ms)
+✔ the inherited site tool token is removed before any CLI or plugin runtime can inherit it (876.57011ms)
+[agent-daemon] site catalog unavailable: /internal/tool-catalog
+✔ an obsolete start failure cannot remove a newer start of the same run (6.739869ms)
+✔ a live run cannot be rebound to another principal (2.581833ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2521.487834

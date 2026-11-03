@@ -1,0 +1,67 @@
+✔ Auto preflight suggests metadata only; the first guarded write still loads real guidance once (80.683873ms)
+✔ pending Ask use: real recovery replaces the attempt without another card (57.194786ms)
+✔ pending Ask use: process loss ends the turn and honours a late answer (48.617071ms)
+✔ pending Ask skip: real recovery replaces the attempt without another card (54.410694ms)
+✔ pending Ask skip: process loss ends the turn and honours a late answer (34.271756ms)
+✔ controller identity binds principal and conversation; disposal removes every attempt alias (45.536811ms)
+✔ Don't ask again writes Auto only for the answering principal through the real setting service (23.010328ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+✖ CLI onStarted places the relevance note, without guidance bodies, into the executor prompt (387.48401ms)
+✖ CLI preflight preserves the answer receipt channel in the durable run stream (212.941569ms)
+✔ load_agent_plugin carries maturity untested (36.890238ms)
+✔ load_agent_plugin carries maturity soon (30.86106ms)
+✔ load_agent_plugin carries maturity (absent) (42.691941ms)
+✔ automatic tool guidance warns before actions for an untested plugin (30.697412ms)
+✔ load_agent_plugin uses the real resolver and publishes the loaded chip through the real executor (51.9265ms)
+✔ inactive Higgsfield returns the exact activation and retry calls without activating it (125.623906ms)
+✔ the first theme write loads installed tovu-theme after a note-only preflight (41.017878ms)
+✔ the loader cannot use another principal’s run, an excluded plugin, or a revoked activation (35.8105ms)
+✔ 50 relevant ids are discoverable by paging the existing search tool and all load through the executor (11713.815917ms)
+✔ explicit loader and guarded write refuse ask through the real executor (20.179489ms)
+✔ explicit loader and guarded write refuse off through the real executor (10.035971ms)
+✔ explicit loader and guarded write refuse untrusted through the real executor (16.942242ms)
+✔ explicit loader and guarded write refuse unavailable through the real executor (19.25508ms)
+✔ a turn whose signal is already aborted registers no controller and returns no note (6.419817ms)
+✔ a tool without guidance capabilities loads no plugin guidance (58.616196ms)
+✔ a failing guidance preparation is logged without detail and yields no guidance (15.450135ms)
+✔ load_agent_plugin refuses unknown input keys (9.010992ms)
+✔ a disposed Ask turn publishes nothing after its pending question is aborted (13.440148ms)
+✔ load_agent_plugin reads a supporting file after load without any per-plugin registration (23.130805ms)
+ℹ tests 28
+ℹ suites 0
+ℹ pass 26
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 20268.858712
+
+✖ failing tests:
+
+test at apps/website/src/assistant/__tests__/automatic-agent-plugins.integration.test.ts:6:12939
+✖ CLI onStarted places the relevance note, without guidance bodies, into the executor prompt (387.48401ms)
+  Error: [agent-daemon] run daemon-test-run failed to start ReferenceError: resolveAgentPluginPromptPrefix is not defined
+      at Object.error (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:111:86)
+      at eval (eval at evaluateDaemonExpression (file:///home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:2941), <anonymous>:337:17)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+
+test at apps/website/src/assistant/__tests__/automatic-agent-plugins.integration.test.ts:6:14773
+✖ CLI preflight preserves the answer receipt channel in the durable run stream (212.941569ms)
+  Error: [agent-daemon] run daemon-test-run failed to start ReferenceError: resolveAgentPluginPromptPrefix is not defined
+      at Object.error (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:111:86)
+      at eval (eval at evaluateDaemonExpression (file:///home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:2941), <anonymous>:337:17)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)

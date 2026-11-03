@@ -1,0 +1,73 @@
+✖ host startup IDs reach a typed MCP call and the existing Tovu executor (55.280385ms)
+✖ startup publication prioritizes late theme tools within the budget and preserves remaining catalog order (13.231935ms)
+✖ startup discovery excludes forbidden and ungranted permanent deletes despite diagnostic IDs (12.210794ms)
+✖ overlapping runs isolate grants, credentials and publication and read the live registry at launch (10.951758ms)
+✖ typed and legacy calls recheck authorization after publication (9.427195ms)
+✖ typed and legacy bridge ingress preserve the executor's confirm decision (8.245715ms)
+✖ typed and legacy bridge ingress preserve the executor's deny decision (7.846637ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 0
+ℹ fail 7
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2840.062644
+
+✖ failing tests:
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.typed-tools.integration.test.ts:1:7894
+✖ host startup IDs reach a typed MCP call and the existing Tovu executor (55.280385ms)
+  ReferenceError [Error]: registry is not defined
+      at Object.list (eval at evaluateDaemonExpression (file:///home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:2941), <anonymous>:3:53)
+      at Object.startupToolIds (eval at evaluateDaemonExpression (file:///home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:2941), <anonymous>:13:41)
+      at buildMcpJsonServerEntry (/home/user/Jini/packages/daemon/src/agent-executor/mcp-bridge.ts:88:84)
+      at run (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.typed-tools.integration.test.ts:145:78)
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.typed-tools.integration.test.ts:1:8862
+✖ startup publication prioritizes late theme tools within the budget and preserves remaining catalog order (13.231935ms)
+  ReferenceError [Error]: registry is not defined
+      at Object.list (eval at evaluateDaemonExpression (file:///home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:2941), <anonymous>:3:53)
+      at Object.startupToolIds (eval at evaluateDaemonExpression (file:///home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:2941), <anonymous>:13:41)
+      at buildMcpJsonServerEntry (/home/user/Jini/packages/daemon/src/agent-executor/mcp-bridge.ts:88:84)
+      at run (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.typed-tools.integration.test.ts:145:78)
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.typed-tools.integration.test.ts:1:10535
+✖ startup discovery excludes forbidden and ungranted permanent deletes despite diagnostic IDs (12.210794ms)
+  ReferenceError [Error]: registry is not defined
+      at Object.list (eval at evaluateDaemonExpression (file:///home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:2941), <anonymous>:3:53)
+      at Object.startupToolIds (eval at evaluateDaemonExpression (file:///home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:2941), <anonymous>:13:41)
+      at buildMcpJsonServerEntry (/home/user/Jini/packages/daemon/src/agent-executor/mcp-bridge.ts:88:84)
+      at run (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.typed-tools.integration.test.ts:145:78)
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.typed-tools.integration.test.ts:1:11448
+✖ overlapping runs isolate grants, credentials and publication and read the live registry at launch (10.951758ms)
+  ReferenceError [Error]: registry is not defined
+      at Object.list (eval at evaluateDaemonExpression (file:///home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:2941), <anonymous>:3:53)
+      at Object.startupToolIds (eval at evaluateDaemonExpression (file:///home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:2941), <anonymous>:13:41)
+      at buildMcpJsonServerEntry (/home/user/Jini/packages/daemon/src/agent-executor/mcp-bridge.ts:88:84)
+      at run (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.typed-tools.integration.test.ts:145:78)
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.typed-tools.integration.test.ts:1:12740
+✖ typed and legacy calls recheck authorization after publication (9.427195ms)
+  ReferenceError [Error]: registry is not defined
+      at Object.list (eval at evaluateDaemonExpression (file:///home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:2941), <anonymous>:3:53)
+      at Object.startupToolIds (eval at evaluateDaemonExpression (file:///home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:2941), <anonymous>:13:41)
+      at buildMcpJsonServerEntry (/home/user/Jini/packages/daemon/src/agent-executor/mcp-bridge.ts:88:84)
+      at run (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.typed-tools.integration.test.ts:145:78)
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.typed-tools.integration.test.ts:1:13294
+✖ typed and legacy bridge ingress preserve the executor's confirm decision (8.245715ms)
+  ReferenceError [Error]: registry is not defined
+      at Object.list (eval at evaluateDaemonExpression (file:///home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:2941), <anonymous>:3:53)
+      at Object.startupToolIds (eval at evaluateDaemonExpression (file:///home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:2941), <anonymous>:13:41)
+      at buildMcpJsonServerEntry (/home/user/Jini/packages/daemon/src/agent-executor/mcp-bridge.ts:88:84)
+      at run (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.typed-tools.integration.test.ts:145:78)
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.typed-tools.integration.test.ts:1:13294
+✖ typed and legacy bridge ingress preserve the executor's deny decision (7.846637ms)
+  ReferenceError [Error]: registry is not defined
+      at Object.list (eval at evaluateDaemonExpression (file:///home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:2941), <anonymous>:3:53)
+      at Object.startupToolIds (eval at evaluateDaemonExpression (file:///home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:2941), <anonymous>:13:41)
+      at buildMcpJsonServerEntry (/home/user/Jini/packages/daemon/src/agent-executor/mcp-bridge.ts:88:84)
+      at run (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.typed-tools.integration.test.ts:145:78)

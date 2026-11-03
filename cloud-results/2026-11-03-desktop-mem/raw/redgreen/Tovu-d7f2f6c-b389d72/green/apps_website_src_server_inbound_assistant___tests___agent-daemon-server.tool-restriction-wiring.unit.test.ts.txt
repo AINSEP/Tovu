@@ -1,0 +1,22 @@
+▶ Finding 2 wiring — the spawned assistant's tool grant is actually restricted, not just prompted
+  ✔ imports the shared tool policy resolver from assistant-system-overlay.ts (1.061959ms)
+  ✔ agentExecutor.run() receives hook settings when the guard exists (132.731802ms)
+  ✔ agentExecutor.run() receives only the assistant setting sources (34.296219ms)
+✔ Finding 2 wiring — the spawned assistant's tool grant is actually restricted, not just prompted (169.839621ms)
+✔ onStarted hands the executor the enforced tool restrictions (26.29629ms)
+✔ native Windows shell launches emit the required value-free limitation notice (25.587634ms)
+✔ onStarted forwards the exact search hook settings through to Claude launch arguments (24.67899ms)
+✔ onStarted disables auto-memory through Claude launch settings even when the hook file is absent (19.131096ms)
+✔ a non-owner cannot use a true owner setting to change any provider's grant (52.392458ms)
+✔ real per-launch reads apply enable AND revoke without restarting the daemon (119.321358ms)
+✔ a failed fresh subagent read still launches Claude with every default tool restriction (16.688359ms)
+✔ catalog identity survives a parser continuation using the pre-existing request resource (24.901956ms)
+✔ the real prompt augmenter receives the same fresh grant as each concurrent launch (42.751571ms)
+ℹ tests 12
+ℹ suites 1
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3298.50366

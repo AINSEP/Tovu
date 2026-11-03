@@ -1,0 +1,42 @@
+✖ post-boot uploaded attachment resolves through the daemon owner (24.438122ms)
+✖ attachment lookup refuses missing and run-scoped credentials before parsing (23.558471ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2432.941582
+
+✖ failing tests:
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-remote-tools.integration.test.ts:1:2171
+✖ post-boot uploaded attachment resolves through the daemon owner (24.438122ms)
+  AssertionError [ERR_ASSERTION]: the daemon must mount its authenticated attachment lookup after creating its store
+      at bootAttachmentOwner (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-remote-tools.integration.test.ts:23:10)
+      at async TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-remote-tools.integration.test.ts:42:37)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-remote-tools.integration.test.ts:1:3309
+✖ attachment lookup refuses missing and run-scoped credentials before parsing (23.558471ms)
+  AssertionError [ERR_ASSERTION]: the daemon must mount its authenticated attachment lookup after creating its store
+      at bootAttachmentOwner (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-remote-tools.integration.test.ts:23:10)
+      at async TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-remote-tools.integration.test.ts:63:23)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

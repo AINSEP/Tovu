@@ -1,0 +1,51 @@
+✔ Auto preflight suggests metadata only; the first guarded write still loads real guidance once (73.111866ms)
+✔ pending Ask use: real recovery replaces the attempt without another card (42.55746ms)
+✔ pending Ask use: process loss ends the turn and honours a late answer (29.938866ms)
+✔ pending Ask skip: real recovery replaces the attempt without another card (38.909178ms)
+✔ pending Ask skip: process loss ends the turn and honours a late answer (43.062195ms)
+✔ controller identity binds principal and conversation; disposal removes every attempt alias (50.661767ms)
+✔ Don't ask again writes Auto only for the answering principal through the real setting service (18.843234ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+✔ CLI onStarted places the relevance note, without guidance bodies, into the executor prompt (461.284009ms)
+✔ CLI preflight preserves the answer receipt channel in the durable run stream (196.184786ms)
+✔ load_agent_plugin carries maturity untested (23.783773ms)
+✔ load_agent_plugin carries maturity soon (21.906959ms)
+✔ load_agent_plugin carries maturity (absent) (19.048607ms)
+✔ automatic tool guidance warns before actions for an untested plugin (18.103586ms)
+✔ load_agent_plugin uses the real resolver and publishes the loaded chip through the real executor (26.654828ms)
+✔ inactive Higgsfield returns the exact activation and retry calls without activating it (69.443608ms)
+✔ the first theme write loads installed tovu-theme after a note-only preflight (17.273431ms)
+✔ the loader cannot use another principal’s run, an excluded plugin, or a revoked activation (15.053771ms)
+✔ 50 relevant ids are discoverable by paging the existing search tool and all load through the executor (11868.333258ms)
+✔ explicit loader and guarded write refuse ask through the real executor (38.425373ms)
+✔ explicit loader and guarded write refuse off through the real executor (5.428806ms)
+✔ explicit loader and guarded write refuse untrusted through the real executor (18.330548ms)
+✔ explicit loader and guarded write refuse unavailable through the real executor (15.785998ms)
+✔ a turn whose signal is already aborted registers no controller and returns no note (6.010609ms)
+✔ a tool without guidance capabilities loads no plugin guidance (10.939858ms)
+✔ a failing guidance preparation is logged without detail and yields no guidance (14.704617ms)
+✔ load_agent_plugin refuses unknown input keys (8.25957ms)
+✔ a disposed Ask turn publishes nothing after its pending question is aborted (10.880655ms)
+✔ load_agent_plugin reads a supporting file after load without any per-plugin registration (24.226089ms)
+ℹ tests 28
+ℹ suites 0
+ℹ pass 28
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 19775.849376

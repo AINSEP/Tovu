@@ -1,0 +1,36 @@
+✔ the daemon child's spawn env resolves to the SAME site root the parent already resolved, for a site dir that is NOT the cwd fallback (2.119432ms)
+✔ an operator-set TOVU_SITE_DIR in the parent's own env is never shadowed by this process's own resolved site dir (0.398234ms)
+✔ an independently-set TOVU_THEMES_DIR still wins over the injected TOVU_SITE_DIR in the child's resolution (0.942314ms)
+✔ buildDaemonSpawnEnvOverrides never touches TOVU_CONTENT_DB / TOVU_MEDIA_UPLOADS_DIR / TOVU_THEMES_DIR directly (0.489608ms)
+✔ an undefined daemon port injects no JINI_AGENT_DAEMON_PORT override (0.360543ms)
+✔ a PGlite site's owner socket is handed to the daemon as TOVU_PG_SOCKET; other sites get no such var (0.321986ms)
+✖ the daemon receives the actual site listener and the privately held tool token on every spawn (3.614046ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 6
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5845.324381
+
+✖ failing tests:
+
+test at apps/website/src/server/runtime/lifecycle/__tests__/agent-daemon-spawn-env.test.ts:1:3962
+✖ the daemon receives the actual site listener and the privately held tool token on every spawn (3.614046ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - 'https://localhost:52117'
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/server/runtime/lifecycle/__tests__/agent-daemon-spawn-env.test.ts:112:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'https://localhost:52117',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

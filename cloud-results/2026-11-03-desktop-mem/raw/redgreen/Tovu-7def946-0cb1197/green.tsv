@@ -1,0 +1,6 @@
+FAIL(1)	apps/website/src/assistant/__tests__/tool-catalog-query.test.ts
+FAIL(1)	apps/website/src/server/inbound/assistant/__tests__/agent-daemon-remote-tools.integration.test.ts
+PASS	apps/website/src/server/inbound/assistant/__tests__/agent-daemon-site-tools.unit.test.ts
+PASS	apps/website/src/server/runtime/composition/modules/__tests__/assistant-component-catalog.integration.test.ts
+FAIL(1)	apps/website/src/server/runtime/composition/modules/__tests__/assistant-tool-exec.integration.test.ts
+PASS	apps/website/src/server/runtime/lifecycle/__tests__/agent-daemon-spawn-env.test.ts

@@ -1,0 +1,84 @@
+✔ post-boot uploaded attachment resolves through the daemon owner (106.440327ms)
+✔ attachment lookup refuses missing and run-scoped credentials before parsing (31.899945ms)
+✖ delegation records tool_use and tool_result (4524.755097ms)
+✖ cancel aborts the server handler (1.356197ms)
+✖ committed write with dropped response dispatches once (0.931796ms)
+✖ memory site writes are visible in the server (0.847208ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 2
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7169.498161
+
+✖ failing tests:
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-remote-tools.integration.test.ts:1:8643
+✖ delegation records tool_use and tool_result (4524.755097ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/agent-daemon-site-tools.js' imported from /home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-remote-tools.integration.test.ts
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+      at nextStep (node:internal/modules/customization_hooks:189:26)
+      at resolveBaseSync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:9115)
+      at resolveDirectorySync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:10328)
+      at resolveTsPathsSync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:11560)
+      at resolve (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:13343) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///home/user/wt-Tovu/apps/website/src/server/inbound/assistant/agent-daemon-site-tools.js'
+  }
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-remote-tools.integration.test.ts:1:9008
+✖ cancel aborts the server handler (1.356197ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/agent-daemon-site-tools.js' imported from /home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-remote-tools.integration.test.ts
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+      at nextStep (node:internal/modules/customization_hooks:189:26)
+      at resolveBaseSync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:9115)
+      at resolveDirectorySync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:10328)
+      at resolveTsPathsSync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:11560)
+      at resolve (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:13343) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///home/user/wt-Tovu/apps/website/src/server/inbound/assistant/agent-daemon-site-tools.js'
+  }
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-remote-tools.integration.test.ts:1:9259
+✖ committed write with dropped response dispatches once (0.931796ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/agent-daemon-site-tools.js' imported from /home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-remote-tools.integration.test.ts
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+      at nextStep (node:internal/modules/customization_hooks:189:26)
+      at resolveBaseSync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:9115)
+      at resolveDirectorySync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:10328)
+      at resolveTsPathsSync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:11560)
+      at resolve (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:13343) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///home/user/wt-Tovu/apps/website/src/server/inbound/assistant/agent-daemon-site-tools.js'
+  }
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-remote-tools.integration.test.ts:1:9684
+✖ memory site writes are visible in the server (0.847208ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/agent-daemon-site-tools.js' imported from /home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-remote-tools.integration.test.ts
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+      at nextStep (node:internal/modules/customization_hooks:189:26)
+      at resolveBaseSync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:9115)
+      at resolveDirectorySync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:10328)
+      at resolveTsPathsSync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:11560)
+      at resolve (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:13343) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///home/user/wt-Tovu/apps/website/src/server/inbound/assistant/agent-daemon-site-tools.js'
+  }

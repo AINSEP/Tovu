@@ -1,0 +1,14 @@
+[plugin-runtime] plugin activation poll failed to attach 'broken-plugin': package missing from disk
+✔ a plugin newly enabled in the durable repo is attached, and its id is added to attachedIds (2.652591ms)
+✔ an already-attached plugin is NOT re-attached on a later pass — no redundant reload, no reset quarantine counter (0.27848ms)
+✔ a plugin disabled elsewhere (no longer in the durable enabled set) is detached and dropped from attachedIds (0.215333ms)
+✔ a workspace this daemon does not serve is ignored, even if enabled there (0.274362ms)
+✔ one plugin's attach failure is logged and skipped, never blocking reconciliation of the rest (0.973509ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1194.53153

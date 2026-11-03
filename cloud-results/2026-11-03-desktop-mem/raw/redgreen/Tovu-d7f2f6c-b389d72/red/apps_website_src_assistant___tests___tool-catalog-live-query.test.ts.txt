@@ -1,0 +1,38 @@
+✔ query delegates to the initially-bound catalog before any rebind (1.982378ms)
+✔ rebind swaps what the SAME query object delegates to — object identity never changes (0.361525ms)
+✔ multiple rebinds always reflect the MOST RECENT catalog, never an earlier one (0.218331ms)
+✔ search preserves an explicit limit before and after rebind (0.531297ms)
+✖ server admission refreshes the next daemon run while retaining boot tools (1618.176628ms)
+✖ the daemon describe route exposes the read family and refreshes its registered cards (8.019574ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 4
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2666.429553
+
+✖ failing tests:
+
+test at apps/website/src/assistant/__tests__/tool-catalog-live-query.test.ts:1:2219
+✖ server admission refreshes the next daemon run while retaining boot tools (1618.176628ms)
+  ReferenceError [Error]: deleteScope is not defined
+      at eval (eval at evaluateDaemonStatements (file:///home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:9360), <anonymous>:3:73)
+      at eval (eval at evaluateDaemonStatements (file:///home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:9360), <anonymous>:3:166)
+      at evaluateDaemonStatements (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:176:53)
+      at mountDaemonCatalog (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-catalog.ts:27:9)
+      at async TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/assistant/__tests__/tool-catalog-live-query.test.ts:67:19)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at apps/website/src/assistant/__tests__/tool-catalog-live-query.test.ts:1:4003
+✖ the daemon describe route exposes the read family and refreshes its registered cards (8.019574ms)
+  ReferenceError [Error]: deleteScope is not defined
+      at eval (eval at evaluateDaemonStatements (file:///home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:9360), <anonymous>:3:73)
+      at eval (eval at evaluateDaemonStatements (file:///home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:9360), <anonymous>:3:166)
+      at evaluateDaemonStatements (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:176:53)
+      at mountDaemonCatalog (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-catalog.ts:27:9)
+      at async TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/assistant/__tests__/tool-catalog-live-query.test.ts:90:19)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)

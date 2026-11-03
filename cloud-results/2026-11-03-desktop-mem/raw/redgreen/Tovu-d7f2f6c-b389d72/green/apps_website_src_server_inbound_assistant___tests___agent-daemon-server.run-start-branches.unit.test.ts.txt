@@ -1,0 +1,49 @@
+▶ resolveSessionBinding — which stored session a run resumes
+  ✔ an ordinary turn resumes the conversation's stored session (98.298711ms)
+  ✔ reconstruction recovery never resumes the stored session and mints a fresh one (32.38488ms)
+  ✔ native recovery resumes the recovery session instead of the stored one (22.872537ms)
+  ✔ native recovery without a recovery session starts cold (24.659924ms)
+  ✔ the run's own agent keys the session lookup and is the agent launched (23.539893ms)
+  ✔ a run that names no agent uses the default agent (22.533396ms)
+  ✔ saved copilot starts with the default agent without a user error (25.629186ms)
+  ✔ saved removed-agent starts with the default agent without a user error (20.952613ms)
+  ✔ a run outside any conversation never reads or writes a session (26.322002ms)
+✔ resolveSessionBinding — which stored session a run resumes (299.403433ms)
+▶ resolveSessionBinding — concurrency gate
+  ✔ a concurrent live run refuses a memory-carrying agent that would lose its stored history (27.790391ms)
+  ✔ a concurrent live run with nothing stored starts cold under a minted id (29.189613ms)
+✔ resolveSessionBinding — concurrency gate (57.438762ms)
+▶ resolveSessionBinding — where the minted id is persisted
+  ✔ a non-durable cold start persists the minted id to the conversation's session store (17.179876ms)
+  ✔ a durable cold start captures the minted id on its attempt, unconfirmed, not in the session store (19.489486ms)
+  ✔ a failed dispatch-time write is logged and the run still starts (22.718795ms)
+  ✔ a resumed turn mints and persists nothing (39.831381ms)
+✔ resolveSessionBinding — where the minted id is persisted (99.856854ms)
+▶ onStarted continuation — durable attempt ownership
+  ✔ a queued durable attempt still owns its answer and starts (34.541122ms)
+  ✔ a missing durable attempt is refused (17.013215ms)
+  ✔ a cancelled durable attempt is refused (20.450074ms)
+  ✔ a durable attempt whose answer already finished is refused (18.728322ms)
+  ✔ a durable attempt with no run status is refused (15.898665ms)
+  ✔ a durable message id without a durable ledger skips the ownership check (13.07093ms)
+✔ onStarted continuation — durable attempt ownership (120.446807ms)
+▶ onStarted continuation — early stops and prompt assembly
+  ✔ a refused attachment claim stops before the executor (1001.317666ms)
+  ✔ a refused plugin prefix stops before the executor (20.264244ms)
+  ✔ the server's joined automatic and pinned prefix reaches the executor ahead of the prompt (16.274269ms)
+  ✔ the daemon sends only its run id and cancellation signal to server plugin preflight (16.658354ms)
+  ✔ an unavailable automatic preflight is warned about and the run starts without it (16.231332ms)
+  ✔ an unavailable preflight cannot silently omit an explicitly selected plugin (14.83502ms)
+  ✔ a cold start of a memory-carrying agent replaces the tail prompt with the cold-start context (14.098768ms)
+  ✔ a resumed turn keeps its tail prompt even when a cold-start context is sent (14.554479ms)
+  ✔ a cold start of an agent without its own memory keeps the prompt it was sent (14.837102ms)
+  ✔ a cold start without a cold-start context keeps the prompt it was sent (19.305364ms)
+✔ onStarted continuation — early stops and prompt assembly (1149.816594ms)
+ℹ tests 31
+ℹ suites 5
+ℹ pass 31
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4264.864859

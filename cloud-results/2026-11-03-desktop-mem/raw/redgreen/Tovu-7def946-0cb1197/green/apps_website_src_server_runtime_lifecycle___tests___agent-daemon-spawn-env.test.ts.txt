@@ -1,0 +1,15 @@
+✔ the daemon child's spawn env resolves to the SAME site root the parent already resolved, for a site dir that is NOT the cwd fallback (2.711939ms)
+✔ an operator-set TOVU_SITE_DIR in the parent's own env is never shadowed by this process's own resolved site dir (0.827128ms)
+✔ an independently-set TOVU_THEMES_DIR still wins over the injected TOVU_SITE_DIR in the child's resolution (1.378796ms)
+✔ buildDaemonSpawnEnvOverrides never touches TOVU_CONTENT_DB / TOVU_MEDIA_UPLOADS_DIR / TOVU_THEMES_DIR directly (0.938063ms)
+✔ an undefined daemon port injects no JINI_AGENT_DAEMON_PORT override (0.717036ms)
+✔ a PGlite site's owner socket is handed to the daemon as TOVU_PG_SOCKET; other sites get no such var (0.818126ms)
+✔ the daemon receives the actual site listener and the privately held tool token on every spawn (1.336521ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5862.49746

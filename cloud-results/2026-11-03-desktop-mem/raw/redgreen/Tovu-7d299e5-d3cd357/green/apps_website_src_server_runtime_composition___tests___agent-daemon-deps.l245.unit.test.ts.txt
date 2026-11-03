@@ -1,0 +1,13 @@
+✔ L245: reconciliation filters rows, retains attachment order, reloads changed or unknown versions and detaches stale IDs (2.189251ms)
+✔ L245: without a version reader attached IDs stay loaded; duplicate rows attach once (0.384599ms)
+✔ L245: duplicate enabled rows use the last version and ignore a later disabled row (0.265545ms)
+✔ L245: Error and non-Error attach failures are logged, preserve existing IDs, and allow later attaches and detaches (0.762809ms)
+✔ L245: repository and detach failures propagate without deleting the failed attachment (0.725045ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 971.056369

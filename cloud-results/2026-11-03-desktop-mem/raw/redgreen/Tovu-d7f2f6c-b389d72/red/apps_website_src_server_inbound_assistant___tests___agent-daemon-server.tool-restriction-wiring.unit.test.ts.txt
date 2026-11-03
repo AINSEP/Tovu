@@ -1,0 +1,114 @@
+▶ Finding 2 wiring — the spawned assistant's tool grant is actually restricted, not just prompted
+  ✔ imports the shared tool policy resolver from assistant-system-overlay.ts (1.096027ms)
+  ✖ agentExecutor.run() receives hook settings when the guard exists (100.233961ms)
+  ✖ agentExecutor.run() receives only the assistant setting sources (33.819038ms)
+✖ Finding 2 wiring — the spawned assistant's tool grant is actually restricted, not just prompted (136.704588ms)
+✖ onStarted hands the executor the enforced tool restrictions (32.551193ms)
+✖ native Windows shell launches emit the required value-free limitation notice (27.191521ms)
+✖ onStarted forwards the exact search hook settings through to Claude launch arguments (23.496286ms)
+✖ onStarted disables auto-memory through Claude launch settings even when the hook file is absent (20.477368ms)
+✖ a non-owner cannot use a true owner setting to change any provider's grant (20.543853ms)
+✖ real per-launch reads apply enable AND revoke without restarting the daemon (50.436859ms)
+✖ a failed fresh subagent read still launches Claude with every default tool restriction (16.278862ms)
+✖ catalog identity survives a parser continuation using the pre-existing request resource (25.251628ms)
+✖ the real prompt augmenter receives the same fresh grant as each concurrent launch (42.511298ms)
+ℹ tests 12
+ℹ suites 1
+ℹ pass 1
+ℹ fail 11
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2984.954083
+
+✖ failing tests:
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.tool-restriction-wiring.unit.test.ts:1:1716
+✖ agentExecutor.run() receives hook settings when the guard exists (100.233961ms)
+  Error: [agent-daemon] run daemon-test-run failed to start ReferenceError: resolveAgentPluginPromptPrefix is not defined
+      at Object.error (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:111:86)
+      at eval (eval at evaluateDaemonExpression (file:///home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:2941), <anonymous>:337:17)
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.tool-restriction-wiring.unit.test.ts:1:2093
+✖ agentExecutor.run() receives only the assistant setting sources (33.819038ms)
+  Error: [agent-daemon] run daemon-test-run failed to start ReferenceError: resolveAgentPluginPromptPrefix is not defined
+      at Object.error (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:111:86)
+      at eval (eval at evaluateDaemonExpression (file:///home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:2941), <anonymous>:337:17)
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.tool-restriction-wiring.unit.test.ts:1:2306
+✖ onStarted hands the executor the enforced tool restrictions (32.551193ms)
+  Error: [agent-daemon] run daemon-test-run failed to start ReferenceError: resolveAgentPluginPromptPrefix is not defined
+      at Object.error (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:111:86)
+      at eval (eval at evaluateDaemonExpression (file:///home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:2941), <anonymous>:337:17)
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.tool-restriction-wiring.unit.test.ts:1:2694
+✖ native Windows shell launches emit the required value-free limitation notice (27.191521ms)
+  Error: The assistant could not start this execution attempt.
+      at failRunBeforeStart (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:110:78)
+      at eval (eval at evaluateDaemonExpression (file:///home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:2941), <anonymous>:339:14)
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.tool-restriction-wiring.unit.test.ts:1:3333
+✖ onStarted forwards the exact search hook settings through to Claude launch arguments (23.496286ms)
+  Error: [agent-daemon] run daemon-test-run failed to start ReferenceError: resolveAgentPluginPromptPrefix is not defined
+      at Object.error (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:111:86)
+      at eval (eval at evaluateDaemonExpression (file:///home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:2941), <anonymous>:337:17)
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.tool-restriction-wiring.unit.test.ts:1:4213
+✖ onStarted disables auto-memory through Claude launch settings even when the hook file is absent (20.477368ms)
+  Error: [agent-daemon] run daemon-test-run failed to start ReferenceError: resolveAgentPluginPromptPrefix is not defined
+      at Object.error (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:111:86)
+      at eval (eval at evaluateDaemonExpression (file:///home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:2941), <anonymous>:337:17)
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.tool-restriction-wiring.unit.test.ts:1:4905
+✖ a non-owner cannot use a true owner setting to change any provider's grant (20.543853ms)
+  Error: [agent-daemon] run daemon-test-run failed to start ReferenceError: resolveAgentPluginPromptPrefix is not defined
+      at Object.error (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:111:86)
+      at eval (eval at evaluateDaemonExpression (file:///home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:2941), <anonymous>:337:17)
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.tool-restriction-wiring.unit.test.ts:1:5410
+✖ real per-launch reads apply enable AND revoke without restarting the daemon (50.436859ms)
+  Error: [agent-daemon] run daemon-test-run failed to start ReferenceError: resolveAgentPluginPromptPrefix is not defined
+      at Object.error (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:111:86)
+      at eval (eval at evaluateDaemonExpression (file:///home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:2941), <anonymous>:337:17)
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.tool-restriction-wiring.unit.test.ts:1:6994
+✖ a failed fresh subagent read still launches Claude with every default tool restriction (16.278862ms)
+  Error: [agent-daemon] run daemon-test-run failed to start ReferenceError: resolveAgentPluginPromptPrefix is not defined
+      at Object.error (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:111:86)
+      at eval (eval at evaluateDaemonExpression (file:///home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:2941), <anonymous>:337:17)
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.tool-restriction-wiring.unit.test.ts:1:8128
+✖ catalog identity survives a parser continuation using the pre-existing request resource (25.251628ms)
+  AssertionError [ERR_ASSERTION]: capture the real JSON parser and live-run scope registrations
+  
+  1 !== 2
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.tool-restriction-wiring.unit.test.ts:167:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 2,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.tool-restriction-wiring.unit.test.ts:1:10005
+✖ the real prompt augmenter receives the same fresh grant as each concurrent launch (42.511298ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /captured launch/. Input:
+  
+  '[agent-daemon] run daemon-test-run failed to start ReferenceError: resolveAgentPluginPromptPrefix is not defined'
+  
+      at <anonymous> (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.tool-restriction-wiring.unit.test.ts:213:129)
+      at async Promise.all (index 0)
+      at async TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.tool-restriction-wiring.unit.test.ts:204:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '[agent-daemon] run daemon-test-run failed to start ReferenceError: resolveAgentPluginPromptPrefix is not defined',
+    expected: /captured launch/,
+    operator: 'match',
+    diff: 'simple'
+  }

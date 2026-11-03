@@ -1,0 +1,201 @@
+✔ plugin-runtime-attach: once started, a plugin disabled by ANOTHER process is detached from this process's hook registry, and an enabled one attached; stop() ends polling (78.526663ms)
+✔ stop cancels a queued reconciliation waiting on readiness (2.485991ms)
+✔ stop cancels a queued reconciliation waiting on activation read (0.902473ms)
+✖ server polling survives removal of daemon site composition (4.060296ms)
+✔ waitFor rejects at its deadline instead of silently accepting missing reconciliation (1.426071ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 4
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6637.86845
+
+✖ failing tests:
+
+test at apps/website/src/server/runtime/boot/__tests__/plugin-activation-poll-boot.unit.test.ts:1:3439
+✖ server polling survives removal of daemon site composition (4.060296ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /from "..\/composition\/plugin-activation-polling.js"/. Input:
+  
+  'import path from "node:path";\n' +
+    '\n' +
+    'import { reconcileInterruptedMigrationOnBoot } from "#src/features/database/boot/reconcile-interrupted-migration";\n' +
+    'import { explicitRootAgentPluginActivations, listInstalledPlugins, seedBundledAgentPlugins } from "../../../features/agent-plugins/lifecycle.js";\n' +
+    'import { SELECTED_AGENT_PLUGIN_PACKAGES } from "#src/features/agent-plugins/bundled-catalog";\n' +
+    'import { importAgentPluginAccessToken, importAgentPluginAccessTokensFromEnv } from "#src/features/agent-plugins/import-access-token";\n' +
+    'import { applyAgentPluginToolRenames } from "#src/features/agent-plugins/apply-tool-renames";\n' +
+    'import { bindProviderFacePorts, syncProviderFaces } from "#src/features/agent-plugins/provider-plugin-link";\n' +
+    'import { notifyExternalMcpRosterChanged } from "#src/assistant/index";\n' +
+    'import type { BootModule, BootResult } from "../lifecycle/boot-lifecycle.js";\n' +
+    'import { bundledAgentPluginsDir } from "../composition/site-paths.js";\n' +
+    'import { applyPendingAgentPluginTokens, listPendingAgentPluginTokenIds } from "../composition/pending-agent-plugin-tokens.js";\n' +
+    'import { startPluginActivationPolling } from "../composition/agent-daemon-deps.js";\n' +
+    'import type { NewsletterRouteDeps } from "../../inbound/admin-http/routes/newsletter/deps.js";\n' +
+    '\n' +
+    '/**\n' +
+    ' * @file ADR-046 Phase 3 (SPEC-031) — composes the boot modules `index.ts` runs through\n' +
+    ' * `runBootLifecycle()` (ADR-046 Phase 2). Pulled out of `index.ts` so this composition logic is\n' +
+    " * unit-testable (`index.ts` itself is deliberately never imported by a test — see that file's own\n" +
+    ' * header note on why boot-only logic lives there). `index.ts` becomes a thin wrapper: build deps,\n' +
+    ' * call `buildBootModules`, run the lifecycle, `listen()`.\n' +
+    ' *\n' +
+    ' * `logCriticalBootFailures` below (2026-09-06 composition-root fix) was, until this fix, hand-copied\n' +
+    " * verbatim between `index.ts` and `cli/commands/serve.ts` — both files' own comments claimed this\n" +
+    ` * class of boot-only logic is "never shared via import," which this very file's existence already\n` +
+    ' * contradicted (it has been the shared, imported, `buildBootModules` composition for both boot paths\n' +
+    ' * since ADR-046 Phase 3). Both call sites now import this one copy instead.\n' +
+    ' */\n' +
+    '\n' +
+    'const noop = async (): Promise<void> => {};\n' +
+    '\n' +
+    '/* eslint-disable no-console */\n' +
+    "/** Boot's plain log: token imports and the bundled-plugin warnings below. */\n" +
+    'const bootLog = { info: (message: string) => console.info(message), warn: (message: string) => console.warn(message) };\n' +
+    '/* eslint-enable no-console */\n' +
+    '\n' +
+    '/** One vendor, one switch (`provider-plugin-link.ts`): after seeding, each agent plugin that is a\n' +
+    " *  provider plugin's face follows that plugin's switch — so a face seeded inactive, or one whose mirror\n" +
+    ' *  write failed, is right from this start. A failure is logged; the provider plugins still load. */\n' +
+    'async function syncProviderFacesAtBoot(deps: NewsletterRouteDeps): Promise<void> {\n' +
+    '  try {\n' +
+    '    await syncProviderFaces({\n' +
+    '      ports: bindProviderFacePorts({ workspaceRoot: () => deps.agentPluginLayout.forWorkspace(deps.workspaceId).root }),\n' +
+    '      providerEnabled: async ({ pluginId }) => (await deps.pluginActivationRepo.getActivation({ workspaceId: deps.workspaceId, pluginId }))?.enabled === true,\n' +
+    '    });\n' +
+    '  } catch (error) {\n' +
+    '    // eslint-disable-next-line no-console\n' +
+    '    console.warn(`[bundled-agent-plugins] provider plugin faces could not be synced; the next start retries: ${error instanceof Error ? error.message : String(error)}`);\n' +
+    '  }\n' +
+    '}\n' +
+    '\n' +
+    '/** The three steps of {@link importAgentPluginTokensAtBoot}, injectable for tests. */\n' +
+    'export interface AgentPluginTokenBootSteps {\n' +
+    '  /** Plugin ids with a create-site onboarding token waiting in `siteDir`. */\n' +
+    '  readonly pendingPluginIds: (siteDir: string) => ReadonlySet<string>;\n' +
+    '  readonly applyPending: (siteDir: string) => Promise<void>;\n' +
+    '  readonly importFromEnv: (skipPluginIds: ReadonlySet<string>) => Promise<void>;\n' +
+    '}\n' +
+    '\n' +
+    'function defaultAgentPluginTokenBootSteps(deps: NewsletterRouteDeps): AgentPluginTokenBootSteps {\n' +
+    '  return {\n' +
+    '    pendingPluginIds: listPendingAgentPluginTokenIds,\n' +
+    '    applyPending: (siteDir) =>\n' +
+    '      applyPendingAgentPluginTokens(\n' +
+    '        { siteDir, sealer: deps.siteAssistantSecretSealer, importToken: (pluginId, token) => importAgentPluginAccessToken(deps, { pluginId, token }) },\n' +
+    '        bootLog,\n' +
+    '      ),\n' +
+    '    importFromEnv: (skipPluginIds) => importAgentPluginAccessTokensFromEnv(deps, process.env, bootLog, { skipPluginIds }),\n' +
+    '  };\n' +
+    '}\n' +
+    '\n' +
+    '/**\n' +
+    ' * After the bundled plugins are seeded (a token needs its plugin installed): connects plugins from\n' +
+    ' * tokens typed into create-site onboarding for this site, then from an old env token\n' +
+    ' * (`tovuTokenAuth.importFromEnv`, e.g. the retired `TOVU_SUPABASE_MCP_ACCESS_TOKEN`). The onboarding\n' +
+    ' * token goes first and the env import skips every plugin that had one: the person chose that token\n' +
+    " * for this site, and an ambient env token (possibly another account's) saved first would make the\n" +
+    ' * pending import find the row connected and drop it. Neither overwrites a connection the site\n' +
+    ' * already has, and neither can fail boot.\n' +
+    ' */\n' +
+    'export async function importAgentPluginTokensAtBoot(\n' +
+    '  deps: NewsletterRouteDeps,\n' +
+    '  options: BuildBootModulesOptions,\n' +
+    '  steps: AgentPluginTokenBootSteps = defaultAgentPluginTokenBootSteps(deps),\n' +
+    '): Promise<void> {\n' +
+    '  let pending: ReadonlySet<string> = new Set();\n' +
+    '  if (!options.useMemory) {\n' +
+    '    const siteDir = path.dirname(options.defaultContentDbPath());\n' +
+    '    pending = steps.pendingPluginIds(siteDir);\n' +
+    '    try {\n' +
+    '      await steps.applyPending(siteDir);\n' +
+    '    } catch (err) {\n' +
+    "      bootLog.warn(`[agent-plugins] could not apply this site's pending access tokens: ${err instanceof Error ? err.message : String(err)}`);\n" +
+    '    }\n' +
+    '  }\n' +
+    '  await steps.importFromEnv(pending);\n' +
+    '}\n' +
+    '\n' +
+    'function logBundledPluginRetirements(\n' +
+    '  { retirements }: { retirements: Awaited<ReturnType<typeof seedBundledAgentPlugins>>["retirements"] },\n' +
+    '  _options = {},\n' +
+    '): void {\n' +
+    '  // Retired bundled plugins (`features/agent-plugins/retire-bundled.ts`). A retirement that\n' +
+    '  // happened is logged once — the next boot finds nothing and says nothing — and one case is a\n' +
+    '  // warning even though it succeeded: the retired plugin was on, and its successor stayed off\n' +
+    '  // because an operator had turned it off.\n' +
+    '  for (const retirement of retirements) {\n' +
+    '    if (retirement.status === "failed") {\n' +
+    '      // eslint-disable-next-line no-console\n' +
+    "      console.warn(`[bundled-agent-plugins] retired '${retirement.pluginId}' could not be removed: ${retirement.reason}`);\n" +
+    '    }\n' +
+    '    if (retirement.status === "retired") {\n' +
+    '      // eslint-disable-next-line no-console\n' +
+    "      console.info(`[bundled-agent-plugins] retired '${retirement.pluginId}' (moved into '${retirement.successorId}'; successor: ${retirement.successor})`);\n" +
+    '      if (retirement.successor === "left-disabled-by-operator") {\n' +
+    '        // eslint-disable-next-line no-console\n' +
+    '        console.warn(\n' +
+    "          `[bundled-agent-plugins] '${retirement.pluginId}' was enabled but its successor '${retirement.successorId}' is turned off by an operator and was left off — turn it on in Agent Plugins to keep that capability`,\n" +
+    '        );\n' +
+    '      }\n' +
+    '    }\n' +
+    '  }\n' +
+    '}\n' +
+    '\n' +
+    '/** What {@link bundledAgentPluginBootWarnings} compares; plain plugin-id lists. */\n' +
+    'export interface BundledAgentPluginBootState {\n' +
+    '  /** The bundled folder this boot seeded from, for the message. */\n' +
+    '  readonly sourceRoot: string;\n' +
+    '  /** Every plugin folder the seeder found there, seeded or failed. */\n' +
+    '  readonly seededIds: readonly string[];\n' +
+    '  /** Plugin ids this build selects from Jini packages (`SELECTED_AGENT_PLUGIN_PACKAGES`). */\n' +
+    '  readonly selectedIds: readonly string[];\n' +
+    "  /** Plugin ids this workspace's activation records turn on. */\n" +
+    '  readonly enabledIds: readonly string[];\n' +
+    '  /** Plugin ids with an installed package in this workspace. */\n' +
+    '  readonly installedIds: readonly string[];\n' +
+    '}\n' +
+    '\n' +
+    '/**\n' +
+    ' * Production boot never refuses over a missing bundled plugin (plugins plan v2 §3.4; the build is\n' +
+    ' * where a broken composition fails). It says what is missing instead:\n' +
+    ' * - the bundled folder seeded nothing although this build selects plugin packages (a stale or partial\n' +
+    ' *   build output, or a development root that was never composed);\n' +
+    ' * - an enabled plugin has neither a bundled source nor an installed package, so its switch is on with\n' +
+    ' *   nothing behind it (a package left the selection, or a build dropped it).\n' +
+    ' * @returns One log line per finding, in input order; empty when everything is present.\n' +
+    ' * @complexity O(s + i + e) for seeded, installed and enabled ids.\n' +
+    ' */\n' +
+    'export function bundledAgentPluginBootWarnings(state: BundledAgentPluginBootState, _optional = {}): string[] {\n' +
+    '  const warnings: string[] = [];\n' +
+    '  if (state.seededIds.length === 0 && state.selectedIds.length > 0) {\n' +
+    '    warnings.push(`[bundled-agent-plugins] this build selects ${state.selectedIds.length} plugin packages (${state.selectedIds.join(", ")}) but no bundled plugin was found in ${state.sourceRoot}; rebuild Tovu (in development: npm run agent-plugins:compose, then restart)`);\n' +
+    '  }\n' +
+    '  const present = new Set([...state.seededIds, ...state.installedIds]);\n' +
+    '  for (const pluginId of state.enabledIds.filter((id) => !present.has(id))) {\n' +
+    "    warnings.push(`[bundled-agent-plugins] '${pluginId}' is turned on, but this build does not ship it and it is not installed; add its package to the build, or turn it off in Agent Plugins`);\n" +
+    '  }\n' +
+    '  return warnings;\n' +
+    '}\n' +
+    '\n' +
+    "/** Reads this workspace's enabled and installed plugin ids. A read failure only costs the\n" +
+    ' *  enabled-plugin check, so it is logged and reported as "nothing enabled".\n' +
+    ' *  @complexity O(p) in recorded plus installed plugins. */\n' +
+    'async function readEnabledAndInstalledIds(deps: NewsletterRouteDeps): Promise<Pick<BundledAgentPluginBootState, "enabledIds" | "installedIds">> {\n' +
+    '  try {\n' +
+    '    const workspaceRoot = deps.agentPluginLayout.forWorkspace(deps.workspaceId).root;\n' +
+    '    const [activations, installed] = await Promise.all([\n' +
+    '      explicitRootAgentPluginActivations.readAgentPluginActivations({ workspaceRoot }),\n' +
+    '      listInstalledPlugins(workspaceRoot),\n' +
+    '    '... 10231 more characters
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/server/runtime/boot/__tests__/plugin-activation-poll-boot.unit.test.ts:101:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'import path from "node:path";\n\nimport { reconcileInterruptedMigrationOnBoot } from "#src/features/database/boot/reconcile-interrupted-migration";\nimport { explicitRootAgentPluginActivations, listInstalledPlugins, seedBundledAgentPlugins } from "../../../features/agent-plugins/lifecycle.js";\nimport { SELECTED_AGENT_PLUGIN_PACKAGES } from "#src/features/agent-plugins/bundled-catalog";\nimport { importAgentPluginAccessToken, importAgentPluginAccessTokensFromEnv } from "#src/features/agent-plugins/import-access-token";\nimport { applyAgentPluginToolRenames } from "#src/features/agent-plugins/apply-tool-renames";\nimport { bindProviderFacePorts, syncProviderFaces } from "#src/features/agent-plugins/provider-plugin-link";\nimport { notifyExternalMcpRosterChanged } from "#src/assistant/index";\nimport type { BootModule, BootResult } from "../lifecycle/boot-lifecycle.js";\nimport { bundledAgentPluginsDir } from "../composition/site-paths.js";\nimport { applyPendingAgentPluginTokens, listPendingAgentPluginTokenIds } from "../composition/pending-agent-plugin-tokens.js";\nimport { startPluginActivationPolling } from "../composition/agent-daemon-deps.js";\nimport type { NewsletterRouteDeps } from "../../inbound/admin-http/routes/newsletter/deps.js";\n\n/**\n * @file ADR-046 Phase 3 (SPEC-031) — composes the boot modules `index.ts` runs through\n * `runBootLifecycle()` (ADR-046 Phase 2). Pulled out of `index.ts` so this composition logic is\n * unit-testable (`index.ts` itself is deliberately never imported by a test — see that file\'s own\n * header note on why boot-only logic lives there). `index.ts` becomes a thin wrapper: build deps,\n * call `buildBootModules`, run the lifecycle, `listen()`.\n *\n * `logCriticalBootFailures` below (2026-09-06 composition-root fix) was, until this fix, hand-copied\n * verbatim between `index.ts` and `cli/commands/serve.ts` — both files\' own comments claimed this\n * class of boot-only logic is "never shared via import," which this very file\'s existence already\n * contradicted (it has been the shared, imported, `buildBootModules` composition for both boot paths\n * since ADR-046 Phase 3). Both call sites now import this one copy instead.\n */\n\nconst noop = async (): Promise<void> => {};\n\n/* eslint-disable no-console */\n/** Boot\'s plain log: token imports and the bundled-plugin warnings below. */\nconst bootLog = { info: (message: string) => console.info(message), warn: (message: string) => console.warn(message) };\n/* eslint-enable no-console */\n\n/** One vendor, one switch (`provider-plugin-link.ts`): after seeding, each agent plugin that is a\n *  provider plugin\'s face follows that plugin\'s switch — so a face seeded inactive, or one whose mirror\n *  write failed, is right from this start. A failure is logged; the provider plugins still load. */\nasync function syncProviderFacesAtBoot(deps: NewsletterRouteDeps): Promise<void> {\n  try {\n    await syncProviderFaces({\n      ports: bindProviderFacePorts({ workspaceRoot: () => deps.agentPluginLayout.forWorkspace(deps.workspaceId).root }),\n      providerEnabled: async ({ pluginId }) => (await deps.pluginActivationRepo.getActivation({ workspaceId: deps.workspaceId, pluginId }))?.enabled === true,\n    });\n  } catch (error) {\n    // eslint-disable-next-line no-console\n    console.warn(`[bundled-agent-plugins] provider plugin faces could not be synced; the next start retries: ${error instanceof Error ? error.message : String(error)}`);\n  }\n}\n\n/** The three steps of {@link importAgentPluginTokensAtBoot}, injectable for tests. */\nexport interface AgentPluginTokenBootSteps {\n  /** Plugin ids with a create-site onboarding token waiting in `siteDir`. */\n  readonly pendingPluginIds: (siteDir: string) => ReadonlySet<string>;\n  readonly applyPending: (siteDir: string) => Promise<void>;\n  readonly importFromEnv: (skipPluginIds: ReadonlySet<string>) => Promise<void>;\n}\n\nfunction defaultAgentPluginTokenBootSteps(deps: NewsletterRouteDeps): AgentPluginTokenBootSteps {\n  return {\n    pendingPluginIds: listPendingAgentPluginTokenIds,\n    applyPending: (siteDir) =>\n      applyPendingAgentPluginTokens(\n        { siteDir, sealer: deps.siteAssistantSecretSealer, importToken: (pluginId, token) => importAgentPluginAccessToken(deps, { pluginId, token }) },\n        bootLog,\n      ),\n    importFromEnv: (skipPluginIds) => importAgentPluginAccessTokensFromEnv(deps, process.env, bootLog, { skipPluginIds }),\n  };\n}\n\n/**\n * After the bundled plugins are seeded (a token needs its plugin installed): connects plugins from\n * tokens typed into create-site onboarding for this site, then from an old env token\n * (`tovuTokenAuth.importFromEnv`, e.g. the retired `TOVU_SUPABASE_MCP_ACCESS_TOKEN`). The onboarding\n * token goes first and the env import skips every plugin that had one: the person chose that token\n * for this site, and an ambient env token (possibly another account\'s) saved first would make the\n * pending import find the row connected and drop it. Neither overwrites a connection the site\n * already has, and neither can fail boot.\n */\nexport async function importAgentPluginTokensAtBoot(\n  deps: NewsletterRouteDeps,\n  options: BuildBootModulesOptions,\n  steps: AgentPluginTokenBootSteps = defaultAgentPluginTokenBootSteps(deps),\n): Promise<void> {\n  let pending: ReadonlySet<string> = new Set();\n  if (!options.useMemory) {\n    const siteDir = path.dirname(options.defaultContentDbPath());\n    pending = steps.pendingPluginIds(siteDir);\n    try {\n      await steps.applyPending(siteDir);\n    } catch (err) {\n      bootLog.warn(`[agent-plugins] could not apply this site\'s pending access tokens: ${err instanceof Error ? err.message : String(err)}`);\n    }\n  }\n  await steps.importFromEnv(pending);\n}\n\nfunction logBundledPluginRetirements(\n  { retirements }: { retirements: Awaited<ReturnType<typeof seedBundledAgentPlugins>>["retirements"] },\n  _options = {},\n): void {\n  // Retired bundled plugins (`features/agent-plugins/retire-bundled.ts`). A retirement that\n  // happened is logged once — the next boot finds nothing and says nothing — and one case is a\n  // warning even though it succeeded: the retired plugin was on, and its successor stayed off\n  // because an operator had turned it off.\n  for (const retirement of retirements) {\n    if (retirement.status === "failed") {\n      // eslint-disable-next-line no-console\n      console.warn(`[bundled-agent-plugins] retired \'${retirement.pluginId}\' could not be removed: ${retirement.reason}`);\n    }\n    if (retirement.status === "retired") {\n      // eslint-disable-next-line no-console\n      console.info(`[bundled-agent-plugins] retired \'${retirement.pluginId}\' (moved into \'${retirement.successorId}\'; successor: ${retirement.successor})`);\n      if (retirement.successor === "left-disabled-by-operator") {\n        // eslint-disable-next-line no-console\n        console.warn(\n          `[bundled-agent-plugins] \'${retirement.pluginId}\' was enabled but its successor \'${retirement.successorId}\' is turned off by an operator and was left off — turn it on in Agent Plugins to keep that capability`,\n        );\n      }\n    }\n  }\n}\n\n/** What {@link bundledAgentPluginBootWarnings} compares; plain plugin-id lists. */\nexport interface BundledAgentPluginBootState {\n  /** The bundled folder this boot seeded from, for the message. */\n  readonly sourceRoot: string;\n  /** Every plugin folder the seeder found there, seeded or failed. */\n  readonly seededIds: readonly string[];\n  /** Plugin ids this build selects from Jini packages (`SELECTED_AGENT_PLUGIN_PACKAGES`). */\n  readonly selectedIds: readonly string[];\n  /** Plugin ids this workspace\'s activation records turn on. */\n  readonly enabledIds: readonly string[];\n  /** Plugin ids with an installed package in this workspace. */\n  readonly installedIds: readonly string[];\n}\n\n/**\n * Production boot never refuses over a missing bundled plugin (plugins plan v2 §3.4; the build is\n * where a broken composition fails). It says what is missing instead:\n * - the bundled folder seeded nothing although this build selects plugin packages (a stale or partial\n *   build output, or a development root that was never composed);\n * - an enabled plugin has neither a bundled source nor an installed package, so its switch is on with\n *   nothing behind it (a package left the selection, or a build dropped it).\n * @returns One log line per finding, in input order; empty when everything is present.\n * @complexity O(s + i + e) for seeded, installed and enabled ids.\n */\nexport function bundledAgentPluginBootWarnings(state: BundledAgentPluginBootState, _optional = {}): string[] {\n  const warnings: string[] = [];\n  if (state.seededIds.length === 0 && state.selectedIds.length > 0) {\n    warnings.push(`[bundled-agent-plugins] this build selects ${state.selectedIds.length} plugin packages (${state.selectedIds.join(", ")}) but no bundled plugin was found in ${state.sourceRoot}; rebuild Tovu (in development: npm run agent-plugins:compose, then restart)`);\n  }\n  const present = new Set([...state.seededIds, ...state.installedIds]);\n  for (const pluginId of state.enabledIds.filter((id) => !present.has(id))) {\n    warnings.push(`[bundled-agent-plugins] \'${pluginId}\' is turned on, but this build does not ship it and it is not installed; add its package to the build, or turn it off in Agent Plugins`);\n  }\n  return warnings;\n}\n\n/** Reads this workspace\'s enabled and installed plugin ids. A read failure only costs the\n *  enabled-plugin check, so it is logged and reported as "nothing enabled".\n *  @complexity O(p) in recorded plus installed plugins. */\nasync function readEnabledAndInstalledIds(deps: NewsletterRouteDeps): Promise<Pick<BundledAgentPluginBootState, "enabledIds" | "installedIds">> {\n  try {\n    const workspaceRoot = deps.agentPluginLayout.forWorkspace(deps.workspaceId).root;\n    const [activations, installed] = await Promise.all([\n      explicitRootAgentPluginActivations.readAgentPluginActivations({ workspaceRoot }),\n      listInstalledPlugins(workspaceRoot),\n    '... 10231 more characters,
+    expected: /from "..\/composition\/plugin-activation-polling.js"/,
+    operator: 'match',
+    diff: 'simple'
+  }

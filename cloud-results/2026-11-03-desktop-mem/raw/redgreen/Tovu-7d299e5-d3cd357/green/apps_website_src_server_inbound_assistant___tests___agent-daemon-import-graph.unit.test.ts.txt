@@ -1,0 +1,12 @@
+✔ the daemon entry's static runtime graph reaches none of ADR-070's forbidden modules (258.267013ms)
+✔ the walk resolves relative and #src imports from the real daemon entry and never throws (100.785855ms)
+✔ type-only imports and dynamic import() are not runtime edges; every other import form is (0.958026ms)
+✔ the forbidden list matches the ADR's modules and nothing next to them (0.330411ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1809.970892

@@ -1,0 +1,89 @@
+✔ admissions returns the live accounting with the shared integration permission (2.843584ms)
+✔ live probe delegates the saved server id to the same service as the admin route (0.815396ms)
+✖ admissions unavailable is an actionable error rather than an empty roster (4.02775ms)
+✔ a reader without configuration failures keeps its exact key set (0.317765ms)
+✔ probe refusal remains visible to the model with an action (0.57936ms)
+✔ external_mcp_get_admissions denies access before reading or contacting a server (0.419901ms)
+✔ external_mcp_get_admissions rejects unsupported fields without I/O (0.338019ms)
+✔ external_mcp_probe_connection denies access before reading or contacting a server (0.2755ms)
+✔ external_mcp_probe_connection rejects unsupported fields without I/O (0.290392ms)
+✔ probe refuses blank ids and bounds repeated attempts across server ids (1.880432ms)
+✖ admissions startup and probes declare their possible OAuth refresh writes (0.859624ms)
+✔ the configuration check also declares its potential OAuth refresh writes (0.710473ms)
+✔ admissions accepts undefined as omitted arguments (0.195128ms)
+✔ admissions accepts null as omitted arguments (0.094029ms)
+✔ probe rejects a missing, non-string or oversized id before authorization ({}) (0.263403ms)
+✔ probe rejects a missing, non-string or oversized id before authorization ({"id":42}) (0.159275ms)
+✔ probe rejects a missing, non-string or oversized id before authorization ({"id":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}) (0.13609ms)
+✔ probe trims surrounding spaces and accepts the maximum saved-id length (0.377583ms)
+✔ the operations contributor builds working registrations with its injected services (0.39854ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 17
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1295.899013
+
+✖ failing tests:
+
+test at apps/website/src/features/external-mcp/__tests__/unit/operations-tools.unit.test.ts:1:2645
+✖ admissions unavailable is an actionable error rather than an empty roster (4.02775ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    Comparison {
+  +   message: 'external_mcp_get_admissions: the server federation is still connecting. Start the assistant and try again; no live admissions report is available.',
+  -   message: 'external_mcp_get_admissions: the server federation is still connecting. Try again shortly; no live admissions report is available.',
+      name: 'ToolInputError'
+    }
+  
+      at async TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/external-mcp/__tests__/unit/operations-tools.unit.test.ts:51:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: ToolInputError: external_mcp_get_admissions: the server federation is still connecting. Start the assistant and try again; no live admissions report is available.
+        at Object.external_mcp_get_admissions (/home/user/wt-Tovu/apps/website/src/features/external-mcp/operations-tools.ts:93:31)
+        at async waitForActual (node:assert:646:5)
+        at async strict.rejects (node:assert:769:25)
+        at async TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/external-mcp/__tests__/unit/operations-tools.unit.test.ts:51:3)
+        at async Test.run (node:internal/test_runner/test:1409:7)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:974:7),
+    expected: { name: 'ToolInputError', message: 'external_mcp_get_admissions: the server federation is still connecting. Try again shortly; no live admissions report is available.' },
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/external-mcp/__tests__/unit/operations-tools.unit.test.ts:1:5262
+✖ admissions startup and probes declare their possible OAuth refresh writes (0.859624ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+      [
+        'external_mcp_probe_connection',
+        false
+      ],
+      [
+        'external_mcp_get_admissions',
+  +     true
+  -     false
+      ]
+    ]
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/external-mcp/__tests__/unit/operations-tools.unit.test.ts:89:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ [ 'external_mcp_probe_connection', false ], [ 'external_mcp_get_admissions', true ] ],
+    expected: [ [ 'external_mcp_probe_connection', false ], [ 'external_mcp_get_admissions', false ] ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

@@ -1,0 +1,352 @@
+▶ resolveSessionBinding — which stored session a run resumes
+  ✖ an ordinary turn resumes the conversation's stored session (100.950498ms)
+  ✖ reconstruction recovery never resumes the stored session and mints a fresh one (34.345378ms)
+  ✖ native recovery resumes the recovery session instead of the stored one (22.218771ms)
+  ✖ native recovery without a recovery session starts cold (19.666221ms)
+  ✖ the run's own agent keys the session lookup and is the agent launched (30.342446ms)
+  ✖ a run that names no agent uses the default agent (19.512612ms)
+  ✖ saved copilot starts with the default agent without a user error (23.266849ms)
+  ✖ saved removed-agent starts with the default agent without a user error (23.097418ms)
+  ✖ a run outside any conversation never reads or writes a session (27.350648ms)
+✖ resolveSessionBinding — which stored session a run resumes (303.471171ms)
+▶ resolveSessionBinding — concurrency gate
+  ✖ a concurrent live run refuses a memory-carrying agent that would lose its stored history (28.248874ms)
+  ✖ a concurrent live run with nothing stored starts cold under a minted id (21.860425ms)
+✖ resolveSessionBinding — concurrency gate (50.508033ms)
+▶ resolveSessionBinding — where the minted id is persisted
+  ✖ a non-durable cold start persists the minted id to the conversation's session store (22.042135ms)
+  ✖ a durable cold start captures the minted id on its attempt, unconfirmed, not in the session store (22.689632ms)
+  ✖ a failed dispatch-time write is logged and the run still starts (17.786602ms)
+  ✖ a resumed turn mints and persists nothing (45.92944ms)
+✖ resolveSessionBinding — where the minted id is persisted (108.9159ms)
+▶ onStarted continuation — durable attempt ownership
+  ✖ a queued durable attempt still owns its answer and starts (15.793948ms)
+  ✖ a missing durable attempt is refused (16.928244ms)
+  ✖ a cancelled durable attempt is refused (20.844651ms)
+  ✖ a durable attempt whose answer already finished is refused (21.583035ms)
+  ✖ a durable attempt with no run status is refused (26.447931ms)
+  ✖ a durable message id without a durable ledger skips the ownership check (20.491715ms)
+✖ onStarted continuation — durable attempt ownership (123.184548ms)
+▶ onStarted continuation — early stops and prompt assembly
+  ✔ a refused attachment claim stops before the executor (1001.255252ms)
+  ✖ a refused plugin prefix stops before the executor (27.33536ms)
+  ✖ the server's joined automatic and pinned prefix reaches the executor ahead of the prompt (19.58743ms)
+  ✖ the daemon sends only its run id and cancellation signal to server plugin preflight (17.839046ms)
+  ✖ an unavailable automatic preflight is warned about and the run starts without it (16.452136ms)
+  ✖ an unavailable preflight cannot silently omit an explicitly selected plugin (16.745569ms)
+  ✖ a cold start of a memory-carrying agent replaces the tail prompt with the cold-start context (15.153105ms)
+  ✖ a resumed turn keeps its tail prompt even when a cold-start context is sent (15.23702ms)
+  ✖ a cold start of an agent without its own memory keeps the prompt it was sent (16.202299ms)
+  ✖ a cold start without a cold-start context keeps the prompt it was sent (15.588064ms)
+✖ onStarted continuation — early stops and prompt assembly (1162.82205ms)
+ℹ tests 31
+ℹ suites 5
+ℹ pass 1
+ℹ fail 30
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4405.826744
+
+✖ failing tests:
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.run-start-branches.unit.test.ts:1:2090
+✖ an ordinary turn resumes the conversation's stored session (100.950498ms)
+  Error: The assistant could not start this execution attempt.
+      at failRunBeforeStart (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:110:78)
+      at eval (eval at evaluateDaemonExpression (file:///home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:2941), <anonymous>:339:14)
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.run-start-branches.unit.test.ts:1:2363
+✖ reconstruction recovery never resumes the stored session and mints a fresh one (34.345378ms)
+  Error: The assistant could not start this execution attempt.
+      at failRunBeforeStart (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:110:78)
+      at eval (eval at evaluateDaemonExpression (file:///home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:2941), <anonymous>:339:14)
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.run-start-branches.unit.test.ts:1:2818
+✖ native recovery resumes the recovery session instead of the stored one (22.218771ms)
+  Error: The assistant could not start this execution attempt.
+      at failRunBeforeStart (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:110:78)
+      at eval (eval at evaluateDaemonExpression (file:///home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:2941), <anonymous>:339:14)
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.run-start-branches.unit.test.ts:1:3126
+✖ native recovery without a recovery session starts cold (19.666221ms)
+  Error: The assistant could not start this execution attempt.
+      at failRunBeforeStart (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:110:78)
+      at eval (eval at evaluateDaemonExpression (file:///home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:2941), <anonymous>:339:14)
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.run-start-branches.unit.test.ts:1:3420
+✖ the run's own agent keys the session lookup and is the agent launched (30.342446ms)
+  Error: The assistant could not start this execution attempt.
+      at failRunBeforeStart (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:110:78)
+      at eval (eval at evaluateDaemonExpression (file:///home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:2941), <anonymous>:339:14)
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.run-start-branches.unit.test.ts:1:3790
+✖ a run that names no agent uses the default agent (19.512612ms)
+  Error: The assistant could not start this execution attempt.
+      at failRunBeforeStart (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:110:78)
+      at eval (eval at evaluateDaemonExpression (file:///home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:2941), <anonymous>:339:14)
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.run-start-branches.unit.test.ts:1:4188
+✖ saved copilot starts with the default agent without a user error (23.266849ms)
+  Error: The assistant could not start this execution attempt.
+      at failRunBeforeStart (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:110:78)
+      at eval (eval at evaluateDaemonExpression (file:///home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:2941), <anonymous>:339:14)
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.run-start-branches.unit.test.ts:1:4188
+✖ saved removed-agent starts with the default agent without a user error (23.097418ms)
+  Error: The assistant could not start this execution attempt.
+      at failRunBeforeStart (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:110:78)
+      at eval (eval at evaluateDaemonExpression (file:///home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:2941), <anonymous>:339:14)
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.run-start-branches.unit.test.ts:1:4734
+✖ a run outside any conversation never reads or writes a session (27.350648ms)
+  Error: [agent-daemon] run daemon-test-run failed to start ReferenceError: resolveAgentPluginPromptPrefix is not defined
+      at Object.error (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:111:86)
+      at eval (eval at evaluateDaemonExpression (file:///home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:2941), <anonymous>:337:17)
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.run-start-branches.unit.test.ts:1:5021
+✖ a concurrent live run refuses a memory-carrying agent that would lose its stored history (28.248874ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    Comparison {
+  +   message: 'The assistant could not start this execution attempt.'
+  -   message: 'Another answer in this chat is still running. This turn could not start.'
+    }
+  
+      at async TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.run-start-branches.unit.test.ts:124:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Promise.all (index 0)
+      at async Suite.run (node:internal/test_runner/test:1905:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: Error: The assistant could not start this execution attempt.
+        at failRunBeforeStart (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:110:78)
+        at eval (eval at evaluateDaemonExpression (file:///home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:2941), <anonymous>:339:14),
+    expected: { message: 'Another answer in this chat is still running. This turn could not start.' },
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.run-start-branches.unit.test.ts:1:5292
+✖ a concurrent live run with nothing stored starts cold under a minted id (21.860425ms)
+  Error: The assistant could not start this execution attempt.
+      at failRunBeforeStart (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:110:78)
+      at eval (eval at evaluateDaemonExpression (file:///home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:2941), <anonymous>:339:14)
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.run-start-branches.unit.test.ts:1:5650
+✖ a non-durable cold start persists the minted id to the conversation's session store (22.042135ms)
+  Error: The assistant could not start this execution attempt.
+      at failRunBeforeStart (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:110:78)
+      at eval (eval at evaluateDaemonExpression (file:///home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:2941), <anonymous>:339:14)
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.run-start-branches.unit.test.ts:1:5927
+✖ a durable cold start captures the minted id on its attempt, unconfirmed, not in the session store (22.689632ms)
+  Error: The assistant could not start this execution attempt.
+      at failRunBeforeStart (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:110:78)
+      at eval (eval at evaluateDaemonExpression (file:///home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:2941), <anonymous>:339:14)
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.run-start-branches.unit.test.ts:1:6372
+✖ a failed dispatch-time write is logged and the run still starts (17.786602ms)
+  Error: The assistant could not start this execution attempt.
+      at failRunBeforeStart (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:110:78)
+      at eval (eval at evaluateDaemonExpression (file:///home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:2941), <anonymous>:339:14)
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.run-start-branches.unit.test.ts:1:6805
+✖ a resumed turn mints and persists nothing (45.92944ms)
+  Error: The assistant could not start this execution attempt.
+      at failRunBeforeStart (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:110:78)
+      at eval (eval at evaluateDaemonExpression (file:///home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:2941), <anonymous>:339:14)
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.run-start-branches.unit.test.ts:1:7130
+✖ a queued durable attempt still owns its answer and starts (15.793948ms)
+  Error: The assistant could not start this execution attempt.
+      at failRunBeforeStart (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:110:78)
+      at eval (eval at evaluateDaemonExpression (file:///home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:2941), <anonymous>:339:14)
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.run-start-branches.unit.test.ts:1:7423
+✖ a missing durable attempt is refused (16.928244ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    Comparison {
+  +   message: 'The assistant could not start this execution attempt.'
+  -   message: 'This execution attempt no longer owns the answer.'
+    }
+  
+      at async TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.run-start-branches.unit.test.ts:175:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: Error: The assistant could not start this execution attempt.
+        at failRunBeforeStart (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:110:78)
+        at eval (eval at evaluateDaemonExpression (file:///home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:2941), <anonymous>:339:14),
+    expected: { message: 'This execution attempt no longer owns the answer.' },
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.run-start-branches.unit.test.ts:1:7627
+✖ a cancelled durable attempt is refused (20.844651ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    Comparison {
+  +   message: 'The assistant could not start this execution attempt.'
+  -   message: 'This execution attempt no longer owns the answer.'
+    }
+  
+      at async TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.run-start-branches.unit.test.ts:180:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: Error: The assistant could not start this execution attempt.
+        at failRunBeforeStart (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:110:78)
+        at eval (eval at evaluateDaemonExpression (file:///home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:2941), <anonymous>:339:14),
+    expected: { message: 'This execution attempt no longer owns the answer.' },
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.run-start-branches.unit.test.ts:1:7885
+✖ a durable attempt whose answer already finished is refused (21.583035ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    Comparison {
+  +   message: 'The assistant could not start this execution attempt.'
+  -   message: 'This execution attempt no longer owns the answer.'
+    }
+  
+      at async TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.run-start-branches.unit.test.ts:185:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: Error: The assistant could not start this execution attempt.
+        at failRunBeforeStart (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:110:78)
+        at eval (eval at evaluateDaemonExpression (file:///home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:2941), <anonymous>:339:14),
+    expected: { message: 'This execution attempt no longer owns the answer.' },
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.run-start-branches.unit.test.ts:1:8158
+✖ a durable attempt with no run status is refused (26.447931ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    Comparison {
+  +   message: 'The assistant could not start this execution attempt.'
+  -   message: 'This execution attempt no longer owns the answer.'
+    }
+  
+      at async TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.run-start-branches.unit.test.ts:190:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: Error: The assistant could not start this execution attempt.
+        at failRunBeforeStart (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:110:78)
+        at eval (eval at evaluateDaemonExpression (file:///home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:2941), <anonymous>:339:14),
+    expected: { message: 'This execution attempt no longer owns the answer.' },
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.run-start-branches.unit.test.ts:1:8415
+✖ a durable message id without a durable ledger skips the ownership check (20.491715ms)
+  Error: The assistant could not start this execution attempt.
+      at failRunBeforeStart (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:110:78)
+      at eval (eval at evaluateDaemonExpression (file:///home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:2941), <anonymous>:339:14)
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.run-start-branches.unit.test.ts:1:9131
+✖ a refused plugin prefix stops before the executor (27.33536ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    Comparison {
+  +   message: '[agent-daemon] run daemon-test-run failed to start ReferenceError: resolveAgentPluginPromptPrefix is not defined'
+  -   message: 'The assistant could not start: a selected Agent Plugin could not be loaded.'
+    }
+  
+      at async TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.run-start-branches.unit.test.ts:210:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: Error: [agent-daemon] run daemon-test-run failed to start ReferenceError: resolveAgentPluginPromptPrefix is not defined
+        at Object.error (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:111:86)
+        at eval (eval at evaluateDaemonExpression (file:///home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:2941), <anonymous>:337:17),
+    expected: { message: 'The assistant could not start: a selected Agent Plugin could not be loaded.' },
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.run-start-branches.unit.test.ts:1:9413
+✖ the server's joined automatic and pinned prefix reaches the executor ahead of the prompt (19.58743ms)
+  Error: The assistant could not start this execution attempt.
+      at failRunBeforeStart (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:110:78)
+      at eval (eval at evaluateDaemonExpression (file:///home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:2941), <anonymous>:339:14)
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.run-start-branches.unit.test.ts:1:9749
+✖ the daemon sends only its run id and cancellation signal to server plugin preflight (17.839046ms)
+  Error: The assistant could not start this execution attempt.
+      at failRunBeforeStart (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:110:78)
+      at eval (eval at evaluateDaemonExpression (file:///home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:2941), <anonymous>:339:14)
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.run-start-branches.unit.test.ts:1:10343
+✖ an unavailable automatic preflight is warned about and the run starts without it (16.452136ms)
+  Error: The assistant could not start this execution attempt.
+      at failRunBeforeStart (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:110:78)
+      at eval (eval at evaluateDaemonExpression (file:///home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:2941), <anonymous>:339:14)
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.run-start-branches.unit.test.ts:1:10716
+✖ an unavailable preflight cannot silently omit an explicitly selected plugin (16.745569ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    Comparison {
+  +   message: '[agent-daemon] run daemon-test-run failed to start ReferenceError: resolveAgentPluginPromptPrefix is not defined'
+  -   message: 'The assistant could not start: a selected Agent Plugin could not be loaded.'
+    }
+  
+      at async TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.run-start-branches.unit.test.ts:239:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: Error: [agent-daemon] run daemon-test-run failed to start ReferenceError: resolveAgentPluginPromptPrefix is not defined
+        at Object.error (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:111:86)
+        at eval (eval at evaluateDaemonExpression (file:///home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:2941), <anonymous>:337:17),
+    expected: { message: 'The assistant could not start: a selected Agent Plugin could not be loaded.' },
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.run-start-branches.unit.test.ts:1:11044
+✖ a cold start of a memory-carrying agent replaces the tail prompt with the cold-start context (15.153105ms)
+  Error: The assistant could not start this execution attempt.
+      at failRunBeforeStart (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:110:78)
+      at eval (eval at evaluateDaemonExpression (file:///home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:2941), <anonymous>:339:14)
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.run-start-branches.unit.test.ts:1:11334
+✖ a resumed turn keeps its tail prompt even when a cold-start context is sent (15.23702ms)
+  Error: The assistant could not start this execution attempt.
+      at failRunBeforeStart (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:110:78)
+      at eval (eval at evaluateDaemonExpression (file:///home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:2941), <anonymous>:339:14)
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.run-start-branches.unit.test.ts:1:11621
+✖ a cold start of an agent without its own memory keeps the prompt it was sent (16.202299ms)
+  Error: The assistant could not start this execution attempt.
+      at failRunBeforeStart (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:110:78)
+      at eval (eval at evaluateDaemonExpression (file:///home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:2941), <anonymous>:339:14)
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.run-start-branches.unit.test.ts:1:11950
+✖ a cold start without a cold-start context keeps the prompt it was sent (15.588064ms)
+  Error: The assistant could not start this execution attempt.
+      at failRunBeforeStart (/home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:110:78)
+      at eval (eval at evaluateDaemonExpression (file:///home/user/wt-Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:2941), <anonymous>:339:14)

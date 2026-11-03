@@ -1,0 +1,15 @@
+✔ packaged desktop HTTP and both CLI bridges are checked from the isolated copy (3.826083ms)
+✔ a Windows package needs no launcher script and still smokes every bridge (1.268593ms)
+✔ a missing executable or node_modules is refused before anything is copied (1.943374ms)
+✔ a failed resolver run fails the gate with its status or spawn error, signal and stderr (1.668188ms)
+✔ one failing bridge stops the gate and still removes the user-data dir (1.109309ms)
+✔ formatGateFailure prints an Error's message or a non-Error value, redacted and bounded (4.922201ms)
+✔ the real entry with no target prints the usage refusal and exits 1 (303.894996ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 661.655345

@@ -1,0 +1,27 @@
+✔ a spawned site: boot token always emitted, toolchain env merged, then record and session in order (4.482479ms)
+✔ an unpinned start passes port undefined and a missing toolchain env still yields the Desktop marker (0.395456ms)
+✔ the capture bridge closes when the spawned child exits, not before (0.402197ms)
+✔ an owner sign-in capability arms the partition's session before the session is ensured (0.380517ms)
+✔ a site another app already runs is attached: no spawn, no registry row, no session work (0.231023ms)
+✔ a site opened after losing the spawn race still appears in Open Recent (0.310668ms)
+✔ a failed spawn with no winner to attach closes the bridge and rethrows the spawn error (0.887995ms)
+✔ authenticate: a child with no boot token logs and never redeems (0.631515ms)
+✔ authenticate: redeems this site's token on its own partition and admin URL (0.528173ms)
+✔ authenticate: a refused redeem logs its reason and reports false (0.654461ms)
+✔ authenticate: a rejecting redeem (non-loopback wiring bug) is loud on error and reports false (0.613357ms)
+✔ a start whose session is still valid never redeems a boot token (0.376697ms)
+✔ only freshly spawned servers receive the main's automatic capability recovery (0.306621ms)
+✔ openSiteServer: a site already open returns its server without any start (0.205494ms)
+✔ openSiteServer: a new site is published to openSites, then its previews are scheduled (0.275365ms)
+✔ openSiteServer: a failed start publishes nothing and schedules no preview (0.323379ms)
+✔ spawn receives runtime capability without registration or launcher (0.387025ms)
+✔ attached server retains its spawning instance (0.234536ms)
+✔ listener failure leaves site hosting available without falling back to a launcher (0.465821ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 19
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 156.734768

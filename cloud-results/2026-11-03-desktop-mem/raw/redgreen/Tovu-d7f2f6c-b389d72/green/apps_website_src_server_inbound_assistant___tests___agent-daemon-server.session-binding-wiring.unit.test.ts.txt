@@ -1,0 +1,26 @@
+✔ runtime: cold and resumed CLI cwd defaults to the site directory (96.316415ms)
+✔ runtime: cold and resumed CLI cwd ignores TOVU_AGENT_CWD (owner 2026-10-23) (58.575772ms)
+✔ runtime: a new CLI session receives prior conversation context, while a resumed session keeps its compact prompt (32.178374ms)
+✔ runtime: first switches, A→B→A repeats and lost sessions select one transcript and isolate conversations (33.281538ms)
+✔ runtime: a cold dispatch waits for durable persistence and resumes that exact executor session next turn (37.771234ms)
+✔ runtime: concurrent dispatches serialize the lookup and pending write, minting only one session (28.111183ms)
+▶ Defect 1 wiring — the conversation/session binding must be written at DISPATCH
+  ✔ imports the host-minting decisions from the pure decision module (0.767933ms)
+  ✔ a binding write exists at dispatch rather than only in the event subscription (0.352765ms)
+  ✔ the dispatch-time write is awaited, so the binding is durable before the CLI is ever spawned (0.650333ms)
+  ✔ the minted id is both persisted and handed to AgentExecutor.run — one id, not two (0.6973ms)
+  ✔ the mint decision is gated on the def actually accepting a host-minted id (0.37072ms)
+✔ Defect 1 wiring — the conversation/session binding must be written at DISPATCH (3.834084ms)
+▶ Defect 1 wiring — run starts must be serialized per conversation
+  ✔ imports createConversationStartLock and constructs exactly one module-level instance (0.392326ms)
+  ✔ the stored-session lookup AND the dispatch-time write both run inside the lock (0.189121ms)
+  ✔ agentExecutor.run is NOT inside the locked section (0.079847ms)
+✔ Defect 1 wiring — run starts must be serialized per conversation (0.902044ms)
+ℹ tests 14
+ℹ suites 2
+ℹ pass 14
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2805.196518
