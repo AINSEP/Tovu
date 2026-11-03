@@ -32,6 +32,39 @@ test("daemon catalog demand admits server federation before returning remote too
   assert.ok(((await response.json()) as { tools: { id: string }[] }).tools.some(tool => tool.id === "mcp__hosted__echo"));
 });
 
+test("native site tools stay available while an optional MCP server is still connecting", async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  let release!: () => void;
+  const held = new Promise<void>(resolve => { release = resolve; });
+  let entered!: () => void;
+  const connecting = new Promise<void>(resolve => { entered = resolve; });
+  const fixture = serverFederationFixture({ connect: async () => {
+    entered(); await held;
+    return new InMemoryMcpSession({ tools: [{ name: 'echo', inputSchema: { type: 'object' } }] });
+  } });
+  await fixture.save();
+  const nativeTools = await fixture.surface.daemonCalls.listToolsFor({ principalId: 'owner' });
+  assert.ok(nativeTools.length > 0, 'the server fixture must have native tools before optional federation starts');
+  const runtime = createAssistantServerFederation({ toolSurface: fixture.surface }, {});
+  let served = false;
+  const catalog = runtime.daemonCalls.listToolsFor({ principalId: 'owner' }).then(tools => { served = true; return tools; });
+  try {
+    await connecting;
+    t.mock.timers.tick(5_000);
+    await new Promise<void>(resolve => setImmediate(resolve));
+    assert.equal(served, true, 'native catalog must answer within five seconds, below the daemon\'s fifteen-second deadline');
+    const tools = await catalog;
+    assert.ok(tools.some(tool => tool.id === nativeTools[0]!.id), 'the real native tool catalog must be served');
+    assert.ok(!tools.some(tool => tool.id === 'mcp__hosted__echo'));
+  } finally {
+    release();
+    await fixture.surface.readFederationAdmissions({}, {});
+    await catalog;
+  }
+  const refreshed = await runtime.daemonCalls.listToolsFor({ principalId: 'owner' });
+  assert.ok(refreshed.some(tool => tool.id === 'mcp__hosted__echo'), 'late admissions must appear on subsequent catalog reads');
+});
+
 test("a remote tool's Allow for this chat survives the move to the server and stays conversation scoped", { timeout: 5000 }, async t => {
   const session = new InMemoryMcpSession({ tools: [{ name: "assistant_set_instructions", description: "Change assistant instructions",
     inputSchema: { type: "object", properties: { name: { type: "string" } } }, annotations: { readOnlyHint: false } }] });

@@ -183,8 +183,22 @@ test('release probe: a jini:release-check veto says no', (t) => {
 });
 
 test('release probe: with no guard objecting it says yes, with the page url and scroll', (t) => {
+  dom.window.history.replaceState(null, '', '/admin/');
+  t.after(() => dom.window.history.replaceState(null, '', '/'));
   const answer = runProbe(t, { 'jini:release-check': () => {} });
   assert.equal(answer.release, true);
-  assert.equal(answer.url, 'http://localhost/');
+  assert.equal(answer.url, 'http://localhost/admin/');
   assert.deepEqual([answer.x, answer.y, answer.innerY], [0, 0, 0]);
+});
+
+test('release probe: an unsent public comment survives switching sites without a release listener', t => {
+  const form = dom.window.document.createElement('form');
+  form.action = '/api/site/comments';
+  form.innerHTML = '<textarea name="body" required maxlength="10000"></textarea>';
+  dom.window.document.body.append(form);
+  t.after(() => form.remove());
+  const comment = form.querySelector('textarea')!;
+  comment.value = 'My unfinished comment';
+  assert.equal(runProbe(t, {}).release, false);
+  assert.equal(comment.value, 'My unfinished comment');
 });

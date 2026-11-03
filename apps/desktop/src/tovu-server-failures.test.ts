@@ -11,6 +11,7 @@ import test from "node:test";
 import type { TestContext } from "node:test";
 
 import { startTovuServer } from "./tovu-server.ts";
+import { receiveNodeStartupSecrets, STARTUP_SECRETS_ENV } from '@jini-ai/sidecar/supervisor/node';
 
 interface FakeChild extends EventEmitter {
   pid: number;
@@ -63,6 +64,38 @@ test("owned site control inherits IPC without daemon credentials in its spawn en
   f.child.stdout.write(`tovu serve: dir=${f.input.siteDir} port=4321 schemaVersion=1 workspaceId=site-a\n`);
   await started;
   assert.equal(identity, "site-a");
+});
+
+test('the site server receives daemon and render credentials over IPC, with no token keys in its spawn environment', async t => {
+  const f = fixture({ t });
+  const receiver = new EventEmitter();
+  const parent = Object.assign(f.child, { connected: true,
+    send: (message: unknown, callback: (error: Error | null) => void) => {
+      queueMicrotask(() => receiver.emit('message', message)); callback(null); return true;
+    },
+  });
+  const childPeer = Object.assign(receiver, { connected: true,
+    send: (message: unknown, callback: (error: Error | null) => void) => {
+      queueMicrotask(() => parent.emit('message', message)); callback(null); return true;
+    },
+  });
+  const started = startTovuServer({ ...f.input, baseEnv: {
+    TOVU_AGENT_DAEMON_TOKEN: 'daemon-secret', TOVU_TOOL_EXEC_TOKEN: 'tool-secret',
+  }, nodeToolchainEnv: {
+    JINI_DESKTOP_RENDER_URL: 'http://127.0.0.1:4567/capture', JINI_DESKTOP_RENDER_TOKEN: 'a'.repeat(64),
+  }, spawnFn: (_command, _args, options) => {
+    for (const key of ['TOVU_AGENT_DAEMON_TOKEN', 'TOVU_TOOL_EXEC_TOKEN', 'JINI_DESKTOP_RENDER_TOKEN']) {
+      assert.equal(key in options.env!, false, key);
+    }
+    assert.equal(options.env?.[STARTUP_SECRETS_ENV], '1');
+    assert.deepEqual(options.stdio, ['ignore', 'pipe', 'pipe', 'ipc']);
+    return parent;
+  }, platform: 'linux' });
+  const secrets = await receiveNodeStartupSecrets({ peer: childPeer });
+  assert.equal(secrets.TOVU_AGENT_DAEMON_TOKEN, 'daemon-secret');
+  assert.equal(secrets.JINI_DESKTOP_RENDER_TOKEN, 'a'.repeat(64));
+  f.child.stdout.write(`tovu serve: dir=${f.input.siteDir} port=4321 schemaVersion=1 workspaceId=site-a\n`);
+  await started;
 });
 
 test("T5: a boot failure after long startup logs reports the final CLI error", async (t) => {

@@ -44,9 +44,11 @@ test("memory daemon composition does not build site route dependencies", async (
     assert.ok(f.calls.some(call => call.operation === "find"), "attempt lookup reaches the site, never a local ledger");
     deps.tracker.error({ error: new Error("daemon failure") }, { context: { operation: "test", attributes: { process: "daemon" } } });
     await deps.tracker.capture({ name: "assistant_run_started", userId: "owner" });
-    await deps.flushTelemetry();
+    await deps.close();
+    await deps.close();
     assert.ok(f.calls.some(call => call.operation === "telemetryError"));
     assert.ok(f.calls.some(call => call.operation === "telemetryCapture"));
+    assert.equal(f.calls.filter(call => call.operation === 'telemetryFlush').length, 1, 'idempotent close owns the telemetry drain');
   } finally { await deps.close(); }
 });
 

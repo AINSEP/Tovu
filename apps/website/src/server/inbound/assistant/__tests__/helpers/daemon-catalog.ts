@@ -4,7 +4,7 @@ import type { ToolRegistry } from "@jini-ai/core";
 import { registerToolCatalogRoutes } from "@jini-ai/daemon/http";
 import type { ToolAttemptAuditSink } from "#src/features/tool-audit/types";
 import { createDaemonSiteTools } from "../../agent-daemon-site-tools.js";
-import { daemonFunction, daemonSource, evaluateDaemonStatements } from "./daemon-source.js";
+import { daemonStatements, daemonSource, evaluateDaemonStatements } from "./daemon-source.js";
 
 type CatalogBody = { hits: { id: string }[]; id: string; description: string };
 
@@ -20,9 +20,9 @@ export async function mountDaemonCatalog(registry: ToolRegistry, auditSink: Tool
   });
   await host.start({ runId, principalId: "catalog-member" });
   let refresh = false;
-  const statements = daemonFunction("start").body!.statements;
+  const statements = daemonStatements;
   const mount = statements.find(statement => ts.isExpressionStatement(statement) && ts.isCallExpression(statement.expression) && statement.expression.expression.getText(daemonSource) === "registerToolCatalogRoutes");
-  assert.ok(mount, "start() must mount the remote catalog directly");
+  assert.ok(mount, "createSiteScope() must mount the remote catalog directly");
   const handlers = new Map<string, (request: unknown, response: unknown) => Promise<void>>();
   await evaluateDaemonStatements([mount], {
     siteTools: host, registerToolCatalogRoutes,

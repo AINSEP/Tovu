@@ -11,6 +11,21 @@ import type { RunnerInventoryBridge } from './runner-api.js';
 import { deferred, renderHookWithView as renderHook, site } from './app-hooks.test-support.js';
 import { useSiteStart } from './use-site-start.hooks.js';
 
+test('Start without a desktop connection never shows Starting, including before the promise settles', async (t) => {
+  const rendered: boolean[] = [];
+  const hook = renderHook(t, () => {
+    const value = useSiteStart(site('a'), undefined, { getBridge: () => undefined });
+    rendered.push(value.starting);
+    return value;
+  });
+  let started!: Promise<boolean>;
+  act(() => { started = hook.current().start(); });
+  assert.equal(hook.current().starting, false, 'no attempt was made');
+  assert.equal(await act(() => started), false);
+  assert.equal(rendered.includes(true), false);
+  assert.equal(hook.current().error, 'Tovu desktop connection required to start a website.');
+});
+
 test("useSiteStart: success hands main's record on and resolves true; a missing bridge or a rejection resolves false with a reason", async (t) => {
   const applied: SiteRecord[] = [];
   const running = site('a', { status: 'running', port: 4321 });

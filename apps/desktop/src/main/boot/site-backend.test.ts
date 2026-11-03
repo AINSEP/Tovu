@@ -46,7 +46,6 @@ function harness(overrides: Partial<SiteBackendPorts<FakeServer>> = {}) {
     warn: (message) => warns.push(message),
     error: (message) => errors.push(message),
     openSites: { get: (dir) => openSites.get(dir), set: (dir, entry) => openSites.set(dir, entry) },
-    schedulePreview: ({ siteDir }) => { calls.push(`preview:${siteDir}`); },
     syncThemePreview: ({ siteDir }) => { calls.push(`theme:${siteDir}`); },
     ...overrides,
   };
@@ -193,13 +192,14 @@ test("openSiteServer: a site already open returns its server without any start",
   assert.deepEqual(h.calls, []);
 });
 
-test("openSiteServer: a new site is published to openSites, then its previews are scheduled", async () => {
+test("openSiteServer: a new site publishes its theme preview without scheduling a guest capture", async () => {
   const h = harness();
   const server = await h.backend.openSiteServer({ siteDir: "/sites/b", ctx }, { port: 4200 });
   assert.equal(server, h.spawned);
   assert.deepEqual(h.openSites.get("/sites/b"), { server: h.spawned, siteDir: "/sites/b" });
   assert.equal((h.starts[0] as { port: number }).port, 4200);
-  assert.deepEqual(h.calls.slice(-2), ["preview:/sites/b", "theme:/sites/b"]);
+  assert.equal(h.calls.at(-1), "theme:/sites/b");
+  assert.equal(h.calls.some(call => call.startsWith("preview:")), false);
 });
 
 test("openSiteServer: a failed start publishes nothing and schedules no preview", async () => {

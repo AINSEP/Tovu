@@ -11,8 +11,29 @@ import { closeHost } from '../app-render-harness.js';
 import { SettingsControl } from './SettingsControl.js';
 import type { ThemePreference } from '../theme.js';
 import type { RunnerInventoryBridge } from '../runner-api.js';
+import { useLoadedSites } from '../use-loaded-sites.hooks.js';
 
 after(closeHost);
+
+test('Loaded sites keeps a newer menu preference when the initial read arrives late', async t => {
+  let finish!: (value: number) => void;
+  let changed!: (value: number) => void;
+  const writes: number[] = [];
+  const getBridge = () => ({ getMaximumLiveSiteViews: () => new Promise<number>(resolve => { finish = resolve; }),
+    onMaximumLiveSiteViewsChanged: (listener: (value: number) => void) => { changed = listener; return () => {}; },
+    setMaximumLiveSiteViews: async (value: number) => { writes.push(value); return value; },
+  });
+  function Setting() {
+    const setting = useLoadedSites({}, { getBridge });
+    return createElement('button', { onClick: () => setting.save(1) }, String(setting.value));
+  }
+  const view = mount({ t, element: createElement(Setting) });
+  await act(async () => { changed(4); });
+  await act(async () => { finish(1); });
+  assert.equal(view.container.querySelector('button')?.textContent, '4');
+  await view.click(view.container.querySelector('button'));
+  assert.deepEqual(writes, [1]);
+});
 
 function renderSettings(t: TestContext, { theme = 'system', bridge = {} }: { theme?: ThemePreference; bridge?: Partial<RunnerInventoryBridge> } = {}) {
   installBridge({ t, bridge });

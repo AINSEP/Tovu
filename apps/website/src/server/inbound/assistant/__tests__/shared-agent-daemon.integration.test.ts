@@ -29,7 +29,11 @@ async function harness() {
   const address = server.address(); assert.ok(address && typeof address !== "string");
   const url = `http://127.0.0.1:${address.port}`;
   const idlePark = createAgentDaemonIdlePark({ isBusy: () => false, exit: () => assert.fail("unexpected park") }, { env: { TOVU_AGENT_DAEMON_IDLE_MINUTES: "0" } });
-  async function site(instance: number, siteId: string, db: "memory" | "sqlite" = "memory") {
+  app.get('/internal/tool-catalog', (_req, res) => res.json({ tools: [] }));
+  app.post('/internal/agent-plugin-preflight', (_req, res) => res.json({ prefix: '', refusalPrefix: '' }));
+  async function site(instance: number, siteId: string, db: "memory" | "sqlite" = "memory", options: {
+    prepare?: { entered(): void; resume: Promise<void> };
+  } = {}) {
     const dir = join(root, `${instance}-${siteId}`);
     await mkdir(dir, { recursive: true });
     if (db === "sqlite") {
@@ -37,7 +41,7 @@ async function harness() {
     }
     const token = `proxy-${instance}-${siteId}-${scopes.length}`;
     const env = { PATH: "", HOME: dir, TOVU_SITE_DIR: dir, TOVU_DB: db,
-      TOVU_WORKSPACE: siteId, TOVU_SITE_LISTENER_ORIGIN: "http://127.0.0.1:1",
+      TOVU_WORKSPACE: siteId, TOVU_SITE_LISTENER_ORIGIN: options.prepare ? url : "http://127.0.0.1:1",
       TOVU_AGENT_DAEMON_TOKEN: token, TOVU_AGENT_PERMISSION_MODE: instance ? "restricted" : "bypass",
       JINI_AGENT_DAEMON_URL: `${url}/s/${instance}-${siteId}` };
     const scope = await createSiteScope({ siteId, env, token: `rpc-${instance}-${siteId}` }, {
@@ -45,7 +49,11 @@ async function harness() {
         storage: { kind: "sqlite" },
         fetch: async (_input, init) => {
           assert.equal(new Headers(init?.headers).get("authorization"), `Bearer rpc-${instance}-${siteId}`);
-          const request = JSON.parse(String(init?.body)) as { operation: string };
+          const request = JSON.parse(String(init?.body)) as { operation: string; input?: { namespace?: string } };
+          if (request.operation === 'getEffective' && request.input?.namespace === 'core.interface' && options.prepare) {
+            options.prepare.entered();
+            await options.prepare.resume;
+          }
           return Response.json({ value: request.operation === "bootstrap" ? {
             workspaceId: siteId, ownerPrincipalId: "owner", siteBinding: { dir, name: siteId },
             siteStoragePaths: { contentDbPath: join(dir, "content.db"), mediaUploadsDir: join(dir, "uploads"), chatAttachmentsDir: join(dir, "attachments") },
@@ -124,6 +132,52 @@ test("disposing one site leaves another run streaming and refuses late callbacks
     assert.equal((await b.scope.lifecycle.get({ runId: "same" }))?.state, "queued");
     await b.scope.lifecycle.finish({ runId: "same", status: "succeeded", code: 0, signal: null, resumable: false });
   } finally { await h.close(); }
+});
+
+test("withdrawing a site while its reply prepares finishes disposal and leaves another site streaming", { timeout: 10_000 }, async () => {
+  const h = await harness();
+  let resume!: () => void;
+  const held = new Promise<void>(resolve => { resume = resolve; });
+  let entered!: () => void;
+  const preparing = new Promise<void>(resolve => { entered = resolve; });
+  let closing: Promise<void> | undefined;
+  let stopped: Awaited<ReturnType<typeof h.site>> | undefined;
+  let runId: string | undefined;
+  try {
+    const a = await h.site(0, 'a', 'memory', { prepare: { entered, resume: held } });
+    stopped = a;
+    const b = await h.site(0, 'b');
+    await b.scope.lifecycle.start({ contextRef: 'other site' }, { runId: 'other' });
+    const response = await fetch(`${a.base}/api/runs`, { method: 'POST',
+      headers: { authorization: `Bearer ${a.token}`, 'x-tovu-principal-id': 'owner', 'content-type': 'application/json' },
+      body: JSON.stringify({ agentId: 'aider', contextRef: JSON.stringify({ prompt: 'hello', principalId: 'owner' }) }),
+    });
+    assert.equal(response.status, 201);
+    runId = ((await response.json()) as { run: { id: string } }).run.id;
+    await preparing;
+    closing = a.scope.dispose({}, {});
+    // Let withdrawal fence launch and deliver cancellation while preference I/O is held.
+    await new Promise<void>(resolve => setImmediate(resolve));
+    resume();
+    const terminal = await a.scope.lifecycle.waitForTerminal({ runId }, { signal: AbortSignal.timeout(2_000) });
+    assert.equal(terminal.state, 'canceled');
+    await closing;
+    const replacement = await h.site(0, 'a');
+    const ready = await fetch(`${replacement.base}/api/runs`, { headers: { authorization: `Bearer ${replacement.token}`, 'x-tovu-principal-id': 'owner' } });
+    assert.equal(ready.status, 200); await ready.body?.cancel();
+    const events: string[] = [];
+    const subscription = await b.scope.lifecycle.stream({ runId: 'other', onEvent: event => { events.push(JSON.stringify(event)); } });
+    await b.scope.lifecycle.emit({ runId: 'other', input: { event: 'stdout', data: { chunk: 'still streaming' } } });
+    assert.match(events.join(''), /still streaming/);
+    if (subscription.kind === 'ok') subscription.unsubscribe();
+    await b.scope.lifecycle.finish({ runId: 'other', status: 'succeeded', code: 0, signal: null, resumable: false });
+  } finally {
+    resume();
+    // The pre-fix regression must also leave no unresolved run or disposal behind.
+    if (runId && stopped) await stopped.scope.lifecycle.finish({ runId, status: 'canceled', code: null, signal: null, resumable: false });
+    await closing;
+    await h.close();
+  }
 });
 
 test("identical upload batches and principal IDs remain scoped to their site", async () => {

@@ -1,13 +1,14 @@
 /**
  * @file Behaviour of the card-preview Electron half (`site-preview.ts`) through live-guest, store
  * and lease ports. Replaces the cut-out-eval and source-regex checks in `main-preview-wiring.test.ts`
- * for `captureSitePreview`, `requestListedSitePreview`, the scheduler's lease fallback and
+ * for `captureSitePreview`, the production list wiring, the scheduler's lease fallback and
  * `sweepSitePreviewsOnBoot`.
  */
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import {
-  createListedPreviewRequests, createPreviewTargetResolver, createSitePreviewCapture, sweepSitePreviewsOnBoot,
+  createPreviewTargetResolver, createSitePreviewCapture, sweepSitePreviewsOnBoot,
   PREVIEW_WIDTH_PX,
   type PreviewCapturePorts,
 } from "./site-preview.ts";
@@ -147,10 +148,14 @@ test("no own server and no lease, or a lease still starting (port 0), means noth
   assert.equal(resolver(undefined, { port: 0, scheme: "http" }).resolve({ siteDir: "/a" }), undefined);
 });
 
-test('list polling never schedules a thumbnail capture', () => {
-  const request = createListedPreviewRequests({ schedule: () => assert.fail('only public visits schedule captures') });
-  request({ siteDir: '/a', port: 8123 });
-  request({ siteDir: '/a', port: 8124 });
+test('production preview wiring schedules only from live guests and uses the tested session predicate', () => {
+  const main = readFileSync(new URL('../index.ts', import.meta.url), 'utf8');
+  const ipc = readFileSync(new URL('../../project-ipc.ts', import.meta.url), 'utf8');
+  assert.match(main, /allowed: \(\{ owner, guest, target \}\) => isLivePreviewGuestAllowed\(/);
+  assert.match(main, /partitionSession: session\.fromPartition\(target\.partition\)/);
+  assert.doesNotMatch(main, /createListedPreviewRequests|requestListedSitePreview|scheduleSitePreview/);
+  assert.doesNotMatch(ipc, /requestMissingPreviews|requestPreviewCapture/);
+  assert.match(ipc, /SITE_IPC_CHANNELS\.list, \(\) => handleList/);
 });
 
 test("the boot sweep hands every tracked site dir to the store's sweep", () => {

@@ -4,6 +4,9 @@
  */
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { act, createElement, StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+import { installDom } from './dom-hook-harness.js';
 import type { RunnerInventoryBridge } from './runner-api.js';
 import { renderHookWithView as renderHook } from './app-hooks.test-support.js';
 import { useWorkspaceChatTransport } from './use-workspace-chat-transport.hooks.js';
@@ -30,6 +33,43 @@ function fakeBridge(overrides: Partial<RunnerInventoryBridge> = {}): RunnerInven
     ...overrides,
   };
 }
+
+test('workspace chat keeps one working listener after StrictMode replays setup and removes it on close', (t) => {
+  const bridge = fakeBridge();
+  const getBridge = () => bridge;
+  let current: ReturnType<typeof useWorkspaceChatTransport> | undefined;
+  function Pane() { current = useWorkspaceChatTransport({}, { getBridge }); return null; }
+  const window = installDom();
+  const root = createRoot(window.document.body.appendChild(window.document.createElement('div')));
+  t.after(() => act(() => root.unmount()));
+  act(() => root.render(createElement(StrictMode, null, createElement(Pane))));
+  assert.ok(current?.transport);
+  assert.equal(bridge.chatListeners.size, 1, 'the committed transport must own a live listener');
+  act(() => root.render(null));
+  assert.equal(bridge.chatListeners.size, 0, 'render-discarded transports must not leak listeners');
+});
+
+test('reconnecting the same desktop bridge never hands the pane its disposed transport', (t) => {
+  const bridge = fakeBridge();
+  let getBridge: () => RunnerInventoryBridge | undefined = () => bridge;
+  const seen: Array<ReturnType<typeof useWorkspaceChatTransport>['transport']> = [];
+  const hook = renderHook(t, () => {
+    const value = useWorkspaceChatTransport({}, { getBridge });
+    seen.push(value.transport);
+    return value;
+  });
+  const original = hook.current().transport;
+  assert.ok(original);
+  getBridge = () => undefined;
+  hook.rerender();
+  assert.equal(bridge.chatListeners.size, 0);
+  seen.length = 0;
+  getBridge = () => bridge;
+  hook.rerender();
+  assert.equal(seen.includes(original), false, 'even the render before effect setup must not expose the closed instance');
+  assert.ok(hook.current().transport);
+  assert.equal(bridge.chatListeners.size, 1);
+});
 
 test('useWorkspaceChatTransport: wires every surface from one bridge, and disposing the pane drops its run listener', (t) => {
   const bridge = fakeBridge();

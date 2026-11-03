@@ -1,7 +1,30 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 import { prepareLiteAdmin } from '../dev-lite.mjs';
 import { finishDevStartup } from '../dev.mjs';
+
+for (const source of ['features/post/slug.ts', 'platform/html/slug.ts', 'assistant/assistant-tool-approval-policy.ts']) {
+  test(`dev:lite rebuilds after an admin dependency changes in website ${source}`, async t => {
+    const repoRoot = await mkdtemp(path.join(os.tmpdir(), 'lite-freshness-'));
+    t.after(() => rm(repoRoot, { recursive: true, force: true }));
+    const file = path.join(repoRoot, 'apps/website/src', source);
+    await mkdir(path.dirname(file), { recursive: true });
+    await writeFile(file, 'export const value = "before";');
+    let builds = 0;
+    const options = { lock: async ({ run }) => run(), build: async ({ output }) => {
+      builds++; await mkdir(output, { recursive: true }); await writeFile(path.join(output, 'index.html'), 'built');
+    } };
+    await prepareLiteAdmin({ repoRoot, env: {} }, options);
+    await prepareLiteAdmin({ repoRoot, env: {} }, options);
+    assert.equal(builds, 1);
+    await writeFile(file, 'export const value = "after";');
+    await prepareLiteAdmin({ repoRoot, env: {} }, options);
+    assert.equal(builds, 2);
+  });
+}
 
 test('dev:lite opens the ready API admin without starting an admin Vite process', async () => {
   assert.equal(await finishDevStartup({ apiPort: 3000, vitePort: 5173, scheme: 'http', lite: true }, {

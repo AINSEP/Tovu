@@ -14,7 +14,7 @@ export async function buildDaemonToolSurface(routeDeps: NewsletterRouteDeps): Pr
   await server.toolSurface.ready;
   const registry = createToolRegistry({});
   const host = evaluateDaemonExpression<ReturnType<typeof createDaemonSiteTools>>(daemonInitializer("siteTools"), {
-    routeDeps, registry, process: { env: { TOVU_SITE_LISTENER_ORIGIN: "https://fixture.invalid" } }, siteToolToken: "fixture",
+    routeDeps, registry, env: { TOVU_SITE_LISTENER_ORIGIN: "https://fixture.invalid" }, siteToolToken: "fixture",
     createDaemonSiteTools: (required: Parameters<typeof createDaemonSiteTools>[0]) => createDaemonSiteTools(required, {
       fetch: async url => {
         assert.equal(new URL(String(url)).pathname, "/internal/tool-catalog");

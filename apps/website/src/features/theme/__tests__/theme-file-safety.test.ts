@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
+import { syncBuiltinESMExports } from 'node:module';
 import type { ToolExecutionContext } from '@jini-ai/core';
 import { createSurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';
 import { createSystemClock } from '@jini-ai/core/primitives';
@@ -157,4 +158,53 @@ test('theme replacement history retains the latest 20 revisions without purging 
   const values = f.revisions().map(file => fs.readFileSync(path.join(f.themeDir, file), 'utf8')).sort((a, b) => Number(a) - Number(b));
   assert.deepEqual(values, Array.from({ length: 20 }, (_, i) => String(i + 4)));
   assert.equal(fs.readFileSync(manual, 'utf8'), 'manual trash');
+});
+
+for (const existed of [false, true]) {
+  test(`a URL import preserves a destination ${existed ? 'changed' : 'created'} while its download waits`, async t => {
+    const f = fixture(t);
+    const destination = path.join(f.themeDir, 'race.woff2');
+    if (existed) fs.writeFileSync(destination, font);
+    let downloaded!: () => void;
+    let started!: () => void;
+    const sourceStarted = new Promise<void>(resolve => { started = resolve; });
+    const sourceReady = new Promise<void>(resolve => { downloaded = resolve; });
+    f.deps.mediaImportHttpClient.send = async () => {
+      started(); await sourceReady;
+      return { status: 200, headers: {}, bodyText: '', bodyBytes: font, bodyTruncated: false };
+    };
+    const pending = f.run('theme_import_file_from_url', { themeId: 'copy', path: 'race.woff2', url: 'https://example.com/font.woff2' }, async () => {});
+    const rejected = assert.rejects(pending, /changed.*review|changed.*retry/i);
+    if (existed) { await turn(); f.answer('theme_import_file_from_url'); }
+    await sourceStarted;
+    fs.writeFileSync(destination, 'someone else');
+    downloaded();
+    await rejected;
+    assert.equal(fs.readFileSync(destination, 'utf8'), 'someone else');
+    assert.deepEqual(f.revisions(), []);
+  });
+}
+
+test('a committed theme replacement reloads even when an old revision cannot be pruned', async t => {
+  const f = fixture(t);
+  for (let i = 0; i < 20; i++) writeThemeFile({ themeDir: f.themeDir, themesRoot: f.root, relativePath: 'a.css', content: String(i) });
+  const remove = fs.rmSync;
+  const warnings: unknown[][] = [];
+  const warn = t.mock.method(console, 'warn', (...args: unknown[]) => { warnings.push(args); });
+  const pruning = t.mock.method(fs, 'rmSync', ((file, options) => {
+    if (String(file).includes(`${path.sep}revisions${path.sep}`)) throw new Error('EPERM: revision held open');
+    return remove(file, options);
+  }) as typeof fs.rmSync);
+  syncBuiltinESMExports();
+  t.after(() => { pruning.mock.restore(); warn.mock.restore(); syncBuiltinESMExports(); });
+  const content = JSON.stringify({ id: 'copy', name: 'Reloaded', version: '1.0.0', tier: 'static', engine: 1 });
+  const pending = f.run('theme_write_file', { themeId: 'copy', path: 'theme.json', content }, async () => {});
+  await turn(); f.answer('theme_write_file');
+  await pending;
+  assert.equal(fs.readFileSync(path.join(f.themeDir, 'theme.json'), 'utf8'), content);
+  assert.equal(f.deps.themes.find(theme => theme.manifest.id === 'copy')?.manifest.name, 'Reloaded');
+  assert.equal(warnings.length, 1);
+  pruning.mock.restore(); syncBuiltinESMExports();
+  writeThemeFile({ themeDir: f.themeDir, themesRoot: f.root, relativePath: 'a.css', content: 'retry retention' });
+  assert.equal(f.revisions().length, 20);
 });

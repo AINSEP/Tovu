@@ -86,6 +86,15 @@ test('desktop model discovery declares its integrations runtime library', () => 
   assert.equal(manifest.dependencies['@jini-ai/integrations'], '^0.6.17');
 });
 
+test('the packaged desktop can load its shared agent daemon supervisor without the site payload', () => {
+  const directory = path.join(REPO_ROOT, 'apps', 'desktop');
+  const manifest = JSON.parse(fs.readFileSync(path.join(directory, 'package.json'), 'utf8'));
+  const lock = JSON.parse(fs.readFileSync(path.join(directory, 'package-lock.json'), 'utf8'));
+  assert.equal(manifest.dependencies['@jini-ai/sidecar'], '^0.6.17');
+  assert.equal(lock.packages[''].dependencies['@jini-ai/sidecar'], manifest.dependencies['@jini-ai/sidecar']);
+  assert.equal(lock.packages['node_modules/@jini-ai/sidecar'].version, '0.6.17');
+});
+
 /** Source inputs only: build output, tests and fixtures are not shipped runtime modules. */
 function runtimeSources({ directory }: { directory: string }, _options = {}): string[] {
   return fs.readdirSync(directory, { withFileTypes: true }).flatMap(entry => {

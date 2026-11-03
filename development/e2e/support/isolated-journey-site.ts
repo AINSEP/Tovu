@@ -1,4 +1,3 @@
-import { randomBytes } from "node:crypto";
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -148,7 +147,8 @@ export async function createIsolatedJourneySite(
 /**
  * The packaged app's child env (`tovu-server.ts` `buildCliEnv`/`buildServeEnv`): no `NODE_ENV`
  * (a Finder-launched app has none), the site's own SQLite rather than `TOVU_DB`/`TOVU_CONTENT_DB`,
- * `--port` rather than `PORT`, the bundled admin/site-chat builds, and a minted daemon token.
+ * `--port` rather than `PORT` and the bundled admin/site-chat builds. Serve mints its own
+ * private daemon capability; fixtures must not put one in the native spawn environment.
  */
 function applyPackagedServerEnv(env: Record<string, string>, packaged: NonNullable<IsolatedJourneySite["packaged"]>): void {
   for (const key of ["NODE_ENV", "PORT", "TOVU_DB", "TOVU_CONTENT_DB"]) delete env[key];
@@ -158,7 +158,6 @@ function applyPackagedServerEnv(env: Record<string, string>, packaged: NonNullab
     TOVU_ADMIN_DIST: path.join(payloadRoot, "apps/admin/dist"),
     TOVU_SITE_CHAT_DIST: path.join(payloadRoot, "apps/site-chat/dist"),
     TOVU_REPO_ROOT: payloadRoot,
-    TOVU_AGENT_DAEMON_TOKEN: randomBytes(32).toString("hex"),
   });
 }
 

@@ -119,6 +119,89 @@ function view(state: RunnerConversationState) {
   return { activeId: state.activeId, paneKey: state.paneKey, initial: state.initialMessages.map((m) => m.id) };
 }
 
+test('a deleted conversation stays absent when an older list request finishes last', async () => {
+  const ctx = setup();
+  await seedList(ctx, [convo('gone'), convo('kept')]);
+  const stale = ctx.controller.refresh();
+  const staleList = latest(ctx.store.list);
+  const removing = ctx.controller.remove('gone');
+  latest(ctx.store.del).resolve();
+  await settle();
+  latest(ctx.store.list).resolve([convo('gone'), convo('kept')]);
+  await removing;
+  staleList.resolve([convo('gone'), convo('kept')]);
+  await stale;
+  assert.deepEqual(ctx.controller.getState().conversations.map(c => c.id), ['kept']);
+});
+
+test('a deleted conversation cannot reopen when its pending transcript arrives', async () => {
+  const ctx = setup();
+  ctx.controller.select('gone');
+  const removing = ctx.controller.remove('gone');
+  latest(ctx.store.del).resolve();
+  await settle();
+  latest(ctx.store.list).resolve([]);
+  await removing;
+  latest(ctx.store.load).resolve([user('old')]);
+  await settle();
+  assert.equal(ctx.controller.getState().activeId, null);
+  assert.deepEqual(ctx.controller.getState().initialMessages, []);
+});
+
+for (const navigation of ['select', 'create'] as const) {
+  test(`lazy conversation creation preserves pending ${navigation} navigation and saves the outgoing turn`, async () => {
+    const ctx = setup();
+    ctx.controller.onMessagesChange([user('outgoing')]);
+    const adoption = latest(ctx.store.create);
+    const navigating = navigation === 'create' ? ctx.controller.create() : undefined;
+    if (navigation === 'select') ctx.controller.select('chosen');
+    ctx.controller.onMessagesChange([user('outgoing'), user('late-outgoing')]);
+    assert.equal(ctx.store.create.length, navigation === 'create' ? 2 : 1, 'outgoing deltas share the original adoption');
+    adoption.resolve(convo('adopted'));
+    await settle();
+    assert.equal(ctx.controller.getState().activeId, null, 'adoption must not claim the pane while navigation is pending');
+    assert.deepEqual(saved(ctx.store), ['adopted/outgoing', 'adopted/late-outgoing']);
+    if (navigation === 'select') latest(ctx.store.load).resolve([user('chosen-turn')]);
+    else latest(ctx.store.create).resolve(convo('chosen'));
+    await navigating;
+    await settle();
+    assert.equal(ctx.controller.getState().activeId, 'chosen');
+  });
+}
+
+test('a first outgoing turn arriving during navigation is saved without replacing the pending choice', async () => {
+  const ctx = setup();
+  ctx.controller.select('chosen');
+  ctx.controller.onMessagesChange([user('outgoing')]);
+  latest(ctx.store.create).resolve(convo('outgoing-thread'));
+  await settle();
+  assert.equal(ctx.controller.getState().activeId, null);
+  assert.deepEqual(saved(ctx.store), ['outgoing-thread/outgoing']);
+  latest(ctx.store.load).resolve([]);
+  await settle();
+  assert.equal(ctx.controller.getState().activeId, 'chosen');
+});
+
+for (const creation of ['adoption', 'explicit'] as const) {
+  test(`a deleted thread stays deleted when its delayed ${creation} acknowledgement arrives`, async () => {
+    const ctx = setup();
+    const creating = creation === 'explicit' ? ctx.controller.create() : undefined;
+    if (creation === 'adoption') ctx.controller.onMessagesChange([user('outgoing')]);
+    await seedList(ctx, [convo('gone')]);
+    const removing = ctx.controller.remove('gone');
+    latest(ctx.store.del).resolve();
+    await settle();
+    latest(ctx.store.list).resolve([]);
+    await removing;
+    latest(ctx.store.create).resolve(convo('gone'));
+    await creating;
+    await settle();
+    assert.equal(ctx.controller.getState().activeId, null);
+    assert.deepEqual(ctx.controller.getState().conversations, []);
+    assert.deepEqual(saved(ctx.store), []);
+  });
+}
+
 // ── state, subscribe, refresh ───────────────────────────────────────────────────────────────────
 
 test('starts empty, keeps one state object until a change, then publishes a new one to subscribers and onChange', async () => {

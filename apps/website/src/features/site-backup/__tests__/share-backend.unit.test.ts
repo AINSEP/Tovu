@@ -40,6 +40,7 @@ async function progressAtDelivery(t: TestContext, plan: SiteSharePlanContent): P
   let entered!: () => void, release!: () => void;
   const started = new Promise<void>(resolve => { entered = resolve; }), gate = new Promise<void>(resolve => { release = resolve; });
   const backend = createSiteShareBackend({ registry, site: "ws", prepare: async () => plan, zip: zipFolderFiles, delivery: async () => { entered(); await gate; return undefined; } });
+  assert.equal(backend.hasWork?.({}), false);
   const signal = new AbortController().signal;
   const pending = await backend.create({ principalId: "owner", signal }, { waitMs: 0 }) as { jobId: string };
   // An export that fails before delivery (e.g. a plan v2 refuses) must fail this test with its own
@@ -49,8 +50,10 @@ async function progressAtDelivery(t: TestContext, plan: SiteSharePlanContent): P
   const first = await Promise.race([started.then(() => "delivery" as const), settled.then(() => "settled" as const)]);
   if (first === "settled") assert.fail(`the export settled before delivery: ${JSON.stringify(await settled)}`);
   const progress = await backend.create({ principalId: "owner", jobId: pending.jobId, signal }, { waitMs: 0 }) as Awaited<ReturnType<typeof progressAtDelivery>>;
+  assert.equal(backend.hasWork?.({}), true, 'an outstanding upload keeps its warm server');
   release();
   await settled;
+  assert.equal(backend.hasWork?.({}), false, 'completion releases protection even with a retained job record');
   return progress;
 }
 const BUFFERED = [SETTINGS, { path: "themes/site/a.txt", content: Buffer.from("a") }];

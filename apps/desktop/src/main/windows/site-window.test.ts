@@ -66,7 +66,6 @@ function harness(overrides: Partial<SiteWindowPorts<FakeServer, FakeWindow, Ctx>
     createWindow: ({ url, title, partition }) => { log.push(`window ${url} ${title} ${partition}`); return fakeWindow(`w${log.length}`); },
     readSiteName: (siteDir) => `Name of ${siteDir}`,
     recordSiteClosed: ({ registryPath, siteDir, pid }) => { log.push(`row-closed ${registryPath} ${siteDir} ${pid}`); },
-    scheduleSitePreview: (siteDir) => { log.push(`preview ${siteDir}`); },
     siteThemePreviews: {
       sync: ({ siteDir }) => { log.push(`theme-sync ${siteDir}`); },
       stop: ({ siteDir }) => { log.push(`theme-stop ${siteDir}`); },
@@ -95,7 +94,7 @@ test("a first open spawns the server, creates its titled window on the site's pa
   const h = harness();
   const window = await openSiteWindow({ siteDir: "/a", ctx: CTX, ports: h.ports }, { port: 4100 });
   assert.deepEqual(h.backendCalls, [{ siteDir: "/a", ctx: CTX, port: 4100 }]);
-  assert.deepEqual(h.log, ["spawn /a", "window http://127.0.0.1:4001/admin/ Name of /a persist:/a", "preview /a", "theme-sync /a"]);
+  assert.deepEqual(h.log, ["spawn /a", "window http://127.0.0.1:4001/admin/ Name of /a persist:/a", "theme-sync /a"]);
   const entry = h.openSites.get("/a");
   assert.equal(entry?.window, window);
   assert.equal(entry?.server.pid, 1);
@@ -126,7 +125,7 @@ test("a retained server (macOS window closed) is reused with its own partition â
   h.openSites.set("/a", { server, siteDir: "/a" });
   const window = await openSiteWindow({ siteDir: "/a", ctx: CTX, ports: h.ports });
   assert.deepEqual(h.backendCalls, []);
-  assert.deepEqual(h.log, ["window http://127.0.0.1:4007/admin/ Name of /a persist:/a", "preview /a", "theme-sync /a"]);
+  assert.deepEqual(h.log, ["window http://127.0.0.1:4007/admin/ Name of /a persist:/a", "theme-sync /a"]);
   assert.equal(h.openSites.get("/a")?.server, server);
   assert.equal(h.openSites.get("/a")?.window, window);
 });

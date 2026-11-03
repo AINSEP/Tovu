@@ -104,12 +104,13 @@ test("a PGlite site's owner socket is handed to the daemon as TOVU_PG_SOCKET; ot
   assert.equal("TOVU_PG_SOCKET" in sqlite, false, "a SQLite (or Postgres) site's daemon env is unchanged");
 });
 
-test("the daemon receives the actual site listener and the privately held tool token on every spawn", async () => {
+test("daemon launch configuration carries the actual listener while the tool token stays out of its environment", async () => {
   const { ensureToolExecToken } = await import("#src/assistant/daemon-access");
   const token = ensureToolExecToken({ env: {} }, {});
   const overrides = buildDaemonSpawnEnvOverrides({ workspaceId: "workspace-1", siteDir: "/site/A", daemonPortOverride: undefined,
     siteApiOrigin: "https://localhost:52117" });
   assert.equal(overrides.TOVU_SITE_LISTENER_ORIGIN, "https://localhost:52117");
-  assert.equal(overrides.TOVU_TOOL_EXEC_TOKEN, token);
+  assert.ok(token);
+  assert.equal('TOVU_TOOL_EXEC_TOKEN' in overrides, false);
   assert.equal(process.env.TOVU_TOOL_EXEC_TOKEN, undefined);
 });

@@ -10,14 +10,14 @@ import ts from "typescript";
 import { createDiskAttachmentStore, createRemoteAttachmentLookup } from "@jini-ai/daemon/http";
 import { createRunScopedCredentials, registerDaemonAttachmentLookup } from "#src/assistant/daemon-access";
 import { startTestServer } from "../../../__tests__/helpers/http-test-server.js";
-import { daemonFunction, daemonSource, evaluateDaemonStatements } from "./helpers/daemon-source.js";
+import { daemonStatements, daemonSource, evaluateDaemonStatements } from "./helpers/daemon-source.js";
 
 /** Execute the real entry's lookup registration without booting its databases or agent CLIs. */
 async function bootAttachmentOwner(t: import("node:test").TestContext) {
   const directory = await mkdtemp(path.join(tmpdir(), "daemon-attachment-owner-"));
   const store = await createDiskAttachmentStore({ uploadDirectory: directory }, { retainAcrossRestarts: true });
   t.after(async () => { await store.dispose(); await rm(directory, { recursive: true, force: true }); });
-  const statements = daemonFunction("start").body!.statements;
+  const statements = daemonStatements;
   const registration = statements.find(statement => ts.isExpressionStatement(statement)
     && ts.isCallExpression(statement.expression)
     && statement.expression.expression.getText(daemonSource) === "registerDaemonAttachmentLookup");

@@ -59,3 +59,32 @@ test('a full warm pool refuses admission when every child has active or unprovab
   await host.start({ name: 'busy' });
   await assert.rejects(host.start({ name: 'next' }), /SITE_LIMIT/);
 });
+
+test('a warm site resumes serving and readiness observation after its termination fails', async () => {
+  let fenced = false;
+  let observation: (() => void) | undefined;
+  let observations = 0;
+  let failStop = true;
+  const host = createLocalSiteSupervisor({ servingName: 'root', scheme: 'http', processPort: {
+    isPortFree: async () => true,
+    schedule: ({ run }) => { observations++; observation = run; return () => { observation = undefined; }; },
+    launch: async () => ({ pid: 42, onExit() {}, ready: async () => !fenced,
+      tryRetire: async () => { fenced = true; return true; },
+      cancelRetirement: async () => { fenced = false; },
+      terminate: async () => { if (failStop) throw new Error('child survived'); }, killNow() {},
+    }),
+  } }, { maxConcurrent: 1, evictIdle: true });
+  const previous = await host.start({ name: 'old' });
+  await assert.rejects(host.start({ name: 'new' }), /SITE_STOP_FAILED/);
+  assert.equal(fenced, false);
+  assert.equal(host.list()[0]?.status, 'starting');
+  assert.equal((await host.start({ name: 'old' })).adminUrl, previous.adminUrl);
+  assert.equal(observations, 2);
+  assert.ok(observation);
+  observation();
+  await new Promise<void>(resolve => setImmediate(resolve));
+  assert.equal(host.list()[0]?.status, 'running');
+  failStop = false;
+  await host.start({ name: 'new' });
+  assert.equal(host.list().find(site => site.name === 'old')?.status, 'stopped');
+});

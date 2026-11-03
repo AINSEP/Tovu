@@ -50,7 +50,6 @@ function launch() {
     redeemBootSession: async () => ({ ok: true }),
     log: () => {}, warn: () => {}, error: () => {},
     openSites,
-    schedulePreview: () => {},
     syncThemePreview: ({ siteDir }) => themePreviews.sync({ siteDir }, {}),
   };
   return {

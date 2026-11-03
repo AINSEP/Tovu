@@ -4,14 +4,54 @@ import test from "node:test";
 import { createNoopObservabilityPort } from "#src/platform/observability/index";
 import { createHttpRunDaemonClient } from "../assistant-run-finalizer.js";
 
+const TOKEN_ENV = "TOVU_AGENT_DAEMON_TOKEN";
+const observability = createNoopObservabilityPort({});
+
+test('a finished watch releases its pinned endpoint and capability while other principals stay pinned', async () => {
+  let url = 'http://127.0.0.1:4200';
+  const { calls, fetch } = recordingFetch(() => new Response(null, { status: 200 }));
+  const client = createHttpRunDaemonClient({ observability }, { currentUrl: () => url, fetch });
+  const first = { runId: 'shared-id', principalId: 'first' };
+  const second = { runId: 'shared-id', principalId: 'second' };
+  await client.runStatus(first, {});
+  await client.runStatus(second, {});
+  url = 'http://127.0.0.1:4300';
+  await client.openEvents(first, {});
+  assert.equal(calls.at(-1)?.url, 'http://127.0.0.1:4200/api/runs/shared-id/events', 'active watches keep their owning endpoint');
+  assert.ok(client.release, 'the finalizer needs a release port for completed watches');
+  client.release(first, {});
+  client.release(first, {});
+  await client.openEvents(first, {});
+  assert.equal(calls.at(-1)?.url, 'http://127.0.0.1:4300/api/runs/shared-id/events');
+  await client.openEvents(second, {});
+  assert.equal(calls.at(-1)?.url, 'http://127.0.0.1:4200/api/runs/shared-id/events', 'releasing one principal must preserve the other watch');
+  client.release(second, {});
+});
+
+test('a late status response cannot retain a retired daemon after its watch times out', async () => {
+  let finish!: (response: Response) => void;
+  const held = new Promise<Response>(resolve => { finish = resolve; });
+  let url = 'http://127.0.0.1:4200';
+  const { calls, fetch } = recordingFetch(address => address.endsWith('/events') ? new Response('') : held);
+  const client = createHttpRunDaemonClient({ observability }, { currentUrl: () => url, fetch });
+  const run = { runId: 'late-probe', principalId: 'owner' };
+  const abort = new AbortController();
+  const pending = client.runStatus(run, { signal: abort.signal });
+  await new Promise<void>(resolve => setImmediate(resolve));
+  abort.abort();
+  client.release?.(run, {});
+  url = 'http://127.0.0.1:4300';
+  finish(new Response(null, { status: 200 }));
+  await pending;
+  await client.openEvents(run, {});
+  assert.equal(calls.at(-1)?.url, 'http://127.0.0.1:4300/api/runs/late-probe/events');
+});
+
 /**
  * @file `createHttpRunDaemonClient` — the HTTP adapter the run finalizer uses to reach the agent
  * daemon. Every case injects `fetch`, so the request shapes (URL, verb, headers, body) and the
  * prior-daemon/current-daemon origin choice are asserted exactly, with no socket.
  */
-
-const TOKEN_ENV = "TOVU_AGENT_DAEMON_TOKEN";
-const observability = createNoopObservabilityPort({});
 
 test("a durable launch racing park wakes and keeps the same attempt identity", async () => {
   let sends = 0; let ready = 0;

@@ -29,9 +29,11 @@ for (const status of [200, 404, 503, null]) {
   test(`reconnect pins: fresh status ${status} after a dropped stream`, async () => {
     const { ledger, settled } = ledgerFixture();
     let opens = 0;
+    const released: string[] = [];
     const daemon: RunDaemonClient = {
       openEvents: async () => ++opens === 1 ? new Response("") : ended(),
       runStatus: async () => status,
+      release: required => { released.push(JSON.stringify(required)); },
     };
     const finalizer = createAssistantRunFinalizer({ ledger, daemon, scheduler, maxReconnects: 0, reconnectDelayMs: 0 });
     finalizer.watch({ principalId: "owner", conversationId: "chat", message });
@@ -39,6 +41,7 @@ for (const status of [200, 404, 503, null]) {
     assert.equal(opens, status === 200 ? 2 : 1);
     assert.deepEqual(settled.map(value => value.status), status === 200 ? ["succeeded"] : status === 404 ? ["canceled"] : []);
     assert.equal(finalizer.activeCount(), 0);
+    assert.deepEqual(released, [JSON.stringify({ runId: 'run-pin', principalId: 'owner' })], 'settlement and unresolved recovery both release the owning endpoint');
   });
 }
 
@@ -89,9 +92,11 @@ test("reconnect pins: durable recovery relinquishing a live attempt stops its wa
     completeTool: async () => undefined,
   };
   let opens = 0;
+  let released = 0;
   const daemon: RunDaemonClient = {
     openEvents: async () => { opens++; return new Response(""); },
     runStatus: async () => 200,
+    release: () => { released++; },
   };
   const finalizer = createAssistantRunFinalizer({ ledger: { ...ledger, durable }, daemon, scheduler, reconnectDelayMs: 0 });
   finalizer.watch({ principalId: "owner", conversationId: "chat", message });
@@ -99,6 +104,46 @@ test("reconnect pins: durable recovery relinquishing a live attempt stops its wa
   assert.equal(opens, 1);
   assert.equal(settled.length, 0);
   assert.equal(finalizer.activeCount(), 0);
+  assert.equal(released, 1, 'relinquishing a durable watch releases its address');
+});
+
+test('a watch that cannot save its finished reply still releases the retained daemon address', async () => {
+  const { ledger } = ledgerFixture();
+  let released = 0;
+  const finalizer = createAssistantRunFinalizer({ ledger: { ...ledger, settle: async () => { throw new Error('storage unavailable'); } },
+    daemon: { openEvents: async () => ended(), runStatus: async () => 200, release: () => { released++; } },
+  });
+  finalizer.watch({ principalId: 'owner', conversationId: 'chat', message });
+  await finalizer.idle();
+  assert.equal(released, 1);
+  assert.equal(finalizer.activeCount(), 0);
+});
+
+test('replacing a terminal watch on another daemon releases both clients', async () => {
+  const { ledger } = ledgerFixture();
+  let release!: () => void;
+  const held = new Promise<void>(resolve => { release = resolve; });
+  let entered!: () => void;
+  const saving = new Promise<void>(resolve => { entered = resolve; });
+  let writes = 0;
+  const releases: string[] = [];
+  const old: RunDaemonClient = { openEvents: async () => ended(), runStatus: async () => 200, release: () => { releases.push('old'); } };
+  const replacement: RunDaemonClient = { openEvents: async () => ended(), runStatus: async () => 200, release: () => { releases.push('replacement'); } };
+  const finalizer = createAssistantRunFinalizer({ daemon: old, ledger: { ...ledger, settle: async () => {
+    if (++writes === 1) { entered(); await held; }
+    return true;
+  } } });
+  try {
+    finalizer.watch({ principalId: 'owner', conversationId: 'chat', message });
+    await saving;
+    finalizer.watch({ principalId: 'owner', conversationId: 'chat', message }, { daemon: replacement });
+    await new Promise<void>(resolve => setImmediate(resolve));
+    assert.deepEqual(releases, ['replacement']);
+  } finally { release(); }
+  await finalizer.idle();
+  // The old promise remains independently owned after the replacement leaves the active map.
+  await new Promise<void>(resolve => setImmediate(resolve));
+  assert.deepEqual(releases.sort(), ['old', 'replacement']);
 });
 
 test("reconnect pins: elapsed deadline resolves an inconclusive dropped stream before retry exhaustion", async () => {

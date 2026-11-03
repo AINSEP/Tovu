@@ -46,7 +46,7 @@ for (const db of ["memory", "sqlite"] as const) {
           calls[index]!.push(body.operation);
           if (body.operation === "bootstrap") return Response.json({ value: { workspaceId, ownerPrincipalId: "same-principal", siteBinding: { dir, name: workspaceId },
             siteStoragePaths: { contentDbPath, mediaUploadsDir: join(dir, "uploads"), chatAttachmentsDir: join(dir, "attachments") }, traceEnabled: false, traceCapture: "off" } });
-          return Response.json({ value: body.operation === "getEffective" ? { value: `instructions-${index}` } : null });
+          return Response.json({ value: body.operation === "getEffective" ? { value: `instructions-${index}`, sourceLayer: 'workspace' } : null });
         } });
         clients.push(client);
         await client.agentSessions.setSessionId({ conversationId: "same", agentId: "codex", sessionId: `session-${index}` });
@@ -55,9 +55,13 @@ for (const db of ["memory", "sqlite"] as const) {
         assert.equal(await client.agentSessions.getSessionId({ conversationId: "same", agentId: "codex" }), `session-${index}`);
         assert.equal(client.siteBinding.dir, join(root, String(index)));
         assert.equal(client.siteStoragePaths.chatAttachmentsDir, join(root, String(index), "attachments"));
-        if (db === "memory") assert.equal((await client.getEffective({ repo: client.settingsRepo }, {
-          namespace: "core.instructions", key: "custom", scopeContext: { workspaceId: client.workspaceId },
-        }))?.value, `instructions-${index}`);
+        if (db === "memory") {
+          const setting = await client.getEffective({ repo: client.settingsRepo }, {
+            namespace: "core.instructions", key: "custom", scopeContext: { workspaceId: client.workspaceId },
+          });
+          assert.equal(setting?.value, `instructions-${index}`);
+          assert.equal(setting?.sourceLayer, 'workspace', 'each memory site receives its effective instructions with their source');
+        }
       }
       await clients[0]!.close();
       assert.equal(await clients[1]!.agentSessions.getSessionId({ conversationId: "same", agentId: "codex" }), "session-1");
