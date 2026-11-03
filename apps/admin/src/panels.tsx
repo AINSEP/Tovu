@@ -1,48 +1,65 @@
-import { Skills } from "./features/skills/Skills";
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
 import type { AdminPanel } from "@jini-ai/admin/core";
 import type { PanelAccessDeclaration } from "./lib/panel-access";
-import { Themes, ThemeExplore } from "./features/themes";
-import { AdminUi } from "./features/admin-ui";
-import { Dashboard } from "./features/dashboard";
 import type { PanelRenderContext } from "./panel-contracts";
 export type { PanelRouteContext, PanelRenderContext } from "./panel-contracts";
-import { ImportExport } from "./features/import-export";
-import { CookieConsent } from "./features/consent";
-import { PostEditor, Posts } from "./features/posts";
 import { postEditorRouteKey } from "./features/posts/post-editor-route-key";
-import { PageEditor, Pages } from "./features/pages";
-import { Members } from "./features/members";
-import { Comments } from "./features/comments";
-import { Analytics } from "./features/analytics";
 import { renderMediaPanel } from "./media-panel";
-import { Library } from "./features/library";
-import { Menus, MenuEditor } from "./features/menus";
-import { IntegrationDeliveries, IntegrationsRedirect } from "./features/integrations";
-import { Providers } from "./features/providers";
-import { Users } from "./features/users";
-import { Authentication } from "./features/authentication";
-import { Roles } from "./features/roles";
-import { SettingsUi } from "./features/settings";
-import { Seo } from "./features/seo";
-import { Redirects } from "./features/redirects";
-import { Plugins, AgentPlugins } from "./features/plugins";
-import { FormsList, FormEditor } from "./features/forms";
-import { Collections, CollectionEntries, CollectionEntryEditor } from "./features/collections";
-import { Taxonomy } from "./features/taxonomy";
-import { Trash } from "./features/trash";
-import { Email, EmailTemplateEditor } from "./features/email";
-import { Database } from "./features/database";
-import { Recovery } from "./features/recovery";
-import { Deployment } from "./features/deployment";
-import { SourceControl } from "./features/source-control";
-import { Security } from "./features/security";
-import { Observability } from "./features/observability";
-import { WidgetsLibrary, WidgetInstanceEditor, WidgetRegions, WidgetRegionEditor } from "./features/widgets";
-import { WorkspaceRedirect } from "./features/workspace";
-import { AiAssistant } from "./features/ai-assistant";
-import { Playground } from "./features/playground";
-import { Sites } from "./features/sites";
+import {
+  Skills,
+  Themes,
+  ThemeExplore,
+  AdminUi,
+  Dashboard,
+  ImportExport,
+  CookieConsent,
+  PostEditor,
+  Posts,
+  PageEditor,
+  Pages,
+  Members,
+  Comments,
+  Analytics,
+  Library,
+  Menus,
+  MenuEditor,
+  IntegrationDeliveries,
+  IntegrationsRedirect,
+  Providers,
+  Users,
+  Authentication,
+  Roles,
+  SettingsUi,
+  Seo,
+  Redirects,
+  Plugins,
+  AgentPlugins,
+  FormsList,
+  FormEditor,
+  Collections,
+  CollectionEntries,
+  CollectionEntryEditor,
+  Taxonomy,
+  Trash,
+  Email,
+  EmailTemplateEditor,
+  Database,
+  Recovery,
+  Deployment,
+  SourceControl,
+  Security,
+  Observability,
+  WidgetsLibrary,
+  WidgetInstanceEditor,
+  WidgetRegions,
+  WidgetRegionEditor,
+  WorkspaceRedirect,
+  AiAssistant,
+  Playground,
+  Sites,
+} from "./panel-pages";
+import { useWiredAdminLocale } from "./hooks/use-admin-locale.hooks";
+import { t as tApp } from "./app-i18n";
 
 /**
  * @file The single declaration of every Tovu admin section — one `AdminPanel` per screen, in one
@@ -106,7 +123,7 @@ export type TovuAdminPanel = AdminPanel<PanelRenderer> & PanelAccessDeclaration;
  * derives the nav model from this array via `buildNav` — group and item order both come from
  * here, not a second list).
  */
-export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
+const PANELS: readonly TovuAdminPanel[] = [
   // --- Ungrouped top row ---
   {
     id: "dashboard",
@@ -1271,3 +1288,24 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
     render: (ctx) => <Themes tabId={ctx.query.get("tab")} basePath="/appearance" />,
   },
 ];
+
+/** Reuse the admin's translated loading copy and existing text-only route loading pattern. */
+function PanelRouteLoading() {
+  const locale = useWiredAdminLocale();
+  return <p role="status">{tApp({ locale, key: "Loading Tovu…" })}</p>;
+}
+
+/**
+ * Keep route metadata eager for navigation, permission gates and agent discovery. Only the
+ * selected page suspends; App's shell, auth, navigation and assistant dock remain mounted.
+ * Wrapping the existing render thunk preserves every editor's key and route-derived props.
+ * @example ADMIN_PANELS.find(panel => panel.id === "posts")?.render(context)
+ */
+export const ADMIN_PANELS: readonly TovuAdminPanel[] = PANELS.map(panel => ({
+  ...panel,
+  render: (ctx: PanelRenderContext) => (
+    <Suspense fallback={<PanelRouteLoading />}>
+      {panel.render(ctx)}
+    </Suspense>
+  ),
+}));

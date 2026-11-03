@@ -15,5 +15,9 @@
  * comment on the `integrations` panel for what its bare `/admin/integrations` URL does now that its
  * row has no nav entry.
  */
-export { IntegrationDeliveries } from "./IntegrationDeliveries";
+import { lazy } from "react";
+
+// App needs the redirect on every route. Keep its sibling detail screen out of that eager path.
+export const IntegrationDeliveries = lazy(() => import("./IntegrationDeliveries")
+  .then(module => ({ default: module.IntegrationDeliveries })));
 export { IntegrationsRedirect } from "./IntegrationsRedirect";

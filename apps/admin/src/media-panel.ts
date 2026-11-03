@@ -1,5 +1,5 @@
 import { createElement } from "react";
-import { Media } from "./features/media";
+import { Media } from "./panel-pages";
 // PARKED 2026-10-03 (owner): Jini media at parity; re-enable to switch over
 // import { ModulePanel } from "./integrations/jini-admin/ModulePanel";
 import type { PanelRouteContext } from "./panel-contracts";
