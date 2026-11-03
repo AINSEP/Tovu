@@ -1,4 +1,6 @@
 import { StaticExportPicker } from "./StaticExportPicker";
+import { CredentialWarningList, credentialSummary } from "./CredentialWarnings";
+import type { CredentialGate } from "./hooks/use-share-credential-gate.hooks";
 import { DataTable } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/agentic";
 import { formatTimestamp, type Translate } from "@jini-ai/ui/panel-kit";
@@ -98,10 +100,12 @@ function ExportList({ controller, t }: { controller: SiteExportController; t: Tr
         {
           key: "status",
           header: t("Status"),
-          cell: (share) => {
+          cell: (share, rowIndex) => {
             const view = shareStatusView(share.status, t);
+            const gate = controller.credentialGate(share);
             return <>
               <span className={view.className}>{view.label}</span>
+              {gate ? <ExportCredentialNotice share={share} gate={gate} index={rowIndex} controller={controller} t={t} /> : null}
               {controller.noticeShareId !== share.shareId ? siteShareNotices({ share }).map((notice, index) => <div className="notice" role="status" key={index}>{notice}</div>) : null}
             </>;
           },
@@ -112,15 +116,38 @@ function ExportList({ controller, t }: { controller: SiteExportController; t: Tr
   );
 }
 
+/** In the row, not a modal (owner, 2026-11-03): where credentials may be, and the one checkbox
+ * that records "I understand" and then enables Download zip and Copy link. Deliberately carries no
+ * agent handle: acknowledging is the user's own act. */
+function ExportCredentialNotice({ share, gate, index, controller, t }: { share: SiteShare; gate: CredentialGate; index: number; controller: SiteExportController; t: Translate }) {
+  const errorId = `sites-export-${index + 1}-credentials-error`;
+  return (
+    <div className="notice warning site-transfer-credentials" role={gate.message ? "alert" : undefined}>
+      <p>{gate.message ?? credentialSummary({ subject: "export", warnings: gate.warnings, t })}</p>
+      <CredentialWarningList warnings={gate.warnings} t={t} />
+      <label>
+        <input type="checkbox" checked={gate.acknowledging} disabled={gate.acknowledging} aria-busy={gate.acknowledging}
+          aria-describedby={gate.error ? errorId : undefined}
+          onChange={event => { if (event.target.checked) void controller.acknowledge(share); }} />
+        {t("I understand this export may contain credentials")}
+      </label>
+      {gate.error ? <p className="field-error" id={errorId} role="alert">{gate.error}</p> : null}
+    </div>
+  );
+}
+
 function ShareLinkCell({ share, t }: { share: SiteShare; t: Translate }) {
   if (!share.url) return <span className="muted-cell">{t("Zip only")}</span>;
   return <span className="site-transfer-link" title={share.url}>{shortLink(share.url)}</span>;
 }
 
-/** Copy link, Download zip and Revoke for an active export; nothing for a revoked or failed one. */
+/** Copy link, Download zip and Revoke for an active export; nothing for a revoked or failed one.
+ * Copy link and Download zip stay disabled while the row's credential warning waits for "I understand". */
 function ShareActions({ share, index, controller, t }: { share: SiteShare; index: number; controller: SiteExportController; t: Translate }) {
   if (share.status !== "active") return <span className="muted-cell">—</span>;
   const revoking = controller.revokingId === share.shareId;
+  // Handing the archive out waits for "I understand"; Revoke and the password reveal do not.
+  const gated = controller.credentialGate(share) !== null;
   return (
     <div className="site-transfer-actions">
       {share.hasEncryptedKeys && controller.canManageSavedKeys ? (
@@ -134,20 +161,27 @@ function ShareActions({ share, index, controller, t }: { share: SiteShare; index
         <button
           type="button"
           className="btn-secondary"
+          disabled={gated}
           onClick={() => void controller.copyLink(share)}
           {...agentHandle({ handle: `sites-export-${index + 1}-copy` }, { role: "button", label: "Copy this export's share link" })}
         >
           <span aria-live="polite">{controller.copiedId === share.shareId ? t("Copied") : t("Copy link")}</span>
         </button>
       ) : null}
-      <a
-        className="btn-secondary"
-        href={controller.downloadHref(share)}
-        download={share.file}
-        {...agentHandle({ handle: `sites-export-${index + 1}-download` }, { role: "link", label: "Download this export's .tovu.zip" })}
-      >
-        {t("Download zip")}
-      </a>
+      {gated ? (
+        <button type="button" className="btn-secondary" disabled>{t("Download zip")}</button>
+      ) : (
+        <a
+          className="btn-secondary"
+          href={controller.downloadHref(share)}
+          download={share.file}
+          // The server is asked first, so a refusal shows its reason instead of being saved as the "zip".
+          onClick={event => { event.preventDefault(); void controller.download(share); }}
+          {...agentHandle({ handle: `sites-export-${index + 1}-download` }, { role: "link", label: "Download this export's .tovu.zip" })}
+        >
+          {t("Download zip")}
+        </a>
+      )}
       <button
         type="button"
         className="btn-danger"

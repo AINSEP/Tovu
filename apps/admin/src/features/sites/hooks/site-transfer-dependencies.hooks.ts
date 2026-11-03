@@ -20,7 +20,18 @@ export interface SiteShare {
   notices?: readonly string[];
   /** Scope notes from older export responses. */
   notes?: readonly string[];
+  /** Where credential-looking content was kept (owner, 2026-11-03: warn, never leave it out). */
+  credentialWarnings?: readonly CredentialWarning[];
+  /** True until the owner checks "I understand"; the download route answers 409 until then. */
+  needsAcknowledgement?: boolean;
 }
+
+/** One place an archive may hold a credential: a ZIP path or `content.db:<table>.<column>`, and a
+ *  human kind label. Never the matched value. */
+export interface CredentialWarning { path: string; kind: string }
+
+/** Why the download route refused a zip, read before the browser saves anything. */
+export interface ShareDownloadRefusal { status: number; code?: string; message?: string; credentialWarnings: readonly CredentialWarning[] }
 
 /** Merge legacy scope notes with omission notices for completion and history alike.
  * @returns Distinct safe server notices, in presentation order. O(n) for n notices.
@@ -41,6 +52,8 @@ export interface SiteImport {
   newSiteName: string | null;
   state: SiteImportState;
   warnings?: readonly string[];
+  /** Credential-looking content the archive carried; a notice only, imports need no acknowledgement. */
+  credentialWarnings?: readonly CredentialWarning[];
   hasEncryptedKeys?: boolean;
   createdAt: string;
   adminUrl?: string | null;
@@ -58,6 +71,10 @@ export interface SiteTransferPort {
   createStaticShare(input: { jobId?: string; themeIds?: readonly string[] }, optional?: Record<string, never>): Promise<SiteShareCreateResult>;
   downloadShare(required: { share: SiteShare }, optional?: Record<string, never>): void;
   revokeShare(input: { shareId: string }): Promise<SiteShare>;
+  /** Records "I understand this export may contain credentials"; answers the updated row. */
+  acknowledgeShare(required: { shareId: string }, optional?: Record<string, never>): Promise<SiteShare>;
+  /** `null` when the zip may be downloaded, else the server's refusal (409 = acknowledge first). */
+  shareDownloadRefusal(required: { share: SiteShare }, optional?: Record<string, never>): Promise<ShareDownloadRefusal | null>;
   /** Absolute admin URL for a share's zip, so a plain link can download it with the session cookie. */
   shareDownloadHref(share: SiteShare): string;
   listImports(): Promise<{ imports: SiteImport[] }>;
@@ -69,6 +86,24 @@ export interface SiteTransferPort {
 
 const SHARES = `/workspaces/${WORKSPACE_ID}/site-shares`;
 const IMPORTS = `/workspaces/${WORKSPACE_ID}/site-imports`;
+
+/** HEAD carries no zip bytes, so only a refusal pays for a GET to read its reason. A check that
+ *  cannot run (offline, an old server) answers `null`: the download proceeds as it always did.
+ * @complexity O(1) requests; two only when refused. */
+async function readDownloadRefusal({ href }: { href: string }, _options = {}): Promise<ShareDownloadRefusal | null> {
+  const head = await fetch(href, { method: "HEAD", credentials: "same-origin" }).catch(() => null);
+  if (!head || head.ok) return null;
+  const response = await fetch(href, { method: "GET", credentials: "same-origin" }).catch(() => null);
+  // Acknowledged in between: the GET is the zip itself; let the browser's own download fetch it.
+  if (response?.ok) return null;
+  const body = (await response?.json().catch(() => null) ?? {}) as { code?: unknown; message?: unknown; credentialWarnings?: unknown };
+  return {
+    status: response?.status ?? head.status,
+    ...(typeof body.code === "string" ? { code: body.code } : {}),
+    ...(typeof body.message === "string" && body.message ? { message: body.message } : {}),
+    credentialWarnings: Array.isArray(body.credentialWarnings) ? body.credentialWarnings as CredentialWarning[] : [],
+  };
+}
 
 /** Selection belongs only to the initial POST; subsequent calls resume the captured job. */
 function staticShareInput(input: { jobId?: string; themeIds?: readonly string[] }, _options = {}) {
@@ -99,6 +134,8 @@ export const defaultSiteTransferPort: SiteTransferPort = {
     anchor.remove();
   },
   revokeShare: ({ shareId }) => authenticatedAdminRequest({ method: "DELETE", path: `${SHARES}/${encodeURIComponent(shareId)}` }),
+  acknowledgeShare: ({ shareId }, _optional = {}) => authenticatedAdminRequest({ method: "POST", path: `${SHARES}/${encodeURIComponent(shareId)}/acknowledge`, body: {} }),
+  shareDownloadRefusal: ({ share }, _optional = {}) => readDownloadRefusal({ href: defaultSiteTransferPort.shareDownloadHref(share) }),
   shareDownloadHref: (share) => authenticatedAdminUrl({ path: `${SHARES}/${encodeURIComponent(share.shareId)}/download` }),
   listImports: () => authenticatedAdminRequest({ method: "GET", path: IMPORTS }),
   // The upload route admits only `application/zip`; Windows reports `.zip` files as
@@ -127,6 +164,8 @@ export function createFakeSiteTransferPort(overrides: Partial<SiteTransferPort> 
     createStaticShare: unexpected("createStaticShare"),
     downloadShare: () => { throw new Error("downloadShare was not expected"); },
     revokeShare: unexpected("revokeShare"),
+    acknowledgeShare: unexpected("acknowledgeShare"),
+    shareDownloadRefusal: async () => null,
     shareDownloadHref: (share) => `/download/${share.shareId}`,
     listImports: () => Promise.resolve({ imports: [] }),
     uploadImportZip: unexpected("uploadImportZip"),

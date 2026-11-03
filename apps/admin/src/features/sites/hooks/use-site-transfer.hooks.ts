@@ -1,4 +1,5 @@
 import { useStaticExportSelection, type StaticExportSelection } from "./use-static-export-selection.hooks";
+import { useShareCredentialGate, type CredentialGate } from "./use-share-credential-gate.hooks";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { copyToClipboard } from "@jini-ai/ui";
 import { useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
@@ -67,6 +68,12 @@ export interface SiteExportController extends StaticExportSelection {
   copiedId: string | null;
   copyLink: (share: SiteShare) => Promise<void>;
   downloadHref: (share: SiteShare) => string;
+  /** The credential warning a row shows while Download zip and Copy link wait, else null. */
+  credentialGate: (share: SiteShare) => CredentialGate | null;
+  /** "I understand this export may contain credentials": records consent, then enables the row. */
+  acknowledge: (share: SiteShare) => Promise<void>;
+  /** Download zip, checked with the server first so a refusal shows its reason instead of saving it. */
+  download: (share: SiteShare) => Promise<void>;
   /** True when the newest backup has no recipient link; static-only exports always stay private. */
   zipOnly: boolean;
 }
@@ -170,6 +177,8 @@ export function useSiteExport(
   const [exportError, setExportError] = useState<string | null>(null);
   const [revokingId, setRevokingId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const refreshShares = () => invalidate({ key: [...SITE_TRANSFER_KEYS.shares, scope.queryScope] });
+  const credentials = useShareCredentialGate({ port, t, refresh: refreshShares, onDownloadError: setExportError });
   const alive = useRef(true);
   useEffect(() => {
     // StrictMode replays setup after cleanup; each setup must mark this mount alive again.
@@ -183,7 +192,7 @@ export function useSiteExport(
     // Completion notices must survive even when the following password request fails.
     setExportNotices(siteShareNotices({ share: result }));
     setNoticeShareId(result.shareId);
-    if (format === "static") port.downloadShare({ share: result });
+    if (format === "static") await credentials.downloadWhenAllowed(result);
     if (format === "backup" && result.hasEncryptedKeys) await passwordDisplay.revealPassword({ shareId: result.shareId });
   }
 
@@ -224,7 +233,7 @@ export function useSiteExport(
   }
 
   async function copyLink(share: SiteShare) {
-    if (!share.url || !clipboard) return;
+    if (!share.url || !clipboard || credentials.credentialGate(share)) return;
     await clipboard.writeText(share.url);
     setCopiedId(share.shareId);
   }
@@ -252,6 +261,9 @@ export function useSiteExport(
     copiedId,
     copyLink,
     downloadHref: (share) => port.shareDownloadHref(share),
+    credentialGate: credentials.credentialGate,
+    acknowledge: credentials.acknowledge,
+    download: credentials.download,
     zipOnly: newestBackup !== undefined && newestBackup.url === null,
   };
 }

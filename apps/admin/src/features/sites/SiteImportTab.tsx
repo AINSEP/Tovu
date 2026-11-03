@@ -5,6 +5,7 @@ import { FileDropzone } from "@jini-ai/ui";
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
 import { formatTimestamp, interpolate, type Translate } from "@jini-ai/ui/panel-kit";
 import type { SiteImport } from "./hooks/site-transfer-dependencies.hooks";
+import { ImportCredentialNotice } from "./CredentialWarnings";
 import { useWiredSiteImport, type SiteImportController } from "./hooks/use-site-transfer.hooks";
 import { formatTransferBytes, importOptionsTip, importSourceLabel, importStateView } from "./site-transfer-rules";
 
@@ -39,6 +40,7 @@ export function SiteImportTab({ t, useImport = useWiredSiteImport, showNewSiteLi
       </div>
       <ImportProgress controller={controller} t={t} />
       {controller.current?.warnings?.map(warning => <div className="notice" role="status" key={warning}>{warning}</div>)}
+      <ImportCredentialNotice warnings={controller.current?.credentialWarnings} t={t} />
       <div className="onboarding-card">
         <ArchiveSource controller={controller} t={t} />
         <LiveWebsiteSource controller={controller} showNewSiteLink={showNewSiteLink} t={t} />
@@ -254,6 +256,7 @@ function ImportList({ controller, t }: { controller: SiteImportController; t: Tr
               <span className={view.className}>{view.label}</span>
               {/* The current result already shows these above; history owns them after refresh. */}
               {controller.current?.importId !== item.importId ? item.warnings?.map((warning, index) => <div className="notice" role="status" key={index}>{warning}</div>) : null}
+              {controller.current?.importId !== item.importId ? <ImportCredentialNotice warnings={item.credentialWarnings} t={t} /> : null}
             </>;
           },
         },
