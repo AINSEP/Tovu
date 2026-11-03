@@ -4,6 +4,7 @@ import { askAgentPluginChoice } from "#src/assistant/ask-choice-tool";
 import { createAiTraceRecorder } from "@jini-ai/agent-runtime/ai-trace";
 import { readChatAgentPluginState } from "@jini-ai/agent-plugins/lifecycle";
 import { resolveAgentPluginRefs } from "#src/features/agent-plugins/lifecycle";
+import { translateRetiredPluginRefs } from "#src/features/agent-plugins/bundled-catalog";
 import { PERMANENT_DELETE_GUIDANCE } from "#src/contracts/headless/index";
 import { CREDENTIAL_GUIDANCE, CREDENTIAL_PASTE_MODEL_NOTE } from "#src/assistant/credential-guidance";
 import { SITE_GUIDE_POINTER } from "#src/assistant/site-guide-pointer";
@@ -86,9 +87,11 @@ import type { AgentRunStatus } from "#src/platform/observability/index";
 import { redactedError } from "#src/platform/observability/report-error";
 import { registerInstalledExtensionTools } from "../installed-extension-tools.js";
 import { installFirstPartyToolContributors } from "../tool-catalog-manifest.js";
-import { readServerAdmissions } from "../../services/external-mcp-admissions.js";
 import type { ServerModuleHandle } from "./types.js";
-import { buildDaemonAttachmentTools, createDaemonApprovalMemory, createDaemonAwareInstallAttachmentReader, registerAssistantToolExecRoutes } from "./assistant-tool-exec.js";
+import { buildDaemonAttachmentTools, createDaemonApprovalMemory, createDaemonAwareInstallAttachmentReader, registerAssistantToolExecRoutes, publishDaemonPluginEvent, findLiveSiteToolRun } from "./assistant-tool-exec.js";
+import { assistantRunFinalizerFor } from "./assistant-run-finalizer.js";
+import { createAssistantServerFederation } from "./assistant-server-federation.js";
+import { readDaemonCallContext } from "#src/assistant/daemon-call-context";
 import type { ToolExecutionRouteTarget } from "@jini-ai/daemon/http";
 import type { AttachmentLookup } from "@jini-ai/daemon/http";
 
@@ -459,27 +462,30 @@ async function attachTurnMessagesOrRespond({ attachmentIds, messages, principalI
   return true;
 }
 
-/** @param optional.attachmentLookup Test seam for the daemon's attachment store (`assistant-tool-exec.ts`). */
+/** @param optional.attachmentLookup Test seam for the daemon's attachment store (`assistant-tool-exec.ts`).
+ * @param optional.federationConnect Existing transport port, forwarded for hermetic federation tests. */
 export function createAssistantByokModule(
   routeDeps: RouteDeps & ByokToolSurfaceDeps,
   toolSurface?: ByokToolSurface,
-  { attachmentLookup }: { attachmentLookup?: AttachmentLookup } = {},
+  { attachmentLookup, federationConnect }: { attachmentLookup?: AttachmentLookup;
+    federationConnect?: NonNullable<Parameters<typeof createByokToolSurface>[1]>["federationConnect"] } = {},
 ): AssistantByokModuleHandle {
   // Must run before `createByokToolSurface` (below, or the caller's own instance's earlier
   // construction) calls `buildAssistantToolRegistrations`: that function reads whatever
   // this composition's explicit core registries hold, and those registries start empty every
-  // process boot. See `tool-catalog-manifest.ts`'s own header for why this call lives here and in
-  // `agent-daemon-server.ts`, and nowhere else. Idempotent, so a test supplying its own `toolSurface`
+  // process boot. ADR-070 leaves this server as the site-tool registrar; the daemon discovers its
+  // descriptors through RPC. Idempotent, so a test supplying its own `toolSurface`
   // (built from an already-installed registry) pays nothing extra for this still running.
   const contributions = {
     contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: ToolContributor<AssistantToolRegistryDeps, AssistantSurfaceDeps> }) => contribution.domain }),
     derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: DerivedToolContributor<AssistantToolRegistryDeps, AssistantSurfaceDeps> }) => contribution.domain }),
   };
+  let serverFederation: ReturnType<typeof createAssistantServerFederation>;
   // `outboundTestOrigins` is set only by the site-import journey harness; absent, this factory is
   // `createDefaultHttpClient` itself (`platform/http/test-origin-allowlist.ts`).
   // The agent daemon's tool RPC runs on this same surface (`assistant-tool-exec.ts`); the daemon-call
   // adapters below change nothing for a BYOK turn.
-  installFirstPartyToolContributors({ contributions }, { readAdmissions: () => routeDeps.externalMcpAdmissions?.() ?? readServerAdmissions({}, {}), observability: routeDeps.observability, chatAttachmentsDir: routeDeps.siteStoragePaths.chatAttachmentsDir,
+  installFirstPartyToolContributors({ contributions }, { readAdmissions: () => serverFederation.admissions(), observability: routeDeps.observability, chatAttachmentsDir: routeDeps.siteStoragePaths.chatAttachmentsDir,
     createHttpClient: createTestOriginHttpClientFactory({ allowedOrigins: routeDeps.outboundTestOrigins ?? [] }),
     readInstallAttachment: createDaemonAwareInstallAttachmentReader({ uploadDirectory: routeDeps.siteStoragePaths.chatAttachmentsDir }) });
   const surfaceDeps = routeDeps.conversationToolApprovals ? { ...routeDeps, nativeApprovalMemory: routeDeps.nativeApprovalMemory ?? createDaemonApprovalMemory({
@@ -491,6 +497,14 @@ export function createAssistantByokModule(
     toolSurface ??
     createByokToolSurface(surfaceDeps, {
       contributions,
+      ...(federationConnect ? { federationConnect } : {}),
+      // Preserve the daemon's remembered approval contract on the existing server confirmer.
+      // Async call context supplies the current chat; no process-global last-chat binding.
+      federationApprovals: {
+        ...(routeDeps.externalMcpToolApprovalRepo ? { always: routeDeps.externalMcpToolApprovalRepo } : {}),
+        ...(routeDeps.conversationToolApprovals ? { chat: routeDeps.conversationToolApprovals } : {}),
+        conversationIdForRun: () => readDaemonCallContext()?.conversationId,
+      },
       hostRegistrations: ({ registrations }) => buildDaemonAttachmentTools({ deps: routeDeps, registrations }, attachmentLookup ? { getLookup: () => attachmentLookup } : {}),
       prepareGuidance: (required, optional) => automaticPluginRuns.prepareGuidance(required, optional),
       // The root injects the audit sink; see RouteDeps.toolAttemptAuditSink for why
@@ -504,6 +518,16 @@ export function createAssistantByokModule(
       },
     });
   automaticPluginRuns = createAutomaticPluginRuns({ deps: routeDeps, askAgentPluginChoice, surfaces: { surfaceExchanges: resolvedToolSurface.surfaceExchanges } });
+  // Reuse the server's admission-aware adapters. No daemon federation or second registrar:
+  // both catalog demand and execution await this same server surface's lazy startup.
+  serverFederation = createAssistantServerFederation({ toolSurface: resolvedToolSurface }, {});
+  serverFederation.registerRosterListener({}, {});
+  const runStore = routeDeps.chatRunLedger.durable;
+  if (runStore) assistantRunFinalizerFor({ ledger: routeDeps.chatRunLedger, tracker: routeDeps.tracker, observability: routeDeps.observability,
+    onAttemptEnded: async ({ runId }) => {
+      await findLiveSiteToolRun({ runId, runStore, workspaceId: routeDeps.workspaceId, plugins: { controller: automaticPluginRuns } });
+    },
+  }, {});
   const credentialPort = createStoredExecutionCredentialPort({
     repo: routeDeps.adminExecutionCredentialRepo,
     sealer: routeDeps.siteAssistantSecretSealer,
@@ -512,8 +536,17 @@ export function createAssistantByokModule(
   return {
     name: "assistant-byok",
     toolSurface: resolvedToolSurface,
-    registerToolExecRoutes: ({ router }) => registerAssistantToolExecRoutes({ router, toolSurface: resolvedToolSurface,
-      runStore: routeDeps.chatRunLedger.durable, workspaceId: routeDeps.workspaceId, components: routeDeps }, {}),
+    registerToolExecRoutes: ({ router }) => registerAssistantToolExecRoutes({ router, toolSurface: { daemonCalls: serverFederation.daemonCalls },
+      runStore: routeDeps.chatRunLedger.durable, workspaceId: routeDeps.workspaceId, components: routeDeps,
+      plugins: { controller: automaticPluginRuns, emit: publishDaemonPluginEvent,
+        pinnedPrefix: async ({ pluginRefIds }) => {
+          await Promise.all([routeDeps.pluginRuntimeReady, routeDeps.siteTitleReady]);
+          const result = await resolveAgentPluginRefs(translateRetiredPluginRefs(pluginRefIds), routeDeps.agentPluginLayout.forWorkspace(routeDeps.workspaceId));
+          return result.ok ? result.promptPrefix : null;
+        },
+        refusalPrefix: () => resolvedToolSurface.federation?.refusalPrefix() ?? "",
+      },
+    }, {}),
     registerRoutes: (app: Express) => {
       app.use(BYOK_TURN_PATH, requireAdminSession(routeDeps));
       app.post(BYOK_TURN_PATH, (req: Request, res: Response, next: NextFunction) => {

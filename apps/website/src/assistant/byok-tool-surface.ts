@@ -26,6 +26,7 @@ import type { ToolCatalogQuery } from "@jini-ai/daemon/http";
 
 import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
+import type { FederatedApprovalDeps } from "./external-mcp-call-confirmation.js";
 import type { ToolAttemptAuditSink } from "../features/tool-audit/types.js";
 import { appendToolCatalogAttempt, DESCRIBE_TOOL_TOOL_ID, describeToolAuditDetail, SEARCH_TOOLS_TOOL_ID, searchToolsAuditDetail } from "./tool-audit-preset.js";
 import { withFederatedRefusalDiagnosis } from "./tool-recovery-preset.js";
@@ -462,6 +463,9 @@ export interface ByokToolSurfaceOptions {
    * `assistant-byok.ts` (the only production caller) wants.
    */
   readonly federationConnect?: (connection: ResolvedFederatedConnection) => Promise<McpSessionPort>;
+  /** Server-owned remembered grants. A daemon call supplies its run's conversation through the
+   * injected resolver; missing stores preserve per-call confirmation without remembered choices. */
+  readonly federationApprovals?: Omit<FederatedApprovalDeps, "workspaceId" | "authorize">;
   /**
    * Host-built registrations added after the catalog's own, given those so one can delegate to
    * another's handler (the chat-attachment tools reuse `media_upload_asset`). Injected by the
@@ -516,7 +520,7 @@ function attachSurfaceExtensions(
     readonly connectionSource: StoredExternalMcpConnectionSource;
     readonly onAdmitted: () => void;
   },
-  options: Pick<ByokToolSurfaceOptions, "installExtensions" | "registerInstalledExtensions" | "federationConnect">,
+  options: Pick<ByokToolSurfaceOptions, "installExtensions" | "registerInstalledExtensions" | "federationConnect" | "federationApprovals">,
 ): AssistantToolExtensions | undefined {
   if (options.installExtensions === false) return undefined;
   const { registry, deps, routeDeps, surfaceExchanges, connectionSource, onAdmitted } = required;
@@ -537,6 +541,7 @@ function attachSurfaceExtensions(
           // G3: federated calls that are not read-only ask on a card through THIS surface's
           // store — the one the API proxy delivers a Local-CLI run's clicks to.
           surfaceExchanges,
+          ...(options.federationApprovals ? { approvals: options.federationApprovals } : {}),
         }),
         resolveConnections: () => connectionSource.resolve(),
         // Only a RELOAD pass reaches this — see `FederationRuntime.reload`'s own doc — so the

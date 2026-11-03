@@ -1,9 +1,7 @@
+import { createDaemonSiteTools } from "./agent-daemon-site-tools.js";
+import { registerAgentPluginEvents } from "./agent-plugin-preflight-events.js";
 import { ensureJsonAgentInstall } from "./ensure-json-agent-install.js";
 import { buildAssistantFilesystemNotices } from "./assistant-filesystem-notices.js";
-import { buildLibrarySaveAttachmentTool, buildListPendingChatAttachmentsTool, buildPromoteChatAttachmentTool, MEDIA_PROMOTE_CHAT_ATTACHMENT_TOOL_ID } from "#src/features/media/attachment-tools";
-import { createDocumentArchiveReader } from "#src/features/media/document-archive";
-import { MAX_DOCUMENT_BYTES } from "@jini-ai/cms/media";
-import { createAutomaticPluginRuns } from "../../../features/agent-plugins/automatic-agent-plugins.js";
 import { readLoginShellEnvironment } from "@jini-ai/platform/child-environment";
 import { resolveNativeToolPolicy } from "@jini-ai/agent-runtime/native-tool-policy";
 import { resolveFullCliAccess, resolveAssistantCliPermissions } from "#src/contracts/core/assistant-native-fallbacks";
@@ -12,43 +10,23 @@ import { assistantCliPermissions } from "#src/assistant/runtime-settings";
 import { type AssistantCliPermissions } from "#src/contracts/headless/index";
 import { createToolGapCollector } from "@jini-ai/daemon/tool-audit";
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
-import { ALL_MANIFESTS } from "@jini-ai/ui/interactive-ui/manifests";
 import { AsyncLocalStorage } from "node:async_hooks";
-import { createNativeApprovalMemory } from "#src/contracts/core/native-approval-memory";
-import { createPluginInstallAttachmentReader } from "../../runtime/composition/plugin-install-attachment-reader.js";
 import { sniffContentType } from "#src/features/media/index";
 import { prepareByokMessageAttachments } from "./byok-message-attachments.js";
-import { createTovuOAuthHttpPorts } from "#src/platform/oauth/endpoint-safety";
-import { resolveApiConnectionRuntime } from "../../runtime/composition/agent-plugin-connections.js";
 import { createSupervisorRegistry } from "@jini-ai/sidecar/supervisor/node";
-import type { ToolContributor, DerivedToolContributor } from "@jini-ai/core";
-import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
-import { createSkillRefreshMiddleware } from "#src/features/skills/live-registration";
 import { ensureToolExecToken, registerDaemonAttachmentLookup } from "#src/assistant/daemon-access";
 /**
  * @file The standalone agent daemon — a separate OS process from Tovu's own server, per the
  * architecture correction to ADR-049: Tovu does not spawn coding-agent CLIs itself.
  *
- * Owns the FULL `@jini-ai/*` kernel for a run's whole lifetime — `RunLifecycle` + `EventLog` +
- * `AgentExecutor` + `ToolRegistry` + `ToolExecutor` + `/api/runs` + `/api/agents` +
- * `/api/delegated-tool-calls`. Tool execution could not be split off into Tovu's own process the
- * way the first draft of this file assumed: `@jini-ai/daemon`'s `DelegatedToolBridge` calls
- * `lifecycle.emit()` directly to record `tool_use`/`tool_result` into the run's own event log —
- * the same log the browser's SSE subscription (proxied through Tovu, see
- * `src/server/modules/assistant.ts`) is watching. Executing a tool in a different process from
- * the run's real `RunLifecycle` would write those events into a log nobody is watching, and the
- * chat would never show the agent's tool calls at all.
+ * ADR-070 amends ADR-049's former co-location constraint. The daemon's DelegatedToolBridge
+ * still records tool_use/tool_result into this process's real lifecycle, wrapping a routed
+ * executor. Site handlers run exclusively in the server through /internal/tool-executions;
+ * in-memory site writes therefore reach the serving store too. Only frontend/page/chat tools
+ * execute here. The server also owns plugin consent, installed tools and external federation.
  *
- * Tool handlers still need Tovu's real database to do anything real (create a content type,
- * etc.), so this process opens its own connection to the SAME SQLite file Tovu's main process
- * uses (`createSiteRouteDeps`) — safe under SQLite's WAL mode, which supports multiple
- * process-level connections to one file. `src/index.ts` spawns this process only after its own
- * boot/migrations finish, so the two don't race on first-boot schema setup.
- *
- * Caveat, disclosed rather than silently broken: `TOVU_DB=memory` gives this process its OWN,
- * disconnected in-memory store — an in-memory store is inherently per-process. A tool call would
- * still execute and return a result, but writes would not be visible from Tovu's main process (or
- * vice versa). Full end-to-end testing of tool execution needs the real SQLite-backed store.
+ * Full retained-port composition is the separate C2 cut-over; until then this entry still opens
+ * the older site deps for sessions/settings/telemetry, without registering their site tools.
  *
  * Principal propagation: this process has no browser session/cookie of its own. Tovu's proxy
  * layer stamps the authenticated principal's id into `contextRef` (`{prompt, principalId}`,
@@ -84,16 +62,16 @@ import { ensureToolExecToken, registerDaemonAttachmentLookup } from "#src/assist
 import { isDaemonLifecycleLogQuiet } from "#src/server/runtime/lifecycle/daemon-lifecycle-log";
 import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
-import { readFile, stat } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 
 import express from "express";
 
-import { createContributionRegistry, createToolRegistry } from "@jini-ai/core";
+import { createToolRegistry } from "@jini-ai/core";
 import type { Principal } from "@jini-ai/core";
 import type { RunAgentPayload } from '@jini-ai/protocol';
 import { traceRunLifecycle } from "./run-lifecycle-tracing.js";
-import { createAgentExecutor, createInMemoryEventLog, createRunLifecycle, prepareMessageAttachments, probeMcpBridge, type MessageAttachmentImage, type UserMessageDelivery } from "@jini-ai/daemon";
+import { createRoutingToolExecutor, createAgentExecutor, createInMemoryEventLog, createRunLifecycle, prepareMessageAttachments, probeMcpBridge, type MessageAttachmentImage, type UserMessageDelivery } from "@jini-ai/daemon";
 import { formatBridgePreflightLogLine, formatRunEndLogLine, formatRunErrorLogLine } from "./run-log-lines.js";
 import { bridgePreflightEntry } from "./bridge-preflight-entry.js";
 // @jini-ai/agent-runtime owns this seam; @jini-ai/daemon accepts it as an option.
@@ -119,10 +97,8 @@ type RunSessionBinding = {
   readonly sessionFields: { resumeSessionId?: string; newSessionId?: string };
 };
 
-import { createApplyConnectDefaults } from "#src/features/agent-plugins/apply-connect-defaults";
-import { assemblePromptWithPluginPrefix, resolveAgentPluginPromptPrefix } from "./plugin-prompt-prefix.js";
+import { assemblePromptWithPluginPrefix } from "./plugin-prompt-prefix.js";
 import { buildCapabilityManifestPrefix, resolveCapabilityManifestArm } from "./capability-manifest-prefix.js";
-import { isChatToolAllowed } from "../../../assistant/runtime-settings.js";
 import {
   resolveAssistantDisallowedTools,
   ASSISTANT_SETTING_SOURCES,
@@ -133,28 +109,15 @@ import {
 } from "./assistant-system-overlay.js";
 import { buildAssistantRuntimeGuidance, createAssistantChromeProbe, resolveAssistantRuntimeLaunch, type AssistantRuntimeGuidanceInput } from "./assistant-runtime-guidance.js";
 import { getCustomFsRoot } from "../../../features/fs-files/custom-root-store.js";
-import { registerFederationAdmissionsRoute } from "./federation-admissions-route.js";
-import { registerFederationReloadRoute } from "./federation-reload-route.js";
 import { createAgentDaemonRouteDeps, startPluginActivationPolling } from "../../runtime/composition/agent-daemon-deps.js";
 import { installProcessErrorReporting, installUnhandledRejectionGuard } from "../../runtime/boot/process-error-guards.js";
 import { attachServerLogFile, installServerLogCapture, serverLogFilePaths } from "../../../platform/server-logs/index.js";
 import { processBuildRelease, telemetryEnvironment } from '../../runtime/composition/build-release.js';
 import { siteDir } from "../../runtime/composition/deps.js";
-import { registerInstalledExtensionTools } from "../../runtime/composition/installed-extension-tools.js";
-import { installFirstPartyToolContributors } from "../../runtime/composition/tool-catalog-manifest.js";
-import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { resolveAgentPermissionMode } from "#src/contracts/core/agent-permission-mode";
 import {
-  askAgentPluginChoice,
   applyToolApprovalPolicy,
-  type AssistantToolRegistryDeps,
   createAssistantAgentInventory,
-  attachAssistantToolExtensions,
-  type AssistantToolExtensions,
-  createStoredExternalMcpConnectionSource,
-  buildExternalMcpFederationDeps,
-  onExternalMcpRosterChanged,
-  notifyExternalMcpRosterChanged,
   agentCarriesOwnMemory,
   extractSessionRefFromEndEvent,
   resolveResumeSessionField,
@@ -169,9 +132,6 @@ import {
   resolveHostMintedSessionId,
   resolveNewSessionField,
   createConversationStartLock,
-  readChatPermanentDeletesPolicy,
-  createChatDeleteScope,
-  ALL_CHAT_DELETE_TOOLS,
   readAssistantCliPermissions,
   createCustomInstructionsCache,
   DELEGATED_TOOL_CALLS_PATH,
@@ -179,10 +139,6 @@ import {
   AGENT_DAEMON_EXIT_CODE,
   FRONTEND_CONTROL_CAPABILITIES,
   withReadOnlyFrontendCapabilities,
-  withFederatedRefusalDiagnosis,
-  createLiveToolCatalogQuery,
-  createDeviceAuthorizationStore,
-  createExternalMcpOAuthService,
   registerA2uiActionsRoute,
   registerMcpUiToolCallsRoute,
   resolveMcpJsonInjection,
@@ -192,16 +148,9 @@ import {
   RUN_PRINCIPAL_HEADER,
   parseRunStartContextRef,
   buildPageContextPromptBlock,
-  buildComponentCatalogQuery,
-  chartCatalogManifests,
-  buildToolCatalogQuery,
-  listToolCatalogEntries,
   constrainPrincipalToReadOnlyTools,
+  withReadOnlyToolConstraint,
   createAssistantToolExecutor,
-  withToolCatalogAudit,
-  UNSCOPED_TOOL_CATALOG_ROUTE_PRINCIPAL_ID,
-  UNSCOPED_TOOL_CATALOG_ROUTE_RUN_ID,
-  buildAssistantToolRegistrations,
   createLostFrontendBindings,
   withPageNavigateErrorRewrap,
   delegatedToolErrorDisclosure,
@@ -502,19 +451,6 @@ lifecycle.rehydrate({}).catch((error: unknown) => {
   console.error("[agent-daemon] lifecycle.rehydrate() failed", error);
 });
 
-// `createRouteDeps()`/`createSiteRouteDeps()` do not construct `magicLinkPerEmailLimiter` — it is
-// built per-boot inside `server/app.ts`'s `registerAdminRoutes` and spread into a local
-// `membersDeps`, never onto the object those factories return (ADR-PIPE-013 §2-3, C-015: one
-// counter per email). This process is a separate boot that never runs that code, so it must build
-// its own, exactly as `server/app.ts:566` does.
-//
-// Until the tool-registration deps types were narrowed, `buildMembersRegistrations` cast its way
-// past this with `routeDeps as MembersRouteDeps`, so the field was simply `undefined` here and
-// `members_request_magic_link` would have thrown `Cannot read properties of undefined (reading
-// 'check')` the first time it was invoked through the daemon. The cast was hiding a real crash;
-// removing it surfaced this, and this is the fix rather than a re-widening.
-const magicLinkPerEmailLimiter = createRateLimiter({ profile: MAGIC_LINK_PER_EMAIL, clock: routeDeps.clock });
-
 /**
  * The parked-call store backing the single-call MCP-UI return path (ADR-055 Decision 1).
  *
@@ -525,104 +461,19 @@ const magicLinkPerEmailLimiter = createRateLimiter({ profile: MAGIC_LINK_PER_EMA
  */
 const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
 
-// Must run before `buildAssistantToolRegistrations` below: that function reads whatever the
-// registry currently holds, and the registry starts empty every process boot (it is ordinary
-// composition-owned core instances (host contracts in `assistant/tool-contribution-registry.ts`), not populated as a side effect
-// of any import). See `tool-catalog-manifest.ts`'s own header for why this call lives here and in
-// `assistant-byok.ts`, and nowhere else.
-const contributions = {
-  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: ToolContributor<AssistantToolRegistryDeps, AssistantSurfaceDeps> }) => contribution.domain }),
-  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: DerivedToolContributor<AssistantToolRegistryDeps, AssistantSurfaceDeps> }) => contribution.domain }),
-};
-installFirstPartyToolContributors({ contributions }, { ensureDaemonReady: async () => {}, deployOpsRegistry: await routeDeps.loadDeployOps({ workspaceId: routeDeps.workspaceId }), observability: routeDeps.observability,
-  chatAttachmentsDir: routeDeps.siteStoragePaths.chatAttachmentsDir,
-  readInstallAttachment: createPluginInstallAttachmentReader({}, {
-    uploadDirectory: routeDeps.siteStoragePaths.chatAttachmentsDir,
-    getMessageAttachmentRefs: ({ runId }) => messageAttachmentRefsByRunId.get(runId) ?? [],
+// Site registrations, attachment tools, plugin guidance and federation have one owner: the
+// server's BYOK composition. Only browser-tab capabilities have executable registrations here.
+const registry = createToolRegistry({});
+const siteTools = createDaemonSiteTools({
+  baseUrl: process.env.TOVU_SITE_LISTENER_ORIGIN ?? "",
+  token: siteToolToken, localRegistry: registry,
+  audit: { sink: routeDeps.toolAttemptAuditSink, workspaceId: routeDeps.workspaceId },
+  contextFor: ({ runId }) => ({
+    conversationId: liveRunTracker.conversationIdForRun({ runId }, {}),
+    attachmentRefs: messageAttachmentRefsByRunId.get(runId) ?? [],
   }),
 });
-
-const registry = createToolRegistry({});
-const deleteScope = createChatDeleteScope({ readPolicy: ({ principalId }) => readChatPermanentDeletesPolicy({ ...routeDeps, principalId, settingsReady: routeDeps.settingsUiTabsReady }) });
-const visibleRegistry = { list: (...args: Parameters<typeof registry.list>) => registry.list(...args).filter(tool => isChatToolAllowed({ toolId: tool.id, policy: deleteScope.policy() })) };
-let refreshSkillsCatalog = () => {};
-
-// Captured (not looped-and-discarded) so `media_promote_chat_attachment` below can find and delegate
-// to the already-built `media_upload_asset` registration — see `promote-chat-attachment.ts`'s own
-// header for why reusing that handler, rather than re-implementing its gate, is the whole design.
-const assistantRegistrations = buildAssistantToolRegistrations(
-  // `listCatalogTools` is `site_describe_capabilities`' reader over THIS registry, the one the
-  // `search_tools`/`describe_tool` routes below snapshot. A thunk, read when the tool runs, so it
-  // also lists the agent-plugin, skill and federated tools `start()` registers after this line.
-  { ...routeDeps, magicLinkPerEmailLimiter, listCatalogTools: () => listToolCatalogEntries(visibleRegistry),
-    ...(routeDeps.conversationToolApprovals ? { nativeApprovalMemory: routeDeps.nativeApprovalMemory ?? createNativeApprovalMemory({
-      store: routeDeps.conversationToolApprovals, workspaceId: routeDeps.workspaceId, clock: routeDeps.clock,
-      conversationIdForRun: ({ runId }) => liveRunTracker.conversationIdForRun({ runId }, {}),
-    }) } : {}),
-  },
-  { surfaceExchanges },
-  { contributions, permanentDeletePolicy: ALL_CHAT_DELETE_TOOLS },
-);
-for (const registration of assistantRegistrations) {
-  registry.register(registration);
-}
-
-/**
- * `media_promote_chat_attachment` — the chat-attachment -> media-library bridge (see
- * `promote-chat-attachment.ts`'s own header for the full design/authorization rationale). Registered
- * directly here, alongside `frontendControl.toolRegistrations` below, rather than through the generic
- * per-workspace tool-contribution registry: both are daemon-only capabilities with no meaning in a
- * process that does not also run this file's `attachmentStore`/frontend-binding state.
- *
- * Silently skipped (not thrown) when `media_upload_asset` is somehow unwired: this bridge is strictly
- * additive to that tool and must never be the reason the whole daemon fails to boot.
- */
-registry.register(buildLibrarySaveAttachmentTool({
-  deps: routeDeps,
-  getStore: () => attachmentStore,
-  getMessageAttachmentRefs: ({ runId }) => messageAttachmentRefsByRunId.get(runId) ?? [],
-  archiveReader: createDocumentArchiveReader({}),
-  readFile: async path => {
-    // The resolver already checked this issued path's run and integrity. Bound allocation too:
-    // chat accepts larger media than Library documents, and unsaved attachments stay temporary.
-    if ((await stat(path)).size > MAX_DOCUMENT_BYTES) throw new Error("document exceeds the 10 MiB limit");
-    return readFile(path);
-  },
-}));
-
-const mediaUploadAssetRegistration = assistantRegistrations.find(
-  (registration) => registration.descriptor.id === "media_upload_asset",
-);
-if (mediaUploadAssetRegistration) {
-  registry.register(
-    buildPromoteChatAttachmentTool({
-      // A thunk, not `attachmentStore` itself: this line runs before `start()` assigns it (see that
-      // binding's own doc) — the closure must read the CURRENT value at call time, not now.
-      getStore: () => attachmentStore,
-      mediaUploadHandler: mediaUploadAssetRegistration.handler,
-      readFile,
-    }),
-  );
-} else {
-  console.error(
-    `[agent-daemon] '${MEDIA_PROMOTE_CHAT_ATTACHMENT_TOOL_ID}' not registered: 'media_upload_asset' is not wired`,
-  );
-}
-
-/**
- * `chat_list_pending_attachments` — the discovery half of the chat-attachment bridge (see
- * `list-pending-chat-attachments.ts`'s own header for the full design/scoping rationale). Registered
- * unconditionally (unlike the promote tool above, it delegates to no other registration) alongside
- * it, for the same "daemon-only capability with no meaning elsewhere" reasoning.
- */
-registry.register(
-  buildListPendingChatAttachmentsTool({
-    // A thunk, not `attachmentStore` itself — same reasoning as `buildPromoteChatAttachmentTool`'s
-    // own `getStore` just above: this line runs before `start()` assigns it.
-    getStore: () => attachmentStore,
-    getMessageAttachmentRefs: ({ runId }) => messageAttachmentRefsByRunId.get(runId) ?? [],
-  }),
-);
+const visibleRegistry = siteTools.registry;
 
 /**
  * Runs whose tab bound with a token this daemon does not know — the tab outlived a restart and has
@@ -719,24 +570,14 @@ for (const registration of withPageNavigateErrorRewrap(withReadOnlyFrontendCapab
 // an operator can observe is that this process no longer opens a SECOND connection to that file
 // (and no longer runs `openContentDb`'s unconditional `migrate()` a second time) at boot.
 const auditSink = routeDeps.toolAttemptAuditSink;
-// The decorator order — and in particular why the read-only gate is innermost — lives in
-// `tool-executor-stack.ts` alongside the composition itself, so it is exercisable by a test that does
-// not have to boot this whole module.
-//
-// Wrapped a second time, OUTERMOST, by `withFederatedRefusalDiagnosis`: a call naming a federated
-// tool id this boot refused would otherwise throw `unknown tool "<id>"` (the id is never registered)
-// straight past every decorator above and into `@jini-ai/http-kit`'s SEC-005 redaction, reaching the
-// model as an opaque `INTERNAL_ERROR` that names neither the tool nor the reason. This layer catches
-// exactly that throw and, only when the id matches a refusal in `toolExtensions.federation.reports()`,
-// returns a real result naming the tool, the server, and the fix instead. See that file's own header.
-const automaticPluginRuns = createAutomaticPluginRuns({ deps: routeDeps, askAgentPluginChoice, surfaces: { surfaceExchanges } });
-registry.register(automaticPluginRuns.loadRegistration);
-const toolExecutor = withFederatedRefusalDiagnosis({ inner: createAssistantToolExecutor({
-    registry,
-    surfaceExchanges,
-    prepareGuidance: automaticPluginRuns.prepareGuidance,
-    toolAttemptAudit: { sink: auditSink, workspaceId: routeDeps.workspaceId },
-  }, {}), getSnapshot: () => toolExtensions?.federation.reports() ?? [] }, {});
+// Local UI effects retain their approved gating/audit stack. Site effects use the server's
+// complete stack; the outer descriptor gate verifies read-only authority before either route.
+const localToolExecutor = createAssistantToolExecutor({ registry, surfaceExchanges,
+  toolAttemptAudit: { sink: auditSink, workspaceId: routeDeps.workspaceId } }, {});
+const toolExecutor = withReadOnlyToolConstraint(createRoutingToolExecutor({
+  local: localToolExecutor, remote: siteTools.remote,
+  isLocal: ({ toolId }) => registry.has({ toolId }),
+}, {}), { registry: siteTools.registry });
 
 /**
  * The admin Instructions tab's system-prompt seam (`core.instructions.custom`) — see
@@ -806,7 +647,7 @@ const assistantPromptAugmenter: PromptAugmenter = {
 const bridgeInjection = {
   ...resolveMcpJsonInjection(daemonUrl, (runId) => runCredentials.mint({ runId: runId }, {})),
   diagnosticToolIds: () => registry.list({}).map(tool => tool.id),
-  // Resolve at launch inside deleteScope.fresh: concurrent runs must not share a delete grant,
+  // Resolve at launch inside the live site scope: concurrent runs must not share a delete grant,
   // and diagnostic IDs must never publish schemas for tools this run cannot discover.
   /** Put theme file tools first within Jini's bounded startup publication (64 tools / 256 KiB of
    * schemas): late contributor registration must not hide them while native file tools are visible.
@@ -890,24 +731,7 @@ let attachmentStore: AttachmentStore | undefined;
 // Only copies handed to a CLI live here; the store retains its own promotion/read-back records.
 const stagedAttachmentCleanupByRunId = new Map<string, () => Promise<void>>();
 
-/**
- * This boot's federation runtime plus the installed-extension registration promise — see
- * `ADS-memory/.local-artifacts/design-byok-external-mcp-2026-09-24.md` §2.1 items 3-4. Replaces
- * what used to be two separate module-level `let`s (`federationRefusalPrefix`,
- * `federationAdmissionReports`): `toolExtensions.federation.refusalPrefix()`/`.reports()` are now
- * the SAME live getters those two bindings existed to provide, off one object instead of two that
- * had to be kept in lockstep by hand on every reload.
- *
- * `undefined` until `start()` assigns it (constructed by `attachAssistantToolExtensions`) — a
- * module-level `let` for the same reason `attachmentStore` is one: `toolExecutor`'s
- * `withFederatedRefusalDiagnosis` wrap and `onStarted`'s prompt assembly are both constructed/
- * registered at module scope, long before `start()` runs, so each reads this through a closure
- * (`() => toolExtensions?.federation.reports() ?? []`) rather than a value that would forever see
- * `undefined`. Every reader falls back to the empty/no-refusal case for that pre-boot instant,
- * matching what `federationAdmissionReports = []`/`federationRefusalPrefix = ""` already defaulted
- * to before this boot's admission pass ran.
- */
-let toolExtensions: AssistantToolExtensions | undefined;
+
 
 /** The same fact with the opposite lifetime — a finished run is still readable, so its owner must
  * stay known. See `run-ownership.ts` for why the two maps are not redundant. */
@@ -1000,8 +824,6 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
   let principal: Principal;
   let attachmentIds: readonly string[] = [];
   let pluginRefIds: readonly string[] = [];
-  let agentPluginState: import('@jini-ai/agent-plugins/lifecycle').ChatAgentPluginState = { decision: null, excluded: [] };
-  let userPrompt: string | undefined;
   let model: string | undefined;
   let reasoning: string | undefined;
   let conversationId: string | undefined;
@@ -1024,8 +846,6 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
     principal = { id: decoded.principalId };
     attachmentIds = decoded.attachmentIds;
     pluginRefIds = decoded.pluginRefIds;
-    agentPluginState = decoded.agentPluginState;
-    userPrompt = decoded.userPrompt;
     model = decoded.model;
     reasoning = decoded.reasoning;
     conversationId = decoded.conversationId;
@@ -1069,7 +889,7 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
   void runLifecycle.waitForTerminal({ runId: run.id }).catch(() => undefined).finally(() => {
     pluginAbort.abort();
     unsubscribePluginCancel();
-    automaticPluginRuns.forget({ runId: run.id }, { preservePending: durableMessageId !== undefined });
+    siteTools.finish({ runId: run.id });
     principalByRunId.delete(run.id);
     messageAttachmentRefsByRunId.delete(run.id);
     durableMessageIdsByRunId.delete(run.id);
@@ -1166,9 +986,14 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
       // Runtime wire adapters decide how to carry those pixels; the CMS adapter owns authorization.
       const attachmentRunFields = await resolveAttachmentRunFields({ run, attachmentIds, runLifecycle, agentId }, {});
       if (!attachmentRunFields) return;
-      let pluginPromptPrefix = await resolveAgentPluginPromptPrefix({ run, pluginRefIds, runLifecycle, workspaceId: routeDeps.workspaceId, agentPluginLayout: routeDeps.agentPluginLayout });
-      if (pluginPromptPrefix === null) return;
-      pluginPromptPrefix = await joinAutomaticPluginPrefix({ pinnedPrefix: pluginPromptPrefix }, {});
+      pluginAbort.signal.throwIfAborted();
+      await siteTools.start({ runId: run.id, principalId: principal.id });
+      const pluginPreparation = await prepareSitePlugins({}, {});
+      if (pluginPreparation.prefix === null) {
+        await failRunBeforeStart({ lifecycle: runLifecycle, runId: run.id, message: "The assistant could not start: a selected Agent Plugin could not be loaded." }, {});
+        return;
+      }
+      const pluginPromptPrefix = pluginPreparation.prefix;
 
       /*
        * This run's entire session-binding decision, in ONE function so it can be handed to
@@ -1313,7 +1138,7 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
       // not have to go looking for. Not a tool, deliberately: a model that does not know it is
       // missing anything never calls the tool that would tell it — see `refusal-notice.ts`. `""`
       // on a clean boot, in which case `assemblePromptWithPluginPrefix` is a no-op.
-      prompt = assemblePromptWithPluginPrefix(prompt, toolExtensions?.federation.refusalPrefix() ?? "");
+      prompt = assemblePromptWithPluginPrefix(prompt, pluginPreparation.refusalPrefix);
       prompt = assemblePromptWithPluginPrefix(prompt, pluginPromptPrefix);
       if (!(await durableAttemptStillOwnsAnswer())) {
         await failRunBeforeStart({ lifecycle: runLifecycle, runId: run.id, message: "This execution attempt no longer owns the answer." }, {}); return;
@@ -1330,24 +1155,15 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
       void failRunBeforeStart({ lifecycle: runLifecycle, runId: run.id, message: "The assistant could not start this execution attempt." }, {});
     });
 
-  /** The automatic Agent plugins preflight for a conversation run, joined after the pinned plugin
-   * prefix. Fail-open: an unavailable preflight is warned about and the pinned prefix is kept. */
-  async function joinAutomaticPluginPrefix({ pinnedPrefix }: { pinnedPrefix: string }, _optional = {}): Promise<string> {
-    if (conversationId === undefined) return pinnedPrefix;
-    try {
-      const automaticPrefix = await automaticPluginRuns.start({ runId: run.id, ...(durableMessageId === undefined ? {} : { messageId: durableMessageId }), context: {
-        principal, conversationId, state: agentPluginState, query: userPrompt ?? prompt, pinned: pluginRefIds,
-        signal: pluginAbort.signal,
-        // This trusted preflight emits both its resource and its validated answer receipt. Keep the
-        // named channel so the latter reaches the same durable event stream as composer input.
-        emitSurface: async emission => { await runLifecycle.emit({ runId: run.id, input: { event: 'agent', data: {
-          ...emission.payload, type: emission.channel,
-          ...(emission.channel === 'mcp-ui' ? { toolUseId: `agent-plugins:${run.id}` } : {}),
-        } as RunAgentPayload } }); },
-        publish: async value => { await runLifecycle.emit({ runId: run.id, input: { event: 'agent', data: { type: 'agent_plugins', ...value } } }); },
-      } });
-      return [pinnedPrefix, automaticPrefix].filter(Boolean).join('\n\n');
-    } catch { console.warn('[agent-plugins] automatic preflight unavailable'); return pinnedPrefix; }
+  /** The server owns pinned guidance and automatic consent, including later tool-triggered
+   * preparation. No controller or plugin lifecycle is constructed in this process. Transport
+   * failure remains optional for automatic guidance, but an explicit pinned pick fails closed. */
+  async function prepareSitePlugins(_required: Record<string, never>, _optional = {}): Promise<{ prefix: string | null; refusalPrefix: string }> {
+    try { return await siteTools.preflight({ runId: run.id, signal: pluginAbort.signal }); }
+    catch {
+      console.warn('[agent-plugins] automatic preflight unavailable');
+      return { prefix: pluginRefIds.length ? null : "", refusalPrefix: "" };
+    }
   }
 
   /** A durable attempt must still own its answer when the agent is about to launch: a stop or a
@@ -1420,7 +1236,7 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
       ...runtimeLaunch.runOptions,
     });
     const runWithCapabilities = () => assistantCliCapabilitiesContext.run(nativeCapabilities,
-      () => deleteScope.fresh({ principalId: principal.id, run: executeRun }));
+      () => siteTools.withRun({ runId: run.id, fn: executeRun }));
     await assistantRuntimeGuidanceContext.run(runGuidance,
       () => assistantNativeToolsContext.run(nativeToolAccess, runWithCapabilities));
   }
@@ -1491,7 +1307,14 @@ const resolvePrincipal = ({ request }: { readonly request: DelegatedToolExecuteR
   return request.requireReadOnly === true ? constrainPrincipalToReadOnlyTools(principal) : principal;
 };
 
+/** Resolve discovery authority from a still-live per-run credential, never a wire principal. */
+function resolveDiscoveryCaller(req: express.Request) {
+  const token = bearerTokenFromHeader({ header: req.get("authorization") });
+  return token ? runCredentials.resolveCaller({ token }) : undefined;
+}
+
 const app = express();
+registerAgentPluginEvents({ app, lifecycle, principalFor: ({ runId }) => principalByRunId.get(runId)?.id }, {});
 
 // Only this POST uses Jini's credential-bound claim authorization instead of the proxy/owner gates.
 // Authenticate before parsing; the handler re-resolves the live credential and checks the URL run.
@@ -1524,14 +1347,14 @@ app.use(requireAgentDaemonToken({ runScopedCallers: runCredentials }, {}));
 // caller reaching them is already past `requireAgentDaemonToken` above, so this is not a new
 // unauthenticated attack surface, only a larger authenticated one.
 app.use(express.json({ limit: "6mb" }));
-// Establish async context after body parsing resumes from stream callbacks.
-// Read skills before discovery or execution, including changes made by another process.
-// Package catalog routes are synchronous; native request context supplies a fresh grant
-// without rebinding process-wide state or rebuilding the FTS index for each request.
-app.use(["/api/tools", DELEGATED_TOOL_CALLS_PATH], (req, _res, next) => {
-  void deleteScope.fresh({ principalId: req.get(RUN_PRINCIPAL_HEADER), run: () => next() }).catch(next);
+// Re-resolve each bridge credential after parsing; neither a proxy identity nor a previous
+// caller's snapshot can supply an unscoped catalog. Native async context survives all awaits.
+app.use(["/api/tools", "/api/components", DELEGATED_TOOL_CALLS_PATH], (req, res, next) => {
+  const caller = resolveDiscoveryCaller(req);
+  if (!caller) { res.status(404).json({ error: "a live run is required" }); return; }
+  try { siteTools.withRun({ runId: caller.runId, fn: () => next() }); }
+  catch (error) { next(error); }
 });
-app.use(["/api/tools", DELEGATED_TOOL_CALLS_PATH], createSkillRefreshMiddleware({ registry, onChanged: () => refreshSkillsCatalog() }));
 // Re-resolve the bearer after parsing, so even a credential that expired while parsing fails
 // closed. Run credentials must match body.runId before any delegated handler or tool can execute;
 // proxy credentials retain their existing authority.
@@ -1598,12 +1421,12 @@ const delegatedToolRouteDeps = {
   lifecycle,
   toolExecutor,
   resolvePrincipal,
-  toolRegistry: registry,
+  toolRegistry: siteTools.registry,
   ...delegatedToolErrorDisclosure({}, {}),
 };
 registerDurableToolGuard({ app, ledger: routeDeps.chatRunLedger,
-  isRegistered: ({ toolId }) => registry.has({ toolId }),
-  isReadOnly: ({ toolId }) => checkReadOnlyTool({ toolId, registry, messages: defaultDaemonMessages.readOnly }, {}) === null,
+  isRegistered: ({ toolId }) => siteTools.registry.has({ toolId }),
+  isReadOnly: ({ toolId }) => checkReadOnlyTool({ toolId, registry: siteTools.registry, messages: defaultDaemonMessages.readOnly }, {}) === null,
   async messageIdForAttempt({ runId }) {
     return durableMessageIdsByRunId.get(runId) ?? null;
   },
@@ -1636,281 +1459,20 @@ registerA2uiActionsRoute(app, { surfaceExchanges });
 // `src/server/modules/assistant.ts`.
 frontendControl.httpExtension({ app, context: { adapter } });
 
-/**
- * OUTBOUND MCP federation — the reverse direction from `mcp-injection.ts`. Tovu connects OUT to a
- * site owner's configured external MCP server and registers whatever clears
- * `mcp-federation/trust.ts`'s separate, more restricted trust tier.
- *
- * The MECHANISM is core (`mcp-federation/`); which VENDORS exist is not. Vendors arrive as Agent
- * Plugins (`content/agent-plugins/<id>/mcp.json`), whose servers become rows in the stored roster
- * read below. Env-token onboarding populates plugin-owned rows; see
- * `features/agent-plugins/import-access-token.ts`. `mcp-federation/presets.ts` is the seam.
- *
- * Off unless configured: with no enabled roster row `attachFederatedMcpTools` resolves zero
- * connections. It never rejects — a third
- * party's server must not be able to stop Tovu's daemon booting — so there is no failure branch to
- * handle here; see `mcp-federation/bootstrap.ts` for the fail-open rationale and why it is the
- * opposite of `daemon-auth.ts`'s fail-closed posture.
- *
- * Ordering is load-bearing, which is why the last two registrars moved inside this async start:
- * `buildToolCatalogQuery` snapshots `registry.list({})` into a one-shot FTS index, so a federated tool
- * registered after it would be executable but invisible to `search_tools`/`describe_tool` — exactly
- * the half-wired state `tool-catalog-query.ts`'s own header records finding on 2026-07-30. Route
- * order is otherwise unchanged: the catalog routes were already registered last.
- */
-/**
- * This process's OWN OAuth service — a SECOND `ExternalMcpOAuthService` instance, not
- * `routeDeps.externalMcpOAuth` reused directly.
- *
- * Not because `routeDeps.externalMcpOAuth` "lives in the web server" — it does not; `routeDeps`
- * above is built by THIS process's own `createSiteRouteDepsForWorkspace`/`createRouteDeps` call
- * (this file is its own composition root, same as the main web server is its), so that field is
- * every bit as much a daemon-process object as this one. The real reason for a second instance is
- * narrower: `start()`'s stored-connection source/federation deps (`external-mcp-connection-source.ts`)
- * need a token resolver/`reportAuthFailure` bound to THIS boot's federation setup, and building that
- * inline here is simpler than threading a second construction parameter through
- * `createSiteRouteDeps` for a concern only the daemon has. The two instances share the only thing
- * they must: the database row, which is where the sealed token, the plaintext expiry, and the
- * cross-process refresh lease all live — `tryClaimOAuthRefreshLease` is what keeps the two from
- * redeeming one single-use rotating refresh token twice.
- *
- * `devices` below reuses `routeDeps.externalMcpOAuthDevices`, so no extra database handle is opened.
- * This instance serves token resolution and auth-failure reporting; the assistant connect tool uses
- * `routeDeps.externalMcpOAuth`. Redirect state needs only the same site sealer/keyring in each
- * process, while device begin/poll still share the durable store.
- */
-const externalMcpOAuth = createExternalMcpOAuthService({
-  // c266749d0: desktop's loopback callback needs the same exception as plugin API OAuth.
-  httpPorts: createTovuOAuthHttpPorts({ http: routeDeps.mediaGenerationHttpClient }, { allowLoopbackHttp: resolveApiConnectionRuntime({ env: process.env }) === "desktop" }),
-  workspaceId: routeDeps.workspaceId,
-  repo: routeDeps.externalMcpServerRepo,
-  sealer: routeDeps.siteAssistantSecretSealer,
-  keyring: routeDeps.siteAssistantSecretKeyring,
-  clock: routeDeps.clock,
-  // Only a narrow composition without a device store falls back to an in-memory adapter.
-  devices: routeDeps.externalMcpOAuthDevices ?? createDeviceAuthorizationStore(),
-  onConnected: createApplyConnectDefaults({ agentPluginLayout: routeDeps.agentPluginLayout, workspaceId: routeDeps.workspaceId, repo: routeDeps.externalMcpServerRepo, clock: routeDeps.clock, notifyRosterChanged: notifyExternalMcpRosterChanged }),
-});
-
 async function start(): Promise<void> {
-  /**
-   * Reads the operator-editable roster (Settings → External MCP) into federation's connection
-   * shape, boot-time and every reload pass alike — see `createStoredExternalMcpConnectionSource`'s
-   * own doc (`assistant/external-mcp-connection-source.ts`) for the boot-time-only/R5 rationale and
-   * the fail-open behavior on both a whole-read failure and a per-row resolution failure. Extracted
-   * so BYOK's own root builds the identical source from the identical code rather than a second
-   * hand-copied read. `source.failures()` is what `registerFederationAdmissionsRoute` below reads
-   * for `configFailures`.
-   */
-  const source = createStoredExternalMcpConnectionSource({
-    agentPluginLayout: routeDeps.agentPluginLayout,
-    repo: routeDeps.externalMcpServerRepo,
-    sealer: routeDeps.siteAssistantSecretSealer,
-    // Resolves (and refreshes, if due) the access token for an `authMode: "oauth"` row before its
-    // child process is launched with it. A row that needs re-authorization is reported through
-    // `source.failures()` rather than launched credential-free.
-    oauth: externalMcpOAuth.tokenResolver,
-    workspaceId: routeDeps.workspaceId,
-    log: "[agent-daemon]",
-  });
-
-  // Shared by the boot admission pass below AND every federation-reload pass: the SAME
-  // gate/failure-reporting wiring must back both, or a connection admitted by a reload could be
-  // held to different liveness behaviour than one admitted at boot for no reason other than which
-  // pass happened to register it. Built by `buildExternalMcpFederationDeps`
-  // (`external-mcp-connection-source.ts`) so BYOK's own root shares this exact wiring too.
-  const federationDeps = buildExternalMcpFederationDeps({
-    authorize: routeDeps.authorize,
-    workspaceId: routeDeps.workspaceId,
-    repo: routeDeps.externalMcpServerRepo,
-    // The gate above (inside `buildExternalMcpFederationDeps`) only catches a connection ALREADY
-    // known dead. A token valid at admission can still die mid-session — there is no periodic
-    // refresh — so this is what discovers that: on a live 401/403 it records `needs_reauth` (so the
-    // gate catches the NEXT call cheaply) and replaces the transport-shaped error with the same
-    // terminal message the gate throws.
-    oauth: externalMcpOAuth,
-    // G3: a federated tool that is not marked read-only asks on a per-call Confirm/Cancel card, held
-    // open on the SAME store `registerMcpUiToolCallsRoute` delivers clicks to.
-    surfaceExchanges,
-    // G3 remembered approvals: "Always allow" beside the connection row, "Allow for this chat" with
-    // the conversation (chat.db), and the run -> conversation map this process keeps for live runs.
-    approvals: {
-      ...(routeDeps.externalMcpToolApprovalRepo ? { always: routeDeps.externalMcpToolApprovalRepo } : {}),
-      ...(routeDeps.conversationToolApprovals ? { chat: routeDeps.conversationToolApprovals } : {}),
-      conversationIdForRun: (runId) => liveRunTracker.conversationIdForRun({ runId: runId }, {}),
-    },
-  });
-
-  /**
-   * THE ONE REGISTRAR (`installed-extension-tools.ts`): installed-extension tools, then (once that
-   * settles) this boot's federation runtime, in that fixed order — the disclosed change from this
-   * file's former order (federation attached before extensions). Assigned into the module-level
-   * `toolExtensions` binding declared above so `toolExecutor`'s `withFederatedRefusalDiagnosis` wrap
-   * and `onStarted`'s prompt assembly (both constructed at module scope, before this line ever runs)
-   * can read it once it exists. `federation` is built but not started here — `federation.start()`
-   * below is what performs the boot admission pass.
-   */
-  const extensions = attachAssistantToolExtensions(
-    registry,
-    {
-      ...routeDeps,
-      // Executable Agent Plugin tools that ask before acting use this process's confirmation cards.
-      surfaces: { surfaceExchanges },
-      registerInstalled: registerInstalledExtensionTools,
-      federation: {
-        presetRegistry: routeDeps.federatedMcpPresetRegistry,
-        deps: federationDeps,
-        resolveConnections: source.resolve,
-        // Propagates a reload that actually admitted something new into every OTHER piece of
-        // process state a boot-time admission also updates: the discovery-side fix (see
-        // `tool-catalog-live-query.ts`) — the `search_tools`/`describe_tool` snapshot, rebuilt from
-        // `registry.list({})` and rebound into the SAME object identity `registerToolCatalogRoutes`
-        // was handed below (`liveToolCatalog`, built a few lines down). A no-op reload (nothing new
-        // in the roster) never calls this — see `external-mcp-federation-runtime.ts`'s own doc.
-        onAdmitted: (result) => {
-          liveToolCatalog.rebind(
-            withToolCatalogAudit({ catalog: buildToolCatalogQuery(registry), sink: auditSink, identity: {
-              workspaceId: routeDeps.workspaceId,
-              runId: UNSCOPED_TOOL_CATALOG_ROUTE_RUN_ID,
-              principalId: UNSCOPED_TOOL_CATALOG_ROUTE_PRINCIPAL_ID,
-            } }, {}),
-          );
-          console.log(
-            `[agent-daemon] mcp-federation: reload admitted ${result.newlyAdmittedConnectionIds.length} new connection(s): ${result.newlyAdmittedConnectionIds.join(", ")}`,
-          );
-        },
-      },
-    },
-    "[agent-daemon]",
-  );
-  toolExtensions = extensions;
-
-  /**
-   * Registers every installed Agent Plugin, installed Agent Skill, and enabled plugin-runtime
-   * capability tool (Word Count today) as real tools, so a plain `search_tools` reaches them the same
-   * way it already reaches the native tools — the structural half of the capability-discovery work,
-   * complementing the prompt-side `TOVU_CAPABILITY_MANIFEST_ARM` affordance rather than replacing it.
-   * Bench measurement (agent plugins): #1 for 6 of 7 held-out design queries, and it FREED native
-   * tools rather than crowding them (`theme_read_file` #10 -> #4 on "design guidance"). Capability
-   * tools are the fix for the 2026-08-26 registration-gap audit: Word Count was live, valid, and
-   * computing real data, but no tool anywhere ever exposed it.
-   *
-   * `extensions.installed` is `registerInstalledExtensionTools`'s own promise (see
-   * `installed-extension-tools.ts`), which `byok-tool-surface.ts` now calls too, so BYOK mode sees
-   * the identical three families through the identical ordering/fail-open registrar rather than a
-   * second hand-written copy. Awaited here, before the federation boot pass below, for the same
-   * reason it always was: each family reads its own tree off disk, and an un-awaited promise would
-   * let the FTS snapshot (`buildToolCatalogQuery` below) win the race on a cold cache.
-   */
-  await extensions.installed;
-
-  // The boot admission pass — presets plus the roster `source.resolve()` reads. Never rejects; see
-  // `external-mcp-federation-runtime.ts`.
-  await extensions.federation.start();
-
-  // What this process has admitted so far, over HTTP — see `federation-admissions-route.ts`'s own
-  // doc for why `reports` is a LIVE getter (not a snapshot handed in once) and
-  // `daemon-auth.ts`'s gate (already mounted above, before any route) for why this needs no auth
-  // logic of its own: the path is not in that gate's `exemptPaths`, so it is covered like every
-  // other route in this process.
-  registerFederationAdmissionsRoute(app, {
-    reports: () => extensions.federation.reports(),
-    // Two DIFFERENT failure channels feed the SAME `configFailures` wire field, merged here rather
-    // than reported separately, because they answer the identical operator-facing question — "why
-    // does this saved, enabled connection have no admission report?" — and the admin's own
-    // `describeAdmissionDrift` (`external-mcp-admissions-rules.ts`) already reads `configFailures`
-    // as one flat list keyed by `connectionId`, with no way to distinguish a second list anyway.
-    // `source.failures()`: `external-mcp-connection-source.ts`'s own boot-time (or reload-time)
-    // decrypt/config failure for a saved row that never even reached federation's `attach` at all.
-    // `extensions.federation.connectFailures()` (2026-09-24): a row that DID reach `attach` — its
-    // config resolved fine — but whose `connect()` itself failed (a timed-out handshake, a bad
-    // spawn), which used to leave the row silently absent from both this route's `connections` AND
-    // `configFailures`, with the real reason reaching only this process's own stderr.
-    configFailures: () => [...source.failures(), ...extensions.federation.connectFailures()],
-  });
-
-  // The same accounting, for the OTHER party that never heard the refusal — read fresh here rather
-  // than cached, since `extensions.federation.refusalPrefix()` already reflects this boot's
-  // admission pass by the time `start()` reaches this line, and stays live for every later reload.
-  const bootRefusalPrefix = extensions.federation.refusalPrefix();
-  if (bootRefusalPrefix !== "") {
-    console.warn(
-      `[agent-daemon] mcp-federation: ${bootRefusalPrefix.split("\n").filter((line) => line.startsWith("- ")).length} withheld external tool(s) will be reported to the model in every run's prompt`,
-    );
-  }
-
-  // Backs `@jini-ai/mcp`'s `search_tools`/`describe_tool` — was never mounted before 2026-07-30,
-  // so both 404'd for every spawned CLI despite the registry itself being fully populated. See
-  // `tool-catalog-query.ts`.
-  //
-  // Wrapped in `withToolCatalogAudit` so every call lands in the same durable `agent_tool_attempts`
-  // trail as a real tool execution — neither route ever reaches `ToolExecutor`/`withToolAttemptAudit`
-  // above, since `registerToolCatalogRoutes` is "deliberately not routed through ToolExecutor" (that
-  // route module's own doc). Fixed `runId`/`principalId` rather than the daemon's real per-run
-  // values: `toolCatalogSearchRoute`/`toolCatalogDescribeRoute`'s `handle(input, deps)` carries no
-  // per-request identity at all (v0 scope, `@jini-ai/http-kit`'s own doc) — see `tool-catalog-audit.ts`
-  // for the full disclosure.
-  //
-  // Wrapped a SECOND time in `createLiveToolCatalogQuery` (federation hot-reload, 2026-09-11):
-  // `registerToolCatalogRoutes` captures whatever object `.catalog` points to here ONCE, at this
-  // call, so a later federation reload that registers new tools into `registry` would otherwise be
-  // invisible to `search_tools`/`describe_tool` forever — executable via `execute_delegated_tool`
-  // (which resolves against the live `registry` directly, see `@jini-ai/daemon`'s
-  // `ToolExecutor.execute`) but undiscoverable, the exact half-wired state `tool-catalog-query.ts`'s
-  // own header records finding on 2026-07-30 for a different reason. `liveToolCatalog.query`'s
-  // object identity never changes; the federation deps' `onAdmitted` above calls `.rebind(...)` with
-  // a freshly reseeded snapshot instead. Built here, right after the boot pass and before any route
-  // that a reload could ever trigger, so `onAdmitted`'s closure (created above, before this exists)
-  // never sees it undefined by the time a reload can actually call it.
-  const liveToolCatalog = createLiveToolCatalogQuery(
-    withToolCatalogAudit({ catalog: buildToolCatalogQuery(registry), sink: auditSink, identity: {
-      workspaceId: routeDeps.workspaceId,
-      runId: UNSCOPED_TOOL_CATALOG_ROUTE_RUN_ID,
-      principalId: UNSCOPED_TOOL_CATALOG_ROUTE_PRINCIPAL_ID,
-    } }, {}),
-  );
-  refreshSkillsCatalog = () => liveToolCatalog.rebind(
-    withToolCatalogAudit({ catalog: buildToolCatalogQuery(registry), sink: auditSink, identity: {
-      workspaceId: routeDeps.workspaceId,
-      runId: UNSCOPED_TOOL_CATALOG_ROUTE_RUN_ID,
-      principalId: UNSCOPED_TOOL_CATALOG_ROUTE_PRINCIPAL_ID,
-    } }, {}),
-  );
-  registerToolCatalogRoutes({ app, deps: { catalog: deleteScope.catalog({ catalog: liveToolCatalog.query }) }, adapter });
-
-  registerFederationReloadRoute(app, { reload: () => extensions.federation.reload() });
-  // S6 (2026-09-24): this daemon PROCESS also reacts directly to a roster change, not only over its
-  // own `/api/federation/reload` HTTP route above. The same-process caller is
-  // `features/external-mcp/tool-registrations.ts`: its chat-surface save and device-poll tools run in
-  // THIS process's registry, and notify after a successful save/connect. Only this key is registered
-  // here, so such a save does not reach the web process's BYOK runtime until that runtime next
-  // starts or reloads. Keyed
-  // `"agent-daemon-local"`, distinct from the web root's `"agent-daemon"` key
-  // (`server/runtime/composition/app.ts`), which reaches this SAME `extensions.federation.reload()`
-  // but from the other process, over HTTP — see `external-mcp-roster-change.ts`'s own header.
-  onExternalMcpRosterChanged("agent-daemon-local", () => extensions.federation.reload());
-
-  // Backs `@jini-ai/mcp`'s `search_components`/`describe_component` — same route-registration gap
-  // `tool-catalog-query.ts`'s own history warns about, avoided here by mounting alongside it from
-  // the start rather than adding it later. See `component-catalog-query.ts`.
-  // Admin's chart snapshot also decides which provider each legacy chart alias reports here.
-  // ComponentCatalogQuery is synchronous, so the transport refreshes site settings before dispatch.
-  let componentManifests = ALL_MANIFESTS;
-  let componentGeneration = "core";
-  app.use("/api/components", async (_req, res, next) => {
-    try {
-      await Promise.all([routeDeps.pluginRuntimeReady, routeDeps.siteTitleReady]);
-      const snapshot = await routeDeps.chartProviderSnapshot?.({});
-      if (snapshot && snapshot.generation !== componentGeneration) {
-        componentManifests = chartCatalogManifests({ snapshot });
-        componentGeneration = snapshot.generation;
-      }
-      next();
-    } catch {
+  // Discovery is scoped by each run's credential; the server refreshes its own plugin/settings
+  // state before returning descriptors. The native FTS owner is released with the final run.
+  registerToolCatalogRoutes({ app, deps: { catalog: siteTools.catalog }, adapter });
+  app.use("/api/components", (req, res, next) => {
+    const caller = resolveDiscoveryCaller(req);
+    if (!caller) { res.status(404).json({ error: "a live run is required" }); return; }
+    void siteTools.refreshComponents({ runId: caller.runId }).then(() => {
+      siteTools.withRun({ runId: caller.runId, fn: () => next() });
+    }).catch(() => {
       res.status(503).json({ error: "component catalog is unavailable", code: "COMPONENT_CATALOG_UNAVAILABLE" });
-    }
+    });
   });
-  registerComponentCatalogRoutes({ app, deps: { catalog: buildComponentCatalogQuery({ getManifests: () => componentManifests }) }, adapter });
+  registerComponentCatalogRoutes({ app, deps: { catalog: siteTools.components }, adapter });
 
   // `createDiskAttachmentStore` is async (it reconciles `uploadDirectory` against the previous
   // process on construction — see its own doc), so it cannot be a module-scope `const` the way

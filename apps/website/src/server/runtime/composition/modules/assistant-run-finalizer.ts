@@ -73,6 +73,9 @@ export interface RunDaemonClient {
 
 export interface AssistantRunFinalizerOptions {
   readonly ledger: ChatRunLedger;
+  /** Site-owned run resources recheck durable liveness when an attempt observer ends. A failed
+   * observer alone is not proof of a terminal run. No lifetime stream is added for this hook. */
+  readonly onAttemptEnded?: (required: { runId: string }) => Promise<void>;
   readonly daemon?: RunDaemonClient;
   /** Previous site daemon, used only for adopted watches; new sends always use the current daemon. */
   readonly recoveryDaemon?: RunDaemonClient;
@@ -634,11 +637,13 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
           console.error(`[assistant-run-finalizer] watching run ${runId} failed`, error);
         }
       } }, { agent: { runId, conversationId } })
-        .finally(() => {
+        .finally(async () => {
           watch.abortStream.abort();
           clearTimeout(watch.trailing);
           newAttempts.delete(runId);
-          if (active.get(runId)?.watch === watch) active.delete(runId);
+          try { await options.onAttemptEnded?.({ runId }); }
+          catch { console.warn("[assistant-run-finalizer] attempt resource cleanup unavailable"); }
+          finally { if (active.get(runId)?.watch === watch) active.delete(runId); }
         });
       active.set(runId, { watch, done });
   }
@@ -649,7 +654,9 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
 // avoids a browser-triggered recovery creating an independent boot/finalization engine.
 type SharedFinalizer = {
   readonly finalizer: AssistantRunFinalizer;
-  readonly options: Omit<AssistantRunFinalizerOptions, "recoveryDaemon"> & { recoveryDaemon?: RunDaemonClient };
+  readonly options: Omit<AssistantRunFinalizerOptions, "recoveryDaemon" | "onAttemptEnded"> & {
+    recoveryDaemon?: RunDaemonClient; onAttemptEnded?: AssistantRunFinalizerOptions["onAttemptEnded"];
+  };
 };
 const sharedFinalizers = new WeakMap<ChatRunLedger, SharedFinalizer>();
 export function assistantRunFinalizerFor(required: AssistantRunFinalizerOptions, _optional = {}): AssistantRunFinalizer {
@@ -659,6 +666,7 @@ export function assistantRunFinalizerFor(required: AssistantRunFinalizerOptions,
     // recovery. Install its prior-daemon port on the same coordinator rather than freezing the
     // earlier export defaults or creating a second recovery engine.
     if (required.recoveryDaemon) existing.options.recoveryDaemon = required.recoveryDaemon;
+    if (required.onAttemptEnded) existing.options.onAttemptEnded = required.onAttemptEnded;
     return existing.finalizer;
   }
   const options = { ...required };
