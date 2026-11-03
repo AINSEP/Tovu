@@ -1,4 +1,5 @@
 /** ADR-070: server tools must resolve uploads through the live daemon-owned store. */
+import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -71,4 +72,97 @@ test("attachment lookup refuses missing and run-scoped credentials before parsin
     });
     assert.equal(response.status, 401);
   }
+});
+
+/** The real daemon executor expression must route to the site; testing a hand-built remote
+ * executor alone would stay green while the product still ran tools in its disconnected store. */
+async function bootDaemonRpc(t: import("node:test").TestContext, options: { dropResponse?: boolean } = {}) {
+  const { createToolRegistry } = await import("@jini-ai/core");
+  const { createToolExecutor, createRoutingToolExecutor } = await import("@jini-ai/daemon");
+  const { withReadOnlyToolConstraint } = await import("#src/assistant/read-only-tool-constraint");
+  const { createRouteDeps } = await import("#src/server/runtime/composition/app");
+  const { registerAssistantToolExecRoutes } = await import("#src/server/runtime/composition/modules/assistant-tool-exec");
+  const { acceptToolRun, startResettingToolProxy } = await import("#src/server/runtime/composition/modules/__tests__/assistant-tool-exec.fixture");
+  const { ensureToolExecToken } = await import("#src/assistant/daemon-access");
+  const { createDaemonSiteTools } = await import("../agent-daemon-site-tools.js");
+  const { daemonInitializer, evaluateDaemonExpression } = await import("./helpers/daemon-source.js");
+  const deps = createRouteDeps();
+  await deps.identityReady;
+  const principal = { id: await deps.ownerPrincipalId };
+  await acceptToolRun({ deps, runId: "remote-run", principalId: principal.id });
+  let writes = 0;
+  let entered!: () => void;
+  const started = new Promise<void>(resolve => { entered = resolve; });
+  let aborted!: () => void;
+  const serverAborted = new Promise<void>(resolve => { aborted = resolve; });
+  const serverRegistry = createToolRegistry({});
+  serverRegistry.register({ descriptor: { id: "site_write_probe", readOnly: false }, policy: { authorize: () => "allow" }, handler: async () => {
+    writes++;
+    await deps.postRepo.save({ id: "remote-post", workspaceId: deps.workspaceId, title: "Remote site write", slug: "remote-post", status: "draft", kind: "post",
+      bodyJson: { type: "doc", content: [] }, bodyFormat: "doc", bodyHtml: null, updatedAt: deps.clock.nowIso(), version: 1 });
+    return { id: "remote-post" };
+  } });
+  serverRegistry.register({ descriptor: { id: "site_wait_probe", readOnly: true }, policy: { authorize: () => "allow" }, handler: async ({ signal }) => {
+    entered();
+    await new Promise<void>(resolve => { signal.addEventListener("abort", () => { aborted(); resolve(); }, { once: true }); });
+    return { stopped: true };
+  } });
+  const serverApp = express();
+  registerAssistantToolExecRoutes({ router: serverApp, toolSurface: { daemonCalls: {
+    executor: createToolExecutor({ registry: serverRegistry }), listToolsFor: () => serverRegistry.list({}),
+  } }, runStore: deps.chatRunLedger.durable, workspaceId: deps.workspaceId });
+  const siteUrl = await startTestServer(serverApp, t);
+  const baseUrl = options.dropResponse ? await startResettingToolProxy(t, new URL(siteUrl)) : siteUrl;
+  const registry = createToolRegistry({});
+  const siteTools = createDaemonSiteTools({ baseUrl, token: ensureToolExecToken({}, {}), localRegistry: registry, contextFor: () => ({}) });
+  await siteTools.start({ runId: "remote-run", principalId: principal.id });
+  t.after(() => siteTools.finish({ runId: "remote-run" }));
+  const toolExecutor = evaluateDaemonExpression<import("@jini-ai/daemon").ToolExecutor>(daemonInitializer("toolExecutor"), {
+    createRoutingToolExecutor, withReadOnlyToolConstraint, registry, siteTools,
+    localToolExecutor: createToolExecutor({ registry }),
+  });
+  const events: Record<string, unknown>[] = [];
+  let cancel = () => {};
+  const lifecycle = {
+    emit: async ({ input }: { input: { data: Record<string, unknown> } }) => { events.push(input.data); },
+    onCancelRequested: ({ listener }: { listener: () => void }) => { cancel = listener; return () => {}; },
+  } as unknown as import("@jini-ai/daemon").RunLifecycle;
+  const { createDelegatedToolBridge } = await import("@jini-ai/daemon");
+  const bridge = createDelegatedToolBridge({ lifecycle, toolExecutor });
+  const execute = (toolId: string) => siteTools.withRun({ runId: "remote-run", fn: () => bridge.execute({
+    runId: "remote-run", principal, toolUseId: "remote-use", toolId, input: {},
+  }) });
+  return { execute, events, started, serverAborted, cancel: () => cancel(), deps, writes: () => writes };
+}
+
+test("delegation records tool_use and tool_result", async t => {
+  const fixture = await bootDaemonRpc(t);
+  assert.equal((await fixture.execute("site_write_probe")).status, "completed");
+  assert.deepEqual(fixture.events.map(event => event.type), ["tool_use", "tool_result"]);
+  assert.equal(fixture.events[0]?.id, "remote-use");
+  assert.equal(fixture.events[1]?.toolUseId, "remote-use");
+});
+
+test("cancel aborts the server handler", { timeout: 5000 }, async t => {
+  const fixture = await bootDaemonRpc(t);
+  const pending = fixture.execute("site_wait_probe");
+  await fixture.started;
+  fixture.cancel();
+  await pending.catch(() => undefined);
+  await fixture.serverAborted;
+});
+
+test("committed write with dropped response dispatches once", async t => {
+  const fixture = await bootDaemonRpc(t, { dropResponse: true });
+  await assert.rejects(fixture.execute("site_write_probe"), (error: { code?: string }) => error.code === "TOOL_OUTCOME_UNKNOWN");
+  assert.equal(fixture.writes(), 1);
+  assert.ok(await fixture.deps.postRepo.findById({ id: "remote-post", workspaceId: fixture.deps.workspaceId }));
+  assert.equal(fixture.events.at(-1)?.type, "tool_result");
+});
+
+test("memory site writes are visible in the server", async t => {
+  const fixture = await bootDaemonRpc(t);
+  await fixture.execute("site_write_probe");
+  assert.equal((await fixture.deps.postRepo.findById({ id: "remote-post", workspaceId: fixture.deps.workspaceId }))?.title, "Remote site write");
+  assert.equal(fixture.writes(), 1);
 });

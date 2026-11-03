@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { createToolRegistry } from "@jini-ai/core";
 
 import { buildToolCatalogQuery } from "../tool-catalog-query.js";
 import { KEYWORD_MARKER } from "../tool-search-keywords.js";
@@ -185,4 +186,12 @@ test("a tool with no keyword entry is untouched, and the seam can disable foldin
   // And with folding off, the keyword-bearing tool is no longer findable by its vocabulary — which
   // is what proves the earlier assertions are measuring the fold rather than a coincidence.
   assert.equal(without.search({ query: "invite" }, { limit: 10 }).length, 0);
+});
+
+test("a finished principal's disposable tool catalog releases its search database", () => {
+  const registry = createToolRegistry({});
+  const catalog = buildToolCatalogQuery(registry);
+  catalog.dispose();
+  catalog.dispose();
+  assert.throws(() => catalog.search({ query: "read" }), /not open|closed/);
 });

@@ -1,7 +1,6 @@
 import "../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
-import net from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createContributionRegistry, type Principal, type SurfaceEmission } from "@jini-ai/core";
@@ -23,7 +22,7 @@ import { constrainPrincipalToReadOnlyTools } from "../../../../../assistant/read
 import { ensureAgentDaemonToken, ensureToolExecToken, TOOL_EXEC_TOKEN_ENV_VAR } from "../../../../../assistant/daemon-access.js";
 import { hasUnknownToolCall } from "#src/assistant/durable-runs/continuation";
 import type { RouteDeps } from "../../../../routes/types.js";
-import { acceptToolRun } from "./assistant-tool-exec.fixture.js";
+import { acceptToolRun, startResettingToolProxy } from "./assistant-tool-exec.fixture.js";
 
 /**
  * @file The server end of the agent daemon's tool RPC (ADR-070), through the real `createApp` on a
@@ -206,27 +205,10 @@ test("the tool-exec token never reaches process.env, refusals, the catalog, or t
   for (const text of texts) assert.ok(!text.includes(TOKEN));
 });
 
-/** A loopback TCP hop that RSTs the client the moment a `"type":"result"` line arrives from the server. */
-async function startResettingProxy(t: import("node:test").TestContext, target: URL): Promise<string> {
-  const proxy = net.createServer((client) => {
-    const upstream = net.connect(Number(target.port), "127.0.0.1");
-    client.pipe(upstream);
-    upstream.on("data", (chunk: Buffer) => {
-      if (chunk.toString("utf8").includes('"type":"result"')) { client.resetAndDestroy(); upstream.destroy(); return; }
-      client.write(chunk);
-    });
-    client.on("error", () => upstream.destroy());
-    upstream.on("error", () => client.destroy());
-  });
-  proxy.listen(0, "127.0.0.1");
-  await new Promise((resolve) => proxy.once("listening", resolve));
-  t.after(() => new Promise<void>((resolve) => proxy.close(() => resolve())));
-  return `http://127.0.0.1:${(proxy.address() as net.AddressInfo).port}`;
-}
 
 test("a committed write whose response is dropped is OUTCOME UNKNOWN, ran once, and blocks a blind repeat", async (t) => {
   const { deps, baseUrl, owner } = await boot(t);
-  const proxyUrl = await startResettingProxy(t, new URL(baseUrl));
+  const proxyUrl = await startResettingToolProxy(t, new URL(baseUrl));
   const events: Array<Record<string, unknown>> = [];
   const lifecycle = { emit: async ({ input }: { input: { data: Record<string, unknown> } }) => { events.push(input.data); }, onCancelRequested: () => () => {} } as unknown as RunLifecycle;
   const bridge = createDelegatedToolBridge({ lifecycle, toolExecutor: remote(proxyUrl) });
