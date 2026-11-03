@@ -1,5 +1,5 @@
 import type { Tracker } from "@jini-ai/diagnostics/observability";
-import type { PluginExportRuntime, PluginExportCatalogRow } from "../agent-plugins/exports/runtime.js";
+import type { PluginExportCatalogPort, PluginExportCatalogRow } from "../../contracts/headless/plugin-export-catalog.js";
 import { AGENT_PLUGIN_CONTRACT_VERSION, AgentPluginHostIncompatibleError, AgentPluginUpdateError, checkAgentPluginCompatibility } from "@jini-ai/agent-plugins/lifecycle";
 import { toolMetadata } from '../../contracts/core/tool-metadata/plugin-runtime.js';
 
@@ -175,7 +175,7 @@ async function listAgentPluginsForResponse(routeDeps: PluginsToolDeps): Promise<
  */
 export interface PluginsToolDeps extends OperatorLocaleDeps {
   readonly tracker?: Tracker;
-  readonly pluginExports?: Pick<PluginExportRuntime, "catalog">;
+  readonly pluginExports?: PluginExportCatalogPort;
   readonly providerFaces: PluginProviderFacesPort;
   readonly pluginSource?: import('@jini-ai/plugins/host/node').PluginSourcePort;
   readonly pluginSourcePolicy?: import('@jini-ai/plugins/host').PluginSourcePolicyPort;

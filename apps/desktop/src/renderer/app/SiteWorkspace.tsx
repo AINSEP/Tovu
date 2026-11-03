@@ -21,7 +21,7 @@ const SITE_SURFACES: readonly SiteSurface[] = ['admin', 'site'];
  * half-written form, and re-run its whole boot the next time the operator came back to it.
  *
  * That still holds for the WORKSPACE, which keeps its bar, history and reducer. Only its guest can
- * go, and only through `useLiveViews`: past the "Live site views" limit a hidden, least recently
+ * go, and only through `useLiveViews`: past the "Loaded sites" limit a hidden, least recently
  * focused guest is released once its own page agrees (no unsaved editor, no draft it could not
  * save, no upload or reply in flight), with its route and scroll recorded so focusing the tab
  * brings it back there. A guest that says no stays, half-written form and all.

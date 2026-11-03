@@ -1,6 +1,7 @@
 /** Browser-safe contracts and metadata only; behavior lives with its feature owner. */
 export type { HeadlessThemeId, HeadlessEntryKind, HeadlessBodyFormat, AdminPost, AdminPostEnvelope, ContentPost, HeadlessThemeTier, HeadlessThemeSummary, AdminPresentation, ContentPostPayload } from './contracts.js';
 export type { AdminChartProviderSnapshot } from './chart-providers.js';
+export type { PluginExportCatalogPort, PluginExportCatalogRow } from './plugin-export-catalog.js';
 export type { ChatAttachmentRefusal, ChatAttachmentReadResult } from './chat-attachment.js';
 export { CHAT_ATTACHMENT_REF_PATTERN } from './chat-attachment.js';
 export type { FormDeliveryStatusRow, FormDeliveryStatusPort } from './form-delivery-status.js';

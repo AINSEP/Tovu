@@ -24,9 +24,10 @@ import {
  * The persistence check reads the post back with `fetch` from INSIDE the guest, i.e. through the
  * guest's own cookie jar and the site's real `requireAdminSession` gate.
  *
- * Tab switching must keep the guest's route because `SiteWorkspaces` hides inactive workspaces with
- * CSS and never unmounts a live `<webview>` (`App.tsx`). Closing the tab DOES unmount it; reopening
- * must come back signed in with the content intact.
+ * Open workspaces keep their shell while the loaded-site policy releases hidden guests that
+ * agree they have no unsaved work (default: one loaded site). Released guests restore their route
+ * and scroll when focused again. Both restoration and reopening a closed tab must arrive signed
+ * in with the saved content intact.
  */
 const SITE = "journey-webview";
 const POSTS_API = "/api/admin/v1/workspaces/workspace-local/posts";
@@ -98,11 +99,12 @@ test("the guest admin is signed in, a draft written in the guest persists, and s
     await expect.poll(() => guestUrl(app), { timeout: 15_000 }).toMatch(/\/admin\/posts\/desktop-draft-[a-z0-9]+$/);
     const postUrl = (await guestUrl(app))!;
 
-    // Hidden, not unmounted: the guest keeps its own route across a tab switch.
+    // Tab switching preserves the route, whether the page stays pinned or a released guest
+    // restores it. Wait for restoration instead of assuming the old guest is still mounted.
     await win.getByRole("tab", { name: "All" }).click();
     await expect(siteCard(win, SITE)).toBeVisible();
     await win.getByRole("tab", { name: SITE }).click();
-    expect(await guestUrl(app)).toBe(postUrl);
+    await expect.poll(() => guestUrl(app), { timeout: 60_000 }).toBe(postUrl);
 
     // Closing the tab unmounts the guest; reopening comes back signed in with the draft intact.
     await win.getByRole("button", { name: `Close ${SITE}` }).click();

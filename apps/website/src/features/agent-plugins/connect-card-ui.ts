@@ -28,7 +28,8 @@ function agentPluginConnectSurfaceUri(pluginId: string): UIResourceUri {
 
 export type AgentPluginConnectCardSpec =
   | { readonly pluginId: string; readonly pluginDisplayName: string; readonly state: "waiting"; readonly signInUrl: string; readonly exchangeId?: string; readonly credentialCard?: PluginCredentialCard }
-  | { readonly pluginId: string; readonly pluginDisplayName: string; readonly state: "connected" | "skipped" };
+  | { readonly pluginId: string; readonly pluginDisplayName: string; readonly state: "connected" }
+  | { readonly pluginId: string; readonly pluginDisplayName: string; readonly state: "skipped" };
 
 /**
  * Renders the connect card. Re-sent under the SAME `ui://` URI (keyed by `pluginId`) when the state

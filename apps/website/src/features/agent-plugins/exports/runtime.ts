@@ -2,6 +2,8 @@
 import { escapeHtml } from "@jini-ai/core/text";
 import { embedMarkerSnippetFromConfig, markersOfType } from "@jini-ai/cms/widgets/markers";
 import type { PluginExportsPort, PluginExportTemplate } from "@jini-ai/cms/widgets/html";
+import type { PluginExportCatalogPort, PluginExportCatalogRow } from '../../../contracts/headless/plugin-export-catalog.js';
+export type { PluginExportCatalogRow } from '../../../contracts/headless/plugin-export-catalog.js';
 import type { LoginProvider } from "../../member-login/types.js";
 import { MEMBER_OIDC_PATH } from "#src/contracts/headless/index";
 import { checkPluginExportConfig, selectPluginExport, PluginEmbedValidationError, type PluginEmbedDiagnostic, type SelectedPluginExport } from "./diagnostics.js";
@@ -10,21 +12,9 @@ import { pluginExportFileUrl, type PluginExportPackage, type PluginExportSource 
 export interface PluginExportRenderSession extends PluginExportsPort {
   headHtml(required: Record<string, never>, options?: Record<string, never>): string;
 }
-export interface PluginExportCatalogRow {
-  readonly plugin: string;
-  readonly displayName?: string;
-  readonly component: string;
-  readonly version: number;
-  readonly minVersion: number;
-  readonly props: SelectedPluginExport["definition"]["props"];
-  readonly consent: SelectedPluginExport["definition"]["consent"];
-  readonly availability: string;
-  readonly snippet: string | null;
-}
-export interface PluginExportRuntime {
+export interface PluginExportRuntime extends PluginExportCatalogPort {
   forRender(required: { mode: "live" | "static" }, options?: Record<string, never>): PluginExportRenderSession;
   validateHtml(required: { workspaceId: string; html: string }, options?: Record<string, never>): Promise<readonly PluginEmbedDiagnostic[]>;
-  catalog(required: { workspaceId: string }, options?: Record<string, never>): Promise<ReadonlyMap<string, readonly PluginExportCatalogRow[]>>;
 }
 interface RuntimeDeps {
   readonly workspaceId: string;
