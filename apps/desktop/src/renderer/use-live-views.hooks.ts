@@ -2,7 +2,7 @@
  * @file Live site views: how many open project tabs keep a running `<webview>` guest at once.
  *
  * Every guest is a whole Chromium renderer process plus the site's admin bundle, so ten open tabs
- * used to mean ten of them, nine hidden. The limit (Settings menu "Live site views", default 2) is
+ * used to mean ten of them, nine hidden. The limit (Settings "Loaded sites", 1–5, default 1) is
  * SOFT: the tab on screen always mounts its guest, and only then does this hook look for a hidden
  * one to release, least recently focused first. A guest is released only when it agrees to be.
  *
@@ -20,8 +20,9 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { runnerInventoryBridge, type RunnerInventoryBridge } from './runner-api.js';
+import { LIVE_SITE_VIEWS } from '../contracts/site-view-preference.js';
 
-export const DEFAULT_LIVE_VIEW_LIMIT = 2;
+export const DEFAULT_LIVE_VIEW_LIMIT = LIVE_SITE_VIEWS.fallback;
 /** How long a hidden guest gets to answer the probe before it is kept as it is. */
 export const RELEASE_PROBE_TIMEOUT_MS = 2000;
 /** The admin's own scroll container (`.admin-content`, apps/admin `styles.css`): its window never

@@ -158,7 +158,7 @@ import { resolveDesktopRoots } from "../packaged-paths.ts";
 import { readWindowBounds, writeWindowBounds } from "../window-bounds-store.ts";
 import { registerSpellCheckContextMenu } from "../spellcheck-menu.ts";
 import { readAutomaticUpdates, writeAutomaticUpdates } from "../desktop-update-preference.ts";
-import { readMaximumLiveSiteViews, writeMaximumLiveSiteViews, registerSiteViewPreferenceIpc } from "../site-view-preference.ts";
+import { readMaximumLiveSiteViews, writeMaximumLiveSiteViews, refreshMaximumLiveSiteViewsMenu, registerSiteViewPreferenceIpc } from "../site-view-preference.ts";
 import { SITE_VIEW_PREFERENCE_CHANNELS } from "../contracts/site-view-preference.ts";
 import { createLivePreviewGuests } from "./boot/site-preview-guests.ts";
 import { presenceDirPath } from "../instance-presence.ts";
@@ -720,17 +720,23 @@ function desktopPreferencesPath(): string {
   return preferencesPathIn({ userData: app.getPath("userData") });
 }
 
+/** Loaded sites, from the native menu or the shell's stepper: persist (clamped 1–5), push the saved
+ *  value to every shell, and check the matching native radio. Answers with the saved value. */
+function saveMaximumLiveSiteViews({ maximumLiveSiteViews }: { maximumLiveSiteViews: number }): number {
+  const saved = writeMaximumLiveSiteViews({ preferencePath: desktopPreferencesPath(), maximumLiveSiteViews });
+  for (const window of BrowserWindow.getAllWindows()) {
+    if (!window.isDestroyed() && window.webContents.getURL() === pathToFileURL(SITES_RENDERER_PATH).href)
+      window.webContents.send(SITE_VIEW_PREFERENCE_CHANNELS.changed, saved);
+  }
+  refreshMaximumLiveSiteViewsMenu({ menu: Menu, maximumLiveSiteViews: saved });
+  return saved;
+}
+
 /** Settings: Automatic updates, plus the sharing checkboxes once product telemetry booted. */
 function desktopUpdateSettingsMenu(): MenuItemConstructorOptions {
   return desktopSettingsMenu({ locale: app.getLocale(), preferencePath: desktopPreferencesPath(), product: productState.product,
     setAutomaticUpdates: desktopUpdater.setAutomaticUpdates,
-    setMaximumLiveSiteViews: ({ maximumLiveSiteViews }) => {
-      writeMaximumLiveSiteViews({ preferencePath: desktopPreferencesPath(), maximumLiveSiteViews });
-      for (const window of BrowserWindow.getAllWindows()) {
-        if (!window.isDestroyed() && window.webContents.getURL() === pathToFileURL(SITES_RENDERER_PATH).href)
-          window.webContents.send(SITE_VIEW_PREFERENCE_CHANNELS.changed, maximumLiveSiteViews);
-      }
-    },
+    setMaximumLiveSiteViews: saveMaximumLiveSiteViews,
     showErrorBox: (title, content) => dialog.showErrorBox(title, content) });
 }
 
@@ -765,6 +771,7 @@ function registerAppWideIpc(): void {
   registerSiteViewPreferenceIpc({ ipcMain,
     allowed: (sender: WebContents) => !sender.isDestroyed() && sender.getURL() === pathToFileURL(SITES_RENDERER_PATH).href,
     read: () => readMaximumLiveSiteViews({ preferencePath: desktopPreferencesPath() }),
+    write: saveMaximumLiveSiteViews,
   });
   registerSiteThemePreviewIpc({ ipcMain, subscriptions: siteThemePreviews,
     allowed: (sender) => !sender.isDestroyed() && sender.getURL() === pathToFileURL(SITES_RENDERER_PATH).href,

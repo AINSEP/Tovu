@@ -6,12 +6,15 @@ import { settingsControlHandlers, useDismissibleDropdown, useMenuKeyboard } from
 import { useUpdateCheck } from '../use-update-check.hooks.js';
 import { SitesFoldersDialog } from '../SitesFolders.js';
 import { useSiteStorageSettings } from '../use-site-storage-settings.hooks.js';
+import { useLoadedSites } from '../use-loaded-sites.hooks.js';
+import { LoadedSitesRow } from './LoadedSitesStepper.js';
 
 const THEMES: readonly ThemePreference[] = ['light', 'system', 'dark'];
 
 /** Gear icon that opens the Settings menu: two rows that open a screen (Sites settings…, Appearance),
- *  Check for updates…, and an inline Theme switch, the one setting worth changing without leaving the menu. Closes on
- *  selection or on a click/tap outside the dropdown; arrow keys move between entries. */
+ *  Check for updates…, an inline Theme switch, and the Loaded sites stepper — the settings worth changing
+ *  without leaving the menu. Closes on selection or on a click/tap outside the dropdown; arrow keys move
+ *  between entries (inside the stepper they change its number instead). */
 export function SettingsControl({
   theme,
   onThemeChange,
@@ -27,6 +30,8 @@ export function SettingsControl({
   const { menuRef, triggerRef, onMenuKeyDown } = useMenuKeyboard<HTMLDivElement, HTMLButtonElement>({ open });
   const sitesSettings = useSiteSettings({});
   const updateCheck = useUpdateCheck({ onDone: () => setOpen(false) });
+  // Read while the menu is closed too, so the row opens on the saved number, never a flash of the default.
+  const loadedSites = useLoadedSites();
   // The menu used to share NavLink's temporary lock. Local sites settings now has a real
   // shared-config owner, so Settings can open without unlocking unfinished section links.
   // That lock is therefore permanently off: the gear passes `disabled: false` below and carries
@@ -81,6 +86,7 @@ export function SettingsControl({
             <span className="settings__label" id="settings-theme-label">Theme</span>
             <ThemeControl value={theme} onChange={chooseTheme} />
           </div>
+          <LoadedSitesRow setting={loadedSites} />
         </div>
       )}
     </div>

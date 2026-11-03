@@ -95,6 +95,7 @@ contextBridge.exposeInMainWorld(
   Object.freeze({
     getAppVersion: () => ipcRenderer.invoke(RUNNER_APP_VERSION_CHANNEL),
     getMaximumLiveSiteViews: () => ipcRenderer.invoke(SITE_VIEW_PREFERENCE_CHANNELS.read),
+    setMaximumLiveSiteViews: (maximum: number) => ipcRenderer.invoke(SITE_VIEW_PREFERENCE_CHANNELS.write, maximum),
     onMaximumLiveSiteViewsChanged: (listener: (maximum: number) => void) => subscribe(SITE_VIEW_PREFERENCE_CHANNELS.changed, listener),
     getResources: (input: ResourcesRequest, _options = {}) => ipcRenderer.invoke(RUNNER_RESOURCES_GET_CHANNEL, input),
     checkForUpdates: () => ipcRenderer.invoke(RUNNER_APP_CHECK_FOR_UPDATES_CHANNEL),
