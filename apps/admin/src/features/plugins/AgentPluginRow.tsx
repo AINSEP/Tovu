@@ -247,6 +247,9 @@ export function AgentPluginRow(props: AgentPluginRowProps) {
                 </>
               ) : null}
             </span>
+            {plugin.connectionStatus ? <span className="agent-plugin-row-desc">{t({
+              connected: "Signed in", disconnected: "Not signed in", pending: "Waiting for sign-in", needs_reauth: "Sign in again",
+            }[plugin.connectionStatus])}</span> : null}
             {/* `title` is the ONLY way to read the rest of a clamped line without opening the row —
                 a hover tooltip, not a substitute for the unclamped copy below in the expanded
                 panel (screen readers and touch have no hover; that copy is the real fix). */}

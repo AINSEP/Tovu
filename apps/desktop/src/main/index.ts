@@ -750,7 +750,7 @@ function registerAppWideIpc(): void {
   // these channels outside the sites home window today). See `find-in-page-ipc.ts`.
   registerFindInPageIpc({ ipcMain, browserWindow: BrowserWindow });
   registerSiteThemePreviewIpc({ ipcMain, subscriptions: siteThemePreviews,
-    allowed: (sender) => BrowserWindow.fromWebContents(sender as import("electron").WebContents)?.webContents.getURL() === pathToFileURL(SITES_RENDERER_PATH).href,
+    allowed: (sender) => !sender.isDestroyed() && sender.getURL() === pathToFileURL(SITES_RENDERER_PATH).href,
   });
 }
 

@@ -270,6 +270,18 @@ export const WEB_FETCH_EGRESS_POLICY: EgressPolicy = {
   connectTimeoutMs: 15_000, maxResponseBytes: 5 * 1024 * 1024, maxDecompressedBytes: 5 * 1024 * 1024,
 };
 
+/** Bind the web reader's loopback exception to this site's trusted configured origin.
+ * @param required.origin Site configuration, never an assistant URL or request Host header.
+ * @returns The public-only policy when no origin is configured; otherwise an exact-origin
+ * loopback capability. Private, link-local and mixed DNS answers remain denied by Jini.
+ * @throws TypeError for malformed site configuration.
+ * @complexity O(n) time/space in the configured origin's length; no I/O.
+ */
+export function createSiteWebFetchEgressPolicy({ origin }: { origin?: string | undefined }, _options = {}): EgressPolicy {
+  if (!origin) return WEB_FETCH_EGRESS_POLICY;
+  return { ...WEB_FETCH_EGRESS_POLICY, loopbackOriginAllowlist: [new URL(origin).origin] };
+}
+
 /**
  * `features/web-screenshot`'s `web_screenshot_page`: every request the screenshot browser makes, for
  * any PUBLIC host, http allowed (small sites still serve it). Unlike {@link WEB_FETCH_EGRESS_POLICY},

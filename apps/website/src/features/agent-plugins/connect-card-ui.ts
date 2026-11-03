@@ -2,14 +2,16 @@ import type { PluginCredentialCard } from "../../contracts/core/plugin-credentia
 import type { PluginCredentialsPort } from "./service-ports.js";
 import { buildOutcomeSurface, type SurfaceOutcomeSpec, type UIResource, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
 import type { SecretCardForm } from "@jini-ai/ui/mcp-ui/secret-card";
+import { SURFACE_EXCHANGE_ID_PARAM, SURFACE_DISMISSED_PARAM } from "@jini-ai/core";
 
 /**
  * @file The card `agent_plugin_connect` shows while it parks on a human's sign-in (`connect-tool.ts`).
  *
  * Built on `@jini-ai/ui`'s `buildOutcomeSurface`, not `buildConfirmationSurface`: there is nothing
- * here for a human to confirm or cancel by tool call — the one interactive element is a link that
+ * here for a human to confirm by tool call — the sign-in element is a link that
  * opens the plugin's real sign-in page in a new tab (`outcome.ts`'s `openLinkUrl`, wired to the
  * bridge's `openLink` — an outbound navigation, never a delivery through `mcp-ui-tool-calls-route.ts`).
+ * Skip answers the existing surface exchange so the assistant can continue the turn.
  * `state: "partial"` is the honest read of "waiting on the human, not failed, not done yet" —
  * `outcome.ts`'s own header explains why that needs to be a real third state, not a boolean folded
  * into success or failure.
@@ -25,8 +27,8 @@ function agentPluginConnectSurfaceUri(pluginId: string): UIResourceUri {
 }
 
 export type AgentPluginConnectCardSpec =
-  | { readonly pluginId: string; readonly pluginDisplayName: string; readonly state: "waiting"; readonly signInUrl: string; readonly credentialCard?: PluginCredentialCard }
-  | { readonly pluginId: string; readonly pluginDisplayName: string; readonly state: "connected" };
+  | { readonly pluginId: string; readonly pluginDisplayName: string; readonly state: "waiting"; readonly signInUrl: string; readonly exchangeId?: string; readonly credentialCard?: PluginCredentialCard }
+  | { readonly pluginId: string; readonly pluginDisplayName: string; readonly state: "connected" | "skipped" };
 
 /**
  * Renders the connect card. Re-sent under the SAME `ui://` URI (keyed by `pluginId`) when the state
@@ -37,6 +39,12 @@ export type AgentPluginConnectCardSpec =
  */
 export function buildAgentPluginConnectCard(spec: AgentPluginConnectCardSpec): UIResource {
   const uri = agentPluginConnectSurfaceUri(spec.pluginId);
+
+  if (spec.state === "skipped") {
+    return buildOutcomeSurface({ uri, title: "Sign-in skipped", state: "partial",
+      message: `Skipped connecting ${spec.pluginDisplayName}. The assistant can continue without this plugin.`,
+      app: { appName: "tovu-agent-plugins-connect", appVersion: "1" }, preferredFrameSize: ["100%", "200px"] });
+  }
 
   if (spec.state === "connected") {
     return buildOutcomeSurface({
@@ -57,6 +65,8 @@ export function buildAgentPluginConnectCard(spec: AgentPluginConnectCardSpec): U
     message: "Waiting for you to sign in...",
     openLinkUrl: spec.signInUrl,
     openLinkLabel: `Sign in to ${spec.pluginDisplayName}`,
+    ...(spec.exchangeId ? { cancel: { label: "Skip", toolName: "agent_plugin_connect",
+      params: { [SURFACE_EXCHANGE_ID_PARAM]: spec.exchangeId, [SURFACE_DISMISSED_PARAM]: true } } } : {}),
     app: { appName: "tovu-agent-plugins-connect", appVersion: "1" },
     preferredFrameSize: ["100%", "280px"],
   });

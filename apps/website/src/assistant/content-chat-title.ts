@@ -1,4 +1,4 @@
-/** CMS chat naming adapter. Preserve a named post/page as a complete phrase instead of spending
+/** CMS chat naming adapter. Preserve a named post/page/theme as a complete phrase instead of spending
  * Jini's six-word heuristic on "publish a short blog post titled How". The generic title policy
  * stays in Jini; this adapter only recognizes CMS requests and delegates all other prompts.
  * Long named content gets a complete action label, never a sliced fragment of its title. */
@@ -10,12 +10,15 @@ export function deriveContentConversationTitle(
 ): string {
   // Strip markup before recognizing CMS names: an early period boundary once stranded **plannie.
   // The generic text policy belongs to Jini; this adapter still owns only CMS-specific naming.
+  // Later lines often list example pages. Keep naming anchored to the request's subject before
+  // markup removal collapses those line boundaries into spaces; generic fallback keeps all text.
+  const subject = stripConversationTitleMarkdown({ text: required.prompt.trimStart().split(/\r?\n/, 1)[0] ?? '' });
   const prompt = stripConversationTitleMarkdown({ text: required.prompt });
   // Standalone resource/skill slugs are already meaningful titles; retain the existing behavior.
   if (/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(prompt) && prompt.length <= 64) return prompt;
-  const content = /\b(blog\s+post|post|page|article)\b/i.exec(prompt);
+  const content = /\b(blog\s+post|post|page|article|theme)\b/i.exec(subject);
   if (!content) return required.deriveFallback({ prompt });
-  const tail = prompt.slice(content.index + content[0].length);
+  const tail = subject.slice(content.index + content[0].length);
   const title = readContentName({ tail });
   if (title) return formatContentName({ prompt, contentKind: content[0], title });
   // A dangling title introducer never identifies content. Fall back to the complete CMS action.
@@ -90,6 +93,7 @@ function formatContentName(
   let label = "Blog post";
   if (contentKind.toLowerCase() === "page") label = "Page";
   if (contentKind.toLowerCase() === "article") label = "Article";
+  if (contentKind.toLowerCase() === "theme") label = "Theme";
   const candidate = `${label}: ${title}`;
   if (candidate.length <= 80) return candidate;
   let action: string;

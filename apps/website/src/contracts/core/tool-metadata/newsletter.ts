@@ -31,7 +31,7 @@ export const toolMetadata = {
   },
   "newsletter_create_campaign": {
     search: {
-      keywords: "email campaign newsletter blast send announcement compose",
+      keywords: "email campaign newsletter blast send announcement compose draft write create new",
       queries: [
         "Can you draft a new email newsletter?",
         "How do I start a new campaign — will it send automatically?",

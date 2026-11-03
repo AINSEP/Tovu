@@ -2303,6 +2303,8 @@ export interface AdminPluginFiles {
  *  `description` are nullable, not optional-absent: the wire always sends the key, `null` when the
  *  installed package's own `plugin.json` carries none (the spec itself makes both fields optional). */
 export interface AdminAgentPlugin {
+  /** Account state is independent of activation; absent for plugins with no sign-in. */
+  connectionStatus?: "connected" | "disconnected" | "pending" | "needs_reauth";
   /** Tovu host maturity; absent means normal. */
   maturity?: "untested" | "soon";
   /** The provider plugin (Plugins screen) whose switch this plugin follows; it has no switch of its own. */

@@ -59,7 +59,9 @@ const SET_ACTIVE_THEME_CATALOG: AgentToolDefinition = {
   name: "theme_set_active",
   description:
     "Switches which theme the live site uses. Pass 'none' to turn the theme off. Returns the " +
-    "previous theme id, so the switch can be undone by calling this again with it.",
+    "previous theme id, so the switch can be undone by calling this again with it. " +
+    "Send only 'themeId' with the discovered theme id; do not also send id or activeThemeId. " +
+    "Legacy id and activeThemeId spellings are aliases, not additional settings; differing values are refused.",
   sideEffects: "mutates-durable-state",
   authorization: { permission: "theme.set" },
   inputSchema: {
@@ -69,6 +71,7 @@ const SET_ACTIVE_THEME_CATALOG: AgentToolDefinition = {
     properties: {
       themeId: {
         type: "string",
+        aliases: ["id", "activeThemeId"],
         minLength: 1,
         description: "A discovered theme's id to activate, or 'none' to turn the theme off.",
       },

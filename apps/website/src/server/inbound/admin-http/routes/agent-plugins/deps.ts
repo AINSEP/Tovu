@@ -33,6 +33,8 @@ import type { UUID } from "@jini-ai/core/primitives";
  * `RouteDeps` and passes it straight through, so this widening needs no composition-root change.
  */
 export interface AgentPluginsRouteDeps {
+  readonly loadPluginCredentialCards?: RouteDeps["loadPluginCredentialCards"];
+  readonly apiConnections?: RouteDeps["apiConnections"];
   readonly snapshotAgentPluginSettings?: import("@jini-ai/agent-plugins/lifecycle").UpdateAgentPluginRequired["snapshotSettings"];
   readonly pluginHost?: import("#src/contracts/headless/index").PluginHostPort;
   workspaceId: UUID;

@@ -67,6 +67,8 @@ export function otherEmbedTypesText(required: { targetKeys: Readonly<Record<stri
  */
 export const PAGE_HTML_CONTRACT =
   "CONTRACT for the HTML you write:\n" +
+  "- MEDIA: {{media:slug}} tokens work in Media widget HTML mode only and are rejected here. " +
+  "Use a data-embed-config media marker with the asset's slug or its real public URL in src.\n" +
   "- INNER CONTENT ONLY. Never emit <html>, <head>, <body>, <nav>, or a site footer — the active " +
   "theme's template owns all page chrome and wraps whatever you write. Emitting them produces a " +
   "broken, doubled page.\n" +

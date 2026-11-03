@@ -31,7 +31,7 @@ export const webDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSide
  */
 export const WEB_FETCH_PER_HOST: RateLimitProfile = { windowSeconds: 60, max: 30, burst: 0 };
 
-export interface WebToolDeps { workspaceId: string; authorize: AuthorizeFn }
+export interface WebToolDeps { workspaceId: string; authorize: AuthorizeFn; derivedPublicOrigin?: string | undefined }
 
 export function buildWebRegistrations(routeDeps: WebToolDeps, ports: WebFetchPorts): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
@@ -61,10 +61,13 @@ export function buildWebRegistrations(routeDeps: WebToolDeps, ports: WebFetchPor
  * @param required.htmlToMarkdown - The HTML -> Markdown converter.
  * @param required.renderPage - Optional Jini diagnostics renderer, using the host's guarded transport.
  * @param optional.rateLimiter - Defaults to an in-memory {@link WEB_FETCH_PER_HOST} limiter.
+ * @param optional.portsForSite - Composition-owned guarded clients for the selected site's origin.
  */
 export function contributeWebTools(
   { httpClient, htmlToMarkdown, renderPage }: Pick<WebFetchPorts, "httpClient" | "htmlToMarkdown" | "renderPage">,
-  { rateLimiter, observeFetch, nowMs }: Partial<Pick<WebFetchPorts, "rateLimiter" | "observeFetch" | "nowMs">> = {},
+  { rateLimiter, observeFetch, nowMs, portsForSite }: Partial<Pick<WebFetchPorts, "rateLimiter" | "observeFetch" | "nowMs">> & {
+    portsForSite?: (required: { deps: WebToolDeps }) => Pick<WebFetchPorts, "httpClient" | "renderPage">;
+  } = {},
 ): ToolContributor<WebToolDeps, unknown> {
   const clock = createSystemClock();
   const ports: WebFetchPorts = {
@@ -74,5 +77,5 @@ export function contributeWebTools(
     rateLimiter: rateLimiter ?? createRateLimiter({ profile: WEB_FETCH_PER_HOST, clock }),
     observeFetch: observeFetch ?? (event => console.info(JSON.stringify({ timestamp: new Date().toISOString(), level: "info", service: "web", message: "web_fetch_page", context: event }))),
   };
-  return { domain: DOMAIN, build: deps => buildWebRegistrations(deps, ports), risk: webDerivedRisk };
+  return { domain: DOMAIN, build: deps => buildWebRegistrations(deps, { ...ports, ...portsForSite?.({ deps }) }), risk: webDerivedRisk };
 }

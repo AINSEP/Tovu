@@ -14,6 +14,7 @@ import { withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
 import { type AgentToolDefinition as PagesAgentToolDefinition } from "@jini-ai/core";
 import { pagesAgentToolCatalog } from "./agent-tools.js";
 import { describeScriptRevealedContent } from "./hidden-until-script.js";
+import { requirePageAuthoringHtml } from "./authoring-html.js";
 import { NO_THEME_ID, resolveActiveTheme, syncThemeRoster, type DiscoveredTheme } from "../theme/index.js";
 import {
   PageConcurrentEditError,
@@ -548,7 +549,7 @@ export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistrat
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: PAGES_EDIT_HTML_PERMISSION }, { entityType: "post" });
 
       const id = requireString({ input: input, key: "id" });
-      const html = requireString({ input: input, key: "html" });
+      const html = requirePageAuthoringHtml({ html: requireString({ input: input, key: "html" }) });
       const expectedVersion = parsePageExpectedVersion(input.expectedVersion);
       // Before anything is opened or converted, so a refused write leaves the row exactly as it was
       // — including a `doc`-format row that would otherwise have been converted one-way by
@@ -597,7 +598,7 @@ export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistrat
 
       const id = requireString({ input: input, key: "id" });
       const handle = requireString({ input: input, key: "regionId" });
-      const fragment = requireString({ input: input, key: "html" });
+      const fragment = requirePageAuthoringHtml({ html: requireString({ input: input, key: "html" }) });
       const expectedVersion = parsePageExpectedVersion(input.expectedVersion);
       const store = routeDeps.pagesHtmlStore({ workspaceId: routeDeps.workspaceId, postId: id, actorId: ctx.principal.id });
 

@@ -11,14 +11,13 @@ import { resolveExternalMcpOAuthStatus } from "../../contracts/core/external-mcp
 import type { ExternalMcpServerRecord } from "../external-mcp/contracts.js";
 import { externalMcpRecordHasStaticAccessToken } from "../../contracts/core/external-mcp-auth.js";
 
-import { buildAgentPluginConnectCard } from "./connect-card-ui.js";
+import { waitAtAgentPluginSignInCard } from "./connect-sign-in-wait.js";
 import { deriveAgentPluginConnectionId, provisionAgentPluginMcpServers } from "./federate-mcp.js";
 import { readInstalledMcpServers } from "./capability-projection.js";
 import { preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from "./lifecycle.js";
 import type { AgentPluginLayout } from "./layout.js";
 import { listInstalledPlugins } from "./lifecycle.js";
 import type { McpServerConfig, RemoteMcpServerConfig } from "./mcp-metadata.js";
-import type { ApiConnectionConnectStatus } from "../api-connections/connect.js";
 import type { DeclaredApiConnection } from "../api-connections/contribution.js";
 import { OAuthError } from "../../platform/oauth/errors.js";
 
@@ -36,19 +35,20 @@ import { OAuthError } from "../../platform/oauth/errors.js";
  * external-MCP rows (idempotently — `provisionAgentPluginMcpServers`, `federate-mcp.ts`), starts an
  * authorization for whichever of them are not yet connected, shows a card with a sign-in link, and
  * PARKS the call — polling the row for `oauth.status === "connected"` — until either the human
- * finishes signing in or a bounded wait elapses. It never returns a token, a URL, or a row id in its
+ * finishes signing in, skips the card, or a bounded wait elapses. Skip releases only this sign-in
+ * wait so the assistant can continue the turn. It never returns a token, a URL, or a row id in its
  * own result: only `{ status: "connected" }` or the resumable `{ status: "waiting-for-sign-in" }`
  * (the plan's skill calls this again on "done" rather than looping on its own). A plugin-declared API
  * connection's result also carries its opaque `connectionRef`, because that plugin's tools take it as
  * input and chat has no other way to learn it; the host refuses it for every other plugin.
  *
- * ## Why polling, not `exchange.receive()`
+ * ## Why polling alongside `exchange.receive()`
  *
  * The sign-in itself finishes on the PUBLIC OAuth callback route, not by the human clicking anything
  * inside this card (`external-mcp-oauth.ts`'s `completeAuthorizationCallback`) — the card's one
- * interactive element is an outbound `openLink`, which (per `@jini-ai/ui`'s `outcome.ts` surface) is
+ * sign-in element is an outbound `openLink`, which (per `@jini-ai/ui`'s `outcome.ts` surface) is
  * not a delivery through `mcp-ui-tool-calls-route.ts` at all. So there is nothing for this call to
- * `receive()`: the only way to observe the callback landing is to read the row this call already
+ * `receive()` to finish sign-in: that now observes Skip, while the callback is observed by reading the row this call already
  * provisioned, which is exactly what `resolveExternalMcpOAuthStatus` (`features/external-mcp/external-mcp-store.ts`)
  * is for.
  *
@@ -72,8 +72,8 @@ const AGENT_PLUGIN_CONNECT_PERMISSION = "admin.integrations.manage";
 const DEFAULT_POLL_INTERVAL_MS = 3000;
 /** Matches `@jini-ai/daemon/surface-exchanges`'s `DEFAULT_SURFACE_IDLE_TTL_MS` — the same
  *  "long enough to read a card and go sign in, short enough not to hold a subprocess open forever"
- *  budget, restated here because this call never touches that constant (it does not call
- *  `exchange.receive()`, so the exchange store's own idle timer never fires for it). */
+ *  budget. The connection watcher and the card exchange have separate owners; neither may keep
+ *  the call parked beyond its own deadline. */
 const DEFAULT_WAIT_TIMEOUT_MS = 5 * 60 * 1000;
 
 /** Mirrors `features/external-mcp/tool-registrations.ts`'s identical private constant — restated,
@@ -443,43 +443,19 @@ async function waitAtMcpSignInCard(
     readonly credentialCard?: PluginCredentialCard;
   },
   optional: ToolExecutionOptions = {},
-): Promise<{ readonly status: "connected" | "waiting-for-sign-in" }> {
+): Promise<AgentPluginConnectResult> {
   const { routeDeps, surfaces, ctx, pluginId, server, externalMcpOAuth, credentialCard } = input;
-  const emitSurface = optional.emitSurface;
-  if (!emitSurface) {
+  if (!optional.emitSurface) {
     throw new Error("agent_plugin_connect: this execution context has no interactive channel (no emitSurface), so no sign-in card can be shown.");
   }
-
   const signInUrl = await beginSignIn({ oauth: externalMcpOAuth, serverId: server.connectionId, derivedPublicOrigin: routeDeps.derivedPublicOrigin });
-  const pluginDisplayName = titleCaseFromPluginId(pluginId);
-
-  const exchange = surfaces.surfaceExchanges.open({ binding: { toolId: AGENT_PLUGIN_CONNECT_TOOL_ID, principalId: ctx.principal.id }, emit: emitSurface });
-  const closeOnAbort = () => exchange.close({});
-  ctx.signal.addEventListener("abort", closeOnAbort, { once: true });
-
-  try {
-    await exchange.send({ emission: {
-      channel: "mcp-ui",
-      payload: { resource: buildAgentPluginConnectCard({ pluginId, pluginDisplayName, state: "waiting", signInUrl, credentialCard }) },
-    } });
-
-    const connected = await waitForMcpConnection({ routeDeps, ctx, server });
-
-    if (connected) {
-      try {
-        await exchange.send({ emission: {
-          channel: "mcp-ui",
-          payload: { resource: buildAgentPluginConnectCard({ pluginId, pluginDisplayName, state: "connected" }) },
-        } });
-      } catch {
-        // A human-visible card update failing must never turn a real connection into a tool failure.
-      }
-    }
-    return { status: connected ? "connected" : "waiting-for-sign-in" };
-  } finally {
-    ctx.signal.removeEventListener("abort", closeOnAbort);
-    exchange.close({});
-  }
+  return waitAtAgentPluginSignInCard({ surfaces, ctx, pluginId, pluginDisplayName: titleCaseFromPluginId(pluginId), credentialCard,
+    connect: async ({ signal, showSignIn }) => {
+      await showSignIn({ signInUrl });
+      const connected = await waitForMcpConnection({ routeDeps, ctx: { ...ctx, signal }, server });
+      return { status: connected ? "connected" : "waiting-for-sign-in" };
+    },
+  }, optional);
 }
 
 /** Observe the MCP row until callback completion, timeout or cancellation. */
@@ -525,7 +501,7 @@ async function connectDeclaredApiConnectionOrRefuse(
   ctx: ToolExecutionContext,
   pluginId: string,
   optional: ToolExecutionOptions,
-): Promise<ApiConnectionConnectStatus> {
+): Promise<AgentPluginConnectResult> {
   const apiConnections = routeDeps.apiConnections;
   const declared: readonly DeclaredApiConnection[] = apiConnections ? await apiConnections.listConnections({ pluginId }) : [];
   const [connection] = declared;
@@ -535,29 +511,12 @@ async function connectDeclaredApiConnectionOrRefuse(
   if (declared.length > 1) {
     throw new ToolInputError({ message: `agent_plugin_connect: '${pluginId}' declares ${declared.length} API connections — this Tovu version connects one per plugin.` });
   }
-  const pluginDisplayName = titleCaseFromPluginId(pluginId);
   const credentialCard = await findPluginOAuthCard(routeDeps, pluginId);
-  let exchange: ReturnType<AssistantSurfaceDeps["surfaceExchanges"]["open"]> | undefined;
-  const closeOnAbort = () => exchange?.close({});
-  ctx.signal.addEventListener("abort", closeOnAbort, { once: true });
-  try {
-    const result = await apiConnections.connect({
-      connection, actorId: ctx.principal.id, signal: ctx.signal,
-      pollIntervalMs: routeDeps.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS, waitTimeoutMs: routeDeps.waitTimeoutMs ?? DEFAULT_WAIT_TIMEOUT_MS,
-      showSignIn: async ({ signInUrl }) => {
-        const emitSurface = optional.emitSurface;
-        if (!emitSurface) throw new Error("agent_plugin_connect: this execution context has no interactive channel (no emitSurface), so no sign-in card can be shown.");
-        exchange = surfaces.surfaceExchanges.open({ binding: { toolId: AGENT_PLUGIN_CONNECT_TOOL_ID, principalId: ctx.principal.id }, emit: emitSurface });
-        await exchange.send({ emission: { channel: "mcp-ui", payload: { resource: buildAgentPluginConnectCard({ pluginId, pluginDisplayName, state: "waiting", signInUrl, credentialCard }) } } });
-      },
-    });
-    if (result.status === "connected" && exchange) {
-      // A human-visible card update failing must never turn a real connection into a tool failure.
-      await exchange.send({ emission: { channel: "mcp-ui", payload: { resource: buildAgentPluginConnectCard({ pluginId, pluginDisplayName, state: "connected" }) } } }).catch(() => undefined);
-    }
-    return result;
-  } finally {
-    ctx.signal.removeEventListener("abort", closeOnAbort);
-    exchange?.close({});
-  }
+  return waitAtAgentPluginSignInCard({ surfaces, ctx, pluginId, pluginDisplayName: titleCaseFromPluginId(pluginId), credentialCard,
+    connect: ({ signal, showSignIn }) => apiConnections.connect({
+      connection, actorId: ctx.principal.id, signal, showSignIn,
+      pollIntervalMs: routeDeps.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS,
+      waitTimeoutMs: routeDeps.waitTimeoutMs ?? DEFAULT_WAIT_TIMEOUT_MS,
+    }),
+  }, optional);
 }

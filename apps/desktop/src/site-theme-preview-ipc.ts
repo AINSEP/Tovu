@@ -3,6 +3,7 @@ import { SITE_THEME_PREVIEW_CHANNELS as channels, type SiteThemePreviewRefresh }
 import type { createSiteThemePreviewSubscriptions } from './site-theme-preview.ts';
 interface PreviewSender {
   id: number;
+  getURL: () => string;
   once: (name: 'destroyed', listener: () => void) => unknown;
   removeListener: (name: 'destroyed', listener: () => void) => unknown;
   isDestroyed: () => boolean;

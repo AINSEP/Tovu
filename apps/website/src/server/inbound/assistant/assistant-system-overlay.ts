@@ -84,7 +84,7 @@ export const BATCH_GUIDANCE =
 export function buildBashGuidanceBlock(disallowedTools: readonly string[]): string {
   return disallowedTools.includes("Bash")
   ? "Bash is unavailable because it is disabled for this assistant. " +
-    "Read remains available only for reading Tovu's own source to answer a code-level question. " +
+    "Read remains available for reading Tovu's own source to answer a code-level question, and for supplied attachment or CLI saved-result paths. " +
     "Never read config files to infer state a registered tool would report directly; use search_tools instead. "
   : "Bash and " +
   "file access remain available for one narrow purpose: reading Tovu's own source to answer a " +
@@ -169,6 +169,17 @@ const SEARCH_SCOPE_GUIDANCE =
   "(a guard denies it), and skip uploads/, out/ and node_modules (huge; searches there time out after 20 s). " +
   "Prefer the tools over searching files: theme_read_file and the theme file tools for themes, search_tools for everything else. ";
 
+/** The safe input/poll routes apply to locked and full-access chats on every CLI. */
+const ATTACHMENT_RESULT_POLL_GUIDANCE =
+  "Attachments and saved tool results: use the image content already delivered with the message when present. " +
+  "For attachment discovery use chat_list_pending_attachments; for a Media library image use media_view_image. " +
+  "If a supplied attachment or CLI saved-result path needs reading, use the native Read/image tool when available; " +
+  "if that capability is absent or denied, report the tool gap. Never use Bash, shell commands or scripts to inspect attachments or saved tool results. " +
+  "For an oversized result saved by the host, call read_tool_result with its resultId and follow nextOffset until null. " +
+  "For pending background jobs, honor poll_after_seconds with wait_for({seconds: <interval up to 60>}); repeat for longer intervals. " +
+  "Never use Bash or shell sleep between polls. Use describe_tool for a provider's jobs_wait schema before calling it; " +
+  "if that provider wait is absent or fails, use wait_for before polling status again. ";
+
 /**
  * The tool-catalog-protocol overlay every assistant run receives before any operator-configured
  * custom instructions are appended (`custom-instructions.ts`'s `readOverlay()` — see
@@ -221,7 +232,7 @@ export function buildBaseSystemOverlay(bashProhibitionEnabled: boolean, optional
     "For this site's own pages, use web_screenshot_page with sitePath. If chrome-devtools is needed after searching Tovu's tools, " +
     "call mcp__chrome-devtools__list_pages or mcp__chrome-devtools__new_page first and use only a pageId returned in the current run. " +
     "Never reuse a pageId from an earlier run or before a server/daemon restart. On 'No page found', list pages again or open a new page before navigating. " +
-    SEARCH_SCOPE_GUIDANCE +
+    SEARCH_SCOPE_GUIDANCE + ATTACHMENT_RESULT_POLL_GUIDANCE +
     (optional.nativeToolAccess ? TOOLS_FIRST_RULE + " " : buildBashProhibitionBlock(bashProhibitionEnabled)) +
     PERMANENT_DELETE_GUIDANCE + " " + CREDENTIAL_GUIDANCE +
     (optional.nativeToolAccess ? "If no Tovu tool fits after searching, use the CLI fallback. Report a Tool gap for Bash/direct file edits only; other native tool use is recorded separately. " :

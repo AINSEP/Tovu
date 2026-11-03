@@ -144,7 +144,7 @@ export function useAgentPlugins({ port, locale, t }: AgentPluginsDependencies): 
     try { return (await port.listAgentPlugins()).agentPlugins; }
     catch (error) { throw new Error(describeApiError(error, translatePlugins({ locale, key: "failed to load agent plugins" }))); }
   }, [port, locale]);
-  const query = useFetchQuery({ key, fetch: fetchList }, { staleTime: 0 });
+  const query = useFetchQuery({ key, fetch: fetchList }, { staleTime: 0, refetchOnWindowFocus: true });
   const loader = useCachedLoader({ key, fetch: fetchList }, { staleTime: 0 });
   const agentPlugins = query.data ?? null;
   const setAgentPlugins = (update: (current: AdminAgentPlugin[] | null) => AdminAgentPlugin[] | null) => {

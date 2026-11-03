@@ -4,6 +4,7 @@ import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-gua
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { AgentPluginsRouteRegistrar } from "./deps.js";
 import { agentPluginLifecycleFields } from "./install-response.js";
+import { loadAgentPluginConnectionStatuses } from "#src/features/agent-plugins/connection-status";
 
 /**
  * @file `AGENT_PLUGINS_LIST` — `GET /api/admin/v1/workspaces/:workspaceId/agent-plugins` (2026-09-09).
@@ -53,6 +54,8 @@ export const registerAgentPluginsListRoute: AgentPluginsRouteRegistrar = (app, d
         return;
 
       const candidates = await loadAgentPluginSearchCandidates(deps);
+      const connectionStatuses = await loadAgentPluginConnectionStatuses({ workspaceId: deps.workspaceId,
+        mcp: deps.externalMcpServerRepo, loadCards: deps.loadPluginCredentialCards, apiConnections: deps.apiConnections?.host });
 
       res.json({
         agentPlugins: candidates.map((candidate) => ({
@@ -65,6 +68,7 @@ export const registerAgentPluginsListRoute: AgentPluginsRouteRegistrar = (app, d
           provides: candidate.provides,
           keywords: candidate.keywords,
           enabled: candidate.enabled,
+          ...(connectionStatuses.has(candidate.pluginId) ? { connectionStatus: connectionStatuses.get(candidate.pluginId) } : {}),
           ...agentPluginLifecycleFields({ candidate }),
           skills: candidate.skills,
           mcpServerIds: candidate.mcpServerIds,

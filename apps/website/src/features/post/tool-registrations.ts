@@ -794,12 +794,12 @@ function mergeUpdatePatch(required: { patch: PostUpdatePatch; existing: PostReco
 }
 
 /**
- * Reads the post/page content_post_update edits. Templates and missing rows are not-found;
- * so is a non-page for kind "page".
+ * Reads the post/page content_post_update edits. Omitted kind uses the stored row's kind;
+ * templates and missing rows are not-found, as is a non-page for explicit kind "page".
  * @throws {PostNotFoundError} `post '<id>' was not found` / `page '<id>' was not found`.
  * @complexity O(1) — one repo read.
  */
-async function loadUpdateTarget(required: { routeDeps: PostToolDeps; id: string; kind: PostKind }, _options: Record<string, never> = {}): Promise<PublicPostRecord> {
+async function loadUpdateTarget(required: { routeDeps: PostToolDeps; id: string; kind: PostKind | undefined }, _options: Record<string, never> = {}): Promise<PublicPostRecord> {
   const { routeDeps, id, kind } = required;
   const existing = await routeDeps.postRepo.findById({ workspaceId: routeDeps.workspaceId, id });
   if (!isPublicPost(existing)) throw new PostNotFoundError(`post '${id}' was not found`);
@@ -1065,7 +1065,7 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
       const input = requireInputRecord({ input: ctx.input });
       return withSchemaOnRejection({ toolId: "content_post_update", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isPostShapeRejection(error), fn: async () => {
         const id = requireString({ input: input, key: "id" });
-        const kind = requirePostKind(input);
+        const kind = input.kind === undefined ? undefined : requirePostKind(input);
         // S7 (fix-plan-tool-design-2026-09-24.md) — a PARTIAL patch: each of these four is now
         // independently optional. An omitted one is filled from the stored row inside
         // `captureInverse` below (the one place this handler already reads `existing`), not here —
@@ -1102,7 +1102,7 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
           command: {
             workspaceId: routeDeps.workspaceId,
             actor: { id: ctx.principal.id, kind: AGENT_TOOL_PRINCIPAL_KIND },
-            summary: `Agent update ${kind} '${id}'`,
+            summary: `Agent update ${kind ?? "content"} '${id}'`,
             permission: CONTENT_WRITE_PERMISSION,
           },
           mutation: {

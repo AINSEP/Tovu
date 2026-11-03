@@ -59,10 +59,13 @@ import { contributeDatabaseTools } from "#src/features/database/tool-registratio
 import { contributeDatabaseTransferTools } from "#src/features/database-transfer/tool-registrations";
 import { contributeDomainDnsAndChangeTools } from "#src/features/domain-dns/index";
 import { createDefaultHttpClient } from "#src/platform/http/index";
+import type { EgressPolicy } from "#src/platform/http/index";
 import type { ObservabilityPort } from "#src/platform/observability/index";
 import { LIVE_PAGE_EGRESS_POLICY, WEB_FETCH_EGRESS_POLICY, WEB_SCREENSHOT_EGRESS_POLICY } from "#src/platform/http/index";
+import { createSiteWebFetchEgressPolicy } from "#src/platform/http/egress-policies";
 import { renderPublicPage, createRenderBrowserPool, openPlaywrightRenderBrowser, PUBLIC_RENDER_LAUNCH_OPTIONS } from "@jini-ai/diagnostics/web-evidence/playwright";
 import { contributeWebTools } from "#src/features/web/tool-registrations";
+import type { WebFetchPorts } from "#src/features/web/web-page";
 import { htmlToMarkdown } from "@jini-ai/platform/web";
 import { contributeWebScreenshotTools } from "#src/features/web-screenshot/tool-registrations";
 import { playwrightModuleLoader } from "#src/platform/headless-browser/playwright-loader";
@@ -513,13 +516,23 @@ export function installFirstPartyToolContributors(
       return result.browser;
     },
   }, { maxConcurrent: 2 });
-  const renderedWebClient = createHttpClient({ ...WEB_FETCH_EGRESS_POLICY, maxRedirects: 0 }, { observability });
-  contributions.contributors.register({ contribution: contributeWebTools({
-    httpClient: createHttpClient(WEB_FETCH_EGRESS_POLICY, { observability }), htmlToMarkdown,
-    // Resolve Playwright in the host; Jini is also consumed through published npm packages.
-    renderPage: ({ input }, optional = {}) => renderPublicPage({ input, httpClient: { send: ({ request }) => renderedWebClient.send(request) } }, {
-      ...optional, browserPool: publicBrowserPool,
-    }),
+  // One composition for raw and rendered reads; both use the selected site's same egress boundary.
+  const webPortsForPolicy = ({ policy }: { policy: EgressPolicy }, _options = {}): Pick<WebFetchPorts, "httpClient" | "htmlToMarkdown" | "renderPage"> => {
+    const renderedClient = createHttpClient({ ...policy, maxRedirects: 0 }, { observability });
+    return {
+      httpClient: createHttpClient(policy, { observability }), htmlToMarkdown,
+      // Resolve Playwright in the host; Jini is also consumed through published npm packages.
+      renderPage: ({ input }, optional = {}) => renderPublicPage({ input, httpClient: { send: ({ request }) => renderedClient.send(request) } }, {
+        ...optional, browserPool: publicBrowserPool,
+      }),
+    };
+  };
+  contributions.contributors.register({ contribution: contributeWebTools(webPortsForPolicy({ policy: WEB_FETCH_EGRESS_POLICY }), {
+    portsForSite: ({ deps }) => {
+      // Resolve after site selection: one contributor serves multiple sites and must never
+      // accumulate their origins into a process-wide localhost/port allowlist.
+      return webPortsForPolicy({ policy: createSiteWebFetchEgressPolicy({ origin: deps.derivedPublicOrigin }) });
+    },
   }) });
   // `web_screenshot_page`: SEEING a public page (or this site's own render, through the same per-call
   // loopback server `fetch_published_page` uses) for visual parity. Every request the headless page

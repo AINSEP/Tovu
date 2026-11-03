@@ -49,7 +49,8 @@ const BLOCK_NODE_REF = "#/$defs/blockNode" as const;
  *   `content_post_update` IS how an agent publishes or unpublishes a post/page — there is no second,
  *   narrower tool to add, because the domain itself has no narrower function.
  * - `content_post_update` NOW accepts a partial patch (S7, fix-plan-tool-design-2026-09-24.md): only
- *   `id`/`kind` are required, and `title`/`slug`/`bodyJson`/`status` are each independently optional,
+ *   `id` is required (`kind` now derives from the stored row when omitted), and
+ *   `title`/`slug`/`bodyJson`/`status` are each independently optional,
  *   matching `collections_entry_update`/`forms_update_definition`'s shape. `updatePost` (`post.ts`)
  *   itself still has NO partial-update capability — it still reads `input.title.trim()`/`input.slug.
  *   trim()`/`isJsonObject(input.bodyJson)`/`isValidPostStatus(input.status)` unconditionally, so this
@@ -163,6 +164,7 @@ export interface AgentToolDefinition {
 
 const POST_KIND_SCHEMA = {
   type: "string",
+  aliases: ["type"],
   enum: ["post", "page"],
   description:
     "'post' for a blog-style entry (surfaces on the admin Posts list), 'page' for a standalone document " +
@@ -191,7 +193,9 @@ const FEATURED_IMAGE_SCHEMA = {
   description:
     "The post/page's featured image: the id or slug of an EXISTING image in the media library (from content_read.media_asset, " +
     "media_upload_asset, media_generate_asset or media_import_from_url). Stored as the asset's id. Themes show it as the post's " +
-    "lead image and it becomes the og:image/twitter:image social preview unless the SEO settings override it. Rejected if no " +
+    "lead image and it becomes the og:image/twitter:image social preview unless the SEO settings override it. For a cover-only " +
+    "request, set featuredImage and do not also insert that image into bodyJson unless the user explicitly asks for it in the body; " +
+    "the theme already renders the cover above the body, so inserting it there too shows the same photo twice. Rejected if no " +
     "asset has that id or slug, if the asset is in Trash, or if it is a video or other non-image. null removes it.",
 } as const;
 
@@ -918,7 +922,8 @@ export const postAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "content_post_update",
     description:
-      "Patches an existing post/page — send only the fields that change; any of title, slug, bodyJson, status, publishAt, " +
+      "Patches an existing post/page — send id and only the fields that change. Omit kind to derive it from the stored row; " +
+      "kind (legacy alias: type) cannot change the record's kind. Any of title, slug, bodyJson, status, publishAt, " +
       "featuredImage, author, showAuthor and template you omit keep their current stored values (the underlying updatePost function still has no partial-update path, so this tool fills the gap " +
       "from the stored row before calling it). Send at least one writable field, or the call is rejected. This is also how a " +
       "post/page is published or unpublished: {id, kind, status:'published'} (or 'draft') alone is enough — there is no separate " +
@@ -941,10 +946,10 @@ export const postAgentToolCatalog: AgentToolDefinition[] = [
     inputSchema: {
       type: "object",
       additionalProperties: false,
-      required: ["id", "kind"],
+      required: ["id"],
       properties: {
         id: POST_ID_SCHEMA,
-        kind: POST_KIND_SCHEMA,
+        kind: { ...POST_KIND_SCHEMA, description: `${POST_KIND_SCHEMA.description} Optional; omit to derive kind from the id.` },
         title: { type: "string", minLength: 1, maxLength: MAX_TITLE_LENGTH, description: "Optional — omit to leave the title unchanged. Non-empty when sent (unlike create, an empty title is rejected here rather than defaulted)." },
         slug: {
           type: "string",
