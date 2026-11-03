@@ -47,7 +47,7 @@ test("P1: debounce reserves once and resolves the current port/partition when it
   await h.tick(1);
   assert.deepEqual(h.captures, [{ siteDir: SITE, port: 9000, partition: "persist:current" }]);
   h.scheduler.schedule({ siteDir: SITE }, {});
-  assert.equal(h.timers.size, 0, "success reserves the current lifecycle");
+  assert.equal(h.timers.size, 1, "a later public visit permits refresh");
 });
 
 test("P1: a site no longer running when the timer fires is skipped and can be started later", async () => {
@@ -107,7 +107,7 @@ test("P1: false and rejected capture results both permit a later successful capt
     await h.tick(1500);
     assert.equal(h.captures.length, 2);
     h.scheduler.schedule({ siteDir: SITE }, {});
-    assert.equal(h.timers.size, 0);
+    assert.equal(h.timers.size, 1);
   }
 });
 
@@ -124,7 +124,7 @@ test("P1: an old in-flight failure cannot erase the replacement lifecycle's rese
   finishOld(false);
   await h.tick(1500);
   h.scheduler.schedule({ siteDir: SITE }, {});
-  assert.equal(h.timers.size, 0);
+  assert.equal(h.timers.size, 1);
   assert.deepEqual(h.captures.map((capture) => capture.port), [8123, 9004]);
 });
 
@@ -139,4 +139,27 @@ test("P1: a timer callback that was already dispatched when Stop cancelled it ca
   assert.deepEqual(h.captures, [], "the cancelled lifecycle's late callback owns no work");
   h.scheduler.schedule({ siteDir: SITE }, {});
   assert.equal(h.timers.size, 1, "and it left no reservation blocking the next Start");
+});
+
+test('release cancels stale capture and the next public visit permits refresh', async () => {
+  let work!: () => void;
+  let valid!: () => boolean;
+  let finish!: (captured: boolean) => void;
+  const scheduler = createSitePreviewScheduler({ ports: {
+    current: () => ({ port: 8123, partition: 'persist:site' }),
+    capture: (_input, options) => { valid = options.isCurrent!; return new Promise<boolean>(resolve => { finish = resolve; }); },
+    schedule: ({ work: next }) => { work = next; return 1; }, cancel: () => {},
+  } });
+  scheduler.schedule({ siteDir: SITE });
+  work();
+  assert.equal(valid(), true);
+  scheduler.cancel({ siteDir: SITE });
+  assert.equal(valid(), false);
+  scheduler.schedule({ siteDir: SITE });
+  finish(true);
+  await Promise.resolve();
+  work();
+  assert.equal(valid(), true);
+  finish(true);
+  await Promise.resolve();
 });

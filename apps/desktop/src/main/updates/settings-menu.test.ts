@@ -50,10 +50,10 @@ test("the preferences file lives in Electron's userData", () => {
 
 test("Settings carries Automatic updates, checked from the persisted choice", () => {
   for (const automatic of [true, false]) {
-    const { menu, calls } = menuHarness({ launch: undefined, automatic });
+    const { menu, calls } = menuHarness({ launch: null, automatic });
     const copy = desktopCopy({ locale: "en-US" });
     assert.equal(menu.label, copy.settings);
-    assert.deepEqual(menu.submenu.map(item => [item.label, item.checked]), [[copy.automaticUpdates, automatic]]);
+    assert.deepEqual(menu.submenu.map(item => [item.label, item.checked]), [[copy.automaticUpdates, automatic], ['Maximum live site views', undefined]]);
     assert.deepEqual(calls, ["readAutomatic:/ud/desktop-preferences.json"]);
   }
 });
@@ -80,7 +80,7 @@ test("a failed update-preference save shows the localized error with the failure
 });
 
 test("with no product launch config the sharing checkboxes are absent", () => {
-  assert.equal(menuHarness({ launch: undefined }).menu.submenu.length, 1);
+  assert.equal(menuHarness({ launch: null }).menu.submenu.length, 2);
 });
 
 test("a booted product adds both sharing checkboxes, checked from the stored consent", () => {
@@ -88,6 +88,7 @@ test("a booted product adds both sharing checkboxes, checked from the stored con
   assert.deepEqual(menu.submenu.slice(1).map(item => [item.label, item.checked]), [
     ["Send crash reports to Tovu", true],
     ["Send usage statistics to Tovu", false],
+    ['Maximum live site views', undefined],
   ]);
 });
 

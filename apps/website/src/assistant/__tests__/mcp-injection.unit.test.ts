@@ -80,3 +80,53 @@ test("hands the bridge the per-run credential minted for that run, never the pro
     else process.env.TOVU_AGENT_DAEMON_TOKEN = saved;
   }
 });
+
+
+test("HTTP preparation receives only run-scoped inputs", async () => {
+  const assembled: unknown[] = [];
+  const hosted: unknown[] = [];
+  const injection = resolveMcpJsonInjection(DAEMON_URL, mintStub, {
+    execPath: "/node", electronVersion: undefined, env: { TOVU_AGENT_DAEMON_TOKEN: "boot-secret" },
+    loadHttpMcp: async () => ({ MCP_HTTP_SESSION_MODE_SUPPORTED: true,
+      assembleRunToolHost: async (input, options) => {
+        assembled.push({ runId: input.runId, url: await input.resolveBaseUrl(), options });
+        return { required: { name: 'test', version: '1', tools: [], resolveBaseUrl: input.resolveBaseUrl }, options: {} };
+      },
+      startMcpHttpToolServer: async (input, options) => {
+        hosted.push({ input, options });
+        return { url: "http://127.0.0.1:9000/mcp", token: "listener-only", close: async () => {} };
+      },
+    }),
+  });
+  const endpoint = await injection.prepareHttp!({ runId: "run-42" }, { messageRelayNonce: "a".repeat(48), startupToolIds: ['site_guide'], diagnosticToolIds: ['registered'] });
+  assert.equal(endpoint.token, "listener-only");
+  assert.deepEqual(assembled, [{ runId: "run-42", url: DAEMON_URL, options: {
+    credential: "minted-for-run-42", messageRelayNonce: "a".repeat(48), startupToolIds: ['site_guide'], diagnosticToolIds: ['registered'],
+  } }]);
+  assert.equal(JSON.stringify(hosted).includes("boot-secret"), false);
+  assert.equal(JSON.stringify(endpoint).includes("minted-for"), false);
+});
+
+test("unavailable HTTP support preserves stdio delivery", async () => {
+  const injection = resolveMcpJsonInjection(DAEMON_URL, mintStub, {
+    execPath: "/node", electronVersion: undefined, env: {},
+    loadHttpMcp: async () => { throw new Error("module unavailable"); },
+  });
+  await assert.rejects(injection.prepareHttp!({ runId: "run-42" }), /module unavailable/);
+  assert.equal(injection.command, "/node");
+  assert.deepEqual(injection.args, [SERVE_JS]);
+  assert.equal(await injection.credential!({ runId: "run-42" }), "minted-for-run-42");
+});
+
+test("stateless HTTP support is refused before minting a callback credential", async () => {
+  const minted: string[] = [];
+  const injection = resolveMcpJsonInjection(DAEMON_URL, runId => { minted.push(runId); return "callback"; }, {
+    execPath: "/node", electronVersion: undefined, env: {},
+    loadHttpMcp: async () => ({
+      assembleRunToolHost: async () => { throw new Error("must not assemble"); },
+      startMcpHttpToolServer: async () => { throw new Error("must not host"); },
+    }),
+  });
+  await assert.rejects(injection.prepareHttp!({ runId: "run-42" }), /session support unavailable/);
+  assert.deepEqual(minted, []);
+});
