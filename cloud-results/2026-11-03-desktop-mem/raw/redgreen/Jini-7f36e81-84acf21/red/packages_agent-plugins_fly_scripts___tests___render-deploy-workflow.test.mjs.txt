@@ -1,0 +1,68 @@
+✔ a region keeps its operator default unless a block replaces the whole region (1.788163ms)
+✔ an empty default region renders nothing, and a block with a trailing blank line keeps it (0.32603ms)
+✔ placeholders are filled in the template and inside blocks; a missing value throws instead of shipping the token (0.596999ms)
+✔ a block for a region the template does not have throws, so a stale values file cannot drop a step (0.214983ms)
+✔ malformed regions are template errors (0.333202ms)
+✔ the shipped template is host-neutral: its operator render has placeholders but no host text or markers (0.710364ms)
+✔ renderFromValues resolves block files against the values file's own folder (1.185497ms)
+✔ the CLI refuses a missing --values or --repo-root, writes the render, and --check reports a stale file (1.809815ms)
+✖ an empty replacement block removes the region without adding a blank workflow line (1.538746ms)
+✖ Windows workflow checkouts recognize regions and normalize template and block line endings (0.911352ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 8
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 109.313783
+
+✖ failing tests:
+
+test at packages/agent-plugins/fly/scripts/__tests__/render-deploy-workflow.test.mjs:97:1
+✖ an empty replacement block removes the region without adding a blank workflow line (1.538746ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'before\n\nafter'
+  - 'before\nafter'
+             ^
+  
+      at TestContext.<anonymous> (file:///home/user/wt-Jini/packages/agent-plugins/fly/scripts/__tests__/render-deploy-workflow.test.mjs:99:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'before\n\nafter',
+    expected: 'before\nafter',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/agent-plugins/fly/scripts/__tests__/render-deploy-workflow.test.mjs:102:1
+✖ Windows workflow checkouts recognize regions and normalize template and block line endings (0.911352ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'before\r\n#>> x\r\ndefault\r\n#<< x\r\nafter\r\n'
+  - 'before\ndefault\nafter\n'
+            ^
+  
+      at TestContext.<anonymous> (file:///home/user/wt-Jini/packages/agent-plugins/fly/scripts/__tests__/render-deploy-workflow.test.mjs:104:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'before\r\n#>> x\r\ndefault\r\n#<< x\r\nafter\r\n',
+    expected: 'before\ndefault\nafter\n',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

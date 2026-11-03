@@ -1,0 +1,40 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/daemon
+
+ ❯ src/__tests__/idle-monitor.test.ts (11 tests | 2 failed) 22ms
+   × createIdleMonitor > brief activity between observations restarts the full idle interval 9ms
+     → monitor.acquire is not a function
+   × createIdleMonitor > overlapping work stays busy until the last idempotent release 1ms
+     → monitor.acquire is not a function
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/__tests__/idle-monitor.test.ts > createIdleMonitor > brief activity between observations restarts the full idle interval
+TypeError: monitor.acquire is not a function
+ ❯ src/__tests__/idle-monitor.test.ts:40:29
+     38|     const monitor = createIdleMonitor({ ...time, isBusy: () => false, …
+     39|     time.advance({ ms: 2_500 });
+     40|     const release = monitor.acquire({}, {});
+       |                             ^
+     41|     expect(release).not.toBeNull();
+     42|     release!(); release!();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/__tests__/idle-monitor.test.ts > createIdleMonitor > overlapping work stays busy until the last idempotent release
+TypeError: monitor.acquire is not a function
+ ❯ src/__tests__/idle-monitor.test.ts:54:27
+     52|     const onIdle = vi.fn();
+     53|     const monitor = createIdleMonitor({ ...time, isBusy: () => false, …
+     54|     const first = monitor.acquire({}, {})!;
+       |                           ^
+     55|     const second = monitor.acquire({}, {})!;
+     56|     first(); first();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 9 passed (11)
+   Start at  21:07:33
+   Duration  492ms (transform 73ms, setup 0ms, collect 69ms, tests 22ms, environment 0ms, prepare 86ms)
+

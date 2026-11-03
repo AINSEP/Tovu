@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/daemon
+
+ ✓ src/agent-executor/codex/__tests__/home-http-staging.test.ts (1 test) 88ms
+
+ Test Files  1 passed (1)
+      Tests  1 passed (1)
+   Start at  21:07:11
+   Duration  3.57s (transform 1.98s, setup 0ms, collect 2.93s, tests 88ms, environment 0ms, prepare 135ms)
+

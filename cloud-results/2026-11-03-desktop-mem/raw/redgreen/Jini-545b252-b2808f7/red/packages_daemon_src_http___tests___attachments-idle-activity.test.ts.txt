@@ -1,0 +1,29 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/daemon
+
+ ❯ src/http/__tests__/attachments-idle-activity.test.ts (2 tests | 2 failed) 10ms
+   × upload holds activity through cleanup after the response closes 8ms
+     → expected "spy" to be called 1 times, but got 0 times
+   × cleanup holds activity through cleanup after the response closes 1ms
+     → expected "spy" to be called 1 times, but got 0 times
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/http/__tests__/attachments-idle-activity.test.ts > upload holds activity through cleanup after the response closes
+ FAIL  src/http/__tests__/attachments-idle-activity.test.ts > cleanup holds activity through cleanup after the response closes
+AssertionError: expected "spy" to be called 1 times, but got 0 times
+ ❯ src/http/__tests__/attachments-idle-activity.test.ts:30:27
+     28|   await cleaning;
+     29|   res.end();
+     30|   expect(acquireActivity).toHaveBeenCalledTimes(1);
+       |                           ^
+     31|   expect(release).not.toHaveBeenCalled();
+     32|   finish(); await work;
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ Test Files  1 failed (1)
+      Tests  2 failed (2)
+   Start at  21:07:36
+   Duration  1.44s (transform 694ms, setup 0ms, collect 1.11s, tests 10ms, environment 0ms, prepare 95ms)
+

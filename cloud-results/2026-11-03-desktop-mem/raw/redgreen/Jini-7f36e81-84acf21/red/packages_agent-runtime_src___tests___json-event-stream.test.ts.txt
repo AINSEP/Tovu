@@ -1,0 +1,68 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/agent-runtime
+
+ ❯ src/__tests__/json-event-stream.test.ts (152 tests | 1 failed) 121ms
+   × pinned behaviour before the complexity refactor > names codex MCP tool uses for jini, external and nameless servers 51ms
+     → expected [ { type: 'tool_use', …(3) }, …(4) ] to deeply equal [ { type: 'tool_use', …(3) }, …(4) ]
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/__tests__/json-event-stream.test.ts > pinned behaviour before the complexity refactor > names codex MCP tool uses for jini, external and nameless servers
+AssertionError: expected [ { type: 'tool_use', …(3) }, …(4) ] to deeply equal [ { type: 'tool_use', …(3) }, …(4) ]
+
+- Expected
++ Received
+
+  Array [
+    Object {
+      "id": "a",
+      "input": Object {},
+-     "name": "mcp__jini__call",
++     "name": "mcp_tool_call",
+      "type": "tool_use",
+    },
+    Object {
+      "id": "b",
+      "input": Object {
+        "q": 1,
+      },
+      "name": "mcp__jini__search_tools",
+      "type": "tool_use",
+    },
+    Object {
+      "id": "e",
+      "input": Object {
+        "path": "theme.css",
+      },
+      "name": "mcp__jini__theme_read_file",
+      "type": "tool_use",
+    },
+    Object {
+      "id": "c",
+      "input": Object {},
+      "name": "mcp__external__x",
+      "type": "tool_use",
+    },
+    Object {
+      "id": "d",
+      "input": Object {},
+      "name": "mcp__chrome__call",
+      "type": "tool_use",
+    },
+  ]
+
+ ❯ src/__tests__/json-event-stream.test.ts:1597:20
+    1595|       { type: 'item.started', item: { id: 'd', type: 'mcp_tool_call', …
+    1596|     ]);
+    1597|     expect(events).toEqual([
+       |                    ^
+    1598|       { type: 'tool_use', id: 'a', name: 'mcp__jini__call', input: {} …
+    1599|       { type: 'tool_use', id: 'b', name: 'mcp__jini__search_tools', in…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 151 passed (152)
+   Start at  21:08:07
+   Duration  911ms (transform 308ms, setup 0ms, collect 385ms, tests 121ms, environment 0ms, prepare 114ms)
+

@@ -1,3 +1,104 @@
 
  RUN  v3.2.7 /home/user/wt-Jini/packages/sandbox
 
+ ❯ src/__tests__/worker-capacity.test.ts (5 tests | 5 failed) 24ms
+   × visitors cannot spawn more than two theme workers while earlier renders are still terminating 17ms
+     → createWorkerCapacity is not a function
+   × a timed out theme keeps its slot until worker termination completes 1ms
+     → createWorkerCapacity is not a function
+   × a worker that cannot terminate holds capacity until its exit event 1ms
+     → createWorkerCapacity is not a function
+   × a theme worker spawn failure does not consume render capacity 1ms
+     → createWorkerCapacity is not a function
+   × worker capacity rejects invalid bounds and releases each lease only once 3ms
+     → The error is expected to be an instance of "RangeError". Received "TypeError"
+
+Error message:
+
+createWorkerCapacity is not a function
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/__tests__/worker-capacity.test.ts > visitors cannot spawn more than two theme workers while earlier renders are still terminating
+TypeError: createWorkerCapacity is not a function
+ ❯ renderHarness src/__tests__/worker-capacity.test.ts:12:15
+     10|     workerEntry: "/theme/worker.js", input: { source: "hello" }, error…
+     11|     defaultTimeoutMs: 5000, defaultResourceLimits: { maxOldGenerationS…
+     12|     capacity: createWorkerCapacity({ maxConcurrent: 2 }),
+       |               ^
+     13|     workerFactory: { spawn: () => {
+     14|       const events = new EventEmitter();
+ ❯ src/__tests__/worker-capacity.test.ts:38:13
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/5]⎯
+
+ FAIL  src/__tests__/worker-capacity.test.ts > a timed out theme keeps its slot until worker termination completes
+TypeError: createWorkerCapacity is not a function
+ ❯ renderHarness src/__tests__/worker-capacity.test.ts:12:15
+     10|     workerEntry: "/theme/worker.js", input: { source: "hello" }, error…
+     11|     defaultTimeoutMs: 5000, defaultResourceLimits: { maxOldGenerationS…
+     12|     capacity: createWorkerCapacity({ maxConcurrent: 2 }),
+       |               ^
+     13|     workerFactory: { spawn: () => {
+     14|       const events = new EventEmitter();
+ ❯ src/__tests__/worker-capacity.test.ts:60:13
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/5]⎯
+
+ FAIL  src/__tests__/worker-capacity.test.ts > a worker that cannot terminate holds capacity until its exit event
+TypeError: createWorkerCapacity is not a function
+ ❯ renderHarness src/__tests__/worker-capacity.test.ts:12:15
+     10|     workerEntry: "/theme/worker.js", input: { source: "hello" }, error…
+     11|     defaultTimeoutMs: 5000, defaultResourceLimits: { maxOldGenerationS…
+     12|     capacity: createWorkerCapacity({ maxConcurrent: 2 }),
+       |               ^
+     13|     workerFactory: { spawn: () => {
+     14|       const events = new EventEmitter();
+ ❯ src/__tests__/worker-capacity.test.ts:77:13
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/5]⎯
+
+ FAIL  src/__tests__/worker-capacity.test.ts > a theme worker spawn failure does not consume render capacity
+TypeError: createWorkerCapacity is not a function
+ ❯ renderHarness src/__tests__/worker-capacity.test.ts:12:15
+     10|     workerEntry: "/theme/worker.js", input: { source: "hello" }, error…
+     11|     defaultTimeoutMs: 5000, defaultResourceLimits: { maxOldGenerationS…
+     12|     capacity: createWorkerCapacity({ maxConcurrent: 2 }),
+       |               ^
+     13|     workerFactory: { spawn: () => {
+     14|       const events = new EventEmitter();
+ ❯ src/__tests__/worker-capacity.test.ts:94:13
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/5]⎯
+
+ FAIL  src/__tests__/worker-capacity.test.ts > worker capacity rejects invalid bounds and releases each lease only once
+AssertionError: The error is expected to be an instance of "RangeError". Received "TypeError"
+
+Error message:
+
+createWorkerCapacity is not a function
+
+[32m- Expected:[39m 
+[Function RangeError]
+
+[31m+ Received:[39m 
+TypeError {
+  "message": "__vite_ssr_import_3__.createWorkerCapacity is not a function",
+}
+
+ ❯ src/__tests__/worker-capacity.test.ts:108:12
+    106| test("worker capacity rejects invalid bounds and releases each lease o…
+    107|   for (const maxConcurrent of [0, -1, 1.5, NaN, Infinity]) {
+    108|     assert.throws(() => createWorkerCapacity({ maxConcurrent }), Range…
+       |            ^
+    109|   }
+    110|   const capacity = createWorkerCapacity({ maxConcurrent: 1 });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/5]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  5 failed (5)
+   Start at  21:06:18
+   Duration  536ms (transform 138ms, setup 0ms, collect 143ms, tests 24ms, environment 0ms, prepare 92ms)
+

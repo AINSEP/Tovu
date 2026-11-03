@@ -1,0 +1,58 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/mcp
+
+stdout | src/federation/__tests__/reload-empty-grants.test.ts > makes tools available after granting an already-on connection without restarting the assistant
+agent-daemon mcp-federation: 'media' registered 0 federated tool(s): (none)
+
+stderr | src/federation/__tests__/reload-empty-grants.test.ts > makes tools available after granting an already-on connection without restarting the assistant
+agent-daemon mcp-federation: 'media' refused remote tool 'list_media' — not-in-operator-allowlist
+
+ ❯ src/federation/__tests__/reload-empty-grants.test.ts (2 tests | 1 failed) 17ms
+   × makes tools available after granting an already-on connection without restarting the assistant 15ms
+     → an empty grant must not retain an unused session across re-admission: expected [ InMemoryMcpSession{ …(5) } ] to deeply equal []
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/federation/__tests__/reload-empty-grants.test.ts > makes tools available after granting an already-on connection without restarting the assistant
+AssertionError: an empty grant must not retain an unused session across re-admission: expected [ InMemoryMcpSession{ …(5) } ] to deeply equal []
+
+- Expected
++ Received
+
+- Array []
++ Array [
++   InMemoryMcpSession {
++     "calls": Array [],
++     "closed": false,
++     "handler": [Function anonymous],
++     "listToolsBehaviour": undefined,
++     "tools": Array [
++       Object {
++         "annotations": Object {
++           "readOnlyHint": true,
++         },
++         "inputSchema": Object {
++           "properties": Object {},
++           "type": "object",
++         },
++         "name": "list_media",
++       },
++     ],
++   },
++ ]
+
+ ❯ src/federation/__tests__/reload-empty-grants.test.ts:23:97
+     21|   const boot = await attachFederatedMcpTools({ registry, deps, connect…
+     22|   expect(boot.reports[0]?.report.admitted).toEqual([]);
+     23|   expect(boot.sessions, 'an empty grant must not retain an unused sess…
+       |                                                                                                 ^
+     24|   const reload = createFederationReloadCoordinator({ coordDeps: { regi…
+     25|     initiallyAdmitted: ['media'] }, { initiallyAwaitingGrants: ['media…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 1 passed (2)
+   Start at  21:08:49
+   Duration  952ms (transform 435ms, setup 0ms, collect 642ms, tests 17ms, environment 0ms, prepare 95ms)
+

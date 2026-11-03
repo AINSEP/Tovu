@@ -1,0 +1,28 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/daemon
+
+ ❯ src/agent-executor/codex/__tests__/home-config.test.ts (16 tests | 1 failed) 14ms
+   × HTTP table replaces stale stdio fields and preserves timeout 7ms
+     → Cannot read properties of undefined (reading 'map')
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/agent-executor/codex/__tests__/home-config.test.ts > HTTP table replaces stale stdio fields and preserves timeout
+TypeError: Cannot read properties of undefined (reading 'map')
+ ❯ buildCodexMcpServerToml src/agent-executor/codex/home-config.ts:65:34
+     63|  */
+     64| export function buildCodexMcpServerToml({ entry }: { readonly entry: M…
+     65|   const argsLiteral = entry.args.map(tomlString).join(', ');
+       |                                  ^
+     66|   const serverTable =
+     67|     `[mcp_servers.${JINI_MCP_SERVER_KEY}]\ncommand = ${tomlString(entr…
+ ❯ Module.buildCodexHomeConfigToml src/agent-executor/codex/home-config.ts:216:32
+ ❯ src/agent-executor/codex/__tests__/home-config.test.ts:122:18
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 15 passed (16)
+   Start at  21:06:42
+   Duration  1.00s (transform 472ms, setup 0ms, collect 624ms, tests 14ms, environment 0ms, prepare 105ms)
+

@@ -1,0 +1,16 @@
+✔ safe source baseline uses real trusted projection (300.559078ms)
+✔ Bearer post is blanked before SQLite insertion and FTS, with a safe location notice (7387.264378ms)
+✔ correctly checksummed imported Bearer post is sanitized by the real worker (6027.211212ms)
+✔ suspicious files are omitted, and edited bundled labels survive by plugin id (7055.079033ms)
+✔ import omits a suspicious media file and prunes its database references without a missing-file refusal (5185.442012ms)
+✔ production preparation omits suspicious media through the projection owner (6291.273993ms)
+✔ two suspicious unique slugs cannot turn sanitization into a constraint refusal (5846.957494ms)
+✔ omitting an invalidated menu also prunes only its own portable bindings (6372.723074ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 49447.13094

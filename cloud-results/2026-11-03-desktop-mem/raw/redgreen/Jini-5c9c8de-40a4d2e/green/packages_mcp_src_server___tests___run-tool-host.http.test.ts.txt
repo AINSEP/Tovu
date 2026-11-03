@@ -1,0 +1,20 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/mcp
+
+ ❯ src/server/__tests__/run-tool-host.http.test.ts (7 tests | 1 failed) 10416ms
+   × cancellation reaches the delegated handler 10069ms
+     → Hook timed out in 10000ms.
+If this is a long-running hook, pass a timeout value as the last argument or configure it globally with "hookTimeout".
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/server/__tests__/run-tool-host.http.test.ts > cancellation reaches the delegated handler
+Error: Hook timed out in 10000ms.
+If this is a long-running hook, pass a timeout value as the last argument or configure it globally with "hookTimeout".
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 6 passed (7)
+   Start at  21:07:17
+   Duration  11.87s (transform 574ms, setup 0ms, collect 1.15s, tests 10.42s, environment 0ms, prepare 88ms)
+

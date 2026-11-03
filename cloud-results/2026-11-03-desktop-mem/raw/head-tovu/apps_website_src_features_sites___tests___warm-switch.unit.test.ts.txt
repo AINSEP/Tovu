@@ -1,0 +1,10 @@
+✔ switching back to an opened site returns its own URL without restarting the API (2.174029ms)
+✔ a failed warm boot warns and uses the existing restart switch (1.805425ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3908.240416

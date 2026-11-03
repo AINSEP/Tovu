@@ -1,0 +1,3 @@
+src/__tests__/unit/app-hooks-admin-webmcp.unit.test.tsx(56,38): error TS2345: Argument of type '{ ready: Promise<{ sessionId: string; bindToken: string; }>; bindToken: () => string; close: Mock<Procedure>; bridgeAccess: { subscribe: () => () => void; respondSuccess: () => Promise<...>; respondError: () => Promise<...>; }; }' is not assignable to parameter of type 'FrontendSessionBridge'.
+  Property 'rebind' is missing in type '{ ready: Promise<{ sessionId: string; bindToken: string; }>; bindToken: () => string; close: Mock<Procedure>; bridgeAccess: { subscribe: () => () => void; respondSuccess: () => Promise<...>; respondError: () => Promise<...>; }; }' but required in type 'FrontendSessionBridge'.
+EXIT 2

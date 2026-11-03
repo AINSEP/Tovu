@@ -1,0 +1,26 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/daemon
+
+ ❯ src/__tests__/routing-tool-executor.test.ts (4 tests | 1 failed) 21ms
+   × createRoutingToolExecutor > holds routed work until completion even when its caller disconnects or cancels 10ms
+     → expected "spy" to be called 1 times, but got 0 times
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/__tests__/routing-tool-executor.test.ts > createRoutingToolExecutor > holds routed work until completion even when its caller disconnects or cancels
+AssertionError: expected "spy" to be called 1 times, but got 0 times
+ ❯ src/__tests__/routing-tool-executor.test.ts:40:21
+     38|     expect(release).not.toHaveBeenCalled();
+     39|     done(); await pending;
+     40|     expect(release).toHaveBeenCalledTimes(1);
+       |                     ^
+     41|     remote.execute.mockRejectedValueOnce(new Error('failed'));
+     42|     await expect(routing.execute({ principal, run, toolId: 'site.publi…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 3 passed (4)
+   Start at  21:07:34
+   Duration  1.04s (transform 454ms, setup 0ms, collect 650ms, tests 21ms, environment 0ms, prepare 136ms)
+

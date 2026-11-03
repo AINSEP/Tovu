@@ -1,0 +1,10 @@
+PASS	packages/chat/src/react/features/chat-pane/__tests__/hooks/useChatPane.release-check.test.tsx
+PASS	packages/chat/src/react/hooks/__tests__/useComposer.release-check.test.tsx
+PASS	packages/daemon/src/agent-executor/__tests__/http-mcp-launch.integration.test.ts
+PASS	packages/daemon/src/agent-executor/__tests__/http-mcp.test.ts
+PASS	packages/daemon/src/agent-executor/claude/__tests__/mcp-config.test.ts
+PASS	packages/daemon/src/agent-executor/codex/__tests__/home-config.test.ts
+PASS	packages/daemon/src/agent-executor/codex/__tests__/home-http-staging.test.ts
+PASS	packages/daemon/src/agent-executor/opencode/__tests__/mcp-config.test.ts
+FAIL(1)	packages/mcp/src/server/__tests__/run-tool-host.http.test.ts
+PASS	packages/mcp/src/server/__tests__/run-tool-host.test.ts

@@ -1,0 +1,26 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/platform
+
+ ❯ src/fs/__tests__/file-digest.test.ts (1 test | 1 failed) 11ms
+   × file digests notice changes beyond the read buffer and release the file on read failure 10ms
+     → fileDigest is not a function
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/fs/__tests__/file-digest.test.ts > file digests notice changes beyond the read buffer and release the file on read failure
+TypeError: fileDigest is not a function
+ ❯ src/fs/__tests__/file-digest.test.ts:14:12
+     12|   try {
+     13|     fs.writeFileSync(target, bytes);
+     14|     expect(fileDigest({ path: target }).toString('hex')).toBe(createHa…
+       |            ^
+     15|     bytes[149_999] = 0; fs.writeFileSync(target, bytes);
+     16|     expect(fileDigest({ path: target }).toString('hex')).toBe(createHa…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed (1)
+   Start at  21:09:03
+   Duration  938ms (transform 426ms, setup 0ms, collect 599ms, tests 11ms, environment 1ms, prepare 97ms)
+

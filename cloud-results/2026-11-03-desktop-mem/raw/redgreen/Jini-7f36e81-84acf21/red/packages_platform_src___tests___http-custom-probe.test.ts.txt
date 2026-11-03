@@ -1,0 +1,20 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/platform
+
+ ❯ src/__tests__/http-custom-probe.test.ts (2 tests | 1 failed) 5188ms
+   × a listening service is not ready until its configured HTTP probe accepts it 5032ms
+     → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/__tests__/http-custom-probe.test.ts > a listening service is not ready until its configured HTTP probe accepts it
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 1 passed (2)
+   Start at  21:08:53
+   Duration  5.64s (transform 88ms, setup 0ms, collect 90ms, tests 5.19s, environment 0ms, prepare 93ms)
+

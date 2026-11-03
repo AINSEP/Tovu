@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/daemon
+
+ ✓ src/agent-executor/claude/__tests__/mcp-config.test.ts (3 tests) 32ms
+
+ Test Files  1 passed (1)
+      Tests  3 passed (3)
+   Start at  21:07:07
+   Duration  871ms (transform 322ms, setup 0ms, collect 469ms, tests 32ms, environment 0ms, prepare 100ms)
+

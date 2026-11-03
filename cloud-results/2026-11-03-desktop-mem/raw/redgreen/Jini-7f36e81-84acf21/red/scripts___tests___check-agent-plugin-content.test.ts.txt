@@ -1,0 +1,35 @@
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+
+ RUN  v2.1.9 /home/user/wt-Jini
+
+ ❯ scripts/__tests__/check-agent-plugin-content.test.ts (20 tests | 1 failed) 766ms
+   ✓ agent plugin content imports > the checked-in agent plugin content passes 556ms
+   × accepts a plugin’s own relative imports with relative or trailing-slash roots 17ms
+     → expected 'imports a path outside its own plugin…' to be undefined
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  scripts/__tests__/check-agent-plugin-content.test.ts > accepts a plugin’s own relative imports with relative or trailing-slash roots
+AssertionError: expected 'imports a path outside its own plugin…' to be undefined
+
+- Expected: 
+undefined
+
++ Received: 
+"imports a path outside its own plugin folder"
+
+ ❯ scripts/__tests__/check-agent-plugin-content.test.ts:92:115
+     90| it('accepts a plugin’s own relative imports with relative or trailing-…
+     91|   for (const pluginRoot of ['packages/agent-plugins/fly', 'packages/ag…
+     92|     expect(refusedSpecifier({ pluginRoot, file: `${pluginRoot}/scripts…
+       |                                                                                                                   ^
+     93|     expect(refusedSpecifier({ pluginRoot, file: `${pluginRoot}/scripts…
+     94|   }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 19 passed (20)
+   Start at  21:09:29
+   Duration  1.98s (transform 157ms, setup 0ms, collect 605ms, tests 766ms, environment 0ms, prepare 95ms)
+

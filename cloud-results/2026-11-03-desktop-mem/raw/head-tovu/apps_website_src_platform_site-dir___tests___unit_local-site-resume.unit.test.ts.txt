@@ -1,0 +1,23 @@
+✔ same-session restart resumes a starting site on its stored port (57.936619ms)
+✔ same-session restart resumes a running site on its stored port (26.393114ms)
+✔ intent is durable before launch, even if shutdown interrupts an awaited spawn (11.753556ms)
+✔ explicit Stop withdraws intent before signalling and prevents resume (13.102439ms)
+✔ a different dev session cannot resume prior intent (7.405413ms)
+✔ without a dev session both resume and intent writes are inert (7.858872ms)
+✔ a crashed resume clears intent and is attempted only once per boot (20.090382ms)
+✔ a failed launch clears intent (11.166476ms)
+✔ resume waits for a foreign record and its preferred port to clear (8.945775ms)
+✔ resume falls back after five seconds of preferred-port contention (9.827126ms)
+✔ resume shares the serial lane and capacity with manual starts (51.079649ms)
+✔ an explicit Stop queued during recovery prevents that site's later resume (12.501646ms)
+✔ a resumed launch failure withdraws intent without blocking the next site (17.020881ms)
+✔ a failed manual Start at capacity withdraws its pending recovery intent (18.722397ms)
+✔ explicit Stop withdraws intent even while the old host still owns the site (6.652503ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 15
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1937.609978

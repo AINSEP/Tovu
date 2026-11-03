@@ -1,0 +1,36 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/devops
+
+ ❯ src/packaging/electron/__tests__/staging.test.ts (88 tests | 1 failed) 85ms
+   × packaged siblings keep the dependency version they resolved before a later sibling is staged 19ms
+     → Expected values to be strictly equal:
+
+'2' !== '1'
+
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/packaging/electron/__tests__/staging.test.ts > packaged siblings keep the dependency version they resolved before a later sibling is staged
+AssertionError: Expected values to be strictly equal:
+
+'2' !== '1'
+
+
+Expected: "1"
+Received: "2"
+
+ ❯ src/packaging/electron/__tests__/staging.test.ts:442:10
+    440|     return undefined;
+    441|   };
+    442|   assert.equal(versionSeenFrom('/out/node_modules/b/node_modules/inner…
+       |          ^
+    443|   assert.equal(versionSeenFrom('/out/node_modules/b/node_modules/a'), …
+    444|   assert.equal(versionSeenFrom('/out/node_modules/b/node_modules/c'), …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 87 passed (88)
+   Start at  21:08:48
+   Duration  676ms (transform 211ms, setup 0ms, collect 237ms, tests 85ms, environment 0ms, prepare 95ms)
+

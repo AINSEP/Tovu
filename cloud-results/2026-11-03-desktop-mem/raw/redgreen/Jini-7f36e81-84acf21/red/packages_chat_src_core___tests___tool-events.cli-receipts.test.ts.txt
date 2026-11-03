@@ -1,0 +1,127 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/chat
+
+ ❯ src/core/__tests__/tool-events.cli-receipts.test.ts (1 test | 1 failed) 24ms
+   × folds buffered CLI receipts once per matching bridge result while preserving failed retries and native calls 20ms
+     → expected [ { kind: 'tool_use', …(4) }, …(8) ] to deeply equal [ { kind: 'tool_use', …(4) }, …(6) ]
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/core/__tests__/tool-events.cli-receipts.test.ts > folds buffered CLI receipts once per matching bridge result while preserving failed retries and native calls
+AssertionError: expected [ { kind: 'tool_use', …(4) }, …(8) ] to deeply equal [ { kind: 'tool_use', …(4) }, …(6) ]
+
+- Expected
++ Received
+
+  Array [
+    Object {
+      "id": "bridge",
+      "input": Object {
+        "path": "a",
+      },
+      "kind": "tool_use",
+      "name": "read",
+      "toolOrigin": "bridge",
+    },
+    Object {
+      "content": "contents",
+      "isError": false,
+      "kind": "tool_result",
+      "toolUseId": "bridge",
+    },
+    Object {
+      "id": "native",
+      "input": Object {
+        "path": "a",
+      },
+      "kind": "tool_use",
+      "name": "read",
+    },
+    Object {
+      "bridgeCall": Object {
+        "buffered": true,
+        "input": Object {
+          "path": "a",
+        },
+        "name": "read",
+      },
+      "id": "failed",
+      "input": Object {
+        "path": "a",
+      },
+      "kind": "tool_use",
+      "name": "server_read",
+    },
+    Object {
+      "content": "denied before execution",
+      "isError": true,
+      "kind": "tool_result",
+      "toolUseId": "failed",
+    },
+    Object {
+      "bridgeCall": Object {
+        "buffered": true,
+        "input": Object {
+          "path": "a",
+        },
+        "name": "read",
+      },
++     "id": "ok",
++     "input": Object {
++       "path": "a",
++     },
++     "kind": "tool_use",
++     "name": "server_read",
++   },
++   Object {
++     "content": "contents",
++     "isError": false,
++     "kind": "tool_result",
++     "toolUseId": "ok",
++   },
++   Object {
++     "bridgeCall": Object {
++       "buffered": true,
++       "input": Object {
++         "path": "a",
++       },
++       "name": "read",
++     },
+      "id": "retry",
+      "input": Object {
+        "path": "a",
+      },
+      "kind": "tool_use",
+      "name": "server_read",
+    },
+    Object {
+      "bridgeCall": Object {
+        "input": Object {
+          "path": "b",
+        },
+        "name": "read",
+      },
+      "id": "different",
+      "input": Object {
+        "path": "b",
+      },
+      "kind": "tool_use",
+      "name": "read",
+    },
+  ]
+
+ ❯ src/core/__tests__/tool-events.cli-receipts.test.ts:17:49
+     15|     { kind: 'tool_use', id: 'different', name: 'read', input: { path: …
+     16|   ];
+     17|   expect(foldDelegatedWrapperCalls({ events })).toEqual(events.filter(…
+       |                                                 ^
+     18|     !(event.kind === 'tool_use' && event.id === 'ok') && !(event.kind …
+     19| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed (1)
+   Start at  21:08:09
+   Duration  662ms (transform 121ms, setup 180ms, collect 119ms, tests 24ms, environment 0ms, prepare 88ms)
+

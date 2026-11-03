@@ -1,0 +1,12 @@
+✔ analytics/recent-hits: authorize failure preserves the canonical 500 with generated requestId (21.858036ms)
+✔ analytics/recent-hits: authorize failure preserves the canonical 500 with existing requestId (5.450566ms)
+✔ analytics/recent-hits: sink failure preserves the canonical 500 with generated requestId (2.009238ms)
+✔ analytics/recent-hits: sink failure preserves the canonical 500 with existing requestId (3.089922ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3524.545873

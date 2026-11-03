@@ -1,0 +1,30 @@
+✔ concurrent principals have isolated catalogs and terminal cleanup (49.345754ms)
+✔ component requests refresh the server snapshot and fail closed without a core fallback (10.601713ms)
+[agent-daemon] site catalog unavailable: /internal/component-catalog
+✔ a catalog read completing after terminal cleanup cannot resurrect its principal (19.270997ms)
+✔ component snapshot reads reject oversized and malformed provider metadata (20.250787ms)
+✖ the inherited site tool token is removed before any CLI or plugin runtime can inherit it (1118.440248ms)
+[agent-daemon] site catalog unavailable: /internal/tool-catalog
+✔ an obsolete start failure cannot remove a newer start of the same run (19.004338ms)
+✔ a live run cannot be rebound to another principal (4.524926ms)
+✔ plugin preflight sends only the live run id and closes after receiving its prepared prefix (2.89991ms)
+✔ the agent launches only after site catalog and plugin preparation finish (159.859435ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 8
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3515.295734
+
+✖ failing tests:
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-site-tools.unit.test.ts:1:5176
+✖ the inherited site tool token is removed before any CLI or plugin runtime can inherit it (1118.440248ms)
+  ReferenceError [Error]: toolExecTokenHolder is not defined
+      at eval (eval at evaluateDaemonExpression (file:///home/user/Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:3575), <anonymous>:3:44)
+      at evaluateDaemonExpression (/home/user/Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:64:59)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-site-tools.unit.test.ts:100:17)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)

@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/devops
+
+ ✓ src/packaging/electron/__tests__/staging.test.ts (88 tests) 52ms
+
+ Test Files  1 passed (1)
+      Tests  88 passed (88)
+   Start at  21:10:13
+   Duration  702ms (transform 245ms, setup 0ms, collect 303ms, tests 52ms, environment 0ms, prepare 104ms)
+

@@ -1,0 +1,167 @@
+✔ capture uses the eligible live public guest and writes its resized image (3.045167ms)
+✔ admin redirect during capture preserves the old thumbnail (0.309021ms)
+✔ no eligible guest creates no window and does not capture (0.173043ms)
+✔ failed capture or storage preserves the prior thumbnail and permits retry (5.657746ms)
+✔ a hung live capture times out without writing or closing the guest (1.042745ms)
+✔ admin API auth errors query strings and foreign origins never reach capturePage (0.63185ms)
+✔ release navigation and scheduler cancellation invalidate in-flight captures (0.445354ms)
+✔ the target is this launch's own server first, without consulting any lease (1.301341ms)
+✔ a site another app runs is captured through its lease's port and scheme (0.251825ms)
+✔ no own server and no lease, or a lease still starting (port 0), means nothing to capture (0.336742ms)
+✖ production preview wiring schedules only from live guests and uses the tested session predicate (3.235434ms)
+✔ the boot sweep hands every tracked site dir to the store's sweep (2.832594ms)
+✔ a failing read or sweep is reported, never thrown — hygiene must not fail a launch (0.379107ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 12
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 266.872994
+
+✖ failing tests:
+
+test at src/main/boot/site-preview.test.ts:151:1
+✖ production preview wiring schedules only from live guests and uses the tested session predicate (3.235434ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /allowed: \(\{ owner, guest, target \}\) => isLivePreviewGuestAllowed\(/. Input:
+  
+  'import { migrateNestedSitesHome } from "../nested-sites-migration.ts";\n' +
+    'import { createSitesWorkspace, rememberSharedSiteOpen, attachRunningSite } from "../shared-sites.ts";\n' +
+    '/**\n' +
+    ' * @file `apps/desktop` — an Electron shell around the SAME Tovu that `npm run dev` boots, now\n' +
+    ' * multi-site: several sites can be open, each in its own window, each spawning its own `tovu serve`.\n' +
+    ' *\n' +
+    ' * This directory is deliberately additive and self-contained. Nothing outside it imports it,\n' +
+    ' * nothing outside it references it, and `development/scripts/dev.mjs` is untouched — deleting\n' +
+    ' * `apps/desktop/` returns the repo to exactly its previous state. That is the whole point: the\n' +
+    ' * desktop mode is a second CONSUMER of the existing product, never a fork of it.\n' +
+    ' *\n' +
+    ' * Three boot modes, one product:\n' +
+    ' *\n' +
+    " * 0. **Sites Home** — the DEFAULT since 2026-09-06. Opens Tovu-Runner's ported renderer\n" +
+    " *    (`src/renderer/`, built to `dist/renderer/index.html`) instead of any site's admin — its\n" +
+    " *    Projects screen, now the app's actual front page. Opening a project embeds it as a TAB in this\n" +
+    ' *    SAME window, in a `<webview>` (`renderer/app/SiteWorkspace.tsx`), rather than popping it into its\n' +
+    " *    own `BrowserWindow` — matching Tovu-Runner's own tabbed UI, which is the reference this was\n" +
+    ' *    built against. `list`/`create`/`delete`/`open-external`/`start` are real (`src/project-ipc.ts`),\n' +
+    " *    `start` routing a tab's first open through `openSiteServer`'s `serializer`-guarded spawn-or-reuse\n" +
+    ' *    below (the sites-home counterpart of `openSiteWindow`, spawn-only, no window); `stop` stays a\n' +
+    " *    throwing stub — no control in the per-project bar calls it yet. See `sitesUiRequested`'s own doc\n" +
+    ' *    for exactly which env vars bypass this default and fall through to modes 1/2 instead.\n' +
+    ' *\n' +
+    ' * 1. **Attach** (`TOVU_DESKTOP_URL` set). The window loads a stack someone else already started —\n' +
+    ' *    normally the `npm run dev` pair (API on :3000, admin Vite on :5173). Nothing is spawned, so\n' +
+    ' *    web mode and desktop mode run side by side against the same server. Single-site only — there\n' +
+    ' *    is exactly one URL to attach to — and unrelated to everything else below. Bypasses the sites\n' +
+    ' *    home UI unconditionally: an automation/dev workflow that already names its one destination has no\n' +
+    ' *    use for a project picker.\n' +
+    ' *\n' +
+    " * 2. **Own server** (`TOVU_DESKTOP_SITE_DIR` or `TOVU_DESKTOP_SITE_DIRS` set). Spawns Tovu's OWN\n" +
+    ' *    `tovu serve <dir>` CLI as a child per open site and loads the port each one reports. `tovu\n' +
+    ' *    serve` is already the packaged single-site entry point — it boots the site dir, opens\n' +
+    ' *    `<dir>/content.db`, wires the admin SPA and starts the agent daemon\n' +
+    ' *    (`apps/website/src/cli/commands/serve.ts`). The shell therefore needs no Tovu-side change to\n' +
+    " *    open a second, third, or Nth site: `src/tovu-server.ts`'s `startTovuServer` was already a\n" +
+    ' *    pure `{repoRoot, siteDir, port} -> handle` function with no single-instance assumption\n' +
+    ' *    anywhere in it. Also bypasses the sites home UI unconditionally, same reasoning as attach mode —\n' +
+    ' *    this is what keeps every `TOVU_DESKTOP_SITE_DIR`-driven E2E spec and any other automation\n' +
+    ' *    byte-for-byte unaffected by the sites home UI becoming the default.\n' +
+    ' *\n' +
+    ' * **Multi-site, concretely (own-server/attach modes):**\n' +
+    ' * - `openSites` (a `Map<siteDir, {server, window?}>`) replaces the old single `tovuServer` variable.\n' +
+    ' *   The sites home UI (mode 0) shares this same map but never sets `window` — see `openSiteServer`.\n' +
+    " * - Each open site gets its own `BrowserWindow`, titled with the site's own name — Electron's native\n" +
+    ' *   `role: "windowMenu"` (macOS) then lists every open window and switches between them for free.\n' +
+    ' *   That IS the site switcher: no custom panel was needed, every open site is just another window.\n' +
+    " *   The sites home UI's own switcher is its tab strip instead (`renderer/app/TabStrip.tsx`) — one window, N tabs.\n" +
+    ' * - "Open Site…" (File menu) runs the folder picker for a NEW site, independent of whichever sites\n' +
+    ' *   are already open. "Open Recent" lists `site-dir-store.ts`\'s existing MRU.\n' +
+    ' * - `keyed-serializer.ts` serializes opens PER SITE DIR, so a fast double-click on the same recent-\n' +
+    " *   site menu entry cannot double-spawn a `tovu serve` for it (Tovu-Runner's `serializeByProject`\n" +
+    ' *   pattern, generalized).\n' +
+    ' *\n' +
+    " * **Crash-safety**, now in scope (`site-process-registry.ts`): every open site's `{siteDir, port,\n" +
+    ' * workspaceId, pid}` is persisted to a small JSON registry the moment its `tovu serve` reports ready,\n' +
+    ' * and removed the moment it is stopped deliberately (a window closed on Windows/Linux, or the app\n' +
+    ' * quit cleanly). macOS window close retains the server and registry until an explicit stop/quit. If\n' +
+    ' * Electron itself is hard-killed (SIGKILL, a crash, a forced logout) before that removal runs, the\n' +
+    " * NEXT launch's `reconcileOrphans()` finds the stale row, proves the pid is STILL that row's own\n" +
+    " * `tovu serve` (identity-before-kill — see that file's own header), and terminates it before any\n" +
+    ' * window opens. This was `main.js`\'s own prior comment\'s deferred item: "that machinery belongs\n' +
+    ' * with the fleet supervisor... reported rather than ported." It is now built, sized to what this\n' +
+    " * shell actually needs (not Tovu-Runner's full fleet registry). That reconciliation runs for EVERY\n" +
+    ' * boot mode ({@link reconcileOrphansOnBoot}, above the mode split); it lived inside own-server mode\n' +
+    ' * alone until 2026-09-06, which left the sites home UI — the default, and the mode that actually produces\n' +
+    ' * these rows — leaking a stranded child per open site on every hard kill.\n' +
+    ' *\n' +
+    " * **The `dist/` schema-skew fix**: own-server mode now runs the CLI's own TypeScript source under\n" +
+    ' * `--import tsx` by default (`TOVU_DESKTOP_CLI_MODE=source`), not the compiled `dist/` this\n' +
+    " * checkout's `bin.tovu` names. `dist/src/cli/main.js` here was last built 2026-08-28 (schema v50);\n" +
+    ' * current source is v57 — own-server mode rejected every site created from current source with\n' +
+    ' * `SITE_NEWER_THAN_RUNTIME`. Rebuilding `dist/` was not an option (`npm run build` is gated behind\n' +
+    ' * `check-no-linked-jini.mjs`, and this checkout deliberately keeps 13 `@jini-ai/*` packages symlinked\n' +
+    ' * to a local Jini checkout for active development); running the CLI from source instead — the same\n' +
+    ' * way `development/scripts/dev.mjs` already runs `index.ts` under `npx tsx watch` — removes the skew\n' +
+    " * without touching the build or the Jini links. See `tovu-server.ts`'s `buildCliSpawnPlan` for the\n" +
+    ' * mode\'s own default (unchanged, `"compiled"`, so every existing test keeps its exact prior\n' +
+    ' * behavior) versus this file\'s production default (`"source"`, set here via the env var).\n' +
+    ' *\n' +
+    ' * `TOVU_DESKTOP_SELFTEST=1` makes the shell prove itself and exit instead of staying open: it\n' +
+    " * reports every opened window's URL and title, then quits 0 once all have loaded (1 on any failure).\n" +
+    ' *\n' +
+    ' * Environment:\n' +
+    ' * - `TOVU_DESKTOP_UI`        — `"runner"` opens the ported sites home renderer explicitly (redundant\n' +
+    ' *   with the default now, kept for anyone who has it set); any other non-empty value forces the\n' +
+    ' *   pre-flip behavior even with no site-selecting env var set. See `sitesUiRequested`.\n' +
+    ' * - `TOVU_DESKTOP_URL`       — attach to this origin instead of spawning any server (single-site);\n' +
+    ' *   also bypasses the sites home UI default.\n' +
+    ' * - `TOVU_DESKTOP_SITE_DIR`  — force a single site dir for own-server mode, skipping the picker;\n' +
+    ' *   also bypasses the sites home UI default.\n' +
+    ' * - `TOVU_DESKTOP_SITE_DIRS` — comma-separated site dirs to open at launch, one window each —\n' +
+    ' *   bypasses the picker/MRU/dev-fallback precedence entirely, and the sites home UI default. Chiefly\n' +
+    ' *   for verification/automation (proving N sites boot concurrently without driving the menu by\n' +
+    ' *   hand); a real user reaches the\n' +
+    ' *   same result through "Open Site…"/"Open Recent" after the first site opens.\n' +
+    " * - `TOVU_DESKTOP_PORT`      — pin the FIRST own-server site's port; every other open site still\n" +
+    ' *   self-allocates (two sites must never collide).\n' +
+    ' * - `TOVU_DESKTOP_CLI_MODE`  — `"source"` (default) or `"compiled"`; see the schema-skew note above.\n' +
+    ' * - `TOVU_DESKTOP_SELFTEST`  — `1` to verify and exit rather than staying open.\n' +
+    ' * - `TOVU_DESKTOP_USER_DATA_DIR` — E2E-only. Overrides `app.getPath("userData")`. Unset in every\n' +
+    " *   real launch — see the constant's own doc for why this exists instead of scoping `HOME`.\n" +
+    ' */\n' +
+    'import fs from "node:fs";\n' +
+    'import path from "node:path";\n' +
+    'import { app, BrowserWindow, dialog, shell, Menu, ipcMain, net, session, screen, crashReporter, webContents } from "electron";\n' +
+    'import { createNativeAgentRuntime } from "@jini-ai/agent-runtime";\n' +
+    'import { createElectronUrlCapturePool } from "@jini-ai/desktop-host/electron";\n' +
+    '\n' +
+    'import { startTovuServer, DEFAULT_STOP_GRACE_MS } from "../tovu-server.ts";\n' +
+    'import { startDesktopCaptureBridge } from "../desktop-capture.ts";\n' +
+    'import { createDesktopMcpHttpRuntime } from "../desktop-mcp-http.ts";\n' +
+    'import { writeNodeToolchain, buildNodeToolchainEnv } from "../node-toolchain.ts";\n' +
+    'import { resolveAdminDevProxyUrl } from "../admin-dev-proxy.ts";\n' +
+    '// Launch-time env decisions (boot mode, CLI mode, pinned site dirs, the rejected-default clause)\n' +
+    '// live in `startup-env.ts`, where they are tested; this file passes `process.env` to them.\n' +
+    'import { isSupervisedSiteUrl } from "../supervised-site-url.ts";\n' +
+    'import { readSiteName as readSiteNameIn } from "../site-name.ts";\n' +
+    'import { isUnattendedSiteLaunch as isUnattendedSiteLaunchIn, resolveCliMode as resolveCliModeIn, type CliMode, type RejectedDefault } from "../startup-env.ts";\n' +
+    'import { resolveSiteDir, resolveOrInitSiteDir, adoptSiteDir, classifySiteDirSafely, stateFilePath, existingRecentSiteDirs, SiteDirSelectionCancelled } from "../site-dir-store.ts";\n' +
+    'import { registryDirPath, reconcileOrphans, recordSiteOpened, recordSiteClosed, readRegistry, isLiveServeRow } from "../site-process-registry.ts";\n' +
+    'import { createExternalSiteStopper } from "../external-site-stop.ts";\n' +
+    'import { createKeyedSe'... 56653 more characters
+  
+      at TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-preview.test.ts:154:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'import { migrateNestedSitesHome } from "../nested-sites-migration.ts";\nimport { createSitesWorkspace, rememberSharedSiteOpen, attachRunningSite } from "../shared-sites.ts";\n/**\n * @file `apps/desktop` — an Electron shell around the SAME Tovu that `npm run dev` boots, now\n * multi-site: several sites can be open, each in its own window, each spawning its own `tovu serve`.\n *\n * This directory is deliberately additive and self-contained. Nothing outside it imports it,\n * nothing outside it references it, and `development/scripts/dev.mjs` is untouched — deleting\n * `apps/desktop/` returns the repo to exactly its previous state. That is the whole point: the\n * desktop mode is a second CONSUMER of the existing product, never a fork of it.\n *\n * Three boot modes, one product:\n *\n * 0. **Sites Home** — the DEFAULT since 2026-09-06. Opens Tovu-Runner\'s ported renderer\n *    (`src/renderer/`, built to `dist/renderer/index.html`) instead of any site\'s admin — its\n *    Projects screen, now the app\'s actual front page. Opening a project embeds it as a TAB in this\n *    SAME window, in a `<webview>` (`renderer/app/SiteWorkspace.tsx`), rather than popping it into its\n *    own `BrowserWindow` — matching Tovu-Runner\'s own tabbed UI, which is the reference this was\n *    built against. `list`/`create`/`delete`/`open-external`/`start` are real (`src/project-ipc.ts`),\n *    `start` routing a tab\'s first open through `openSiteServer`\'s `serializer`-guarded spawn-or-reuse\n *    below (the sites-home counterpart of `openSiteWindow`, spawn-only, no window); `stop` stays a\n *    throwing stub — no control in the per-project bar calls it yet. See `sitesUiRequested`\'s own doc\n *    for exactly which env vars bypass this default and fall through to modes 1/2 instead.\n *\n * 1. **Attach** (`TOVU_DESKTOP_URL` set). The window loads a stack someone else already started —\n *    normally the `npm run dev` pair (API on :3000, admin Vite on :5173). Nothing is spawned, so\n *    web mode and desktop mode run side by side against the same server. Single-site only — there\n *    is exactly one URL to attach to — and unrelated to everything else below. Bypasses the sites\n *    home UI unconditionally: an automation/dev workflow that already names its one destination has no\n *    use for a project picker.\n *\n * 2. **Own server** (`TOVU_DESKTOP_SITE_DIR` or `TOVU_DESKTOP_SITE_DIRS` set). Spawns Tovu\'s OWN\n *    `tovu serve <dir>` CLI as a child per open site and loads the port each one reports. `tovu\n *    serve` is already the packaged single-site entry point — it boots the site dir, opens\n *    `<dir>/content.db`, wires the admin SPA and starts the agent daemon\n *    (`apps/website/src/cli/commands/serve.ts`). The shell therefore needs no Tovu-side change to\n *    open a second, third, or Nth site: `src/tovu-server.ts`\'s `startTovuServer` was already a\n *    pure `{repoRoot, siteDir, port} -> handle` function with no single-instance assumption\n *    anywhere in it. Also bypasses the sites home UI unconditionally, same reasoning as attach mode —\n *    this is what keeps every `TOVU_DESKTOP_SITE_DIR`-driven E2E spec and any other automation\n *    byte-for-byte unaffected by the sites home UI becoming the default.\n *\n * **Multi-site, concretely (own-server/attach modes):**\n * - `openSites` (a `Map<siteDir, {server, window?}>`) replaces the old single `tovuServer` variable.\n *   The sites home UI (mode 0) shares this same map but never sets `window` — see `openSiteServer`.\n * - Each open site gets its own `BrowserWindow`, titled with the site\'s own name — Electron\'s native\n *   `role: "windowMenu"` (macOS) then lists every open window and switches between them for free.\n *   That IS the site switcher: no custom panel was needed, every open site is just another window.\n *   The sites home UI\'s own switcher is its tab strip instead (`renderer/app/TabStrip.tsx`) — one window, N tabs.\n * - "Open Site…" (File menu) runs the folder picker for a NEW site, independent of whichever sites\n *   are already open. "Open Recent" lists `site-dir-store.ts`\'s existing MRU.\n * - `keyed-serializer.ts` serializes opens PER SITE DIR, so a fast double-click on the same recent-\n *   site menu entry cannot double-spawn a `tovu serve` for it (Tovu-Runner\'s `serializeByProject`\n *   pattern, generalized).\n *\n * **Crash-safety**, now in scope (`site-process-registry.ts`): every open site\'s `{siteDir, port,\n * workspaceId, pid}` is persisted to a small JSON registry the moment its `tovu serve` reports ready,\n * and removed the moment it is stopped deliberately (a window closed on Windows/Linux, or the app\n * quit cleanly). macOS window close retains the server and registry until an explicit stop/quit. If\n * Electron itself is hard-killed (SIGKILL, a crash, a forced logout) before that removal runs, the\n * NEXT launch\'s `reconcileOrphans()` finds the stale row, proves the pid is STILL that row\'s own\n * `tovu serve` (identity-before-kill — see that file\'s own header), and terminates it before any\n * window opens. This was `main.js`\'s own prior comment\'s deferred item: "that machinery belongs\n * with the fleet supervisor... reported rather than ported." It is now built, sized to what this\n * shell actually needs (not Tovu-Runner\'s full fleet registry). That reconciliation runs for EVERY\n * boot mode ({@link reconcileOrphansOnBoot}, above the mode split); it lived inside own-server mode\n * alone until 2026-09-06, which left the sites home UI — the default, and the mode that actually produces\n * these rows — leaking a stranded child per open site on every hard kill.\n *\n * **The `dist/` schema-skew fix**: own-server mode now runs the CLI\'s own TypeScript source under\n * `--import tsx` by default (`TOVU_DESKTOP_CLI_MODE=source`), not the compiled `dist/` this\n * checkout\'s `bin.tovu` names. `dist/src/cli/main.js` here was last built 2026-08-28 (schema v50);\n * current source is v57 — own-server mode rejected every site created from current source with\n * `SITE_NEWER_THAN_RUNTIME`. Rebuilding `dist/` was not an option (`npm run build` is gated behind\n * `check-no-linked-jini.mjs`, and this checkout deliberately keeps 13 `@jini-ai/*` packages symlinked\n * to a local Jini checkout for active development); running the CLI from source instead — the same\n * way `development/scripts/dev.mjs` already runs `index.ts` under `npx tsx watch` — removes the skew\n * without touching the build or the Jini links. See `tovu-server.ts`\'s `buildCliSpawnPlan` for the\n * mode\'s own default (unchanged, `"compiled"`, so every existing test keeps its exact prior\n * behavior) versus this file\'s production default (`"source"`, set here via the env var).\n *\n * `TOVU_DESKTOP_SELFTEST=1` makes the shell prove itself and exit instead of staying open: it\n * reports every opened window\'s URL and title, then quits 0 once all have loaded (1 on any failure).\n *\n * Environment:\n * - `TOVU_DESKTOP_UI`        — `"runner"` opens the ported sites home renderer explicitly (redundant\n *   with the default now, kept for anyone who has it set); any other non-empty value forces the\n *   pre-flip behavior even with no site-selecting env var set. See `sitesUiRequested`.\n * - `TOVU_DESKTOP_URL`       — attach to this origin instead of spawning any server (single-site);\n *   also bypasses the sites home UI default.\n * - `TOVU_DESKTOP_SITE_DIR`  — force a single site dir for own-server mode, skipping the picker;\n *   also bypasses the sites home UI default.\n * - `TOVU_DESKTOP_SITE_DIRS` — comma-separated site dirs to open at launch, one window each —\n *   bypasses the picker/MRU/dev-fallback precedence entirely, and the sites home UI default. Chiefly\n *   for verification/automation (proving N sites boot concurrently without driving the menu by\n *   hand); a real user reaches the\n *   same result through "Open Site…"/"Open Recent" after the first site opens.\n * - `TOVU_DESKTOP_PORT`      — pin the FIRST own-server site\'s port; every other open site still\n *   self-allocates (two sites must never collide).\n * - `TOVU_DESKTOP_CLI_MODE`  — `"source"` (default) or `"compiled"`; see the schema-skew note above.\n * - `TOVU_DESKTOP_SELFTEST`  — `1` to verify and exit rather than staying open.\n * - `TOVU_DESKTOP_USER_DATA_DIR` — E2E-only. Overrides `app.getPath("userData")`. Unset in every\n *   real launch — see the constant\'s own doc for why this exists instead of scoping `HOME`.\n */\nimport fs from "node:fs";\nimport path from "node:path";\nimport { app, BrowserWindow, dialog, shell, Menu, ipcMain, net, session, screen, crashReporter, webContents } from "electron";\nimport { createNativeAgentRuntime } from "@jini-ai/agent-runtime";\nimport { createElectronUrlCapturePool } from "@jini-ai/desktop-host/electron";\n\nimport { startTovuServer, DEFAULT_STOP_GRACE_MS } from "../tovu-server.ts";\nimport { startDesktopCaptureBridge } from "../desktop-capture.ts";\nimport { createDesktopMcpHttpRuntime } from "../desktop-mcp-http.ts";\nimport { writeNodeToolchain, buildNodeToolchainEnv } from "../node-toolchain.ts";\nimport { resolveAdminDevProxyUrl } from "../admin-dev-proxy.ts";\n// Launch-time env decisions (boot mode, CLI mode, pinned site dirs, the rejected-default clause)\n// live in `startup-env.ts`, where they are tested; this file passes `process.env` to them.\nimport { isSupervisedSiteUrl } from "../supervised-site-url.ts";\nimport { readSiteName as readSiteNameIn } from "../site-name.ts";\nimport { isUnattendedSiteLaunch as isUnattendedSiteLaunchIn, resolveCliMode as resolveCliModeIn, type CliMode, type RejectedDefault } from "../startup-env.ts";\nimport { resolveSiteDir, resolveOrInitSiteDir, adoptSiteDir, classifySiteDirSafely, stateFilePath, existingRecentSiteDirs, SiteDirSelectionCancelled } from "../site-dir-store.ts";\nimport { registryDirPath, reconcileOrphans, recordSiteOpened, recordSiteClosed, readRegistry, isLiveServeRow } from "../site-process-registry.ts";\nimport { createExternalSiteStopper } from "../external-site-stop.ts";\nimport { createKeyedSe'... 56653 more characters,
+    expected: /allowed: \(\{ owner, guest, target \}\) => isLivePreviewGuestAllowed\(/,
+    operator: 'match',
+    diff: 'simple'
+  }

@@ -1,0 +1,41 @@
+▶ Finding 2 wiring — the spawned assistant's tool grant is actually restricted, not just prompted
+  ✔ imports the shared tool policy resolver from assistant-system-overlay.ts (1.545732ms)
+  ✔ agentExecutor.run() receives hook settings when the guard exists (186.073549ms)
+  ✔ agentExecutor.run() receives only the assistant setting sources (130.04217ms)
+✔ Finding 2 wiring — the spawned assistant's tool grant is actually restricted, not just prompted (320.364635ms)
+✔ onStarted hands the executor the enforced tool restrictions (154.203495ms)
+✔ native Windows shell launches emit the required value-free limitation notice (144.894863ms)
+✔ onStarted forwards the exact search hook settings through to Claude launch arguments (123.552991ms)
+✔ onStarted disables auto-memory through Claude launch settings even when the hook file is absent (83.162272ms)
+✔ a non-owner cannot use a true owner setting to change any provider's grant (195.735551ms)
+✔ real per-launch reads apply enable AND revoke without restarting the daemon (599.103605ms)
+✔ a failed fresh subagent read still launches Claude with every default tool restriction (26.939132ms)
+✖ catalog identity survives a parser continuation using the pre-existing request resource (50.774637ms)
+✔ the real prompt augmenter receives the same fresh grant as each concurrent launch (73.551793ms)
+ℹ tests 12
+ℹ suites 1
+ℹ pass 11
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5165.382924
+
+✖ failing tests:
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.tool-restriction-wiring.unit.test.ts:1:8127
+✖ catalog identity survives a parser continuation using the pre-existing request resource (50.774637ms)
+  AssertionError [ERR_ASSERTION]: capture the real JSON parser and live-run scope registrations
+  
+  3 !== 2
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.tool-restriction-wiring.unit.test.ts:167:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 3,
+    expected: 2,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

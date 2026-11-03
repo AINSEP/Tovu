@@ -1,0 +1,48 @@
+✔ open passive streams do not prevent park (3.74763ms)
+✖ run without conversationId prevents park (152.243449ms)
+✔ delegated call approval upload and cleanup prevent premature park (0.858278ms)
+✖ a terminal run stays busy until its retained attachment cleanup finishes (112.784373ms)
+✔ park sends a frame before closing streams (1.809795ms)
+✔ idle zero never parks (0.224129ms)
+✔ graceful shutdown fences intake while allowing already accepted cleanup to finish (0.618227ms)
+✔ staged attachment survives park wake (169.528212ms)
+✔ mid-run reload reattaches and replays without parking the run (6.050709ms)
+✔ default idle is fifteen minutes and invalid input warns without logging its value (0.462512ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 8
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3547.557855
+
+✖ failing tests:
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-idle-park.integration.test.ts:1:2536
+✖ run without conversationId prevents park (152.243449ms)
+  Error: The assistant could not start: the request was malformed.
+      at failRunBeforeStart (/home/user/Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:124:78)
+      at eval (eval at evaluateDaemonExpression (file:///home/user/Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:3575), <anonymous>:50:14)
+      at captureDaemonRun (/home/user/Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:149:5)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-idle-park.integration.test.ts:65:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-idle-park.integration.test.ts:1:3641
+✖ a terminal run stays busy until its retained attachment cleanup finishes (112.784373ms)
+  Error: The assistant could not start: the request was malformed.
+      at failRunBeforeStart (/home/user/Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:124:78)
+      at eval (eval at evaluateDaemonExpression (file:///home/user/Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:3575), <anonymous>:50:14)
+      at captureDaemonRun (/home/user/Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:149:5)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-idle-park.integration.test.ts:94:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)

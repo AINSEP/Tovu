@@ -1,0 +1,75 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/chat
+
+ ❯ src/react/features/chat-pane/__tests__/hooks/useChatPane.release-check.test.tsx (3 tests | 3 failed) 69ms
+   × chat pane release safety > streaming and queued input block release until settled work removes the blocker 49ms
+     → expected true to be false // Object.is equality
+   × chat pane release safety > an upload blocks release before a file has arrived and rejection removes the blocker 9ms
+     → expected true to be false // Object.is equality
+   × chat pane release safety > an unresolved send blocks release even before the streaming state renders 10ms
+     → expected true to be false // Object.is equality
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/react/features/chat-pane/__tests__/hooks/useChatPane.release-check.test.tsx > chat pane release safety > streaming and queued input block release until settled work removes the blocker
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ src/react/features/chat-pane/__tests__/hooks/useChatPane.release-check.test.tsx:18:23
+     16|     await act(() => result.current.send());
+     17|     expect(result.current.conversation.isStreaming).toBe(true);
+     18|     expect(release()).toBe(false);
+       |                       ^
+     19|     act(() => result.current.composer.setDraft('next turn'));
+     20|     await act(() => result.current.send());
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  src/react/features/chat-pane/__tests__/hooks/useChatPane.release-check.test.tsx > chat pane release safety > an upload blocks release before a file has arrived and rejection removes the blocker
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ src/react/features/chat-pane/__tests__/hooks/useChatPane.release-check.test.tsx:35:23
+     33|     let pending!: Promise<void>;
+     34|     act(() => { pending = result.current.addAttachments([new File(['x'…
+     35|     expect(release()).toBe(false);
+       |                       ^
+     36|     await act(async () => { rejectUpload(new Error('upload refused'));…
+     37|     expect(release()).toBe(true);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  src/react/features/chat-pane/__tests__/hooks/useChatPane.release-check.test.tsx > chat pane release safety > an unresolved send blocks release even before the streaming state renders
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ src/react/features/chat-pane/__tests__/hooks/useChatPane.release-check.test.tsx:50:23
+     48|     let pending!: Promise<void>;
+     49|     act(() => { pending = result.current.send(); });
+     50|     expect(release()).toBe(false);
+       |                       ^
+     51|     await act(async () => { accept(); await pending; });
+     52|     act(() => result.current.reset());
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+ Test Files  1 failed (1)
+      Tests  3 failed (3)
+   Start at  21:06:23
+   Duration  2.48s (transform 995ms, setup 208ms, collect 1.43s, tests 69ms, environment 405ms, prepare 84ms)
+

@@ -1,0 +1,10 @@
+✔ an attached picture and saved tool result have a safe first read in every chat permission mode (1.144395ms)
+✔ a pending image job advertises a real wait before polling without a red Bash sleep row (0.337674ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1375.147082

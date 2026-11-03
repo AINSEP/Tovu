@@ -1,0 +1,4 @@
+FAIL(1)	packages/daemon/src/__tests__/idle-monitor.test.ts
+FAIL(1)	packages/daemon/src/__tests__/routing-tool-executor.test.ts
+FAIL(1)	packages/daemon/src/http/__tests__/attachments-idle-activity.test.ts
+FAIL(1)	packages/sidecar/src/__tests__/supervisor.test.ts

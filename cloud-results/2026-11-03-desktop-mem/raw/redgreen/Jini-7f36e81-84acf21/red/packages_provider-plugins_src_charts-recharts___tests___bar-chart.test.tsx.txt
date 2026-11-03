@@ -1,0 +1,35 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/provider-plugins
+
+ ❯ src/charts-recharts/__tests__/bar-chart.test.tsx (18 tests | 1 failed) 1459ms
+   × recharts BarChart > x-axis label density > keeps the first and last category when the frame is narrower than two label slots 37ms
+     → expected [ 'Feb' ] to deeply equal [ 'Jan', 'Feb' ]
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/charts-recharts/__tests__/bar-chart.test.tsx > recharts BarChart > x-axis label density > keeps the first and last category when the frame is narrower than two label slots
+AssertionError: expected [ 'Feb' ] to deeply equal [ 'Jan', 'Feb' ]
+
+- Expected
++ Received
+
+  Array [
+-   "Jan",
+    "Feb",
+  ]
+
+ ❯ src/charts-recharts/__tests__/bar-chart.test.tsx:193:119
+    191|       layout(100);
+    192|       const { container } = render(<BarChart data={data} categoryKey="…
+    193|       expect(Array.from(container.querySelectorAll('.recharts-xAxis-ti…
+       |                                                                                                                       ^
+    194|     });
+    195| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 17 passed (18)
+   Start at  21:09:08
+   Duration  2.84s (transform 217ms, setup 0ms, collect 554ms, tests 1.46s, environment 484ms, prepare 112ms)
+

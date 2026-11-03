@@ -1,0 +1,103 @@
+[theme] static page 'selection-fixture/index' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'selection-fixture/index' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-starter/sweep-synthetic' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-starter/sweep-synthetic' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-starter/sweep-synthetic' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-starter/sweep-synthetic' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-starter/sweep-synthetic' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-starter/sweep-synthetic' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-starter/sweep-partial' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-starter/sweep-partial' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-starter/sweep-partial' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-starter/sweep-partial' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-starter/sweep-partial' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-starter/sweep-partial' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-starter/sweep-partial' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-starter/sweep-partial' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-starter/sweep-partial' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-starter/sweep-partial' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-starter/sweep-partial' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-starter/sweep-partial' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-starter/sweep-partial' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-starter/sweep-partial' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-starter/sweep-partial' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-starter/sweep-partial' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-starter/sweep-partial' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-starter/sweep-partial' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-starter/sweep-partial' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-starter/sweep-partial' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-starter/sweep-partial' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-starter/sweep-partial' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-theme/sweep-synthetic' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-theme/sweep-synthetic' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-theme/sweep-synthetic' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-theme/sweep-synthetic' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-theme/sweep-synthetic' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-theme/sweep-synthetic' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-theme/sweep-partial' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-theme/sweep-partial' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-theme/sweep-partial' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-theme/sweep-partial' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-theme/sweep-partial' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-theme/sweep-partial' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-theme/sweep-partial' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-theme/sweep-partial' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-theme/sweep-partial' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-theme/sweep-partial' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-theme/sweep-partial' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-theme/sweep-partial' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-theme/sweep-partial' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-theme/sweep-partial' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-theme/sweep-partial' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-theme/sweep-partial' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-theme/sweep-partial' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-theme/sweep-partial' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-theme/sweep-partial' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-theme/sweep-partial' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-theme/sweep-partial' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-theme/sweep-partial' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-theme/sweep-partial' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-theme/sweep-partial' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-theme/sweep-partial' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-theme/sweep-partial' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-theme/sweep-partial' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-theme/sweep-partial' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-theme/sweep-partial' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-theme/sweep-partial' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-theme/sweep-partial' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-theme/sweep-partial' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-theme/sweep-partial' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-theme/sweep-partial' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-theme/sweep-partial' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'tovu-theme/sweep-partial' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ canary loader v1 excludes undeclared partials while retaining declared sources and variants (15.065532ms)
+✔ canary loader v2 excludes undeclared partials while retaining declared sources and variants (12.377675ms)
+✔ canary: discovery includes the shipped tovu-theme (0.261791ms)
+✔ canary: tovu-starter — every page renders and carries no retired embed attribute (25.350059ms)
+✔ canary: tovu-starter — every menu marker resolves to real data, tree opt-in honored (21.722792ms)
+✔ canary: tovu-starter — a menu id absent from resolved data keeps that one marker's fallback while its siblings still resolve (17.546695ms)
+✔ canary: tovu-starter — every declared partial slot marker is substituted, never left as raw marker markup (20.527247ms)
+✔ canary: tovu-starter — template "posts-default.html" resolves entity body and honors its chrome contract (12.03094ms)
+✔ canary: tovu-starter — template "posts-sidebar.html" resolves entity body and honors its chrome contract (8.028261ms)
+✔ canary: tovu-starter — template "pages-default.html" resolves entity body and honors its chrome contract (8.148343ms)
+✔ canary: tovu-starter — template "pages-blank.html" resolves entity body and honors its chrome contract (5.233168ms)
+✔ canary: tovu-starter — template "index" resolves entity body and honors its chrome contract (6.833639ms)
+✔ canary: tovu-starter — template "listing-default.html" resolves entity body and honors its chrome contract (8.63684ms)
+✔ canary: tovu-theme — every page renders and carries no retired embed attribute (25.389591ms)
+✔ canary: tovu-theme — every menu marker resolves to real data, tree opt-in honored (30.397524ms)
+✔ canary: tovu-theme — a menu id absent from resolved data keeps that one marker's fallback while its siblings still resolve (29.257152ms)
+✔ canary: tovu-theme — every declared partial slot marker is substituted, never left as raw marker markup (35.355994ms)
+✔ canary: tovu-theme — template "posts-default.html" resolves entity body and honors its chrome contract (8.434456ms)
+✔ canary: tovu-theme — template "posts-sidebar.html" resolves entity body and honors its chrome contract (9.885988ms)
+✔ canary: tovu-theme — template "pages-default.html" resolves entity body and honors its chrome contract (8.673094ms)
+✔ canary: tovu-theme — template "pages-blank.html" resolves entity body and honors its chrome contract (5.017347ms)
+✔ canary: tovu-theme — template "index" resolves entity body and honors its chrome contract (7.076323ms)
+✔ canary: tovu-theme — template "listing-default.html" resolves entity body and honors its chrome contract (8.758589ms)
+ℹ tests 23
+ℹ suites 0
+ℹ pass 23
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2142.330019

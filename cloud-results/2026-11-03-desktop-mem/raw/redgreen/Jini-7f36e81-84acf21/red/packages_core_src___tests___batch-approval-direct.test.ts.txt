@@ -1,0 +1,40 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/core
+
+ ❯ src/__tests__/batch-approval-direct.test.ts (2 tests | 1 failed) 15ms
+   × a batch of actions needing no approval completes without opening a card 13ms
+     → expected { executed: false } to deeply equal { batch: true, total: 2, …(1) }
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/__tests__/batch-approval-direct.test.ts > a batch of actions needing no approval completes without opening a card
+AssertionError: expected { executed: false } to deeply equal { batch: true, total: 2, …(1) }
+
+- Expected
++ Received
+
+  Object {
+-   "batch": true,
+-   "results": Array [
+-     "a",
+-     "b",
+-   ],
+-   "total": 2,
++   "executed": false,
+  }
+
+ ❯ src/__tests__/batch-approval-direct.test.ts:19:30
+     17|   const ctx: ToolExecutionContext = { executionId: 'exec', run: { id: …
+     18|     input: { items: [{ id: 'a' }, { id: 'b' }] }, signal: new AbortCon…
+     19|   expect(await handler(ctx)).toEqual({ batch: true, total: 2, results:…
+       |                              ^
+     20|   expect(events).toEqual(['a', 'b']);
+     21| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 1 passed (2)
+   Start at  21:08:20
+   Duration  529ms (transform 179ms, setup 0ms, collect 232ms, tests 15ms, environment 0ms, prepare 82ms)
+

@@ -1,0 +1,30 @@
+✔ agent-daemon-server.ts imports installUnhandledRejectionGuard from the shared process-error-guards module (2.142118ms)
+✖ agent-daemon-server.ts calls installUnhandledRejectionGuard() unconditionally at module load, before this process's own first real I/O (3.743965ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 1
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3207.853284
+
+✖ failing tests:
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-installs-unhandled-rejection-guard.unit.test.ts:1:707
+✖ agent-daemon-server.ts calls installUnhandledRejectionGuard() unconditionally at module load, before this process's own first real I/O (3.743965ms)
+  AssertionError [ERR_ASSERTION]: this test's own anchor (the routeDeps line) must still exist verbatim — update the anchor if that line's shape changes
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-installs-unhandled-rejection-guard.unit.test.ts:65:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

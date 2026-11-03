@@ -1,0 +1,43 @@
+## tsconfig.preload.json
+EXIT 0
+## tsconfig.renderer.json
+src/renderer/app/MainHeader.render.test.ts(54,58): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+EXIT 2
+## tsconfig.main.json
+src/desktop-agent-service.ts(82,33): error TS2345: Argument of type '{}' is not assignable to parameter of type '{ now: () => number; }'.
+  Property 'now' is missing in type '{}' but required in type '{ now: () => number; }'.
+src/desktop-mcp-http.test.ts(77,22): error TS18046: 'result' is of type 'unknown'.
+src/desktop-mcp-http.test.ts(90,16): error TS18046: 'initialized' is of type 'unknown'.
+src/desktop-mcp-http.test.ts(92,20): error TS18046: 'listed' is of type 'unknown'.
+src/desktop-mcp-http.test.ts(94,16): error TS18046: 'sites' is of type 'unknown'.
+src/desktop-mcp-http.test.ts(96,16): error TS18046: 'refused' is of type 'unknown'.
+src/desktop-mcp-http.test.ts(97,16): error TS18046: 'refused' is of type 'unknown'.
+src/desktop-mcp-http.test.ts(99,16): error TS18046: 'invalid' is of type 'unknown'.
+src/desktop-mcp-http.test.ts(101,16): error TS18046: 'unknown' is of type 'unknown'.
+src/main/boot/own-server-boot.test.ts(84,156): error TS2345: Argument of type 'string' is not assignable to parameter of type 'never'.
+src/main/boot/site-preview-guests.test.ts(22,64): error TS2741: Property 'webContents' is missing in type '{ isDestroyed(): boolean; }' but required in type '{ isDestroyed(): boolean; webContents: { getURL(): string; }; }'.
+src/main/boot/site-preview-guests.test.ts(22,71): error TS2741: Property 'session' is missing in type 'PreviewGuestContents' but required in type '{ hostWebContents?: unknown; session: object; }'.
+src/main/boot/site-preview-guests.test.ts(55,58): error TS2353: Object literal may only specify known properties, and 'webContents' does not exist in type '{ isDestroyed(): boolean; }'.
+src/main/index.ts(399,53): error TS2322: Type 'Dialog' is not assignable to type 'ConsentDialogPort<ConsentWindow>'.
+  Types of property 'showMessageBox' are incompatible.
+    Type '{ (window: BaseWindow, options: MessageBoxOptions): Promise<MessageBoxReturnValue>; (options: MessageBoxOptions): Promise<...>; }' is not assignable to type '(window: ConsentWindow, options: MessageBoxOptions) => Promise<{ response: number; }>'.
+      Types of parameters 'window' and 'window' are incompatible.
+        Type 'ConsentWindow' is missing the following properties from type 'BaseWindow': on, off, addListener, removeListener, and 161 more.
+src/main/index.ts(493,3): error TS2322: Type 'SitesHomeWindow | null' is not assignable to type 'BrowserWindow | null'.
+  Type 'SitesHomeWindow' is missing the following properties from type 'BrowserWindow': off, once, addListener, removeListener, and 171 more.
+src/main/index.ts(498,95): error TS2740: Type 'SitesHomeWindow' is missing the following properties from type 'BrowserWindow': off, once, addListener, removeListener, and 171 more.
+src/main/index.ts(500,5): error TS2322: Type '({ window }: { window: { webContents: NativeResultSource; isDestroyed(): boolean; }; }) => () => void' is not assignable to type '(args: { window: SitesHomeWindow; }) => unknown'.
+  Types of parameters '__0' and 'args' are incompatible.
+    Type '{ window: SitesHomeWindow; }' is not assignable to type '{ window: { webContents: NativeResultSource; isDestroyed(): boolean; }; }'.
+      The types of 'window.webContents' are incompatible between these types.
+        Property 'send' is missing in type 'SitesHomeWebContents' but required in type 'NativeResultSource'.
+src/main/index.ts(503,76): error TS2345: Argument of type 'SitesHomeWindow' is not assignable to parameter of type 'SelftestWindow'.
+  Types of property 'webContents' are incompatible.
+    Type 'SitesHomeWebContents' is missing the following properties from type 'SelftestWebContents': once, getURL, getTitle
+src/main/index.ts(548,36): error TS2488: Type 'SiteSupervisor<OpenSite>' must have a '[Symbol.iterator]()' method that returns an iterator.
+src/main/updates/product-telemetry-boot.test.ts(289,28): error TS2339: Property 'window' does not exist on type 'never'.
+../website/src/features/agent-plugins/host-plugin-guidance.ts(139,33): error TS2345: Argument of type 'unknown' is not assignable to parameter of type '{ value: unknown; }'.
+EXIT 2
+## tsconfig.live-verify.json
+EXIT 0

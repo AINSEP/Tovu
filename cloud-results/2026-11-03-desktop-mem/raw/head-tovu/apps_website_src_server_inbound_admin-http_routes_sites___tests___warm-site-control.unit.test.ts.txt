@@ -1,0 +1,10 @@
+✔ Sites in a warm tab shows that tab’s serving site while keeping the original host’s pool (4.987386ms)
+✔ a warm tab delegates site management with the original cookies and preserves preview bytes (63.039238ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1758.148082

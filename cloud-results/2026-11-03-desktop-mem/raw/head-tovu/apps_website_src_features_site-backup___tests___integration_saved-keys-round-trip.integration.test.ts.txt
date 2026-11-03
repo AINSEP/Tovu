@@ -1,0 +1,18 @@
+✔ real saved keys off round trip (inSite) (9228.698121ms)
+✔ real saved keys correct round trip (inSite) (8673.474724ms)
+✔ real saved keys wrong round trip (inSite) (8412.57772ms)
+✔ real saved keys missing round trip (inSite) (9879.014271ms)
+✔ real saved keys off round trip (appData) (8268.002258ms)
+✔ real saved keys correct round trip (appData) (7259.986985ms)
+✔ real saved keys wrong round trip (appData) (8140.480219ms)
+✔ real saved keys missing round trip (appData) (7974.856735ms)
+[agent-plugins:migration-complete] /tmp/tovu-import-b-Zp7sDH/sites/portable/agent-plugins/ws/workspace-local
+✔ edited bundled plugin labels survive production export and quarantined import (14483.019973ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 88376.419786

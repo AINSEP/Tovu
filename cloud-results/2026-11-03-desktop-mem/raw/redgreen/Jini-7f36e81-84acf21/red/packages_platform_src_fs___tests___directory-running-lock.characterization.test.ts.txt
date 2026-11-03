@@ -1,0 +1,56 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/platform
+
+ ❯ src/fs/__tests__/directory-running-lock.characterization.test.ts (64 tests | 8 failed) 34ms
+   × stored string port fails closed without mutation while its owner may be alive 13ms
+     → expected [] to deeply equal [ 'probe' ]
+   × stored negative port fails closed without mutation while its owner may be alive 1ms
+     → expected [] to deeply equal [ 'probe' ]
+   × stored excessive port fails closed without mutation while its owner may be alive 1ms
+     → expected [] to deeply equal [ 'probe' ]
+   × stored fractional port fails closed without mutation while its owner may be alive 1ms
+     → expected [] to deeply equal [ 'probe' ]
+   × stored NaN port fails closed without mutation while its owner may be alive 1ms
+     → expected [] to deeply equal [ 'probe' ]
+   × stored infinite port fails closed without mutation while its owner may be alive 1ms
+     → expected [] to deeply equal [ 'probe' ]
+   × stored unsupported scheme fails closed without mutation while its owner may be alive 1ms
+     → expected [] to deeply equal [ 'probe' ]
+   × stored non-string scheme fails closed without mutation while its owner may be alive 1ms
+     → expected [] to deeply equal [ 'probe' ]
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 8 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/fs/__tests__/directory-running-lock.characterization.test.ts > stored string port fails closed without mutation while its owner may be alive
+ FAIL  src/fs/__tests__/directory-running-lock.characterization.test.ts > stored negative port fails closed without mutation while its owner may be alive
+ FAIL  src/fs/__tests__/directory-running-lock.characterization.test.ts > stored excessive port fails closed without mutation while its owner may be alive
+ FAIL  src/fs/__tests__/directory-running-lock.characterization.test.ts > stored fractional port fails closed without mutation while its owner may be alive
+ FAIL  src/fs/__tests__/directory-running-lock.characterization.test.ts > stored NaN port fails closed without mutation while its owner may be alive
+ FAIL  src/fs/__tests__/directory-running-lock.characterization.test.ts > stored infinite port fails closed without mutation while its owner may be alive
+ FAIL  src/fs/__tests__/directory-running-lock.characterization.test.ts > stored unsupported scheme fails closed without mutation while its owner may be alive
+ FAIL  src/fs/__tests__/directory-running-lock.characterization.test.ts > stored non-string scheme fails closed without mutation while its owner may be alive
+AssertionError: expected [] to deeply equal [ 'probe' ]
+
+- Expected
++ Received
+
+- Array [
+-   "probe",
+- ]
++ Array []
+
+ ❯ src/fs/__tests__/directory-running-lock.characterization.test.ts:49:21
+     47|     // A recognizable holder with only address corruption is probed so…
+     48|     const invalidAddress = label.includes("port") || label.includes("s…
+     49|     expect(effects).toEqual(invalidAddress ? ["probe"] : []);
+       |                     ^
+     50|   });
+     51| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/8]⎯
+
+ Test Files  1 failed (1)
+      Tests  8 failed | 56 passed (64)
+   Start at  21:09:01
+   Duration  517ms (transform 125ms, setup 0ms, collect 165ms, tests 34ms, environment 0ms, prepare 93ms)
+

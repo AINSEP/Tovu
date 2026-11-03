@@ -1,0 +1,41 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/mcp
+
+ ❯ src/server/__tests__/http-tool-server.wire.test.ts (8 tests | 2 failed) 3324ms
+   × an embedding waiting during initial bind failure receives the recovered capability 14ms
+     → runtime.subscribe is not a function
+   × capability delivery retries failures and unsubscribe cancels further delivery 1ms
+     → runtime.subscribe is not a function
+   ✓ closing the listener drains accepted tool work without cutting it off 3031ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/server/__tests__/http-tool-server.wire.test.ts > an embedding waiting during initial bind failure receives the recovered capability
+TypeError: runtime.subscribe is not a function
+ ❯ src/server/__tests__/http-tool-server.wire.test.ts:25:26
+     23|   });
+     24|   try {
+     25|     const stop = runtime.subscribe({ listener: capability => { deliver…
+       |                          ^
+     26|     expect(await runtime.capability({})).toBeUndefined();
+     27|     await vi.advanceTimersByTimeAsync(1000);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/server/__tests__/http-tool-server.wire.test.ts > capability delivery retries failures and unsubscribe cancels further delivery
+TypeError: runtime.subscribe is not a function
+ ❯ src/server/__tests__/http-tool-server.wire.test.ts:44:26
+     42|   });
+     43|   try {
+     44|     const stop = runtime.subscribe({ listener });
+       |                          ^
+     45|     await runtime.capability({});
+     46|     await vi.advanceTimersByTimeAsync(1000);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 6 passed (8)
+   Start at  21:07:54
+   Duration  4.67s (transform 502ms, setup 0ms, collect 971ms, tests 3.32s, environment 0ms, prepare 74ms)
+

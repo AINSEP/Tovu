@@ -1,0 +1,119 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/chat
+
+ ❯ src/react/hooks/__tests__/useComposer.release-check.test.tsx (7 tests | 5 failed) 124ms
+   × composer release safety > flushes the pending draft before release and restores it after a remount 33ms
+     → expected null to match object { d: 'unfinished message' }
+   × composer release safety > unsent text blocks release with storage denied, including after the debounce 8ms
+     → expected true to be false // Object.is equality
+   × composer release safety > an unkeyed draft cannot release and a clean composer needs no storage 7ms
+     → expected true to be false // Object.is equality
+   × composer release safety > staged files without a restoration port and folders with denied storage block release 5ms
+     → expected true to be false // Object.is equality
+   × composer release safety > pending uploads block release even before a staged file exists 6ms
+     → expected true to be false // Object.is equality
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/react/hooks/__tests__/useComposer.release-check.test.tsx > composer release safety > flushes the pending draft before release and restores it after a remount
+AssertionError: expected null to match object { d: 'unfinished message' }
+
+- Expected: 
+Object {
+  "d": "unfinished message",
+}
+
++ Received: 
+null
+
+ ❯ src/react/hooks/__tests__/useComposer.release-check.test.tsx:19:90
+     17|     expect(localStorage.getItem(`${COMPOSER_DRAFT_STORAGE_PREFIX}relea…
+     18|     expect(release()).toBe(true);
+     19|     expect(JSON.parse(localStorage.getItem(`${COMPOSER_DRAFT_STORAGE_P…
+       |                                                                                          ^
+     20|     first.unmount();
+     21|     __resetComposerDraftCacheForTests({ keepStorage: true });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/5]⎯
+
+ FAIL  src/react/hooks/__tests__/useComposer.release-check.test.tsx > composer release safety > unsent text blocks release with storage denied, including after the debounce
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ src/react/hooks/__tests__/useComposer.release-check.test.tsx:30:23
+     28|     vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { …
+     29|     act(() => result.current.setDraft('keep my words'));
+     30|     expect(release()).toBe(false);
+       |                       ^
+     31|     act(() => vi.advanceTimersByTime(800));
+     32|     expect(release()).toBe(false);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/5]⎯
+
+ FAIL  src/react/hooks/__tests__/useComposer.release-check.test.tsx > composer release safety > an unkeyed draft cannot release and a clean composer needs no storage
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ src/react/hooks/__tests__/useComposer.release-check.test.tsx:40:23
+     38|     expect(release()).toBe(true);
+     39|     act(() => result.current.setDraft('no conversation yet'));
+     40|     expect(release()).toBe(false);
+       |                       ^
+     41|     act(() => result.current.reset());
+     42|     expect(release()).toBe(true);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/5]⎯
+
+ FAIL  src/react/hooks/__tests__/useComposer.release-check.test.tsx > composer release safety > staged files without a restoration port and folders with denied storage block release
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ src/react/hooks/__tests__/useComposer.release-check.test.tsx:48:23
+     46|     const { result } = renderHook(() => useComposer({ conversationId: …
+     47|     act(() => result.current.addAttachment({ path: '/a.png', name: 'a.…
+     48|     expect(release()).toBe(false);
+       |                       ^
+     49|     act(() => result.current.clearAttachments());
+     50|     vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/5]⎯
+
+ FAIL  src/react/hooks/__tests__/useComposer.release-check.test.tsx > composer release safety > pending uploads block release even before a staged file exists
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ src/react/hooks/__tests__/useComposer.release-check.test.tsx:63:23
+     61|     let pending!: Promise<void>;
+     62|     act(() => { pending = result.current.addAttachments([new File(['x'…
+     63|     expect(release()).toBe(false);
+       |                       ^
+     64|     await act(async () => { rejectUpload(new Error('failed')); await p…
+     65|     expect(release()).toBe(true);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/5]⎯
+
+ Test Files  1 failed (1)
+      Tests  5 failed | 2 passed (7)
+   Start at  21:06:27
+   Duration  1.37s (transform 278ms, setup 198ms, collect 280ms, tests 124ms, environment 453ms, prepare 107ms)
+

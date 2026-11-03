@@ -1,0 +1,66 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/cms
+
+ ❯ src/navigation/__tests__/link-rel.test.ts (7 tests | 2 failed) 12ms
+   × normalizeMenuRel keeps allowed tokens, drops unknown ones, lowercases and dedupes 6ms
+     → Expected values to be strictly equal:
++ actual - expected
+
++ 'nofollow'
+- undefined
+
+   × menu links drop malformed rel tokens whole instead of turning fragments into trusted link types 1ms
+     → x-nofollow
++ actual - expected
+
++ 'nofollow'
+- undefined
+
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/navigation/__tests__/link-rel.test.ts > normalizeMenuRel keeps allowed tokens, drops unknown ones, lowercases and dedupes
+AssertionError: Expected values to be strictly equal:
++ actual - expected
+
++ 'nofollow'
+- undefined
+
+
+simple
+
+ ❯ src/navigation/__tests__/link-rel.test.ts:32:10
+     30| test("normalizeMenuRel keeps allowed tokens, drops unknown ones, lower…
+     31|   assert.equal(normalizeMenuRel({ rel: "NoFollow  ugc nofollow" }, {})…
+     32|   assert.equal(normalizeMenuRel({ rel: 'nofollow" onmouseover="x' }, {…
+       |          ^
+     33|   assert.equal(normalizeMenuRel({ rel: "stylesheet preload opener" }, …
+     34|   assert.equal(normalizeMenuRel({ rel: "" }, {}), undefined);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/navigation/__tests__/link-rel.test.ts > menu links drop malformed rel tokens whole instead of turning fragments into trusted link types
+AssertionError: x-nofollow
++ actual - expected
+
++ 'nofollow'
+- undefined
+
+
+simple
+
+ ❯ src/navigation/__tests__/link-rel.test.ts:79:12
+     77| test("menu links drop malformed rel tokens whole instead of turning fr…
+     78|   for (const rel of ["x-nofollow", "ugc123", "nofollow,external", "me/…
+     79|     assert.equal(normalizeMenuRel({ rel }), undefined, rel);
+       |            ^
+     80|   }
+     81|   assert.equal(normalizeMenuRel({ rel: "NoFollow\tugc\nexternal\rhelp\…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 5 passed (7)
+   Start at  21:08:18
+   Duration  1.01s (transform 447ms, setup 0ms, collect 633ms, tests 12ms, environment 0ms, prepare 107ms)
+

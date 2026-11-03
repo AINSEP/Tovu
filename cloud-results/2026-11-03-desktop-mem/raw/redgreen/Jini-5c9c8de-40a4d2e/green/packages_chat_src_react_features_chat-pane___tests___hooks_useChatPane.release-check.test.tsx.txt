@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/chat
+
+ ✓ src/react/features/chat-pane/__tests__/hooks/useChatPane.release-check.test.tsx (3 tests) 95ms
+
+ Test Files  1 passed (1)
+      Tests  3 passed (3)
+   Start at  21:06:52
+   Duration  2.79s (transform 1.29s, setup 150ms, collect 1.78s, tests 95ms, environment 387ms, prepare 83ms)
+

@@ -1,0 +1,130 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/daemon
+
+ ❯ src/__tests__/delegated-tool-bridge.test.ts (23 tests | 3 failed) 75ms
+   × DelegatedToolBridge > routes one allowed and one denied delegated call through ToolExecutor with matching run events and audits 18ms
+     → expected [ { type: 'tool_use', …(3) }, …(3) ] to deeply equal [ { type: 'tool_use', …(4) }, …(3) ]
+   × DelegatedToolBridge > rethrows and records an error tool_result when ToolExecutor.execute throws before producing a result 3ms
+     → expected [ { type: 'tool_use', …(3) }, …(1) ] to deeply equal [ { type: 'tool_use', …(4) }, …(1) ]
+   × DelegatedToolBridge > reports the confirmation-denied result content when the delegate declines confirmation 2ms
+     → expected [ { type: 'tool_use', …(3) }, …(1) ] to deeply equal [ { type: 'tool_use', …(4) }, …(1) ]
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/__tests__/delegated-tool-bridge.test.ts > DelegatedToolBridge > routes one allowed and one denied delegated call through ToolExecutor with matching run events and audits
+AssertionError: expected [ { type: 'tool_use', …(3) }, …(3) ] to deeply equal [ { type: 'tool_use', …(4) }, …(3) ]
+
+- Expected
++ Received
+
+  Array [
+    Object {
+      "id": "call-allow",
+      "input": Object {
+        "greeting": "hello",
+      },
+      "name": "echo",
+-     "toolOrigin": "bridge",
+      "type": "tool_use",
+    },
+    Object {
+      "content": "{\"echoed\":{\"greeting\":\"hello\"}}",
+      "toolUseId": "call-allow",
+      "type": "tool_result",
+    },
+    Object {
+      "id": "call-deny",
+      "input": Object {
+        "destructive": true,
+      },
+      "name": "blocked",
+-     "toolOrigin": "bridge",
+      "type": "tool_use",
+    },
+    Object {
+      "content": "Tool execution denied by policy.",
+      "isError": true,
+      "toolUseId": "call-deny",
+      "type": "tool_result",
+    },
+  ]
+
+ ❯ src/__tests__/delegated-tool-bridge.test.ts:58:25
+     56|       .filter((event) => event.kind === 'agent')
+     57|       .map((event) => event.payload as RunAgentPayload);
+     58|     expect(agentEvents).toEqual([
+       |                         ^
+     59|       { type: 'tool_use', id: 'call-allow', name: 'echo', input: { gre…
+     60|       { type: 'tool_result', toolUseId: 'call-allow', content: '{"echo…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  src/__tests__/delegated-tool-bridge.test.ts > DelegatedToolBridge > rethrows and records an error tool_result when ToolExecutor.execute throws before producing a result
+AssertionError: expected [ { type: 'tool_use', …(3) }, …(1) ] to deeply equal [ { type: 'tool_use', …(4) }, …(1) ]
+
+- Expected
++ Received
+
+  Array [
+    Object {
+      "id": "call-missing",
+      "input": Object {},
+      "name": "missing",
+-     "toolOrigin": "bridge",
+      "type": "tool_use",
+    },
+    Object {
+      "content": "ToolExecutor: unknown tool \"missing\"",
+      "isError": true,
+      "toolUseId": "call-missing",
+      "type": "tool_result",
+    },
+  ]
+
+ ❯ src/__tests__/delegated-tool-bridge.test.ts:101:25
+     99|       .filter((event) => event.kind === 'agent')
+    100|       .map((event) => event.payload as RunAgentPayload);
+    101|     expect(agentEvents).toEqual([
+       |                         ^
+    102|       { type: 'tool_use', id: 'call-missing', name: 'missing', input: …
+    103|       {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  src/__tests__/delegated-tool-bridge.test.ts > DelegatedToolBridge > reports the confirmation-denied result content when the delegate declines confirmation
+AssertionError: expected [ { type: 'tool_use', …(3) }, …(1) ] to deeply equal [ { type: 'tool_use', …(4) }, …(1) ]
+
+- Expected
++ Received
+
+  Array [
+    Object {
+      "id": "call-1",
+      "input": Object {},
+      "name": "confirm-me",
+-     "toolOrigin": "bridge",
+      "type": "tool_use",
+    },
+    Object {
+      "content": "Tool execution denied during confirmation.",
+      "isError": true,
+      "toolUseId": "call-1",
+      "type": "tool_result",
+    },
+  ]
+
+ ❯ src/__tests__/delegated-tool-bridge.test.ts:130:25
+    128|       .filter((event) => event.kind === 'agent')
+    129|       .map((event) => event.payload as RunAgentPayload);
+    130|     expect(agentEvents).toEqual([
+       |                         ^
+    131|       { type: 'tool_use', id: 'call-1', name: 'confirm-me', input: {},…
+    132|       {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+ Test Files  1 failed (1)
+      Tests  3 failed | 20 passed (23)
+   Start at  21:08:23
+   Duration  4.65s (transform 2.67s, setup 0ms, collect 4.23s, tests 75ms, environment 0ms, prepare 96ms)
+

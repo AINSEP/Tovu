@@ -1,0 +1,10 @@
+✔ the run prompt renders decoded.pageContext directly after the dispatch marker (1.109304ms)
+✔ onStarted forwards page context and the operator's words to the executor (174.802521ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3259.70548

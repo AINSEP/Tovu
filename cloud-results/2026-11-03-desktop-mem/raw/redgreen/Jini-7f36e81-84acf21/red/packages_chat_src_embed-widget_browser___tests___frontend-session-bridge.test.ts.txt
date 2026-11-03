@@ -1,0 +1,151 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/chat
+
+ ❯ src/embed-widget/browser/__tests__/frontend-session-bridge.test.ts (15 tests | 10 failed) 326ms
+   × park closes the stream and clears the token 18ms
+     → expected "spy" to be called once, but got 0 times
+   × rebind waits for a fresh attached frame after prior readiness 7ms
+     → bridge.rebind is not a function
+   × concurrent rebinds share one stream and Stop cancels only its own wait 1ms
+     → bridge.rebind is not a function
+   × a visibility suspension invalidates the token and retains transport ownership 2ms
+     → expected 'old-token' to be undefined
+   × park aborts page work before a fresh attachment can execute it 59ms
+     → expected false to be true // Object.is equality
+   × park cannot acknowledge an old result into a fresh session 52ms
+     → bridge.rebind is not a function
+   × parked rejects a pending current attachment wait 1ms
+     → bridge.rebind is not a function
+   × error rejects a pending current attachment wait 1ms
+     → bridge.rebind is not a function
+   × close rejects a pending current attachment wait 1ms
+     → bridge.rebind is not a function
+   × a parked fetch stream stays closed without scheduling native reconnect 18ms
+     → expected false to be true // Object.is equality
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 10 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/embed-widget/browser/__tests__/frontend-session-bridge.test.ts > park closes the stream and clears the token
+AssertionError: expected "spy" to be called once, but got 0 times
+ ❯ src/embed-widget/browser/__tests__/frontend-session-bridge.test.ts:27:31
+     25|     await bridge.ready;
+     26|     sources[0]!.dispatchEvent(new MessageEvent('parked', { data: '{}' …
+     27|     expect(sources[0]!.close).toHaveBeenCalledOnce();
+       |                               ^
+     28|     expect(bridge.bindToken()).toBeUndefined();
+     29|     // A delayed frame from the closed transport cannot restore a revo…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/10]⎯
+
+ FAIL  src/embed-widget/browser/__tests__/frontend-session-bridge.test.ts > rebind waits for a fresh attached frame after prior readiness
+TypeError: bridge.rebind is not a function
+ ❯ src/embed-widget/browser/__tests__/frontend-session-bridge.test.ts:43:28
+     41|     await bridge.ready;
+     42|     sources[0]!.dispatchEvent(new Event('error'));
+     43|     const waiting = bridge.rebind({}, {});
+       |                            ^
+     44|     let settled = false;
+     45|     void waiting.then(() => { settled = true; });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/10]⎯
+
+ FAIL  src/embed-widget/browser/__tests__/frontend-session-bridge.test.ts > concurrent rebinds share one stream and Stop cancels only its own wait
+TypeError: bridge.rebind is not a function
+ ❯ src/embed-widget/browser/__tests__/frontend-session-bridge.test.ts:62:26
+     60|   const { bridge, sources, frame } = bridgeHarness();
+     61|   const stop = new AbortController();
+     62|   const stopped = bridge.rebind({ signal: stop.signal }, {});
+       |                          ^
+     63|   const rejected = expect(stopped).rejects.toThrow('stopped');
+     64|   const waiting = bridge.rebind({}, {});
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/10]⎯
+
+ FAIL  src/embed-widget/browser/__tests__/frontend-session-bridge.test.ts > a visibility suspension invalidates the token and retains transport ownership
+AssertionError: expected 'old-token' to be undefined
+
+- Expected: 
+undefined
+
++ Received: 
+"old-token"
+
+ ❯ src/embed-widget/browser/__tests__/frontend-session-bridge.test.ts:81:30
+     79|   await bridge.ready;
+     80|   sources[0]!.dispatchEvent(new Event('suspended'));
+     81|   expect(bridge.bindToken()).toBeUndefined();
+       |                              ^
+     82|   expect(sources[0]!.close).not.toHaveBeenCalled();
+     83|   const waiting = bridge.rebind({}, {});
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/10]⎯
+
+ FAIL  src/embed-widget/browser/__tests__/frontend-session-bridge.test.ts > park aborts page work before a fresh attachment can execute it
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/embed-widget/browser/__tests__/frontend-session-bridge.test.ts:111:35
+    109|   await vi.waitFor(() => expect(approvalSignal).toBeDefined());
+    110|   events[0]!.dispatchEvent(new Event('parked'));
+    111|   expect(approvalSignal!.aborted).toBe(true);
+       |                                   ^
+    112|   const waiting = bridge.rebind({}, {});
+    113|   frame(1, { type: 'attached', sessionId: 'fresh', bindToken: 'fresh-t…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/10]⎯
+
+ FAIL  src/embed-widget/browser/__tests__/frontend-session-bridge.test.ts > park cannot acknowledge an old result into a fresh session
+TypeError: bridge.rebind is not a function
+ ❯ src/embed-widget/browser/__tests__/frontend-session-bridge.test.ts:141:26
+    139|   await vi.waitFor(() => expect(preparing).toHaveBeenCalledOnce());
+    140|   events[0]!.dispatchEvent(new Event('parked'));
+    141|   const waiting = bridge.rebind({}, {});
+       |                          ^
+    142|   frame(1, { type: 'attached', sessionId: 'fresh', bindToken: 'fresh-t…
+    143|   await waiting;
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/10]⎯
+
+ FAIL  src/embed-widget/browser/__tests__/frontend-session-bridge.test.ts > parked rejects a pending current attachment wait
+ FAIL  src/embed-widget/browser/__tests__/frontend-session-bridge.test.ts > error rejects a pending current attachment wait
+ FAIL  src/embed-widget/browser/__tests__/frontend-session-bridge.test.ts > close rejects a pending current attachment wait
+TypeError: bridge.rebind is not a function
+ ❯ src/embed-widget/browser/__tests__/frontend-session-bridge.test.ts:153:26
+    151|   const { bridge, sources } = bridgeHarness();
+    152|   // This surface never attached; observe ready only to prevent a refu…
+    153|   const waiting = bridge.rebind({}, {});
+       |                          ^
+    154|   const rejected = expect(waiting).rejects.toThrow();
+    155|   if (kind === 'close') bridge.close();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/10]⎯
+
+ FAIL  src/embed-widget/browser/__tests__/frontend-session-bridge.test.ts > a parked fetch stream stays closed without scheduling native reconnect
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/embed-widget/browser/__tests__/frontend-session-bridge.test.ts:178:35
+    176|   try {
+    177|     await vi.advanceTimersByTimeAsync(60_000);
+    178|     expect(streamSignal?.aborted).toBe(true);
+       |                                   ^
+    179|     expect(send).toHaveBeenCalledOnce();
+    180|     expect(bridge.bindToken()).toBeUndefined();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/10]⎯
+
+ Test Files  1 failed (1)
+      Tests  10 failed | 5 passed (15)
+   Start at  21:08:11
+   Duration  2.12s (transform 787ms, setup 216ms, collect 1.20s, tests 326ms, environment 0ms, prepare 108ms)
+

@@ -16,3 +16,11 @@
 ✔ hosted source sealing retains the Tovu opt-in hint and publishes no package (128.700701ms)
 ✔ the deployment adapter treats desktop and dev as local and production/Fly as hosted (0.8383ms)
 ✔ install policy uses injected host facts even when the env has no hosted hint (0.141415ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5804.604422

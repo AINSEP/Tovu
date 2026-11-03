@@ -1,0 +1,94 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/provider-plugins
+
+ ❯ src/charts-recharts/__tests__/mount.test.tsx (12 tests | 3 failed) 1641ms
+   × standalone Recharts vanilla lifecycle > keeps pie data with invalid shares in the host fallback rather than drawing it: -1 9ms
+     → expected true to be false // Object.is equality
+   × standalone Recharts vanilla lifecycle > keeps pie data with invalid shares in the host fallback rather than drawing it: 0 1ms
+     → expected true to be false // Object.is equality
+   × standalone Recharts vanilla lifecycle > draws a healthy update and settles its acknowledgement after a caught render error 1013ms
+     → expected false to be true // Object.is equality
+
+Ignored nodes: comments, script, style
+[36m<html>[39m
+  [36m<head />[39m
+  [36m<body>[39m
+    [36m<span[39m
+      [33maria-hidden[39m=[32m"true"[39m
+      [33mid[39m=[32m"recharts_measurement_span"[39m
+      [33mstyle[39m=[32m"position: absolute; top: -20000px; left: 0px; padding: 0px; margin: 0px; white-space: pre; letter-spacing: undefined;"[39m
+    [36m>[39m
+      [0mMar[0m
+    [36m</span>[39m
+    [36m<div[39m
+      [33mdata-chart-theme[39m=[32m"light"[39m
+    [36m/>[39m
+  [36m</body>[39m
+[36m</html>[39m
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/charts-recharts/__tests__/mount.test.tsx > standalone Recharts vanilla lifecycle > keeps pie data with invalid shares in the host fallback rather than drawing it: -1
+ FAIL  src/charts-recharts/__tests__/mount.test.tsx > standalone Recharts vanilla lifecycle > keeps pie data with invalid shares in the host fallback rather than drawing it: 0
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ src/charts-recharts/__tests__/mount.test.tsx:141:49
+    139|   it.each([[-1, 2], [0, 0]])('keeps pie data with invalid shares in th…
+    140|     const pie: ChartSpec = { kind: 'pie', categoryKey: 'name', series:…
+    141|     expect(supportsRechartsSpec({ spec: pie })).toBe(false);
+       |                                                 ^
+    142|     expect(() => mount({ element: document.createElement('div'), spec:…
+    143|     expect(supportsRechartsSpec({ spec: { ...pie, data: [{ name: 'zero…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  src/charts-recharts/__tests__/mount.test.tsx > standalone Recharts vanilla lifecycle > draws a healthy update and settles its acknowledgement after a caught render error
+AssertionError: expected false to be true // Object.is equality
+
+Ignored nodes: comments, script, style
+[36m<html>[39m
+  [36m<head />[39m
+  [36m<body>[39m
+    [36m<span[39m
+      [33maria-hidden[39m=[32m"true"[39m
+      [33mid[39m=[32m"recharts_measurement_span"[39m
+      [33mstyle[39m=[32m"position: absolute; top: -20000px; left: 0px; padding: 0px; margin: 0px; white-space: pre; letter-spacing: undefined;"[39m
+    [36m>[39m
+      [0mMar[0m
+    [36m</span>[39m
+    [36m<div[39m
+      [33mdata-chart-theme[39m=[32m"light"[39m
+    [36m/>[39m
+  [36m</body>[39m
+[36m</html>[39m
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/charts-recharts/__tests__/mount.test.tsx:159:43
+    157|       act(() => { update = instance.update({ spec, theme: { mode: 'lig…
+    158|       void Promise.resolve(update).then(() => { settled = true; });
+    159|       await waitFor(() => expect(settled).toBe(true));
+       |                                           ^
+    160|       expect(element.querySelector('svg.recharts-surface')).not.toBeNu…
+    161|       expect(errors).toHaveLength(1);
+ ❯ runWithExpensiveErrorDiagnosticsDisabled ../../../Jini/node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/config.js:47:12
+ ❯ checkCallback ../../../Jini/node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:124:77
+ ❯ Timeout.checkRealTimersCallback ../../../Jini/node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:118:16
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ Test Files  1 failed (1)
+      Tests  3 failed | 9 passed (12)
+   Start at  21:09:12
+   Duration  3.14s (transform 223ms, setup 0ms, collect 659ms, tests 1.64s, environment 405ms, prepare 108ms)
+

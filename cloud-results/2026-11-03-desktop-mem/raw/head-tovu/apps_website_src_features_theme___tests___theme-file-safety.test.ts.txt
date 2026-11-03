@@ -1,0 +1,28 @@
+✔ theme_write_file: replacing two theme files asks once and keeps both previous files restorable (59.238352ms)
+✔ theme_write_file: declining a replacement leaves files and revision history untouched (10.280258ms)
+✔ theme_edit_file: replacing two theme files asks once and keeps both previous files restorable (16.172954ms)
+✔ theme_edit_file: declining a replacement leaves files and revision history untouched (6.426979ms)
+✔ theme_reset_file: replacing two theme files asks once and keeps both previous files restorable (16.878927ms)
+✔ theme_reset_file: declining a replacement leaves files and revision history untouched (6.167538ms)
+✔ theme_import_file_from_url: replacing two theme files asks once and keeps both previous files restorable (18.870302ms)
+✔ theme_import_file_from_url: declining a replacement leaves files and revision history untouched (21.976081ms)
+✔ theme_import_local_file: replacing two theme files asks once and keeps both previous files restorable (31.525688ms)
+✔ theme_import_local_file: declining a replacement leaves files and revision history untouched (9.703896ms)
+✔ a newly created theme file needs no replacement card or revision (6.10882ms)
+✔ a theme replacement with no confirmation channel leaves current content unchanged (6.246132ms)
+✔ the previous theme revision can be restored through the existing restore tool (12.430502ms)
+✔ a later invalid theme destination prevents both earlier writes and a confirmation card (5.630083ms)
+✔ theme revisions refuse a trash symlink escaping the theme before replacing any bytes (5.47109ms)
+✔ a file changed while its confirmation is open is never overwritten (6.735034ms)
+✔ theme replacement history retains the latest 20 revisions without purging manually trashed files (57.3857ms)
+✔ a URL import preserves a destination created while its download waits (6.608643ms)
+✔ a URL import preserves a destination changed while its download waits (7.990244ms)
+✔ a committed theme replacement reloads even when an old revision cannot be pruned (54.799908ms)
+ℹ tests 20
+ℹ suites 0
+ℹ pass 20
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4160.98797

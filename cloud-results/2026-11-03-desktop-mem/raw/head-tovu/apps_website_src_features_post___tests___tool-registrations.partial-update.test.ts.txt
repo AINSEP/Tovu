@@ -1,0 +1,25 @@
+✔ a template-only patch persists the page choice, exposes it on reads and records a working undo (14.81275ms)
+✔ the existing update tool advertises the optional template field and how to discover choices (5.737221ms)
+✔ template omission keeps the saved choice; empty and null choices retain their distinct meanings (7.503805ms)
+✔ template-only patches retain the existing version-conflict guard (1.073471ms)
+✔ content_post_update: a title-only patch changes ONLY title — slug/bodyJson/status stay the stored values (1.822794ms)
+✔ content_post_update: {id, kind, status:'published'} alone publishes the row (1.093597ms)
+✔ content_post_update: {id, kind} alone is REJECTED — nothing to change (0.429431ms)
+✔ content_post_update: a partial patch with no expectedVersion is still CAS-checked — VERSION_CONFLICT, not a silent clobber (0.973146ms)
+✔ content_post_update: a title-only patch on a bespoke-HTML page SUCCEEDS — the omitted bodyJson never reaches the S3 guard as a change (5.325144ms)
+✔ content_post_update: an empty title or slug on a partial patch is rejected exactly as the full-record shape rejected it (5.499038ms)
+✔ content_post_update: a FULL four-field call with no expectedVersion is NOT auto-guarded — same last-write-wins save as before S7 (1.260083ms)
+✔ create results link to the public slug when published, and update removes that link when drafted (2.112179ms)
+▶ T33: the update body schema accepts an empty editor paragraph and preserves existing widget styling
+  ✔ empty paragraph without content (3.501834ms)
+  ✔ widget cssClass and htmlAttributes (2.728712ms)
+✔ T33: the update body schema accepts an empty editor paragraph and preserves existing widget styling (6.75442ms)
+✔ T33b: a partial update with a TipTap body passes MCP's full tool-schema validation and reaches the handler (266.791364ms)
+ℹ tests 16
+ℹ suites 0
+ℹ pass 16
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4717.441036

@@ -1,0 +1,117 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/provider-plugins
+
+stderr | src/charts-recharts/__tests__/provider.test.tsx > Recharts artifact through the neutral UI host and A2UI catalog > shows the data table for pie shares that cannot be drawn faithfully: -1
+Attempted to synchronously unmount a root while React was already rendering. React cannot finish unmounting the root until the current render has completed, which may lead to a race condition.
+
+ ❯ src/charts-recharts/__tests__/provider.test.tsx (6 tests | 5 failed) 134ms
+   × Recharts artifact through the neutral UI host and A2UI catalog > preserves the bar-chart wire alias while drawing real SVG 21ms
+     → expected [Function RegisteredChart] to be [Function RegisteredChart] // Object.is equality
+   × Recharts artifact through the neutral UI host and A2UI catalog > preserves the line-chart wire alias while drawing real SVG 2ms
+     → expected [Function RegisteredChart] to be [Function RegisteredChart] // Object.is equality
+   × Recharts artifact through the neutral UI host and A2UI catalog > preserves the pie-chart wire alias while drawing real SVG 3ms
+     → expected [Function RegisteredChart] to be [Function RegisteredChart] // Object.is equality
+   × Recharts artifact through the neutral UI host and A2UI catalog > shows the data table for pie shares that cannot be drawn faithfully: -1 84ms
+     → expected "spy" to not be called at all, but actually been called 1 times
+
+Received: 
+
+  1st spy call:
+
+    Array [
+      Object {},
+    ]
+
+
+Number of calls: 1
+
+   × Recharts artifact through the neutral UI host and A2UI catalog > shows the data table for pie shares that cannot be drawn faithfully: 0 21ms
+     → expected "spy" to not be called at all, but actually been called 1 times
+
+Received: 
+
+  1st spy call:
+
+    Array [
+      Object {},
+    ]
+
+
+Number of calls: 1
+
+stderr | src/charts-recharts/__tests__/provider.test.tsx > Recharts artifact through the neutral UI host and A2UI catalog > shows the data table for pie shares that cannot be drawn faithfully: 0
+Attempted to synchronously unmount a root while React was already rendering. React cannot finish unmounting the root until the current render has completed, which may lead to a race condition.
+
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/charts-recharts/__tests__/provider.test.tsx > Recharts artifact through the neutral UI host and A2UI catalog > preserves the bar-chart wire alias while drawing real SVG
+ FAIL  src/charts-recharts/__tests__/provider.test.tsx > Recharts artifact through the neutral UI host and A2UI catalog > preserves the line-chart wire alias while drawing real SVG
+ FAIL  src/charts-recharts/__tests__/provider.test.tsx > Recharts artifact through the neutral UI host and A2UI catalog > preserves the pie-chart wire alias while drawing real SVG
+AssertionError: expected [Function RegisteredChart] to be [Function RegisteredChart] // Object.is equality
+
+Compared values have no visual difference.
+
+ ❯ src/charts-recharts/__tests__/provider.test.tsx:29:29
+     27|     const selected = snapshot.resolveByCapability({ capability: kind }…
+     28|     expect(entry.provider).toBe('plugin.recharts');
+     29|     expect(entry.Component).toBe(selected.Component);
+       |                             ^
+     30|     expect(entry.propsSchema).toBe(selected.propsSchema);
+     31|     const props = kind === 'pie-chart' ? { data: [{ name: 'Draft', val…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/5]⎯
+
+ FAIL  src/charts-recharts/__tests__/provider.test.tsx > Recharts artifact through the neutral UI host and A2UI catalog > shows the data table for pie shares that cannot be drawn faithfully: -1
+AssertionError: expected "spy" to not be called at all, but actually been called 1 times
+
+Received: 
+
+  1st spy call:
+
+    Array [
+      Object {},
+    ]
+
+
+Number of calls: 1
+
+ ❯ src/charts-recharts/__tests__/provider.test.tsx:57:22
+     55|     const { container } = render(<entry.Component data={values.map((va…
+     56|     await waitFor(() => expect(container.querySelector('table')).not.t…
+     57|     expect(load).not.toHaveBeenCalled();
+       |                      ^
+     58|     expect(container.querySelector('table')).toBeVisible();
+     59|     expect(container.querySelector('svg.recharts-surface')).toBeNull();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/5]⎯
+
+ FAIL  src/charts-recharts/__tests__/provider.test.tsx > Recharts artifact through the neutral UI host and A2UI catalog > shows the data table for pie shares that cannot be drawn faithfully: 0
+AssertionError: expected "spy" to not be called at all, but actually been called 1 times
+
+Received: 
+
+  1st spy call:
+
+    Array [
+      Object {},
+    ]
+
+
+Number of calls: 1
+
+ ❯ src/charts-recharts/__tests__/provider.test.tsx:57:22
+     55|     const { container } = render(<entry.Component data={values.map((va…
+     56|     await waitFor(() => expect(container.querySelector('table')).not.t…
+     57|     expect(load).not.toHaveBeenCalled();
+       |                      ^
+     58|     expect(container.querySelector('table')).toBeVisible();
+     59|     expect(container.querySelector('svg.recharts-surface')).toBeNull();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/5]⎯
+
+ Test Files  1 failed (1)
+      Tests  5 failed | 1 passed (6)
+   Start at  21:09:16
+   Duration  2.77s (transform 785ms, setup 0ms, collect 1.78s, tests 134ms, environment 531ms, prepare 95ms)
+

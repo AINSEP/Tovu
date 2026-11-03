@@ -1,0 +1,141 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/sidecar
+
+ ❯ src/__tests__/supervisor.test.ts (32 tests | 7 failed) 5050ms
+   × park exit records parked without respawn or failure 12ms
+     → h.supervisor.getState is not a function
+   × ensureStarted wakes parked immediately inside the crash cooldown 4ms
+     → h.supervisor.getState is not a function
+   × concurrent wake requests spawn once 7ms
+     → Expected values to be strictly equal:
+
+1 !== 2
+
+   × crash after wake still follows the existing retry policy 1ms
+     → Cannot read properties of undefined (reading 'emitter')
+   × shutdown racing park cannot resurrect a child 4ms
+     → h.supervisor.getState is not a function
+   × park cancels readiness polling until fresh demand 5011ms
+     → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+   × a fresh wake owns readiness even when parked discovery completes late 2ms
+     → a new demand must not inherit the cancelled parked waiter
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 7 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/__tests__/supervisor.test.ts > park exit records parked without respawn or failure
+TypeError: h.supervisor.getState is not a function
+ ❯ src/__tests__/supervisor.test.ts:47:29
+     45| test("park exit records parked without respawn or failure", () => {
+     46|   const h = harness({ parkedExitCodes: [42, 9] });
+     47|   assert.equal(h.supervisor.getState(), "stopped");
+       |                             ^
+     48|   h.supervisor.start();
+     49|   assert.equal(h.supervisor.getState(), "running");
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/7]⎯
+
+ FAIL  src/__tests__/supervisor.test.ts > ensureStarted wakes parked immediately inside the crash cooldown
+TypeError: h.supervisor.getState is not a function
+ ❯ src/__tests__/supervisor.test.ts:63:29
+     61|   assert.deepEqual(h.supervisor.ensureStarted(), { ok: true });
+     62|   h.children[0]!.emitter.emit("exit", 42, null);
+     63|   assert.equal(h.supervisor.getState(), "parked");
+       |                             ^
+     64|   assert.deepEqual(h.supervisor.ensureStarted(), { ok: true });
+     65|   assert.equal(h.children.length, 2, "demand wakes without advancing t…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/7]⎯
+
+ FAIL  src/__tests__/supervisor.test.ts > concurrent wake requests spawn once
+AssertionError: Expected values to be strictly equal:
+
+1 !== 2
+
+
+- Expected
++ Received
+
+- 2
++ 1
+
+ ❯ src/__tests__/supervisor.test.ts:74:10
+     72|   const outcomes = await Promise.all(Array.from({ length: 10 }, () => …
+     73|   assert.deepEqual(outcomes, Array.from({ length: 10 }, () => ({ ok: t…
+     74|   assert.equal(h.children.length, 2);
+       |          ^
+     75|   assert.equal(h.tasks.size, 0);
+     76| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/7]⎯
+
+ FAIL  src/__tests__/supervisor.test.ts > crash after wake still follows the existing retry policy
+TypeError: Cannot read properties of undefined (reading 'emitter')
+ ❯ src/__tests__/supervisor.test.ts:83:18
+     81|   h.children[1]!.emitter.emit("exit", 42, null);
+     82|   h.supervisor.ensureStarted();
+     83|   h.children[2]!.emitter.emit("exit", 1, null);
+       |                  ^
+     84|   assert.equal(h.tasks.size, 1, "a post-wake crash still schedules bac…
+     85|   h.supervisor.ensureStarted();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/7]⎯
+
+ FAIL  src/__tests__/supervisor.test.ts > shutdown racing park cannot resurrect a child
+TypeError: h.supervisor.getState is not a function
+ ❯ src/__tests__/supervisor.test.ts:103:31
+    101|     assert.deepEqual(h.supervisor.ensureStarted(), { ok: false, reason…
+    102|     assert.deepEqual(h.supervisor.restart(), { ok: false, reason: "shu…
+    103|     assert.equal(h.supervisor.getState(), "shutting-down");
+       |                               ^
+    104|     assert.equal(h.children.length, 1);
+    105|     assert.equal(h.tasks.size, 0);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/7]⎯
+
+ FAIL  src/__tests__/supervisor.test.ts > park cancels readiness polling until fresh demand
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/7]⎯
+
+ FAIL  src/__tests__/supervisor.test.ts > a fresh wake owns readiness even when parked discovery completes late
+AssertionError: a new demand must not inherit the cancelled parked waiter
+ ❯ src/__tests__/supervisor.test.ts:357:12
+    355|     h.children[0]!.events.emit("exit", 42);
+    356|     const second = h.supervisor.ensureReady({}, {});
+    357|     assert.notEqual(second, first, "a new demand must not inherit the …
+       |            ^
+    358|     await rejected;
+    359|     assert.equal(h.supervisor.ensureReady({}, {}), second, "old promis…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/7]⎯
+
+⎯⎯⎯⎯⎯⎯ Unhandled Errors ⎯⎯⎯⎯⎯⎯
+
+Vitest caught 1 unhandled error during the test run.
+This might cause false positive tests. Resolve unhandled errors to make sure your tests are not affected.
+
+⎯⎯⎯⎯ Unhandled Rejection ⎯⎯⎯⎯⎯
+AssertionError: The input did not match the regular expression /daemon parked/. Input:
+
+'Error: shutting down'
+
+
+- Expected: 
+/daemon parked/
+
++ Received: 
+[Error: shutting down]
+
+This error originated in "src/__tests__/supervisor.test.ts" test file. It doesn't mean the error was thrown inside the file itself, but while it was running.
+The latest test that might've caused the error is "src/__tests__/supervisor.test.ts". It might mean one of the following:
+- The error was thrown, while Vitest was running this test.
+- If the error occurred after the test had been completed, this was the last documented test before it was thrown.
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+ Test Files  1 failed (1)
+      Tests  7 failed | 25 passed (32)
+     Errors  1 error
+   Start at  21:09:20
+   Duration  5.63s (transform 195ms, setup 0ms, collect 209ms, tests 5.05s, environment 0ms, prepare 84ms)
+

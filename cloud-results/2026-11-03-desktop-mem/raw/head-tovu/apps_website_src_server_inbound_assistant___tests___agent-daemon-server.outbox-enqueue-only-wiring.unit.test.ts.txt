@@ -1,0 +1,11 @@
+✔ agent-daemon-server.ts builds routeDeps with createAgentDaemonCoreDeps (2.565693ms)
+✔ agent-daemon-server.ts never calls a RouteDeps factory directly, or starts plugin polling (1.943113ms)
+✔ agent-daemon-server.ts starts no outbox drain of its own (0.610972ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1362.388675

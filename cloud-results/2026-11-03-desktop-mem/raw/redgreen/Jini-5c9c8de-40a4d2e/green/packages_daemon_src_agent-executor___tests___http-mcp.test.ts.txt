@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/daemon
+
+ ✓ src/agent-executor/__tests__/http-mcp.test.ts (8 tests) 159ms
+
+ Test Files  1 passed (1)
+      Tests  8 passed (8)
+   Start at  21:07:03
+   Duration  3.58s (transform 1.92s, setup 0ms, collect 3.02s, tests 159ms, environment 0ms, prepare 98ms)
+

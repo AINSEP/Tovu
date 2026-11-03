@@ -1,0 +1,2 @@
+FAIL(1)	packages/desktop-host/src/node-toolchain/__tests__/install-location.test.ts
+FAIL(1)	packages/mcp/src/server/__tests__/http-tool-server.wire.test.ts

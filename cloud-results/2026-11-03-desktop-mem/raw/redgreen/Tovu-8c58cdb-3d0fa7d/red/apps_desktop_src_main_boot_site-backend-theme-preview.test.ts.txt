@@ -1,0 +1,46 @@
+✖ a watched tab's stream opens when its site first starts, against that server's port, workspace and partition (3.415318ms)
+✖ after Stop a late frame from the old server is dropped, and a restart streams from the new server (0.320103ms)
+✖ an open with no tab watching the site starts its server but opens no stream (0.339267ms)
+✖ reopening a site that is already open reuses its server and keeps its one stream (0.288844ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 0
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 171.709637
+
+✖ failing tests:
+
+test at src/main/boot/site-backend-theme-preview.test.ts:63:1
+✖ a watched tab's stream opens when its site first starts, against that server's port, workspace and partition (3.415318ms)
+  TypeError [Error]: ports.schedulePreview is not a function
+      at Object.openSiteServer (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend.ts:269:11)
+      at async TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend-theme-preview.test.ts:68:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+
+test at src/main/boot/site-backend-theme-preview.test.ts:77:1
+✖ after Stop a late frame from the old server is dropped, and a restart streams from the new server (0.320103ms)
+  TypeError [Error]: ports.schedulePreview is not a function
+      at Object.openSiteServer (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend.ts:269:11)
+      at async TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend-theme-preview.test.ts:81:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at src/main/boot/site-backend-theme-preview.test.ts:97:1
+✖ an open with no tab watching the site starts its server but opens no stream (0.339267ms)
+  TypeError [Error]: ports.schedulePreview is not a function
+      at Object.openSiteServer (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend.ts:269:11)
+      at async TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend-theme-preview.test.ts:99:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at src/main/boot/site-backend-theme-preview.test.ts:104:1
+✖ reopening a site that is already open reuses its server and keeps its one stream (0.288844ms)
+  TypeError [Error]: ports.schedulePreview is not a function
+      at Object.openSiteServer (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend.ts:269:11)
+      at async TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend-theme-preview.test.ts:107:17)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)

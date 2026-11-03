@@ -1,0 +1,49 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/daemon
+
+ ❯ src/__tests__/read-only-tools.test.ts (24 tests | 1 failed) 40ms
+   × a read-only namespace overview honors the caller’s narrower visible-tool set 16ms
+     → Expected values to be strictly deep-equal:
++ actual - expected
+
+  [
++   'verify',
+    'pick'
+  ]
+
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/__tests__/read-only-tools.test.ts > a read-only namespace overview honors the caller’s narrower visible-tool set
+AssertionError: Expected values to be strictly deep-equal:
++ actual - expected
+
+  [
++   'verify',
+    'pick'
+  ]
+
+
+- Expected
++ Received
+
+  Array [
++   "verify",
+    "pick",
+  ]
+
+ ❯ src/__tests__/read-only-tools.test.ts:374:10
+    372|   const view = filterReadOnlyToolCatalog({ principal: READ_ONLY, regis…
+    373|   const visibleToolIds = new Set(['pick', 'set']);
+    374|   assert.deepEqual(view.describe({ id: 'family' }, { visibleToolIds })…
+       |          ^
+    375|   assert.equal(view.describe({ id: 'family' }, { visibleToolIds: new S…
+    376|   assert.deepEqual([...visibleToolIds], ['pick', 'set']);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 23 passed (24)
+   Start at  21:08:30
+   Duration  4.89s (transform 2.83s, setup 0ms, collect 4.47s, tests 40ms, environment 0ms, prepare 117ms)
+

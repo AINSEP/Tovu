@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/cms
+
+ ✓ src/media/__tests__/sharp-native-memory.test.ts (3 tests) 7ms
+
+ Test Files  1 passed (1)
+      Tests  3 passed (3)
+   Start at  21:06:20
+   Duration  477ms (transform 109ms, setup 0ms, collect 113ms, tests 7ms, environment 0ms, prepare 96ms)
+

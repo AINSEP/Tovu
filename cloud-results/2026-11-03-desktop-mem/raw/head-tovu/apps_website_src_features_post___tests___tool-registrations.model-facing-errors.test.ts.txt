@@ -1,0 +1,21 @@
+[@jini-ai/http-kit] internal error (delegated-tool-execute, correlationId=28c14ca5-35a9-40cb-88f9-0956c88f626b) 'SQLITE_IOERR: disk I/O error at /var/tovu/sites/tovu-com/content.db'
+✔ authorized content_post_search forwards normalized options and returns complete hits through the real tool harness (11.198213ms)
+✔ invalid templates reach the model as BAD_REQUEST with valid choices and no writes (19.095554ms)
+✔ a named template with no active theme reports an empty valid list to the model (3.176341ms)
+✔ template permission denial prevents presentation lookup and any saved change (1.250495ms)
+✔ content_post_get for an unknown id is BAD_REQUEST with the real not-found reason, not a redacted 500 (1.020944ms)
+✔ content_post_delete for an unknown id says not-found rather than 'an internal error occurred' (1.341319ms)
+✔ a version conflict keeps the VERSION_CONFLICT code and its re-read guidance — the subclass rule is matched FIRST (23.684247ms)
+✔ a plain slug conflict still answers on the GENERIC conflict arm, so the subclass rule is not shadowing it (2.087374ms)
+✔ a denied principal gets the real authorization reason, naming the permission (7.23823ms)
+✔ EVERY wired Posts/Pages tool surfaces the denial, not just the first one — the sibling-arm check (33.962633ms)
+✔ a shape rejection keeps its schema decoration and gains no second code prefix (1.5483ms)
+✔ an UNLISTED failure stays redacted — the allowlist is not a blanket unwrap (4.502981ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3515.634632

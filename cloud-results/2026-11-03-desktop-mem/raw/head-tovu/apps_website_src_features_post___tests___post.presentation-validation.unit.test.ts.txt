@@ -1,0 +1,24 @@
+✔ create: invalid presentation fields are refused before saving a post or revision (11.211784ms)
+✔ create: null, empty template and false retain their distinct presentation choices (2.470875ms)
+✔ update: invalid presentation fields are refused before saving a post or revision (0.929369ms)
+✖ update: null, empty template and false retain their distinct presentation choices (1.13028ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 3
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1847.242153
+
+✖ failing tests:
+
+test at apps/website/src/features/post/__tests__/post.presentation-validation.unit.test.ts:1:1176
+✖ update: null, empty template and false retain their distinct presentation choices (1.13028ms)
+  TypeError [Error]: Cannot read properties of undefined (reading 'enqueue')
+      at enqueueContentWrite (/home/user/Tovu/apps/website/src/features/post/post.ts:2605:16)
+      at <anonymous> (/home/user/Tovu/apps/website/src/features/post/post.ts:2002:11)
+      at async InMemoryPostRepo.transaction (/home/user/Tovu/apps/website/src/features/post/repo.memory.ts:245:14)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/post/__tests__/post.presentation-validation.unit.test.ts:29:100)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)

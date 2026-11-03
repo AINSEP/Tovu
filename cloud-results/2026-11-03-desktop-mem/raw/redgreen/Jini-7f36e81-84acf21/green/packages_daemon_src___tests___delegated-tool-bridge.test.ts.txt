@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/daemon
+
+ ✓ src/__tests__/delegated-tool-bridge.test.ts (23 tests) 49ms
+
+ Test Files  1 passed (1)
+      Tests  23 passed (23)
+   Start at  21:09:49
+   Duration  4.55s (transform 2.57s, setup 0ms, collect 4.18s, tests 49ms, environment 0ms, prepare 89ms)
+

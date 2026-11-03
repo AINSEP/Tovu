@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/daemon
+
+ ✓ src/agent-executor/codex/__tests__/home-config.test.ts (16 tests) 9ms
+
+ Test Files  1 passed (1)
+      Tests  16 passed (16)
+   Start at  21:07:09
+   Duration  990ms (transform 474ms, setup 0ms, collect 681ms, tests 9ms, environment 0ms, prepare 83ms)
+

@@ -1,0 +1,15 @@
+✔ host startup IDs reach a typed MCP call and the existing Tovu executor (156.405335ms)
+✔ startup publication prioritizes late theme tools within the budget and preserves remaining catalog order (73.769916ms)
+✔ startup discovery excludes forbidden and ungranted permanent deletes despite diagnostic IDs (73.764944ms)
+✔ overlapping runs isolate grants, credentials and publication and read the live registry at launch (70.005434ms)
+✔ typed and legacy calls recheck authorization after publication (32.721285ms)
+✔ typed and legacy bridge ingress preserve the executor's confirm decision (54.847569ms)
+✔ typed and legacy bridge ingress preserve the executor's deny decision (26.748858ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4067.799114

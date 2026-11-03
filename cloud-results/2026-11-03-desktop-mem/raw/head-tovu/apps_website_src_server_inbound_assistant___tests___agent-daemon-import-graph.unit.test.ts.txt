@@ -1,0 +1,40 @@
+✔ the daemon entry's static runtime graph reaches none of ADR-070's forbidden modules (628.61948ms)
+✖ daemon local tools never load federation clients or the desktop capability (412.784282ms)
+✔ the walk resolves relative and #src imports from the real daemon entry and never throws (113.292441ms)
+✔ type-only imports and dynamic import() are not runtime edges; every other import form is (1.061311ms)
+✔ the forbidden list matches the ADR's modules and nothing next to them (0.561969ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 4
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3477.528775
+
+✖ failing tests:
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-import-graph.unit.test.ts:2:78
+✖ daemon local tools never load federation clients or the desktop capability (412.784282ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + [
+  +   'assistant/mcp-ui-tool-calls.ts <- assistant/mcp-ui-tool-calls-route.ts <- server/inbound/assistant/agent-daemon-scope.ts <- server/inbound/assistant/agent-daemon-server.ts'
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-import-graph.unit.test.ts:132:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'assistant/mcp-ui-tool-calls.ts <- assistant/mcp-ui-tool-calls-route.ts <- server/inbound/assistant/agent-daemon-scope.ts <- server/inbound/assistant/agent-daemon-server.ts' ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

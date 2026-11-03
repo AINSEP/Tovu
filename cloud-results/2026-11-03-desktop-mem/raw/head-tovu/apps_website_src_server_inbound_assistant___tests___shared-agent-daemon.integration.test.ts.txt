@@ -1,0 +1,89 @@
+✔ site scopes never read ambient environment or working directory (19.573419ms)
+✔ credential selects site despite forged tenant and principal hints (91.879013ms)
+✔ equal identifiers remain isolated across two sites and two hosts (memory) (75.970764ms)
+✔ equal identifiers remain isolated across two sites and two hosts (sqlite) (162.782629ms)
+[shutdown] boot work did not settle within 5000 ms; closing the store anyway
+✖ disposing one site leaves another run streaming and refuses late callbacks (5044.885248ms)
+✔ withdrawing a site while its reply prepares finishes disposal and leaves another site streaming (137.395125ms)
+✖ identical upload batches and principal IDs remain scoped to their site (47.396141ms)
+✔ concurrent scope launches keep filesystem roots and host permission signals separate (325.806292ms)
+[agent-daemon] site catalog unavailable: /internal/tool-catalog
+[agent-daemon] run 9f1204a0-1d82-4e6f-9364-e2d60749bb1a failed to start [TypeError: fetch failed] {
+  [cause]: Error: bad port
+      at makeNetworkError (node:internal/deps/undici/undici:11898:35)
+      at mainFetch (node:internal/deps/undici/undici:13280:22)
+      at fetching (node:internal/deps/undici/undici:13267:7)
+      at fetch (node:internal/deps/undici/undici:13131:20)
+      at fetch (node:internal/deps/undici/undici:17998:10)
+      at fetch (node:internal/bootstrap/web/exposed-window-or-worker:83:12)
+      at executeFetchWithTimeout (/home/user/Jini/packages/platform/src/fetch-with-timeout.ts:390:52)
+      at fetchTextWithTimeout (/home/user/Jini/packages/platform/src/fetch-with-timeout.ts:361:10)
+      at read (/home/user/Tovu/apps/website/src/server/inbound/assistant/agent-daemon-site-tools.ts:62:40)
+      at Object.start (/home/user/Tovu/apps/website/src/server/inbound/assistant/agent-daemon-site-tools.ts:88:47)
+}
+✖ withdrawing a site releases its finished-run owner retention timers (36.31554ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 6
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9260.974116
+
+✖ failing tests:
+
+test at apps/website/src/server/inbound/assistant/__tests__/shared-agent-daemon.integration.test.ts:1:5453
+✖ disposing one site leaves another run streaming and refuses late callbacks (5044.885248ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'running'
+  - 'queued'
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/assistant/__tests__/shared-agent-daemon.integration.test.ts:132:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'running',
+    expected: 'queued',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/inbound/assistant/__tests__/shared-agent-daemon.integration.test.ts:1:8494
+✖ identical upload batches and principal IDs remain scoped to their site (47.396141ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  400 !== 201
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/assistant/__tests__/shared-agent-daemon.integration.test.ts:193:14)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 400,
+    expected: 201,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/inbound/assistant/__tests__/shared-agent-daemon.integration.test.ts:1:10369
+✖ withdrawing a site releases its finished-run owner retention timers (36.31554ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  2 !== 1
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/assistant/__tests__/shared-agent-daemon.integration.test.ts:240:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 2,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

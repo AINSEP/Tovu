@@ -1,0 +1,16 @@
+✔ a create without a wait budget waits for a quick export and returns the ZIP-only share (369.967185ms)
+✔ archive progress reaches its totals: buffered files plus the database, and the planned bytes (170.451947ms)
+✔ a share plan without a database is refused before delivery (202.42821ms)
+✔ static selection snapshots roster, active identity and time, captures sequentially and encodes once across polling (52.571997ms)
+✔ static backend refuses unknown selections before rendering and unusable captures without creating a ZIP (13.342773ms)
+✔ theme none offers only Current site and preserves both legacy and picked unstyled exports (39.853377ms)
+✔ static completion discloses omitted discovery only without a request domain (none) (27.351283ms)
+✔ static completion discloses omitted discovery only without a request domain (https://download.example) (37.75042ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5518.092525

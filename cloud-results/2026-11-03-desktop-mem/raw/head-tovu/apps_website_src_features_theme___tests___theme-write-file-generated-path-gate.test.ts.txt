@@ -1,0 +1,13 @@
+✔ sanity: the authored+preview fixture loads valid before any write is attempted (10.829575ms)
+✔ theme_write_file refuses a write into preview/, matching explore.ts's PUT route (24.498475ms)
+✔ theme_write_file refuses creating a NEW file inside preview/ (7.137461ms)
+✔ theme_write_file cannot reach preview/ through a traversal segment (6.562485ms)
+✔ theme_write_file still allows an ordinary path outside preview/ on the same theme (19.756465ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4187.316881

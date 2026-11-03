@@ -1,0 +1,212 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/daemon
+
+ ❯ src/agent-executor/__tests__/http-mcp-launch.integration.test.ts (8 tests | 8 failed) 65ms
+   × HTTP claude launch contains no serve child configuration 20ms
+     → ENOENT: no such file or directory, open '/fixture/.mcp.jini-83f8f0e2-a9e7-4aae-bf2d-066135f7ec0d.json'
+   × HTTP codex launch contains no serve child configuration 13ms
+     → expected '[mcp_servers.jini]\ncommand = "node"\…' to contain 'url = "http://127.0.0.1:12345/mcp"'
+   × HTTP opencode launch contains no serve child configuration 6ms
+     → expected { type: 'local', …(3) } to deeply equal { type: 'remote', …(2) }
+   × prelaunch HTTP failure selects stdio once through the real executor 2ms
+     → expected "spy" to be called 1 times, but got 0 times
+   × postlaunch failure never respawns or replays and HTTP diagnostics never spawn stdio 7ms
+     → expected "spy" to not be called at all, but actually been called 1 times
+
+Received: 
+
+  1st spy call:
+
+    Array [
+      Object {
+        "entry": Object {
+          "args": Array [
+            "serve.js",
+          ],
+          "command": "node",
+          "env": Object {
+            "JINI_DAEMON_TOKEN": "callback-only",
+            "JINI_DAEMON_URL": "http://daemon.invalid",
+            "JINI_RUN_ID": "f19aa28a-2185-492d-86c5-3d332d7d4d15",
+          },
+        },
+      },
+    ]
+
+
+Number of calls: 1
+
+   × launch failure releases HTTP credentials and endpoint: sync-spawn 6ms
+     → expected "spy" to be called 1 times, but got 0 times
+   × launch failure releases HTTP credentials and endpoint: async-spawn 4ms
+     → expected "spy" to be called 1 times, but got 0 times
+   × launch failure releases HTTP credentials and endpoint: invocation 5ms
+     → expected Error: invocation failed to match object { code: 'AGENT_SPAWN_FAILED' }
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 8 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/agent-executor/__tests__/http-mcp-launch.integration.test.ts > HTTP claude launch contains no serve child configuration
+Error: ENOENT: no such file or directory, open '/fixture/.mcp.jini-83f8f0e2-a9e7-4aae-bf2d-066135f7ec0d.json'
+ ❯ src/agent-executor/__tests__/http-mcp-launch.integration.test.ts:65:14
+     63|       claudePath = f.argv[pathIndex + 1];
+     64|       expect(f.argv).toContain('--strict-mcp-config');
+     65|       expect(await readFile(claudePath!, 'utf8')).toContain('Bearer en…
+       |              ^
+     66|     }
+     67|     if (vendor === 'codex') {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/8]⎯
+
+ FAIL  src/agent-executor/__tests__/http-mcp-launch.integration.test.ts > HTTP codex launch contains no serve child configuration
+AssertionError: expected '[mcp_servers.jini]\ncommand = "node"\…' to contain 'url = "http://127.0.0.1:12345/mcp"'
+
+- Expected
++ Received
+
+- url = "http://127.0.0.1:12345/mcp"
++ [mcp_servers.jini]
++ command = "node"
++ args = ["serve.js"]
++ tool_timeout_sec = 400
++
++ [mcp_servers.jini.env]
++ JINI_RUN_ID = "0d56665e-c5cb-4e93-8233-10f45c0ca5b1"
++ JINI_DAEMON_URL = "http://daemon.invalid"
++ JINI_DAEMON_TOKEN = "callback-only"
++ JINI_MESSAGE_RELAY = "1"
++ JINI_MESSAGE_RELAY_NONCE = "0a85e118348921a24c9c410d1f9db41aa18e4fb66e62954e"
++
+
+ ❯ src/agent-executor/__tests__/http-mcp-launch.integration.test.ts:69:24
+     67|     if (vendor === 'codex') {
+     68|       expect(f.environment.CODEX_HOME).toBe('/fixture-codex-home');
+     69|       expect(f.config).toContain('url = "http://127.0.0.1:12345/mcp"');
+       |                        ^
+     70|       expect(f.config).toContain('tool_timeout_sec = 400');
+     71|     }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/8]⎯
+
+ FAIL  src/agent-executor/__tests__/http-mcp-launch.integration.test.ts > HTTP opencode launch contains no serve child configuration
+AssertionError: expected { type: 'local', …(3) } to deeply equal { type: 'remote', …(2) }
+
+- Expected
++ Received
+
+  Object {
+-   "headers": Object {
+-     "Authorization": "Bearer endpoint-only",
++   "command": Array [
++     "node",
++     "serve.js",
++   ],
++   "enabled": true,
++   "environment": Object {
++     "JINI_DAEMON_TOKEN": "callback-only",
++     "JINI_DAEMON_URL": "http://daemon.invalid",
++     "JINI_MESSAGE_RELAY": "1",
++     "JINI_MESSAGE_RELAY_NONCE": "66b4633dde145c64add9640e9c40bf50181374c4c2130baf",
++     "JINI_RUN_ID": "1786c1c6-4993-4d59-994b-5c83c09e6605",
+    },
+-   "type": "remote",
+-   "url": "http://127.0.0.1:12345/mcp",
++   "type": "local",
+  }
+
+ ❯ src/agent-executor/__tests__/http-mcp-launch.integration.test.ts:73:75
+     71|     }
+     72|     if (vendor === 'opencode') {
+     73|       expect(JSON.parse(f.environment.OPENCODE_CONFIG_CONTENT!).mcp.ji…
+       |                                                                           ^
+     74|     }
+     75|     expect(JSON.stringify([f.argv, f.environment, f.config])).not.toCo…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/8]⎯
+
+ FAIL  src/agent-executor/__tests__/http-mcp-launch.integration.test.ts > prelaunch HTTP failure selects stdio once through the real executor
+AssertionError: expected "spy" to be called 1 times, but got 0 times
+ ❯ src/agent-executor/__tests__/http-mcp-launch.integration.test.ts:91:27
+     89|     expect(f.environment.OPENCODE_CONFIG_CONTENT).toContain('serve.js'…
+     90|     expect(f.mint).toHaveBeenCalledTimes(1);
+     91|     expect(f.prepareHttp).toHaveBeenCalledTimes(1);
+       |                           ^
+     92|     expect(f.spawn).toHaveBeenCalledTimes(1);
+     93|   } finally { await f.finish(); }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/8]⎯
+
+ FAIL  src/agent-executor/__tests__/http-mcp-launch.integration.test.ts > postlaunch failure never respawns or replays and HTTP diagnostics never spawn stdio
+AssertionError: expected "spy" to not be called at all, but actually been called 1 times
+
+Received: 
+
+  1st spy call:
+
+    Array [
+      Object {
+        "entry": Object {
+          "args": Array [
+            "serve.js",
+          ],
+          "command": "node",
+          "env": Object {
+            "JINI_DAEMON_TOKEN": "callback-only",
+            "JINI_DAEMON_URL": "http://daemon.invalid",
+            "JINI_RUN_ID": "f19aa28a-2185-492d-86c5-3d332d7d4d15",
+          },
+        },
+      },
+    ]
+
+
+Number of calls: 1
+
+ ❯ src/agent-executor/__tests__/http-mcp-launch.integration.test.ts:102:23
+    100|     await vi.waitFor(() => expect(f.lifecycle.get({ runId: f.runId }))…
+    101|   } finally { await f.finish(); }
+    102|   expect(f.probe).not.toHaveBeenCalled();
+       |                       ^
+    103|   expect(f.spawn).toHaveBeenCalledTimes(1);
+    104|   expect(f.prepareHttp).toHaveBeenCalledTimes(1);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/8]⎯
+
+ FAIL  src/agent-executor/__tests__/http-mcp-launch.integration.test.ts > launch failure releases HTTP credentials and endpoint: sync-spawn
+ FAIL  src/agent-executor/__tests__/http-mcp-launch.integration.test.ts > launch failure releases HTTP credentials and endpoint: async-spawn
+AssertionError: expected "spy" to be called 1 times, but got 0 times
+ ❯ src/agent-executor/__tests__/http-mcp-launch.integration.test.ts:114:27
+    112|   const f = await launch('claude', false, failure);
+    113|   expect(f.runError).toMatchObject({ code: 'AGENT_SPAWN_FAILED' });
+    114|   expect(f.endpointClose).toHaveBeenCalledTimes(1);
+       |                           ^
+    115|   expect(f.prepareHttp).toHaveBeenCalledTimes(1);
+    116|   expect(f.probe).not.toHaveBeenCalled();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/8]⎯
+
+ FAIL  src/agent-executor/__tests__/http-mcp-launch.integration.test.ts > launch failure releases HTTP credentials and endpoint: invocation
+AssertionError: expected Error: invocation failed to match object { code: 'AGENT_SPAWN_FAILED' }
+
+- Expected
++ Received
+
+- Object {
+-   "code": "AGENT_SPAWN_FAILED",
+- }
++ [Error: invocation failed]
+
+ ❯ src/agent-executor/__tests__/http-mcp-launch.integration.test.ts:113:22
+    111| it.each(['sync-spawn', 'async-spawn', 'invocation'] as const)('launch …
+    112|   const f = await launch('claude', false, failure);
+    113|   expect(f.runError).toMatchObject({ code: 'AGENT_SPAWN_FAILED' });
+       |                      ^
+    114|   expect(f.endpointClose).toHaveBeenCalledTimes(1);
+    115|   expect(f.prepareHttp).toHaveBeenCalledTimes(1);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/8]⎯
+
+ Test Files  1 failed (1)
+      Tests  8 failed (8)
+   Start at  21:06:29
+   Duration  5.05s (transform 3.09s, setup 0ms, collect 4.57s, tests 65ms, environment 0ms, prepare 74ms)
+

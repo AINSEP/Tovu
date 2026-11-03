@@ -1,0 +1,38 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/ui
+
+ ❯ src/features/charts/__tests__/catalog-registry.test.tsx (12 tests | 5 failed) 164ms
+   × direct chart.spec rendering refuses invalid rows or series just like its catalog schema: {"kind":"bar","categoryKey":"month","series":[{"key":"revenue"},{"key":"cost"}],"data":[]} 12ms
+     → expected function to throw an error, but it didn't
+   × direct chart.spec rendering refuses invalid rows or series just like its catalog schema: {"kind":"bar","categoryKey":"month","series":[],"data":[{"month":"Sep","revenue":4,"cost":2},{"month":"Oct","revenue":9,"cost":3}]} 7ms
+     → expected function to throw an error, but it didn't
+   × direct chart.spec rendering refuses invalid rows or series just like its catalog schema: {"kind":"bar","categoryKey":"month","series":[{"key":"revenue"},{"key":"cost"}],"data":[{"month":"Sep","revenue":"invalid","cost":2}]} 9ms
+     → expected function to throw an error, but it didn't
+   × direct chart.spec rendering refuses invalid rows or series just like its catalog schema: {"kind":"bar","categoryKey":"month","series":[{"key":"revenue"},{"key":"cost"}],"data":[{"month":"Sep","revenue":2}]} 7ms
+     → expected function to throw an error, but it didn't
+   × direct chart.spec rendering refuses invalid rows or series just like its catalog schema: {"kind":"bar","categoryKey":"month","series":[{"key":"revenue"},{"key":"revenue"}],"data":[{"month":"Sep","revenue":4,"cost":2},{"month":"Oct","revenue":9,"cost":3}]} 5ms
+     → expected function to throw an error, but it didn't
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/features/charts/__tests__/catalog-registry.test.tsx > direct chart.spec rendering refuses invalid rows or series just like its catalog schema: {"kind":"bar","categoryKey":"month","series":[{"key":"revenue"},{"key":"cost"}],"data":[]}
+ FAIL  src/features/charts/__tests__/catalog-registry.test.tsx > direct chart.spec rendering refuses invalid rows or series just like its catalog schema: {"kind":"bar","categoryKey":"month","series":[],"data":[{"month":"Sep","revenue":4,"cost":2},{"month":"Oct","revenue":9,"cost":3}]}
+ FAIL  src/features/charts/__tests__/catalog-registry.test.tsx > direct chart.spec rendering refuses invalid rows or series just like its catalog schema: {"kind":"bar","categoryKey":"month","series":[{"key":"revenue"},{"key":"cost"}],"data":[{"month":"Sep","revenue":"invalid","cost":2}]}
+ FAIL  src/features/charts/__tests__/catalog-registry.test.tsx > direct chart.spec rendering refuses invalid rows or series just like its catalog schema: {"kind":"bar","categoryKey":"month","series":[{"key":"revenue"},{"key":"cost"}],"data":[{"month":"Sep","revenue":2}]}
+ FAIL  src/features/charts/__tests__/catalog-registry.test.tsx > direct chart.spec rendering refuses invalid rows or series just like its catalog schema: {"kind":"bar","categoryKey":"month","series":[{"key":"revenue"},{"key":"revenue"}],"data":[{"month":"Sep","revenue":4,"cost":2},{"month":"Oct","revenue":9,"cost":3}]}
+AssertionError: expected function to throw an error, but it didn't
+ ❯ src/features/charts/__tests__/catalog-registry.test.tsx:99:51
+     97|   const { Component, propsSchema } = createChartInteractiveRegistry({ …
+     98|   expect(propsSchema.safeParse({ spec }).success).toBe(false);
+     99|   expect(() => render(<Component spec={spec} />)).toThrow(z.ZodError);
+       |                                                   ^
+    100| });
+    101| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/5]⎯
+
+ Test Files  1 failed (1)
+      Tests  5 failed | 7 passed (12)
+   Start at  21:09:27
+   Duration  1.45s (transform 225ms, setup 192ms, collect 243ms, tests 164ms, environment 427ms, prepare 105ms)
+

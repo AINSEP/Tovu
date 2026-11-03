@@ -1,0 +1,19 @@
+✔ sanity: both fixture themes load valid (31.173448ms)
+✔ preview_reload with no input at all refreshes the whole preview (22.133643ms)
+✔ theme_rescan with no input at all rescans and reports no changes (18.939476ms)
+✔ theme_list with no input at all lists every theme unfiltered (15.793004ms)
+✔ theme_list_page_publications refuses a non-static theme with its tier named (16.449163ms)
+✔ theme_rename_file refuses an empty name as a missing input before touching disk (14.077115ms)
+✔ theme_rename_file refuses a source file that does not exist (12.718148ms)
+✔ theme_write_file refuses an unparsable theme.json for a compiled release and leaves it untouched (23.388523ms)
+✔ theme_trash_file refuses a compiled release's source file: there is no writable trash location (16.167219ms)
+✔ contributeThemesTools hands the composition root the themes builder and its derived risk (0.406281ms)
+✔ theme_rename_file keeps a nested file in its own folder (18.176348ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4518.639733
