@@ -18,6 +18,7 @@ import { toolMetadata as themeMetadata } from '../../contracts/core/tool-metadat
 import { ASK_CHOICE_TOOL_ID, askAgentPluginChoice } from '../ask-choice-tool.js';
 import { ensureAdminInterfaceSettingDefinitions } from '../../features/settings/admin-interface.js';
 import { createSettingsPrincipalLookup, set } from '../../features/settings/index.js';
+import { pluginPreflightFixture } from "#src/server/runtime/composition/modules/__tests__/assistant-agent-plugin-preflight.fixture";
 import { captureDaemonRun } from '../../server/inbound/assistant/__tests__/helpers/daemon-source.js';
 import { buildAgentPluginSearchRegistrations } from '../../features/agent-plugins/tool-registrations.js';
 import { resolveAgentPluginRefs } from '../../features/agent-plugins/lifecycle.js';
@@ -238,11 +239,14 @@ test("Don't ask again writes Auto only for the answering principal through the r
 
 test('CLI onStarted places the relevance note, without guidance bodies, into the executor prompt', async t => {
   const f = await fixture(t);
-  // Execute the actual onStarted expression with isolated process/session effects, avoiding daemon boot.
-  const input = await captureDaemonRun({ conversationId: 'chat', prompt: 'Design holography', userPrompt: 'Design holography' }, {
+  // The daemon now asks the site's sole controller through its actual authenticated RPC.
+  const siteTools = await pluginPreflightFixture({ t, context: { principalId: 'alice', conversationId: 'chat', prompt: 'Design holography', userPrompt: 'Design holography' },
+    plugins: { controller: f.runs, pinnedPrefix: async () => '', emit: async () => {}, refusalPrefix: () => '' },
+    tools: [f.runs.loadRegistration], prepareGuidance: f.runs.prepareGuidance });
+  const input = await captureDaemonRun({ principalId: 'alice', conversationId: 'chat', prompt: 'Design holography', userPrompt: 'Design holography' }, {
     lifecycle: { waitForTerminal: () => new Promise(() => {}), onCancelRequested: () => () => {}, stream: async () => {}, emit: async () => {} },
     bindings: {
-      automaticPluginRuns: f.runs,
+      siteTools,
       routeDeps: { workspaceId: f.workspaceId, agentSessions: { getSessionId: async () => null, setSessionId: async () => {} } },
       liveRunTracker: { register() {}, hasConcurrentLiveRun: () => false },
       waitForStoppingRuns: async () => {}, STOPPING_RUN_WAIT_MS: 20_000,
@@ -251,22 +255,27 @@ test('CLI onStarted places the relevance note, without guidance bodies, into the
   assert.match(input.prompt, /Relevant agent plugins for this request:/);
   assert.doesNotMatch(input.prompt, /Use holographic layout discipline/);
   assert.match(input.prompt, /Design holography/);
+  const loaded = await siteTools.remote.execute({ principal: { id: 'alice' }, run: { id: 'daemon-test-run' },
+    toolId: 'load_agent_plugin', input: { pluginId: f.pluginId } });
+  assert.equal(loaded.status, 'completed');
+  assert.equal((loaded.output as { status: string }).status, 'loaded', 'tool guidance must rejoin the controller retained after preflight returns');
+  assert.match(JSON.stringify(loaded.output), /Use holographic layout discipline/);
   f.runs.forget({ runId: 'daemon-test-run' });
 });
 
-test('CLI preflight preserves the answer receipt channel in the durable run stream', async () => {
+test('CLI preflight preserves the answer receipt channel in the durable run stream', async t => {
   const resource = { type: 'resource', resource: { uri: 'ui://tovu/ask-choice/alice/one', mimeType: 'text/html', text: '<form>Choose</form>' } };
   const receipt = { id: 'answer:one', surfaceUri: resource.resource.uri, text: 'Agent plugins: GitHub', answerText: 'GitHub' };
   const wire: Record<string, unknown>[] = [];
-  await captureDaemonRun({ conversationId: 'chat', prompt: 'Use the repository' }, {
-    lifecycle: { waitForTerminal: () => new Promise(() => {}), onCancelRequested: () => () => {}, stream: async () => {},
-      emit: async ({ input }: { input: { data: Record<string, unknown> } }) => { wire.push(input.data); } },
-    bindings: {
-      automaticPluginRuns: { forget() {}, start: async ({ context }: { context: AutomaticPluginRun }) => {
-        await context.emitSurface({ channel: 'mcp-ui', payload: { resource } });
-        await context.emitSurface({ channel: 'user_message', payload: receipt });
-        return '';
-      } },
+  const siteTools = await pluginPreflightFixture({ t, context: { principalId: 'alice', conversationId: 'chat', prompt: 'Use the repository' }, plugins: {
+    controller: { forget() {}, start: async ({ context }) => {
+      await context.emitSurface({ channel: 'mcp-ui', payload: { resource } });
+      await context.emitSurface({ channel: 'user_message', payload: receipt });
+      return '';
+    } }, pinnedPrefix: async () => '', emit: async ({ payload }) => { wire.push(payload); }, refusalPrefix: () => '',
+  } });
+  await captureDaemonRun({ principalId: 'alice', conversationId: 'chat', prompt: 'Use the repository' }, {
+    bindings: { siteTools,
       routeDeps: { agentSessions: { getSessionId: async () => null, setSessionId: async () => {} } },
       liveRunTracker: { register() {}, hasConcurrentLiveRun: () => false },
       waitForStoppingRuns: async () => {}, STOPPING_RUN_WAIT_MS: 20_000,

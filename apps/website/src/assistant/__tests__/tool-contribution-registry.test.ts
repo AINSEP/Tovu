@@ -445,7 +445,7 @@ test("core registers no Supabase-specific connect tool — the generic agent_plu
   );
 });
 
-test("daemon construction statements and the real BYOK root independently build the identical tool-id set", async (t) => {
+test("daemon remote discovery and the real BYOK root expose the identical tool-id set", async (t) => {
   const { mkdtemp, rm } = await import("node:fs/promises");
   const { tmpdir } = await import("node:os");
   const { join } = await import("node:path");
@@ -472,11 +472,8 @@ test("daemon construction statements and the real BYOK root independently build 
   const daemonIds = daemonRegistry.list({}).map(({ id }) => id).sort();
   const byokIds = byok.toolSurface.registry.list({}).map(({ id }) => id).sort();
 
-  // BYOK also hosts the three chat-attachment tools for the agent daemon's tool RPC (ADR-070,
-  // `modules/assistant-tool-exec.ts`); the real daemon registers its own copies at module top level,
-  // outside the construction statements `buildDaemonToolSurface` runs.
-  const serverHostedAttachmentToolIds = ["chat_list_pending_attachments", "library_save_attachment", "media_promote_chat_attachment"];
-  assert.deepEqual(byokIds, [...daemonIds, ...serverHostedAttachmentToolIds].sort());
+  // ADR-070: the same server composition owns attachments, installed tools and native tools.
+  assert.deepEqual(byokIds, daemonIds);
   // And specifically includes the registry-contributed domains, not just parity on whatever
   // DOMAIN_SLICES already provided — a parity check that passed vacuously (both empty) would not
   // prove anything about THIS seam.

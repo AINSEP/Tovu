@@ -276,14 +276,14 @@ test("the daemon construction seam and real BYOK root expose identical installed
     }))
   );
 
-  assert.ok(daemon.ids.has("skill_incident_response"), "daemon's actual registerInstalled port must install the fixture skill");
+  assert.ok(daemon.ids.has("skill_incident_response"), "daemon discovery must include the server-installed fixture skill");
   assert.ok(byok.ids.has("skill_incident_response"), "the real BYOK root must install the same fixture skill");
   assert.ok(daemon.ids.has('load_agent_plugin'), 'the daemon must expose on-demand plugin guidance');
   assert.ok(byok.ids.has('load_agent_plugin'), 'BYOK must expose the same loader');
   assert.ok(daemon.publishContentTypes.includes("post"), "daemon boot must install first-party publish content types");
 
   const missingFromDaemon = [...byok.ids].filter((id) => !daemon.ids.has(id));
-  assert.deepEqual(missingFromDaemon.sort(), [...SERVER_HOSTED_ATTACHMENT_TOOL_IDS].sort(), "BYOK must never expose a tool id the daemon does not also carry — that would mean the daemon is missing something BYOK has, the opposite of the documented gap");
+  assert.deepEqual(missingFromDaemon.sort(), [], "BYOK must never expose a tool id the daemon does not also carry — that would mean the daemon is missing something BYOK has, the opposite of the documented gap");
 
   const extraOnDaemon = [...daemon.ids].filter((id) => !byok.ids.has(id));
   assert.deepEqual(

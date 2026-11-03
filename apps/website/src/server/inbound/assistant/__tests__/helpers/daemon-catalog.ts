@@ -1,73 +1,46 @@
 import assert from "node:assert/strict";
 import ts from "typescript";
 import type { ToolRegistry } from "@jini-ai/core";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
-import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
-import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { registerToolCatalogRoutes } from "@jini-ai/daemon/http";
-import { buildToolCatalogQuery } from "#src/assistant/tool-catalog-query";
-import { createChatDeleteScope } from "#src/assistant/permanent-delete-tool-gate";
-import { DEFAULT_PERMANENT_DELETES_POLICY } from "#src/contracts/headless/index";
-import { createLiveToolCatalogQuery, type LiveToolCatalogQuery } from "#src/assistant/tool-catalog-live-query";
-import { withToolCatalogAudit, UNSCOPED_TOOL_CATALOG_ROUTE_RUN_ID, UNSCOPED_TOOL_CATALOG_ROUTE_PRINCIPAL_ID } from "#src/assistant/tool-audit-preset";
 import type { ToolAttemptAuditSink } from "#src/features/tool-audit/types";
-import type { FederationReloadResult } from "@jini-ai/mcp/federation";
-import { attachAssistantToolExtensions } from "#src/assistant/installed-extension-tools";
-import { daemonFunction, daemonSource, daemonVariableStatement, evaluateDaemonExpression, evaluateDaemonStatements } from "./daemon-source.js";
+import { createDaemonSiteTools } from "../../agent-daemon-site-tools.js";
+import { daemonFunction, daemonSource, evaluateDaemonStatements } from "./daemon-source.js";
 
-/** Execute the daemon's catalog construction and mount, without executing start()'s listeners. */
+type CatalogBody = { hits: { id: string }[]; id: string; description: string };
+
+/** Mount the real daemon discovery statement over descriptor transport. A server admission is
+ * observed at the next run's catalog refresh, while the mounted query object stays the same.
+ * HTTP and federation startup are separate integration seams. Every request uses native run scope.
+ */
 export async function mountDaemonCatalog(registry: ToolRegistry, auditSink: ToolAttemptAuditSink) {
-  const statements = daemonFunction("start").body!.statements;
-  const initial = daemonVariableStatement(statements, "liveToolCatalog");
-  const mount = statements.find((statement) => ts.isExpressionStatement(statement) && ts.isCallExpression(statement.expression) && statement.expression.expression.getText(daemonSource) === "registerToolCatalogRoutes");
-  assert.ok(mount, "start() must mount the tool catalog directly");
-  const handlers = new Map<string, (request: unknown, response: unknown) => Promise<void>>();
-  const live = await evaluateDaemonStatements<LiveToolCatalogQuery>(statements.slice(statements.indexOf(initial), statements.indexOf(mount) + 1), {
-    registry, auditSink, buildToolCatalogQuery, createLiveToolCatalogQuery, withToolCatalogAudit,
-    deleteScope: createChatDeleteScope({ readPolicy: async () => DEFAULT_PERMANENT_DELETES_POLICY }),
-    UNSCOPED_TOOL_CATALOG_ROUTE_RUN_ID, UNSCOPED_TOOL_CATALOG_ROUTE_PRINCIPAL_ID,
-    routeDeps: { workspaceId: "ws-daemon-catalog" }, refreshSkillsCatalog: () => {},
-    app: { get: (path: string, handler: typeof handlers extends Map<string, infer H> ? H : never) => {
-      assert.equal(handlers.has(path), false, `duplicate route ${path}`);
-      handlers.set(path, handler);
-    } },
-    adapter: { allowedOriginsEnvVar: "TOVU_ALLOWED_ORIGINS", webPortEnvVar: "TOVU_WEB_PORT", bindHostEnvVar: "TOVU_BIND_HOST", resolvedPortRef: { current: 7456 }, env: {} },
-    registerToolCatalogRoutes,
-  }, "liveToolCatalog");
-
-  // Execute the actual attach initializer and capture the exact callback passed to its real
-  // federation dependency. Only the unrelated installed-extension I/O is replaced.
-  const extensions = daemonVariableStatement(statements, "extensions").declarationList.declarations[0].initializer!;
-  let onAdmitted: ((result: FederationReloadResult) => void) | undefined;
-  let surfaces: AssistantSurfaceDeps | undefined;
-  // `start()` hands the process-wide confirmation store (a module-level const the evaluated initializer
-  // closes over) to the installed-extension registrar, so executable plugin tools can ask before acting.
-  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-  evaluateDaemonExpression(extensions, {
-    attachAssistantToolExtensions: (...args: Parameters<typeof attachAssistantToolExtensions>) => {
-      onAdmitted = args[1].federation.onAdmitted;
-      surfaces = args[1].surfaces;
-      return attachAssistantToolExtensions(...args);
-    },
-    registerInstalledExtensionTools: async () => {},
-    federationDeps: { authorize: async () => ({ allowed: true, reason: "fixture" }), workspaceId: "ws-daemon-catalog" },
-    source: { resolve: async () => [] },
-    liveToolCatalog: live, registry, auditSink, buildToolCatalogQuery, withToolCatalogAudit, surfaceExchanges,
-    UNSCOPED_TOOL_CATALOG_ROUTE_RUN_ID, UNSCOPED_TOOL_CATALOG_ROUTE_PRINCIPAL_ID,
-    routeDeps: { workspaceId: "ws-daemon-catalog" }, console: { log() {} },
+  const runId = "catalog-run";
+  const host = createDaemonSiteTools({ baseUrl: "https://fixture.invalid", token: "fixture", localRegistry: { list: () => [] },
+    contextFor: () => ({}), audit: { sink: auditSink, workspaceId: "ws-daemon-catalog" } }, {
+    fetch: async () => Response.json({ tools: registry.list({}) }),
   });
-  assert.ok(onAdmitted, "daemon must pass onAdmitted to the real federation constructor");
-  assert.equal(surfaces?.surfaceExchanges, surfaceExchanges, "daemon must pass its confirmation-card store to the extension registrar");
+  await host.start({ runId, principalId: "catalog-member" });
+  let refresh = false;
+  const statements = daemonFunction("start").body!.statements;
+  const mount = statements.find(statement => ts.isExpressionStatement(statement) && ts.isCallExpression(statement.expression) && statement.expression.expression.getText(daemonSource) === "registerToolCatalogRoutes");
+  assert.ok(mount, "start() must mount the remote catalog directly");
+  const handlers = new Map<string, (request: unknown, response: unknown) => Promise<void>>();
+  await evaluateDaemonStatements([mount], {
+    siteTools: host, registerToolCatalogRoutes,
+    app: { get: (path: string, handler: (request: unknown, response: unknown) => Promise<void>) => { assert.equal(handlers.has(path), false); handlers.set(path, handler); } },
+    adapter: { allowedOriginsEnvVar: "TOVU_ALLOWED_ORIGINS", webPortEnvVar: "TOVU_WEB_PORT", bindHostEnvVar: "TOVU_BIND_HOST", resolvedPortRef: { current: 7456 }, env: {} },
+  });
   return {
-    onAdmitted,
+    onAdmitted(_result: unknown) { refresh = true; },
+    dispose: () => host.finish({ runId }),
     async request(path: string, query: Record<string, string> = {}, params: Record<string, string> = {}) {
+      if (refresh) { await host.start({ runId, principalId: "catalog-member" }); refresh = false; }
       const handler = handlers.get(path);
       assert.ok(handler, `route ${path} must be mounted`);
       let status: number | undefined;
-      let body: any;
+      let body: unknown;
       const response = { status(value: number) { status = value; return this; }, json(value: unknown) { body = value; return this; } };
-      await handler({ method: "GET", headers: { host: "localhost:7456" }, get: (name: string) => name.toLowerCase() === "host" ? "localhost:7456" : undefined, body: {}, query, params }, response);
-      return { status, body };
+      await host.withRun({ runId, fn: () => handler({ method: "GET", headers: { host: "localhost:7456" }, get: (name: string) => name.toLowerCase() === "host" ? "localhost:7456" : undefined, body: {}, query, params }, response) });
+      return { status, body: body as CatalogBody };
     },
   };
 }

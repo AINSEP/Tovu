@@ -23,11 +23,11 @@ export function serverFederationFixture({ connect, oauthFor }: {
   };
   installFirstPartyToolContributors({ contributions }, { readAdmissions: () => surface.readFederationAdmissions({}, {}).then(snapshot => ({ ok: true as const, ...snapshot })) });
   const surface = createByokToolSurface(deps, { contributions, federationConnect: connect });
-  async function save({ serverId = "hosted", oauth = false }: { serverId?: string; oauth?: boolean } = {}) {
+  async function save({ serverId = "hosted", oauth = false, toolName = "echo" }: { serverId?: string; oauth?: boolean; toolName?: string } = {}) {
     await saveExternalMcpServer({ repo: deps.externalMcpServerRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock }, {
       workspaceId: deps.workspaceId, principalId: "owner", serverId, enabled: true,
       transport: "streamable_http", url: `https://${serverId}.example/mcp`, command: "", args: "", env: "",
-      authMode: oauth ? "oauth" : "none", allowedToolNames: "echo", writeAllowedToolNames: "echo",
+      authMode: oauth ? "oauth" : "none", allowedToolNames: toolName, writeAllowedToolNames: toolName,
       ...(oauth ? { oauth: { grant: "authorization_code", clientId: "test-client", scopes: "read", authorizationEndpoint: "https://oauth.example/authorize", tokenEndpoint: "https://oauth.example/token" } } : {}),
     });
   }

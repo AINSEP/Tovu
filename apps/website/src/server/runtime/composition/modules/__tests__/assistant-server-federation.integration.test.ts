@@ -12,6 +12,70 @@ import { serverFederationFixture } from "./helpers/server-federation-fixture.js"
 test.beforeEach(() => { resetExternalMcpRosterChangeListenersForTests(); resetAssistantDaemonSingletonForTests(); });
 test.afterEach(() => { resetExternalMcpRosterChangeListenersForTests(); resetAssistantDaemonSingletonForTests(); });
 
+test("daemon catalog demand admits server federation before returning remote tool descriptors", async t => {
+  const fixture = serverFederationFixture({ connect: async () => new InMemoryMcpSession({ tools: [
+    { name: "echo", description: "Echo", inputSchema: { type: "object" }, annotations: { readOnlyHint: true } },
+  ] }) });
+  await fixture.save();
+  const { default: express } = await import("express");
+  const { createAssistantByokModule } = await import("../assistant-byok.js");
+  const { ensureToolExecToken } = await import("#src/assistant/daemon-access");
+  const { acceptToolRun } = await import("./assistant-tool-exec.fixture.js");
+  const { startTestServer } = await import("#src/server/__tests__/helpers/http-test-server");
+  await acceptToolRun({ deps: fixture.deps, runId: "catalog-demand", principalId: "owner" });
+  const module = createAssistantByokModule(fixture.deps, fixture.surface);
+  const app = express();
+  module.registerToolExecRoutes({ router: app });
+  const baseUrl = await startTestServer(app, t);
+  const response = await fetch(`${baseUrl}/internal/tool-catalog?runId=catalog-demand&principalId=owner`, { headers: { authorization: `Bearer ${ensureToolExecToken({}, {})}` } });
+  assert.equal(response.status, 200);
+  assert.ok(((await response.json()) as { tools: { id: string }[] }).tools.some(tool => tool.id === "mcp__hosted__echo"));
+});
+
+test("a remote tool's Allow for this chat survives the move to the server and stays conversation scoped", { timeout: 5000 }, async t => {
+  const session = new InMemoryMcpSession({ tools: [{ name: "assistant_set_instructions", description: "Change assistant instructions",
+    inputSchema: { type: "object", properties: { name: { type: "string" } } }, annotations: { readOnlyHint: false } }] });
+  const fixture = serverFederationFixture({ connect: async () => session });
+  await fixture.save({ toolName: "assistant_set_instructions" });
+  const { default: express } = await import("express");
+  const { createAssistantByokModule } = await import("../assistant-byok.js");
+  const { ensureToolExecToken } = await import("#src/assistant/daemon-access");
+  const { createRemoteToolExecutor } = await import("@jini-ai/daemon");
+  const { acceptToolRun } = await import("./assistant-tool-exec.fixture.js");
+  const { startTestServer } = await import("#src/server/__tests__/helpers/http-test-server");
+  await acceptToolRun({ deps: fixture.deps, runId: "remembered-run", principalId: "owner" });
+  const module = createAssistantByokModule(fixture.deps, undefined, { federationConnect: async () => session });
+  const app = express();
+  module.registerToolExecRoutes({ router: app });
+  const baseUrl = await startTestServer(app, t);
+  let conversationId = "chat-remembered-run";
+  const remote = createRemoteToolExecutor({ baseUrl, token: ensureToolExecToken({}, {}) }, { contextFor: () => ({ conversationId }) });
+  const toolId = "mcp__hosted__assistant_set_instructions";
+  const call = { principal: { id: "owner" }, run: { id: "remembered-run" }, toolId, input: { name: "one" } };
+  let cards = 0;
+  const first = await remote.execute(call, { emitSurface: async emission => {
+    if (emission.channel !== "mcp-ui") return;
+    cards++;
+    assert.match(JSON.stringify(emission), /Allow for this chat/);
+    const exchangeId = module.toolSurface.surfaceExchanges.findTypedAnswerTarget({ principalId: "owner", toolId });
+    assert.ok(exchangeId);
+    assert.deepEqual(module.toolSurface.surfaceExchanges.deliver({ exchangeId, principalId: "owner", params: { decision: "confirm", choice: "chat" } }, { toolId }), { ok: true });
+  } });
+  assert.equal(first.status, "completed");
+  assert.equal((await remote.execute(call, { emitSurface: async () => { assert.fail("the same chat must reuse its recorded approval"); } })).status, "completed");
+  assert.equal(cards, 1);
+  conversationId = "another-chat";
+  await remote.execute(call, { emitSurface: async emission => {
+    if (emission.channel !== "mcp-ui") return;
+    cards++;
+    const exchangeId = module.toolSurface.surfaceExchanges.findTypedAnswerTarget({ principalId: "owner", toolId });
+    assert.ok(exchangeId);
+    module.toolSurface.surfaceExchanges.deliver({ exchangeId, principalId: "owner", params: { decision: "cancel" } }, { toolId });
+  } });
+  assert.equal(cards, 2, "a different conversation must ask again");
+  assert.equal(session.calls.length, 2, "only the two approved calls may reach the external service");
+});
+
 test("OAuth reauthentication and tool execution work with daemon stopped", async t => {
   let spawns = 0;
   t.mock.method(childProcess, "spawn", () => { spawns++; throw new Error("the daemon must stay stopped"); });

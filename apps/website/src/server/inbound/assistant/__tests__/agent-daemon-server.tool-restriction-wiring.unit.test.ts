@@ -9,7 +9,7 @@ import { ASSISTANT_DISALLOWED_TOOLS, ASSISTANT_SETTING_SOURCES, resolveAssistant
 import { captureDaemonRun, daemonSource, evaluateDaemonStatements, daemonInitializer, evaluateDaemonExpression } from "./helpers/daemon-source.js";
 import { AsyncResource, AsyncLocalStorage } from "node:async_hooks";
 import ts from "typescript";
-import { createChatDeleteScope } from "../../../../assistant/permanent-delete-tool-gate.js";
+import { createDaemonSiteTools } from "../agent-daemon-site-tools.js";
 import { InMemorySettingsRepo, ensureSettingDefinitions, getEffective, set } from "@jini-ai/core/settings";
 import { readAssistantCliPermissions } from "../../../../assistant/subagent-settings.js";
 import { buildAssistantRuntimeGuidance } from "../assistant-runtime-guidance.js";
@@ -153,41 +153,41 @@ test("a failed fresh subagent read still launches Claude with every default tool
   assert.deepEqual(warnings, ["[agent-daemon] Full CLI access settings unavailable; access remains OFF."]);
 });
 
-test("catalog grants survive a parser continuation using the pre-existing request resource", async () => {
-  // Current raw-body binds its callback to preserve context. Keep the grant independent of
-  // parser implementations that resume on the stream's pre-existing resource; no server starts.
+test("catalog identity survives a parser continuation using the pre-existing request resource", async () => {
   const stream = new AsyncResource("request-stream-fixture");
-  const policy = { enabled: true, allowedToolIds: ["trash_empty"] };
-  const deleteScope = createChatDeleteScope({ readPolicy: async ({ principalId }) => { assert.equal(principalId, "owner"); return policy; } });
+  const siteTools = createDaemonSiteTools({ baseUrl: "https://fixture.invalid", token: "private", localRegistry: { list: () => [] }, contextFor: () => ({}) }, {
+    fetch: async () => Response.json({ tools: [{ id: "owner-read", readOnly: true }] }),
+  });
+  await siteTools.start({ runId: "owner-run", principalId: "owner" });
   type Middleware = (req: { parsed?: boolean; get(name: string): string | undefined }, res: object, next: (error?: unknown) => void) => void;
   const stack: Middleware[] = [];
   const statements = daemonSource.statements.filter(statement => ts.isExpressionStatement(statement) &&
     ts.isCallExpression(statement.expression) && statement.expression.expression.getText(daemonSource) === "app.use" &&
-    (statement.getText(daemonSource).includes("express.json(") || statement.getText(daemonSource).includes("deleteScope.fresh(")));
-  assert.equal(statements.length, 2, "capture the real JSON parser and grant middleware registrations");
+    (statement.getText(daemonSource).includes("express.json(") || statement.getText(daemonSource).includes("siteTools.withRun(")));
+  assert.equal(statements.length, 2, "capture the real JSON parser and live-run scope registrations");
   try {
     await evaluateDaemonStatements(statements, {
       app: { use: (...args: unknown[]) => { stack.push(args.at(-1) as Middleware); } },
       express: { json: () => ((req, _res, next) => {
         queueMicrotask(() => stream.runInAsyncScope(() => { req.parsed = true; next(); }));
       }) as Middleware },
-      DELEGATED_TOOL_CALLS_PATH: "/api/delegated-tools/call", RUN_PRINCIPAL_HEADER: "x-tovu-principal-id", deleteScope,
+      DELEGATED_TOOL_CALLS_PATH: "/api/delegated-tools/call", siteTools,
+      resolveDiscoveryCaller: () => ({ runId: "owner-run", principalId: "owner" }),
     });
     await new Promise<void>((resolve, reject) => {
-      const req: { parsed?: boolean; get(name: string): string | undefined } = {
-        get: name => name === "x-tovu-principal-id" ? "owner" : undefined,
-      };
+      const req = { parsed: false, get: () => undefined };
       let index = 0;
       const next = (error?: unknown) => {
         if (error) { reject(error); return; }
         const middleware = stack[index++];
         if (middleware) { middleware(req, {}, next); return; }
-        try { assert.equal(req.parsed, true); assert.deepEqual(deleteScope.policy(), policy); resolve(); }
+        try { assert.equal(req.parsed, true); assert.deepEqual(siteTools.registry.list({}).map(tool => tool.id), ["owner-read"]); resolve(); }
         catch (failure) { reject(failure); }
       };
       next();
     });
-  } finally { stream.emitDestroy(); }
+  } finally { stream.emitDestroy(); siteTools.finish({ runId: "owner-run" }); }
+  assert.throws(() => siteTools.registry.list({}), /live run/);
 });
 
 

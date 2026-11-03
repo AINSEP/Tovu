@@ -88,7 +88,8 @@ export async function captureDaemonRun(
     ensureJsonAgentInstall: async (): Promise<void> => { await bindings.verifyJsonAgentInstall(); },
     resolveNativeToolPolicy, resolveFullCliAccess, resolveAssistantCliPermissions, resolveHostSignals, assistantCliPermissions, createToolGapCollector, redactSecretShapes,
     readLoginShellEnvironment: async () => ({ PATH: "/test/login-shell" }),
-    deleteScope: { fresh: ({ run }: { run: () => unknown }) => run() },
+    siteTools: { start: async () => {}, preflight: async () => ({ prefix: "", refusalPrefix: "" }),
+      withRun: ({ fn }: { fn: () => unknown }) => fn(), finish() {} },
     DEFAULT_AGENT_ID: "claude",
     principalByRunId: new Map(),
     messageAttachmentRefsByRunId: new Map(),
@@ -98,10 +99,8 @@ export async function captureDaemonRun(
     frontendControl: { bindOnStarted() {} },
     customInstructionsCache: { refresh: async () => {} },
     resolveAttachmentRunFields: async () => ({}),
-    resolveAgentPluginPromptPrefix: async () => "",
     buildCapabilityManifestPrefix: () => "",
     resolveCapabilityManifestArm: () => "off",
-    toolExtensions: undefined,
     conversationStartLock: createConversationStartLock({}, {}),
     randomUUID: () => "unused-session-id",
     process: { env: {}, cwd: () => "/tmp/daemon-test" },
@@ -113,7 +112,6 @@ export async function captureDaemonRun(
     // Automatic Agent plugins preflight is fail-open and owned by its own tests; this capture
     // isolates onStarted's other wiring.
     AbortController,
-    automaticPluginRuns: { start: async () => "", prepareGuidance: async () => "", forget() {} },
     // `run()` takes Jini's (required, optional) pair; the executor reassembles one
     // AgentExecutorRunInput from them, so the capture does the same.
     agentExecutor: { run: async (required: AgentExecutorRunInput, optional: Partial<AgentExecutorRunInput> = {}) => resolve({ ...required, ...optional }) },

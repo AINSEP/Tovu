@@ -203,55 +203,42 @@ describe("onStarted continuation — early stops and prompt assembly", () => {
       { message: "onStarted did not call the executor" });
   });
 
+  const site = (preflight: () => Promise<{ prefix: string | null; refusalPrefix: string }>) => ({ start: async () => {}, preflight,
+    withRun: ({ fn }: { fn: () => unknown }) => fn(), finish() {} });
+
   test("a refused plugin prefix stops before the executor", async () => {
-    await assert.rejects(captureDaemonRun({ prompt: "go" }, { bindings: { resolveAgentPluginPromptPrefix: async () => null } }),
-      { message: "onStarted did not call the executor" });
+    await assert.rejects(captureDaemonRun({ prompt: "go" }, { bindings: { siteTools: site(async () => ({ prefix: null, refusalPrefix: "" })) } }),
+      { message: "The assistant could not start: a selected Agent Plugin could not be loaded." });
   });
 
-  test("the automatic plugin prefix joins the pinned plugin prefix ahead of the prompt", async () => {
+  test("the server's joined automatic and pinned prefix reaches the executor ahead of the prompt", async () => {
     const run = conversationRun();
-    const input = await start({ prompt: "go" }, run, {
-      resolveAgentPluginPromptPrefix: async () => "PINNED",
-      automaticPluginRuns: { start: async () => "AUTOMATIC", forget() {} },
-    });
+    const input = await start({ prompt: "go" }, run, { siteTools: site(async () => ({ prefix: "PINNED\n\nAUTOMATIC", refusalPrefix: "" })) });
     assert.equal(input.prompt, "PINNED\n\nAUTOMATIC\n\n<<SUBAGENT_DISPATCH>>\n\ngo");
   });
 
-  test("the automatic preflight receives the durable message id and the user's own words", async () => {
-    const starts: { runId: string; messageId?: string; context: { query: string; conversationId: string } }[] = [];
+  test("the daemon sends only its run id and cancellation signal to server plugin preflight", async () => {
+    const starts: Record<string, unknown>[] = [];
     const run = conversationRun({ durable: durablePort({ cancelReason: null, message: { runStatus: "running" } }) });
-    await start({ prompt: "rendered prompt", userPrompt: "raw words", assistantMessageId: "answer-1" }, run, {
-      automaticPluginRuns: { start: async (input: (typeof starts)[number]) => { starts.push(input); return ""; }, forget() {} },
-    });
-    assert.equal(starts[0]?.messageId, "answer-1");
-    assert.equal(starts[0]?.context.query, "raw words");
-    assert.equal(starts[0]?.context.conversationId, CONVERSATION);
-  });
-
-  test("the automatic preflight falls back to the prompt and omits the message id for a non-durable run", async () => {
-    const starts: { messageId?: string; context: { query: string } }[] = [];
-    const run = conversationRun();
-    await start({ prompt: "rendered prompt" }, run, {
-      automaticPluginRuns: { start: async (input: (typeof starts)[number]) => { starts.push(input); return ""; }, forget() {} },
-    });
-    assert.equal("messageId" in starts[0]!, false);
-    assert.equal(starts[0]?.context.query, "rendered prompt");
+    await start({ prompt: "rendered prompt", userPrompt: "raw words", assistantMessageId: "answer-1" }, run, { siteTools: {
+      ...site(async () => ({ prefix: "", refusalPrefix: "" })),
+      preflight: async (input: Record<string, unknown>) => { starts.push(input); return { prefix: "", refusalPrefix: "" }; },
+    } });
+    assert.equal(starts[0]?.runId, "daemon-test-run");
+    assert.deepEqual(Object.keys(starts[0]!).sort(), ["runId", "signal"]);
   });
 
   test("an unavailable automatic preflight is warned about and the run starts without it", async () => {
     const run = conversationRun();
-    const input = await start({ prompt: "go" }, run, {
-      automaticPluginRuns: { start: async () => { throw new Error("offline"); }, forget() {} },
-    });
+    const input = await start({ prompt: "go" }, run, { siteTools: site(async () => { throw new Error("offline"); }) });
     assert.equal(input.prompt, "<<SUBAGENT_DISPATCH>>\n\ngo");
     assert.deepEqual(run.calls.warnings, ["[agent-plugins] automatic preflight unavailable"]);
   });
 
-  test("a run outside any conversation never starts the automatic preflight", async () => {
-    const input = await captureDaemonRun({ prompt: "go" }, { bindings: {
-      automaticPluginRuns: { start: async () => assert.fail("no conversation, no preflight"), forget() {} },
-    } });
-    assert.equal(input.prompt, "<<SUBAGENT_DISPATCH>>\n\ngo");
+  test("an unavailable preflight cannot silently omit an explicitly selected plugin", async () => {
+    await assert.rejects(captureDaemonRun({ prompt: "go", pluginRefIds: ["picked"] }, { bindings: {
+      siteTools: site(async () => { throw new Error("offline"); }),
+    } }), { message: "The assistant could not start: a selected Agent Plugin could not be loaded." });
   });
 
   test("a cold start of a memory-carrying agent replaces the tail prompt with the cold-start context", async () => {

@@ -21,7 +21,8 @@ import type { AddressInfo } from "node:net";
 
 import { SpanKind, SpanStatusCode } from "@opentelemetry/api";
 import express from "express";
-import { createContributionRegistry } from "@jini-ai/core";
+import { createContributionRegistry, createToolRegistry } from "@jini-ai/core";
+import { createToolExecutor } from "@jini-ai/daemon";
 
 import { createApp, createRouteDeps } from "../runtime/composition/app.js";
 import {
@@ -588,6 +589,10 @@ function stubByokToolSurface(options: { readonly settled: boolean; readonly refu
     executeMetaTool: async () => ({ content: "" }),
     ready: Promise.resolve(),
     awaitFederation: async () => ({ settled: options.settled }),
+    // The module also composes its server-owned daemon-call adapters, even when this fixture
+    // exercises only a BYOK turn. Keep their required port real and empty, without booting I/O.
+    daemonCalls: { executor: createToolExecutor({ registry: createToolRegistry({}) }), listToolsFor: async () => [] },
+    readFederationAdmissions: async () => ({ connections: [], configFailures: [] }),
     ...(options.refusalPrefix !== undefined ? { federation: { refusalPrefix: () => options.refusalPrefix } } : {}),
   } as unknown as ByokToolSurface;
 }

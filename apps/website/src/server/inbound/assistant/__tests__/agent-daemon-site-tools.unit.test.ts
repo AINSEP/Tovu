@@ -129,3 +129,32 @@ test("a live run cannot be rebound to another principal", async () => {
   assert.deepEqual(host.withRun({ runId: "run", fn: () => host.registry.list({}).map(tool => tool.id) }), ["page.inspect", "alice_read_0"]);
   host.finish({ runId: "run" });
 });
+
+test("plugin preflight sends only the live run id and closes after receiving its prepared prefix", async () => {
+  const requests: RequestInit[] = [];
+  const host = createDaemonSiteTools({ baseUrl: "https://site.example", token: "private", localRegistry: createToolRegistry({}), contextFor: () => ({}) }, {
+    fetch: async (url, init) => {
+      if (new URL(String(url)).pathname === "/internal/tool-catalog") return Response.json({ tools: [] });
+      requests.push(init!);
+      return Response.json({ prefix: "site prepared guidance", refusalPrefix: "refused connection" });
+    },
+  });
+  await host.start({ runId: "live", principalId: "member" });
+  assert.deepEqual(await host.preflight({ runId: "live" }), { prefix: "site prepared guidance", refusalPrefix: "refused connection" });
+  assert.deepEqual(JSON.parse(String(requests[0]?.body)), { runId: "live" });
+  assert.equal(requests[0]?.redirect, "error");
+  host.finish({ runId: "live" });
+  await assert.rejects(host.preflight({ runId: "live" }), /live run/);
+});
+
+test("the agent launches only after site catalog and plugin preparation finish", async () => {
+  const { captureDaemonRun } = await import("./helpers/daemon-source.js");
+  const order: string[] = [];
+  const input = await captureDaemonRun({ prompt: "hello" }, { bindings: {
+    siteTools: { start: async () => { order.push("catalog"); }, preflight: async () => { order.push("preflight"); return { prefix: "site guidance", refusalPrefix: "withheld connection" }; },
+      withRun: ({ fn }: { fn: () => unknown }) => fn(), finish() {} },
+  } });
+  assert.deepEqual(order, ["catalog", "preflight"]);
+  assert.match(input.prompt, /site guidance/);
+  assert.match(input.prompt, /withheld connection/);
+});

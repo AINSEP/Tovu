@@ -73,7 +73,9 @@ function hostFixture({ descriptor = {}, delegate }: { descriptor?: Partial<ToolD
     registry.register(registration(id));
   }
   const deleteScope = createChatDeleteScope({ readPolicy: async ({ principalId }) => policies.get(principalId ?? "") ?? disabledPolicy });
-  const visibleRegistry = evaluateDaemonExpression<Pick<typeof registry, "list">>(daemonInitializer("visibleRegistry"), { registry, deleteScope, isChatToolAllowed });
+  const visibleRegistry = evaluateDaemonExpression<Pick<typeof registry, "list">>(daemonInitializer("visibleRegistry"), {
+    siteTools: { registry: { list: () => registry.list({}).filter(tool => isChatToolAllowed({ toolId: tool.id, policy: deleteScope.policy() })) } },
+  });
   const runCredentials = createRunScopedCredentials({ principalOfLiveRun: ({ runId }) => principals.get(runId) });
   const bridgeInjection = evaluateDaemonExpression<McpJsonInjectionOptions>(daemonInitializer("bridgeInjection"), {
     registry, visibleRegistry, runCredentials, daemonUrl: "http://127.0.0.1:4419",

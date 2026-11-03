@@ -132,7 +132,7 @@ async function bootDaemonRpc(t: import("node:test").TestContext, options: { drop
   const execute = (toolId: string) => siteTools.withRun({ runId: "remote-run", fn: () => bridge.execute({
     runId: "remote-run", principal, toolUseId: "remote-use", toolId, input: {},
   }) });
-  return { execute, events, started, serverAborted, cancel: () => cancel(), deps, writes: () => writes };
+  return { execute, events, started, serverAborted, cancel: () => cancel(), deps, writes: () => writes, siteTools, toolExecutor, principal };
 }
 
 test("delegation records tool_use and tool_result", async t => {
@@ -164,5 +164,41 @@ test("memory site writes are visible in the server", async t => {
   const fixture = await bootDaemonRpc(t);
   await fixture.execute("site_write_probe");
   assert.equal((await fixture.deps.postRepo.findById({ id: "remote-post", workspaceId: fixture.deps.workspaceId }))?.title, "Remote site write");
+  assert.equal(fixture.writes(), 1);
+});
+
+test("read-only delegation refuses a server write before routing it", async t => {
+  const fixture = await bootDaemonRpc(t);
+  const { constrainPrincipalToReadOnlyTools } = await import("#src/assistant/read-only-tool-constraint");
+  const result = await fixture.siteTools.withRun({ runId: "remote-run", fn: () => fixture.toolExecutor.execute({
+    principal: constrainPrincipalToReadOnlyTools(fixture.principal), run: { id: "remote-run" }, toolId: "site_write_probe", input: {},
+  }) });
+  assert.equal(result.status, "denied");
+  assert.equal(fixture.writes(), 0);
+});
+
+test("a dropped remote write remains unknown to the durable gateway and a blind repeat is refused", async t => {
+  const fixture = await bootDaemonRpc(t, { dropResponse: true });
+  const { registerDurableToolGuard } = await import("../durable-run-routes.js");
+  const app = express();
+  app.use(express.json());
+  app.use((_req, _res, next) => fixture.siteTools.withRun({ runId: "remote-run", fn: () => next() }));
+  registerDurableToolGuard({ app, ledger: fixture.deps.chatRunLedger,
+    isRegistered: ({ toolId }) => fixture.siteTools.registry.has({ toolId }), isReadOnly: () => false,
+    messageIdForAttempt: async () => "answer-remote-run",
+  }, {});
+  app.post("/api/delegated-tool-calls", (_req, res, next) => {
+    void fixture.execute("site_write_probe").then(result => res.json({ result }), (error: unknown) => {
+      if (error instanceof Error && "code" in error && error.code === "TOOL_OUTCOME_UNKNOWN") res.status(503).json({ error: { code: error.code } });
+      else next(error);
+    });
+  });
+  const baseUrl = await startTestServer(app, t);
+  const post = (toolUseId: string) => fetch(`${baseUrl}/api/delegated-tool-calls`, { method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ runId: "remote-run", toolId: "site_write_probe", toolUseId, input: {} }) });
+  assert.equal((await post("first-write")).status, 503);
+  const repeated = await post("blind-repeat");
+  assert.equal(repeated.status, 409);
+  assert.equal(((await repeated.json()) as { error: { code: string } }).error.code, "TOOL_OUTCOME_UNKNOWN");
   assert.equal(fixture.writes(), 1);
 });

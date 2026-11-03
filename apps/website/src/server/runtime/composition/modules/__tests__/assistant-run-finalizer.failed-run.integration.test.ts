@@ -36,7 +36,9 @@ test("an actual executor failure remains failed through Tovu recovery, chat.db a
       frames.push(`event: ${event.kind}\ndata: ${JSON.stringify(event)}\n\n`);
     } });
     if (subscription.kind === "ok") subscription.unsubscribe();
+    const endedAttempts: string[] = [];
     const finalizer = createAssistantRunFinalizer({ ledger, reconnectDelayMs: 0, checkpointIntervalMs: 0,
+      onAttemptEnded: async ({ runId }) => { endedAttempts.push(runId); },
       daemon: { openEvents: async () => new Response(frames.join("")), runStatus: async () => 404 },
       scheduler: { schedule({ delayMs, run }) { const timer = setTimeout(run, delayMs); return () => clearTimeout(timer); } },
     });
@@ -53,5 +55,6 @@ test("an actual executor failure remains failed through Tovu recovery, chat.db a
     assert.ok(message.events?.some(event => event.kind === "status" && event.label.includes("unknown agentId")));
     assert.equal((await ledger.durable!.find({ runId: run.id }, {}))?.message.runStatus, "failed");
     assert.equal(finalizer.activeCount(), 0);
+    assert.deepEqual(endedAttempts, [run.id], "server-owned plugin consent must release when the durable observer ends its attempt");
   } finally { await kernel.close(); }
 });

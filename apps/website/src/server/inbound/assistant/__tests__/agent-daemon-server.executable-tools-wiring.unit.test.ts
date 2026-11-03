@@ -1,31 +1,21 @@
-/**
- * @file Wiring pin for the daemon's executable Agent Plugin tools (C4b). Reads the SOURCE of
- * `agent-daemon-server.ts` rather than importing it, like the other `agent-daemon-server.*-wiring`
- * tests next to this file: importing it opens a real SQLite connection and binds a real port, so no
- * in-process test can execute its `start()`; the line is measured as not loaded by any test.
- *
- * The fact pinned: the confirmation transport the installed-extension registrar hands executable
- * plugin tools is the SAME module-level exchange store the daemon's MCP-UI callback route delivers
- * answers to. A second store would show a card whose Confirm can never reach the parked call.
+/** ADR-070: executable plugins and their confirmation parks live on the same server surface.
+ * The daemon keeps only the local frontend exchange store. Public callback delivery already tries
+ * the server-owned store before forwarding local UI answers to the daemon.
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import path from "node:path";
 import test from "node:test";
+import { daemonSource } from "./helpers/daemon-source.js";
 
-const SOURCE = readFileSync(path.join(import.meta.dirname, "../agent-daemon-server.ts"), "utf8");
+const serverSurface = readFileSync(new URL("../../../../assistant/byok-tool-surface.ts", import.meta.url), "utf8");
+const serverModule = readFileSync(new URL("../../../runtime/composition/modules/assistant-byok.ts", import.meta.url), "utf8");
 
-function indexOfOrFail(needle: string, from = 0): number {
-  const index = SOURCE.indexOf(needle, from);
-  assert.ok(index > -1, `anchor must still exist verbatim: ${needle}`);
-  return index;
-}
-
-test("executable plugin tools get the daemon's one exchange store, the one the MCP-UI callback route answers", () => {
-  assert.equal(SOURCE.match(/createSurfaceExchangeStore\(/g)?.length, 1, "exactly one exchange store in the daemon");
-  assert.match(SOURCE, /^const surfaceExchanges = createSurfaceExchangeStore\(/m);
-  assert.match(SOURCE, /registerMcpUiToolCallsRoute\(app, \{ toolExecutor, surfaceExchanges \}\);/);
-  const attach = indexOfOrFail("const extensions = attachAssistantToolExtensions(");
-  const call = SOURCE.slice(attach, indexOfOrFail("registerInstalled: registerInstalledExtensionTools,", attach));
-  assert.match(call, /\n\s+surfaces: \{ surfaceExchanges \},\n/, "the registrar's deps carry that store as `surfaces`");
+test("server executable plugin tools share the server's confirmation store", () => {
+  assert.match(serverSurface, /surfaces:\s*\{\s*surfaceExchanges\s*\}/);
+  assert.match(serverSurface, /surfaceExchanges,\s*\n\s*executeMetaTool/);
+  assert.match(serverModule, /surfaces:\s*\{\s*surfaceExchanges:\s*resolvedToolSurface\.surfaceExchanges\s*\}/);
+  assert.match(serverModule, /registry\.register\(automaticPluginRuns\.loadRegistration\)/);
+  const daemon = daemonSource.statements.map(statement => statement.getText(daemonSource)).join("\n");
+  assert.equal(daemon.includes("attachAssistantToolExtensions"), false);
+  assert.match(daemon, /registerMcpUiToolCallsRoute\(app, \{ toolExecutor, surfaceExchanges \}\)/);
 });
