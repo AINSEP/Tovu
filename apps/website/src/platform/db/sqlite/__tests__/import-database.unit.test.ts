@@ -66,8 +66,9 @@ function writeOutputs(root: string, { bytes = Buffer.from("rebuilt") }: { bytes?
   fs.writeFileSync(path.join(root, "output.db"), bytes);
   fs.writeFileSync(path.join(root, "media.json"), JSON.stringify([{ storageKey: "blobs/a" }]));
   fs.writeFileSync(path.join(root, "documents.json"), JSON.stringify([]));
-  // The real worker always writes notices.json beside its outputs (empty when nothing was left out).
-  fs.writeFileSync(path.join(root, "notices.json"), JSON.stringify(["Saved content that looked like a key was left out: workspaces.name row ws."]));
+  // The worker transports classifications separately from unrelated scope/restore notices.
+  fs.writeFileSync(path.join(root, "notices.json"), "[]");
+  fs.writeFileSync(path.join(root, "credential-warnings.json"), JSON.stringify([{ path: "content.db:workspaces.name", kind: "provider key shape" }]));
 }
 
 test("the helper launch runs the TypeScript source through tsx and a build's JavaScript directly, both with a heap ceiling", () => {
@@ -89,7 +90,7 @@ test("an oversized snapshot and a staging area without room are refused before a
 test("a successful helper's rebuilt database and manifests are returned and its staging root is removed", async () => {
   const { fork, roots } = forkThat(({ root, child }) => { writeOutputs(root); child.emit("close", 0); });
   const result = await rebuildImportDatabase({ snapshot: Buffer.from("input") }, { statfs: plenty, fork });
-  assert.deepEqual(result, { bytes: Buffer.from("rebuilt"), media: [{ storageKey: "blobs/a" }], documents: [], notices: ["Saved content that looked like a key was left out: workspaces.name row ws."] });
+  assert.deepEqual(result, { bytes: Buffer.from("rebuilt"), media: [{ storageKey: "blobs/a" }], documents: [], notices: [], credentialWarnings: [{ path: "content.db:workspaces.name", kind: "provider key shape" }] });
   assert.equal(fs.existsSync(roots[0]!), false);
 });
 

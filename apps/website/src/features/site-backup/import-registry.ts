@@ -21,6 +21,7 @@ export interface SiteImportRecord {
   expiresAt: number;
   adminUrl?: string | null;
   warnings?: readonly string[];
+  credentialWarnings?: readonly import("./credential-warnings.js").CredentialWarning[];
   hasEncryptedKeys?: boolean;
   error?: string;
 }

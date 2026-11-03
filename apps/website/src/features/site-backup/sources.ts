@@ -128,7 +128,7 @@ export interface CollectedSiteBackupFiles {
  *  theme-files publish's own scratch and replaced-tree copies (`features/theme/publish-content.ts`) —
  *  a backup must never capture a half-staged tree. `.storage-secret.json` is a Postgres site's sealed
  *  connection string (`storage-secret.ts`): it lives in the site root, which no scope walks, and is
- *  named here too so a stray copy inside a walked folder never rides along. */
+ *  named here for repository backups too. The share profile retains nested copies with warnings. */
 const IGNORED_NAMES = new Set([".DS_Store", ".git", ".publish-staging", ".publish-previous", ".storage-secret.json"]);
 
 const SYMLINK_REASON = "a symbolic link — never followed, so nothing outside the site can ride along";
@@ -230,7 +230,9 @@ function skippedWalkEntry(required: { sink: WalkSink; relDir: string; name: stri
   // Finder writes .DS_Store into any folder it opens; it is junk, never content, so drop it before the share refusal list sees it.
   if (name === ".DS_Store") return true;
   if (required.sink.profile === "share" && excludedSharePath({ path: `${required.relDir}/${name}` }, { notices: required.sink.notices })) return true;
-  return IGNORED_NAMES.has(name) || optional.excludeTopLevel?.has(name) === true;
+  // A nested credential file is archive content in the share profile; its scan only warns.
+  const ignored = IGNORED_NAMES.has(name) && !(required.sink.profile === "share" && name === ".storage-secret.json");
+  return ignored || optional.excludeTopLevel?.has(name) === true;
 }
 
 async function walkEntry(required: { sink: WalkSink; entry: Dirent; absDir: string; relDir: string; scope: SiteBackupScope }): Promise<void> {

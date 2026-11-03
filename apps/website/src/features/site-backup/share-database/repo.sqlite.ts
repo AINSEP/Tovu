@@ -1,3 +1,4 @@
+import { warnCredentialContent, type CredentialWarning } from "../credential-warnings.js";
 import { contentKernel } from "#src/platform/db/content-kernel";
 import type { ArchiveMediaSource, ArchiveMediaCopy } from "#src/features/site-backup/archive-media";
 import { mkdtemp, rm, statfs, writeFile } from "node:fs/promises";
@@ -11,9 +12,9 @@ import { createConsoleLogger, type Logger } from "@jini-ai/core/primitives";
 import type { JsonValue } from "@jini-ai/core/primitives";
 import { PUBLISHABLE_SETTINGS } from "#src/features/settings/contracts";
 import { backfillPostSearchIndex } from "#src/features/post/index";
-import { SHARE_TABLES, SHARE_LEGACY_PRIVATE_TABLES, SHARE_LIMITS, SiteShareRefusal, type ShareDatabaseProjection, addShareOmission, archiveRefusalName } from "#src/features/site-backup/share-policy";
+import { SHARE_TABLES, SHARE_LEGACY_PRIVATE_TABLES, SHARE_LIMITS, SiteShareRefusal, type ShareDatabaseProjection, archiveRefusalName } from "#src/features/site-backup/share-policy";
 import { computeBlobStorageKey, documentContentType } from "#src/features/media/index";
-import { listColumns, listTables, listIndexes } from "../../../platform/db/kernel/dialect.js";
+import { listColumns, listTables } from "../../../platform/db/kernel/dialect.js";
 import { openSqliteFileKernel, sqliteKernel, sqliteClientOf, sqliteConnectionOf, closeSqliteConnection } from "../../../platform/db/kernel/drivers/sqlite.js";
 import type { StorageKernel } from "../../../platform/db/kernel/port.js";
 import { CHAT_TABLE_NAMES } from "../../../platform/db/sqlite/chat-orphan-check.js";
@@ -117,24 +118,21 @@ function requireTrustedColumns(required: { table: string; columns: string[]; sou
  * O(rows × columns) projection/insertion; rows remain bounded by the snapshot cap.
  * @throws SiteShareRefusal for missing required columns or unapproved core columns.
  */
-async function copyTable({ source, target, table, notices, omittedRows }: { source: Kernel; target: Kernel; table: string; notices: string[]; omittedRows: Map<string, Set<string>> }, { signal, portablePlugin, omittedMediaIds = [] }: { signal?: AbortSignal; portablePlugin?: boolean; omittedMediaIds?: readonly string[] } = {}): Promise<void> {
+async function copyTable({ source, target, table, credentialWarnings }: { source: Kernel; target: Kernel; table: string; credentialWarnings: CredentialWarning[] }, { signal, portablePlugin, omittedMediaIds = [] }: { signal?: AbortSignal; portablePlugin?: boolean; omittedMediaIds?: readonly string[] } = {}): Promise<void> {
   const columns = (await listColumns(target, table)).map(row => row.name);
   const sourceColumns = (await listColumns(source, table)).map(row => row.name);
   const defaults = ADDITIVE_COLUMN_DEFAULTS.get(table) ?? {};
   requireTrustedColumns({ table, columns, sourceColumns, defaults }, { portablePlugin });
   const rows = await source.run(db => db.selectFrom(table).select(columns.filter(column => sourceColumns.includes(column))).execute());
   const project = await mediaRowProjection({ target, table });
-  const indexes = await listIndexes(target, table);
-  const identities = new Set(["id", ...[...indexes.values()].filter(index => index.unique).flatMap(index => index.columns)]);
   const omitted = new Set(omittedMediaIds);
   for (const [index, sourceRow] of rows.entries()) {
     if (index % 1000 === 0) { await scheduler.yield(); signal?.throwIfAborted(); }
     const retained = omitMediaReferences({ row: { ...defaults, ...sourceRow }, table, omitted });
     if (!retained) continue;
-    const sanitized = sanitizePortableRow({ row: retained, table, notices });
-    if (sanitized.changed.some(column => identities.has(column))) { recordOmittedRow({ omittedRows, table, row: retained }); continue; }
-    const row = project(sanitized.row);
-    if (row) await insertPortableRow({ target, table, row, changed: sanitized.changed.length > 0, omittedRows });
+    warnPortableRow({ row: retained, table, credentialWarnings });
+    const row = project(retained);
+    if (row) await target.run(db => db.insertInto(table).values(row).execute());
   }
 }
 
@@ -148,84 +146,6 @@ function omitMediaReferences(required: { row: Row; table: string; omitted: Reado
   if (table === "entry_refs" && row.target_kind === "media" && omitted.has(String(row.target_id))) return null;
   return row;
 }
-
-/** Only redaction-caused constraint failures are omissions; corrupt required content still refuses. */
-async function insertPortableRow(required: { target: Kernel; table: string; row: Row; changed: boolean; omittedRows: Map<string, Set<string>> }, _options = {}): Promise<void> {
-  try { await required.target.run(db => db.insertInto(required.table).values(required.row).execute()); }
-  catch (error) {
-    if (!required.changed || !String((error as { code?: string }).code).startsWith("SQLITE_CONSTRAINT")) throw error;
-    recordOmittedRow(required);
-  }
-}
-
-function recordOmittedRow(required: { omittedRows: Map<string, Set<string>>; table: string; row: Row }, _options = {}): void {
-  if (required.row.id === undefined) return;
-  const ids = required.omittedRows.get(required.table) ?? new Set<string>();
-  ids.add(String(required.row.id));
-  if (required.table === "content_types") ids.add(String(required.row.key));
-  required.omittedRows.set(required.table, ids);
-}
-
-/** Prune only relationships of records this projection actually omitted. These fixed CMS
- * relationships are read in dependency order; ordinary corrupt source references still refuse.
- * O(portable rows) across a fixed set of bulk scans, plus indexed deletes of affected identities.
- */
-async function pruneOmittedReferences(required: { target: Kernel; omittedRows: Map<string, Set<string>> }, _options = {}): Promise<void> {
-  const rules = [
-    { parent: "content_types", table: "entries", column: "type" },
-    { parent: "taxonomies", table: "terms", column: "taxonomy_id" },
-    { parent: "menus", table: "nav_location_bindings", column: "menu_id" },
-    { parent: "entries", table: "widget_region_bindings", column: "area_entry_id" },
-    { parent: "entries", table: "entry_terms", column: "content_id" },
-    { parent: "posts", table: "entry_terms", column: "content_id" },
-    { parent: "terms", table: "entry_terms", column: "term_id" },
-    { parent: "entries", table: "entry_refs", column: "source_entry_id" },
-    { parent: "posts", table: "entry_refs", column: "source_entry_id" },
-    { parent: "entries", table: "entry_refs", column: "target_id" },
-    { parent: "posts", table: "entry_refs", column: "target_id" },
-    { parent: "media", table: "entry_refs", column: "target_id" },
-  ];
-  for (const rule of rules) await pruneOmittedRelation({ ...required, rule });
-  await clearOmittedNullableReferences(required);
-}
-
-/** One scan per affected relation; a new omission can remove downstream derived references. */
-async function pruneOmittedRelation(required: { target: Kernel; omittedRows: Map<string, Set<string>>; rule: { parent: string; table: string; column: string } }, _options = {}): Promise<void> {
-  const { rule, omittedRows, target } = required;
-  const omitted = omittedRows.get(rule.parent);
-  if (!omitted?.size) return;
-  const rows = await target.run(db => db.selectFrom(rule.table).selectAll().execute());
-  for (const row of rows) {
-    if (!omitted.has(String(row[rule.column]))) continue;
-    recordOmittedRow({ omittedRows, table: rule.table, row });
-    await deletePortableIdentity({ target, table: rule.table, row });
-  }
-}
-
-/** Every relationship target has either a primary id or one of these two CMS composite keys. */
-async function deletePortableIdentity(required: { target: Kernel; table: string; row: Row }, _options = {}): Promise<void> {
-  if (required.row.id !== undefined) {
-    await required.target.run(db => db.deleteFrom(required.table).where("id", "=", required.row.id).execute());
-    return;
-  }
-  const column = required.table === "nav_location_bindings" ? "location_key" : "region_key";
-  await required.target.run(db => db.deleteFrom(required.table).where("workspace_id", "=", required.row.workspace_id).where(column, "=", required.row[column]).execute());
-}
-
-/** Nullable references retain the editorial record, clearing just a removed image or parent. */
-async function clearOmittedNullableReferences(required: { target: Kernel; omittedRows: Map<string, Set<string>> }, _options = {}): Promise<void> {
-  const rules = [{ table: "posts", parent: "media", column: "featured_media_id" }, { table: "terms", parent: "terms", column: "parent_id" }];
-  for (const rule of rules) {
-    const omitted = required.omittedRows.get(rule.parent);
-    if (!omitted?.size) continue;
-    const rows = await required.target.run(db => db.selectFrom(rule.table).select(["id", rule.column]).execute());
-    for (const row of rows) if (omitted.has(String(row[rule.column]))) {
-      await required.target.run(db => db.updateTable(rule.table).set({ [rule.column]: null }).where("id", "=", row.id).execute());
-    }
-  }
-}
-
-const SIDECAR_TABLES: readonly string[] = ["media_slug_history", "asset_blobs", "asset_renditions"];
 
 /** Who owns which bytes, from the retained (already projected) `media` rows. */
 interface MediaOwners {
@@ -326,98 +246,62 @@ async function documentReferences(required: { target: Kernel }, _options: Record
   });
 }
 
-/** True when `text` holds anything credential-shaped. O(text). */
-function hasSecretShape(required: { text: string }, _options: Record<string, never> = {}): boolean {
-  return redactSecretShapes({ text: required.text }).redactions > 0;
-}
-
-/** Blank text/BLOBs BEFORE insertion so removed bytes cannot survive in FTS or SQLite free pages.
- * Text JSON columns receive valid empty JSON; BLOBs keep their binary storage type;
- * schema-specific settings use their owner below.
- * O(row bytes); mutates only the fresh projected row, never the source snapshot.
+/** Scan each portable column, preserving its exact text/BLOB bytes and identity. Only the
+ * table/column leaves this boundary: row ids and matched values never enter diagnostics.
+ * @complexity O(row bytes + accumulated warnings); mutates only the warning sink.
  */
-function sanitizePortableRow(required: { row: Row; table: string; notices: string[] }, _options = {}): { row: Row; changed: string[] } {
-  const row = { ...required.row }, changed: string[] = [];
-  for (const [column, value] of Object.entries(row)) {
-    const binary = value instanceof Uint8Array;
-    // Decode UTF-8 for the same scanner; replacement decoding also exposes ASCII keys beside
-    // invalid bytes. Harmless binary values retain their exact original bytes.
-    const text = binary ? Buffer.from(value).toString("utf8") : value;
-    if (typeof text !== "string" || !hasSecretShape({ text })) continue;
-    addShareOmission({ notices: required.notices, location: `${required.table}.${column} row ${String(row.id ?? row.workspace_id ?? "unknown")}` });
-    row[column] = binary ? Buffer.alloc(0) : blankPortableText({ column, value: text });
-    changed.push(column);
+function warnPortableRow(required: { row: Row; table: string; credentialWarnings: CredentialWarning[] }, _options = {}): void {
+  for (const [column, value] of Object.entries(required.row)) {
+    const text = value instanceof Uint8Array ? Buffer.from(value).toString("latin1") : value;
+    if (typeof text === "string") warnCredentialContent({ path: `content.db:${required.table}.${column}`, text, credentialWarnings: required.credentialWarnings });
   }
-  return { row, changed };
 }
 
-/** Preserve valid JSON syntax when blanking content; never redact serialized SQLite bytes. */
-function blankPortableText(required: { column: string; value: string }, _options = {}): string {
-  if (!required.column.endsWith("_json")) return "";
-  let value: unknown;
-  try { value = JSON.parse(required.value); } catch { return "{}"; }
-  if (Array.isArray(value)) return "[]";
-  if (value !== null && typeof value === "object") return "{}";
-  return '\"\"';
-}
-
-/** Only non-secret portable definitions/workspace values travel. Secret-bearing definitions/values are omitted, never rewritten. */
-async function copySettings({ source, target, notices }: { source: Kernel; target: Kernel; notices: string[] }, _options = {}): Promise<void> {
+/** Only explicitly portable definitions/workspace values travel. Credential-looking values are retained with warnings. */
+async function copySettings({ source, target, credentialWarnings }: { source: Kernel; target: Kernel; credentialWarnings: CredentialWarning[] }, _options = {}): Promise<void> {
   const definitions = await source.run(db => db.selectFrom("setting_definitions").selectAll().where("secret", "=", 0).where("status", "=", "active").execute());
   for (const definition of definitions) {
     const schema = portableDefinitionSchema({ definition });
     if (!schema) {
-      reportSettingOmissions({ row: definition, table: "setting_definitions", notices });
       continue;
     }
+    warnPortableRow({ row: definition, table: "setting_definitions", credentialWarnings });
     await target.run(db => db.insertInto("setting_definitions").values(definition).execute());
-    await copyWorkspaceValues({ source, target, definition, schema, notices });
+    await copyWorkspaceValues({ source, target, definition, schema, credentialWarnings });
   }
 }
 
-/** The value schema of a definition that may travel — workspace-scoped, publishable, secret-free,
+/** The value schema of a definition that may travel — workspace-scoped, publishable,
  * with a default its own schema accepts — else null. O(definition text).
  * @throws SyntaxError when the stored schema or default is not JSON. */
 function portableDefinitionSchema(required: { definition: Row }, _options: Record<string, never> = {}): SettingValueSchema | null {
   const { definition } = required;
   if (!(Number(definition.scopes) & 2) || !Object.hasOwn(PUBLISHABLE_SETTINGS, `${definition.namespace}:${definition.key}`)) return null;
   const schema = JSON.parse(String(definition.schema_json)) as SettingValueSchema;
-  // Preserve ordinary SEO text verbatim. A secret anywhere in a definition omits it whole;
-  // changing a schema or default to make redaction validate would silently damage the site.
-  if (Object.values(definition).some(value => hasSecretShape({ text: String(value) }))) return null;
   const defaultValue = JSON.parse(String(definition.default_json)) as JsonValue;
   return validateValueAgainstSchema(schema, defaultValue) ? schema : null;
 }
 
 /** Copies the definition's current-version workspace values that may travel, stamped `share`.
  * O(values × value size). */
-async function copyWorkspaceValues(required: { source: Kernel; target: Kernel; definition: Row; schema: SettingValueSchema; notices: string[] }, _options: Record<string, never> = {}): Promise<void> {
+async function copyWorkspaceValues(required: { source: Kernel; target: Kernel; definition: Row; schema: SettingValueSchema; credentialWarnings: CredentialWarning[] }, _options: Record<string, never> = {}): Promise<void> {
   const { definition } = required;
   const rows = await required.source.run(db => db.selectFrom("setting_values_workspace").selectAll().where("setting_id", "=", definition.setting_id).where("def_version", "=", definition.version).execute());
   for (const row of rows) {
     const portable = portableValue({ row, schema: required.schema });
-    if (!portable) reportSettingOmissions({ row, table: "setting_values_workspace", notices: required.notices });
+    if (portable) warnPortableRow({ row, table: "setting_values_workspace", credentialWarnings: required.credentialWarnings });
     if (portable) await required.target.run(db => db.insertInto("setting_values_workspace").values({ ...row, value_json: JSON.stringify(portable.value), updated_by: "share" }).execute());
   }
 }
 
 /** The value one workspace row carries (null when cleared), or null when the row must be omitted:
- * a secret-shaped stored value, or a set value its schema rejects. O(value size).
+ * a set value its schema rejects. O(value size).
  * @throws SyntaxError when a set value is not JSON. */
 function portableValue(required: { row: Row; schema: SettingValueSchema }, _options: Record<string, never> = {}): { value: JsonValue } | null {
   const { row } = required;
   const value = row.state === "cleared" ? null : JSON.parse(String(row.value_json)) as JsonValue;
-  if (hasSecretShape({ text: String(row.value_json) }) || row.state !== "cleared" && !validateValueAgainstSchema(required.schema, value)) return null;
+  if (row.state !== "cleared" && !validateValueAgainstSchema(required.schema, value)) return null;
   return { value };
-}
-
-/** Settings retain their schema contract: omit whole invalid values instead of inserting bad JSON. */
-function reportSettingOmissions(required: { row: Row; table: string; notices: string[] }, _options = {}): void {
-  for (const [column, value] of Object.entries(required.row)) {
-    if (typeof value === "string" && hasSecretShape({ text: value })) {
-      addShareOmission({ notices: required.notices, location: `${required.table}.${column} row ${String(required.row.setting_id)}` });
-    }
-  }
 }
 
 /**
@@ -431,8 +315,7 @@ function reportSettingOmissions(required: { row: Row; table: string; notices: st
 export async function sanitizeShareDatabase(required: { snapshot: Buffer; omittedMediaIds?: readonly string[]; modules: readonly DataModuleDecl[] }, optional: { signal?: AbortSignal; statfs?: StagingSpacePort } = {}): Promise<ShareDatabaseProjection> {
   optional.signal?.throwIfAborted();
   if (required.snapshot.length > SHARE_LIMITS.maxExpandedBytes) throw new SiteShareRefusal({ code: "LIMIT_EXCEEDED", message: "Database exceeds the 300 MiB cap." });
-  const notices: string[] = [];
-  const omittedRows = new Map<string, Set<string>>();
+  const credentialWarnings: CredentialWarning[] = [];
   const staging = await mkdtemp(path.join(tmpdir(), "tovu-share-projection-"));
   let source: Kernel | undefined;
   let fresh: ReturnType<typeof openContentDb> | undefined;
@@ -448,7 +331,7 @@ export async function sanitizeShareDatabase(required: { snapshot: Buffer; omitte
     const present = new Set(await listTables(from));
     const plugins = await prepareSharePluginTables({ target, present, modules: required.modules });
     await refuseUnknownShareTables({ source, trusted: new Set([...await listTables(target), ...plugins.private]) });
-    await copyPortableTables({ source: from, target, present, plugins, notices, omittedRows, omittedMediaIds: required.omittedMediaIds }, optional);
+    await copyPortableTables({ source: from, target, present, plugins, credentialWarnings, omittedMediaIds: required.omittedMediaIds }, optional);
     await backfillPostSearchIndex({ kernel: contentKernel(fresh) });
     const documents = await documentReferences({ target });
     const media = [
@@ -458,7 +341,7 @@ export async function sanitizeShareDatabase(required: { snapshot: Buffer; omitte
     // Older shares included Trash/orphan sidecars. v2 emits only retained owners, so
     // arbitrary unreferenced archive media must refuse rather than be pruned on import.
     const bytes = sqliteClientOf(fresh).serialize();
-    return { bytes, media, documents, notices, archiveMedia: await archiveMediaSources({ target }) };
+    return { bytes, media, documents, credentialWarnings, archiveMedia: await archiveMediaSources({ target }) };
   } finally {
     await source?.close();
     if (fresh) closeSqliteConnection(fresh);
@@ -467,16 +350,15 @@ export async function sanitizeShareDatabase(required: { snapshot: Buffer; omitte
 }
 
 /** Copy under one fresh-target transaction; private data and source search tables never enter it. */
-async function copyPortableTables(required: { source: Kernel; target: Kernel; present: ReadonlySet<string>; plugins: { portable: ReadonlySet<string> }; notices: string[]; omittedRows: Map<string, Set<string>>; omittedMediaIds?: readonly string[] }, optional: { signal?: AbortSignal } = {}): Promise<void> {
-  const { source, target, present, plugins, notices, omittedRows, omittedMediaIds } = required;
+async function copyPortableTables(required: { source: Kernel; target: Kernel; present: ReadonlySet<string>; plugins: { portable: ReadonlySet<string> }; credentialWarnings: CredentialWarning[]; omittedMediaIds?: readonly string[] }, optional: { signal?: AbortSignal } = {}): Promise<void> {
+  const { source, target, present, plugins, credentialWarnings, omittedMediaIds } = required;
   await target.transaction(async () => {
     for (const table of SHARE_TABLES) {
       if (!present.has(table)) throw new SiteShareRefusal({ code: "UNSUPPORTED_SCHEMA", message: `Share requires current table '${table}'. Update this site first.` });
-      await copyTable({ source, target, table, notices, omittedRows }, { signal: optional.signal, omittedMediaIds });
+      await copyTable({ source, target, table, credentialWarnings }, { signal: optional.signal, omittedMediaIds });
     }
-    for (const table of plugins.portable) await copyTable({ source, target, table, notices, omittedRows }, { signal: optional.signal, portablePlugin: true });
-    await pruneOmittedReferences({ target, omittedRows });
-    await copySettings({ source, target, notices });
+    for (const table of plugins.portable) await copyTable({ source, target, table, credentialWarnings }, { signal: optional.signal, portablePlugin: true });
+    await copySettings({ source, target, credentialWarnings });
   });
 }
 

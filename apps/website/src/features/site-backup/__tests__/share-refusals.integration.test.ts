@@ -218,9 +218,9 @@ for (const cleanup of ["delete throws", "purge unverified"] as const) {
     if (cleanup === "purge unverified") assert.deepEqual(events[3], { key: row!.storage!.key, url: "https://bucket.example/site.zip", present: false });
   });
 }
-test("upload exception without a URL becomes a safe delivery refusal and still deletes remote bytes", async t => {
+test("upload exception without a URL reaches incident handling and still deletes remote bytes", async t => {
   const r = await shareRegistry(t), deleted: string[] = [];
-  await assert.rejects(createSiteShare({ registry: r, ...input }, { delivery: delivery({ upload: async () => { throw new Error("SECRET backend detail"); }, delete: async ({ key }) => { deleted.push(key); }, verify: async () => assert.fail("no URL to verify") }) }), { code: "DELIVERY_FAILED", message: /Download the ZIP/ });
+  await assert.rejects(createSiteShare({ registry: r, ...input }, { delivery: delivery({ upload: async () => { throw new Error("SECRET backend detail"); }, delete: async ({ key }) => { deleted.push(key); }, verify: async () => assert.fail("no URL to verify") }) }), { message: "SECRET backend detail" });
   const [row] = await r.list({});
   assert.equal(row?.status, "failed");
   assert.equal(row?.storage?.url, undefined);
@@ -415,7 +415,7 @@ test("portable paths enforce depth, private-file omissions, content scanning and
   for (const name of ["themes/.git/a", "themes/.share-private/a", "themes/foo.sqlite-wal", "themes/restore-point-a", "themes/superseded-a"]) assert.throws(() => excludedSharePath({ path: name }), { code: "UNSAFE_FILE" });
   for (const name of ["themes/id_ed25519.pub", "themes/private_key.txt", "themes/.mcp.a.json"]) assert.equal(excludedSharePath({ path: name }), true);
   const bytes = Buffer.from("\u0000ghp_" + "x".repeat(36) + "\u0000");
-  assert.equal(requireShareSecretFree({ path: "themes/a.png", bytes }), false);
+  assert.equal(requireShareSecretFree({ path: "themes/a.png", bytes }), true);
   for (const order of [["themes/file", "themes/file/child"], ["themes/file/child", "themes/file"], ["themes/A/x", "themes/a/y"], ["themes/x", "themes/x"]]) {
     const aliases = new Map<string, string>(), files = new Set<string>();
     claimSharePath({ path: order[0]!, directory: false, aliases, files });

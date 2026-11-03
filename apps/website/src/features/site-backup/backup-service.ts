@@ -1,3 +1,6 @@
+import { requireShareSecretFree } from "./share-file-policy.js";
+import { readPlannedFile } from "./sources.js";
+import type { CredentialWarning } from "./credential-warnings.js";
 import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
@@ -514,6 +517,7 @@ function planResult(plan: SiteBackupPlan): Record<string, unknown> {
     totalSize: formatByteSize(plan.totalBytes),
     files,
     skipped: plan.skipped,
+    credentialWarnings: plan.credentialWarnings ?? [],
     notes: SITE_BACKUP_SCOPES.flatMap((scope) => (plan.scopeNotes[scope] ? [plan.scopeNotes[scope]] : [])),
     nextStep:
       `Show the human this plan: ${plan.owner}/${plan.repo}, branch '${plan.repository.branch}', folder '${plan.folder}' ` +
@@ -547,7 +551,7 @@ export async function planSiteBackup(required: { deps: SiteBackupToolDeps; call:
   const repo = await inspect(deps, credential.provider, PLAN_TOOL_ID, { ...target, ...(input.branch !== undefined ? { branch: input.branch } : {}), folder });
   if (!repo.ok) return { planned: false, code: repo.code, message: repo.message };
 
-  const prepared = await prepareContent(deps, sources, input.include, credential.provider);
+  const prepared = await prepareContent({ deps, sources, include: input.include, host: credential.provider });
   if (!prepared.ok) return { planned: false, code: prepared.code, message: prepared.message };
 
   return planResult(await savePlan({ deps, ctx, sources, input, folderName, content: { credentialLabel: credential.label, owner, repo: repoName, folder, repository: repo.state, ...prepared.content } }));
@@ -582,6 +586,7 @@ async function savePlan(required: {
       include: input.include,
       database: content.database,
       files: content.files,
+      credentialWarnings: content.credentialWarnings ?? [],
       skipped: content.skipped,
       scopeNotes: content.scopeNotes,
       totalBytes: content.totalBytes,
@@ -593,19 +598,19 @@ async function savePlan(required: {
   });
 }
 
-type PreparedContent = Pick<SiteBackupPlan, "database" | "files" | "skipped" | "scopeNotes" | "totalBytes">;
+type PreparedContent = Pick<SiteBackupPlan, "database" | "files" | "skipped" | "scopeNotes" | "totalBytes" | "credentialWarnings">;
 
 /**
  * The database a backup uploads: the snapshot rebuilt through the share projection.
  * Why: the raw snapshot holds password hashes, sessions, magic-link tokens and sealed vault rows
  * (security review SEC-1). Deleting rows would leave them in free pages, so the backup is a NEW
  * database built by the same policy as share/export (owner decision 2026-10-26: one policy, never
- * a second backup-only scrub). A share refusal (unknown populated table, secret in content) is
+ * a second backup-only scrub). A share refusal (unknown populated table) is
  * the plan's refusal.
  *
  * @complexity O(database size).
  */
-async function captureBackupDatabase(required: { deps: SiteBackupToolDeps }): Promise<{ ok: true; database: NonNullable<PreparedContent["database"]> } | Refusal> {
+async function captureBackupDatabase(required: { deps: SiteBackupToolDeps }): Promise<{ ok: true; database: NonNullable<PreparedContent["database"]>; credentialWarnings: readonly CredentialWarning[] } | Refusal> {
   const { deps } = required;
   const snapshot = await captureDatabaseSnapshot({ dbOps: deps.dbOps, scopeId: SNAPSHOT_SCOPE_ID });
   if (!snapshot.ok) {
@@ -614,7 +619,7 @@ async function captureBackupDatabase(required: { deps: SiteBackupToolDeps }): Pr
   }
   try {
     const projected = await deps.siteBackupSanitize({ snapshot: snapshot.bytes });
-    return { ok: true, database: { bytes: projected.bytes, watermarkAtCapture: snapshot.watermarkAtCapture } };
+    return { ok: true, database: { bytes: projected.bytes, watermarkAtCapture: snapshot.watermarkAtCapture }, credentialWarnings: projected.credentialWarnings ?? [] };
   } catch (err) {
     if (err instanceof SiteShareRefusal) return { ok: false, code: err.code, message: err.message };
     throw err;
@@ -627,18 +632,25 @@ async function captureBackupDatabase(required: { deps: SiteBackupToolDeps }): Pr
  *
  * @complexity O(database size + site files).
  */
-async function prepareContent(deps: SiteBackupToolDeps, sources: SiteBackupSources, include: SiteBackupInclude, host: SiteBackupHostLimit): Promise<{ ok: true; content: PreparedContent } | Refusal> {
+async function prepareContent({ deps, sources, include, host }: { deps: SiteBackupToolDeps; sources: SiteBackupSources; include: SiteBackupInclude; host: SiteBackupHostLimit }, _options = {}): Promise<{ ok: true; content: PreparedContent } | Refusal> {
   let database: PreparedContent["database"] = null;
+  const credentialWarnings: CredentialWarning[] = [];
   if (include.database) {
     const captured = await captureBackupDatabase({ deps });
     if (!captured.ok) return captured;
     database = captured.database;
+    credentialWarnings.push(...captured.credentialWarnings);
   }
   const collected = await collectSiteBackupFiles({ sources, include });
   const fitting = skipOversizedFiles(collected.files, host);
   const limits = checkSiteBackupLimits([...(database ? [{ path: SITE_BACKUP_DATABASE_PATH, bytes: database.bytes.length }] : []), ...fitting.files], host);
   if (!limits.ok) return { ok: false, code: "LIMIT_EXCEEDED", message: limits.message };
-  return { ok: true, content: { database, files: fitting.files, skipped: [...collected.skipped, ...fitting.skipped], scopeNotes: collected.scopeNotes, totalBytes: limits.totalBytes } };
+  for (const file of fitting.files) {
+    const loaded = await readPlannedFile(file);
+    if (!loaded.ok) return { ok: false, code: "PLAN_STALE", message: loaded.message };
+    requireShareSecretFree({ path: file.path, bytes: loaded.bytes }, { credentialWarnings });
+  }
+  return { ok: true, content: { database, credentialWarnings, files: fitting.files, skipped: [...collected.skipped, ...fitting.skipped], scopeNotes: collected.scopeNotes, totalBytes: limits.totalBytes } };
 }
 
 // ---------------------------------------------------------------------------
@@ -646,7 +658,7 @@ async function prepareContent(deps: SiteBackupToolDeps, sources: SiteBackupSourc
 // ---------------------------------------------------------------------------
 
 export type PushResult =
-  | { pushed: true; commitSha: string; commitUrl: string; repository: string; branch: string; folder: string; filesWritten: number; totalBytes: number }
+  | { pushed: true; commitSha: string; commitUrl: string; repository: string; branch: string; folder: string; filesWritten: number; totalBytes: number; credentialWarnings?: readonly CredentialWarning[] }
   | { pushed: false; cancelled: true }
   | { pushed: false; cancelled: false; reason: "expired" | "abandoned" }
   | { pushed: false; cancelled: false; inProgress: true; planId: string; progress: SiteBackupPushProgress; message: string }
@@ -708,6 +720,7 @@ async function pushPlannedBackup(deps: SiteBackupToolDeps, plan: SiteBackupPlan,
     repository: `${plan.owner}/${plan.repo}`,
     branch: plan.repository.branch,
     folder: plan.folder,
+    credentialWarnings: plan.credentialWarnings ?? [],
     filesWritten: uploaded.entries.length,
     totalBytes: uploaded.entries.reduce((sum, entry) => sum + entry.bytes, 0),
   };

@@ -17,6 +17,8 @@ export interface SiteShareRecord {
   readonly hasEncryptedKeys?: boolean;
   readonly sealedPassword?: import("@jini-ai/platform/secrets").SealedSecret;
   readonly notices?: readonly string[];
+  readonly credentialWarnings?: readonly import("./credential-warnings.js").CredentialWarning[];
+  readonly needsAcknowledgement?: boolean;
   readonly notes?: readonly string[];
   readonly storage?: { readonly provider: string; readonly key: string; readonly url?: string; readonly binding?: string };
 }
@@ -77,6 +79,7 @@ export class SiteShareRegistry {
     let row: SiteShareRecord;
     try { row = JSON.parse(await readFile(this.meta(required.shareId), "utf8")) as SiteShareRecord; }
     catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") { return null; } throw error; }
+    row = { ...row, credentialWarnings: row.credentialWarnings ?? [], needsAcknowledgement: row.needsAcknowledgement ?? false };
     if (required.site !== undefined && row.site !== required.site) return null;
     try {
       const revokedAt = await readFile(path.join(this.directory, `${row.shareId}.revoked`), "utf8");
@@ -102,7 +105,7 @@ export class SiteShareRegistry {
     try { shareId = await readFile(path.join(this.directory, `${required.token}.token`), "utf8"); }
     catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") { return null; } throw error; }
     const row = await this.get({ shareId });
-    return row?.token === required.token && row.file === required.file && row.status === "active" ? row : null;
+    return row?.token === required.token && row.file === required.file && row.status === "active" && !row.needsAcknowledgement ? row : null;
   }
   async disable(required: { shareId: string; site: string }, _optional: Record<string, never> = {}): Promise<SiteShareRecord | null> {
     const row = await this.get(required);
@@ -120,6 +123,12 @@ export class SiteShareRegistry {
     const space = await statfs(this.directory);
     if (space.bavail * space.bsize < required.bytes.length + 16 * 1024 * 1024) throw new SiteShareRefusal({ code: "INSUFFICIENT_STORAGE", message: "Insufficient private storage for this ZIP and 16 MiB of working space." });
     await writeFile(this.artifactPath(required), required.bytes, { flag: "wx", mode: 0o600 });
+  }
+  /** Read the same private artifact this registry wrote; paths never come from HTTP input.
+   * @complexity O(archive bytes), bounded by the share archive cap.
+   */
+  async readArtifact(required: { shareId: string }, _optional: Record<string, never> = {}): Promise<Buffer> {
+    return readFile(this.artifactPath(required));
   }
   async deleteArtifact(required: { shareId: string }, _optional: Record<string, never> = {}): Promise<void> {
     await unlink(this.artifactPath(required)).catch(error => { if (error.code !== "ENOENT") throw error; });

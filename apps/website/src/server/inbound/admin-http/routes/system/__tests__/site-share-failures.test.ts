@@ -43,7 +43,7 @@ function appFor(error: unknown, tracked: unknown[] = []) {
   registerAdminSiteShareRoutes({ app, deps: {
     workspaceId: "ws", ownerPrincipalId: "owner", authorize: async () => ({ allowed: true }),
     tracker: { error: (report: unknown) => tracked.push(report) }, siteShareBackend: {
-      create: fail, list: fail, staticOptions: fail, revoke: fail, revealPassword: fail,
+      create: fail, list: fail, staticOptions: fail, revoke: fail, acknowledge: fail, revealPassword: fail,
       registry: { get: fail, list: fail, reserveToken: fail },
     },
   } as unknown as RouteDeps });
@@ -51,7 +51,7 @@ function appFor(error: unknown, tracked: unknown[] = []) {
 }
 
 for (const [method, suffix] of [["POST", ""], ["GET", ""], ["GET", "/static/options"], ["POST", "/static"],
-  ["GET", "/share/download"], ["DELETE", "/share"], ["PUT", "/artifacts/ABCDEFGHIJKLMNOP/site.tovu.zip"],
+  ["POST", "/share/acknowledge"], ["GET", "/share/download"], ["DELETE", "/share"], ["PUT", "/artifacts/ABCDEFGHIJKLMNOP/site.tovu.zip"],
   ["DELETE", "/artifacts/ABCDEFGHIJKLMNOP/site.tovu.zip"], ["POST", "/share/password"]]) {
   test(`${method} ${suffix || "/"} logs unexpected share failures with the public error id`, async t => {
     const logs: unknown[][] = [];
@@ -81,7 +81,7 @@ test("share refusals retain their public diagnosis and do not log an internal in
   t.mock.method(console, "error", (...args: unknown[]) => logs.push(args));
   const response = await request(appFor(new SiteShareRefusal({ code: "FORBIDDEN", message: "Only the site owner can export saved keys." })), "POST", "");
   assert.equal(response.status, 403);
-  assert.deepEqual(response.body, { code: "FORBIDDEN", message: "Only the site owner can export saved keys." });
+  assert.deepEqual(response.body, { code: "FORBIDDEN", message: "Export creation failed: Only the site owner can export saved keys." });
   assert.deepEqual(logs, []);
 });
 

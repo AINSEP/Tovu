@@ -60,11 +60,8 @@ export function archiveCodeUnit(required: { path: string }, _optional = {}): str
 }
 
 /** Map an agent package to the scanner's runtime-shaped root, retaining its source-build digest.
- * The import caller separately supplies LOCAL bundled ids for cross-build scan classification;
- * the digest and exact local file hashes still determine execution trust.
- * Only an AGENT package maps into the content-addressed root. A site plugin's archive path is already
- * its runtime path (`plugins/<id>/package/...`), so it keeps the ordinary name rules export applies:
- * mapping it there let import accept `mcp.json` and credential-named files that export refuses. */
+ * Only an AGENT package needs this mapping; site plugin archive paths already match their runtime
+ * layout. Content scans only warn. Exact local file hashes independently determine execution trust. */
 export function archiveSecretScanPath(required: { path: string; plugins: readonly import("./archive-manifest.js").ArchivePlugin[] }, _optional = {}): string {
   const match = /^agent-plugins\/([^/]+)\/package\/(.+)$/.exec(required.path);
   if (!match) return required.path;

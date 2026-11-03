@@ -29,9 +29,11 @@ function content(overrides: Partial<SiteSharePlanContent> = {}): SiteSharePlanCo
 test("a create without a wait budget waits for a quick export and returns the ZIP-only share", async t => {
   const registry = await registryIn(t);
   const backend = createSiteShareBackend({ registry, site: "ws", prepare: async () => content(), zip: zipFolderFiles, delivery: async () => undefined });
-  const result = await backend.create({ principalId: "owner", signal: new AbortController().signal }) as { status: string; url: string | null; message: string };
+  const result = await backend.create({ principalId: "owner", signal: new AbortController().signal }) as { status: string; url: string | null; message: string; credentialWarnings: unknown[]; needsAcknowledgement: boolean };
   assert.deepEqual({ status: result.status, url: result.url, message: result.message },
     { status: "active", url: null, message: "ZIP ready. Download zip only. Connect a deployed Tovu site or S3-compatible storage to get a link." });
+  assert.deepEqual(result.credentialWarnings, []);
+  assert.equal(result.needsAcknowledgement, false);
 });
 
 /** Starts an export whose delivery lookup blocks after archiving, and returns its progress at that point. */

@@ -10,6 +10,7 @@ import { createRequire } from "node:module";
 import { createSite, initSite } from "#src/server/runtime/composition/site-dir";
 import { resolveSiteDatabasePaths } from "../../../platform/site-dir/site-databases.js";
 import { createSiteImportBackend } from "../import-backend.js";
+import { archiveToRuntimePath } from "../archive-paths.js";
 import { SHARE_LIMITS } from "../share-policy.js";
 import { previewSitePluginInstall } from "@jini-ai/plugins/host/node";
 import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
@@ -92,24 +93,27 @@ async function importRefusal(h: Awaited<ReturnType<typeof importFixture>>, requi
   assert.deepEqual(h.workspace.registry({}).list({}), []);
 }
 
-/** A credential-looking file is omitted only AFTER its original inventory was checked. */
-async function importOmission(h: Awaited<ReturnType<typeof importFixture>>, required: { archive: string; bytes: Buffer; plugin?: PackageRecord }): Promise<void> {
+/** Credential-looking files remain in the private stage after their original inventory is checked. */
+async function importWithWarning(h: Awaited<ReturnType<typeof importFixture>>, required: { archive: string; bytes: Buffer; plugin?: PackageRecord }): Promise<void> {
   const archive = await pack(appendPackageFile(await archiveItems(h.archive), { name: required.archive, bytes: required.bytes }, required.plugin));
   const upload = await h.backend.upload({ principalId: "recipient", archive });
   const pending = await h.backend.importBackup({ principalId: "recipient", source: { uploadId: upload.uploadId } });
   assert.equal(pending.status, "needs-owner");
-  assert.ok(pending.warnings?.some(warning => warning.includes(required.archive)));
+  assert.ok(pending.credentialWarnings.some(warning => warning.path === required.archive));
   const inventory = JSON.parse(fs.readFileSync(path.join(h.registry.stagePath(pending), ".inventory.json"), "utf8")) as string[];
-  assert.equal(inventory.includes(required.archive), false);
+  const archiveFiles = new Map((await archiveItems(archive)).map(item => [item.name, item.bytes]));
+  const retainedPath = archiveToRuntimePath({ path: required.archive, files: archiveFiles });
+  assert.ok(inventory.includes(retainedPath));
+  assert.deepEqual(fs.readFileSync(path.join(h.registry.stagePath(pending), retainedPath)), required.bytes);
   assert.deepEqual(h.workspace.registry({}).list({}), []);
 }
 
-test("credential filenames are omitted; malformed plugin identity still refuses import", { timeout: 120000 }, async t => {
+test("credential filenames remain included; malformed plugin identity still refuses import", { timeout: 120000 }, async t => {
   const root = `agent-plugins/ws/ws/portable/package/sha256/${"a".repeat(64)}`;
   const agent: PackageRecord = { kind: "agent", id: "portable" };
   // `runtime` is what export collects; `archive` is the same file in the v2 ZIP layout (no workspace,
   // no digest folder: the digest is the manifest record's field). Each import refusal code is exact.
-  const cases: { runtime: string; archive: string; plugin?: PackageRecord; code: string }[] = [
+  const cases: { runtime: string; archive: string; plugin?: PackageRecord; code: string; exportedPath?: string }[] = [
     { runtime: "themes/site/mcp.json", archive: "themes/site/mcp.json", code: "UNSAFE_FILE" },
     { runtime: "plugins/portable/package/mcp.json", archive: "plugins/portable/package/mcp.json", plugin: { kind: "site", id: "portable" }, code: "UNSAFE_FILE" },
     { runtime: "themes/site/tovu-credential-schemes.json", archive: "themes/site/tovu-credential-schemes.json", code: "UNSAFE_FILE" },
@@ -118,8 +122,8 @@ test("credential filenames are omitted; malformed plugin identity still refuses 
       plugin: { ...agent, digest }, code: "INVALID_ARCHIVE",
     })),
     { runtime: `themes/${root}/mcp.json`, archive: `themes/${root}/mcp.json`, code: "UNSAFE_FILE" },
-    { runtime: `agent-plugins/ws/mcp.json/portable/package/sha256/${"a".repeat(64)}/plugin.json`, archive: "agent-plugins/mcp.json/package/plugin.json", plugin: { kind: "agent", id: "mcp.json" }, code: "UNSAFE_FILE" },
-    // B's tree-path gate refuses credential filenames (.npmrc, *.pem) before the file policy runs.
+    { runtime: `agent-plugins/ws/mcp.json/portable/package/sha256/${"a".repeat(64)}/plugin.json`, archive: "agent-plugins/mcp.json/package/plugin.json", exportedPath: "agent-plugins/portable/package/plugin.json", plugin: { kind: "agent", id: "mcp.json" }, code: "UNSAFE_FILE" },
+    // Portable credential filenames reach the content scanner and produce warnings.
     { runtime: `${root}/.npmrc`, archive: "agent-plugins/portable/package/.npmrc", plugin: agent, code: "UNSAFE_PATH" },
     { runtime: `${root}/nested/private-key.pem`, archive: "agent-plugins/portable/package/nested/private-key.pem", plugin: agent, code: "UNSAFE_PATH" },
     { runtime: `${root}/vendor-credentials.json`, archive: "agent-plugins/portable/package/vendor-credentials.json", plugin: agent, code: "UNSAFE_FILE" },
@@ -128,24 +132,27 @@ test("credential filenames are omitted; malformed plugin identity still refuses 
     const h = await importFixture(t);
     const bytes = Buffer.from("{}");
     h.files.set(item.runtime, bytes);
-    const exported = await h.prepareProductionShare();
-    assert.equal((await archiveItems(exported.archive)).some(entry => entry.name === item.archive), false);
-    if (item.code === "INVALID_ARCHIVE") await importRefusal(h, { archive: item.archive, bytes, plugin: item.plugin, code: item.code });
-    else await importOmission(h, { archive: item.archive, bytes, plugin: item.plugin });
+    if (item.code === "INVALID_ARCHIVE") {
+      await assert.rejects(h.prepareProductionShare(), { code: "UNSUPPORTED_PLUGIN" });
+      await importRefusal(h, { archive: item.archive, bytes, plugin: item.plugin, code: item.code });
+    } else {
+      const exported = await h.prepareProductionShare();
+      assert.ok((await archiveItems(exported.archive)).some(entry => entry.name === (item.exportedPath ?? item.archive)));
+      await importWithWarning(h, { archive: item.archive, bytes, plugin: item.plugin });
+    }
   });
 });
 
-test("import omits the same private files as export inside a site plugin package", { timeout: 120000 }, async t => {
-  // Only an AGENT package's content-addressed root may ship MCP declarations and credential-named files;
-  // a site plugin package gets the ordinary name rules on both sides, with the same refusal code.
+test("import and export retain credential-looking files in site plugin packages", { timeout: 120000 }, async t => {
+  // Both package variants preserve their bytes; only their original layout and trust contracts differ.
   for (const filename of ["mcp.json", "tovu-credential-schemes.json", "vendor-credentials.json"]) await t.test(filename, { timeout: 120000 }, async t => {
     const h = await importFixture(t);
     const name = `plugins/portable/package/${filename}`;
     const bytes = Buffer.from("{}");
     h.files.set(name, bytes);
     const exported = await h.prepareProductionShare();
-    assert.equal((await archiveItems(exported.archive)).some(entry => entry.name === name), false);
-    await importOmission(h, { archive: name, bytes, plugin: { kind: "site", id: "portable" } });
+    assert.equal((await archiveItems(exported.archive)).some(entry => entry.name === name), true);
+    await importWithWarning(h, { archive: name, bytes, plugin: { kind: "site", id: "portable" } });
   });
 });
 
@@ -195,22 +202,22 @@ test("package manifest filename exceptions preserve secret scanning on export an
     const bytes = Buffer.from(JSON.stringify({ token: "ghp_" + "x".repeat(36) }));
     h.files.set(name, bytes);
     const exported = await h.prepareProductionShare();
-    assert.equal((await archiveItems(exported.archive)).some(entry => entry.name.startsWith("agent-plugins/portable/package/")), false);
-    assert.deepEqual(fs.readFileSync(path.join(h.root, "source", name)), bytes, "omission must not damage source bytes");
-    await importOmission(h, { archive: `agent-plugins/portable/package/${filename}`, bytes, plugin: { kind: "agent", id: "portable" } });
+    assert.equal((await archiveItems(exported.archive)).some(entry => entry.name === `agent-plugins/portable/package/${filename}`), true);
+    assert.deepEqual(fs.readFileSync(path.join(h.root, "source", name)), bytes, "export must not damage source bytes");
+    await importWithWarning(h, { archive: `agent-plugins/portable/package/${filename}`, bytes, plugin: { kind: "agent", id: "portable" } });
   });
 });
 
-// A listed, correctly hashed private file is omitted after its integrity check, never imported.
-test("B private file is omitted with a notice after the inventory check", { timeout: 120000 }, async t => {
+// A listed credential-looking file stays included after its integrity check.
+test("B credential-looking filename is retained with a warning after the inventory check", { timeout: 120000 }, async t => {
   const h = await importFixture(t);
   const name = "themes/site/.env.local";
   const upload = await h.backend.upload({ principalId: "recipient", archive: await pack(appendListed(await archiveItems(h.archive), [{ name, bytes: Buffer.from("PRIVATE") }])) });
   const pending = await h.backend.importBackup({ principalId: "recipient", source: { uploadId: upload.uploadId } });
   assert.equal(pending.status, "needs-owner");
-  assert.ok(pending.warnings?.some(warning => warning.includes(name)));
+  assert.ok(pending.credentialWarnings.some(warning => warning.path === name));
   const inventory = JSON.parse(fs.readFileSync(path.join(h.registry.stagePath(pending), ".inventory.json"), "utf8")) as string[];
-  assert.equal(inventory.includes(name), false);
+  assert.ok(inventory.includes("themes/static/site/.env.local"));
 });
 
 test("B malicious ZIP matrix: no registered/partial site and no mutation to an existing site", { timeout: 120000 }, async t => {

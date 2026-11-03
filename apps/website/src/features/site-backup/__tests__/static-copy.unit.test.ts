@@ -196,19 +196,19 @@ test("a Tovu backup omits static_site while import still ignores a genuine older
   assert.ok(![...current.keys()].some(name => isStaticSitePath({ path: name })));
 });
 
-test("unsafe static bytes are omitted without blocking a backup", { timeout: 120000 }, async () => {
+test("static credential-looking bytes remain in the separate static download with warnings", { timeout: 120000 }, async () => {
   const copy = await captureStaticSite({ context, now, render: async ({ outputDir }) => ({ ...report(outputDir),
     assets: { succeeded: [{ url: "/secret.js", outputFile: "secret.js", data: Buffer.from('const key="gh' + 'p_' + 'x'.repeat(36) + '"') }], failed: [] },
   }) });
   const files = await unpack(await buildShareZip({ plan: plan(), zip: zipFolderFiles }, { staticCopy: copy, packageFiles: new Map() }));
   assert.ok(files.has("content.db"));
   assert.ok(!files.has("static_site/index.html"));
-  assert.match(JSON.parse(files.get("manifest.json")!.toString()).staticSiteOmitted, /looked like a key/);
+  assert.equal(JSON.parse(files.get("manifest.json")!.toString()).staticSiteOmitted, undefined);
   if (!("reason" in copy)) {
-    const notices: string[] = [];
-    const staticFiles = await unpack(await buildStaticSiteZip({ copy, zip: zipFolderFiles }, { notices }));
-    assert.equal([...staticFiles.keys()].some(path => path.endsWith("/secret.js")), false);
-    assert.ok(notices.some(notice => notice.includes("secret.js")));
+    const credentialWarnings: import("../credential-warnings.js").CredentialWarning[] = [];
+    const staticFiles = await unpack(await buildStaticSiteZip({ copy, zip: zipFolderFiles }, { credentialWarnings }));
+    assert.equal([...staticFiles.keys()].some(path => path.endsWith("/secret.js")), true);
+    assert.ok(credentialWarnings.some(warning => warning.path.endsWith("/secret.js")));
   }
 });
 

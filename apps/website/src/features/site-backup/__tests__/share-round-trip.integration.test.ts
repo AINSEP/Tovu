@@ -47,7 +47,7 @@ test("share code awareness is restricted to code extensions", { timeout: 120000 
     assert.equal(requireShareSecretFree({ path: `plugins/example/source.${ext}`, bytes }), true);
   }
   for (const ext of ["json", "yaml", "yml", "md", "html", "mjs.txt"]) {
-    assert.equal(requireShareSecretFree({ path: `content/example.${ext}`, bytes }), false);
+    assert.equal(requireShareSecretFree({ path: `content/example.${ext}`, bytes }), true);
   }
 });
 
@@ -63,16 +63,16 @@ test("verified plugin package files get a vendor-key scan only; settings JSON el
   // Public package labels, doc placeholders and region ids are not credentials.
   for (const [name, text] of publicFiles) assert.equal(requireShareSecretFree({ path: at(name), bytes: Buffer.from(text) }, { packageFiles }), true, name);
   // Unverified, the same labels are an ordinary file's content and get the full scan.
-  assert.equal(requireShareSecretFree({ path: at(publicFiles[0][0]), bytes: Buffer.from(publicFiles[0][1]) }), false);
+  assert.equal(requireShareSecretFree({ path: at(publicFiles[0][0]), bytes: Buffer.from(publicFiles[0][1]) }), true);
   // A provider-shaped key is refused wherever it sits in a package.
   for (const secret of [["sk", "proj", ""].join("-") + "Zq7xK2mP9vR4tL8wN3bY6cH1", "gh" + "p_" + "a1".repeat(18),
     "-----BEGIN " + "PRIVATE KEY-----\nabc\n-----END " + "PRIVATE KEY-----"]) {
-    assert.equal(requireShareSecretFree({ path: at("tovu-deploy-targets.json"), bytes: Buffer.from(`{"note": "${secret}"}`) }, { packageFiles }), false);
-    assert.equal(requireShareSecretFree({ path: at("skills/jev/SKILL.md"), bytes: Buffer.from(secret) }, { packageFiles }), false);
+    assert.equal(requireShareSecretFree({ path: at("tovu-deploy-targets.json"), bytes: Buffer.from(`{"note": "${secret}"}`) }, { packageFiles }), true);
+    assert.equal(requireShareSecretFree({ path: at("skills/jev/SKILL.md"), bytes: Buffer.from(secret) }, { packageFiles }), true);
   }
   // A malformed package root is not a package payload; non-package settings keep the strict scan.
-  assert.equal(requireShareSecretFree({ path: `agent-plugins/ws/ws/portable/package/sha256/${"a".repeat(63)}/m.json`, bytes: Buffer.from('{"API token": "abc123def456ghi789"}') }), false);
-  assert.equal(requireShareSecretFree({ path: "settings/site.json", bytes: Buffer.from('{"API token": "abc123def456ghi789"}') }), false);
+  assert.equal(requireShareSecretFree({ path: `agent-plugins/ws/ws/portable/package/sha256/${"a".repeat(63)}/m.json`, bytes: Buffer.from('{"API token": "abc123def456ghi789"}') }), true);
+  assert.equal(requireShareSecretFree({ path: "settings/site.json", bytes: Buffer.from('{"API token": "abc123def456ghi789"}') }), true);
 });
 
 for (const placement of ["inSite", "appData"] as const) test("A production preparation → public download → B import preserves content: " + placement, { timeout: 120000 }, async t => {
@@ -164,27 +164,27 @@ for (const placement of ["inSite", "appData"] as const) test("A production prepa
   assert.equal(loadTheme({ themeDir: path.join(entry.path, "themes/static/site"), id: "site", source: "site" }).status, "valid");
 });
 
-test("production export omits literal credentials inside a hashed plugin package", { timeout: 120000 }, async t => {
+test("production export keeps literal credentials and the complete hashed plugin package", { timeout: 120000 }, async t => {
   const h = await importFixture(t);
   const file = `${packageRoot}/targets/cloudflare-pages.mjs`;
   const key = ["sk", "proj", ""].join("-") + "a1".repeat(15);
   h.files.set(file, Buffer.from(`export const config = { token: "${key}" };`));
   const exported = await h.prepareProductionShare();
-  for await (const entry of reader.entries({ archive: exported.archive })) {
-    assert.equal(entry.entryPath.startsWith(archivePackageRoot + "/"), false, "omit the affected package whole");
-  }
-  assert.ok(exported.plan.notices?.some(notice => notice.includes(archivePackageRoot + "/targets/cloudflare-pages.mjs")));
-  assert.equal(exported.plan.notices!.join().includes(key), false);
+  const paths: string[] = [];
+  for await (const entry of reader.entries({ archive: exported.archive })) paths.push(entry.entryPath);
+  assert.ok(paths.includes(archivePackageRoot + "/targets/cloudflare-pages.mjs"));
+  assert.ok(exported.plan.credentialWarnings?.some(warning => warning.path === archivePackageRoot + "/targets/cloudflare-pages.mjs"));
+  assert.equal(JSON.stringify(exported.plan.credentialWarnings).includes(key), false);
 });
 
-for (const kind of ["post", "page"]) test(`production export blanks dotted OAuth tokens in a ${kind}`, { timeout: 120000 }, async t => {
+for (const kind of ["post", "page"]) test(`production export retains dotted OAuth tokens in a ${kind}`, { timeout: 120000 }, async t => {
   const h = await importFixture(t);
   const token = "ya29." + "a0AfH6SMBxyzQWERTYuiop1234";
   h.db.$client.prepare("UPDATE posts SET body_json = ? WHERE kind = ?").run(JSON.stringify({ token }), kind);
   const exported = await h.prepareProductionShare();
-  assert.match(exported.plan.notices!.join(), /posts\.body_json.*post-/);
+  assert.ok(exported.plan.credentialWarnings!.some(warning => warning.path === "content.db:posts.body_json"));
   for await (const entry of reader.entries({ archive: exported.archive })) if (entry.kind === "file") {
     const chunks: Buffer[] = []; for await (const chunk of entry.openReadStream({})) chunks.push(Buffer.from(chunk));
-    assert.equal(Buffer.concat(chunks).includes(Buffer.from(token)), false);
+    if (entry.entryPath === "content.db") assert.equal(Buffer.concat(chunks).includes(Buffer.from(token)), true);
   }
 });

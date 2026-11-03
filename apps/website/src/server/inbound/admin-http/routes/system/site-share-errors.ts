@@ -57,13 +57,22 @@ export function sendAdminFailure(
  */
 export function sendSiteShareFailure(
   { res, error, tracker }: { res: Response; error: unknown; tracker?: Pick<Tracker, "error"> },
-  { password = false }: { password?: boolean } = {},
+  { password = false, step }: { password?: boolean; step?: string } = {},
 ): void {
-  const message = password ? "Export password is unavailable for this site." : "Share operation failed. Check storage configuration and retry.";
+  const message = step ? `${step} failed. Check storage configuration and retry.` : password ? "Export password is unavailable for this site." : "Share operation failed. Check storage configuration and retry.";
   if (error instanceof SiteShareRefusal) {
     const status = error.code === "NOT_FOUND" ? 404 : error.code === "FORBIDDEN" ? 403 : 400;
-    res.status(status).json({ code: error.code, message: password ? message : error.message });
+    res.status(status).json({ code: error.code, message: password ? message : step ? `${step} failed: ${error.message}` : error.message });
     return;
   }
-  sendAdminFailure({ res, error, tracker }, { operation: "site-share", code: "SHARE_FAILED", message, field: "message" });
+  if (sendShareUploadRefusal({ res, error }, { step })) return;
+  sendAdminFailure({ res, error, tracker }, { operation: step ? `site-share:${step}` : "site-share", code: "SHARE_FAILED", message, field: "message" });
+}
+
+/** Parser errors describe a failed upload, while unexpected storage faults remain incidents. */
+function sendShareUploadRefusal({ res, error }: { res: Response; error: unknown }, { step = "Share artifact upload" }: { step?: string } = {}): boolean {
+  const type = (error as { type?: string } | null)?.type;
+  if (!type || !["entity.too.large", "encoding.unsupported", "entity.parse.failed", "request.aborted", "request.size.invalid"].includes(type)) return false;
+  res.status(type === "entity.too.large" ? 413 : 400).json({ code: type === "entity.too.large" ? "LIMIT_EXCEEDED" : "INVALID_INPUT", message: `${step} failed: upload raw application/zip bytes within the 300 MiB cap.` });
+  return true;
 }

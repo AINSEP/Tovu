@@ -42,53 +42,53 @@ test("safe source baseline uses real trusted projection", { timeout: 120000 }, a
   const safe = await sanitizeShareDatabase({ snapshot: db.$client.serialize() });
   assert.ok(safe.bytes.length);
 });
-test("Bearer post is blanked before SQLite insertion and FTS, with a safe location notice", { timeout: 120000 }, async t => {
+test("Bearer post remains in SQLite and FTS with a safe column warning", { timeout: 120000 }, async t => {
   const db = source(); t.after(() => closeSqliteConnection(db));
   const safe = await sanitizeShareDatabase({ snapshot: db.$client.serialize() });
-  assert.equal(safe.bytes.includes(Buffer.from("exampleCredentialValue987654321")), false);
-  assert.match(safe.notices!.join("\n"), /posts\.body_json.*post/);
-  assert.equal(safe.notices!.join("\n").includes("exampleCredential"), false);
+  assert.equal(safe.bytes.includes(Buffer.from("exampleCredentialValue987654321")), true);
+  assert.ok(safe.credentialWarnings!.some(warning => warning.path === "content.db:posts.body_json"));
+  assert.equal(JSON.stringify(safe.credentialWarnings).includes("exampleCredential"), false);
   const archive = await buildShareZip({ plan: { ...plan(safe.bytes), notices: safe.notices }, zip: zipFolderFiles });
   const imported = await verifySiteImport({ archive, reader, sanitize: rebuildImportDatabase, schema: runtimeSchemaVersion() });
-  assert.equal(imported.database.includes(Buffer.from("exampleCredentialValue987654321")), false);
+  assert.equal(imported.database.includes(Buffer.from("exampleCredentialValue987654321")), true);
   assert.equal(db.$client.prepare<[], { body_json: string }>("SELECT body_json FROM posts").get()!.body_json, JSON.stringify({ text: bearer }), "source is untouched");
 });
-test("correctly checksummed imported Bearer post is sanitized by the real worker", { timeout: 120000 }, async t => {
+test("correctly checksummed imported Bearer post is retained by the real worker", { timeout: 120000 }, async t => {
   const db = source(); t.after(() => closeSqliteConnection(db));
   // Use trusted schema bytes but bypass the export projection to exercise hostile import input.
   const archive = await buildShareZip({ plan: plan(db.$client.serialize()), zip: zipFolderFiles });
   const imported = await verifySiteImport({ archive, reader, sanitize: rebuildImportDatabase, schema: runtimeSchemaVersion() });
-  assert.equal(imported.database.includes(Buffer.from("exampleCredentialValue987654321")), false);
-  assert.match(imported.warnings.join("\n"), /posts\.body_json.*post/);
+  assert.equal(imported.database.includes(Buffer.from("exampleCredentialValue987654321")), true);
+  assert.ok(imported.credentialWarnings!.some(warning => warning.path === "content.db:posts.body_json"));
 });
-test("suspicious files are omitted, and edited bundled labels survive by plugin id", { timeout: 120000 }, async t => {
+test("credential-looking files and edited bundled labels stay included", { timeout: 120000 }, async t => {
   const db = source(); t.after(() => closeSqliteConnection(db));
   db.$client.prepare("UPDATE posts SET body_json='{}'").run();
   const safe = await sanitizeShareDatabase({ snapshot: db.$client.serialize() });
   const labels = Buffer.from('{"API token":"Token de API","edited":true}');
   const key = "ghp_" + "a1".repeat(18);
-  const notices: string[] = [];
+  const credentialWarnings: import("../../credential-warnings.js").CredentialWarning[] = [];
   const plugin = { kind: "agent" as const, id: "core", version: "1", digest: "a".repeat(64), enabled: true, shipped: true };
   const archive = await buildShareZip({ plan: { ...plan(safe.bytes), plugins: [plugin], bufferedFiles: [
     ...plan(safe.bytes).bufferedFiles!, { path: "agent-plugins/core/package/plugin.json", content: labels },
     { path: "themes/site/private-key.pem", content: Buffer.from(key) }, { path: "themes/site/main.js", content: Buffer.from(key) },
-  ] }, zip: zipFolderFiles }, { notices, bundledImportPluginIds: new Set(["core"]) });
+  ] }, zip: zipFolderFiles }, { credentialWarnings, bundledImportPluginIds: new Set(["core"]) });
   const files = new Map<string, Buffer>();
   for await (const e of reader.entries({ archive })) if (e.kind === "file") {
     const chunks: Buffer[] = []; for await (const c of e.openReadStream({})) chunks.push(Buffer.from(c));
     files.set(e.entryPath, Buffer.concat(chunks));
   }
   assert.deepEqual(files.get("agent-plugins/core/package/plugin.json"), labels);
-  assert.equal(files.has("themes/site/private-key.pem"), false);
-  assert.equal(files.has("themes/site/main.js"), false);
-  assert.ok(notices.length >= 2); assert.equal(notices.join().includes(key), false);
+  assert.equal(files.has("themes/site/private-key.pem"), true);
+  assert.equal(files.has("themes/site/main.js"), true);
+  assert.ok(credentialWarnings.length >= 2); assert.equal(JSON.stringify(credentialWarnings).includes(key), false);
   const manifest = JSON.parse(files.get("manifest.json")!.toString());
   for (const f of manifest.files) assert.equal(f.sha256, createHash("sha256").update(files.get(f.path)!).digest("hex"));
   const imported = await verifySiteImport({ archive, reader, sanitize: rebuildImportDatabase, schema: runtimeSchemaVersion() }, { bundledImportPluginIds: new Set(["core"]) });
   assert.ok([...imported.files.values()].some(b => b.equals(labels)));
 });
 
-test("import omits a suspicious media file and prunes its database references without a missing-file refusal", { timeout: 120000 }, async t => {
+test("import retains credential-looking media and its database references", { timeout: 120000 }, async t => {
   const db = source(); t.after(() => closeSqliteConnection(db));
   db.$client.prepare("UPDATE posts SET body_json='{}', featured_media_id='image'").run();
   const content = Buffer.from("Authorization: Bearer " + "mediaCredential987654321");
@@ -106,14 +106,14 @@ test("import omits a suspicious media file and prunes its database references wi
   });
   const archive = Buffer.from(await (await zipFolderFiles({ files: picked, maxBytes: 300 * 1024 * 1024 })).arrayBuffer());
   const imported = await verifySiteImport({ archive, reader, sanitize: rebuildImportDatabase, schema: runtimeSchemaVersion() });
-  assert.match(imported.warnings.join(), /media\/image.bin/);
-  assert.equal(imported.files.has("uploads/" + key), false);
+  assert.ok(imported.credentialWarnings!.some(warning => warning.path === "media/image.bin"));
+  assert.equal(imported.files.has("uploads/" + key), true);
   const fresh = new Database(imported.database); t.after(() => fresh.close());
-  assert.equal(fresh.prepare<[], { n: number }>("SELECT count(*) as n FROM media").get()!.n, 0);
-  assert.equal(fresh.prepare<[], { featured_media_id: string | null }>("SELECT featured_media_id FROM posts").get()!.featured_media_id, null);
+  assert.equal(fresh.prepare<[], { n: number }>("SELECT count(*) as n FROM media").get()!.n, 1);
+  assert.equal(fresh.prepare<[], { featured_media_id: string | null }>("SELECT featured_media_id FROM posts").get()!.featured_media_id, "image");
 });
 
-test("production preparation omits suspicious media through the projection owner", { timeout: 120000 }, async t => {
+test("production preparation retains credential-looking media", { timeout: 120000 }, async t => {
   const db = source(); t.after(() => closeSqliteConnection(db));
   db.$client.prepare("UPDATE posts SET body_json='{}', featured_media_id='image'").run();
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "archive-media-omission-")); t.after(() => fs.rm(root, { recursive: true, force: true }));
@@ -130,8 +130,10 @@ test("production preparation omits suspicious media through the projection owner
       const artifactRef = path.join(root, "snapshot.db"); await fs.writeFile(artifactRef, db.$client.serialize()); return { artifactRef, watermarkAtCapture: 1 };
     }, restoreFromArtifact: async () => assert.fail("source is never restored") },
   });
-  assert.deepEqual(prepared.media, []); assert.match(prepared.notices!.join(), /media\/image.bin/);
-  const archive = await buildShareZip({ plan: prepared, zip: zipFolderFiles });
+  assert.equal(prepared.media!.length, 1);
+  const credentialWarnings: import("../../credential-warnings.js").CredentialWarning[] = [];
+  const archive = await buildShareZip({ plan: prepared, zip: zipFolderFiles }, { credentialWarnings });
+  assert.ok(credentialWarnings.some(warning => warning.path === "media/image.bin"));
   await verifySiteImport({ archive, reader, sanitize: rebuildImportDatabase, schema: runtimeSchemaVersion() });
 });
 
@@ -140,14 +142,13 @@ test("two suspicious unique slugs cannot turn sanitization into a constraint ref
   db.$client.prepare("UPDATE posts SET body_json='{}', slug=?").run("ghp_" + "a".repeat(36));
   db.$client.prepare("INSERT INTO posts(id,workspace_id,title,slug,body_json,status,kind,updated_at,version) VALUES ('second','ws','Second',?,'{}','draft','post',?,1)").run("ghp_" + "b".repeat(36), stamp);
   const safe = await sanitizeShareDatabase({ snapshot: db.$client.serialize() });
-  assert.equal(safe.bytes.includes(Buffer.from("ghp_")), false);
-  assert.match(safe.notices!.join(), /posts\.slug.*post/);
-  assert.match(safe.notices!.join(), /posts\.slug.*second/);
+  assert.equal(safe.bytes.includes(Buffer.from("ghp_")), true);
+  assert.equal(safe.credentialWarnings!.filter(warning => warning.path === "content.db:posts.slug").length, 1);
   const imported = await verifySiteImport({ archive: await buildShareZip({ plan: plan(safe.bytes), zip: zipFolderFiles }), reader, sanitize: rebuildImportDatabase, schema: runtimeSchemaVersion() });
   assert.ok(imported.database.length);
 });
 
-test("omitting an invalidated menu also prunes only its own portable bindings", { timeout: 120000 }, async t => {
+test("credential-looking menu slugs retain their portable bindings", { timeout: 120000 }, async t => {
   const db = source(); t.after(() => closeSqliteConnection(db));
   db.$client.prepare("UPDATE posts SET body_json='{}'").run();
   const menu = db.$client.prepare("INSERT INTO menus(id,workspace_id,slug,title,status,doc_json,locations_json,updated_at,version) VALUES (?,'ws',?,'Menu','active','{\"items\":[]}','[]',?,1)");
@@ -156,8 +157,8 @@ test("omitting an invalidated menu also prunes only its own portable bindings", 
   binding.run("header", "bad-menu", stamp); binding.run("footer", "good-menu", stamp);
   const projected = await sanitizeShareDatabase({ snapshot: db.$client.serialize() });
   const fresh = new Database(projected.bytes); t.after(() => fresh.close());
-  assert.deepEqual(fresh.prepare("SELECT id FROM menus").all(), [{ id: "good-menu" }]);
-  assert.deepEqual(fresh.prepare("SELECT menu_id FROM nav_location_bindings").all(), [{ menu_id: "good-menu" }]);
-  assert.match(projected.notices!.join(), /menus\.slug.*bad-menu/);
+  assert.deepEqual(fresh.prepare("SELECT id FROM menus ORDER BY id").all(), [{ id: "bad-menu" }, { id: "good-menu" }]);
+  assert.deepEqual(fresh.prepare("SELECT menu_id FROM nav_location_bindings ORDER BY menu_id").all(), [{ menu_id: "bad-menu" }, { menu_id: "good-menu" }]);
+  assert.ok(projected.credentialWarnings!.some(warning => warning.path === "content.db:menus.slug"));
   await verifySiteImport({ archive: await buildShareZip({ plan: plan(projected.bytes), zip: zipFolderFiles }), reader, sanitize: rebuildImportDatabase, schema: runtimeSchemaVersion() });
 });

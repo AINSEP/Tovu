@@ -179,15 +179,17 @@ test("unsafe archive paths, aliases and file/directory collisions are refused be
   await refused(["themes/file", "themes/file/child"]);
 });
 
-test("credential-shaped bytes are omitted with a notice without changing the source file", { timeout: 120000 }, async () => {
+test("credential-shaped bytes stay included with a warning without changing the source file", { timeout: 120000 }, async () => {
   const secret = "ghp_" + "x".repeat(36);
   const content = Buffer.from(`const token = "${secret}";`);
-  const notices: string[] = [];
-  const archive = await buildShareZip({ plan: { ...common(Buffer.alloc(0)), target: { kind: "zip" }, profile: "share", bufferedFiles: [...common(Buffer.alloc(0)).bufferedFiles, { path: "themes/site/script.js", content }] }, zip: zipFolderFiles }, { notices });
-  assert.match(notices.join(), /themes\/site\/script.js/);
-  assert.equal(notices.join().includes(secret), false);
+  const credentialWarnings: import("../credential-warnings.js").CredentialWarning[] = [];
+  const archive = await buildShareZip({ plan: { ...common(Buffer.alloc(0)), target: { kind: "zip" }, profile: "share", bufferedFiles: [...common(Buffer.alloc(0)).bufferedFiles, { path: "themes/site/script.js", content }] }, zip: zipFolderFiles }, { credentialWarnings });
+  assert.ok(credentialWarnings.some(warning => warning.path === "themes/site/script.js"));
+  assert.equal(JSON.stringify(credentialWarnings).includes(secret), false);
   const reader = createYauzlAgentPluginArchiveReader({ yauzl: yauzl as unknown as YauzlPort });
-  for await (const entry of reader.entries({ archive })) assert.notEqual(entry.entryPath, "themes/site/script.js");
+  const paths: string[] = [];
+  for await (const entry of reader.entries({ archive })) paths.push(entry.entryPath);
+  assert.ok(paths.includes("themes/site/script.js"));
   assert.equal(content.toString(), `const token = "${secret}";`);
 });
 
@@ -256,13 +258,13 @@ test("ordinary prose, theme query strings and SEO defaults/values survive byte-f
 
 test("share excludes private locations and suspect names; required nested data/notes/out survive", { timeout: 120000 }, () => {
   // Site plugin data/ and private memory are never walked (only Jini's package listing is), so no path rule covers them.
-  for (const file of ["themes/static/site/.env.local", "themes/static/site/nested/chat.db-wal"]) assert.equal(excludedSharePath({ path: file }), true, file);
+  for (const file of ["themes/static/site/nested/chat.db-wal"]) assert.equal(excludedSharePath({ path: file }), true, file);
   for (const file of ["themes/static/site/out/main.js", "themes/static/site/ops/help.md", "themes/static/site/staging/help.md", "plugins/site/src/data/default.json", "plugins/site/src/notes/help.md", "plugins/site/src/learned/help.md"]) assert.equal(excludedSharePath({ path: file }), false, file);
-  for (const file of ["themes/static/site/key.pem", "plugins/site/src/credentials.json", "themes/static/site/vault/readme.md", "plugins/site/src/.npmrc"]) assert.equal(excludedSharePath({ path: file }), true, file);
+  for (const file of ["themes/static/site/key.pem", "plugins/site/src/credentials.json", "themes/static/site/vault/readme.md", "plugins/site/src/.npmrc", "themes/static/site/.env.local"]) assert.equal(excludedSharePath({ path: file }), false, file);
 });
 
-// RED: nested JSON values used to be rewritten rather than omitted, or missed after double encoding.
-test("secret-bearing setting values are omitted without changing their safe definition", async t => {
+// Nested credential-looking JSON values stay included; only diagnostics leave out their values.
+test("credential-looking setting values remain without changing their safe definition", async t => {
   const { sql } = await fixture(t);
   sql.exec("DROP TABLE secret_fixture_user");
   sql.prepare("UPDATE setting_definitions SET schema_json = ? WHERE setting_id = 'title'").run('{"type":"json"}');
@@ -270,6 +272,6 @@ test("secret-bearing setting values are omitted without changing their safe defi
   const projected = await sanitizeShareDatabase({ snapshot: sql.serialize() });
   const shared = new Database(projected.bytes);
   t.after(() => shared.close());
-  assert.equal((shared.prepare("SELECT count(*) AS n FROM setting_values_workspace WHERE setting_id = 'title'").get() as { n: number }).n, 0);
+  assert.equal((shared.prepare("SELECT count(*) AS n FROM setting_values_workspace WHERE setting_id = 'title'").get() as { n: number }).n, 1);
   assert.equal((shared.prepare("SELECT default_json FROM setting_definitions WHERE setting_id = 'title'").get() as { default_json: string }).default_json, '"Default title"');
 });

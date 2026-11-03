@@ -1,5 +1,4 @@
 import type { TransformParams } from "@jini-ai/cms/media";
-import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 
 import { SHARE_LIMITS } from "@tovu/contracts/site-share-limits";
 export { SHARE_LIMITS } from "@tovu/contracts/site-share-limits";
@@ -68,6 +67,7 @@ export interface ArchiveMediaSource {
 }
 
 export interface ShareDatabaseProjection {
+  readonly credentialWarnings?: readonly import("./credential-warnings.js").CredentialWarning[];
   readonly notices?: readonly string[];
   readonly archiveMedia?: readonly ArchiveMediaSource[];
   readonly bytes: Buffer;
@@ -76,14 +76,3 @@ export interface ShareDatabaseProjection {
   readonly documents?: readonly { storageKey: string; sha256: string; originalFilename: string }[];
 }
 export type ShareDatabaseSanitizer = (required: { snapshot: Buffer; omittedMediaIds?: readonly string[] }, optional?: { signal?: AbortSignal }) => Promise<ShareDatabaseProjection>;
-
-/** Bound and redact untrusted locations; a notice never quotes detected values.
- * Mutates only the operation's notice sink. O(location bytes), with at most 200 notices.
- */
-export function addShareOmission(required: { notices: string[]; location: string }, _optional = {}): void {
-  const location = redactSecretShapes({ text: required.location }).text.replace(/[\x00-\x1f\x7f]/g, " ").slice(0, 240);
-  const notice = `Saved content that looked like a key was left out: ${location}.`;
-  if (required.notices.includes(notice)) return;
-  if (required.notices.length < 200) required.notices.push(notice);
-  else if (required.notices.length === 200) required.notices.push("Additional locations that looked like keys were left out; only the first 200 are listed.");
-}

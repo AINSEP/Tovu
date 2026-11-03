@@ -100,15 +100,15 @@ test("stale disk files and unsafe aliases refuse before encoding", { timeout: 12
   }
   assert.equal(calls.length, 0);
 });
-test("limits refuse and suspicious files are omitted before encoding", { timeout: 120000 }, async () => {
+test("limits refuse and credential-looking files stay included before encoding", { timeout: 120000 }, async () => {
   const { zip, calls } = encoder();
   await assert.rejects(buildShareZip({ plan: plan({ totalBytes: SHARE_LIMITS.maxExpandedBytes + 1 }), zip }), { code: "LIMIT_EXCEEDED" });
   assert.equal(calls.length, 0);
-  const notices: string[] = [];
-  await buildShareZip({ plan: plan({ bufferedFiles: [SETTINGS, { path: "themes/site/script.js", content: Buffer.from('const key="gh' + 'p_' + "x".repeat(36) + '"') }] }), zip }, { notices });
+  const credentialWarnings: import("../credential-warnings.js").CredentialWarning[] = [];
+  await buildShareZip({ plan: plan({ bufferedFiles: [SETTINGS, { path: "themes/site/script.js", content: Buffer.from('const key="gh' + 'p_' + "x".repeat(36) + '"') }] }), zip }, { credentialWarnings });
   assert.equal(calls.length, 1);
-  assert.match(notices.join(), /themes\/site\/script.js/);
-  assert.equal(calls[0]!.files.some(file => (file.webkitRelativePath ?? file.name).endsWith("script.js")), false);
+  assert.match(JSON.stringify(credentialWarnings), /themes\/site\/script.js/);
+  assert.equal(calls[0]!.files.some(file => (file.webkitRelativePath ?? file.name).endsWith("script.js")), true);
 });
 test("v2 requires the database and portable settings", { timeout: 120000 }, async () => {
   const { zip } = encoder();
@@ -198,13 +198,13 @@ test("a buffered file and the database at the same path are refused as a duplica
   await assert.rejects(buildShareZip({ plan: plan({ bufferedFiles: [SETTINGS, { path: "content.db", content: Buffer.from("x") }] }), zip: encoder().zip }), DUPLICATE);
 });
 
-test("credential-shaped bytes are omitted before encoding with a notice", { timeout: 120000 }, async () => {
+test("credential-shaped bytes stay included with a warning", { timeout: 120000 }, async () => {
   const { zip, calls } = encoder();
-  const notices: string[] = [];
-  await buildShareZip({ plan: plan({ bufferedFiles: [SETTINGS, { path: "themes/leak.txt", content: credentialShaped() }] }), zip }, { notices });
+  const credentialWarnings: import("../credential-warnings.js").CredentialWarning[] = [];
+  await buildShareZip({ plan: plan({ bufferedFiles: [SETTINGS, { path: "themes/leak.txt", content: credentialShaped() }] }), zip }, { credentialWarnings });
   assert.equal(calls.length, 1);
-  assert.match(notices.join(), /themes\/leak.txt/);
-  assert.equal(calls[0]!.files.some(file => (file.webkitRelativePath ?? file.name).endsWith("leak.txt")), false);
+  assert.match(JSON.stringify(credentialWarnings), /themes\/leak.txt/);
+  assert.equal(calls[0]!.files.some(file => (file.webkitRelativePath ?? file.name).endsWith("leak.txt")), true);
 });
 
 test("a disk file that changed since the plan is refused as stale", { timeout: 120000 }, async t => {

@@ -160,26 +160,25 @@ test("empty unknown tables and populated legacy-private, chat and vault-backup t
   for (const name of ["stray_empty", "site_assistant_credentials", "ai_chats", "_vault_backup_custom"]) assert.equal(tables.includes(name), false, name);
 });
 
-// Since 2933fbb3f (owner-approved) a credential-shaped value no longer refuses the share: the projection
-// blanks that value before insertion and names table.column + row in a notice instead.
-test("credential-shaped text inside a projected value is blanked with a notice naming table.column and row", async t => {
+// Credential-looking values travel verbatim; warnings name only their table and column.
+test("credential-shaped text remains verbatim with a warning naming table and column", async t => {
   const { sql } = sourceDb(t);
   const secret = "ghp_" + "x".repeat(36);
   sql.prepare("UPDATE workspaces SET name = ?").run(`Site ${secret} name`);
   const { projection, rows } = await share(t, sql);
-  assert.equal(rows("workspaces")[0]!.name, "");
-  assert.deepEqual(projection.notices, ["Saved content that looked like a key was left out: workspaces.name row ws."]);
-  assert.equal(projection.bytes.includes(secret), false, "the secret must not survive anywhere in the projected bytes");
+  assert.equal(rows("workspaces")[0]!.name, `Site ${secret} name`);
+  assert.deepEqual(projection.credentialWarnings, [{ path: "content.db:workspaces.name", kind: "provider key shape" }]);
+  assert.equal(projection.bytes.includes(secret), true);
 });
 
-test("a value that is entirely a credential is blanked and never survives in the projected bytes", async t => {
+test("a value that is entirely a credential remains in the projected bytes with a warning", async t => {
   const { sql } = sourceDb(t);
   const secret = "ghp_" + "x".repeat(36);
   sql.prepare("UPDATE workspaces SET name = ?").run(secret);
   const { projection, rows } = await share(t, sql);
-  assert.equal(rows("workspaces")[0]!.name, "");
-  assert.ok(projection.notices?.includes("Saved content that looked like a key was left out: workspaces.name row ws."));
-  assert.equal(projection.bytes.includes(secret), false);
+  assert.equal(rows("workspaces")[0]!.name, secret);
+  assert.ok(projection.credentialWarnings?.some(warning => warning.path === "content.db:workspaces.name"));
+  assert.equal(projection.bytes.includes(secret), true);
 });
 
 // ---------------------------------------------------------------- copyTable: trusted schema
@@ -389,10 +388,10 @@ test("only active, non-secret, workspace-scoped, publishable definitions with a 
   insertDefinition(sql, { id: "secret-shaped", namespace: "core.site", key: "title", defaultJson: JSON.stringify("ghp_" + "x".repeat(36)) });
   insertDefinition(sql, { id: "bad-default", namespace: "core.site", key: "title", defaultJson: "42" });
   const { rows } = await share(t, sql);
-  assert.deepEqual(rows("setting_definitions").map(row => [row.setting_id, row.default_json]), [["title", '"Default title"'], ["template", '{"a":1}']]);
+  assert.deepEqual(rows("setting_definitions").map(row => [row.setting_id, row.default_json]), [["title", '"Default title"'], ["template", '{"a":1}'], ["secret-shaped", JSON.stringify("ghp_" + "x".repeat(36))]]);
 });
 
-test("workspace values: valid and cleared values travel re-encoded as share; secret-shaped, invalid and stale-version values are omitted", async t => {
+test("workspace values: credential-looking valid values stay included; invalid and stale-version values remain excluded", async t => {
   const { sql } = sourceDb(t);
   insertDefinition(sql, { id: "title", namespace: "core.site", key: "title", schema: '{"type":"json"}', version: 2 });
   insertDefinition(sql, { id: "description", namespace: "site.seo", key: "default_description" });
@@ -410,6 +409,7 @@ test("workspace values: valid and cleared values travel re-encoded as share; sec
   assert.deepEqual(rows("setting_values_workspace").map(row => [row.setting_id, row.value_json, row.state, row.def_version, row.updated_by]), [
     ["title", '{"text":"Portable"}', "set", 2, "share"],
     ["description", "null", "cleared", 1, "share"],
+    ["secret-def", '"fine"', "set", 1, "share"],
   ]);
 });
 

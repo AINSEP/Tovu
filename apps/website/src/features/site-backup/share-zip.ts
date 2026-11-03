@@ -4,20 +4,19 @@ import { createHash } from "node:crypto";
 import type { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 import { readPlannedFile, type PlannedDiskFile } from "./sources.js";
 import type { SiteSharePlanContent } from "./plan-store.js";
-import { checkShareLimits, SHARE_LIMITS, SiteShareRefusal, addShareOmission } from "./share-policy.js";
+import { checkShareLimits, SHARE_LIMITS, SiteShareRefusal } from "./share-policy.js";
 import { requireShareSecretFree, claimSharePath, type PackageFileInventory } from "./share-file-policy.js";
-import { readBundledImportPluginIds, readBundledPackageFiles } from "./package-file-inventory.js";
 import type { SiteBackupPushProgress } from "./push-engine.js";
 import type { StaticSiteCopy } from "./static-copy.js";
 import type { StaticExportTheme } from "./static-export-selection.js";
 import { staticDownloadLayout } from "./static-download-layout.js";
 import { SAVED_KEYS_PATH } from "./saved-keys-port.js";
-import { archiveCodeUnit } from "./archive-paths.js";
+import type { CredentialWarning } from "./credential-warnings.js";
 
 type ShareZipEntry = { readonly path: string; readonly content: Buffer };
-type ShareZipProgressOptions = { signal?: AbortSignal; progress?: SiteBackupPushProgress; notices?: string[]; bundledImportPluginIds?: ReadonlySet<string> };
+type ShareZipProgressOptions = { signal?: AbortSignal; progress?: SiteBackupPushProgress; notices?: string[]; credentialWarnings?: CredentialWarning[]; bundledImportPluginIds?: ReadonlySet<string> };
 /** The picked Files handed to Jini's encoder and the manifest inventory, in the same order. */
-interface CollectedShareEntries { readonly plugins: NonNullable<SiteSharePlanContent["plugins"]>; readonly files: File[]; readonly inventory: { path: string; bytes: number; sha256: string }[]; readonly packageFiles: PackageFileInventory; readonly bundledImportPluginIds: ReadonlySet<string>; readonly notices: string[]; readonly omitted: Set<string> }
+interface CollectedShareEntries { readonly plugins: NonNullable<SiteSharePlanContent["plugins"]>; readonly files: File[]; readonly inventory: { path: string; bytes: number; sha256: string }[]; readonly credentialWarnings: CredentialWarning[] }
 
 /** Buffered media/documents first, then the sanitized database projection when the plan has one. O(entries). */
 function inMemoryEntries(required: { plan: SiteSharePlanContent }): ShareZipEntry[] {
@@ -38,10 +37,7 @@ function addEntry(required: { entry: ShareZipEntry; collected: CollectedShareEnt
   optional.signal?.throwIfAborted();
   // SQLite is rebuilt by the projection owner; ciphertext is authenticated by Job 2 on restore.
   const structured = entry.path === SITE_BACKUP_DATABASE_PATH || entry.path === SAVED_KEYS_PATH;
-  if (!structured && !requireShareSecretFree({ path: archiveSecretScanPath({ path: entry.path, plugins: collected.plugins }), bytes: entry.content }, { packageFiles: collected.packageFiles, bundledImportPluginIds: collected.bundledImportPluginIds, shownPath: entry.path, notices: collected.notices })) {
-    collected.omitted.add(entry.path);
-    return;
-  }
+  if (!structured) requireShareSecretFree({ path: archiveSecretScanPath({ path: entry.path, plugins: collected.plugins }), bytes: entry.content }, { shownPath: entry.path, credentialWarnings: collected.credentialWarnings });
   // Node File accepts Buffer directly; the DOM type omits potentially shared-backed views.
   // This assertion preserves the bytes without allocating a second Uint8Array.
   const picked = new File([entry.content as ConstructorParameters<typeof File>[0][number]], entry.path.split("/").at(-1)!);
@@ -76,18 +72,6 @@ function buildManifestFile(required: { plan: SiteSharePlanContent; inventory: Co
   return new File([manifest], SITE_BACKUP_MANIFEST_PATH);
 }
 
-/** Removing any package file can invalidate its signed inventory. Omit that unit whole,
- * including its memory, so an incomplete package never produces a secondary import refusal.
- */
-function omitIncompletePlugins(required: { collected: CollectedShareEntries }, _options = {}): void {
-  const { collected } = required;
-  const units = new Set([...collected.omitted].filter(path => /^(?:agent-plugins|plugins)\/[^/]+\/package\//.test(path)).map(path => archiveCodeUnit({ path })));
-  for (const unit of units) if (unit) addShareOmission({ notices: collected.notices, location: unit + " package" });
-  const retained = collected.inventory.map((entry, index) => ({ entry, file: collected.files[index]! })).filter(({ entry }) => !units.has(archiveCodeUnit({ path: entry.path })));
-  collected.inventory.splice(0, collected.inventory.length, ...retained.map(row => row.entry));
-  collected.files.splice(0, collected.files.length, ...retained.map(row => row.file));
-}
-
 function retainedPlugins(required: { plan: SiteSharePlanContent; inventory: CollectedShareEntries["inventory"] }, _options = {}) {
   return (required.plan.plugins ?? []).filter(plugin => required.inventory.some(file => file.path.startsWith(`${plugin.kind === "agent" ? "agent-plugins" : "plugins"}/${plugin.id}/package/`)));
 }
@@ -105,7 +89,7 @@ async function encodeShareZip(required: { files: readonly File[]; zip: typeof zi
 /**
  * The ZIP target of the common backup content plan. Calls Jini's buffered binary-safe encoder;
  * checks the exact sanitized bytes and builds the v2 ZIP manifest over its exact bytes. The repository target retains its contract.
- * @throws SiteShareRefusal for stale files, unsafe aliases, cancellation, and archive caps. Suspicious files are omitted with notices.
+ * @throws SiteShareRefusal for stale files, unsafe aliases, cancellation, and archive caps. Credential-looking files are included with warnings.
  * @complexity O(payload bytes + paths²), at most 2,000 paths; O(payload bytes) memory, bounded to 300 MiB.
  */
 async function buildShareZipContent(required: { plan: SiteSharePlanContent; zip: typeof zipFolderFiles }, optional: ShareZipProgressOptions & { packageFiles?: PackageFileInventory } = {}): Promise<Buffer> {
@@ -116,10 +100,9 @@ async function buildShareZipContent(required: { plan: SiteSharePlanContent; zip:
   const paths = [...plan.files.flatMap(file => { const path = runtimeToArchivePath({ path: file.path }); return path === null ? [] : [{ path }]; }), ...memory];
   claimArchivePaths({ entries: paths });
   if (optional.progress) Object.assign(optional.progress, { filesTotal: paths.length, bytesTotal: sizes.reduce((sum, file) => sum + file.bytes, 0) });
-  const collected: CollectedShareEntries = { files: [], inventory: [], plugins: plan.plugins ?? [], packageFiles: optional.packageFiles ?? await readBundledPackageFiles(), bundledImportPluginIds: optional.bundledImportPluginIds ?? await readBundledImportPluginIds(), notices: optional.notices ?? [], omitted: new Set() };
+  const collected: CollectedShareEntries = { files: [], inventory: [], plugins: plan.plugins ?? [], credentialWarnings: optional.credentialWarnings ?? [] };
   for (const entry of memory) addEntry({ entry, collected }, optional);
   await addDiskFiles({ files: plan.files, collected }, optional);
-  omitIncompletePlugins({ collected });
   collected.files.push(buildManifestFile({ plan, inventory: collected.inventory }));
   optional.signal?.throwIfAborted();
   return encodeShareZip({ files: collected.files, zip: required.zip });
@@ -138,13 +121,7 @@ export async function buildShareZip(required: { plan: SiteSharePlanContent; zip:
 function staticCopyOmission({ copy }: { copy?: StaticSiteCopy }, _options = {}): string | undefined {
   if (!copy) return undefined;
   if ("reason" in copy) return copy.reason;
-  try {
-    for (const file of copy.files) if (!requireShareSecretFree({ path: file.path, bytes: file.content })) return "Static content that looked like a key was left out.";
-    return undefined;
-  }
-  catch (error) {
-    return String(error);
-  }
+  return undefined;
 }
 
 /** Static-only ZIP uses the same picked-file path/scanning pipeline and Jini encoder, without a backup manifest. */
@@ -154,7 +131,7 @@ export async function buildStaticSiteZip(required: { copy: Exclude<StaticSiteCop
   checkShareLimits({ files: entries.map(file => ({ path: file.path, bytes: file.content.length })) });
   claimArchivePaths({ entries }, { manifest: false });
   if (optional.progress) Object.assign(optional.progress, { filesTotal: entries.length, bytesTotal: entries.reduce((sum, file) => sum + file.content.length, 0) });
-  const collected: CollectedShareEntries = { files: [], inventory: [], plugins: [], packageFiles: new Map(), bundledImportPluginIds: new Set(), notices: optional.notices ?? [], omitted: new Set() };
+  const collected: CollectedShareEntries = { files: [], inventory: [], plugins: [], credentialWarnings: optional.credentialWarnings ?? [] };
   for (const entry of entries) addEntry({ entry, collected }, optional);
   return encodeShareZip({ files: collected.files, zip: required.zip });
 }

@@ -10,7 +10,7 @@ import { bufferArchiveMedia, type ArchiveMediaRewriter } from "./archive-media.j
 import { prepareArchiveExtensions } from "./archive-extensions.js";
 import { SiteShareRefusal } from "./share-policy.js";
 import type { SiteSharePlanContent } from "./plan-store.js";
-import { addPortableSettings, captureProjectedDatabase, collectShareFiles, retainSafeArchiveMedia, type ShareLedger } from "./share-preparation-steps.js";
+import { addPortableSettings, captureProjectedDatabase, collectShareFiles, type ShareLedger } from "./share-preparation-steps.js";
 
 /**
  * Same consistent snapshot and collector as a repository backup, with a fresh DB projection and
@@ -31,15 +31,13 @@ export async function prepareShareContent(required: { dbOps: DbOpsPort; snapshot
   const ledger: ShareLedger = { notices, sizes: [...files.map(file => ({ path: file.path, bytes: file.bytes })), { path: "content.db", bytes: projected.bytes.length }], buffered: [] };
   checkShareLimits({ files: ledger.sizes });
   if (!projected.archiveMedia && projected.media.length) throw new SiteShareRefusal({ code: "INVALID_MEDIA", message: "Share projection has no archive media metadata." });
-  const bufferedCopies = await bufferArchiveMedia({ sources: projected.archiveMedia ?? [], blobStore: required.blobStore, imageTransformer: required.imageTransformer, ledger }, optional);
-  const retained = await retainSafeArchiveMedia({ ledger, projected, copies: bufferedCopies, sanitize: required.sanitize }, optional);
-  const copies = retained.copies;
-  const bytes = await required.rewriteMedia({ bytes: retained.projected.bytes, copies }, optional);
+  const copies = await bufferArchiveMedia({ sources: projected.archiveMedia ?? [], blobStore: required.blobStore, imageTransformer: required.imageTransformer, ledger }, optional);
+  const bytes = await required.rewriteMedia({ bytes: projected.bytes, copies }, optional);
   ledger.sizes.find(file => file.path === "content.db")!.bytes = bytes.length;
   checkShareLimits({ files: ledger.sizes });
   if (savedKeys) addBuffered({ ledger, file: { path: SAVED_KEYS_PATH, content: savedKeys.encryptedKeys } });
   const name = await addPortableSettings({ files: collected.files, siteDir: required.sources.siteDir, ledger });
-  return { target: { kind: "zip" }, profile: "share", include, notices, ...(savedKeys ? { encryptedKeys: ENCRYPTED_KEYS_DESCRIPTOR, sealedPassword: savedKeys.sealedPassword } : {}), media: copies.map(({ id, slug, path, sha256 }) => ({ id, slug, path, sha256 })), plugins: extensions.plugins, database: { bytes, watermarkAtCapture }, files, bufferedFiles: ledger.buffered, skipped: [], scopeNotes: collected.scopeNotes, totalBytes: ledger.sizes.reduce((sum, file) => sum + file.bytes, 0), site: { name, folderName: path.basename(required.sources.siteDir) }, schema: runtimeSchemaVersion(), tovuVersion: required.sources.tovuVersion, createdAt: new Date().toISOString() };
+  return { target: { kind: "zip" }, profile: "share", include, notices, credentialWarnings: projected.credentialWarnings ?? [], ...(savedKeys ? { encryptedKeys: ENCRYPTED_KEYS_DESCRIPTOR, sealedPassword: savedKeys.sealedPassword } : {}), media: copies.map(({ id, slug, path, sha256 }) => ({ id, slug, path, sha256 })), plugins: extensions.plugins, database: { bytes, watermarkAtCapture }, files, bufferedFiles: ledger.buffered, skipped: [], scopeNotes: collected.scopeNotes, totalBytes: ledger.sizes.reduce((sum, file) => sum + file.bytes, 0), site: { name, folderName: path.basename(required.sources.siteDir) }, schema: runtimeSchemaVersion(), tovuVersion: required.sources.tovuVersion, createdAt: new Date().toISOString() };
 }
 
 /** Boundaries return independent notice lists; assembly owns the combined operation-local list. */

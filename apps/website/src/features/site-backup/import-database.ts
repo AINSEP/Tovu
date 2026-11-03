@@ -98,6 +98,7 @@ export async function rebuildImportDatabase(required: { snapshot: Buffer; module
     const media = JSON.parse(await readFile(path.join(root, "media.json"), "utf8")) as ShareDatabaseProjection["media"];
     const documents = JSON.parse(await readFile(path.join(root, "documents.json"), "utf8")) as NonNullable<ShareDatabaseProjection["documents"]>;
     const notices = JSON.parse(await readFile(path.join(root, "notices.json"), "utf8")) as string[];
-    return { bytes, media, documents, notices };
+    const credentialWarnings = JSON.parse(await readFile(path.join(root, "credential-warnings.json"), "utf8")) as NonNullable<ShareDatabaseProjection["credentialWarnings"]>;
+    return { bytes, media, documents, notices, credentialWarnings };
   } finally { await rm(root, { recursive: true, force: true }); }
 }

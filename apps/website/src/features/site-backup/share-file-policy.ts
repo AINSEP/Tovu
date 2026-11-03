@@ -1,12 +1,10 @@
-import { createHash } from "node:crypto";
 import { checkTreePath } from "../publish-content/file-tree-policy.js";
-import { SiteShareRefusal, SHARE_LIMITS, addShareOmission, archiveRefusalName } from "./share-policy.js";
+import { SiteShareRefusal, SHARE_LIMITS, archiveRefusalName } from "./share-policy.js";
+import { warnCredentialContent, addCredentialWarning, type CredentialWarning } from "./credential-warnings.js";
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 
 /** The seven-segment root of an installed plugin package payload (matched against the lowercased path). */
 const PACKAGE_CONTENT_ROOT = /^agent-plugins\/ws\/[^/]+\/[^/]+\/package\/sha256\/[a-f0-9]{64}\//;
-/** The same root, capturing its archive digest and the package-relative path below it. */
-const PACKAGE_FILE = /^agent-plugins\/ws\/[^/]+\/[^/]+\/package\/sha256\/([a-f0-9]{64})\/(.+)$/i;
 /** Names an installed package ships as content (MCP declarations, credential schemes), never runtime secrets. */
 const PACKAGE_MANIFEST_NAMES = ["mcp.json", "tovu-credential-schemes.json"];
 
@@ -30,21 +28,20 @@ function excludedRuntimeSharePath({ path, parts }: { path: string; parts: string
     /^uploads\/chat-attachments(?:\/|$)/,
   ];
   return roots.some(root => root.test(path)) ||
-    parts.some(part => part.startsWith(".env") || /^chat\.db(?:$|[.-])/.test(part));
+    parts.some(part => /^chat\.db(?:$|[.-])/.test(part));
 }
 
-/** A name that only hints at a secret; below a package root the file's bytes decide (see requireShareSecretFree). */
+/** A name that only hints at a secret; below a package root the file's bytes are scanned too (see requireShareSecretFree). */
 const CREDENTIAL_NAME = /(?:credential|vault|keyring|site-key|private[-_]?key)/;
 
-/** Non-credential private/runtime names that still refuse; credential names are omitted by
- * {@link secretSharePath}, which runs first. */
+/** Non-credential private/runtime names that still refuse; credential names produce warnings only. */
 function suspiciousSharePart({ part }: { part: string }, _options = {}): boolean {
   const names = [".git", "node_modules", ".publish-staging", ".publish-previous", ".ds_store", "_share", ".fs-custom-root.json"];
   const prefixes = [".share-", "restore-point-", "superseded-"];
   return names.includes(part) || prefixes.some(prefix => part.startsWith(prefix)) || /\.(?:db|sqlite|sqlite3)(?:$|[.-])/.test(part);
 }
 
-/** Credential names are omissions; traversal and containment remain validation errors.
+/** Credential names produce warnings; traversal and containment remain validation errors.
  * Package manifests and credential labels are public package metadata, not runtime stores.
  */
 export function secretSharePath(required: { path: string }, { packageContent = false } = {}): boolean {
@@ -66,13 +63,9 @@ function credentialFileName(required: { part: string }, { credentialNameAllowed 
   return (!credentialNameAllowed && CREDENTIAL_NAME.test(required.part)) || rules.some(rule => rule.test(required.part));
 }
 
-/** Excludes private runtime trees and credential-like paths, reporting safe omission locations. */
-export function excludedSharePath(required: { path: string }, optional: { notices?: string[] } = {}): boolean {
+/** Excludes private runtime trees, preserving credential-looking files. */
+export function excludedSharePath(required: { path: string }, _optional: { notices?: string[] } = {}): boolean {
   const p = required.path.toLowerCase(), packageRoot = PACKAGE_CONTENT_ROOT.test(p);
-  if (secretSharePath(required, { packageContent: packageRoot })) {
-    if (optional.notices) addShareOmission({ notices: optional.notices, location: required.path });
-    return true;
-  }
   if (excludedRuntimeSharePath({ path: p, parts: p.split("/") })) return true;
   const unsafe = p.split("/").some((part, index) => {
     if (packageRoot && index >= 7 && PACKAGE_MANIFEST_NAMES.includes(part)) return false;
@@ -82,31 +75,6 @@ export function excludedSharePath(required: { path: string }, optional: { notice
     throw new SiteShareRefusal({ code: "UNSAFE_FILE", message: `Share refuses suspicious required path '${archiveRefusalName({ name: required.path })}'. Remove it before sharing.` });
   }
   return false;
-}
-
-/**
- * True only when this build ships these exact bytes at this package-relative path under this digest.
- * Anyone who can write into the site folder can create a package-SHAPED path, and install records
- * live in that same folder, so the shape, the folder name and the ledger prove nothing; the build's
- * own bundled sources do. An operator-installed package, a superseded digest, an unlisted file under a
- * verified root, or a tampered file all get the ordinary EXPORT rules. Import independently
- * classifies known bundled ids because another build's package digest can legitimately differ. O(bytes).
- */
-function verifiedPackageFile(required: { path: string; bytes: Uint8Array }, optional: { packageFiles?: PackageFileInventory }): boolean {
-  const match = PACKAGE_FILE.exec(required.path);
-  if (!match) return false;
-  // The root: a digest this build ships. The file: listed below that root, with the same bytes.
-  const shipped = optional.packageFiles?.get(match[1]!.toLowerCase());
-  const expected = shipped?.get(match[2]!);
-  return expected !== undefined && createHash("sha256").update(required.bytes).digest("hex") === expected;
-}
-
-/** Both archive directions classify known bundled roots independently of their source-build digest.
- * The caller supplies ids from the receiving build; plugin memory and unknown ids stay strict.
- * @complexity O(path); no I/O or trust/activation changes.
- */
-function bundledImportPackage(required: { path: string }, optional: { bundledImportPluginIds?: ReadonlySet<string> }): boolean {
-  return PACKAGE_CONTENT_ROOT.test(required.path.toLowerCase()) && optional.bundledImportPluginIds?.has(required.path.split("/")[3]!) === true;
 }
 
 /** True for a spelling some supported recipient filesystem rejects, rewrites or aliases. O(path). */
@@ -122,8 +90,8 @@ function hasUnportableSpelling(required: { path: string }): boolean {
 export function validateSharePath(required: { path: string }, _optional: Record<string, never> = {}): void {
   const p = required.path;
   // This one exact path is produced by trusted projection, never by a filesystem walk.
-  // The publish owner mixes secret names with path-shape checks. Mask only names destined
-  // for omission, retaining separators, dot segments and length for its structural checks.
+  // The publish owner mixes secret names with path-shape checks. Mask only credential
+  // names here, retaining separators, dot segments and length for structural checks.
   const structural = p.split("/").map(part => secretSharePath({ path: part }) ? "x".repeat(part.length) : part).join("/");
   const reason = ["database/content.db", "content.db"].includes(p) ? null : checkTreePath(structural);
   if (reason || hasUnportableSpelling({ path: p })) {
@@ -134,30 +102,19 @@ export function validateSharePath(required: { path: string }, _optional: Record<
   }
 }
 
-/** Decide inclusion from complete bytes; omit a suspicious file whole, with a safe notice. O(bytes).
- * `path` picks the rules; notices use `shownPath` when given (the archive path the owner can find,
- * not the synthetic scan path `archiveSecretScanPath` builds). */
-export function requireShareSecretFree(required: { path: string; bytes: Uint8Array }, optional: { packageFiles?: PackageFileInventory; bundledImportPluginIds?: ReadonlySet<string>; shownPath?: string; notices?: string[] } = {}): boolean {
-  const shownPath = optional.shownPath ?? required.path;
-  const text = Buffer.from(required.bytes).toString("latin1");
-  // Only code can contain credential references; content/settings retain strict secret detection.
-  const codeAware = /\.(?:js|mjs|cjs|ts|tsx|jsx)$/i.test(required.path);
-  // Bundled code legitimately contains translated labels ("API token": "Token de API"), JSDoc
-  // types and doc placeholders (`Authorization: Bearer <API_KEY>`). Import classifies package roots
-  // by LOCAL bundled id, independently of source-build digest; export uses the same local bundled ids. Provider keys, PEM and JWT are always omitted. This is scan classification, never execution
-  // trust: imported packages stay quarantined and restore seeds this build's own code.
-  const vendorOnly = optional.bundledImportPluginIds === undefined
-    ? verifiedPackageFile(required, optional)
-    : bundledImportPackage(required, optional);
-  // Code-aware tokenization intentionally preserves identifiers. Provider shapes must still
-  // be omitted even when a bare identifier happens to spell a real key.
-  const providerKey = redactSecretShapes({ text }, { vendorOnly: true }).redactions > 0;
-  // Media archive names are generated from slug + allowed document type (a Keynote deck is
-  // `.key`), so only their bytes decide; name rules would silently drop ordinary uploads.
-  const secretName = !required.path.startsWith("media/") && secretSharePath(required, { packageContent: vendorOnly });
-  const omitted = providerKey || secretName || redactSecretShapes({ text }, { codeAware, vendorOnly }).redactions > 0;
-  if (omitted && optional.notices) addShareOmission({ notices: optional.notices, location: shownPath });
-  return !omitted;
+/** Record content/name warnings and always include the file. Path integrity is checked separately.
+ * `shownPath` is the portable archive location, never the synthetic runtime scan path.
+ * Package identity remains an execution-trust concern, independent of content warnings.
+ * @complexity O(bytes + accumulated warnings); no I/O or source mutation.
+ */
+export function requireShareSecretFree(required: { path: string; bytes: Uint8Array }, optional: { packageFiles?: PackageFileInventory; bundledImportPluginIds?: ReadonlySet<string>; shownPath?: string; notices?: string[]; credentialWarnings?: CredentialWarning[] } = {}): true {
+  const credentialWarnings = optional.credentialWarnings ?? [];
+  const path = optional.shownPath ?? required.path;
+  warnCredentialContent({ path, text: Buffer.from(required.bytes).toString("latin1"), credentialWarnings }, { codeAware: /\.(?:js|mjs|cjs|ts|tsx|jsx)$/i.test(required.path) });
+  if (!required.path.startsWith("media/") && secretSharePath(required)) {
+    addCredentialWarning({ path, kind: "credential filename", credentialWarnings });
+  }
+  return true;
 }
 
 function unsafeSharePath(message: string): never { throw new SiteShareRefusal({ code: "UNSAFE_PATH", message }); }

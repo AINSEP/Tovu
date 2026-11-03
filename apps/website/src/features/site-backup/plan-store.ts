@@ -22,6 +22,7 @@ import type { PlannedDiskFile, SiteBackupInclude, SiteBackupScope, SkippedSiteBa
 
 /** Everything `site_backup_push` needs from the plan, so it never re-derives what the human saw. */
 export interface SiteBackupCommonContent {
+  readonly credentialWarnings?: readonly import("./credential-warnings.js").CredentialWarning[];
   readonly include: SiteBackupInclude;
   /** `null` when the database scope is off. */
   readonly database: { readonly bytes: Buffer; readonly watermarkAtCapture: number } | null;

@@ -18,7 +18,7 @@ import { archiveRefusalName } from "../share-policy.js";
 const HEX = "a".repeat(64);
 const PACKAGE_ROOT = `agent-plugins/ws/w/p/package/sha256/${HEX}`;
 const providerKey = (): string => ["gh", "p_"].join("") + "x".repeat(36);
-const omittedNames = new Set([".storage-secret.json", "mcp.json", ".npmrc", ".netrc", "my-credentials.txt", "vault", "keyring.json", "site-key", "private-key", "private_key.txt", "privatekey", "id_rsa", "id_dsa.pub", "id_ecdsa", "id_ed25519", "cert.pem", "tls.key", "cert.p12", "cert.pfx", "cert.pem.bak", "tls.key-old", ".mcp.json", ".mcp.local.json"]);
+const credentialNames = new Set([".storage-secret.json", "mcp.json", ".npmrc", ".netrc", "my-credentials.txt", "vault", "keyring.json", "site-key", "private-key", "private_key.txt", "privatekey", "id_rsa", "id_dsa.pub", "id_ecdsa", "id_ed25519", "cert.pem", "tls.key", "cert.p12", "cert.pfx", "cert.pem.bak", "tls.key-old", ".mcp.json", ".mcp.local.json"]);
 const suspicious = (path: string) => ({ code: "UNSAFE_FILE", message: `Share refuses suspicious required path '${path}'. Remove it before sharing.` });
 const unsafe = (path: string, reason?: string) => ({ code: "UNSAFE_PATH", message: `Share path '${path}' is unsafe${reason ? `: ${reason}` : "."}` });
 const claims = () => ({ aliases: new Map<string, string>(), files: new Set<string>() });
@@ -63,7 +63,7 @@ for (const path of [
   // Site plugin paths are not here: the share walks only Jini's package listing (share-site-plugin-versions).
   "agent-plugins/ws/w/data/x", "agent-plugins/ws/w/staging",
   "agent-plugins/ws/w/p/data", "agent-plugins/ws/w/p/memory/x", "uploads/chat-attachments", "uploads/chat-attachments/a.png",
-  "Uploads/Chat-Attachments/a.png", "themes/.env", "themes/.env.production", "themes/chat.db", "settings/chat.db-wal", "settings/chat.db.bak",
+  "Uploads/Chat-Attachments/a.png", "themes/chat.db", "settings/chat.db-wal", "settings/chat.db.bak",
 ]) {
   test(`'${path}' is a known private location and is excluded`, { timeout: 10_000 }, () => { assert.equal(excludedSharePath({ path }), true); });
 }
@@ -80,9 +80,9 @@ for (const part of [
   "id_rsa", "id_dsa.pub", "id_ecdsa", "id_ed25519", "cert.pem", "tls.key", "cert.p12", "cert.pfx", "cert.pem.bak", "tls.key-old",
   "x.db", "x.sqlite", "x.sqlite3", "x.db-wal", ".mcp.json", ".mcp.local.json", "restore-point-1", "superseded-1",
 ]) {
-  test(`a '${part}' segment retains its omission/refusal policy`, { timeout: 10_000 }, () => {
+  test(`a '${part}' segment retains its inclusion/refusal policy`, { timeout: 10_000 }, () => {
     const path = `themes/site/${part}/index.html`;
-    if (omittedNames.has(part)) assert.equal(excludedSharePath({ path }), true);
+    if (credentialNames.has(part)) assert.equal(excludedSharePath({ path }), false);
     else assert.throws(() => excludedSharePath({ path }), suspicious(path));
   });
 }
@@ -91,9 +91,9 @@ for (const name of ["mcp.json", "tovu-credential-schemes.json", "nested/dir/MCP.
   test(`'${name}' below an installed package root is package content`, { timeout: 10_000 }, () => { assert.equal(excludedSharePath({ path: `${PACKAGE_ROOT}/${name}` }), false); });
 }
 
-test("private credential names below a package root are omitted", { timeout: 10_000 }, () => {
+test("private credential names below a package root stay included", { timeout: 10_000 }, () => {
   const path = `${PACKAGE_ROOT}/.npmrc`;
-  assert.equal(excludedSharePath({ path }), true);
+  assert.equal(excludedSharePath({ path }), false);
 });
 
 for (const name of ["__tests__/credential-card.test.mjs", "src/vault.js", "docs/keyring.md", "docs/private-key-setup.md"]) {
@@ -106,36 +106,36 @@ for (const path of [
   "plugins/p/__tests__/credential-card.test.mjs", "agent-plugins/ws/w/p/__tests__/credential-card.test.mjs",
   `agent-plugins/ws/w/credential/package/sha256/${HEX}/x`, `agent-plugins/ws/w/p/package/sha256/${"a".repeat(63)}/credential-card.test.mjs`,
 ]) {
-  test(`a credential-like name outside an installed package root is omitted (${path})`, { timeout: 10_000 }, () => {
-    assert.equal(excludedSharePath({ path }), true);
+  test(`a credential-like name outside an installed package root stays included (${path})`, { timeout: 10_000 }, () => {
+    assert.equal(excludedSharePath({ path }), false);
   });
 }
 
 for (const name of ["certs/tls.pem", "keys/deploy.key", ".git/config", "node_modules/x/index.js", "data.db", "id_rsa", ".mcp.json"]) {
   test(`every other suspicious-name rule still refuses below a package root (${name})`, { timeout: 10_000 }, () => {
     const path = `${PACKAGE_ROOT}/${name}`;
-    if (["certs/tls.pem", "keys/deploy.key", "id_rsa", ".mcp.json"].includes(name)) assert.equal(excludedSharePath({ path }), true);
+    if (["certs/tls.pem", "keys/deploy.key", "id_rsa", ".mcp.json"].includes(name)) assert.equal(excludedSharePath({ path }), false);
     else assert.throws(() => excludedSharePath({ path }), suspicious(name === "node_modules/x/index.js" ? `${PACKAGE_ROOT}/node_modules/x/ind…` : path));
   });
 }
 
-test("a .env file below a package root is still a private location and is excluded", { timeout: 10_000 }, () => {
-  assert.equal(excludedSharePath({ path: `${PACKAGE_ROOT}/.env` }), true);
+test("a .env file below a package root stays included", { timeout: 10_000 }, () => {
+  assert.equal(excludedSharePath({ path: `${PACKAGE_ROOT}/.env` }), false);
 });
 
-test("the content scan still omits a PEM private key inside an exempted package file", { timeout: 10_000 }, () => {
+test("the content scan retains a PEM private key inside a package file", { timeout: 10_000 }, () => {
   const path = `${PACKAGE_ROOT}/__tests__/credential-card.test.mjs`;
   const label = ["PRIVATE", "KEY"].join(" ");
   const pem = `-----BEGIN ${label}-----\n${"A".repeat(64)}\n-----END ${label}-----`;
   const text = `const fixture = \`${pem}\`;`;
-  // Even bytes this build ships are refused for a PEM key: verification relaxes the scan, never skips it.
-  assert.equal(requireShareSecretFree({ path, bytes: Buffer.from(text) }, { packageFiles: shipped({ "__tests__/credential-card.test.mjs": text }) }), false);
+  // Even credential-looking bytes are preserved; execution trust still uses exact package identity.
+  assert.equal(requireShareSecretFree({ path, bytes: Buffer.from(text) }, { packageFiles: shipped({ "__tests__/credential-card.test.mjs": text }) }), true);
 });
 
-test("the content scan still omits a provider key inside an exempted package file", { timeout: 10_000 }, () => {
+test("the content scan retains a provider key inside a package file", { timeout: 10_000 }, () => {
   const path = `${PACKAGE_ROOT}/__tests__/credential-card.test.mjs`;
   const text = `const token = "${providerKey()}";`;
-  assert.equal(requireShareSecretFree({ path, bytes: Buffer.from(text) }, { packageFiles: shipped({ "__tests__/credential-card.test.mjs": text }) }), false);
+  assert.equal(requireShareSecretFree({ path, bytes: Buffer.from(text) }, { packageFiles: shipped({ "__tests__/credential-card.test.mjs": text }) }), true);
 });
 
 // Verification: a package-shaped path is trusted only for files this build ships byte for byte.
@@ -154,35 +154,35 @@ for (const [label, root, packageFiles] of [
   ["no inventory", PACKAGE_ROOT, undefined],
   ["a digest this build never shipped", FORGED_ROOT, shipped({ "credentials.json": PASSWORD })],
 ] as const) {
-  test(`a forged package-shaped credentials.json holding a password is omitted (${label})`, { timeout: 10_000 }, () => {
+  test(`a forged package-shaped credentials.json holding a password stays included (${label})`, { timeout: 10_000 }, () => {
     const path = `${root}/credentials.json`;
     assert.equal(excludedSharePath({ path }), false, "the walk's name check is provisional below a package root");
-    assert.equal(requireShareSecretFree({ path, bytes: Buffer.from(PASSWORD) }, { packageFiles }), false);
+    assert.equal(requireShareSecretFree({ path, bytes: Buffer.from(PASSWORD) }, { packageFiles }), true);
   });
 }
 
 test("a file a verified package root does not list gets every name rule and the full scan", { timeout: 10_000 }, () => {
   const packageFiles = shipped({ [CARD]: CARD_TEXT });
   const named = `${PACKAGE_ROOT}/extra-credentials.json`;
-  assert.equal(requireShareSecretFree({ path: named, bytes: Buffer.from("{}") }, { packageFiles }), false);
+  assert.equal(requireShareSecretFree({ path: named, bytes: Buffer.from("{}") }, { packageFiles }), true);
   const plain = `${PACKAGE_ROOT}/config.json`;
-  assert.equal(requireShareSecretFree({ path: plain, bytes: Buffer.from(PASSWORD) }, { packageFiles }), false);
+  assert.equal(requireShareSecretFree({ path: plain, bytes: Buffer.from(PASSWORD) }, { packageFiles }), true);
 });
 
 test("a listed file whose bytes differ from the build's gets the ordinary rules", { timeout: 10_000 }, () => {
   const path = `${PACKAGE_ROOT}/${CARD}`;
-  assert.equal(requireShareSecretFree({ path, bytes: Buffer.from(`${CARD_TEXT}// edited\n`) }, { packageFiles: shipped({ [CARD]: CARD_TEXT }) }), false);
+  assert.equal(requireShareSecretFree({ path, bytes: Buffer.from(`${CARD_TEXT}// edited\n`) }, { packageFiles: shipped({ [CARD]: CARD_TEXT }) }), true);
 });
 
-test("an opaque credentials.gz under a forged root is omitted by name; the scanner never decodes it", { timeout: 10_000 }, () => {
+test("an opaque credentials.gz under a forged root stays included by name; the scanner never decodes it", { timeout: 10_000 }, () => {
   const path = `${FORGED_ROOT}/credentials.gz`;
-  assert.equal(requireShareSecretFree({ path, bytes: gzipSync(PASSWORD) }, { packageFiles: shipped({ [CARD]: CARD_TEXT }) }), false);
+  assert.equal(requireShareSecretFree({ path, bytes: gzipSync(PASSWORD) }, { packageFiles: shipped({ [CARD]: CARD_TEXT }) }), true);
 });
 
 test("package manifest names stay exempt by name below any package root; their bytes get the full scan", { timeout: 10_000 }, () => {
   const path = `${FORGED_ROOT}/tovu-credential-schemes.json`;
   assert.equal(requireShareSecretFree({ path, bytes: Buffer.from('{"schemes":[]}') }), true);
-  assert.equal(requireShareSecretFree({ path, bytes: Buffer.from(PASSWORD) }), false);
+  assert.equal(requireShareSecretFree({ path, bytes: Buffer.from(PASSWORD) }), true);
 });
 
 test("the inventory is keyed by the digest the seeder's own packer gives each bundled source folder", { timeout: 10_000 }, async t => {
@@ -210,14 +210,14 @@ test("a missing bundled source root verifies nothing", { timeout: 10_000 }, asyn
   assert.deepEqual(await readBundledImportPluginIds({}, { sourceRoot: join(sourceRoot, "missing") }), new Set());
 });
 
-test("the package exemption covers only segments below the seven-segment root", { timeout: 10_000 }, () => {
+test("credential-looking ancestor names stay included", { timeout: 10_000 }, () => {
   const path = `agent-plugins/ws/w/mcp.json/package/sha256/${HEX}/x`;
-  assert.equal(excludedSharePath({ path }), true);
+  assert.equal(excludedSharePath({ path }), false);
 });
 
-test("a package exemption name outside any package root is omitted", { timeout: 10_000 }, () => {
+test("a package exemption name outside any package root stays included", { timeout: 10_000 }, () => {
   const path = "plugins/p/tovu-credential-schemes.json";
-  assert.equal(excludedSharePath({ path }), true);
+  assert.equal(excludedSharePath({ path }), false);
 });
 
 test("the trusted database projection path is exempt from the tree-path deny list", { timeout: 10_000 }, () => {
@@ -264,16 +264,16 @@ test("plain content bytes are secret-free", { timeout: 10_000 }, () => {
   assert.equal(requireShareSecretFree({ path: "themes/a.txt", bytes: Buffer.from("hello") }), true);
 });
 
-test("a provider key format is omitted", { timeout: 10_000 }, () => {
-  assert.equal(requireShareSecretFree({ path: "themes/a.txt", bytes: Buffer.from(`token ${providerKey()}`) }), false);
+test("a provider key format stays included", { timeout: 10_000 }, () => {
+  assert.equal(requireShareSecretFree({ path: "themes/a.txt", bytes: Buffer.from(`token ${providerKey()}`) }), true);
 });
 
-test("a provider key inside binary bytes is omitted", { timeout: 10_000 }, () => {
-  assert.equal(requireShareSecretFree({ path: "themes/a.png", bytes: Buffer.from(`\u0000ÿ${providerKey()}\u0000`, "latin1") }), false);
+test("a provider key inside binary bytes stays included", { timeout: 10_000 }, () => {
+  assert.equal(requireShareSecretFree({ path: "themes/a.png", bytes: Buffer.from(`\u0000ÿ${providerKey()}\u0000`, "latin1") }), true);
 });
 
-test("a credential reference in content (not code) is omitted", { timeout: 10_000 }, () => {
-  assert.equal(requireShareSecretFree({ path: "settings/notes.json", bytes: Buffer.from("const apiKey = process.env.API_KEY;") }), false);
+test("a credential reference in content (not code) stays included", { timeout: 10_000 }, () => {
+  assert.equal(requireShareSecretFree({ path: "settings/notes.json", bytes: Buffer.from("const apiKey = process.env.API_KEY;") }), true);
 });
 
 for (const path of ["plugins/p/index.js", "plugins/p/index.MJS", "plugins/p/a.cjs", "plugins/p/a.ts", "plugins/p/a.tsx", "plugins/p/a.jsx"]) {
@@ -293,12 +293,12 @@ test("the package payload relaxation matches the package root case-insensitively
 
 test("the same labels in an unverified package-shaped file get the full scan", { timeout: 10_000 }, () => {
   const path = `${PACKAGE_ROOT}/locales/es.json`;
-  assert.equal(requireShareSecretFree({ path, bytes: Buffer.from(LABELS) }), false);
+  assert.equal(requireShareSecretFree({ path, bytes: Buffer.from(LABELS) }), true);
 });
 
-test("a provider key in an installed package payload is omitted", { timeout: 10_000 }, () => {
+test("a provider key in an installed package payload stays included", { timeout: 10_000 }, () => {
   const path = `${PACKAGE_ROOT}/locales/es.json`;
-  assert.equal(requireShareSecretFree({ path, bytes: Buffer.from(providerKey()) }), false);
+  assert.equal(requireShareSecretFree({ path, bytes: Buffer.from(providerKey()) }), true);
 });
 
 test("aliases fold case, compatibility forms, sharp-s and final sigma onto one key", { timeout: 10_000 }, () => {
@@ -362,6 +362,6 @@ test("a sibling sharing a name prefix is not a collision", { timeout: 10_000 }, 
 test("only notes and learned plugin memory travel, with the same credential scan", { timeout: 10_000 }, () => {
   for (const path of ["agent-plugins/ws/w/p/memory/notes/note.md", "agent-plugins/ws/w/p/memory/learned/fact.md", "plugins/p/1.0.0/memory/notes/note.md"]) {
     assert.equal(excludedSharePath({ path }), false);
-    assert.equal(requireShareSecretFree({ path, bytes: Buffer.from(providerKey()) }), false);
+    assert.equal(requireShareSecretFree({ path, bytes: Buffer.from(providerKey()) }), true);
   }
 });

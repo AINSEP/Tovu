@@ -340,7 +340,7 @@ test("both tools are registered; the plan is read-only and the push is not", (t)
 test("share tools use the site-bound backend and authorize before every effect", async (t) => {
   const h = harness(t);
   const calls: string[] = [];
-  const row = { shareId: "export-id", site: WORKSPACE_ID, file: "site.tovu.zip", bytes: 12, sha256: "a".repeat(64), url: null, status: "active" as const, createdAt: NOW, revokedAt: null, downloadUrl: "/private/download" };
+  const row = { shareId: "export-id", site: WORKSPACE_ID, file: "site.tovu.zip", bytes: 12, sha256: "a".repeat(64), url: null, status: "active" as const, createdAt: NOW, revokedAt: null, downloadUrl: "/private/download", credentialWarnings: [{ path: "themes/site/SKILL.md", kind: "labeled secret" }], needsAcknowledgement: true };
   const staticRow = { ...row, file: "site-static-2026-10-30-1015.zip" };
   const registrations = buildSiteBackupRegistrations({ ...h.deps, siteShareBackend: {
     registry: {} as import("../share-registry.js").SiteShareRegistry,
@@ -348,6 +348,7 @@ test("share tools use the site-bound backend and authorize before every effect",
     create: async ({ principalId, format }) => { calls.push(`create:${principalId}`); return format === "static" ? staticRow : row; },
     list: async () => { calls.push("list"); return [row]; },
     revoke: async ({ shareId }) => { calls.push(`revoke:${shareId}`); return { ...row, status: "revoked" as const }; },
+    acknowledge: async () => assert.fail("tools must leave acknowledgement to the user"),
     revealPassword: async () => assert.fail("these share tools must not reveal passwords"),
   } }, { surfaceExchanges: h.surfaceExchanges });
   const tools = new Map(registrations.map(r => [r.descriptor.id, r]));
@@ -675,6 +676,7 @@ test("the push re-checks the repository, uploads only the database as a blob (te
   assert.ok(manifestBytes, "the manifest is committed into the folder");
   assert.deepEqual(result, {
     pushed: true,
+    credentialWarnings: [],
     commitSha: "new-commit",
     commitUrl: "https://github.com/octo/backups/commit/new-commit",
     repository: "octo/backups",
@@ -1562,4 +1564,15 @@ test("share tool adapters enforce exact input contracts, pass job/principal/sign
   for (const [id, input] of [["site_share_create", {}], ["site_share_list", {}], ["site_share_revoke", { shareId: "share" }]] as const) assert.deepEqual(await call(tool(id), input), { ok: false, code: "BUSY", message: "Export still running" });
   error = new Error("unexpected backend failure");
   await assert.rejects(call(tool("site_share_create"), {}), thrown => thrown === error);
+});
+
+test("backup plan and push return credential warnings for the chat to show", async t => {
+  const h = harness(t); await h.seed();
+  const credentialWarnings = [{ path: "content.db:posts.body_json", kind: "labeled secret" }];
+  const planTool = overriddenTool(h, "site_backup_plan", { siteBackupSanitize: async () => ({ bytes: DB_BYTES, media: [], credentialWarnings }) });
+  const planned = await call(planTool, PLAN_INPUT) as Result;
+  assert.deepEqual(planned.credentialWarnings, credentialWarnings);
+  const pushed = await call(h.pushTool, { planId: planned.planId }) as Result;
+  assert.equal(pushed.pushed, true);
+  assert.deepEqual(pushed.credentialWarnings, credentialWarnings);
 });

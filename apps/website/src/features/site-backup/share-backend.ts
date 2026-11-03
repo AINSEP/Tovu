@@ -1,3 +1,4 @@
+import type { CredentialWarning } from "./credential-warnings.js";
 import { randomUUID } from "node:crypto";
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 import type { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
@@ -7,7 +8,7 @@ import type { SiteBackupPushProgress } from "./push-engine.js";
 import { SiteBackupPushJobs, type PushJobKey, type PushJobWait } from "./push-jobs.js";
 import { buildShareZip, buildStaticSiteZip } from "./share-zip.js";
 import { captureStaticSite, type StaticSitePorts, type StaticSiteCopy } from "./static-copy.js";
-import { createSiteShare, isOwnShareFolder, revokeSiteShare, type ShareDelivery } from "./share-service.js";
+import { createSiteShare, acknowledgeSiteShare, isOwnShareFolder, revokeSiteShare, type ShareDelivery } from "./share-service.js";
 import { SiteShareRegistry, type SiteShareRecord, newShareIdentity } from "./share-registry.js";
 import { allocateStaticExportThemes, parseStaticExportInput, type StaticExportOptions } from "./static-export-selection.js";
 import type { SiteSavedKeysPort } from "./saved-keys-port.js";
@@ -19,11 +20,12 @@ export interface SiteShareBackend {
   hasWork?(required: Record<string, never>, optional?: Record<string, never>): boolean;
   staticOptions(required: Record<string, never>, optional?: Record<string, never>): Promise<StaticExportOptions>;
   create(required: { principalId: string; jobId?: string; signal: AbortSignal; includeSavedKeys?: boolean; format?: "static"; themeIds?: readonly string[]; publicUrl?: string }, optional?: { waitMs?: number }): Promise<unknown>;
+  acknowledge(required: { shareId: string }, optional?: Record<string, never>): Promise<SiteShareView>;
   revealPassword(required: { principalId: string; shareId: string }, optional?: Record<string, never>): Promise<{ password: string }>;
   list(required: Record<string, never>, optional?: Record<string, never>): Promise<readonly SiteShareView[]>;
   revoke(required: { shareId: string }, optional?: Record<string, never>): Promise<SiteShareView>;
 }
-export type SiteShareView = Omit<SiteShareRecord, "token" | "storage" | "sealedPassword"> & { downloadUrl: string };
+export type SiteShareView = Omit<SiteShareRecord, "token" | "storage" | "sealedPassword"> & { downloadUrl: string; credentialWarnings: readonly CredentialWarning[]; needsAcknowledgement: boolean };
 /** A finished export, with what was left out of it (the share's scope notes) for the exporter only. */
 type ExportedShare = SiteShareRecord & { readonly notes?: readonly string[] };
 
@@ -32,7 +34,7 @@ const DOMAINLESS_DISCOVERY_NOTICE = "No domain was given, so sitemap.xml and fee
 /** Locators/tokens stay in the private registry. The authorized caller receives the verified URL. */
 function view(row: SiteShareRecord): SiteShareView {
   const { token: _token, storage: _storage, sealedPassword: _sealedPassword, ...publicFields } = row;
-  return { ...publicFields, downloadUrl: `/api/admin/v1/workspaces/${encodeURIComponent(row.site)}/site-shares/${row.shareId}/download` };
+  return { ...publicFields, credentialWarnings: row.credentialWarnings ?? [], needsAcknowledgement: row.needsAcknowledgement ?? false, downloadUrl: `/api/admin/v1/workspaces/${encodeURIComponent(row.site)}/site-shares/${row.shareId}/download` };
 }
 
 /** What a create caller sees for one wait: the finished share, a cancellation, or in-flight progress. */
@@ -132,20 +134,22 @@ export function createSiteShareBackend(required: {
         const selection = await captureSelection({ ports: required.staticSite, themeIds, publicUrl, signal: bounded });
         const { copy } = selection;
         const notices: string[] = copy.publicOrigin ? [] : [DOMAINLESS_DISCOVERY_NOTICE];
-        const archive = await buildStaticSiteZip({ ...selection, zip: required.zip }, { signal: bounded, progress, notices });
-        return await createSiteShare({ registry: required.registry, site: required.site, name: copy.filename, archive }, { signal: bounded, filename: copy.filename, notices });
+        const credentialWarnings: CredentialWarning[] = [];
+        const archive = await buildStaticSiteZip({ ...selection, zip: required.zip }, { signal: bounded, progress, notices, credentialWarnings });
+        return await createSiteShare({ registry: required.registry, site: required.site, name: copy.filename, archive }, { signal: bounded, filename: copy.filename, notices, credentialWarnings });
       }
       const identity = newShareIdentity({});
       const content = await required.prepare({ signal: bounded, includeSavedKeys, shareId: identity.shareId, workspaceId: required.site });
       requireRetainedPassword({ content, includeSavedKeys });
       const notices = [...new Set(content.notices ?? [])];
+      const credentialWarnings = [...(content.credentialWarnings ?? [])];
       const notes = Object.values(content.scopeNotes).map(note => redactSecretShapes({ text: note }).text);
       // Progress's readonly totals describe the prepared backup; the ZIP collector records its exact files.
       Object.assign(progress, { filesTotal: content.files.length + (content.bufferedFiles?.length ?? 0) + 1, bytesTotal: content.totalBytes });
-      const archive = await buildShareZip({ plan: content, zip: required.zip }, { signal: bounded, progress, notices });
+      const archive = await buildShareZip({ plan: content, zip: required.zip }, { signal: bounded, progress, notices, credentialWarnings });
       const delivery = await required.delivery({});
       bounded.throwIfAborted();
-      const record = await createSiteShare({ registry: required.registry, site: required.site, name: content.site.folderName, archive }, { delivery, signal: bounded, identity, sealedPassword: content.sealedPassword, notices, notes });
+      const record = await createSiteShare({ registry: required.registry, site: required.site, name: content.site.folderName, archive }, { delivery, signal: bounded, identity, sealedPassword: content.sealedPassword, notices, notes, credentialWarnings });
       // Plugins left out of the archive are told to the exporter, never dropped silently.
       return notes.length > 0 ? { ...record, notes } : record;
     } finally { active = null; }
@@ -174,7 +178,18 @@ export function createSiteShareBackend(required: {
       const key = { planId: jobId, principalId: input.principalId, workspaceId: required.site + (input.format === "static" ? "/static" : "") };
       const job = jobs.find(key) ?? startExport({ key, resumedJobId: input.jobId, format: input.format, themeIds: selection.themeIds, publicUrl: selection.publicUrl, includeSavedKeys: input.includeSavedKeys });
       const waited = await jobs.wait(job, { signal: input.signal, budgetMs: options.waitMs ?? 1500 });
-      return createOutcome({ waited, jobId, format: input.format });
+      const outcome = waited.state === "done" ? { ...waited, result: await required.registry.get({ site: required.site, shareId: waited.result.shareId }) ?? waited.result } : waited;
+      return createOutcome({ waited: outcome, jobId, format: input.format });
+    },
+    async acknowledge(input) {
+      if (active) throw new SiteShareRefusal({ code: "BUSY", message: "Export acknowledgement is waiting for another export or delivery. Retry when it finishes." });
+      active = input.shareId;
+      try {
+        const row = await required.registry.get({ site: required.site, shareId: input.shareId });
+        if (!row || row.status === "revoked") throw new SiteShareRefusal({ code: "NOT_FOUND", message: "This export is missing or was revoked." });
+        const delivery = row.needsAcknowledgement && row.storage ? await required.delivery({ provider: row.storage.provider, binding: row.storage.binding }) : undefined;
+        return view(await acknowledgeSiteShare({ registry: required.registry, site: required.site, shareId: input.shareId }, { delivery }));
+      } finally { active = null; }
     },
     async revealPassword(input) {
       if (input.principalId !== await required.ownerPrincipalId) throw new SiteShareRefusal({ code: "FORBIDDEN", message: "Only the site owner can reveal an export password." });

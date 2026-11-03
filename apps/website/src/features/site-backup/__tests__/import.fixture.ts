@@ -186,8 +186,9 @@ export async function importFixture(t: TestContext, placement: "inSite" | "appDa
     assert.deepEqual(readKeys, [STORAGE_KEY], "object-storage media must be read through the store");
     assert.equal(fs.existsSync(path.join(siteDir, "uploads", STORAGE_KEY)), false);
     const notices = [...(productionPlan.notices ?? [])];
-    const archive = await buildShareZip({ plan: productionPlan, zip: zipFolderFiles }, { notices });
-    return { archive, plan: { ...productionPlan, notices }, readKeys };
+    const credentialWarnings = [...(productionPlan.credentialWarnings ?? [])];
+    const archive = await buildShareZip({ plan: productionPlan, zip: zipFolderFiles }, { notices, credentialWarnings });
+    return { archive, plan: { ...productionPlan, notices, credentialWarnings }, readKeys };
   };
   const assertOwnerLogin = async (required: { dir: string; rejectedPassword: string }) => {
     const imported = openContentDb({ filePath: resolveSiteDatabasePaths({ dir: required.dir }, { workspace }).contentDbPath });

@@ -74,16 +74,16 @@ const secrets = [
 
 for (const [kind, secret] of secrets) {
   for (const file of ["agent-plugins/github/package/source-control/write-files.mjs", "agent-plugins/unknown/package/readme.txt", "agent-plugins/github/memory/notes/note.md", "themes/site/notes.txt", "themes/site/asset.bin"]) {
-    test(`${kind} secret in ${file} is omitted with a safe notice`, { timeout }, async () => {
+    test(`${kind} secret in ${file} stays included with a safe warning`, { timeout }, async () => {
       const prefix = file.endsWith(".bin") ? Buffer.from([0, 255, 0]) : Buffer.from("ordinary content\n");
       const bytes = Buffer.concat([pluginFiles.get(file) ?? prefix, Buffer.from("\n" + secret())]);
       const h = await fixture(new Map([[file, bytes]]));
       const imported = await h.verify();
-      assert.equal(imported.files.has(file), false);
-      assert.ok(imported.warnings.some(notice => notice.includes(file)), "name the omitted archive path");
-      assert.equal(imported.warnings.join().includes(secret()), false);
-      for (const content of imported.files.values()) assert.equal(content.includes(Buffer.from(secret())), false);
-      assert.equal(h.wasSanitized(), true, "ordinary content still imports after an omission");
+      assert.ok(imported.files.has(file.startsWith("themes/site/") ? file.replace("themes/site/", "themes/untrusted/site/") : file));
+      assert.ok(imported.credentialWarnings!.some(warning => warning.path === file), "name the included archive path");
+      assert.equal(JSON.stringify(imported.credentialWarnings).includes(secret()), false);
+      assert.ok([...imported.files.values()].some(content => content.includes(Buffer.from(secret()))));
+      assert.equal(h.wasSanitized(), true, "the same projection verifies retained content");
     });
   }
 }
@@ -92,22 +92,22 @@ for (const file of ["agent-plugins/unknown/package/locales/es.json", "agent-plug
   test(`credential labels still get strict import scanning in ${file}`, { timeout }, async () => {
     const h = await fixture(new Map([[file, Buffer.from('{"API token":"Token de API"}')]]));
     const imported = await h.verify();
-    assert.equal(imported.files.has(file), false);
-    assert.ok(imported.warnings.some(notice => notice.includes(file)));
+    assert.ok(imported.files.has(file.startsWith("themes/site/") ? file.replace("themes/site/", "themes/untrusted/site/") : file));
+    assert.ok(imported.credentialWarnings!.some(warning => warning.path === file));
     assert.equal(h.wasSanitized(), true);
   });
 }
 
-test("scanner omits package labels when no bundled id or byte identity establishes classification", { timeout }, () => {
+test("package labels stay included independently of bundled identity", { timeout }, () => {
   const file = `agent-plugins/ws/w/github/package/sha256/${sourceDigest}/locales/es.json`;
-  assert.equal(requireShareSecretFree({ path: file, bytes: pluginFiles.get("agent-plugins/github/package/locales/tovu-source-control.json")! }), false);
+  assert.equal(requireShareSecretFree({ path: file, bytes: pluginFiles.get("agent-plugins/github/package/locales/tovu-source-control.json")! }), true);
 });
 
 test("an unknown import id cannot borrow a bundled digest and file hash to relax its scan", { timeout }, () => {
   const file = `agent-plugins/ws/w/unknown/package/sha256/${recipientDigest}/locales/es.json`;
   const bytes = Buffer.from('{"API token":"Token de API"}');
   const packageFiles = new Map([[recipientDigest, new Map([["locales/es.json", sha(bytes)]])]]);
-  assert.equal(requireShareSecretFree({ path: file, bytes }, { packageFiles, bundledImportPluginIds: new Set(["github"]) }), false);
+  assert.equal(requireShareSecretFree({ path: file, bytes }, { packageFiles, bundledImportPluginIds: new Set(["github"]) }), true);
 });
 
 // Optional private repro: exercise every actual ZIP file without retaining client bytes in the repo

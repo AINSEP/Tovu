@@ -104,11 +104,11 @@ test("a share revoked during upload is refused as revoked", async t => {
   const fake = store({ upload: async () => { const [row] = await registry.list({}); await registry.disable({ shareId: row!.shareId, site: "ws" }); return { url: URL }; } });
   await assert.rejects(createSiteShare({ registry, site: "ws", name: "Site", archive: ARCHIVE }, { delivery: delivery(fake.store) }), { code: "REVOKED", message: "Share was revoked during upload." });
 });
-test("a failed upload is recorded failed without a URL and reported as a delivery failure", async t => {
+test("a failed upload is recorded failed and its unexpected error reaches incident handling", async t => {
   const registry = await registryIn(t), fake = store({ upload: async () => { throw new Error("network down"); } });
   const failure = await failureOf(createSiteShare({ registry, site: "ws", name: "Site", archive: ARCHIVE }, { delivery: delivery(fake.store) }));
   const [row] = await registry.list({});
-  assert.deepEqual([failure.code, failure.message], ["DELIVERY_FAILED", `Share ${row!.shareId} delivery failed. Download the ZIP or configure storage and retry.`]);
+  assert.equal(failure.message, "network down");
   assert.deepEqual([row?.status, row?.storage?.url], ["failed", undefined]);
   assert.deepEqual([fake.calls.deletes.length, fake.calls.verifies.length], [1, 0]);
 });
@@ -122,12 +122,12 @@ for (const [label, behaviour] of [["remote deletion fails", { verify: async (req
 }
 test("a failed delivery to this server's own share folder deletes nothing remotely", async t => {
   const registry = await registryIn(t), fake = store({ upload: async () => { throw new Error("down"); } });
-  await assert.rejects(createSiteShare({ registry, site: "ws", name: "Site", archive: ARCHIVE }, { delivery: delivery(fake.store, { provider: "tovu-server", binding: registry.directory }) }), { code: "DELIVERY_FAILED" });
+  await assert.rejects(createSiteShare({ registry, site: "ws", name: "Site", archive: ARCHIVE }, { delivery: delivery(fake.store, { provider: "tovu-server", binding: registry.directory }) }), { message: "down" });
   assert.deepEqual(fake.calls.deletes, []);
 });
 test("a failed delivery to another server's share folder is deleted remotely", async t => {
   const registry = await registryIn(t), fake = store({ upload: async () => { throw new Error("down"); } });
-  await assert.rejects(createSiteShare({ registry, site: "ws", name: "Site", archive: ARCHIVE }, { delivery: delivery(fake.store, { provider: "tovu-server", binding: "https://peer.example" }) }), { code: "DELIVERY_FAILED" });
+  await assert.rejects(createSiteShare({ registry, site: "ws", name: "Site", archive: ARCHIVE }, { delivery: delivery(fake.store, { provider: "tovu-server", binding: "https://peer.example" }) }), { message: "down" });
   assert.equal(fake.calls.deletes.length, 1);
 });
 

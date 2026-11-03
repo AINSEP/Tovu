@@ -17,11 +17,11 @@ interface SavedKeysOwnerDeps {
 export async function requireSavedKeysOwnerSession(required: { req: Request; res: Response; deps: SavedKeysOwnerDeps }, _optional: Record<string, never> = {}): Promise<boolean> {
   const { req, res, deps } = required;
   res.set({ "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer" });
-  if (String(req.params.workspaceId) !== deps.workspaceId) { res.sendStatus(404); return false; }
+  if (String(req.params.workspaceId) !== deps.workspaceId) { res.status(404).json({ code: "NOT_FOUND", message: "Saved keys access failed: this workspace is not available." }); return false; }
   if (!rejectUnlessSessionCredential(res, { message: "Use the site owner's signed-in browser for saved keys.", permission: "site-backup.push" })) return false;
-  if (getPublishTrustContext(res) || getAuthedPrincipal(res).id !== await deps.ownerPrincipalId) { res.sendStatus(403); return false; }
+  if (getPublishTrustContext(res) || getAuthedPrincipal(res).id !== await deps.ownerPrincipalId) { res.status(403).json({ code: "FORBIDDEN", message: "Saved keys access requires the site owner’s signed-in browser on this Tovu site." }); return false; }
   const sameOrigin = isSameOriginAdminWrite({ origin: req.get("origin"), host: req.get("host"), fetchSite: req.get("sec-fetch-site") });
-  if (!sameOrigin || req.get("origin") !== req.protocol + "://" + req.get("host")) { res.sendStatus(403); return false; }
+  if (!sameOrigin || req.get("origin") !== req.protocol + "://" + req.get("host")) { res.status(403).json({ code: "FORBIDDEN", message: "Saved keys access requires the site owner’s signed-in browser on this Tovu site." }); return false; }
   return true;
 }
 
@@ -35,7 +35,7 @@ export function createSiteSharePasswordHandler(required: { deps: SavedKeysOwnerD
     try {
       if (!await requireSavedKeysOwnerSession({ req, res, deps: required.deps })) return;
       const backend = required.deps.siteShareBackend;
-      if (!backend) { res.status(503).json({ code: "UNAVAILABLE", message: "Saved keys are unavailable." }); return; }
+      if (!backend) { res.status(503).json({ code: "UNAVAILABLE", message: "Export password lookup failed: saved keys are unavailable." }); return; }
       res.json(await backend.revealPassword({ principalId: getAuthedPrincipal(res).id, shareId: String(req.params.shareId) }));
     } catch (error) {
       sendSiteShareFailure({ res, error, tracker: required.deps.tracker }, { password: true });

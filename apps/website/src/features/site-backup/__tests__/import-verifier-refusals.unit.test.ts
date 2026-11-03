@@ -122,8 +122,8 @@ test("private paths, path traversal, aliases and file/directory collisions refus
   for (const path of ["themes/site/.env", "themes/site/key.pem"]) {
     const files = new Map(content); files.set(path, Buffer.from("private data"));
     const result = await verify(entries(manifest({}, files), files));
-    assert.equal(result.files.has(path), false);
-    assert.ok(result.warnings.some(notice => notice.includes(path)));
+    assert.deepEqual(result.files.get(path.replace("themes/site/", "themes/untrusted/site/")), files.get(path));
+    assert.ok(result.credentialWarnings.some(warning => warning.path === path));
   }
   const ALIAS = { code: "UNSAFE_PATH", message: "ZIP contains unsafe case or Unicode aliases." };
   const collisions: [string[], { code: string; message: string }][] = [
@@ -152,18 +152,18 @@ test("database and media edits refuse while code edits warn and quarantine the w
   assert.equal(result.warnings.length, 1);
   assert.equal(result.files.get("themes/static/site/index.html")!.toString(), "edited and longer");
 });
-test("source credentials are omitted even in otherwise editable code", { timeout: 120000 }, async () => {
+test("source credentials stay included even in otherwise editable code", { timeout: 120000 }, async () => {
   const files = new Map(content); files.set("themes/site/code.js", Buffer.from('const key = "gh' + 'p_' + "x".repeat(36) + '";'));
   const result = await verify(entries(manifest({}, files), files));
-  assert.equal(result.files.has("themes/site/code.js"), false);
-  assert.ok(result.warnings.some(notice => notice.includes("themes/site/code.js")));
+  assert.equal(result.files.has("themes/untrusted/site/code.js"), true);
+  assert.ok(result.credentialWarnings!.some(warning => warning.path === "themes/site/code.js"));
 });
 test("a credential in an imported agent-plugin package names its archive path, not the scan path", { timeout: 120000 }, async () => {
   const files = new Map(content); files.set("agent-plugins/a/package/targets/deploy.mjs", Buffer.from('const key = "gh' + 'p_' + "x".repeat(36) + '";'));
   const plugins = [{ kind: "agent", id: "a", version: "1.0.0", digest: "b".repeat(64), enabled: false, shipped: true }];
   const result = await verify(entries(manifest({ plugins }, files), files));
-  assert.equal(result.files.has("agent-plugins/a/package/targets/deploy.mjs"), false);
-  assert.ok(result.warnings.some(notice => notice.includes("agent-plugins/a/package/targets/deploy.mjs")));
+  assert.equal(result.files.has("agent-plugins/a/package/targets/deploy.mjs"), true);
+  assert.ok(result.credentialWarnings!.some(warning => warning.path === "agent-plugins/a/package/targets/deploy.mjs"));
 });
 test("projection media and document admission cannot be granted by ZIP checksums", { timeout: 120000 }, async () => {
   await assert.rejects(verify(entries(), { projection: { ...projection, media: [{ storageKey: "other", sha256: "0".repeat(64) }] } }), /not referenced/);
@@ -360,11 +360,11 @@ test("a content stream shorter than its declared size is refused", { timeout: 12
   const items = entries().map(entry => entry.entryPath === "content.db" ? file("content.db", db.subarray(1), db.length) : entry);
   await refuses(items, INVALID("ZIP declared and actual size differ."));
 });
-test("credential-shaped content in a listed file is omitted", { timeout: 120000 }, async () => {
+test("credential-shaped content in a listed file stays included", { timeout: 120000 }, async () => {
   const files = new Map(content); files.set("themes/site/leak.txt", Buffer.from(("token g" + "hp_") + "a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8"));
   const result = await verify(entries(manifest({}, files), files));
-  assert.equal(result.files.has("themes/site/leak.txt"), false);
-  assert.ok(result.warnings.some(notice => notice.includes("themes/site/leak.txt")));
+  assert.equal(result.files.has("themes/untrusted/site/leak.txt"), true);
+  assert.ok(result.credentialWarnings!.some(warning => warning.path === "themes/site/leak.txt"));
 });
 
 // Projection: media -----------------------------------------------------------------------------

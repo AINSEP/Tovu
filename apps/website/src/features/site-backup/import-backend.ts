@@ -81,7 +81,7 @@ export function createSiteImportBackend(required: {
       const verified = await verifySiteImport({ archive, reader: required.reader, sanitize: required.sanitize, schema: required.schema }, { signal: input.signal });
       input.signal.throwIfAborted();
       stageVerifiedImport({ root: registry.stagePath(input.row), verified });
-      row = { ...row, displayName: input.parsed.displayName ?? verified.name, status: "needs-owner", hasEncryptedKeys: Boolean(verified.encryptedKeys), warnings: stagedImportWarnings({ root: registry.stagePath(row) }) };
+      row = { ...row, displayName: input.parsed.displayName ?? verified.name, status: "needs-owner", hasEncryptedKeys: Boolean(verified.encryptedKeys), credentialWarnings: verified.credentialWarnings ?? [], warnings: stagedImportWarnings({ root: registry.stagePath(row) }) };
       put(row);
       return view(row);
     } catch (error) {

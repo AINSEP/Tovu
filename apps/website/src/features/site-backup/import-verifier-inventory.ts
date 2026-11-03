@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
 import type { AgentPluginArchiveEntry, AgentPluginArchiveReaderPort } from "@jini-ai/agent-plugins/lifecycle";
 import { checkShareLimits, SHARE_LIMITS, SiteShareRefusal } from "./share-policy.js";
-import { validateSharePath, excludedSharePath, requireShareSecretFree, claimSharePath, sharePathAlias, secretSharePath, type PackageFileInventory } from "./share-file-policy.js";
+import type { CredentialWarning } from "./credential-warnings.js";
+import { validateSharePath, excludedSharePath, requireShareSecretFree, claimSharePath, sharePathAlias, type PackageFileInventory } from "./share-file-policy.js";
 import { ARCHIVE_MANIFEST_PATH as SITE_BACKUP_MANIFEST_PATH, ARCHIVE_DATABASE_PATH as SITE_BACKUP_DATABASE_PATH, parseArchiveManifest, requireArchiveFileRecord, type ArchiveManifest } from "./archive-manifest.js";
 import { archiveCodeUnit, archiveSecretScanPath } from "./archive-paths.js";
 import { SAVED_KEYS_PATH } from "./saved-keys-port.js";
@@ -168,8 +169,7 @@ export function buildManifestInventory(required: { files: readonly unknown[] }):
 function refusedInventoryPath(path: string): boolean {
   if (path === SITE_BACKUP_DATABASE_PATH || path === SAVED_KEYS_PATH) return false;
   const scanPath = archiveSecretScanPath({ path, plugins: [] });
-  // Credential-like paths must reach the bounded hash check before omission.
-  const privateRuntime = !secretSharePath({ path: scanPath }, { packageContent: true }) && excludedSharePath({ path: scanPath });
+  const privateRuntime = excludedSharePath({ path: scanPath });
   return privateRuntime || !SHARE_INVENTORY_ROOTS.test(path) && !SHARE_SETTINGS_FILES.includes(path);
 }
 
@@ -190,7 +190,7 @@ export function checkArchiveMatchesInventory(required: { inventory: ReadonlyMap<
  * @throws SiteShareRefusal (INVALID_ARCHIVE) or the signal's reason.
  * @complexity O(payload bytes), at most 300 MiB buffered.
  */
-export async function readListedFiles(required: { archive: Buffer; reader: AgentPluginArchiveReaderPort; inventory: ReadonlyMap<string, InventoryRecord>; manifestBytes: Buffer; wrapper?: string; manifest?: ArchiveManifest; modified?: Set<string> }, optional: { signal?: AbortSignal; packageFiles?: PackageFileInventory; bundledImportPluginIds?: ReadonlySet<string>; notices?: string[]; omitted?: Set<string> } = {}): Promise<Map<string, Buffer>> {
+export async function readListedFiles(required: { archive: Buffer; reader: AgentPluginArchiveReaderPort; inventory: ReadonlyMap<string, InventoryRecord>; manifestBytes: Buffer; wrapper?: string; manifest?: ArchiveManifest; modified?: Set<string> }, optional: { signal?: AbortSignal; packageFiles?: PackageFileInventory; bundledImportPluginIds?: ReadonlySet<string>; notices?: string[]; credentialWarnings?: CredentialWarning[] } = {}): Promise<Map<string, Buffer>> {
   const files = new Map<string, Buffer>();
   let expanded = required.manifestBytes.length;
   for await (const entry of required.reader.entries({ archive: required.archive })) {
@@ -207,11 +207,10 @@ export async function readListedFiles(required: { archive: Buffer; reader: Agent
 }
 
 /** Integrity has already passed. Optional ciphertext and projected SQLite have separate owners. */
-function retainListedFile(required: { path: string; content: Buffer; files: Map<string, Buffer>; plugins: ArchiveManifest["plugins"] }, optional: { packageFiles?: PackageFileInventory; bundledImportPluginIds?: ReadonlySet<string>; notices?: string[]; omitted?: Set<string> } = {}): void {
+function retainListedFile(required: { path: string; content: Buffer; files: Map<string, Buffer>; plugins: ArchiveManifest["plugins"] }, optional: { packageFiles?: PackageFileInventory; bundledImportPluginIds?: ReadonlySet<string>; notices?: string[]; credentialWarnings?: CredentialWarning[] } = {}): void {
   const structured = required.path === SITE_BACKUP_DATABASE_PATH || required.path === SAVED_KEYS_PATH;
-  const retained = structured || requireShareSecretFree({ path: archiveSecretScanPath({ path: required.path, plugins: required.plugins }), bytes: required.content }, { ...optional, shownPath: required.path });
-  if (retained) required.files.set(required.path, required.content);
-  else optional.omitted?.add(required.path);
+  if (!structured) requireShareSecretFree({ path: archiveSecretScanPath({ path: required.path, plugins: required.plugins }), bytes: required.content }, { ...optional, shownPath: required.path });
+  required.files.set(required.path, required.content);
 }
 
 async function readListedFile(required: { entry: FileEntry; inventory: ReadonlyMap<string, InventoryRecord>; remainingBytes: number; manifest?: ArchiveManifest; modified?: Set<string> }, optional: { signal?: AbortSignal; packageFiles?: PackageFileInventory; bundledImportPluginIds?: ReadonlySet<string> }): Promise<Buffer> {

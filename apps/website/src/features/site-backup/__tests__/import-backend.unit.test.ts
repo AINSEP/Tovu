@@ -243,3 +243,19 @@ test("a second operation while one holds the import lane is refused as busy", as
   await assert.rejects(backend.list({ principalId: "owner" }), { code: "BUSY", message: "Another import is running. Retry after it finishes." });
   release(); await first;
 });
+
+test("import credential warnings remain visible after owner setup removes the private stage", async t => {
+  const h = await importFixture(t);
+  const token = "ghp_" + "z".repeat(36);
+  h.db.$client.prepare("UPDATE posts SET body_json = ?").run(JSON.stringify({ text: token }));
+  const exported = await h.prepareProductionShare();
+  const upload = await h.backend.upload({ principalId: "recipient", archive: exported.archive });
+  const pending = await h.backend.importBackup({ principalId: "recipient", source: upload });
+  assert.ok(pending.credentialWarnings.some(warning => warning.path === "content.db:posts.body_json"));
+  const ready = await h.backend.completeOwner({ principalId: "recipient", importId: pending.importId, adminPassword: OWNER_PASSWORD });
+  assert.equal(fs.existsSync(h.registry.stagePath(pending)), false);
+  assert.deepEqual(ready.credentialWarnings, pending.credentialWarnings);
+  const reopened = createSiteImportBackend(h.backendPorts);
+  assert.deepEqual(reopened.get({ principalId: "recipient", importId: pending.importId }).credentialWarnings, pending.credentialWarnings);
+  assert.equal(JSON.stringify(ready.credentialWarnings).includes(token), false);
+});

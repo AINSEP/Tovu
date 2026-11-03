@@ -157,6 +157,7 @@ async function run(required: { root: string }, _options: Record<string, never> =
   } finally { await fresh.close(); }
   const media = projection.media.map(blob => documentKeys.has(blob.storageKey) ? { ...blob, destinationStorageKey: documentKeys.get(blob.storageKey) } : blob);
   await writeFile(path.join(required.root, "media.json"), JSON.stringify(media), { flag: "wx", mode: 0o600 });
+  await writeFile(path.join(required.root, "credential-warnings.json"), JSON.stringify(projection.credentialWarnings ?? []), { flag: "wx", mode: 0o600 });
   await writeFile(path.join(required.root, "notices.json"), JSON.stringify(projection.notices ?? []), { flag: "wx", mode: 0o600 });
   // sanitizeShareDatabase() always returns both lists; they are optional only on the shared projection type.
   await writeFile(path.join(required.root, "documents.json"), JSON.stringify(projection.documents!), { flag: "wx", mode: 0o600 });

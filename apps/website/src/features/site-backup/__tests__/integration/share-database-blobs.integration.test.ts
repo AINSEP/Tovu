@@ -1,4 +1,4 @@
-/** BLOBs must pass the same omission policy as text before any bytes enter the share DB. */
+/** BLOBs and text retain their original values with credential warnings. */
 import assert from "node:assert/strict";
 import test from "node:test";
 import Database from "better-sqlite3";
@@ -23,7 +23,7 @@ const records = [
   { id: "empty", bytes: Buffer.alloc(0) },
 ];
 
-for (const notNull of [false, true]) test(`sharing plugin BLOB columns omits credentials with notices (notNull=${notNull})`, async t => {
+for (const notNull of [false, true]) test(`sharing plugin BLOB columns retains credentials with warnings (notNull=${notNull})`, async t => {
   const source = openContentDb({ filePath: ":memory:" });
   t.after(() => source.$client.close());
   source.$client.prepare("INSERT INTO workspaces(id,slug,name,created_at) VALUES ('ws','site','Site',?)").run(stamp);
@@ -53,18 +53,18 @@ for (const notNull of [false, true]) test(`sharing plugin BLOB columns omits cre
   const shared = new Database(bytes); t.after(() => shared.close());
   const read = shared.prepare<[string], { payload_json: Buffer | null; text: string | null; kind: string }>("SELECT payload_json, text, typeof(payload_json) AS kind FROM p_blobfixture__records WHERE id = ?");
   for (const id of ["vendor", "bearer", "mixed"]) {
-    assert.deepEqual(read.get(id)!.payload_json, Buffer.alloc(0), id);
-    assert.equal(read.get(id)!.kind, "blob", "blanking preserves BLOB storage type");
-    assert.ok(projection.notices!.includes(`Saved content that looked like a key was left out: p_blobfixture__records.payload_json row ${id}.`));
+    assert.deepEqual(read.get(id)!.payload_json, records.find(row => row.id === id)!.bytes, id);
+    assert.equal(read.get(id)!.kind, "blob", "retention preserves BLOB storage type");
+    assert.ok(projection.credentialWarnings!.some(warning => warning.path === "content.db:p_blobfixture__records.payload_json"));
   }
   for (const row of records.slice(3)) assert.deepEqual(read.get(row.id)!.payload_json, row.bytes);
   if (!notNull) assert.equal(read.get("null")!.payload_json, null);
-  assert.equal(read.get("vendor")!.text, "");
-  assert.ok(projection.notices!.includes("Saved content that looked like a key was left out: p_blobfixture__records.text row vendor."));
-  assert.equal(projection.notices!.length, 4);
+  assert.equal(read.get("vendor")!.text, key);
+  assert.ok(projection.credentialWarnings!.some(warning => warning.path === "content.db:p_blobfixture__records.text"));
+  assert.equal(projection.credentialWarnings!.filter(warning => warning.path === "content.db:p_blobfixture__records.payload_json").length, 2);
   for (const secret of [key, "credentialValue987654321"]) {
-    assert.equal(bytes.includes(Buffer.from(secret)), false, "no credential bytes in SQLite pages");
-    assert.equal(projection.notices!.join().includes(secret), false);
+    assert.equal(bytes.includes(Buffer.from(secret)), true, "credential bytes remain in SQLite pages");
+    assert.equal(JSON.stringify(projection.credentialWarnings).includes(secret), false);
   }
   assert.deepEqual(source.$client.serialize(), before, "sharing never edits the live database");
 });
