@@ -159,7 +159,10 @@ test('SiteWorkspaces: each open site\'s guest is on that site\'s own partition, 
   // its own `project`, and that same `project` is what the instance's guest reads `partition` from
   // — no lifted or module-level partition in between that could flatten them to one, and no
   // literal partition string that would give every tab the same session.
+  // Both visited, so both keep a live guest under the default limit of two (`useLiveViews`).
   const view = await renderWorkspaces(t, { openSites: [RUNNING, site('b', { status: 'running', port: 4200 })] });
+  view.rerender({ visibleWorkspaceId: 'b' });
+  await settle();
   assert.deepEqual(view.all('webview').map((guest) => guest.getAttribute('partition')), ['persist:a', 'persist:b']);
 });
 

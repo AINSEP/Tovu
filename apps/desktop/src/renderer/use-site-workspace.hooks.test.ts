@@ -16,6 +16,7 @@ import {
   initialSiteWorkspaceState,
   loadResetKey,
   readHistory,
+  restoredSrc,
   siteSurfaceUrl,
   siteWorkspaceReducer,
   stepHistory,
@@ -35,11 +36,11 @@ type NavigationListener = (event: { url: string; isMainFrame?: boolean }) => voi
 test('soft-load retains populated history, the live URL, and the existing guest identity', () => {
   const populated: SiteWorkspaceState = {
     view: 'site', reloadNonce: 4, softLoads: 2, liveUrl: 'http://127.0.0.1:4100/about',
-    history: { canGoBack: true, canGoForward: true },
+    history: { canGoBack: true, canGoForward: true }, restoreUrl: null,
   };
   assert.deepEqual(siteWorkspaceReducer(populated, { type: 'soft-load' }), {
     view: 'site', reloadNonce: 4, softLoads: 3, liveUrl: 'http://127.0.0.1:4100/about',
-    history: { canGoBack: true, canGoForward: true },
+    history: { canGoBack: true, canGoForward: true }, restoreUrl: null,
   });
 });
 
@@ -356,6 +357,38 @@ test('selecting a view highlights it at once, until the guest reports where it l
   const next = siteWorkspaceReducer(state, { type: 'select-view', view: 'site' });
   assert.equal(next.view, 'site');
   assert.equal(next.liveUrl, null);
+});
+
+// ---------------------------------------------------------------------------------------------
+// Live views: a released guest comes back on its own route (use-live-views.hooks.ts)
+// ---------------------------------------------------------------------------------------------
+
+test('a released tab pins its last route as the next src, on the surface it was on, until a recovery remount', () => {
+  const parked = siteWorkspaceReducer(initialSiteWorkspaceState, { type: 'parked', url: 'http://127.0.0.1:4100/about' });
+  assert.equal(parked.restoreUrl, 'http://127.0.0.1:4100/about');
+  assert.equal(parked.view, 'site', 'the toggle follows the surface the guest was released on');
+  assert.equal(siteWorkspaceReducer(parked, { type: 'soft-load' }).restoreUrl, 'http://127.0.0.1:4100/about', 'a reload keeps the pinned src');
+  assert.equal(siteWorkspaceReducer(parked, { type: 'select-view', view: 'admin' }).restoreUrl, 'http://127.0.0.1:4100/about', 'a view switch must not change src under the guest');
+  assert.equal(siteWorkspaceReducer(parked, { type: 'remount' }).restoreUrl, null, 'recovery opens the view root again');
+});
+
+test('a pinned route opens only on the site\'s current origin', () => {
+  const admin = 'http://127.0.0.1:4100/admin/';
+  assert.equal(restoredSrc({ surfaceSrc: admin, restoreUrl: 'http://127.0.0.1:4100/admin/posts' }), 'http://127.0.0.1:4100/admin/posts');
+  assert.equal(restoredSrc({ surfaceSrc: admin, restoreUrl: 'http://127.0.0.1:4999/admin/posts' }), admin, 'the site restarted on another port');
+  assert.equal(restoredSrc({ surfaceSrc: admin, restoreUrl: 'not a url' }), admin);
+  assert.equal(restoredSrc({ surfaceSrc: admin, restoreUrl: null }), admin);
+  assert.equal(restoredSrc({ surfaceSrc: '', restoreUrl: 'http://127.0.0.1:4100/admin/posts' }), '', 'a stopped site mounts no guest');
+});
+
+test('on a restored guest the view toggle loads the other surface imperatively, because src no longer follows the view', async () => {
+  const fake = fakeGuest();
+  const { dispatched, dispatch } = recorder();
+  const state = { ...initialSiteWorkspaceState, view: 'admin' as const, restoreUrl: 'http://127.0.0.1:4100/admin/posts', liveUrl: 'http://127.0.0.1:4100/admin/posts' };
+  actionsFor({ guest: fake.guest, state, dispatch }).selectView('site');
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(fake.calls, ['loadURL http://127.0.0.1:4100/']);
+  assert.deepEqual(dispatched, [{ type: 'select-view', view: 'site' }, { type: 'soft-load' }]);
 });
 
 test('Open in browser sends the surface on screen, not the one last requested', async () => {
