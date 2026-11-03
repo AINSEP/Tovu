@@ -99,7 +99,7 @@ const SWITCH_SITE_INPUT_SCHEMA = {
     },
     restartNow: {
       type: "boolean",
-      description: "Default true: when running under `npm run dev`, restart the dev server onto the new site a few seconds after this call. false = only save the choice.",
+      description: "Default true: under npm run dev, open or reuse the site's warm server and return its URL; a failed warm boot falls back to restarting. false = only save the choice.",
     },
   },
 } as const;
@@ -138,9 +138,9 @@ export const sitesAgentToolCatalog: readonly AgentToolDefinition[] = [
   {
     name: "sites_switch_site",
     description: [
-      "Makes another existing site the one this local dev server serves — the same thing the admin Sites screen's Activate button does.",
-      "Saves the choice (TOVU_SITE in the repo's .env). With restartNow (default true) under `npm run dev`, the dev server then restarts onto the new site by itself a few seconds later — the chat and admin reconnect on their own; reply in one short line and stop.",
-      "Without a dev supervisor (a hand-started `tovu serve`), nothing restarts. Returns {activeSiteName, restartRequired, restartInstructions, restarting} — restarting says whether a restart was started; tell the person the restartInstructions.",
+      "Opens another existing local site — the same activation service the admin Sites screen uses.",
+      "Saves the next-launch choice. With restartNow (default true) under npm run dev, starts or reuses that site's own warm server and returns url. Give the person that link; the current conversation stays on its original site.",
+      "A failed warm boot can fall back to the existing restart switch. Without a dev supervisor, only the next-launch choice is saved. Returns {activeSiteName, restartRequired, restartInstructions, restarting, url?}; tell the person the returned instructions.",
       "Refuses if name is not a registered site (call sites_list first). Disabled where site switching is off (the desktop app, where each site is its own window, and hosted sites).",
     ].join(" "),
     sideEffects: "mutates-durable-state",

@@ -638,6 +638,8 @@ export interface AdminTokenSignInPlugin {
  *  the screen renders it verbatim rather than hardcoding a second copy. */
 export interface AdminSiteActivation {
   ok: boolean;
+  /** Warm switch destination; navigate to this site's own origin. */
+  url?: string;
   restarting?: boolean;
   activeSiteName: string;
   restartRequired: boolean;

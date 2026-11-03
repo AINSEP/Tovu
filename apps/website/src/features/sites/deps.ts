@@ -14,6 +14,7 @@ import type { DevRestartPort } from "#src/platform/dev-supervisor/index";
 import type { SitesWorkspace } from "#src/platform/site-dir/index";
 
 import type { ActivateSitePorts, CreateSiteForOwnerPorts } from "./site-admin.js";
+import type { WarmSiteActivationPorts } from "./warm-switch.js";
 
 /**
  * @file The exact slice of a composition root's deps bag `sites_duplicate_site`'s handler reads —
@@ -73,6 +74,7 @@ export interface SitesToolDeps {
   /** The `npm run dev` restart channel (`platform/dev-supervisor`). Filled in by
    *  `assistant/tool-registrations.ts`'s `enrichedRouteDeps`; `null`/absent = no supervisor. */
   devRestart?: DevRestartPort | null;
+  warmServer?: WarmSiteActivationPorts["warmServer"];
   /** Filled in by `assistant/tool-registrations.ts`'s `enrichedRouteDeps` — see this file's own
    *  header. Falls back to `false` (disabled) if ever absent by the time the handler runs. */
   isSiteSwitcherEnabled?: () => boolean;

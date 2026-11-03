@@ -231,6 +231,7 @@ export function useSites(port: SitesPort, t: Translate): SitesController {
             // `activation`/`activatingName` now, and applying this stale result would let whichever
             // request happens to settle LAST win regardless of which row was actually clicked last.
             if (!activateSettlement.isCurrent({ generation })) return;
+            if (result.url) port.openSite?.(result.url);
             setActivation(result);
           })
           .catch(() => {})
@@ -240,7 +241,7 @@ export function useSites(port: SitesPort, t: Translate): SitesController {
           }) },
       );
     },
-    [activateMutation, createMutation, activateSettlement, writes],
+    [activateMutation, createMutation, activateSettlement, writes, port],
   );
 
   const view = readSnapshot(list.data);

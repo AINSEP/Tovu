@@ -50,6 +50,10 @@ import { pruneTsxCache } from "./prune-tsx-cache.mjs";
 import { loadRepoRootEnvFile } from "./load-repo-root-env.mjs";
 import { localDevPluginInstallEnv } from "./local-dev-plugin-install.mjs";
 import { listenersOn } from "./port-listeners.mjs";
+import { selectNodeRuntime } from "@jini-ai/devops/local-dev";
+import { createRequire } from "node:module";
+import { prepareLiteAdmin } from "./dev-lite.mjs";
+import { randomBytes } from "node:crypto";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
@@ -144,11 +148,11 @@ export function deriveDevScheme(tlsActive) {
   return tlsActive ? "https" : "http";
 }
 
-function preflight() {
+function preflight({ lite = false } = {}) {
   const conflicts = [];
   for (const [label, port] of [
     ["API server", API_PORT],
-    ["admin Vite", VITE_PORT],
+    ...(!lite ? [["admin Vite", VITE_PORT]] : []),
     ["agent daemon", DAEMON_PORT],
   ]) {
     for (const proc of listenersOn(port)) {
@@ -271,7 +275,7 @@ export function buildDevChildEnv({ parent, env }, { warn = console.warn } = {}) 
 
 function start(name, command, args, env) {
   const childEnv = buildDevChildEnv({ parent: process.env, env });
-  const executable = process.platform === "win32" ? `${command}.cmd` : command;
+  const executable = process.platform === "win32" && ["npx", "npm"].includes(command) ? `${command}.cmd` : command;
   const invocation = createCommandInvocation({ command: executable, args, env: childEnv });
   const child = spawn(invocation.command, invocation.args, {
     cwd: REPO_ROOT,
@@ -699,7 +703,7 @@ export async function waitForDevApi({ apiPort, scheme }, { certificate, wait = w
  * @returns Whether admin startup was completed; failure shuts down the entire watcher group.
  */
 export async function finishDevStartup(
-  { apiPort, vitePort, scheme, extraCaCerts, certificate },
+  { apiPort, vitePort, scheme, extraCaCerts, certificate, lite = false },
   { waitForReady = () => waitForDevApi({ apiPort, scheme }, { certificate }), isShuttingDown = () => shuttingDown,
     log = console.log, warn = console.warn, stop = shutdown, startAdmin = startAdminVite } = {},
 ) {
@@ -710,8 +714,9 @@ export async function finishDevStartup(
     stop(1);
     return false;
   }
-  log(`tovu dev: API is up. Open ${scheme}://localhost:${apiPort}/admin/ (Vite direct: ${scheme}://localhost:${vitePort}/admin/)\n`);
-  startAdmin({ apiPort, vitePort, apiScheme: scheme, extraCaCerts });
+  log(lite ? `tovu dev: prebuilt admin at ${scheme}://localhost:${apiPort}/admin/ (no Vite).`
+    : `tovu dev: API is up. Open ${scheme}://localhost:${apiPort}/admin/ (Vite direct: ${scheme}://localhost:${vitePort}/admin/)\n`);
+  if (!lite) startAdmin({ apiPort, vitePort, apiScheme: scheme, extraCaCerts });
   return true;
 }
 
@@ -774,6 +779,7 @@ function openRunningSite({ record }, _options = {}) {
 }
 
 async function main() {
+  const lite = process.argv.includes("--lite");
   warnInheritedAdminPassword({ env: process.env });
   const selectedSite = await prepareDevSitesHome({ repoRoot: REPO_ROOT });
   if (selectedSite.warning) console.warn(`tovu dev: ${selectedSite.warning.message} Open admin Sites settings to choose appData or ${selectedSite.warning.localHome}.`);
@@ -781,7 +787,7 @@ async function main() {
     openRunningSite({ record: selectedSite.running });
     return;
   }
-  preflight();
+  preflight({ lite });
   await pruneTsxCache({});
   // Moved agent plugins ship in @jini-ai/agent-plugins: compose them with Tovu's own into the one
   // bundled root the API seeds from. Children inherit it (buildDevChildEnv spreads process.env).
@@ -799,11 +805,21 @@ async function main() {
   console.log(
     `tovu dev: starting API on ${scheme}://localhost:${API_PORT} (compiling TypeScript, ~5-10s)…\n` +
     `tovu dev: admin will be served at ${scheme}://localhost:${API_PORT}/admin/ once the API is up ` +
-    `(same-origin proxy to Vite; Vite itself stays directly reachable at ${scheme}://localhost:${VITE_PORT}/admin/).\n` +
+    (lite ? `(prebuilt admin; no Vite process).\n` : `(same-origin proxy to Vite; Vite itself stays directly reachable at ${scheme}://localhost:${VITE_PORT}/admin/).\n`) +
     `tovu dev: Ctrl-C stops everything.\n`
   );
 
   const apiEnv = { ...selectedSite.env, ...buildApiEnv({ scheme, apiPort: API_PORT, vitePort: VITE_PORT, supervisorPid: process.pid }, { env: selectedSite.env }) };
+  if (lite) {
+    apiEnv.TOVU_ADMIN_DIST = await prepareLiteAdmin({ repoRoot: REPO_ROOT, env: process.env });
+    apiEnv.TOVU_ADMIN_DEV_PROXY_URL = "";
+  }
+  const runtime = selectNodeRuntime({ searchFrom: [REPO_ROOT, path.join(REPO_ROOT, "apps/desktop")], nodePath: process.execPath });
+  if (runtime.fallback) console.log("tovu dev: Electron unavailable; using stock Node for the API.");
+  Object.assign(apiEnv, runtime.env);
+  apiEnv.TOVU_DEV_WARM_SITES = "1";
+  apiEnv.TOVU_DEV_WARM_HOST_URL = `${scheme}://localhost:${API_PORT}`;
+  apiEnv.TOVU_DEV_WARM_CONTROL_TOKEN = randomBytes(32).toString("hex");
   apiEnv.TOVU_BUNDLED_AGENT_PLUGINS_DIR = process.env.TOVU_BUNDLED_AGENT_PLUGINS_DIR;
   // Snapshot the actual boot selection, including the implicit default, before .env can change.
   apiEnv.TOVU_SITE = selectedSite.env.TOVU_SITE ?? "tovu-dev";
@@ -818,7 +834,8 @@ async function main() {
   apiEnv[DEV_RESTART_REQUEST_FILE_ENV] = restartRequestFile;
   apiEnv.TOVU_DEV_SITE_PINNED = SHELL_TOVU_SITE === undefined ? "0" : "1";
   const apiRestarter = createApiRestarter({
-    startApi: (env) => start("api server", "npx", apiWatchArgs({ sitesHome: process.env.TOVU_SITES_HOME ?? path.dirname(selectedSite.dir) }), env),
+    startApi: (env) => start("api server", runtime.command, [createRequire(import.meta.url).resolve("tsx/cli"),
+      ...apiWatchArgs({ sitesHome: process.env.TOVU_SITES_HOME ?? path.dirname(selectedSite.dir) }).slice(1)], env),
     stopChild: (child) => stopChildGroup({ child }),
     markPlanned: (child) => plannedExits.add(child),
     markRunning: (child) => plannedExits.delete(child),
@@ -869,7 +886,7 @@ async function main() {
    * seconds before the daemon binds :4319. That one is handled where it belongs, in
    * `server/modules/assistant.ts`'s proxy — see its retry note.
    */
-  await finishDevStartup({ apiPort: API_PORT, vitePort: VITE_PORT, scheme, extraCaCerts, certificate });
+  await finishDevStartup({ apiPort: API_PORT, vitePort: VITE_PORT, scheme, extraCaCerts, certificate, lite });
 
   for (const sig of ["SIGINT", "SIGTERM", "SIGHUP"]) {
     process.on(sig, () => {

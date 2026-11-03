@@ -28,6 +28,9 @@ export interface LocalSiteProcess {
   terminate(): Promise<void>;
   /** Synchronous signal path for host exit; async stop still verifies completion. */
   killNow(): void;
+  /** Atomically fence intake and confirm idle. False/absence means eviction is unsafe. */
+  tryRetire?(): Promise<boolean>;
+  cancelRetirement?(): Promise<void>;
 }
 export interface LocalSiteProcessPort {
   isPortFree(required: { port: number }): Promise<boolean>;
@@ -47,7 +50,7 @@ export interface LocalSiteSupervisorPort {
   /** One same-dev-session recovery pass; the host calls this after its boot delay. */
   resume(): Promise<void>;
 }
-interface Entry { state: LocalSiteState; child?: LocalSiteProcess; cancel?: () => void; probes: number; misses: number }
+interface Entry { state: LocalSiteState; child?: LocalSiteProcess; cancel?: () => void; probes: number; misses: number; opened: number }
 
 /** Validate before a name reaches a path or command. @complexity O(n), bounded to 100 chars. */
 export function assertLocalSiteName({ name }: { name: string }, _optional = {}): void {
@@ -57,14 +60,19 @@ export function assertLocalSiteName({ name }: { name: string }, _optional = {}):
 /** Create a host-owned lifecycle with a bounded scan and DI effects. @complexity O(s) per list/cap. */
 export function createLocalSiteSupervisor(
   { processPort, servingName, scheme }: { processPort: LocalSiteProcessPort; servingName: string; scheme: "http" | "https" },
-  { maxConcurrent = 3, excludedPorts = [], readyAttempts = 240, devSession, intentPort = { read: () => undefined, write: () => {} } }:
-  { maxConcurrent?: number; excludedPorts?: readonly number[]; readyAttempts?: number; devSession?: string; intentPort?: LocalSiteIntentPort } = {},
+  { maxConcurrent = 3, excludedPorts = [], readyAttempts = 240, devSession, evictIdle = false, intentPort = { read: () => undefined, write: () => {} } }:
+  { maxConcurrent?: number; excludedPorts?: readonly number[]; readyAttempts?: number; devSession?: string; evictIdle?: boolean; intentPort?: LocalSiteIntentPort } = {},
 ): LocalSiteSupervisorPort {
   if (!Number.isInteger(maxConcurrent) || maxConcurrent < 1 || maxConcurrent > 20) throw new LocalSiteError("INVALID_SITE_LIMIT");
   const entries = new Map<string, Entry>();
   const reserved = new Set([3000, 5173, 4319, ...excludedPorts]);
+  const stored = devSession && evictIdle ? intentPort.read() : undefined;
+  const apiPorts = new Map<string, number>(stored?.session === devSession
+    ? Object.entries(stored?.ports ?? {}).map(([name, site]) => [name, site.port]) : []);
+  for (const port of apiPorts.values()) reserved.add(port);
   let closed = false;
   let resumed = false;
+  let opened = 0;
   let lane: Promise<unknown> = Promise.resolve();
   function serial<T>(task: () => Promise<T>): Promise<T> {
     const next = lane.then(task);
@@ -93,7 +101,7 @@ export function createLocalSiteSupervisor(
     try { await entry.child?.terminate(); }
     catch { throw new LocalSiteError("SITE_STOP_FAILED"); }
     // Reservations survive a failed stop: a still-live child cannot share a replacement's port.
-    if (entry.state.port !== null) reserved.delete(entry.state.port);
+    if (entry.state.port !== null && !evictIdle) reserved.delete(entry.state.port);
     if (entry.state.daemonPort !== null) reserved.delete(entry.state.daemonPort);
     entry.child = undefined;
     entry.state = { ...entry.state, status, pid: null, port: null, daemonPort: null, adminUrl: null };
@@ -121,16 +129,34 @@ export function createLocalSiteSupervisor(
   function scheduleProbe(entry: Entry) {
     entry.cancel = processPort.schedule({ run: () => { void probe(entry); }, delayMs: entry.state.status === "starting" ? 500 : 5000 });
   }
+  /** Admission and retirement run in the same lane; only positively idle owned children stop.
+   * External leases never become eviction candidates. @complexity O(s log s), bounded by the cap.
+   */
+  async function makeRoom(): Promise<void> {
+    const live = [...entries.values()].filter(entry => entry.child || entry.state.status === "starting");
+    if (live.length < maxConcurrent) return;
+    if (evictIdle) {
+      for (const entry of live.sort((a, b) => a.opened - b.opened)) {
+        if (!await entry.child?.tryRetire?.().catch(() => false)) continue;
+        try { updateIntent({ name: entry.state.name }); }
+        catch (error) { await entry.child?.cancelRetirement?.(); throw error; }
+        entry.state.status = "stopped";
+        await reap(entry, "stopped");
+        return;
+      }
+    }
+    throw new LocalSiteError("SITE_LIMIT");
+  }
   async function start(name: string, preferred?: number): Promise<LocalSiteState> {
     checkName(name);
     const current = currentState(name);
-    if (current) return current;
-    if ([...entries.values()].filter((entry) => entry.child || entry.state.status === "starting").length >= maxConcurrent) {
+    if (current) { const entry = entries.get(name); if (entry) entry.opened = ++opened; return current; }
+    try { await makeRoom(); } catch (error) {
       // Admission failures also withdraw a pending request, before there is an Entry to reap.
       updateIntent({ name });
-      throw new LocalSiteError("SITE_LIMIT");
+      throw error;
     }
-    const entry: Entry = { state: { name, status: "starting", pid: null, port: null, daemonPort: null, adminUrl: null }, probes: 0, misses: 0 };
+    const entry: Entry = { state: { name, status: "starting", pid: null, port: null, daemonPort: null, adminUrl: null }, probes: 0, misses: 0, opened: ++opened };
     entries.set(name, entry);
     try {
       return await launch(entry, preferred);
@@ -153,9 +179,23 @@ export function createLocalSiteSupervisor(
     if (previous.state.status === "crashed") throw new LocalSiteError("SITE_STOP_FAILED");
     return { ...previous.state };
   }
+  /** A session's public URLs are identities, not reusable pool slots. An occupied old port
+   * refuses the start rather than moving the same site or another site behind that URL.
+   * @complexity O(1) for a remembered URL; otherwise the existing bounded port scan.
+   */
+  async function allocateSitePort({ name, preferred }: { name: string; preferred?: number }): Promise<number> {
+    const remembered = apiPorts.get(name);
+    if (remembered !== undefined) {
+      if (!await processPort.isPortFree({ port: remembered })) throw new LocalSiteError("SITE_PORT_BUSY");
+      return remembered;
+    }
+    const port = await allocate(preferred);
+    if (evictIdle) apiPorts.set(name, port);
+    return port;
+  }
   async function launch(entry: Entry, preferred?: number): Promise<LocalSiteState> {
     const { name } = entry.state;
-    const port = await allocate(preferred);
+    const port = await allocateSitePort({ name, preferred });
     entry.state.port = port;
     updateIntent({ name, port });
     const daemonPort = await allocate();
@@ -179,14 +219,16 @@ export function createLocalSiteSupervisor(
     const sites = stored?.session === devSession ? { ...stored.sites } : {};
     if (port === undefined) delete sites[name];
     else sites[name] = { port };
-    intentPort.write({ intent: { session: devSession, sites } });
+    intentPort.write({ intent: { session: devSession, sites,
+      ...(evictIdle ? { ports: Object.fromEntries([...apiPorts].map(([siteName, apiPort]) => [siteName, { port: apiPort }])) } : {}),
+    } });
   }
   /** Give the old tree/lease five seconds to disappear before trying a different free port.
    * @complexity O(1): at most 11 probes and ten 500 ms waits.
    */
   async function preferredPort(name: string, port: number): Promise<number | undefined> {
     for (let attempt = 0; attempt <= 10; attempt++) {
-      if (closed || reserved.has(port)) return undefined;
+      if (closed || (reserved.has(port) && apiPorts.get(name) !== port)) return undefined;
       if (!processPort.existing?.({ name }) && await processPort.isPortFree({ port })) return port;
       if (attempt < 10) await new Promise<void>(resolve => { processPort.schedule({ run: resolve, delayMs: 500 }); });
     }

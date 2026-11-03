@@ -56,7 +56,7 @@ export function ownerPidFrom({ env }: { env: NodeJS.ProcessEnv }, _optional: Rec
  * @complexity O(1) — one liveness signal.
  */
 export function parentGone({ proc, ownerPid }: { proc: LocalSiteChildProcess; ownerPid: number }, _optional: Record<string, never> = {}): boolean {
-  if (proc.ppid !== ownerPid) return true;
+  if (proc.ppid !== ownerPid && proc.env.TOVU_LOCAL_SITE_WATCH !== "1") return true;
   try { proc.kill(ownerPid, 0); return false; }
   catch (error) { return (error as NodeJS.ErrnoException).code === "ESRCH"; }
 }

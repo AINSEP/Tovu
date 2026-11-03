@@ -90,7 +90,9 @@ export function useLocalSites(
       if (isConfirmable(action) && !(await confirm(t(LOCAL_SITE_CONFIRM_KEYS[action]), { action }))) return;
       const result = await port.manageLocalSite({ name, action, confirmed: true, checked: checked[name] === true });
       if (action === "switch") {
-        if (restartAccepted(result)) setSwitchTarget({ name, deadline: Date.now() + 60_000 });
+        const url = (result as { url?: unknown } | undefined)?.url;
+        if (typeof url === "string") port.openSite?.(url);
+        else if (restartAccepted(result)) setSwitchTarget({ name, deadline: Date.now() + 60_000 });
         else setError(t("This host could not switch now. The default is saved for the next launch."));
       }
       refresh();

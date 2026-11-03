@@ -16,7 +16,8 @@ import {
 
 import { SITES_WRITE_PERMISSION, sitesAgentToolCatalog, sitesReadAgentToolCatalog } from "./agent-tools.js";
 import { resolveSitesDeps, type SitesToolDeps } from "./deps.js";
-import { activateSite, createSiteForOwner, resolveSiteSwitchBase, type SiteAdminRefusal, type SiteAdminRefusalCode } from "./site-admin.js";
+import { createSiteForOwner, resolveSiteSwitchBase, type SiteAdminRefusal, type SiteAdminRefusalCode } from "./site-admin.js";
+import { activateSiteWithWarmServer } from "./warm-switch.js";
 
 /**
  * @file Maps the Sites catalog onto `duplicateSite()` and `site-admin.ts`'s `createSiteForOwner` /
@@ -224,9 +225,9 @@ export function buildSitesRegistrations(routeDeps: SitesToolDeps): ToolRegistrat
       const restartNow = optionalBoolean({ input, key: "restartNow" }) ?? true;
       const switcherBase = await gateSiteSwitchWrite(routeDeps, switcherEnabled, ctx.principal.id);
       return withSchemaOnRejection({ toolId: "sites_switch_site", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection(error), fn: async () => {
-        const { ok: _ok, ...activated } = orThrowRefusal(activateSite(
+        const { ok: _ok, ...activated } = orThrowRefusal(await activateSiteWithWarmServer(
           { switcherBase, name, currentSiteName: routeDeps.siteBinding.name, restartNow, dirOverridden: routeDeps.siteBinding.dirOverridden },
-          { listSites: routeDeps.listSites, persistActiveSite: routeDeps.persistActiveSite, devRestart: routeDeps.devRestart,
+          { listSites: routeDeps.listSites, persistActiveSite: routeDeps.persistActiveSite, devRestart: routeDeps.devRestart, warmServer: routeDeps.warmServer,
             readSiteRunning: routeDeps.readSiteRunning, workspace: routeDeps.sitesWorkspace },
         ));
         return activated;

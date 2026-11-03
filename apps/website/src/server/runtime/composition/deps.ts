@@ -2912,7 +2912,7 @@ async function composeSiteRouteDeps(
     // `<home>/<name>` pinned and starts its own sites, so it has no supervisor here.
     const importBase = siteCreationBaseForBinding({ binding: resolvedSiteBinding });
     if (importBase !== null) {
-      const importSupervisor = localSiteSupervisorForHost({ binding: resolvedSiteBinding });
+      const importSupervisor = localSiteSupervisorForHost({ binding: resolvedSiteBinding, workspaceId });
       const workspace = createSitesWorkspace({}, { cwd: importBase });
       // Import payloads live in app-data, outside every served/source tree, including app-data DBs.
       const registry = new SiteImportRegistry({ directory: join(workspace.config({}).appData, "site-imports", workspaceId) });

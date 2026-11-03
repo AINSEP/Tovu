@@ -1,4 +1,5 @@
 import { createVisitorPageTargets } from './visitor-page-targets.js';
+import { registerWarmSiteRetirement } from '../lifecycle/warm-site-retirement.js';
 import { notifyExternalMcpRosterChanged } from "../../../assistant/external-mcp-roster-change.js";
 import { composeAgentPluginMcp, composeAgentPluginPreferences, composePluginProviderFaces } from "./agent-plugin-service-ports.js";
 import { sanitizeShareDatabase } from "./site-portability.js";
@@ -1945,6 +1946,7 @@ function registerAdminSpa({ app, routeDeps }: { app: Express; routeDeps: RouteDe
 
 export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps = createRouteDeps(), options: CreateAppOptions = {}) {
   const app = express();
+  registerWarmSiteRetirement({ app, siteDir: routeDeps.siteBinding.dir });
   // All admin error mappers share this request-scoped diagnostic port, including narrow route deps.
   app.use("/api/admin", (_req, res, next) => { res.locals.adminFailureTracker = routeDeps.tracker; next(); });
   const internalRouter = express.Router();

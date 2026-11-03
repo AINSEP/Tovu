@@ -20,6 +20,7 @@
   "scripts": {
     "prepare": "node development/scripts/prepare-desktop-hooks.mjs",
     "dev": "node development/scripts/dev.mjs",
+    "dev:lite": "node development/scripts/dev.mjs --lite",
     "sites:move-home": "node --import tsx development/scripts/sites-move-home.ts",
     "desktop": "node development/scripts/dev-desktop.mjs",
     "seed:site": "node --import tsx development/scripts/seed-site.mjs",

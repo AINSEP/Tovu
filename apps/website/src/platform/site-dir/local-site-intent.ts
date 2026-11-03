@@ -4,7 +4,11 @@ import { join } from "node:path";
 import { createNodeAtomicFilesystem, writeJsonFileAtomic } from "@jini-ai/platform/fs";
 import { SITE_NAME_PATTERN } from "./site-registry.js";
 
-export interface LocalSiteIntent { session: string; sites: Record<string, { port: number }> }
+export interface LocalSiteIntent {
+  session: string; sites: Record<string, { port: number }>;
+  /** Warm URLs stay assigned even after LRU eviction; never serve another site at an old URL. */
+  ports?: Record<string, { port: number }>;
+}
 export interface LocalSiteIntentPort {
   read(): LocalSiteIntent | undefined;
   write(required: { intent: LocalSiteIntent }): void;
@@ -23,9 +27,13 @@ function validSite([name, value]: [string, unknown]): boolean {
 /** Validate the snapshot envelope independently of filesystem recovery. @complexity O(s). */
 function validIntent(value: unknown): value is LocalSiteIntent {
   if (!value || typeof value !== "object") return false;
-  const { session, sites } = value as Partial<LocalSiteIntent>;
+  const { session, sites, ports } = value as Partial<LocalSiteIntent>;
   if (typeof session !== "string" || !sites || typeof sites !== "object" || Array.isArray(sites)) return false;
-  return Object.entries(sites).every(validSite);
+  if (!Object.entries(sites).every(validSite)) return false;
+  if (ports === undefined) return true;
+  if (!ports || typeof ports !== 'object' || Array.isArray(ports)) return false;
+  return Object.entries(ports).every(validSite)
+    && new Set(Object.values(ports).map(site => site.port)).size === Object.keys(ports).length;
 }
 
 /** Missing or corrupt intent means no requested starts; filesystem access failures propagate.

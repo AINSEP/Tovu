@@ -70,6 +70,7 @@ import { isSiteSwitcherEnabled as REAL_IS_SITE_SWITCHER_ENABLED } from "../platf
 // Same pattern for `SitesToolDeps.devRestart` (OD-S1): the `npm run dev` restart channel,
 // `null` outside `dev.mjs`. Read from the env here so `features/sites` never reads `process.env` itself.
 import { devRestartPortFromEnv } from "../platform/dev-supervisor/index.js";
+import { warmSiteServerForAgent } from "../server/runtime/lifecycle/warm-site-agent.js";
 import type { TaxonomyToolDeps } from "../features/taxonomy/tool-registrations.js";
 import type { ThemeToolDeps } from "../features/theme/tool-registrations.js";
 import type { SetActiveThemeToolDeps } from "../features/theme/tool-registrations.js";
@@ -292,10 +293,11 @@ function enrichToolRouteDeps({ routeDeps }: { routeDeps: AssistantToolRegistryDe
     ...routeDeps,
     isSiteSwitcherEnabled: routeDeps.isSiteSwitcherEnabled ?? REAL_IS_SITE_SWITCHER_ENABLED,
     devRestart: routeDeps.devRestart === undefined ? devRestartPortFromEnv() : routeDeps.devRestart,
+    warmServer: routeDeps.warmServer ?? warmSiteServerForAgent({}),
   };
   // Keep peer composition's fail-closed missing-field behavior through this enrichment.
   return new Proxy(enrichment, {
-    get: (target, key, receiver) => key === "isSiteSwitcherEnabled" || key === "devRestart"
+    get: (target, key, receiver) => key === "isSiteSwitcherEnabled" || key === "devRestart" || key === "warmServer"
       ? Reflect.get(target, key, receiver) : Reflect.get(routeDeps, key),
   });
 }

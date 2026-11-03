@@ -13,6 +13,7 @@ import type { AdminLocalSiteAction, AdminCreatedSite, AdminCreatedSiteAgentPlugi
  * having them injected.
  */
 export interface SitesPort {
+  openSite?(url: string): void;
   manageLocalSite?(input: { name: string; action: AdminLocalSiteAction; confirmed?: boolean; checked?: boolean }): Promise<unknown>;
   listSites(): Promise<AdminSitesSnapshot>;
   createSite(input: { name: string; adminPassword?: string; agentPluginTokens?: Record<string, string> }): Promise<{ site: AdminCreatedSite; agentPluginTokens?: AdminCreatedSiteAgentPluginTokens }>;

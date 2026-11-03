@@ -4,6 +4,7 @@ import type { SitesPort } from "./sites-port.hooks";
 /** The live implementation, as a module-level singleton — matches
  *  `deployment-overview-dependencies.hooks.ts`'s `defaultDeploymentOverviewPort`. */
 export const defaultSitesPort: SitesPort = {
+  openSite: (url) => window.location.assign(url),
   manageLocalSite: (input) => api.manageLocalSite(input),
   listSites: () => api.listSites(),
   createSite: (input) => api.createSite(input),

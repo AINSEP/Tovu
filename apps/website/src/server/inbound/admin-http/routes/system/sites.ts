@@ -3,7 +3,9 @@ import { bundledAgentPluginsDir } from "#src/server/runtime/composition/site-pat
 import { composePluginCredentials } from "#src/server/runtime/composition/agent-plugin-service-ports";
 import { registerSitesHomeRoutes } from "../sites/sites-home.js";
 import { registerLocalSitesRoutes, type LocalSitesRouteDeps } from "../sites/local-sites.js";
-import { localSiteSupervisorForHost } from "#src/server/runtime/lifecycle/local-site-host";
+import { localSiteSupervisorForHost, warmSiteServerForHost } from "#src/server/runtime/lifecycle/local-site-host";
+import { activateSiteWithWarmServer } from "#src/features/sites/warm-switch";
+import { registerWarmSiteControl } from "../sites/warm-site-control.js";
 import { registerSitePreviewRoutes, servingAddressOf, sitePreviewTargets } from "../sites/site-previews.js";
 import { sitePreviewServiceForHost } from "#src/server/runtime/lifecycle/site-preview-host";
 import type { SitePreviewService } from "#src/features/sites/index";
@@ -28,7 +30,6 @@ import {
 import { devRestartPortFromEnv, type DevRestartPort } from "#src/platform/dev-supervisor/index";
 import { listNewSiteAgentPluginTokenSignInPlugins } from "#src/features/agent-plugins/new-site-agent-plugin-tokens";
 import {
-  activateSite,
   createSiteForOwner,
   resolveSiteSwitchBase,
   type SiteAdminRefusal,
@@ -267,7 +268,8 @@ function listingManagement({ deps, localSiteSupervisor, switcherBase, devRestart
 }, _options = {}) {
   return {
     localManagementEnabled: isSiteSwitcherEnabled() && localSiteSupervisor !== undefined && switcherBase !== null,
-    canSwitchNow: canSwitchListingSite({ isSiteSwitcherEnabled, devRestart, binding, switcherBase }),
+    canSwitchNow: process.env.TOVU_DEV_WARM_SITES === "1" && isSiteSwitcherEnabled() && localSiteSupervisor !== undefined && switcherBase !== null
+      || canSwitchListingSite({ isSiteSwitcherEnabled, devRestart, binding, switcherBase }),
     localSites,
     trash: isSiteSwitcherEnabled() && switcherBase !== null && localSiteSupervisor
       ? (deps.listSiteTrash ?? listSiteTrash)({ base: switcherBase }) : [],
@@ -303,10 +305,24 @@ function createSiteFromRequest({ body, deps, switcherBase, name, actorId }: {
 export function registerAdminSitesRoutes(app: Express, deps: AdminSitesDeps): void {
   const sitesWorkspace = deps.sitesWorkspace ?? createSitesWorkspace({});
   registerSitesHomeRoutes({ app, deps, workspace: sitesWorkspace });
+  if (registerWarmSiteControl({ app, binding: deps.siteBinding, workspaceId: deps.workspaceId })) return;
   const listSites = deps.listSites ?? listSitesReal;
   const isSiteSwitcherEnabled = deps.isSiteSwitcherEnabled ?? isSiteSwitcherEnabledReal;
   const readPersistedActiveSite = deps.readPersistedActiveSite ?? readPersistedActiveSiteReal;
-  const localSiteSupervisor = deps.localSiteSupervisor ?? localSiteSupervisorForHost({ binding: deps.siteBinding });
+  const localSiteSupervisor = deps.localSiteSupervisor ?? localSiteSupervisorForHost({ binding: deps.siteBinding, workspaceId: deps.workspaceId });
+  const warmServer = warmSiteServerForHost({ binding: deps.siteBinding, workspaceId: deps.workspaceId });
+  if (warmServer && process.env.TOVU_DEV_WARM_CONTROL_TOKEN) {
+    app.post("/internal/dev-warm-site", async (req, res) => {
+      if (req.headers["x-tovu-warm-control"] !== process.env.TOVU_DEV_WARM_CONTROL_TOKEN) { res.sendStatus(404); return; }
+      try {
+        if (typeof req.body?.name !== "string") { res.sendStatus(400); return; }
+        res.json({ url: await warmServer({ name: req.body.name }) });
+      } catch (error) {
+        const code = error instanceof Error && "code" in error ? String(error.code) : "SITE_START_FAILED";
+        res.status(409).json({ code });
+      }
+    });
+  }
   // HTTP sends its JSON response before the timer fires; only chat needs a reply grace period.
   const devRestart = deps.devRestart === undefined ? devRestartPortFromEnv({ delayMs: 0 }) : deps.devRestart;
   const sitePreviews = deps.sitePreviews === undefined ? sitePreviewServiceForHost({ binding: deps.siteBinding }) : deps.sitePreviews ?? undefined;
@@ -429,9 +445,9 @@ export function registerAdminSitesRoutes(app: Express, deps: AdminSitesDeps): vo
       // `restartNow: true` (2026-10-05, OD-S1) asks the `npm run dev` supervisor to restart onto the
       // new site; without it, Activate behaves exactly as before (persist + instructions).
       const restartNow = (req.body as Record<string, unknown> | null | undefined)?.restartNow === true;
-      const activated = activateSite(
+      const activated = await activateSiteWithWarmServer(
         { switcherBase: gate.switcherBase, name: String(req.params.name ?? ""), currentSiteName: deps.siteBinding.name, restartNow, dirOverridden: deps.siteBinding.dirOverridden },
-        { listSites, persistActiveSite: deps.persistActiveSite, devRestart, readSiteRunning: deps.readSiteRunning, workspace: sitesWorkspace },
+        { listSites, persistActiveSite: deps.persistActiveSite, devRestart, readSiteRunning: deps.readSiteRunning, workspace: sitesWorkspace, warmServer },
       );
       if (!activated.ok) {
         sendRefusal(res, activated);

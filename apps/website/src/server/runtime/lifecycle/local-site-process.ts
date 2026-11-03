@@ -7,9 +7,11 @@ import { format } from "node:util";
 /** Host adapter: Jini owns native process lifecycle; Tovu owns site boot and credential isolation. */
 import path from "node:path";
 import { mkdtempSync } from "node:fs";
+import { createRequire } from "node:module";
+import { randomBytes } from "node:crypto";
 import os from "node:os";
 import { redactLocalText } from "../../../platform/server-logs/redact-local-text.js";
-import { probeLoopbackHttp } from "@jini-ai/platform/net";
+import { probeLoopbackHttp, requestLoopbackHttp } from "@jini-ai/platform/net";
 import { allocatePort, readLiveDaemonRegistryRecord } from "@jini-ai/sidecar";
 import { createNodeDaemonProcessAdapter, type NodeDaemonProcessOptions } from "@jini-ai/sidecar/supervisor/node";
 import { listProcessSnapshots, readFlagValue } from "@jini-ai/platform/process";
@@ -68,6 +70,28 @@ export function localSiteProcessLog({ name, siteDir }: { name: string; siteDir: 
   } };
 }
 
+/** Paths and local capabilities for one dev pool, never provider/deploy secrets. The original
+ * host is the only process owner; children relay management to it. @complexity O(1), fixed keys.
+ */
+function warmSiteEnvironment({ parent }: { parent: NodeJS.ProcessEnv }, _options = {}): NodeJS.ProcessEnv {
+  if (parent.TOVU_DEV_WARM_SITES !== "1") return {};
+  const keys = ["TOVU_DEV_WARM_SITES", "TOVU_DEV_WARM_CONTROL_URL", "TOVU_DEV_WARM_CONTROL_WORKSPACE",
+    "TOVU_DEV_WARM_HOST_URL", "TOVU_DEV_WARM_CONTROL_TOKEN", "TOVU_SITES_HOME", "TOVU_SITE_ROOTS", "TOVU_DESKTOP_USER_DATA_DIR",
+    "TOVU_BUNDLED_AGENT_PLUGINS_DIR", "NODE_EXTRA_CA_CERTS", "ELECTRON_RUN_AS_NODE"];
+  return { ...Object.fromEntries(keys.filter(key => parent[key] !== undefined).map(key => [key, parent[key]])),
+    TOVU_ENABLE_SITE_SWITCHER: "1", TOVU_SITE_SELECTION_PINNED: "1" };
+}
+
+/** Keep tsx's existing debounced dependency watcher around source children. Packaged children
+ * keep their compiled entry. @complexity O(1), no process starts in this decision.
+ */
+function localSiteLaunchArgs({ compiled, watch, repoRoot }: { compiled: boolean; watch: boolean; repoRoot: string }, _options = {}): string[] {
+  if (compiled) return [fileURLToPath(new URL("../../../platform/site-dir/local-site-child.js", import.meta.url))];
+  const entry = path.join(repoRoot, "apps/website/src/platform/site-dir/local-site-child.ts");
+  if (!watch) return ["--import", "tsx", entry];
+  return [createRequire(import.meta.url).resolve("tsx/cli"), "watch", "--clear-screen=false", "--exclude", "**/plugins-runtime/**", entry];
+}
+
 /** Allowlist OS necessities, then supply site-scoped values. Never inherit deploy/provider secrets.
  * HOME permits the site's own key resolver and local CLI authentication; no shell env file is loaded.
  * Warn when dropping installed-store overrides; bundled product sources are not installed state.
@@ -94,7 +118,7 @@ export function localSiteChildEnv(
   return { ...env, NODE_ENV: "development", PORT: String(port), TOVU_HOST: "127.0.0.1",
     TOVU_SITE: name, TOVU_SITE_DIR: siteDir, TOVU_AGENT_CWD: siteDir,
     TOVU_REPO_ROOT: repoRoot, TOVU_LOCAL_ADMIN_BUILD_ROOT: buildRoot, TOVU_LOCAL_SITE_OWNER_PID: String(process.pid),
-    TOVU_ENABLE_SITE_SWITCHER: "0",
+    TOVU_ENABLE_SITE_SWITCHER: "0", ...warmSiteEnvironment({ parent }),
     // Carry a proven local capability, never a raw flag from a deployed/misconfigured parent.
     TOVU_DEV_OWNER_SIGNIN: resolveLocalOwnerSignIn({ env: parent }, { pathExists }).enabled ? "1" : "0",
     TOVU_API_URL: `http://127.0.0.1:${port}`, JINI_AGENT_DAEMON_PORT: String(daemonPort),
@@ -149,15 +173,17 @@ export function createLocalSiteProcessPort(
       // Encode ownership atomically with creation so a restart can reclaim only dead hosts' builds.
       buildRoot ??= mkdtempSync(path.join(os.tmpdir(), `tovu-local-sites-${process.pid}-`));
       const childEnv = localSiteChildEnv({ parent: env, name, siteDir, port, daemonPort, repoRoot, buildRoot });
+      childEnv.TOVU_DEV_RETIRE_TOKEN = randomBytes(32).toString("hex");
       childEnv.TOVU_API_URL = `${scheme}://localhost:${port}`;
       // Match packaged journeys: a supplied production admin bundle can be shared without rebuilding.
       if (env.TOVU_ADMIN_DIST) childEnv.TOVU_ADMIN_DIST = env.TOVU_ADMIN_DIST;
       const compiled = import.meta.filename.endsWith(".js");
-      const entry = path.join(repoRoot, "apps/website/src/platform/site-dir/local-site-child.ts");
-      const compiledEntry = fileURLToPath(new URL("../../../platform/site-dir/local-site-child.js", import.meta.url));
+      const watch = !compiled && env.TOVU_DEV_WARM_SITES === "1";
+      if (watch) childEnv.TOVU_LOCAL_SITE_WATCH = "1";
+      const args = localSiteLaunchArgs({ compiled, watch, repoRoot });
       const diagnostics = localSiteProcessLog({ name, siteDir });
       const adapter = createNodeDaemonProcessAdapter({ command: process.execPath,
-        args: compiled ? [compiledEntry] : ["--import", "tsx", entry], cwd: repoRoot, env: childEnv, registry }, { ...processOptions, stderr: diagnostics.stderr });
+        args, cwd: repoRoot, env: childEnv, registry }, { ...processOptions, stderr: diagnostics.stderr });
       const child = adapter.spawnDaemonProcess();
       diagnostics.observe({ child });
       if (child.pid === undefined) throw new LocalSiteError("SITE_START_FAILED");
@@ -166,19 +192,27 @@ export function createLocalSiteProcessPort(
       child.on({ event: "exit", listener: () => { exited = true; for (const listener of listeners) listener(); } });
       child.on({ event: "error", listener: () => { exited = true; for (const listener of listeners) listener(); } });
       let daemon: SpawnedDaemonProcess | undefined;
+      const retirementRequest = (method: string) => requestLoopbackHttp({ url: `${scheme}://localhost:${port}/internal/dev-site-retire`,
+        method, headers: { "x-tovu-retire": childEnv.TOVU_DEV_RETIRE_TOKEN! } }, { certificate: tls.credentials?.cert });
       async function discoverDaemon() {
         const record = await readLiveDaemonRegistryRecord({ registryPath: path.join(siteDir, "ops/assistant-daemon.json") });
         const pid = record?.port === daemonPort ? record.pid : daemon?.pid;
         if (pid === undefined) return;
         const live = (await listProcessSnapshots()).find((item) => item.pid === pid);
         const owner = live ? readFlagValue(live.command.trim().split(/\s+/), "--local-site-api-pid") : null;
-        if (!live?.command.includes("agent-daemon-server") || owner !== String(child.pid)) { daemon = undefined; return; }
+        const apiPid = watch ? listSites({ cwd: switcherBase, env }).find(site => site.name === name)?.running?.pid : child.pid;
+        if (!live?.command.includes("agent-daemon-server") || owner !== String(apiPid)) { daemon = undefined; return; }
         daemon = { pid, on() {}, kill(_required, { signal = "SIGTERM" } = {}) {
           try { process.kill(pid, signal); return true; } catch { return false; }
         } };
       }
       return {
         pid: child.pid,
+        async tryRetire() {
+          try { return (await retirementRequest("POST")).status === 204; }
+          catch { await retirementRequest("DELETE").catch(() => {}); return false; }
+        },
+        async cancelRetirement() { await retirementRequest("DELETE"); },
         onExit({ listener }) { listeners.add(listener); if (exited) listener(); },
         async ready() {
           if (!childEnv.TOVU_ADMIN_DIST) await waitForLocalAdminBuild({ runtimeDir: buildRoot!, exited: () => exited });
