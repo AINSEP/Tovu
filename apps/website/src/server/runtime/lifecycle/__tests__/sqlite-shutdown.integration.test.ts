@@ -60,14 +60,18 @@ for (const role of ["owner", "workspace-client"] as const) {
         if (${JSON.stringify(role)} === 'owner') await deps.databaseLedgerRepo.append({ id: 'shutdown-ledger', kind: 'core.migration', outcome: 'ok', createdAt: '2026-10-13T00:00:00.000Z' });
         process.send('ready');
       `], {
-        stdio: ["ignore", "ignore", "ignore", "ipc"],
+        stdio: ["ignore", "ignore", "pipe", "ipc"],
         env: { ...process.env, ...isolatedCatalogEnv, TOVU_SITE_DIR: dir, TOVU_DATABASE_JOURNAL_DB: journalPath },
       });
+      // A pre-readiness failure must retain its cause; exit code 1 alone hides module-load errors.
+      let childErrors = "";
+      child.stderr?.setEncoding("utf8");
+      child.stderr?.on("data", (chunk: string) => { childErrors = (childErrors + chunk).slice(-16_000); });
       const exited = once(child, "exit");
       try {
         // Race readiness with exit so a refused boot fails immediately instead of hanging.
         const ready = await Promise.race([once(child, "message", { signal: AbortSignal.timeout(40_000) }), exited]);
-        assert.equal(ready[0], "ready");
+        assert.equal(ready[0], "ready", childErrors || "child exited before database readiness");
         for (const file of (role === "owner" ? [contentPath, chatPath, journalPath] : [contentPath, chatPath])) {
           assert.equal(fs.existsSync(`${file}-wal`), true, `${file} has a WAL before shutdown`);
           assert.equal(fs.existsSync(`${file}-shm`), true, `${file} has shared memory before shutdown`);

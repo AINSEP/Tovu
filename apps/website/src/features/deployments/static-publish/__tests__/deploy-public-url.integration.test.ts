@@ -85,7 +85,7 @@ for (const scenario of ["stored localhost", "refused legacy loopback", "another 
 test(`publishing with ${scenario} renders canonical and og:url for the deploy target`, async t => {
   const root = await mkdtemp(path.join(tmpdir(), "deploy-public-url-"));
   t.after(() => rm(root, { recursive: true, force: true }));
-  const deps = createRouteDeps();
+  const deps: import("#src/server/routes/types").RouteDeps = createRouteDeps();
   const stored = { scheme: "https" as const, host: scenario === "another public origin" ? "old.example.test" : "localhost", source: "workspace-setting" as const, verifiedAt: "2026-10-31T00:00:00Z" };
   const registry = { canonicalOrigin: async () => {
     if (scenario === "refused legacy loopback") throw new OriginNotVerifiedError({ message: "legacy loopback is unset" });

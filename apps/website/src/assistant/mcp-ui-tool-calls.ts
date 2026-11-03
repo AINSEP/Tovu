@@ -18,7 +18,8 @@ import { nativeToolMetadata } from '../contracts/core/tool-metadata/index.js';
  * `mcp-ui-tool-calls-route.ts` and `server/modules/assistant.ts`) so the two cannot drift apart.
  */
 
-import { FEDERATED_TOOL_ID_PREFIX } from "@jini-ai/mcp/federation";
+// This host callback policy recognizes the wire namespace without loading federation clients
+// into the daemon; connection ids and tool admissions remain owned by the server.
 
 /**
  * Tool ids `mcp-ui-tool-calls-route.ts`'s callback endpoint is willing to reach at all — for either
@@ -70,7 +71,7 @@ export function isMcpUiToolCallPermitted(toolName: string, answersAnExchange: bo
   if (MCP_UI_REDEEMABLE_TOOL_IDS.has(toolName)) return answersAnExchange || !nativeToolMetadata.exchangeOnlyIds.has(toolName);
   // Plugin tools (`p_<plugin>__<tool>`) park on the same principal-bound exchange when they ask;
   // only the click answering that parked call is accepted, never a fresh execution.
-  return answersAnExchange && (toolName.startsWith(FEDERATED_TOOL_ID_PREFIX) || isPluginToolId({ toolName }));
+  return answersAnExchange && (toolName.startsWith("mcp__") || isPluginToolId({ toolName }));
 }
 
 /** The plugin tool contract's namespaced id shape (`pluginToolIdFor` in `@jini-ai/plugins/host`). */

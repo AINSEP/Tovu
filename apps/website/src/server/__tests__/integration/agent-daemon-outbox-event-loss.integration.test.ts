@@ -41,7 +41,7 @@ for (const memory of [false, true]) {
     await acceptToolRun({ deps: server, runId: "outbox-run", principalId });
     const app = express();
     registerAssistantToolExecRoutes({ router: app, runStore: server.chatRunLedger.durable, workspaceId: server.workspaceId,
-      toolSurface: { daemonCalls: { executor: createToolExecutor({ registry }), listToolsFor: () => registry.list({}) } } });
+      toolSurface: { daemonCalls: { executor: createToolExecutor({ registry }), listToolsFor: async () => registry.list({}) } } });
     const baseUrl = await startTestServer(app, t);
     const remote = createRemoteToolExecutor({ baseUrl, token: ensureToolExecToken({}, {}) });
     const result = await remote.execute({ principal: { id: principalId }, run: { id: "outbox-run" }, toolId: "site_write", input: {} });

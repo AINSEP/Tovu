@@ -154,7 +154,7 @@ export function createFederationRuntime(params: CreateFederationRuntimeParams): 
           // Presets can arrive after a failed desktop listener bind. The existing coordinator
           // retries only unadmitted identities and still freezes every successfully admitted tool.
           resolveConnections: async () => [
-            ...resolveRegisteredPresets(process.env, logger, presetRegistry).map(connection => ({ ...connection, config: { ...connection.config, origin: { kind: "preset" as const } } })),
+            ...resolveRegisteredPresets({ env: process.env, logger, registry: presetRegistry }).map(connection => ({ ...connection, config: { ...connection.config, origin: { kind: "preset" as const } } })),
             ...await params.resolveConnections(),
           ],
           attach,

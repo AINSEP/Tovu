@@ -155,17 +155,17 @@ test("OAuth reauthentication and tool execution work with daemon stopped", async
       assert.deepEqual(surface.surfaceExchanges.deliver({ exchangeId, principalId: "owner", params: {} }, { toolId: "external_mcp_reauth_prompt" }), { ok: true });
     },
   });
-  assert.equal(notice.ok, true, JSON.stringify(notice));
+  assert.equal(notice.status, "completed", JSON.stringify(notice));
   assert.match(JSON.stringify(notice), /acknowledged.*true/);
   assert.equal(prompts, 1);
   assert.equal(surface.surfaceExchanges.size(), 0);
   const result = await runtime.daemonCalls.executor.execute({ toolId: "mcp__hosted__echo", input: { message: "after reconnect" }, principal: { id: "owner" }, run: { id: "run" } });
-  assert.equal(result.ok, true, JSON.stringify(result));
+  assert.equal(result.status, "completed", JSON.stringify(result));
   assert.deepEqual(session.calls, [{ name: "echo", arguments: { message: "after reconnect" } }]);
   assert.equal(tokenRequests, 1);
   assert.deepEqual(tokens, ["Bearer reconnected-token"]);
   const denied = await runtime.daemonCalls.executor.execute({ toolId: "mcp__hosted__echo", input: {}, principal: { id: "ungranted" }, run: { id: "run-denied" } });
-  assert.equal(denied.ok, false);
+  assert.equal(denied.status, "failed");
   assert.equal(session.calls.length, 1, "server execution must retain the existing permission gate");
   assert.equal(isAssistantDaemonReady(), false);
   assert.equal(spawns, 0);

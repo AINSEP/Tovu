@@ -1094,7 +1094,7 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
     if (disposed) {
       // Cancellation records intent; no executor exists yet to emit the terminal event and
       // release this run's activity hold after withdrawal during preparation.
-      await runLifecycle.finish({ runId: run.id, status: "canceled", code: null, signal: null, resumable: false });
+      await runLifecycle.finish({ runId: run.id, status: "cancelled", code: null, signal: null, resumable: false });
       return;
     }
     await assistantRuntimeGuidanceContext.run(runGuidance,

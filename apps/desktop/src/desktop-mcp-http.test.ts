@@ -7,6 +7,13 @@ import { startDesktopMcpHttp } from './desktop-mcp-http.ts';
 import { createSitesMcpToolHost } from './sites-mcp-tools.ts';
 import { trackSite, sitesFilePath } from './tracked-sites.ts';
 
+// The HTTP fixtures inspect the JSON-RPC envelope, whose JSON decoder returns unknown.
+type RpcResponse = {
+  result: { serverInfo: { name: string }; tools: { name: string }[];
+    structuredContent: { count: number; code: string }; isError?: boolean };
+  error: { code: number };
+};
+
 const headers = { 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream' };
 const call = (siteDir: string) => JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'reveal_site_folder', arguments: { siteDir } } });
 
@@ -73,7 +80,7 @@ test('mutating calls retain serialization', async (t) => {
   const responses = await Promise.all([first, second]);
   for (const response of responses) {
     assert.equal(response.status, 200);
-    const result = await response.json();
+    const result = await response.json() as RpcResponse;
     assert.deepEqual(result.result.structuredContent, { siteDir: '/sites/example', revealed: true });
   }
   assert.deepEqual(events, ['start', 'finish', 'start', 'finish']);
@@ -84,7 +91,7 @@ test('desktop tools work without keyring or stored row', async (t) => {
   const send = async (method: string, params: Record<string, unknown> = {}) => {
     const response = await fetch(server.url, { method: 'POST', headers: { ...headers, Authorization: `Bearer ${server.token}` }, body: JSON.stringify({ jsonrpc: '2.0', id: 0, method, params }) });
     assert.equal(response.status, 200);
-    return response.json();
+    return response.json() as Promise<RpcResponse>;
   };
   const initialized = await send('initialize', { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'desktop-test', version: '1' } });
   assert.equal(initialized.result.serverInfo.name, 'tovu-desktop');

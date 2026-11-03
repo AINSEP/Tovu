@@ -62,7 +62,7 @@ for (const kind of ["sqlite", "pglite", "postgres"] as const) {
     f.snapshot.siteStoragePaths.contentDbPath = dbPath;
     const loaded: string[] = [];
     let closes = 0;
-    const kernel = { lockKey: () => "fixture", dialect: kind === "sqlite" ? "sqlite" : "postgres", transport: kind === "sqlite" ? "better-sqlite3" : kind, close: async () => { closes++; } };
+    const kernel = { lockKey: () => "fixture", dialect: kind === "sqlite" ? "sqlite" : "postgres", transport: kind === "sqlite" ? "better-sqlite3" : kind === "postgres" ? "node-postgres" : "pglite-socket", close: async () => { closes++; } };
     const drivers = { sqlite: { openSqliteFileKernel: () => kernel }, pglite: { openPgliteSocketKernel: () => kernel },
       postgres: { openPostgresKernel: () => kernel } } as unknown as SiteDbDrivers;
     const importDriver: ImportSiteDbDriver = async ({ kind: selected }) => { loaded.push(selected); return drivers[selected]; };
@@ -81,7 +81,7 @@ test("a retained resource closes on composition failure and shutdown", async () 
   const f = fixture();
   delete (f.env as NodeJS.ProcessEnv).TOVU_DB;
   let closed = 0;
-  const kernel = { lockKey: () => "fixture", transport: "better-sqlite3" };
+  const kernel = { lockKey: () => "fixture", dialect: "sqlite", transport: "better-sqlite3" };
   const client = { content: kernel, chat: kernel, close: async () => { closed++; } } as unknown as SiteDbClient;
   await assert.rejects(createAgentDaemonCoreDeps({ env: f.env, token: "private" }, { fetch: f.fetcher,
     openClient: async () => client, onStoreOpened: () => { throw new Error("shutdown registration failed"); } }), /shutdown registration failed/);
@@ -116,7 +116,7 @@ test("a slow telemetry drain cannot keep the daemon database client open", async
   t.mock.method(console, "warn", () => {});
   const f = fixture(); delete (f.env as NodeJS.ProcessEnv).TOVU_DB;
   let closed = 0;
-  const kernel = { lockKey: () => "fixture", transport: "better-sqlite3" };
+  const kernel = { lockKey: () => "fixture", dialect: "sqlite", transport: "better-sqlite3" };
   const client = { content: kernel, chat: kernel, close: async () => { closed++; } } as unknown as SiteDbClient;
   const deps = await createAgentDaemonCoreDeps({ env: f.env, token: "private" }, { openClient: async () => client, fetch: async (url, init) => {
     const { operation } = JSON.parse(String(init?.body)) as { operation: string };

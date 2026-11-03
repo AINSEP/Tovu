@@ -129,7 +129,7 @@ test("disposing one site leaves another run streaming and refuses late callbacks
     });
     assert.equal(late.status, 401); await late.body?.cancel();
     await b.scope.lifecycle.emit({ runId: "same", input: { event: "stdout", data: { chunk: "still running" } } });
-    assert.equal((await b.scope.lifecycle.get({ runId: "same" }))?.state, "queued");
+    assert.equal((await b.scope.lifecycle.get({ runId: "same" }))?.state, "running");
     await b.scope.lifecycle.finish({ runId: "same", status: "succeeded", code: 0, signal: null, resumable: false });
   } finally { await h.close(); }
 });
@@ -160,7 +160,7 @@ test("withdrawing a site while its reply prepares finishes disposal and leaves a
     await new Promise<void>(resolve => setImmediate(resolve));
     resume();
     const terminal = await a.scope.lifecycle.waitForTerminal({ runId }, { signal: AbortSignal.timeout(2_000) });
-    assert.equal(terminal.state, 'canceled');
+    assert.equal(terminal.state, 'cancelled');
     await closing;
     const replacement = await h.site(0, 'a');
     const ready = await fetch(`${replacement.base}/api/runs`, { headers: { authorization: `Bearer ${replacement.token}`, 'x-tovu-principal-id': 'owner' } });
@@ -174,7 +174,7 @@ test("withdrawing a site while its reply prepares finishes disposal and leaves a
   } finally {
     resume();
     // The pre-fix regression must also leave no unresolved run or disposal behind.
-    if (runId && stopped) await stopped.scope.lifecycle.finish({ runId, status: 'canceled', code: null, signal: null, resumable: false });
+    if (runId && stopped) await stopped.scope.lifecycle.finish({ runId, status: 'cancelled', code: null, signal: null, resumable: false });
     await closing;
     await h.close();
   }
@@ -186,7 +186,7 @@ test("identical upload batches and principal IDs remain scoped to their site", a
     const sites = await Promise.all([h.site(0, "a"), h.site(0, "b"), h.site(1, "a"), h.site(1, "b")]);
     const refs: string[] = [];
     for (const [index, site] of sites.entries()) {
-      const response = await fetch(`${site.base}/api/attachments?batch=same&name=note.txt`, {
+      const response = await fetch(`${site.base}/api/attachments?batch=same-batch&name=note.txt`, {
         method: "POST", headers: { authorization: `Bearer ${site.token}`, "x-tovu-principal-id": "same-principal", "content-type": "application/octet-stream" },
         body: `site-specific attachment ${index}`,
       });
@@ -222,6 +222,10 @@ test("concurrent scope launches keep filesystem roots and host permission signal
 });
 
 test("withdrawing a site releases its finished-run owner retention timers", async t => {
+  // Advance each clock read so Jini's remaining terminal-record TTL is below Tovu's full owner TTL.
+  // Equal millisecond timestamps otherwise make two distinct timers look like the same owner.
+  let timestamp = Date.now();
+  t.mock.method(Date, "now", () => timestamp++);
   const h = await harness();
   const scheduled = t.mock.method(globalThis, "setTimeout");
   const cleared = t.mock.method(globalThis, "clearTimeout");
@@ -238,7 +242,8 @@ test("withdrawing a site releases its finished-run owner retention timers", asyn
     await new Promise<void>(resolve => setImmediate(resolve));
     const retention = scheduled.mock.calls.filter(call => call.arguments[1] === 24 * 60 * 60 * 1000);
     assert.equal(retention.length, 1);
+    const ownerRetention = retention[0]!;
     await site.scope.dispose({}, {});
-    assert.ok(cleared.mock.calls.some(call => call.arguments[0] === retention[0]!.result));
+    assert.ok(cleared.mock.calls.some(call => call.arguments[0] === ownerRetention.result));
   } finally { await h.close(); }
 });

@@ -3,7 +3,6 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import ts from "typescript";
-import { daemonSource } from "./helpers/daemon-source.js";
 
 /**
  * @file Wiring proof that `agent-daemon-server.ts` — a separate OS process from Tovu's main server,
@@ -57,19 +56,18 @@ test("agent-daemon-server.ts calls installUnhandledRejectionGuard() unconditiona
     "installUnhandledRejectionGuard() must be called at module top level (not merely imported, and not nested inside a conditional/function that may never run)"
   );
 
-  // "Before any heavier boot work" — same placement rationale index.ts's own main() comment gives for
-  // its identical call ("before any boot step below has a chance to reject unguarded"). Opening this
-  // retained composition (`createAgentDaemonCoreDeps`, site bootstrap then leaf DB client)
-  // is the first composition I/O this file performs.
-  const routeDepsIndex = DAEMON_ENTRY_SOURCE.indexOf("createAgentDaemonCoreDeps({ env: process.env, token: siteToolToken },");
-  assert.ok(routeDepsIndex > -1, "this test's own anchor (the routeDeps line) must still exist verbatim — update the anchor if that line's shape changes");
-  assert.ok(routeDepsIndex > callIndex, "the guard must be installed before this process's first real I/O (opening its own SQLite connection), not after");
-  const guardStatement = daemonSource.statements.find((statement) =>
+  // The entry now launches a scope factory. Its startup call begins credential/listener I/O;
+  // the retained database composition lives inside that factory rather than this source file.
+  const startupIndex = DAEMON_ENTRY_SOURCE.indexOf("const startup = start();");
+  assert.ok(startupIndex > -1, "the real entry must still launch its startup path");
+  assert.ok(startupIndex > callIndex, "the guard must be installed before startup performs I/O");
+  const entrySource = ts.createSourceFile("agent-daemon-server.ts", DAEMON_ENTRY_SOURCE, ts.ScriptTarget.Latest, true);
+  const guardStatement = entrySource.statements.find((statement) =>
     ts.isExpressionStatement(statement) && ts.isCallExpression(statement.expression) &&
     ts.isIdentifier(statement.expression.expression) &&
     statement.expression.expression.text === "installUnhandledRejectionGuard" &&
     statement.expression.arguments.length === 0,
   );
   assert.ok(guardStatement, "the guard call must be a module-level expression statement, never a nested or commented call");
-  assert.ok(guardStatement.getStart(daemonSource) < routeDepsIndex, "the top-level call must precede opening the database");
+  assert.ok(guardStatement.getStart(entrySource) < startupIndex, "the top-level call must precede opening the database");
 });

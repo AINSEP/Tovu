@@ -89,7 +89,7 @@ test("first proxy request waits before forwarding and succeeds once ready", asyn
 
 test("activation racing park waits for an accepting daemon before allowing frontend rebind", async t => {
   let sends = 0; let wakes = 0;
-  t.mock.method(globalThis, "fetch", async (input, init) => {
+  t.mock.method(globalThis, "fetch", async (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
     assert.equal(new URL(String(input)).pathname, "/api/active");
     assert.equal(init?.method, "GET");
     return ++sends === 1

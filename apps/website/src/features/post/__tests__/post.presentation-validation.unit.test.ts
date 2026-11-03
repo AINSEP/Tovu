@@ -4,6 +4,8 @@ import { createPost, updatePost, PostValidationError, type CreatePostInput, type
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { buildPostRecord } from "./post-record.fixture.js";
 
+import { InMemoryOutbox } from "#src/contracts/core/events/index";
+
 const clock = { nowMs: () => 0 };
 
 for (const operation of ["create", "update"] as const) {
@@ -14,7 +16,7 @@ for (const operation of ["create", "update"] as const) {
       const input = { ...existing, ...patch };
       const write = operation === "create"
         ? createPost({ deps: { repo, clock }, input: input as unknown as CreatePostInput })
-        : updatePost({ deps: { repo, clock }, input: input as unknown as UpdatePostInput });
+        : updatePost({ deps: { repo, clock, outbox: new InMemoryOutbox() }, input: input as unknown as UpdatePostInput });
       await assert.rejects(write, PostValidationError, JSON.stringify(patch));
       assert.deepEqual(await repo.list({ workspaceId: existing.workspaceId }), operation === "update" ? [existing] : []);
       assert.deepEqual(await repo.listRevisions({ workspaceId: existing.workspaceId, postId: existing.id }), []);
@@ -26,7 +28,7 @@ for (const operation of ["create", "update"] as const) {
       const existing = buildPostRecord({ templateChoice: "old.html", overridesThemePage: true });
       const repo = new InMemoryPostRepo(operation === "update" ? [existing] : []);
       const input = { ...existing, ...patch };
-      const result = operation === "create" ? await createPost({ deps: { repo, clock }, input }) : await updatePost({ deps: { repo, clock }, input });
+      const result = operation === "create" ? await createPost({ deps: { repo, clock }, input }) : await updatePost({ deps: { repo, clock, outbox: new InMemoryOutbox() }, input });
       assert.equal(result.post.templateChoice, patch.templateChoice);
       assert.equal(result.post.overridesThemePage, patch.overridesThemePage);
     }

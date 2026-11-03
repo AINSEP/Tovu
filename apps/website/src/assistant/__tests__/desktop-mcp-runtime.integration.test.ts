@@ -37,7 +37,7 @@ test("desktop tools work without keyring or stored row", async t => {
   assert.deepEqual(await deps.externalMcpServerRepo.listByWorkspaceId(deps.workspaceId), []);
   assert.deepEqual(stdioAttempts, []);
   const result = await surface.daemonCalls.executor.execute({ principal: { id: "owner" }, run: { id: "desktop-read" }, toolId: "mcp__tovu-desktop__list_sites", input: {} });
-  assert.equal(result.ok, true, JSON.stringify(result));
+  assert.equal(result.status, "completed", JSON.stringify(result));
   assert.match(JSON.stringify(result), /count/);
 });
 
@@ -124,7 +124,7 @@ test("listener recovery after a cold server start admits the desktop preset with
   const tools = await server.daemonCalls.listToolsFor({ principalId: "owner" });
   assert.ok(tools.some(tool => tool.id === "mcp__tovu-desktop__list_sites"));
   const result = await server.daemonCalls.executor.execute({ principal: { id: "owner" }, run: { id: "recovered" }, toolId: "mcp__tovu-desktop__list_sites", input: {} });
-  assert.equal(result.ok, true, JSON.stringify(result));
+  assert.equal(result.status, "completed", JSON.stringify(result));
 });
 
 test("owner restart recovers without manual action", async t => {
@@ -142,5 +142,5 @@ test("owner restart recovers without manual action", async t => {
   assert.equal(await restarted.runtime.bearerToken({ url: restarted.host.url }), restarted.host.token);
   assert.deepEqual(await first.deps.externalMcpServerRepo.listByWorkspaceId(first.deps.workspaceId), []);
   const result = await server.daemonCalls.executor.execute({ principal: { id: "owner" }, run: { id: "new-owner" }, toolId: "mcp__tovu-desktop__list_sites", input: {} });
-  assert.equal(result.ok, true, JSON.stringify(result));
+  assert.equal(result.status, "completed", JSON.stringify(result));
 });

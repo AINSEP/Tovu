@@ -1,3 +1,4 @@
+import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import { resolveSiteRoot } from "#src/platform/site-dir/index";
 import { mcpTestPort, credentialTestPort } from "../fixtures/connection-service-ports.js";
 import type { AgentPluginOAuthPort } from "../../service-ports.js";

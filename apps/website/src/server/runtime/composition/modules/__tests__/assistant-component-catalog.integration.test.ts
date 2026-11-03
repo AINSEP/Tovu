@@ -29,7 +29,7 @@ test("component discovery derives identity from a live site run and preserves ad
   const app = express();
   registerAssistantToolExecRoutes({ router: app, workspaceId: deps.workspaceId, runStore,
     toolSurface: { daemonCalls: { executor: { execute: async () => ({ executionId: "unused", status: "completed" }),
-      cancel() {}, getAuditRecord: () => null, resumeConfirmation: () => { throw new Error("unused"); } }, listToolsFor: () => [] } },
+      cancel() {}, getAuditRecord: () => null, resumeConfirmation: () => { throw new Error("unused"); } }, listToolsFor: async () => [] } },
     components: { pluginRuntimeReady: ready, siteTitleReady: Promise.resolve(), chartProviderSnapshot: async () => { reads++; return { ...snapshot, executableManifests: [{ _def: "must not cross the wire" }] }; } },
   }, {});
   const baseUrl = await startTestServer(app, t);
@@ -74,7 +74,7 @@ test("component discovery rechecks the live attempt after plugin readiness", asy
   const app = express();
   registerAssistantToolExecRoutes({ router: app, workspaceId: deps.workspaceId, runStore,
     toolSurface: { daemonCalls: { executor: { execute: async () => ({ executionId: "unused", status: "completed" }),
-      cancel() {}, getAuditRecord: () => null, resumeConfirmation: () => { throw new Error("unused"); } }, listToolsFor: () => [] } },
+      cancel() {}, getAuditRecord: () => null, resumeConfirmation: () => { throw new Error("unused"); } }, listToolsFor: async () => [] } },
     components: { pluginRuntimeReady: ready, siteTitleReady: Promise.resolve(), chartProviderSnapshot: async () => { reads++; return { ...snapshot, executableManifests: [{ _def: "must not cross the wire" }] }; } },
   }, {});
   const baseUrl = await startTestServer(app, t);

@@ -113,6 +113,7 @@ export { STORAGE_SECRET_FILENAME } from "./layout.js";
 export {
   LocalSiteError,
   createLocalSiteSupervisor,
+  startLocalSiteWhenRunning,
   assertLocalSiteName,
   type LocalSiteSupervisorPort,
   type LocalSiteProcessPort,

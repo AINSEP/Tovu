@@ -97,7 +97,7 @@ test("the inherited site tool token is removed before any CLI or plugin runtime 
   const { daemonInitializer, daemonSource, evaluateDaemonExpression } = await import("./helpers/daemon-source.js");
   const { ensureToolExecToken } = await import("#src/assistant/daemon-access");
   const env = { TOVU_TOOL_EXEC_TOKEN: "inherited-site-secret" };
-  const token = evaluateDaemonExpression<string>(daemonInitializer("siteToolToken"), { ensureToolExecToken, process: { env } });
+  const token = evaluateDaemonExpression<string>(daemonInitializer("siteToolToken"), { ensureToolExecToken, env, toolExecTokenHolder: {} });
   assert.equal(typeof token, "string");
   assert.equal(env.TOVU_TOOL_EXEC_TOKEN, undefined);
   const initializer = daemonInitializer("siteToolToken");

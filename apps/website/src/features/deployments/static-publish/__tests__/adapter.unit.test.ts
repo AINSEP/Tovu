@@ -301,7 +301,7 @@ test("publishStaticSite: an asset that fails to export blocks publishing, the sa
   // 2026-08-20 pass 2, `createSiteApp` ITSELF is also closure-bound (not just `exportSiteBound`) —
   // one more reason this must stay a mutation.
   deps.createSiteApp = createSiteAppWithFailingAsset("/theme-assets/tovu-starter/css/theme.css", deps);
-  const exportSiteBound = deps.exportSiteBound;
+  const exportSiteBound: RouteDeps["exportSiteBound"] = deps.exportSiteBound;
   deps.exportSiteBound = async input => ({
     ...await exportSiteBound(input),
     outputDir: input.outputDir,

@@ -25,6 +25,9 @@
  * failure mode the audit found.
  */
 
+/** Install-local recovery root; never part of a theme's live pages or generated artifacts. */
+export const TRASH_DIR_NAME = ".trash";
+
 /** One schema version's resolved layout. Every path here is theme-RELATIVE (no leading `/`, no
  *  `themeDir` prefix) — callers that need a real filesystem path still `join()` it themselves. */
 export interface ThemeLayout {

@@ -136,7 +136,7 @@ function opensFrontmatter({ lines, index }: { lines: readonly string[]; index: n
   let end = index + 1;
   while (end < lines.length && lines[end]!.trimEnd() !== "---") end++;
   if (end === lines.length) return false;
-  try { return isNonArrayRecord(load(lines.slice(index + 1, end).join("\n"), { schema: FAILSAFE_SCHEMA })); }
+  try { return isNonArrayRecord({ value: load(lines.slice(index + 1, end).join("\n"), { schema: FAILSAFE_SCHEMA }) }); }
   catch { return false; }
 }
 

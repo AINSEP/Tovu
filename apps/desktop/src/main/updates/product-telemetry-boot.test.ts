@@ -281,7 +281,7 @@ test("the dialog waits for a window that is actually visible", async () => {
   const window = h.openWindow({ visible: false });
   window.webContents.emit("did-finish-load");
   await settle();
-  assert.deepEqual(h.shown, []);
+  assert.equal(h.shown.length, 0);
   window.visible = true;
   window.emit("show");
   await settle();
@@ -328,7 +328,7 @@ test("an earlier decision means no dialog at all", async () => {
   const h = consentHarness({ decided: true });
   h.openWindow({ visible: true }).emit("show");
   await settle();
-  assert.deepEqual(h.shown, []);
+  assert.equal(h.shown.length, 0);
   assert.equal(h.app.listenerCount("browser-window-created"), 0);
 });
 
@@ -336,7 +336,7 @@ test("an inactive product never asks", async () => {
   const h = consentHarness({ launch: undefined });
   h.openWindow({ visible: true }).emit("show");
   await settle();
-  assert.deepEqual(h.shown, []);
+  assert.equal(h.shown.length, 0);
 });
 
 test("the product is read when the window shows, not when the dialog was armed", async () => {

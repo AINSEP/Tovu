@@ -19,7 +19,7 @@ test("plugin preflight uses the site's live run identity and releases terminal c
   const forgotten: string[] = [];
   const app = express();
   registerAssistantToolExecRoutes({ router: app, workspaceId: deps.workspaceId, runStore: deps.chatRunLedger.durable,
-    toolSurface: { daemonCalls: { executor: { execute: async () => ({ executionId: "unused", status: "completed" }), cancel() {}, getAuditRecord: () => null, resumeConfirmation: () => { throw new Error("unused"); } }, listToolsFor: () => [] } },
+    toolSurface: { daemonCalls: { executor: { execute: async () => ({ executionId: "unused", status: "completed" }), cancel() {}, getAuditRecord: () => null, resumeConfirmation: () => { throw new Error("unused"); } }, listToolsFor: async () => [] } },
     plugins: {
       controller: { start: async ({ context, messageId }) => { contexts.push(context); messages.push(messageId); await context.publish({ conversationId: context.conversationId, state: context.state, plugins: [] }); return "automatic guidance"; }, forget: ({ runId }) => { forgotten.push(runId); } },
       pinnedPrefix: async ({ pluginRefIds }) => { assert.deepEqual(pluginRefIds, ["picked"]); return "pinned guidance"; },
@@ -60,7 +60,7 @@ test("a stopped run cannot publish late plugin consent or receive a prepared pre
   const forgotten: string[] = [];
   const app = express();
   registerAssistantToolExecRoutes({ router: app, workspaceId: deps.workspaceId, runStore: deps.chatRunLedger.durable,
-    toolSurface: { daemonCalls: { executor: { execute: async () => ({ executionId: "unused", status: "completed" }), cancel() {}, getAuditRecord: () => null, resumeConfirmation: () => { throw new Error("unused"); } }, listToolsFor: () => [] } },
+    toolSurface: { daemonCalls: { executor: { execute: async () => ({ executionId: "unused", status: "completed" }), cancel() {}, getAuditRecord: () => null, resumeConfirmation: () => { throw new Error("unused"); } }, listToolsFor: async () => [] } },
     plugins: { controller: { start: async ({ context }) => { assert.equal(context.query, "hello", "a missing userPrompt falls back to the saved prompt"); entered(); await waiting; await context.publish({ conversationId, state: context.state, plugins: [] }); return "late"; }, forget: ({ runId }) => { forgotten.push(runId); } },
       pinnedPrefix: async () => "", emit: async () => { emissions++; }, refusalPrefix: () => "" },
   }, {});

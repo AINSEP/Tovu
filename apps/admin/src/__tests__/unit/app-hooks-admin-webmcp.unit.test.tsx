@@ -54,7 +54,7 @@ describe("registerAdminWebMcpTool", () => {
     const close = vi.fn();
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
     createBridge.mockReturnValueOnce({
-      ready: Promise.reject(failure), bindToken: () => "", close,
+      ready: Promise.reject(failure), rebind: async () => { throw failure; }, bindToken: () => "", close,
       bridgeAccess: { subscribe: () => () => {}, respondSuccess: async () => {}, respondError: async () => {} },
     });
     const { result, unmount } = renderHook(() => useAgentPageBridge({ createBridge }));

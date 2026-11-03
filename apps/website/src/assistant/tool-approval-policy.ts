@@ -20,6 +20,7 @@ export function approvalClassFor({ toolId, input }: { toolId: string; input: unk
 
 type RuleInput = { toolId: string; input: unknown; args: Record<string, unknown> };
 const RULE_CLASSIFIERS: Record<NonNullable<ToolApprovalPolicy['rule']>, (required: RuleInput, options?: object) => ToolApprovalClass> = {
+  'theme-activation': ({ args }, _options = {}) => args.activate === true ? 'publish' : 'edit',
   'plugin-enable': ({ args }, _options = {}) => args.enabled === false ? 'edit' : 'escalation',
   'execution-setting': ({ args }, _options = {}) => ASSISTANT_EXECUTION_APPROVAL_SETTINGS.some(setting => setting.namespace === args.namespace && setting.key === args.key) ? 'escalation' : 'edit',
   'export-commit': ({ args }, _options = {}) => args.dryRun === true ? 'edit' : 'publish',

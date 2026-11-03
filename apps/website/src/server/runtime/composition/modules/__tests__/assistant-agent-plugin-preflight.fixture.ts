@@ -23,7 +23,7 @@ export async function pluginPreflightFixture({ t, context, plugins, tools = [], 
   for (const tool of tools) registry.register(tool);
   const app = express();
   registerAssistantToolExecRoutes({ router: app, runStore: deps.chatRunLedger.durable, workspaceId: deps.workspaceId, plugins,
-    toolSurface: { daemonCalls: { executor: createToolExecutor({ registry }, { prepareGuidance }), listToolsFor: () => registry.list({}) } } });
+    toolSurface: { daemonCalls: { executor: createToolExecutor({ registry }, { prepareGuidance }), listToolsFor: async () => registry.list({}) } } });
   const baseUrl = await startTestServer(app, t);
   const host = createDaemonSiteTools({ baseUrl, token: ensureToolExecToken({}, {}), localRegistry: { list: () => [] }, contextFor: () => ({}) });
   t.after(() => host.finish({ runId }));

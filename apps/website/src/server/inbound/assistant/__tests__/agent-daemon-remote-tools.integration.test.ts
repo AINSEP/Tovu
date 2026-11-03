@@ -109,7 +109,7 @@ async function bootDaemonRpc(t: import("node:test").TestContext, options: { drop
   } });
   const serverApp = express();
   registerAssistantToolExecRoutes({ router: serverApp, toolSurface: { daemonCalls: {
-    executor: createToolExecutor({ registry: serverRegistry }), listToolsFor: () => serverRegistry.list({}),
+    executor: createToolExecutor({ registry: serverRegistry }), listToolsFor: async () => serverRegistry.list({}),
   } }, runStore: deps.chatRunLedger.durable, workspaceId: deps.workspaceId });
   const siteUrl = await startTestServer(serverApp, t);
   const baseUrl = options.dropResponse ? await startResettingToolProxy(t, new URL(siteUrl)) : siteUrl;

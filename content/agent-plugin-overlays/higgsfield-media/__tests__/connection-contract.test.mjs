@@ -17,7 +17,7 @@ test('browser sign-in and operator read trust are declared without a token', asy
   assert.deepEqual(config.mcpServers.higgsfield, { type: 'streamable-http', url: 'https://mcp.higgsfield.ai/mcp' });
   const metadata = manifest.extensions.tovu.mcpServers.higgsfield;
   assert.equal(metadata.tovuAuthMode, 'oauth');
-  assert.deepEqual(metadata.tovuDefaultTools.read, ['models_explore', 'job_status']);
+  assert.deepEqual(metadata.tovuDefaultTools.read, ['models_explore', 'job_status', 'jobs_wait', 'show_generations', 'show_generation_by_ids']);
   // Owner 2026-11-02: enabling the plugin and signing in must be enough to generate, so the sign-in
   // grants these declared tools, generators included (apply-connect-defaults.ts).
   assert.ok(metadata.tovuDefaultTools.allow.includes('generate_image'), 'the sign-in allowlists generation');

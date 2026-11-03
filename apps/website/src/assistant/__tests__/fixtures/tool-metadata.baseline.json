@@ -3284,8 +3284,8 @@
       "confirmation": "direct"
     },
     "theme_set_active": {
-      "class": "edit",
-      "confirmation": "direct"
+      "class": "publish",
+      "confirmation": "policy"
     },
     "theme_set_page_published": {
       "class": "edit",
@@ -3409,7 +3409,8 @@
     },
     "theme_duplicate": {
       "class": "edit",
-      "confirmation": "direct"
+      "confirmation": "policy",
+      "rule": "theme-activation"
     },
     "comments_get_comment": {
       "class": "read",
@@ -3741,7 +3742,9 @@
     "site_restart",
     "fs_write_files",
     "image_transform",
-    "files_copy"
+    "files_copy",
+    "theme_set_active",
+    "theme_duplicate"
   ],
   "secretForms": {
     "credential_save": {
@@ -3840,7 +3843,9 @@
     "site_restart",
     "fs_write_files",
     "image_transform",
-    "files_copy"
+    "files_copy",
+    "theme_set_active",
+    "theme_duplicate"
   ],
   "exchangeOnlyIds": [
     "members_delete",
@@ -3906,7 +3911,9 @@
     "site_restart",
     "fs_write_files",
     "image_transform",
-    "files_copy"
+    "files_copy",
+    "theme_set_active",
+    "theme_duplicate"
   ],
   "chatPermanentDeletes": {
     "defaultEnabled": false,

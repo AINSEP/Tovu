@@ -2,6 +2,7 @@ import { lstatSync, readdirSync, realpathSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 
 import { GENERATED_THEME_DIRS, isSourceDirGeneratedConflict } from "../theme-files.js";
+import { TRASH_DIR_NAME } from "../theme-layout.js";
 import type { ThemeBuildInfo } from "../theme.js";
 import type { ThemeValidationIssue } from "./profiles.js";
 
@@ -77,7 +78,7 @@ const INSTALL_LOCAL_FILES: ReadonlySet<string> = new Set([".tovu-lineage.json"])
 const TOKENS_MODE_FILE_PATTERN = /^tokens\.[a-z0-9-]+\.json$/;
 
 function isApprovedV2Root(name: string): boolean {
-  return V2_APPROVED_ROOTS.has(name) || INSTALL_LOCAL_FILES.has(name) || TOKENS_MODE_FILE_PATTERN.test(name);
+  return name === TRASH_DIR_NAME || V2_APPROVED_ROOTS.has(name) || INSTALL_LOCAL_FILES.has(name) || TOKENS_MODE_FILE_PATTERN.test(name);
 }
 
 export interface PackageWalkEntry {
@@ -126,7 +127,8 @@ function visitPackageEntry(
     issues.push({ ruleId: "structure-symlink-forbidden", message: `'${relPath}' is a symlink, which a theme package must not contain`, path: relPath });
     return undefined;
   }
-  if (stat.isDirectory()) return { recurseInto: full };
+  // Recovery bytes are not live package markup; retain the symlink refusal above this boundary.
+  if (stat.isDirectory()) return relPath === TRASH_DIR_NAME ? undefined : { recurseInto: full };
   if (stat.isFile()) {
     if (stat.size > MAX_FILE_BYTES) {
       issues.push({ ruleId: "structure-max-file-size", message: `'${relPath}' is ${stat.size} bytes, exceeding the ${MAX_FILE_BYTES}-byte per-file ceiling`, path: relPath });

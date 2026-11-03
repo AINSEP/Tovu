@@ -17,7 +17,7 @@ function harness() {
     isDestroyed: () => false, isLoading: () => loading, getURL: () => url,
     capturePage: async () => ({ resize: () => ({ toPNG: () => Buffer.from('png') }) }),
   });
-  const guests = createLivePreviewGuests({
+  const guests = createLivePreviewGuests<typeof owner, typeof guest>({
     resolve: () => ({ siteDir: '/site', port: 8123, partition: 'persist:site' }),
     allowed: ({ owner, guest }) => isLivePreviewGuestAllowed({ owner, guest, shellUrl, partitionSession }),
     schedule: ({ siteDir }) => scheduled.push(siteDir),

@@ -316,7 +316,9 @@ test("writeThemeFile replaces an existing target via rename rather than truncati
     "expected writeThemeFile to replace the target via rename (new inode), not truncate it in place (same inode)"
   );
 
-  const leftovers = fs.readdirSync(themeDir).filter((name) => name !== "theme.json" && name !== "templates");
+  // Replacement revisions are intentional recovery data, not temporary atomic-write files.
+  assert.ok(fs.existsSync(path.join(themeDir, ".trash", "revisions")));
+  const leftovers = fs.readdirSync(themeDir).filter((name) => name !== "theme.json" && name !== "templates" && name !== ".trash");
   assert.deepEqual(leftovers, [], `expected no temp file left behind in the theme folder, found: ${leftovers.join(", ")}`);
 });
 

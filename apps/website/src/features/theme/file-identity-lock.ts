@@ -1,4 +1,5 @@
 import { resolveThemeLayout } from "./theme-layout.js";
+import { TRASH_DIR_NAME } from "./theme-layout.js";
 import { isPageFilePath, isPartialFilePath } from "./theme-layout.js";
 import { isGeneratedThemePath, type ThemeFileWriteScope } from "./theme-files.js";
 import type { ThemeManifest } from "./theme.js";
@@ -146,7 +147,7 @@ export function requiredThemeFiles(apiVersion: 2 | undefined): readonly string[]
  * `isThemeFileWritable` both refuse writing INTO it directly, so the only doors in or out are
  * `theme_trash_file`/`theme_restore_trashed_file` themselves.
  */
-export const TRASH_DIR_NAME = ".trash";
+export { TRASH_DIR_NAME } from "./theme-layout.js";
 
 /** Collapse a theme-relative path to comparable segments — `/` separators, no `.`, no `..`, no empty
  *  segments. A small local copy of the same normalization `theme-files.ts`'s own (private, exported

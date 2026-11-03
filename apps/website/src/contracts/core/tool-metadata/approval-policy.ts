@@ -6,4 +6,4 @@
  * Plan entries describe domain facts through Jini; human forms stay on their secret-card engine.
  * New native registrations fail closed until their owner declares an action policy. */
 export type ToolApprovalClass = 'read' | 'edit' | 'trash' | 'delete' | 'restore-over-existing' | 'publish' | 'replace-secret' | 'escalation';
-export interface ToolApprovalPolicy { readonly class: ToolApprovalClass; readonly confirmation: 'direct' | 'policy' | 'plan'; readonly input?: 'human-form'; readonly rule?: 'http-method' | 'page-control' | 'export-commit' | 'plugin-enable' | 'execution-setting' }
+export interface ToolApprovalPolicy { readonly class: ToolApprovalClass; readonly confirmation: 'direct' | 'policy' | 'plan'; readonly input?: 'human-form'; readonly rule?: 'http-method' | 'page-control' | 'export-commit' | 'plugin-enable' | 'execution-setting' | 'theme-activation' }

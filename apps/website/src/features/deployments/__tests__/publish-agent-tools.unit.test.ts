@@ -1091,7 +1091,7 @@ test("execute: exported bytes reach publishStaticSite and the same call reports 
     buildTarget: (config, resolved) => { targetInputs.push({ config, credential: resolved }); return fakeDeployTarget(captured); },
   });
   deps.workspaceId = "ws-confirm-export";
-  const exportSite = createRouteDeps().exportSiteBound;
+  const exportSite: import("#src/server/routes/types").RouteDeps["exportSiteBound"] = createRouteDeps().exportSiteBound;
   const exportInputs: unknown[] = [];
   deps.exportSiteBound = async (input) => { exportInputs.push(input); return { ...await exportSite(input), outputDir: input.outputDir }; };
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });

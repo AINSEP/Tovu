@@ -163,7 +163,8 @@ test("catalog identity survives a parser continuation using the pre-existing req
   const stack: Middleware[] = [];
   const statements = daemonSource.statements.filter(statement => ts.isExpressionStatement(statement) &&
     ts.isCallExpression(statement.expression) && statement.expression.expression.getText(daemonSource) === "app.use" &&
-    (statement.getText(daemonSource).includes("express.json(") || statement.getText(daemonSource).includes("siteTools.withRun(")));
+    ((statement.expression.arguments.length === 1 && statement.getText(daemonSource).includes("express.json(")) ||
+      (ts.isArrayLiteralExpression(statement.expression.arguments[0]!) && statement.getText(daemonSource).includes("siteTools.withRun("))));
   assert.equal(statements.length, 2, "capture the real JSON parser and live-run scope registrations");
   try {
     await evaluateDaemonStatements(statements, {

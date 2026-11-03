@@ -57,6 +57,8 @@ function sessionHarness(coldStartContext?: string, options: { env?: Record<strin
   const prompts: string[] = [];
   const lifecycle = withDaemonLifecycle({ lifecycle: { waitForTerminal: () => new Promise(() => {}) } });
   const onStarted = runInNewContext(`${compiled}\nonStarted`, {
+    idlePark: { hold: () => () => {} },
+    stagedAttachmentCleanupByRunId: new Map(),
     parseRunStartContextRef: (ref: string) => ({ ...contexts.get(ref), principalId: "principal-1", attachmentIds: [], pluginRefIds: [] }),
     assemblePromptWithPluginPrefix: (prompt: string, prefix: string) => prefix ? `${prefix}\n\n${prompt}` : prompt,
     buildPageContextPromptBlock: () => "",

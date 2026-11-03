@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createToolRegistry, type ToolRegistry } from "@jini-ai/core";
-import type { NewsletterRouteDeps } from "#src/server/inbound/admin-http/routes/newsletter/deps";
+
 import { createAssistantByokModule } from "#src/server/runtime/composition/modules/assistant-byok";
 import { createDaemonSiteTools } from "../../agent-daemon-site-tools.js";
 import { daemonInitializer, evaluateDaemonExpression } from "./daemon-source.js";
@@ -9,7 +9,7 @@ import { daemonInitializer, evaluateDaemonExpression } from "./daemon-source.js"
  * injected: the daemon must discover server-owned descriptors without registering handlers.
  * Return a detached descriptor view and dispose the principal's native search index immediately.
  */
-export async function buildDaemonToolSurface(routeDeps: NewsletterRouteDeps): Promise<Pick<ToolRegistry, "list" | "has">> {
+export async function buildDaemonToolSurface(routeDeps: Parameters<typeof createAssistantByokModule>[0]): Promise<Pick<ToolRegistry, "list" | "has">> {
   const server = createAssistantByokModule(routeDeps);
   await server.toolSurface.ready;
   const registry = createToolRegistry({});

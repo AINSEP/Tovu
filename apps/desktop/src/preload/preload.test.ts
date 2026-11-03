@@ -212,6 +212,6 @@ async function assertEveryRunnerMethod({ exposed, invokes, listeners, frameCalls
   assert.equal(invokes[1]![0], THEME.unwatch);
 
   const covered = new Set([...cases.map(([method]) => method), "onChatEvent", "onNavigate", "onFindResult", "getZoomLevel", "setZoomLevel",
-    "getPathForFile", "watchSitePreview", "onSiteHistory", "onFindToggle", "onZoomCommand"]);
+    "getPathForFile", "watchSitePreview", "onSiteHistory", "onMaximumLiveSiteViewsChanged", "onFindToggle", "onZoomCommand"]);
   assert.deepEqual(Object.keys(runner).filter((key) => !covered.has(key)), [], "a new bridge method needs a case here");
 }

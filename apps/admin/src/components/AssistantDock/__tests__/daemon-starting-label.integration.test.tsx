@@ -84,7 +84,7 @@ function mountDock({ locale = "en", attached = true } = {}, _options = {}) {
     // Observe rejection immediately without swallowing an assertion or leaving an unhandled
     // promise. The Stop test checks the exact error through this outcome.
     const outcome = result.then(value => ({ value }), error => ({ error }));
-    return { controller, outcome };
+    return { controller, outcome, handlers };
   }
   return { activation, acceptance, attachment, activate, startRun, pane, begin,
     labels: () => panes.map(props => props.sendingLabel) };
@@ -150,7 +150,7 @@ describe("daemon activation sendingLabel at the dock's ChatPane boundary", () =>
     await expect(send.outcome).resolves.toEqual({ value: { runId: "accepted-run" } });
   });
 
-  it("clears on activation rejection and rejects the required page-bound send", async () => {
+  it("clears on activation rejection and reports the failed page-bound send without dropping the turn", async () => {
     const dock = mountDock();
     const send = dock.begin();
     await advance();
@@ -162,7 +162,9 @@ describe("daemon activation sendingLabel at the dock's ChatPane boundary", () =>
     expect(dock.startRun).not.toHaveBeenCalled();
     await advance({ ms: 1_000 });
     expect(dock.pane().sendingLabel).toBeUndefined();
-    await expect(send.outcome).resolves.toEqual({ error: expect.objectContaining({ message: "the assistant could not start" }) });
+    // The dock failure surface retains refused turns and reports through the error handler.
+    await expect(send.outcome).resolves.toEqual({ value: { runId: "" } });
+    expect(send.handlers.onError).toHaveBeenCalledWith(expect.objectContaining({ message: "the assistant could not start" }));
   });
 
   it("clears immediately on Stop even while activation remains pending, and stays clear after late completion", async () => {

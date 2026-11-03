@@ -167,7 +167,7 @@ function resolveFederationAttachInputs(params: AttachFederatedMcpToolsParams): {
     resolve: ({ spec }) => tovuStdioLaunchResolverFromEnv(env).resolve({ spec }),
   };
   const connect = params.connect ?? createDefaultConnect({ resolver: stdioLaunchResolver }, { logger });
-  const presetConnections = params.connections ?? resolveRegisteredPresets(params.env ?? process.env, logger, params.presetRegistry ?? createFederatedMcpPresetRegistry({}));
+  const presetConnections = params.connections ?? resolveRegisteredPresets({ env: params.env ?? process.env, logger, registry: params.presetRegistry ?? createFederatedMcpPresetRegistry({}) });
   const connections = [
     ...presetConnections.map((connection): OriginTaggedConnection => ({ connection: withPresetOrigin(connection), isPreset: true })),
     ...(params.extraConnections ?? []).map((connection): OriginTaggedConnection => ({ connection, isPreset: false })),
@@ -242,8 +242,11 @@ export async function attachFederatedMcpTools(params: AttachFederatedMcpToolsPar
  *
  * A preset that declines (`null`) is silent: "not configured" is the expected default state, and
  * logging it every boot would train operators to ignore this channel.
+ * @complexity O(p) for p registered presets; resolution remains owned by Jini.
  */
-function resolveRegisteredPresets(env: NodeJS.ProcessEnv, logger: FederationLogger, registry: FederatedMcpPresetRegistry): ResolvedFederatedConnection[] {
+export function resolveRegisteredPresets({ env, logger, registry }: {
+  env: NodeJS.ProcessEnv; logger: FederationLogger; registry: FederatedMcpPresetRegistry;
+}, _optional: Record<string, never> = {}): ResolvedFederatedConnection[] {
   return resolveFederatedMcpPresets({ env, registry, logger: { warn: ({ message }) => logger.warn(message) } });
 }
 

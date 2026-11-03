@@ -547,7 +547,7 @@ function registerDelegatedDaemon({ input, parent }: {
     return {};
   } });
   let pending: Promise<void> | undefined;
-  const config = { siteId: input.workspaceId, token: currentToolExecToken(), env: {
+  const config: { siteId: string; token: string | undefined; env: NodeJS.ProcessEnv } = { siteId: input.workspaceId, token: currentToolExecToken(), env: {
     ...process.env, TOVU_SITE_DIR: input.siteDir, TOVU_WORKSPACE: input.workspaceId,
     TOVU_SITE_CALLBACK_ORIGIN: input.siteCallbackOrigin ?? input.siteApiOrigin,
     TOVU_SITE_LISTENER_ORIGIN: input.siteApiOrigin, TOVU_SITE_PROCESS_CWD: process.cwd(),

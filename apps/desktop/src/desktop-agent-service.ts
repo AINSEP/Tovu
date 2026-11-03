@@ -79,7 +79,7 @@ export function createDesktopAgentService({ repoRoot, registryPath, cliMode = "c
   });
   const supervisor = createDaemonSupervisor({ ...processPorts,
     terminateProcess(input) { stopWork = Promise.resolve((optional.terminate ?? processPorts.terminateProcess)(input)); return stopWork; },
-    policy: createRespawnPolicy({}), now: Date.now, scheduler: createNodeSupervisorScheduler({}),
+    policy: createRespawnPolicy({ now: Date.now }), now: Date.now, scheduler: createNodeSupervisorScheduler({}),
     classifyExit: ({ code }) => ({ isPortConflict: code === AGENT_DAEMON_EXIT_CODE.PORT_IN_USE, reason: "desktop agent daemon exited" }),
     failureReporter: { clear() {}, record() { console.warn("[desktop-agent-service] daemon unavailable"); } },
     logger: { emit(event) { console.log(`[desktop-agent-service] ${event.type}`); } },

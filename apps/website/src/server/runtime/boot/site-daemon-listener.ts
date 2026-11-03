@@ -25,6 +25,8 @@ export async function startSiteDaemonListener(
   const host = new URL(publicOrigin).hostname;
   if (['127.0.0.1', 'localhost', '[::1]'].includes(host)) return { origin: publicOrigin, close: async () => {} };
   const server = createServer((request, response) => {
+    // This callback socket serves native daemon requests only, before any route body parser.
+    if (request.headers.origin !== undefined) { response.writeHead(403).end(); return; }
     const pathname = request.url?.split('?', 1)[0];
     if (!pathname || !CALLBACK_PATHS.has(pathname)) { response.writeHead(404).end(); return; }
     handler(request, response);

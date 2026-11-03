@@ -12,7 +12,6 @@ import type { CreatedSiteRecord, SiteFolders, SiteRecord } from '../contracts/pr
 import type { RunnerSectionId } from '../contracts/sections.js';
 import type { RunnerInventoryBridge } from './runner-api.js';
 import type { SiteFoldersSettings } from './use-site-folders.hooks.js';
-import { useSiteStorageSettings } from './use-site-storage-settings.hooks.js';
 
 // A resolve hook, not a load hook: under tsx, any sync `load` hook makes Node 24 reject the
 // source-less result its default step returns for CommonJS packages such as `react` (an
@@ -42,7 +41,9 @@ Object.assign(globalThis, {
 });
 // Both loaded only now: react-dom decides at module load whether it has a DOM (and which input
 // events it can use), so it must not be evaluated before the globals above exist.
-const { createRoot } = await import('react-dom/client');
+export const { createRoot } = await import('react-dom/client');
+// panel-kit imports React DOM too; even this hook must wait for the globals above.
+export const { useSiteStorageSettings } = await import('./use-site-storage-settings.hooks.js');
 export const { App } = await import('./App.js');
 
 export type TestContext = Pick<NodeTestContext, 'after'>;

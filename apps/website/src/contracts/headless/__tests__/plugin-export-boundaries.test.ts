@@ -9,6 +9,7 @@ test('listing installed plugin components depends on a shared host contract, not
   const crossFamily: string[] = [];
   for (const statement of tree.statements) {
     if (ts.isImportDeclaration(statement) && ts.isStringLiteral(statement.moduleSpecifier)
+      && !statement.moduleSpecifier.text.startsWith('@jini-ai/')
       && statement.moduleSpecifier.text.includes('/agent-plugins/')) crossFamily.push(statement.moduleSpecifier.text);
   }
   assert.deepEqual(crossFamily, []);

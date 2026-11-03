@@ -8,12 +8,10 @@
  */
 import assert from 'node:assert/strict';
 import { act, type ReactElement } from 'react';
-import { createRoot } from 'react-dom/client';
-import { dom, settle, site } from '../app-render-harness.js';
+import { createRoot, dom, settle, site, useSiteStorageSettings } from '../app-render-harness.js';
 import type { RunnerInventoryBridge } from '../runner-api.js';
 import type { SiteFolders } from '../../contracts/project.js';
 import type { SiteFoldersSettings } from '../use-site-folders.hooks.js';
-import { useSiteStorageSettings } from '../use-site-storage-settings.hooks.js';
 
 export { act, dom, settle, site };
 

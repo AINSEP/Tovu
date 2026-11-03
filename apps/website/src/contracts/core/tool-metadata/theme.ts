@@ -41,7 +41,8 @@ export const toolMetadata = {
         "Start a redesign without touching the live theme.",
       ],
     },
-    approval: { class: 'edit', confirmation: 'direct' },
+    // A private copy is reversible authoring; activating it changes the live site's appearance.
+    approval: { class: 'edit', confirmation: 'policy', rule: 'theme-activation' },
   },
   "theme_edit_file": {
     guidanceCapabilities: [THEME_AUTHORING, "ui-design"],
@@ -156,7 +157,7 @@ export const toolMetadata = {
     },
     approval: { class: 'edit', confirmation: 'direct' },
   },
-  // Switching the rendered theme is distinct from editing one theme's files (F7a).
+  // Owner 2026-11-02: switching the live theme requires confirmation, including turning it off.
   "theme_set_active": {
     search: {
       keywords: "theme switch activate change active theme live site look design",
@@ -168,7 +169,7 @@ export const toolMetadata = {
         "Turn off the theme on my site.",
       ],
     },
-    approval: { class: 'edit', confirmation: 'direct' },
+    approval: { class: 'publish', confirmation: 'policy' },
   },
   "theme_set_page_published": {
     search: {

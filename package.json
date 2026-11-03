@@ -191,6 +191,7 @@
     "undici": "^7.30.0",
     "unpdf": "^1.8.1",
     "yauzl": "^3.4.0",
+    "zod": "^3.25.76",
     "zod-to-json-schema": "^3.25.2"
   },
   "devDependencies": {

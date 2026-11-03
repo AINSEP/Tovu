@@ -4,6 +4,7 @@ import { credentialSaveCatalog, credentialSaveDerivedRisk } from "../../custom-c
 /** t10: real human exchange and credential persistence; fake only the provider network boundary. */
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { EventEmitter } from 'node:events';
 import type { SurfaceEmission, SurfaceEmitter, ToolExecutionContext } from '@jini-ai/core';
 
 /** Context fields a test call may override, plus the surface channel the handler receives separately. */
@@ -50,7 +51,7 @@ test('t10 source callback delivers a human token only to its parked call, reject
   });
   async function callback(principal: string, params: Record<string, unknown>) {
     let status = 200; let body: unknown;
-    const response = { status: (value: number) => { status = value; return response; }, json: (value: unknown) => { body = value; return response; } };
+    const response = Object.assign(new EventEmitter(), { status: (value: number) => { status = value; return response; }, json: (value: unknown) => { body = value; return response; } });
     await handler({ body: { toolName: ID, params }, get: (header: string) => {
       assert.equal(header, RUN_PRINCIPAL_HEADER); return principal;
     } } as unknown as Request, response as unknown as Response);

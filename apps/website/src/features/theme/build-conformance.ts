@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { existsSync, lstatSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { TRASH_DIR_NAME } from "./theme-layout.js";
 
 import { findUnrewrittenAssetPaths, rewriteAssetPaths, tokenStylesheetSentinel } from "./static-asset-contract.js";
 
@@ -225,6 +226,8 @@ const MAX_TOTAL_HASHED_BYTES = 64 * 1024 * 1024;
  * contained risk, and a cross-check test in `build-conformance.test.ts` pins it equal to the original.
  */
 function isInGeneratedTree(relativePath: string, sourceDir: string | undefined): boolean {
+  // Retained replacements and manually trashed files are local recovery data, never build output.
+  if (relativePath.split("/", 1)[0] === TRASH_DIR_NAME) return false;
   if (relativePath === "theme.json") return false;
   if (sourceDir !== undefined && (relativePath === sourceDir || relativePath.startsWith(`${sourceDir}/`))) {
     return false;

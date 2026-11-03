@@ -22,7 +22,6 @@ import {
   resetPublishContentContributorsForTests,
 } from "#src/features/publish-content/type-registry";
 
-import type { NewsletterRouteDeps } from "#src/server/inbound/admin-http/routes/newsletter/deps";
 
 import { createRouteDeps } from "../app.js";
 import { createAssistantByokModule } from "../modules/assistant-byok.js";
@@ -230,7 +229,7 @@ async function buildByokRole(routeDeps: ReturnType<typeof createRouteDeps>): Pro
 /** (c) Execute the daemon's own construction statements and installed-extension attach seam.
  * No boot order or argument bag is reimplemented here; the helper supplies only external ports.
  * Federation is constructed without connecting, and full process readiness remains integration work. */
-async function buildDaemonRole(routeDeps: NewsletterRouteDeps): Promise<RoleSnapshot> {
+async function buildDaemonRole(routeDeps: ReturnType<typeof createRouteDeps>): Promise<RoleSnapshot> {
   contributions.contributors.clear({});
   resetPublishContentContributorsForTests();
   resetDuplicateResourceHandlersForTests();
