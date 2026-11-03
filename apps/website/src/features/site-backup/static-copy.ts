@@ -50,7 +50,7 @@ export function readmeText({ name, words, metadata, rendered }: { name: string; 
   const lines = [`${name} — static copy`, ...(words === undefined ? [] : [`Exported: ${words} (${metadata.exportedAt})`]), `Theme: ${metadata.theme}`,
     `Contains: ${pages} pages and posts, ${images} ${images === 1 ? "image" : "images"}, ${videos} ${videos === 1 ? "video" : "videos"}.`,
     ...(downloadTheme === undefined ? ["Open with any static web host (links start at the site root)."] : [
-      'To look at it: extract the ZIP, then double-click "Open website.html".',
+      'To look at it: extract the ZIP, then open index.html in your browser. It lists every exported theme and page.',
       `To publish it by hand: upload sites/${downloadTheme}/ and media/ together, keeping them side by side.`,
       "Page, asset, social images and llms.txt links are relative to their containing files; external links keep their URLs.",
     ]),
@@ -78,7 +78,7 @@ function serverFeatureName({ url }: { url: string }, _options = {}): string {
 
 /** Count delivered HTML pages (excluding the error document) and image/video files. */
 function copyCounts({ files }: { files: readonly { path: string }[] }, _options = {}) {
-  return { pages: files.filter(file => !["404.html", "Open website.html"].includes(path.posix.basename(file.path)) && /\.html$/i.test(file.path)).length,
+  return { pages: files.filter(file => path.posix.basename(file.path) !== "404.html" && /\.html$/i.test(file.path)).length,
     images: files.filter(file => /\.(?:avif|webp|png|jpe?g|gif|svg|ico)$/i.test(file.path)).length,
     videos: files.filter(file => /\.(?:mp4|webm|mov|m4v|ogv)$/i.test(file.path)).length };
 }

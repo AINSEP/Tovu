@@ -6,6 +6,7 @@ import { redactSecrets } from "@jini-ai/core";
 import { normalizeRepositoryFolder, prefixRepositoryPath } from "@jini-ai/devops/source-control";
 import { prepareStaticReport } from "../site-backup/static-copy.js";
 import { staticDownloadLayout } from "../site-backup/static-download-layout.js";
+import { LANDING_FILE } from "../site-backup/static-download-landing.js";
 import { claimArchivePaths } from "../site-backup/share-zip.js";
 import { SiteShareRefusal } from "../site-backup/share-policy.js";
 import { CREDENTIAL_MESSAGES } from "../../contracts/core/credential-token.js";
@@ -526,7 +527,7 @@ function commitOutcome({ result, input, folder, token }: { result: SourceControl
     owner: input.owner,
     repo: input.repo,
     folder,
-    entryPath: prefixRepositoryPath({ folder, path: "Open website.html" }),
+    entryPath: prefixRepositoryPath({ folder, path: LANDING_FILE }),
     branch: result.branch,
     branchCreated: result.branchCreated,
     commitSha: result.commitSha,

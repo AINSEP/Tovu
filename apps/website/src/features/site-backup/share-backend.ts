@@ -41,7 +41,7 @@ function view(row: SiteShareRecord): SiteShareView {
 function createOutcome(required: { waited: PushJobWait<ExportedShare>; jobId: string; format?: "static" }, _options = {}): unknown {
   const { waited } = required;
   if (waited.state === "done") {
-    if (required.format === "static") return { ...view(waited.result), message: (waited.result.notices?.includes(DOMAINLESS_DISCOVERY_NOTICE) ? DOMAINLESS_DISCOVERY_NOTICE + " " : "") + "Extract the ZIP, then double-click “Open website.html” inside the extracted folder. No local server is needed to view the exported pages. README.txt lists features that need a server." };
+    if (required.format === "static") return { ...view(waited.result), message: (waited.result.notices?.includes(DOMAINLESS_DISCOVERY_NOTICE) ? DOMAINLESS_DISCOVERY_NOTICE + " " : "") + "Extract the ZIP, then open index.html inside the extracted folder in your browser; it lists every exported theme and page. No local server is needed to view the exported pages. README.txt lists features that need a server." };
     return { ...view(waited.result), ...(waited.result.url ? {} : { message: "ZIP ready. Download zip only. Connect a deployed Tovu site or S3-compatible storage to get a link." }) };
   }
   if (waited.state === "abandoned") throw new SiteShareRefusal({ code: "CANCELLED", message: "Share export was cancelled." });

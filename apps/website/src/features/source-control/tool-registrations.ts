@@ -1,6 +1,7 @@
 import type { LoadPluginCredentialCards } from "../custom-credentials/plugin-credential-card.js";
 import { describeCredentialByLabel, resolveCustomCredentialByLabel, type CustomCredentialSetRepoPort } from "../custom-credentials/index.js";
 import { executeCommitSchema } from "./commit-schema.js";
+import { LANDING_FILE } from "../site-backup/static-download-landing.js";
 import { toolMetadata } from '../../contracts/core/tool-metadata/source-control.js';
 import { normalizeRepositoryFolder, prefixRepositoryPath } from "@jini-ai/devops/source-control";
 import { type Clock } from "@jini-ai/core/primitives";
@@ -187,7 +188,7 @@ export const sourceControlAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "source_control_execute_commit",
     description:
-      "Commits a fresh active-theme static copy to a repository using its saved credential. Use the folder the user named; if the destination is unclear ask 'repository root or which folder?'. Run dryRun:true first to preview packaged files and bytes without contacting the host. Requires human approval with {provider, owner, repo, commitMessage, branch?, folder?}; provider must have commitSupported:true and folder commits require supportsFolder:true. Returns {committed:true, owner, repo, folder, entryPath, branch, branchCreated, commitSha, commitUrl, filesChanged, filesDeleted, divergedPaths}. Report destination, entryPath, deleted-file count and divergedPaths. Only unchanged stale paths previously managed in this destination may be removed; unrelated files, human-edited stale files and files outside the folder are preserved. The entry is Open website.html, not a root index.html; existing hosting URLs may need configuration. Static publishing has its own tool. Returns {committed:false, reason, message} when the credential or provider is unavailable, and {committed:false, cancelled:false, code, message} when the commit itself fails. Never accepts or exposes a token. Requires source-control.commit.",
+      "Commits a fresh active-theme static copy to a repository using its saved credential. Use the folder the user named; if the destination is unclear ask 'repository root or which folder?'. Run dryRun:true first to preview packaged files and bytes without contacting the host. Requires human approval with {provider, owner, repo, commitMessage, branch?, folder?}; provider must have commitSupported:true and folder commits require supportsFolder:true. Returns {committed:true, owner, repo, folder, entryPath, branch, branchCreated, commitSha, commitUrl, filesChanged, filesDeleted, divergedPaths}. Report destination, entryPath, deleted-file count and divergedPaths. Only unchanged stale paths previously managed in this destination may be removed; unrelated files, human-edited stale files and files outside the folder are preserved. The entry is a root index.html listing the theme and its pages; existing hosting URLs may need configuration. Static publishing has its own tool. Returns {committed:false, reason, message} when the credential or provider is unavailable, and {committed:false, cancelled:false, code, message} when the commit itself fails. Never accepts or exposes a token. Requires source-control.commit.",
     // Genuinely consequential (pushes a real commit into someone's actual git history using a
     // write-scoped external credential) — classified accordingly, cross-checked against
     // `sourceControlDerivedRisk` below at build time. Deliberately carries NO `actorClassRule` — see
@@ -459,7 +460,7 @@ export function buildSourceControlRegistrations(deps: SourceControlToolDeps, sur
           totalBytes: preview.totalBytes,
           paths: preview.paths,
           folder: command.folder,
-          entryPath: prefixRepositoryPath({ folder: command.folder, path: "Open website.html" }),
+          entryPath: prefixRepositoryPath({ folder: command.folder, path: LANDING_FILE }),
           note: "Nothing was sent. Call again without dryRun to commit.",
         };
       }

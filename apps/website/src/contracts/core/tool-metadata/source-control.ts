@@ -5,7 +5,7 @@ import type { ToolApprovalPolicy } from './approval-policy.js';
 export const toolMetadata = {
   "source_control_execute_commit": {
     title: 'Publish site files to your repository',
-    summary: 'This commits the active theme’s static copy to the selected repository folder and may remove unchanged stale files previously managed there. Other folders and unrelated files are preserved. Open website.html is the entry file; existing hosting URLs may need configuration.',
+    summary: 'This commits the active theme’s static copy to the selected repository folder and may remove unchanged stale files previously managed there. Other folders and unrelated files are preserved. The root index.html lists the theme and its pages; existing hosting URLs may need configuration.',
     search: {
       keywords: "commit my site to a git repository push the site code export to repo commit changes",
     },

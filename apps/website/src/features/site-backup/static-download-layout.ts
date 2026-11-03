@@ -1,11 +1,11 @@
 import path from "node:path";
 import { exportUrlLocations, extractHtmlReferences, outputFileForUrl } from "@jini-ai/devops/static-export";
-import { escapeHtml } from "#src/platform/html/escape";
 import { downloadDocumentBase } from "../site-export/export-html-policy.js";
 import { validateSharePath, sharePathAlias } from "./share-file-policy.js";
 import { allocateStaticExportThemes, type StaticExportTheme } from "./static-export-selection.js";
 import { checkShareLimits } from "./share-policy.js";
 import { readmeText, type StaticSiteMetadata } from "./static-copy.js";
+import { LANDING_FILE, landingPages, staticLandingPage, type LandingTheme } from "./static-download-landing.js";
 
 /** Portable packaging consumes rendered files and real site/theme context, without backup metadata. */
 export interface StaticDownloadCopy {
@@ -130,12 +130,6 @@ function downloadRobots({ file, content }: { file: string; content: Buffer }, _o
   return file === "robots.txt" && !content.toString().trim() ? Buffer.from("User-agent: *\nAllow: /\n") : content;
 }
 
-/** A partial render may lose the home page; the launcher still opens a delivered document. */
-function downloadHome({ copy, paths, theme }: { copy: Copy; paths: ReadonlyMap<string, string>; theme: string }, _options = {}): string {
-  const first = copy.files.find(file => file.path !== "404.html" && /\.html$/i.test(file.path));
-  return paths.get("index.html") ?? paths.get(first?.path ?? "") ?? `sites/${theme}/index.html`;
-}
-
 /** Follow page references through stylesheets/manifests, retaining only reached public media.
  * @complexity O(text bytes + references), each file visited at most once; no I/O.
  */
@@ -257,17 +251,24 @@ export function staticDownloadLayout({ copy, copies = [copy], activeThemeId, the
     checkShareLimits({ files: sizes, totalBytes });
     entries.push(file);
   };
-  const readmes: string[] = [];
+  const readmes: string[] = [], landing: LandingTheme[] = [];
   for (const plan of plans) {
     const files = relocatedFiles({ ...plan, deliveredMedia });
     for (const file of files) add(file);
     readmes.push(...downloadReadme({ plan }));
+    landing.push(landingTheme({ plan, files, activeThemeId: activeThemeId ?? copy.themeId }));
   }
-  const selected = plans.find(plan => plan.copy.themeId === activeThemeId) ?? plans[0]!;
-  const home = escapeHtml(downloadHome(selected));
-  add({ path: "Open website.html", content: Buffer.from(`<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="refresh" content="0; url=${home}"><title>Open website</title></head><body><a href="${home}">Open website</a></body></html>`) });
+  // A partial render may lose a home page; the landing page still lists every delivered page.
+  add({ path: LANDING_FILE, content: staticLandingPage({ siteName: copy.readme?.name ?? copy.siteSlug ?? "Website", exportedWords: copy.readme?.words, themes: landing }) });
   if (readmes.length) add({ path: "README.txt", content: Buffer.from(readmes.join("\n") + (copies.length > 1 ? `\nShared media: ${deliveredMedia.size} files in media/.\n` : "")) });
   return entries;
+}
+
+/** One landing card: the theme's display title, its folder and its delivered pages (redirect stubs omitted). */
+function landingTheme({ plan, files, activeThemeId }: { plan: ReturnType<typeof downloadPlans>[number]; files: readonly File[]; activeThemeId?: string }, _options = {}): LandingTheme {
+  const skip = new Set((plan.copy.metadata?.redirectFiles ?? []).flatMap(file => plan.paths.get(file) ?? []));
+  return { title: plan.copy.metadata?.theme ?? plan.theme, folder: plan.theme, active: plan.copy.themeId !== undefined && plan.copy.themeId === activeThemeId,
+    pages: landingPages({ files, folder: plan.theme, skip }) };
 }
 
 /** Dated downloads and deterministic commits share the same per-theme disclosures. */
