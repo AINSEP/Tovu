@@ -10,7 +10,8 @@ export function applyPublishedWebMcp(
   _optional: Record<string, never> = {},
 ): void {
   app.use(async (req: Request, res: Response, next: NextFunction) => {
-    if (!['GET', 'HEAD'].includes(req.method) || /^\/(?:admin|api|theme-assets|assets)(?:\/|$)/.test(req.path)) {
+    // Both theme mounts serve a theme's raw files (the preview one by revision): never a published page.
+    if (!['GET', 'HEAD'].includes(req.method) || /^\/(?:admin|api|theme-assets|theme-preview-assets|assets)(?:\/|$)/.test(req.path)) {
       next(); return;
     }
     let enabled = false;

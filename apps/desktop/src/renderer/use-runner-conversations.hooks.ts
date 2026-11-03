@@ -7,9 +7,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import type { ChatMessage } from '@jini-ai/chat/core';
 import type { ConversationListItem } from '@jini-ai/chat/react';
-import { runnerInventoryBridge } from './runner-api.js';
+import { runnerInventoryBridge, type BridgeLookup } from './runner-api.js';
 import { createRunnerConversationController } from './runner-conversation-controller.js';
-import type { BridgeLookup } from './bridge-lookup.js';
 import type { WorkspaceConversationSummary } from '../contracts/workspace-conversations.js';
 
 export interface UseRunnerConversations {

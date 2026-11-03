@@ -21,9 +21,12 @@ import {
 const OFF: ProductTelemetryPreference = { crashes: false, usage: false, installationId: null, decidedAt: null };
 type Clickable = MenuItemConstructorOptions & { click(item: { checked: boolean }): void };
 
-function menuHarness({ launch = {}, automatic = true, preference = OFF, failSharing = false }: {
+function menuHarness(options: {
   launch?: unknown; automatic?: boolean; preference?: ProductTelemetryPreference; failSharing?: boolean;
 } = {}) {
+  const { automatic = true, preference = OFF, failSharing = false } = options;
+  // An explicit `launch: undefined` means no product booted; a destructuring default would swap `{}` back in.
+  const launch = "launch" in options ? options.launch : {};
   const calls: string[] = [];
   const errors: [string, string][] = [];
   const menu = desktopSettingsMenu({

@@ -115,7 +115,9 @@ test("stock resolvers work from a dist/src module layout independently of cwd", 
   // also loads every feature and its boot graph under a second symlink identity; none of that is
   // part of this path contract, and it exhausted the child deadline in the snapshot run.
 
-  const resolverSource = ["builtInThemesDir", "bundledAgentPluginsDir"].map((name) => {
+  // bundledAgentPluginsDir lives in product-root.ts itself (aef024808), so the worker imports the real
+  // export; only builtInThemesDir is lifted out of site-paths.ts.
+  const resolverSource = ["builtInThemesDir"].map((name) => {
     const owner = "site-paths.ts";
     const source = ts.createSourceFile(owner, readFileSync(path.join(REPO_ROOT, "apps/website/src/server/runtime/composition", owner), "utf8"), ts.ScriptTarget.Latest, true);
     const declaration = source.statements.find((node) => ts.isFunctionDeclaration(node) && node.name?.text === name);
@@ -123,7 +125,7 @@ test("stock resolvers work from a dist/src module layout independently of cwd", 
     return declaration.getText(source).replace(/^export\s+/, "");
   }).join("\n");
   const compiled = ts.transpileModule(resolverSource, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
-  writeFileSync(worker, `import { join } from "node:path"; const { resolveProductRoot } = await import(${JSON.stringify(moduleUrl)});\n${compiled}\nconsole.log(JSON.stringify([builtInThemesDir(), bundledAgentPluginsDir()]));`);
+  writeFileSync(worker, `import { join } from "node:path"; const { resolveProductRoot, bundledAgentPluginsDir } = await import(${JSON.stringify(moduleUrl)});\n${compiled}\nconsole.log(JSON.stringify([builtInThemesDir(), bundledAgentPluginsDir()]));`);
   const env = { ...process.env };
   // Resolve the runner's config before changing cwd to the fixture directory.
   if (env.TSX_TSCONFIG_PATH) env.TSX_TSCONFIG_PATH = path.resolve(REPO_ROOT, env.TSX_TSCONFIG_PATH);
@@ -177,7 +179,7 @@ async function stageBuildAssets(t: import("node:test").TestContext): Promise<str
   const { buildServer } = await import(pathToFileURL(path.join(REPO_ROOT, "development/scripts/build-server.mjs")).href);
   const fixture = mkdtempSync(path.join(tmpdir(), "tovu-asset-copy-"));
   t.after(() => rmSync(fixture, { recursive: true, force: true }));
-  for (const relative of ["content/templates", "content/themes", "content/agent-plugins", "content/public", "src/platform/db/drizzle"]) {
+  for (const relative of ["content/templates", "content/themes", "content/agent-plugins", "content/agent-plugin-overlays", "content/public", "src/platform/db/drizzle"]) {
     const source = relative.startsWith("src/") ? path.join(fixture, "apps/website", relative) : path.join(fixture, relative);
     const destination = path.join(fixture, "dist", relative);
     mkdirSync(source, { recursive: true });
@@ -186,14 +188,15 @@ async function stageBuildAssets(t: import("node:test").TestContext): Promise<str
     writeFileSync(path.join(destination, "stale.txt"), "deleted from source");
     assert.ok(existsSync(path.join(destination, "stale.txt")));
   }
-  // Execute the actual asset commands, with compilation excluded, in a disposable tree.
-  buildServer({ repoRoot: fixture }, { npmCli: "/fake/npm-cli.js", tscCli: "/fake/tsc", runNode: () => {} });
+  // Execute the actual asset commands, with compilation excluded, in a disposable tree. An empty
+  // package selection composes dist/content/agent-plugins from content/agent-plugins alone, with no npm pack.
+  buildServer({ repoRoot: fixture }, { npmCli: "/fake/npm-cli.js", tscCli: "/fake/tsc", runNode: () => {}, selection: [] });
   return fixture;
 }
 
 test("the build script copies stock data to dist/content, not dist/src", async (t) => {
   const fixture = await stageBuildAssets(t);
-  for (const relative of ["content/templates", "content/themes", "content/agent-plugins", "content/public"]) {
+  for (const relative of ["content/templates", "content/themes", "content/agent-plugins", "content/agent-plugin-overlays", "content/public"]) {
     assert.equal(readFileSync(path.join(fixture, "dist", relative, ".current"), "utf8"), relative);
     assert.equal(existsSync(path.join(fixture, "dist/src", relative.slice("content/".length))), false);
   }
@@ -201,7 +204,7 @@ test("the build script copies stock data to dist/content, not dist/src", async (
 
 test("every asset copy in the build script cleans its destination first", async (t) => {
   const fixture = await stageBuildAssets(t);
-  for (const relative of ["content/templates", "content/themes", "content/agent-plugins", "content/public", "src/platform/db/drizzle"]) {
+  for (const relative of ["content/templates", "content/themes", "content/agent-plugins", "content/agent-plugin-overlays", "content/public", "src/platform/db/drizzle"]) {
     // An ancestor clean counts: cleaning dist/content also cleans dist/content/themes. The
     // observable contract is that deleted source files cannot survive, whatever the command syntax.
     assert.equal(existsSync(path.join(fixture, "dist", relative, "stale.txt")), false, `${relative} retained stale data`);

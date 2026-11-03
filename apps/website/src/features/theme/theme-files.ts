@@ -604,7 +604,7 @@ export function themeFileDiffersFromOriginal(
  * @complexity O(s) in the size of what `fillTemp` writes.
  */
 function writeFileAtomically(target: string, relativePathForError: string, fillTemp: (tempPath: string) => void, stat: typeof statSync = statSync,
-  revisionFile?: { themeDir: string; themesRoot: string; relativePath: string }): void {
+  revisionFile?: { themeDir: string; themesRoot: string; relativePath: string }): string | undefined {
   // statOrThemePathError, NEVER a bare statSync — same circular-symlink ELOOP escape the other
   // post-resolve stat calls in this file were fixed for (see that wrapper's own doc). In practice
   // both callers (`writeThemeFile`, `resetThemeFileToOriginal`) already run an identical stat on the
@@ -640,6 +640,7 @@ function writeFileAtomically(target: string, relativePathForError: string, fillT
       console.warn('[theme-files] File saved; revision cleanup failed and will retry on the next replacement.', error);
     }
   }
+  return revision;
 }
 
 type ReviewedThemeFile = {
@@ -791,14 +792,17 @@ export function validateThemeFileWrite(
 /** Write validated theme text, retaining the previous bytes only after every precondition passes.
  * Preparation and execution share validation so impossible writes never require approval.
  * @returns The canonical path written. @throws ThemePathError for invalid paths or oversized files.
+ * @param optional.onRevision - Receives the retained theme-relative revision after a successful replacement.
  * @complexity O(content bytes + previous file bytes) time, bounded content memory. */
 export function writeThemeFile(
   required: { themeDir: string; themesRoot: string; relativePath: string; content: string },
-  optional: { overwriteOversized?: boolean; stat?: typeof statSync } = {}
+  optional: { overwriteOversized?: boolean; stat?: typeof statSync;
+    onRevision?: (required: { trashedPath: string }, optional: Record<string, never>) => void } = {}
 ): string {
   const target = validateThemeFileWrite(required, optional);
   mkdirSync(dirname(target), { recursive: true });
-  writeFileAtomically(target, required.relativePath, (tempPath) => writeFileSync(tempPath, required.content, "utf8"), optional.stat, required);
+  const revision = writeFileAtomically(target, required.relativePath, (tempPath) => writeFileSync(tempPath, required.content, "utf8"), optional.stat, required);
+  if (revision) optional.onRevision?.({ trashedPath: relative(required.themeDir, join(revision, relative(required.themeDir, target))).split(sep).join('/') }, {});
   return target;
 }
 

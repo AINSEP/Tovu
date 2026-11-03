@@ -1543,7 +1543,8 @@ test("menu widget: nested hostile labels stay inert, unsafe child URLs are neutr
       ],
     }] },
   });
-  assert.equal(html, '<nav class="widget widget-menu"><h3 class="widget-menu-title">&lt;Menu&gt;</h3><ul><li class="featured"><a href="/parent" rel="nofollow" target="_blank">&lt;Parent&gt;</a><ul><li><a href="#">&lt;script&gt;alert(1)&lt;/script&gt;</a></li><li><span class="widget-menu-item--unavailable">Hidden &amp; private</span></li></ul></li></ul></nav>');
+  // Corrected 11-02 (owner rel policy): a new-tab link always carries noopener noreferrer.
+  assert.equal(html, '<nav class="widget widget-menu"><h3 class="widget-menu-title">&lt;Menu&gt;</h3><ul><li class="featured"><a href="/parent" rel="nofollow noopener noreferrer" target="_blank">&lt;Parent&gt;</a><ul><li><a href="#">&lt;script&gt;alert(1)&lt;/script&gt;</a></li><li><span class="widget-menu-item--unavailable">Hidden &amp; private</span></li></ul></li></ul></nav>');
 });
 
 test("widgets: protocol-relative hrefs never reach public HTML through any widget href surface (open-redirect fix, 2026-08-20)", () => {

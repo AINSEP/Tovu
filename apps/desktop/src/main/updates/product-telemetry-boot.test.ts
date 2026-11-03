@@ -234,10 +234,12 @@ class FakeWindow extends EventEmitter {
 
 const UNDECIDED: ProductTelemetryPreference = { crashes: false, usage: false, installationId: null, decidedAt: null };
 
-function consentHarness({ response = 0, decided = false, launch = LAUNCH as DesktopProductTelemetry["launch"],
-  failWrite = false, failDialog = false }: {
+function consentHarness(options: {
   response?: number; decided?: boolean; launch?: DesktopProductTelemetry["launch"]; failWrite?: boolean; failDialog?: boolean;
 } = {}) {
+  const { response = 0, decided = false, failWrite = false, failDialog = false } = options;
+  // An explicit `launch: undefined` is the inactive product; a destructuring default would swap LAUNCH back in.
+  const launch = "launch" in options ? options.launch : LAUNCH;
   const app = fakeApp();
   const { product, consents } = fakeProduct({ launch });
   const state = { product };
@@ -281,6 +283,7 @@ test("the dialog waits for a window that is actually visible", async () => {
   const window = h.openWindow({ visible: false });
   window.webContents.emit("did-finish-load");
   await settle();
+  // A length check, not deepEqual(h.shown, []): that asserts `h.shown` is `never[]` for the rest of the test.
   assert.equal(h.shown.length, 0);
   window.visible = true;
   window.emit("show");

@@ -8,7 +8,7 @@ import test from "node:test";
 
 import type { ToolExecutionContext } from "@jini-ai/core";
 
-import { buildAssistantToolRegistrations } from "../../../assistant/tool-registrations.js";
+import { buildConfirmedAssistantToolRegistrations } from "../../../assistant/__tests__/fixtures/confirmed-registrations.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 import { describeHardcodedLinkList, findHardcodedLinks, MIN_HARDCODED_LINK_LIST } from "../hardcoded-link-lists.js";
 import { discoverAllBuiltInThemes } from "../index.js";
@@ -121,7 +121,8 @@ function harness() {
     themesDir,
     authorize: async () => ({ allowed: true, reason: "matched" }),
   } as unknown as RegistryDepsWithoutLimiter;
-  const registrations = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions });
+  // Overwriting footer.html draws the confirmation card (owner decision 2026-11-02); this test is about the confirmed write.
+  const registrations = buildConfirmedAssistantToolRegistrations({ routeDeps: toAssistantRegistryDeps({ routeDeps: deps }), options: { contributions } }, { confirmPlanTools: ["theme_write_file"] });
   async function call(toolId: string, input: Record<string, unknown>): Promise<Record<string, unknown>> {
     const found = registrations.find((r) => r.descriptor.id === toolId);
     assert.ok(found, `expected '${toolId}' to be wired`);

@@ -27,9 +27,10 @@ import type { RouteDeps } from "../../../../routes/types.js";
  * copy of `fashion-modern` with one extra `landing.liquid` template, which has no route shape.
  */
 
-/** Through createApp the cookie-consent delivery (on by default) wraps every HTML page and marks it
- *  `private, no-store`, which keeps the preview's own `no-store` and adds `private`. */
-const APP_PREVIEW_CACHE_CONTROL = "private, no-store";
+/** Through createApp the preview keeps its own `no-store`. The cookie-consent delivery, which marks a
+ *  page `private, no-store`, is off by default (owner, 2026-11-02; it was on by default before), so a
+ *  fresh site's preview carries no `private`. */
+const APP_PREVIEW_CACHE_CONTROL = "no-store";
 const REPO_THEMES = path.resolve(import.meta.dirname, "../../../../../../../../content/themes");
 
 function scratchTemplatedThemesRoot(t: import("node:test").TestContext): string {

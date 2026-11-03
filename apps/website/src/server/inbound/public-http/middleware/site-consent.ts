@@ -118,7 +118,8 @@ export function createSiteConsentPorts({ deps }: { deps: RouteDeps }, { trustedR
 }
 
 /** True when consent follows only the product default (off since 2026-11-02): no owner choice, nothing published.
- * Exports omit that consent until a browser-side banner supports static sites; live serving keeps it.
+ * Exports omit that consent until a browser-side banner supports static sites; live serving follows the
+ * same default (off), so neither shows a banner the owner never chose.
  * @complexity O(1), one store read and one settings read. */
 async function isDefaultOnlyConsent({ deps }: { deps: RouteDeps }, _options = {}): Promise<boolean> {
   await deps.siteConsentReady;
@@ -142,6 +143,24 @@ function readHtmlChunk({ chunk, type }: { chunk: unknown; type: string }, _optio
     return Buffer.isBuffer(chunk) ? chunk.toString('utf8') : chunk;
   }
   return undefined;
+}
+
+/**
+ * The delivered page's final HTML: the settings link, the preview banner hiding, and — on a live
+ * public page whose consent runtime was delivered — the browser analytics contributions.
+ * @param required.themeOverridden `res.locals.tovuRenderThemeIdOverride` is set (a theme preview render).
+ * @complexity O(html length).
+ */
+function rewriteDeliveredHtml(
+  { html, request, deps, themeOverridden }: { html: string; request: Request; deps: RouteDeps; themeOverridden: boolean },
+  _optional = {},
+): string {
+  const linked = hidePreviewConsentBanner({ html: withSiteConsentSettingsLink({ html }), path: request.path });
+  // Only the delivered consent runtime can release a live-site contribution. Preview,
+  // administrative HTML and exports do not inherit the crawling operator's choice.
+  const publicPage = !/^\/(?:admin|api)(?:\/|$)/.test(request.path) && !THEME_PREVIEW_PATH.test(request.path);
+  if (!publicPage || isStaticExportRequest(request) || themeOverridden || !html.includes('data-jini-consent-runtime')) return linked;
+  return injectBrowserAnalytics({ html: linked, contributions: deps.browserAnalytics?.({ surface: 'site' }) ?? [], surface: 'site', delivery: 'live' });
 }
 
 /**
@@ -182,13 +201,7 @@ export function applySiteConsent({ app, deps }: { app: Express; deps: RouteDeps 
       const type = String(res.getHeader('content-type') ?? '');
       const html = readHtmlChunk({ chunk, type });
       if (html !== undefined) {
-        let linked = hidePreviewConsentBanner({ html: withSiteConsentSettingsLink({ html }), path: req.path });
-        // Only the delivered consent runtime can release a live-site contribution. Preview,
-        // administrative HTML and exports do not inherit the crawling operator's choice.
-        const publicPage = !/^\/(?:admin|api)(?:\/|$)/.test(req.path) && !THEME_PREVIEW_PATH.test(req.path);
-        if (publicPage && !isStaticExportRequest(req) && !res.locals.tovuRenderThemeIdOverride && html.includes('data-jini-consent-runtime')) {
-          linked = injectBrowserAnalytics({ html: linked, contributions: deps.browserAnalytics?.({ surface: 'site' }) ?? [], surface: 'site', delivery: 'live' });
-        }
+        const linked = rewriteDeliveredHtml({ html, request: req, deps, themeOverridden: Boolean(res.locals.tovuRenderThemeIdOverride) });
         if (linked !== html) {
           chunk = Buffer.from(linked);
           res.removeHeader('Content-Length');

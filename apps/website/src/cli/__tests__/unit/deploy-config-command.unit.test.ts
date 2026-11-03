@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
+import { processComposedBundledSourceRootSync } from "../../../features/agent-plugins/__tests__/fixtures/bundled-source-root.js";
 import { deployConfigTargetOptionHelp, runDeployConfigCommand } from "../../commands/deploy-config.js";
 
 /**
@@ -43,7 +44,8 @@ test("keeps the product's Chromium note when cwd has deployment inputs but no ov
   await writeFile(path.join(pluginRoot, "tovu-deploy-configs.json"), JSON.stringify({ schemaVersion: 1, generators: [{ id: "fly", label: "Fixture host", module: "generator.mjs" }] }));
   // Descriptor inputs still come from cwd; this directory deliberately has no product overlays.
   await writeFile(path.join(root, "Dockerfile"), 'FROM node:24\nVOLUME ["/data/sites"]\nEXPOSE 4321\n');
-  await writeFile(path.join(root, "package.json"), '{"name":"fixture"}\n');
+  // Pretty-printed like the real root package.json: the descriptor reads `"name"` at a line start.
+  await writeFile(path.join(root, "package.json"), `${JSON.stringify({ name: "fixture" }, null, 2)}\n`);
   const healthRoute = path.join(root, "apps/website/src/server/inbound/public-http/routes/ops/health.ts");
   await mkdir(path.dirname(healthRoute), { recursive: true });
   await writeFile(healthRoute, 'export const registerReadyzRoute = () => app.get("/readyz", handler);');
@@ -97,7 +99,8 @@ test("without --region the generator receives an empty region and refuses to ass
 });
 
 test("a missing or unknown --target is refused with the loaded ids", async () => {
-  const io = capture();
+  // The shipped bundle, as the build composes it: the hosting plugins live in @jini-ai/agent-plugins.
+  const io = capture({ TOVU_BUNDLED_AGENT_PLUGINS_DIR: processComposedBundledSourceRootSync() });
   await assert.rejects(runDeployConfigCommand({}, io.ports), { name: "ValidationError", message: '--target must be one of: fly, railway, render (got "")' });
   await assert.rejects(runDeployConfigCommand({ target: "heroku" }, io.ports), { name: "ValidationError", message: /\(got "heroku"\)$/ });
   assert.deepEqual(io.out, []);

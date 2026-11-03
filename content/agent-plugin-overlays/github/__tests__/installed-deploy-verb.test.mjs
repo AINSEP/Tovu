@@ -1,3 +1,5 @@
+// Before the product modules: they read the shipped bundle through bundledAgentPluginsDir() (see the fixture).
+import "../../../../apps/website/src/features/agent-plugins/__tests__/fixtures/composed-bundle-env.ts";
 import assert from "node:assert/strict";
 import test, { after } from "node:test";
 import { cp, mkdtemp, readdir, readFile, writeFile } from "node:fs/promises";

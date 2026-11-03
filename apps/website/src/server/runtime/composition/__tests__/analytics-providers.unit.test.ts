@@ -52,6 +52,10 @@ test("analyticsProviderRouteDeps: absent providers keep the built-in-only, hook-
 
 test("analyticsProviderRouteDeps: requires an explicit receipt before forwarding, including US opt-out regions", async t => {
   const base = createRouteDeps();
+  // The banner is off by default (owner, 2026-11-02); this site's owner turned it on.
+  await base.siteConsentReady;
+  await base.set({ deps: { repo: base.settingsRepo, clock: base.clock, ids: base.idGen, principals: base.principalRepo, authorize: base.authorize },
+    input: { namespace: "core.consent", key: "enabled", value: true, scope: "workspace", workspaceId: base.workspaceId, callerPrincipalId: await base.ownerPrincipalId } });
   const created: unknown[] = [];
   const vendor: AnalyticsForwarderModule = { create: (input) => { created.push(input); return { forward: async () => ({ status: "ok", value: undefined }) }; } };
   const set: AnalyticsProviderSet = {

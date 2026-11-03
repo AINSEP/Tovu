@@ -1,7 +1,7 @@
 /** One ordering owner for the menu preference consumed by Settings and live-view admission. */
 import { useEffect, useState } from 'react';
 import { LIVE_SITE_VIEWS, clampLiveSiteViews } from '../contracts/site-view-preference.js';
-import type { BridgeLookup } from './bridge-lookup.js';
+import type { BridgeLookup } from './runner-api.js';
 
 /** A positive saved whole number, otherwise the shipped default. */
 export function liveViewLimit({ value }: { value: unknown }, _options = {}): number {

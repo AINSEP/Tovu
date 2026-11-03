@@ -314,8 +314,10 @@ test("GET /: a members-only page claiming / is not shown to an anonymous visitor
 
   assert.equal(gated.status, 200);
   assert.doesNotMatch(gatedHtml, /Members-only home body/);
-  assert.equal(assertDefaultConsentPage({ html: gatedHtml }).stableHtml,
-    assertDefaultConsentPage({ html: await (await fetch(`${defaultUrl}/`)).text() }).stableHtml);
+  // Each boot listens on its own port, which the page's canonical/feed links carry; with consent off by
+  // default (owner, 2026-11-02) the page is otherwise identical, so only that origin is normalized.
+  assert.equal(assertDefaultConsentPage({ html: gatedHtml }).stableHtml.replaceAll(gatedUrl, "<origin>"),
+    assertDefaultConsentPage({ html: await (await fetch(`${defaultUrl}/`)).text() }).stableHtml.replaceAll(defaultUrl, "<origin>"));
 });
 
 // --- home see-more on an unstyled site ----------------------------------------------------------

@@ -324,14 +324,14 @@ test("delivered failure guidance maps every observed failure string to a real ca
   const host = await readHostGuidance();
   // Portable diagnoses and Tovu's exact refusal strings have distinct, explicit owners.
   const failures = `${portable}\n${host}`;
+  assert.ok(portable.includes("Requires basic plan or higher"));
   for (const observed of [
     "remote-declares-not-read-only",
     "not-in-operator-allowlist",
-    "Requires basic plan or higher",
     "the request timed out after 15000ms",
     "INTERNAL_ERROR: an internal error occurred",
   ]) {
-    assert.ok(failures.includes(observed), `delivered failure guidance must carry the observed string '${observed}'`);
+    assert.ok(host.includes(observed), `host guidance must carry the observed string '${observed}'`);
   }
 
   assert.match(host, /Settings\s*(->|→)\s*External MCP/);
@@ -342,7 +342,7 @@ test("delivered failure guidance maps every observed failure string to a real ca
   assert.match(failures, /reason was lost|lost error message/i);
   const sections = new Map([...portable.matchAll(/^## (\d+)\. ([\s\S]*?)(?=^## |$(?![\s\S]))/gm)].map((match) => [match[1], match[2]]));
   const expectedSections: Record<string, readonly string[]> = {
-    "1": ["do **not** guess which", "Remember the restart"],
+    "1": ["`writeAllowedToolNames`", "`allowedToolNames`", "do **not** guess which", "the host's connection settings", "Remember the restart"],
     "2": ["Requires basic plan or higher", "an account entitlement gate on the selected model", "try a model that is not gated (`z_image`", "stop and put the choice to the operator"],
     "3": ["when it follows a `job_status` call with `sync: true`", "structural incompatibility", "call `job_status` again **without** `sync`, and poll"],
     "4": ['treat it as "the reason was lost"', "Re-run the same call\non a path that reports properly", "**Do not:** invent a cause"],
@@ -357,9 +357,12 @@ test("delivered failure guidance maps every observed failure string to a real ca
 test("delivered failure guidance routes an expired OAuth token to the one tool that can surface it", async () => {
   const failures = `${await readReference("failure-modes.md")}\n${await readHostGuidance()}`;
   assert.match(failures, /external_mcp_reauth_prompt/);
-  assert.match(failures, /Settings\s*(->|→)\s*External MCP/);
   // The agent cannot complete an OAuth sign-in, and must not try.
-  assert.match(failures, /cannot run inside the chat|cannot happen inside this chat|sandboxed dialog/i);
+  assert.match(failures, /cannot finish an OAuth sign-in\s+yourself/);
+  // Where the operator signs in again is the host's screen, named by Tovu's overlay.
+  const hostGuidance = await readHostGuidance();
+  assert.match(hostGuidance, /Settings\s*(->|→)\s*External MCP/);
+  assert.match(hostGuidance, /cannot run inside the chat|cannot happen inside this chat|sandboxed dialog/i);
 });
 
 test("no file in the package carries credential material", async () => {

@@ -43,6 +43,29 @@ export function optionalChatPaneProps(input: OptionalChatPanePropsInput) {
   };
 }
 
+export interface ExecutionChatPanePropsInput {
+  /** The persisted execution mode; `"byok"` is the only one that routes a turn to the API. */
+  readonly mode: string;
+  /** The subagent settings' native-tool policy; absent until those settings load cleanly. */
+  readonly nativeToolPolicy: ChatPaneProps["nativeToolPolicy"] | undefined;
+}
+
+/**
+ * The picker's execution-mode row props: `executionMode` mirrors the branch
+ * `assistant-transport.ts`'s `startRun` takes on the same `executionConfig.mode`, and
+ * `nativeToolPolicy` is passed only once it holds a value, so the pane keeps its own default.
+ *
+ * @param input The execution mode and the optional native-tool policy.
+ * @returns `executionMode` (`"api"` for BYOK, `"local"` otherwise), plus `nativeToolPolicy` when set.
+ * @complexity O(1).
+ */
+export function executionChatPaneProps(input: ExecutionChatPanePropsInput) {
+  return {
+    executionMode: input.mode === "byok" ? ("api" as const) : ("local" as const),
+    ...(input.nativeToolPolicy ? { nativeToolPolicy: input.nativeToolPolicy } : {}),
+  };
+}
+
 /**
  * The composer footer's push-to-talk slot. When voice input is switched off the slot is empty —
  * owner, 2026-10-30 ~5 PM: "just hide it", reversing the same day's grayed placeholder

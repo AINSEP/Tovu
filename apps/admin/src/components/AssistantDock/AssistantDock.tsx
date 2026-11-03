@@ -2,7 +2,7 @@ import { onAdminSecretRedacted } from "@/lib/credential-card-guidance";
 import { ConfirmDialog, useConfirmRequest } from "@jini-ai/admin/react";
 import { DockHeader } from "./DockHeader";
 import { DockLeadingAccessory } from "./DockLeadingAccessory";
-import { composerFooterLeading, folderWindowOpenElsewhere, optionalChatPaneProps, voiceFooterAccessory } from "./assistant-dock-props";
+import { composerFooterLeading, executionChatPaneProps, folderWindowOpenElsewhere, optionalChatPaneProps, voiceFooterAccessory } from "./assistant-dock-props";
 import { useNativeFolderPicker } from "../../features/fs-files/hooks/use-native-folder-picker.hooks";
 import { dockSettingsMenuSections } from "./dock-header-rules";
 import { chatPaneDisplayProps } from "./chat-display-preferences";
@@ -502,8 +502,7 @@ export function AssistantDock({
         // `null` until its own GET settles, which `hasUsableAdminKey` treats as "nothing confirmed
         // stored yet" (same as `false`) — a brief false-negative on first paint, never a
         // false-positive, and it corrects itself the moment the GET resolves.
-        executionMode={executionConfig.mode === "byok" ? "api" : "local"}
-        {...(agentPermissions.nativeToolPolicy ? { nativeToolPolicy: agentPermissions.nativeToolPolicy } : {})}
+        {...executionChatPaneProps({ mode: executionConfig.mode, nativeToolPolicy: agentPermissions.nativeToolPolicy })}
         apiModeAvailable={hasUsableAdminKey(executionConfig.byok.apiKey, { isSet: hasStoredAdminKey === true })}
         onExecutionModeChange={handleExecutionModeChange}
         // What the picker names as the runtime while BYOK is the active mode. Without it the

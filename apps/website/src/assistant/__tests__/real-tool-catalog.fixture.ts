@@ -1,3 +1,6 @@
+// Before the app modules: the real catalog includes the tools of the plugins that ship from
+// @jini-ai/agent-plugins, so it reads the composed bundle the build ships (see the fixture).
+import "../../features/agent-plugins/__tests__/fixtures/composed-bundle-env.js";
 import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import type { AssistantPermanentDeletesPolicy } from '../../contracts/headless/index.js';
 import { createContributionRegistry, createToolRegistry } from '@jini-ai/core';

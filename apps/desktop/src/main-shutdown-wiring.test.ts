@@ -103,7 +103,12 @@ test("before-quit waits on in-flight teardowns, not only on openSites", async ()
 });
 
 test("Quit during a card Stop waits for its tracked teardown after openSites becomes empty", async (t) => {
-  assert.match(source.slice(source.indexOf("const projectDeps = {"), source.indexOf("registerSiteIpcHandlers(projectDeps)")), /\n\s*pendingTeardowns,/,
+  // `project-ipc.ts`'s deps bag is built by `buildProjectDeps` (5bf4fd314 moved it out of an inline
+  // `const projectDeps = {`); its body runs to the first top-level `}`. A missing anchor fails here
+  // rather than matching against an empty slice.
+  const depsStart = source.indexOf("\nfunction buildProjectDeps(");
+  assert.ok(depsStart >= 0, "src/main/index.ts must build project-ipc's deps in buildProjectDeps");
+  assert.match(source.slice(depsStart, source.indexOf("\n}\n", depsStart)), /\n\s*pendingTeardowns,/,
     "card Stop must receive the same tracker before-quit drains");
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-card-stop-quit-"));
   const projectsPath = sitesFilePath(root);

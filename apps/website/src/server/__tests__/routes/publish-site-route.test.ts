@@ -12,6 +12,7 @@ import type { RouteDeps } from "../../routes/types.js";
 import { buildStaticPublishRegistrations } from "#src/features/deployments/publish-agent-tools";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { bundledDeployEnvVars } from "#src/features/deployments/deploy-targets/__tests__/bundled-deploy-targets.fixture";
+import { processComposedBundledSourceRoot } from "#src/features/agent-plugins/__tests__/fixtures/bundled-source-root";
 import type { DeployTargetCreateContext, HostDeployPublishInput, LoadedDeployTarget } from "#src/features/deployments/deploy-targets/types";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
@@ -56,6 +57,9 @@ import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests
 
 const publishOutputDir = mkdtempSync(path.join(tmpdir(), "tovu-publish-route-test-"));
 for (const envVar of await bundledDeployEnvVars()) delete process.env[envVar];
+// The hosting plugins ship from @jini-ai/agent-plugins, not content/agent-plugins, so the app reads the
+// composed bundle the build ships (as `npm run dev` does) rather than finding no publish targets.
+process.env.TOVU_BUNDLED_AGENT_PLUGINS_DIR ??= await processComposedBundledSourceRoot();
 
 const PUBLISH_PATH = "system/publish";
 
@@ -1095,9 +1099,9 @@ test("publish-site: enabled consent returns 409 with explicit choices before sta
   assert.deepEqual(body.choices.map((choice: { id: string }) => choice.id), ['fix-now', 'publish-without-banner']);
 });
 
-test("publish-site: a fresh site's default-on banner does not block a static publish; an owner's explicit ON still refuses", async t => {
-  // Real consent preflight (no stub): consent is on by default for live serving (0e2090872), but only an
-  // owner's choice or a published policy refuses a static export (028a0b9b4).
+test("publish-site: a fresh site's default-off banner does not block a static publish; an owner's explicit ON still refuses", async t => {
+  // Real consent preflight (no stub): consent is off by default (owner, 2026-11-02; it was on for live
+  // serving since 0e2090872), and only an owner's choice or a published policy refuses a static export (028a0b9b4).
   const deps = testRouteDeps();
   assert.ok(deps.siteConsent);
   const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);

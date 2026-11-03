@@ -570,6 +570,22 @@ export const PUBLISHED_WHERE_LOCAL =
 export const PUBLISHED_WHERE_LIVE = "Published on the live site (this instance is the live site).";
 
 /**
+ * `headerNavigation` on a `content_post_create` result for a page. Demo 2026-11-02: after creating
+ * pages the chat's final summary named header links the live header did not show — the theme header
+ * renders the site menu (the starter's `menu-header-nav` marker), not the page list, and nothing the
+ * model saw said so. Static: the result names where header links come from and the tools that read
+ * and change them, rather than this domain reading menus it does not own.
+ */
+export const PAGE_HEADER_NAVIGATION =
+  "This page is not added to the site header automatically: the header shows the site menu (Admin → Menus), not the list of pages. " +
+  "To link it from the header, add it with menus_update_menu_tree; name the header's links only from menus_list_menus, never from the pages you created.";
+
+/** {@link PAGE_HEADER_NAVIGATION} for a created page; posts are listed by the theme, not header-linked. @complexity O(1). */
+function headerNavigationView({ kind }: { kind: string }, _options = {}): { headerNavigation?: string } {
+  return kind === "page" ? { headerNavigation: PAGE_HEADER_NAVIGATION } : {};
+}
+
+/**
  * Where a published write landed. Demo dry run 2026-10-05: a page created `status: "published"` on
  * the local site was reported as "Your page is live" — `status` + `publicUrl` alone read as the live
  * site, and nothing in the result said otherwise. Only the write results (create/update/duplicate)
@@ -1057,7 +1073,7 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
         // (`server/runtime/composition/agent-daemon-deps.ts`).
         await processOutbox({ outbox: routeDeps.outbox, bus: routeDeps.bus, clock: routeDeps.clock });
 
-        return { post: toPostWriteResultView(routeDeps, result.post) };
+        return { post: toPostWriteResultView(routeDeps, result.post), ...headerNavigationView({ kind }) };
       } });
     },
 

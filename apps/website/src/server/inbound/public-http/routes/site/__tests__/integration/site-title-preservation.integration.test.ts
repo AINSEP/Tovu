@@ -310,19 +310,23 @@ test("AC-12 (REQ-07, T-W3): with the definition registered and the pin held open
     const app = createApp(deps);
     // The pending pin must supply the same site identity for every public page kind.
     // A post retains its entry title (INV-06); RSS discovery still names the legacy site.
+    // `/products` is the retained, production-unwired theme adapter (`commerce-site-app.ts`): it
+    // renders through `renderSite` with no SEO head fold, so its identity is the theme wordmark.
+    const RSS_IDENTITY = /<link\b[^>]*type="application\/rss\+xml"[^>]*title="Tovu Demo Site"[^>]*>/;
+    const WORDMARK_IDENTITY = /<a class="wordmark" href="\/">Tovu Demo Site<\/a>/;
     const surfaces = [
-      { kind: "home seeded", url: "/", title: LEGACY_TITLE },
-      { kind: "page", url: "/pricing", title: LEGACY_TITLE },
-      { kind: "post", url: "/welcome", title: "Welcome to Tovu" },
-      { kind: "products", url: "/products", title: LEGACY_TITLE },
-      { kind: "home static index", url: "/", title: LEGACY_TITLE, unpublishHome: true },
+      { kind: "home seeded", url: "/", title: LEGACY_TITLE, identity: RSS_IDENTITY },
+      { kind: "page", url: "/pricing", title: LEGACY_TITLE, identity: RSS_IDENTITY },
+      { kind: "post", url: "/welcome", title: "Welcome to Tovu", identity: RSS_IDENTITY },
+      { kind: "products", url: "/products", title: LEGACY_TITLE, identity: WORDMARK_IDENTITY },
+      { kind: "home static index", url: "/", title: LEGACY_TITLE, identity: RSS_IDENTITY, unpublishHome: true },
     ];
     const renderedTitles = [];
     for (const surface of surfaces) {
       if (surface.unpublishHome) await unpublishHomePage(deps);
       const page = await dispatchHttpRequest({ app, method: "GET", url: surface.url });
       assert.equal(page.status, 200, page.body);
-      assert.match(page.body, /<link\b[^>]*type="application\/rss\+xml"[^>]*title="Tovu Demo Site"[^>]*>/, `${surface.kind}: legacy site identity`);
+      assert.match(page.body, surface.identity, `${surface.kind}: legacy site identity`);
       renderedTitles.push({ kind: surface.kind, titles: realTitles(page.body) });
       assert.equal((await systemPinRevisions(deps)).length, 0, `${surface.kind}: the pin must remain pending`);
     }

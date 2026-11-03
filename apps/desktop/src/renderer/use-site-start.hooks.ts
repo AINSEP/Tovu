@@ -5,8 +5,7 @@
  */
 import { useState } from 'react';
 import { siteOperationError } from './site-shell-policy.js';
-import { runnerInventoryBridge } from './runner-api.js';
-import type { BridgeLookup } from './bridge-lookup.js';
+import { runnerInventoryBridge, type BridgeLookup } from './runner-api.js';
 import type { SiteRecord } from '../contracts/project.js';
 
 /** What one `startSite` call came back with: main's refreshed record, or an operator-facing

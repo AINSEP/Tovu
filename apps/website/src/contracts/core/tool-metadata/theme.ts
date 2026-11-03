@@ -157,8 +157,13 @@ export const toolMetadata = {
     },
     approval: { class: 'edit', confirmation: 'direct' },
   },
-  // Owner 2026-11-02: switching the live theme requires confirmation, including turning it off.
+  // Switching the rendered theme is distinct from editing one theme's files (F7a).
+  // Owner decision 2026-11-02 (YC demo): the chat switched the LIVE site to a theme it had just
+  // rebuilt without asking. Activation changes what every visitor sees, so it is `publish` (the
+  // action leaves this site's draft state) and goes through the confirmation card.
   "theme_set_active": {
+    title: 'Switch the live site theme',
+    summary: 'This changes the theme every visitor of the live site sees.',
     search: {
       keywords: "theme switch activate change active theme live site look design",
       queries: [
@@ -213,6 +218,9 @@ export const toolMetadata = {
         "Can you create a new file inside the theme folder?",
       ],
     },
+    // The shared file-mutation guard asks once per call or batch before replacing different bytes;
+    // new and identical writes run directly. Revisions stay in the bounded .trash/revisions store.
+    // `plan` leaves disk-dependent approval with that owner; `edit` keeps new-file batches batchable.
     approval: { class: 'edit', confirmation: 'plan' },
   },
 

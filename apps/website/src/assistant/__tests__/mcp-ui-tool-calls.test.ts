@@ -166,8 +166,12 @@ const EXPECTED_ALLOWLIST = [
   "redirects_tombstone",
   "source_control_execute_commit",
   "theme_reset_file",
+  // Demo 2026-11-02: switching the live site's theme is a `publish`-class policy card.
+  "theme_set_active",
   "theme_trash",
   "theme_trash_file",
+  // Demo 2026-11-02: replacing an existing theme file's bytes asks on the handler's own plan card.
+  "theme_write_file",
   "trash_item",
   "widgets_trash_instance",
 

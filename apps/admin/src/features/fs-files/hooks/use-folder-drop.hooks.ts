@@ -155,6 +155,44 @@ function dropHasFolder(dataTransfer: DataTransfer): boolean {
 }
 
 /**
+ * The custom root in place before this drop, so the confirmation can say what it replaced.
+ *
+ * @param required.getCustomRoot The fs-files custom-root read.
+ * @returns The previous root's path, or `null` when there was none or the read failed.
+ * @complexity O(1) plus one request.
+ */
+async function readPreviousCustomRoot(required: { readonly getCustomRoot: () => Promise<{ readonly path: string | null }> }): Promise<string | null> {
+  try {
+    return (await required.getCustomRoot()).path;
+  } catch {
+    // Best-effort only — see this module's own doc on why a failed read never blocks REQ-02.
+    return null;
+  }
+}
+
+/**
+ * The notice a successful custom-root write shows.
+ *
+ * @param required.path The folder now set as the custom root.
+ * @param required.previousPath The root it replaced (`null` when none or unreadable).
+ * @param optional.paths Every folder in the drop; listed only when there was more than one.
+ * @returns The confirmation notice; `replacedPreviousPath` is `null` when the root did not change.
+ * @complexity O(1).
+ */
+function confirmationNotice(
+  required: { readonly path: string; readonly previousPath: string | null },
+  optional: { readonly paths: readonly string[] | undefined },
+): FolderDropNotice {
+  const { path, previousPath } = required;
+  return {
+    kind: "confirmation",
+    path,
+    ...(optional.paths && optional.paths.length > 1 ? { paths: optional.paths } : {}),
+    replacedPreviousPath: previousPath !== path ? previousPath : null,
+  };
+}
+
+/**
  * Owns the folder-drop notice state and the composer/custom-root side effects a drop triggers.
  *
  * @complexity Time: O(n) in the number of dragged items per drop (via `@jini-ai/ui`'s
@@ -208,28 +246,19 @@ export function useFolderDrop(input: UseFolderDropInput, deps: UseFolderDropDeps
         // A newer drop was minted behind this one before this task got its turn on the chain — skip
         // the read, the write and the notice entirely; this drop has nothing left to contribute.
         if (!settlement.isCurrent({ generation })) return;
-        let previousPath: string | null = null;
-        try {
-          previousPath = (await getCustomRoot()).path;
-        } catch {
-          // Best-effort only — see this module's own doc on why a failed read never blocks REQ-02.
-        }
+        const previousPath = await readPreviousCustomRoot({ getCustomRoot });
         // A newer drop arrived while this one was reading — never issue this drop's write over it.
         if (!settlement.isCurrent({ generation })) return;
+        const settlesHere = () => mountedRef.current && settlement.isCurrent({ generation });
         try {
           await setCustomRoot(path);
-          if (!mountedRef.current || !settlement.isCurrent({ generation })) return;
-          setNotice({
-            kind: "confirmation",
-            path,
-            ...(paths && paths.length > 1 ? { paths } : {}),
-            replacedPreviousPath: previousPath !== path ? previousPath : null,
-          });
+          if (!settlesHere()) return;
+          setNotice(confirmationNotice({ path, previousPath }, { paths }));
           scheduleAutoDismiss();
         } catch (err) {
           // The write itself is not cancelled — it already reached the server — but a superseded
           // drop's failure must not replace whatever the newer drop already confirmed.
-          if (!mountedRef.current || !settlement.isCurrent({ generation })) return;
+          if (!settlesHere()) return;
           // An error is not auto-dismissed, so an earlier success's pending timer must not wipe it.
           if (dismissTimer.current !== null) clearTimeout(dismissTimer.current);
           setNotice({ kind: "error", path, reason: reasonForCustomRootError(err) });

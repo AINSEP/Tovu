@@ -4,8 +4,7 @@
  */
 import { useEffect, useState, type Dispatch, type SetStateAction } from 'react';
 import { readyNoticeStillTrue } from './site-shell-policy.js';
-import { runnerInventoryBridge } from './runner-api.js';
-import type { BridgeLookup } from './bridge-lookup.js';
+import { runnerInventoryBridge, type BridgeLookup } from './runner-api.js';
 import type { CreateSiteInput, CreatedSiteRecord, SiteRecord } from '../contracts/project.js';
 
 export interface SiteMutationsState {

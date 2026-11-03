@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
+import path from "node:path";
 import test from "node:test";
 import { createInMemoryEventLog, createRunLifecycle } from "@jini-ai/daemon";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
@@ -10,6 +11,7 @@ import { createAssistantToolExecutor } from "#src/assistant/tool-recovery-preset
 import { runByokProviderTurn, type ByokTurnEvent } from "#src/assistant/byok-provider-turn";
 import { startStubProviderServer } from "#src/server/__tests__/helpers/stub-provider-server";
 import { installSupportingFilesFixture } from "#src/features/agent-plugins/__tests__/fixtures/supporting-files";
+import { agentPluginOverlaysDir } from "#src/features/agent-plugins/host-plugin-guidance";
 
 /** Real provider turn + real ToolExecutor + real installed skill bytes; only the model is scripted. */
 test("assistant tool-call transcript contains the installed ui-ux-design foundations reference", async t => {
@@ -17,6 +19,9 @@ test("assistant tool-call transcript contains the installed ui-ux-design foundat
   const foundations = await readFile(require.resolve("@jini-ai/agent-plugins/ui-ux-design/skills/ui-ux-design/references/foundations.md"), "utf8");
   const distinctiveLine = "Give Programmer a constrained, reusable system instead of one-off styling decisions.";
   assert.ok(foundations.includes(distinctiveLine));
+  // Tovu's ui-ux-design overlay rules lead every guidance answer of that plugin (`host-plugin-guidance.ts`).
+  const tovuChatRules = await readFile(path.join(agentPluginOverlaysDir(), "ui-ux-design", "GUIDANCE.md"), "utf8");
+  const delivered = `${tovuChatRules}\n\n${foundations}`;
   const fixture = await installSupportingFilesFixture({}, { files: { "skills/ui-ux-design/references/foundations.md": foundations } });
   t.after(fixture.cleanup);
   const executor = createAssistantToolExecutor({ registry: fixture.registry, surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) }, {});
@@ -57,13 +62,13 @@ test("assistant tool-call transcript contains the installed ui-ux-design foundat
   assert.ok(result && result.type === "tool_result");
   assert.equal(result.isError, false);
   const output = JSON.parse(result.content) as { guidance: string; files: string[] };
-  assert.equal(output.guidance, foundations);
+  assert.equal(output.guidance, delivered);
   assert.ok(output.guidance.includes(distinctiveLine));
   assert.deepEqual(output.files, ["references/foundations.md"]);
   assert.ok(continuation);
   const toolMessage = (continuation.messages as { role: string; content: string }[]).find(message => message.role === "tool");
   assert.ok(toolMessage);
-  assert.equal(JSON.parse(toolMessage.content).guidance, foundations);
+  assert.equal(JSON.parse(toolMessage.content).guidance, delivered);
   assert.equal(JSON.stringify(events).includes(fixture.installed.packageRoot), false);
   assert.equal(JSON.stringify(continuation).includes(fixture.installed.packageRoot), false);
 });

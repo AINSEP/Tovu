@@ -681,7 +681,11 @@ export function buildThemesRegistrations(
         assertThemeFileWritable(theme, relativePath);
 
         assertCompiledWriteBoundaryUnchanged(theme, relativePath, content);
-        writeThemeFile({ themeDir: theme.dir, themesRoot: routeDeps.themesDir, relativePath, content }, { overwriteOversized });
+        let previousRevision: { trashedPath: string; note: string } | undefined;
+        writeThemeFile({ themeDir: theme.dir, themesRoot: routeDeps.themesDir, relativePath, content }, { overwriteOversized,
+          onRevision: ({ trashedPath }) => { previousRevision = { trashedPath,
+            note: `Read the previous bytes with theme_read_file at '${trashedPath}' and write them back to '${relativePath}' with theme_write_file to undo.` }; },
+        });
 
         // Re-validate through the SAME `loadTheme()` a boot-time discovery uses — the whole point of
         // this domain's safety argument is that an agent-authored file is validated identically to a
@@ -699,6 +703,7 @@ export function buildThemesRegistrations(
           status: reloaded.status,
           errors: reloaded.errors,
           theme: toThemeToolView(reloaded),
+          ...(previousRevision ? { previousRevision } : {}),
           ...(warning ? { warning } : {}),
         };
       } });

@@ -6,8 +6,7 @@
 import { useState } from 'react';
 import { clampLiveSiteViews } from '../contracts/site-view-preference.js';
 import { useSiteViewPreference } from './use-site-view-preference.hooks.js';
-import { runnerInventoryBridge } from './runner-api.js';
-import type { BridgeLookup } from './bridge-lookup.js';
+import { runnerInventoryBridge, type BridgeLookup } from './runner-api.js';
 
 type LoadedSitesBridge = BridgeLookup<'getMaximumLiveSiteViews' | 'setMaximumLiveSiteViews' | 'onMaximumLiveSiteViewsChanged'>;
 

@@ -80,7 +80,8 @@ test("a picker cancellation surfaces unchanged for the boot-failure reporter", a
 test("orphan reconciliation is silent when nothing was reaped and names every reaped site otherwise", async () => {
   const logs: string[] = [];
   await reconcileOrphansOnBoot({ registryPath: "/ud/registry", reconcileOrphans: async (p) => { assert.equal(p, "/ud/registry"); return []; }, log: (m) => logs.push(m) });
-  assert.deepEqual(logs, [] as string[]);
+  // A length check, not deepEqual(logs, []): that asserts `logs` is `never[]` for the rest of the test.
+  assert.equal(logs.length, 0);
   await reconcileOrphansOnBoot({ registryPath: "/ud/registry", reconcileOrphans: async () => [{ siteDir: "/a" }, { siteDir: "/b" }], log: (m) => logs.push(m) });
   assert.deepEqual(logs, ["tovu desktop: reconciled 2 orphaned site process(es) left running by a previous crash: /a, /b"]);
 });

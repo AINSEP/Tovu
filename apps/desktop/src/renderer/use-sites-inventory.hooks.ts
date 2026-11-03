@@ -4,9 +4,8 @@
  * (which still re-exports all of it) with no behaviour change.
  */
 import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
-import { runnerInventoryBridge } from './runner-api.js';
+import { runnerInventoryBridge, type BridgeLookup } from './runner-api.js';
 import { startVisibleInterval } from './visible-interval.js';
-import type { BridgeLookup } from './bridge-lookup.js';
 import type { SiteRecord } from '../contracts/project.js';
 
 /**

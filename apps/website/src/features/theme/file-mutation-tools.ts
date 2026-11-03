@@ -7,13 +7,22 @@ import { readThemeFileVersion, validateThemeFileWrite, withReviewedThemeFileWrit
 import { THEME_WRITE_PERMISSION } from './agent-tools.js';
 import { syncThemeRoster } from './theme-roster-sync.js';
 import { THEME_CONTENT_REPLACEMENT_TOOL_IDS } from '../../contracts/core/tool-metadata/theme.js';
+import { createHash } from 'node:crypto';
 
 const CONTENT_TOOLS: ReadonlySet<string> = new Set(THEME_CONTENT_REPLACEMENT_TOOL_IDS);
 
 type PreparedThemeFile = {
   file: { themeDir: string; themesRoot: string; relativePath: string };
-  target: string; version: string | null; themeId: string;
+  target: string; version: string | null; themeId: string; themeName: string; content?: string;
 };
+
+/** A byte-identical text write needs no replacement approval; other operations retain their gate.
+ * Uses the persistence owner's SHA-256 version, without reading or buffering the file a second time.
+ * @complexity O(proposed content bytes), bounded by text-write validation. */
+function requiresReplacementReview({ prepared }: { prepared: PreparedThemeFile }, _options = {}): boolean {
+  if (prepared.version === null) return false;
+  return prepared.content === undefined || createHash('sha256').update(prepared.content, 'utf8').digest('hex') !== prepared.version;
+}
 
 /** Theme replacements use the existing Jini prepare/approve/run owner, with one card per batch.
  * Paths and permission are checked before the card; the original handler rechecks all its domain
@@ -48,12 +57,13 @@ export function protectThemeFileTools(
             assertThemeFileWritable(theme, relativePath);
             const file = { themeDir: theme.dir, themesRoot: deps.themesDir, relativePath };
             if (toolId === 'theme_write_file') validateThemeFileWrite({ ...file, content: requireString({ input, key: 'content' }) }, { overwriteOversized: input.overwriteOversized === true });
-            return { file, ...readThemeFileVersion(file), themeId };
+            return { file, ...readThemeFileVersion(file), themeId, themeName: theme.manifest.name,
+              content: toolId === 'theme_write_file' ? requireString({ input, key: 'content' }) : undefined };
           } });
         },
-        describe: ({ prepared }) => ({ ask: prepared.version !== null, description: {
+        describe: ({ prepared }) => ({ ask: requiresReplacementReview({ prepared }), description: {
           toolId, errorCode: 'THEME_REPLACE', title: 'Replace theme file content?',
-          details: [{ label: 'Theme', value: prepared.themeId }, { label: 'File', value: prepared.file.relativePath },
+          details: [{ label: 'Theme', value: `${prepared.themeName} (${prepared.themeId})` }, { label: 'File', value: prepared.file.relativePath },
             { label: 'Proposed change', value: toolId }],
           warning: 'Previous bytes are kept in .trash/revisions. The latest 20 revisions per theme are retained.',
           confirmLabel: 'Apply changes',
@@ -66,7 +76,7 @@ export function protectThemeFileTools(
           }
           return withReviewedThemeFileWrite({ prepared, run: () => registration.handler(ctx, options) });
         },
-        notConfirmed: ({ reason }) => ({ executed: false, ...notConfirmedResult({ confirmed: false, reason }) }),
+        notConfirmed: ({ reason }) => ({ executed: false, ...(toolId === 'theme_write_file' ? { written: false } : {}), ...notConfirmedResult({ confirmed: false, reason }) }),
       },
       combineDescriptions: ({ descriptions }) => ({ ...descriptions[0]!, title: `Apply ${descriptions.length} theme file changes?`,
         description: 'One confirmation approves this batch. Changes run in order; a failure stops later files, and earlier changes remain restorable.',

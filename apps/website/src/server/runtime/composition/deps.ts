@@ -1049,6 +1049,14 @@ async function projectStoreFor({ overrides, runtimeMode }: { overrides: Partial<
 }
 
 /**
+ * Logs each media-generation vendor the registry refused; a refusal is never fatal to boot.
+ * @complexity O(refusals).
+ */
+function logMediaProviderRefusals({ refusals }: { refusals: readonly string[] }, _optional = {}): void {
+  for (const refusal of refusals) console.error(`[media-providers] ${refusal}`);
+}
+
+/**
  * {@link createSiteRouteDeps}'s body, over the store it opened. Every `await` sits in the prelude
  * (workspace → deny store → orphaned-chat check), before the body starts any fire-and-forget boot
  * promise, so the body still runs to its return synchronously.
@@ -1166,7 +1174,7 @@ async function composeSiteRouteDeps(
   // Awaited in the prelude, before the first fire-and-forget boot promise below (boot-order rule
   // pinned by composition-boot-order.unit.test.ts); it needs only the workspace and plugin layout.
   const mediaProviders = await loadMediaProviderRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions });
-  for (const refusal of mediaProviders.refusals) console.error(`[media-providers] ${refusal}`);
+  logMediaProviderRefusals({ refusals: mediaProviders.refusals });
   // Posts written before migration 0022 existed — and the demo content `prepareContentStore` seeds
   // directly into `posts`, bypassing `SqlitePostRepo` entirely — have no FTS projection yet, so
   // `content_post_search` would not find them without an edit. Unconditional, and awaited by every

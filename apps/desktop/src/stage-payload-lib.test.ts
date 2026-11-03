@@ -235,8 +235,12 @@ test("stageTransitiveDependencies: follows a multi-level dependency chain, stagi
 
   assert.equal(count, 2);
   assert.equal(fs.existsSync(path.join(outDir, "node_modules", "foo", "package.json")), true);
-  assert.equal(fs.existsSync(path.join(outDir, "node_modules", "bar", "package.json")), true);
-  assert.equal(fs.existsSync(path.join(outDir, "node_modules", "foo", "node_modules")), false);
+  // npm nested bar under foo, so the planner keeps it at npm's position (Jini devops 785e39c) rather
+  // than flattening it. foo's own node_modules is still never copied wholesale: bar is its only entry.
+  assert.equal(fs.existsSync(path.join(outDir, "node_modules", "foo", "node_modules", "bar", "package.json")), true);
+  assert.deepEqual(fs.readdirSync(path.join(outDir, "node_modules", "foo", "node_modules")), ["bar"]);
+  assert.equal(fs.existsSync(path.join(outDir, "node_modules", "bar")), false);
+  assert.doesNotThrow(() => assertClosureComplete({ outDir }));
 });
 
 test("stageTransitiveDependencies: does not loop on a dependency cycle, staging each package exactly once", () => {
@@ -320,8 +324,9 @@ test("stageTransitiveDependencies: does not re-copy a dependency whose staged de
 
   assert.equal(count, 1); // only bar counted; foo's destination already existed
   assert.equal(fs.readFileSync(path.join(stagedFoo, "marker.txt"), "utf8"), "stub-foo"); // untouched
-  // foo's own dependency (bar) was still walked and staged, despite foo itself being skipped.
-  assert.equal(fs.existsSync(path.join(outDir, "node_modules", "bar", "package.json")), true);
+  // foo's own dependency (bar) was still walked and staged, despite foo itself being skipped, at
+  // npm's position under foo (Jini devops 785e39c keeps npm's nesting instead of flattening).
+  assert.equal(fs.existsSync(path.join(outDir, "node_modules", "foo", "node_modules", "bar", "package.json")), true);
 });
 
 test("stageTransitiveDependencies: does not stage a dependency that resolves to one of the roots itself", () => {
