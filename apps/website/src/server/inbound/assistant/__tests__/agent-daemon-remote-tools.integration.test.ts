@@ -119,6 +119,7 @@ async function bootDaemonRpc(t: import("node:test").TestContext, options: { drop
   t.after(() => siteTools.finish({ runId: "remote-run" }));
   const toolExecutor = evaluateDaemonExpression<import("@jini-ai/daemon").ToolExecutor>(daemonInitializer("toolExecutor"), {
     createRoutingToolExecutor, withReadOnlyToolConstraint, registry, siteTools,
+    idlePark: { hold: () => () => {} },
     localToolExecutor: createToolExecutor({ registry }),
   });
   const events: Record<string, unknown>[] = [];

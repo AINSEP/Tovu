@@ -13,6 +13,33 @@ import { createHttpRunDaemonClient } from "../assistant-run-finalizer.js";
 const TOKEN_ENV = "TOVU_AGENT_DAEMON_TOKEN";
 const observability = createNoopObservabilityPort({});
 
+test("a durable launch racing park wakes and keeps the same attempt identity", async () => {
+  let sends = 0; let ready = 0;
+  const calls: string[] = [];
+  const client = createHttpRunDaemonClient({ observability }, {
+    ensureReady: async () => { ready++; }, onParked: ({ pid }) => { assert.equal(pid, 800); },
+    currentUrl: () => "http://127.0.0.1:4200",
+    fetch: async (_url, init) => {
+      calls.push(String(init?.body));
+      return ++sends === 1
+        ? Response.json({ code: "AGENT_DAEMON_PARKED" }, { status: 503, headers: { "x-tovu-daemon-parked": "1", "x-tovu-daemon-pid": "800" } })
+        : new Response(null, { status: 202 });
+    },
+  });
+  await client.launch!({ run: { runId: "attempt-1", principalId: "owner" } as never, request: { contextRef: "ctx" } }, {});
+  assert.equal(ready, 2); assert.equal(sends, 2); assert.equal(calls[0], calls[1]);
+  assert.equal(JSON.parse(calls[1]!).idempotencyKey, "attempt-1");
+});
+
+test("a durable mutation reset never replays the launch", async () => {
+  let sends = 0;
+  const client = createHttpRunDaemonClient({ observability }, {
+    ensureReady: async () => {}, fetch: async () => { sends++; throw new TypeError("reset", { cause: { code: "ECONNRESET" } }); },
+  });
+  await assert.rejects(client.launch!({ run: { runId: "attempt-1", principalId: "owner" } as never, request: { contextRef: "ctx" } }, {}), /reset/);
+  assert.equal(sends, 1);
+});
+
 interface Call { url: string; method: string; headers: Record<string, string>; body?: string }
 
 function recordingFetch(answer: (url: string) => Response | Promise<Response>) {

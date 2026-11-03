@@ -66,6 +66,7 @@ export async function captureDaemonRun(
   const timer = setTimeout(() => reject(new Error("onStarted did not call the executor")), 1000);
   const fixtureDeps = options.bindings?.routeDeps as { agentSessions?: AgentSessionStore } | undefined;
   const bindings = {
+    idlePark: { hold: () => () => {} },
     stagedAttachmentCleanupByRunId: new Map(),
     captureEarlySession: createEarlySessionCapture({ sessions: fixtureDeps?.agentSessions ?? { getSessionId: async () => null, setSessionId: async () => {}, clearSessionId: async () => {} }, readStart: async () => null }, {}),
     parseRunStartContextRef, buildPageContextPromptBlock, assemblePromptWithPluginPrefix,

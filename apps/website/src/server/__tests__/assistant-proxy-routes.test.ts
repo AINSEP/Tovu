@@ -378,7 +378,9 @@ test("chat activation is session-gated and wakes the daemon from any host the ad
   });
   assert.equal(status, 204);
   assert.equal(wakes, 1);
-  assert.equal(recorded.length, 0, "activation only awaits readiness; it proxies nothing");
+  assert.deepEqual(recorded.map(call => `${call.method} ${call.url}`), ["GET /api/active"],
+    "activation proves intake is still accepting before the browser rebinds");
+  assert.equal(recorded[0]!.headers.authorization, `Bearer ${TOKEN}`);
 });
 
 test("frontend session streams, answers, and attachment deletion are session-gated and forwarded intact", async (t) => {

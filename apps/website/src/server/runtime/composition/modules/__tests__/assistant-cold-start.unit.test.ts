@@ -21,6 +21,7 @@ function response() {
     locals: { principal: { id: "owner" } },
     status(code: number) { status = code; return res; },
     json(value: unknown) { body = value; return res; },
+    sendStatus(code: number) { status = code; ended = true; return res; },
     setHeader(key: string, value: unknown) { headers.set(key, value); return res; },
     flushHeaders() {}, write(value: string) { chunks.push(value); return true; },
     end() { ended = true; events.emit("close"); },
@@ -54,17 +55,15 @@ test("known-failed latch still fails /api/agents without waking or reading the i
   assert.equal((result.body() as { code: string }).code, "AGENT_DAEMON_KNOWN_FAILED");
 });
 
-test("a parked page stream ends on ready; the reconnect reaches the real bind-token response", async (t) => {
-  let ready = false; let tick!: () => void; let cancelled = 0;
+test("a parked page stream refuses without a session; an explicit wake reaches the real bind-token response", async (t) => {
+  let ready = false;
   const first = response();
-  assert.equal(parkColdFrontendStream({ res: first.res, isReady: () => ready }, {
-    schedule: ({ work }) => { tick = work; return () => { cancelled++; }; },
-  }), true);
-  assert.equal(first.status(), 200);
-  assert.equal(first.headers.get("Content-Type"), "text/event-stream");
-  assert.match(first.chunks.join(""), /retry: 500/);
-  tick(); assert.equal(first.ended(), false);
-  ready = true; tick(); assert.equal(first.ended(), true); assert.ok(cancelled > 0);
+  assert.equal(parkColdFrontendStream({ res: first.res, isReady: () => ready }, {}), true);
+  assert.equal(first.status(), 503);
+  assert.deepEqual(first.body(), { error: "the agent daemon is parked", code: "AGENT_DAEMON_PARKED" });
+  assert.deepEqual(first.chunks, []);
+  assert.equal(first.headers.has("Content-Type"), false);
+  ready = true;
   const reconnect = response();
   assert.equal(parkColdFrontendStream({ res: reconnect.res, isReady: () => ready }, {}), false);
   t.mock.method(globalThis, "fetch", async () => new globalThis.Response('data: {"type":"attached","bindToken":"real-token"}\n\n'));
@@ -86,6 +85,22 @@ test("first proxy request waits before forwarding and succeeds once ready", asyn
   const pending = fetchAgentDaemon(req("POST", "/api/runs"), response().res, { ensureReady: () => ready, body: {} });
   assert.equal(sends, 0); release();
   assert.equal(await (await pending)!.text(), "accepted"); assert.equal(sends, 1);
+});
+
+test("activation racing park waits for an accepting daemon before allowing frontend rebind", async t => {
+  let sends = 0; let wakes = 0;
+  t.mock.method(globalThis, "fetch", async (input, init) => {
+    assert.equal(new URL(String(input)).pathname, "/api/active");
+    assert.equal(init?.method, "GET");
+    return ++sends === 1
+      ? new Response(null, { status: 503, headers: { "x-tovu-daemon-parked": "1", "x-tovu-daemon-pid": "800" } })
+      : Response.json({ active: false });
+  });
+  const result = response();
+  await assistantModule.activateFrontendDaemon({ req: req("POST", "/api/frontend-sessions/activate"), res: result.res }, {
+    ensureReady: async () => { wakes++; }, onParked: () => {},
+  });
+  assert.equal(result.status(), 204); assert.equal(wakes, 2); assert.equal(sends, 2);
 });
 
 test("admissions reads the server while the daemon stays stopped", async t => {

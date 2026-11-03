@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import http from "node:http";
 import net from "node:net";
 import test from "node:test";
+import { parkColdFrontendStream } from "../assistant-daemon-client.js";
 
 import { SpanKind, SpanStatusCode } from "@opentelemetry/api";
 import type { Request, Response } from "express";
@@ -119,6 +120,36 @@ function fakeRes(): { res: Response; sent: { status?: number; body?: unknown } }
   };
   return { res: res as unknown as Response, sent };
 }
+
+test("parked frontend stream returns 503 without demand", () => {
+  const { res, sent } = fakeRes();
+  assert.equal(parkColdFrontendStream({ res, isReady: () => false }, {}), true);
+  assert.equal(sent.status, 503);
+  assert.equal((sent.body as { code: string }).code, "AGENT_DAEMON_PARKED");
+});
+
+test("a refused parked mutation waits for replacement and is dispatched once", async t => {
+  let ready = 0; let parking = 0; let dispatches = 0; let sends = 0;
+  t.mock.method(globalThis, "fetch", async () => {
+    if (++sends === 1) return Response.json({ code: "AGENT_DAEMON_PARKED" }, { status: 503, headers: { "x-tovu-daemon-parked": "1", "x-tovu-daemon-pid": "800" } });
+    dispatches++; return Response.json({ ok: true });
+  });
+  const { res } = fakeRes();
+  const response = await demandFetch(fakeReq({ method: "POST", originalUrl: "/api/runs" }), res, {
+    ensureReady: async () => { ready++; }, onParked: () => { parking++; }, body: {},
+  });
+  assert.equal(response?.status, 200);
+  assert.equal(ready, 2); assert.equal(parking, 1); assert.equal(sends, 2); assert.equal(dispatches, 1);
+});
+
+test("a passive frontend stream cannot wake a daemon racing park", async t => {
+  let wakes = 0;
+  t.mock.method(globalThis, "fetch", async () => Response.json({ code: "AGENT_DAEMON_PARKED" }, { status: 503, headers: { "x-tovu-daemon-parked": "1", "x-tovu-daemon-pid": "800" } }));
+  const response = await demandFetch(fakeReq({ method: "GET", originalUrl: "/api/frontend-sessions/stream" }), fakeRes().res, {
+    passive: true, ensureReady: async () => { wakes++; }, onParked: () => {},
+  });
+  assert.equal(response?.status, 503); assert.equal(wakes, 0);
+});
 
 test("fetchAgentDaemon: a daemon that starts listening AFTER the request arrived still answers it (boot-window retry), not a 502", async (t) => {
   const port = await freePort();

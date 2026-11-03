@@ -20,6 +20,32 @@ function deferred() {
 
 test.afterEach(resetAssistantDaemonSingletonForTests);
 
+test("wake racing park starts one replacement after exit", async () => {
+  const children: EventEmitter[] = [];
+  const supervisor = lifecycle.createDaemonSupervisor({
+    spawnDaemonProcess: () => {
+      const child = Object.assign(new EventEmitter(), { pid: 800 + children.length, kill: () => true });
+      children.push(child); return child;
+    },
+    readiness: { isReady: async () => true },
+    scheduler: { schedule: ({ run, delayMs }) => {
+      const timer = setTimeout(run, delayMs); return () => clearTimeout(timer);
+    } },
+  });
+  await supervisor.ensureReady({}, {});
+  supervisor.markParking({ pid: 800 }, {});
+  assert.equal(supervisor.isReady(), false);
+  const first = supervisor.ensureReady({}, {});
+  const second = supervisor.ensureReady({}, {});
+  assert.equal(children.length, 1);
+  children[0]!.emit("exit", 88, null);
+  await Promise.all([first, second]);
+  assert.equal(children.length, 2);
+  children[1]!.emit("exit", 88, null);
+  assert.equal(supervisor.getState(), "parked");
+  supervisor.shutdown();
+});
+
 test("boot registers a cold lifecycle; first concurrent chat requests wait and spawn exactly once", async () => {
   const boot = deferred(); const discovery = deferred(); const spawned = deferred(); let spawns = 0;
   startAssistantDaemon({ workspaceId: "site-a", siteDir: "/fake-site" }, {

@@ -124,6 +124,14 @@ test("the daemon entry's static runtime graph reaches none of ADR-070's forbidde
   );
 });
 
+test("daemon local tools never load federation clients or the desktop capability", () => {
+  const importers = walkRuntimeGraph({ entry: DAEMON_ENTRY });
+  const forbidden = [...importers.keys()].filter(file =>
+    /assistant\/(mcp-federation\/|desktop-mcp-runtime\.ts$|server-federation-diagnosis\.ts$)/.test(relativeToSrc(file))
+    || runtimeSpecifiers({ fileName: file, text: readFileSync(file, "utf8") }).includes("@jini-ai/mcp/federation"));
+  assert.deepEqual(forbidden.map(file => importChain({ file, importers })), []);
+});
+
 test("the walk resolves relative and #src imports from the real daemon entry and never throws", () => {
   const reached = new Set([...walkRuntimeGraph({ entry: DAEMON_ENTRY }).keys()].map(relativeToSrc));
   assert.ok(reached.has("server/inbound/assistant/run-log-lines.ts"), "relative `./x.js` import");

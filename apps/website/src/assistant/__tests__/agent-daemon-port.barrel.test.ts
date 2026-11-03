@@ -36,6 +36,7 @@ import * as runStartContext from "../run-start-context.js";
 import * as toolAuditPreset from "../tool-audit-preset.js";
 import * as toolCatalogLiveQuery from "../tool-catalog-live-query.js";
 import * as toolCatalogQuery from "../tool-catalog-query.js";
+import * as serverFederationDiagnosis from "../server-federation-diagnosis.js";
 import * as toolRecoveryPreset from "../tool-recovery-preset.js";
 import * as toolRegistrations from "../tool-registrations.js";
 
@@ -60,7 +61,7 @@ const EXPECTED_SOURCES: Readonly<Record<string, Readonly<Record<string, unknown>
   createFederationReloadCoordinator: federationReload,
   createLiveToolCatalogQuery: toolCatalogLiveQuery,
   buildFederatedRefusalPrefix: mcpFederation,
-  withFederatedRefusalDiagnosis: toolRecoveryPreset,
+  withFederatedRefusalDiagnosis: serverFederationDiagnosis,
   readEnabledExternalMcpConfigs: externalMcpStore,
   toResolvedFederatedConnections: externalMcpStore,
   createDeviceAuthorizationStore: externalMcpOAuth,
