@@ -2,3 +2,4 @@ agent-plugins EXIT 0 errors=0
 agent-runtime EXIT 0 errors=0
 chat EXIT 2 errors=1
 cms EXIT 0 errors=0
+core EXIT 0 errors=0

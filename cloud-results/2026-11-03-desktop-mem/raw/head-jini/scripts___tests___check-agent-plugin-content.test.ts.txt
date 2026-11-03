@@ -2,3 +2,11 @@
 
  RUN  v2.1.9 /home/user/Jini
 
+ ✓ scripts/__tests__/check-agent-plugin-content.test.ts (20 tests) 1103ms
+   ✓ agent plugin content imports > the checked-in agent plugin content passes 867ms
+
+ Test Files  1 passed (1)
+      Tests  20 passed (20)
+   Start at  21:04:21
+   Duration  3.55s (transform 216ms, setup 0ms, collect 1.30s, tests 1.10s, environment 0ms, prepare 231ms)
+

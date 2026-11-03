@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/daemon
+
+ ✓ src/__tests__/surface-exchanges.run-lifetime.test.ts (7 tests) 171ms
+
+ Test Files  1 passed (1)
+      Tests  7 passed (7)
+   Start at  21:05:34
+   Duration  1.04s (transform 463ms, setup 0ms, collect 530ms, tests 171ms, environment 0ms, prepare 83ms)
+

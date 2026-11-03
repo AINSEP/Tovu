@@ -1,0 +1,74 @@
+✔ agent_plugin_connect: a bundled plugin with one OAuth server shows exactly one https sign-in link and no token (43.687314ms)
+✔ agent_plugin_connect: a fake callback flipping the row to connected resolves { status: 'connected' } (9.973378ms)
+✔ agent_plugin_connect: a plugin with no OAuth server is refused (1.430345ms)
+✔ connect_token_only_uses_plugin_card_without_oauth (0.86022ms)
+✔ token-only card cancelled is never reported connected (0.452008ms)
+✔ token-only card expired is never reported connected (0.340256ms)
+✔ token-only card abandoned is never reported connected (0.236108ms)
+✔ token-only card refused is never reported connected (0.208365ms)
+✔ token-only card invalid is never reported connected (0.287984ms)
+✔ token-only card unavailable is never reported connected (0.253401ms)
+✔ token-only card error is never reported connected (0.179728ms)
+✔ token-only connect reuses a stored credential without prompting or changing grants (6.81206ms)
+✔ oauth_with_token_fallback_still_starts_oauth (1.660888ms)
+✔ a saved token with a different owner cannot report this plugin connected (3.341382ms)
+✔ a saved token with a different endpoint cannot report this plugin connected (2.451361ms)
+✔ token-only declarations refuse ambiguous or invalid targets and provide a key-card path without an adapter (0.66024ms)
+✔ agent_plugin_connect: an OAuth server provisioning skipped (legacy sse) is refused before any sign-in starts (0.476956ms)
+✔ agent_plugin_connect: a skipped stdio helper does not block its OAuth server (1.459343ms)
+✔ agent_plugin_connect: a device-code grant is refused rather than showing a link with no code (1.045588ms)
+✔ OAuth metadata failure reports that no card opened and points to the plugin key card (1.161837ms)
+✔ agent_plugin_connect: a failed 'connected' card update never turns a real connection into a tool failure (1.455938ms)
+✔ agent_plugin_connect: refuses unknown-plugin before starting sign-in (0.545702ms)
+✔ agent_plugin_connect: refuses two-servers before starting sign-in (1.102291ms)
+✔ agent_plugin_connect: refuses no-oauth before starting sign-in (0.240638ms)
+✔ agent_plugin_connect: refuses no-surface before starting sign-in (0.595382ms)
+✔ agent_plugin_connect: abort closes the exchange and returns waiting (1.297912ms)
+✔ agent_plugin_connect: denied permission provisions no row and emits no card (0.550436ms)
+✔ agent_plugin_connect: an already saved oauth starts no sign-in and preserves the row (1.133394ms)
+✔ agent_plugin_connect: an already saved static-token starts no sign-in and preserves the row (1.885055ms)
+✖ agent_plugin_connect: an already signed-in OAuth row gets the plugin's declared default tools, with no new sign-in (1.648939ms)
+[agent-plugins:migration-complete] /tmp/connect-installed-kuE5Hp/ws/77777777-7777-4777-8777-777777777777
+✔ agent_plugin_connect resolves the installed package without an injected resolver (2437.860242ms)
+✔ agent_plugin_connect: signed-in servers recover their tools while another server still needs sign-in (2.992149ms)
+✔ agent_plugin_connect aborts during the polling sleep and cleans up promptly (2.145301ms)
+✔ connect pre-card behavior: unknown (0.699372ms)
+✔ connect pre-card behavior: no-oauth-service (3.317984ms)
+✔ connect pre-card behavior: already-connected (0.718897ms)
+✔ connect pre-card behavior: multiple (0.728867ms)
+✔ connect pre-card behavior: no-emitter (0.549421ms)
+✔ connect closes its exchange when the initial waiting card fails (1.264559ms)
+✔ connect refuses a different plugin's endpoint before OAuth: provisioning-refused (5.142386ms)
+✔ connect refuses a different plugin's endpoint before OAuth: ownership-changed (0.734764ms)
+✔ agent_plugin_connect: a non-http TOVU_PUBLIC_URL falls back to the derived origin (1.381063ms)
+✔ agent_plugin_connect: a malformed TOVU_PUBLIC_URL is treated as absent (1.469489ms)
+✔ agent_plugin_connect: no configured or derived origin leaves the redirect to the OAuth service (1.330628ms)
+✔ agent_plugin_connect: an OAuth validation refusal becomes a ToolInputError; any other failure propagates unchanged (1.434343ms)
+✔ agent_plugin_connect: a server key with no usable connection id is refused before any sign-in (0.457824ms)
+✔ agent_plugin_connect: an abort landing during a poll read ends the wait without sleeping (1.135712ms)
+✔ agent_plugin_connect: default poll timing still reports a connection observed on the first poll (1.171909ms)
+✔ defaultResolveInstalledAgentPlugin returns null for a plugin this workspace never installed (5.1615ms)
+✔ agent_plugin_connect carries plugin-owned connection and permission copy into the sign-in card (1.523652ms)
+✔ OAuth card copy comes only from the trusted merged loader and the declaring plugin (11.600514ms)
+✔ OAuth validation classification is supplied by the port before any card opens (2.554163ms)
+ℹ tests 52
+ℹ suites 0
+ℹ pass 51
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6491.381786
+
+✖ failing tests:
+
+test at apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.unit.test.ts:1:25242
+✖ agent_plugin_connect: an already signed-in OAuth row gets the plugin's declared default tools, with no new sign-in (1.648939ms)
+  Error: Test home isolation required: refusing the real user home for Tovu sites or site keys. Use isolated-catalog-home or a temporary HOME and desktop profile.
+      at assertTestHomeIsolation (/home/user/Tovu/apps/website/src/platform/test-home-isolation.ts:20:11)
+      at createSitesWorkspace (/home/user/Tovu/apps/website/src/platform/site-dir/sites-home.ts:22:3)
+      at resolveSiteRoot (/home/user/Tovu/apps/website/src/platform/site-dir/site-root.ts:78:21)
+      at Object.get (/home/user/Tovu/apps/website/src/__tests__/fixtures/site-layout-context.ts:59:149)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.unit.test.ts:515:75)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)

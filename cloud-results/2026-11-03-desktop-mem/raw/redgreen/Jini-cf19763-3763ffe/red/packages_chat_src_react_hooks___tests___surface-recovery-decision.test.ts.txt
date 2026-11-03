@@ -1,0 +1,31 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/chat
+
+ ❯ src/react/hooks/__tests__/surface-recovery-decision.test.ts (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/react/hooks/__tests__/surface-recovery-decision.test.ts [ src/react/hooks/__tests__/surface-recovery-decision.test.ts ]
+Error: Failed to resolve import "../useSurfaceRecovery.js" from "src/react/hooks/__tests__/surface-recovery-decision.test.ts". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/wt-Jini/packages/chat/src/react/hooks/__tests__/surface-recovery-decision.test.ts:2:37
+  1  |  import { expect, test } from "vitest";
+  2  |  import { surfaceNeedsRecovery } from "../useSurfaceRecovery.js";
+     |                                        ^
+  3  |  test("returning to an unanswered card restores it while an answered card stays complete", () => {
+  4  |    const call = { name: "save", input: {} };
+ ❯ TransformPluginContext._formatError ../../../Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41
+ ❯ TransformPluginContext.error ../../../Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16
+ ❯ normalizeUrl ../../../Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23
+ ❯ ../../../Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+ ❯ TransformPluginContext.transform ../../../Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7
+ ❯ PluginContainer.transform ../../../Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18
+ ❯ loadAndTransform ../../../Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  21:04:53
+   Duration  971ms (transform 66ms, setup 206ms, collect 0ms, tests 0ms, environment 419ms, prepare 87ms)
+

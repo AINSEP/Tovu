@@ -1,0 +1,102 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/ui
+
+ ❯ src/react/__tests__/components/TooltipLayer.test.tsx (46 tests | 1 failed) 269ms
+   × TooltipLayer on touch > a touch tap on a trigger opens its tooltip and keeps it open 35ms
+     → Unable to find an accessible element with the role "tooltip"
+
+Here are the accessible roles:
+
+  button:
+
+  Name "Hover me":
+  [36m<button[39m
+    [33mclass[39m=[32m"jini-tooltip"[39m
+    [33mdata-testid[39m=[32m"trigger"[39m
+    [33mdata-tooltip[39m=[32m"Hello there"[39m
+  [36m/>[39m
+
+  Name "Elsewhere":
+  [36m<button[39m
+    [33mdata-testid[39m=[32m"elsewhere"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<button[39m
+      [33mclass[39m=[32m"jini-tooltip"[39m
+      [33mdata-testid[39m=[32m"trigger"[39m
+      [33mdata-tooltip[39m=[32m"Hello there"[39m
+    [36m>[39m
+      [0mHover me[0m
+    [36m</button>[39m
+    [36m<button[39m
+      [33mdata-testid[39m=[32m"elsewhere"[39m
+    [36m>[39m
+      [0mElsewhere[0m
+    [36m</button>[39m
+  [36m</div>[39m
+[36m</body>[39m
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/react/__tests__/components/TooltipLayer.test.tsx > TooltipLayer on touch > a touch tap on a trigger opens its tooltip and keeps it open
+TestingLibraryElementError: Unable to find an accessible element with the role "tooltip"
+
+Here are the accessible roles:
+
+  button:
+
+  Name "Hover me":
+  [36m<button[39m
+    [33mclass[39m=[32m"jini-tooltip"[39m
+    [33mdata-testid[39m=[32m"trigger"[39m
+    [33mdata-tooltip[39m=[32m"Hello there"[39m
+  [36m/>[39m
+
+  Name "Elsewhere":
+  [36m<button[39m
+    [33mdata-testid[39m=[32m"elsewhere"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<button[39m
+      [33mclass[39m=[32m"jini-tooltip"[39m
+      [33mdata-testid[39m=[32m"trigger"[39m
+      [33mdata-tooltip[39m=[32m"Hello there"[39m
+    [36m>[39m
+      [0mHover me[0m
+    [36m</button>[39m
+    [36m<button[39m
+      [33mdata-testid[39m=[32m"elsewhere"[39m
+    [36m>[39m
+      [0mElsewhere[0m
+    [36m</button>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ ❯ Object.getElementError ../../../Jini/node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ ../../../Jini/node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+ ❯ ../../../Jini/node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+ ❯ ../../../Jini/node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ❯ src/react/__tests__/components/TooltipLayer.test.tsx:125:19
+    123|     const { trigger } = setup();
+    124|     tap(trigger);
+    125|     expect(screen.getByRole('tooltip').textContent).toBe('Hello there'…
+       |                   ^
+    126|   });
+    127| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 45 passed (46)
+   Start at  21:05:59
+   Duration  1.25s (transform 118ms, setup 165ms, collect 104ms, tests 269ms, environment 359ms, prepare 91ms)
+

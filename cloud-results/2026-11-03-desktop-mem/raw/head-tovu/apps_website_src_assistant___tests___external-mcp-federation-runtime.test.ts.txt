@@ -1,0 +1,25 @@
+/home/user/Tovu/apps/website/src/assistant/external-mcp-federation-runtime.ts:5
+import { attachFederatedMcpTools, resolveRegisteredPresets, type FederationLogger } from "./mcp-federation/bootstrap.js";
+                                  ^
+SyntaxError: The requested module './mcp-federation/bootstrap.js' does not provide an export named 'resolveRegisteredPresets'
+    at #asyncInstantiate (node:internal/modules/esm/module_job:455:21)
+    at async ModuleJob.run (node:internal/modules/esm/module_job:553:5)
+    at async node:internal/modules/esm/loader:647:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v24.22.2
+✖ apps/website/src/assistant/__tests__/external-mcp-federation-runtime.test.ts (16502.848209ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 16533.931106
+
+✖ failing tests:
+
+test at apps/website/src/assistant/__tests__/external-mcp-federation-runtime.test.ts:1:1
+✖ apps/website/src/assistant/__tests__/external-mcp-federation-runtime.test.ts (16502.848209ms)
+  'test failed'

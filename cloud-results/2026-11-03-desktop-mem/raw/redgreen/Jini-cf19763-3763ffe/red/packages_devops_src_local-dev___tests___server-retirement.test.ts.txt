@@ -1,0 +1,33 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/devops
+
+ ❯ src/local-dev/__tests__/server-retirement.test.ts (3 tests | 1 failed) 11ms
+   × a completed background operation releases its server for automatic eviction 8ms
+     → expected false to be true // Object.is equality
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/local-dev/__tests__/server-retirement.test.ts > a completed background operation releases its server for automatic eviction
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/local-dev/__tests__/server-retirement.test.ts:12:34
+     10|   expect(await guard.retire({})).toBe(false);
+     11|   working = false;
+     12|   expect(await guard.retire({})).toBe(true);
+       |                                  ^
+     13| });
+     14| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 2 passed (3)
+   Start at  21:05:01
+   Duration  505ms (transform 70ms, setup 0ms, collect 62ms, tests 11ms, environment 0ms, prepare 98ms)
+

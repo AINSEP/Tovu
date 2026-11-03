@@ -1,0 +1,61 @@
+✔ search finds a tool by an id-term match (33.725917ms)
+✔ search ranks a tool matching more query terms above one matching fewer (1.49704ms)
+✔ search returns an empty array, not an error, for no matches (1.462395ms)
+✔ search respects the limit parameter (1.992407ms)
+✔ search derives 'source' from the id's domain prefix (1.410061ms)
+✔ every hit carries a positive score (1.3512ms)
+✔ describe returns the full entry including inputSchema for a known id (1.427065ms)
+✔ describe returns null, not throws, for an unknown id (1.535321ms)
+✖ describe content_read lists only registered cards and their first authored sentence (4.02369ms)
+✔ a family without registered cards is absent; a card without prose still has a purpose (3.413369ms)
+✔ describe omits inputSchema for a descriptor that declared none (1.394662ms)
+✔ an empty registry seeds an empty, non-throwing catalog (1.968306ms)
+✔ search vocabulary makes a tool findable by a word its authored description never contains (1.656105ms)
+✔ no caller ever sees the folded vocabulary — describe and search both return the AUTHORED description (1.445459ms)
+✔ a descriptor with no description at all seeds an empty string, both with and without keyword folding (2.546943ms)
+✔ an id with no domain prefix (e.g. it starts with the separator) falls back to source 'tovu' (1.650852ms)
+✔ includeDoc2query: false is forwarded through to indexedDescriptionFor, omitting doc2query questions from the index (2.885104ms)
+✔ a tool with no keyword entry is untouched, and the seam can disable folding entirely (2.373189ms)
+✔ a finished principal's disposable tool catalog releases its search database (1.526522ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 18
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1770.47847
+
+✖ failing tests:
+
+test at apps/website/src/assistant/__tests__/tool-catalog-query.test.ts:1:2970
+✖ describe content_read lists only registered cards and their first authored sentence (4.02369ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+      description: 'content_read is a namespace, not a tool; do not invent ids such as content_read.page. Describe a card id below for its inputs, then call that exact id without a resource argument.\n' +
+        'content_read.media_asset — Lists media assets.\n' +
+        'content_read.theme — Reads themes.',
+      id: 'content_read',
+      source: 'content',
+  +   targetToolIds: [
+  +     'content_read.media_asset',
+  +     'content_read.theme'
+  +   ]
+    }
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/tool-catalog-query.test.ts:84:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { id: 'content_read', source: 'content', description: 'content_read is a namespace, not a tool; do not invent ids such as content_read.page. Describe a card id below for its inputs, then call that exact id without a resource argument.\ncontent_read.media_asset — Lists media assets.\ncontent_read.theme — Reads themes.', targetToolIds: [ 'content_read.media_asset', 'content_read.theme' ] },
+    expected: { id: 'content_read', source: 'content', description: 'content_read is a namespace, not a tool; do not invent ids such as content_read.page. Describe a card id below for its inputs, then call that exact id without a resource argument.\ncontent_read.media_asset — Lists media assets.\ncontent_read.theme — Reads themes.' },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/mcp
+
+ ✓ src/server/tools/__tests__/delegated-tool.owner-wait.test.ts (1 test) 3ms
+
+ Test Files  1 passed (1)
+      Tests  1 passed (1)
+   Start at  21:05:42
+   Duration  1.10s (transform 409ms, setup 0ms, collect 697ms, tests 3ms, environment 0ms, prepare 90ms)
+

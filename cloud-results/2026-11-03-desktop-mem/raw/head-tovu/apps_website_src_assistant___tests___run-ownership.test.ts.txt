@@ -1,0 +1,21 @@
+✔ a non-owner cannot read another principal's run status (127.688474ms)
+✔ the non-owner refusal is byte-identical to a genuinely unknown run, so a runId cannot be confirmed (55.795166ms)
+✔ a non-owner cannot subscribe to another principal's run event stream — the whole transcript (44.352815ms)
+✔ the owner can still stream their own run's events (27.229975ms)
+✔ a non-owner cannot cancel another principal's in-flight run, and the run keeps running (30.112437ms)
+✔ a run with no recorded owner is unreadable and uncancellable by every admin (16.660601ms)
+✔ forget() drops a run's owner, so the registry does not grow for the daemon's lifetime (1.323381ms)
+✔ the owner can cancel their own run (14.829965ms)
+✔ ownership outlives the run — a finished run is still readable, so it must still be guarded (13.3932ms)
+✔ run-scoped routes fail closed when no principal is asserted (18.499583ms)
+✔ GET /api/runs lists only the caller's own runs, not every run on the daemon (22.925244ms)
+✔ the ?contextRef= filter still applies, and stays owner-scoped underneath it (21.344349ms)
+✔ the production daemon mounts ownership before run routes and records the decoded principal on start (76.281717ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4079.140941

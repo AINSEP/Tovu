@@ -1,0 +1,10 @@
+✔ a late credential answer restores the same request and saves once without asking the owner to re-ask (128.706135ms)
+✔ a different owner cannot restore someone else's expired credential card (23.773852ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2820.784099

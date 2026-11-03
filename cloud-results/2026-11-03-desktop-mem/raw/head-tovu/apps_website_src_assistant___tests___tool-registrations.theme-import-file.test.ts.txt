@@ -1,0 +1,20 @@
+✔ theme_import_file_from_url: wires with its catalog schema, a mutating risk class, and search metadata (10.183903ms)
+✔ theme_import_file_from_url: the contributor registers under its own 'theme-import-file' domain key (0.529426ms)
+✔ theme_import_file_from_url: writes the font into the theme and reports the reloaded theme's status (14.13955ms)
+✔ theme_import_file_from_url: a principal without theme.edit is refused before any fetch (6.064812ms)
+✔ theme_import_file_from_url: an unknown theme and a generated preview/ path are refused with the schema, before any fetch (18.372337ms)
+✔ theme_import_file_from_url: an egress refusal reaches the caller without the resolved address, which is logged instead (7.006437ms)
+✔ theme_import_file_from_url: with no refusal log wired, the egress refusal's resolved address goes to console.warn (7.939ms)
+✔ theme_import_local_file: uses the same contributor, theme.edit gate, discovery and reload (110.517349ms)
+✔ theme_import_local_file: permission refusal precedes root resolution and any write (36.620931ms)
+✔ theme_import_local_file: unknown/unset roots and unknown themes return actionable schema errors (11.074592ms)
+✔ theme_import_local_file: preview, trash and compiled destinations refuse valid local fonts without writing (30.187712ms)
+✔ site theme import refuses repo and unpicked paths before reading or creating output (19.430418ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5165.813613

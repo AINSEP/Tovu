@@ -1,0 +1,7 @@
+$ tsc -p tsconfig.json --noEmit
+src/features/html-editor/react/components/InteractiveHtmlEditor.tsx(2,8): error TS2882: Cannot find module or type declarations for side-effect import of 'grapesjs/dist/css/grapes.min.css'.
+src/react/__tests__/components/TooltipLayer.test.tsx(465,5): error TS2322: Type '(selector: string) => boolean' is not assignable to type '{ <K extends keyof HTMLElementTagNameMap>(selectors: K): this is HTMLElementTagNameMap[K]; <K extends keyof SVGElementTagNameMap>(selectors: K): this is SVGElementTagNameMap[K]; <K extends keyof MathMLElementTagNameMap>(selectors: K): this is MathMLElementTagNameMap[K]; (selectors: string): boolean; }'.
+  Signature '(selector: string): boolean' must be a type predicate.
+src/react/__tests__/unit/select-popover.unit.test.ts(37,3): error TS2322: Type '(selector: string) => boolean' is not assignable to type '{ <K extends keyof HTMLElementTagNameMap>(selectors: K): this is HTMLElementTagNameMap[K]; <K extends keyof SVGElementTagNameMap>(selectors: K): this is SVGElementTagNameMap[K]; <K extends keyof MathMLElementTagNameMap>(selectors: K): this is MathMLElementTagNameMap[K]; (selectors: string): boolean; }'.
+  Signature '(selector: string): boolean' must be a type predicate.
+EXIT 2

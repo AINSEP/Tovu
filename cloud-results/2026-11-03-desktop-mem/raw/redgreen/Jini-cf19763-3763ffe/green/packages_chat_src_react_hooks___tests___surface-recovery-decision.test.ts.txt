@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/chat
+
+ ✓ src/react/hooks/__tests__/surface-recovery-decision.test.ts (1 test) 2ms
+
+ Test Files  1 passed (1)
+      Tests  1 passed (1)
+   Start at  21:05:26
+   Duration  1.93s (transform 572ms, setup 154ms, collect 976ms, tests 2ms, environment 466ms, prepare 85ms)
+

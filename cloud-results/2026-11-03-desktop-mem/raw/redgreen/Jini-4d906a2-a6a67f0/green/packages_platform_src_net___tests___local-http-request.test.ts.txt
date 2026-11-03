@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/platform
+
+ ✓ src/net/__tests__/local-http-request.test.ts (2 tests) 33ms
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  21:06:15
+   Duration  454ms (transform 118ms, setup 0ms, collect 126ms, tests 33ms, environment 0ms, prepare 87ms)
+

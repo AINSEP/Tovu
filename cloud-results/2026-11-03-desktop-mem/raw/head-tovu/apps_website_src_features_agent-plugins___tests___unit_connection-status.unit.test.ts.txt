@@ -1,0 +1,10 @@
+✔ Agent Plugins shows signed-in state independently of whether a plugin is enabled (1.961589ms)
+✔ all declared plugin connections must be signed in, and unrelated manual servers never confer status (0.359522ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1034.317067

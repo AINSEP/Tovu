@@ -1,0 +1,18 @@
+✔ chat can scaffold, write, seal and enable after one owner confirmation; updates replace helper module snapshots (572.867412ms)
+✔ new versions update active pointers across workspaces and the existing poll reloads another process once (182.943695ms)
+✔ removing a filter from a sealed manifest clears the old running hook (118.780568ms)
+✔ a newly installed package does not replace the active pointer at boot until controlled reload (503.100877ms)
+✔ reload failures return installed:true with a reason and pin the restored working version (507.092344ms)
+[plugin-runtime] Plugin 'site-rules' restored-version reload failed PluginLoadError: plugin 'site-rules' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/home/user/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'site-rules',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ reload quarantines only when the restored version also cannot load (318.165831ms)
+✔ the scaffold documents real route/tool/widget registrations and required manifest grants (154.11824ms)
+✔ consent gap (2026-10-12): an assistant-sealed plugin cannot enable without an owner confirmation naming what it adds (331.186198ms)
+✔ an unchanged re-seal does not re-prompt; a widened re-seal waits for a new confirmation listing only the additions (717.578109ms)
+✔ copied site packages lack site-owned provenance and keep their enable confirmation (250.17697ms)
+✔ hosted source sealing retains the Tovu opt-in hint and publishes no package (128.700701ms)
+✔ the deployment adapter treats desktop and dev as local and production/Fly as hosted (0.8383ms)
+✔ install policy uses injected host facts even when the env has no hosted hint (0.141415ms)

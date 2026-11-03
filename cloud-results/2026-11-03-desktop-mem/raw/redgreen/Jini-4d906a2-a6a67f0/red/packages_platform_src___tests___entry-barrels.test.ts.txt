@@ -1,0 +1,18 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/platform
+
+ ❯ src/__tests__/entry-barrels.test.ts (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/__tests__/entry-barrels.test.ts [ src/__tests__/entry-barrels.test.ts ]
+Error: Failed to load url ../net/local-http-request.js (resolved id: ../net/local-http-request.js) in /home/user/wt-Jini/packages/platform/src/__tests__/entry-barrels.test.ts. Does the file exist?
+ ❯ loadAndTransform ../../../Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51969:17
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  21:06:07
+   Duration  413ms (transform 110ms, setup 0ms, collect 0ms, tests 0ms, environment 0ms, prepare 83ms)
+

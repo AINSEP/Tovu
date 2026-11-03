@@ -1,0 +1,18 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/platform
+
+ ❯ src/net/__tests__/local-http-request.test.ts (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/net/__tests__/local-http-request.test.ts [ src/net/__tests__/local-http-request.test.ts ]
+Error: Failed to load url ../local-http-request.js (resolved id: ../local-http-request.js) in /home/user/wt-Jini/packages/platform/src/net/__tests__/local-http-request.test.ts. Does the file exist?
+ ❯ loadAndTransform ../../../Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51969:17
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  21:06:08
+   Duration  395ms (transform 51ms, setup 0ms, collect 0ms, tests 0ms, environment 0ms, prepare 89ms)
+

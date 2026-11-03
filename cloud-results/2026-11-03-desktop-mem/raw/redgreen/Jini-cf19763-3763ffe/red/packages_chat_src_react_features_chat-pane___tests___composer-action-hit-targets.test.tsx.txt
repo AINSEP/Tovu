@@ -1,0 +1,11 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/chat
+
+ ✓ src/react/features/chat-pane/__tests__/composer-action-hit-targets.test.tsx (2 tests) 373ms
+   ✓ Send retains footer sizing and its click handler beside the effort selector 305ms
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  21:04:42
+   Duration  7.47s (transform 3.69s, setup 170ms, collect 6.05s, tests 373ms, environment 457ms, prepare 118ms)
+

@@ -1,0 +1,31 @@
+✔ chat-input regression: theme_edit_file deletes exact text with an empty replacement through the gate (47.111684ms)
+✔ theme_edit_file: zero matches is refused, and the file is left untouched (10.867549ms)
+✔ theme_edit_file: an ambiguous match (2+ occurrences) is refused when replaceAll is left false (8.655087ms)
+✔ theme_edit_file: replaceAll changes every occurrence of an ambiguous match (11.874153ms)
+✔ theme_edit_file: a unique match is replaced, leaving the rest of the file byte-identical (11.769215ms)
+✔ theme_edit_file: writing invalid JSON via an edit reports status 'invalid', same as theme_write_file (11.476833ms)
+✔ theme_edit_file: a script (.js) file is editable — content editability has no group-based restriction, matching theme_write_file (11.997004ms)
+✔ theme_edit_file refuses when authorize() denies, and never reads or writes (7.113528ms)
+✔ theme_rename_file: renames an ordinary style file within the same folder (9.225252ms)
+✔ theme_rename_file: renaming to the same name is a no-op, not a NAME_TAKEN collision against itself (6.822508ms)
+✔ theme_rename_file: a required file (theme.json) is refused — renaming it would invalidate the theme (10.000334ms)
+✔ theme_rename_file: a script (.js) file is refused — content is editable but identity is locked (8.130766ms)
+✔ theme_rename_file: an 'other'-group file (.md) is refused (6.481202ms)
+✔ theme_rename_file: changing the extension is refused even for an otherwise-writable file (6.72849ms)
+✔ theme_rename_file: a name that already exists in the folder is refused (checked before the extension rule) (7.492625ms)
+✔ theme_rename_file: a path-shaped name (containing '/') is refused as a shape error, not attempted as a move (5.553132ms)
+✔ theme_rename_file refuses when authorize() denies, and never touches disk (6.427915ms)
+✔ theme_rename_file refreshes the live routeDeps.themes entry, matching theme_write_file's live-state coupling (11.298295ms)
+✔ performThemeFileRename: a destPath that resolves generated-readonly throws -- provably unreachable through the theme_rename_file TOOL (destPath always shares sourcePath's own already-editable directory, per this function's own comment), exercised directly by passing a destPath in a DIFFERENT directory than the tool itself would ever construct (0.367445ms)
+✔ theme_edit_file: an empty replacement deletes the exact match (13.444751ms)
+✔ theme_edit_file: a deletion that would leave the file empty is refused without intent 'delete', and the file is untouched (14.488298ms)
+✔ theme_edit_file: intent 'delete' confirms emptying the whole file (27.475219ms)
+✔ theme_edit_file: the schema documents intent 'delete' and empty-string deletion (2.977614ms)
+ℹ tests 23
+ℹ suites 0
+ℹ pass 23
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4710.395457

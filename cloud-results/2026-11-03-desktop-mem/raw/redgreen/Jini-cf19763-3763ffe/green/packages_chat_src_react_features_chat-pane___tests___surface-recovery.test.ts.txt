@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/chat
+
+ ✓ src/react/features/chat-pane/__tests__/surface-recovery.test.ts (2 tests) 79ms
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  21:05:23
+   Duration  1.14s (transform 104ms, setup 217ms, collect 71ms, tests 79ms, environment 395ms, prepare 89ms)
+

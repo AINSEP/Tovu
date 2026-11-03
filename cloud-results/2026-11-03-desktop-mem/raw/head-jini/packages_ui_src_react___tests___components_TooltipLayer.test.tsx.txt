@@ -1,3 +1,10 @@
 
  RUN  v2.1.9 /home/user/Jini/packages/ui
 
+ ✓ src/react/__tests__/components/TooltipLayer.test.tsx (46 tests) 580ms
+
+ Test Files  1 passed (1)
+      Tests  46 passed (46)
+   Start at  21:04:20
+   Duration  2.33s (transform 337ms, setup 438ms, collect 237ms, tests 580ms, environment 533ms, prepare 186ms)
+

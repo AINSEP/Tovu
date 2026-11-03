@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/devops
+
+ ✓ src/local-dev/__tests__/node-runtime.test.ts (3 tests) 5ms
+
+ Test Files  1 passed (1)
+      Tests  3 passed (3)
+   Start at  21:06:09
+   Duration  421ms (transform 72ms, setup 0ms, collect 52ms, tests 5ms, environment 0ms, prepare 110ms)
+

@@ -1,0 +1,16 @@
+✔ HOST_DEPLOY_ENV is Tovu's production switch, frozen (1.659193ms)
+✔ appends the overlay's notes for the target after the generator's, by plugin name (publisher id or bare) (0.391299ms)
+✔ a note the generator already printed is not repeated (the pre-cutover bundled generators print it) (8.248561ms)
+✔ no overlay file, or no entry for this target, leaves the rendered config unchanged (0.262159ms)
+✔ a malformed notes entry fails loudly, naming the file (0.428633ms)
+✔ a malformed deploy notes document fails loudly instead of silently dropping host notes (0.259588ms)
+✔ only an own deploy target entry contributes host notes (0.319027ms)
+✔ Tovu's real fly, render and railway overlays each add the headless-Chromium opt-in for their own target (0.655509ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3268.621007

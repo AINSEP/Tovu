@@ -1,0 +1,40 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/chat
+
+ ❯ src/react/features/chat-pane/__tests__/surface-recovery.test.ts (2 tests | 2 failed) 12ms
+   × returning to an expired card requests its original invocation without resending tool arguments 9ms
+     → caller.restore is not a function
+   × a late credential answer is sent once and a reissued card is streamed before the save finishes 2ms
+     → caller.answer is not a function
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/react/features/chat-pane/__tests__/surface-recovery.test.ts > returning to an expired card requests its original invocation without resending tool arguments
+TypeError: caller.restore is not a function
+ ❯ src/react/features/chat-pane/__tests__/surface-recovery.test.ts:11:16
+      9|   const onSurface = vi.fn();
+     10|   const caller = createMcpUiToolCaller({ baseUrl: '', fetch });
+     11|   await caller.restore({ ...info, onSurface, signal: new AbortControll…
+       |                ^
+     12|   expect(JSON.parse(String(fetch.mock.calls[0]?.[1]?.body))).toEqual({…
+     13|   expect(onSurface).toHaveBeenCalledWith(emission);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/react/features/chat-pane/__tests__/surface-recovery.test.ts > a late credential answer is sent once and a reissued card is streamed before the save finishes
+TypeError: caller.answer is not a function
+ ❯ src/react/features/chat-pane/__tests__/surface-recovery.test.ts:26:25
+     24|   const onSurface = vi.fn();
+     25|   const caller = createMcpUiToolCaller({ baseUrl: '', fetch });
+     26|   const answer = caller.answer({ call: { name: info.toolId, arguments:…
+       |                         ^
+     27|   send(`${JSON.stringify({ type: 'surface', emission })}\n`);
+     28|   await vi.waitFor(() => expect(onSurface).toHaveBeenCalledWith(emissi…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+ Test Files  1 failed (1)
+      Tests  2 failed (2)
+   Start at  21:04:50
+   Duration  1.18s (transform 152ms, setup 196ms, collect 76ms, tests 12ms, environment 458ms, prepare 98ms)
+

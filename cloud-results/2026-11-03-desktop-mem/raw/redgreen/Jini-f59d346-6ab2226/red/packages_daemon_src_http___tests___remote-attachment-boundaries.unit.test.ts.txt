@@ -1,0 +1,30 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/daemon
+
+ ❯ src/http/__tests__/remote-attachment-boundaries.unit.test.ts (16 tests | 1 failed) 23ms
+   × remote attachment lookup transport boundary > scoped attachment lookup stays under its authenticated site mount 10ms
+     → expected 'http://127.0.0.1:4567/internal/attach…' to be 'http://127.0.0.1:4567/s/site-a/intern…' // Object.is equality
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/http/__tests__/remote-attachment-boundaries.unit.test.ts > remote attachment lookup transport boundary > scoped attachment lookup stays under its authenticated site mount
+AssertionError: expected 'http://127.0.0.1:4567/internal/attach…' to be 'http://127.0.0.1:4567/s/site-a/intern…' // Object.is equality
+
+Expected: "http://127.0.0.1:4567/s/site-a/internal/attachment-lookup"
+Received: "http://127.0.0.1:4567/internal/attachment-lookup"
+
+ ❯ src/http/__tests__/remote-attachment-boundaries.unit.test.ts:35:29
+     33|     await expect(f.lookup.listPendingForOwner({ ownerId: 'same-owner' …
+     34|     await expect(baseline.lookup.listPendingForOwner({ ownerId: 'same-…
+     35|     expect(f.calls[0]!.url).toBe('http://127.0.0.1:4567/s/site-a/inter…
+       |                             ^
+     36|     expect(baseline.calls[0]!.url).toBe('http://127.0.0.1:4567/interna…
+     37|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 15 passed (16)
+   Start at  21:05:51
+   Duration  1.36s (transform 593ms, setup 0ms, collect 999ms, tests 23ms, environment 0ms, prepare 87ms)
+

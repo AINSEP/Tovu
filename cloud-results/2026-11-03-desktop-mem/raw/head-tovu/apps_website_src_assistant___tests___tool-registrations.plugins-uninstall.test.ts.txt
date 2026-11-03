@@ -1,0 +1,28 @@
+✔ plugins_uninstall is wired alongside plugins_list/plugins_set_enabled — 3 wired tools, catalog has exactly 3 entries (6.712131ms)
+✔ plugins_uninstall's catalog says the plugin moves to the 60-day Trash (0.315797ms)
+✔ plugins_uninstall requires admin.plugins.enable — the SAME permission plugins_set_enabled uses, no new grant introduced (0.102692ms)
+✔ plugins_uninstall: calls authorize() with admin.plugins.enable and the run's principal before touching anything (25.408356ms)
+✔ plugins_uninstall: with no interactive confirmation channel, the call fails closed and nothing is removed (2.576362ms)
+✔ plugins_uninstall: a cancelled confirmation removes nothing and reports cancelled:true, not an error (57.368701ms)
+✔ plugins_uninstall: a denied principal is rejected and nothing is removed (2.047088ms)
+✔ plugins_uninstall: refuses a built-in plugin — nothing to remove (0.965237ms)
+✔ plugins_uninstall: refuses a plugin still enabled in a workspace (0.891832ms)
+✔ plugins_uninstall: refuses an unknown plugin id (1.066065ms)
+✔ plugins_uninstall: moves the on-disk artifact to Trash and retains activation rows (5.402363ms)
+✔ plugins_uninstall: a plugin never activated anywhere moves to Trash cleanly (2.50132ms)
+✔ plugins_uninstall: a plugin whose version changed while the dialog was open is NOT removed, and the result says so (2.542921ms)
+✔ plugins_uninstall: a plugin that disappeared from discovery while the dialog was open is refused on the fresh read, and nothing is removed (1.837317ms)
+Plugin 'operator-plugin' has no publisher-qualified id; using 'unknown/operator-plugin'.
+Plugin 'operator-plugin' has no publisher-qualified id; using 'unknown/operator-plugin'.
+Plugin 'operator-plugin' has no publisher-qualified id; using 'unknown/operator-plugin'.
+✔ plugins_uninstall with family:'agent-plugin' opens a dialog whose confirm toolName is plugins_uninstall, and confirming removes the package dir (55.743755ms)
+✔ plugins_uninstall: a call with no 'family' is rejected before any dialog, for either family's id (1.253488ms)
+✔ the registry this file builds has no agent_plugins_uninstall id — the standalone tool was deleted; both families redeem through plugins_uninstall now (0.848085ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3993.24906

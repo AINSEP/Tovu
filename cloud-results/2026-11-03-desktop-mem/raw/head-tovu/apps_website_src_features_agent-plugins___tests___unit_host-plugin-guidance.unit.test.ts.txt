@@ -1,0 +1,115 @@
+✔ a plugin without an overlay reads as no guidance and no host files, and delivery leaves the answer unchanged (34.467789ms)
+✔ guidance and sorted host files are read; names outside host/<lowercase>.md and non-files are not listed (10.025689ms)
+✔ a host file reads by name; traversal, absolute, unlisted and unknown-plugin requests return a note that never echoes the unsafe value (6.741056ms)
+✔ reads are bounded at 256 KiB: a host file over the cap is a note, at the cap it reads, and an oversized GUIDANCE.md throws (9.147712ms)
+✔ a GUIDANCE.md that is not a file is a broken overlay and throws rather than silently dropping host rules (3.986712ms)
+✔ the overlays directory honors TOVU_AGENT_PLUGIN_OVERLAYS_DIR, defaults to the product's content tree, and site-paths re-exports the same resolver (0.760796ms)
+✔ only file values starting with host/ are host requests (0.210585ms)
+✖ Bash leaves delivered frontmatter allowed-tools only; other tools, body text and fenced examples stay byte-identical (7.79351ms)
+✖ Markdown rules before another plugin do not hide its refused tool permissions (1.280436ms)
+✔ Markdown rules and fenced frontmatter examples leave body Bash lists unchanged (0.960129ms)
+✖ frontmatter with leading YAML comments or blank lines still removes refused tools (0.976567ms)
+✔ tool delivery: GUIDANCE goes before the plugin's text, a maturity notice stays first, and host names join the plugin's files (10.080966ms)
+✔ tool delivery of a host file answers with that file after the notice; a refused name keeps the default answer and adds a note (4.714637ms)
+✔ run-reference requests: the owner never sees a host file; pointer delivery with nothing selected adds no guidance (0.401697ms)
+✔ run-reference overlays keep pin order, frame a host file with its plugin, and refuse a missing host file like a missing plugin file (19.288152ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 12
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 876.118372
+
+✖ failing tests:
+
+test at apps/website/src/features/agent-plugins/__tests__/unit/host-plugin-guidance.unit.test.ts:21:3
+✖ Bash leaves delivered frontmatter allowed-tools only; other tools, body text and fenced examples stay byte-identical (7.79351ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+    '---\n' +
+      'name: shadcn-ui\n' +
+      'description: Expert guidance.\n' +
+      'allowed-tools:\n' +
+      '  - "shadcn*:*"\n' +
+      '  - "Read"\n' +
+  +   '  - "Bash"\n' +
+      '  - "web_fetch"\n' +
+      '---\n' +
+      '\n' +
+      '# shadcn\n' +
+      '\n' +
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/host-plugin-guidance.unit.test.ts:131:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '---\nname: shadcn-ui\ndescription: Expert guidance.\nallowed-tools:\n  - "shadcn*:*"\n  - "Read"\n  - "Bash"\n  - "web_fetch"\n---\n\n# shadcn\n\nRun `npx shadcn add button` in a coding checkout.\n\n```yaml\n---\nallowed-tools:\n  - "Bash"\n---\n```\n',
+    expected: '---\nname: shadcn-ui\ndescription: Expert guidance.\nallowed-tools:\n  - "shadcn*:*"\n  - "Read"\n  - "web_fetch"\n---\n\n# shadcn\n\nRun `npx shadcn add button` in a coding checkout.\n\n```yaml\n---\nallowed-tools:\n  - "Bash"\n---\n```\n',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/agent-plugins/__tests__/unit/host-plugin-guidance.unit.test.ts:25:302
+✖ Markdown rules before another plugin do not hide its refused tool permissions (1.280436ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  ... Skipped lines
+  
+    '# Host instructions\n' +
+      '\n' +
+      '---\n' +
+      '\n' +
+      'Use the supported tools.\n' +
+  ...
+      '  - "Read"\n' +
+  +   '  - "Bash"\n' +
+      '---\n' +
+      '\n' +
+      '# Next plugin\n' +
+      '<</AGENT_PLUGIN>>'
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/host-plugin-guidance.unit.test.ts:146:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '# Host instructions\n\n---\n\nUse the supported tools.\n\n<<AGENT_PLUGIN pluginId="next-plugin">>\n---\nname: next-plugin\nallowed-tools:\n  - "Read"\n  - "Bash"\n---\n\n# Next plugin\n<</AGENT_PLUGIN>>',
+    expected: '# Host instructions\n\n---\n\nUse the supported tools.\n\n<<AGENT_PLUGIN pluginId="next-plugin">>\n---\nname: next-plugin\nallowed-tools:\n  - "Read"\n---\n\n# Next plugin\n<</AGENT_PLUGIN>>',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/agent-plugins/__tests__/unit/host-plugin-guidance.unit.test.ts:27:499
+✖ frontmatter with leading YAML comments or blank lines still removes refused tools (0.976567ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + '---\n\nname: commented\nallowed-tools:\n  - Bash\n  - Read\n---\n# Body'
+  - '---\n\nname: commented\nallowed-tools:\n  - Read\n---\n# Body'
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/host-plugin-guidance.unit.test.ts:158:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '---\n\nname: commented\nallowed-tools:\n  - Bash\n  - Read\n---\n# Body',
+    expected: '---\n\nname: commented\nallowed-tools:\n  - Read\n---\n# Body',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

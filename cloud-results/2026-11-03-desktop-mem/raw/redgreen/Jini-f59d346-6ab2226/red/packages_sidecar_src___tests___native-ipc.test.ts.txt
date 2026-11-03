@@ -1,0 +1,96 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/sidecar
+
+ ❯ src/__tests__/native-ipc.test.ts (6 tests | 6 failed) 10ms
+   × native inherited IPC > requests are bound to their child and reject stale replies 5ms
+     → createNodeIpcChannel is not a function
+   × native inherited IPC > disconnect releases pending requests without exposing payloads 1ms
+     → createNodeIpcChannel is not a function
+   × native inherited IPC > timeouts and capacity bound unavailable main processes 2ms
+     → createNodeIpcChannel is not a function
+   × native inherited IPC > an oversized request is a capacity error rather than a lost connection 1ms
+     → createNodeIpcChannel is not a function
+   × native inherited IPC > a child handler returns only its result and redacts failures 1ms
+     → createNodeIpcChannel is not a function
+   × native inherited IPC > a busy receiver refuses excess work instead of making a live main look disconnected 0ms
+     → createNodeIpcChannel is not a function
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 6 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/__tests__/native-ipc.test.ts > native inherited IPC > requests are bound to their child and reject stale replies
+TypeError: createNodeIpcChannel is not a function
+ ❯ src/__tests__/native-ipc.test.ts:21:19
+     19|   it("requests are bound to their child and reject stale replies", asy…
+     20|     const a = new Peer(); const b = new Peer();
+     21|     const first = createNodeIpcChannel({ peer: a });
+       |                   ^
+     22|     const second = createNodeIpcChannel({ peer: b });
+     23|     const result = first.request({ payload: "private" });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/6]⎯
+
+ FAIL  src/__tests__/native-ipc.test.ts > native inherited IPC > disconnect releases pending requests without exposing payloads
+TypeError: createNodeIpcChannel is not a function
+ ❯ src/__tests__/native-ipc.test.ts:33:46
+     31| 
+     32|   it("disconnect releases pending requests without exposing payloads",…
+     33|     const peer = new Peer(); const channel = createNodeIpcChannel({ pe…
+       |                                              ^
+     34|     const result = channel.request({ payload: { token: "never-in-error…
+     35|     peer.connected = false; peer.emit("disconnect");
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/6]⎯
+
+ FAIL  src/__tests__/native-ipc.test.ts > native inherited IPC > timeouts and capacity bound unavailable main processes
+TypeError: createNodeIpcChannel is not a function
+ ❯ src/__tests__/native-ipc.test.ts:44:46
+     42|   it("timeouts and capacity bound unavailable main processes", async (…
+     43|     vi.useFakeTimers();
+     44|     const peer = new Peer(); const channel = createNodeIpcChannel({ pe…
+       |                                              ^
+     45|     try {
+     46|       const result = channel.request({ payload: "credential" });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/6]⎯
+
+ FAIL  src/__tests__/native-ipc.test.ts > native inherited IPC > an oversized request is a capacity error rather than a lost connection
+TypeError: createNodeIpcChannel is not a function
+ ❯ src/__tests__/native-ipc.test.ts:54:46
+     52| 
+     53|   it("an oversized request is a capacity error rather than a lost conn…
+     54|     const peer = new Peer(); const channel = createNodeIpcChannel({ pe…
+       |                                              ^
+     55|     try {
+     56|       await expect(channel.request({ payload: "x".repeat(1024 * 1024) …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/6]⎯
+
+ FAIL  src/__tests__/native-ipc.test.ts > native inherited IPC > a child handler returns only its result and redacts failures
+TypeError: createNodeIpcChannel is not a function
+ ❯ src/__tests__/native-ipc.test.ts:63:20
+     61|   it("a child handler returns only its result and redacts failures", a…
+     62|     const parent = new Peer(); const child = new Peer(); parent.other …
+     63|     const client = createNodeIpcChannel({ peer: parent });
+       |                    ^
+     64|     const server = createNodeIpcChannel({ peer: child }, { handle: asy…
+     65|       if (payload === "bad") throw new Error("private-secret");
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/6]⎯
+
+ FAIL  src/__tests__/native-ipc.test.ts > native inherited IPC > a busy receiver refuses excess work instead of making a live main look disconnected
+TypeError: createNodeIpcChannel is not a function
+ ❯ src/__tests__/native-ipc.test.ts:79:20
+     77|     let release!: (value: string) => void;
+     78|     const held = new Promise<string>(resolve => { release = resolve; }…
+     79|     const client = createNodeIpcChannel({ peer: parent });
+       |                    ^
+     80|     const server = createNodeIpcChannel({ peer: child }, { maxPending:…
+     81|     try {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/6]⎯
+
+ Test Files  1 failed (1)
+      Tests  6 failed (6)
+   Start at  21:05:53
+   Duration  860ms (transform 388ms, setup 0ms, collect 548ms, tests 10ms, environment 0ms, prepare 82ms)
+

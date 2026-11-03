@@ -1,0 +1,32 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/chat
+
+ ❯ src/react/hooks/__tests__/useSurfaceRecovery.test.ts (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/react/hooks/__tests__/useSurfaceRecovery.test.ts [ src/react/hooks/__tests__/useSurfaceRecovery.test.ts ]
+Error: Failed to resolve import "../useSurfaceRecovery.js" from "src/react/hooks/__tests__/useSurfaceRecovery.test.ts". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/wt-Jini/packages/chat/src/react/hooks/__tests__/useSurfaceRecovery.test.ts:3:35
+  1  |  import { act, renderHook } from "@testing-library/react";
+  2  |  import { expect, test, vi } from "vitest";
+  3  |  import { useSurfaceRecovery } from "../useSurfaceRecovery.js";
+     |                                      ^
+  4  |  import { SURFACE_EXCHANGE_META } from "../../../core/surface-recovery.js";
+  5  |  const info = { exchangeId: "old", toolId: "save", runId: "run" };
+ ❯ TransformPluginContext._formatError ../../../Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41
+ ❯ TransformPluginContext.error ../../../Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16
+ ❯ normalizeUrl ../../../Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23
+ ❯ ../../../Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+ ❯ TransformPluginContext.transform ../../../Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7
+ ❯ PluginContainer.transform ../../../Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18
+ ❯ loadAndTransform ../../../Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  21:04:57
+   Duration  1.02s (transform 63ms, setup 147ms, collect 0ms, tests 0ms, environment 456ms, prepare 118ms)
+

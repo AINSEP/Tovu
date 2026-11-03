@@ -1,0 +1,5 @@
+PASS	packages/devops/src/local-dev/__tests__/node-runtime.test.ts
+PASS	packages/devops/src/local-dev/__tests__/server-retirement.test.ts
+PASS	packages/devops/src/local-dev/__tests__/source-tree-stamp.test.ts
+PASS	packages/platform/src/__tests__/entry-barrels.test.ts
+PASS	packages/platform/src/net/__tests__/local-http-request.test.ts

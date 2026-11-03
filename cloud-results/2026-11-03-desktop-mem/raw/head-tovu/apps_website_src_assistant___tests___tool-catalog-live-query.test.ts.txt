@@ -1,0 +1,14 @@
+✔ query delegates to the initially-bound catalog before any rebind (2.99999ms)
+✔ rebind swaps what the SAME query object delegates to — object identity never changes (0.625745ms)
+✔ multiple rebinds always reflect the MOST RECENT catalog, never an earlier one (1.580987ms)
+✔ search preserves an explicit limit before and after rebind (0.51709ms)
+✔ server admission refreshes the next daemon run while retaining boot tools (2386.697616ms)
+✔ the daemon describe route exposes the read family and refreshes its registered cards (24.970309ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3714.248432

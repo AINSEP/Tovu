@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/chat
+
+ ✓ src/react/hooks/__tests__/useSurfaceRecovery.test.ts (2 tests) 28ms
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  21:05:31
+   Duration  2.22s (transform 708ms, setup 190ms, collect 1.12s, tests 28ms, environment 460ms, prepare 108ms)
+

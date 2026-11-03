@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/mcp
+
+ ✓ src/server/tools/__tests__/delegated-tool.test.ts (36 tests) 32ms
+
+ Test Files  1 passed (1)
+      Tests  36 passed (36)
+   Start at  21:05:44
+   Duration  1.24s (transform 475ms, setup 0ms, collect 803ms, tests 32ms, environment 0ms, prepare 136ms)
+

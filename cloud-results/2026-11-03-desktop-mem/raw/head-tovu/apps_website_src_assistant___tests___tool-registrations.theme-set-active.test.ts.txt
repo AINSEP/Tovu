@@ -1,0 +1,19 @@
+✔ theme_set_active: wires with a published schema and a cross-checked risk class (6.653874ms)
+✔ switching a theme advertises themeId as the single canonical argument before the first call (2.119346ms)
+✔ switching a theme accepts activeThemeId through the shared execution gate (9.366088ms)
+✔ theme_set_active: the contributor registers under its own domain key, distinct from the themes file-op domain (0.209013ms)
+✔ theme_set_active: switches from basic to a second valid theme, returning the previous id, and resolveActiveThemeId reflects the switch (20.121725ms)
+✔ theme_set_active: accepts the no-theme sentinel — the write allowlist `writableThemeIds` shares with the admin PATCH route (10.754166ms)
+✔ theme_set_active: an unknown theme id is rejected by name, and settings are left unchanged (15.780257ms)
+✔ theme_set_active: refuses a principal without theme.set, without writing (32.323661ms)
+✔ theme_set_active: checks exactly the theme.set permission (40.420035ms)
+✔ theme_set_active: activates a theme another process created after this one booted (2026-10-08 luvira) (19.491486ms)
+✔ theme_set_active: fails loudly — and restores the previous theme — when the public render of / would not resolve the theme (14.592566ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3009.947041

@@ -1,0 +1,18 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/daemon
+
+ ❯ src/__tests__/surface-exchanges.run-lifetime.test.ts (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/__tests__/surface-exchanges.run-lifetime.test.ts [ src/__tests__/surface-exchanges.run-lifetime.test.ts ]
+Error: Failed to load url ../tool-recovery/surface-lifetime.js (resolved id: ../tool-recovery/surface-lifetime.js) in /home/user/wt-Jini/packages/daemon/src/__tests__/surface-exchanges.run-lifetime.test.ts. Does the file exist?
+ ❯ loadAndTransform ../../../Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51969:17
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  21:04:59
+   Duration  872ms (transform 401ms, setup 0ms, collect 0ms, tests 0ms, environment 0ms, prepare 90ms)
+

@@ -1,0 +1,33 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/chat
+
+ ❯ src/react/hooks/__tests__/useComposer.release-check.test.tsx (8 tests | 1 failed) 187ms
+   × composer release safety > cleared text, files and folders stay cleared after failed storage deletion and remount 69ms
+     → expected true to be false // Object.is equality
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/react/hooks/__tests__/useComposer.release-check.test.tsx > composer release safety > cleared text, files and folders stay cleared after failed storage deletion and remount
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ src/react/hooks/__tests__/useComposer.release-check.test.tsx:115:23
+    113|     expect(editing.result.current.attachments).toEqual([]);
+    114|     expect(editing.result.current.folders).toEqual([]);
+    115|     expect(release()).toBe(false);
+       |                       ^
+    116|     deletion.mockRestore();
+    117|     expect(release()).toBe(true);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 7 passed (8)
+   Start at  21:04:55
+   Duration  1.39s (transform 222ms, setup 211ms, collect 230ms, tests 187ms, environment 438ms, prepare 83ms)
+

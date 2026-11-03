@@ -1,0 +1,119 @@
+
+ RUN  v2.1.9 /home/user/wt-Jini/packages/mcp
+
+ ❯ src/server/tools/__tests__/delegated-tool.test.ts (36 tests | 3 failed) 53ms
+   × createExecuteDelegatedToolTool > posts {runId, toolUseId, toolId, input} to /api/delegated-tool-calls, closing over the constructor-supplied runId 18ms
+     → expected "spy" to be called with arguments: [ { …(3) }, { …(2) } ]
+
+Received: 
+
+  1st spy call:
+
+  Array [
+    Object {
+      "baseUrl": "http://d.example",
+      "body": Object {
+        "input": Object {
+          "city": "nyc",
+        },
+        "runId": "run-1",
+        "toolId": "weather.get",
+        "toolUseId": "tu-1",
+      },
+      "route": "/api/delegated-tool-calls",
+    },
+    Object {
+      "fetchImpl": [Function fetch],
+-     "timeoutMs": null,
++     "timeoutMs": 360000,
+    },
+  ]
+
+
+Number of calls: 1
+
+   × createExecuteDelegatedToolTool > overrides the daemon client 15s default so a handler parked on a human is not cut off 2ms
+     → expected 360000 to be null
+   × delegatedToolTimeoutMs (REF-002: the deadline is host policy, not engine policy) > exports a run-lifetime default while preserving explicit host deadlines 4ms
+     → expected 360000 to be null
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/server/tools/__tests__/delegated-tool.test.ts > createExecuteDelegatedToolTool > posts {runId, toolUseId, toolId, input} to /api/delegated-tool-calls, closing over the constructor-supplied runId
+AssertionError: expected "spy" to be called with arguments: [ { …(3) }, { …(2) } ]
+
+Received: 
+
+  1st spy call:
+
+  Array [
+    Object {
+      "baseUrl": "http://d.example",
+      "body": Object {
+        "input": Object {
+          "city": "nyc",
+        },
+        "runId": "run-1",
+        "toolId": "weather.get",
+        "toolUseId": "tu-1",
+      },
+      "route": "/api/delegated-tool-calls",
+    },
+    Object {
+      "fetchImpl": [Function fetch],
+-     "timeoutMs": null,
++     "timeoutMs": 360000,
+    },
+  ]
+
+
+Number of calls: 1
+
+ ❯ src/server/tools/__tests__/delegated-tool.test.ts:83:28
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  src/server/tools/__tests__/delegated-tool.test.ts > createExecuteDelegatedToolTool > overrides the daemon client 15s default so a handler parked on a human is not cut off
+AssertionError: expected 360000 to be null
+
+- Expected: 
+null
+
++ Received: 
+360000
+
+ ❯ src/server/tools/__tests__/delegated-tool.test.ts:97:31
+     95|     await tool.handler({ args: { toolId: 't1' }, ctx: ctx });
+     96|     const options = (postDaemonJson.mock.calls[0] as unknown[])[1] as …
+     97|     expect(options.timeoutMs).toBeNull();
+       |                               ^
+     98|   });
+     99| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  src/server/tools/__tests__/delegated-tool.test.ts > delegatedToolTimeoutMs (REF-002: the deadline is host policy, not engine policy) > exports a run-lifetime default while preserving explicit host deadlines
+AssertionError: expected 360000 to be null
+
+- Expected: 
+null
+
++ Received: 
+360000
+
+ ❯ src/server/tools/__tests__/delegated-tool.test.ts:210:47
+    208| 
+    209|   it('exports a run-lifetime default while preserving explicit host de…
+    210|     expect(DEFAULT_DELEGATED_TOOL_TIMEOUT_MS).toBeNull();
+       |                                               ^
+    211|   });
+    212| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+ Test Files  1 failed (1)
+      Tests  3 failed | 33 passed (36)
+   Start at  21:05:09
+   Duration  1.39s (transform 608ms, setup 0ms, collect 981ms, tests 53ms, environment 0ms, prepare 100ms)
+

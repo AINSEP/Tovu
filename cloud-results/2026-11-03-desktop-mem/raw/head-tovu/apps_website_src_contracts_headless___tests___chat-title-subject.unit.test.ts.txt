@@ -1,0 +1,12 @@
+✔ a new theme chat is named for Lucky Goat rather than a page in its brief (1.841421ms)
+✔ a theme title stops before the next paragraph of page requirements (0.661372ms)
+✔ a theme title stops before page requirements on the next line (0.339313ms)
+✔ the first named CMS subject wins over later page and article examples (0.248248ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 989.027854

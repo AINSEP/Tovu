@@ -1,0 +1,43 @@
+✔ the higgsfield-media package ships its skill and both references, each cited (19.411806ms)
+✖ browser sign-in and operator read trust are declared without a token (6.379158ms)
+✔ the one connection card is browser sign-in with its task purposes (4.952929ms)
+✔ the skill still teaches the asynchronous job pipeline and forbids sync polling (2.035106ms)
+✔ the shipped text is host-neutral (3.346823ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 4
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 128.85607
+
+✖ failing tests:
+
+test at packages/agent-plugins/higgsfield-media/__tests__/bundled-package.test.mjs:43:1
+✖ browser sign-in and operator read trust are declared without a token (6.379158ms)
+  AssertionError [ERR_ASSERTION]: the sign-in grants the tools the skill documents
+  + actual - expected
+  
+  + undefined
+  - [
+  -   'generate_image',
+  -   'generate_video',
+  -   'models_explore',
+  -   'job_status',
+  -   'jobs_wait',
+  -   'show_generations',
+  -   'reveal_generation',
+  -   'show_generation_by_ids'
+  - ]
+  
+      at TestContext.<anonymous> (file:///home/user/wt-Jini/packages/agent-plugins/higgsfield-media/__tests__/bundled-package.test.mjs:49:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: [ 'generate_image', 'generate_video', 'models_explore', 'job_status', 'jobs_wait', 'show_generations', 'reveal_generation', 'show_generation_by_ids' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
