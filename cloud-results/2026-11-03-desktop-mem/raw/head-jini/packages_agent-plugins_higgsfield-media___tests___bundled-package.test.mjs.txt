@@ -1,0 +1,14 @@
+✔ the higgsfield-media package ships its skill and both references, each cited (12.617659ms)
+✔ browser sign-in and operator read trust are declared without a token (8.865017ms)
+✔ the one connection card is browser sign-in with its task purposes (2.315981ms)
+✔ the skill still teaches the asynchronous job pipeline and forbids sync polling (1.230652ms)
+✔ the shipped text is host-neutral (6.430085ms)
+✔ polling and generation history remain available to read-only assistants after sign-in (1.608102ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 119.884398

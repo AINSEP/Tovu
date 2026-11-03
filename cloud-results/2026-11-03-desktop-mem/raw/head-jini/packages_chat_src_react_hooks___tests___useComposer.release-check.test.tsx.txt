@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/chat
+
+ ✓ src/react/hooks/__tests__/useComposer.release-check.test.tsx (8 tests) 216ms
+
+ Test Files  1 passed (1)
+      Tests  8 passed (8)
+   Start at  21:02:49
+   Duration  1.38s (transform 258ms, setup 148ms, collect 270ms, tests 216ms, environment 423ms, prepare 104ms)
+

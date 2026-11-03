@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/chat
+
+ ✓ src/core/__tests__/surface-recovery.test.ts (2 tests) 3ms
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  21:02:41
+   Duration  606ms (transform 114ms, setup 193ms, collect 33ms, tests 3ms, environment 0ms, prepare 137ms)
+

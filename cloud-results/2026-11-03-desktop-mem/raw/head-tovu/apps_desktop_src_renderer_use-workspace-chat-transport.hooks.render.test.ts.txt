@@ -1,0 +1,13 @@
+✔ workspace chat keeps one working listener after StrictMode replays setup and removes it on close (1550.761563ms)
+✔ reconnecting the same desktop bridge never hands the pane its disposed transport (4.336911ms)
+✔ useWorkspaceChatTransport: wires every surface from one bridge, and disposing the pane drops its run listener (3.206796ms)
+✔ useWorkspaceChatTransport: the bridge is looked up once per lookup, not once per render (8.103065ms)
+✔ useWorkspaceChatTransport: without a bridge every surface is absent (4.088308ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2639.577199

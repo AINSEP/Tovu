@@ -1,0 +1,13 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/daemon
+
+stderr | src/agent-executor/__tests__/http-mcp-launch.integration.test.ts > prelaunch HTTP failure selects stdio once through the real executor
+[agent-executor] MCP HTTP listener unavailable; using stdio
+
+ ✓ src/agent-executor/__tests__/http-mcp-launch.integration.test.ts (8 tests) 59ms
+
+ Test Files  1 passed (1)
+      Tests  8 passed (8)
+   Start at  21:03:00
+   Duration  3.86s (transform 2.34s, setup 0ms, collect 3.52s, tests 59ms, environment 0ms, prepare 80ms)
+

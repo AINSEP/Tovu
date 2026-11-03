@@ -1,0 +1,43 @@
+npm warn ERESOLVE overriding peer dependency
+npm warn While resolving: tovu@0.1.0
+npm warn Found: @jini-ai/agent-plugins@0.6.17
+npm warn node_modules/@jini-ai/agent-plugins
+npm warn   @jini-ai/agent-plugins@"^0.6.19" from the root project
+npm warn   1 more (@jini-ai/search)
+npm warn
+npm warn Could not resolve dependency:
+npm warn peerOptional @jini-ai/agent-plugins@"^0.6.10" from @jini-ai/search@0.6.17
+npm warn node_modules/@jini-ai/search
+npm warn   @jini-ai/search@"^0.6.17" from the root project
+npm warn ERESOLVE overriding peer dependency
+npm warn While resolving: tovu@0.1.0
+npm warn Found: @jini-ai/agentic@0.6.17
+npm warn node_modules/@jini-ai/agentic
+npm warn   @jini-ai/agentic@"^0.6.18" from the root project
+npm warn   4 more (@jini-ai/chat, @jini-ai/commerce, @jini-ai/ui, @jini-ai/user-management)
+npm warn
+npm warn Could not resolve dependency:
+npm warn peerOptional @jini-ai/agentic@"^0.6.10" from @jini-ai/commerce@0.6.17
+npm warn node_modules/@jini-ai/commerce
+npm warn   @jini-ai/commerce@"^0.6.17" from the root project
+npm warn ERESOLVE overriding peer dependency
+npm warn While resolving: tovu@0.1.0
+npm warn Found: @jini-ai/agentic@0.6.17
+npm warn node_modules/@jini-ai/agentic
+npm warn   @jini-ai/agentic@"^0.6.18" from the root project
+npm warn   4 more (@jini-ai/chat, @jini-ai/commerce, @jini-ai/ui, @jini-ai/user-management)
+npm warn
+npm warn Could not resolve dependency:
+npm warn peerOptional @jini-ai/agentic@"^0.6.10" from @jini-ai/user-management@0.6.17
+npm warn node_modules/@jini-ai/user-management
+npm warn   @jini-ai/user-management@"^0.6.17" from the root project
+npm error code ETARGET
+npm error notarget No matching version found for @jini-ai/agent-plugins@^0.6.19.
+npm error notarget In most cases you or one of your dependencies are requesting a package version that doesn't exist.
+npm notice
+npm notice New major version of npm available! 11.19.1 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice
+npm error A complete log of this run can be found in: /root/.npm/_logs/2026-11-03T20_59_10_737Z-debug-0.log
+EXIT 1

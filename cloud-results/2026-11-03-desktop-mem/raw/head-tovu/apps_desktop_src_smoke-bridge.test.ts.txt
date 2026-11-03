@@ -1,0 +1,23 @@
+✔ bridge CLI layout keeps app precedence and delegates platform layouts to the native resolver (2.345702ms)
+✔ bridge CLI layout preserves usage, directory-read and native-layout failures (3.090262ms)
+✔ packaged Jini environment requires string values and the fixed release identity without copying (0.435379ms)
+✔ bridge env keeps only the CLI baseline and entry environment (0.477667ms)
+✔ packaged resolver script calls the real resolver and entry builder with isolated runtime facts (3.437196ms)
+✔ resolver output requires both bridge entries, preserving their command/argv/env (0.888055ms)
+✔ packaged desktop smoke exercises authenticated HTTP without a launcher or keyring (1.05697ms)
+✔ reply parser correlates ids and rejects malformed/error replies (4.080881ms)
+✔ identity and required tool assertions cannot pass on an empty or wrong roster (0.436784ms)
+✔ handshake sends initialize, initialized, tools/list in order and kills the child on success (2.064348ms)
+✔ failed roster, close, spawn, framing and watchdog all fail and kill the child (16.291925ms)
+✔ a server notification arriving before the initialize reply is skipped, not mistaken for the reply (1.317113ms)
+✔ runaway stdout fails at the buffer limit and oversized stderr is replaced, never echoed (2.755677ms)
+✔ a spawn error raised as a bare string still names the entry and the cause (0.799679ms)
+✔ bridge failures redact split native stderr and retain exit code and signal (4.515511ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 15
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 464.020338

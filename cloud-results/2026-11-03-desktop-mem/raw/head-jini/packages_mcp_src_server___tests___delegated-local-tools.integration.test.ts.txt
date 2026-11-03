@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/mcp
+
+ ✓ src/server/__tests__/delegated-local-tools.integration.test.ts (10 tests) 150ms
+
+ Test Files  1 passed (1)
+      Tests  10 passed (10)
+   Start at  21:03:23
+   Duration  2.31s (transform 956ms, setup 0ms, collect 1.50s, tests 150ms, environment 0ms, prepare 115ms)
+

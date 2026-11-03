@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/mcp
+
+ ✓ src/server/__tests__/http-tool-server.wire.test.ts (8 tests) 297ms
+
+ Test Files  1 passed (1)
+      Tests  8 passed (8)
+   Start at  21:03:25
+   Duration  3.23s (transform 1.30s, setup 0ms, collect 2.18s, tests 297ms, environment 0ms, prepare 212ms)
+

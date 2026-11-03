@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/devops
+
+ ✓ src/packaging/electron/__tests__/staging.test.ts (88 tests) 86ms
+
+ Test Files  1 passed (1)
+      Tests  88 passed (88)
+   Start at  21:03:17
+   Duration  904ms (transform 302ms, setup 0ms, collect 365ms, tests 86ms, environment 0ms, prepare 141ms)
+

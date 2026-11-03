@@ -1,0 +1,50 @@
+✔ Loaded sites: a labelled 1-to-5 spinbutton under Theme, showing the saved value, with the memory tip on the control (361.609777ms)
+✔ Loaded sites: + and − step by one, save each step at once, and stop at 1 and 5 (278.142376ms)
+✔ Loaded sites: − is off at one loaded site (346.477012ms)
+✖ Loaded sites: a typed digit saves at once, clamped to 1-5; a cleared field shows the saved value again on leaving it (48.053966ms)
+TypeError: activeElement$1.attachEvent is not a function
+    at handleEventsForInputEventPolyfill (/home/user/Tovu/apps/desktop/node_modules/react-dom/cjs/react-dom-client.development.js:3573:27)
+    at /home/user/Tovu/apps/desktop/node_modules/react-dom/cjs/react-dom-client.development.js:19638:15
+    at batchedUpdates$1 (/home/user/Tovu/apps/desktop/node_modules/react-dom/cjs/react-dom-client.development.js:3255:40)
+    at dispatchEventForPluginEventSystem (/home/user/Tovu/apps/desktop/node_modules/react-dom/cjs/react-dom-client.development.js:19320:7)
+    at dispatchEvent (/home/user/Tovu/apps/desktop/node_modules/react-dom/cjs/react-dom-client.development.js:23585:11)
+    at dispatchDiscreteEvent (/home/user/Tovu/apps/desktop/node_modules/react-dom/cjs/react-dom-client.development.js:23553:11)
+    at HTMLDivElement.callTheUserObjectsOperation (/home/user/Tovu/apps/desktop/node_modules/jsdom/lib/generated/idl/EventListener.js:26:30)
+    at innerInvokeEventListeners (/home/user/Tovu/apps/desktop/node_modules/jsdom/lib/jsdom/living/events/EventTarget-impl.js:360:16)
+    at invokeEventListeners (/home/user/Tovu/apps/desktop/node_modules/jsdom/lib/jsdom/living/events/EventTarget-impl.js:296:3)
+    at HTMLInputElementImpl._dispatch (/home/user/Tovu/apps/desktop/node_modules/jsdom/lib/jsdom/living/events/EventTarget-impl.js:243:9)
+✔ Loaded sites: Up, Down, Home and End change the value and keep focus in the field instead of moving through the menu (41.849774ms)
+✔ Loaded sites: a choice from the native Settings menu shows at once (13.234228ms)
+✔ Loaded sites: a failed save puts the saved value back and says so (20.614818ms)
+✔ Loaded sites: an older preload with no save channel leaves the row out (21.05937ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 7
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6460.393872
+
+✖ failing tests:
+
+test at src/renderer/app/LoadedSitesStepper.render.test.ts:1:3958
+✖ Loaded sites: a typed digit saves at once, clamped to 1-5; a cleared field shows the saved value again on leaving it (48.053966ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + []
+  - [
+  -   4
+  - ]
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/desktop/src/renderer/app/LoadedSitesStepper.render.test.ts:94:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [],
+    expected: [ 4 ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

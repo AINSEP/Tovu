@@ -1,0 +1,43 @@
+✔ a deleted conversation stays absent when an older list request finishes last (47.533405ms)
+✔ a deleted conversation cannot reopen when its pending transcript arrives (3.996417ms)
+✔ lazy conversation creation preserves pending select navigation and saves the outgoing turn (2.532057ms)
+✔ lazy conversation creation preserves pending create navigation and saves the outgoing turn (1.703561ms)
+✔ a first outgoing turn arriving during navigation is saved without replacing the pending choice (2.186237ms)
+✔ a deleted thread stays deleted when its delayed adoption acknowledgement arrives (1.502161ms)
+✔ a deleted thread stays deleted when its delayed explicit acknowledgement arrives (1.579141ms)
+✔ starts empty, keeps one state object until a change, then publishes a new one to subscribers and onChange (0.93464ms)
+✔ refresh: a failed list logs and resolves to the list already published, without publishing (0.853175ms)
+✔ refresh: failures go to console.error when no log port is given, looked up when the failure happens (1.334617ms)
+✔ select publishes id, pane key and transcript together, once, only after the load resolves (2.091943ms)
+✔ a slower select resolving after a newer select never lands, and the newer transcript counts as already saved (0.811114ms)
+✔ a slower select resolving after a newer create never lands (2.292144ms)
+✔ a failed load logs and still switches, to an empty pane (0.887366ms)
+✔ create opens a new empty thread on top of the switcher, ready to receive writes (0.988479ms)
+✔ create is claimed before its request: a select made while it is in flight wins, whichever settles first (1.831852ms)
+✔ a failed create rejects and leaves the state alone (0.698656ms)
+✔ removing a thread that is not open drops its row at once and leaves the open one alone (1.229536ms)
+✔ removing the open thread selects the first survivor of the re-read list, never the deleted row (0.637356ms)
+✔ removing the open thread when the re-read fails falls back to the on-screen list without the deleted row (0.520422ms)
+✔ removing the last thread lands on a fresh pane with a new key each time, and drops a switch already in flight (0.6442ms)
+✔ removing a lazily adopted last thread resets adoption, so the fresh pane adopts a new thread (1.454976ms)
+✔ a failed delete rejects and keeps the thread, open and listed (0.624048ms)
+✔ rename shows the new title at once on that row only, then re-reads the list (0.998868ms)
+✔ a failed rename logs and still re-reads, so the stored title comes back (0.51969ms)
+✔ an open thread saves only settled, unsaved messages, and re-reads the list only when it wrote (0.728406ms)
+✔ a message is marked saved before its write resolves, so a delta mid-flight does not queue it twice (2.124645ms)
+✔ a failed save logs and is un-marked, so the next delta writes it again (0.642885ms)
+✔ a message settling between deleting the open thread and loading the next is not written anywhere (0.696691ms)
+✔ with nothing open, the mount echo and a still-streaming reply create nothing and publish nothing (0.252514ms)
+✔ a first message with nothing open adopts ONE thread for every delta before it exists, without a remount (1.97563ms)
+✔ an adoption overtaken by a select or create still saves its messages but does not take over (0.867574ms)
+✔ a failed adoption logs, saves nothing, and lets a later turn try again (0.845524ms)
+✔ an old adoption failing late does not clear a newer one still in flight (0.940709ms)
+✔ without a bridge every action is a quiet no-op (1.87249ms)
+ℹ tests 35
+ℹ suites 0
+ℹ pass 35
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 667.818884

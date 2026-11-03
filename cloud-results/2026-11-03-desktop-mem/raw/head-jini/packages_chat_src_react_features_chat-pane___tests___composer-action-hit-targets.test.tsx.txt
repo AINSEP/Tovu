@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/chat
+
+ ✓ src/react/features/chat-pane/__tests__/composer-action-hit-targets.test.tsx (2 tests) 312ms
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  21:02:44
+   Duration  6.86s (transform 3.57s, setup 236ms, collect 5.47s, tests 312ms, environment 492ms, prepare 95ms)
+

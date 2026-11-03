@@ -1,0 +1,10 @@
+
+ RUN  v3.2.7 /home/user/Jini/packages/sandbox
+
+ ✓ src/__tests__/worker-capacity.test.ts (5 tests) 8ms
+
+ Test Files  1 passed (1)
+      Tests  5 passed (5)
+   Start at  21:04:07
+   Duration  1.26s (transform 181ms, setup 0ms, collect 219ms, tests 8ms, environment 0ms, prepare 317ms)
+

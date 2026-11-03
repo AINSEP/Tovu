@@ -1,0 +1,13 @@
+✔ only ready public visits schedule thumbnails and a later visit can refresh (2.761412ms)
+✔ foreign shell wrong partition and loading guests cannot be captured (0.297195ms)
+✔ destroyed guests cancel pending captures without detaching another instance (0.562469ms)
+✔ a replacement guest invalidates an older capture of the same canonical site (0.276304ms)
+✔ preview eligibility checks shell URL, owner, host webContents and actual partition session identity (0.291383ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 404.87688

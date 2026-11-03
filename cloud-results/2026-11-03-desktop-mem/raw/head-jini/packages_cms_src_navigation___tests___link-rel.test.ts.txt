@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/cms
+
+ ✓ src/navigation/__tests__/link-rel.test.ts (7 tests) 5ms
+
+ Test Files  1 passed (1)
+      Tests  7 passed (7)
+   Start at  21:02:51
+   Duration  845ms (transform 383ms, setup 0ms, collect 546ms, tests 5ms, environment 0ms, prepare 78ms)
+

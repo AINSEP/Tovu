@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/devops
+
+ ✓ src/local-dev/__tests__/server-retirement.test.ts (3 tests) 6ms
+
+ Test Files  1 passed (1)
+      Tests  3 passed (3)
+   Start at  21:03:15
+   Duration  536ms (transform 131ms, setup 0ms, collect 74ms, tests 6ms, environment 0ms, prepare 139ms)
+

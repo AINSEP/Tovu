@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/platform
+
+ ✓ src/http/__tests__/multipart.test.ts (4 tests) 34ms
+
+ Test Files  1 passed (1)
+      Tests  4 passed (4)
+   Start at  21:03:48
+   Duration  911ms (transform 143ms, setup 0ms, collect 234ms, tests 34ms, environment 0ms, prepare 167ms)
+

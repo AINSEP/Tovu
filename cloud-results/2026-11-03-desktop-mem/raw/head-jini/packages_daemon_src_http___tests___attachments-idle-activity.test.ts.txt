@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/daemon
+
+ ✓ src/http/__tests__/attachments-idle-activity.test.ts (2 tests) 7ms
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  21:03:08
+   Duration  1.64s (transform 810ms, setup 0ms, collect 1.21s, tests 7ms, environment 0ms, prepare 116ms)
+

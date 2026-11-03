@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/core
+
+ ✓ src/__tests__/format-error-for-log.test.ts (12 tests) 16ms
+
+ Test Files  1 passed (1)
+      Tests  12 passed (12)
+   Start at  21:02:54
+   Duration  856ms (transform 406ms, setup 0ms, collect 551ms, tests 16ms, environment 0ms, prepare 88ms)
+

@@ -1,0 +1,17 @@
+✔ P1: debounce reserves once and resolves the current port/partition when it fires (2.205951ms)
+✔ P1: a site no longer running when the timer fires is skipped and can be started later (0.241313ms)
+✔ P1: stop cancels the pending debounce without a hidden navigation (0.25377ms)
+✔ P1: restart within the debounce cancels the old work and captures only the new port (0.960926ms)
+✔ P1: restart after a successful capture re-arms the lifecycle reservation (2.300764ms)
+✔ P1: false and rejected capture results both permit a later successful capture (0.478055ms)
+✔ P1: an old in-flight failure cannot erase the replacement lifecycle's reservation (1.212643ms)
+✔ P1: a timer callback that was already dispatched when Stop cancelled it captures nothing (0.269776ms)
+✔ release cancels stale capture and the next public visit permits refresh (0.983792ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 169.291469

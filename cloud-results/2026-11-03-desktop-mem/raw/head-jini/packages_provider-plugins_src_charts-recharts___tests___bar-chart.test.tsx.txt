@@ -1,0 +1,12 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/provider-plugins
+
+ ✓ src/charts-recharts/__tests__/bar-chart.test.tsx (18 tests) 2966ms
+   ✓ recharts BarChart > renders a real recharts bar per data row 1042ms
+   ✓ recharts BarChart > keeps a zero-count category and its keyboard tooltip without inventing a positive bar 622ms
+
+ Test Files  1 passed (1)
+      Tests  18 passed (18)
+   Start at  21:03:51
+   Duration  7.38s (transform 664ms, setup 0ms, collect 1.96s, tests 2.97s, environment 1.78s, prepare 166ms)
+

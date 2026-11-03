@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/ui
+
+ ✓ src/features/charts/__tests__/catalog-registry.test.tsx (12 tests) 130ms
+
+ Test Files  1 passed (1)
+      Tests  12 passed (12)
+   Start at  21:04:15
+   Duration  1.41s (transform 217ms, setup 166ms, collect 203ms, tests 130ms, environment 511ms, prepare 104ms)
+

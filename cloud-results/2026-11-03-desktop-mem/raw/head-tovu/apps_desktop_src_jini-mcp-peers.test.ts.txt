@@ -1,0 +1,46 @@
+✔ every Jini package selected for either packaged consumer classifies optional peers (182.285532ms)
+✔ a default runtime peer cannot be exempted just because it is installed (0.28499ms)
+✔ an explicit opt-in contract is the sole optional-peer exemption (0.228131ms)
+✔ packaged peer discovery follows transitive and required peer edges, but not development or optional peers (70.057125ms)
+✔ desktop model discovery declares its integrations runtime library (0.461759ms)
+✔ the packaged desktop can load its shared agent daemon supervisor without the site payload (3.865483ms)
+✖ runtime source imports declare their packages instead of relying on hoisting (6359.422126ms)
+✔ desktop terminal opt-in enters the required packaged dependency closure with its helper unpacked (120.939102ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 7
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7600.880803
+
+✖ failing tests:
+
+test at src/jini-mcp-peers.test.ts:108:1
+✖ runtime source imports declare their packages instead of relying on hoisting (6359.422126ms)
+  AssertionError [ERR_ASSERTION]: runtime imports must be declared by the package that loads them
+  + actual - expected
+  
+  + 'apps/website/src/assistant/daemon-core-protocol.ts: zod\n' +
+  +   'apps/website/src/server/inbound/assistant/agent-daemon-core-client.ts: zod\n' +
+  +   'apps/website/src/server/inbound/assistant/agent-daemon-site-tools.ts: zod\n' +
+  +   'apps/website/src/server/inbound/assistant/agent-plugin-preflight-events.ts: zod\n' +
+  +   'apps/website/src/server/runtime/composition/modules/assistant-tool-exec.ts: zod\n' +
+  +   'apps/website/src/server/runtime/lifecycle/assistant-daemon-connection.ts: zod'
+  - ''
+  
+      at TestContext.<anonymous> (file:///home/user/Tovu/apps/desktop/src/jini-mcp-peers.test.ts:130:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'apps/website/src/assistant/daemon-core-protocol.ts: zod\napps/website/src/server/inbound/assistant/agent-daemon-core-client.ts: zod\napps/website/src/server/inbound/assistant/agent-daemon-site-tools.ts: zod\napps/website/src/server/inbound/assistant/agent-plugin-preflight-events.ts: zod\napps/website/src/server/runtime/composition/modules/assistant-tool-exec.ts: zod\napps/website/src/server/runtime/lifecycle/assistant-daemon-connection.ts: zod',
+    expected: '',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

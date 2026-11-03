@@ -1,0 +1,20 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/mcp
+
+ ❯ src/server/tools/__tests__/wait.unit.test.ts (6 tests | 1 failed) 5033ms
+   × waiting before another generation poll takes the requested time without Bash 5018ms
+     → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/server/tools/__tests__/wait.unit.test.ts > waiting before another generation poll takes the requested time without Bash
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 5 passed (6)
+   Start at  21:03:37
+   Duration  6.14s (transform 427ms, setup 0ms, collect 811ms, tests 5.03s, environment 0ms, prepare 88ms)
+

@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/platform
+
+ ✓ src/__tests__/entry-barrels.test.ts (3 tests) 6ms
+
+ Test Files  1 passed (1)
+      Tests  3 passed (3)
+   Start at  21:03:38
+   Duration  1.25s (transform 514ms, setup 0ms, collect 836ms, tests 6ms, environment 0ms, prepare 101ms)
+

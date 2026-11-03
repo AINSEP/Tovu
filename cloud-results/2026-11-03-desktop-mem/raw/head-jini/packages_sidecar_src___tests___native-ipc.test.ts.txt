@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/sidecar
+
+ ✓ src/__tests__/native-ipc.test.ts (6 tests) 15ms
+
+ Test Files  1 passed (1)
+      Tests  6 passed (6)
+   Start at  21:04:08
+   Duration  2.45s (transform 1.12s, setup 0ms, collect 1.40s, tests 15ms, environment 0ms, prepare 114ms)
+

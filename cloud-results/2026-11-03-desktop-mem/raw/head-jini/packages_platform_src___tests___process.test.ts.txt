@@ -1,0 +1,11 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/platform
+
+ ✓ src/__tests__/process.test.ts (77 tests) 6001ms
+   ✓ @jini-ai/platform — process — stopProcesses > escalates to SIGKILL when a child ignores SIGTERM 5233ms
+
+ Test Files  1 passed (1)
+      Tests  77 passed (77)
+   Start at  21:03:40
+   Duration  6.90s (transform 436ms, setup 0ms, collect 524ms, tests 6.00s, environment 0ms, prepare 81ms)
+

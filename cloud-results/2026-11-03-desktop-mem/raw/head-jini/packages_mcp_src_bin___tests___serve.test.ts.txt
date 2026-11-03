@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/mcp
+
+daemon URL http://daemon.example is neither loopback nor HTTPS; traffic to a remote, non-HTTPS daemon is not encrypted. ✓ src/bin/__tests__/serve.test.ts (57 tests) 2389ms
+
+ Test Files  1 passed (1)
+      Tests  57 passed (57)
+   Start at  21:03:17
+   Duration  12.03s (transform 4.98s, setup 0ms, collect 8.99s, tests 2.39s, environment 0ms, prepare 102ms)
+

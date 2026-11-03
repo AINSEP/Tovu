@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/core
+
+ ✓ src/__tests__/redact.test.ts (111 tests) 59ms
+
+ Test Files  1 passed (1)
+      Tests  111 passed (111)
+   Start at  21:02:54
+   Duration  503ms (transform 140ms, setup 0ms, collect 142ms, tests 59ms, environment 0ms, prepare 86ms)
+

@@ -1,0 +1,40 @@
+✔ registered list joins current server state and returns fresh names on consecutive polls (59.080667ms)
+✔ registered list never requests a capture for running sites without a preview (44.429559ms)
+✔ registered create forwards the display name to init and records the newly created identity (99.688699ms)
+✔ registered create refuses hosted databases before opening a folder picker (10.784126ms)
+tovu desktop: could not remember the created website folder; the website was created successfully.
+✔ created website and its name survive a discovery-settings write failure (121.176108ms)
+✔ registered asynchronous discovery uses the injected worker port and respects dismissals (66.87004ms)
+✔ a discovery timeout rejects without adopting partial candidates (1.816379ms)
+✔ registered delete drains the selected adopted site and removes only its card and preview (16.087849ms)
+✔ registered browser handoff routes each requested surface to the selected running site (3.115697ms)
+✔ registered rename updates the selected config, returned name and native window title (38.251272ms)
+✔ registered add-site tracks the picked existing folder without initializing or rewriting it (27.205825ms)
+✔ registered preview reads the requested site's image and returns null for uncaptured sites (4.830809ms)
+✔ registered locate replaces the selected stale path with the folder the operator picked (49.815219ms)
+✔ registered service discovery returns the CLI-backed lister's result using host configuration (3.991387ms)
+✔ settings save accepts only placement; native setHome owns paths and cancellation (49.433783ms)
+✔ shared-home Create holds its creation lock, reports the destination, and refuses an unmounted volume (131.590216ms)
+tovu desktop: skipped shared catalog entry /tmp/tovu-ipc-dispatch-39B51p/websites/copy; its metadata, identity or folder is unavailable/invalid.
+tovu desktop: skipped shared catalog entry /tmp/tovu-ipc-dispatch-39B51p/websites/broken; its metadata, identity or folder is unavailable/invalid.
+✔ shared-home Create refuses another app winning the reserved folder without adopting it (32.111557ms)
+✔ registered list skips bad catalog siblings and repeats import without duplicate cards (81.03215ms)
+✔ removing a local adopted card retains the shared catalog, and external leases cannot be stopped or erased (83.899327ms)
+✔ registered Start attaches through the host port and retains the external owner's lease (64.997763ms)
+✔ deskfx M1: a themes-only stale folder offers recovery and cannot spawn (15.471407ms)
+✔ deskfx S3: picker admission scans proposed aggregate roots before saving, and overflow saves nothing (14.554421ms)
+✔ deskfx NIT: consecutive polls preserve createdAt and report each invalid catalog row once (27.218431ms)
+✔ deskfx2 MUST-2: desktop default catalog is isolated without a production test guard (5.343351ms)
+✔ deskfx2 NIT: create reports a missing tracked row clearly and preserves the created site (66.637392ms)
+✔ registered destination preview and Create share suffix selection; preview never writes (64.954754ms)
+✔ without shared settings the settings channels refuse clearly and the folder list is the built-in scan roots (3.656831ms)
+✔ setHome refuses a picked file or relative path, and without folder settings reports just the new home (24.109942ms)
+✔ a lease held under this window's own server pid lets Delete erase, unless that entry is an attached external server (60.878154ms)
+ℹ tests 29
+ℹ suites 0
+ℹ pass 29
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2437.570082

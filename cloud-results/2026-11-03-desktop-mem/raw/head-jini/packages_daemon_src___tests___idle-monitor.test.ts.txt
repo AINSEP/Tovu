@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/daemon
+
+ ✓ src/__tests__/idle-monitor.test.ts (11 tests) 19ms
+
+ Test Files  1 passed (1)
+      Tests  11 passed (11)
+   Start at  21:02:55
+   Duration  517ms (transform 129ms, setup 0ms, collect 120ms, tests 19ms, environment 0ms, prepare 99ms)
+

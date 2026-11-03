@@ -1,0 +1,21 @@
+✔ capture uses the eligible live public guest and writes its resized image (3.174195ms)
+✔ admin redirect during capture preserves the old thumbnail (0.341798ms)
+✔ no eligible guest creates no window and does not capture (0.275984ms)
+✔ failed capture or storage preserves the prior thumbnail and permits retry (0.845342ms)
+✔ a hung live capture times out without writing or closing the guest (1.156368ms)
+✔ admin API auth errors query strings and foreign origins never reach capturePage (0.554334ms)
+✔ release navigation and scheduler cancellation invalidate in-flight captures (0.57564ms)
+✔ the target is this launch's own server first, without consulting any lease (1.063904ms)
+✔ a site another app runs is captured through its lease's port and scheme (0.447615ms)
+✔ no own server and no lease, or a lease still starting (port 0), means nothing to capture (0.428333ms)
+✔ production preview wiring schedules only from live guests and uses the tested session predicate (1.678816ms)
+✔ the boot sweep hands every tracked site dir to the store's sweep (0.274071ms)
+✔ a failing read or sweep is reported, never thrown — hygiene must not fail a launch (0.918184ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 453.043934

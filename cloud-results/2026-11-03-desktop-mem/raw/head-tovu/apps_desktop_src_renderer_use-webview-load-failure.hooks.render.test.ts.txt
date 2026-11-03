@@ -1,0 +1,17 @@
+✔ useWebviewLoadFailure: ignores sub-frame and aborted failures, reports a real one, and a finished load clears both (33.260233ms)
+✔ useWebviewLoadFailure: a real failure cancels the pending stall guess so it can never fire later (6.938377ms)
+✔ useWebviewLoadFailure: a guest that answers clears an earlier failure and marks the admin loaded (4.297802ms)
+✔ useWebviewLoadFailure: unmounting clears a pending stall timer (3.970646ms)
+✔ useWebviewLoadFailure: a guest that mounts after the first render is listened to from the moment it mounts (6.821713ms)
+✔ useWebviewLoadFailure: a replacement guest takes over the listeners and the one stall timer from the old one (4.847109ms)
+✔ useWebviewLoadFailure: the failed guest unmounting keeps the failure, so the recovery panel cannot flicker away (2.400443ms)
+✔ useWebviewLoadFailure: only did-finish-load marks the admin loaded, and every new load starts unloaded again (21.443629ms)
+✔ a restarted site shows loading and gets a fresh stall judgment with the same navigation key (20.964146ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2168.361312

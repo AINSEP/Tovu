@@ -1,0 +1,5 @@
+@electron/asar <- src/asar-verify.ts [devDep only] 
+@jini-ai/devops <- src/asar-verify.ts [devDep only], src/coverage-floors.ts [devDep only], src/dist-import-check.ts [devDep only], src/stage-payload-lib.ts [devDep only], src/staged-closure-scan.ts [devDep only] 
+typescript <- src/dist-import-check.ts [devDep only] 
+@jini-ai/protocol <- src/workspace-chat-ipc.ts [devDep only] 
+scanned 123 files; sidecar declared: true

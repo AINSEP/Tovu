@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/platform
+
+ ✓ src/http/guarded/__tests__/own-origin.test.ts (6 tests) 13ms
+
+ Test Files  1 passed (1)
+      Tests  6 passed (6)
+   Start at  21:03:49
+   Duration  768ms (transform 243ms, setup 0ms, collect 299ms, tests 13ms, environment 0ms, prepare 83ms)
+

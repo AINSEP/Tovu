@@ -1,0 +1,13 @@
+(node:14247) ExperimentalWarning: Module mocking is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:14247) DeprecationWarning: mock.module(): options.namedExports is deprecated. Use options.exports instead.
+✔ execution settings use the provider catalog endpoint when its default changes (495.640547ms)
+✔ live model discovery uses the provider catalog when a saved key has no custom endpoint (442.7056ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2545.764772

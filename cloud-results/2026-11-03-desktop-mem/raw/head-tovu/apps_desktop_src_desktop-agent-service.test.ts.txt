@@ -1,0 +1,25 @@
+[desktop-agent-service] spawn
+[desktop-agent-service] exit
+[desktop-agent-service] spawn
+[desktop-agent-service] exit
+[desktop-agent-service] spawn
+[desktop-agent-service] exit
+[desktop-agent-service] spawn
+[desktop-agent-service] exit
+[desktop-agent-service] spawn
+[desktop-agent-service] exit
+[desktop-agent-service] spawn
+✔ five simultaneous site demands spawn one child (18.032786ms)
+✔ site shutdown never stops the shared daemon (3.916579ms)
+✔ park wake races produce one replacement (3.08022ms)
+✔ spawn environments contain no shared or foreign-site credentials (1.815365ms)
+[desktop-agent-service] exit
+✔ shared child output redacts the registered scopes' credentials (43.230048ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 981.354993

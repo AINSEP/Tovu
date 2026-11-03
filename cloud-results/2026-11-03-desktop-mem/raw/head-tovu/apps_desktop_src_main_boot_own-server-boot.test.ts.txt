@@ -1,0 +1,27 @@
+✔ TOVU_DESKTOP_SITE_DIRS wins outright: every dir resolves under the fail policy, in order, port left unpinned (7.869264ms)
+✔ the plural arm fails as a whole when any one named dir is refused (0.544628ms)
+✔ otherwise one site via the precedence chain, with the env dir, dev fallback, picker and fail policy (0.413994ms)
+✔ a pinned TOVU_DESKTOP_PORT is trimmed onto ctx.firstSitePort; a blank one pins nothing (0.186325ms)
+✔ a packaged app (no dev fallback) passes null through to the chain (0.334691ms)
+✔ a picker cancellation surfaces unchanged for the boot-failure reporter (0.237317ms)
+✔ orphan reconciliation is silent when nothing was reaped and names every reaped site otherwise (0.357236ms)
+✔ a Dock click reopens only with no window left and no quit draining (0.20095ms)
+✔ own-server boot: menu, resolve, open each site serialized in order (only the first pinned), menu, then activate (1.593629ms)
+✔ own-server boot opens sites one after another, never concurrently (13.062207ms)
+✔ a self-test seeds its tracker with the FULL site count before the first window opens (0.503618ms)
+✔ a sites-config warning is logged with its local-home hint before anything opens (0.187979ms)
+✔ a failed startup open stops the boot before the second site and the activate handler (0.72742ms)
+✔ Dock activation restores every retained site window, even if recent-site entries were cleared (3.208244ms)
+✔ Dock activation with nothing open asks for a site (0.445986ms)
+✔ Dock activation does nothing while a window remains or a quit drains (0.196124ms)
+✔ a failed Dock restore reports an open error and keeps the other retained sites available (3.909648ms)
+✔ Dock restore failures use the recoverable open reporter for each failed site (1.442115ms)
+✔ the activate handler bootOwnServerMode registers is the restore handler (0.281283ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 19
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 302.559812

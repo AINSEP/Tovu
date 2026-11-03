@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/chat
+
+ ✓ src/embed-widget/browser/__tests__/frontend-session-bridge.test.ts (15 tests) 334ms
+
+ Test Files  1 passed (1)
+      Tests  15 passed (15)
+   Start at  21:02:42
+   Duration  2.03s (transform 847ms, setup 175ms, collect 1.19s, tests 334ms, environment 0ms, prepare 78ms)
+

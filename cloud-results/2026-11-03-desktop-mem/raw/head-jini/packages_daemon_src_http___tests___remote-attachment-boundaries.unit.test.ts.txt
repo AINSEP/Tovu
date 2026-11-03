@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/daemon
+
+ ✓ src/http/__tests__/remote-attachment-boundaries.unit.test.ts (16 tests) 19ms
+
+ Test Files  1 passed (1)
+      Tests  16 passed (16)
+   Start at  21:03:09
+   Duration  2.43s (transform 1.20s, setup 0ms, collect 1.95s, tests 19ms, environment 0ms, prepare 120ms)
+

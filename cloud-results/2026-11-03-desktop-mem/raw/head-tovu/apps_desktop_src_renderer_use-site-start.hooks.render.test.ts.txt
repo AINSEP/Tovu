@@ -1,0 +1,11 @@
+✔ Start without a desktop connection never shows Starting, including before the promise settles (1198.470663ms)
+✔ useSiteStart: success hands main's record on and resolves true; a missing bridge or a rejection resolves false with a reason (69.899818ms)
+✔ useSiteStart: a retry clears the previous error, and a success without onSiteUpdated still resolves true (5.759843ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1692.535276

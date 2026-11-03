@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/daemon
+
+ ✓ src/__tests__/image-prompt-delivery.test.ts (13 tests) 10ms
+
+ Test Files  1 passed (1)
+      Tests  13 passed (13)
+   Start at  21:02:55
+   Duration  512ms (transform 99ms, setup 0ms, collect 120ms, tests 10ms, environment 0ms, prepare 106ms)
+

@@ -1,0 +1,12 @@
+✔ one two and five sites share one main endpoint (220.518819ms)
+✔ listener startup repairs automatically without delaying site hosting (1.652561ms)
+✔ quit drains an in-flight listener start and cancels retries (0.523481ms)
+✔ a site spawned during listener failure receives the recovered capability automatically (3.393559ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1100.360156

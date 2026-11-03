@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/mcp
+
+ ✓ src/server/__tests__/tool-argument-recovery.test.ts (6 tests) 50ms
+
+ Test Files  1 passed (1)
+      Tests  6 passed (6)
+   Start at  21:03:31
+   Duration  2.17s (transform 806ms, setup 0ms, collect 1.37s, tests 50ms, environment 0ms, prepare 218ms)
+

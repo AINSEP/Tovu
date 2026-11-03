@@ -1,0 +1,18 @@
+✔ useCreateWebsiteForm: an invalid name explains itself on submit and an empty one never enables Create (1600.211403ms)
+✔ useCreateWebsiteForm: Supabase needs a URL and a typed key; the key is read once and wiped before the call (18.501963ms)
+✔ useCreateWebsiteForm: a custom provider needs a label and a connection; a failed create shows the reason (6.787316ms)
+✔ useCreateWebsiteForm: with the credential inputs unmounted a SQLite site still submits with no credential (7.796032ms)
+✔ useCreateWebsiteForm: a valid name shows no error, and Create stays off until the chosen database is ready (5.617585ms)
+✔ useCreateWebsiteForm: a name over the length limit is refused even though it has a usable slug (10.450819ms)
+✔ useCreateWebsiteForm: a custom provider label or connection that is only spaces is not ready (3.728475ms)
+✔ useCreateWebsiteForm: a Supabase key without a URL is not ready (3.129538ms)
+✔ a failed Supabase create requires re-entering the cleared key before retrying (5.068702ms)
+✔ useCreateWebsiteForm: Create refuses the drafts Rename refuses, with the same message, and accepts the ones it accepts (14.966078ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2391.203315

@@ -1,0 +1,15 @@
+✔ Loaded sites keeps a newer menu preference when the initial read arrives late (66.83198ms)
+✔ SettingsControl: the gear toggles the menu and reports opening it (49.640267ms)
+✔ SettingsControl: Sites settings… opens the sites dialog and closes the menu (25.452123ms)
+✔ SettingsControl: Appearance opens the Appearance page (23.157714ms)
+✔ SettingsControl: the theme radios mark the current theme and report the one picked (14.823158ms)
+✔ SettingsControl: without checkForUpdates on the bridge there is no update row (20.053977ms)
+✔ SettingsControl: Check for updates… reads Checking… until main answers, then the menu closes (105.607224ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6132.723277

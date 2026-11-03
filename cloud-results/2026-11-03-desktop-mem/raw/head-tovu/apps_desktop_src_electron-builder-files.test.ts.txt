@@ -1,0 +1,19 @@
+✔ the packaged app exposes desktop HTTP and excludes the retired stdio child (42.198642ms)
+✔ the pre-fix files: list is REFUSED, so the check above cannot pass vacuously (9.736262ms)
+✔ the files: list still excludes test files it is meant to exclude (20.079554ms)
+✔ the packaged shell does NOT ship the Bun runtimes or the Rollup natives (48.618059ms)
+✔ those exclusions are narrow — the packages the shell actually loads still ship (5.64516ms)
+✔ the node_modules matcher is not the main matcher — proved on the same patterns (1.840035ms)
+✔ extraResources ships the bundled npm package staged at staging/npm (3.194809ms)
+✔ npm's own node_modules ships as a SEPARATE extraResources entry, not folded into staging/npm -> npm (0.644937ms)
+  • file source doesn't exist  from=/tmp/tovu-builder-fixture-GhLXNL/staging/website-shared
+✔ production extraResources copies Electron notices, npm CLIs, dependencies and Tovu payload (87.993592ms)
+✔ production files includes every shell runtime entry point (29.146727ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 586.30969

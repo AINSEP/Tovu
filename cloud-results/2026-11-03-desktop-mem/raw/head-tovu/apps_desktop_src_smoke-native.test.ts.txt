@@ -1,0 +1,63 @@
+✔ the generated script executes each staged package and reports its individual failure (308.778066ms)
+✔ the generated script preserves hostile require paths exactly without executing injected statements (8.972049ms)
+✔ resolves a mac-prefixed *.app layout (e.g. release/mac-arm64/Tovu.app) (0.372626ms)
+✔ resolves a plain 'mac' output directory the same way as 'mac-arm64' (0.162055ms)
+✔ resolves a win-unpacked layout when no mac-prefixed directory is present (0.205073ms)
+✔ a mac-prefixed directory takes precedence over win-unpacked when both are present (0.168251ms)
+✔ throws a clear error when neither layout is found under platformDir (3.003217ms)
+✔ an entry merely starting with 'mac' as a substring elsewhere is not mistaken for the mac layout (e.g. 'macos-notes') (0.610113ms)
+✔ all three checks ok -> overall ok true (8.278401ms)
+✔ any single check failing makes the overall result false, and the failing check's error is preserved (0.521109ms)
+✔ malformed JSON is a parse failure, not a silent pass -- a safe stdout excerpt is included for diagnosis (0.50842ms)
+✔ empty stdout (process crashed before printing) is a parse failure (4.773032ms)
+✔ a missing check key (e.g. the child process died between checks) is treated as a failure, not skipped (0.271063ms)
+✔ JSON that parses but is not an object (e.g. a bare number or array) is treated as every check missing, not a crash (0.270887ms)
+✔ embeds the resolved node_modules dir as a JSON-quoted absolute require path for each package (0.232869ms)
+✔ a node_modules dir containing a quote or backslash is embedded safely (JSON.stringify escaping), not string-concatenated raw (0.536951ms)
+✔ the generated script is syntactically valid JavaScript (constructible, never invoked) (0.254878ms)
+✖ desktop main's source module graph resolves without the test-only TypeScript remapper (1168.90836ms)
+✔ shared desktop source platform/site-dir/sites-home imports without a test remapper (156.670462ms)
+✔ shared desktop source contracts/core/assistant-native-fallbacks imports without a test remapper (133.342674ms)
+✔ every desktop source import has a real JavaScript target or an owning compiler (731.422786ms)
+✔ entry-load check fails and reports missing named export (103.19897ms)
+✔ entry-load check fails and reports invalid syntax (173.651438ms)
+✔ entry-load check fails and reports unsupported file extension (176.342256ms)
+✔ the entry-load script names the HTTP module and all shipped process entries (0.242436ms)
+✔ the entry-load script reports every unresolvable static import without evaluating any module (1213.974248ms)
+✔ entry-load output that is not JSON throws; any other shape fails (0.643721ms)
+✔ native smoke malformed JSON and module errors expose only bounded redacted diagnostics (15.779109ms)
+✔ owner-store status requires no legacy owner store and zero entries/grants without echoing diagnostics (0.874736ms)
+ℹ tests 29
+ℹ suites 0
+ℹ pass 28
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4988.619858
+
+✖ failing tests:
+
+test at src/smoke-native.test.ts:210:1
+✖ desktop main's source module graph resolves without the test-only TypeScript remapper (1168.90836ms)
+  AssertionError [ERR_ASSERTION]: Desktop main import graph failed:
+  {"ok":false,"unresolved":["../server/runtime/boot/startup-secrets.js (from file:///home/user/Tovu/apps/website/src/assistant/daemon-access.ts): ERR_MODULE_NOT_FOUND","/home/user/Tovu/apps/desktop/src/main/index.ts: The requested module '../server/runtime/boot/startup-secrets.js' does not provide an export named 'startupSecretEnvironment'"]}
+  
+  
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///home/user/Tovu/apps/desktop/src/smoke-native.test.ts:218:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

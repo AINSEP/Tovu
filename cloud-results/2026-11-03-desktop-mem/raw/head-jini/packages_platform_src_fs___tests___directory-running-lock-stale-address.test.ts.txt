@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/platform
+
+ ✓ src/fs/__tests__/directory-running-lock-stale-address.test.ts (4 tests) 5ms
+
+ Test Files  1 passed (1)
+      Tests  4 passed (4)
+   Start at  21:03:43
+   Duration  714ms (transform 115ms, setup 0ms, collect 127ms, tests 5ms, environment 0ms, prepare 139ms)
+
