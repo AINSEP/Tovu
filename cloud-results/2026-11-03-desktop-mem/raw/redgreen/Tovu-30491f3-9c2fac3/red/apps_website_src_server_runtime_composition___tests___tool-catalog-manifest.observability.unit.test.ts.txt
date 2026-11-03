@@ -1,0 +1,21 @@
+✔ installFirstPartyToolContributors builds every guarded HTTP client with the observability port it was given (13.470424ms)
+✖ external_mcp_get_admissions calls the injected server admissions reader (5.451719ms)
+✔ an unwired admissions contributor refuses instead of querying or waking a daemon (3.98925ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 2
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5051.333149
+
+✖ failing tests:
+
+test at apps/website/src/server/runtime/composition/__tests__/tool-catalog-manifest.observability.unit.test.ts:1:2720
+✖ external_mcp_get_admissions calls the injected server admissions reader (5.451719ms)
+  Error [ToolInputError]: external_mcp_get_admissions: the agent daemon token is not configured. Start the assistant and try again; no live admissions report is available.
+      at Object.external_mcp_get_admissions (/home/user/wt-Tovu/apps/website/src/features/external-mcp/operations-tools.ts:93:31)
+      at async TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/__tests__/tool-catalog-manifest.observability.unit.test.ts:69:20)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)

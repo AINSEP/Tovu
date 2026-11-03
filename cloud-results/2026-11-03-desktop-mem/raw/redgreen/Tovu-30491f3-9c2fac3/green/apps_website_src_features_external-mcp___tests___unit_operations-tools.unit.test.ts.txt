@@ -1,0 +1,27 @@
+✔ admissions returns the live accounting with the shared integration permission (2.914213ms)
+✔ live probe delegates the saved server id to the same service as the admin route (1.004875ms)
+✔ admissions unavailable is an actionable error rather than an empty roster (0.655204ms)
+✔ a reader without configuration failures keeps its exact key set (0.244137ms)
+✔ probe refusal remains visible to the model with an action (0.472837ms)
+✔ external_mcp_get_admissions denies access before reading or contacting a server (0.571177ms)
+✔ external_mcp_get_admissions rejects unsupported fields without I/O (0.354129ms)
+✔ external_mcp_probe_connection denies access before reading or contacting a server (0.225697ms)
+✔ external_mcp_probe_connection rejects unsupported fields without I/O (0.563049ms)
+✔ probe refuses blank ids and bounds repeated attempts across server ids (1.267963ms)
+✔ admissions startup and probes declare their possible OAuth refresh writes (0.447873ms)
+✔ the configuration check also declares its potential OAuth refresh writes (0.627955ms)
+✔ admissions accepts undefined as omitted arguments (0.175279ms)
+✔ admissions accepts null as omitted arguments (0.149618ms)
+✔ probe rejects a missing, non-string or oversized id before authorization ({}) (0.233108ms)
+✔ probe rejects a missing, non-string or oversized id before authorization ({"id":42}) (0.095098ms)
+✔ probe rejects a missing, non-string or oversized id before authorization ({"id":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}) (0.097977ms)
+✔ probe trims surrounding spaces and accepts the maximum saved-id length (0.283638ms)
+✔ the operations contributor builds working registrations with its injected services (0.37737ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 19
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1496.374702

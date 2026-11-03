@@ -1,0 +1,66 @@
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+[assistant-byok] mcp-federation: 'hosted' registered 1 federated tool(s): mcp__hosted__echo
+[assistant-byok] mcp-federation: 'hosted' admitted WRITE tool 'echo' (operator-authorized)
+✔ roster change before first chat admits on the server (383.390529ms)
+✔ reload() before start() never reads the roster and resolves an empty result (1.771222ms)
+[test] mcp-federation: 'x' failed, continuing without its tools — Error: connect timed out after 15000ms
+    at connect (/home/user/wt-Tovu/apps/website/src/assistant/__tests__/external-mcp-federation-runtime.test.ts:343:13)
+    at connect (/home/user/wt-Tovu/apps/website/src/assistant/mcp-federation/bootstrap.ts:203:33)
+    at attachOneFederatedConnection (/home/user/Jini/packages/mcp/src/federation/bootstrap.ts:275:21)
+    at attachFederatedMcpTools (/home/user/Jini/packages/mcp/src/federation/bootstrap.ts:196:28)
+    at attachFederatedMcpTools (/home/user/wt-Tovu/apps/website/src/assistant/mcp-federation/bootstrap.ts:194:24)
+    at runStart (/home/user/wt-Tovu/apps/website/src/assistant/external-mcp-federation-runtime.ts:138:30)
+    at async TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/assistant/__tests__/external-mcp-federation-runtime.test.ts:347:3)
+    at async Test.run (node:internal/test_runner/test:1409:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+[test] mcp-federation: boot pass failed, continuing without federated tools — roster read failed
+[test] mcp-federation: boot pass failed, continuing without federated tools — installed-extension registration failed
+[test] mcp-federation: boot pass failed, continuing without federated tools — roster read failed
+✔ start() called twice calls attach exactly once — single-flight and idempotent (4.343168ms)
+✔ start() awaits `after` before calling attach (0.510141ms)
+✔ a reload that admits a new connection calls onAdmitted once and recomputes refusalPrefix() (0.688482ms)
+✔ a no-op reload (nothing new in the roster) never calls onAdmitted (0.291978ms)
+✔ the logger prints the daemon's exact byte-identical line, prefixed with the caller's own log tag (1.071482ms)
+✔ a reload merges its reports onto the boot pass's and never re-admits a boot connection (0.621487ms)
+✔ reload() called while start() is in flight waits for the boot pass before settling (0.424734ms)
+✖ the logger prefixes warnings with the caller's own log tag too (5.295909ms)
+✔ a connect failure at boot is reported by connectFailures(), with reports() left untouched (0.948638ms)
+✔ a reload's own connect failure is merged onto connectFailures() even though nothing was newly admitted (0.480032ms)
+✔ a connection that failed at boot and then admits on a reload is no longer listed in connectFailures() (0.380002ms)
+✔ a boot pass whose resolveConnections() rejects still settles: start() resolves and started becomes true, not stuck false forever (0.288345ms)
+✔ a boot pass whose 'after' rejects also settles rather than leaving started() false forever (0.174509ms)
+✔ a failed boot pass logs the underlying error instead of swallowing it silently (0.251828ms)
+✔ reload() after a failed boot resolves an empty no-op result rather than hanging or throwing (0.20343ms)
+✔ configuredConnectionIds() is undefined before resolveConnections() resolves, then the resolved roster's ids once known (0.301334ms)
+✔ a connection that fails again on every reload is listed once, with its latest reason (0.424588ms)
+✔ a boot pass rejecting with a non-Error value logs that raw value and still settles (0.239392ms)
+ℹ tests 20
+ℹ suites 0
+ℹ pass 19
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6446.642779
+
+✖ failing tests:
+
+test at apps/website/src/assistant/__tests__/external-mcp-federation-runtime.test.ts:1:8744
+✖ the logger prefixes warnings with the caller's own log tag too (5.295909ms)
+  AssertionError [ERR_ASSERTION]: expected the exact warn line; got: ["[assistant-byok] mcp-federation: 'x' failed, continuing without its tools — Error: boom\n    at connect (/home/user/wt-Tovu/apps/website/src/assistant/__tests__/external-mcp-federation-runtime.test.ts:317:13)\n    at connect (/home/user/wt-Tovu/apps/website/src/assistant/mcp-federation/bootstrap.ts:203:33)\n    at attachOneFederatedConnection (/home/user/Jini/packages/mcp/src/federation/bootstrap.ts:275:21)\n    at attachFederatedMcpTools (/home/user/Jini/packages/mcp/src/federation/bootstrap.ts:196:28)\n    at attachFederatedMcpTools (/home/user/wt-Tovu/apps/website/src/assistant/mcp-federation/bootstrap.ts:194:24)\n    at runStart (/home/user/wt-Tovu/apps/website/src/assistant/external-mcp-federation-runtime.ts:138:30)\n    at async TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/assistant/__tests__/external-mcp-federation-runtime.test.ts:321:3)\n    at async Test.run (node:internal/test_runner/test:1409:7)\n    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)"]
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/assistant/__tests__/external-mcp-federation-runtime.test.ts:323:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
