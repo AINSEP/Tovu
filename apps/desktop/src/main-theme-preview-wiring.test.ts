@@ -10,6 +10,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
+import { stripTypeScriptTypes } from "node:module";
+import { runInNewContext } from "node:vm";
+import { pathToFileURL } from "node:url";
 
 const source = readFileSync(new URL("./main/index.ts", import.meta.url), "utf8");
 
@@ -26,4 +29,23 @@ test("a card's Stop cancels both the preview capture and the theme stream", () =
     source,
     /cancelPreviewCapture: \([^)]*\) => \{\s*sitePreviewScheduler\.cancel\(\{ siteDir \}, \{\}\);\s*siteThemePreviews\.stop\(\{ siteDir \}, \{\}\);\s*\}/,
   );
+});
+
+test("theme previews reject webview guests even when their owning window is Sites Home", () => {
+  const sitesPath = "/install/dist/renderer/index.html";
+  const home = { isDestroyed: () => false, getURL: () => pathToFileURL(sitesPath).href };
+  const guest = { isDestroyed: () => false, getURL: () => "http://127.0.0.1:4321/admin/" };
+  const binding = source.match(/allowed: (\(sender\) => [^\n]+),\n/);
+  assert.ok(binding, "the theme-preview IPC must have a sender guard");
+  // Exercise the entry's actual predicate without importing Electron's main-process entry.
+  // Electron resolves both these contents to the owning Sites Home window.
+  const allowed = runInNewContext(stripTypeScriptTypes(`(${binding[1]});`), {
+    BrowserWindow: { fromWebContents: () => ({ webContents: home }) },
+    SITES_RENDERER_PATH: sitesPath,
+    pathToFileURL,
+  }) as (sender: { isDestroyed(): boolean; getURL(): string }) => boolean;
+  assert.equal(allowed(home), true, "Sites Home keeps its theme preview subscriptions");
+  assert.equal(allowed(guest), false, "the guest must not inherit its host window's trust");
+  assert.equal(allowed({ isDestroyed: () => false, getURL: () => "https://untrusted.example/" }), false);
+  assert.equal(allowed({ isDestroyed: () => true, getURL: () => { throw new Error("contents destroyed"); } }), false);
 });

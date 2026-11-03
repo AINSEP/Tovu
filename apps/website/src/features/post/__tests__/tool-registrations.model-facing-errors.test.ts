@@ -332,7 +332,7 @@ test("a shape rejection keeps its schema decoration and gains no second code pre
   const schemaText = result.error.message.split("Schema for 'content_post_update': ")[1];
   assert.ok(schemaText, "the model must receive the input schema with the rejection");
   const schema = JSON.parse(schemaText);
-  assert.deepEqual(schema.required, ["id", "kind"]);
+  assert.deepEqual(schema.required, ["id"]);
   assert.equal(schema.properties.expectedVersion.type, "integer");
   assert.equal(schema.properties.expectedVersion.minimum, 0);
 });

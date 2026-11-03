@@ -25,7 +25,7 @@ const EMPTY_DOC = { type: "doc", content: [] };
 const TEXT_DOC = { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "temp" }] }] };
 
 /** Fresh composition per test; fixed domain time/IDs make persisted effects deterministic. */
-function harness(_required: Record<string, never>, _options = {}) {
+function harness(_required: Record<string, never>, { allowed = true }: { allowed?: boolean } = {}) {
   let counter = 0;
   const postRepo = new InMemoryPostRepo();
   const changeSets = new InMemoryChangeSetRepo();
@@ -37,7 +37,7 @@ function harness(_required: Record<string, never>, _options = {}) {
     outbox: new InMemoryOutbox(),
     bus: new InMemoryEventBus(),
     removePost: removeVia(postRepo),
-    authorize: async () => ({ allowed: true, reason: "matched" }),
+    authorize: async () => ({ allowed, reason: allowed ? "matched" : "insufficient_permission" }),
   };
   const contributions = {
     contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: ToolContributor }) => contribution.domain }),
@@ -83,6 +83,69 @@ test("create_omitted_kind_defaults_to_post", async () => {
     assert.deepEqual(await invalid.postRepo.list({ workspaceId: WORKSPACE_ID }), []);
     assert.deepEqual(await invalid.changeSets.listByWorkspace({ workspaceId: WORKSPACE_ID }), []);
   }
+});
+
+test("creating a Visit us page accepts type page and updating it needs only its id", async () => {
+  const h = harness({});
+  const created = await h.execute({ toolId: "content_post_create", input: { title: "Visit us", type: "page" } });
+  assert.equal(created.status, "completed", JSON.stringify(created));
+  const [page] = await h.postRepo.list({ workspaceId: WORKSPACE_ID });
+  assert.ok(page);
+  assert.equal(page.kind, "page", "the alias must not silently create a post");
+  const result = await h.execute({ toolId: "content_post_update", input: { id: page.id, title: "Visit our cafe" } });
+  assert.equal(result.status, "completed", JSON.stringify(result));
+  const updated = await h.postRepo.findById({ workspaceId: WORKSPACE_ID, id: page.id });
+  assert.equal(updated?.kind, "page");
+  assert.equal(updated?.title, "Visit our cafe");
+  assert.equal(updated?.version, 2);
+  assert.equal((await h.changeSets.listByWorkspace({ workspaceId: WORKSPACE_ID })).length, 2);
+});
+
+test("updating content without kind preserves post and page boundaries in a batch", async () => {
+  const h = harness({});
+  const rows = [
+    buildPostRecord({ workspaceId: WORKSPACE_ID, id: "post", kind: "post", slug: "article" }),
+    buildPostRecord({ workspaceId: WORKSPACE_ID, id: "page", kind: "page", slug: "visit" }),
+  ];
+  for (const row of rows) await h.postRepo.save(row);
+  const result = await h.execute({ toolId: "content_post_update", input: { items: rows.map(row => ({ id: row.id, title: `New ${row.kind}` })) } });
+  assert.equal(result.status, "completed", JSON.stringify(result));
+  assert.deepEqual([(result.output as BatchResult).succeeded, (result.output as BatchResult).failed], [2, 0]);
+  for (const row of rows) {
+    const updated = await h.postRepo.findById({ workspaceId: WORKSPACE_ID, id: row.id });
+    assert.equal(updated?.kind, row.kind);
+    assert.equal(updated?.title, `New ${row.kind}`);
+  }
+  for (const row of [
+    buildPostRecord({ workspaceId: "other-workspace", id: "foreign" }),
+    buildPostRecord({ workspaceId: WORKSPACE_ID, id: "template", kind: "email-template", bodyFormat: "html", bodyHtml: "<p>Mail</p>" }),
+  ]) {
+    await h.postRepo.save(row);
+    const refused = await h.execute({ toolId: "content_post_update", input: { id: row.id, title: "Must not change" } });
+    assert.equal(refused.status, "failed");
+    assert.deepEqual(await h.postRepo.findById({ workspaceId: row.workspaceId, id: row.id }), row);
+  }
+  for (const input of [{ id: "page", kind: "template", title: "Invalid kind" }, { id: "post", kind: "page", title: "Wrong kind" },
+    { kind: "post", type: "page", title: "Conflicting aliases" }]) {
+    const refused = await h.execute({ toolId: input.id ? "content_post_update" : "content_post_create", input });
+    assert.equal(refused.status, "failed");
+  }
+  assert.equal((await h.changeSets.listByWorkspace({ workspaceId: WORKSPACE_ID })).length, 2);
+});
+
+test("updating a page without kind checks permission before looking up its stored kind", async () => {
+  const h = harness({}, { allowed: false });
+  const page = buildPostRecord({ workspaceId: WORKSPACE_ID, id: "private-page", kind: "page" });
+  await h.postRepo.save(page);
+  const findById = h.postRepo.findById.bind(h.postRepo);
+  let reads = 0;
+  h.postRepo.findById = async input => { reads++; return findById(input); };
+  const result = await h.execute({ toolId: "content_post_update", input: { id: page.id, title: "Must not change" } });
+  assert.equal(result.status, "failed");
+  assert.match(result.error ?? "", /not authorized|FORBIDDEN/i);
+  assert.equal(reads, 0);
+  assert.deepEqual(await findById({ workspaceId: WORKSPACE_ID, id: page.id }), page);
+  assert.deepEqual(await h.changeSets.listByWorkspace({ workspaceId: WORKSPACE_ID }), []);
 });
 
 test("create_documented_body_example_round_trips", async () => {

@@ -23,7 +23,7 @@ import { postAgentToolCatalog } from "../agent-tools.js";
 
 /**
  * @file S7 (`fix-plan-tool-design-2026-09-24.md` row "content_post_update takes a partial patch")
- * — RED-first for the new partial-patch shape: `id`/`kind` are the only required fields, and
+ * — RED-first for the partial-patch shape: `id` is required, `kind` can derive from storage, and
  * `title`/`slug`/`bodyJson`/`status` are each independently optional, filled from the stored row
  * for whatever the caller omits.
  */
@@ -119,7 +119,7 @@ test("the existing update tool advertises the optional template field and how to
   const definition = postAgentToolCatalog.find(entry => entry.name === "content_post_update");
   assert.ok(definition);
   const schema = definition.inputSchema as { required: string[]; properties: { template: { type: string[] } } };
-  assert.deepEqual(schema.required, ["id", "kind"]);
+  assert.deepEqual(schema.required, ["id"]);
   assert.deepEqual(schema.properties.template.type, ["string", "null"]);
   assert.match(definition.description, /content_post_preview.availableTemplates/);
 });

@@ -37,7 +37,8 @@ export async function installSupportingFilesFixture(
   try {
     const installed = await installAgentPlugin({ archive, archiveReader, expectedSha256: createHash("sha256").update(archive).digest("hex"), layout: agentPluginLayout, workspaceId });
     const registry = createToolRegistry({});
-    await registerInstalledAgentPluginTools(registry, { withExtensionApprovalPolicy, workspaceId, agentPluginLayout });
+    // These fixtures exercise portable plugin bytes; host-overlay behavior has its own tests.
+    await registerInstalledAgentPluginTools(registry, { withExtensionApprovalPolicy, workspaceId, agentPluginLayout }, { overlaysDir: path.join(root, "empty-host-overlays") });
     return { root, registry, installed, workspaceId, agentPluginLayout, skillRoot: path.join(installed.packageRoot, "skills/ui-ux-design"), cleanup: () => forceRemove(root) };
   } catch (error) { await forceRemove(root); throw error; }
 }

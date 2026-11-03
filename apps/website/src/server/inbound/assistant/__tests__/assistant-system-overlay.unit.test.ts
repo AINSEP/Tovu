@@ -346,7 +346,7 @@ test("default prompt describes the enforced host tool grant", () => {
   const overlay = buildBaseSystemOverlay(false);
   assert.equal(overlay.includes("Bash is unavailable because it is disabled for this assistant."), true);
   assert.equal(overlay.includes("Bash and file access remain available"), false);
-  assert.equal(overlay.includes("Read remains available only for reading Tovu's own source"), true);
+  assert.equal(overlay.includes("Read remains available for reading Tovu's own source"), true);
 });
 
 test("every overlay tells the model to batch the same operation on several items into one items call", () => {

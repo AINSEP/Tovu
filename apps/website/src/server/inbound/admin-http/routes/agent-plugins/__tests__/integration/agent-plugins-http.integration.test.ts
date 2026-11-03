@@ -29,6 +29,7 @@ import {
 import { forceRemove } from "#src/features/agent-plugins/__tests__/fixtures/force-remove";
 import { registerAgentPluginsListRoute } from "../../list.js";
 import type { AgentPluginsRouteDeps } from "../../deps.js";
+import { saveExternalMcpServer } from "#src/features/external-mcp/external-mcp-store";
 
 /**
  * @file `AGENT_PLUGINS_LIST` — `GET /api/admin/v1/workspaces/:workspaceId/agent-plugins`
@@ -45,6 +46,33 @@ import type { AgentPluginsRouteDeps } from "../../deps.js";
  */
 
 const WORKSPACE_A = "workspace-local";
+
+test('Agent Plugins HTTP response exposes saved sign-in independently of the enable switch', async (t) => {
+  await withAgentPluginsDir(async () => {
+    await installReal(WORKSPACE_A, 'example-media', {
+      'plugin.json': manifestJson('example-media', { version: '1.0.0' }),
+    }, 'example-media-status');
+    const { app, agentPluginsDeps: deps } = buildTestApp();
+    await saveExternalMcpServer({ repo: deps.externalMcpServerRepo, sealer: deps.siteAssistantSecretSealer,
+      keyring: deps.siteAssistantSecretKeyring, clock: deps.clock }, {
+      workspaceId: WORKSPACE_A, serverId: 'example', transport: 'streamable_http', url: 'https://example.test/mcp',
+      authMode: 'oauth', enabled: true, command: '', args: '', allowedToolNames: '', writeAllowedToolNames: '',
+      principalId: 'owner', provisionedByPluginId: 'example-media',
+    });
+    const row = await deps.externalMcpServerRepo.findByServerId({ workspaceId: WORKSPACE_A, serverId: 'example' });
+    assert.ok(row);
+    await deps.externalMcpServerRepo.upsert({ ...row, oauthStatus: 'connected' });
+    await setAgentPluginActivation({ workspaceRoot: deps.agentPluginLayout.forWorkspace(WORKSPACE_A).root,
+      pluginId: 'example-media', enabled: false, actor: 'owner' });
+    const { baseUrl, cookie } = await bootAuthenticated(app, t);
+    const response = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_A}/agent-plugins`, { headers: { cookie } });
+    assert.equal(response.status, 200);
+    const body = await response.json() as { agentPlugins: { pluginId: string; enabled: boolean; connectionStatus?: string }[] };
+    assert.equal(body.agentPlugins[0]?.enabled, false);
+    assert.equal(body.agentPlugins[0]?.connectionStatus, 'connected');
+    assert.doesNotMatch(JSON.stringify(body), /sealedOAuth|example\.test|clientSecret/);
+  });
+});
 
 function reader(entries: readonly AgentPluginArchiveEntry[]): AgentPluginArchiveReaderPort {
   return {

@@ -1,4 +1,5 @@
-import { createContributionRegistry } from "@jini-ai/core";
+import { createContributionRegistry, createToolRegistry } from "@jini-ai/core";
+import { createToolExecutor } from "@jini-ai/daemon";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -107,6 +108,26 @@ test("theme_set_active: wires with a published schema and a cross-checked risk c
   assert.ok(registrations[0]?.descriptor.inputSchema, "must publish an input schema");
   assert.ok(setActiveThemeDerivedRisk.has("theme_set_active"));
   assert.equal(registrations[0]?.descriptor.readOnly, false, "a durable-state write must not be read-only");
+});
+
+test("switching a theme advertises themeId as the single canonical argument before the first call", () => {
+  const [registration] = buildSetActiveThemeRegistrations(fakeDeps());
+  assert.ok(registration);
+  assert.match(registration.descriptor.description ?? "", /Send only.*themeId/);
+  const schema = registration.descriptor.inputSchema as { properties: { themeId: { aliases: string[] } } };
+  assert.ok(schema.properties.themeId.aliases.includes("activeThemeId"));
+});
+
+test("switching a theme accepts activeThemeId through the shared execution gate", async () => {
+  const deps = fakeDeps();
+  const registry = createToolRegistry({});
+  for (const registration of buildSetActiveThemeRegistrations(deps)) registry.register(registration);
+  const executor = createToolExecutor({ registry });
+  const result = await executor.execute({ principal: { id: PRINCIPAL_ID }, run: { id: "theme-alias" },
+    toolId: "theme_set_active", input: { activeThemeId: "aurora" } });
+  assert.equal(result.status, "completed", JSON.stringify(result));
+  assert.equal(await resolveActiveThemeId(deps), "aurora");
+  assert.deepEqual((result.output as { normalizationNotes: string[] }).normalizationNotes, ["activeThemeId→themeId"]);
 });
 
 test("theme_set_active: the contributor registers under its own domain key, distinct from the themes file-op domain", () => {
