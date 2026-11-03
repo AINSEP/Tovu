@@ -12,6 +12,7 @@ import type { ResourceLimits } from "node:worker_threads";
 import {
   createNodeWorkerFactory,
   createNodeWorkerScheduler,
+  createWorkerCapacity,
   renderInWorkerSandbox as renderWithWorker,
   resolveDefaultTimeoutMs as resolveWorkerTimeout,
   type WorkerFactory,
@@ -99,6 +100,10 @@ const DEFAULT_RESOURCE_LIMITS: ResourceLimits = {
   codeRangeSizeMb: 16,
 };
 
+// Both template engines accept untrusted source and use one-shot workers. Keep their fresh
+// heaps/termination boundary, but bound combined peak memory and fall back rather than queue.
+const themeWorkerCapacity = createWorkerCapacity({ maxConcurrent: 2 });
+
 /**
  * Resolve Tovu's live timeout configuration without freezing the environment at module load.
  * @returns A positive render budget, falling back to 5s for invalid values or values above 5min.
@@ -127,7 +132,7 @@ export function resolveDefaultTimeoutMs(): number {
  * @param input Structured-cloneable template and site context.
  * @param options Per-render budgets, worker port and relocated-host product root override.
  * @returns Rendered HTML.
- * @throws On timeout, worker failure, invalid reply or rejected template; renderSite handles fallback.
+ * @throws On capacity exhaustion, timeout, worker failure, invalid reply or rejected template; renderSite handles fallback.
  * @complexity O(e) environment copying for e variables, plus one cold source build; excludes rendering.
  */
 export async function renderInWorkerSandbox(
@@ -157,5 +162,6 @@ export async function renderInWorkerSandbox(
     defaultResourceLimits: DEFAULT_RESOURCE_LIMITS,
     workerFactory,
     scheduler: createNodeWorkerScheduler({}),
+    capacity: themeWorkerCapacity,
   }, options);
 }
