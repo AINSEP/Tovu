@@ -71,7 +71,7 @@ import { getAuthedPrincipal, requireAdminSession } from "#src/server/inbound/adm
 import { registerAdminChatAttachmentReadRoute } from "#src/server/inbound/admin-http/routes/assistant/get-chat-attachment";
 import type { RouteDeps } from "#src/server/routes/types";
 
-import { daemonFetch, getAgentDaemonUrl, forwardToAgentDaemon, parkColdFrontendStream, awaitDaemonForResponse, respondIfDaemonKnownFailed, type DaemonCallOptions } from "./assistant-daemon-client.js";
+import { daemonFetch, getAgentDaemonUrl, fetchAgentDaemon, forwardToAgentDaemon, parkColdFrontendStream, awaitDaemonForResponse, respondIfDaemonKnownFailed, type DaemonCallOptions } from "./assistant-daemon-client.js";
 import type { ServerModuleHandle } from "./types.js";
 import { randomUUID } from "node:crypto";
 import { createRunAcceptance } from "#src/assistant/durable-runs/accept";
@@ -190,6 +190,17 @@ async function proxyPassthrough(req: Request, res: Response, daemon: DaemonCallO
   const upstream = await forwardToAgentDaemon(req, res, req.method === "GET" || req.method === "HEAD" ? undefined : req.body, daemon);
   if (!upstream) return;
   await relayResponse(upstream, req, res);
+}
+
+/** Prove intake is still accepting before asking the browser to rebind. Discovery alone can race
+ * idle teardown; the existing cheap context read resets idle credit and retries a park refusal.
+ * @complexity At most two bounded demand sends; no session or mutating request is created. */
+export async function activateFrontendDaemon({ req, res }: { req: Request; res: Response }, daemon: DaemonCallOptions = {}): Promise<void> {
+  const response = await fetchAgentDaemon(req, res, { ...daemon, path: "/api/active", method: "GET" });
+  if (!response) return;
+  await response.body?.cancel();
+  if (!response.ok) { res.status(503).json({ error: "the agent daemon is currently unavailable", code: "AGENT_DAEMON_UNAVAILABLE" }); return; }
+  res.sendStatus(204);
 }
 
 async function ownedDurableRun({ req, res, deps }: { req: Request; res: Response; deps: AssistantRouteDeps }, _optional = {}): Promise<DurableRunHead | null> {
@@ -578,12 +589,12 @@ export function createAssistantModule(routeDeps: AssistantRouteDeps, byokSurface
       // invocation until the connection closed.
       app.use("/api/frontend-sessions", requireAdminSession(routeDeps));
       // Session-gated like every other chat POST (POST /api/runs wakes the daemon the same way).
-      app.post("/api/frontend-sessions/activate", (_req, res, next) => {
-        (daemon.ensureReady ?? ensureAssistantDaemonReady)({}, {}).then(() => { res.sendStatus(204); }).catch(next);
+      app.post("/api/frontend-sessions/activate", (req, res, next) => {
+        activateFrontendDaemon({ req, res }, daemon).catch(next);
       });
       app.get("/api/frontend-sessions/stream", (req, res, next) => {
         if (parkColdFrontendStream({ res, isReady: routeDeps.assistantDaemonDemand?.isReady ?? isAssistantDaemonReady }, {})) return;
-        proxyPassthrough(req, res, daemon).catch(next);
+        proxyPassthrough(req, res, { ...daemon, passive: true }).catch(next);
       });
       app.post("/api/frontend-sessions/:sessionId/responses", (req, res, next) =>
         proxyPassthrough(req, res, daemon).catch(next),

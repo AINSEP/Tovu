@@ -13,4 +13,5 @@
  */
 export const AGENT_DAEMON_EXIT_CODE = {
   PORT_IN_USE: 87,
+  IDLE_PARK: 88,
 } as const;

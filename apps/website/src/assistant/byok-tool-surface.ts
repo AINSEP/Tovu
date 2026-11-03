@@ -33,7 +33,7 @@ import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/
 import type { FederatedApprovalDeps } from "./external-mcp-call-confirmation.js";
 import type { ToolAttemptAuditSink } from "../features/tool-audit/types.js";
 import { appendToolCatalogAttempt, DESCRIBE_TOOL_TOOL_ID, describeToolAuditDetail, SEARCH_TOOLS_TOOL_ID, searchToolsAuditDetail } from "./tool-audit-preset.js";
-import { withFederatedRefusalDiagnosis } from "./tool-recovery-preset.js";
+import { withFederatedRefusalDiagnosis } from "./server-federation-diagnosis.js";
 import { buildExternalMcpFederationDeps, createStoredExternalMcpConnectionSource, type StoredExternalMcpConnectionSource } from "./external-mcp-connection-source.js";
 import { attachAssistantToolExtensions, type AssistantToolExtensions, type InstalledExtensionRegistrar } from "./installed-extension-tools.js";
 import type { FederationRuntime } from "./external-mcp-federation-runtime.js";

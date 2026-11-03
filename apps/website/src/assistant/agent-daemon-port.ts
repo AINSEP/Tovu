@@ -45,7 +45,7 @@ export { buildFederatedRefusalPrefix } from "@jini-ai/mcp/federation";
 // The CALL-TIME counterpart to `buildFederatedRefusalPrefix` above — see that file's header and
 // `federated-refusal-diagnosis.ts`'s own for why the boot-time prefix and this decorator
 // deliberately disagree about `not-in-operator-allowlist`.
-export { withFederatedRefusalDiagnosis } from "./tool-recovery-preset.js";
+export { withFederatedRefusalDiagnosis } from "./server-federation-diagnosis.js";
 export type { ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
 export { readEnabledExternalMcpConfigs, toResolvedFederatedConnections } from "../features/external-mcp/external-mcp-store.js";
 // The daemon builds its OWN OAuth service: it refreshes tokens before launching an `authMode:

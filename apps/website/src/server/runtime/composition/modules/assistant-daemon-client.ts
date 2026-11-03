@@ -22,6 +22,7 @@ import type { Request, Response } from "express";
 
 import { AGENT_DAEMON_TOKEN_ENV_VAR, RUN_PRINCIPAL_HEADER } from "#src/assistant/index";
 import { ensureAssistantDaemonReady, isAssistantDaemonReady } from "../../lifecycle/daemon-supervisor.js";
+import { fetchWithDaemonParkRecovery } from "../../lifecycle/daemon-demand-fetch.js";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { getAssistantDaemonFailureReasonCode, isAssistantDaemonKnownFailed } from "../../lifecycle/readiness-state.js";
 import { getAgentDaemonUrl } from "../../lifecycle/agent-daemon-port.js";
@@ -30,7 +31,7 @@ import { createNoopObservabilityPort, trackFetch, type ObservabilityPort } from 
 /** Optional collaborators every daemon call accepts. `observability` records each loopback request
  *  as one outbound span (method, host/port and status — never the run id, path or token); omitted,
  *  the call is untraced. Composition passes `RouteDeps.observability`. */
-export interface DaemonCallOptions { readonly observability?: ObservabilityPort; readonly ensureReady?: typeof ensureAssistantDaemonReady; readonly isReady?: () => boolean; }
+export interface DaemonCallOptions { readonly observability?: ObservabilityPort; readonly ensureReady?: typeof ensureAssistantDaemonReady; readonly isReady?: () => boolean; readonly passive?: boolean; readonly onParked?: (required: { pid: number }) => void; }
 
 const UNTRACED = createNoopObservabilityPort({});
 
@@ -210,15 +211,15 @@ export async function fetchAgentDaemon(
   res: Response,
   options: { path?: string; method?: string; body?: unknown } & DaemonCallOptions = {},
 ): Promise<globalThis.Response | null> {
-  if (!(await awaitDaemonForResponse({ res }, options))) return null;
-  const { target, method } = resolveDaemonRequest(req, options);
+  if (!options.passive && !(await awaitDaemonForResponse({ res }, options))) return null;
+  const { method } = resolveDaemonRequest(req, options);
   const deadline = Date.now() + DAEMON_CONNECT_RETRY_MS;
   const send = daemonFetch(options);
 
   for (;;) {
     try {
       // Each attempt is its own span: a boot-window refusal shows up as the failed attempts it was.
-      const upstream = await send(target, buildDaemonFetchInit(req, res, method, options.body));
+      const upstream = await fetchWithDaemonParkRecovery({ send: () => send(resolveDaemonRequest(req, options).target, buildDaemonFetchInit(req, res, method, options.body)) }, options);
       markDaemonReachable();
       return upstream;
     } catch (error) {
@@ -227,6 +228,7 @@ export async function fetchAgentDaemon(
       if (!shouldRetryConnection(attempt)) return respondDaemonUnreachable(res, error);
       noteDaemonUnreachableWaiting();
       await new Promise((r) => setTimeout(r, DAEMON_CONNECT_RETRY_INTERVAL_MS));
+      if (!options.passive && !(await awaitDaemonForResponse({ res }, options))) return null;
     }
   }
 }
@@ -234,7 +236,7 @@ export async function fetchAgentDaemon(
 /** Thin wrapper matching `assistant.ts`'s original call shape exactly: forward the SAME path/method
  *  this request arrived on, with an optional rewritten body. */
 export async function forwardToAgentDaemon(req: Request, res: Response, body?: unknown, optional: DaemonCallOptions = {}): Promise<globalThis.Response | null> {
-  return fetchAgentDaemon(req, res, { body, observability: optional.observability, ensureReady: optional.ensureReady });
+  return fetchAgentDaemon(req, res, { ...optional, body });
 }
 
 /**
@@ -347,29 +349,16 @@ export async function awaitDaemonForResponse(
   }
 }
 
-/** A cold page-load bridge is passive. Clean EOF makes native EventSource reconnect after ready.
- * No upstream piping or fabricated session: only the daemon can mint the real bind token.
+/** A cold page-load bridge is passive. Explicit activation rebinds it through W4-E2.
+ * No polling, upstream piping or fabricated session: only the daemon can mint the real bind token.
  * @returns true when this response was parked, false when the caller should use the normal proxy.
- * @complexity O(1) state per stream, one cheap lifecycle check per 250ms.
+ * @complexity O(1), no timers or allocated session.
  */
 export function parkColdFrontendStream(
   { res, isReady = isAssistantDaemonReady }: { res: Response; isReady?: () => boolean },
-  { schedule = ({ work, delayMs }) => { const timer = setInterval(work, delayMs); return () => clearInterval(timer); } }:
-    { schedule?: (input: { work: () => void; delayMs: number }) => () => void } = {},
+  _optional: Record<string, never> = {},
 ): boolean {
   if (isReady()) return false;
-  res.status(200);
-  res.setHeader("Content-Type", "text/event-stream");
-  res.setHeader("Cache-Control", "no-cache");
-  res.setHeader("Connection", "keep-alive");
-  res.flushHeaders();
-  res.write("retry: 500\n\n: waiting for chat\n\n");
-  let ticks = 0;
-  const cancel = schedule({ delayMs: 250, work: () => {
-    if (isReady()) { cancel(); res.end(); return; }
-    ticks += 1;
-    if (ticks % 60 === 0) res.write(": keepalive\n\n");
-  } });
-  res.once("close", cancel);
+  res.status(503).json({ error: "the agent daemon is parked", code: "AGENT_DAEMON_PARKED" });
   return true;
 }

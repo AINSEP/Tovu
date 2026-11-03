@@ -8,15 +8,11 @@ import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/dae
 import type { SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { withToolFailureRecovery as withDaemonRecovery, withRedactedToolFailures as withDaemonRedaction,
   createAssistantToolExecutor as createDaemonToolExecutor, mintToolErrorId as mintDaemonErrorId,
-  describeDelegatedInternalError as describeDaemonError, delegatedToolErrorDisclosure as daemonErrorDisclosure,
-  withFederatedRefusalDiagnosis as withDaemonFederationDiagnosis } from "@jini-ai/daemon/tool-recovery";
+  describeDelegatedInternalError as describeDaemonError, delegatedToolErrorDisclosure as daemonErrorDisclosure } from "@jini-ai/daemon/tool-recovery";
 import type { ToolFailureRecord, RedactedToolFailuresDeps as DaemonFailureDeps,
-  DelegatedInternalErrorContext, FederationBootStatus } from "@jini-ai/daemon/tool-recovery";
+  DelegatedInternalErrorContext } from "@jini-ai/daemon/tool-recovery";
 export { TOOL_ERROR_ID_PATTERN, readToolErrorId, isRedactedToolFailure } from "@jini-ai/daemon/tool-recovery";
 export type { ToolFailureRecord, RedactedToolExecutionResult, DelegatedInternalErrorContext, FederationBootStatus } from "@jini-ai/daemon/tool-recovery";
-import { findFederatedToolRefusal, FEDERATED_TOOL_ID_PREFIX, parseFederatedConnectionId } from "@jini-ai/mcp/federation";
-import type { FederationAdmissionSnapshotEntry } from "@jini-ai/mcp/federation";
-import { tovuFederationMessages } from "./mcp-federation/presets.js";
 import { assertCredentialFreeField } from "../contracts/core/credential-token.js";
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 import { readOnlyRemedyRefusalMessage, tovuReadOnlyToolMessages } from "./read-only-tool-constraint.js";
@@ -110,10 +106,4 @@ export function createAssistantToolExecutor(required: AssistantToolExecutorDeps,
     ...(toolAttemptAudit ? { toolAttemptAudit: { ...toolAttemptAudit,
       now: () => new Date().toISOString(), newAttemptId: randomUUID,
       onSinkError: () => console.error("[tool-audit] sink threw; execution is unaffected") } } : {}) }, optional);
-}
-export function withFederatedRefusalDiagnosis(required: { inner: ToolExecutor; getSnapshot: () => readonly FederationAdmissionSnapshotEntry[]; getBootStatus?: () => FederationBootStatus }, optional = {}): ToolExecutor {
-  return withDaemonFederationDiagnosis({ inner: required.inner, newExecutionId: randomUUID, redactSecretShapes,
-    isFederatedTool: ({ toolId }) => toolId.startsWith(FEDERATED_TOOL_ID_PREFIX), parseConnectionId: parseFederatedConnectionId,
-    findRefusal: ({ toolId }) => findFederatedToolRefusal({ toolId, snapshot: required.getSnapshot(), messages: tovuFederationMessages }),
-    ...(required.getBootStatus ? { getBootStatus: required.getBootStatus } : {}) }, optional);
 }

@@ -25,7 +25,7 @@ import {
   type NodeDaemonProcessOptions,
 } from "@jini-ai/sidecar/supervisor/node";
 import { createDaemonSupervisor as createSidecarSupervisor } from "@jini-ai/sidecar/supervisor";
-import type { DaemonSupervisorRequired, SpawnedDaemonProcess as SidecarDaemonProcess, SupervisorScheduler } from "@jini-ai/sidecar/supervisor";
+import type { DaemonSupervisorRequired, DaemonSupervisorState, SpawnedDaemonProcess as SidecarDaemonProcess, SupervisorScheduler } from "@jini-ai/sidecar/supervisor";
 import path from "node:path";
 import { redactLocalText } from "../../../platform/server-logs/redact-local-text.js";
 import { createRedactedOutputSink } from "../../../platform/server-logs/console-tee.js";
@@ -96,6 +96,8 @@ export interface DaemonSupervisorActionResult {
 }
 
 export interface DaemonSupervisor {
+  getState(): DaemonSupervisorState;
+  markParking(required: { pid: number }, optional?: Record<string, never>): void;
   /** Perform the first spawn attempt. Call exactly once per supervisor instance. */
   start(): void;
   isReady(): boolean;
@@ -226,10 +228,15 @@ function bindDaemonSupervisor(ports: DaemonProcessPorts, options: DaemonHostOpti
           log(`[daemon-supervisor] ${at} spawned agent daemon pid=${event.pid ?? "unknown"}`);
           return;
         }
+        if (event.code === AGENT_DAEMON_EXIT_CODE.IDLE_PARK) {
+          log(`[daemon-supervisor] ${at} agent daemon pid=${event.pid ?? "unknown"} parked after idle`);
+          return;
+        }
         log(`[daemon-supervisor] ${at} agent daemon pid=${event.pid ?? "unknown"} exited (code=${String(event.code)}, signal=${String(event.signal)}, deliberate=${event.deliberate}) — any run in flight died with it`);
       },
     },
   }, {
+    parkedExitCodes: [AGENT_DAEMON_EXIT_CODE.IDLE_PARK],
     onDemandCooldownMs: options.onDemandCooldownMs ?? 30_000,
     quietRoutineLifecycle: options.quietRoutineLifecycle ?? isDaemonLifecycleLogQuiet(),
     formatGiveUp: ({ decision, lastReason }) => buildGiveUpReasonCode(decision, lastReason, daemonPort),
@@ -650,4 +657,11 @@ export async function ensureAssistantDaemonReady(
 /** Passive observers never call ensureStarted: cold page streams and saved roster changes stay cold. */
 export function isAssistantDaemonReady(): boolean {
   return singleton?.isReady() ?? false;
+}
+
+/** A pre-dispatch park refusal fences stale readiness. Jini waits for the old child's exit;
+ * concurrent demand shares its one replacement instead of colliding with the retiring listener.
+ * @complexity O(1). No signal or process kill; graceful teardown is already running in the child. */
+export function noteAssistantDaemonParking(required: { pid: number }, _optional = {}): void {
+  singleton?.markParking(required, {});
 }

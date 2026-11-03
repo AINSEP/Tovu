@@ -1,4 +1,5 @@
 import { ensureAssistantDaemonReady } from "../../lifecycle/daemon-supervisor.js";
+import { fetchWithDaemonParkRecovery } from "../../lifecycle/daemon-demand-fetch.js";
 import { createNoopTracker } from "@jini-ai/diagnostics/observability";
 import type { Tracker } from "@jini-ai/diagnostics/observability";
 /**
@@ -149,6 +150,7 @@ export function createHttpRunDaemonClient(
     isAlive?: (required: { pid: number }) => boolean;
     currentUrl?: () => string;
     ensureReady?: typeof ensureAssistantDaemonReady;
+    onParked?: (required: { pid: number }) => void;
     fetch?: typeof fetch;
   } = {},
 ): RunDaemonClient {
@@ -184,10 +186,10 @@ export function createHttpRunDaemonClient(
   return {
     async launch({ run, request }, _options) {
       await (optional.ensureReady ?? ensureAssistantDaemonReady)({}, {});
-      const response = await send(`${(optional.currentUrl ?? getAgentDaemonUrl)()}/api/runs`, {
+      const response = await fetchWithDaemonParkRecovery({ send: () => send(`${(optional.currentUrl ?? getAgentDaemonUrl)()}/api/runs`, {
         method: "POST", headers: { ...daemonHeaders(run.principalId!), "Content-Type": "application/json" },
         body: JSON.stringify({ ...request, runId: run.runId, idempotencyKey: run.runId }), signal: AbortSignal.timeout(10_000),
-      });
+      }) }, optional);
       if (!response.ok) throw new Error(`continuation rejected (${response.status})`);
       await response.body?.cancel();
     },

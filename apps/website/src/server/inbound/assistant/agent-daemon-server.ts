@@ -1,4 +1,5 @@
 import { createDaemonSiteTools } from "./agent-daemon-site-tools.js";
+import { createAgentDaemonIdlePark } from "./agent-daemon-idle-park.js";
 import { registerAgentPluginEvents } from "./agent-plugin-preflight-events.js";
 import { ensureJsonAgentInstall } from "./ensure-json-agent-install.js";
 import { buildAssistantFilesystemNotices } from "./assistant-filesystem-notices.js";
@@ -166,6 +167,7 @@ const daemonRegistryPath = process.env.TOVU_AGENT_DAEMON_REGISTRY_PATH;
 const daemonRegistry = daemonRegistryPath ? createSupervisorRegistry({ registryPath: daemonRegistryPath }) : undefined;
 let registryPublication: Promise<void> = Promise.resolve();
 let daemonExiting = false;
+let stopIdleMonitor = () => {};
 let daemonStore: AgentDaemonResource | undefined;
 let stopDaemonServing: () => Promise<void> = async () => {};
 let disposeAiTracing: () => void = () => {};
@@ -178,6 +180,7 @@ const daemonBootWork: Promise<unknown>[] = [];
 async function exitDaemon(exitCode: number): Promise<void> {
   if (daemonExiting) return;
   daemonExiting = true;
+  stopIdleMonitor();
   await closeWithinBound(async () => {
     await stopDaemonServing();
     // Before the store closes, which flushes and disposes the provider plugins' sinks.
@@ -411,6 +414,8 @@ lifecycle.rehydrate({}).catch((error: unknown) => {
  * not fail loudly — every delivery would 409 while the agent sat blocked until its TTL expired.
  */
 const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+const idlePark = createAgentDaemonIdlePark({ isBusy: () => surfaceExchanges.size() > 0, exit: code => { void exitDaemon(code); } }, {});
+stopIdleMonitor = () => idlePark.stop({}, {});
 
 // Site registrations, attachment tools, plugin guidance and federation have one owner: the
 // server's BYOK composition. Only browser-tab capabilities have executable registrations here.
@@ -523,7 +528,7 @@ const localToolExecutor = createAssistantToolExecutor({ registry, surfaceExchang
 const toolExecutor = withReadOnlyToolConstraint(createRoutingToolExecutor({
   local: localToolExecutor, remote: siteTools.remote,
   isLocal: ({ toolId }) => registry.has({ toolId }),
-}, {}), { registry: siteTools.registry });
+}, { acquireActivity: () => idlePark.hold({}, {}) }), { registry: siteTools.registry });
 
 /**
  * The admin Instructions tab's system-prompt seam (`core.instructions.custom`) — see
@@ -762,6 +767,10 @@ async function resolveAttachmentRunFields(
 const captureEarlySession = createEarlySessionCapture({ sessions: routeDeps.agentSessions, durable: routeDeps.chatRunLedger.durable, readStart: readProcessStart }, {});
 
 const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) => {
+  // Every CLI run is busy, including headless/Aider runs with no conversationId. Terminal waits
+  // release malformed starts too; preparation and cleanup below retain their own work holds.
+  const releaseRun = idlePark.hold({}, {});
+  void runLifecycle.waitForTerminal({ runId: run.id }).catch(() => undefined).finally(releaseRun);
   function noteFullRunInput({ runId, input }: { runId: string; input: string }, _optional = {}): void {
     if (routeDeps.aiTraceSink?.capture === "full") tracing.noteRunInput({ runId, input });
   }
@@ -833,6 +842,7 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
   if (conversationId !== undefined) liveRunTracker.register({ conversationId: conversationId, runId: run.id }, {});
   if (pageContext !== undefined) runActiveContexts.record(run.id, pageContext);
   void runLifecycle.waitForTerminal({ runId: run.id }).catch(() => undefined).finally(() => {
+    const releaseCleanup = idlePark.hold({}, {});
     pluginAbort.abort();
     unsubscribePluginCancel();
     siteTools.finish({ runId: run.id });
@@ -854,10 +864,11 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
     // backstop if this never runs at all (process crash, etc.).
     const cleanupStaged = stagedAttachmentCleanupByRunId.get(run.id);
     stagedAttachmentCleanupByRunId.delete(run.id);
-    void cleanupStaged?.().catch(() => console.error('[agent-daemon] staged attachment cleanup failed'));
-    void attachmentStore?.cleanupRun({ runId: run.id }).catch((error: unknown) => {
+    const stagedCleanup = cleanupStaged?.().catch(() => console.error('[agent-daemon] staged attachment cleanup failed'));
+    const claimedCleanup = attachmentStore?.cleanupRun({ runId: run.id }).catch((error: unknown) => {
       console.error(`[agent-daemon] run ${run.id}: attachment cleanup failed`, error);
     });
+    void Promise.allSettled([stagedCleanup, claimedCleanup]).finally(releaseCleanup);
   });
 
   // Session-resume capture (Gap 5, `RunEndPayload.sessionRef` — `@jini-ai/protocol`'s doc on that
@@ -890,8 +901,9 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
       }
       // Status carries capture-style locators (Codex/opencode) before end. A killed process must
       // not lose its locator; generation checks also prevent a stale attempt changing the session.
+      const releaseSessionSave = idlePark.hold({}, {});
       void captureEarlySession({ event, runId: run.id, conversationId: resolvedConversationId, agentId: agentId }, { durableBinding: durableMessageId !== undefined })
-        .catch((error: unknown) => console.error(`[agent-daemon] run ${run.id}: failed to persist agent session id`, error));
+        .catch((error: unknown) => console.error(`[agent-daemon] run ${run.id}: failed to persist agent session id`, error)).finally(releaseSessionSave);
       if (extractSessionRefFromEndEvent({ event: event }, {}) !== undefined) return;
       // H1 fix: this run attempted `--resume <attemptedResumeSessionId>` and reached its terminal
       // `end` event without the CLI ever reconfirming a session id — the stored id is unconfirmed
@@ -899,12 +911,13 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
       // dead. Clear it so the NEXT turn falls back to a cold start instead of retrying the same
       // dead id forever. See `shouldClearSessionOnFailedResume`'s own doc for the full condition.
       if (shouldClearSessionOnFailedResume({ event: event, attemptedResumeSessionId: attemptedResumeSessionId }, {})) {
+        const releaseSessionClear = idlePark.hold({}, {});
         const cleared = durableMessageId && routeDeps.chatRunLedger.durable
           ? routeDeps.chatRunLedger.durable.clearSession({ runId: run.id, sessionId: attemptedResumeSessionId! }, {})
           : routeDeps.agentSessions.clearSessionId({ conversationId: resolvedConversationId, agentId: agentId });
         void cleared.catch((error: unknown) => {
           console.error(`[agent-daemon] run ${run.id}: failed to clear dead agent session id`, error);
-        });
+        }).finally(releaseSessionClear);
       }
     } });
   }
@@ -925,6 +938,7 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
   // than racing the refresh against `run()` and hoping the internal timing works out — makes the
   // guarantee independent of `@jini-ai/daemon`'s internal ordering. `refresh()` never rejects (see
   // `custom-instructions.ts`), so this adds no new failure path before `run()` is even reached.
+  const releasePreparation = idlePark.hold({}, {});
   void customInstructionsCache
     .refresh()
     .then(async () => {
@@ -1108,7 +1122,7 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
       console.error(`[agent-daemon] run ${run.id} failed to start`, error);
       // A startup rejection must terminalize its attempt so its slot and credentials release.
       void failRunBeforeStart({ lifecycle: runLifecycle, runId: run.id, message: "The assistant could not start this execution attempt." }, {});
-    });
+    }).finally(releasePreparation);
 
   /** The server owns pinned guidance and automatic consent, including later tool-triggered
    * preparation. No controller or plugin lifecycle is constructed in this process. Transport
@@ -1269,6 +1283,7 @@ function resolveDiscoveryCaller(req: express.Request) {
 }
 
 const app = express();
+app.use(idlePark.middleware);
 registerAgentPluginEvents({ app, lifecycle, principalFor: ({ runId }) => principalByRunId.get(runId)?.id }, {});
 
 // Only this POST uses Jini's credential-bound claim authorization instead of the proxy/owner gates.
@@ -1466,6 +1481,7 @@ async function start(): Promise<void> {
   // `application/octet-stream` POST survives `express.json()` regardless of registration order).
   registerAttachmentRoutes({ app, deps: {
       store: attachmentStore,
+      acquireActivity: () => idlePark.hold({}, {}),
       // The trusted-downstream-of-the-bearer-gate header `forwardAttachmentUpload`
       // (`server/runtime/composition/modules/assistant.ts`) now stamps from the uploading admin's
       // OWN session — see that function's doc. This is what `chat_list_pending_attachments`
@@ -1480,6 +1496,7 @@ async function start(): Promise<void> {
       maxAttachmentBytes: TOVU_MAX_UPLOAD_BYTES,
     }, adapter });
 
+  idlePark.start({}, {});
   const server = app.listen(port, "127.0.0.1", () => {
     const address = server.address();
     if (address === null || typeof address === "string") {
