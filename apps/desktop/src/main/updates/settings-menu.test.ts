@@ -53,7 +53,7 @@ test("Settings carries Automatic updates, checked from the persisted choice", ()
     const { menu, calls } = menuHarness({ launch: null, automatic });
     const copy = desktopCopy({ locale: "en-US" });
     assert.equal(menu.label, copy.settings);
-    assert.deepEqual(menu.submenu.map(item => [item.label, item.checked]), [[copy.automaticUpdates, automatic], ['Maximum live site views', undefined]]);
+    assert.deepEqual(menu.submenu.map(item => [item.label, item.checked]), [[copy.automaticUpdates, automatic], ['Loaded sites', undefined]]);
     assert.deepEqual(calls, ["readAutomatic:/ud/desktop-preferences.json"]);
   }
 });
@@ -88,7 +88,7 @@ test("a booted product adds both sharing checkboxes, checked from the stored con
   assert.deepEqual(menu.submenu.slice(1).map(item => [item.label, item.checked]), [
     ["Send crash reports to Tovu", true],
     ["Send usage statistics to Tovu", false],
-    ['Maximum live site views', undefined],
+    ['Loaded sites', undefined],
   ]);
 });
 

@@ -22,10 +22,10 @@ import {
   type ScrollGuest,
 } from './use-live-views.hooks.js';
 
-test('the live limit is a positive whole number, and anything else is the default of 2', () => {
-  assert.equal(DEFAULT_LIVE_VIEW_LIMIT, 2);
+test('the live limit is a positive whole number, and anything else is the default of 1', () => {
+  assert.equal(DEFAULT_LIVE_VIEW_LIMIT, 1);
   assert.equal(liveViewLimit({ value: 5 }), 5);
-  for (const value of [0, -1, 1.5, Number.NaN, '3', null, undefined]) assert.equal(liveViewLimit({ value }), 2, String(value));
+  for (const value of [0, -1, 1.5, Number.NaN, '3', null, undefined]) assert.equal(liveViewLimit({ value }), 1, String(value));
 });
 
 test('the focused tab leads the live order, closed tabs drop out, the rest keep their recency', () => {

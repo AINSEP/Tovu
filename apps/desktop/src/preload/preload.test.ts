@@ -13,6 +13,7 @@ import ts from "typescript";
 import { IPC_CHANNEL_IS_AVAILABLE, IPC_CHANNEL_TRANSCRIBE } from "../speech/speech-ipc.ts";
 import { RUNNER_APP_CHECK_FOR_UPDATES_CHANNEL, RUNNER_APP_VERSION_CHANNEL } from "../contracts/app-version.ts";
 import { RUNNER_RESOURCES_GET_CHANNEL } from "../contracts/resources.ts";
+import { SITE_VIEW_PREFERENCE_CHANNELS as VIEWS } from "../contracts/site-view-preference.ts";
 import { OWNER_STORE_CHANNELS } from "../contracts/owner-store.ts";
 import { RUNNER_AGENT_INVENTORY_CHANNELS as INVENTORY } from "../contracts/runtime-inventory.ts";
 import { SITE_IPC_CHANNELS as SITE, SITE_THEME_PREVIEW_CHANNELS as THEME } from "../contracts/project.ts";
@@ -139,6 +140,8 @@ async function assertEveryRunnerMethod({ exposed, invokes, listeners, frameCalls
     ["getAppVersion", [], [RUNNER_APP_VERSION_CHANNEL]],
     ["getResources", [{ panelOpen: true }, {}], [RUNNER_RESOURCES_GET_CHANNEL, { panelOpen: true }]],
     ["checkForUpdates", [], [RUNNER_APP_CHECK_FOR_UPDATES_CHANNEL]],
+    ["getMaximumLiveSiteViews", [], [VIEWS.read]],
+    ["setMaximumLiveSiteViews", [3], [VIEWS.write, 3]],
     ["listAgents", [], [INVENTORY.list]],
     ["rescanAgents", [], [INVENTORY.rescan]],
     ["daemonOnline", [], [INVENTORY.daemonOnline]],
@@ -185,7 +188,7 @@ async function assertEveryRunnerMethod({ exposed, invokes, listeners, frameCalls
     assert.deepEqual(invokes, [expected], method);
   }
 
-  for (const [method, channel] of [["onChatEvent", CHAT.event], ["onNavigate", CHAT.navigate], ["onFindResult", FIND_RESULT_CHANNEL]] as const) {
+  for (const [method, channel] of [["onChatEvent", CHAT.event], ["onNavigate", CHAT.navigate], ["onFindResult", FIND_RESULT_CHANNEL], ["onMaximumLiveSiteViewsChanged", VIEWS.changed]] as const) {
     const received: unknown[] = [];
     const off = runner[method]!((value: unknown) => received.push(value)) as () => void;
     for (const handler of listeners.get(channel)!) handler({ sender: "must not cross bridge" }, "payload");

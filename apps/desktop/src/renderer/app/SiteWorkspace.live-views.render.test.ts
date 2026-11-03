@@ -44,7 +44,8 @@ function fakeGuests(t: TestContext) {
 }
 
 async function renderTabs(t: TestContext, { openSites = SITES, bridge = {} }: { openSites?: readonly SiteRecord[]; bridge?: Partial<RunnerInventoryBridge> } = {}) {
-  installBridge({ t, bridge: { onSiteHistory: () => () => {}, openSiteExternal: async () => {}, ...bridge } });
+  // Two, not the shipped default of one, so the release mechanics below have a hidden guest to keep.
+  installBridge({ t, bridge: { onSiteHistory: () => () => {}, openSiteExternal: async () => {}, getMaximumLiveSiteViews: async () => 2, ...bridge } });
   const guests = fakeGuests(t);
   let props = { inSites: true, visibleWorkspaceId: openSites[0]!.id as string | null };
   const element = () => createElement(SiteWorkspaces, {
@@ -129,12 +130,20 @@ test('live views: the menu\'s limit is read from the bridge, and a change applie
   } });
   for (const id of IDS.slice(1)) await view.visit(id);
   assert.deepEqual(view.mounted(), ['c', 'd', 'e']);
-  await act(async () => { changed!(1); });
+  await act(async () => { changed!(2); });
   await settle();
-  assert.deepEqual(view.mounted(), ['e'], 'lowering the limit releases at once, never the tab on screen');
+  assert.deepEqual(view.mounted(), ['d', 'e'], 'lowering the limit releases at once, never the tab on screen');
   await act(async () => { changed!(0); });
-  await view.visit('d');
-  assert.deepEqual(view.mounted(), ['d', 'e'], 'a nonsense limit falls back to the default of 2');
+  await settle();
+  assert.deepEqual(view.mounted(), ['e'], 'a nonsense limit falls back to the default of 1');
+});
+
+test('live views: an older preload with no saved limit keeps one loaded site, the one on screen', async (t) => {
+  const view = await renderTabs(t, { openSites: SITES.slice(0, 3), bridge: { getMaximumLiveSiteViews: undefined } });
+  await view.visit('b');
+  assert.deepEqual(view.mounted(), ['b']);
+  await view.visit('c');
+  assert.deepEqual(view.mounted(), ['c']);
 });
 
 test('live views: closing a tab forgets its released route', async (t) => {
