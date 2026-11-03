@@ -12,3 +12,59 @@
     at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
     at async initializeBootDefaults (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
     at async Object.attachEnabledPluginsAtBoot (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+[assistant-byok] mcp-federation: 'hosted' registered 1 federated tool(s): mcp__hosted__echo
+[assistant-byok] mcp-federation: 'hosted' admitted WRITE tool 'echo' (operator-authorized)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+✔ admissions succeeds without starting a daemon (764.959023ms)
+✔ the admissions route requires a session before reading federation (171.873496ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+✔ admissions wrong workspace does not start federation (265.419516ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+✔ admissions denied permission does not start federation (210.728167ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+✔ the server report preserves preset identity and current resolution and connection failures (214.471749ms)
+✔ an unwired server federation is a distinguishable 503, never an empty roster (199.129879ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7927.982856

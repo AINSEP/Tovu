@@ -1,0 +1,25 @@
+/home/user/wt-Tovu/apps/website/src/assistant/__tests__/fixtures/confirmed-registrations.ts:11
+import { THEME_CONTENT_REPLACEMENT_TOOL_IDS } from '../../../contracts/core/tool-metadata/theme.js';
+         ^
+SyntaxError: The requested module '../../../contracts/core/tool-metadata/theme.js' does not provide an export named 'THEME_CONTENT_REPLACEMENT_TOOL_IDS'
+    at #asyncInstantiate (node:internal/modules/esm/module_job:455:21)
+    at async ModuleJob.run (node:internal/modules/esm/module_job:553:5)
+    at async node:internal/modules/esm/loader:647:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v24.22.2
+✖ apps/website/src/features/theme/__tests__/theme-write-file-built-gate.test.ts (2077.58476ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2104.213438
+
+✖ failing tests:
+
+test at apps/website/src/features/theme/__tests__/theme-write-file-built-gate.test.ts:1:1
+✖ apps/website/src/features/theme/__tests__/theme-write-file-built-gate.test.ts (2077.58476ms)
+  'test failed'

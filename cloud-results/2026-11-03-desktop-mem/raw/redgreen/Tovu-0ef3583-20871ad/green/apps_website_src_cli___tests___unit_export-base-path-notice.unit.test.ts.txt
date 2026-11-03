@@ -1,0 +1,13 @@
+✔ export result and CLI explain path precedence (publicUrl=https://export.example/docs/, basePath=/requested) (302.812474ms)
+✔ export result and CLI explain path precedence (publicUrl=https://export.example/, basePath=/requested) (161.870018ms)
+✔ export result and CLI explain path precedence (publicUrl=https://export.example/docs/, basePath=) (184.353003ms)
+✔ export result and CLI explain path precedence (publicUrl=https://export.example/docs/, basePath=undefined) (171.924377ms)
+✔ export result and CLI explain path precedence (publicUrl=undefined, basePath=/requested) (208.43159ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6757.062241

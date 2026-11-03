@@ -1,0 +1,23 @@
+✔ a blank profile override uses the normal profile without disabling desktop tools (1.760299ms)
+✔ an E2E override wins, is trimmed and resolved, and the resolved path is exported for CLI children (0.288643ms)
+✔ a written toolchain yields its env contract (0.325351ms)
+✔ a disk-image launch turns the toolchain off with a move-to-Applications hint (0.3031ms)
+✔ a failed write degrades to no toolchain and never throws (0.223377ms)
+✔ boot mode: sites home by default; attach for a URL; own server for pinned site dirs (0.253202ms)
+✔ boot mode: an explicit runner UI beats both attach and pinned dirs (0.121821ms)
+✔ boot mode: attach wins over a pinned site dir; a blank URL is not attach (0.169935ms)
+✔ dev-fallback rows: migrate dismissals, then seed, then retire — all with the safe classifier (0.356721ms)
+✔ dev-fallback rows: a packaged app (no dev fallback) touches nothing (0.246213ms)
+✔ a new rescan aborts the previous rescan but not a running picker validation (0.368322ms)
+✔ a new picker validation aborts the previous validation but not a running rescan (0.227434ms)
+✔ before-quit aborts the live scan of both lanes; with none started it is a no-op (0.263184ms)
+✔ an empty legacy store loses exactly its four files under this launch's userData (0.288167ms)
+✔ a store holding keys gets the native import notice; check failures are logged as warnings (0.266932ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 15
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 132.205968

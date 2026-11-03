@@ -1,0 +1,42 @@
+
+ RUN  v4.1.11 /home/user/wt-Tovu/apps/admin
+
+ ❯ src/features/posts/__tests__/use-post-editor.hooks.unit.test.tsx (94 tests | 2 failed) 6162ms
+     × Publish clicked during the first Save publishes the one created post 261ms
+     × Save clicked with newer text during creation saves the latest intent to the same post 117ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/features/posts/__tests__/use-post-editor.hooks.unit.test.tsx > new posts stay local until their first Save > Publish clicked during the first Save publishes the one created post
+AssertionError: expected "updatePost" to be called with arguments: [ { id: 'created-post-1' }, …(1) ]
+
+Number of calls: 0
+
+ ❯ src/features/posts/__tests__/use-post-editor.hooks.unit.test.tsx:109:20
+    107|     await act(async () => { release(); await Promise.all([saving, publ…
+    108|     expect(create).toHaveBeenCalledTimes(1);
+    109|     expect(update).toHaveBeenCalledWith({ id: port.post.id }, expect.o…
+       |                    ^
+    110|     expect(port.post.status).toBe("published");
+    111|     expect(result.current.post?.status).toBe("published");
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/features/posts/__tests__/use-post-editor.hooks.unit.test.tsx > new posts stay local until their first Save > Save clicked with newer text during creation saves the latest intent to the same post
+AssertionError: expected "updatePost" to be called 1 times, but got 0 times
+ ❯ src/features/posts/__tests__/use-post-editor.hooks.unit.test.tsx:134:20
+    132|     await act(async () => { release(); await Promise.all([first, secon…
+    133|     expect(create).toHaveBeenCalledTimes(1);
+    134|     expect(update).toHaveBeenCalledTimes(1);
+       |                    ^
+    135|     expect(port.post.title).toBe("Latest title");
+    136|     expect(result.current.dirty).toBe(false);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 92 passed (94)
+   Start at  21:41:01
+   Duration  16.55s (transform 7.50s, setup 343ms, import 9.25s, tests 6.16s, environment 628ms)
+

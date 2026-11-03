@@ -1,0 +1,10 @@
+FAIL(1)	apps/website/src/assistant/__tests__/external-mcp-federation-runtime.test.ts
+FAIL(1)	apps/website/src/features/external-mcp/__tests__/unit/operations-tools.unit.test.ts
+FAIL(1)	apps/website/src/server/__tests__/admin-external-mcp-admissions-routes.test.ts
+FAIL(1)	apps/website/src/server/inbound/assistant/__tests__/agent-daemon-remote-tools.integration.test.ts
+FAIL(1)	apps/website/src/server/runtime/composition/__tests__/tool-catalog-manifest.observability.unit.test.ts
+FAIL(1)	apps/website/src/server/runtime/composition/modules/__tests__/assistant-cold-start.unit.test.ts
+PASS	apps/website/src/server/runtime/composition/modules/__tests__/assistant-daemon-client.unit.test.ts
+FAIL(1)	apps/website/src/server/runtime/composition/modules/__tests__/assistant-server-federation.integration.test.ts
+FAIL(1)	apps/website/src/server/runtime/services/__tests__/external-mcp-admissions.observability.unit.test.ts
+FAIL(1)	apps/website/src/server/runtime/services/__tests__/external-mcp-operations.unit.test.ts

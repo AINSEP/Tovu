@@ -1,0 +1,102 @@
+✔ retainsSiteOnClose: only macOS with no quit under way keeps the site running (1.205849ms)
+✔ a first open spawns the server, creates its titled window on the site's partition, publishes it, then schedules previews (1.236007ms)
+✔ with no options the backend gets no pinned port (0.228491ms)
+✔ an open site's live window is shown and focused, never re-created or re-spawned (0.272069ms)
+✔ a retained server (macOS window closed) is reused with its own partition — no second spawn (0.347066ms)
+✔ an entry whose window was destroyed reuses the server and replaces the window (0.23834ms)
+✔ a window that cannot be created after a fresh spawn drops the row, stops the child, and rethrows (0.608611ms)
+✔ a window that cannot be created over a REUSED server leaves that server and its row alone (0.360636ms)
+✔ a failed rollback stop surfaces instead of the window error (0.465337ms)
+✔ a backend that fails to start opens nothing (0.460344ms)
+✔ macOS close (not quitting) releases only the window: the server, row and session stay (0.45613ms)
+✔ macOS close of a stale window leaves a replacement entry's window in place (0.24246ms)
+✔ macOS close with no entry left does nothing (0.111598ms)
+✔ win32 close during idle: unpublish, then logout → stop → row, tracked until done (0.550461ms)
+✔ linux close during idle: unpublish, then logout → stop → row, tracked until done (0.173265ms)
+✔ darwin close during draining: unpublish, then logout → stop → row, tracked until done (0.17671ms)
+✔ darwin close during drained: unpublish, then logout → stop → row, tracked until done (0.078396ms)
+✔ the crash-safety row outlives a pending stop (8.698607ms)
+✖ a failed window open remains recoverable and holds quit until its child stops (1.59166ms)
+✖ a failed window rollback keeps its recovery row when stopping fails (1.269187ms)
+✔ a failed logout never blocks the stop (0.389072ms)
+✔ a stop that cannot confirm exit is logged and keeps its recovery row (0.285222ms)
+✖ closing a stale window stops ITS server but never deletes the replacement entry (0.283653ms)
+✖ closing an old window cannot stop the server reused by its replacement window (0.251725ms)
+ℹ tests 24
+ℹ suites 0
+ℹ pass 20
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 146.757732
+
+✖ failing tests:
+
+test at src/main/windows/site-window.test.ts:242:1
+✖ a failed window open remains recoverable and holds quit until its child stops (1.59166ms)
+  AssertionError [ERR_ASSERTION]: keep the recovery row while stop is pending
+  
+  true !== false
+  
+      at TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/main/windows/site-window.test.ts:251:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at src/main/windows/site-window.test.ts:259:1
+✖ a failed window rollback keeps its recovery row when stopping fails (1.269187ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/main/windows/site-window.test.ts:265:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at src/main/windows/site-window.test.ts:287:1
+✖ closing a stale window stops ITS server but never deletes the replacement entry (0.283653ms)
+  AssertionError [ERR_ASSERTION]: the partition now belongs to the replacement window
+  
+  true !== false
+  
+      at TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/main/windows/site-window.test.ts:301:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at src/main/windows/site-window.test.ts:304:1
+✖ closing an old window cannot stop the server reused by its replacement window (0.251725ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/main/windows/site-window.test.ts:314:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

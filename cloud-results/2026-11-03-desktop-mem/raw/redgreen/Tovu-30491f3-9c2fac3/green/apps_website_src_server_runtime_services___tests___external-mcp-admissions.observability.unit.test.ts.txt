@@ -1,0 +1,14 @@
+external-mcp server admissions read failed
+✔ server admissions waits for admission without making a daemon HTTP request (4.03414ms)
+✔ server admissions unwired is unavailable, never an empty success (0.256665ms)
+✔ server admissions connecting is unavailable, never an empty success (0.180541ms)
+✔ server admissions failed is unavailable, never an empty success (0.914149ms)
+✔ server admissions preserves omission of optional configFailures (0.230491ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1303.897956

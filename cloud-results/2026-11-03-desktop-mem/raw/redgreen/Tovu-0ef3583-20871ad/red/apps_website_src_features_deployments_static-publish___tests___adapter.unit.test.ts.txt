@@ -1,0 +1,695 @@
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+✔ toDeployFile: preserves deploy-relative path and data, normalizing to forward slashes (6.513632ms)
+✔ toDeployFile: a literal null contentType (a fetched response with no Content-Type header) is omitted, same as undefined (0.598914ms)
+✖ publishStaticSite: an invalid config is rejected before credentials or the deploy target are ever touched (208.363016ms)
+✖ publishStaticSite: a missing token fails cleanly with NO_CREDENTIALS_CONFIGURED, before any export or publish attempt (190.261535ms)
+✖ publishStaticSite: github-pages gets the module's /<repo> base path, core adds no .nojekyll, and real exported files map to deploy-relative DeployFile[] (149.961546ms)
+✖ publishStaticSite: does NOT inject .nojekyll for vercel, and never sets a base path (140.659477ms)
+✖ publishStaticSite: every target gets the live security headers as data, and core adds no header file (145.292083ms)
+✖ publishStaticSite: an asset that fails to export blocks publishing, the same as a failed route (146.187117ms)
+✔ publishOutputDir: two different run ids for the SAME target produce two DIFFERENT, non-overlapping directories (0.961628ms)
+✖ publishStaticSite: two concurrent publishes to the SAME target both still succeed with correct file sets (156.921279ms)
+✖ publishStaticSite: does NOT inject .nojekyll for netlify or cloudflare-pages, and never sets a base path (170.749473ms)
+✖ publishStaticSite: passes the resolved credential's accountId through to buildTarget for cloudflare-pages (135.682106ms)
+✖ publishStaticSite: a resolved credential for vercel/github-pages/netlify never carries accountId through to buildTarget (143.906028ms)
+✖ publishStaticSite: forwards all six s3-compatible credential fields through to buildTarget, with token carrying secretAccessKey's role (137.135747ms)
+✖ publishStaticSite: an omitted endpoint is never forwarded to buildTarget as an explicit undefined key (121.657111ms)
+✖ publishStaticSite: a target's terminal status of 'ready' is a full ok:true success (146.960903ms)
+✖ publishStaticSite: a target's terminal status of 'link-delayed' is a genuine "partial" outcome — never ok:true, never ok:false (134.489325ms)
+✖ publishStaticSite: a target's terminal status of 'protected' is a genuine "partial" outcome — never ok:true, never ok:false (145.807791ms)
+✖ publishStaticSite: a target's terminal status of 'failed' is a genuine "partial" outcome — never ok:true, never ok:false (123.548251ms)
+✖ publishStaticSite: a credentialSource.resolve() that THROWS (a genuine decrypt failure, not merely 'not configured') is caught, not left to escape as an uncaught exception (129.111038ms)
+✖ publishStaticSite: a buildTarget that THROWS (credential missing a target-required field) is caught, not left to escape as an uncaught exception (126.621036ms)
+✔ publishStaticSite: rejects a blank projectName before credentials or export are touched (163.333544ms)
+✔ publishStaticSite: rejects a projectName over the 200-character limit (133.502128ms)
+✖ publishStaticSite: exportSiteBound itself throwing (not merely returning failed routes) is caught as EXPORT_FAILED, and the run directory is still cleaned up (124.697095ms)
+✖ publishStaticSite: a partial outcome with no statusMessage falls back to the default not-yet-reachable message (126.446946ms)
+✖ publishStaticSite: the input's credentialId reaches credentialSource.resolve() unchanged (119.789711ms)
+✖ publishStaticSite: with no credentialId on the input, resolve() is called with no credentialId key at all (the default-lookup path every other caller stays on) (128.923215ms)
+✖ readStaticPublishConfig drops unknown keys, validates types, and treats optional blanks according to input mode (9.347874ms)
+✖ concurrent publishes preserve each run's route and asset bytes and clean both output directories (5.003048ms)
+✖ publishStaticSite: a form receiver that cannot be prepared stops the publish; a prepared one saves its key at the published URL, and a failed save only warns (127.570855ms)
+✖ publishStaticSite: a connection changed after domain review is refused before export, and registry refusals are logged (127.72186ms)
+ℹ tests 31
+ℹ suites 0
+ℹ pass 5
+ℹ fail 26
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9822.577655
+
+✖ failing tests:
+
+test at apps/website/src/features/deployments/static-publish/__tests__/adapter.unit.test.ts:1:2938
+✖ publishStaticSite: an invalid config is rejected before credentials or the deploy target are ever touched (208.363016ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /invalid GitHub owner/. Input:
+  
+  "publish target 'github-pages' is not available: no publish targets are installed (turn on a hosting plugin under Agent Plugins)"
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/deployments/static-publish/__tests__/adapter.unit.test.ts:144:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: "publish target 'github-pages' is not available: no publish targets are installed (turn on a hosting plugin under Agent Plugins)",
+    expected: /invalid GitHub owner/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/deployments/static-publish/__tests__/adapter.unit.test.ts:1:3607
+✖ publishStaticSite: a missing token fails cleanly with NO_CREDENTIALS_CONFIGURED, before any export or publish attempt (190.261535ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'INVALID_CONFIG'
+  - 'NO_CREDENTIALS_CONFIGURED'
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/deployments/static-publish/__tests__/adapter.unit.test.ts:169:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'INVALID_CONFIG',
+    expected: 'NO_CREDENTIALS_CONFIGURED',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/deployments/static-publish/__tests__/adapter.unit.test.ts:1:4764
+✖ publishStaticSite: github-pages gets the module's /<repo> base path, core adds no .nojekyll, and real exported files map to deploy-relative DeployFile[] (149.961546ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  false !== true
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/deployments/static-publish/__tests__/adapter.unit.test.ts:197:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/deployments/static-publish/__tests__/adapter.unit.test.ts:1:6128
+✖ publishStaticSite: does NOT inject .nojekyll for vercel, and never sets a base path (140.659477ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  false !== true
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/deployments/static-publish/__tests__/adapter.unit.test.ts:234:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/deployments/static-publish/__tests__/adapter.unit.test.ts:1:7951
+✖ publishStaticSite: every target gets the live security headers as data, and core adds no header file (145.292083ms)
+  AssertionError [ERR_ASSERTION]: {"ok":false,"code":"INVALID_CONFIG","message":"publish target 'netlify' is not available: no publish targets are installed (turn on a hosting plugin under Agent Plugins)"}
+  
+  false !== true
+  
+      at publishInputFor (/home/user/wt-Tovu/apps/website/src/features/deployments/static-publish/__tests__/adapter.unit.test.ts:262:10)
+      at async TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/deployments/static-publish/__tests__/adapter.unit.test.ts:279:19)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/deployments/static-publish/__tests__/adapter.unit.test.ts:1:8738
+✖ publishStaticSite: an asset that fails to export blocks publishing, the same as a failed route (146.187117ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'INVALID_CONFIG'
+  - 'EXPORT_FAILED'
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/deployments/static-publish/__tests__/adapter.unit.test.ts:329:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'INVALID_CONFIG',
+    expected: 'EXPORT_FAILED',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/deployments/static-publish/__tests__/adapter.unit.test.ts:1:10822
+✖ publishStaticSite: two concurrent publishes to the SAME target both still succeed with correct file sets (156.921279ms)
+  AssertionError [ERR_ASSERTION]: run A must succeed: {"ok":false,"code":"INVALID_CONFIG","message":"publish target 'github-pages' is not available: no publish targets are installed (turn on a hosting plugin under Agent Plugins)"}
+  
+  false !== true
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/deployments/static-publish/__tests__/adapter.unit.test.ts:386:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/deployments/static-publish/__tests__/adapter.unit.test.ts:1:12684
+✖ publishStaticSite: does NOT inject .nojekyll for netlify or cloudflare-pages, and never sets a base path (170.749473ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  false !== true
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/deployments/static-publish/__tests__/adapter.unit.test.ts:417:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/deployments/static-publish/__tests__/adapter.unit.test.ts:1:13622
+✖ publishStaticSite: passes the resolved credential's accountId through to buildTarget for cloudflare-pages (135.682106ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  false !== true
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/deployments/static-publish/__tests__/adapter.unit.test.ts:445:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/deployments/static-publish/__tests__/adapter.unit.test.ts:1:14434
+✖ publishStaticSite: a resolved credential for vercel/github-pages/netlify never carries accountId through to buildTarget (143.906028ms)
+  AssertionError [ERR_ASSERTION]: buildTarget must have received a credential
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/deployments/static-publish/__tests__/adapter.unit.test.ts:470:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: null,
+    expected: null,
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/deployments/static-publish/__tests__/adapter.unit.test.ts:1:15273
+✖ publishStaticSite: forwards all six s3-compatible credential fields through to buildTarget, with token carrying secretAccessKey's role (137.135747ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  false !== true
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/deployments/static-publish/__tests__/adapter.unit.test.ts:505:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/deployments/static-publish/__tests__/adapter.unit.test.ts:1:16401
+✖ publishStaticSite: an omitted endpoint is never forwarded to buildTarget as an explicit undefined key (121.657111ms)
+  AssertionError [ERR_ASSERTION]: buildTarget must have received a credential
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/deployments/static-publish/__tests__/adapter.unit.test.ts:537:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: null,
+    expected: null,
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/deployments/static-publish/__tests__/adapter.unit.test.ts:1:17329
+✖ publishStaticSite: a target's terminal status of 'ready' is a full ok:true success (146.960903ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  false !== true
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/deployments/static-publish/__tests__/adapter.unit.test.ts:557:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/deployments/static-publish/__tests__/adapter.unit.test.ts:1:18134
+✖ publishStaticSite: a target's terminal status of 'link-delayed' is a genuine "partial" outcome — never ok:true, never ok:false (134.489325ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  false !== 'partial'
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/deployments/static-publish/__tests__/adapter.unit.test.ts:578:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: 'partial',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/deployments/static-publish/__tests__/adapter.unit.test.ts:1:18134
+✖ publishStaticSite: a target's terminal status of 'protected' is a genuine "partial" outcome — never ok:true, never ok:false (145.807791ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  false !== 'partial'
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/deployments/static-publish/__tests__/adapter.unit.test.ts:578:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: 'partial',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/deployments/static-publish/__tests__/adapter.unit.test.ts:1:18134
+✖ publishStaticSite: a target's terminal status of 'failed' is a genuine "partial" outcome — never ok:true, never ok:false (123.548251ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  false !== 'partial'
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/deployments/static-publish/__tests__/adapter.unit.test.ts:578:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: 'partial',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/deployments/static-publish/__tests__/adapter.unit.test.ts:1:19252
+✖ publishStaticSite: a credentialSource.resolve() that THROWS (a genuine decrypt failure, not merely 'not configured') is caught, not left to escape as an uncaught exception (129.111038ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'INVALID_CONFIG'
+  - 'NO_CREDENTIALS_CONFIGURED'
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/deployments/static-publish/__tests__/adapter.unit.test.ts:621:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'INVALID_CONFIG',
+    expected: 'NO_CREDENTIALS_CONFIGURED',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/deployments/static-publish/__tests__/adapter.unit.test.ts:1:20254
+✖ publishStaticSite: a buildTarget that THROWS (credential missing a target-required field) is caught, not left to escape as an uncaught exception (126.621036ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'INVALID_CONFIG'
+  - 'NO_CREDENTIALS_CONFIGURED'
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/deployments/static-publish/__tests__/adapter.unit.test.ts:640:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'INVALID_CONFIG',
+    expected: 'NO_CREDENTIALS_CONFIGURED',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/deployments/static-publish/__tests__/adapter.unit.test.ts:1:22615
+✖ publishStaticSite: exportSiteBound itself throwing (not merely returning failed routes) is caught as EXPORT_FAILED, and the run directory is still cleaned up (124.697095ms)
+  AssertionError [ERR_ASSERTION]: export must have been attempted
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/deployments/static-publish/__tests__/adapter.unit.test.ts:703:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/deployments/static-publish/__tests__/adapter.unit.test.ts:1:24063
+✖ publishStaticSite: a partial outcome with no statusMessage falls back to the default not-yet-reachable message (126.446946ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  false !== 'partial'
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/deployments/static-publish/__tests__/adapter.unit.test.ts:727:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: 'partial',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/deployments/static-publish/__tests__/adapter.unit.test.ts:1:25025
+✖ publishStaticSite: the input's credentialId reaches credentialSource.resolve() unchanged (119.789711ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + null
+  - {
+  -   credentialId: 'cred-chosen-by-the-operator',
+  -   target: 'github-pages',
+  -   workspaceId: 'workspace-local'
+  - }
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/deployments/static-publish/__tests__/adapter.unit.test.ts:767:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: null,
+    expected: { workspaceId: 'workspace-local', target: 'github-pages', credentialId: 'cred-chosen-by-the-operator' },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/deployments/static-publish/__tests__/adapter.unit.test.ts:1:25975
+✖ publishStaticSite: with no credentialId on the input, resolve() is called with no credentialId key at all (the default-lookup path every other caller stays on) (128.923215ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + null
+  - {
+  -   target: 'vercel',
+  -   workspaceId: 'workspace-local'
+  - }
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/deployments/static-publish/__tests__/adapter.unit.test.ts:796:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: null,
+    expected: { workspaceId: 'workspace-local', target: 'vercel' },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/deployments/static-publish/__tests__/adapter.unit.test.ts:1:26823
+✖ readStaticPublishConfig drops unknown keys, validates types, and treats optional blanks according to input mode (9.347874ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(target)
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/deployments/static-publish/__tests__/adapter.unit.test.ts:804:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/deployments/static-publish/__tests__/adapter.unit.test.ts:1:28270
+✖ concurrent publishes preserve each run's route and asset bytes and clean both output directories (5.003048ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+  +   false,
+  +   false
+  -   true,
+  -   true
+    ]
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/deployments/static-publish/__tests__/adapter.unit.test.ts:842:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ false, false ],
+    expected: [ true, true ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/deployments/static-publish/__tests__/adapter.unit.test.ts:1:30246
+✖ publishStaticSite: a form receiver that cannot be prepared stops the publish; a prepared one saves its key at the published URL, and a failed save only warns (127.570855ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+  +   code: 'INVALID_CONFIG',
+  +   message: "publish target 'github-pages' is not available: no publish targets are installed (turn on a hosting plugin under Agent Plugins)",
+  -   code: 'EXPORT_FAILED',
+  -   message: "form submissions could not be prepared: relay is offline. Check the site's forms, then publish again.",
+      ok: false
+    }
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/deployments/static-publish/__tests__/adapter.unit.test.ts:866:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { ok: false, code: 'INVALID_CONFIG', message: "publish target 'github-pages' is not available: no publish targets are installed (turn on a hosting plugin under Agent Plugins)" },
+    expected: { ok: false, code: 'EXPORT_FAILED', message: "form submissions could not be prepared: relay is offline. Check the site's forms, then publish again." },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/deployments/static-publish/__tests__/adapter.unit.test.ts:1:32441
+✖ publishStaticSite: a connection changed after domain review is refused before export, and registry refusals are logged (127.72186ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+      code: 'INVALID_CONFIG',
+  +   message: "publish target 'github-pages' is not available: no publish targets are installed (turn on a hosting plugin under Agent Plugins)",
+  -   message: 'CREDENTIAL_CHANGED: The connection changed after domain review. Preview and confirm again before publishing.',
+      ok: false
+    }
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/deployments/static-publish/__tests__/adapter.unit.test.ts:897:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { ok: false, code: 'INVALID_CONFIG', message: "publish target 'github-pages' is not available: no publish targets are installed (turn on a hosting plugin under Agent Plugins)" },
+    expected: { ok: false, code: 'INVALID_CONFIG', message: 'CREDENTIAL_CHANGED: The connection changed after domain review. Preview and confirm again before publishing.' },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

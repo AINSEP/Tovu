@@ -1,0 +1,25 @@
+file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-preview.test.ts:12
+  PREVIEW_LOAD_TIMEOUT_MS,
+  ^^^^^^^^^^^^^^^^^^^^^^^
+SyntaxError: The requested module './site-preview.ts' does not provide an export named 'PREVIEW_LOAD_TIMEOUT_MS'
+    at #asyncInstantiate (node:internal/modules/esm/module_job:455:21)
+    at async ModuleJob.run (node:internal/modules/esm/module_job:553:5)
+    at async node:internal/modules/esm/loader:647:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v24.22.2
+✖ src/main/boot/site-preview.test.ts (125.350984ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 134.948424
+
+✖ failing tests:
+
+test at src/main/boot/site-preview.test.ts:1:1
+✖ src/main/boot/site-preview.test.ts (125.350984ms)
+  'test failed'

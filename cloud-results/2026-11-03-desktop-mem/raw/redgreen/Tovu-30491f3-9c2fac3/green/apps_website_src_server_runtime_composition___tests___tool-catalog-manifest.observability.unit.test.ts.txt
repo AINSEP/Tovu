@@ -1,0 +1,11 @@
+✔ installFirstPartyToolContributors builds every guarded HTTP client with the observability port it was given (13.982371ms)
+✔ external_mcp_get_admissions calls the injected server admissions reader (4.777592ms)
+✔ an unwired admissions contributor refuses instead of querying or waking a daemon (3.992095ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5087.68999

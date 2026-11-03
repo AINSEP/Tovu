@@ -1,0 +1,19 @@
+✔ createCommentsModule uses the injected spamCheck, not a hardcoded HeuristicSpamCheck (2.686358ms)
+✔ BUG REGRESSION: a draft entry (never published) rejects a public comment as entry-closed (0.386303ms)
+✔ BUG REGRESSION: an unpublished (retracted) entry rejects a public comment as entry-closed, even though publishedAt is still set (0.317382ms)
+✔ a published entry with no closeAfterDays cap still accepts a public comment (positive control) (0.604425ms)
+✔ a published entry aged 6 days respects the seven-day closing window (0.539315ms)
+✔ a published entry aged 7 days respects the seven-day closing window (0.377917ms)
+✔ a published entry aged 7.000011574074074 days respects the seven-day closing window (0.284045ms)
+✔ a published entry aged 8 days respects the seven-day closing window (0.20663ms)
+✔ one composed module reads ledger changes live for both ingress and the entry closing window (5.618707ms)
+✔ the composed writeService forwards removal, restore, and transaction dependencies (1.289088ms)
+✔ comment submissions immediately honor a changed per-IP budget without resetting the hour (3.008134ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 444.647644

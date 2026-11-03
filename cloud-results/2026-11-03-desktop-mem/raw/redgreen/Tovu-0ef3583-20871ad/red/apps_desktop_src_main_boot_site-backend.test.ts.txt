@@ -1,0 +1,107 @@
+✔ a spawned site: boot token always emitted, toolchain env merged, then record, session, announce in order (2.671958ms)
+✔ an unpinned start passes port undefined and a missing toolchain env still yields the Desktop marker (0.401512ms)
+✔ the capture bridge closes when the spawned child exits, not before (0.385689ms)
+✔ an owner sign-in capability arms the partition's session before the session is ensured (0.470502ms)
+✔ a site another app already runs is attached: no spawn, no registry row, no session work (0.197226ms)
+✖ a site opened after losing the spawn race still appears in Open Recent (1.794299ms)
+✔ a failed spawn with no winner to attach closes the bridge and rethrows the spawn error (0.742259ms)
+✔ authenticate: a child with no boot token logs and never redeems (5.211422ms)
+✔ authenticate: redeems this site's token on its own partition and admin URL (0.470609ms)
+✔ authenticate: a refused redeem logs its reason and reports false (0.479703ms)
+✔ authenticate: a rejecting redeem (non-loopback wiring bug) is loud on error and reports false (0.283371ms)
+✔ a start whose session is still valid never redeems a boot token (0.457039ms)
+✔ announce: writes the launcher first, then registers with the site's own workspace and session (12.820169ms)
+✔ announce: a successful registration stays silent (0.762648ms)
+✖ desktop tools registration rejected asynchronously warns without failing the site open (1.301793ms)
+✔ announce: a failed launcher write is reported, never thrown, and nothing is registered (1.169303ms)
+✔ announce: any user-data override (even blank) skips before touching Electron or the filesystem (0.319836ms)
+✔ openSiteServer: a site already open returns its server without any start (0.273398ms)
+✔ openSiteServer: a new site is published to openSites, then its previews are scheduled (0.45818ms)
+✔ openSiteServer: a failed start publishes nothing and schedules no preview (0.373451ms)
+✖ spawn receives runtime capability without registration or launcher (1.486084ms)
+✔ attached server retains its spawning instance (0.306985ms)
+✖ listener failure leaves site hosting available without falling back to a launcher (0.949797ms)
+ℹ tests 23
+ℹ suites 0
+ℹ pass 19
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 190.087638
+
+✖ failing tests:
+
+test at src/main/boot/site-backend.test.ts:121:1
+✖ a site opened after losing the spawn race still appears in Open Recent (1.794299ms)
+  AssertionError [ERR_ASSERTION]: remember the open without claiming or authenticating a foreign child
+  + actual - expected
+  
+    [
+      'proxy',
+      'bridge',
+  -   'remember:/sites/a'
+    ]
+  
+      at TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend.test.ts:131:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ 'proxy', 'bridge' ],
+    expected: [ 'proxy', 'bridge', 'remember:/sites/a' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at src/main/boot/site-backend.test.ts:195:1
+✖ desktop tools registration rejected asynchronously warns without failing the site open (1.301793ms)
+  Error: connection reset
+      at Object.registerMcpServer (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend.test.ts:196:62)
+      at announceDesktopToolsToSite (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend.ts:174:18)
+      at adoptSpawnedServer (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend.ts:252:5)
+      at async Object.startSiteBackend (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend.ts:288:18)
+      at async TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend.test.ts:197:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at src/main/boot/site-backend.test.ts:247:1
+✖ spawn receives runtime capability without registration or launcher (1.486084ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + undefined
+  - {
+  -   TOVU_DESKTOP_MCP_TOKEN: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+  -   TOVU_DESKTOP_MCP_URL: 'http://127.0.0.1:4199/mcp'
+  - }
+  
+      at TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend.test.ts:254:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: { TOVU_DESKTOP_MCP_URL: 'http://127.0.0.1:4199/mcp', TOVU_DESKTOP_MCP_TOKEN: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at src/main/boot/site-backend.test.ts:269:1
+✖ listener failure leaves site hosting available without falling back to a launcher (0.949797ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /desktop tools.*retry/i. Input:
+  
+  'tovu-desktop: could not register the desktop MCP tools — listener failure must not spawn a bridge'
+  
+      at TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/site-backend.test.ts:275:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'tovu-desktop: could not register the desktop MCP tools — listener failure must not spawn a bridge',
+    expected: /desktop tools.*retry/i,
+    operator: 'match',
+    diff: 'simple'
+  }

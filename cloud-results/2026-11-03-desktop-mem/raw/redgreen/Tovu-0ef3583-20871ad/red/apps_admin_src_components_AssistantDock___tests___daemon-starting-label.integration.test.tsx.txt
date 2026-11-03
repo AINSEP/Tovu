@@ -1,0 +1,79 @@
+
+ RUN  v4.1.11 /home/user/wt-Tovu/apps/admin
+
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/types.js" points to missing source files
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/shared/protocol.js" points to missing source files
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/server/zod-compat.js" points to missing source files
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/experimental/tasks/interfaces.js" points to missing source files
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/server/zod-json-schema-compat.js" points to missing source files
+Sourcemap for "/home/user/Tovu/apps/admin/node_modules/untruncate-json/dist/cjs/index.js" points to missing source files
+ ❯ src/components/AssistantDock/__tests__/daemon-starting-label.integration.test.tsx (7 tests | 1 failed) 353ms
+     × clears on activation rejection and rejects the required page-bound send 49ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components/AssistantDock/__tests__/daemon-starting-label.integration.test.tsx > daemon activation sendingLabel at the dock's ChatPane boundary > clears on activation rejection and rejects the required page-bound send
+AssertionError: expected "vi.fn()" to not be called at all, but actually been called 1 times
+
+Received:
+
+  1st vi.fn() call:
+
+    Array [
+      Object {
+        "agentId": "claude",
+        "cancelSignal": AbortSignal {
+          Symbol(kEvents): Map {},
+          Symbol(events.maxEventTargetListeners): 0,
+          Symbol(events.maxEventTargetListenersWarned): false,
+          Symbol(kHandlers): undefined,
+          Symbol(kAborted): false,
+          Symbol(kReason): undefined,
+          Symbol(kComposite): false,
+        },
+        "context": Object {
+          "frontendBindToken": "current-bind",
+        },
+        "history": Array [
+          Object {
+            "content": "Hello",
+            "id": "user",
+            "role": "user",
+          },
+        ],
+        "signal": AbortSignal {
+          Symbol(kEvents): undefined,
+          Symbol(events.maxEventTargetListeners): 0,
+          Symbol(events.maxEventTargetListenersWarned): false,
+          Symbol(kHandlers): undefined,
+          Symbol(kAborted): false,
+          Symbol(kReason): undefined,
+          Symbol(kComposite): false,
+        },
+      },
+      Object {
+        "onDone": [Function onDone],
+        "onError": [Function onError],
+        "onEvent": [Function onEvent],
+      },
+    ]
+
+
+Number of calls: 1
+
+ ❯ src/components/AssistantDock/__tests__/daemon-starting-label.integration.test.tsx:162:31
+    160|     await advance();
+    161|     expect(dock.pane().sendingLabel).toBeUndefined();
+    162|     expect(dock.startRun).not.toHaveBeenCalled();
+       |                               ^
+    163|     await advance({ ms: 1_000 });
+    164|     expect(dock.pane().sendingLabel).toBeUndefined();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 6 passed (7)
+   Start at  21:40:13
+   Duration  15.30s (transform 11.18s, setup 398ms, import 13.76s, tests 353ms, environment 648ms)
+

@@ -1,0 +1,90 @@
+✖ desktop coverage policy can be parsed by the hardwiring gate (134.546762ms)
+✖ measured desktop main entry is no longer listed as unmeasured (5.373754ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 959.743416
+
+✖ failing tests:
+
+test at development/scripts/__tests__/desktop-coverage-source.test.ts:1:129
+✖ desktop coverage policy can be parsed by the hardwiring gate (134.546762ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + [
+  +   'Expression expected.',
+  +   'Expression expected.',
+  +   "';' expected.",
+  +   "';' expected.",
+  +   `Module declaration names may only use ' or " quoted strings.`,
+  +   `Module declaration names may only use ' or " quoted strings.`,
+  +   "';' expected.",
+  +   "';' expected.",
+  +   "';' expected.",
+  +   `Module declaration names may only use ' or " quoted strings.`,
+  +   "';' expected.",
+  +   `Module declaration names may only use ' or " quoted strings.`,
+  +   "';' expected.",
+  +   `Module declaration names may only use ' or " quoted strings.`,
+  +   'Unexpected keyword or identifier.',
+  +   'Invalid character.',
+  +   "';' expected.",
+  +   `Module declaration names may only use ' or " quoted strings.`,
+  +   'Unexpected keyword or identifier.',
+  +   'Invalid character.',
+  +   "';' expected.",
+  +   `Module declaration names may only use ' or " quoted strings.`,
+  +   'Unexpected keyword or identifier.',
+  +   "';' expected.",
+  +   "';' expected.",
+  +   "';' expected.",
+  +   "';' expected.",
+  +   "';' expected.",
+  +   "';' expected.",
+  +   'Declaration or statement expected.',
+  +   'Invalid character.',
+  +   'Invalid character.',
+  +   'Expression expected.',
+  +   `Module declaration names may only use ' or " quoted strings.`,
+  +   'Unterminated template literal.'
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/development/scripts/__tests__/desktop-coverage-source.test.ts:10:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'Expression expected.', 'Expression expected.', "';' expected.", "';' expected.", `Module declaration names may only use ' or " quoted strings.`, `Module declaration names may only use ' or " quoted strings.`, "';' expected.", "';' expected.", "';' expected.", `Module declaration names may only use ' or " quoted strings.`, "';' expected.", `Module declaration names may only use ' or " quoted strings.`, "';' expected.", `Module declaration names may only use ' or " quoted strings.`, 'Unexpected keyword or identifier.', 'Invalid character.', "';' expected.", `Module declaration names may only use ' or " quoted strings.`, 'Unexpected keyword or identifier.', 'Invalid character.', "';' expected.", `Module declaration names may only use ' or " quoted strings.`, 'Unexpected keyword or identifier.', "';' expected.", "';' expected.", "';' expected.", "';' expected.", "';' expected.", "';' expected.", 'Declaration or statement expected.', 'Invalid character.', 'Invalid character.', 'Expression expected.', `Module declaration names may only use ' or " quoted strings.`, 'Unterminated template literal.' ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at development/scripts/__tests__/desktop-coverage-source.test.ts:1:522
+✖ measured desktop main entry is no longer listed as unmeasured (5.373754ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(policy.areas.every(area => !area.knownUnmeasured.includes('src/main/index.ts')))
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/development/scripts/__tests__/desktop-coverage-source.test.ts:17:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

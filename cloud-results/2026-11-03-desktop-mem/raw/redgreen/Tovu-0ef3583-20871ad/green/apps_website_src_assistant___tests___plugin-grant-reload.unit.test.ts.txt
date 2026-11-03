@@ -1,0 +1,12 @@
+[test] mcp-federation: 'media' registered 0 federated tool(s): (none)
+[test] mcp-federation: 'media' refused remote tool 'list_media' — not-in-operator-allowlist
+[test] mcp-federation: 'media' registered 1 federated tool(s): mcp__media__list_media
+✔ granting tools to an already-on plugin refreshes search and admissions without a restart (6.185889ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 948.176149

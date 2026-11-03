@@ -1,0 +1,39 @@
+
+ RUN  v4.1.11 /home/user/wt-Tovu/apps/admin
+
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/types.js" points to missing source files
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/shared/protocol.js" points to missing source files
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/server/zod-compat.js" points to missing source files
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/experimental/tasks/interfaces.js" points to missing source files
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/server/zod-json-schema-compat.js" points to missing source files
+Sourcemap for "/home/user/Tovu/apps/admin/node_modules/untruncate-json/dist/cjs/index.js" points to missing source files
+ ❯ src/lib/__tests__/shared-stream-adapters.unit.test.ts (9 tests | 1 failed) 31ms
+     × invalidates its bind token when hidden idle, then attaches to the same bridge on visible 8ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lib/__tests__/shared-stream-adapters.unit.test.ts > page-bound bridge stream > invalidates its bind token when hidden idle, then attaches to the same bridge on visible
+AssertionError: expected [ Event{ isTrusted: false, …(1) } ] to have a length of +0 but got 1
+
+- Expected
++ Received
+
+- 0
++ 1
+
+ ❯ src/lib/__tests__/shared-stream-adapters.unit.test.ts:121:20
+    119|     expect(sources[0]!.closed).toBe(true);
+    120|     expect(bridge.bindToken()).toBeUndefined();
+    121|     expect(errors).toHaveLength(0);
+       |                    ^
+    122|     tab.show();
+    123|     sources[1]!.emit("message", '{"type":"attached","sessionId":"b","b…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 8 passed (9)
+   Start at  21:41:28
+   Duration  10.43s (transform 7.32s, setup 367ms, import 9.18s, tests 31ms, environment 667ms)
+

@@ -1,0 +1,32 @@
+✔ retainsSiteOnClose: only macOS with no quit under way keeps the site running (1.30387ms)
+✔ a first open spawns the server, creates its titled window on the site's partition, publishes it, then schedules previews (1.184898ms)
+✔ with no options the backend gets no pinned port (0.230573ms)
+✔ an open site's live window is shown and focused, never re-created or re-spawned (0.294195ms)
+✔ a retained server (macOS window closed) is reused with its own partition — no second spawn (0.288133ms)
+✔ an entry whose window was destroyed reuses the server and replaces the window (0.269588ms)
+✔ a window that cannot be created after a fresh spawn drops the row, stops the child, and rethrows (0.735058ms)
+✔ a window that cannot be created over a REUSED server leaves that server and its row alone (0.30665ms)
+✔ a failed rollback stop surfaces instead of the window error (0.359882ms)
+✔ a backend that fails to start opens nothing (0.502008ms)
+✔ macOS close (not quitting) releases only the window: the server, row and session stay (2.932917ms)
+✔ macOS close of a stale window leaves a replacement entry's window in place (0.270828ms)
+✔ macOS close with no entry left does nothing (0.113054ms)
+✔ win32 close during idle: unpublish, then logout → stop → row, tracked until done (0.448121ms)
+✔ linux close during idle: unpublish, then logout → stop → row, tracked until done (0.181466ms)
+✔ darwin close during draining: unpublish, then logout → stop → row, tracked until done (0.130383ms)
+✔ darwin close during drained: unpublish, then logout → stop → row, tracked until done (0.07434ms)
+✔ the crash-safety row outlives a pending stop (8.223463ms)
+✔ a failed window open remains recoverable and holds quit until its child stops (0.822238ms)
+✔ a failed window rollback keeps its recovery row when stopping fails (0.399017ms)
+✔ a failed logout never blocks the stop (0.260321ms)
+✔ a stop that cannot confirm exit is logged and keeps its recovery row (0.260698ms)
+✔ closing a stale window stops ITS server but never deletes the replacement entry (0.14828ms)
+✔ closing an old window cannot stop the server reused by its replacement window (0.086334ms)
+ℹ tests 24
+ℹ suites 0
+ℹ pass 24
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 147.860257

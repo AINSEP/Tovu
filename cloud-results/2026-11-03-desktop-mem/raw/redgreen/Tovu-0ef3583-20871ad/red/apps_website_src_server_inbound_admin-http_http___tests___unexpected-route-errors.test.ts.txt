@@ -1,0 +1,21 @@
+✔ /api/admin/v1/workspaces/ws/site-imports: unexpected exceptions are private, redacted and correlated (16.913668ms)
+✔ /api/admin/v1/recovery/restore/plan: unexpected exceptions are private, redacted and correlated (3.199886ms)
+✔ import expected refusals keep their diagnosis without reporting an incident (2.717464ms)
+✔ restore gateway Result errors have the same private diagnostic envelope as thrown exceptions (1.347598ms)
+✔ the recorded duplicate-skill-name refusal remains actionable while unexpected discovery errors stay private (18.973386ms)
+✔ a failing logger cannot suppress the private 500 or prevent the other diagnostic sink (0.921296ms)
+✔ a failing tracker cannot suppress the private 500 or prevent the other diagnostic sink (0.450948ms)
+✔ newsletter: the mapping fallback reports Error and non-Error exceptions without leaking details (1.100966ms)
+✔ widgets: the mapping fallback reports Error and non-Error exceptions without leaking details (0.91238ms)
+✔ publishing: the mapping fallback reports Error and non-Error exceptions without leaking details (0.736479ms)
+✔ peers: the mapping fallback reports Error and non-Error exceptions without leaking details (0.539109ms)
+✔ installation: the mapping fallback reports Error and non-Error exceptions without leaking details (0.520085ms)
+✔ class guard: admin route error mappings send unexpected 500s through the shared diagnostic handler (378.492816ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3511.581276

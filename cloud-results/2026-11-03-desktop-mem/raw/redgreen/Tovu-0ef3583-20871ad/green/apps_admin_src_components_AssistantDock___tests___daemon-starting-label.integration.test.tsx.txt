@@ -1,0 +1,44 @@
+
+ RUN  v4.1.11 /home/user/wt-Tovu/apps/admin
+
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/types.js" points to missing source files
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/shared/protocol.js" points to missing source files
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/server/zod-compat.js" points to missing source files
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/experimental/tasks/interfaces.js" points to missing source files
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/server/zod-json-schema-compat.js" points to missing source files
+Sourcemap for "/home/user/Tovu/apps/admin/node_modules/untruncate-json/dist/cjs/index.js" points to missing source files
+ ❯ src/components/AssistantDock/__tests__/daemon-starting-label.integration.test.tsx (7 tests | 1 failed) 337ms
+     × clears on activation rejection and rejects the required page-bound send 52ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components/AssistantDock/__tests__/daemon-starting-label.integration.test.tsx > daemon activation sendingLabel at the dock's ChatPane boundary > clears on activation rejection and rejects the required page-bound send
+AssertionError: expected { value: { runId: '' } } to deeply equal { error: ObjectContaining{…} }
+
+- Expected
++ Received
+
+  {
+-   "error": ObjectContaining {
+-     "message": "the assistant could not start",
++   "value": {
++     "runId": "",
+    },
+  }
+
+ ❯ src/components/AssistantDock/__tests__/daemon-starting-label.integration.test.tsx:165:30
+    163|     await advance({ ms: 1_000 });
+    164|     expect(dock.pane().sendingLabel).toBeUndefined();
+    165|     await expect(send.outcome).resolves.toEqual({ error: expect.object…
+       |                              ^
+    166|   });
+    167|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 6 passed (7)
+   Start at  21:47:30
+   Duration  15.61s (transform 11.41s, setup 492ms, import 13.98s, tests 337ms, environment 660ms)
+

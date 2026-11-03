@@ -1,0 +1,25 @@
+/home/user/wt-Tovu/development/scripts/__tests__/check-test-safety-diff.test.ts:8
+import { changedTestFiles, countUnsafeAsserts, findRegressions, parseNameStatus } from '../check-test-safety-diff.js';
+         ^
+SyntaxError: The requested module '../check-test-safety-diff.js' does not provide an export named 'changedTestFiles'
+    at #asyncInstantiate (node:internal/modules/esm/module_job:455:21)
+    at async ModuleJob.run (node:internal/modules/esm/module_job:553:5)
+    at async node:internal/modules/esm/loader:647:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v24.22.2
+✖ development/scripts/__tests__/check-test-safety-diff.test.ts (240.534571ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 249.743296
+
+✖ failing tests:
+
+test at development/scripts/__tests__/check-test-safety-diff.test.ts:1:1
+✖ development/scripts/__tests__/check-test-safety-diff.test.ts (240.534571ms)
+  'test failed'

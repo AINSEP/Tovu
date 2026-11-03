@@ -1,0 +1,22 @@
+✖ the hardwiring report contains no stale debt rows after ownership fixes land (5769.330599ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6616.436456
+
+✖ failing tests:
+
+test at development/scripts/__tests__/hardwiring-debt.test.mjs:9:1
+✖ the hardwiring report contains no stale debt rows after ownership fixes land (5769.330599ms)
+  Error: Cannot parse apps/desktop/src/coverage-floors.ts: syntax error at line 273.
+      at syntaxError (/home/user/Jini/packages/devops/src/checks/hardwiring.ts:31:10)
+      at parse (/home/user/Jini/packages/devops/src/checks/hardwiring.ts:59:21)
+      at Object.inspect (/home/user/Jini/packages/devops/src/checks/hardwiring.ts:290:18)
+      at collectHardwiring (/home/user/wt-Tovu/development/scripts/check-hardwiring.mjs:111:34)
+      at async TestContext.<anonymous> (file:///home/user/wt-Tovu/development/scripts/__tests__/hardwiring-debt.test.mjs:10:31)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)

@@ -1,0 +1,10 @@
+✔ theme_write_file refuses oversized content before asking to replace an existing file (9.554086ms)
+✔ theme_write_file refuses oversized destination before asking to replace an existing file (5.998752ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2163.692138

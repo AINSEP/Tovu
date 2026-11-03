@@ -1,0 +1,91 @@
+✔ a plugin without an overlay reads as no guidance and no host files, and delivery leaves the answer unchanged (22.51658ms)
+✔ guidance and sorted host files are read; names outside host/<lowercase>.md and non-files are not listed (22.872613ms)
+✔ a host file reads by name; traversal, absolute, unlisted and unknown-plugin requests return a note that never echoes the unsafe value (13.438933ms)
+✔ reads are bounded at 256 KiB: a host file over the cap is a note, at the cap it reads, and an oversized GUIDANCE.md throws (22.1171ms)
+✔ a GUIDANCE.md that is not a file is a broken overlay and throws rather than silently dropping host rules (8.793592ms)
+✔ the overlays directory honors TOVU_AGENT_PLUGIN_OVERLAYS_DIR, defaults to the product's content tree, and site-paths re-exports the same resolver (0.788618ms)
+✔ only file values starting with host/ are host requests (0.232166ms)
+✔ Bash leaves delivered frontmatter allowed-tools only; other tools, body text and fenced examples stay byte-identical (0.474268ms)
+✖ Markdown rules before another plugin do not hide its refused tool permissions (3.67136ms)
+✖ Markdown rules and fenced frontmatter examples leave body Bash lists unchanged (0.604443ms)
+✔ frontmatter with leading YAML comments or blank lines still removes refused tools (0.156051ms)
+✔ tool delivery: GUIDANCE goes before the plugin's text, a maturity notice stays first, and host names join the plugin's files (13.778065ms)
+✔ tool delivery of a host file answers with that file after the notice; a refused name keeps the default answer and adds a note (12.61199ms)
+✔ run-reference requests: the owner never sees a host file; pointer delivery with nothing selected adds no guidance (0.477737ms)
+✔ run-reference overlays keep pin order, frame a host file with its plugin, and refuse a missing host file like a missing plugin file (15.125796ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 13
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 409.4821
+
+✖ failing tests:
+
+test at apps/website/src/features/agent-plugins/__tests__/unit/host-plugin-guidance.unit.test.ts:25:302
+✖ Markdown rules before another plugin do not hide its refused tool permissions (3.67136ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  ... Skipped lines
+  
+    '# Host instructions\n' +
+      '\n' +
+      '---\n' +
+      '\n' +
+      'Use the supported tools.\n' +
+  ...
+      '  - "Read"\n' +
+  +   '  - "Bash"\n' +
+      '---\n' +
+      '\n' +
+      '# Next plugin\n' +
+      '<</AGENT_PLUGIN>>'
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/agent-plugins/__tests__/unit/host-plugin-guidance.unit.test.ts:146:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '# Host instructions\n\n---\n\nUse the supported tools.\n\n<<AGENT_PLUGIN pluginId="next-plugin">>\n---\nname: next-plugin\nallowed-tools:\n  - "Read"\n  - "Bash"\n---\n\n# Next plugin\n<</AGENT_PLUGIN>>',
+    expected: '# Host instructions\n\n---\n\nUse the supported tools.\n\n<<AGENT_PLUGIN pluginId="next-plugin">>\n---\nname: next-plugin\nallowed-tools:\n  - "Read"\n---\n\n# Next plugin\n<</AGENT_PLUGIN>>',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/agent-plugins/__tests__/unit/host-plugin-guidance.unit.test.ts:27:210
+✖ Markdown rules and fenced frontmatter examples leave body Bash lists unchanged (0.604443ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+    '# Instructions\n' +
+      '\n' +
+      '---\n' +
+      '\n' +
+      'allowed-tools:\n' +
+  -   '  - "Bash"\n' +
+      '\n' +
+      '```yaml\n' +
+      '\n' +
+      '---\n' +
+      'name: example\n' +
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/agent-plugins/__tests__/unit/host-plugin-guidance.unit.test.ts:152:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '# Instructions\n\n---\n\nallowed-tools:\n\n```yaml\n\n---\nname: example\nallowed-tools:\n  - "Bash"\n---\n```\n',
+    expected: '# Instructions\n\n---\n\nallowed-tools:\n  - "Bash"\n\n```yaml\n\n---\nname: example\nallowed-tools:\n  - "Bash"\n---\n```\n',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

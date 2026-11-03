@@ -1,0 +1,44 @@
+✖ a blank profile override uses the normal profile without disabling desktop tools (4.442224ms)
+✔ an E2E override wins, is trimmed and resolved, and the resolved path is exported for CLI children (0.503265ms)
+✔ a written toolchain yields its env contract (0.63616ms)
+✔ a disk-image launch turns the toolchain off with a move-to-Applications hint (0.55064ms)
+✔ a failed write degrades to no toolchain and never throws (0.614896ms)
+✔ boot mode: sites home by default; attach for a URL; own server for pinned site dirs (0.607736ms)
+✔ boot mode: an explicit runner UI beats both attach and pinned dirs (0.189401ms)
+✔ boot mode: attach wins over a pinned site dir; a blank URL is not attach (0.230199ms)
+✔ dev-fallback rows: migrate dismissals, then seed, then retire — all with the safe classifier (0.543253ms)
+✔ dev-fallback rows: a packaged app (no dev fallback) touches nothing (0.26696ms)
+✔ a new rescan aborts the previous rescan but not a running picker validation (0.450715ms)
+✔ a new picker validation aborts the previous validation but not a running rescan (0.244312ms)
+✔ before-quit aborts the live scan of both lanes; with none started it is a no-op (0.282302ms)
+✔ an empty legacy store loses exactly its four files under this launch's userData (0.320814ms)
+✔ a store holding keys gets the native import notice; check failures are logged as warnings (0.288383ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 14
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 180.919362
+
+✖ failing tests:
+
+test at src/main/boot/boot-steps.test.ts:27:1
+✖ a blank profile override uses the normal profile without disabling desktop tools (4.442224ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/boot-steps.test.ts:33:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

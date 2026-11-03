@@ -1,0 +1,13 @@
+✔ missing wrong and other-instance tokens dispatch zero tools (291.525753ms)
+✔ browser-origin request is refused before dispatch (24.533401ms)
+✔ mutating calls retain serialization (22.940456ms)
+✔ desktop tools work without keyring or stored row (42.041555ms)
+✔ queued desktop mutations cannot overtake an unfinished mutation (7.596714ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 862.461586

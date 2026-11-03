@@ -1,0 +1,40 @@
+✔ the skip gate maps Electron's launch facts onto Tovu's release policy (1.461959ms)
+✔ only an exact '1' disables the updater, and an absent windowsStore is not the Store (0.229572ms)
+✔ an eligible launch loads the native updater, binds a controller to it and starts it (1.1063ms)
+✔ a skipped launch logs the policy reason and never loads electron-updater (0.258305ms)
+✔ a persisted OFF choice skips lazy updater loading on launch (0.130572ms)
+✔ turning updates OFF while electron-updater is loading creates no controller (0.234056ms)
+✔ a quit drain that began during the load creates no controller (0.200559ms)
+✔ concurrent updater starts wait for one controller to be listening (5.464473ms)
+✔ Check for updates waits for an in-flight automatic startup before returning the updater (0.948453ms)
+✔ a failed load clears the starting flag, so a later start can retry (0.977333ms)
+✔ a background start logs a rejection instead of failing the boot (2.674288ms)
+✔ a non-Error rejection is still logged as text (0.873381ms)
+✔ the controller's download prompt records the ready version for Check for updates… (0.61774ms)
+✔ a ready version is not offered once the controller is gone (0.288592ms)
+✔ a restart starts the controller fresh: an old ready version is forgotten (0.265024ms)
+✔ turning automatic updates OFF persists first, stops the coordinator, and disables native installs/downloads (0.097098ms)
+✔ turning updates OFF before any native updater loaded only persists (0.06499ms)
+✔ a failed preference save does not shut down an enabled updater (0.249781ms)
+✔ a failed save of ON starts nothing (0.309787ms)
+✔ turning automatic updates back ON starts the eligible updater after saving (1.896196ms)
+✔ the final quit asks the controller and is held exactly when it says so (0.278884ms)
+✔ with no controller the final quit is never held (0.055542ms)
+✔ a persisted OFF choice suppresses installation of an already downloaded update on final quit (0.070689ms)
+✔ OFF at final quit with no native updater loaded is simply not held (0.110709ms)
+✔ will-quit removes this instance's presence record only when a controller runs (0.075447ms)
+✔ Check for updates… with updates ON starts the controller before handing back the native updater (0.058647ms)
+✔ Check for updates… with updates OFF only loads the native updater and remembers it (0.058323ms)
+✔ a later check keeps the native updater the controller already listens to (0.081181ms)
+✔ the ready prompt restarts through the controller only when Restart is chosen (0.130682ms)
+✔ a Restart choice with no controller running does nothing further (0.056823ms)
+✔ by default the real auto-update controller binds to the native updater's events (4.551859ms)
+✔ controller inputs are read when a controller is created, not when the updater is (0.273249ms)
+ℹ tests 32
+ℹ suites 0
+ℹ pass 32
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 160.547595

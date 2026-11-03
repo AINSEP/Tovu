@@ -1,0 +1,13 @@
+✔ availability and rescan read the API inventory, preserving models, capabilities and discoveryPending without a daemon (2.556687ms)
+✔ known-failed latch still fails /api/agents without waking or reading the inventory (0.545445ms)
+✔ a parked page stream ends on ready; the reconnect reaches the real bind-token response (4.325462ms)
+✔ first proxy request waits before forwarding and succeeds once ready (1.579861ms)
+✔ admissions reads the server while the daemon stays stopped (0.69002ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3840.758995

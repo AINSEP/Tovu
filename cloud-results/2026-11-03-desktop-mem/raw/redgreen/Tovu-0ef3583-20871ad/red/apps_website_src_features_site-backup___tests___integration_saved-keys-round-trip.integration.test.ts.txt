@@ -1,0 +1,81 @@
+✔ real saved keys off round trip (inSite) (4499.845438ms)
+✔ real saved keys correct round trip (inSite) (4735.151121ms)
+✔ real saved keys wrong round trip (inSite) (4782.424174ms)
+✔ real saved keys missing round trip (inSite) (4820.680479ms)
+✔ real saved keys off round trip (appData) (4309.282202ms)
+✔ real saved keys correct round trip (appData) (4546.768808ms)
+✔ real saved keys wrong round trip (appData) (4385.961214ms)
+✔ real saved keys missing round trip (appData) (4540.870832ms)
+✖ edited bundled plugin labels survive production export and quarantined import (3866.87559ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 8
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 43250.276698
+
+✖ failing tests:
+
+test at apps/website/src/features/site-backup/__tests__/integration/saved-keys-round-trip.integration.test.ts:1:11744
+✖ edited bundled plugin labels survive production export and quarantined import (3866.87559ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + undefined
+  - Buffer(42) [Uint8Array] [
+  -   123,
+  -   34,
+  -   65,
+  -   80,
+  -   73,
+  -   32,
+  -   116,
+  -   111,
+  -   107,
+  -   101,
+  -   110,
+  -   34,
+  -   58,
+  -   34,
+  -   84,
+  -   111,
+  -   107,
+  -   101,
+  -   110,
+  -   32,
+  -   100,
+  -   101,
+  -   32,
+  -   65,
+  -   80,
+  -   73,
+  -   34,
+  -   44,
+  -   34,
+  -   101,
+  -   100,
+  -   105,
+  -   116,
+  -   101,
+  -   100,
+  -   34,
+  -   58,
+  -   116,
+  -   114,
+  -   117,
+  -   101,
+  -   125
+  - ]
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/site-backup/__tests__/integration/saved-keys-round-trip.integration.test.ts:166:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: <Buffer 7b 22 41 50 49 20 74 6f 6b 65 6e 22 3a 22 54 6f 6b 65 6e 20 64 65 20 41 50 49 22 2c 22 65 64 69 74 65 64 22 3a 74 72 75 65 7d>,
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

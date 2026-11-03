@@ -1,0 +1,45 @@
+✔ useWebviewLoadFailure: ignores sub-frame and aborted failures, reports a real one, and a finished load clears both (21.153567ms)
+✔ useWebviewLoadFailure: a real failure cancels the pending stall guess so it can never fire later (2.976739ms)
+✔ useWebviewLoadFailure: a guest that answers clears an earlier failure and marks the admin loaded (3.596044ms)
+✔ useWebviewLoadFailure: unmounting clears a pending stall timer (2.43797ms)
+✔ useWebviewLoadFailure: a guest that mounts after the first render is listened to from the moment it mounts (2.6986ms)
+✔ useWebviewLoadFailure: a replacement guest takes over the listeners and the one stall timer from the old one (21.662628ms)
+✔ useWebviewLoadFailure: the failed guest unmounting keeps the failure, so the recovery panel cannot flicker away (2.130904ms)
+✔ useWebviewLoadFailure: only did-finish-load marks the admin loaded, and every new load starts unloaded again (2.527265ms)
+✖ a restarted site shows loading and gets a fresh stall judgment with the same navigation key (6.21505ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 8
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1463.493952
+
+✖ failing tests:
+
+test at src/renderer/use-webview-load-failure.hooks.render.test.ts:1:6968
+✖ a restarted site shows loading and gets a fresh stall judgment with the same navigation key (6.21505ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+  +   true,
+      false,
+  -   false
+    ]
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/desktop/src/renderer/use-webview-load-failure.hooks.render.test.ts:173:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ true, false ],
+    expected: [ false, false ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

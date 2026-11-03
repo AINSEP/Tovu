@@ -1,6 +1,6 @@
 # Cloud verify run — integ/desktop-mem-1103 (report-only)
 
-Run date 2026-11-03, started 20:58 UTC. **Minutes used: ~40.** Node v24.22.2 (from the nodejs.org tarball in `~/.local/node24`) and pnpm via corepack.
+Run date 2026-11-03, started 20:58 UTC. **Minutes used: ~52.** Node v24.22.2 (from the nodejs.org tarball in `~/.local/node24`) and pnpm via corepack.
 Tovu HEAD `3d0fa7d` (base `bfdbf1be7`); Jini HEAD `3763ffe` (base `09a36d561`). I edited no source or test files; this folder is the only thing committed.
 
 ## Summary
@@ -40,7 +40,7 @@ For each pair I checked out the `test:` commit in a git worktree (`node_modules`
 | Tovu | 30d2786 → 9063ea4 | – | NOT RUN | NOT RUN | ran out of time |
 | Tovu | 98457c9 → 7c7eb59 | – | NOT RUN | NOT RUN | ran out of time |
 | Tovu | 0ef3583 → 20871ad | – | NOT RUN | NOT RUN | ran out of time |
-| Tovu | 30491f3 → 9c2fac3 | – | NOT RUN | NOT RUN | ran out of time |
+| Tovu | 30491f3 → 9c2fac3 | 10 | PARTIAL (9/10) | NO (8/10 pass) | passed at test commit (not red): `assistant-daemon-client.unit.test.ts`; failed at fix commit: `external-mcp-federation-runtime.test.ts`, `assistant-server-federation.integration.test.ts` |
 | Tovu | 7def946 → 0cb1197 | 6 | YES | NO (3/6 pass) | failed at fix commit: `tool-catalog-query.test.ts`, `agent-daemon-remote-tools.integration.test.ts`, `assistant-tool-exec.integration.test.ts` |
 | Tovu | d7f2f6c → b389d72 | 18 | PARTIAL (17/18) | NO (13/18 pass) | passed at test commit (not red): `agent-daemon-server.session-binding-wiring.unit.test.ts`; failed at fix commit: `assistant-byok-routes.test.ts`, `agent-daemon-remote-tools.integration.test.ts`, `agent-daemon-server.federation-runtime-wiring.unit.test.ts`, `assistant-agent-plugin-preflight.integration.test.ts`, `assistant-server-federation.integration.test.ts` |
 | Tovu | 7d299e5 → d3cd357 | 32 | PARTIAL (25/28) | NO (17/28 pass) | passed at test commit (not red): `built-in-mcp-ownership.test.ts`, `design-c-package-themes-dir-wiring.integration.test.ts`, `create-site-route-deps.pglite.integration.test.ts`; failed at fix commit: `desktop-mcp-runtime.integration.test.ts`, `admin-external-mcp-admissions-routes.test.ts`, `agent-daemon-outbox-event-loss.integration.test.ts`, `design-c-package-themes-dir-wiring.integration.test.ts`, `agent-daemon-server.session-binding-wiring.unit.test.ts`, `plugin-activation-poll-boot.unit.test.ts`, `agent-daemon-core-deps.unit.test.ts`, `agent-daemon-deps.memory-route-deps.unit.test.ts`, `create-site-route-deps.pglite.integration.test.ts`, `agent-daemon-core-rpc.integration.test.ts`, `sqlite-shutdown.integration.test.ts` |
@@ -444,7 +444,6 @@ Per-file raw output: `raw/head-tovu/`, `raw/head-jini/` (path with `/`→`_`). R
 - red/green pair tovu 30d2786→9063ea4
 - red/green pair tovu 98457c9→7c7eb59
 - red/green pair tovu 0ef3583→20871ad
-- red/green pair tovu 30491f3→9c2fac3
 - red/green pair tovu b901bc8a0→bfdbf1be7
 - red/green pair tovu 8529b61a4→094813ae7
 - Full-repo suites were deliberately not run (out of scope per instructions). No subagents were used.

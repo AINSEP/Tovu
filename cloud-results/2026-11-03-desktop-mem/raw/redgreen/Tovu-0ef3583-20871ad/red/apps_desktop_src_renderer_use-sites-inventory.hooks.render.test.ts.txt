@@ -1,0 +1,55 @@
+✔ useSitesPolling: without a bridge it stops loading and never starts the interval (1055.711847ms)
+✔ useSitesPolling: loads, re-polls on each tick, reports a failed poll, and recovers on the next (41.9346ms)
+✔ useSitesPolling: a lookup that changes drops every result the previous one still had in flight (5.568831ms)
+✔ useSitesPolling: a poll that started before a local write is dropped, and the next poll applies (11.34473ms)
+✔ useSiteRescan: applies the returned list at once and shows scanning only while the call is open (2.645739ms)
+✔ useSiteRescan: a failed scan keeps the grid, reports Error and non-Error reasons, and clears on retry (2.811465ms)
+✔ useSiteRescan: without a bridge the button does nothing at all (2.231767ms)
+✔ useApplySiteRecord: replaces the matching row, merges a located site into one card, and drops unknown ids (2.34439ms)
+✔ useApplySiteRecord: keeps one stable callback per setter (1.80006ms)
+✖ a late Locate result cannot remove the existing destination card after the source card disappears (6.938648ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 9
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1516.065105
+
+✖ failing tests:
+
+test at src/renderer/use-sites-inventory.hooks.render.test.ts:1:7348
+✖ a late Locate result cannot remove the existing destination card after the source card disappears (6.938648ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+      {
+  -     displayName: 'destination',
+  -     folderMissing: false,
+  -     id: 'destination',
+  -     port: 0,
+  -     status: 'running'
+  -   },
+  -   {
+        displayName: 'kept',
+        folderMissing: false,
+        id: 'kept',
+        port: 0,
+        status: 'stopped'
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/desktop/src/renderer/use-sites-inventory.hooks.render.test.ts:186:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ { id: 'kept', displayName: 'kept', status: 'stopped', folderMissing: false, port: 0 } ],
+    expected: [ { id: 'destination', displayName: 'destination', status: 'running', folderMissing: false, port: 0 }, { id: 'kept', displayName: 'kept', status: 'stopped', folderMissing: false, port: 0 } ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

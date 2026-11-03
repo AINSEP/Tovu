@@ -1,0 +1,57 @@
+✔ TOVU_DESKTOP_SITE_DIRS wins outright: every dir resolves under the fail policy, in order, port left unpinned (4.71769ms)
+✔ the plural arm fails as a whole when any one named dir is refused (0.837957ms)
+✔ otherwise one site via the precedence chain, with the env dir, dev fallback, picker and fail policy (0.405205ms)
+✔ a pinned TOVU_DESKTOP_PORT is trimmed onto ctx.firstSitePort; a blank one pins nothing (0.320332ms)
+✔ a packaged app (no dev fallback) passes null through to the chain (0.443936ms)
+✔ a picker cancellation surfaces unchanged for the boot-failure reporter (0.530928ms)
+✔ orphan reconciliation is silent when nothing was reaped and names every reaped site otherwise (0.615188ms)
+✔ a Dock click reopens only with no window left and no quit draining (0.263295ms)
+✔ own-server boot: menu, resolve, open each site serialized in order (only the first pinned), menu, then activate (1.067659ms)
+✔ own-server boot opens sites one after another, never concurrently (8.894243ms)
+✔ a self-test seeds its tracker with the FULL site count before the first window opens (0.705538ms)
+✔ a sites-config warning is logged with its local-home hint before anything opens (0.410361ms)
+✔ a failed startup open stops the boot before the second site and the activate handler (0.437105ms)
+✔ Dock activation restores every retained site window, even if recent-site entries were cleared (1.984139ms)
+✔ Dock activation with nothing open asks for a site (0.337582ms)
+✔ Dock activation does nothing while a window remains or a quit drains (0.327086ms)
+✖ a failed Dock restore reports an open error and keeps the other retained sites available (1.677425ms)
+✖ Dock restore failures use the recoverable open reporter for each failed site (2.306794ms)
+✔ the activate handler bootOwnServerMode registers is the restore handler (0.840505ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 17
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 190.67128
+
+✖ failing tests:
+
+test at src/main/boot/own-server-boot.test.ts:180:1
+✖ a failed Dock restore reports an open error and keeps the other retained sites available (1.677425ms)
+  Error: restore failed
+      at Object.openSiteWindow (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/own-server-boot.test.ts:181:95)
+      at file:///home/user/wt-Tovu/apps/desktop/src/main/boot/own-server-boot.ts:165:66
+      at Object.runSerialized (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/own-server-boot.test.ts:107:82)
+      at file:///home/user/wt-Tovu/apps/desktop/src/main/boot/own-server-boot.ts:165:31
+      at TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/own-server-boot.test.ts:182:62)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+
+test at src/main/boot/own-server-boot.test.ts:187:1
+✖ Dock restore failures use the recoverable open reporter for each failed site (2.306794ms)
+  Error: cannot reopen /a
+      at Object.openSiteWindow (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/own-server-boot.test.ts:191:52)
+      at file:///home/user/wt-Tovu/apps/desktop/src/main/boot/own-server-boot.ts:165:66
+      at Object.runSerialized (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/own-server-boot.test.ts:107:82)
+      at file:///home/user/wt-Tovu/apps/desktop/src/main/boot/own-server-boot.ts:165:31
+      at TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/main/boot/own-server-boot.test.ts:194:62)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)

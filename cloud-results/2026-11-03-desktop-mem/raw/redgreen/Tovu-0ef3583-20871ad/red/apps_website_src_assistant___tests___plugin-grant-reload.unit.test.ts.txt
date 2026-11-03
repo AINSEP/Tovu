@@ -1,0 +1,30 @@
+[test] mcp-federation: 'media' registered 0 federated tool(s): (none)
+[test] mcp-federation: 'media' refused remote tool 'list_media' — not-in-operator-allowlist
+✖ granting tools to an already-on plugin refreshes search and admissions without a restart (9.74655ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 493.410072
+
+✖ failing tests:
+
+test at apps/website/src/assistant/__tests__/plugin-grant-reload.unit.test.ts:1:434
+✖ granting tools to an already-on plugin refreshes search and admissions without a restart (9.74655ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(registry.has({ toolId: 'mcp__media__list_media' }))
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/assistant/__tests__/plugin-grant-reload.unit.test.ts:22:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

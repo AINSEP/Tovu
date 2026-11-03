@@ -1,0 +1,80 @@
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+✔ a single call without items reaches the original handler untouched (4.924555ms)
+✔ a batch runs every item in order with defaults < shared fields < the item's own fields (1.958665ms)
+✔ a failing item does not stop the rest, and its error drops the appended schema (1.517407ms)
+✔ malformed items are refused with the exact message before any item runs (2.588483ms)
+✔ a cancelled call stops before the next item (1.221718ms)
+✔ the published descriptor adds items and moves the top-level required list into its description (0.438605ms)
+✔ a tool that already takes an 'items' field is refused at composition time (0.243328ms)
+✔ applyBatchInputs wraps only the listed tools and returns every other registration as the same object (0.412927ms)
+✔ a pure read with only optional selectors batches by default; native items stay unshadowed (2.087675ms)
+✖ guard: every production pure read batches; other tools retain explicit write opt-outs (249.79371ms)
+✔ the real composition: every default batchable tool publishes items with its cap (167.149277ms)
+✔ a theme batch validates every destination before writing, then reads the completed files (21.763804ms)
+✔ approval runs per item, inside the batch: an item whose class asks is refused alone, the rest still run (130.82642ms)
+✔ web fetch batches refuse screenshots from shared or item fields before rendering and continue other items (3.518447ms)
+✖ local theme asset batches inherit root/theme, allow item overrides and continue after a refusal (65.094944ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 13
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6657.648449
+
+✖ failing tests:
+
+test at apps/website/src/assistant/__tests__/batch-tool-inputs.test.ts:1:8651
+✖ guard: every production pure read batches; other tools retain explicit write opt-outs (249.79371ms)
+  AssertionError [ERR_ASSERTION]: a tool that asks per call would ask once per item: opt it out
+  + actual - expected
+  
+  + [
+  +   'theme_reset_file'
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/assistant/__tests__/batch-tool-inputs.test.ts:193:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ 'theme_reset_file' ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/assistant/__tests__/batch-tool-inputs.test.ts:1:16992
+✖ local theme asset batches inherit root/theme, allow item overrides and continue after a refusal (65.094944ms)
+  Error [ToolInputError]: path '.env' matches a denied filename pattern and cannot be accessed. Ask the owner to pick that folder with the chat composer folder button (or drop the folder onto the composer), then call fs_list_files with root:"custom" and media_import_local_file with root:"custom" and the file path relative to that folder. Alternatively, ask the owner to attach the file to this chat, then use media_promote_chat_attachment.. Fix the input and retry — this will not resolve on retry without an input change. Schema for 'theme_import_local_file': {"type":"object","additionalProperties":false,"required":["themeId","path","root","sourcePath"],"properties":{"themeId":{"type":"string","minLength":1,"description":"Target theme id from theme_list."},"path":{"type":"string","minLength":1,"description":"Destination relative to the theme folder, e.g. assets/fonts/display.woff2."},"root":{"type":"string","enum":["repo","site","custom"],"description":"Existing fs-files root: repo, site, or the owner's configured custom folder."},"sourcePath":{"type":"string","minLength":1,"description":"Source file relative to root, as found with fs_list_files. Secrets and escapes are refused. If custom is unset, ask the owner to choose the folder in the chat composer."}}}
+      at invokeRegisteredTool (/home/user/wt-Tovu/apps/website/src/assistant/__tests__/fixtures/execute-registered-tool.ts:22:48)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/assistant/__tests__/batch-tool-inputs.test.ts:322:17)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)

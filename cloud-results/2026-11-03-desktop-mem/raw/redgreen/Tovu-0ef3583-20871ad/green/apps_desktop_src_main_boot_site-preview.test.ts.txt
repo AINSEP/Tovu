@@ -1,0 +1,24 @@
+✔ a capture loads the site's OWN public root in a hidden window on the site's partition (2.613359ms)
+✔ an https lease loads through localhost, the name its certificate carries (0.298215ms)
+✔ an explicit http scheme still loads the loopback IP (0.231474ms)
+✔ the stored bytes are the resized capture, keyed by siteDir, and the window is destroyed (0.405023ms)
+✔ every failure stage is caught, logged once, reports false, stores nothing and destroys the window (0.779155ms)
+✔ a window that cannot even be created is reported and nothing is destroyed (0.227141ms)
+✔ P1: a store that declines (null) reports an unsuccessful capture so it can be retried (0.277465ms)
+✔ a window destroyed while settling is not captured and not destroyed twice (0.270398ms)
+✔ a site preview that never finishes loading releases its hidden window at the deadline (1.041346ms)
+✔ the target is this launch's own server first, without consulting any lease (0.469889ms)
+✔ a site another app runs is captured through its lease's port and scheme (1.862906ms)
+✔ no own server and no lease, or a lease still starting (port 0), means nothing to capture (0.16435ms)
+✔ the list poll asks once per site and port; a new port earns a fresh attempt (0.317558ms)
+✔ two request functions keep separate memories (0.177264ms)
+✔ the boot sweep hands every tracked site dir to the store's sweep (0.225779ms)
+✔ a failing read or sweep is reported, never thrown — hygiene must not fail a launch (0.412896ms)
+ℹ tests 16
+ℹ suites 0
+ℹ pass 16
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 180.596353

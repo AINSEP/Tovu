@@ -1,0 +1,205 @@
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+▶ a member cannot execute or discover tools as another run's owner
+  ✖ refuses member-run for owner (86.29629ms)
+  ✖ refuses missing-run for owner (7.201635ms)
+  ✖ refuses ended-run for member (4.443921ms)
+  ✖ refuses cancelled-run for member (3.523735ms)
+  ✖ refuses foreign-run for member (3.462909ms)
+  ✖ refuses superseded-run for member (3.122106ms)
+  ✖ refuses absent run for member (4.466785ms)
+✖ a member cannot execute or discover tools as another run's owner (411.373637ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 0
+ℹ fail 8
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5780.376077
+
+✖ failing tests:
+
+test at apps/website/src/server/runtime/composition/modules/__tests__/assistant-tool-exec-principal.integration.test.ts:1:3239
+✖ refuses member-run for owner (86.29629ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  200 !== 403
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/modules/__tests__/assistant-tool-exec-principal.integration.test.ts:52:14)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/modules/__tests__/assistant-tool-exec-principal.integration.test.ts:51:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 200,
+    expected: 403,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/runtime/composition/modules/__tests__/assistant-tool-exec-principal.integration.test.ts:1:3239
+✖ refuses missing-run for owner (7.201635ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  200 !== 403
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/modules/__tests__/assistant-tool-exec-principal.integration.test.ts:52:14)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/modules/__tests__/assistant-tool-exec-principal.integration.test.ts:51:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 200,
+    expected: 403,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/runtime/composition/modules/__tests__/assistant-tool-exec-principal.integration.test.ts:1:3239
+✖ refuses ended-run for member (4.443921ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  200 !== 403
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/modules/__tests__/assistant-tool-exec-principal.integration.test.ts:52:14)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/modules/__tests__/assistant-tool-exec-principal.integration.test.ts:51:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 200,
+    expected: 403,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/runtime/composition/modules/__tests__/assistant-tool-exec-principal.integration.test.ts:1:3239
+✖ refuses cancelled-run for member (3.523735ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  200 !== 403
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/modules/__tests__/assistant-tool-exec-principal.integration.test.ts:52:14)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/modules/__tests__/assistant-tool-exec-principal.integration.test.ts:51:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 200,
+    expected: 403,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/runtime/composition/modules/__tests__/assistant-tool-exec-principal.integration.test.ts:1:3239
+✖ refuses foreign-run for member (3.462909ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  200 !== 403
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/modules/__tests__/assistant-tool-exec-principal.integration.test.ts:52:14)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/modules/__tests__/assistant-tool-exec-principal.integration.test.ts:51:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 200,
+    expected: 403,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/runtime/composition/modules/__tests__/assistant-tool-exec-principal.integration.test.ts:1:3239
+✖ refuses superseded-run for member (3.122106ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  200 !== 403
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/modules/__tests__/assistant-tool-exec-principal.integration.test.ts:52:14)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/modules/__tests__/assistant-tool-exec-principal.integration.test.ts:51:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 200,
+    expected: 403,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/runtime/composition/modules/__tests__/assistant-tool-exec-principal.integration.test.ts:1:3239
+✖ refuses absent run for member (4.466785ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  400 !== 403
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/modules/__tests__/assistant-tool-exec-principal.integration.test.ts:52:14)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/modules/__tests__/assistant-tool-exec-principal.integration.test.ts:51:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 400,
+    expected: 403,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/runtime/composition/modules/__tests__/assistant-tool-exec-principal.integration.test.ts:1:530
+✖ a member cannot execute or discover tools as another run's owner (411.373637ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + [
+  +   {
+  +     id: 'owner'
+  +   },
+  +   {
+  +     id: 'owner'
+  +   },
+  +   {
+  +     id: 'member'
+  +   },
+  +   {
+  +     id: 'member'
+  +   },
+  +   {
+  +     id: 'member'
+  +   },
+  +   {
+  +     id: 'member'
+  +   }
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/server/runtime/composition/modules/__tests__/assistant-tool-exec-principal.integration.test.ts:56:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ { id: 'owner' }, { id: 'owner' }, { id: 'member' }, { id: 'member' }, { id: 'member' }, { id: 'member' } ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

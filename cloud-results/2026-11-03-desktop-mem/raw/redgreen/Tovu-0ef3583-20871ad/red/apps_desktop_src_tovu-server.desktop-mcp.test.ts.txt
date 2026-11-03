@@ -1,0 +1,56 @@
+✖ only the spawning main can supply a desktop capability to a site server (2.439217ms)
+✖ unrelated desktop CLI children never inherit the desktop capability (0.521346ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 394.016952
+
+✖ failing tests:
+
+test at src/tovu-server.desktop-mcp.test.ts:7:1
+✖ only the spawning main can supply a desktop capability to a site server (2.439217ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'http://127.0.0.1:4111/mcp'
+  - undefined
+  
+      at TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/tovu-server.desktop-mcp.test.ts:9:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'http://127.0.0.1:4111/mcp',
+    expected: undefined,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at src/tovu-server.desktop-mcp.test.ts:16:1
+✖ unrelated desktop CLI children never inherit the desktop capability (0.521346ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'http://127.0.0.1:4111/mcp'
+  - undefined
+  
+      at TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/tovu-server.desktop-mcp.test.ts:18:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'http://127.0.0.1:4111/mcp',
+    expected: undefined,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

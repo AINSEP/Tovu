@@ -1,0 +1,69 @@
+✖ npm test readers see selected package plugins before importing any test fixture (3.047158ms)
+✖ a test child keeps an explicitly supplied bundled plugin root (122.370498ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 353.408315
+
+✖ failing tests:
+
+test at development/scripts/__tests__/test-bundle-bootstrap.test.ts:1:144
+✖ npm test readers see selected package plugins before importing any test fixture (3.047158ms)
+  AssertionError [ERR_ASSERTION]: test
+      at TestContext.<anonymous> (/home/user/wt-Tovu/development/scripts/__tests__/test-bundle-bootstrap.test.ts:9:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node --import tsx --test --experimental-test-module-mocks ${TEST_CONCURRENCY:+--test-concurrency=$TEST_CONCURRENCY} "apps/website/src/**/*.test.ts" "content/agent-plugins/**/__tests__/*.test.mjs" "content/agent-plugin-overlays/**/__tests__/*.test.mjs" "packages/*/src/**/*.test.ts" "apps/site-chat/src/**/*.test.ts" "development/scripts/**/*.test.ts" "development/scripts/__tests__/build-server-portable.test.mjs" "development/eslint-rules/**/*.test.ts"',
+    expected: /--import \.\/development\/test-support\/composed-bundle-env\.ts/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at development/scripts/__tests__/test-bundle-bootstrap.test.ts:10:73
+✖ a test child keeps an explicitly supplied bundled plugin root (122.370498ms)
+  AssertionError [ERR_ASSERTION]: node:internal/modules/esm/resolve:272
+      throw new ERR_MODULE_NOT_FOUND(
+            ^
+  
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/user/wt-Tovu/development/test-support/composed-bundle-env.ts' imported from /home/user/wt-Tovu/
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+      at nextStep (node:internal/modules/customization_hooks:189:26)
+      at resolveBaseSync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:9115)
+      at resolveDirectorySync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:10328)
+      at resolveTsPathsSync (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:11560)
+      at resolve (file:///home/user/Tovu/node_modules/tsx/dist/register-D5KIhaFJ.mjs:2:13343) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///home/user/wt-Tovu/development/test-support/composed-bundle-env.ts'
+  }
+  
+  Node.js v24.22.2
+  
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/development/scripts/__tests__/test-bundle-bootstrap.test.ts:31:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

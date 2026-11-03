@@ -1,0 +1,47 @@
+✔ opening a site after its previous app died recovers an invalid lease without asking for repair (22.933008ms)
+✖ an invalid live address never instructs the user to repair a lease (2.320232ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 1
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 179.077073
+
+✖ failing tests:
+
+test at src/shared-sites-stale-lease.test.ts:26:1
+✖ an invalid live address never instructs the user to repair a lease (2.320232ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    Comparison {
+  +   message: 'Invalid running site address. Stop the owning app and repair its lease before attaching.'
+  -   message: 'Invalid running site address. Waiting for the owning app to publish a valid address.'
+    }
+  
+      at TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/shared-sites-stale-lease.test.ts:28:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: Error: Invalid running site address. Stop the owning app and repair its lease before attaching.
+        at attachRunningSite (file:///home/user/wt-Tovu/apps/desktop/src/shared-sites.ts:186:137)
+        at assert.throws.message (file:///home/user/wt-Tovu/apps/desktop/src/shared-sites-stale-lease.test.ts:28:23)
+        at getActual (node:assert:611:5)
+        at strict.throws (node:assert:759:24)
+        at TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/shared-sites-stale-lease.test.ts:28:10)
+        at Test.runInAsyncScope (node:async_hooks:227:14)
+        at Test.run (node:internal/test_runner/test:1402:25)
+        at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+        at Test.postRun (node:internal/test_runner/test:1542:19)
+        at Test.run (node:internal/test_runner/test:1467:12),
+    expected: { message: 'Invalid running site address. Waiting for the owning app to publish a valid address.' },
+    operator: 'throws',
+    diff: 'simple'
+  }

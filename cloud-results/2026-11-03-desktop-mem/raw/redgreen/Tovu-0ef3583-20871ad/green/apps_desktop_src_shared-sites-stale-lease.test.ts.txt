@@ -1,0 +1,10 @@
+✔ opening a site after its previous app died recovers an invalid lease without asking for repair (17.562516ms)
+✔ an invalid live address never instructs the user to repair a lease (0.83951ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 178.686017

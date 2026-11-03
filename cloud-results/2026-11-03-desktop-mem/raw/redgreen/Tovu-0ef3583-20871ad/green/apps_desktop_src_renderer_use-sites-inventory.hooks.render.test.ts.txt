@@ -1,0 +1,18 @@
+✔ useSitesPolling: without a bridge it stops loading and never starts the interval (979.41473ms)
+✔ useSitesPolling: loads, re-polls on each tick, reports a failed poll, and recovers on the next (27.908695ms)
+✔ useSitesPolling: a lookup that changes drops every result the previous one still had in flight (4.981684ms)
+✔ useSitesPolling: a poll that started before a local write is dropped, and the next poll applies (4.901542ms)
+✔ useSiteRescan: applies the returned list at once and shows scanning only while the call is open (4.130066ms)
+✔ useSiteRescan: a failed scan keeps the grid, reports Error and non-Error reasons, and clears on retry (11.804997ms)
+✔ useSiteRescan: without a bridge the button does nothing at all (2.695694ms)
+✔ useApplySiteRecord: replaces the matching row, merges a located site into one card, and drops unknown ids (3.032947ms)
+✔ useApplySiteRecord: keeps one stable callback per setter (4.002546ms)
+✔ a late Locate result cannot remove the existing destination card after the source card disappears (1.626367ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1297.655745

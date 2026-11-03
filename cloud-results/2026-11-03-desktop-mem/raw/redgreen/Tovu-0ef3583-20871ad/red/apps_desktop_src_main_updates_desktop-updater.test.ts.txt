@@ -1,0 +1,71 @@
+✔ the skip gate maps Electron's launch facts onto Tovu's release policy (1.371257ms)
+✔ only an exact '1' disables the updater, and an absent windowsStore is not the Store (0.355839ms)
+✔ an eligible launch loads the native updater, binds a controller to it and starts it (1.43081ms)
+✔ a skipped launch logs the policy reason and never loads electron-updater (0.324287ms)
+✔ a persisted OFF choice skips lazy updater loading on launch (0.190767ms)
+✔ turning updates OFF while electron-updater is loading creates no controller (0.212953ms)
+✔ a quit drain that began during the load creates no controller (0.176433ms)
+✖ concurrent updater starts wait for one controller to be listening (9.011299ms)
+✖ Check for updates waits for an in-flight automatic startup before returning the updater (2.656021ms)
+✔ a failed load clears the starting flag, so a later start can retry (1.437737ms)
+✔ a background start logs a rejection instead of failing the boot (3.361401ms)
+✔ a non-Error rejection is still logged as text (0.754891ms)
+✔ the controller's download prompt records the ready version for Check for updates… (0.727425ms)
+✔ a ready version is not offered once the controller is gone (0.25988ms)
+✔ a restart starts the controller fresh: an old ready version is forgotten (0.251742ms)
+✔ turning automatic updates OFF persists first, stops the coordinator, and disables native installs/downloads (0.185204ms)
+✔ turning updates OFF before any native updater loaded only persists (0.075348ms)
+✔ a failed preference save does not shut down an enabled updater (0.190737ms)
+✔ a failed save of ON starts nothing (0.179075ms)
+✔ turning automatic updates back ON starts the eligible updater after saving (1.613231ms)
+✔ the final quit asks the controller and is held exactly when it says so (0.36751ms)
+✔ with no controller the final quit is never held (0.075288ms)
+✔ a persisted OFF choice suppresses installation of an already downloaded update on final quit (0.100379ms)
+✔ OFF at final quit with no native updater loaded is simply not held (0.09608ms)
+✔ will-quit removes this instance's presence record only when a controller runs (0.094917ms)
+✔ Check for updates… with updates ON starts the controller before handing back the native updater (0.054757ms)
+✔ Check for updates… with updates OFF only loads the native updater and remembers it (0.049045ms)
+✔ a later check keeps the native updater the controller already listens to (0.077857ms)
+✔ the ready prompt restarts through the controller only when Restart is chosen (0.138502ms)
+✔ a Restart choice with no controller running does nothing further (0.045256ms)
+✔ by default the real auto-update controller binds to the native updater's events (11.908424ms)
+✔ controller inputs are read when a controller is created, not when the updater is (0.405538ms)
+ℹ tests 32
+ℹ suites 0
+ℹ pass 30
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 208.136546
+
+✖ failing tests:
+
+test at src/main/updates/desktop-updater.test.ts:149:1
+✖ concurrent updater starts wait for one controller to be listening (9.011299ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (file:///home/user/wt-Tovu/apps/desktop/src/main/updates/desktop-updater.test.ts:156:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at src/main/updates/desktop-updater.test.ts:163:1
+✖ Check for updates waits for an in-flight automatic startup before returning the updater (2.656021ms)
+  AssertionError [ERR_ASSERTION]: Expected "actual" to be strictly unequal to: null
+      at file:///home/user/wt-Tovu/apps/desktop/src/main/updates/desktop-updater.test.ts:171:12 {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: null,
+    expected: null,
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }

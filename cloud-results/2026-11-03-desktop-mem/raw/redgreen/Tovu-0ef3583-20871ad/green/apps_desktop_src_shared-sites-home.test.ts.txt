@@ -1,0 +1,41 @@
+tovu desktop: skipped shared catalog entry /tmp/desktop-mru-remount-b4xnkI/volume/site; its metadata, identity or folder is unavailable/invalid.
+tovu desktop: skipped shared catalog entry /tmp/desktop-copy-unmounted-odmMsN/copy; its metadata, identity or folder is unavailable/invalid.
+tovu desktop: shared catalog bookkeeping is unavailable; local websites remain usable.
+tovu desktop: could not remember the opened website in the shared catalog.
+User config is unreadable: /tmp/desktop-nested-guards-TL6pyg/.local/share/Tovu/config.json. Using defaults; the original was left untouched.
+User config is unreadable: /tmp/desktop-nested-guards-TL6pyg/.local/share/Tovu/config.json. Using defaults; the original was left untouched.
+User config is unreadable: /tmp/desktop-nested-guards-TL6pyg/.local/share/Tovu/config.json. Using defaults; the original was left untouched.
+✔ desktop creates inside the shared home and reads Web/external entries as adopted records (99.108169ms)
+✔ MRU import is once-only and recent entries become a sorted view of shared lastOpened (28.078381ms)
+✔ attaching to a Web server preserves its scheme/port and Stop never kills that owner (15.58597ms)
+✔ catalog import skips copied identities, empty names and malformed JSON without losing valid siblings (20.690821ms)
+✔ missing-volume MRU import remains pending and imports the original entry after remount (21.800311ms)
+✔ attach refuses invalid lease address file/3456 (0.929264ms)
+✔ attach refuses invalid lease address http/-1 (0.281091ms)
+✔ attach refuses invalid lease address https/65536 (0.123658ms)
+✔ discovery cannot steal an unavailable appData site's reserved identity with a Finder copy (29.609884ms)
+✔ successful open remains owned when catalog discovery or last-opened bookkeeping is unreadable (0.779881ms)
+✔ deskfx2 SHOULD-1: default workspace recovery stays off even with HOME under tmp (8.421126ms)
+✔ deskfx2 NIT: null legacy metadata remains an admitted shared catalog site (13.683449ms)
+✔ desktop uses the single default home and transiently scans remaining nested sites (46.260865ms)
+✔ default discovery uses its injected home for policy and never admits the unrelated local old home (15.763523ms)
+✔ the selected local nested sites home permits scanning its Tovu parent (0.302889ms)
+✔ desktop source roots honor explicit roots and detect only Tovu source checkouts (6.570851ms)
+✔ desktop profile adapter preserves explicit precedence, blank values and platform path semantics (0.424945ms)
+✔ sharing available folders keeps missing imports pending and checks sibling identities within the batch (36.06228ms)
+✔ desktop retains sites when env selects the documents old home (26.945542ms)
+✔ desktop retains sites when env selects the local old home (24.668182ms)
+✔ attaching: no lease is no server, a starting server says so, and a malformed lease is refused (19.447908ms)
+✔ an attached server reports the owner's exit once its lease changes, and Stop cancels the watch (25.43325ms)
+✔ the old nested sites folder is never a compatibility root when settings are unreadable, it is a file, or it is itself a site (10.208486ms)
+✔ catalog recovery, when asked for, still serves the same shared home (14.183808ms)
+✔ a nested sites folder that vanishes between its probe and its listing leaves the plain roots (7.51759ms)
+✔ a lock on the sites settings file that cannot be taken times out with Tovu's own wording (3.723018ms)
+ℹ tests 26
+ℹ suites 0
+ℹ pass 26
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1092.426191

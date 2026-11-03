@@ -1,0 +1,37 @@
+✔ useCreateWebsiteForm: an invalid name explains itself on submit and an empty one never enables Create (1059.863167ms)
+✔ useCreateWebsiteForm: Supabase needs a URL and a typed key; the key is read once and wiped before the call (8.963616ms)
+✔ useCreateWebsiteForm: a custom provider needs a label and a connection; a failed create shows the reason (7.07682ms)
+✔ useCreateWebsiteForm: with the credential inputs unmounted a SQLite site still submits with no credential (3.277053ms)
+✔ useCreateWebsiteForm: a valid name shows no error, and Create stays off until the chosen database is ready (5.937247ms)
+✔ useCreateWebsiteForm: a name over the length limit is refused even though it has a usable slug (5.783941ms)
+✔ useCreateWebsiteForm: a custom provider label or connection that is only spaces is not ready (3.448651ms)
+✔ useCreateWebsiteForm: a Supabase key without a URL is not ready (2.571ms)
+✖ a failed Supabase create requires re-entering the cleared key before retrying (7.976823ms)
+✔ useCreateWebsiteForm: Create refuses the drafts Rename refuses, with the same message, and accepts the ones it accepts (7.731762ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 9
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1538.92261
+
+✖ failing tests:
+
+test at src/renderer/use-create-website-form.hooks.render.test.ts:1:6214
+✖ a failed Supabase create requires re-entering the cleared key before retrying (7.976823ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/desktop/src/renderer/use-create-website-form.hooks.render.test.ts:142:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

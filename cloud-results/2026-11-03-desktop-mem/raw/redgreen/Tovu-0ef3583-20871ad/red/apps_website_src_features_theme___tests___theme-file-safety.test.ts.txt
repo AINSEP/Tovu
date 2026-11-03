@@ -1,0 +1,354 @@
+✖ theme_write_file: replacing two theme files asks once and keeps both previous files restorable (29.009446ms)
+✖ theme_write_file: declining a replacement leaves files and revision history untouched (21.509018ms)
+✖ theme_edit_file: replacing two theme files asks once and keeps both previous files restorable (14.151548ms)
+✖ theme_edit_file: declining a replacement leaves files and revision history untouched (14.374912ms)
+✖ theme_reset_file: replacing two theme files asks once and keeps both previous files restorable (10.934063ms)
+✖ theme_reset_file: declining a replacement leaves files and revision history untouched (41.441587ms)
+✖ theme_import_file_from_url: replacing two theme files asks once and keeps both previous files restorable (11.655506ms)
+✖ theme_import_file_from_url: declining a replacement leaves files and revision history untouched (14.484552ms)
+✖ theme_import_local_file: replacing two theme files asks once and keeps both previous files restorable (9.87265ms)
+✖ theme_import_local_file: declining a replacement leaves files and revision history untouched (15.248921ms)
+✔ a newly created theme file needs no replacement card or revision (15.318123ms)
+✖ a theme replacement with no confirmation channel leaves current content unchanged (18.552005ms)
+✖ the previous theme revision can be restored through the existing restore tool (24.585742ms)
+✖ a later invalid theme destination prevents both earlier writes and a confirmation card (13.488242ms)
+✖ theme revisions refuse a trash symlink escaping the theme before replacing any bytes (14.984278ms)
+✖ a file changed while its confirmation is open is never overwritten (16.479834ms)
+✖ theme replacement history retains the latest 20 revisions without purging manually trashed files (37.007656ms)
+ℹ Error: Test "theme_import_local_file: declining a replacement leaves files and revision history untouched" at apps/website/src/features/theme/__tests__/theme-file-safety.test.ts:1:4677 generated asynchronous activity after the test ended. This activity created the error "ToolInputError: path 'a.woff2' resolves outside the theme folder through a symbolic link. Fix the input and retry — this will not resolve on retry without an input change. Schema for 'theme_import_local_file': {"type":"object","additionalProperties":false,"required":["themeId","path","root","sourcePath"],"properties":{"themeId":{"type":"string","minLength":1,"description":"Target theme id from theme_list."},"path":{"type":"string","minLength":1,"description":"Destination relative to the theme folder, e.g. assets/fonts/display.woff2."},"root":{"type":"string","enum":["repo","site","custom"],"description":"Existing fs-files root: repo, site, or the owner's configured custom folder."},"sourcePath":{"type":"string","minLength":1,"description":"Source file relative to root, as found with fs_list_files. Secrets and escapes are refused. If custom is unset, ask the owner to choose the folder in the chat composer."}}}" and would have caused the test to fail, but instead triggered an unhandledRejection event.
+ℹ tests 17
+ℹ suites 0
+ℹ pass 1
+ℹ fail 16
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2557.519482
+
+✖ failing tests:
+
+test at apps/website/src/features/theme/__tests__/theme-file-safety.test.ts:1:3819
+✖ theme_write_file: replacing two theme files asks once and keeps both previous files restorable (29.009446ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  0 !== 1
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/theme/__tests__/theme-file-safety.test.ts:71:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/theme/__tests__/theme-file-safety.test.ts:1:4677
+✖ theme_write_file: declining a replacement leaves files and revision history untouched (21.509018ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+  +   ok: false,
+  +   reason: 'unknown-or-closed'
+  -   ok: true
+    }
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/theme/__tests__/theme-file-safety.test.ts:91:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { ok: false, reason: 'unknown-or-closed' },
+    expected: { ok: true },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/theme/__tests__/theme-file-safety.test.ts:1:3819
+✖ theme_edit_file: replacing two theme files asks once and keeps both previous files restorable (14.151548ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  0 !== 1
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/theme/__tests__/theme-file-safety.test.ts:71:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/theme/__tests__/theme-file-safety.test.ts:1:4677
+✖ theme_edit_file: declining a replacement leaves files and revision history untouched (14.374912ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+  +   ok: false,
+  +   reason: 'unknown-or-closed'
+  -   ok: true
+    }
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/theme/__tests__/theme-file-safety.test.ts:91:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { ok: false, reason: 'unknown-or-closed' },
+    expected: { ok: true },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/theme/__tests__/theme-file-safety.test.ts:1:3819
+✖ theme_reset_file: replacing two theme files asks once and keeps both previous files restorable (10.934063ms)
+  Error [ToolInputError]: 'themeId' (non-empty string) is required; received: items; this tool takes one input per call — items[] batching is not supported here
+      at requiredFieldError (/home/user/Jini/packages/core/src/registration-kit.ts:177:10)
+      at requireString (/home/user/Jini/packages/core/src/registration-kit.ts:188:79)
+      at theme_reset_file (/home/user/wt-Tovu/apps/website/src/features/theme/tool-registrations.ts:765:23)
+      at Object.handler (/home/user/wt-Tovu/apps/website/src/features/theme/tool-registrations.ts:985:12)
+      at Object.run (/home/user/wt-Tovu/apps/website/src/features/theme/__tests__/theme-file-safety.test.ts:49:65)
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/theme/__tests__/theme-file-safety.test.ts:69:23)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+
+test at apps/website/src/features/theme/__tests__/theme-file-safety.test.ts:1:4677
+✖ theme_reset_file: declining a replacement leaves files and revision history untouched (41.441587ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+  +   ok: false,
+  +   reason: 'unknown-or-closed'
+  -   ok: true
+    }
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/theme/__tests__/theme-file-safety.test.ts:91:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { ok: false, reason: 'unknown-or-closed' },
+    expected: { ok: true },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/theme/__tests__/theme-file-safety.test.ts:1:3819
+✖ theme_import_file_from_url: replacing two theme files asks once and keeps both previous files restorable (11.655506ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  0 !== 1
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/theme/__tests__/theme-file-safety.test.ts:71:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/theme/__tests__/theme-file-safety.test.ts:1:4677
+✖ theme_import_file_from_url: declining a replacement leaves files and revision history untouched (14.484552ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+  +   ok: false,
+  +   reason: 'unknown-or-closed'
+  -   ok: true
+    }
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/theme/__tests__/theme-file-safety.test.ts:91:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { ok: false, reason: 'unknown-or-closed' },
+    expected: { ok: true },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/theme/__tests__/theme-file-safety.test.ts:1:3819
+✖ theme_import_local_file: replacing two theme files asks once and keeps both previous files restorable (9.87265ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  0 !== 1
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/theme/__tests__/theme-file-safety.test.ts:71:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/theme/__tests__/theme-file-safety.test.ts:1:4677
+✖ theme_import_local_file: declining a replacement leaves files and revision history untouched (15.248921ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+  +   ok: false,
+  +   reason: 'unknown-or-closed'
+  -   ok: true
+    }
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/theme/__tests__/theme-file-safety.test.ts:91:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { ok: false, reason: 'unknown-or-closed' },
+    expected: { ok: true },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/theme/__tests__/theme-file-safety.test.ts:1:5501
+✖ a theme replacement with no confirmation channel leaves current content unchanged (18.552005ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/theme/__tests__/theme-file-safety.test.ts:107:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /NO_CONFIRMATION_CHANNEL/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/theme/__tests__/theme-file-safety.test.ts:1:5848
+✖ the previous theme revision can be restored through the existing restore tool (24.585742ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(revision)
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/theme/__tests__/theme-file-safety.test.ts:117:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/theme/__tests__/theme-file-safety.test.ts:1:6426
+✖ a later invalid theme destination prevents both earlier writes and a confirmation card (13.488242ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/theme/__tests__/theme-file-safety.test.ts:125:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /outside the theme folder/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/theme/__tests__/theme-file-safety.test.ts:1:6900
+✖ theme revisions refuse a trash symlink escaping the theme before replacing any bytes (14.984278ms)
+  AssertionError [ERR_ASSERTION]: Missing expected exception.
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/theme/__tests__/theme-file-safety.test.ts:136:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /outside|escape/i,
+    operator: 'throws',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/theme/__tests__/theme-file-safety.test.ts:1:7383
+✖ a file changed while its confirmation is open is never overwritten (16.479834ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+  +   ok: false,
+  +   reason: 'unknown-or-closed'
+  -   ok: true
+    }
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/theme/__tests__/theme-file-safety.test.ts:146:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { ok: false, reason: 'unknown-or-closed' },
+    expected: { ok: true },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/theme/__tests__/theme-file-safety.test.ts:1:7899
+✖ theme replacement history retains the latest 20 revisions without purging manually trashed files (37.007656ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + []
+  - [
+  -   '4',
+  -   '5',
+  -   '6',
+  -   '7',
+  -   '8',
+  -   '9',
+  -   '10',
+  -   '11',
+  -   '12',
+  -   '13',
+  -   '14',
+  -   '15',
+  -   '16',
+  -   '17',
+  -   '18',
+  -   '19',
+  -   '20',
+  -   '21',
+  -   '22',
+  -   '23'
+  - ]
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/features/theme/__tests__/theme-file-safety.test.ts:158:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [],
+    expected: [
+      '4',  '5',  '6',  '7',  '8',
+      '9',  '10', '11', '12', '13',
+      '14', '15', '16', '17', '18',
+      '19', '20', '21', '22', '23'
+    ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

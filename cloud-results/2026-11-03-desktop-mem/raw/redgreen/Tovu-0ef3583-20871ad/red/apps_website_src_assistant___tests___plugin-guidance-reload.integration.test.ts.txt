@@ -1,0 +1,52 @@
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+✖ enabling a plugin mid-session makes its guidance discoverable through reload without a restart (federation started: true) (111.078406ms)
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+✖ enabling a plugin mid-session makes its guidance discoverable through reload without a restart (federation started: false) (56.240051ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2224.857583
+
+✖ failing tests:
+
+test at apps/website/src/assistant/__tests__/plugin-guidance-reload.integration.test.ts:1:908
+✖ enabling a plugin mid-session makes its guidance discoverable through reload without a restart (federation started: true) (111.078406ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(catalog.describe({ id: 'agent_plugin_ui_ux_design' }))
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/assistant/__tests__/plugin-guidance-reload.integration.test.ts:36:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: null,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at apps/website/src/assistant/__tests__/plugin-guidance-reload.integration.test.ts:1:908
+✖ enabling a plugin mid-session makes its guidance discoverable through reload without a restart (federation started: false) (56.240051ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(catalog.describe({ id: 'agent_plugin_ui_ux_design' }))
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/assistant/__tests__/plugin-guidance-reload.integration.test.ts:36:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: null,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

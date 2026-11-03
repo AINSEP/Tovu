@@ -1,0 +1,136 @@
+
+ RUN  v4.1.11 /home/user/wt-Tovu/apps/admin
+
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/types.js" points to missing source files
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/shared/protocol.js" points to missing source files
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/server/zod-compat.js" points to missing source files
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/experimental/tasks/interfaces.js" points to missing source files
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/server/zod-json-schema-compat.js" points to missing source files
+ ❯ src/components/__tests__/AssistantDock.hooks.unit.test.tsx (174 tests | 6 failed) 1902ms
+     × a failed required bind does not dispatch with a stale token 13ms
+     × a successful required bind reads the live token at dispatch 5ms
+     × a bridge losing its token before dispatch fails the required bind 2ms
+     × parking as bind feedback settles does not dispatch a stale token 2ms
+     × Stop as bind feedback settles prevents dispatch even with a live page token 3ms
+     × dock activation rebinds its page bridge after readiness 19ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 6 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components/__tests__/AssistantDock.hooks.unit.test.tsx > useAssistantTransport — the send-time execution re-read > a failed required bind does not dispatch with a stale token
+AssertionError: promise resolved "undefined" instead of rejecting
+
+- Expected:
+Error {
+  "message": "rejected promise",
+}
+
++ Received:
+undefined
+
+ ❯ src/components/__tests__/AssistantDock.hooks.unit.test.tsx:1379:138
+    1377|     const prepareBinding = vi.fn().mockRejectedValue(new Error("the as…
+    1378|     const { result } = renderHook(() => useAssistantTransport({ execut…
+    1379|     await expect(result.current.startRun({ agentId: "codex", context: …
+       |                                                                                                                                          ^
+    1380|     expect(prepareBinding).toHaveBeenCalledTimes(1);
+    1381|     expect(startRun).not.toHaveBeenCalled();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/6]⎯
+
+ FAIL  src/components/__tests__/AssistantDock.hooks.unit.test.tsx > useAssistantTransport — the send-time execution re-read > a successful required bind reads the live token at dispatch
+AssertionError: expected 'older-at-attachment' to be 'fresh-at-dispatch' // Object.is equality
+
+Expected: "fresh-at-dispatch"
+Received: "older-at-attachment"
+
+ ❯ src/components/__tests__/AssistantDock.hooks.unit.test.tsx:1393:66
+    1391|     await result.current.startRun({ agentId: "codex", context: { front…
+    1392|     expect(startRun).toHaveBeenCalledTimes(1);
+    1393|     expect(startRun.mock.calls[0]![0].context.frontendBindToken).toBe(…
+       |                                                                  ^
+    1394|   });
+    1395|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/6]⎯
+
+ FAIL  src/components/__tests__/AssistantDock.hooks.unit.test.tsx > useAssistantTransport — the send-time execution re-read > a bridge losing its token before dispatch fails the required bind
+AssertionError: promise resolved "undefined" instead of rejecting
+
+- Expected:
+Error {
+  "message": "rejected promise",
+}
+
++ Received:
+undefined
+
+ ❯ src/components/__tests__/AssistantDock.hooks.unit.test.tsx:1403:96
+    1401|       createTransport, prepareBinding: async () => undefined,
+    1402|     }));
+    1403|     await expect(result.current.startRun({ agentId: "codex" } as unkno…
+       |                                                                                                ^
+    1404|     expect(startRun).not.toHaveBeenCalled();
+    1405|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/6]⎯
+
+ FAIL  src/components/__tests__/AssistantDock.hooks.unit.test.tsx > useAssistantTransport — the send-time execution re-read > parking as bind feedback settles does not dispatch a stale token
+AssertionError: promise resolved "undefined" instead of rejecting
+
+- Expected:
+Error {
+  "message": "rejected promise",
+}
+
++ Received:
+undefined
+
+ ❯ src/components/__tests__/AssistantDock.hooks.unit.test.tsx:1415:96
+    1413|       onDaemonStartingChange: starting => { if (!starting) token = und…
+    1414|     }, { createTransport, prepareBinding: async () => "live-before-set…
+    1415|     await expect(result.current.startRun({ agentId: "codex" } as unkno…
+       |                                                                                                ^
+    1416|     expect(startRun).not.toHaveBeenCalled();
+    1417|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/6]⎯
+
+ FAIL  src/components/__tests__/AssistantDock.hooks.unit.test.tsx > useAssistantTransport — the send-time execution re-read > Stop as bind feedback settles prevents dispatch even with a live page token
+AssertionError: promise resolved "undefined" instead of rejecting
+
+- Expected:
+Error {
+  "message": "rejected promise",
+}
+
++ Received:
+undefined
+
+ ❯ src/components/__tests__/AssistantDock.hooks.unit.test.tsx:1428:117
+    1426|       onDaemonStartingChange: starting => { if (!starting) stop.abort(…
+    1427|     }, { createTransport, prepareBinding: async () => "live" }));
+    1428|     await expect(result.current.startRun({ agentId: "codex", signal: s…
+       |                                                                                                                     ^
+    1429|     expect(startRun).not.toHaveBeenCalled();
+    1430|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/6]⎯
+
+ FAIL  src/components/__tests__/AssistantDock.hooks.unit.test.tsx > useLocalCliDaemonPrewarm > dock activation rebinds its page bridge after readiness
+AssertionError: expected "vi.fn()" to be called 1 times, but got 0 times
+ ❯ src/components/__tests__/AssistantDock.hooks.unit.test.tsx:1504:20
+    1502|     expect(rebind).not.toHaveBeenCalled();
+    1503|     await act(async () => { ready(); });
+    1504|     expect(rebind).toHaveBeenCalledTimes(1);
+       |                    ^
+    1505|   });
+    1506|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/6]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  6 failed | 168 passed (174)
+   Start at  21:40:29
+   Duration  13.20s (transform 8.06s, setup 416ms, import 10.01s, tests 1.90s, environment 710ms)
+

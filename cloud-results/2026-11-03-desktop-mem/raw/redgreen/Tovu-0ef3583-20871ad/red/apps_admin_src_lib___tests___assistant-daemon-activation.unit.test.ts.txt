@@ -1,0 +1,124 @@
+
+ RUN  v4.1.11 /home/user/wt-Tovu/apps/admin
+
+ ❯ src/lib/__tests__/assistant-daemon-activation.unit.test.ts (6 tests | 5 failed) 19ms
+   × first send awaits daemon activation and bridge readiness, then reads the current bind token 4ms
+   × wake rebinds a previously parked bridge 7ms
+   × send waits for the current bind and honors cancellation 2ms
+   × a required attachment without a live token fails instead of accepting undefined 2ms
+   × attachment gets at most five seconds after activation and cancellation before wake does not reopen 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lib/__tests__/assistant-daemon-activation.unit.test.ts > first send awaits daemon activation and bridge readiness, then reads the current bind token
+TypeError: Cannot read properties of undefined (reading 'then')
+ ❯ src/lib/assistant-daemon-activation.ts:38:18
+     36|     const abort = () => reject(waitSignal.reason);
+     37|     waitSignal.addEventListener("abort", abort, { once: true });
+     38|     bridge.ready.then(() => resolve(), reject).finally(() => waitSigna…
+       |                  ^
+     39|   });
+     40|   signal?.throwIfAborted();
+ ❯ prepareAssistantPageBinding src/lib/assistant-daemon-activation.ts:35:9
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/5]⎯
+
+ FAIL  src/lib/__tests__/assistant-daemon-activation.unit.test.ts > wake rebinds a previously parked bridge
+AssertionError: Expected values to be strictly equal:
+
+false !== true
+
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/lib/__tests__/assistant-daemon-activation.unit.test.ts:50:12
+     48|     await bridge.ready;
+     49|     sources[0]!.emit("parked", "{}");
+     50|     assert.equal(sources[0]!.closed, true);
+       |            ^
+     51|     tab.hide(); tab.advance(60_000); tab.show();
+     52|     assert.equal(sources.length, 1, "visibility must not wake a parked…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/5]⎯
+
+ FAIL  src/lib/__tests__/assistant-daemon-activation.unit.test.ts > send waits for the current bind and honors cancellation
+TypeError: Cannot read properties of undefined (reading 'emit')
+ ❯ src/lib/__tests__/assistant-daemon-activation.unit.test.ts:81:17
+     79|     const rejected = assert.rejects(waiting, error => error === reason…
+     80|     stop.abort(reason); await rejected;
+     81|     sources[1]!.emit("message", '{"type":"attached","sessionId":"new",…
+       |                 ^
+     82|     assert.equal(await prepareAssistantPageBinding({ bridge }, { activ…
+     83|   } finally { bridge.close(); }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/5]⎯
+
+ FAIL  src/lib/__tests__/assistant-daemon-activation.unit.test.ts > a required attachment without a live token fails instead of accepting undefined
+AssertionError: The input did not match the regular expression /not attached/. Input:
+
+"TypeError: Cannot read properties of undefined (reading 'then')"
+
+
+- Expected:
+/not attached/
+
++ Received:
+TypeError {
+  "message": "Cannot read properties of undefined (reading 'then')",
+}
+
+ ❯ src/lib/__tests__/assistant-daemon-activation.unit.test.ts:87:3
+     85|
+     86| test("a required attachment without a live token fails instead of acce…
+     87|   await assert.rejects(prepareAssistantPageBinding({ bridge: {
+       |   ^
+     88|     rebind: async () => ({ sessionId: "old", bindToken: "stale" }), bi…
+     89|   } }, { activate: async () => {} }), /not attached/);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/5]⎯
+
+ FAIL  src/lib/__tests__/assistant-daemon-activation.unit.test.ts > attachment gets at most five seconds after activation and cancellation before wake does not reopen
+TypeError: Cannot read properties of undefined (reading 'then')
+ ❯ src/lib/assistant-daemon-activation.ts:38:18
+     36|     const abort = () => reject(waitSignal.reason);
+     37|     waitSignal.addEventListener("abort", abort, { once: true });
+     38|     bridge.ready.then(() => resolve(), reject).finally(() => waitSigna…
+       |                  ^
+     39|   });
+     40|   signal?.throwIfAborted();
+ ❯ prepareAssistantPageBinding src/lib/assistant-daemon-activation.ts:35:9
+ ❯ src/lib/__tests__/assistant-daemon-activation.unit.test.ts:99:34
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/5]⎯
+
+⎯⎯⎯⎯⎯⎯ Unhandled Errors ⎯⎯⎯⎯⎯⎯
+
+Vitest caught 1 unhandled error during the test run.
+This might cause false positive tests. Resolve unhandled errors to make sure your tests are not affected.
+
+⎯⎯⎯⎯ Unhandled Rejection ⎯⎯⎯⎯⎯
+TypeError: Cannot read properties of undefined (reading 'then')
+ ❯ src/lib/assistant-daemon-activation.ts:38:18
+     36|     const abort = () => reject(waitSignal.reason);
+     37|     waitSignal.addEventListener("abort", abort, { once: true });
+     38|     bridge.ready.then(() => resolve(), reject).finally(() => waitSigna…
+       |                  ^
+     39|   });
+     40|   signal?.throwIfAborted();
+ ❯ prepareAssistantPageBinding src/lib/assistant-daemon-activation.ts:35:9
+ ❯ processTicksAndRejections node:internal/process/task_queues:104:5
+
+This error originated in "src/lib/__tests__/assistant-daemon-activation.unit.test.ts" test file. It doesn't mean the error was thrown inside the file itself, but while it was running.
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+
+ Test Files  1 failed (1)
+      Tests  5 failed | 1 passed (6)
+     Errors  1 error
+   Start at  21:41:18
+   Duration  2.38s (transform 1.20s, setup 363ms, import 1.19s, tests 19ms, environment 645ms)
+

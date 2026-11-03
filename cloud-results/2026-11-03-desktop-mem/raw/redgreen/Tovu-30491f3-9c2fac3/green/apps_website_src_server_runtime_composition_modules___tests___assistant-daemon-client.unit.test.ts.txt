@@ -1,0 +1,110 @@
+[assistant] waiting for the agent daemon at http://127.0.0.1:34759…
+[assistant] agent daemon reachable after 0.8s
+✔ fetchAgentDaemon: a daemon that starts listening AFTER the request arrived still answers it (boot-window retry), not a 502 (795.392062ms)
+[assistant] agent daemon unreachable at http://127.0.0.1:43099 [TypeError: fetch failed] {
+  [cause]: HTTPParserError: Response does not match the HTTP/1.1 protocol (Expected HTTP/, RTSP/ or ICE/)
+      at Parser.createError (node:internal/deps/undici/undici:7462:16)
+      at Parser.execute (node:internal/deps/undici/undici:7423:26)
+      at Parser.readMore (node:internal/deps/undici/undici:7386:16)
+      at Socket.onHttpSocketReadable (node:internal/deps/undici/undici:7866:22)
+      at Socket.emit (node:events:514:28)
+      at emitReadable_ (node:internal/streams/readable:855:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:89:21) {
+    code: undefined,
+    data: 'not http at all\r\n\r\n'
+  }
+}
+✔ fetchAgentDaemon: a daemon that answers with a malformed response is an immediate 502 BAD_GATEWAY, not a retry loop (9.028731ms)
+✔ fetchAgentDaemon: options.path/method/body override the inbound request's own path and verb (6.442513ms)
+✔ fetchAgentDaemon: a GET with no body sends no body at all (3.710434ms)
+✔ cancelDaemonRunBestEffort: POSTs /api/runs/<encoded id>/cancel with the daemon headers (3.848572ms)
+✔ cancelDaemonRunBestEffort: an unreachable daemon is swallowed — no throw, no unhandled rejection (302.1927ms)
+✔ fetchAgentDaemon traces the loopback call as one CLIENT span: host, port and status, never the path, token or body (18.990548ms)
+[assistant] waiting for the agent daemon at http://127.0.0.1:45315…
+[assistant] agent daemon reachable after 0.5s
+✔ fetchAgentDaemon: each boot-window retry is its own span, so a refused attempt shows as the failure it was (513.562056ms)
+✔ forwardToAgentDaemon passes its observability port through to the call it makes (4.971471ms)
+✔ cancelDaemonRunBestEffort traces its fire-and-forget POST without the run id (11.592631ms)
+✔ fetchAgentDaemonEventStream: the span ends at the response headers with their status, not with the stream (12.945926ms)
+[assistant] agent daemon unreachable at http://127.0.0.1:34459 Error: Parse Error: Expected HTTP/, RTSP/ or ICE/
+    at Socket.socketOnData (node:_http_client:814:22)
+    at Socket.emit (node:events:514:28)
+    at addChunk (node:internal/streams/readable:569:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:520:3)
+    at Readable.push (node:internal/streams/readable:400:5)
+    at TCP.onStreamRead (node:internal/stream_base_commons:194:23) {
+  bytesParsed: 0,
+  code: 'HPE_INVALID_CONSTANT',
+  reason: 'Expected HTTP/, RTSP/ or ICE/',
+  rawPacket: <Buffer 6e 6f 74 20 68 74 74 70 20 61 74 20 61 6c 6c 0d 0a 0d 0a>
+}
+✔ fetchAgentDaemonEventStream: a transport failure ends its span as ERROR with the error type (4.322377ms)
+[assistant] waiting for the agent daemon at http://127.0.0.1:33379…
+[assistant] agent daemon reachable after 0.8s
+✔ fetchAgentDaemonEventStream: a daemon that starts listening AFTER the stream request still opens it (boot-window retry), untraced by default (759.624832ms)
+[assistant] agent daemon connection reset mid-request at http://127.0.0.1:34639; outcome unknown [TypeError: fetch failed] {
+  [cause]: Error: read ECONNRESET
+      at TCP.onStreamRead (node:internal/stream_base_commons:221:20) {
+    errno: -104,
+    code: 'ECONNRESET',
+    syscall: 'read'
+  }
+}
+✔ fetchAgentDaemon: a POST whose connection is reset is sent ONCE and answers 502 OUTCOME_UNKNOWN, never retried (4.810026ms)
+[assistant] agent daemon connection reset mid-request at http://127.0.0.1:42889; outcome unknown [TypeError: fetch failed] {
+  [cause]: SocketError: other side closed
+      at Socket.onHttpSocketEnd (node:internal/deps/undici/undici:7878:26)
+      at Socket.emit (node:events:526:24)
+      at endReadableNT (node:internal/streams/readable:1783:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+    code: 'UND_ERR_SOCKET',
+    socket: {
+      localAddress: '127.0.0.1',
+      localPort: 43952,
+      remoteAddress: '127.0.0.1',
+      remotePort: 42889,
+      remoteFamily: 'IPv4',
+      timeout: undefined,
+      bytesWritten: 289,
+      bytesRead: 0
+    }
+  }
+}
+✔ fetchAgentDaemon: a POST whose connection the daemon closes normally (UND_ERR_SOCKET) is sent ONCE and answers 502 OUTCOME_UNKNOWN (4.394991ms)
+[assistant] agent daemon unreachable at http://127.0.0.1:36735 [TypeError: fetch failed] {
+  [cause]: SocketError: other side closed
+      at Socket.onHttpSocketEnd (node:internal/deps/undici/undici:7878:26)
+      at Socket.emit (node:events:526:24)
+      at endReadableNT (node:internal/streams/readable:1783:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+    code: 'UND_ERR_SOCKET',
+    socket: {
+      localAddress: '127.0.0.1',
+      localPort: 55428,
+      remoteAddress: '127.0.0.1',
+      remotePort: 36735,
+      remoteFamily: 'IPv4',
+      timeout: undefined,
+      bytesWritten: 244,
+      bytesRead: 0
+    }
+  }
+}
+✔ fetchAgentDaemon: a GET whose connection the daemon closes normally still answers 502 BAD_GATEWAY, not retried (unchanged) (3.212012ms)
+[assistant] waiting for the agent daemon at http://127.0.0.1:40475…
+[assistant] agent daemon reachable after 0.3s
+✔ fetchAgentDaemon: a GET whose connection is reset is retried and answers from the next attempt (256.760742ms)
+[assistant] waiting for the agent daemon at http://127.0.0.1:37485…
+[assistant] agent daemon reachable after 0.8s
+✔ fetchAgentDaemon: a POST to a daemon not yet listening is retried (refused = nothing dispatched) and sent once (764.83859ms)
+[assistant] waiting for the agent daemon at http://127.0.0.1:46183…
+[assistant] agent daemon reachable after 0.3s
+✔ fetchAgentDaemonEventStream: a reset stream GET is still retried (GET only, behaviour unchanged) (258.277689ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 19
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7403.431691

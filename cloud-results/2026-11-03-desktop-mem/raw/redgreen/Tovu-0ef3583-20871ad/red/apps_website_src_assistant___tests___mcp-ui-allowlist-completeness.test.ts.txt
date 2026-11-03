@@ -1,0 +1,17 @@
+✔ the parser enumerates alternate opener shapes and reports unresolved bindings (3.241389ms)
+✔ the federated card adapter permits only its reviewed dynamic spec expression (0.686596ms)
+✔ the sealer adapter exemption leaves other unresolved open calls visible (0.59337ms)
+✔ reviewed non-exchange open calls do not hide new surface bindings in the same file (1.413489ms)
+✔ every surfaceExchanges.open(...) call names a toolId constant this scan can resolve (0.149331ms)
+✔ the scan finds the known exchange openers (guards against a scan that silently matches nothing) (0.292714ms)
+✔ every tool that opens an MCP-UI exchange is on MCP_UI_REDEEMABLE_TOOL_IDS (0.227648ms)
+✔ the completeness check reports a tool whose allowlist entry is missing (0.19016ms)
+✔ every allowlisted id opens an exchange or is a named carve-out (0.617131ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3686.736383

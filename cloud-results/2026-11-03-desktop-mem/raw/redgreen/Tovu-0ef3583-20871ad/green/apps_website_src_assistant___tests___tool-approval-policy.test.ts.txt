@@ -1,0 +1,52 @@
+✔ the registered commit schema shows the selected target folder through the shared approval renderer (8.274211ms)
+✔ unclassified registration fails closed, regardless of readOnly hint (0.600216ms)
+✔ ordinary edits and draft creation run without an approval channel (0.619526ms)
+✔ publishing on this site through status is an ordinary reversible edit (0.236647ms)
+✔ reversible writes (publish on this site, trash, moderation) run without an approval channel (2.798632ms)
+✔ only read, edit and trash run directly; every other class, including an unknown one, asks (0.514075ms)
+✖ permanent deletes and actions that leave this site refuse without a human confirmation channel (6.007211ms)
+✔ one principal-bound confirmation approves one frozen call; cancel changes nothing (2.782809ms)
+✔ every supported locale translates the exact approval text and choices (2.409708ms)
+✔ unsupported approval locales fall back to English for every label (0.599642ms)
+✔ the target folder label is translated in every supported approval locale (0.412347ms)
+✔ page verbs are classified, ordinary install controls are direct, opaque destructive clicks ask (0.978168ms)
+✔ direct page actions reject unclassified capability ids (0.194926ms)
+✔ page fill runs directly without a reviewed click handle (0.047474ms)
+✔ source-control export commits ask because they can remove stale exported paths; dry runs are direct (0.054251ms)
+✔ disclosed approval facts precede technical Input, computed from the frozen call before asking (1.094738ms)
+✔ generic approval input uses the shared structured renderer and escapes untrusted values (1.145319ms)
+✔ deployment approval shows catalog title and summary with technical input only behind Details (1.371963ms)
+✔ approval without metadata has a readable title and localized fallback choices (0.854246ms)
+✔ approval uses input-schema titles and descriptions through the shared field renderer (1.288813ms)
+✔ a disclose failure refuses the call before any card or effect (0.521358ms)
+✔ a failing locale lookup still asks, in English, and never bypasses the gate (0.995347ms)
+✔ published plugin details and inspect disclosures run directly; state-changing handles still ask (0.165386ms)
+ℹ tests 23
+ℹ suites 0
+ℹ pass 22
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3013.367722
+
+✖ failing tests:
+
+test at apps/website/src/assistant/__tests__/tool-approval-policy.test.ts:1:4821
+✖ permanent deletes and actions that leave this site refuse without a human confirmation channel (6.007211ms)
+  AssertionError [ERR_ASSERTION]: theme_set_active
+  + actual - expected
+  
+  + 'completed'
+  - 'failed'
+  
+      at TestContext.<anonymous> (/home/user/wt-Tovu/apps/website/src/assistant/__tests__/tool-approval-policy.test.ts:84:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'completed',
+    expected: 'failed',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
