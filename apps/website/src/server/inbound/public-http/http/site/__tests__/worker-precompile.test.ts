@@ -25,6 +25,7 @@ test("cold concurrent source renders compile both theme workers once and start p
     const productRoot = resolveProductRoot();
     const entries = [];
     const threads = new Set();
+    const exits = [];
     const workerFactory = createNodeWorkerFactory({ env: {
       ...process.env, ESBUILD_BINARY_PATH: "/nonexistent/rr10a-worker-must-not-spawn-esbuild",
     } }, {
@@ -36,6 +37,7 @@ test("cold concurrent source renders compile both theme workers once and start p
         assert.notEqual(path.dirname(entry), path.resolve(${JSON.stringify(new URL("..", import.meta.url).pathname)}));
         entries.push(entry);
         const worker = new Worker(entry, options);
+        exits.push(new Promise((resolve) => worker.once("exit", resolve)));
         threads.add(worker.threadId);
         return worker;
       },
@@ -49,9 +51,11 @@ test("cold concurrent source renders compile both theme workers once and start p
       source: "<h1>{{site.title}}</h1>", ctx,
     }, { workerFactory });
     const engines = [["handlebars-worker", "Handlebars"], ["liquid-worker", "Liquid"]];
-    for (let round = 0; round < 2; round++) {
-      const html = await Promise.all([...engines, ...engines].map(render));
-      assert.deepEqual(html, Array(4).fill("<h1>Precompiled fixture</h1>"));
+    for (let round = 0; round < 4; round++) {
+      const html = await Promise.all(engines.map(render));
+      assert.deepEqual(html, Array(2).fill("<h1>Precompiled fixture</h1>"));
+      // Capacity is held through native teardown, not merely through the render reply.
+      await Promise.all(exits);
     }
     assert.equal(entries.length, 8);
     assert.equal(threads.size, 8, "each render retains a fresh isolation boundary");
