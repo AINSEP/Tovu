@@ -39,6 +39,11 @@ export interface RunnerInventoryBridge {
   getAppVersion?: RunnerAppVersionBridge['getAppVersion'];
   /** Optional for a stale preload; the Settings menu hides "Check for updates…" without it. */
   checkForUpdates?: RunnerUpdateCheckBridge['checkForUpdates'];
+  /** Settings menu "Live site views": how many tabs keep a running guest. Optional for an older
+   *  preload, which leaves the renderer on its default of 2 (`use-live-views.hooks.ts`). */
+  getMaximumLiveSiteViews?: () => Promise<number>;
+  /** Fires when the operator picks another limit from the menu; returns its teardown. */
+  onMaximumLiveSiteViewsChanged?: (listener: (maximum: number) => void) => () => void;
   listAgents: () => Promise<readonly RunnerAgentSummary[]>;
   rescanAgents: () => Promise<readonly RunnerAgentSummary[]>;
   daemonOnline: () => Promise<boolean>;

@@ -2,6 +2,7 @@ import { reportShellTelemetry } from '../product-telemetry.js';
 import { NavIcon } from '../icons.js';
 import { workspaceOnScreen } from '../expanded-mode.js';
 import { useSiteWorkspace } from '../use-site-workspace.hooks.js';
+import { useLiveViews, type LiveGuest, type ParkedView } from '../use-live-views.hooks.js';
 import type { SiteAdminPage } from '../import-site-entry.js';
 import { useComposedGuestRef, type FindableGuest } from '../use-find-in-page.hooks.js';
 import type { ZoomableGuest } from '../use-zoom.hooks.js';
@@ -18,6 +19,12 @@ const SITE_SURFACES: readonly SiteSurface[] = ['admin', 'site'];
  * Open workspaces are hidden with CSS, never unmounted. A <webview> is a live browsing context:
  * unmounting one on a tab switch would throw away the site's admin route, scroll position and any
  * half-written form, and re-run its whole boot the next time the operator came back to it.
+ *
+ * That still holds for the WORKSPACE, which keeps its bar, history and reducer. Only its guest can
+ * go, and only through `useLiveViews`: past the "Live site views" limit a hidden, least recently
+ * focused guest is released once its own page agrees (no unsaved editor, no draft it could not
+ * save, no upload or reply in flight), with its route and scroll recorded so focusing the tab
+ * brings it back there. A guest that says no stays, half-written form and all.
  */
 export function SiteWorkspaces({
   inSites,
@@ -42,6 +49,7 @@ export function SiteWorkspaces({
   /** The admin page each tab was opened on (`useProjectTabs`). */
   adminPages: Readonly<Record<string, SiteAdminPage>>;
 }) {
+  const live = useLiveViews({ openIds: openSites.map((project) => project.id), focusedId: inSites ? visibleWorkspaceId : null });
   // Outside Websites every workspace is `hidden` (workspaceOnScreen), never unmounted: see above.
   return (
     <>
@@ -50,6 +58,9 @@ export function SiteWorkspaces({
           key={project.id}
           project={project}
           hidden={!workspaceOnScreen({ inSites, projectId: project.id, visibleWorkspaceId })}
+          live={live.isLive(project.id)}
+          parked={live.parked[project.id]}
+          registerLiveGuest={live.registerGuest}
           expanded={expanded}
           onToggleExpanded={onToggleExpanded}
           registerGuest={registerGuest}
@@ -86,11 +97,15 @@ export function SiteWorkspaces({
  * partition string here is what makes the boot-session cookie `main.js`'s `openSiteServer` already
  * seeded into that partition visible to THIS guest.
  *
- * `hidden` is a CSS concern, not a mount one. See the <main> body in `App` for why.
+ * `hidden` is a CSS concern, not a mount one. See the <main> body in `App` for why. `live` is the
+ * one mount concern: a released tab renders its bar with no guest (`SiteWorkspaces`' own doc).
  */
 function SiteWorkspace({
   project,
   hidden,
+  live,
+  parked,
+  registerLiveGuest,
   expanded,
   onToggleExpanded,
   registerGuest,
@@ -100,6 +115,11 @@ function SiteWorkspace({
 }: {
   project: SiteRecord;
   hidden: boolean;
+  /** Whether this tab may mount its guest (`useLiveViews`); the tab on screen always may. */
+  live: boolean;
+  /** This tab's last release: where its next guest opens, and how far it scrolls. */
+  parked?: ParkedView;
+  registerLiveGuest: (projectId: string, element: LiveGuest | null) => void;
   expanded: boolean;
   onToggleExpanded: () => void;
   registerGuest: (projectId: string, element: FindableGuest | null) => void;
@@ -112,14 +132,17 @@ function SiteWorkspace({
   // Everything this tab remembers and every action its bar takes: which surface it asked for, where
   // its guest is, its history, and Reload that keeps that history. Per tab, never lifted into `App`.
   // `did-fail-load` (`failed`/`stalled`) still comes from `useWebviewLoadFailure`, inside it.
-  const workspace = useSiteWorkspace(project, hidden, { adminPage });
+  const workspace = useSiteWorkspace(project, hidden, { adminPage, parked });
   // `guestRef` is a CALLBACK ref, not a ref object, and that distinction is the whole of D-03: the
   // hooks' listeners have to attach when the guest actually mounts, and this tab mounts it
   // conditionally (`running && !workspace.failed` below). See `useWebviewLoadFailure`'s own doc.
   // Composed with the find bar's and the zoom feature's own registration so ONE ref does all three
-  // — see `useComposedGuestRef`.
+  // — see `useComposedGuestRef`. The live-views probe reads the same node (`useLiveViews`).
   const { guestRef } = workspace;
-  const combinedGuestRef = useComposedGuestRef(guestRef, registerGuest, project.id, (node) => registerZoomGuest(project.id, node));
+  const combinedGuestRef = useComposedGuestRef(guestRef, registerGuest, project.id, (node) => {
+    registerZoomGuest(project.id, node);
+    registerLiveGuest(project.id, node);
+  });
   const running = workspace.running;
 
   const startPanel = running ? (
@@ -218,45 +241,60 @@ function SiteWorkspace({
         // a guess would kill a load that was merely slow with no path back to it except a manual
         // retry, so the guest stays mounted for as long as it might still be right and `stalled`
         // only toggles an overlay on top of it.
-        <div className="workspace__guest">
-          {/* `allowpopups` grants the guest nothing: `registerGuestNavigationPolicy` in `main.js`
-              denies every window-open request a guest makes, handing the url to the operator's own
-              browser only when it targets a site this launch supervises. Without the attribute
-              Electron sets `disablePopups` on the guest and the request never leaves its renderer,
-              so main never sees it at all — which is why the admin's `target="_blank"` "View site"
-              link would otherwise do nothing.
-
-              The cast past `boolean` is not cosmetic — see `electron-webview.d.ts`'s own header on
-              why React's own `webview` JSX entry silently drops a real boolean `true` here and a
-              string is what Electron's presence check actually reads.
-
-              Switching views is a `src` change and NOT a `key` bump on purpose: React mutates the
-              attribute, and Electron's webview navigates the guest that is already running, so a
-              toggle costs one navigation instead of destroying a process and building another.
-              `key` is now recovery only: Reload calls the guest's own `reload()`, which keeps its
-              history, and `useSiteWorkspace` remounts only a guest that failed or stalled. */}
-          <webview
-            ref={combinedGuestRef}
-            key={workspace.reloadNonce}
-            className="workspace__frame"
-            src={workspace.src}
-            partition={project.partition}
-            allowpopups={'' as unknown as boolean}
-          />
-          <WorkspaceLoadingOverlay workspace={workspace} project={project} />
-          {workspace.stalled && (
-            <div className="workspace__overlay">
-              <SiteStartPanel
-                project={project}
-                body={`${project.displayName} is taking longer than usual to answer on port ${project.port}. It may still be starting.`}
-                onStarted={workspace.recover}
-                onSiteUpdated={onSiteUpdated}
-              />
-            </div>
-          )}
-        </div>
+        // A released tab (`live` false) keeps everything above and mounts no guest until it is
+        // focused again; it is hidden whenever it is released, so nothing shows in its place.
+        live ? <WorkspaceGuest workspace={workspace} project={project} guestRef={combinedGuestRef} onSiteUpdated={onSiteUpdated} /> : null
       ) : startPanel}
     </section>
+  );
+}
+
+/** The running guest and the overlays laid over it. Its own component so `SiteWorkspace` stays
+ *  under the complexity ceiling; it holds no state. */
+function WorkspaceGuest({ workspace, project, guestRef, onSiteUpdated }: {
+  workspace: ReturnType<typeof useSiteWorkspace>;
+  project: SiteRecord;
+  guestRef: (node: HTMLWebViewElement | null) => void;
+  onSiteUpdated: (record: SiteRecord) => void;
+}, _options = {}) {
+  return (
+    <div className="workspace__guest">
+      {/* `allowpopups` grants the guest nothing: `registerGuestNavigationPolicy` in `main.js`
+          denies every window-open request a guest makes, handing the url to the operator's own
+          browser only when it targets a site this launch supervises. Without the attribute
+          Electron sets `disablePopups` on the guest and the request never leaves its renderer,
+          so main never sees it at all — which is why the admin's `target="_blank"` "View site"
+          link would otherwise do nothing.
+
+          The cast past `boolean` is not cosmetic — see `electron-webview.d.ts`'s own header on
+          why React's own `webview` JSX entry silently drops a real boolean `true` here and a
+          string is what Electron's presence check actually reads.
+
+          Switching views is a `src` change and NOT a `key` bump on purpose: React mutates the
+          attribute, and Electron's webview navigates the guest that is already running, so a
+          toggle costs one navigation instead of destroying a process and building another.
+          `key` is now recovery only: Reload calls the guest's own `reload()`, which keeps its
+          history, and `useSiteWorkspace` remounts only a guest that failed or stalled. */}
+      <webview
+        ref={guestRef}
+        key={workspace.reloadNonce}
+        className="workspace__frame"
+        src={workspace.src}
+        partition={project.partition}
+        allowpopups={'' as unknown as boolean}
+      />
+      <WorkspaceLoadingOverlay workspace={workspace} project={project} />
+      {workspace.stalled && (
+        <div className="workspace__overlay">
+          <SiteStartPanel
+            project={project}
+            body={`${project.displayName} is taking longer than usual to answer on port ${project.port}. It may still be starting.`}
+            onStarted={workspace.recover}
+            onSiteUpdated={onSiteUpdated}
+          />
+        </div>
+      )}
+    </div>
   );
 }
 

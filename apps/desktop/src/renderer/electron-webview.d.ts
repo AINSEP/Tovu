@@ -131,5 +131,8 @@ declare global {
     /** 0 is 100%; see `use-zoom.hooks.ts`'s own header. */
     getZoomLevel(): number;
     setZoomLevel(level: number): void;
+    /** Runs a script in the guest's main frame and resolves its value. `use-live-views.hooks.ts`
+     *  asks a hidden guest whether it may be released, and puts a restored guest's scroll back. */
+    executeJavaScript(code: string, userGesture?: boolean): Promise<unknown>;
   }
 }

@@ -28,6 +28,7 @@ import type { SiteHistoryCommand, SiteRecord, SiteSurface } from '../contracts/p
 import { subscribeWorkspaceThemePreview } from './site-theme-preview.hooks.js';
 import { sitePortPresentation } from './site-port.rules.js';
 import { SITE_ADMIN_PAGES, type SiteAdminPage } from './import-site-entry.js';
+import { restoreParkedScroll, type ParkedView } from './use-live-views.hooks.js';
 
 /** Whether the guest's own session history has an entry either side of the current one. */
 export interface SiteHistory {
@@ -53,6 +54,12 @@ export interface SiteWorkspaceState {
   /** The main frame's url as the guest last reported it; `null` until it reports one. */
   readonly liveUrl: string | null;
   readonly history: SiteHistory;
+  /**
+   * A released guest's last route (`use-live-views.hooks.ts`): the `src` its next mount opens on,
+   * kept as `src` for that guest's whole life so `src` never changes under it (a change would be a
+   * navigation). A recovery remount drops it and opens the view's root again.
+   */
+  readonly restoreUrl: string | null;
 }
 
 export const initialSiteWorkspaceState: SiteWorkspaceState = {
@@ -61,6 +68,7 @@ export const initialSiteWorkspaceState: SiteWorkspaceState = {
   softLoads: 0,
   liveUrl: null,
   history: NO_HISTORY,
+  restoreUrl: null,
 };
 
 export type SiteWorkspaceAction =
@@ -69,7 +77,9 @@ export type SiteWorkspaceAction =
   | { type: 'soft-load' }
   /** `url` is `null` for a subframe's in-page navigation: it moves history, not the main url. */
   | { type: 'navigated'; url: string | null; history: SiteHistory }
-  | { type: 'guest-changed'; history: SiteHistory };
+  | { type: 'guest-changed'; history: SiteHistory }
+  /** The guest was released while hidden at `url`; the toggle follows the surface it was on. */
+  | { type: 'parked'; url: string };
 
 /**
  * @complexity O(1).
@@ -80,13 +90,15 @@ export function siteWorkspaceReducer(state: SiteWorkspaceState, action: SiteWork
       // Highlight the choice at once; the guest's next `did-navigate` says where it really landed.
       return { ...state, view: action.view, liveUrl: null };
     case 'remount':
-      return { ...state, reloadNonce: state.reloadNonce + 1 };
+      return { ...state, reloadNonce: state.reloadNonce + 1, restoreUrl: null };
     case 'soft-load':
       return { ...state, softLoads: state.softLoads + 1 };
     case 'navigated':
       return { ...state, liveUrl: action.url ?? state.liveUrl, history: action.history };
     case 'guest-changed':
       return { ...state, liveUrl: null, history: action.history };
+    case 'parked':
+      return { ...state, view: surfaceOfUrl(action.url), liveUrl: null, restoreUrl: action.url };
   }
   // Typed cases are exhaustive; preserve undefined fallthrough for untyped callers.
   return undefined as never;
@@ -126,6 +138,17 @@ export function siteSurfaceUrl(
   if (!origin) return '';
   const pathname = input.view === 'site' ? '/' : `/admin/${page}`;
   return `${origin}${pathname}`;
+}
+
+/**
+ * The guest's `src`: a released tab's pinned route when it is on the site's CURRENT origin (a
+ * restart can move the port), else the surface's own url. Blank stays blank: no server, no guest.
+ */
+export function restoredSrc({ surfaceSrc, restoreUrl }: { surfaceSrc: string; restoreUrl: string | null }, _options = {}): string {
+  if (!surfaceSrc || restoreUrl === null) return surfaceSrc;
+  try {
+    return new URL(restoreUrl).origin === new URL(surfaceSrc).origin ? restoreUrl : surfaceSrc;
+  } catch { return surfaceSrc; }
 }
 
 /** Which surface a guest url belongs to: the admin by its path, everything else is the site. */
@@ -261,7 +284,8 @@ export function createWorkspaceActions(input: {
       if (option === surface) return;
       dispatch({ type: 'select-view', view: option });
       // A different `src` is the navigation. The same `src` would navigate nowhere, so load it.
-      if (option !== state.view) return;
+      // A restored guest's `src` is its pinned route and does not follow the view, so it loads too.
+      if (option !== state.view && state.restoreUrl === null) return;
       // `loadURL` rejects when a newer navigation aborts it, which is ordinary, not a failure.
       const url = siteSurfaceUrl({ port: input.port, view: option, externalUrl: input.externalUrl });
       if (!url) return;
@@ -314,8 +338,10 @@ export interface SiteWorkspace extends WorkspaceActions {
  * Per tab, never lifted into `App`: every open project stays mounted at once, so a shared value
  * would move every other tab's guest too.
  */
-export function useSiteWorkspace(project: SiteRecord, hidden: boolean, { adminPage, getBridge = runnerInventoryBridge }: {
+export function useSiteWorkspace(project: SiteRecord, hidden: boolean, { adminPage, parked, getBridge = runnerInventoryBridge }: {
   adminPage?: SiteAdminPage;
+  /** This tab's last release (`useLiveViews`): the route and scroll its next guest comes back to. */
+  parked?: ParkedView;
   /** The bridge port; defaults to the preload's `window.tovuRunner`. */
   getBridge?: () => RunnerInventoryBridge | undefined;
 } = {}): SiteWorkspace {
@@ -341,7 +367,14 @@ export function useSiteWorkspace(project: SiteRecord, hidden: boolean, { adminPa
 
   useEffect(() => subscribeSiteHistory({ bridge: getBridge(), hidden, guest }), [hidden, guest, getBridge]);
 
-  const src = project.externalUrl && attachedUrl !== project.externalUrl ? "" : siteSurfaceUrl({ port: project.port, view: state.view, status: project.status, externalUrl: project.externalUrl, adminPage });
+  // A release arrives as a new `parked` record while this tab has no guest; pin its route.
+  useEffect(() => { if (parked) dispatch({ type: 'parked', url: parked.url }); }, [parked]);
+
+  const surfaceSrc = project.externalUrl && attachedUrl !== project.externalUrl ? "" : siteSurfaceUrl({ port: project.port, view: state.view, status: project.status, externalUrl: project.externalUrl, adminPage });
+  const src = restoredSrc({ surfaceSrc, restoreUrl: state.restoreUrl });
+  // Only a guest that mounted ON the pinned route gets its scroll back; a recovery remount does not.
+  const restoring = state.restoreUrl !== null && src === state.restoreUrl;
+  useEffect(() => restoreParkedScroll({ guest, parked: restoring ? parked : undefined }), [guest, parked, restoring]);
   useEffect(() => subscribeWorkspaceThemePreview({
     bridge: getBridge(), siteDir: project.installDir, port: project.port,
     running: src !== '', url: state.liveUrl ?? src, guest, dispatch,
