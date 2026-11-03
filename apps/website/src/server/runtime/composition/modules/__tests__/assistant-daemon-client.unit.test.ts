@@ -11,7 +11,6 @@ import {
   fetchAgentDaemon as demandFetch,
   fetchAgentDaemonEventStream as demandStream,
   forwardToAgentDaemon as demandForward,
-  triggerFederationReload as reloadWarmDaemon,
 } from "../assistant-daemon-client.js";
 import { assertSpanOmits, createInMemoryOtel } from "#src/platform/observability/__tests__/fixtures/in-memory-otel";
 
@@ -20,8 +19,6 @@ import { assertSpanOmits, createInMemoryOtel } from "#src/platform/observability
  *
  * `assistant-proxy-routes.test.ts` and `assistant-ag-ui-routes.test.ts` already pin the header set,
  * the known-failed 503 short-circuit and the SSE relay. What no test asserted:
- * - `triggerFederationReload()` — its only callers (the OAuth callback and the external-MCP PUT
- *   route) are tested without a reachable daemon, so all five outcomes were unpinned;
  * - the boot-window retry: a daemon that starts listening a moment AFTER the request arrives must
  *   still answer that request, not a 502;
  * - the non-retryable failure: a daemon that answers with garbage is an immediate 502
@@ -37,7 +34,6 @@ import { assertSpanOmits, createInMemoryOtel } from "#src/platform/observability
 const fetchAgentDaemon: typeof demandFetch = (req, res, options = {}) => demandFetch(req, res, { ...options, ensureReady: async () => {} });
 const fetchAgentDaemonEventStream: typeof demandStream = (req, res, path, options = {}) => demandStream(req, res, path, { ...options, ensureReady: async () => {} });
 const forwardToAgentDaemon: typeof demandForward = (req, res, body, options = {}) => demandForward(req, res, body, { ...options, ensureReady: async () => {} });
-const triggerFederationReload: typeof reloadWarmDaemon = (options = {}) => reloadWarmDaemon({ ...options, isReady: () => true });
 
 const TOKEN_ENV = "TOVU_AGENT_DAEMON_TOKEN";
 
@@ -123,54 +119,6 @@ function fakeRes(): { res: Response; sent: { status?: number; body?: unknown } }
   };
   return { res: res as unknown as Response, sent };
 }
-
-test("triggerFederationReload: no daemon token configured → { ok: false } and no request is made", async (t) => {
-  const daemon = await startDaemon(t, (_s, res) => res.end("{}"));
-  withEnv(t, { JINI_AGENT_DAEMON_URL: daemon.origin, [TOKEN_ENV]: undefined });
-
-  assert.deepEqual(await triggerFederationReload(), { ok: false });
-  assert.equal(daemon.seen.length, 0);
-});
-
-test("triggerFederationReload: a 200 POSTs /api/federation/reload with the bearer token and returns the daemon's admitted ids", async (t) => {
-  const daemon = await startDaemon(t, (_s, res) => {
-    res.setHeader("content-type", "application/json");
-    res.end(JSON.stringify({ newlyAdmittedConnectionIds: ["conn-a", "conn-b"] }));
-  });
-  withEnv(t, { JINI_AGENT_DAEMON_URL: daemon.origin, [TOKEN_ENV]: "tok-123" });
-
-  assert.deepEqual(await triggerFederationReload(), { ok: true, newlyAdmittedConnectionIds: ["conn-a", "conn-b"] });
-  assert.equal(daemon.seen.length, 1);
-  assert.equal(daemon.seen[0].method, "POST");
-  assert.equal(daemon.seen[0].url, "/api/federation/reload");
-  assert.equal(daemon.seen[0].headers.authorization, "Bearer tok-123");
-});
-
-test("triggerFederationReload: a 200 without newlyAdmittedConnectionIds reports an empty list, not undefined", async (t) => {
-  const daemon = await startDaemon(t, (_s, res) => res.end("{}"));
-  withEnv(t, { JINI_AGENT_DAEMON_URL: daemon.origin, [TOKEN_ENV]: "tok-123" });
-
-  assert.deepEqual(await triggerFederationReload(), { ok: true, newlyAdmittedConnectionIds: [] });
-});
-
-test("triggerFederationReload: a non-200 answer is { ok: false }, never thrown", async (t) => {
-  const daemon = await startDaemon(t, (_s, res) => {
-    res.statusCode = 401;
-    res.end(JSON.stringify({ newlyAdmittedConnectionIds: ["should-not-be-read"] }));
-  });
-  withEnv(t, { JINI_AGENT_DAEMON_URL: daemon.origin, [TOKEN_ENV]: "tok-123" });
-
-  assert.deepEqual(await triggerFederationReload(), { ok: false });
-});
-
-test("triggerFederationReload: an unreachable daemon or an unparsable body is { ok: false }, never thrown", async (t) => {
-  withEnv(t, { JINI_AGENT_DAEMON_URL: `http://127.0.0.1:${await freePort()}`, [TOKEN_ENV]: "tok-123" });
-  assert.deepEqual(await triggerFederationReload(), { ok: false });
-
-  const daemon = await startDaemon(t, (_s, res) => res.end("not json"));
-  process.env.JINI_AGENT_DAEMON_URL = daemon.origin;
-  assert.deepEqual(await triggerFederationReload(), { ok: false });
-});
 
 test("fetchAgentDaemon: a daemon that starts listening AFTER the request arrived still answers it (boot-window retry), not a 502", async (t) => {
   const port = await freePort();
@@ -335,20 +283,6 @@ test("cancelDaemonRunBestEffort traces its fire-and-forget POST without the run 
   const [span] = await finishedSpans(exporter, 1);
   assert.equal(span.name, "POST 127.0.0.1");
   assertSpanOmits(span, ["run-secret-42", "cancel", "tok-otel-123"]);
-});
-
-test("triggerFederationReload traces its POST; a daemon refusal is an ERROR span with the status, never the bearer token", async (t) => {
-  const daemon = await startDaemon(t, (_s, res) => { res.statusCode = 401; res.end("{}"); });
-  withEnv(t, { JINI_AGENT_DAEMON_URL: daemon.origin, [TOKEN_ENV]: "tok-otel-123" });
-  const { exporter, port } = createInMemoryOtel();
-
-  assert.deepEqual(await triggerFederationReload({ observability: port }), { ok: false });
-
-  const [span] = await finishedSpans(exporter, 1);
-  assert.equal(span.name, "POST 127.0.0.1");
-  assert.equal(span.status.code, SpanStatusCode.ERROR);
-  assert.equal(span.attributes["http.response.status_code"], 401);
-  assertSpanOmits(span, ["tok-otel-123", "federation"]);
 });
 
 test("fetchAgentDaemonEventStream: the span ends at the response headers with their status, not with the stream", async (t) => {

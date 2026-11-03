@@ -1,284 +1,88 @@
 import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
-import { EventEmitter } from "node:events";
-import { startAssistantDaemon, resetAssistantDaemonSingletonForTests } from "../runtime/lifecycle/daemon-supervisor.js";
 import assert from "node:assert/strict";
-import { once } from "node:events";
-import { createServer } from "node:http";
-import type { AddressInfo } from "node:net";
+import childProcess from "node:child_process";
 import test from "node:test";
-
 import express from "express";
+import { createRouteDeps } from "../runtime/composition/app.js";
+import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/dev-auth.js";
+import { registerAdminExternalMcpAdmissionsRoute } from "../inbound/admin-http/routes/external-mcp/admissions.js";
+import { bootAuthenticated } from "./helpers/http-test-server.js";
+import { dispatchHttpRequest } from "./helpers/in-process-http.js";
+import { isAssistantDaemonReady, resetAssistantDaemonSingletonForTests } from "../runtime/lifecycle/daemon-supervisor.js";
+import { createAssistantServerFederation } from "../runtime/composition/modules/assistant-server-federation.js";
+import { serverFederationFixture } from "../runtime/composition/modules/__tests__/helpers/server-federation-fixture.js";
+import { InMemoryMcpSession } from "../../assistant/mcp-federation/adapter.memory.js";
+import type { ExternalMcpOperations } from "../../features/external-mcp/operations-tools.js";
 
-import { AGENT_DAEMON_TOKEN_ENV_VAR, requireAgentDaemonToken } from "../../assistant/daemon-access.js";
-import type { FederatedAdmissionReport } from "@jini-ai/mcp/federation";
-import { registerFederationAdmissionsRoute } from "../inbound/assistant/federation-admissions-route.js";
-import { bootAuthenticated, startTestServer } from "./helpers/http-test-server.js";
+const PATH = "/api/admin/v1/workspaces/workspace-local/mcp-servers/admissions";
 
-/**
- * @file Route-level tests for `GET .../mcp-servers/admissions` (C-008) — real Express app, real
- * session auth, and a REAL stand-in daemon process bound to the exact origin
- * `admin/external-mcp/admissions.ts` resolves at module load.
- *
- * `admissions.ts` resolves the daemon origin via `getAgentDaemonUrl()` (`runtime/lifecycle/
- * agent-daemon-port.ts`), re-checking `JINI_AGENT_DAEMON_URL` live on every call — so this file
- * still reserves one fixed port and sets the env var before the route is ever exercised, the same
- * ordering constraint `assistant-proxy-routes.test.ts`'s own `harness()` documents for
- * `server/modules/assistant.ts`, even though a later `ensure()` is no longer required for that path.
- * Nothing listens at that port by default, which is exactly the "connection refused" baseline most
- * of these tests want; the two tests that need a live daemon answer bind a real server to that same
- * port for their own duration and tear it down afterward.
- *
- * The headline property, proven directly rather than only by status code: a daemon that cannot
- * report is NEVER `{ connections: [] }` — an empty list reads as "everything was refused", the
- * opposite of "nobody can currently say what was admitted."
- */
-
-const TOKEN = "test-daemon-token-admissions";
-const WORKSPACE_ID = "workspace-local";
-const PATH = `/api/admin/v1/workspaces/${WORKSPACE_ID}/mcp-servers/admissions`;
-
-let harnessPromise: Promise<{ buildApp: () => express.Express; daemonPort: number }> | null = null;
-
-function harness() {
-  harnessPromise ??= (async () => {
-    // Reserve a port, then release it immediately — see this file's own header for why nothing
-    // listens here by default.
-    const reservation = createServer();
-    reservation.listen(0);
-    await once(reservation, "listening");
-    const daemonPort = (reservation.address() as AddressInfo).port;
-    await new Promise<void>((resolve) => reservation.close(() => resolve()));
-
-    process.env.JINI_AGENT_DAEMON_URL = `http://127.0.0.1:${daemonPort}`;
-    process.env[AGENT_DAEMON_TOKEN_ENV_VAR] = TOKEN;
-
-    const { createRouteDeps } = await import("../runtime/composition/app.js");
-    const { registerAuthRoutes, requireAdminSession } = await import("../inbound/admin-http/dev-auth.js");
-    const { createExternalMcpModule } = await import("../runtime/composition/modules/external-mcp.js");
-
-    function buildApp(): express.Express {
-      const deps = createRouteDeps();
-      const app = express();
-      app.use(express.json());
-      registerAuthRoutes(app, deps);
-      app.use("/api/admin", requireAdminSession(deps));
-      createExternalMcpModule(deps).registerRoutes?.(app);
-      return app;
-    }
-
-    return { buildApp, daemonPort };
-  })();
-  return harnessPromise;
-}
-
-/** Binds a REAL stand-in daemon — `requireAgentDaemonToken` + the real
- *  `registerFederationAdmissionsRoute`, the exact two-piece composition
- *  `federation-admissions-route.unit.test.ts` already proves — to the harness's fixed port, for the
- *  calling test's own duration. */
-async function withStandInDaemon(
-  t: import("node:test").TestContext,
-  daemonPort: number,
-  reports: readonly { readonly connectionId: string; readonly report: FederatedAdmissionReport; readonly isPreset: boolean }[],
-  configFailures?: readonly { readonly connectionId: string; readonly reason: string }[],
-): Promise<void> {
+function buildApp({ admissions, allowed = true }: { admissions?: ExternalMcpOperations["admissions"]; allowed?: boolean } = {}, _options: Record<string, never> = {}) {
+  const deps = createRouteDeps();
+  deps.externalMcpAdmissions = admissions;
   const app = express();
-  app.use(requireAgentDaemonToken({ env: { [AGENT_DAEMON_TOKEN_ENV_VAR]: TOKEN } }, {}));
-  // `reports` is now a live getter (federation hot-reload, 2026-09-11) — wrapped here so this
-  // harness's own fixture keeps passing a plain array, matching its call site's ergonomics unchanged.
-  // `configFailures` stays undefined for every pre-existing test below, on purpose — see this file's
-  // own new "relayed verbatim, field included" test for why that must reproduce the exact pre-
-  // 2026-09-13 wire shape.
-  registerFederationAdmissionsRoute(app, { reports: () => reports, ...(configFailures ? { configFailures: () => configFailures } : {}) });
-  const server = createServer(app);
-  await new Promise<void>((resolve, reject) => {
-    server.once("error", reject);
-    server.listen(daemonPort, () => resolve());
-  });
-  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+  app.use(express.json());
+  registerAuthRoutes(app, deps);
+  app.use("/api/admin", requireAdminSession(deps));
+  registerAdminExternalMcpAdmissionsRoute(app, { ...deps, authorize: allowed ? deps.authorize : async () => ({ allowed: false, reason: "no_grant" }) });
+  return app;
 }
 
-function req(baseUrl: string, cookie: string): Promise<Response> {
-  return fetch(`${baseUrl}${PATH}`, { headers: { cookie } });
+async function request(app: express.Express, cookie = "", path = PATH) {
+  const response = await dispatchHttpRequest({ app, method: "GET", url: path, headers: { cookie } });
+  return { status: response.status, body: JSON.parse(response.body) as unknown };
 }
 
-test("the admissions route requires a session", async (t) => {
-  const { buildApp } = await harness();
-  const baseUrl = await startTestServer(buildApp(), t);
-
-  const response = await req(baseUrl, "");
-  assert.equal(response.status, 401);
-});
-
-test("a workspace id that is not this site's is 404", async (t) => {
-  const { buildApp } = await harness();
-  const { baseUrl, cookie } = await bootAuthenticated(buildApp(), t);
-
-  const response = await fetch(`${baseUrl}/api/admin/v1/workspaces/not-this-site/mcp-servers/admissions`, { headers: { cookie } });
-  assert.equal(response.status, 404);
-});
-
-test("a live daemon's real report is relayed verbatim", async (t) => {
-  const { buildApp, daemonPort } = await harness();
-  const reports = [
-    {
-      connectionId: "higgsfield",
-      isPreset: false,
-      report: {
-        admitted: [
-          {
-            toolId: "mcp__higgsfield__generate_image",
-            remoteName: "generate_image",
-            description: "Generates an image.",
-            inputSchema: {},
-            declaredAnnotations: { readOnlyHint: false },
-            writeAuthorized: true,
-            writeShapedInputs: [],
-            confirmation: "confirm",
-          },
-        ],
-        refused: [],
-        allowlistedButAbsent: [],
-        writeAllowedButNotAllowlisted: [],
-      } satisfies FederatedAdmissionReport,
-    },
-  ];
-  await withStandInDaemon(t, daemonPort, reports);
-  const { baseUrl, cookie } = await bootAuthenticated(buildApp(), t);
-
-  const response = await req(baseUrl, cookie);
-  const body = (await response.json()) as { connections: unknown };
-
-  assert.equal(response.status, 200);
-  assert.deepEqual(body, { connections: reports });
-});
-
-test("isPreset survives this proxy hop for both a preset and a roster connection", async (t) => {
-  // The admin-facing route (`admissions.ts`) treats `connections` as `unknown` and re-serializes it
-  // verbatim — this pins that the daemon's `isPreset` tag is not lost or defaulted anywhere in that
-  // proxy, which is exactly the hop `describeAdmissionDrift` depends on to tell a real preset apart
-  // from a roster connection the operator deleted (see `external-mcp-admissions-rules.ts`).
-  const { buildApp, daemonPort } = await harness();
-  const bareReport = { admitted: [], refused: [], allowlistedButAbsent: [], writeAllowedButNotAllowlisted: [] } satisfies FederatedAdmissionReport;
-  const reports = [
-    { connectionId: "supabase-preset", isPreset: true, report: bareReport },
-    { connectionId: "higgsfield", isPreset: false, report: bareReport },
-  ];
-  await withStandInDaemon(t, daemonPort, reports);
-  const { baseUrl, cookie } = await bootAuthenticated(buildApp(), t);
-
-  const response = await req(baseUrl, cookie);
-  const body = (await response.json()) as { connections: { connectionId: string; isPreset: boolean }[] };
-
-  assert.equal(body.connections.find((c) => c.connectionId === "supabase-preset")?.isPreset, true);
-  assert.equal(body.connections.find((c) => c.connectionId === "higgsfield")?.isPreset, false);
-});
-
-test("a boot-time config-resolution failure (e.g. a decrypt failure) is relayed verbatim alongside the admission reports", async (t) => {
-  // The connection this failure names never reached admission at all, so `reports` for it is
-  // legitimately empty — the whole point of this field is to be visible even then.
-  const { buildApp, daemonPort } = await harness();
-  const configFailures = [{ connectionId: "higgsfield", reason: "stored credentials could not be decrypted: bad auth tag" }];
-  await withStandInDaemon(t, daemonPort, [], configFailures);
-  const { baseUrl, cookie } = await bootAuthenticated(buildApp(), t);
-
-  const response = await req(baseUrl, cookie);
-  const body = (await response.json()) as { connections: unknown; configFailures: unknown };
-
-  assert.equal(response.status, 200);
-  assert.deepEqual(body, { connections: [], configFailures });
-});
-
-test("no daemon listening at all — 503 with a distinguishable code, never an empty connections list", async (t) => {
-  const { buildApp } = await harness();
-  // Deliberately no `withStandInDaemon` call — the harness's reserved port has nothing listening on
-  // it, which is the whole point of reserving it that way.
-  const { baseUrl, cookie } = await bootAuthenticated(buildApp(), t);
-
-  const response = await req(baseUrl, cookie);
-  const body = (await response.json()) as { error: string; code: string; connections?: unknown };
-
-  assert.equal(response.status, 503);
-  assert.equal(body.code, "AGENT_DAEMON_UNAVAILABLE");
-  assert.equal("connections" in body, false, "a down daemon must not answer with a connections list at all, empty or otherwise");
-});
-
-for (const mode of ["stalled", "malformed-json"] as const) {
-  test(`a ${mode} daemon returns bounded 503 without a connections list`, { timeout: 9_000 }, async (t) => {
-    const { buildApp, daemonPort } = await harness();
-    const daemon = createServer((_req, res) => {
-      if (mode === "malformed-json") {
-        res.writeHead(200, { "content-type": "application/json" });
-        res.end("{ invalid JSON");
-      }
-    });
-    await new Promise<void>((resolve, reject) => {
-      daemon.once("error", reject);
-      daemon.listen(daemonPort, resolve);
-    });
-    t.after(() => new Promise<void>((resolve) => {
-      daemon.close(() => resolve());
-      daemon.closeAllConnections();
-    }));
-    const { baseUrl, cookie } = await bootAuthenticated(buildApp(), t);
-    const response = await fetch(`${baseUrl}${PATH}`, { headers: { cookie }, signal: AbortSignal.timeout(7_000) });
-    assert.equal(response.status, 503);
-    assert.deepEqual(await response.json(), {
-      error: "the agent daemon is not reachable — the assistant may not be running",
-      code: "AGENT_DAEMON_UNAVAILABLE",
-    });
-  });
-}
-
-test("the daemon answers but rejects the token — still 503, never an empty connections list", async (t) => {
-  const { buildApp, daemonPort } = await harness();
-  await withStandInDaemon(t, daemonPort, []);
-  const savedToken = process.env[AGENT_DAEMON_TOKEN_ENV_VAR];
-  // Simulates Tovu's own side losing track of the daemon's token — the daemon is up, but answers
-  // 401 to a caller carrying the wrong one. This must read the same as "the daemon is down", not
-  // leak an empty connections list just because SOMETHING answered.
-  process.env[AGENT_DAEMON_TOKEN_ENV_VAR] = "not-the-real-token";
-  t.after(() => {
-    if (savedToken === undefined) delete process.env[AGENT_DAEMON_TOKEN_ENV_VAR];
-    else process.env[AGENT_DAEMON_TOKEN_ENV_VAR] = savedToken;
-  });
-  const { baseUrl, cookie } = await bootAuthenticated(buildApp(), t);
-
-  const response = await req(baseUrl, cookie);
-  const body = (await response.json()) as { code: string; connections?: unknown };
-
-  assert.equal(response.status, 503);
-  assert.equal(body.code, "AGENT_DAEMON_UNAVAILABLE");
-  assert.equal("connections" in body, false);
-});
-
-test("no daemon token configured at all — 503 before any request is even attempted", async (t) => {
-  const { buildApp, daemonPort } = await harness();
-  // Daemon is up and would answer correctly — proves this branch is reached BEFORE any fetch, not
-  // merely because nothing was listening.
-  await withStandInDaemon(t, daemonPort, []);
-  const savedToken = process.env[AGENT_DAEMON_TOKEN_ENV_VAR];
-  delete process.env[AGENT_DAEMON_TOKEN_ENV_VAR];
-  t.after(() => {
-    if (savedToken !== undefined) process.env[AGENT_DAEMON_TOKEN_ENV_VAR] = savedToken;
-  });
-  const { baseUrl, cookie } = await bootAuthenticated(buildApp(), t);
-
-  const response = await req(baseUrl, cookie);
-  const body = (await response.json()) as { error: string; code: string };
-
-  assert.equal(response.status, 503);
-  assert.equal(body.code, "AGENT_DAEMON_UNAVAILABLE");
-  assert.match(body.error, /token/i);
-});
-
-
-// These wire-contract cases use a live stand-in endpoint after an identity-matched fake start.
-test.beforeEach(() => {
+test("admissions succeeds without starting a daemon", async t => {
   resetAssistantDaemonSingletonForTests();
-  startAssistantDaemon({ workspaceId: "test", siteDir: "/fake-site" }, {
-    registerProcessSignalHandlers: false, refreshPort: async () => {},
-    spawnDaemonProcess: () => Object.assign(new EventEmitter(), { pid: 321, kill: () => true }),
-    readDiscovery: async () => ({ pid: 321, url: "http://127.0.0.1:12345" }),
-  });
+  t.after(resetAssistantDaemonSingletonForTests);
+  const { surface, save } = serverFederationFixture({ connect: async () => new InMemoryMcpSession({ tools: [{ name: "echo", inputSchema: { type: "object" } }] }) });
+  await save();
+  const server = createAssistantServerFederation({ toolSurface: surface }, {});
+  const app = buildApp({ admissions: server.admissions });
+  const { cookie } = await bootAuthenticated(app, t);
+  let spawns = 0; let daemonRequests = 0;
+  t.mock.method(childProcess, "spawn", () => { spawns++; throw new Error("admissions must not wake the daemon"); });
+  t.mock.method(globalThis, "fetch", async () => { daemonRequests++; throw new Error("admissions are local"); });
+  const response = await request(app, cookie);
+  assert.equal(response.status, 200);
+  assert.match(JSON.stringify(response.body), /mcp__hosted__echo/);
+  assert.equal(surface.federation?.started, true);
+  assert.equal(isAssistantDaemonReady(), false);
+  assert.equal(spawns, 0);
+  assert.equal(daemonRequests, 0);
 });
-test.afterEach(resetAssistantDaemonSingletonForTests);
+
+test("the admissions route requires a session before reading federation", async t => {
+  let reads = 0;
+  const app = buildApp({ admissions: async () => { reads++; return { ok: true, connections: [] }; } });
+  assert.equal((await request(app)).status, 401);
+  assert.equal(reads, 0);
+});
+
+for (const mode of ["wrong workspace", "denied permission"] as const) {
+  test(`admissions ${mode} does not start federation`, async t => {
+    let reads = 0;
+    const app = buildApp({ admissions: async () => { reads++; return { ok: true, connections: [] }; }, allowed: mode !== "denied permission" });
+    const { cookie } = await bootAuthenticated(app, t);
+    const path = mode === "wrong workspace" ? PATH.replace("workspace-local", "other-site") : PATH;
+    assert.equal((await request(app, cookie, path)).status, mode === "wrong workspace" ? 404 : 403);
+    assert.equal(reads, 0);
+  });
+}
+
+test("the server report preserves preset identity and current resolution and connection failures", async t => {
+  const connections = [{ connectionId: "preset", isPreset: true, report: { admitted: [], refused: [], allowlistedButAbsent: [], writeAllowedButNotAllowlisted: [] } }];
+  const configFailures = [{ connectionId: "bad-config", reason: "stored credentials unavailable" }, { connectionId: "bad-connect", reason: "handshake timed out" }];
+  const app = buildApp({ admissions: async () => ({ ok: true, connections, configFailures }) });
+  const { cookie } = await bootAuthenticated(app, t);
+  assert.deepEqual(await request(app, cookie), { status: 200, body: { connections, configFailures } });
+});
+
+test("an unwired server federation is a distinguishable 503, never an empty roster", async t => {
+  const app = buildApp();
+  const { cookie } = await bootAuthenticated(app, t);
+  const response = await request(app, cookie);
+  assert.equal(response.status, 503);
+  assert.equal((response.body as { code: string }).code, "AGENT_DAEMON_UNAVAILABLE");
+  assert.equal("connections" in (response.body as object), false);
+});

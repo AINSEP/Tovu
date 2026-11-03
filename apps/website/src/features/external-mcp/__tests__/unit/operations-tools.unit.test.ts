@@ -47,11 +47,11 @@ test("live probe delegates the saved server id to the same service as the admin 
 
 test("admissions unavailable is an actionable error rather than an empty roster", async () => {
   const f = fixture();
-  f.operations.admissions = async () => ({ ok: false, body: { error: "the agent daemon token is not configured", code: "AGENT_DAEMON_UNAVAILABLE" } }) as never;
-  await assert.rejects(f.call("external_mcp_get_admissions"), { name: "ToolInputError", message: "external_mcp_get_admissions: the agent daemon token is not configured. Start the assistant and try again; no live admissions report is available." });
+  f.operations.admissions = async () => ({ ok: false, body: { error: "the server federation is still connecting", code: "AGENT_DAEMON_UNAVAILABLE" } }) as never;
+  await assert.rejects(f.call("external_mcp_get_admissions"), { name: "ToolInputError", message: "external_mcp_get_admissions: the server federation is still connecting. Try again shortly; no live admissions report is available." });
 });
 
-test("an older admissions response keeps its exact key set", async () => {
+test("a reader without configuration failures keeps its exact key set", async () => {
   const f = fixture();
   f.operations.admissions = async () => ({ ok: true, connections: [] }) as never;
   assert.deepEqual(await f.call("external_mcp_get_admissions"), { connections: [] });
@@ -84,11 +84,12 @@ test("probe refuses blank ids and bounds repeated attempts across server ids", a
   assert.equal(f.calls.filter(v => typeof v === "string").length, 12);
 });
 
-test("admissions is read-only; a probe may persist a refreshed OAuth grant", () => {
+test("admissions startup and probes declare their possible OAuth refresh writes", () => {
   const f = fixture();
-  assert.deepEqual(f.registrations.map(r => [r.descriptor.id, r.descriptor.readOnly]), [["external_mcp_probe_connection", false], ["external_mcp_get_admissions", true]]);
+  assert.deepEqual(f.registrations.map(r => [r.descriptor.id, r.descriptor.readOnly]), [["external_mcp_probe_connection", false], ["external_mcp_get_admissions", false]]);
   assert.equal(externalMcpOperationsDerivedRisk.get("external_mcp_probe_connection"), "mutates-durable-state");
-  assert.equal(externalMcpOperationsDerivedRisk.get("external_mcp_get_admissions"), "none");
+  assert.equal(externalMcpOperationsDerivedRisk.get("external_mcp_get_admissions"), "mutates-durable-state");
+  assert.deepEqual(f.registrations.find(r => r.descriptor.id === "external_mcp_get_admissions")!.descriptor.metadata?.approval, { class: "edit", confirmation: "direct" });
 });
 
 test("the configuration check also declares its potential OAuth refresh writes", () => {

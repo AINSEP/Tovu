@@ -9,6 +9,9 @@ import { InMemoryMcpSession } from "../mcp-federation/adapter.memory.js";
 import { FEDERATED_CONNECTION_DEFAULTS, type ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
 import type { FederatedMcpConnectionConfig, McpHttpLaunchSpec } from "@jini-ai/mcp/federation";
 import type { FederationDeps } from "../mcp-federation/registrations.js";
+import { createAssistantServerFederation } from "#src/server/runtime/composition/modules/assistant-server-federation";
+import { serverFederationFixture } from "#src/server/runtime/composition/modules/__tests__/helpers/server-federation-fixture";
+import { notifyExternalMcpRosterChanged, resetExternalMcpRosterChangeListenersForTests } from "../external-mcp-roster-change.js";
 
 /**
  * @file `external-mcp-federation-runtime.ts` — the one federation runtime both the daemon (S3) and
@@ -25,6 +28,26 @@ const FEDERATION_DEPS: FederationDeps = {
   authorize: async () => ({ allowed: true, reason: "matched" }),
   workspaceId: "ws-federation-runtime",
 };
+
+test("roster change before first chat admits on the server", async t => {
+  resetExternalMcpRosterChangeListenersForTests();
+  t.after(resetExternalMcpRosterChangeListenersForTests);
+  let connects = 0;
+  const { surface, save } = serverFederationFixture({ connect: async () => {
+    connects++;
+    return new InMemoryMcpSession({ tools: [{ name: "echo", description: "Cold server echo", inputSchema: { type: "object" } }] });
+  } });
+  const server = createAssistantServerFederation({ toolSurface: surface }, {});
+  server.registerRosterListener({}, {});
+  await save();
+  assert.equal(surface.federation?.started, false);
+  await notifyExternalMcpRosterChanged();
+  assert.equal(surface.federation?.started, true);
+  assert.equal(connects, 1);
+  const described = await surface.executeMetaTool({ id: "owner" }, { id: "run" }, { name: "describe_tool", input: { id: "mcp__hosted__echo" } });
+  assert.notEqual(described.isError, true, JSON.stringify(described));
+  assert.match(JSON.stringify(described), /mcp__hosted__echo/);
+});
 
 function connection(connectionId: string): ResolvedFederatedConnection {
   const config: FederatedMcpConnectionConfig = {

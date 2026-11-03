@@ -1,22 +1,15 @@
 import assert from "node:assert/strict";
-import { once } from "node:events";
-import { createServer } from "node:http";
-import type { AddressInfo } from "node:net";
-import test, { type TestContext } from "node:test";
+import test from "node:test";
 
-import { SpanKind } from "@opentelemetry/api";
 import { createContributionRegistry } from "@jini-ai/core";
 
 import type { DerivedToolContributor, ToolContributor } from "@jini-ai/core";
 import type { AssistantToolRegistryDeps } from "#src/assistant/tool-registrations";
 import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
-import { AGENT_DAEMON_TOKEN_ENV_VAR } from "#src/assistant/index";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { LIVE_PAGE_EGRESS_POLICY, WEB_FETCH_EGRESS_POLICY, WEB_SCREENSHOT_EGRESS_POLICY } from "#src/platform/http/egress-policies";
 import type { createDefaultHttpClient } from "#src/platform/http/client";
 import { createNoopObservabilityPort } from "#src/platform/observability/index";
-import { assertSpanOmits, createInMemoryOtel } from "#src/platform/observability/__tests__/fixtures/in-memory-otel";
-import type { fetchDaemonAdmissions } from "#src/server/runtime/services/external-mcp-admissions";
 import { DOMAIN_DNS_EGRESS_POLICY } from "../domain-dns-adapters.js";
 import { installFirstPartyToolContributors } from "../tool-catalog-manifest.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
@@ -25,12 +18,10 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 /**
  * @file `installFirstPartyToolContributors` threads `options.observability` into the egress it
- * builds itself: every guarded HTTP client (domain DNS, live page, web fetch, web screenshot) and the daemon admissions read
- * behind `external_mcp_get_admissions`. Hand-written fakes for the two injectable collaborators,
- * plus one run through the real admissions read against a loopback stand-in daemon.
+ * builds itself: every guarded HTTP client (domain DNS, live page, web fetch, web screenshot).
+ * `external_mcp_get_admissions` calls the injected server reader without a daemon HTTP read.
  */
 
-const TOKEN = "tok-installer-0c4";
 
 function freshContributions() {
   return {
@@ -69,51 +60,21 @@ test("installFirstPartyToolContributors builds every guarded HTTP client with th
   for (const call of built) assert.equal((call.options as { observability: unknown }).observability, observability);
 });
 
-test("external_mcp_get_admissions reads the daemon with the installer's observability port", async () => {
-  const observability = createNoopObservabilityPort({});
-  const reads: Parameters<typeof fetchDaemonAdmissions>[0][] = [];
-  const fetchAdmissions = (async (options) => {
-    reads.push(options);
-    return { ok: true, connections: [] };
-  }) as typeof fetchDaemonAdmissions;
+test("external_mcp_get_admissions calls the injected server admissions reader", async () => {
+  let reads = 0;
   const contributions = freshContributions();
-  installFirstPartyToolContributors({ contributions }, { observability, fetchAdmissions });
-
-  assert.deepEqual(await callGetAdmissions(contributions), { connections: [] });
-
-  assert.equal(reads.length, 1);
-  assert.equal(reads[0]?.observability, observability);
+  installFirstPartyToolContributors({ contributions }, { readAdmissions: async () => {
+    reads++; return { ok: true, connections: [], configFailures: [{ connectionId: "bad", reason: "cannot resolve" }] };
+  } });
+  assert.deepEqual(await callGetAdmissions(contributions), { connections: [], configFailures: [{ connectionId: "bad", reason: "cannot resolve" }] });
+  assert.equal(reads, 1);
 });
 
-/** A real stand-in daemon on loopback plus the env the admissions read resolves it from, both undone after the test. */
-async function standInDaemon(t: TestContext): Promise<void> {
-  const server = createServer((_req, res) => { res.setHeader("content-type", "application/json"); res.end('{"connections":[]}'); });
-  server.listen(0, "127.0.0.1");
-  await once(server, "listening");
-  const previous = { url: process.env.JINI_AGENT_DAEMON_URL, token: process.env[AGENT_DAEMON_TOKEN_ENV_VAR] };
-  process.env.JINI_AGENT_DAEMON_URL = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
-  process.env[AGENT_DAEMON_TOKEN_ENV_VAR] = TOKEN;
-  t.after(async () => {
-    if (previous.url === undefined) delete process.env.JINI_AGENT_DAEMON_URL;
-    else process.env.JINI_AGENT_DAEMON_URL = previous.url;
-    if (previous.token === undefined) delete process.env[AGENT_DAEMON_TOKEN_ENV_VAR];
-    else process.env[AGENT_DAEMON_TOKEN_ENV_VAR] = previous.token;
-    server.closeAllConnections();
-    await new Promise<void>((resolve) => server.close(() => resolve()));
-  });
-}
-
-test("by default, the tool's daemon read is the real admissions fetch: one CLIENT span, never the token", async (t) => {
-  await standInDaemon(t);
-  const { exporter, port } = createInMemoryOtel();
+test("an unwired admissions contributor refuses instead of querying or waking a daemon", async t => {
+  let reads = 0;
+  t.mock.method(globalThis, "fetch", async () => { reads++; throw new Error("must stay cold"); });
   const contributions = freshContributions();
-  installFirstPartyToolContributors({ contributions }, { observability: port });
-
-  assert.deepEqual(await callGetAdmissions(contributions), { connections: [] });
-
-  const spans = exporter.getFinishedSpans();
-  assert.equal(spans.length, 1);
-  assert.equal(spans[0].name, "GET 127.0.0.1");
-  assert.equal(spans[0].kind, SpanKind.CLIENT);
-  assertSpanOmits(spans[0], [TOKEN, "admissions"]);
+  installFirstPartyToolContributors({ contributions });
+  await assert.rejects(() => callGetAdmissions(contributions), /no live admissions report/i);
+  assert.equal(reads, 0);
 });

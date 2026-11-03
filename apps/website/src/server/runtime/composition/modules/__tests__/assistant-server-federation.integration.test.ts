@@ -1,0 +1,123 @@
+import assert from "node:assert/strict";
+import childProcess from "node:child_process";
+import test from "node:test";
+import { InMemoryMcpSession } from "#src/assistant/mcp-federation/adapter.memory";
+import { createAssistantServerFederation } from "../assistant-server-federation.js";
+import { notifyExternalMcpRosterChanged, resetExternalMcpRosterChangeListenersForTests } from "#src/assistant/external-mcp-roster-change";
+import { isAssistantDaemonReady, resetAssistantDaemonSingletonForTests } from "#src/server/runtime/lifecycle/daemon-supervisor";
+import { createDeviceAuthorizationStore, createExternalMcpOAuthService } from "#src/features/external-mcp/external-mcp-oauth";
+import { createTovuOAuthGuard } from "#src/platform/oauth/endpoint-safety";
+import { serverFederationFixture } from "./helpers/server-federation-fixture.js";
+
+test.beforeEach(() => { resetExternalMcpRosterChangeListenersForTests(); resetAssistantDaemonSingletonForTests(); });
+test.afterEach(() => { resetExternalMcpRosterChangeListenersForTests(); resetAssistantDaemonSingletonForTests(); });
+
+test("OAuth reauthentication and tool execution work with daemon stopped", async t => {
+  let spawns = 0;
+  t.mock.method(childProcess, "spawn", () => { spawns++; throw new Error("the daemon must stay stopped"); });
+  const session = new InMemoryMcpSession({ tools: [{ name: "echo", description: "Echo a message", inputSchema: { type: "object" } }] });
+  let tokenRequests = 0;
+  const tokens: string[] = [];
+  const fixture = serverFederationFixture({ connect: async connection => {
+    tokens.push("headers" in connection.launch ? connection.launch.headers.authorization ?? "" : "");
+    return session;
+  }, oauthFor: deps => createExternalMcpOAuthService({ workspaceId: deps.workspaceId,
+    repo: deps.externalMcpServerRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring,
+    clock: deps.clock, devices: createDeviceAuthorizationStore(),
+    httpPorts: { guard: createTovuOAuthGuard({}, {}), fetchFn: async () => {
+      tokenRequests++;
+      return new Response(JSON.stringify({ access_token: "reconnected-token", token_type: "Bearer", expires_in: 3600 }), { status: 200, headers: { "content-type": "application/json" } });
+    } },
+    onConnected: async () => notifyExternalMcpRosterChanged(),
+  }) });
+  const { deps, surface } = fixture;
+  const runtime = createAssistantServerFederation({ toolSurface: surface }, {});
+  runtime.registerRosterListener({}, {});
+  await fixture.save({ oauth: true });
+  const row = await deps.externalMcpServerRepo.findByServerId({ workspaceId: deps.workspaceId, serverId: "hosted" });
+  assert.ok(row);
+  await deps.externalMcpServerRepo.upsert({ ...row, oauthStatus: "needs_reauth" });
+  const refused = await runtime.admissions();
+  assert.equal(refused.ok, true);
+  assert.match(JSON.stringify(refused), /authorization expired|reconnect/i);
+  assert.ok(deps.externalMcpOAuth);
+  const oauth = deps.externalMcpOAuth;
+  let prompts = 0;
+  const notice = await runtime.daemonCalls.executor.execute({ toolId: "external_mcp_reauth_prompt", input: { id: "hosted" }, principal: { id: "owner" }, run: { id: "run" } }, {
+    emitSurface: async () => {
+      prompts++;
+      assert.equal(session.calls.length, 0);
+      const redirectUri = "https://site.example/api/external-mcp/hosted/oauth/callback";
+      const started = await oauth.beginConnect({ serverId: "hosted", redirectUri });
+      assert.equal(started.kind, "redirect_required");
+      if (started.kind !== "redirect_required") assert.fail("expected browser authorization");
+      const state = new URL(started.authorizationUrl).searchParams.get("state")!;
+      await oauth.completeAuthorizationCallback({ serverId: "hosted", redirectUri, params: { state, code: "fresh-code" } });
+      const exchangeId = surface.surfaceExchanges.findTypedAnswerTarget({ principalId: "owner", toolId: "external_mcp_reauth_prompt" });
+      assert.ok(exchangeId, "the browser must answer the server surface's own exchange store");
+      assert.deepEqual(surface.surfaceExchanges.deliver({ exchangeId, principalId: "owner", params: {} }, { toolId: "external_mcp_reauth_prompt" }), { ok: true });
+    },
+  });
+  assert.equal(notice.ok, true, JSON.stringify(notice));
+  assert.match(JSON.stringify(notice), /acknowledged.*true/);
+  assert.equal(prompts, 1);
+  assert.equal(surface.surfaceExchanges.size(), 0);
+  const result = await runtime.daemonCalls.executor.execute({ toolId: "mcp__hosted__echo", input: { message: "after reconnect" }, principal: { id: "owner" }, run: { id: "run" } });
+  assert.equal(result.ok, true, JSON.stringify(result));
+  assert.deepEqual(session.calls, [{ name: "echo", arguments: { message: "after reconnect" } }]);
+  assert.equal(tokenRequests, 1);
+  assert.deepEqual(tokens, ["Bearer reconnected-token"]);
+  const denied = await runtime.daemonCalls.executor.execute({ toolId: "mcp__hosted__echo", input: {}, principal: { id: "ungranted" }, run: { id: "run-denied" } });
+  assert.equal(denied.ok, false);
+  assert.equal(session.calls.length, 1, "server execution must retain the existing permission gate");
+  assert.equal(isAssistantDaemonReady(), false);
+  assert.equal(spawns, 0);
+});
+
+test("new admissions appear in daemon-call catalogs", async t => {
+  t.mock.method(childProcess, "spawn", () => { throw new Error("catalog reads must not spawn a daemon"); });
+  const connected: string[] = [];
+  const { surface, save } = serverFederationFixture({ connect: async connection => {
+    connected.push(connection.config.connectionId);
+    return new InMemoryMcpSession({ tools: [{ name: "echo", description: "Plexquorn server catalog echo", inputSchema: { type: "object" } }] });
+  } });
+  await save();
+  const runtime = createAssistantServerFederation({ toolSurface: surface }, {});
+  const first = await runtime.daemonCalls.listToolsFor({ principalId: "owner" });
+  assert.ok(first.some(tool => tool.id === "mcp__hosted__echo"), "cold catalog reads must await server admission");
+  runtime.registerRosterListener({}, {});
+  await save({ serverId: "second" });
+  await Promise.all([notifyExternalMcpRosterChanged(), notifyExternalMcpRosterChanged()]);
+  const next = await runtime.daemonCalls.listToolsFor({ principalId: "owner" });
+  assert.equal(next.filter(tool => tool.id === "mcp__second__echo").length, 1);
+  assert.deepEqual(connected.sort(), ["hosted", "second"]);
+  const search = await surface.executeMetaTool({ id: "owner" }, { id: "run" }, { name: "search_tools", input: { query: "Plexquorn server catalog echo" } });
+  assert.match(JSON.stringify(search), /mcp__second__echo/);
+  assert.equal(isAssistantDaemonReady(), false);
+});
+
+test("server admissions keeps configuration and handshake failures visible and clears recovered failures", async () => {
+  const failing = new Set(["bad-connect"]);
+  const { deps, surface, save } = serverFederationFixture({ connect: async connection => {
+    if (failing.has(connection.config.connectionId)) throw new Error("handshake timed out");
+    return new InMemoryMcpSession({ tools: [{ name: "echo", inputSchema: { type: "object" } }] });
+  } });
+  await save();
+  await save({ serverId: "bad-connect" });
+  await save({ serverId: "needs-reauth", oauth: true });
+  const row = await deps.externalMcpServerRepo.findByServerId({ workspaceId: deps.workspaceId, serverId: "needs-reauth" });
+  assert.ok(row);
+  await deps.externalMcpServerRepo.upsert({ ...row, oauthStatus: "needs_reauth" });
+  const runtime = createAssistantServerFederation({ toolSurface: surface }, {});
+  const first = await runtime.admissions();
+  assert.equal(first.ok, true);
+  const snapshot = await surface.readFederationAdmissions({}, {});
+  assert.deepEqual(snapshot.connections.map(entry => entry.connectionId), ["hosted"]);
+  assert.deepEqual(snapshot.configFailures.map(entry => entry.connectionId).sort(), ["bad-connect", "needs-reauth"]);
+  failing.clear();
+  await save({ serverId: "needs-reauth" });
+  await runtime.reload({}, {});
+  const recovered = await surface.readFederationAdmissions({}, {});
+  assert.deepEqual(recovered.configFailures, []);
+  assert.equal(recovered.connections.length, 3);
+});

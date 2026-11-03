@@ -1,120 +1,36 @@
 import assert from "node:assert/strict";
-import { EventEmitter, once } from "node:events";
-import { createServer, type RequestListener } from "node:http";
-import type { AddressInfo } from "node:net";
-import test, { type TestContext } from "node:test";
+import test from "node:test";
+import { createInMemoryOtel } from "#src/platform/observability/__tests__/fixtures/in-memory-otel";
+import { readServerAdmissions } from "../external-mcp-admissions.js";
 
-import { SpanKind, SpanStatusCode } from "@opentelemetry/api";
-import express from "express";
-
-import { AGENT_DAEMON_TOKEN_ENV_VAR } from "#src/assistant/index";
-import { assertSpanOmits, createInMemoryOtel } from "#src/platform/observability/__tests__/fixtures/in-memory-otel";
-import { registerAdminExternalMcpAdmissionsRoute } from "#src/server/inbound/admin-http/routes/external-mcp/admissions";
-import { fetchDaemonAdmissions } from "../external-mcp-admissions.js";
-import { resetAssistantDaemonSingletonForTests, startAssistantDaemon } from "#src/server/runtime/lifecycle/daemon-supervisor";
-
-/**
- * @file The daemon admissions read is one outbound CLIENT span through the port it is handed —
- * method, host/port and status, never the bearer token or the admissions path — and the admin
- * admissions route hands it `deps.observability`. Real OTel SDK with an in-memory exporter.
- */
-
-const TOKEN = "tok-admissions-5d1";
-const DAEMON = "http://127.0.0.1:4999";
-const roster = () => new Response('{"connections":[]}', { status: 200 });
-
-test("fetchDaemonAdmissions traces its read as one CLIENT span: host, port and status, never the token or path", async () => {
-  const { exporter, port } = createInMemoryOtel();
-
-  const result = await fetchDaemonAdmissions({ token: TOKEN, daemonUrl: DAEMON, fetch: async () => roster(), observability: port });
-
-  assert.deepEqual(result, { ok: true, connections: [] });
-  const [span] = exporter.getFinishedSpans();
-  assert.equal(span.name, "GET 127.0.0.1");
-  assert.equal(span.kind, SpanKind.CLIENT);
-  assert.equal(span.attributes["server.port"], 4999);
-  assert.equal(span.attributes["http.response.status_code"], 200);
-  assert.equal(span.status.code, SpanStatusCode.UNSET);
-  assertSpanOmits(span, [TOKEN, "federation", "admissions"]);
-});
-
-test("fetchDaemonAdmissions: a daemon refusal is an ERROR span with its status; the caller still gets the 503 shape", async () => {
-  const { exporter, port } = createInMemoryOtel();
-
-  const result = await fetchDaemonAdmissions({ token: TOKEN, daemonUrl: DAEMON, fetch: async () => new Response("no", { status: 401 }), observability: port });
-
-  assert.equal(result.ok, false);
-  const [span] = exporter.getFinishedSpans();
-  assert.equal(span.status.code, SpanStatusCode.ERROR);
-  assert.equal(span.attributes["http.response.status_code"], 401);
-  assertSpanOmits(span, [TOKEN]);
-});
-
-test("fetchDaemonAdmissions: a refused connection ends the span as ERROR with the error type, never the message", async () => {
-  const { exporter, port } = createInMemoryOtel();
-
-  const result = await fetchDaemonAdmissions({ token: TOKEN, daemonUrl: DAEMON, fetch: async () => { throw new TypeError(`refused ${TOKEN}`); }, observability: port });
-
-  assert.equal(result.ok, false);
-  const [span] = exporter.getFinishedSpans();
-  assert.equal(span.status.code, SpanStatusCode.ERROR);
-  assert.equal(span.attributes["error.type"], "TypeError");
-  assertSpanOmits(span, [TOKEN, "refused"]);
-});
-
-test("fetchDaemonAdmissions: a missing token makes no request and so no span", async () => {
-  const { exporter, port } = createInMemoryOtel();
-
-  await fetchDaemonAdmissions({ token: "", daemonUrl: DAEMON, fetch: async () => roster(), observability: port });
-
+// The loopback fetch no longer exists. Remote connection spans stay with federation's transport.
+test("server admissions waits for admission without making a daemon HTTP request", async t => {
+  const { exporter } = createInMemoryOtel();
+  let calls = 0; let release!: () => void; let reads = 0;
+  t.mock.method(globalThis, "fetch", async () => { calls++; throw new Error("no daemon request"); });
+  const ready = new Promise<void>(resolve => { release = resolve; });
+  const pending = readServerAdmissions({ awaitFederation: async timeoutMs => {
+    assert.equal(timeoutMs, 5000); await ready; return { settled: true };
+  }, readAdmissions: async () => { reads++; return { connections: [], configFailures: [{ connectionId: "bad", reason: "cannot resolve" }] }; } });
+  assert.equal(reads, 0);
+  release();
+  assert.deepEqual(await pending, { ok: true, connections: [], configFailures: [{ connectionId: "bad", reason: "cannot resolve" }] });
+  assert.equal(calls, 0);
   assert.equal(exporter.getFinishedSpans().length, 0);
 });
 
-/** A real stand-in daemon on loopback, with the env the route resolves the daemon from, both undone after the test. */
-async function standInDaemon(t: TestContext, handler: RequestListener): Promise<number> {
-  const server = createServer(handler);
-  server.listen(0, "127.0.0.1");
-  await once(server, "listening");
-  const daemonPort = (server.address() as AddressInfo).port;
-  const previous = { url: process.env.JINI_AGENT_DAEMON_URL, token: process.env[AGENT_DAEMON_TOKEN_ENV_VAR] };
-  process.env.JINI_AGENT_DAEMON_URL = `http://127.0.0.1:${daemonPort}`;
-  process.env[AGENT_DAEMON_TOKEN_ENV_VAR] = TOKEN;
-  t.after(async () => {
-    if (previous.url === undefined) delete process.env.JINI_AGENT_DAEMON_URL;
-    else process.env.JINI_AGENT_DAEMON_URL = previous.url;
-    if (previous.token === undefined) delete process.env[AGENT_DAEMON_TOKEN_ENV_VAR];
-    else process.env[AGENT_DAEMON_TOKEN_ENV_VAR] = previous.token;
-    server.closeAllConnections();
-    await new Promise<void>((resolve) => server.close(() => resolve()));
+for (const mode of ["unwired", "connecting", "failed"] as const) {
+  test(`server admissions ${mode} is unavailable, never an empty success`, async () => {
+    const result = await readServerAdmissions(mode === "unwired" ? {} : {
+      awaitFederation: async () => ({ settled: mode !== "connecting" }),
+      readAdmissions: async () => { throw new Error("private-provider-token"); },
+    });
+    assert.equal(result.ok, false);
+    assert.equal("connections" in result, false);
+    assert.equal(JSON.stringify(result).includes("private-provider-token"), false);
   });
-  return daemonPort;
 }
 
-test("the admin admissions route traces its daemon read through deps.observability", async (t) => {
-  const daemonPort = await standInDaemon(t, (_req, res) => { res.setHeader("content-type", "application/json"); res.end('{"connections":[]}'); });
-  // The route awaits the demand gate; an identity-matched fake makes the stand-in this site's daemon.
-  resetAssistantDaemonSingletonForTests();
-  startAssistantDaemon({ workspaceId: "ws-otel", siteDir: "/fake-site" }, {
-    registerProcessSignalHandlers: false, refreshPort: async () => {},
-    spawnDaemonProcess: () => Object.assign(new EventEmitter(), { pid: 321, kill: () => true }),
-    readDiscovery: async () => ({ pid: 321, url: `http://127.0.0.1:${daemonPort}` }),
-  });
-  t.after(resetAssistantDaemonSingletonForTests);
-  const { exporter, port } = createInMemoryOtel();
-  const app = express();
-  app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; next(); });
-  registerAdminExternalMcpAdmissionsRoute(app, { workspaceId: "ws-otel", authorize: async () => ({ allowed: true, reason: "matched" }), observability: port } as never);
-  const server = app.listen(0, "127.0.0.1");
-  await once(server, "listening");
-  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
-
-  const response = await fetch(`http://127.0.0.1:${(server.address() as AddressInfo).port}/api/admin/v1/workspaces/ws-otel/mcp-servers/admissions`);
-
-  assert.equal(response.status, 200);
-  assert.deepEqual(await response.json(), { connections: [] });
-  const spans = exporter.getFinishedSpans();
-  assert.equal(spans.length, 1);
-  assert.equal(spans[0].name, "GET 127.0.0.1");
-  assert.equal(spans[0].attributes["server.port"], daemonPort);
-  assertSpanOmits(spans[0], [TOKEN, "admissions"]);
+test("server admissions preserves omission of optional configFailures", async () => {
+  assert.deepEqual(await readServerAdmissions({ awaitFederation: async () => ({ settled: true }), readAdmissions: async () => ({ connections: [] }) }), { ok: true, connections: [] });
 });

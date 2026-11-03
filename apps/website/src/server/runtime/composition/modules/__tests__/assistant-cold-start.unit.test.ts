@@ -1,17 +1,16 @@
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
-import { readFileSync } from "node:fs";
 import test from "node:test";
 import type { Request, Response } from "express";
 import * as daemonClient from "../assistant-daemon-client.js";
 import * as assistantModule from "../assistant.js";
-import { fetchDaemonAdmissions } from "../../../services/external-mcp-admissions.js";
+import { readServerAdmissions } from "../../../services/external-mcp-admissions.js";
 import { clearAssistantDaemonFailure, recordAssistantDaemonFailure } from "../../../lifecycle/readiness-state.js";
 import { resetAssistantDaemonSingletonForTests } from "../../../lifecycle/daemon-supervisor.js";
 
 // Namespace imports keep the suite loadable on a build without these seams, so regressions in the
-// pre-existing entry points (fetchAgentDaemon, triggerFederationReload, admissions) fail on behaviour.
-const { fetchAgentDaemon, parkColdFrontendStream, triggerFederationReload } = daemonClient;
+// pre-existing entry points (fetchAgentDaemon and admissions) fail on behaviour.
+const { fetchAgentDaemon, parkColdFrontendStream } = daemonClient;
 const { respondWithEnrichedAgentList } = assistantModule;
 
 function response() {
@@ -55,13 +54,6 @@ test("known-failed latch still fails /api/agents without waking or reading the i
   assert.equal((result.body() as { code: string }).code, "AGENT_DAEMON_KNOWN_FAILED");
 });
 
-test("a cold roster/settings change applies on next start and sends no daemon request", async (t) => {
-  let calls = 0;
-  t.mock.method(globalThis, "fetch", async () => { calls++; throw new Error("must stay cold"); });
-  assert.deepEqual(await triggerFederationReload({}), { ok: true, appliesOnNextStart: true });
-  assert.equal(calls, 0);
-});
-
 test("a parked page stream ends on ready; the reconnect reaches the real bind-token response", async (t) => {
   let ready = false; let tick!: () => void; let cancelled = 0;
   const first = response();
@@ -96,14 +88,9 @@ test("first proxy request waits before forwarding and succeeds once ready", asyn
   assert.equal(await (await pending)!.text(), "accepted"); assert.equal(sends, 1);
 });
 
-test("admissions awaits the injected server gate and the daemon gate is inert", async () => {
-  let release!: () => void; let sends = 0;
-  const ready = new Promise<void>((resolve) => { release = resolve; });
-  const fetch = (async () => { sends++; return new globalThis.Response('{"connections":[]}'); }) as typeof globalThis.fetch;
-  const pending = fetchDaemonAdmissions({ token: "test", daemonUrl: "http://daemon", fetch, ensureReady: () => ready });
-  assert.equal(sends, 0); release(); assert.deepEqual(await pending, { ok: true, connections: [] });
-  assert.deepEqual(await fetchDaemonAdmissions({ token: "test", daemonUrl: "http://daemon", fetch, ensureReady: async () => {} }), { ok: true, connections: [] });
-  assert.equal(sends, 2);
-  const entry = readFileSync(new URL("../../../../inbound/assistant/agent-daemon-server.ts", import.meta.url), "utf8");
-  assert.match(entry, /ensureDaemonReady: async \(\) => \{\}/);
+test("admissions reads the server while the daemon stays stopped", async t => {
+  let sends = 0;
+  t.mock.method(globalThis, "fetch", async () => { sends++; throw new Error("must stay cold"); });
+  assert.deepEqual(await readServerAdmissions({ awaitFederation: async () => ({ settled: true }), readAdmissions: async () => ({ connections: [] }) }), { ok: true, connections: [] });
+  assert.equal(sends, 0);
 });

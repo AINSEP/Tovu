@@ -7,7 +7,7 @@ import { ExternalMcpReauthRequiredError } from "../../../../features/external-mc
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { probeExternalMcpServer } from "../external-mcp-probe.js";
-import { fetchDaemonAdmissions } from "../external-mcp-admissions.js";
+import { readServerAdmissions } from "../external-mcp-admissions.js";
 
 const NOW = "2026-10-01T00:00:00.000Z";
 async function fixture(overrides: Record<string, unknown> = {}) {
@@ -64,39 +64,6 @@ for (const phase of ["connect", "list", "close"] as const) test(`shared probe ha
   if (phase !== "close") assert.deepEqual(result, { ok: false, status: 502, body: { error: "Could not reach the server.", code: "MCP_SERVER_UNREACHABLE" } });
   assert.equal(closed, phase === "connect" ? 0 : 1);
   assert.equal(JSON.stringify(result).includes("private-token"), false);
-});
-
-test("admissions uses the authenticated bounded daemon read and preserves current failures", async () => {
-  let request: unknown;
-  const result = await fetchDaemonAdmissions({ token: "private-daemon-token", daemonUrl: "http://127.0.0.1:4999", fetch: async (url, options) => {
-    request = [url, options?.headers];
-    assert.equal(options?.signal instanceof AbortSignal, true);
-    return new Response(JSON.stringify({ connections: [], configFailures: [{ connectionId: "bad", reason: "cannot resolve" }] }), { status: 200 });
-  } });
-  assert.deepEqual(request, ["http://127.0.0.1:4999/api/federation/admissions", { Authorization: "Bearer private-daemon-token" }]);
-  assert.deepEqual(result, { ok: true, connections: [], configFailures: [{ connectionId: "bad", reason: "cannot resolve" }] });
-  assert.equal(JSON.stringify(result).includes("private-daemon-token"), false);
-});
-
-test("missing admissions token refuses without a request", async () => {
-  let requested = false;
-  assert.deepEqual(await fetchDaemonAdmissions({ token: "", fetch: async () => { requested = true; throw new Error("must not fetch"); } }), { ok: false, body: { error: "the agent daemon token is not configured", code: "AGENT_DAEMON_UNAVAILABLE" } });
-  assert.equal(requested, false);
-});
-
-for (const [title, response] of [
-  ["non-200", () => new Response("private-error", { status: 401 })],
-  ["connection refused", () => { throw new Error("private-error"); }],
-  ["invalid JSON", () => new Response("private-error", { status: 200 })],
-  ["missing roster", () => new Response("{}", { status: 200 })],
-] as const) test(`admissions ${title} is unavailable, never an empty success`, async () => {
-  const result = await fetchDaemonAdmissions({ token: "token", daemonUrl: "http://127.0.0.1:4999", fetch: async () => response() });
-  assert.deepEqual(result, { ok: false, body: { error: title === "non-200" ? "the agent daemon could not report what it admitted" : "the agent daemon is not reachable — the assistant may not be running", code: "AGENT_DAEMON_UNAVAILABLE" } });
-  assert.equal(JSON.stringify(result).includes("private-error"), false);
-});
-
-test("older daemon response omits configFailures", async () => {
-  assert.deepEqual(await fetchDaemonAdmissions({ token: "token", daemonUrl: "http://127.0.0.1:4999", fetch: async () => new Response('{"connections":[]}', { status: 200 }) }), { ok: true, connections: [] });
 });
 
 test("OAuth refresh errors never send provider credentials to the model", async () => {
@@ -189,14 +156,14 @@ for (const entry of [
   { title: "null config failures", body: { connections: [], configFailures: null } },
   { title: "object config failures", body: { connections: [], configFailures: {} } },
 ]) test(`admissions pins rejection of ${entry.title}`, async () => {
-  const result = await fetchDaemonAdmissions({ token: "fixture-token", daemonUrl: "http://127.0.0.1:4999", fetch: async () => Response.json(entry.body) });
-  assert.deepEqual(result, { ok: false, body: { error: "the agent daemon is not reachable — the assistant may not be running", code: "AGENT_DAEMON_UNAVAILABLE" } });
+  const result = await readServerAdmissions({ awaitFederation: async () => ({ settled: true }), readAdmissions: async () => entry.body as { connections: unknown; configFailures?: unknown } });
+  assert.deepEqual(result, { ok: false, body: { error: "the server's external MCP admissions are unavailable — try again shortly", code: "AGENT_DAEMON_UNAVAILABLE" } });
 });
 
 test("admissions relays array entries verbatim but drops unrelated fields", async () => {
   const connections = [null, "unvalidated", { custom: true }];
   const configFailures = [false, { custom: "failure" }];
-  const result = await fetchDaemonAdmissions({ token: "fixture-token", daemonUrl: "http://127.0.0.1:4999", fetch: async () => Response.json({ connections, configFailures, extra: true }) });
+  const result = await readServerAdmissions({ awaitFederation: async () => ({ settled: true }), readAdmissions: async () => ({ connections, configFailures, extra: true }) });
   assert.deepEqual(result, { ok: true, connections, configFailures });
 });
 
