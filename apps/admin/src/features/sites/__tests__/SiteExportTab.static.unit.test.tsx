@@ -28,7 +28,8 @@ it("shows static-export scope notes and omission notices while downloading", asy
   fireEvent.click(button);
   expect(await screen.findByText(notices[0]!)).toBeVisible();
   expect(screen.getByText(notes[0]!)).toBeVisible();
-  expect(downloadShare).toHaveBeenCalledOnce();
+  // The download now waits for the server to confirm it will not be refused.
+  await waitFor(() => expect(downloadShare).toHaveBeenCalledOnce());
 }, 10000);
 
 describe("SiteExportTab static download", () => {

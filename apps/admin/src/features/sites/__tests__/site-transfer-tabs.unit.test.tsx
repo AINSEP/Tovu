@@ -265,7 +265,8 @@ function exportController(overrides: Partial<SiteExportController> = {}): SiteEx
     staticThemes: [], selectedThemeIds: [], staticExportReady: false, staticOptionsLoading: false, staticOptionsError: null, toggleStaticTheme: vi.fn(), selectAllStaticThemes: vi.fn(),
     shares: [], listError: null, exporting: false, exportError: null, zipOnly: false,
     exportSite: vi.fn(async () => {}), exportingStatic: false, exportStaticSite: vi.fn(async () => {}), revokingId: null, revoke: vi.fn(async () => {}),
-    copiedId: null, copyLink: vi.fn(async () => {}), downloadHref: item => `/download/${item.shareId}`, ...overrides };
+    copiedId: null, copyLink: vi.fn(async () => {}), downloadHref: item => `/download/${item.shareId}`,
+    credentialGate: () => null, acknowledge: vi.fn(async () => {}), download: vi.fn(async () => {}), ...overrides };
 }
 function importController(overrides: Partial<SiteImportController> = {}): SiteImportController {
   return { savedKeysPassword: "", setSavedKeysPassword: vi.fn(), imports: [], listError: null, link: "", setLink: vi.fn(), file: null, chooseFiles: vi.fn(), clearFile: vi.fn(),
