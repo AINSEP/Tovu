@@ -9,7 +9,7 @@ import ts from 'typescript';
 import { readPluginInstallRequest, readPluginInstallArchive } from '../../../features/plugin-runtime/install-source.js';
 import { CHAT_ATTACHMENT_REF_PATTERN } from '../index.js';
 
-for (const filename of ['plugin-host.ts', 'plugin-install-source.ts', 'chat-attachment.ts']) {
+for (const filename of ['plugin-host.ts', 'plugin-install-source.ts', 'plugin-export-catalog.ts', 'chat-attachment.ts']) {
   test(`fxpid: ${filename} has no imports or re-exports into feature/server/app layers`, async () => {
     const url = new URL(`../${filename}`, import.meta.url);
     const file = fileURLToPath(url);
