@@ -180,6 +180,44 @@ for (const allConfigured of [false, true]) test(`environment-configured Vercel r
   assert.doesNotMatch(JSON.stringify(result.credentialSources), /vercel-id|TAIL/);
 });
 
+// 2026-11-02 owner bug: with the Vercel plugin off on fake-test-site, the chat said "no site has a
+// Vercel key" although xander-estin (and 7 more) held one. An off host must still surface the other
+// sites' keys (names only) and tell the chat to offer "turn it on and copy".
+test("a host whose plugin is off still reports other sites' keys and offers turn-on-and-copy", async () => {
+  const { deps } = fakeDeps({ credentialSource: {
+    isConfigured: async () => ({ configured: false, reason: "not configured" }),
+    resolve: async () => assert.fail("capabilities must not resolve credentials"),
+  } });
+  deps.publishExecutionMode = "hosted-api-only";
+  deps.ownerPrincipalId = Promise.resolve(PRINCIPAL_ID);
+  const bundled = await loadBundledDeployTargets();
+  const loaded = bundled.list().filter(item => item.descriptor.id !== "vercel");
+  const vercel = bundled.get("vercel");
+  assert.ok(vercel, "fixture needs the bundled Vercel host");
+  deps.loadDeployTargets = async () => ({ list: () => loaded, get: id => loaded.find(item => item.descriptor.id === id), refusals: [] });
+  deps.loadInstalledDeployTargets = async () => ({ items: bundled.list().map(({ descriptor, pluginId }) => ({ descriptor, pluginId, enabled: descriptor.id !== "vercel" })), refusals: [] });
+  // The copy inventory computes publishHosts against this site's LOADED hosts, so an off host is absent there.
+  deps.localCredentialCopy = { localHost: true, copy: async () => assert.fail("discovery must not copy"), list: async () => [
+    { siteId: "xe", name: "xander-estin", keys: [
+      { kind: "vendor", id: "vercel-secret-id", label: "Vercel", provider: "vercel", last4: "TAIL", worksFor: ["vercel"], publishHosts: [] },
+    ] },
+    { siteId: "dev", name: "tovu-dev", keys: [] },
+  ] };
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const result = await call(tool(buildRegistrations(deps, surfaceExchanges), "deployment_get_static_publish_capabilities")) as {
+    providers: { providerId: string; enabled: boolean; guidance: string }[];
+    credentialSources?: { name: string; keys: { label: string; publishHosts: string[] }[] }[];
+  };
+  const host = result.providers.find(provider => provider.providerId === "vercel")!;
+  assert.equal(host.enabled, false);
+  assert.deepEqual(result.credentialSources?.filter(source => source.keys.some(key => key.publishHosts.includes("vercel"))).map(source => source.name), ["xander-estin"]);
+  assert.match(host.guidance, /plugin is off on this site/i);
+  assert.match(host.guidance, /Turn it on and copy the key from xander-estin\?/);
+  assert.match(host.guidance, new RegExp(`plugins_set_enabled.*'agent-plugin'.*'${vercel.pluginId}'`));
+  assert.match(host.guidance, /credential_copy_from_project/);
+  assert.doesNotMatch(JSON.stringify(result), /vercel-secret-id|TAIL/);
+});
+
 test("unavailable cross-site inventory is explicit and cannot leak raw source errors", async () => {
   const { deps } = fakeDeps();
   deps.publishExecutionMode = "hosted-api-only";
