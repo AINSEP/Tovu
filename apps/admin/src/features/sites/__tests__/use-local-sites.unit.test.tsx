@@ -37,6 +37,19 @@ function pollingFakes() {
 }
 
 describe("local site card controller", () => {
+  it("Switch now navigates to the warm site's own server without polling for a restarted backend", async () => {
+    const snapshot = fixture();
+    const polling = pollingFakes();
+    const port = createFakeSitesPort(snapshot, { manageLocalSite: async () => ({ url: 'http://localhost:3101/admin/', restarting: false }) });
+    const open = vi.fn();
+    port.openSite = open;
+    const { result, unmount } = renderHook(() => useLocalSites({ port, snapshot, t }, { ...polling, confirm: () => true }), { wrapper });
+    await act(async () => { await result.current.run('alpha', 'switch'); });
+    expect(open).toHaveBeenCalledExactlyOnceWith('http://localhost:3101/admin/');
+    expect(polling.active.size).toBe(0);
+    expect(result.current.error).toBeNull();
+    unmount();
+  });
   it.each([
     { failure: new ApiError("host refused", 409, "SITE_RUNNING"), message: "translated:Stop this site before moving it to Trash." },
     { failure: new Error("host offline"), message: "host offline" },

@@ -76,6 +76,13 @@ test("parentGone: re-parented or ESRCH means gone; a live or permission-guarded 
   assert.equal(parentGone({ proc: fakeProcess({}, { liveness: () => { throw errno("EPERM"); } }).proc, ownerPid: OWNER }), false);
 });
 
+test("a warm site's source watcher may be its parent while its serving host remains alive", () => {
+  const { proc } = fakeProcess({ TOVU_LOCAL_SITE_WATCH: '1' }, { ppid: 123 });
+  assert.equal(parentGone({ proc, ownerPid: OWNER }), false);
+  proc.kill = () => { throw errno('ESRCH'); };
+  assert.equal(parentGone({ proc, ownerPid: OWNER }), true);
+});
+
 test("selfAsDaemonProcess signals this process, SIGTERM unless a signal is named, and ignores subscriptions", () => {
   const { proc, signals } = fakeProcess({});
   const self = selfAsDaemonProcess({ proc });
