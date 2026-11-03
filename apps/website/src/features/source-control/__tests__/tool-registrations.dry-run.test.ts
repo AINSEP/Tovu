@@ -112,7 +112,7 @@ test('target folder schema, normalized preview paths and capability refusal are 
   const input = { provider: 'example-git', owner: 'octo', repo: 'site', commitMessage: 'preview', folder: 'nested\\site//', dryRun: true };
   const preview = await call(registration, input) as Record<string, unknown>;
   assert.equal(preview.folder, 'nested/site', JSON.stringify(preview));
-  assert.equal(preview.entryPath, 'nested/site/Open website.html');
+  assert.equal(preview.entryPath, 'nested/site/index.html');
   assert.ok((preview.paths as string[]).every(path => path.startsWith('nested/site/')));
   assert.equal(calls.count, 0);
   deps = { ...deps, loadSourceControlProviders: async () => registry };
@@ -141,7 +141,7 @@ test('a supported folder reaches the provider and is returned with the launcher 
   const result = await call(buildExecuteCommitTool(deps), { provider: 'example-git', owner: 'octo', repo: 'site', commitMessage: 'update', folder: 'static_sites/' }) as Record<string, unknown>;
   assert.equal(result.committed, true, JSON.stringify(result));
   assert.equal(result.folder, 'static_sites');
-  assert.equal(result.entryPath, 'static_sites/Open website.html');
+  assert.equal(result.entryPath, 'static_sites/index.html');
   assert.equal(captured.length, 1);
   assert.equal(captured[0]!.folder, 'static_sites');
 });
@@ -164,7 +164,7 @@ test("source_control_execute_commit dryRun:true previews the export without comm
   assert.equal(result.committed, false);
   assert.equal(result.fileCount, 4);
   assert.ok(result.totalBytes > 23);
-  assert.ok(result.paths.includes("Open website.html"));
+  assert.ok(result.paths.includes("index.html"));
   assert.ok(result.paths.includes("README.txt"));
   assert.ok(result.paths.some(path => /^sites\/[^/]+\/index.html$/.test(path)));
   assert.equal(result.credentialConfigured, true);

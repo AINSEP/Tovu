@@ -354,7 +354,7 @@ test("share tools use the site-bound backend and authorize before every effect",
   const tools = new Map(registrations.map(r => [r.descriptor.id, r]));
   assert.deepEqual(await call(tools.get("site_share_create")!, {}), row);
   assert.deepEqual(await call(tools.get("site_export_static")!, {}), staticRow);
-  assert.match(tools.get("site_export_static")!.descriptor.description ?? "", /extract the ZIP, then double-click Open website.html/i);
+  assert.match(tools.get("site_export_static")!.descriptor.description ?? "", /extract the ZIP, then open index.html in a browser/i);
   assert.deepEqual(await call(tools.get("site_share_list")!, {}), { shares: [row] });
   assert.equal((await call(tools.get("site_share_revoke")!, { shareId: row.shareId }) as Result).status, "revoked");
   const before = [...calls];

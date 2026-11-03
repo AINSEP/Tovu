@@ -116,7 +116,7 @@ test("HTTP and tool selected exports deliver inactive HTML and shared public med
     }
     assert.equal([...files.keys()].filter(name => name.startsWith(folder + "media/")).length, 1);
     const active = options.themes.find(theme => theme.themeId === activeThemeId)!;
-    assert.ok(files.get(folder + "Open website.html")!.toString().includes(`sites/${active.name}/index.html`));
+    assert.ok(files.get(folder + "index.html")!.toString().includes(`href="sites/${active.name}/index.html"`));
     assert.deepEqual(await deps.presentationRepo.findByWorkspaceId({ workspaceId: deps.workspaceId }), before);
   }
   assert.equal(renders, 4, "two themes per start, without additional render work during polling");

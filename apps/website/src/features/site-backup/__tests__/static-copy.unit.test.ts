@@ -29,7 +29,7 @@ test('portable layout accepts rendered files and theme context without fabricate
   const prepared = prepareStaticReport({ report: exported });
   const files = staticDownloadLayout({ copy: { files: prepared.files, themeId: 'my-summer', siteSlug: 'my-site' } });
   assert.ok(files.some(file => file.path === 'sites/summer/index.html'));
-  assert.match(files.find(file => file.path === 'Open website.html')!.content.toString(), /sites\/summer\/index.html/);
+  assert.match(files.find(file => file.path === 'index.html')!.content.toString(), /href="sites\/summer\/index.html"/);
   assert.doesNotMatch(files.find(file => file.path === 'sites/summer/index.html')!.content.toString(), /action="\/forms/);
   assert.match(String(exported.routes.succeeded[0]!.data), /action="\/forms/);
 });
@@ -154,9 +154,9 @@ test("static-only ZIP and top folder use the display name with a dated README an
   const result = await backend.create({ principalId: "owner", signal: new AbortController().signal, format: "static" }, { waitMs: 60_000 }) as { shareId: string; file: string };
   assert.equal(result.file, "my-site-static-2026-10-30-1015.zip");
   // No publicUrl on this start: discovery files are left out and the completion says so (owner 10-31).
-  assert.equal((result as unknown as { message: string }).message, 'No domain was given, so sitemap.xml and feed.xml were left out. Extract the ZIP, then double-click “Open website.html” inside the extracted folder. No local server is needed to view the exported pages. README.txt lists features that need a server.');
+  assert.equal((result as unknown as { message: string }).message, 'No domain was given, so sitemap.xml and feed.xml were left out. Extract the ZIP, then open index.html inside the extracted folder in your browser; it lists every exported theme and page. No local server is needed to view the exported pages. README.txt lists features that need a server.');
   const files = await unpack(await readFile(registry.artifactPath({ shareId: result.shareId })));
-  assert.deepEqual([...files.keys()].sort(), ["Open website.html", "README.txt", "sites/my-theme/css/site.css", "sites/my-theme/index.html", "sites/my-theme/js/site.js"].map(file => "my-site-static-2026-10-30-1015/" + file));
+  assert.deepEqual([...files.keys()].sort(), ["README.txt", "index.html", "sites/my-theme/css/site.css", "sites/my-theme/index.html", "sites/my-theme/js/site.js"].map(file => "my-site-static-2026-10-30-1015/" + file));
 });
 
 test("a Tovu backup omits static_site while import still ignores a genuine older backup's static_site folder", async () => {
@@ -294,15 +294,22 @@ function downloadDocument({ files, page }: { files: ReadonlyMap<string, Buffer>;
   return new JSDOM(pages[0]![1].toString()).window.document;
 }
 
+/** The root index.html landing page of a download. */
+function landingDocument({ files }: { files: ReadonlyMap<string, Buffer> }, _options = {}) {
+  const bytes = files.get(downloadFolder + "index.html");
+  assert.ok(bytes, "the download must have a root index.html");
+  return new JSDOM(bytes.toString()).window.document;
+}
+
 function downloadText({ files, suffix }: { files: ReadonlyMap<string, Buffer>; suffix: string }, _options = {}) {
   const matches = [...files].filter(([name]) => name.endsWith(suffix));
   assert.equal(matches.length, 1, `expected exactly one ZIP file ending with ${suffix}`);
   return matches[0]![1].toString();
 }
 
-test("download ZIP contains the launcher and complete sites/poster tree with clean page folders", async () => {
+test("download ZIP contains the root index.html and complete sites/poster tree with clean page folders", async () => {
   const { files } = await downloadFixture();
-  const expected = ["Open website.html", "README.txt", "media/portrait.webp", "media/portrait-large.webp", "media/intro.mp4", "media/guide.pdf", ...[
+  const expected = ["index.html", "README.txt", "media/portrait.webp", "media/portrait-large.webp", "media/intro.mp4", "media/guide.pdf", ...[
     "index.html", "404.html", "about/index.html", "contact/index.html", "case-studies/index.html", "projects/featured/index.html",
     "css/theme.css", "js/main.js", "js/vendor/library.js", "images/logo.webp",
     "fonts/Display.woff2", "icons/favicon.ico", "manifest.webmanifest", "robots.txt", "llms.txt",
@@ -319,8 +326,7 @@ for (const { theme, slug, expected } of [
     const { files } = await downloadFixture({ theme, slug });
     assert.ok(files.has(`${downloadFolder}sites/${expected}/index.html`), `missing sites/${expected}/index.html`);
     assert.ok(files.has(`${downloadFolder}sites/${expected}/css/theme.css`));
-    const launcher = new JSDOM(downloadText({ files, suffix: "/Open website.html" })).window.document;
-    assert.equal(launcher.querySelector("a")?.getAttribute("href"), `sites/${expected}/index.html`);
+    assert.equal(landingDocument({ files }).querySelector("a.open")?.getAttribute("href"), `sites/${expected}/index.html`);
   });
 }
 
@@ -432,13 +438,26 @@ test("download excludes unreferenced public media while retaining media used by 
   assert.match(downloadText({ files, suffix: "/media-only.css" }), /url\(['"]?\.\.\/\.\.\/\.\.\/media\/wallpaper\.png['"]?\)/);
 });
 
-test("download Open website.html has a relative meta refresh and plain link to the delivered home page", async () => {
-  const { files } = await downloadFixture();
-  const document = new JSDOM(downloadText({ files, suffix: "/Open website.html" })).window.document;
-  assert.match(document.querySelector('meta[http-equiv="refresh"]')!.getAttribute("content")!, /^0;\s*url=sites\/poster\/index\.html$/i);
-  assert.equal(document.querySelector("a")?.getAttribute("href"), "sites/poster/index.html");
-  assert.ok(document.querySelector("a")!.textContent!.trim().length > 0);
-  assert.ok(files.has(downloadFolder + "sites/poster/index.html"));
+test("single-theme download still gets a root index.html with one card listing every page, and no redirect", async () => {
+  const { files } = await downloadFixture({ configure: rendered => {
+    rendered.routes.succeeded.push({ path: "/old", kind: "redirect", outputFile: "old/index.html", data: renderRedirectStub({ location: "/about" }) });
+  } });
+  assert.ok(!files.has(downloadFolder + "Open website.html"), "the old one-link launcher is gone");
+  const document = landingDocument({ files });
+  assert.equal(document.querySelector('meta[http-equiv="refresh"]'), null, "the landing page must not jump away");
+  assert.equal(document.querySelectorAll("script").length, 0, "Quick Look and file:// need no script");
+  assert.equal(document.querySelector("h1")?.textContent, "Public Studio");
+  assert.match(document.querySelector(".meta")!.textContent!, /Exported Friday, October 30, 2026 at 10:15 AM PDT · 1 theme/);
+  assert.match(document.body.textContent!, /Quick Look can't follow links — open this file in your browser\./);
+  const cards = document.querySelectorAll("article.card");
+  assert.equal(cards.length, 1);
+  assert.equal(cards[0]!.querySelector("h2")?.textContent, "zoran-poster");
+  assert.equal(cards[0]!.querySelector(".count")?.textContent, "5 pages · sites/poster/");
+  assert.deepEqual([...cards[0]!.querySelectorAll("li a")].map(link => link.getAttribute("href")), [
+    "sites/poster/index.html", "sites/poster/about/index.html", "sites/poster/case-studies/index.html",
+    "sites/poster/contact/index.html", "sites/poster/projects/featured/index.html",
+  ], "home first, then every page by path; no 404 page and no redirect stub");
+  assert.equal(cards[0]!.querySelector("a.open")?.getAttribute("href"), "sites/poster/index.html");
 });
 
 test("a partial download without its home page opens a surviving content page", async () => {
@@ -446,17 +465,16 @@ test("a partial download without its home page opens a surviving content page", 
     report.routes.succeeded = report.routes.succeeded.filter(route => route.path !== "/");
     report.routes.failed.push({ path: "/", kind: "home", reason: "render failed" });
   } });
-  const launcher = new JSDOM(downloadText({ files, suffix: "/Open website.html" })).window.document;
-  const href = launcher.querySelector("a")!.getAttribute("href")!;
+  const href = landingDocument({ files }).querySelector("a.open")!.getAttribute("href")!;
   assert.equal(href, "sites/poster/about/index.html");
-  assert.ok(files.has(downloadFolder + href), "launcher must open a delivered page after partial failure");
+  assert.ok(files.has(downloadFolder + href), "the landing page must open a delivered page after partial failure");
   assert.match(downloadText({ files, suffix: "/README.txt" }), /Not included: Page \/ could not be rendered\./);
 });
 
 test("download README describes final entries and file-relative links", async () => {
   const { files } = await downloadFixture();
   const readme = downloadText({ files, suffix: "/README.txt" });
-  assert.ok(readme.includes('To look at it: extract the ZIP, then double-click "Open website.html".\nTo publish it by hand: upload sites/poster/ and media/ together, keeping them side by side.\n'), "README must explain extraction, double-clicking and the delivered hierarchy");
+  assert.ok(readme.includes('To look at it: extract the ZIP, then open index.html in your browser. It lists every exported theme and page.\nTo publish it by hand: upload sites/poster/ and media/ together, keeping them side by side.\n'), "README must explain extraction, double-clicking and the delivered hierarchy");
   assert.doesNotMatch(readme, /Open with any static web host \(links start at the site root\)\./);
   assert.doesNotMatch(readme, /paths starting at the site root/);
   assert.match(readme, /^Public Studio — static copy\nExported: Friday, October 30, 2026 at 10:15 AM PDT \(2026-10-30T10:15:00-07:00\)\nTheme: zoran-poster\nContains: 5 pages and posts, 4 images, 1 video\./);
@@ -466,7 +484,7 @@ test("download README describes final entries and file-relative links", async ()
     "Exported: Friday, October 30, 2026 at 10:15 AM PDT (2026-10-30T10:15:00-07:00)",
     "Theme: zoran-poster",
     "Contains: 5 pages and posts, 4 images, 1 video.",
-    'To look at it: extract the ZIP, then double-click "Open website.html".',
+    'To look at it: extract the ZIP, then open index.html in your browser. It lists every exported theme and page.',
     "To publish it by hand: upload sites/poster/ and media/ together, keeping them side by side.",
     "Page, asset, social images and llms.txt links are relative to their containing files; external links keep their URLs.",
     "No public domain is set, so sitemap.xml was left out.",
@@ -487,7 +505,7 @@ test("static completion after polling includes opening instructions while pendin
   assert.ok(!("message" in pending));
   release();
   const complete = await backend.create({ ...input, jobId: pending.jobId }, { waitMs: 60_000 }) as { message: string };
-  assert.match(complete.message, /Extract the ZIP, then double-click “Open website.html”/);
+  assert.match(complete.message, /Extract the ZIP, then open index.html inside the extracted folder in your browser/);
 });
 
 for (const publicOrigin of [undefined, "https://public.example.test"]) {
@@ -604,7 +622,7 @@ test("download README reports Sign in on each page that links to /signin", async
   }
 });
 
-test("selected themes share media by URL, keep distinct renditions and scope nested links; one launcher and README", async () => {
+test("selected themes share media by URL, keep distinct renditions and scope nested links; one index.html and README", async () => {
   const first = await downloadFixture({ theme: "zoran-poster", extraHtml: '<img src="/m/portrait/other/image.webp">', extraAssets: [{ url: "/m/portrait/other/image.webp", outputFile: "m/portrait/other/image.webp", data: Buffer.from("different rendition") }] });
   const second = await downloadFixture({ theme: "zoran-editorial", configure: rendered => { rendered.routes.failed.push({ path: "/editorial-gap", kind: "page", reason: "failure" }); } });
   for (const activeThemeId of ["zoran-editorial", "not-selected"]) {
@@ -617,7 +635,8 @@ test("selected themes share media by URL, keep distinct renditions and scope nes
     const nested = files.get(downloadFolder + "sites/editorial/projects/featured/index.html")!.toString();
     assert.match(nested, /href="..\/..\/about\/index.html"/);
     assert.match(nested, /src="..\/..\/..\/..\/media\/portrait.webp"/);
-    assert.match(files.get(downloadFolder + "Open website.html")!.toString(), new RegExp(`sites/${activeThemeId === "zoran-editorial" ? "editorial" : "poster"}/index.html`));
+    const badged = [...landingDocument({ files }).querySelectorAll("article.card")].filter(card => card.querySelector(".badge")).map(card => card.querySelector("h2")?.textContent);
+    assert.deepEqual(badged, activeThemeId === "zoran-editorial" ? ["zoran-editorial"] : [], "only a selected active theme carries the badge");
     const readme = files.get(downloadFolder + "README.txt")!.toString();
     assert.match(readme, /Theme: zoran-poster/);
     assert.match(readme, /Theme: zoran-editorial\nContains: 5 pages and posts, 4 images, 1 video\./);
@@ -625,6 +644,47 @@ test("selected themes share media by URL, keep distinct renditions and scope nes
     assert.match(readme, /Shared media: 5 files/);
     assert.equal(names.filter(name => name.endsWith("/README.txt")).length, 1);
   }
+});
+
+test("root index.html lists every exported theme with its pages, and every link opens a delivered file", async () => {
+  const first = await downloadFixture({ theme: "zoran-poster" });
+  const second = await downloadFixture({ theme: "zoran-editorial", configure: rendered => {
+    rendered.routes.succeeded.find(route => route.path === "/about")!.data = "<!doctype html><html><head><title>About &amp; team</title></head><body>About</body></html>";
+  } });
+  const files = await unpack(await buildStaticSiteZip({ copy: first.copy, copies: [first.copy, second.copy], activeThemeId: "zoran-editorial", zip: zipFolderFiles }));
+  const document = landingDocument({ files });
+  assert.match(document.querySelector(".meta")!.textContent!, /· 2 themes$/);
+  const cards = [...document.querySelectorAll("article.card")];
+  assert.deepEqual(cards.map(card => card.querySelector("h2")?.textContent), ["zoran-poster", "zoran-editorial"], "one card per exported theme, in selection order");
+  assert.deepEqual(cards.map(card => card.querySelector(".badge")?.textContent ?? null), [null, "Active theme"]);
+  assert.deepEqual(cards.map(card => card.querySelector(".count")?.textContent), ["5 pages · sites/poster/", "5 pages · sites/editorial/"]);
+  const about = [...cards[1]!.querySelectorAll("li a")].find(link => link.getAttribute("href") === "sites/editorial/about/index.html")!;
+  assert.equal(about.querySelector("span")?.textContent, "About & team", "a page is listed by its own title");
+  assert.equal(about.querySelector("small")?.textContent, "/about/");
+  const hrefs = [...document.querySelectorAll("a")].map(link => link.getAttribute("href")!);
+  assert.equal(hrefs.length, 2 * (5 + 1), "every page link plus one open-home button per card");
+  for (const href of hrefs) {
+    assert.doesNotMatch(href, /^(?:\/|[a-z]+:)/i, `${href} must be a plain relative link`);
+    assert.ok(files.has(downloadFolder + decodeURIComponent(href)), `${href} must open a delivered file`);
+  }
+});
+
+test("theme, site and page names on the root index.html are escaped", () => {
+  const hostile = '<img src=x onerror="alert(1)">';
+  const files = staticDownloadLayout({ copy: {
+    siteSlug: "my-site", themeId: "my-summer", readme: { name: `Shop ${hostile}`, words: `today ${hostile}` },
+    metadata: { theme: `Summer ${hostile}`, routes: ["/"], failed: { routes: [], assets: [] }, skipped: { routes: [], assets: [], references: [] } },
+    files: [{ path: "index.html", content: Buffer.from(`<html><head><title>Home &lt;b&gt; &lt;img src=x onerror=&quot;alert(1)&quot;&gt;</title></head><body>home</body></html>`) }],
+  } });
+  const html = files.find(file => file.path === "index.html")!.content.toString();
+  assert.doesNotMatch(html, /<img|<b>|onerror="/);
+  const document = new JSDOM(html).window.document;
+  assert.equal(document.querySelectorAll("img, b").length, 0);
+  assert.equal(document.querySelector("h1")?.textContent, `Shop ${hostile}`);
+  assert.equal(document.querySelector("h2")?.textContent, `Summer ${hostile}`);
+  assert.ok(document.querySelector(".meta")!.textContent!.startsWith(`Exported today ${hostile}`));
+  assert.equal(document.querySelector("li span")?.textContent, `Home <b> ${hostile}`);
+  assert.equal(document.querySelector("title")?.textContent, `Shop ${hostile} — static copy`);
 });
 
 test("combined limits count shared media once and refuse one extra page before encoding", async () => {
@@ -648,6 +708,6 @@ test("full roster folder aliases stay identical when only one colliding theme is
   const themes = allocateStaticExportThemes({ themeIds: ["zoran-poster", "poster"], siteSlug: "zoran-site" });
   const files = await unpack(await buildStaticSiteZip({ copy, themes, zip: zipFolderFiles }));
   assert.ok(files.has(downloadFolder + "sites/poster-2/index.html"));
-  assert.match(files.get(downloadFolder + "Open website.html")!.toString(), /sites\/poster-2\/index.html/);
+  assert.match(files.get(downloadFolder + "index.html")!.toString(), /href="sites\/poster-2\/index.html"/);
   assert.match(files.get(downloadFolder + "sites/poster-2/about/index.html")!.toString(), /href="..\/index.html"/);
 });

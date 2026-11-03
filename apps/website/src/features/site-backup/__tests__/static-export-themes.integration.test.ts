@@ -146,7 +146,7 @@ for (const themeIds of [["tovu-starter"], ["tovu-theme"], ["tovu-starter", "tovu
       files.set(entry.entryPath, Buffer.concat(chunks));
     }
     const folder = copies[0]!.filename.replace(/\.zip$/i, "");
-    assert.ok(files.has(`${folder}/Open website.html`));
+    assert.ok(files.has(`${folder}/index.html`));
     assert.ok(files.has(`${folder}/media/${mediaSlug}.svg`), "public post media is delivered once across themes");
     for (const themeId of themeIds) {
       const theme = themeId.replace(/^tovu-/, "");

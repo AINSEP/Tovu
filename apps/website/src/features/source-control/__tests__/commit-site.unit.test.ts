@@ -357,7 +357,7 @@ test("commitSiteToSourceControl: a real export runs and its files reach the git 
   assert.ok(exported);
   assert.ok(exported.assets.succeeded.some((asset) => asset.outputFile === path.join("theme-assets", "tovu-starter", "css", "theme.css")));
   assert.ok(captured.files.some((file) => file.path === "sites/fixture/index.html"));
-  assert.ok(captured.files.some(file => file.path === "Open website.html"));
+  assert.ok(captured.files.some(file => file.path === "index.html"));
   assert.ok(captured.files.some(file => file.path === "README.txt"));
   assert.equal(captured.files.some(file => file.path.startsWith("theme-assets/")), false);
   for (const file of captured.files) assert.equal(path.isAbsolute(file.path), false);
@@ -628,12 +628,12 @@ test('folder commits use the active-theme download layout, deterministic README 
     const result = await commitSiteToSourceControl(commitDeps, input);
     if (!result.ok) assert.fail(result.message);
     assert.equal(result.folder, 'nested/static_sites');
-    assert.equal(result.entryPath, 'nested/static_sites/Open website.html');
+    assert.equal(result.entryPath, 'nested/static_sites/index.html');
   }
   assert.equal(captures[0]!.folder, 'nested/static_sites');
   assert.deepEqual(captures[0]!.files, captures[1]!.files);
   const files = new Map(captures[0]!.files.map(file => [file.path, Buffer.from(file.data).toString()]));
-  assert.match(files.get('Open website.html')!, /sites\/summer\/index.html/);
+  assert.match(files.get('index.html')!, /sites\/summer\/index.html/);
   assert.match(files.get('sites/summer/index.html')!, /href="about\/index.html"/);
   assert.match(files.get('sites/summer/index.html')!, /src="\.\.\/\.\.\/media\/photo.png"/);
   assert.doesNotMatch(files.get('sites/summer/index.html')!, /action="\/forms/);
@@ -699,7 +699,7 @@ test('relocated filename collisions preserve both assets and their links in prev
   if (!preview.ok) assert.fail(preview.message);
   assert.equal(providerCalls, 1, 'preview must never call the provider');
   assert.equal(preview.fileCount, 5);
-  assert.deepEqual(preview.paths, ['Open website.html', 'README.txt', 'sites/fixture/css/main-2.css', 'sites/fixture/css/main.css', 'sites/fixture/index.html']);
+  assert.deepEqual(preview.paths, ['README.txt', 'index.html', 'sites/fixture/css/main-2.css', 'sites/fixture/css/main.css', 'sites/fixture/index.html']);
   assert.equal(preview.totalBytes, captured.files.reduce((sum, file) => sum + Buffer.byteLength(file.data), 0));
 });
 
@@ -798,7 +798,7 @@ test("previewCommitExport: counts UTF-8 route bytes and binary assets, sorts and
   if (!preview.ok) assert.fail(preview.message);
   assert.equal(preview.fileCount, 58);
   assert.ok(preview.totalBytes > 55 * 2 + 3);
-  assert.deepEqual(preview.paths, ["Open website.html", "README.txt", ...expectedPaths.map(name => `sites/fixture/${name}`), "sites/fixture/images/image.png"].sort().slice(0, 50));
+  assert.deepEqual(preview.paths, ["README.txt", "index.html", ...expectedPaths.map(name => `sites/fixture/${name}`), "sites/fixture/images/image.png"].sort().slice(0, 50));
   let exports = 0;
   const invalid = { ...input, owner: "invalid owner", exportSiteBound: async () => { exports += 1; assert.fail("invalid preview exported"); } };
   assert.deepEqual(await previewCommitExport(invalid), { ok: false, code: "INVALID_CONFIG", message: "invalid owner 'invalid owner'" });
@@ -868,5 +868,5 @@ test('preview passes its provider id to the same isolated exporter used by a com
   assert.equal(captured, path.join(exportDir, 'example-b', 'preview-run'));
   if (!result.ok) assert.fail(result.message);
   assert.equal(result.fileCount, 2);
-  assert.deepEqual(result.paths, ["Open website.html", "README.txt"]);
+  assert.deepEqual(result.paths, ["README.txt", "index.html"]);
 });

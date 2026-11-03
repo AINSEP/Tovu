@@ -440,14 +440,14 @@ test("confirm: a successful commit reports committed:true with every field from 
   assert.equal(result.commitSha, "abc123");
   assert.equal(result.filesChanged, 2);
   assert.equal(result.filesDeleted, 3);
-  assert.deepEqual(result, { committed: true, owner: "octo", repo: "demo", folder: "", entryPath: "Open website.html", branch: "release/2", branchCreated: true, commitSha: "abc123", commitUrl: "https://git.example.test/octo/demo/commit/abc123", filesChanged: 2, filesDeleted: 3, divergedPaths: ["kept-custom.html"] });
+  assert.deepEqual(result, { committed: true, owner: "octo", repo: "demo", folder: "", entryPath: "index.html", branch: "release/2", branchCreated: true, commitSha: "abc123", commitUrl: "https://git.example.test/octo/demo/commit/abc123", filesChanged: 2, filesDeleted: 3, divergedPaths: ["kept-custom.html"] });
   const request = requests[0] as { token: string; folder: string; files: { path: string; data: Buffer }[] };
   assert.equal(requests.length, 1);
   assert.equal(request.token, "fixture_fake_token_never_real");
   assert.equal(request.folder, "");
   assert.equal(request.files.find(file => file.path === "sites/fixture/index.html")!.data.toString(), "<html>commit canary</html>");
   assert.deepEqual(request.files.find(file => file.path === "sites/fixture/image.png")!.data, Buffer.from([0, 128, 255]));
-  assert.ok(request.files.some(file => file.path === "Open website.html"));
+  assert.ok(request.files.some(file => file.path === "index.html"));
   assert.ok(request.files.some(file => file.path === "README.txt"));
   assert.equal(surfaceExchanges.size(), 0);
 });
