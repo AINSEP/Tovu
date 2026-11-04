@@ -1,9 +1,10 @@
 /** One cold Jini supervisor per desktop instance. Sites retain tools and durable authority. */
 import { spawn as nodeSpawn } from "node:child_process";
 import type { ChildProcess } from "node:child_process";
+import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { redactSecrets } from "@jini-ai/core";
 import { createRedactedOutputSink } from "../../website/src/platform/server-logs/console-tee.ts";
 import { redactLocalText } from "../../website/src/platform/server-logs/redact-local-text.ts";
@@ -44,6 +45,20 @@ function assertSiteDirectory({ directory, siteDir }: { directory: string | undef
   if (path.resolve(directory ?? "") !== path.resolve(siteDir)) throw new Error("site directory mismatch");
 }
 
+/** The shared daemon's routing key for one launched site server: its directory, canonicalized.
+ * Not the workspace id — every local site is `workspace-local`, so keying by it let only the first
+ * running site own a scope. Not `.site-meta.json`'s siteId either: a copied site carries the same one.
+ * Hashed so the key is bounded and the URL path never carries the owner's directory.
+ * @complexity O(n) in directory path length; one realpath call.
+ */
+export function siteScopeKey({ siteDir }: { siteDir: string }, _options = {}): string {
+  let canonical = path.resolve(siteDir);
+  try { canonical = fs.realpathSync.native(canonical); } catch { /* an absent dir still has one resolved spelling */ }
+  // Windows paths are case-insensitive; one site must not get two scopes from two spellings.
+  if (process.platform === "win32") canonical = canonical.toLowerCase();
+  return createHash("sha256").update(canonical).digest("hex").slice(0, 32);
+}
+
 /** Bind process launch to existing instance discovery and the existing retry/parking owner.
  * @param required Product root, per-instance registry path and launch facts; no site authority.
  * @param optional Native effects for process-count/IPC regression tests.
@@ -66,7 +81,8 @@ export function createDesktopAgentService({ repoRoot, registryPath, cliMode = "c
   let daemonPid: number | undefined;
   let stopWork: Promise<void> = Promise.resolve();
   let stopping = false;
-  type Site = { config: DaemonSiteRegistration; token: string; host?: typeof channel; ready?: Promise<{ url: string; pid: number; token: string }> };
+  type ScopedSite = DaemonSiteRegistration & { scopeKey: string };
+  type Site = { config: ScopedSite; token: string; host?: typeof channel; ready?: Promise<{ url: string; pid: number; token: string }> };
   const sites = new Map<string, Site>();
   const bindings = new Set<() => void>();
   const notices = new Set<(pid: number) => void>();
@@ -108,10 +124,10 @@ export function createDesktopAgentService({ repoRoot, registryPath, cliMode = "c
     } },
   }, { parkedExitCodes: [AGENT_DAEMON_EXIT_CODE.IDLE_PARK] });
 
-  /** An equal workspace is not permission to replace another bound server's configuration. */
-  function assertSiteBinding({ site, config }: { site: Site | undefined; config: DaemonSiteRegistration }): void {
+  /** An equal scope key is not permission to replace another bound server's configuration. */
+  function assertSiteBinding({ site, config }: { site: Site | undefined; config: ScopedSite }): void {
     if (!site) return;
-    if (path.resolve(site.config.env.TOVU_SITE_DIR ?? "") !== path.resolve(config.env.TOVU_SITE_DIR ?? "")) throw new Error("workspace already belongs to another directory");
+    if (path.resolve(site.config.env.TOVU_SITE_DIR ?? "") !== path.resolve(config.env.TOVU_SITE_DIR ?? "")) throw new Error("site scope already belongs to another directory");
     if (site.config.token !== config.token) throw new Error("site scope belongs to another server boot");
   }
   /** Rotate a site's callback capability when its daemon channel changes.
@@ -120,17 +136,18 @@ export function createDesktopAgentService({ repoRoot, registryPath, cliMode = "c
   function refreshSiteHost({ site }: { site: Site }, _options = {}): void {
     if (site.host !== channel) { site.host = channel; site.token = randomUUID(); delete site.ready; }
   }
-  async function demand(config: DaemonSiteRegistration, _optional = {}) {
+  /** Sites are keyed by `scopeKey`; `siteId` travels unchanged as the scope's workspace id. */
+  async function demand(config: ScopedSite, _optional = {}) {
     if (stopping) throw new Error("desktop agent service is stopping");
-    await withdrawals.get(config.siteId);
-    let site = sites.get(config.siteId);
+    await withdrawals.get(config.scopeKey);
+    let site = sites.get(config.scopeKey);
     assertSiteBinding({ site, config });
     if (!site) {
       site = { config: { ...config, env: { ...config.env } }, token: randomUUID() };
-      sites.set(config.siteId, site);
+      sites.set(config.scopeKey, site);
     }
     await supervisor.ensureReady({}, {});
-    if (stopping || sites.get(config.siteId) !== site) throw new Error("site scope was withdrawn");
+    if (stopping || sites.get(config.scopeKey) !== site) throw new Error("site scope was withdrawn");
     if (!channel || !daemonPid) throw new Error("daemon IPC unavailable");
     refreshSiteHost({ site });
     if (!site.ready) {
@@ -139,23 +156,28 @@ export function createDesktopAgentService({ repoRoot, registryPath, cliMode = "c
       const request = { operation: "register", ...site.config, env: { ...site.config.env, TOVU_AGENT_DAEMON_TOKEN: site.token } };
       site.ready = channel.request({ payload: request }, {}).then(value => {
         const endpoint = daemonEndpoint.parse(value);
-        if (stopping || sites.get(config.siteId) !== owned || channel !== host || endpoint.pid !== daemonPid) throw new Error("stale daemon readiness");
+        if (stopping || sites.get(config.scopeKey) !== owned || channel !== host || endpoint.pid !== daemonPid) throw new Error("stale daemon readiness");
         return { ...endpoint, token: owned.token };
       }).catch((error: unknown) => { delete owned.ready; throw error; });
     }
     return site.ready;
   }
 
-  async function withdraw({ siteId }: { siteId: string }, _optional = {}): Promise<void> {
-    if (!sites.delete(siteId) || !channel || !supervisor.isReady()) return;
-    const work = channel.request({ payload: { operation: "withdraw", siteId } }, {}).then(() => {});
-    withdrawals.set(siteId, work);
-    try { await work; } finally { if (withdrawals.get(siteId) === work) withdrawals.delete(siteId); }
+  async function withdraw({ scopeKey }: { scopeKey: string }, _optional = {}): Promise<void> {
+    const site = sites.get(scopeKey);
+    if (!site) return;
+    sites.delete(scopeKey);
+    if (!channel || !supervisor.isReady()) return;
+    const work = channel.request({ payload: { operation: "withdraw", siteId: site.config.siteId, scopeKey } }, {}).then(() => {});
+    withdrawals.set(scopeKey, work);
+    try { await work; } finally { if (withdrawals.get(scopeKey) === work) withdrawals.delete(scopeKey); }
   }
 
   /** Bind control to an actual owned server; readiness supplies its authenticated workspace ID.
-   * Attached handles never enter here, so attachment keeps using the owner's daemon binding. */
+   * Attached handles never enter here, so attachment keeps using the owner's daemon binding.
+   * The scope key comes from the directory this desktop launched, so a server cannot pick another's. */
   function bindServer({ child, siteDir }: { child: ChildProcess; siteDir: string }, _optional = {}) {
+    const scopeKey = siteScopeKey({ siteDir });
     let workspaceId: string | undefined;
     let closed = false;
     const control = createNodeIpcChannel({ peer: child }, { handle: async payload => {
@@ -164,16 +186,16 @@ export function createDesktopAgentService({ repoRoot, registryPath, cliMode = "c
       if (request.operation === "parking") { supervisor.markParking({ pid: request.pid }, {}); return {}; }
       if (request.operation === "ready" || request.operation === "unavailable") throw new Error("unexpected site control");
       if (!workspaceId || request.siteId !== workspaceId) throw new Error("site identity is not bound");
-      if (request.operation === "withdraw") { await withdraw({ siteId: workspaceId }); return {}; }
+      if (request.operation === "withdraw") { await withdraw({ scopeKey }); return {}; }
       assertSiteDirectory({ directory: request.env.TOVU_SITE_DIR, siteDir });
-      return demand(request, {});
+      return demand({ ...request, scopeKey }, {});
     } });
     const notify = (pid: number) => { void control.request({ payload: { operation: "unavailable", pid } }, {}).catch(() => {}); };
     notices.add(notify);
     function dispose(): void {
       if (closed) return;
       closed = true; control.dispose({}); bindings.delete(dispose); notices.delete(notify);
-      if (workspaceId) void withdraw({ siteId: workspaceId }).catch(() => console.warn("[desktop-agent-service] scope withdrawal failed"));
+      if (workspaceId) void withdraw({ scopeKey }).catch(() => console.warn("[desktop-agent-service] scope withdrawal failed"));
     }
     bindings.add(dispose); child.once("exit", dispose); child.once("disconnect", dispose);
     return { setIdentity({ siteId }: { siteId: string }, _options = {}) { workspaceId = siteId; }, dispose };
