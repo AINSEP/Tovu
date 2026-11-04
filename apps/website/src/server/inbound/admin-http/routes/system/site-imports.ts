@@ -43,8 +43,11 @@ export function registerAdminSiteImportRoutes(
     // Parser refusals are bad uploads; a backend failure is an internal incident, never a 400.
     const refusedUpload = ["encoding.unsupported", "entity.parse.failed", "request.aborted", "request.size.invalid"].includes(type ?? "");
     if (tooLarge || refusedUpload) {
+      const limitMessage = step === "ZIP upload"
+        ? `ZIP upload exceeds the ${SHARE_LIMITS.maxArchiveBytes / (1024 * 1024)} MiB cap.`
+        : `${step} failed: the request exceeds the size limit for this step.`;
       res.status(tooLarge ? 413 : 400).json({ code: tooLarge ? "LIMIT_EXCEEDED" : "IMPORT_FAILED",
-        message: tooLarge ? `${step} failed: the request exceeds the size limit for this step.` : `${step} failed: send a complete request in the format this step accepts.` });
+        message: tooLarge ? limitMessage : `${step} failed: send a complete request in the format this step accepts.` });
       return;
     }
     sendAdminFailure({ res, error, tracker: deps.tracker }, { operation: `site-import:${step}`, code: "IMPORT_FAILED", message: `${step} failed. No existing site was changed.`, field: "message" });

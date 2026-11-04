@@ -1569,7 +1569,7 @@ test("share tool adapters enforce exact input contracts, pass job/principal/sign
 test("backup plan and push return credential warnings for the chat to show", async t => {
   const h = harness(t); await h.seed();
   const credentialWarnings = [{ path: "content.db:posts.body_json", kind: "labeled secret" }];
-  const planTool = overriddenTool(h, "site_backup_plan", { siteBackupSanitize: async () => ({ bytes: DB_BYTES, media: [], credentialWarnings }) });
+  const planTool = overriddenTool(h, "site_backup_plan", { siteBackupSanitize: async () => ({ bytes: Buffer.from(DB_BYTES), media: [], credentialWarnings }) });
   const planned = await call(planTool, PLAN_INPUT) as Result;
   assert.deepEqual(planned.credentialWarnings, credentialWarnings);
   const pushed = await call(h.pushTool, { planId: planned.planId }) as Result;

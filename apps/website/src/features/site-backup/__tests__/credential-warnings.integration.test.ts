@@ -28,7 +28,7 @@ const stamp = "2026-11-03T00:00:00Z";
 test("credential-looking files stay included and warnings contain only locations and match kinds", () => {
   const credentialWarnings: CredentialWarning[] = [];
   for (const [path, text] of [["themes/site/private-key.pem", "-----BEGIN PRIVATE KEY-----\nfixture\n-----END PRIVATE KEY-----"],
-    ["themes/site/.env", `TOKEN=${key}`], ["themes/site/SKILL.md", "Token = the access-policy token"], ["themes/site/main.js", key]]) {
+    ["themes/site/.env", `TOKEN=${key}`], ["themes/site/SKILL.md", "Token = the access-policy token"], ["themes/site/main.js", JSON.stringify(key)]]) {
     assert.equal(excludedSharePath({ path: path! }), false);
     assert.equal(requireShareSecretFree({ path: path!, bytes: Buffer.from(text!) }, { credentialWarnings }), true);
     assert.ok(credentialWarnings.some(warning => warning.path === path));
@@ -44,7 +44,7 @@ test("export keeps database values and complete plugin packages; download requir
   const directory = await mkdtemp(path.join(tmpdir(), "credential-warning-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const db = openContentDb({ filePath: ":memory:" }); t.after(() => closeSqliteConnection(db));
-  db.$client.prepare("INSERT INTO workspaces(id,name,created_at) VALUES ('ws','Site',?)").run(stamp);
+  db.$client.prepare("INSERT INTO workspaces(id,name,slug,created_at) VALUES ('ws','Site','site',?)").run(stamp);
   db.$client.prepare("INSERT INTO posts(id,workspace_id,title,slug,body_json,status,kind,updated_at,version) VALUES (?,'ws','Title',?,?,'draft','post',?,1)").run("one", key, JSON.stringify({ text: key }), stamp);
   const projected = await sanitizeShareDatabase({ snapshot: db.$client.serialize() });
   const fresh = new Database(projected.bytes); t.after(() => fresh.close());

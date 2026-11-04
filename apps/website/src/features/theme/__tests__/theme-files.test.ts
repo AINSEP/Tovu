@@ -292,6 +292,30 @@ test("writeThemeFile overwrites an existing file rather than appending", () => {
   assert.equal(readThemeFile({ themeDir, themesRoot: root, relativePath: "theme.json" }), '{"id":"plain"}');
 });
 
+test("replacement revisions stay inside a theme reached through a symlinked root", t => {
+  const { root } = makeThemesRoot();
+  const links = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-theme-root-link-"));
+  const linkedRoot = path.join(links, "themes");
+  t.after(() => {
+    if (fs.existsSync(linkedRoot)) fs.unlinkSync(linkedRoot);
+    fs.rmSync(links, { recursive: true, force: true });
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+  fs.symlinkSync(fs.realpathSync(root), linkedRoot, process.platform === "win32" ? "junction" : "dir");
+  const themeDir = path.join(linkedRoot, "plain");
+  let previousRevision: string | undefined;
+  writeThemeFile({ themeDir, themesRoot: linkedRoot, relativePath: "theme.json", content: '{"changed":true}' }, {
+    onRevision: ({ trashedPath }) => { previousRevision = trashedPath; },
+  });
+  assert.equal(readThemeFile({ themeDir, themesRoot: linkedRoot, relativePath: "theme.json" }), '{"changed":true}');
+  const revisionsRoot = path.join(themeDir, ".trash", "revisions");
+  const revisions = fs.readdirSync(revisionsRoot);
+  assert.equal(revisions.length, 1);
+  assert.equal(fs.readFileSync(path.join(revisionsRoot, revisions[0]!, "theme.json"), "utf8"), "{}");
+  assert.match(previousRevision!, /^\.trash\/revisions\/\d+\/theme\.json$/);
+  assert.equal(readThemeFile({ themeDir, themesRoot: linkedRoot, relativePath: previousRevision! }), "{}");
+});
+
 test("writeThemeFile replaces an existing target via rename rather than truncating it in place, and leaves no temp file behind", () => {
   // `theme.json` is the one file `loadTheme()` must parse whole, so a plain truncate-in-place
   // write (`writeFileSync(target, …, "w")`) is a live corruption risk: a crash or a concurrent

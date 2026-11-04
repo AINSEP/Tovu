@@ -28,7 +28,9 @@ test("plugin preflight uses the site's live run identity and releases terminal c
     },
   }, {});
   const baseUrl = await startTestServer(app, t);
-  const post = (body: unknown, authenticated = true) => fetch(`${baseUrl}/internal/agent-plugin-preflight`, { method: "POST", headers: { "content-type": "application/json", ...(authenticated ? { authorization: `Bearer ${ensureToolExecToken({}, {})}` } : {}) }, body: JSON.stringify(body) });
+  // Boot installs the RPC token before serving, including before an unauthenticated first request.
+  const token = ensureToolExecToken({}, {});
+  const post = (body: unknown, authenticated = true) => fetch(`${baseUrl}/internal/agent-plugin-preflight`, { method: "POST", headers: { "content-type": "application/json", ...(authenticated ? { authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify(body) });
   assert.equal((await post({ runId: "plugin-run" }, false)).status, 401);
   for (const body of [{}, { runId: "missing" }, { runId: "plugin-run", principalId: "owner" }]) assert.ok([400, 404].includes((await post(body)).status));
   assert.equal(contexts.length, 0);

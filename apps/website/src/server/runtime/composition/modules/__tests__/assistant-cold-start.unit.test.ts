@@ -89,6 +89,9 @@ test("first proxy request waits before forwarding and succeeds once ready", asyn
 
 test("activation racing park waits for an accepting daemon before allowing frontend rebind", async t => {
   let sends = 0; let wakes = 0;
+  const urlBefore = process.env.JINI_AGENT_DAEMON_URL;
+  process.env.JINI_AGENT_DAEMON_URL = "http://127.0.0.1:12345";
+  t.after(() => { if (urlBefore === undefined) delete process.env.JINI_AGENT_DAEMON_URL; else process.env.JINI_AGENT_DAEMON_URL = urlBefore; });
   t.mock.method(globalThis, "fetch", async (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
     assert.equal(new URL(String(input)).pathname, "/api/active");
     assert.equal(init?.method, "GET");

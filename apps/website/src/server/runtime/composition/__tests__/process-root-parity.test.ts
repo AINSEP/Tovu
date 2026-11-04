@@ -372,8 +372,8 @@ test("daemon dev mode passes bypass in the executor's options bag", async () => 
   const { resolveNativeToolPolicy } = await import("@jini-ai/agent-runtime/native-tool-policy");
   const { getAgentDef } = await import("@jini-ai/agent-runtime");
   const nativeCapabilities = assistantCliPermissions({ enabled: false }).capabilities;
-  const resolvePermissionMode = new Function("process", "resolveAgentPermissionMode", "resolveHostSignals", permissionFunction.body.getText(daemonSource));
-  const mode = resolvePermissionMode({ env }, resolveAgentPermissionMode, () => ({ hosted: false, nativeToolsRestricted: false, labels: [] }));
+  const resolvePermissionMode = new Function("env", "resolveAgentPermissionMode", "resolveHostSignals", permissionFunction.body.getText(daemonSource));
+  const mode = resolvePermissionMode(env, resolveAgentPermissionMode, () => ({ hosted: false, nativeToolsRestricted: false, labels: [] }));
   assert.equal(mode, "bypass");
   const captured = evaluateDaemonExpression<Promise<{ required: Record<string, unknown>; optional: Record<string, unknown> }>>(runCall, {
     agentExecutor: { run: async (required: Record<string, unknown>, optional: Record<string, unknown> = {}) => ({ required, optional }) },
@@ -432,6 +432,8 @@ test("daemon shutdown waits for publication even when durability fails after ren
     );
   const first = exit(143);
   await exit(130);
+  // Scope disposal now follows the asynchronous listener drain, before database cleanup.
+  await new Promise<void>((resolve) => setImmediate(resolve));
   assert.deepEqual(calls, ["store-closing"], "a second signal must not duplicate cleanup or removal");
   releaseStore();
   await new Promise<void>((resolve) => setImmediate(resolve));

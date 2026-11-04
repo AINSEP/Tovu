@@ -78,6 +78,8 @@ test("before-quit waits on in-flight teardowns, not only on openSites", async ()
       product: { dispose: () => { shutdownOrder.push("product"); return productDisposal.promise; } } },
     siteThemePreviews: { dispose: () => { shutdownOrder.push("previews"); } },
     desktopAgentRuntime: { dispose: async () => { shutdownOrder.push("runtime"); } },
+    desktopMcpHttp: { close: async () => { shutdownOrder.push("mcp"); } },
+    desktopAgentService: { shutdown: async () => { shutdownOrder.push("agent-service"); } },
     siteDiscovery: { abortAll: () => {} },
     quitPhase: "idle", openSites: new Map(), pendingTeardowns,
     decideBeforeQuit, finalQuitHeldForUpdate: () => false,
@@ -88,7 +90,7 @@ test("before-quit waits on in-flight teardowns, not only on openSites", async ()
     await flush();
     assert.equal(prevented, 1);
     assert.equal(finalQuits, 0, "app.quit() must await a tracked teardown even with no open windows");
-    assert.deepEqual(shutdownOrder, ["product-listeners", "product-memory", "product", "runtime", "previews"]);
+    assert.deepEqual(shutdownOrder, ["product-listeners", "product-memory", "product", "runtime", "mcp", "previews", "agent-service"]);
     teardown.resolve();
     await flush();
     assert.equal(finalQuits, 0, "app.quit() must also await product telemetry after the site teardown finishes");
@@ -99,7 +101,7 @@ test("before-quit waits on in-flight teardowns, not only on openSites", async ()
     await flush();
   }
   assert.equal(finalQuits, 1);
-  assert.deepEqual(shutdownOrder, ["product-listeners", "product-memory", "product", "runtime", "previews", "quit"]);
+  assert.deepEqual(shutdownOrder, ["product-listeners", "product-memory", "product", "runtime", "mcp", "previews", "agent-service", "quit"]);
 });
 
 test("Quit during a card Stop waits for its tracked teardown after openSites becomes empty", async (t) => {
@@ -133,6 +135,7 @@ test("Quit during a card Stop waits for its tracked teardown after openSites bec
       exit: () => assert.fail("Stop must settle before the quit deadline"),
     },
     siteThemePreviews: { dispose: () => {} }, desktopAgentRuntime: { dispose: async () => {} },
+    desktopMcpHttp: { close: async () => {} }, desktopAgentService: { shutdown: async () => {} },
     productState: { disposers: [() => { shutdownOrder.push("product-listeners"); }],
       product: { dispose: async () => { shutdownOrder.push("product"); } } },
     siteDiscovery: { abortAll: () => {} },

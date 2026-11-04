@@ -411,9 +411,15 @@ test("zip surfaces encoding failures, translates size refusals, detects stale fi
 });
 test("portable paths enforce depth, private-file omissions, content scanning and collisions", { timeout: 120000 }, () => {
   for (const name of ["themes/" + Array(33).fill("x").join("/"), "themes/space /x", "themes/x?.txt", "themes/x<.txt", "themes/a:b", "themes/x\u007f"]) assert.throws(() => validateSharePath({ path: name }), { code: "UNSAFE_PATH" });
-  for (const name of ["uploads/chat-attachments/a", "agent-plugins/ws/ws/staging/x", "agent-plugins/ws/ws/a/memory/private/a", "themes/.env.production"]) assert.equal(excludedSharePath({ path: name }), true);
+  for (const name of ["uploads/chat-attachments/a", "agent-plugins/ws/ws/staging/x", "agent-plugins/ws/ws/a/memory/private/a"]) assert.equal(excludedSharePath({ path: name }), true);
   for (const name of ["themes/.git/a", "themes/.share-private/a", "themes/foo.sqlite-wal", "themes/restore-point-a", "themes/superseded-a"]) assert.throws(() => excludedSharePath({ path: name }), { code: "UNSAFE_FILE" });
-  for (const name of ["themes/id_ed25519.pub", "themes/private_key.txt", "themes/.mcp.a.json"]) assert.equal(excludedSharePath({ path: name }), true);
+  // 0638e581a preserves credential-looking files with warnings; private runtime trees stay excluded.
+  for (const name of ["themes/.env.production", "themes/id_ed25519.pub", "themes/private_key.txt", "themes/.mcp.a.json"]) {
+    const credentialWarnings: import("../credential-warnings.js").CredentialWarning[] = [];
+    assert.equal(excludedSharePath({ path: name }), false);
+    assert.equal(requireShareSecretFree({ path: name, bytes: Buffer.from("fixture") }, { credentialWarnings }), true);
+    assert.ok(credentialWarnings.some(warning => warning.path === name && warning.kind === "credential filename"));
+  }
   const bytes = Buffer.from("\u0000ghp_" + "x".repeat(36) + "\u0000");
   assert.equal(requireShareSecretFree({ path: "themes/a.png", bytes }), true);
   for (const order of [["themes/file", "themes/file/child"], ["themes/file/child", "themes/file"], ["themes/A/x", "themes/a/y"], ["themes/x", "themes/x"]]) {

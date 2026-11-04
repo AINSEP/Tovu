@@ -147,6 +147,8 @@ function omitMediaReferences(required: { row: Row; table: string; omitted: Reado
   return row;
 }
 
+const SIDECAR_TABLES: readonly string[] = ["media_slug_history", "asset_blobs", "asset_renditions"];
+
 /** Who owns which bytes, from the retained (already projected) `media` rows. */
 interface MediaOwners {
   readonly byId: ReadonlyMap<string, Row>;

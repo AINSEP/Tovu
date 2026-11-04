@@ -43,7 +43,8 @@ for (const role of ["owner", "workspace-client"] as const) {
             fetch: async (_url, init) => Response.json({ value: JSON.parse(init.body).operation === 'bootstrap' ? snapshot : null }),
             openClient: async (required, optional) => { const client = await openSiteDbClient(required, optional); store = client; return client; },
           });
-          store = { ...store, close: deps.close };
+          // A retained client owns connections only; the shutdown adapter also needs the storage label.
+          store = { ...store, storage: { kind: 'sqlite' }, close: deps.close };
           await Promise.all(bootWork(deps));
         }
         const server = createServer((_request, response) => response.end('ready'));
@@ -78,7 +79,7 @@ for (const role of ["owner", "workspace-client"] as const) {
         }
         child.kill(signal);
         const stopped = await Promise.race([exited, once(child, "exit", { signal: AbortSignal.timeout(8_000) })]);
-        assert.deepEqual(stopped, [0, null]);
+        assert.deepEqual(stopped, [0, null], childErrors);
         for (const file of (role === "owner" ? [contentPath, chatPath, journalPath] : [contentPath, chatPath])) {
           assert.equal(fs.existsSync(`${file}-wal`), false, `${file} WAL removed before exit`);
           assert.equal(fs.existsSync(`${file}-shm`), false, `${file} shared memory removed before exit`);

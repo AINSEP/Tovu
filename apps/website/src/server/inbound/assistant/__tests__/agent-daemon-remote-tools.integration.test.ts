@@ -78,7 +78,7 @@ test("attachment lookup refuses missing and run-scoped credentials before parsin
  * executor alone would stay green while the product still ran tools in its disconnected store. */
 async function bootDaemonRpc(t: import("node:test").TestContext, options: { dropResponse?: boolean } = {}) {
   const { createToolRegistry } = await import("@jini-ai/core");
-  const { createToolExecutor, createRoutingToolExecutor } = await import("@jini-ai/daemon");
+  const { createToolExecutor, createRoutingToolExecutor, createRunLifecycle, createInMemoryEventLog } = await import("@jini-ai/daemon");
   const { withReadOnlyToolConstraint } = await import("#src/assistant/read-only-tool-constraint");
   const { createRouteDeps } = await import("#src/server/runtime/composition/app");
   const { registerAssistantToolExecRoutes } = await import("#src/server/runtime/composition/modules/assistant-tool-exec");
@@ -123,17 +123,21 @@ async function bootDaemonRpc(t: import("node:test").TestContext, options: { drop
     localToolExecutor: createToolExecutor({ registry }),
   });
   const events: Record<string, unknown>[] = [];
-  let cancel = () => {};
-  const lifecycle = {
-    emit: async ({ input }: { input: { data: Record<string, unknown> } }) => { events.push(input.data); },
-    onCancelRequested: ({ listener }: { listener: () => void }) => { cancel = listener; return () => {}; },
-  } as unknown as import("@jini-ai/daemon").RunLifecycle;
+  // Use the lifecycle owner so terminal observation and cancellation have the same contract as boot.
+  const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
+  await lifecycle.start({ contextRef: "remote-tools" }, { runId: "remote-run" });
+  t.after(() => lifecycle.finish({ runId: "remote-run", status: "cancelled", code: null, signal: null, resumable: false }));
+  const emit = lifecycle.emit;
+  t.mock.method(lifecycle, "emit", async (args: Parameters<typeof lifecycle.emit>[0]) => {
+    events.push(args.input.data as Record<string, unknown>);
+    return emit(args);
+  });
   const { createDelegatedToolBridge } = await import("@jini-ai/daemon");
   const bridge = createDelegatedToolBridge({ lifecycle, toolExecutor });
   const execute = (toolId: string) => siteTools.withRun({ runId: "remote-run", fn: () => bridge.execute({
     runId: "remote-run", principal, toolUseId: "remote-use", toolId, input: {},
   }) });
-  return { execute, events, started, serverAborted, cancel: () => cancel(), deps, writes: () => writes, siteTools, toolExecutor, principal };
+  return { execute, events, started, serverAborted, cancel: () => lifecycle.cancel({ runId: "remote-run" }), deps, writes: () => writes, siteTools, toolExecutor, principal };
 }
 
 test("delegation records tool_use and tool_result", async t => {

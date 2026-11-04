@@ -358,8 +358,14 @@ describe("Defect 1 wiring — run starts must be serialized per conversation", (
       "this test's own anchor (the resolveSessionBinding declaration) must still exist verbatim — it is the critical section the lock protects",
     );
     const bindingFnSource = onStartedSource.slice(bindingFnIndex, lockCallIndex);
+    // ADR-070 moved legacy/durable lookup selection to a helper; its invocation stays locked.
+    const priorFnIndex = onStartedSource.indexOf("async function readPriorSessionId(");
+    assert.ok(priorFnIndex > -1 && priorFnIndex < bindingFnIndex);
+    const priorFnSource = onStartedSource.slice(priorFnIndex, bindingFnIndex);
     assert.ok(
-      /routeDeps\.agentSessions\.getSessionId\(/.test(bindingFnSource),
+      /await readPriorSessionId\(\{\}, \{\}\)/.test(bindingFnSource)
+        && /routeDeps\.agentSessions\.getSessionId\(/.test(priorFnSource)
+        && /routeDeps\.getSessionForAttempt\(/.test(priorFnSource),
       "the stored-session lookup must live inside the locked critical section",
     );
     assert.ok(

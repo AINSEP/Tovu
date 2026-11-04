@@ -700,7 +700,8 @@ function themeRevisionDirectories({ root }: { root: string }, _options = {}): st
 function saveThemeFileRevision(
   required: ThemeRevisionFile & { target: string }, _options = {},
 ): string | undefined {
-  const normalized = relative(resolve(required.themeDir), required.target).split(sep).join('/');
+  // The resolver canonicalizes the target; use the same base for roots reached through symlinks.
+  const normalized = relative(realpathSync(required.themeDir), required.target).split(sep).join('/');
   if (normalized.split('/')[0] === '.trash') return undefined;
   const root = resolveThemeFilePath({ ...required, relativePath: THEME_REVISION_ROOT });
   mkdirSync(root, { recursive: true });
@@ -802,7 +803,11 @@ export function writeThemeFile(
   const target = validateThemeFileWrite(required, optional);
   mkdirSync(dirname(target), { recursive: true });
   const revision = writeFileAtomically(target, required.relativePath, (tempPath) => writeFileSync(tempPath, required.content, "utf8"), optional.stat, required);
-  if (revision) optional.onRevision?.({ trashedPath: relative(required.themeDir, join(revision, relative(required.themeDir, target))).split(sep).join('/') }, {});
+  if (revision) {
+    // Revision paths returned to tools must use that same canonical base, not a symlink spelling.
+    const base = realpathSync(required.themeDir);
+    optional.onRevision?.({ trashedPath: relative(base, join(revision, relative(base, target))).split(sep).join('/') }, {});
+  }
   return target;
 }
 

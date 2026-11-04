@@ -28,7 +28,7 @@ import { createToolExecutor } from "@jini-ai/daemon";
 
 import { adminScreenLinkAgentToolCatalog } from "../admin-screen-link-tool.js";
 import { toolGapsAgentToolCatalog } from "../tool-gaps-tool.js";
-import { resolveBatchableTools, batchDescriptorFor } from "../batch-tool-inputs.js";
+import { resolveBatchableTools, applyBatchInputs } from "../batch-tool-inputs.js";
 import { permanentDeleteAgentToolCatalog } from "../../features/permanent-delete/agent-tools.js";
 import { agentPluginConnectDomainCatalog } from "../../features/agent-plugins/tool-registrations.js";
 import { databaseTransferAgentToolCatalog } from "../../features/database-transfer/tool-registrations.js";
@@ -429,10 +429,11 @@ test("every wired registration publishes the inputSchema from its catalog entry 
     if (CATALOG_SCHEMA_OVERRIDE_IDS.has(id)) continue; // deliberate divergence, asserted honestly in the dedicated test below — see CATALOG_SCHEMA_OVERRIDE_IDS's own doc
     const catalogDescriptor = { ...registration.descriptor, description: catalogEntry(id).description, inputSchema: catalogEntry(id).inputSchema };
     // A batchable tool publishes its catalog contract plus `items` — asserted against the REAL
-    // derivation (`batchDescriptorFor`), in the order the assembly applies it (batch, then rewrite).
+    // derivation (`applyBatchInputs`, including combined approval plans), in the order the assembly applies it (batch, then rewrite).
     // load_agent_plugin is run-scoped: both roots append it after the assembly's batch pass.
     const [batchable] = id === "load_agent_plugin" ? [] : resolveBatchableTools({ registrations: [{ ...registration, descriptor: catalogDescriptor }] });
-    const expected = rewrite({ ...registration, descriptor: batchable ? batchDescriptorFor({ descriptor: catalogDescriptor, tool: batchable }) : catalogDescriptor }).descriptor;
+    const [expectedRegistration] = applyBatchInputs({ registrations: [{ ...registration, descriptor: catalogDescriptor }] }, { tools: batchable ? [batchable] : [] });
+    const expected = rewrite(expectedRegistration!).descriptor;
     // Jini batch metadata uses Symbols; the published contract is the JSON wire schema (87a7e2e39).
     assert.deepEqual(JSON.parse(JSON.stringify(registration.descriptor.inputSchema)), JSON.parse(JSON.stringify(expected.inputSchema)), `${id}'s published schema must be its catalog entry's, not a second copy`);
     assert.equal(registration.descriptor.description, expected.description);

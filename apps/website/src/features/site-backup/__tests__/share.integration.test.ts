@@ -109,7 +109,7 @@ test("ZIP target uses the common plan/manifest; repository plans retain their or
   assert.ok(zip.includes(Buffer.from('"formatVersion": 2')));
 });
 
-test("fresh share projection preserves drafts/schedules/autosaves, excludes private rows and secret bytes across the WHOLE zip", async (t) => {
+test("fresh share projection preserves drafts/schedules/autosaves and warned credentials, excluding private runtime bytes across the WHOLE zip", async (t) => {
   const { sql, dir, mediaBytes, hash, storageKey } = await fixture(t);
   sql.exec("DROP TABLE secret_fixture_user");
   const write = async (relative: string, text: string) => { const file = path.join(dir, relative); await mkdir(path.dirname(file), { recursive: true }); await writeFile(file, text); };
@@ -122,7 +122,9 @@ test("fresh share projection preserves drafts/schedules/autosaves, excludes priv
   } });
   await write("themes/static/site/out/main.js", "console.log('required output')");
   await write("overrides/page.html", "<main>Page override</main>");
-  for (const file of ["themes/static/site/nested/.env.local", "plugins/site/1.0.0/data/oauth.json", "plugins/site/1.0.0/memory/private/facts.md", "plugins/site/1.0.0/nested/chat.db-wal", "uploads/chat-attachments/private.txt"]) await write(file, sentinel);
+  const credentialText = "TOKEN=ghp_" + "x".repeat(36);
+  await write("themes/static/site/nested/.env.local", credentialText);
+  for (const file of ["plugins/site/1.0.0/data/oauth.json", "plugins/site/1.0.0/memory/private/facts.md", "plugins/site/1.0.0/nested/chat.db-wal", "uploads/chat-attachments/private.txt"]) await write(file, sentinel);
   await write("config.json", JSON.stringify({ name: "Shared site", domain: "private.local", port: 1234, password: sentinel }));
   await write(".site-meta.json", JSON.stringify({ templateId: "starter", templateVersion: "1", schemaVersion: 13, siteId: sentinel, siteKeyId: sentinel, storage: sentinel }));
   const sources = { siteDir: dir, mediaUploadsDir: null, themesDir: path.join(dir, "themes"), agentPlugins: resolveAgentPluginLayout({ siteDir: process.cwd() }, { env: { TOVU_AGENT_PLUGINS_DIR: path.join(dir, "agent-plugins") } }), skillsDir: path.join(dir, "skills"), tovuVersion: "test", sitePlugins: jiniSitePlugins({ installDir: path.join(dir, "plugins") }) };
@@ -132,7 +134,8 @@ test("fresh share projection preserves drafts/schedules/autosaves, excludes priv
     dbOps: { getCapabilities: async () => ({ restorePoint: { costClass: "cheap", kind: "file-snapshot" } }), captureRestorePoint: async () => { const artifactRef = path.join(dir, "snapshot.db"); await writeFile(artifactRef, sql.serialize()); return { artifactRef, watermarkAtCapture: 42 }; }, restoreFromArtifact: async () => { throw new Error("must never restore"); } },
   });
   assert.deepEqual(readKeys, [storageKey], "S3 bytes come through the existing store, not uploadsDir");
-  const zip = await buildShareZip({ plan, zip: zipFolderFiles });
+  const credentialWarnings = [...(plan.credentialWarnings ?? [])];
+  const zip = await buildShareZip({ plan, zip: zipFolderFiles }, { credentialWarnings });
   assert.equal(zip.includes(Buffer.from(sentinel)), false, "scan the complete ZIP, including SQLite free pages");
   const entries = new Map<string, Buffer>();
   const reader = createYauzlAgentPluginArchiveReader({ yauzl: yauzl as unknown as YauzlPort });
@@ -141,8 +144,14 @@ test("fresh share projection preserves drafts/schedules/autosaves, excludes priv
     if (entry.kind !== "file") continue;
     const chunks: Buffer[] = [];
     for await (const chunk of entry.openReadStream({})) chunks.push(Buffer.from(chunk));
-    entries.set(entry.entryPath, Buffer.concat(chunks));
+    const bytes = Buffer.concat(chunks);
+    assert.equal(bytes.includes(Buffer.from(sentinel)), false, entry.entryPath);
+    entries.set(entry.entryPath, bytes);
   }
+  // 0638e581a retains credential-looking content; the private runtime sentinel stays excluded.
+  assert.equal(entries.get("themes/site/nested/.env.local")?.toString(), credentialText);
+  assert.ok(credentialWarnings.some(warning => warning.path === "themes/site/nested/.env.local"));
+  assert.equal(JSON.stringify(credentialWarnings).includes(credentialText), false);
   assert.equal(entries.get("media/media.bin")?.toString(), mediaBytes.toString());
   assert.equal(createHash("sha256").update(entries.get("media/media.bin")!).digest("hex"), hash);
   for (const file of ["themes/site/index.html", "themes/site/data/content.json", "plugins/site/package/plugin.json", "plugins/site/package/src/data/default.json", "plugins/site/package/src/notes/help.md", "themes/site/out/main.js", "themes/__overrides__/page.html"]) assert.ok(entries.has(file), file);
@@ -155,7 +164,9 @@ test("fresh share projection preserves drafts/schedules/autosaves, excludes priv
   // An unsniffed (null) content_type is filled with the archive's sniffed type; every other column is kept.
   assert.deepEqual(shared.prepare(`SELECT * FROM "asset_blobs"`).all(), sql.prepare(`SELECT * FROM "asset_blobs"`).all().map(row => ({ ...(row as object), content_type: "application/octet-stream" })), "asset_blobs");
   for (const table of ["principals", "identity_users", "members", "sessions", "api_keys", "secrets_vault", "setting_values_global", "setting_values_user", "setting_revisions"]) assert.equal((shared.prepare(`SELECT count(*) AS n FROM "${table}"`).get() as { n: number }).n, 0, table);
-  assert.deepEqual(shared.prepare("SELECT setting_id FROM setting_definitions ORDER BY setting_id").all(), [{ setting_id: "title" }]);
+  assert.deepEqual(shared.prepare("SELECT setting_id FROM setting_definitions ORDER BY setting_id").all(), [{ setting_id: "description" }, { setting_id: "title" }]);
+  assert.deepEqual(shared.prepare("SELECT default_json FROM setting_definitions WHERE setting_id = 'description'").get(), sql.prepare("SELECT default_json FROM setting_definitions WHERE setting_id = 'description'").get());
+  assert.deepEqual(shared.prepare("SELECT value_json FROM setting_values_workspace WHERE setting_id = 'description'").get(), sql.prepare("SELECT value_json FROM setting_values_workspace WHERE setting_id = 'description'").get());
   assert.equal((shared.prepare("SELECT count(*) AS n FROM post_search_document").get() as { n: number }).n, 4, "search is rebuilt from portable posts");
   await assert.rejects(readFile(path.join(dir, "snapshot.db")), /ENOENT/, "snapshot staging is cleaned");
 });

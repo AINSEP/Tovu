@@ -172,6 +172,11 @@ const EXPECTED_ALLOWLIST = [
   "theme_trash_file",
   // Demo 2026-11-02: replacing an existing theme file's bytes asks on the handler's own plan card.
   "theme_write_file",
+  // Shared theme replacement plans and theme duplication park on principal-bound exchanges.
+  "theme_edit_file",
+  "theme_import_file_from_url",
+  "theme_import_local_file",
+  "theme_duplicate",
   "trash_item",
   "widgets_trash_instance",
 
@@ -249,7 +254,7 @@ test("SECURITY-CRITICAL: the allowlist is exactly this set — widening it canno
 });
 
 test("file-batch callbacks can only answer parked exchanges, never start fresh writes", () => {
-  for (const id of ["fs_write_files", "files_copy", "image_transform"]) {
+  for (const id of ["fs_write_files", "files_copy", "image_transform", "theme_edit_file", "theme_import_file_from_url", "theme_import_local_file", "theme_duplicate"]) {
     assert.equal(isMcpUiToolCallAllowed(id), true);
     assert.equal(isMcpUiToolCallPermitted(id, false), false, id);
     assert.equal(isMcpUiToolCallPermitted(id, true), true, id);
