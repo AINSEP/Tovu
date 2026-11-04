@@ -14,9 +14,13 @@ export function previewThemePath({ themeId, activeThemeId, path }: { themeId: st
   return themeId === activeThemeId ? path : `/_themes/${encodeURIComponent(themeId)}${path}`;
 }
 
+// Host-owned: themes must never restyle or re-position this tag (guidance: theme-authoring rules).
+// For !important declarations the shadow :host rule beats the host's inline style, so `all:initial`
+// alone reset position to static: the bar fell into flow under its own 44px body padding (a gap) and
+// sat left-aligned. Position is therefore re-asserted after `all` in this same rule (owner 2026-11-04).
 const BANNER_CSS = `
-:host{all:initial!important;display:block!important;color-scheme:light!important}
-.tovu-theme-preview-bar{all:initial;box-sizing:border-box;display:flex;align-items:center;gap:8px;min-height:44px;padding:5px 12px;background:#111827;color:#fff;font:14px/1.4 system-ui,sans-serif;white-space:nowrap;overflow-x:auto;max-width:100%;scrollbar-width:thin}
+:host{all:initial!important;display:block!important;position:fixed!important;top:0!important;left:0!important;right:0!important;width:100%!important;z-index:2147483647!important;color-scheme:light!important}
+.tovu-theme-preview-bar{all:initial;box-sizing:border-box;display:flex;align-items:center;justify-content:safe center;gap:8px;min-height:44px;padding:5px 12px;background:#111827;color:#fff;font:14px/1.4 system-ui,sans-serif;white-space:nowrap;overflow-x:auto;max-width:100%;scrollbar-width:thin}
 .tovu-theme-preview-label{all:initial;font:inherit;color:inherit;flex:none}
 .tovu-theme-preview-choice{all:initial;box-sizing:border-box;display:inline-block;flex:none;padding:6px 10px;border:1px solid #64748b;border-radius:4px;font:inherit;color:#fff;cursor:pointer;text-decoration:none}
 .tovu-theme-preview-choice[aria-current]{background:#fff;color:#111827;border-color:#fff}
@@ -25,21 +29,23 @@ const BANNER_CSS = `
 `;
 
 // Only layout measurement lives in the browser; selection and rendering already happened on the server.
+// Offsets are written as literal, !important inline values (variables stay published for themes to read)
+// so a theme that zeroes --tovu-theme-preview-height cannot hide content under the bar.
 const BANNER_SCRIPT = `(function(){
 var host=document.querySelector('.tovu-theme-preview-host');if(!host)return;
 var template=host.querySelector('template');
 if(!host.shadowRoot&&template){host.attachShadow({mode:'open'}).appendChild(template.content);template.remove();}
 var root=document.documentElement,body=document.body;
 var spacing=document.getElementById('tovu-theme-preview-spacing');spacing.sheet.disabled=true;
-root.style.setProperty('--tovu-theme-preview-base-padding',getComputedStyle(body).paddingTop);spacing.sheet.disabled=false;
+var base=getComputedStyle(body).paddingTop;root.style.setProperty('--tovu-theme-preview-base-padding',base);spacing.sheet.disabled=false;
 var chrome=Array.from(body.querySelectorAll('*')).filter(function(el){
  if(el===host)return false;
  var style=getComputedStyle(el);return (style.position==='fixed'||style.position==='sticky')&&style.top==='0px';
 });
 function measure(){var height=host.getBoundingClientRect().height;
- root.style.setProperty('--tovu-theme-preview-height',height+'px');
- body.style.setProperty('padding-top','calc(var(--tovu-theme-preview-base-padding) + var(--tovu-theme-preview-height))','important');
- chrome.forEach(function(el){el.style.setProperty('top','var(--tovu-theme-preview-height)','important');});
+ root.style.setProperty('--tovu-theme-preview-height',height+'px','important');
+ body.style.setProperty('padding-top','calc('+base+' + '+height+'px)','important');
+ chrome.forEach(function(el){el.style.setProperty('top',height+'px','important');});
 }
 measure();if(typeof ResizeObserver!=='undefined')new ResizeObserver(measure).observe(host);
 })();`;

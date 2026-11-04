@@ -105,6 +105,8 @@ If a theme uses Alpine's standard build or `new Function` / `eval(`, resolve con
 
 Analytics, tracking, or marketing scripts you add must carry `data-consent-category="analytics"` or `data-consent-category="marketing"`, including first-party and inline scripts.
 
+The theme preview / demo bar (`.tovu-theme-preview-host`, "Theme preview" with one button per theme) is host-owned: Tovu pins it to the top, centres it and pads the page. Never restyle, re-position, re-centre, re-home or rebuild it, never inject styles into its shadow root, and never override `--tovu-theme-preview-height` / `--tovu-theme-preview-base-padding` or `body` `padding-top` for it. A theme may read `--tovu-theme-preview-height` to offset its own sticky or pinned blocks. If the bar shows a gap or sits left-aligned, that is a Tovu bug: report it, do not patch it in the theme.
+
 ## Rule 1 — Build as apiVersion 2. The v1 flat layout is legacy, not a safe default.
 
 Every theme actually served by a real site today (`sites/*/themes/static/basic`, and every
