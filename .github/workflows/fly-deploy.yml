@@ -1,17 +1,21 @@
 # ============================================================================
 # GENERATED FILE - do not edit by hand. Rendered by the Fly agent plugin:
-#   node content/agent-plugins/fly/scripts/render-deploy-workflow.mjs
-# from content/agent-plugins/fly/skills/fly/references/fly-deploy.template.yml (its `tovu-host`
-# blocks) and content/agent-plugins/fly/scripts/tovu-production.values.json. Edit those, re-render,
-# and commit both; content/agent-plugins/fly/scripts/__tests__ fails while they disagree.
+#   node node_modules/@jini-ai/agent-plugins/fly/scripts/render-deploy-workflow.mjs \
+#     --values content/agent-plugin-overlays/fly/tovu-production.values.json --repo-root .
+# from @jini-ai/agent-plugins' fly/skills/fly/references/fly-deploy.template.yml and Tovu's overlay
+# content/agent-plugin-overlays/fly/ (the values file and its workflow/*.yml blocks). Edit the
+# overlay, re-render, and commit both; content/agent-plugin-overlays/fly/__tests__ fails while they
+# disagree.
 # ============================================================================
 # Generated config ownership and production invariants (moved from the former root fly.toml)
 # ============================================================================
 # The Fly plugin's deploy-configs/fly.mjs owns generation. This job has no installed/built Tovu
-# CLI, so it imports that dependency-free module directly immediately before flyctl deploy.
+# CLI, so it fetches the pinned @jini-ai/agent-plugins package (exact version from the overlay values
+# file, independent of Tovu's own dependencies) and imports that dependency-free module directly
+# immediately before flyctl deploy.
 # Do not commit the generated root fly.toml. For a local deploy, generate it first with
 # `tovu deploy config --target fly --region <region> --out fly.toml` and review deployment-specific
-# env/build args; content/agent-plugins/fly/scripts/fly-build.sh only pins the build context, not these inputs.
+# env/build args; content/agent-plugin-overlays/fly/fly-build.sh only pins the build context, not these inputs.
 # @jini-ai/* comes from npm: the repo root is the self-contained Docker build context, next to
 # Dockerfile and docker-compose.yml. No sibling Jini checkout or parent-context handling is needed,
 # including on Depot/Fly remote builders. The generated [build].dockerfile is relative to this root.
@@ -226,11 +230,20 @@ jobs:
         with:
           node-version: "24"
 
+      # Only this one package is downloaded (the Fly plugin ships in it as fly/); npm pack checks the
+      # registry integrity.
+      - name: Fetch the pinned Fly plugin
+        env:
+          AGENT_PLUGINS_VERSION: "0.6.19"
+        run: |
+          npm pack "@jini-ai/agent-plugins@${AGENT_PLUGINS_VERSION}" --pack-destination "$RUNNER_TEMP"
+          mkdir -p "$RUNNER_TEMP/plugin-fly" && tar -xzf "$RUNNER_TEMP"/jini-ai-agent-plugins-*.tgz -C "$RUNNER_TEMP/plugin-fly"
+
       - name: Generate Fly config from the plugin
         run: |
           node --input-type=module <<'NODE'
           import { writeFileSync } from "node:fs";
-          import fly from "./content/agent-plugins/fly/deploy-configs/fly.mjs";
+          const { default: fly } = await import(`${process.env.RUNNER_TEMP}/plugin-fly/package/fly/deploy-configs/fly.mjs`);
 
           const env = process.env;
           const result = fly.render({
