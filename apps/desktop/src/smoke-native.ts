@@ -230,6 +230,8 @@ export function buildEntryLoadScript({ resourcesDir }: { resourcesDir: string },
       join(asar, "src", "desktop-mcp-http.ts"),
     );
     const loaded = new Set();
+    // Loaded URLs are real paths (macOS /var -> /private/var, Windows 8.3 short names expanded).
+    const entryUrl = entry => { try { return pathToFileURL(require("node:fs").realpathSync.native(entry)).href; } catch { return pathToFileURL(entry).href; } };
     registerHooks({
       resolve(specifier, context, next) {
         if (specifier.startsWith("smoke:")) return { url: specifier, shortCircuit: true };
@@ -254,7 +256,9 @@ export function buildEntryLoadScript({ resourcesDir }: { resourcesDir: string },
       await import("data:text/javascript," + encodeURIComponent(root)).catch(error => {
         if (error !== Symbol.for("tovu.smoke.stop")) unresolved.push(entry + ": " + String((error && error.message) || error));
       });
-      if (loaded.size === before) unresolved.push(entry + ": nothing loaded");
+      // An entry another entry already imported (main imports desktop-mcp-http.ts) adds nothing new
+      // to the set, yet it did load: only a URL that never loaded is "nothing loaded".
+      if (loaded.size === before && !loaded.has(entryUrl(entry))) unresolved.push(entry + ": nothing loaded");
     }
   } catch (error) {
     unresolved.push(String((error && error.message) || error));

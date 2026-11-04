@@ -345,6 +345,10 @@ test("the entry-load script reports every unresolvable static import without eva
       assert.match(brokenBridge.unresolved[0]!, /^missing-bridge-peer \(from file:.*serve\.js\): ERR_MODULE_NOT_FOUND$/);
       write(bridge, "export {};");
     }
+    // desktop 0.1.27 CI: the packaged main imports desktop-mcp-http.ts itself, so the module is already
+    // cached when it is checked as its own entry. Already loaded is loaded, not "nothing loaded".
+    write("app.asar/main.mjs", `import { app } from "electron"; import { value } from "present"; import "./src/desktop-mcp-http.ts"; export default [app, value];`);
+    assert.deepEqual(parseEntryLoadOutput(run().stdout), { ok: true, unresolved: [] });
     rmSync(path.join(resources, "tovu/dist/cli.mjs"));
     assert.match(parseEntryLoadOutput(run().stdout).unresolved.join("\n"), /cli\.mjs: nothing loaded/);
     rmSync(path.join(resources, "app.asar/package.json"));
