@@ -513,6 +513,69 @@ test("AGENT_PLUGIN_SET_ENABLED: enabling adopts an operator's pre-existing row a
   });
 });
 
+/** The Higgsfield Media declaration shape (bug 2026-11-04, jared-floyd): 8 tools, 3 of them writes. */
+const DECLARED_ALLOW = ["generate_image", "generate_video", "models_explore", "job_status", "jobs_wait", "show_generations", "reveal_generation", "show_generation_by_ids"];
+const DECLARED_WRITE = ["generate_image", "generate_video", "reveal_generation"];
+
+/** A plugin-provisioned `higgsfield` row, signed in (`signedIn`) or not, while the plugin was off. */
+async function seedPluginRow(baseDeps: ReturnType<typeof createRouteDeps>, { signedIn }: { signedIn: boolean }) {
+  await saveExternalMcpServer(
+    { repo: baseDeps.externalMcpServerRepo, sealer: baseDeps.siteAssistantSecretSealer, keyring: baseDeps.siteAssistantSecretKeyring, clock: baseDeps.clock },
+    {
+      workspaceId: WORKSPACE_A, serverId: "higgsfield", label: "higgsfield-fixture · higgsfield", transport: "streamable_http", authMode: "oauth",
+      enabled: false, command: "", url: "https://mcp.higgsfield.ai/mcp", args: "", allowedToolNames: "", writeAllowedToolNames: "",
+      oauth: { grant: "authorization_code" }, principalId: "operator-1", provisionedByPluginId: "higgsfield-fixture",
+    },
+  );
+  if (!signedIn) return;
+  const row = await baseDeps.externalMcpServerRepo.findByServerId({ workspaceId: WORKSPACE_A, serverId: "higgsfield" });
+  assert.ok(row);
+  // What a finished browser sign-in leaves on the row (`external-mcp-oauth.ts`'s persistTokens).
+  await baseDeps.externalMcpServerRepo.upsert({ ...row, oauthStatus: "connected" });
+}
+
+test("AGENT_PLUGIN_SET_ENABLED: switching on a plugin whose account is already signed in grants exactly its declared tools and write access (bug 2026-11-04)", async (t) => {
+  await withAgentPluginsDir(async () => {
+    await installRealWithMcp("higgsfield-fixture", "seed-set-enabled-mcp-grant", {
+      higgsfield: { type: "streamable-http", url: "https://mcp.higgsfield.ai/mcp", tovuAuthMode: "oauth", tovuDefaultTools: { allow: DECLARED_ALLOW, write: DECLARED_WRITE } },
+    });
+    const workspaceRoot = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_A).root;
+    // The operator's own "off" when the sign-in finished: the sign-in grant (`apply-connect-defaults.ts`)
+    // rightly skipped it, so turning the plugin on is the moment "on + connected" first holds.
+    await setAgentPluginActivation({ workspaceRoot, pluginId: "higgsfield-fixture", enabled: false, actor: "operator-1" });
+    const { app, baseDeps } = buildTestApp();
+    await seedPluginRow(baseDeps, { signedIn: true });
+
+    const { baseUrl, cookie } = await bootAuthenticated(app, t);
+    assert.equal((await patch(baseUrl, cookie, "higgsfield-fixture", { enabled: true })).status, 200);
+
+    const row = await baseDeps.externalMcpServerRepo.findByServerId({ workspaceId: WORKSPACE_A, serverId: "higgsfield" });
+    assert.equal(row?.enabled, true, "an on plugin with a signed-in account must leave its connection on, with no trip to Settings");
+    assert.deepEqual(JSON.parse(row?.allowedToolNames ?? "[]"), DECLARED_ALLOW, "exactly the declared tools, nothing more");
+    assert.deepEqual(JSON.parse(row?.writeAllowedToolNames ?? "[]"), DECLARED_WRITE, "exactly the declared writes, nothing more");
+    assert.equal(row?.writeGrantsUpdatedByPrincipalId, "system:connect-defaults");
+    assert.equal(row?.oauthStatus, "connected", "the sign-in itself is left as it was");
+  });
+});
+
+test("AGENT_PLUGIN_SET_ENABLED: switching on a plugin whose account is NOT signed in grants nothing — enabling alone is not a connection", async (t) => {
+  await withAgentPluginsDir(async () => {
+    await installRealWithMcp("higgsfield-fixture", "seed-set-enabled-mcp-nogrant", {
+      higgsfield: { type: "streamable-http", url: "https://mcp.higgsfield.ai/mcp", tovuAuthMode: "oauth", tovuDefaultTools: { allow: DECLARED_ALLOW, write: DECLARED_WRITE } },
+    });
+    const workspaceRoot = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_A).root;
+    await setAgentPluginActivation({ workspaceRoot, pluginId: "higgsfield-fixture", enabled: false, actor: "operator-1" });
+    const { app, baseDeps } = buildTestApp();
+    await seedPluginRow(baseDeps, { signedIn: false });
+
+    const { baseUrl, cookie } = await bootAuthenticated(app, t);
+    assert.equal((await patch(baseUrl, cookie, "higgsfield-fixture", { enabled: true })).status, 200);
+
+    const row = await baseDeps.externalMcpServerRepo.findByServerId({ workspaceId: WORKSPACE_A, serverId: "higgsfield" });
+    assert.deepEqual([row?.enabled, row?.allowedToolNames, row?.writeAllowedToolNames], [false, "[]", "[]"]);
+  });
+});
+
 test("AGENT_PLUGIN_SET_ENABLED: a workspace id that does not match the route's own workspace is 404", async (t) => {
   await withAgentPluginsDir(async () => {
     await installReal("site-compliance", "seed-set-enabled-g");
