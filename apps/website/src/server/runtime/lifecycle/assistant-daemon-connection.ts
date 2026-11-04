@@ -2,13 +2,17 @@
 import { z } from "zod";
 import { currentAgentDaemonToken } from "#src/assistant/daemon-access";
 
+// `siteId` is the site's workspace id and stays its data identity inside the scope. It is NOT
+// unique: every local site is `workspace-local`. The shared desktop daemon routes scopes by
+// `scopeKey` instead, which the desktop derives from the server it launched (never the server's claim).
+const scopeKey = z.string().min(1).max(128).optional();
 export const daemonSiteRegistration = z.object({
-  siteId: z.string().min(1).max(1024), env: z.record(z.string().optional()), token: z.string().min(1),
+  siteId: z.string().min(1).max(1024), env: z.record(z.string().optional()), token: z.string().min(1), scopeKey,
 }).strict();
 export type DaemonSiteRegistration = z.infer<typeof daemonSiteRegistration>;
 export const daemonControlRequest = z.discriminatedUnion("operation", [
   daemonSiteRegistration.extend({ operation: z.literal("register") }),
-  z.object({ operation: z.literal("withdraw"), siteId: z.string().min(1) }).strict(),
+  z.object({ operation: z.literal("withdraw"), siteId: z.string().min(1), scopeKey }).strict(),
   z.object({ operation: z.literal("ready") }).strict(),
   z.object({ operation: z.literal("parking"), pid: z.number().int().positive() }).strict(),
   z.object({ operation: z.literal("unavailable"), pid: z.number().int().positive() }).strict(),

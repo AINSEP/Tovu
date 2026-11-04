@@ -13,9 +13,9 @@ class DaemonChild extends EventEmitter {
   constructor(pid: number) { super(); this.pid = pid; }
   send(message: Serializable, callback: (error: Error | null) => void): boolean {
     this.messages.push(message);
-    const request = message as { id: string; payload: { operation: string; siteId?: string } };
+    const request = message as { id: string; payload: { operation: string; scopeKey?: string } };
     queueMicrotask(() => this.emit("message", { jiniIpc: 1, kind: "reply", id: request.id, ok: true,
-      payload: { url: `http://127.0.0.1:7700${request.payload.siteId ? `/s/${request.payload.siteId}` : ""}`, pid: this.pid } }));
+      payload: { url: `http://127.0.0.1:7700${request.payload.scopeKey ? `/s/${request.payload.scopeKey}` : ""}`, pid: this.pid } }));
     callback(null); return true;
   }
   kill() { this.connected = false; this.emit("exit", 0, null); return true; }
@@ -39,7 +39,7 @@ function harness() {
     },
     terminate: async ({ child }) => { child.kill({}, { signal: "SIGTERM" }); },
   });
-  const demand = (siteId: string) => service.demand({ siteId, token: `rpc-${siteId}`, env: {
+  const demand = (siteId: string) => service.demand({ siteId, scopeKey: `scope-${siteId}`, token: `rpc-${siteId}`, env: {
     TOVU_SITE_DIR: `/sites/${siteId}`, TOVU_WORKSPACE: siteId, TOVU_AGENT_DAEMON_TOKEN: `proxy-${siteId}`,
   } }, {});
   return { service, demand, children, environments, output: () => text };
@@ -60,7 +60,7 @@ test("site shutdown never stops the shared daemon", async () => {
   const h = harness();
   try {
     await Promise.all([h.demand("a"), h.demand("b")]);
-    await h.service.withdraw({ siteId: "a" }, {});
+    await h.service.withdraw({ scopeKey: "scope-a" }, {});
     assert.equal(h.children[0]!.connected, true);
     await h.demand("b"); assert.equal(h.children.length, 1);
   } finally { await h.service.shutdown({}, {}); }
@@ -98,5 +98,55 @@ test("shared child output redacts the registered scopes' credentials", async () 
     assert.doesNotMatch(h.output(), /rpc-a/);
     assert.equal(h.output().includes(connection!.token), false);
     assert.ok(h.output().includes("unlabelled"));
+  } finally { await h.service.shutdown({}, {}); }
+});
+
+/** A site server's inherited channel as `bindServer` sees it; `ask` sends one control request. */
+class ServerChild extends EventEmitter {
+  connected = true;
+  private replies = new Map<string, (reply: { ok: boolean; payload?: unknown }) => void>();
+  send(message: Serializable, callback: (error: Error | null) => void): boolean {
+    const reply = message as { kind: string; id: string; ok: boolean; payload?: unknown };
+    if (reply.kind === "reply") this.replies.get(reply.id)?.(reply);
+    callback(null); return true;
+  }
+  ask(payload: unknown): Promise<{ ok: boolean; payload?: unknown }> {
+    const id = `req-${Math.random()}`;
+    return new Promise(resolve => {
+      this.replies.set(id, resolve);
+      this.emit("message", { jiniIpc: 1, kind: "request", id, payload });
+    });
+  }
+}
+
+test("two sites sharing one workspace id each keep their own ready daemon scope", async () => {
+  const h = harness();
+  // Every local site is `workspace-local`; only the directory tells two running sites apart.
+  const sites = ["/sites/bigger-tax", "/sites/story-squid"].map(siteDir => {
+    const child = new ServerChild();
+    const binding = h.service.bindServer({ child: child as unknown as ChildProcess, siteDir }, {});
+    binding.setIdentity({ siteId: "workspace-local" }, {});
+    const register = () => child.ask({ operation: "register", siteId: "workspace-local", token: `rpc-${siteDir}`,
+      env: { TOVU_SITE_DIR: siteDir, TOVU_WORKSPACE: "workspace-local", TOVU_AGENT_DAEMON_TOKEN: `proxy-${siteDir}` } });
+    return { child, register };
+  });
+  try {
+    const [first, second] = await Promise.all(sites.map(site => site.register()));
+    assert.equal(first!.ok, true); assert.equal(second!.ok, true);
+    const urls = [first, second].map(reply => (reply!.payload as { url: string }).url);
+    assert.notEqual(urls[0], urls[1], "each site gets its own scope route");
+    assert.equal(h.children.length, 1, "one shared daemon serves both");
+    const registered = h.children[0]!.messages.map(message => (message as { payload: { operation: string; siteId?: string } }).payload)
+      .filter(payload => payload.operation === "register");
+    assert.deepEqual(registered.map(payload => payload.siteId), ["workspace-local", "workspace-local"], "the scope keeps its real workspace id");
+
+    assert.equal((await sites[0]!.child.ask({ operation: "withdraw", siteId: "workspace-local" })).ok, true);
+    const again = await sites[1]!.register();
+    assert.equal(again.ok, true, "withdrawing one site keeps the other usable");
+    assert.equal((again.payload as { url: string }).url, urls[1]);
+    const withdrawn = h.children[0]!.messages.map(message => (message as { payload: { operation: string; scopeKey?: string } }).payload)
+      .filter(payload => payload.operation === "withdraw");
+    assert.equal(withdrawn.length, 1);
+    assert.equal(`http://127.0.0.1:7700/s/${withdrawn[0]!.scopeKey}`, urls[0], "only the withdrawn site's scope left the daemon");
   } finally { await h.service.shutdown({}, {}); }
 });

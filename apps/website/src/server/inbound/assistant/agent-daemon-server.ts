@@ -3,7 +3,7 @@ import express from "express";
 import { createSupervisorRegistry, createNodeIpcChannel } from "@jini-ai/sidecar/supervisor/node";
 import { createSiteScope } from "./agent-daemon-scope.js";
 import { createAgentDaemonIdlePark } from "./agent-daemon-idle-park.js";
-import { daemonControlRequest } from "../../runtime/lifecycle/assistant-daemon-connection.js";
+import { createScopeControl } from "./agent-daemon-scope-control.js";
 import { isDaemonLifecycleLogQuiet } from "../../runtime/lifecycle/daemon-lifecycle-log.js";
 import { closeWithinBound, stopServingWithinGrace } from "../../runtime/lifecycle/close-store-on-shutdown.js";
 import { installUnhandledRejectionGuard } from "../../runtime/boot/process-error-guards.js";
@@ -188,38 +188,16 @@ const idlePark = createAgentDaemonIdlePark({ isBusy: () => [...scopedExchanges.v
 stopIdleMonitor = () => idlePark.stop({}, {});
 // Express removes the mount prefix before the existing scope middleware runs. A forged prefix
 // therefore meets that scope's OWN bearer/run-credential gate before parsing or route effects.
-app.use("/s/:siteId", (req, res, next) => {
-  const pending = scopes.get(req.params.siteId);
+// The path segment is the desktop's per-site scope key, never the (shared) workspace id.
+app.use("/s/:scopeKey", (req, res, next) => {
+  const pending = scopes.get(req.params.scopeKey);
   if (!pending) { res.status(404).end(); return; }
   void pending.then(scope => scope.app(req, res, next)).catch(next);
 });
 
-/** Only the inherited parent channel can initialize/withdraw scopes. O(1) indexed scope lookup;
- * one in-flight initialization per identity, with activity held through retained-client boot. */
-async function control(payload: unknown) {
-  if (daemonExiting) throw new Error("daemon is stopping");
-  const request = daemonControlRequest.parse(payload);
-  if (request.operation === "ready") return { url: listenerUrl, pid: process.pid };
-  if (request.operation === "parking" || request.operation === "unavailable") throw new Error("lifecycle notices belong to the parent supervisor");
-  if (request.operation === "withdraw") {
-    const scope = scopes.get(request.siteId);
-    if (scope) await (await scope).dispose({}, {});
-    scopes.delete(request.siteId); scopeEnvironments.delete(request.siteId); scopedExchanges.delete(request.siteId);
-    return { url: listenerUrl, pid: process.pid };
-  }
-  const { siteId, env, token } = request;
-  const binding = JSON.stringify([env.TOVU_SITE_DIR, env.TOVU_SITE_LISTENER_ORIGIN, env.TOVU_SITE_CALLBACK_ORIGIN, token, env.TOVU_AGENT_DAEMON_TOKEN]);
-  if (scopes.has(siteId) && scopeEnvironments.get(siteId) !== binding) throw new Error("site scope already bound");
-  const url = `${listenerUrl}/s/${encodeURIComponent(siteId)}`;
-  if (!scopes.has(siteId)) {
-    const release = idlePark.hold({}, {});
-    const work = createSiteScope({ siteId, env: { ...env, JINI_AGENT_DAEMON_URL: url }, token }, { idlePark });
-    scopes.set(siteId, work); scopeEnvironments.set(siteId, binding);
-    void work.then(scope => { scopedExchanges.set(siteId, scope.hasExchanges); }, () => { scopes.delete(siteId); scopeEnvironments.delete(siteId); }).finally(release);
-  }
-  await scopes.get(siteId);
-  return { url, pid: process.pid };
-}
+const control = createScopeControl({ tables: { scopes, scopeEnvironments, scopedExchanges },
+  createScope: input => createSiteScope(input, { idlePark }), hold: () => idlePark.hold({}, {}),
+  listenerUrl: () => listenerUrl, pid: process.pid, isExiting: () => daemonExiting }, {});
 
 async function start(): Promise<void> {
   await initializeStartupSecrets({}, {});
