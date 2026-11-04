@@ -13,6 +13,18 @@ export const SITE_GUIDE_SCHEMA = {
       description: "For explain: one topic id from overview, as a string or a one-element array. To explain several topics, send a separate site_guide call per topic. For search: words to find in topic ids, titles and summaries. query is an alias." },
   },
 } as const;
+/** The site_guide schema offered to site VISITORS. Visitor chat sends tool schemas straight to the
+ * site's model provider, and Gemini accepts one `type` per field, `items` only on arrays and no
+ * custom keywords; SITE_GUIDE_SCHEMA's string-or-array `topic` (+ `aliases`) made Gemini reject every
+ * visitor request (tovu.dev, 2026-11-03). Visitors only ever need one topic id or search text. */
+export const VISITOR_SITE_GUIDE_SCHEMA = {
+  type: "object", additionalProperties: false, required: ["operation"],
+  properties: {
+    operation: SITE_GUIDE_SCHEMA.properties.operation,
+    topic: { type: "string", minLength: 1, maxLength: 200,
+      description: "For explain: one topic id from overview. For search: words to find in topic ids, titles and summaries." },
+  },
+} as const;
 export const catalog = indexCatalogById({ catalog: [{
   name: "site_guide",
   description: "Explains how THIS site works. Call overview before planning or building, search with topic (or query) to find visible topics, then explain with a topic id. Returns permission-filtered capability cards, live facts, workflows and tool/doc pointers. Read only; it neither builds the site nor replaces search_tools for callable actions. Hidden topics are unavailable; failed fact reads mean unknown, not disabled. Core topics remain available with the guide plugin disabled.",

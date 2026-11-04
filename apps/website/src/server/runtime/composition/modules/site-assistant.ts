@@ -6,7 +6,7 @@ import { VISITOR_TOOL_REFUSAL } from "#src/assistant/site/visitor-executor";
 import { redactSecrets, type ToolDescriptor } from "@jini-ai/core";
 import { DefaultMemberAccessResolver, resolvePostMemberAccess } from "#src/features/members/index";
 import { runPublicSiteGuide } from "../public-site-guide.js";
-import { SITE_GUIDE_SCHEMA } from "../site-guide-tools.js";
+import { VISITOR_SITE_GUIDE_SCHEMA } from "../site-guide-tools.js";
 import { createVisitorToolBudgets } from "#src/assistant/site/visitor-tool-budgets";
 import { VISITOR_REPLY_GUIDANCE } from "#src/assistant/site/capability-card";
 import { readVisitorToolPolicy } from "#src/assistant/site/visitor-tool-settings";
@@ -717,7 +717,7 @@ export function createSiteAssistantModule(deps: RouteDeps & { siteAssistantError
           listPublishedPosts,
           taxonomy: { taxonomies: deps.taxonomyRepo, terms: deps.termRepo },
           memberAccess: { resolvePostMemberAccess, decide: memberResolver.decide.bind(memberResolver) },
-        }, { visitorExecution, ...visitorPageOptions({ binding, frontend, pageTargets }), siteGuide: { inputSchema: SITE_GUIDE_SCHEMA,
+        }, { visitorExecution, ...visitorPageOptions({ binding, frontend, pageTargets }), siteGuide: { inputSchema: VISITOR_SITE_GUIDE_SCHEMA,
           run: ({ input, availableTools }) => runPublicSiteGuide({ input }, { availableTools }) } });
 
         /**
