@@ -31,5 +31,7 @@ test('the theme package ships its v2 contract and teaches native tool authoring'
   assert.match(skill, /Shell is only for genuine tool gaps: literal paths inside granted roots, no paths computed at run time/);
   assert.match(skill, /no ~\/\.claude\/tool-results or other CLI spill-file reads/);
   assert.match(skill, /Applies to every agent CLI/);
+  // Owner 2026-11-04: site agents kept "fixing" the preview bar per theme; it is host-owned.
+  assert.match(skill, /`\.tovu-theme-preview-host`[^\n]*host-owned[^\n]*Never restyle, re-position[^\n]*shadow root[^\n]*--tovu-theme-preview-height/);
   assert.deepEqual(JSON.parse(await readFile(path.join(root, 'mcp.json'), 'utf8')).mcpServers, {});
 });

@@ -74,8 +74,10 @@ test("banner script isolates controls and offsets fixed chrome and body without 
   assert.equal(host.shadowRoot.querySelectorAll("a[href]").length, 2);
   assert.equal(host.shadowRoot.querySelector("[aria-current]")?.textContent, "Two <sky>");
   assert.equal(doc.documentElement.style.getPropertyValue("--tovu-theme-preview-height"), "44px");
-  assert.match(doc.body.style.paddingTop, /--tovu-theme-preview-height/);
-  assert.match(doc.querySelector("header")!.style.top, /--tovu-theme-preview-height/);
+  // Literal values, not var(): a theme overriding the variable must not pull content under the bar.
+  assert.match(doc.body.style.paddingTop, /44px/);
+  assert.equal(doc.body.style.getPropertyPriority("padding-top"), "important");
+  assert.equal(doc.querySelector("header")!.style.top, "44px");
   assert.equal(doc.querySelectorAll(".tovu-theme-preview-host").length, 1);
   assert.ok(doc.head.querySelector('link[rel="canonical"]'));
   assert.match(html, /overflow-x:auto/);
