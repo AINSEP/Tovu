@@ -140,7 +140,7 @@
     "@jini-ai/daemon": "^0.6.19",
     "@jini-ai/db": "^0.6.19",
     "@jini-ai/desktop-host": "^0.6.19",
-    "@jini-ai/devops": "^0.6.19",
+    "@jini-ai/devops": "^0.6.20",
     "@jini-ai/diagnostics": "^0.6.19",
     "@jini-ai/http-kit": "^0.6.19",
     "@jini-ai/infra": "^0.6.19",
