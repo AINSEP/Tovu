@@ -10,7 +10,8 @@ const TITLE_LIMIT = 120;
 
 /** The page's own <title>, decoded to plain text; falls back to its path label. */
 function pageTitle({ html, label }: { html: string; label: string }, _options = {}): string {
-  const raw = /<title\b[^>]*>([\s\S]*?)<\/title>/i.exec(html)?.[1] ?? "";
+  // Comments first: a theme template comment may mention a <title> tag (the privacy template does).
+  const raw = /<title\b[^>]*>([\s\S]*?)<\/title>/i.exec(html.replace(/<!--[\s\S]*?-->/g, ""))?.[1] ?? "";
   const text = extractPlainTextFromHtml(raw).replace(/\s+/g, " ").trim();
   if (!text) return label;
   return text.length > TITLE_LIMIT ? text.slice(0, TITLE_LIMIT - 1) + "…" : text;
