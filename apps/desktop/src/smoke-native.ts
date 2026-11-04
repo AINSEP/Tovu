@@ -230,13 +230,14 @@ export function buildEntryLoadScript({ resourcesDir }: { resourcesDir: string },
       join(asar, "src", "desktop-mcp-http.ts"),
     );
     const loaded = new Set();
-    // Loaded URLs are real paths (macOS /var -> /private/var, Windows 8.3 short names expanded).
-    const entryUrl = entry => { try { return pathToFileURL(require("node:fs").realpathSync.native(entry)).href; } catch { return pathToFileURL(entry).href; } };
+    // What Node itself resolved each requested specifier to: loaded URLs are canonical (macOS
+    // /private/var, Windows long names inside app.asar), so an entry is matched by its resolution.
+    const resolvedUrls = new Map();
     registerHooks({
       resolve(specifier, context, next) {
         if (specifier.startsWith("smoke:")) return { url: specifier, shortCircuit: true };
         if (specifier === "electron") return { url: "smoke:electron", shortCircuit: true };
-        try { return next(specifier, context); } catch (error) {
+        try { const result = next(specifier, context); resolvedUrls.set(specifier, result.url); return result; } catch (error) {
           unresolved.push(specifier + " (from " + context.parentURL + "): " + (error.code || error.message));
           return { url: "smoke:unresolved", shortCircuit: true };
         }
@@ -258,7 +259,7 @@ export function buildEntryLoadScript({ resourcesDir }: { resourcesDir: string },
       });
       // An entry another entry already imported (main imports desktop-mcp-http.ts) adds nothing new
       // to the set, yet it did load: only a URL that never loaded is "nothing loaded".
-      if (loaded.size === before && !loaded.has(entryUrl(entry))) unresolved.push(entry + ": nothing loaded");
+      if (loaded.size === before && !loaded.has(resolvedUrls.get(pathToFileURL(entry).href))) unresolved.push(entry + ": nothing loaded");
     }
   } catch (error) {
     unresolved.push(String((error && error.message) || error));
