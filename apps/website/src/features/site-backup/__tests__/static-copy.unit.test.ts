@@ -650,6 +650,9 @@ test("root index.html lists every exported theme with its pages, and every link 
   const first = await downloadFixture({ theme: "zoran-poster" });
   const second = await downloadFixture({ theme: "zoran-editorial", configure: rendered => {
     rendered.routes.succeeded.find(route => route.path === "/about")!.data = "<!doctype html><html><head><title>About &amp; team</title></head><body>About</body></html>";
+    // A theme template comment that mentions the <title> tag must not become the page's title
+    // (the privacy template's comment did, on 11-03).
+    rendered.routes.succeeded.find(route => route.path === "/")!.data = "<!doctype html><html><head><!-- no post gets its own <title>x</title> through this template --><title>Home page</title></head><body>Home</body></html>";
   } });
   const files = await unpack(await buildStaticSiteZip({ copy: first.copy, copies: [first.copy, second.copy], activeThemeId: "zoran-editorial", zip: zipFolderFiles }));
   const document = landingDocument({ files });
@@ -661,6 +664,8 @@ test("root index.html lists every exported theme with its pages, and every link 
   const about = [...cards[1]!.querySelectorAll("li a")].find(link => link.getAttribute("href") === "sites/editorial/about/index.html")!;
   assert.equal(about.querySelector("span")?.textContent, "About & team", "a page is listed by its own title");
   assert.equal(about.querySelector("small")?.textContent, "/about/");
+  const home = [...cards[1]!.querySelectorAll("li a")].find(link => link.getAttribute("href") === "sites/editorial/index.html")!;
+  assert.equal(home.querySelector("span")?.textContent, "Home page", "a <title> inside an HTML comment is ignored");
   const hrefs = [...document.querySelectorAll("a")].map(link => link.getAttribute("href")!);
   assert.equal(hrefs.length, 2 * (5 + 1), "every page link plus one open-home button per card");
   for (const href of hrefs) {
