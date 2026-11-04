@@ -12,6 +12,16 @@ interface PreviewGuestContents {
   removeListener(event: GuestEvent, listener: () => void): unknown;
 }
 
+/** A destroyed owner or a destroyed/loading guest cannot supply a live preview.
+ * @complexity O(1) time and space.
+ */
+function isGuestUnavailable({ owner, guest }: {
+  owner: { isDestroyed(): boolean };
+  guest: Pick<PreviewGuestContents, 'isDestroyed' | 'isLoading'>;
+}, _options = {}): boolean {
+  return owner.isDestroyed() || guest.isDestroyed() || guest.isLoading();
+}
+
 /** Electron identity checks shared by registration and capture revalidation. Matching URL text
  * never substitutes for the host webContents or partition Session identity. O(1).
  */
@@ -51,7 +61,7 @@ export function createLivePreviewGuests<Owner extends { isDestroyed(): boolean }
       };
       const ready = () => {
         invalidate();
-        if (disposed || owner.isDestroyed() || guest.isDestroyed() || guest.isLoading()) return;
+        if (disposed || isGuestUnavailable({ owner, guest })) return;
         const target = resolve({ url: guest.getURL() });
         if (!target || !allowed({ owner, guest, target })) return;
         const origin = target.scheme === 'https' ? `https://localhost:${target.port}` : `http://127.0.0.1:${target.port}`;
@@ -60,7 +70,7 @@ export function createLivePreviewGuests<Owner extends { isDestroyed(): boolean }
         const snapshot: LivePreviewGuest = {
           partition: target.partition, getURL: () => guest.getURL(), capturePage: () => guest.capturePage(),
           isCurrent: () => {
-            if (disposed || generation !== version || live.get(target.siteDir) !== snapshot || owner.isDestroyed() || guest.isDestroyed() || guest.isLoading()) return false;
+            if (disposed || generation !== version || live.get(target.siteDir) !== snapshot || isGuestUnavailable({ owner, guest })) return false;
             const current = resolve({ url: guest.getURL() });
             return current?.siteDir === target.siteDir && current.port === target.port && current.partition === target.partition && allowed({ owner, guest, target: current });
           },

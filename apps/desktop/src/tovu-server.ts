@@ -554,6 +554,18 @@ function buildServeEnv(input: BuildServeEnvInput, { warn = console.warn }: { war
 
   applyAdminDevProxyEnv({ env, adminDevProxyUrl: input.adminDevProxyUrl });
 
+  applyNodeToolchainEnv({ env, nodeToolchainEnv: input.nodeToolchainEnv });
+  applyDesktopMcpEnv({ env, desktopMcpEnv: input.desktopMcpEnv });
+
+  return env;
+}
+
+/** Replace inherited toolchain paths with the current launch's bundle, when supplied.
+ * @complexity O(n) in supplied environment entries; mutates the launch environment.
+ */
+function applyNodeToolchainEnv({ env, nodeToolchainEnv }: {
+  env: NodeJS.ProcessEnv; nodeToolchainEnv: BuildServeEnvInput['nodeToolchainEnv'];
+}, _options = {}): void {
   // Node-toolchain plan (2026-09-24), S4. Unlike every other pair in this function, an inherited
   // value is DELETED rather than left alone when the caller passes nothing — `main.ts` is the only
   // real caller of `nodeToolchainEnv`, and every other caller (every existing test, and any future
@@ -563,17 +575,22 @@ function buildServeEnv(input: BuildServeEnvInput, { warn = console.warn }: { war
   // paths under a toolchain that no longer exists, rather than the safe identity fallback.
   delete env.TOVU_NODE_TOOLCHAIN_DIR;
   delete env.TOVU_BUNDLED_NPM_ROOT;
-  if (input.nodeToolchainEnv) {
-    Object.assign(env, input.nodeToolchainEnv);
+  if (nodeToolchainEnv) {
+    Object.assign(env, nodeToolchainEnv);
   }
+}
 
-  if (input.desktopMcpEnv) {
-    env[DESKTOP_MCP_URL_ENV] = input.desktopMcpEnv[DESKTOP_MCP_URL_ENV];
-    env[DESKTOP_MCP_TOKEN_ENV] = input.desktopMcpEnv[DESKTOP_MCP_TOKEN_ENV];
-    env[DESKTOP_MCP_HANDOFF_ENV] = input.desktopMcpEnv[DESKTOP_MCP_HANDOFF_ENV];
+/** Forward only the spawning main's desktop MCP capability to this server.
+ * @complexity O(1) time and space; mutates the launch environment.
+ */
+function applyDesktopMcpEnv({ env, desktopMcpEnv }: {
+  env: NodeJS.ProcessEnv; desktopMcpEnv: BuildServeEnvInput['desktopMcpEnv'];
+}, _options = {}): void {
+  if (desktopMcpEnv) {
+    env[DESKTOP_MCP_URL_ENV] = desktopMcpEnv[DESKTOP_MCP_URL_ENV];
+    env[DESKTOP_MCP_TOKEN_ENV] = desktopMcpEnv[DESKTOP_MCP_TOKEN_ENV];
+    env[DESKTOP_MCP_HANDOFF_ENV] = desktopMcpEnv[DESKTOP_MCP_HANDOFF_ENV];
   }
-
-  return env;
 }
 
 /** Apply the dev proxy to the child env in place. O(1). */
@@ -879,6 +896,25 @@ interface StartTovuServerInput {
   killTree?: (pid: number) => void;
 }
 
+/** Configure the owned server's process group and platform-specific stop channel.
+ * @complexity O(e) time/space on Windows for e environment entries; O(1) on POSIX.
+ */
+function buildServeSpawnOptions({ env, platform }: { env: NodeJS.ProcessEnv; platform: NodeJS.Platform | undefined }, _options = {}): SpawnOptions {
+  // Windows has no SIGTERM to send: Stop closes this stdin pipe instead (see `stopChild`).
+  const win32 = (platform ?? process.platform) === "win32";
+  return {
+    env: win32 ? { ...env, TOVU_STOP_ON_STDIN_EOF: "1" } : env,
+    stdio: [win32 ? "pipe" : "ignore", "pipe", "pipe", "ipc"],
+    // Own process group, so `stopChild`'s SIGKILL escalation can reap the agent daemon
+    // `tovu serve` spawns rather than just the immediate child. Same reason
+    // `development/scripts/dev.mjs` and `daemon-supervisor.ts` both detach.
+    detached: true,
+    // Windows pops a console window for every detached child otherwise (plan item W6) — inert on
+    // POSIX, where a hidden console window does not exist to suppress.
+    windowsHide: true,
+  };
+}
+
 /** What a resolved {@link startTovuServer} call hands back. */
 interface TovuServerHandle {
   external?: boolean;
@@ -959,22 +995,10 @@ async function startTovuServer(input: StartTovuServerInput): Promise<TovuServerH
   // Startup IPC is separate from desktop agent control and from Windows' stdin EOF stop pipe.
   const childEnv = { ...startup.env, [STARTUP_SECRETS_ENV]: '1',
     [DESKTOP_AGENT_SERVICE_ENV]: input.agentService ? '1' : '0' };
-  // Windows has no SIGTERM to send: Stop closes this stdin pipe instead (see `stopChild`).
-  const win32 = (input.platform ?? process.platform) === "win32";
   const child = spawnFn(
     plan.command,
     plan.args,
-    {
-      env: win32 ? { ...childEnv, TOVU_STOP_ON_STDIN_EOF: "1" } : childEnv,
-      stdio: [win32 ? "pipe" : "ignore", "pipe", "pipe", "ipc"],
-      // Own process group, so `stopChild`'s SIGKILL escalation can reap the agent daemon
-      // `tovu serve` spawns rather than just the immediate child. Same reason
-      // `development/scripts/dev.mjs` and `daemon-supervisor.ts` both detach.
-      detached: true,
-      // Windows pops a console window for every detached child otherwise (plan item W6) — inert on
-      // POSIX, where a hidden console window does not exist to suppress.
-      windowsHide: true,
-    },
+    buildServeSpawnOptions({ env: childEnv, platform: input.platform }),
   );
 
   const delivery = provideNodeStartupSecrets({ peer: child as ChildProcess, secrets: startup.secrets });

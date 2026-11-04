@@ -98,7 +98,7 @@ test("formatGateFailure prints an Error's message or a non-Error value, redacted
 });
 
 test("the real entry with no target prints the usage refusal and exits 1", () => {
-  const child = spawnSync(process.execPath, [SCRIPT], { encoding: "utf8", timeout: 60_000 });
+  const child = spawnSync(process.execPath, ["--disable-warning=ExperimentalWarning", SCRIPT], { encoding: "utf8", timeout: 60_000 });
   assert.equal(child.status, 1);
   assert.equal(child.stderr, "smoke-bridge: --platform-dir <dir> or --app <Tovu.app> is required\n");
 });

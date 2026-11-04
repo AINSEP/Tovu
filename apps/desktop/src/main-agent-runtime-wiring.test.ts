@@ -44,8 +44,14 @@ test("quit waits for owned runtime disposal even without sites and disposes once
   const disposal = new Promise<void>((resolve) => { finishDisposal = resolve; });
   let finishProductDisposal!: () => void;
   const productDisposal = new Promise<void>((resolve) => { finishProductDisposal = resolve; });
+  let finishMcpClose!: () => void;
+  const mcpClose = new Promise<void>((resolve) => { finishMcpClose = resolve; });
+  let finishAgentShutdown!: () => void;
+  const agentShutdown = new Promise<void>((resolve) => { finishAgentShutdown = resolve; });
   const shutdownOrder: string[] = [];
   let disposals = 0;
+  let mcpCloses = 0;
+  let agentShutdowns = 0;
   let prevented = 0;
   let finalQuits = 0;
   let onQuit!: (event: { preventDefault(): void }) => void;
@@ -59,6 +65,8 @@ test("quit waits for owned runtime disposal even without sites and disposes once
     productState: { disposers: [() => { shutdownOrder.push("product-listeners"); }, () => { shutdownOrder.push("product-memory"); }],
       product: { dispose: () => { shutdownOrder.push("product"); return productDisposal; } } },
     desktopAgentRuntime: { dispose: () => { shutdownOrder.push("runtime"); disposals++; return disposal; } },
+    desktopMcpHttp: { close: () => { shutdownOrder.push("mcp"); mcpCloses++; return mcpClose; } },
+    desktopAgentService: { shutdown: () => { shutdownOrder.push("agent-service"); agentShutdowns++; return agentShutdown; } },
     siteThemePreviews: { dispose: () => { shutdownOrder.push("previews"); } },
     finalQuitHeldForUpdate: () => false,
     QUIT_DEADLINE_MS: 30_000,
@@ -77,10 +85,14 @@ test("quit waits for owned runtime disposal even without sites and disposes once
   onQuit(event);
   assert.equal(prevented, 2);
   assert.equal(disposals, 1);
-  assert.deepEqual(shutdownOrder, ["product-listeners", "product-memory", "product", "runtime", "previews"]);
+  assert.deepEqual(shutdownOrder, ["product-listeners", "product-memory", "product", "runtime", "mcp", "previews"]);
   assert.equal(vm.runInContext("quitPhase", context), "draining");
   await new Promise<void>((resolve) => setImmediate(resolve));
   assert.equal(finalQuits, 0);
+  assert.equal(agentShutdowns, 1);
+  // Settle the newly wired resources first so runtime disposal remains the sole final blocker.
+  finishAgentShutdown();
+  finishMcpClose();
   finishProductDisposal();
   await new Promise<void>((resolve) => setImmediate(resolve));
   assert.equal(finalQuits, 0, "runtime disposal must still finish after product telemetry has drained");
@@ -88,7 +100,9 @@ test("quit waits for owned runtime disposal even without sites and disposes once
   await quitCompleted;
   assert.equal(finalQuits, 1);
   assert.equal(disposals, 1);
+  assert.equal(mcpCloses, 1);
+  assert.equal(agentShutdowns, 1);
   assert.equal(prevented, 2);
   assert.equal(vm.runInContext("quitPhase", context), "drained");
-  assert.deepEqual(shutdownOrder, ["product-listeners", "product-memory", "product", "runtime", "previews", "quit"]);
+  assert.deepEqual(shutdownOrder, ["product-listeners", "product-memory", "product", "runtime", "mcp", "previews", "agent-service", "quit"]);
 });

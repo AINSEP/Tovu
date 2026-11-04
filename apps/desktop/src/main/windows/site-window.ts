@@ -117,6 +117,17 @@ function trackSiteTeardown<S extends SiteWindowServer, W extends SiteWindow, C e
   });
 }
 
+/** Release only the matching retained window, leaving its server supervised.
+ * @complexity O(1) time and space.
+ */
+function releaseRetainedWindow<S extends SiteWindowServer, W extends SiteWindow, C extends { registryPath: string }>(
+  { siteDir, window, ports }: ClosedWindow<S, W, C>,
+  _optional = {},
+): void {
+  const entry = ports.openSites.get(siteDir);
+  if (entry?.window === window) entry.window = undefined;
+}
+
 /**
  * A site window's `closed` handler.
  * @complexity O(1) beyond the tracked stop.
@@ -127,8 +138,7 @@ function handleSiteWindowClosed<S extends SiteWindowServer, W extends SiteWindow
 ): void {
   const { siteDir, window, ports } = closed;
   if (retainsSiteOnClose({ platform: ports.platform, quitPhase: ports.quitPhase() })) {
-    const entry = ports.openSites.get(siteDir);
-    if (entry?.window === window) entry.window = undefined;
+    releaseRetainedWindow(closed);
     return;
   }
   // Only when the current entry is still THIS window's (D-09). `site-supervisor.ts` removes an
