@@ -315,11 +315,18 @@ export async function startSite(win: Page, name: string): Promise<void> {
   await expect(card.locator(".state")).toHaveText("Running");
 }
 
-/** Opens the site's tab and waits for its admin guest to load. */
+/**
+ * Opens the site's tab and waits for its admin guest to finish loading.
+ * Menu commands sent to an unready guest are dropped by design.
+ */
 export async function openSiteTab(app: ElectronApplication, win: Page, name: string): Promise<void> {
   await siteCard(win, name).locator(".card__name").click();
   await expect(win.locator("webview")).toBeVisible();
   await expect.poll(() => guestUrl(app), { timeout: 60_000 }).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/admin\//);
+  await expect.poll(() => app.evaluate(({ webContents }) => {
+    const guest = webContents.getAllWebContents().find((c: { getType(): string }) => c.getType() === "webview");
+    return guest ? (guest as { isLoading(): boolean }).isLoading() : null;
+  }), { timeout: 60_000 }).toBe(false);
 }
 
 /** The first `<webview>` guest's URL, or null. Journeys open one site tab at a time. */

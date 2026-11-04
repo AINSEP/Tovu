@@ -22,6 +22,123 @@ before building the eventual agent tool catalog. See
 
 ---
 
+## ⭐ THURSDAY 2026-11-05 (owner 2026-11-02 ~10:45 PM): agreed-but-never-built debate items — do these
+From the debate follow-through audit (`ADS-memory/.local-artifacts/debate-followthrough-audit-2026-11-02.md`, evidence there). Most "done" pieces exist only on merge-1029, not main.
+1. **Plugin security fix (S, do first):** a plugin the assistant sealed on a site turns on with no consent card (`source-policy.ts:22`). The custom-plugin-code debate (10-12) made this the "do first" item; never applied.
+2. **Email/login (10-24 debate):** durable notification mail (flag hard-coded false), recovery codes / reset owner, TOTP + passkeys, move mail to Jini (now due). Nothing built.
+3. **MCP sources design v2.1 (10-27 debate):** security prerequisites shipped; waves W1–W4 (~670 lines) not built; 2 owner questions still open (M–L).
+4. **Commerce (10-21 debate):** Jini kernel + Phase 1 done, but Tovu still runs legacy lipay/store code — wire it in (M); geo + fraud-graph layer not built (L).
+5. **Vibe-coded apps → Tovu, "all three ways" (owner 10-24):** not started (L).
+6. **Consent redesign (10-26 debate):** P4 not done — delete the old parse5 engine; Tovu still imports it. Low urgency (banner off).
+7. **Feature-slice folders (owner 2026-11-03 ~2:15 PM):** files that only work together go in one folder of their own instead of spread across packages. Codex PLAN first (read-only): map the clusters, propose moves + import rewrites, owner approves, then move in small batches with no behavior change. Do it AFTER integ/desktop-mem-1103 + merge-1029 land on main (big moves on top of open branches = merge conflicts). Start with the shared-service supervisor (Jini sidecar + diagnostics) as the pilot.
+8. **Restart→fallback supervisor: Codex FIX FIRST (5 P1 + 4 P2)** — review `ADS-memory/.local-artifacts/restart-fallback-2026-11-03/review/out/R-restart-fallback.md` (commits Jini 1bf885dff/a145ba55e, Tovu cc53588d8/e102bf231 on merge-1029; NOT in desktop 0.1.27). Fix, then cloud-test.
+9. **No generic errors, anywhere (owner 2026-11-03 ~2:10 PM):** one shared Jini mechanism — every user-facing error says in plain words what failed + what to do, plus a "Copy details" block (error ID, failing step, redacted cause, app/Jini version, time) for GitHub/feedback; server logs it redacted + tracker. Sweep every catch-all (start: site-shares export, `site-shares.ts:31`). Build on the integration branch's `site-share-errors.ts` adminFailureResponse (logs + errorId, but message still generic).
+10. **AINSEP Software Engineering agent plugin (owner 2026-11-03 ~2:50 PM):** AI-Dev-Shop's agents + skills packaged as ONE agentic plugin with a router for how an agent should program (later: specialized React/Vue/Angular web apps). Source in AI-Dev-Shop (like ui-ux-design), synced into `@jini-ai/agent-plugins/<subpath>` (never `@jini-ai/plugin-<id>`). Quality gates ON: cognitive complexity ≤10 + nesting gated; cyclomatic ≤10 (owner wants both <11 — AI-Dev-Shop today gates cognitive 12 and only REPORTS cyclomatic because exhaustive switches inflate it; decide: gate cyclomatic too, exempting exhaustive switch). Tests NOT required (vibe coders) but code written test-ready; tests added later get mutation-tested. PLAN DONE: `ADS-memory/.local-artifacts/ainsep-se-plugin-plan-2026-11-03/out/P-ainsep-se-plan.md` (v1 list + 5 owner questions).
+12. **Export list: replace STATUS with TYPE = "Static" or "Tovu" (owner 2026-11-03 ~3:05 PM, UI → Opus + Chrome):** every row today says "Active", which tells nothing. Keep Revoke. LINK column stays (shows a share link only when a link host is set up: S3-compatible storage or a deployed Tovu site; else "Zip only") — consider hiding the column when no link host exists.
+12b. **Export notices → red warning icon with tooltip (owner 2026-11-03 ~3:08 PM, UI → Opus + Chrome):** "No domain was given, so sitemap.xml and feed.xml were left out." (page banner AND inside the export row) is not acceptable as a big notice box. Show a red warning sign on the row; hover (desktop) / tap (mobile) opens a tooltip with the message. Same pattern for every export/import notice. Use the existing touch-tooltip mechanism.
+11. **Gap audit 11-03 — claimed-done-but-not-delivered (Codex)** — full report `ADS-memory/.local-artifacts/gap-audit-2026-11-03/out/G-gap-audit.md` (ranked table + clone merge order):
+    - PORT never-merged fixes: `tovu-sharehard` export file-read hardening (f405f04c8, 5b7814f64, 56c62f98f); `redact-fu-jini` redaction invariants; Jini F1 SigV4 mixed-case headers (b921a100, d951a507, 5de3d9dd); F5 malformed CIDR excludes all visitors (764b4db0); F3 large choice answers throw (88b5d0d7) + DeepSeek auth classification (5eea6ef77, 8da1554a); live-tree registry unlink hunk ce93e9634. Do NOT merge release-0126 wholesale.
+    - WARN, don't refuse: boot-readiness-gate.ts:23/69 still exits (analytics seed, default password, site key); site-running.ts:24 throws on an already-running site (should attach/take over).
+    - NOT DONE: newsletter campaign body discarded (create-campaign.ts:45); static-publish consent choices hidden; Skills page English-only; Jini lcov coverage union; afterEach cleanup skip; Chrome tooling closes other tab groups.
+    - Packaging: remaining `@jini-ai/plugin-*` wrappers (ui-ux-design, payments-stripe, analytics-posthog, observability-*, ai-trace-langfuse) → agent-plugins subpaths.
+    - ~30 UNKNOWN open-bugs items need a real reproduction (list in the report).
+Also found (started, then dropped): Tovu admin swap to Jini pages (no createAdmin, 4-page swap never done); admin THEMING-PLAN P3–P5; desktop global chat (paused for 0.1.9, revert 8a38596a1 still in place).
+
+## LATER (owner 2026-11-03 ~10:10 AM): one shared admin window for all desktop sites
+One admin app that switches sites through the API instead of one full site view per tab. Saves ~250–450 MB (one view) at any site count once the live-view cap is in; cost = big rewrite (per-site login sessions/partitions → one multi-site admin). From the restructure debate (`ADS-memory/.local-artifacts/swarm-consensus/runs/restructure-min-footprint-2026-11-03/REPORT.md`).
+
+## ⭐ NOW → 2026-11-01 (owner 2026-10-31 ~11 AM): VIDEOS ONLY + slight bug fixes — YC application prep. Park new builds (.MOV plan, deployed-site self-update plan, owner-level OAuth, UI fix batch).
+
+## LATER (owner 2026-10-30 ~1:15 PM): ONE store for GitHub keys
+Tovu keeps GitHub tokens in two places: the site's saved API keys (GitHub plugin tools, copy-keys card) and `source_control_credential_sets` (static commit tool). Today's fix makes source control fall back to the saved API key; the end state is one store, with the old path absorbed. Also: the zoran-new GitHub token (copied from tovu-dev) is a classic all-scopes token expiring 2026-11-14; replace it with a fine-grained one before handing the Zoran repo over.
+
+## NOT NOW (owner 2026-10-30 ~12:40 PM): the agent reads MULTIPLE attached folders
+Today the composer's picked folder is ONE server-side `custom` fs root (`usePickedFolder` → `api.getFsFilesCustomRoot`), so the agent can read only one folder. Make it a list: attach several folders, the agent may read all of them, and remove each one separately. The one-line composer (folder button with count + hover list) is being built for a list already, so this is server + tools work (Codex).
+
+## ⭐ TOMORROW FIRST (owner 2026-10-28 ~6:55 PM): verify tonight's unchecked Codex fixes, then commit
+- r24 fixes (f1, f3, f4, f5, f6) are in tovu-consent / ai-traces-jini but NOT tested — the verify run was stopped for the night. Re-run: the 63 files in the 2nd cloud verify's raw/tovu-failures-classified.json (minus ENV/flaky), Jini ui structured-details + cms list-page, admin login-default-credential, desktop site-error-feedback. Then mutation-check the REAL fixes and commit by area.
+- Still open from r24: f2 (media ?v URLs + migration head 0037 stale tests) never ran — model at capacity; f5 left 2 domain-registration edges + desktop telemetry interval.
+
+## ⭐ TOMORROW (owner 2026-10-28 ~6:30 PM): commerce testing + OpenSaaS comparison
+- Commerce = PLANNED code: never cut, never excluded from coverage. Test to 100% per file (2nd cloud verify: Jini commerce 4.01% lines / 39.7% branches). c1–c4 tests + c5/c6 bug fixes from 10-28 are uncommitted in tovu-consent/ai-traces-jini.
+- Compare our commerce package against OpenSaaS feature by feature; list anything ours is missing (owner: "make sure our commerce package is not missing anything").
+
+## NOT NOW (owner 2026-10-29 ~10:15 PM): plugin structure review — agent plugins AND regular plugins
+- After the 10-29 DI pass lands and is verified: check whether the DI is good enough (agent-plugins/plugin-runtime get every host service as a composition-root port; plan `ADS-memory/reports/2026-10-29-di-plan/out/p1-di-plan.md`). If not, revisit the design.
+- Then look for overall weaknesses in the plugin structure. Known one: every new extension kind (login, deploy, consent…) is its own `tovu-*.json` side file plus custom host code, and none is a published, versioned contract. Candidate fix: one registry of extension kinds, each with a published schema + host contract. Covers the queued login-provider contract/docs/test-kit item.
+- Also in scope: two plugin systems side by side (bundled agent-plugins vs provider-plugin artifacts).
+
+## SAVED FOR LATER (owner 2026-10-29 ~6:35 PM): Media page grid for tall/long images and videos
+Seen at https://localhost:3000/admin/media?tab=all on Sienna's site (zoran-new).
+- Every tile is cropped to the same landscape box. The vertical GRV recap video (1080×1920, 0:54) shows only its middle third. The tall "Great Rift Valley" wordmark reads "REAT / ALLE". Logos are clipped ("UNIVERSA…").
+- The grid shows only 2 columns on a wide screen, with empty space on the right.
+- The video plays inside the card with full native controls.
+
+Proposed design:
+- **Every tile:** same size, so rows never break, but the asset is FITTED, not cropped (object-fit: contain on a soft neutral background). Add a size badge, e.g. "9:16 · 1080×1920".
+- **Vertical/long video:** a still frame, fitted, with a play icon and a duration badge. No player controls in the card; it plays at its real shape in the preview.
+- **Very long image** (taller than about 1:3, e.g. screenshots and long posters): show the top part fitted to the width, with a "Long image" badge; full-length scroll in the preview.
+- **Logos and transparent PNGs:** fitted with padding, never cut.
+- **Grid:** responsive auto-fill, 3–4 columns on desktop, 2 on smaller screens.
+
+Build: one Opus agent with Chrome checks at desktop and mobile widths (UI rule). Admin restart only with the owner's go.
+
+## ⭐ GAP (owner 2026-10-29 ~5:50 PM): Media must accept .MOV (QuickTime) and other common movie files
+Found on Sienna's site (zoran-new): the in-app assistant could not add "GRV Recap 1 Sienna Pitch Competition.MOV" (iPhone 4K HEVC, 200 MB).
+- Media only accepts MP4/WebM.
+- The admin import path hit a 10 MB limit, while Media's own limit is 50 MB. Library is `LIBRARY_MAX_BYTES` 10 MB (`apps/admin/src/features/library/rules.ts:23`); Media is 50 MB (`apps/admin/src/features/media/rules.ts:596`).
+- The in-app assistant can't run ffmpeg (tools-first, no shell), so it had no way to convert.
+
+Fix:
+- [ ] Accept `.mov` / `video/quicktime` (and `.m4v`) uploads and imports.
+- **Owner 2026-10-31:** accept the .MOV as-is when it is ≤ 50 MB; transcode only when it is over 50 MB (no automatic conversion of small files). Small kept files whose codec most browsers can't play (e.g. HEVC) show a "may not play in Chrome" note on the media card with a **Convert for web** button (owner chose option A).
+- [ ] Convert to a web-safe MP4 (H.264/AAC, faststart) on import, because HEVC .mov doesn't play in most browsers.
+  - Keep the original.
+  - Resize/bitrate-cap large videos.
+- [ ] Do the conversion through a media tool the assistant can call. It runs ffmpeg server-side or via a provider plugin; never vendor code in core.
+- [ ] Settle one consistent size limit across Library, Media, chat attachments and assistant imports, and say the limit in the error message.
+
+## ⭐ NEEDED (owner 2026-10-29 ~5:45 PM): update a deployed site to a new Tovu version from the production site itself
+Today a site can (re)deploy through its hosting platform with the `deployment_ops` tools (`apps/website/src/features/deployments/deploy-ops/agent-tools.ts`), using a saved credential and the repo's deploy workflow. But nothing lets the owner open the PRODUCTION admin and say "update this site to the latest Tovu".
+- [ ] "Update available" check in the production admin: compare the running version with the latest Tovu release.
+- [ ] One-click (or chat) update.
+  - It bumps the site's Tovu version and triggers the platform deploy.
+  - It waits for the deploy, then checks the live site.
+  - It shows what changed.
+- [ ] Safety:
+  - Back up first (site-backup).
+  - Run the schema/migration readiness gate before switching.
+  - Keep the previous version to roll back to.
+  - Never auto-update without the owner's OK.
+- [ ] Desktop-made sites and self-hosted sites need the same path. Plan with Codex, contract-first, platform deploy adapters reused.
+
+## LATER (owner 2026-10-29 ~4:30 PM): ui-ux-design — one shared copy (Tovu still uses its own)
+Phase 0 of the plugin split made `@jini-ai/plugin-ui-ux-design` a standalone package, but Tovu still serves its own copy in `content/agent-plugins/ui-ux-design` until the owner approves the merged wording.
+- [ ] Review the proposal: `ADS-memory/reports/2026-10-28-45-fixes/r44-plugin-tovu/wording/out/w1-ui-ux-wording.md`.
+  - Shared, host-neutral wording in the plugin.
+  - Tovu's exact chat rules (no Bash, curl, npx or installers in chat; discover theme/page tools first; no checkout needed; answer in chat) added by a small Tovu formatter when the guidance is delivered.
+  - Safety tests moved to check what the assistant actually receives.
+- [ ] Once approved: Codex switches Tovu to the shared package and deletes the local copy.
+
+## UI/UX design agent plugin: kUInetic by default + per-theme landing pages (owner 2026-10-28 ~7:30 PM)
+Plugin: `content/agent-plugins/ui-ux-design/` (its SKILL.md mentions neither kUInetic nor theme home pages today).
+- [ ] **kUInetic by default.** When the agent builds or restyles a theme or page, it tries kUInetic animations first. Use the local vendored `kuinetic.all.min.js` in the shared footer, never a CDN.
+- [ ] **Each theme owns its own `/` layout.** Themes can have wildly different motifs and layouts, not just different CSS. Today every theme's `render/pages/index.html` only embeds the CMS Home page body (`{"type":"content"}`). So all themes share one `/` markup. TAYWay (`~/Documents/Tovu/thetayway/themes/static/tayway-*`) works this way. It has 4 themes and one `/` body, and each theme has its own 430–660-line `tayway.css` (grid, positioning, fonts). The look changes a lot, but the sections, their order and the content are the same in every theme.
+  - The fix: a theme ships its own landing markup for `/`. A preview of that theme shows its own landing page.
+  - **Promote:** one step that makes a theme's `/` the site's live Home page. It switches the theme and adopts that layout.
+  - Open design questions:
+    - Does promoting copy the markup into the CMS Home page so it stays editable in Pages? Or does the theme's `/` override the CMS body?
+    - What happens to the old Home body? Keep it as a draft or revision so it can be undone.
+  - Search for an existing mechanism first: theme preview switcher, `pages-landing.html`, theme_set_active.
+
+## ⭐ HIGH PRIORITY, NOT NOW (owner 2026-10-27 ~10:50 AM): rename sites
+Owner: "we can't really rename sites. So we should be able to rename them." Today a site can't be renamed (display name, and check whether the slug/folder can change too). Add a Rename action for sites in both the admin site switcher and the desktop site grid, through one generic rename operation (desktop project-ipc already has a `handleRename` to reuse or fix). Keep the existing Windows reserved-name checks (d3226c55e). Failing test first. Not started.
+- Owner idea (10-27): maybe an **"Edit site" modal** (open the site, edit its name and possibly other site details not decided yet) instead of a bare Rename action. Minor; decide the shape when this starts.
+
+## ⭐ HIGH PRIORITY (owner 2026-10-25 ~10:15 PM): public form spam protection
+- **Length caps** on public form fields, enforced on the SERVER (not just maxlength): owner said "maybe 100 characters". Proposed default: single-line fields 100, long text (message/textarea) ~2000, per-field override in the form builder. Being built now (see tovu-8f task list).
+- **CAPTCHA / bot protection** for public forms — owner unsure how it works yet. Plan first: options = honeypot + submit-timing (free, invisible), Cloudflare Turnstile / hCaptcha as a provider plugin behind a generic "bot check" contract (no vendor code in core), rate limit per IP. Then build. **Plan done 10-25 (owner: later):** ADS-memory/.local-artifacts/handoffs/2026-10-25-captcha-plan.md — honeypot/throttle/duplicate suppression already exist; phase 1 = 1 s submit-timing + count only persisted submissions; phase 2 = generic bot_check + Turnstile.
+
 ## BUG (2026-10-25): switching localhost:3000 to a site already open in Desktop crashes the API
 Switching to Vindexa while the Desktop app had it open: the switch rewrote `.env` TOVU_SITE and restarted the API, which then refused to boot (`site-running.ts:24` claimSiteRunning: "Running in Desktop (port 53775)…") → :3000 down, no message in the admin. Fix: `sites_switch_site` + the switch route check `readSiteRunning` on the target FIRST and refuse with "open in Desktop at <url>"; dev.mjs falls back to the previous site if a restart fails. Fold into the fast-site-switching work below.
 
@@ -33,12 +150,21 @@ Owner: "when I don't have anything off the top of my head to do for Claude, I wa
 1. **Marketing videos + motion graphics (MAIN).** Make better Tovu demo videos, then cut them into short clips (~30 s, no dead time; voice clearly over music — measure the mix). Motion-graphics intros/explainers per feature (site chat, Pages, plugins, sign-in, deploy). Look-checks via Claude in Chrome; heavy renders in the cloud, never an unthrottled ffmpeg on the Mac.
 2. **Admin themes.** More admin looks (glassmorphic is parked; see "Admin theming consistency: ONE token authority" and "Admin themes explorable + editable" below — plan first).
 3. **End-to-end testing.** The scoped E2E program (deferred until after the test-rigor wave), run on fake-test-site in the cloud.
+- **IN PROGRESS 10-30: demo reel** (owner): separate ~30 s clips → 2–3 min YouTube/site master with intro titles, music + captions (no voice). Clips: contact page + AI images (existing), charts (RE-RECORD: old ugly chart), theme/look change, media library, Higgsfield "AI with coffee at a desk" image + article on how AI is changing work (own clip), desktop app. Work in ADS-memory/.local-artifacts/demo-reel-2026-10-30/ (BRIEF-COMMON.md). Recorded one at a time on fake-test-site.
+- **AFTER the demo reel (owner 10-30 ~7 PM): one owner-level sign-in for OAuth services (Higgsfield etc.)** — today the External MCP OAuth connection is stored per site (tovu-dev connected, fake-test-site shows Connect), so every site needs its own sign-in. Store it once in the owner store and let every site on the machine reuse it; decide whether visitor-facing chats may use it (safe default: owner/admin chats only).
 Ideas to offer the owner (not approved yet): landing-page hero animations and screenshots, one short tutorial clip per agent plugin, social-post cutdowns (vertical 9:16) of each video.
 Every cloud run here still follows the iron rule: the owner approves a cost estimate and hard caps first.
 
 ## Assistant prompt tests: MORE prompts + two suites (owner 2026-10-25)
 Grow `development/assistant-prompts/capability-prompts.md` beyond the 40-prompt subset. Two suites: **non-Bash** (main — the online assistant has no Bash, so every job must work through Tovu tools with no gaps) and a small **Bash** suite. Always run through the real admin assistant chat on localhost (fake-test-site) in Claude in Chrome — never the headless probe script. Fix the doc's "How to run" section to say so.
 - LATER (owner 10-25): run the suite with **Codex** as the assistant's CLI too (admin → AI Assistant → Your CLIs), not just Claude Code — 10-25 run was Claude Code / Opus 5.5.
+
+## UNDECIDED, NOT NOW (owner 2026-10-28 ~1:30 PM): merge Media + Library into one "Assets" page
+- Owner idea: one "Asset library" page instead of Media (public site images/video) + Library (private documents the assistant reads; already `media` rows of kind "document", same `media.read`). Owner: "put that on the to-do… not sure if I want to do that yet."
+- Proposal (tovu-45): nav "Assets", title "Asset library"; per-item visibility badge "On site" / "Private (assistant only)" + filter; upload defaults by type (images/video public, documents private, switchable); private→public needs one confirm; /admin/media and /admin/library redirect with the matching filter. Build it as the parked Jini media page (parity since 10-03) so two Tovu screens go away instead of adding a third. UI job → Chrome look at the end.
+
+## MEDIUM, NOT NOW — NEVER AUTO-START (owner 2026-10-26 ~11:50 PM): over-engineering audit of Codex AND Opus code, Tovu + Jini
+Owner: "do not ever ever ever start that automatically. it will destroy my credits." Start ONLY when the owner explicitly says so, with a cost estimate and hard caps. Scope when started: Tovu + Jini code from ~10-12 onward, written by Codex and Opus alike, today's release line `fix/release-tests-1026` first, never code that's still changing. How: measure first with `development/scripts/code-metrics.py` + knip/ts-prune (unused exports/files, single-caller abstractions, near-duplicate mechanisms, LOC vs what it does). Watch for the patterns we've already seen: patch-on-patch designs (P2 owner-store = 780 lines over 5 rounds), second copies of an existing mechanism, test bloat. Raw numbers aren't findings, so verify each one. Report → owner picks → cut in small waves with tests green. Builds on the older audit `ADS-memory/.local-artifacts/overengineering-audit-2026-10-07/REPORT.md` and the 10-11 cleanup item below. KEEP deferred/parked work; unsure → ask.
 
 ## MEDIUM, NOT NOW (owner 2026-10-25): Renovate for dependency updates — set up, turn on when we ramp up
 Owner picked Renovate (free, best-rated for monorepo grouping/scheduling) over Dependabot updates. Don't enable yet. When we turn it on: group updates (one batch per week, `@jini-ai/*` separate), no auto-merge, and respect the no-PR-spam rule (owner dislikes PR floods — batch hard). Pair with OSV-Scanner in CI (report-only, no PRs) and Dependabot *alerts* (no update PRs). Gitleaks already added for Tovu (b07d968c8, 10-25).
@@ -47,6 +173,8 @@ Owner picked Renovate (free, best-rated for monorepo grouping/scheduling) over D
 Owner: "a software factory on GitHub… when somebody creates an issue, there's a loop to solve it… people log bugs and that helps us fix it much faster." "We're not gonna do it for a while." Unbiased research (no tools named in the brief) is done: `ADS-memory/.local-artifacts/codex/2026-10-24-software-factory-research/out/software-factory-research.md`. It recommends a bounded issue → draft-PR pipeline where humans approve scope, merge and release. Start with GitHub controls (issue forms, rulesets, required CI and reviews, actionlint/zizmor), then triage in suggestion mode, then reproduce before fixing, then one sandboxed worker (mini-swe-agent) on maintainer-approved issues only. Also required: the 8 must-have safety controls for public issue text, and hard cost caps plus a kill switch. Next step when the owner restarts it: an Opus grade, or the owner picks parts. Also queued: an in-app "Report a bug" path that files a GitHub issue with secrets stripped.
 
 ## UI FIX BATCH — queued, one Opus + Chrome pass (owner 2026-10-23 ~11:35: "queue that up… fix a bunch of things at once")
+- (owner 2026-10-25 ~10:22 PM) Agent Plugins: a linked plugin's switch ("Turns on and off in Plugins") renders as a WHITE empty switch, not a disabled/gray one — looks broken and clicking does nothing. Make it look disabled AND make the row's note a link to the Plugins page (or let the click turn on the provider plugin with the same confirm). Owner 10:30 PM: there MUST be visible UI feedback — a lock/link icon + tooltip on the switch ("Turn this on in Plugins") and the note as a link; "there's no way I would have known that."
+- (owner 2026-10-25) Plugins page: installed-but-off plugins (PostHog/OpenTelemetry/Sentry right after install) are NOT on the "Installed" tab, only under "Downloaded" — owner couldn't find where to turn them on. Show every installed plugin on Installed with its on/off control.
 - **Admin sign-in page — show/hide password eye icon (owner 2026-10-25):** add an eye toggle to the PASSWORD field on the "Sign in to your workspace" page (web + desktop) so people can check what they typed. Reuse an existing eye/toggle if the admin has one (e.g. secret cards); accessible label + keyboard; never log the value.
 - **Chat UI — answered choice questions (owner 2026-10-25, Vindexa site):** when the assistant asks a choice question (e.g. "replace or update the privacy policy?") and the owner picks one, the chat shows only a bare "update" bubble. Show the question AND the chosen answer instead (e.g. a compact "Replace or update the privacy policy? → Update" card). Not urgent; probably not a quick fix (ask-choice tool result rendering in Jini chat).
 - **Chat UI:** messages sent mid-run render inside the assistant turn, with no copy button and under that turn's "Done · 3m 42s · $3.95 · total $26.94" footer. More findings: `ADS-memory/reports/2026-10-23-orvellea-chat-errors.md`, "UI findings" section (Opus + Chrome look, in progress).
@@ -120,7 +248,7 @@ Owner: wants site-specific TypeScript code (by a developer or the in-app assista
 Owner: "have that as a high priority on the todos" — the vault ships in 0.1.14 (only secrets); everything else waits for this.
 - **Merge debate, round 1 done** (Opus 5.5, Sonnet 5.5, Codex 6.1-sol; read-only): `ADS-memory/.local-artifacts/db-debate-2026-10-11/r1/{opus,sonnet,codex}.md`, context `ADS-memory/.local-artifacts/vault-impl-2026-10-11/db-consolidation-debate-context.md` (114 tables). All three: DON'T merge the 8 revision tables or the 6 RBAC tables; settings_values ×3 split (Codex LATER/Jini-first, Opus+Sonnet DON'T). Round 2 (stopped 10-11) should settle: settings merge, small drops (`__drizzle_migrations`, `site_title_preexisting_workspaces`, entry+content_type revisions, presentation_settings, the two plugin migration journals, orphan `member_tiers_workspace_id_unique`), retention for post_revisions/outbox_events/sessions.
 - **Query-parity tests BEFORE any merge** (owner: "that's the test I was talking about"): for every table a merge touches, characterization tests through the real API routes/repos on populated SQLite + PGlite (+ PG) that prove the same data comes back before and after (row/value parity, ordering, uniqueness/FK/cascade behaviour, hot-path query plans), so a merge that moves a queried column into JSON or drops a table is caught.
-- **Bug found by the debate (Opus r1, unverified):** SQLite schema identity reads the frozen `__drizzle_migrations` (`read-applied-schema-identity.ts:87-95`) and misses ADR-066 steps 0001+; fix = read `tovu_migrations` (~20 lines, no migration).
+- ~~**Bug found by the debate (Opus r1, unverified):**~~ **ALREADY FIXED (verified by Codex 2026-10-27: `read-applied-schema-identity.ts:88` reads `tovu_migrations`):** SQLite schema identity reads the frozen `__drizzle_migrations` (`read-applied-schema-identity.ts:87-95`) and misses ADR-066 steps 0001+; fix = read `tovu_migrations` (~20 lines, no migration).
 - Newsletter campaigns tables stay in core (not duplicates: the plugin has no campaigns table).
 
 ## AFTER the 0.1.14 release (owner 2026-10-11)
@@ -845,7 +973,7 @@ Three Fable reviewers (architecture/DI, excess-and-dead-code, bugs) ran twice: *
       (`agentDaemonWanted`, `logCriticalBootFailures`, the 8-promise readiness list), under a comment
       claiming boot logic is "never shared via import" — contradicted the same day by `4dfbfe80`.
       `export.ts` has none of it yet still boots the real `createApp`, so **the
-      crash-interrupted-migration scan never runs before an export.**
+      crash-interrupted-migration scan never runs before an export.** **ALREADY FIXED (verified by Codex 2026-10-27: `export.ts:155` runs the interrupted-migration check).**
 ### Needs a human decision, not an agent — this one is MONEY
 
 
@@ -2177,3 +2305,25 @@ Nav shows SOON until this passes. Test end-to-end, in Chrome, on a real site, li
 
 ## Cookie banner nits (Chrome check 2026-10-23)
 - Reopened preferences panel has no "Accept all" (only checkboxes + Save); "Reject non-essential" wraps to two lines there. Jini @jini-ai/cms consent UI.
+
+## LATER (owner 2026-10-26 ~9:25 PM): export options pop-up
+Export button opens a pop-up with choices: include raw media originals, include original themes, etc. Default export stays one media copy + original themes. Not now.
+
+## ⭐ HIGH PRIORITY, NOT NOW (owner 2026-10-26 ~7:30 PM): monitoring build
+Plans ready: ADS-memory/.local-artifacts/handoffs/2026-10-26-monitoring-plan-trimmed.md + Codex restorations ADS-memory/reports/2026-10-26-9e-trim-check/trim-check.md.
+- /readyz health checks: db + disk (operational threshold, advisory) + frozen-daemon probe; keep Fly health semantics (503 only for critical).
+- Symptom alerts: neutral alert-rule contract (rule data outside adapters) + failure counters at real write owners (posts incl. autosave, forms, publish), daemon unexpected restarts/stalls.
+- Uptime: neutral uptime-probe contract; vendor plugin (Better Stack / Grafana Synthetic / UptimeRobot) later.
+- Logs off-machine: log-export contract with a fixed safe-template allowlist; Loki plugin later; Sentry recent lines.
+- Source maps (incl. browser relay carrying bundle identity) + deploy markers in CI.
+- Vendor integrations (Better Stack, Loki, Grafana alert rules) = plugins AFTER the contracts. Owner: build so they can be added later.
+- [ ] **Assistant chat fails with Gemini** (owner 2026-10-26 11:3x PM, localhost:3000): switching the admin assistant chat to Gemini and sending a message fails. Repro in the real admin chat via Claude in Chrome on a test site (not tovu-dev), then failing test first → fix.
+
+## LATER (owner 2026-10-29): relicense Tovu so nobody can resell it as paid hosting
+Today Tovu + all 36 @jini-ai packages are Apache-2.0, which lets anyone run Tovu as a paid hosting service. Pick one for the Tovu app (apps/, desktop): **FSL-1.1-Apache-2.0** (Sentry model: no competing hosted service; each version turns Apache after 2 yrs) or **AGPL-3.0** (hosted forks must publish their changes; doesn't stop resale). Keep @jini-ai npm packages Apache so other devs adopt the engine. Owner is sole author (no outside contributors), so relicensing is allowed; already-published versions stay Apache forever. Keep Jini NOTICE (Open Design, Apache-2.0) attribution. Update LICENSE, package.json "license", README badge. Ship before any public launch.
+
+## LATER (owner 10-31): media descriptions for semantic search
+- [ ] Whenever an agent creates, imports or sees an image, it also writes a plain-language **description** of what the image shows, so search (incl. semantic search) can find it. Media has `alt` + `caption` today but no description field — add one (ADR-066 TS migration) or decide caption is enough; agent tools (media import/generate/view_image) fill it; search indexes it; owner can edit it in Media.
+- [ ] Videos: same idea, harder — describe from stills/key frames (and transcript if any). Later.
+
+- 11-01 owner: REDO the demo reel later — the reel itself is good, but the sites/website UI shown in it looks awful; re-record once the site UI is better. (Blur of client names: owner says not needed.)

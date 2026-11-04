@@ -1,5 +1,5 @@
 #!/bin/bash
-# Runs one Codex (`gpt-6.1-sol`, reasoning $CODEX_EFFORT, default medium) job per prompt file, at most 5 at a time.
+# Runs one Codex ($CODEX_MODEL, default `gpt-6.1-sol`; set it to another model when that one is "at capacity"; reasoning $CODEX_EFFORT, default medium) job per prompt file, at most 5 at a time.
 #
 # Usage: development/scripts/run-codex-shards.sh <prompt-dir> <read-only|workspace-write> <out-dir>
 #
@@ -111,7 +111,7 @@ run_shard() {
   local prompt=$1 shard=$2
   local jsonl="$OUT_DIR/$shard.jsonl" err="$OUT_DIR/$shard.err"
   { printf '%s\n\n' '<<PEER_DISPATCH>>'; persona_preamble; cat "$prompt"; } \
-    | codex exec --ignore-rules --ignore-user-config --ephemeral --json -s "$SANDBOX" -m gpt-6.1-sol \
+    | codex exec --ignore-rules --ignore-user-config --ephemeral --json -s "$SANDBOX" -m "${CODEX_MODEL:-gpt-6.1-sol}" \
         -c model_reasoning_effort="$EFFORT" ${ADD_DIR_ARGS[@]+"${ADD_DIR_ARGS[@]}"} -C "$REPO" - > "$jsonl" 2> "$err"
   local rc=$?
   echo "[$shard] exit=$rc $(parse_run "$jsonl" "$OUT_DIR/$shard.md" "$OUT_DIR/$shard.failed")"
