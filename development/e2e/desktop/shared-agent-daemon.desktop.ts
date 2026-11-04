@@ -4,7 +4,10 @@ import { collectProcessTreePids, listProcessSnapshots, waitForProcessExit } from
 import { closeDesktop, launchDesktop, makeSite, openSiteTab, removeScratchTree, scratchDir, startSite } from "./_fixtures.js";
 import { fiveSitesExecuting } from './_shared-daemon-evidence.js';
 
-type SiteContext = { origin: string; session: import('electron').Session; runId?: string; childPid?: number };
+// Structural, not import('electron'): the root install (published-typecheck CI) has no electron package.
+type GuestSession = { fetch(input: string, init?: RequestInit): Promise<Response> };
+type GuestContents = { getType(): string; getURL(): string; session: GuestSession };
+type SiteContext = { origin: string; session: GuestSession; runId?: string; childPid?: number };
 type ExecutionState = typeof globalThis & { __sharedDaemonSites?: SiteContext[] };
 
 test("five chatting sites use one daemon", { tag: ["@unrun"] }, async () => {
@@ -25,10 +28,10 @@ test("five chatting sites use one daemon", { tag: ["@unrun"] }, async () => {
       expect(source).toBeTruthy();
       const origin = new URL(source!).origin;
       await expect.poll(() => launch.app.evaluate(({ webContents }, expectedOrigin) =>
-        webContents.getAllWebContents().some(contents => contents.getType() === 'webview' && contents.getURL().startsWith(`${expectedOrigin}/`)), origin)).toBe(true);
+        webContents.getAllWebContents().some((contents: GuestContents) => contents.getType() === 'webview' && contents.getURL().startsWith(`${expectedOrigin}/`)), origin)).toBe(true);
       // Retain each authenticated network context before the default one-view cap evicts it.
       await launch.app.evaluate(({ webContents }, expectedOrigin) => {
-        const guest = webContents.getAllWebContents().find(contents => contents.getType() === 'webview' && contents.getURL().startsWith(`${expectedOrigin}/`));
+        const guest = webContents.getAllWebContents().find((contents: GuestContents) => contents.getType() === 'webview' && contents.getURL().startsWith(`${expectedOrigin}/`));
         if (!guest) throw new Error('the selected site has no authenticated guest');
         const state = globalThis as ExecutionState;
         state.__sharedDaemonSites ??= [];
