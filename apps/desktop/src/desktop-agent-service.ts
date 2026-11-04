@@ -23,6 +23,27 @@ export interface DesktopAgentServiceOptions {
   readonly stderr?: NodeDaemonProcessOptions["stderr"];
 }
 
+/** Select only process-wide launch facts for the shared daemon.
+ * @complexity O(e) in the fixed environment allowlist; O(e) space.
+ */
+function buildDaemonSpawnEnv({ env, registryPath }: { env: NodeJS.ProcessEnv; registryPath: string }, _options = {}): NodeJS.ProcessEnv {
+  // A process-wide daemon must never inherit any site's configuration or credentials. Site
+  // snapshots travel only over the actual child's inherited channel, after bootstrap binding.
+  const spawnEnv: NodeJS.ProcessEnv = {};
+  for (const key of ["PATH", "Path", "HOME", "USERPROFILE", "SystemRoot", "WINDIR", "TEMP", "TMP", "TMPDIR", "LANG", "LC_ALL", "TOVU_AGENT_DAEMON_IDLE_MINUTES", "TOVU_DAEMON_LIFECYCLE_LOG"]) {
+    if (env[key] !== undefined) spawnEnv[key] = env[key];
+  }
+  Object.assign(spawnEnv, { ELECTRON_RUN_AS_NODE: "1", TOVU_PARENT_PID: String(process.pid), TOVU_AGENT_DAEMON_REGISTRY_PATH: registryPath });
+  return spawnEnv;
+}
+
+/** Reject a registration for any directory other than the owned server's.
+ * @complexity O(n) in directory path length.
+ */
+function assertSiteDirectory({ directory, siteDir }: { directory: string | undefined; siteDir: string }, _options = {}): void {
+  if (path.resolve(directory ?? "") !== path.resolve(siteDir)) throw new Error("site directory mismatch");
+}
+
 /** Bind process launch to existing instance discovery and the existing retry/parking owner.
  * @param required Product root, per-instance registry path and launch facts; no site authority.
  * @param optional Native effects for process-count/IPC regression tests.
@@ -34,13 +55,7 @@ export function createDesktopAgentService({ repoRoot, registryPath, cliMode = "c
   repoRoot: string; registryPath: string; cliMode?: CliMode; env?: NodeJS.ProcessEnv;
 }, optional: DesktopAgentServiceOptions = {}) {
   const registry = optional.registry ?? createSupervisorRegistry({ registryPath });
-  // A process-wide daemon must never inherit any site's configuration or credentials. Site
-  // snapshots travel only over the actual child's inherited channel, after bootstrap binding.
-  const spawnEnv: NodeJS.ProcessEnv = {};
-  for (const key of ["PATH", "Path", "HOME", "USERPROFILE", "SystemRoot", "WINDIR", "TEMP", "TMP", "TMPDIR", "LANG", "LC_ALL", "TOVU_AGENT_DAEMON_IDLE_MINUTES", "TOVU_DAEMON_LIFECYCLE_LOG"]) {
-    if (env[key] !== undefined) spawnEnv[key] = env[key];
-  }
-  Object.assign(spawnEnv, { ELECTRON_RUN_AS_NODE: "1", TOVU_PARENT_PID: String(process.pid), TOVU_AGENT_DAEMON_REGISTRY_PATH: registryPath });
+  const spawnEnv = buildDaemonSpawnEnv({ env, registryPath });
   const entry = path.join(repoRoot, cliMode === "source" ? "apps/website/src/server/inbound/assistant/agent-daemon-server.ts" : "dist/src/server/inbound/assistant/agent-daemon-server.js");
   const args = cliMode === "source" ? [
     "--import", `${pathToFileURL(path.join(repoRoot, "development/scripts/prune-tsx-cache.mjs")).href}?prune`,
@@ -99,6 +114,12 @@ export function createDesktopAgentService({ repoRoot, registryPath, cliMode = "c
     if (path.resolve(site.config.env.TOVU_SITE_DIR ?? "") !== path.resolve(config.env.TOVU_SITE_DIR ?? "")) throw new Error("workspace already belongs to another directory");
     if (site.config.token !== config.token) throw new Error("site scope belongs to another server boot");
   }
+  /** Rotate a site's callback capability when its daemon channel changes.
+   * @complexity O(1) time and space.
+   */
+  function refreshSiteHost({ site }: { site: Site }, _options = {}): void {
+    if (site.host !== channel) { site.host = channel; site.token = randomUUID(); delete site.ready; }
+  }
   async function demand(config: DaemonSiteRegistration, _optional = {}) {
     if (stopping) throw new Error("desktop agent service is stopping");
     await withdrawals.get(config.siteId);
@@ -111,7 +132,7 @@ export function createDesktopAgentService({ repoRoot, registryPath, cliMode = "c
     await supervisor.ensureReady({}, {});
     if (stopping || sites.get(config.siteId) !== site) throw new Error("site scope was withdrawn");
     if (!channel || !daemonPid) throw new Error("daemon IPC unavailable");
-    if (site.host !== channel) { site.host = channel; site.token = randomUUID(); delete site.ready; }
+    refreshSiteHost({ site });
     if (!site.ready) {
       const owned = site;
       const host = channel;
@@ -144,7 +165,7 @@ export function createDesktopAgentService({ repoRoot, registryPath, cliMode = "c
       if (request.operation === "ready" || request.operation === "unavailable") throw new Error("unexpected site control");
       if (!workspaceId || request.siteId !== workspaceId) throw new Error("site identity is not bound");
       if (request.operation === "withdraw") { await withdraw({ siteId: workspaceId }); return {}; }
-      if (path.resolve(request.env.TOVU_SITE_DIR ?? "") !== path.resolve(siteDir)) throw new Error("site directory mismatch");
+      assertSiteDirectory({ directory: request.env.TOVU_SITE_DIR, siteDir });
       return demand(request, {});
     } });
     const notify = (pid: number) => { void control.request({ payload: { operation: "unavailable", pid } }, {}).catch(() => {}); };

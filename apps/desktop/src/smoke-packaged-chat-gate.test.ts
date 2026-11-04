@@ -284,10 +284,18 @@ test("--platform-dir must be given, and must name one native mac output", async 
   assert.deepEqual(await targetsOf(["--platform-dir", "release"], (root) => mkdirSync(path.join(root, "release", "mac", "Tovu.app"), { recursive: true })),
     { code: 1, err: ["smoke-packaged-chat: Choose a single native mac* output with --platform-dir.\n"] });
   assert.deepEqual(seen, [path.join("release/mac-arm64/Tovu.app/Contents/MacOS/Tovu"), path.join("release/mac-arm64/Tovu.app/Contents/MacOS/Tovu")]);
-  const linux = scenario(t);
-  linux.deps.platform = "linux";
-  assert.equal(await smokePackagedChatCli(linux.deps), 1);
-  assert.deepEqual(linux.err, ["smoke-packaged-chat: Packaged chat smoke requires the owner's Mac and a logged-in Claude CLI.\n"]);
+  // Exercise both refusals on any host; the real entry below still verifies its native wiring.
+  for (const platform of ["linux", "win32"] as const) {
+    for (const argv of [[], ["--platform-dir", "release/mac-arm64"]]) {
+      const unsupported = scenario(t);
+      unsupported.deps.platform = platform;
+      unsupported.deps.argv = argv;
+      unsupported.deps.withIsolatedSmokeTargets = async () => assert.fail("a refused host must not stage or launch the package");
+      assert.equal(await smokePackagedChatCli(unsupported.deps), 1);
+      assert.deepEqual(unsupported.err, ["smoke-packaged-chat: Packaged chat smoke requires the owner's Mac and a logged-in Claude CLI.\n"]);
+      assert.deepEqual(unsupported.out, []);
+    }
+  }
 });
 
 test("a held lock is waited on, never stolen; an aborted wait or unexpected mkdir error fails the gate", async (t) => {
@@ -505,7 +513,7 @@ test("withInterruptSignal aborts on SIGINT/SIGTERM and always detaches its handl
 });
 
 test("scripts/smoke-packaged-chat.ts refuses to run without the owner's Mac and a --platform-dir", () => {
-  const run = realSpawnSync(process.execPath, [path.join(DESKTOP_ROOT, "scripts/smoke-packaged-chat.ts")], {
+  const run = realSpawnSync(process.execPath, ["--disable-warning=ExperimentalWarning", path.join(DESKTOP_ROOT, "scripts/smoke-packaged-chat.ts")], {
     cwd: DESKTOP_ROOT, encoding: "utf8", timeout: 60_000,
   });
   assert.equal(run.status, 1, run.stderr);

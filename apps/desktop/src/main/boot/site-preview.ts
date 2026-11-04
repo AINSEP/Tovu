@@ -31,6 +31,20 @@ export function isPublicPreviewUrl({ url, origin }: { url: string; origin: strin
   } catch { return false; }
 }
 
+/** Capture and store only while the guest's identity and public URL remain current.
+ * @complexity O(image pixels) time and space for capture/resize.
+ */
+async function captureEligiblePreview({ guest, origin, siteDir, isCurrent, ports }: {
+  guest: LivePreviewGuest; origin: string; siteDir: string; isCurrent: () => boolean; ports: PreviewCapturePorts;
+}, _options = {}): Promise<boolean> {
+  const url = guest.getURL();
+  const eligible = () => isCurrent() && guest.isCurrent() && guest.getURL() === url && isPublicPreviewUrl({ url: guest.getURL(), origin });
+  if (!eligible()) return false;
+  const captured = await withRenderTimeout({ promise: guest.capturePage() }, { timeoutMs: PREVIEW_CAPTURE_TIMEOUT_MS });
+  if (!eligible()) return false;
+  return ports.writePreview({ siteDir, png: captured.resize({ width: PREVIEW_WIDTH_PX }).toPNG() }) !== null;
+}
+
 /** Capture the registered live guest, validating its identity on both sides of asynchronous I/O.
  * O(image pixels) for capture/resize. Timeout, navigation or release stores nothing. */
 export function createSitePreviewCapture({ ports }: { ports: PreviewCapturePorts }, _options = {}) {
@@ -43,12 +57,7 @@ export function createSitePreviewCapture({ ports }: { ports: PreviewCapturePorts
       if (!guest || guest.partition !== partition) return false;
       // An https dev server's certificate names localhost, not the loopback IP.
       const origin = scheme === 'https' ? `https://localhost:${port}` : `http://127.0.0.1:${port}`;
-      const url = guest.getURL();
-      const eligible = () => isCurrent() && guest.isCurrent() && guest.getURL() === url && isPublicPreviewUrl({ url: guest.getURL(), origin });
-      if (!eligible()) return false;
-      const captured = await withRenderTimeout({ promise: guest.capturePage() }, { timeoutMs: PREVIEW_CAPTURE_TIMEOUT_MS });
-      if (!eligible()) return false;
-      return ports.writePreview({ siteDir, png: captured.resize({ width: PREVIEW_WIDTH_PX }).toPNG() }) !== null;
+      return await captureEligiblePreview({ guest, origin, siteDir, isCurrent, ports });
     } catch (error) {
       ports.warn(`tovu desktop: could not capture a preview for ${siteDir} — ${error instanceof Error ? error.message : String(error)}`);
       return false;
