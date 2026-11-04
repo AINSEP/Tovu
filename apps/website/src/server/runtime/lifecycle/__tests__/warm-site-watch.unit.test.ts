@@ -1,3 +1,4 @@
+import { createRequire } from 'node:module';
 import '#src/platform/site-dir/__tests__/helpers/isolated-catalog-home';
 import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
@@ -19,6 +20,8 @@ test('a warm source site reloads server edits through tsx watch and keeps one ma
   const child = Object.assign(new EventEmitter(), { pid: 4242, stdout: new PassThrough(), stderr: new PassThrough() });
   const host = createLocalSiteProcessPort({ switcherBase: root }, {
     env: { TOVU_SITES_HOME: path.join(root, 'sites'), TOVU_DISABLE_DEV_TLS: '1', TOVU_DEV_WARM_SITES: '1',
+      // development/scripts/dev.mjs supplies the tsx watcher CLI; the shipped server never resolves it.
+      TOVU_DEV_TSX_CLI: createRequire(import.meta.url).resolve('tsx/cli'),
       TOVU_DEV_WARM_CONTROL_URL: 'http://localhost:3000', TOVU_DEV_WARM_CONTROL_WORKSPACE: 'owner', TOVU_ADMIN_DIST: '/prebuilt' },
     processOptions: { spawn: ({ args, options }) => {
       assert.ok(args.includes('watch'), 'server dependencies must be watched, not imported just once');

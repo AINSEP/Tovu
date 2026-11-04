@@ -93,3 +93,14 @@ test("the compiled daemon supervisor pulls no package outside root `dependencies
   const packages = undeclaredDistImports({ distDir, entry, declared: rootDeps }).filter(problem => !problem.endsWith("file not found)"));
   assert.deepEqual(packages, []);
 });
+
+// desktop 0.1.27 CI: the shipped server's local-site launcher resolved "tsx/cli" (a devDependency)
+// for its dev-only watch mode, so the packaging guard refused every build. Dev-only launchers hand
+// that path in from development/scripts/dev.mjs instead; the shipped file must name no dev package.
+test("the website's local-site launcher references no dev-only package the packaged app lacks", async () => {
+  const { runtimeImportReferences } = await import("@jini-ai/devops/packaging/electron/typescript");
+  const file = path.resolve(import.meta.dirname, "../../website/src/server/runtime/lifecycle/local-site-process.ts");
+  const refs = runtimeImportReferences({ compiler: ts, file, source: fs.readFileSync(file, "utf8") });
+  const bare = refs.filter(ref => !ref.typeOnly && !ref.specifier.startsWith(".") && !ref.specifier.startsWith("#") && !ref.specifier.startsWith("node:"));
+  assert.deepEqual(bare.filter(ref => /^tsx(\/|$)/.test(ref.specifier)).map(ref => `${ref.specifier}:${ref.line}`), []);
+});

@@ -7,7 +7,6 @@ import { format } from "node:util";
 /** Host adapter: Jini owns native process lifecycle; Tovu owns site boot and credential isolation. */
 import path from "node:path";
 import { mkdtempSync } from "node:fs";
-import { createRequire } from "node:module";
 import { randomBytes } from "node:crypto";
 import os from "node:os";
 import { redactLocalText } from "../../../platform/server-logs/redact-local-text.js";
@@ -83,13 +82,17 @@ function warmSiteEnvironment({ parent }: { parent: NodeJS.ProcessEnv }, _options
 }
 
 /** Keep tsx's existing debounced dependency watcher around source children. Packaged children
- * keep their compiled entry. @complexity O(1), no process starts in this decision.
+ * keep their compiled entry. The watcher's CLI path comes from the dev launcher
+ * (`development/scripts/dev.mjs` sets TOVU_DEV_TSX_CLI): tsx is a devDependency, and resolving it
+ * here put it in the shipped server's import graph, which the desktop packaging guard refuses
+ * (desktop 0.1.27). Without the path a source child runs once under `--import tsx`.
+ * @complexity O(1), no process starts in this decision.
  */
-function localSiteLaunchArgs({ compiled, watch, repoRoot }: { compiled: boolean; watch: boolean; repoRoot: string }, _options = {}): string[] {
+function localSiteLaunchArgs({ compiled, watch, repoRoot, tsxCli }: { compiled: boolean; watch: boolean; repoRoot: string; tsxCli: string | undefined }, _options = {}): string[] {
   if (compiled) return [fileURLToPath(new URL("../../../platform/site-dir/local-site-child.js", import.meta.url))];
   const entry = path.join(repoRoot, "apps/website/src/platform/site-dir/local-site-child.ts");
-  if (!watch) return ["--import", "tsx", entry];
-  return [createRequire(import.meta.url).resolve("tsx/cli"), "watch", "--clear-screen=false", "--exclude", "**/plugins-runtime/**", entry];
+  if (!watch || !tsxCli) return ["--import", "tsx", entry];
+  return [tsxCli, "watch", "--clear-screen=false", "--exclude", "**/plugins-runtime/**", entry];
 }
 
 /** Allowlist OS necessities, then supply site-scoped values. Never inherit deploy/provider secrets.
@@ -180,7 +183,7 @@ export function createLocalSiteProcessPort(
       const compiled = import.meta.filename.endsWith(".js");
       const watch = !compiled && env.TOVU_DEV_WARM_SITES === "1";
       if (watch) childEnv.TOVU_LOCAL_SITE_WATCH = "1";
-      const args = localSiteLaunchArgs({ compiled, watch, repoRoot });
+      const args = localSiteLaunchArgs({ compiled, watch, repoRoot, tsxCli: env.TOVU_DEV_TSX_CLI });
       const diagnostics = localSiteProcessLog({ name, siteDir });
       const adapter = createNodeDaemonProcessAdapter({ command: process.execPath,
         args, cwd: repoRoot, env: childEnv, registry }, { ...processOptions, stderr: diagnostics.stderr });
