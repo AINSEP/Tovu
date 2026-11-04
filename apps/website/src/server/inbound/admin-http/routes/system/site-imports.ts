@@ -4,6 +4,7 @@ import { getAuthedPrincipal, rejectUnlessSessionCredential } from "#src/server/i
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { parseSiteImportInput } from "#src/features/site-backup/import-backend";
 import { SHARE_LIMITS, SiteShareRefusal } from "#src/features/site-backup/share-policy";
+import { formatByteSize } from "#src/features/site-backup/sources";
 import { sendAdminFailure } from "./site-share-errors.js";
 
 type Deps = Pick<RouteDeps, "workspaceId" | "authorize" | "siteImportBackend" | "tracker">;
@@ -38,16 +39,20 @@ export function registerAdminSiteImportRoutes(
       res.status(error.code === "NOT_FOUND" ? 404 : 400).json({ code: error.code, message: `${step} failed: ${error.message}` });
       return;
     }
-    const type = (error as { type?: string })?.type;
+    // entity.too.large carries the parser's configured byte limit, independent of the step label.
+    const { type, limit } = (error ?? {}) as { type?: string; limit: number };
     const tooLarge = type === "entity.too.large";
     // Parser refusals are bad uploads; a backend failure is an internal incident, never a 400.
-    const refusedUpload = ["encoding.unsupported", "entity.parse.failed", "request.aborted", "request.size.invalid"].includes(type ?? "");
-    if (tooLarge || refusedUpload) {
-      const limitMessage = step === "ZIP upload"
-        ? `ZIP upload exceeds the ${SHARE_LIMITS.maxArchiveBytes / (1024 * 1024)} MiB cap.`
-        : `${step} failed: the request exceeds the size limit for this step.`;
+    const parserMessages = new Map([
+      ["encoding.unsupported", "send an uncompressed request body."],
+      ["entity.parse.failed", "the request body could not be parsed."],
+      ["request.aborted", "the request ended before the complete body arrived."],
+      ["request.size.invalid", "the body size does not match the Content-Length header."],
+    ]);
+    const parserMessage = parserMessages.get(type ?? "");
+    if (tooLarge || parserMessage) {
       res.status(tooLarge ? 413 : 400).json({ code: tooLarge ? "LIMIT_EXCEEDED" : "IMPORT_FAILED",
-        message: tooLarge ? limitMessage : `${step} failed: send a complete request in the format this step accepts.` });
+        message: `${step} failed: ${tooLarge ? `the request is over the ${formatByteSize(limit)} limit for this step.` : parserMessage}` });
       return;
     }
     sendAdminFailure({ res, error, tracker: deps.tracker }, { operation: `site-import:${step}`, code: "IMPORT_FAILED", message: `${step} failed. No existing site was changed.`, field: "message" });

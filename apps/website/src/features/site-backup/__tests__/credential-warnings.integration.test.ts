@@ -19,7 +19,8 @@ import { runtimeSchemaVersion } from "#src/platform/site-dir/schema-guard";
 import { createShareArchiveReader } from "../import-archive-reader.js";
 import { verifySiteImport } from "../import-verifier.js";
 import { registerAdminSiteShareRoutes } from "#src/server/inbound/admin-http/routes/system/site-shares";
-import { dispatchJsonRequest, dispatchHttpRequest } from "#src/server/__tests__/helpers/in-process-http";
+import { dispatchJsonRequest } from "#src/server/__tests__/helpers/in-process-http";
+import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import type { RouteDeps } from "#src/server/routes/types";
 
 const key = "ghp_" + "a".repeat(36);
@@ -97,8 +98,11 @@ test("export keeps database values and complete plugin packages; download requir
   assert.equal((await registry.findToken(pendingRow))?.needsAcknowledgement, false);
   assert.equal((await dispatchJsonRequest(app, "POST", root + "/acknowledge", {})).status, 200);
   assert.equal(uploads, 1, "acknowledgement retries do not upload twice");
-  const downloaded = await dispatchHttpRequest({ app, method: "GET", url: root + "/download" });
+  // sendFile needs real HTTP backpressure/drain handling, absent from the in-memory socket.
+  const origin = await startTestServer(app, t);
+  const downloaded = await fetch(origin + root + "/download");
   assert.equal(downloaded.status, 200);
+  assert.deepEqual(Buffer.from(await downloaded.arrayBuffer()), archive);
   assert.equal((await dispatchJsonRequest(app, "POST", root.replace("workspaces/ws/", "workspaces/other/") + "/acknowledge", {})).status, 404);
   await registry.disable({ shareId: created.shareId, site: "ws" });
   assert.equal((await dispatchJsonRequest(app, "POST", root + "/acknowledge", {})).status, 404);

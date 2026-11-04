@@ -639,7 +639,7 @@ test('folder commits use the active-theme download layout, deterministic README 
   assert.doesNotMatch(files.get('sites/summer/index.html')!, /action="\/forms/);
   assert.match(files.get('README.txt')!, /Contact form/);
   assert.doesNotMatch(files.get('README.txt')!, /Exported:|\d{4}-\d\d-\d\d/);
-  assert.equal(files.has('index.html'), true);
+  assert.equal(files.has('website.html'), false);
   assert.ok(files.has('media/photo.png'));
 });
 
