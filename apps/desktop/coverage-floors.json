@@ -19,8 +19,8 @@
       "extensions": [".ts", ".mts", ".cts"],
       "minFilesOnDisk": 27,
       "floors": { "line": 96, "branch": 90, "funcs": 90 },
-      "_comment_knownUnmeasured": "src/speech/preload-speech.cts is a sandboxed Electron preload: it calls contextBridge at module scope, so importing it outside a preload context throws. preload-speech.test.ts runs the COMPILED dist bundle in a vm, which credits nothing to the source file. Grandfathered 2026-09-12 as preload-speech.cjs; repointed 2026-11-02 to its .cts successor, which until then matched no area extension and was silently uncounted. src/main/index.ts is the Electron composition root after the 2026-11-02 refactor: it imports electron at module scope (outside a real Electron process that resolves to a path string), and is meant to hold only construction and wiring, with every decision in a tested src/ module. Declared before the file landed; removed from knownUnmeasured on 2026-11-02 after the cloud run measured it (20% branch). Its measured branches now participate in the existing per-file policy. 2026-10-06: unwired desktop-chat WIP (0091b84d7), paused by the owner; remove these entries when the chat is wired with tests (the six desktop-agent*/desktop-chat-main/workspace-chat-ipc/workspace-conversation-store entries). 2026-10-21: workspace-chat-ipc.ts and workspace-conversation-store.ts now have their own test files (workspace-chat-ipc.test.ts, workspace-conversation-store.test.ts) and are removed; the four desktop-agent*/desktop-chat-main entries remain. This list is printed on every run, and an unmeasured file NOT on it fails the gate. preload.mts is deliberately absent: preload.test.ts imports it (through tsx's register, with electron mocked), so it is expected to be measured; if the cloud run shows otherwise the gate names it.",
-      "knownUnmeasured": ["src/speech/preload-speech.cts", "src/desktop-agent-inventory.ts", "src/desktop-agent-tools.ts", "src/desktop-agent.ts", "src/desktop-chat-main.ts"]
+      "_comment_knownUnmeasured": "src/speech/preload-speech.cts is a sandboxed Electron preload: it calls contextBridge at module scope, so importing it outside a preload context throws. preload-speech.test.ts runs the COMPILED dist bundle in a vm, which credits nothing to the source file. Grandfathered 2026-09-12 as preload-speech.cjs; repointed 2026-11-02 to its .cts successor, which until then matched no area extension and was silently uncounted. src/main/index.ts is the Electron composition root after the 2026-11-02 refactor: it imports electron at module scope (outside a real Electron process that resolves to a path string), and is meant to hold only construction and wiring, with every decision in a tested src/ module. Declared before the file landed; removed from knownUnmeasured on 2026-11-02 after the cloud run measured it (20% branch). Its measured branches now participate in the existing per-file policy. 2026-10-06: unwired desktop-chat WIP (0091b84d7), paused by the owner; remove these entries when the chat is wired with tests (the six desktop-agent*/desktop-chat-main/workspace-chat-ipc/workspace-conversation-store entries). 2026-10-21: workspace-chat-ipc.ts and workspace-conversation-store.ts now have their own test files (workspace-chat-ipc.test.ts, workspace-conversation-store.test.ts) and are removed; the four desktop-agent*/desktop-chat-main entries remain. 2026-11-03: the gate reported all four NOW COVERED (the desktop agent is wired and tested), so they are removed. This list is printed on every run, and an unmeasured file NOT on it fails the gate. preload.mts is deliberately absent: preload.test.ts imports it (through tsx's register, with electron mocked), so it is expected to be measured; if the cloud run shows otherwise the gate names it.",
+      "knownUnmeasured": ["src/speech/preload-speech.cts"]
     },
     {
       "id": "src renderer+contracts",
@@ -44,9 +44,10 @@
     },
     {
       "id": "bin",
+      "_comment_minFiles": "1 since 2026-11-03: bin/mcp-bridge.ts was deleted on purpose in d3cd357a4 (lean daemon composition; the bridge moved into the daemon), leaving bin/tovu-desktop.ts.",
       "dirs": ["bin"],
       "extensions": [".ts"],
-      "minFilesOnDisk": 2,
+      "minFilesOnDisk": 1,
       "floors": { "line": 85, "branch": 80, "funcs": 62 },
       "knownUnmeasured": []
     }
