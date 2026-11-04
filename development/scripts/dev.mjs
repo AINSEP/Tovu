@@ -818,6 +818,8 @@ async function main() {
   if (runtime.fallback) console.log("tovu dev: Electron unavailable; using stock Node for the API.");
   Object.assign(apiEnv, runtime.env);
   apiEnv.TOVU_DEV_WARM_SITES = "1";
+  // The API's source site children watch through tsx; dev hands in its CLI path so the shipped server never resolves the devDependency.
+  apiEnv.TOVU_DEV_TSX_CLI = createRequire(import.meta.url).resolve("tsx/cli");
   apiEnv.TOVU_DEV_WARM_HOST_URL = `${scheme}://localhost:${API_PORT}`;
   apiEnv.TOVU_DEV_WARM_CONTROL_TOKEN = randomBytes(32).toString("hex");
   apiEnv.TOVU_BUNDLED_AGENT_PLUGINS_DIR = process.env.TOVU_BUNDLED_AGENT_PLUGINS_DIR;
