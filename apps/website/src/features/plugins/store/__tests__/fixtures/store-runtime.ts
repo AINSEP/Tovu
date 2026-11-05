@@ -1,3 +1,4 @@
+/** Retired commerce fixture: preserves historical behavior tests; never imported by production. */
 /**
  * @file SPIKE — the sample Tier-3 store plugin (C) + checkout.
  *

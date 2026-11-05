@@ -1,3 +1,4 @@
+/** Retired commerce fixture: preserves historical behavior tests; never imported by production. */
 /**
  * @file lipay — the payments framework plugin (architecture review §3/§4/§6).
  *
@@ -46,11 +47,11 @@ import {
   type PaymentsServiceRequired,
 } from "@jini-ai/commerce/payments/kernel";
 import { migrateCommercePayments, sqlPaymentsLedger } from "@jini-ai/commerce/payments/ledger/sql";
-import { declareDataModule } from "../data-module.js";
-import { type PluginStore, pluginKernel } from "../plugin-store.js";
+import { declareDataModule } from "../../../data-module.js";
+import { type PluginStore, pluginKernel } from "../../../plugin-store.js";
 
-import { LIPAY_MANIFEST } from "./manifest.js";
-export { LIPAY_MANIFEST } from "./manifest.js";
+import { LIPAY_MANIFEST } from "../../manifest.js";
+export { LIPAY_MANIFEST } from "../../manifest.js";
 
 /** The plugin id the legacy `p_lipay__*` tables are namespaced under. */
 export const LIPAY_PLUGIN_ID = "lipay";

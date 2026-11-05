@@ -10,7 +10,7 @@ import { FORM_FLASH_COOKIE_NAME } from "../../inbound/public-http/http/site/rend
 import { MEMBER_SESSION_COOKIE } from "../../inbound/public-http/routes/members/complete-sign-in.js";
 import { registerSiteRoutes } from "../../inbound/public-http/routes/site/pages.js";
 import { registerProductRoutes, type CommerceSiteAdapterDeps } from "../../inbound/public-http/routes/site/products.js";
-import { registerStoreRoutes } from "../../inbound/public-http/routes/site/store.js";
+import { registerStoreRoutes } from "../../inbound/public-http/routes/site/__tests__/fixtures/legacy-store.js";
 import { createSeoModule } from "../../runtime/composition/modules/seo.js";
 import type { RouteDeps } from "../../routes/types.js";
 import { startTestServer } from "../helpers/http-test-server.js";

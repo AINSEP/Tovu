@@ -21,7 +21,7 @@ import {
 } from "@jini-ai/commerce/payments/kernel";
 import { createLipayFake, lipayFakeContext, type LipayFakeServer } from "@jini-ai/commerce/payments/testkit";
 import type { PluginStore } from "../../plugin-store.js";
-import { activateLipay } from "../lipay-plugin.js";
+import { activateLipay } from "./fixtures/lipay-plugin.js";
 
 export const SCOPE: PaymentScope = { workspaceId: "workspace-1", siteId: "site-1", providerId: "lipay", providerAccountId: "acct_fake", mode: "test" };
 

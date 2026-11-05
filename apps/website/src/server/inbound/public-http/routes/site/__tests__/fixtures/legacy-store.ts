@@ -1,3 +1,4 @@
+/** Retired commerce fixture: preserves historical behavior tests; never imported by production. */
 import { RESERVED_SEGMENTS } from "#src/platform/routing/index";
 /**
  * @file SPIKE — public `/store` page + `/store/buy` (D). Renders products that live in a
@@ -11,7 +12,7 @@ import { RESERVED_SEGMENTS } from "#src/platform/routing/index";
 import type { Express } from "express";
 
 import { siteRelativeTargetReason } from "@jini-ai/cms/redirects";
-import type { StoreApi } from "#src/features/plugins/store/store-plugin";
+import type { StoreApi } from "#src/features/plugins/store/__tests__/fixtures/store-runtime";
 import { escapeHtml } from "#src/platform/html/escape";
 
 const STORE_PATH = "/store";

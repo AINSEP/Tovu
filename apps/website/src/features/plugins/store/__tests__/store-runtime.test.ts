@@ -5,7 +5,7 @@ import path from "node:path";
 import test from "node:test";
 import Database from "better-sqlite3";
 import { sqliteKernel } from "@jini-ai/db/kernel/sqlite";
-import { activateStore as createRuntime, SEED_PRODUCTS } from "../store-runtime.js";
+import { activateStore as createRuntime, SEED_PRODUCTS } from "./fixtures/store-runtime.js";
 /** Store runtime tests use a real kernel and fixed tables; CMS snapshot semantics stay in `store-plugin.test.ts`.
  * Moved here from Jini (`packages/commerce/src/store/__tests__/store-plugin.test.ts`) with the runtime. */
 function tempDb() {

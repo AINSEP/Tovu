@@ -1,3 +1,4 @@
+/** Retired commerce fixture: preserves historical behavior tests; never imported by production. */
 /**
  * @file SPIKE — the sample Tier-3 store plugin (C) + checkout.
  *
@@ -11,15 +12,15 @@
  * direct for the spike (a real build routes writes through the typed core repository, §7). Every
  * statement runs on the storage kernel (`kernel.run`), so the same code serves SQLite and Postgres.
  */
-import type { ContentKernel } from "../../../platform/db/content-kernel.js";
-import { declareDataModule } from "../data-module.js";
-import { type PluginStore, pluginKernel } from "../plugin-store.js";
+import type { ContentKernel } from "../../../../../platform/db/content-kernel.js";
+import { declareDataModule } from "../../../data-module.js";
+import { type PluginStore, pluginKernel } from "../../../plugin-store.js";
 import { activateStore as activateRuntime, type StoreApi } from "./store-runtime.js";
 export { STORE_PLUGIN_ID, SEED_PRODUCTS } from "./store-runtime.js";
 export type { Product, CheckoutResult, StoreApi } from "./store-runtime.js";
 
-import { STORE_MANIFEST } from "./manifest.js";
-export { STORE_MANIFEST } from "./manifest.js";
+import { STORE_MANIFEST } from "../../manifest.js";
+export { STORE_MANIFEST } from "../../manifest.js";
 
 /** CMS adapter, unmounted: preserve the existing declaration's provenance and recovery protocol. */
 export async function activateStore(required: { db: PluginStore; dbPath: string }, optional: Record<string, never> = {}): Promise<StoreApi> {

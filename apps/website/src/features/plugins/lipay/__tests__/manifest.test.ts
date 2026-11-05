@@ -8,7 +8,7 @@ import { contentKernel } from "#src/platform/db/content-kernel";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { LIPAY_MANIFEST, LIPAY_PLUGIN_ID } from "../lipay-plugin.js";
+import { LIPAY_MANIFEST, LIPAY_PLUGIN_ID } from "./fixtures/lipay-plugin.js";
 import { declareDataModule } from "../../data-module.js";
 import { cleanup, lipayOn, makeLipay, SCOPE, tempDb } from "./support.js";
 

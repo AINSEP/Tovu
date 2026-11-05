@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
-import { registerStoreRoutes } from "../store.js";
+import { registerStoreRoutes } from "./fixtures/legacy-store.js";
 
 test("a purchase preserves existing return query parameters and places the message before the fragment", async () => {
   const app = express();

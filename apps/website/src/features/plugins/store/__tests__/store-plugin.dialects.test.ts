@@ -8,7 +8,7 @@ import { sql } from "kysely";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { describeEachDialect, heldUntil } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { listColumns } from "#src/platform/db/kernel/dialect";
-import { activateStore, SEED_PRODUCTS } from "../store-plugin.js";
+import { activateStore, SEED_PRODUCTS } from "./fixtures/store-plugin.js";
 
 /**
  * @file The store plugin's data paths on every dialect (storage plan P2): declaring its tables,

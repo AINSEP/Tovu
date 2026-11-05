@@ -14,7 +14,7 @@ import Database from "better-sqlite3";
 
 import { contentKernel } from "../../../../platform/db/content-kernel.js";
 import { checkNamespaceAdoption } from "../../plugin-identity.js";
-import { activateStore, bootstrapStore, SEED_PRODUCTS } from "../store-plugin.js";
+import { activateStore, bootstrapStore, SEED_PRODUCTS } from "./fixtures/store-plugin.js";
 
 function tempDb(): { db: Database.Database; dbPath: string; dir: string } {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-store-"));

@@ -5,8 +5,8 @@ import test from "node:test";
 import express from "express";
 
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import type { StoreApi } from "#src/features/plugins/store/store-plugin";
-import { registerStoreRoutes } from "../store.js";
+import type { StoreApi } from "#src/features/plugins/store/__tests__/fixtures/store-runtime";
+import { registerStoreRoutes } from "./fixtures/legacy-store.js";
 
 /**
  * @file Route-level coverage for `/store/buy`'s caller-chosen `returnTo` (t91 open-redirect fix,
