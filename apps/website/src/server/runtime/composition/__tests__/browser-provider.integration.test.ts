@@ -46,7 +46,7 @@ test("step 5: compiled-in source without a review approval never exposes browser
 });
 
 /** D-charts N-1: a 0.6.18 data dir holds activation rows written for the old content/plugins 0.1.0 copy.
- * Booting the packaged 0.6.22 source keeps each owner's choice; only an enabled row admits the
+ * Booting the packaged 0.6.23 source keeps each owner's choice; only an enabled row admits the
  * provider, and what reaches the browser is exactly the packaged bundle (the bytes the admin mounts). */
 const N1_AT = "2026-10-13T00:00:00.000Z";
 const n1Row = (overrides: { enabled: boolean; quarantinedAt?: string; quarantineReason?: string; quarantineFailureCount?: number }) =>
