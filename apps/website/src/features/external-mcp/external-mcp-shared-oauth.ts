@@ -55,17 +55,26 @@ export function createSharedExternalMcpOAuth(required: {
     if (!context?.mcp || context.identity.pluginId !== MCP_PLUGIN_ID || context.identity.connectionId !== 'oauth') throw unavailable();
     return context;
   }
+  function optionalAuthorization(authorizationEndpoint: string | undefined) {
+    return authorizationEndpoint === undefined ? {} : { authorizationEndpoint };
+  }
+  function audienceIdentity(endpoints: { resource?: string; issuer?: string }, identity: SharedMcpContext['identity']) {
+    const resource = endpoints.resource ?? identity.resource;
+    const issuer = endpoints.issuer ?? identity.issuer;
+    return { ...(resource === undefined ? {} : { resource }), ...(issuer === undefined ? {} : { issuer }) };
+  }
+  function endpointIdentity(record: ExternalMcpServerRecord, context: SharedMcpContext) {
+    const endpoints = JSON.parse(record.oauthEndpointsJson ?? '{}') as { tokenEndpoint?: string; authorizationEndpoint?: string; resource?: string; issuer?: string };
+    const expectedProvider = record.oauthProviderId === null ? undefined : resolveProvider(record);
+    return { tokenEndpoint: endpoints.tokenEndpoint ?? expectedProvider?.tokenEndpoint ?? context.identity.tokenEndpoint,
+      ...optionalAuthorization(endpoints.authorizationEndpoint ?? expectedProvider?.authorizationEndpoint ?? context.identity.authorizationEndpoint),
+      ...audienceIdentity(endpoints, context.identity) };
+  }
   function target(record: ExternalMcpServerRecord, context: SharedMcpContext) {
     if (record.authMode !== 'oauth' || record.transport === 'stdio' || record.url !== context.mcp.url) throw unavailable();
-    const endpoints = JSON.parse(record.oauthEndpointsJson ?? '{}') as { tokenEndpoint?: string; resource?: string; issuer?: string };
     const scopes = JSON.parse(record.oauthScopesJson ?? '[]') as string[];
-    const expectedProvider = record.oauthProviderId === null ? undefined : resolveProvider(record);
-    const resource = endpoints.resource ?? context.identity.resource;
-    const issuer = endpoints.issuer ?? context.identity.issuer;
     return { siteId, consumerId: consumerId(record.serverId), identity: { pluginId: MCP_PLUGIN_ID, connectionId: 'oauth',
-      tokenEndpoint: endpoints.tokenEndpoint ?? expectedProvider?.tokenEndpoint ?? context.identity.tokenEndpoint,
-      ...(resource === undefined ? {} : { resource }),
-      ...(issuer === undefined ? {} : { issuer }) }, requiredScopes: scopes };
+      ...endpointIdentity(record, context) }, requiredScopes: scopes };
   }
   async function refreshFor(credentialId: string) {
     const cached = refreshers.get(credentialId);
@@ -125,8 +134,8 @@ export function createSharedExternalMcpOAuth(required: {
     const config = await configure(input);
     const credentialId = deriveApiConnectionKey({ workspaceId: 'project', pluginId: MCP_PLUGIN_ID, connectionId: randomUUID() });
     const context: SharedMcpContext = { credentialId, identity: { pluginId: MCP_PLUGIN_ID, connectionId: 'oauth', clientId: config.client.clientId,
-      tokenEndpoint: config.provider.tokenEndpoint, ...(config.resource === undefined ? {} : { resource: config.resource }), ...(config.issuer === undefined ? {} : { issuer: config.issuer }) },
-      client: config.client, clientKind: 'public', descriptor: { pluginId: MCP_PLUGIN_ID, connectionId: 'oauth', label: config.record.label ?? config.record.serverId,
+      tokenEndpoint: config.provider.tokenEndpoint, ...(config.provider.authorizationEndpoint === undefined ? {} : { authorizationEndpoint: config.provider.authorizationEndpoint }), ...(config.resource === undefined ? {} : { resource: config.resource }), ...(config.issuer === undefined ? {} : { issuer: config.issuer }) },
+      client: config.client, clientKind: config.client.authMethod === 'none' ? 'public' : 'confidential', descriptor: { pluginId: MCP_PLUGIN_ID, connectionId: 'oauth', label: config.record.label ?? config.record.serverId,
         authorizationEndpoint: config.provider.authorizationEndpoint ?? config.provider.tokenEndpoint, tokenEndpoint: config.provider.tokenEndpoint,
         authorizationParams: { public: {}, confidential: {} }, forceConsentParams: {}, startParams: [], callbackFields: [] },
       mcp: { provider: config.provider, scopes: config.scopes, url: config.record.url, grant: config.record.oauthGrant } };

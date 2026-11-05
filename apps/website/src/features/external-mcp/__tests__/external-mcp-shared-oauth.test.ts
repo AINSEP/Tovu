@@ -199,7 +199,7 @@ test('registered provider and issuer changes reject before granting; stdio canno
   const h = await harness();
   const a = await h.site('site-a');
   const credentialId = await signIn(a);
-  for (const change of [{ oauthProviderId: 'provider-b' }, { oauthEndpointsJson: JSON.stringify({ issuer: 'https://different-issuer.example' }) }]) {
+  for (const change of [{ oauthProviderId: 'provider-b' }, { oauthEndpointsJson: JSON.stringify({ authorizationEndpoint: 'https://other-auth.example/authorize' }) }, { oauthEndpointsJson: JSON.stringify({ issuer: 'https://different-issuer.example' }) }]) {
     const b = await h.site('site-b');
     const row = (await b.repo.findByServerId({ workspaceId: 'workspace-local', serverId: 'server' }))!;
     await b.repo.upsert({ ...row, ...change });
