@@ -63,22 +63,30 @@ export function SharedKeys({ onClose, bridge = ownerStoreBridge({}) }: {
 /** Metadata stays visible; Replace asks for a fresh secret and never reveals the stored value. */
 function SavedKey({ entry, bridge, state }: { entry: OwnerStoreEntry; bridge: OwnerStoreBridge; state: StoreState }) {
   const [replacing, setReplacing] = useState(false);
+  if (entry.sharedOAuth) return <SavedOAuthConnection entry={entry} bridge={bridge} state={state} />;
   return <article className="shared-keys__row">
     <h3>{entry.label}</h3>
     <p>{entry.provider} · revision {entry.revision}</p>
-    <p>{entry.sharedOAuth ? `Shared connection · ${entry.status} · ${entry.usedBy?.join(', ') || 'No sites'}` : 'Saved — site usage unavailable'}</p>
-    {entry.sharedOAuth ? <button type="button" className="button button--quiet" disabled={state.busy || !bridge.disconnect}
-      onClick={() => void state.run({ action: () => bridge.disconnect({ id: entry.id, expectedRevision: entry.revision }, {}) })}>
-      {entry.status === 'revocation-pending' ? 'Retry disconnect everywhere' : 'Disconnect this shared connection from every site on this Mac'}
-    </button> : <>
+    <p>Saved — site usage unavailable</p>
+    <>
       <button type="button" className="button button--quiet" disabled={state.busy} onClick={() => setReplacing(!replacing)}>
         {replacing ? 'Cancel replacement' : 'Replace key'}
       </button>
       {replacing && (entry.kind === 'api-connection' ? <ProviderKeyForm bridge={bridge} state={state} entry={entry} /> : <KeyForm bridge={bridge} state={state} entry={entry} />)}
-    </>}
-    {!entry.sharedOAuth &&
+    </>
     <button type="button" className="button button--quiet" disabled={state.busy} onClick={() => void state.run({ action: () => bridge.delete({ id: entry.id, expectedRevision: entry.revision }, {}) })}>Delete unused key</button>
-    }
+  </article>;
+}
+
+/** Shared connections use their fenced lifecycle, never a pasted token or an unused-key delete. */
+function SavedOAuthConnection({ entry, bridge, state }: { entry: OwnerStoreEntry; bridge: OwnerStoreBridge; state: StoreState }) {
+  return <article className="shared-keys__row">
+    <h3>{entry.label}</h3>
+    <p>Shared connection · {entry.status} · {entry.usedBy?.join(', ') || 'No sites'}</p>
+    <button type="button" className="button button--quiet" disabled={state.busy || !bridge.disconnect}
+      onClick={() => void state.run({ action: () => bridge.disconnect({ id: entry.id, expectedRevision: entry.revision }, {}) })}>
+      {entry.status === 'revocation-pending' ? 'Retry disconnect everywhere' : 'Disconnect this shared connection from every site on this Mac'}
+    </button>
   </article>;
 }
 

@@ -15,7 +15,7 @@ async function fixture() {
       forceConsentParams: {}, startParams: [], callbackFields: [] } };
   let inTransaction = false;
   let credentialPresent = true;
-  const tokens = { accessToken: 'private-access', refreshToken: 'private-refresh', tokenType: 'Bearer' as const, expiresAtMs: 0 };
+  const tokens = { accessToken: 'private-access', refreshToken: 'private-refresh', tokenType: 'Bearer' as const, scopes: ['read'], expiresAt: null };
   const attachments = fakeAttachments();
   await attachments.attach({ siteId: 'a', siteName: 'A', keyId: credentialId });
   await attachments.attach({ siteId: 'b', siteName: 'B', keyId: credentialId });

@@ -340,3 +340,54 @@ test("Shared Keys lists custom and provider rows, replaces them without losing m
     assert.ok(removed.ok);
   } finally { await f.close(); }
 });
+
+test('owner shared OAuth disconnect reviews real SQLite grants, rejects stale approval, and keeps tokens disabled for retry', async () => {
+  const { createSharedOAuthOwnerStorage } = await import('#src/features/api-connections/shared-owner');
+  const { deriveApiConnectionKey } = await import('@jini-ai/integrations/api-connections');
+  const f = await fixture();
+  try {
+    const workspace = createSitesWorkspace({}, { homeDir: f.home, cwd: f.home, env: {}, sourceRoots: [], appDataDir: f.userDataDir });
+    const project = await openProjectStore({ sitesHome: workspace.home({}), home: f.home, appDataDir: f.userDataDir });
+    try {
+      const clock = { nowMs: () => Date.now() };
+      const storage = createSharedOAuthOwnerStorage({ scope: project.vault, clock });
+      const credentialId = deriveApiConnectionKey({ workspaceId: 'project', pluginId: 'mail', connectionId: 'account' });
+      const descriptor = { pluginId: 'mail', connectionId: 'account', label: 'Shared mail', authorizationEndpoint: 'https://auth.example/authorize',
+        tokenEndpoint: 'https://auth.example/token', authorizationParams: { public: {}, confidential: {} }, forceConsentParams: {}, startParams: [], callbackFields: [] };
+      const context = { credentialId, identity: { pluginId: 'mail', connectionId: 'account', clientId: 'issuing-client', tokenEndpoint: descriptor.tokenEndpoint },
+        descriptor, client: { clientId: 'issuing-client', clientSecret: 'private-issuing-secret', authMethod: 'client_secret_post' as const }, clientKind: 'public' as const };
+      await storage.saveContext({ credentialId, context });
+      await storage.records.compareAndSet({ key: credentialId, expectedRevision: 0, record: { key: credentialId, workspaceId: 'project', pluginId: 'mail', connectionId: 'account',
+        status: 'connected', revision: 1, generation: 1, account: { accountId: 'account-a', displayName: 'Person' }, grantedScopes: ['read'], staged: null, revocationFailure: null, updatedAt: new Date().toISOString() } });
+      const tokens = storage.tokensFor({ context });
+      await tokens.install({ key: credentialId, generation: 1, tokens: { accessToken: 'private-shared-access', refreshToken: 'private-shared-refresh', tokenType: 'Bearer', scopes: ['read'], expiresAt: new Date(clock.nowMs() + 60000).toISOString() } });
+      await project.attachments.attach({ siteId: 'site-a', siteName: 'Site A', keyId: credentialId });
+      await project.attachments.attach({ siteId: 'site-b', siteName: 'Site B', keyId: credentialId });
+      const listed = await f.invoke({ action: 'list' });
+      assert.equal(listed.ok, true);
+      if (!listed.ok) return;
+      const shared = (listed.data.entries as OwnerStoreEntry[]).find(row => row.id === credentialId)!;
+      assert.equal(shared.sharedOAuth, true);
+      assert.deepEqual(shared.usedBy, ['Site A', 'Site B']);
+      const dry = await f.invoke({ action: 'disconnect', request: { id: credentialId, expectedRevision: shared.revision, apply: false } });
+      assert.equal(dry.ok, true);
+      if (!dry.ok) return;
+      assert.deepEqual(dry.data.sites, ['Site A', 'Site B']);
+      await project.attachments.attach({ siteId: 'site-c', siteName: 'Site C', keyId: credentialId });
+      const stale = await f.invoke({ action: 'disconnect', request: { id: credentialId, expectedRevision: shared.revision, apply: true, expectedDigest: dry.data.sourceDigest } });
+      assert.ok(!stale.ok && stale.error.code === 'source-changed');
+      assert.equal((await storage.records.read({ key: credentialId }))?.status, 'connected');
+      const reviewed = await f.invoke({ action: 'disconnect', request: { id: credentialId, expectedRevision: shared.revision, apply: false } });
+      assert.equal(reviewed.ok, true);
+      if (!reviewed.ok) return;
+      const result = await f.invoke({ action: 'disconnect', request: { id: credentialId, expectedRevision: shared.revision, apply: true, expectedDigest: reviewed.data.sourceDigest } });
+      assert.ok(result.ok && result.data.applied === true && result.data.remoteRevocation === 'pending');
+      assert.deepEqual(await project.attachments.usersOf({ keyId: credentialId }), []);
+      assert.equal((await storage.records.read({ key: credentialId }))?.generation, 2);
+      assert.equal(await tokens.load({ key: credentialId }), null);
+      assert.equal((await tokens.loadForRevocation({ key: credentialId }))?.refreshToken, 'private-shared-refresh');
+      assert.equal(f.output.join('').includes('private-shared'), false);
+      assert.equal(f.output.join('').includes('private-issuing'), false);
+    } finally { project.close({}); }
+  } finally { await f.close(); }
+});
