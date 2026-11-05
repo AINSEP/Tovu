@@ -77,7 +77,7 @@ test("the content history through the current head applies on real Postgres", as
     "0027_search_index", "0028_search_index_retired", "0029_mail_activity_indexes",
     "0030_mail_suppression_admin", "0031_mail_activity_retention", "0032_member_signup_email",
     "0033_mail_activity_message", "0034_member_auth", "0035_member_external_identities",
-    "0036_publish_history_config_jsonb", "0037_media_source_metadata", "0038_newsletter_sending_index", "0039_owner_recovery_codes",
+    "0036_publish_history_config_jsonb", "0037_media_source_metadata", "0038_newsletter_sending_index", "0039_owner_recovery_codes", "0040_owner_mfa",
   ];
   assert.deepEqual(report.applied, head);
   assert.deepEqual(CONTENT_MIGRATIONS.map(step => step.id), head);
@@ -94,7 +94,7 @@ test("the content history through the current head applies on real Postgres", as
     "search_index_watermarks", "search_index_targets", "search_index_retired",
   ];
   assert.equal(n, collectCoreTables().length + nonCoreTables.length, "declared content tables plus search document, ledger and TS-only tables; 0035's member_external_identities is already core");
-  assert.equal(n, 94, "94 tables through 0039_owner_recovery_codes: an accidental drop or addition must change this pin");
+  assert.equal(n, 96, "96 tables through 0040_owner_mfa: an accidental drop or addition must change this pin");
   assert.deepEqual(await baseline.query(sql`SELECT udt_name FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'publish_history' AND column_name = 'config_fields_json'`), [{ udt_name: "jsonb" }]);
   const [{ cfg }] = await baseline.query<{ cfg: number }>(sql`SELECT count(*)::int AS cfg FROM pg_ts_config WHERE cfgname = 'tovu_search'`);
   assert.equal(cfg, 1);
