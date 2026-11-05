@@ -28,7 +28,7 @@ export interface CommerceRuntime {
   readOrder: CommerceServer['readOrder'];
   activate: CommerceServer['activate'];
   toolRegistrations(required: { authorize: AuthorizeFn }): ToolRegistration[];
-  status(): Promise<{ active: boolean; ready: boolean; reason: string | null }>;
+  status(): Promise<{ active: boolean; ready: boolean; reason: string | null; webhookUrl?: string | null }>;
   checkoutOrigin(): Promise<string | null>;
   resolveReceiver(): WebhookReceiver | null;
 }
@@ -66,6 +66,14 @@ export function composeCommerce(required: ComposeCommerceRequired, optional: { w
 } {
   const warn = optional.warn ?? (message => console.warn(`[commerce] ${message}`));
   const enabled = createAgentPluginEnabledReader({ workspaceRoot: required.workspaceRoot });
+  let activationUnreadable = false;
+  async function isActive(): Promise<boolean> {
+    try { const active = await enabled('commerce'); activationUnreadable = false; return active; }
+    catch {
+      if (!activationUnreadable) warn('Commerce activation cannot be confirmed. Checkout is paused; existing payments continue draining. Re-enable Commerce through plugin settings once activation storage is available.');
+      activationUnreadable = true; return false;
+    }
+  }
   const providers = providerRegistry(required);
   const products = commerceProductRepoFor(required), prices = commercePriceRepoFor(required), orders = commerceOrderRepoFor(required);
   const orderPayments = commerceOrderPaymentRepoFor(required), priceRefs = commercePriceProviderRefRepoFor(required);
@@ -77,6 +85,12 @@ export function composeCommerce(required: ComposeCommerceRequired, optional: { w
   let storageReady = false;
   let configurationProblem: string | null = null;
   let configurationChecked = false;
+  let warnedConfiguration: string | null = null;
+  async function reportConfiguration(problem: string | null): Promise<void> {
+    if (!problem) { warnedConfiguration = null; return; }
+    if (problem === warnedConfiguration || !await isActive()) return;
+    warnedConfiguration = problem; warn(problem);
+  }
   const ensureSchema = async () => {
     schema ??= migrateCommerceDatabase({ kernel: required.kernel }).then(() => migrateCommercePayments({ kernel: required.kernel })).then(() => { storageReady = true; });
     try { await schema; } catch (error) { schema = undefined; throw error; }
@@ -105,7 +119,7 @@ export function composeCommerce(required: ComposeCommerceRequired, optional: { w
   let lastReconcile = 0;
   function reusable(configured: CommerceConfiguration | null): boolean {
     if (!binding || configurationProblem) return false;
-    return (!storageReady || configurationChecked) && commerceConfigurationKey(binding.config) === commerceConfigurationKey(configured);
+    return (!storageReady || configurationChecked) && commerceConfigurationKey({ config: binding.config }) === commerceConfigurationKey({ config: configured });
   }
   async function resolve(): Promise<Binding | null> {
     if (closed) return null;
@@ -115,20 +129,26 @@ export function composeCommerce(required: ComposeCommerceRequired, optional: { w
     const selection = selectCommerceDrain({ configured, previous: binding?.config ?? null,
       recorded: storageReady ? await readCommerceDrain(required) : null });
     configurationProblem = selection.problem;
+    await reportConfiguration(configurationProblem);
     configurationChecked = storageReady;
     const config = selection.config;
     if (!config) return null;
-    if (binding && commerceConfigurationKey(binding.config) === commerceConfigurationKey(config)) return binding;
+    if (binding && commerceConfigurationKey({ config: binding.config }) === commerceConfigurationKey({ config })) return binding;
     const scope: PaymentScope = { workspaceId: required.workspaceId, siteId: required.siteId,
       providerId: config.providerId, providerAccountId: config.accountId, mode: config.mode };
     const contexts = providerContexts({ ...required, config, scope });
     const deps = { ...sharedDeps, contexts };
     const payOrderDeps = ({ orderId }: { orderId: string }): PayOrderDeps => ({ orders, prices, priceRefs, orderPayments, settle,
       payments: createPaymentsService({ ...deps, contexts: providerContexts({ ...required, config, scope }, { orderId }) }) });
-    const server = createCommerceServer({ scope, publicOrigin: config.publicOrigin, isActive: () => enabled('commerce'), ensureSchema,
+    const server = createCommerceServer({ scope, publicOrigin: config.publicOrigin, isActive, ensureSchema,
       checkoutDeps: { products, prices, orders, clock: required.clock, idGen: required.idGen }, payOrderDeps, warn });
-    const receiver = createWebhookReceiver({ ...deps, endpoints: { resolve: async path =>
+    const coreReceiver = createWebhookReceiver({ ...deps, endpoints: { resolve: async path =>
       path.siteId === scope.siteId && path.providerId === scope.providerId && path.endpointId === scope.mode ? scope : null } });
+    const receiver: WebhookReceiver = { resolveEndpoint: coreReceiver.resolveEndpoint, receive: async (input, options) => {
+      const result = await coreReceiver.receive(input, options);
+      if (result.status === 200) void worker.kick();
+      return result;
+    } };
     binding = { config, server, receiver, contexts, problem: async () => {
       if (configurationProblem) return configurationProblem;
       const registered = providers.get({ id: scope.providerId });
@@ -140,7 +160,7 @@ export function composeCommerce(required: ComposeCommerceRequired, optional: { w
   }
   async function server(): Promise<CommerceServer> {
     const current = await resolve();
-    if (!current) throw new CommerceUnavailableError('Commerce has no configured payment account and deployed HTTPS site. Configure core.commerce.configuration before enabling checkout.');
+    if (!current) throw new CommerceUnavailableError('The store owner needs to configure a payment account and deployed HTTPS site before checkout can accept payments.');
     return current.server;
   }
   async function checkoutServer(): Promise<CommerceServer> {
@@ -154,7 +174,7 @@ export function composeCommerce(required: ComposeCommerceRequired, optional: { w
     return current.server;
   }
   const worker = createCommerceWorker({ owner: required.workerOwner, directory: required.workerDirectory, warn,
-    active: () => enabled('commerce'), hasPending: async () => {
+    active: isActive, hasPending: async () => {
       if (!storageReady) return false;
       const rows = await required.kernel.query<{ pending: number }>(sql`SELECT 1 AS pending FROM commerce_payments WHERE workspace_id=${required.workspaceId} AND intent_status NOT IN ('succeeded','failed','canceled') LIMIT 1`);
       if (rows.length > 0) return true;
@@ -173,14 +193,14 @@ export function composeCommerce(required: ComposeCommerceRequired, optional: { w
     } }, required.kernel.transport === 'node-postgres' ? { withOwnership: run => withKernelSessionLock({ kernel: required.kernel, key: 'commerce:settlement-worker', run }) } : {});
   async function warm(): Promise<void> {
     try {
-      if (await enabled('commerce')) { const current = await resolve(); if (current) await current.server.activate(); }
+      if (await isActive()) { const current = await resolve(); if (current) await current.server.activate(); }
       else {
         // One metadata read at boot recovers previously-started work without creating an off catalog.
         const tables = await required.kernel.run(db => db.introspection.getTables());
         storageReady = tables.some(table => table.name === 'commerce_payments');
         if (storageReady) await migrateCommercePayments({ kernel: required.kernel });
       }
-      if (storageReady) await worker.kick();
+      if (storageReady) { await resolve(); await worker.kick(); }
     } catch { warn('Commerce is unavailable; the rest of the site remains online.'); }
   }
   const warming = warm();
@@ -188,15 +208,16 @@ export function composeCommerce(required: ComposeCommerceRequired, optional: { w
       createOrder: async input => { const result = await (await checkoutServer()).createOrder(input); void worker.kick(); return result; },
       pay: async input => { const result = await (await checkoutServer()).pay(input); void worker.kick(); return result; },
       readOrder: async input => readOwnedCommerceOrder({ deps: { workspaceId: required.workspaceId, siteId: required.siteId, orders, orderPayments, payments: sharedPayments }, input }),
-      activate: async () => (await checkoutServer()).activate(),
+      activate: async () => { const status = await (await checkoutServer()).activate(); if (status.ready) { void worker.kick(); } return status; },
       status: async () => { try { const current = await resolve();
-        if (!current) return { active: false, ready: false, reason: 'Commerce has no configured payment account and deployed HTTPS site.' };
+        if (!current) return { active: await isActive(), ready: false, reason: 'Commerce has no configured payment account and deployed HTTPS site.' };
         const status = await current.server.status();
         const problem = status.active ? await current.problem() : null;
-        return problem ? { ...status, ready: false, reason: problem } : status; }
+        const webhookUrl = `${new URL(current.config.publicOrigin).origin}/api/payments/webhooks/${encodeURIComponent(required.siteId)}/${current.config.providerId}/${current.config.mode}`;
+        return problem ? { ...status, ready: false, reason: problem, webhookUrl } : { ...status, webhookUrl }; }
         catch { return { active: false, ready: false, reason: 'Commerce configuration could not be read; checkout is unavailable while the site remains online.' }; } },
       checkoutOrigin: async () => { const current = await resolve(); return current ? new URL(current.config.publicOrigin).origin : null; },
-      resolveReceiver: () => storageReady ? binding?.receiver ?? null : null,
+      resolveReceiver: () => storageReady && !closed ? binding?.receiver ?? null : null,
       toolRegistrations: ({ authorize }) => [
         ...buildCommerceStatusTools({ workspaceId: required.workspaceId, authorize, commerce }),
         ...buildCommerceCatalogRegistrations({ workspaceId: required.workspaceId, authorize, commerce, products, prices, clock: required.clock, idGen: required.idGen }),
@@ -205,7 +226,7 @@ export function composeCommerce(required: ComposeCommerceRequired, optional: { w
   return { commerce,
     commerceCatalog: { listProducts: async () => {
       try {
-        if (!await enabled('commerce')) return [];
+        if (!await isActive()) return [];
         const current = await resolve();
         if (!current || !(await current.server.activate()).ready) return [];
         return catalog.listProducts({});

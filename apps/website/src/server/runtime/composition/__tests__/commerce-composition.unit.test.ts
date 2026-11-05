@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { access, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
@@ -58,3 +58,78 @@ test('disabled restart drains an outbox-only backlog even after merchant configu
   assert.deepEqual(await ledger.transaction({ fn: tx => tx.listPendingOutbox({ limit: 10 }) }), []);
   assert.equal(httpCalls, 0);
 });
+
+test('activated SQL checkout binds original merchant scope, blocks foreign members and reads ledger truth after disable/config removal', async t => {
+  const { createLipayFake, LIPAY_FAKE_SECRET } = await import('@jini-ai/commerce/payments/testkit');
+  const { commerceProductRepoFor, commercePriceRepoFor } = await import('@jini-ai/commerce/repo');
+  const { set } = await import('@jini-ai/core/settings');
+  const directory = await mkdtemp(path.join(tmpdir(), 'commerce-checkout-'));
+  const kernel = openMemorySqliteKernel<unknown>();
+  let runtime: ReturnType<typeof composeCommerce> | undefined;
+  t.after(async () => { await runtime?.close(); await kernel.close(); await rm(directory, { recursive: true, force: true }); });
+  const activate = (enabled: boolean) => writeFile(path.join(directory, 'activations.json'), JSON.stringify({ schemaVersion: 1, plugins: { commerce: { enabled, origin: 'bundled', updatedAt: '2026-11-05T19:00:00.000Z', updatedBy: 'test' } } }));
+  await activate(true);
+  const settingsRepo = new InMemorySettingsRepo();
+  const clock = { nowMs: () => 1_800_000_000_000 }, idGen = { newId: () => randomUUID() };
+  const deps = { settingsRepo, clock, ids: idGen, principals: { findActiveById: async () => null } };
+  await ensureCommerceSetting({ deps, systemPrincipalId: 'commerce-test' });
+  const write = (value: Record<string, string>) => set({ deps: { ...deps, repo: settingsRepo, authorize: async () => ({ allowed: true, reason: 'test' }) },
+    input: { namespace: 'core.commerce', key: 'configuration', workspaceId: 'workspace', scope: 'workspace', value, callerPrincipalId: 'owner' } });
+  await write({ providerId: 'lipay', accountId: 'merchant-original', mode: 'test', publicOrigin: 'https://shop.example:443/' });
+  const fake = createLipayFake({ now: clock.nowMs });
+  let creates = 0, returnUrl = '', webhookUrl = '';
+  const provider = { ...fake.provider, createIntent: async (...args: Parameters<typeof fake.provider.createIntent>) => {
+    creates++; returnUrl = args[0].ctx.returnUrl; webhookUrl = args[0].ctx.webhookUrl; return fake.provider.createIntent(...args);
+  } };
+  const ports = { kernel, workspaceId: 'workspace', siteId: 'site', workspaceRoot: directory,
+    workerOwner: false, workerDirectory: directory, settingsRepo, settingsReady: Promise.resolve(), clock, idGen,
+    providers: { paymentProviders: () => [{ pluginId: 'payments-fake', module: provider }] },
+    providerConfig: { read: async () => ({ settings: { accountId: 'merchant-original' }, secrets: { test_webhookSecret: LIPAY_FAKE_SECRET } }) } as unknown as ProviderConfigSource,
+    httpClient: { send: async () => { throw new Error('no network'); } },
+  };
+  runtime = composeCommerce(ports);
+  await runtime.commerce.activate(); assert.equal((await runtime.commerce.status()).ready, true);
+  assert.equal(await runtime.commerce.checkoutOrigin(), 'https://shop.example');
+  const at = new Date(clock.nowMs()).toISOString();
+  await commerceProductRepoFor({ kernel }).save({ id: 'product', workspaceId: 'workspace', name: 'Book', slug: 'book', kind: 'one_time', status: 'active', createdAt: at, updatedAt: at, version: 1 });
+  await commercePriceRepoFor({ kernel }).save({ id: 'price', workspaceId: 'workspace', productId: 'product', unitAmount: { minorUnits: 1200, currency: 'JPY' }, status: 'active', createdAt: at, version: 1 });
+  const checkout = await runtime.commerce.createOrder({ memberId: 'buyer', priceId: 'price' });
+  await assert.rejects(runtime.commerce.pay({ memberId: 'foreign-member', orderId: checkout.order.id })); assert.equal(creates, 0);
+  const paid = await runtime.commerce.pay({ memberId: 'buyer', orderId: checkout.order.id });
+  assert.equal(paid.order.status, 'paid'); assert.equal(paid.payment?.captured.minorUnits, 1200); assert.equal(creates, 1);
+  assert.equal(returnUrl, `https://shop.example/commerce/return?orderId=${checkout.order.id}`);
+  assert.equal(webhookUrl, 'https://shop.example/api/payments/webhooks/site/lipay/test');
+  await runtime.commerce.pay({ memberId: 'buyer', orderId: checkout.order.id }); assert.equal(creates, 1);
+  await activate(false); await write({});
+  const read = await runtime.commerce.readOrder({ memberId: 'buyer', orderId: checkout.order.id });
+  assert.equal(read.order.status, 'paid'); assert.equal(read.payment?.scope.providerAccountId, 'merchant-original'); assert.equal(read.intent, null);
+  await assert.rejects(runtime.commerce.readOrder({ memberId: 'foreign-member', orderId: checkout.order.id }));
+  assert.equal(creates, 1);
+  // Drain the already-paid outbox, then restart idle/off with no pending work.
+  await write({ providerId: 'lipay', accountId: 'merchant-original', mode: 'test', publicOrigin: 'https://shop.example' });
+  await runtime.close(); runtime = composeCommerce({ ...ports, workerOwner: true }); await runtime.close();
+  runtime = composeCommerce({ ...ports, workerOwner: true });
+  await eventually(async () => runtime!.commerce.resolveReceiver() !== null);
+  await eventually(async () => { try { await access(path.join(directory, 'commerce-worker.lock')); return false; } catch { return true; } });
+  const receiver = runtime.commerce.resolveReceiver()!;
+  const endpoint = await receiver.resolveEndpoint({ path: { siteId: 'site', providerId: 'lipay', endpointId: 'test' } });
+  assert.equal(endpoint.ok, true);
+  if (!endpoint.ok) throw new Error('configured endpoint missing');
+  const [ledgerPayment] = await kernel.query<{ provider_ref: string }>(sql`SELECT provider_ref FROM commerce_payments WHERE id=${paid.payment!.id}`);
+  assert.ok(ledgerPayment?.provider_ref);
+  const delivery = fake.server.webhook({ type: 'charge.succeeded', id: ledgerPayment.provider_ref, eventId: 'late-off-event' });
+  assert.equal((await receiver.receive({ endpoint: endpoint.endpoint, ...delivery })).status, 200);
+  await eventually(async () => {
+    const rows = await kernel.query<{ state: string }>(sql`SELECT state FROM commerce_webhook_inbox WHERE provider_event_id='late-off-event'`);
+    return rows[0]?.state === 'applied';
+  });
+  assert.equal(creates, 1);
+});
+
+async function eventually(check: () => Promise<boolean>): Promise<void> {
+  for (let attempt = 0; attempt < 100; attempt++) {
+    if (await check()) return;
+    await new Promise<void>(resolve => setTimeout(resolve, 10));
+  }
+  assert.fail('background settlement did not reach its expected durable state');
+}

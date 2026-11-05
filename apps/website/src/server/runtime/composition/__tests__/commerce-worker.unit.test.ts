@@ -100,3 +100,12 @@ test('standby retries ownership and takes over after the former owner exits with
   available = true; timers.shift()!(); await tick(); assert.equal(runs, 1); assert.equal(timers.length, 1);
   await worker.close(); assert.equal(timers.length, 0);
 });
+
+test('unreadable activation cannot strand previously recorded payment work', async () => {
+  let runs = 0;
+  const worker = createCommerceWorker({ owner: true, directory: 'unused', active: async () => { throw new Error('unreadable activation'); },
+    hasPending: async () => true, run: async () => { runs++; }, warn: () => {} }, {
+    acquire: () => () => {}, schedule: () => () => {},
+  });
+  await worker.kick(); assert.equal(runs, 1); await worker.close();
+});

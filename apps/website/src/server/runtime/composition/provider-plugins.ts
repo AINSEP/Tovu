@@ -54,7 +54,8 @@ export interface SiteIdentity {
  * traces metadata plus a `site:<slug>` tag.
  * @complexity O(1).
  */
-export function attributionFor({ contract, site }: { contract: ProviderContract; site: SiteIdentity }, { release = processBuildRelease({}) }: { release?: string } = {}): Readonly<Record<string, unknown>> {
+export function attributionFor({ contract, site }: { contract: ProviderSlotContract; site: SiteIdentity }, { release = processBuildRelease({}) }: { release?: string } = {}): Readonly<Record<string, unknown>> {
+  if (contract === "payments") return {};
   if (contract === "observability") {
     return { attributes: { "tovu.site.id": site.siteId, "tovu.site.slug": site.siteSlug, "deployment.environment": site.environment, "tovu.project.id": site.projectId, "service.version": release } };
   }
@@ -290,6 +291,8 @@ function composePorts({ leases, consent, consentRevision, site, warn, product }:
   };
 }
 
+function isTelemetrySlot(slot: ProviderSlot): slot is ProviderSlot & { contract: ProviderContract } { return slot.contract !== 'payments'; }
+
 /**
  * Selects, loads and initializes provider plugins, then composes one port per contract.
  * @param required Plugin runtime, saved-settings source, service identity and the operator's telemetry consent.
@@ -340,7 +343,7 @@ export async function bootProviderPlugins(required: BootProviderPluginsRequired,
         // Host environment is only a default: a card's saved environment (Sentry) wins, and a blank one
         // is already dropped by providerInputOf. Release stays host-owned; no card declares it.
         input: { environment: required.site.environment, ...input, serviceName: required.serviceName, release,
-          attribution: slot.contract === "payments" ? {} : attributionFor({ contract: slot.contract, site: required.site }, { release }) } }, {
+          attribution: attributionFor({ contract: slot.contract, site: required.site }, { release }) } }, {
         factoryOptions: {
           ...exportOptions(slot.contract),
           reportTelemetry: (report: ProviderTelemetryReport) => delivery.report({ providerId: `${slot.pluginId}/${slot.id}`, report }),
@@ -411,8 +414,7 @@ export async function bootProviderPlugins(required: BootProviderPluginsRequired,
     return recorded;
   }
   const leases = new Map<ProviderContract, unknown[]>();
-  for (const slot of slots) {
-    if (slot.contract === "payments") continue;
+  for (const slot of slots.filter(isTelemetrySlot)) {
     if (slot.contract === "observability" || slot.contract === "product_analytics") delivery.register({ providerId: `${slot.pluginId}/${slot.id}` });
     leases.set(slot.contract, [...(leases.get(slot.contract) ?? []), gatedPort({ slot, contract: slot.contract, testProbe })]);
   }

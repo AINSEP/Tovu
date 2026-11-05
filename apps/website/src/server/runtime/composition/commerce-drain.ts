@@ -5,7 +5,7 @@ import type { CommerceConfiguration } from './commerce-settings.js';
 interface RecordedCommerce {
   provider_id: string; provider_account_id: string; mode: 'test' | 'live'; dispatch_json: string | null;
 }
-export const commerceConfigurationKey = (config: CommerceConfiguration | null): string => JSON.stringify(config);
+export function commerceConfigurationKey({ config }: { config: CommerceConfiguration | null }, _optional = {}): string { return JSON.stringify(config); }
 
 /** Read one durable unfinished intent, only at activation/configuration transitions.
  * @complexity At most one result row and one original intent snapshot; no provider I/O. */

@@ -45,10 +45,14 @@ export function createCommerceWorker(required: CommerceWorkerRequired, optional:
       required.warn('Payment settlement ownership was lost; this process stopped its worker.'); return false;
     }
   }
+  async function hasWork(): Promise<boolean> {
+    try { if (await required.active()) return true; } catch { /* Activation governs new work; durable work still drains. */ }
+    return required.hasPending();
+  }
   async function step(): Promise<void> {
     if (!await stillOwner()) { finish?.(); return; }
     try {
-      if (!await required.active() && !await required.hasPending()) { finish?.(); return; }
+      if (!await hasWork()) { finish?.(); return; }
       await required.run(); delayed = false;
     } catch {
       if (!delayed) required.warn('Payment settlement is delayed; recorded payments will retry automatically.');
@@ -62,7 +66,7 @@ export function createCommerceWorker(required: CommerceWorkerRequired, optional:
   async function retryOwnership(): Promise<void> {
     if (closed) return;
     try {
-      if (!await required.active() && !await required.hasPending()) return;
+      if (!await hasWork()) return;
       if (!closed) cancel = schedule(() => { cancel = undefined; void worker.kick(); }, 5000);
     } catch { required.warn('Payment settlement ownership retry is delayed; recorded work remains queued.'); }
   }

@@ -966,6 +966,7 @@ test('payment providers use the shared host and disappear on detach', async () =
   try {
     const current = providers.paymentProviders({});
     assert.equal(current.length, 1);
+    assert.deepEqual(calls.inputs[0]?.attribution, {});
     assert.equal(current[0]?.pluginId, 'payments-example');
     assert.equal(current[0]?.module.id, fake.provider.id);
     runtime.providerContributions.detach({ pluginId: 'payments-example' });

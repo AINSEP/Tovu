@@ -2835,7 +2835,7 @@ async function composeSiteRouteDeps(
 
   const commerceBinding = composeCommerce({ kernel: kernel as unknown as StorageKernel<unknown>,
     workspaceId, siteId: projectSiteId || workspaceId, workspaceRoot: agentPluginLayout.forWorkspace(workspaceId).root,
-    workerOwner: (overrides.storeRole ?? 'owner') === 'owner', workerDirectory: resolvedSiteBinding.dir,
+    workerOwner: (overrides.storeRole ?? 'owner') === 'owner', workerDirectory: dbPath === ':memory:' ? resolvedSiteBinding.dir : dirname(dbPath),
     settingsRepo, settingsReady: siteTitleReady, providerConfig: providerConfigSource, providers: providerPlugins,
     httpClient: { send: ({ request }, options) => createDefaultHttpClient(SINGLE_HOP_HTTPS_EGRESS_POLICY, { observability }).send(request, options) }, clock, idGen,
   });
