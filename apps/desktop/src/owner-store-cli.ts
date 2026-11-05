@@ -147,6 +147,7 @@ function singleLineJson({ output }: { output: string }, _options = {}): Record<s
 function cleanData<A extends OwnerStoreAction>({ action, data }: { action: A; data: Record<string, unknown> }, _options = {}): OwnerStoreData[A] {
   const fields: Record<OwnerStoreAction, readonly string[]> = {
     status: ['legacy', 'entries', 'grants'], list: ['entries'], put: ['entry'], delete: ['removed'], import: ['applied', 'items', 'pending', 'sourceDigest'],
+    disconnect: ['id', 'label', 'sites', 'revision', 'sourceDigest', 'applied', 'status', 'remoteRevocation'],
   };
   const out = pick({ value: data, fields: fields[action] });
   if (action === 'list') out.entries = (data.entries as object[]).map(value => cleanEntry({ value }));
@@ -160,7 +161,7 @@ function cleanData<A extends OwnerStoreAction>({ action, data }: { action: A; da
 
 /** The CLI validates safe label/provider metadata; arbitrary meta and payload remain excluded. */
 function cleanEntry({ value }: { value: object }, _options = {}): Record<string, unknown> {
-  return pick({ value, fields: ['id', 'kind', 'label', 'provider', 'revision', 'configured', 'isDefault', 'worksFor'] });
+  return pick({ value, fields: ['id', 'kind', 'label', 'provider', 'revision', 'configured', 'isDefault', 'worksFor', 'sharedOAuth', 'usedBy', 'status'] });
 }
 /** Copy only named DTO fields, preserving optional fields (reason) without inventing values. */
 function pick({ value, fields }: { value: object; fields: readonly string[] }, _options = {}): Record<string, unknown> {

@@ -44,7 +44,7 @@ export function SharedKeys({ onClose, bridge = ownerStoreBridge({}) }: {
     <p>Save keys to your project. Saving a new key does not attach it to any site.</p>
     {/* Hook-up point: project-key attachments must provide authoritative usedBy site names.
         Legacy owner_grants describe copies, so they must never masquerade as project usage. */}
-    <p className="shared-keys__note">Site usage and site selection are unavailable in this version.</p>
+    <p className="shared-keys__note">Shared OAuth connections show their granted sites. Site selection is managed from each site's connection settings.</p>
     {!state.available && <p role="alert">Shared keys are unavailable. Update or restart the desktop app.</p>}
     {state.error && <p role="alert">{state.error}</p>}
     <p role="status" aria-live="polite">{state.busy ? 'Working…' : state.message}</p>
@@ -66,14 +66,19 @@ function SavedKey({ entry, bridge, state }: { entry: OwnerStoreEntry; bridge: Ow
   return <article className="shared-keys__row">
     <h3>{entry.label}</h3>
     <p>{entry.provider} · revision {entry.revision}</p>
-    <p>Saved — site usage unavailable</p>
-    <>
+    <p>{entry.sharedOAuth ? `Shared connection · ${entry.status} · ${entry.usedBy?.join(', ') || 'No sites'}` : 'Saved — site usage unavailable'}</p>
+    {entry.sharedOAuth ? <button type="button" className="button button--quiet" disabled={state.busy || !bridge.disconnect}
+      onClick={() => void state.run({ action: () => bridge.disconnect({ id: entry.id, expectedRevision: entry.revision }, {}) })}>
+      {entry.status === 'revocation-pending' ? 'Retry disconnect everywhere' : 'Disconnect this shared connection from every site on this Mac'}
+    </button> : <>
       <button type="button" className="button button--quiet" disabled={state.busy} onClick={() => setReplacing(!replacing)}>
         {replacing ? 'Cancel replacement' : 'Replace key'}
       </button>
       {replacing && (entry.kind === 'api-connection' ? <ProviderKeyForm bridge={bridge} state={state} entry={entry} /> : <KeyForm bridge={bridge} state={state} entry={entry} />)}
-    </>
+    </>}
+    {!entry.sharedOAuth &&
     <button type="button" className="button button--quiet" disabled={state.busy} onClick={() => void state.run({ action: () => bridge.delete({ id: entry.id, expectedRevision: entry.revision }, {}) })}>Delete unused key</button>
+    }
   </article>;
 }
 

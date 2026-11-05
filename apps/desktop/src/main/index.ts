@@ -140,7 +140,7 @@ import { createDesktopResources } from "../desktop-resources.ts";
 import { reportDesktopServerExit } from '../product-telemetry.ts';
 import { registerResourcesIpc } from "../resources-ipc.ts";
 import { runOwnerStoreCli } from "../owner-store-cli.ts";
-import { createOwnerStoreController, importConfirmation, registerOwnerStoreIpc, settleLegacyOwnerStore } from "../owner-store-ipc.ts";
+import { createOwnerStoreController, disconnectConfirmation, importConfirmation, registerOwnerStoreIpc, settleLegacyOwnerStore } from "../owner-store-ipc.ts";
 import { listProcessUsage } from "@jini-ai/platform/process";
 import { totalmem } from "node:os";
 import { createUpdateCheckNow, registerUpdateCheckIpc } from "../update-check-now.ts";
@@ -343,6 +343,12 @@ const ownerStore = createOwnerStoreController({
   confirmImport: async ({ report }) => {
     const parent = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
     const options = { type: "question" as const, buttons: ["Import", "Cancel"], defaultId: 0, cancelId: 1, ...importConfirmation({ report }) };
+    const { response } = parent ? await dialog.showMessageBox(parent, options) : await dialog.showMessageBox(options);
+    return response === 0;
+  },
+  confirmDisconnect: async ({ report }) => {
+    const parent = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
+    const options = { type: "warning" as const, buttons: ["Disconnect everywhere", "Cancel"], defaultId: 1, cancelId: 1, ...disconnectConfirmation({ report }) };
     const { response } = parent ? await dialog.showMessageBox(parent, options) : await dialog.showMessageBox(options);
     return response === 0;
   },
