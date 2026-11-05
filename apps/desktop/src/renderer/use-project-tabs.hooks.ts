@@ -2,7 +2,8 @@
  * @file Which project tabs are open and which one is selected. Split out of `App.hooks.ts` (which
  * still re-exports it) with no behaviour change.
  */
-import { useState, type Dispatch, type SetStateAction } from 'react';
+import { useEffect, useState, type Dispatch, type SetStateAction } from 'react';
+import { runnerInventoryBridge, type BridgeLookup } from './runner-api.js';
 import { tabAfterClose } from './site-shell-policy.js';
 import type { SiteAdminPage } from './import-site-entry.js';
 
@@ -30,12 +31,22 @@ export interface ProjectTabsState {
  * own `App.hooks.ts` makes: opening a tab and starting a site are two different actions, one
  * instant and local, the other async and IPC-backed.
  */
-export function useProjectTabs(): ProjectTabsState {
+export function useProjectTabs(
+  _input: Record<string, never> = {},
+  { getBridge = runnerInventoryBridge }: { getBridge?: BridgeLookup<'reportOpenSiteTabs'> } = {},
+): ProjectTabsState {
   // `null` active tab means the sites home tab (Runner's own sections); a string means that project's
   // embedded admin.
   const [openTabs, setOpenTabs] = useState<readonly string[]>([]);
   const [activeTab, setActiveTab] = useState<string | null>(null);
   const [adminPages, setAdminPages] = useState<Readonly<Record<string, SiteAdminPage>>>({});
+
+  // Presence follows tabs, not loaded guests: hidden and unloaded open tabs keep their server awake.
+  useEffect(() => {
+    void getBridge()?.reportOpenSiteTabs?.({ siteIds: openTabs }).catch(error => {
+      console.error('[tovu-desktop] report open site tabs:', error);
+    });
+  }, [getBridge, openTabs]);
 
   const openProjectTab = (id: string, options: { adminPage?: SiteAdminPage } = {}) => {
     setOpenTabs((current) => (current.includes(id) ? current : [...current, id]));

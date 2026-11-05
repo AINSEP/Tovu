@@ -8,11 +8,14 @@ import { SitesFoldersDialog } from '../SitesFolders.js';
 import { useSiteStorageSettings } from '../use-site-storage-settings.hooks.js';
 import { useLoadedSites } from '../use-loaded-sites.hooks.js';
 import { LoadedSitesRow } from './LoadedSitesStepper.js';
+import { useEffect, useRef, useState } from 'react';
+import { runnerInventoryBridge } from '../runner-api.js';
+import { IDLE_SITE_SLEEP, idleSiteSleepChoice, type IdleSiteSleepMinutes } from '../../contracts/site-view-preference.js';
 
 const THEMES: readonly ThemePreference[] = ['light', 'system', 'dark'];
 
 /** Gear icon that opens the Settings menu: two rows that open a screen (Sites settings…, Appearance),
- *  Check for updates…, an inline Theme switch, and the Loaded sites stepper — the settings worth changing
+ *  Check for updates…, an inline Theme switch, the Loaded sites stepper and idle sleep — the settings worth changing
  *  without leaving the menu. Closes on selection or on a click/tap outside the dropdown; arrow keys move
  *  between entries (inside the stepper they change its number instead). */
 export function SettingsControl({
@@ -32,6 +35,7 @@ export function SettingsControl({
   const updateCheck = useUpdateCheck({ onDone: () => setOpen(false) });
   // Read while the menu is closed too, so the row opens on the saved number, never a flash of the default.
   const loadedSites = useLoadedSites();
+  const idleSiteSleep = useIdleSiteSleep();
   // The menu used to share NavLink's temporary lock. Local sites settings now has a real
   // shared-config owner, so Settings can open without unlocking unfinished section links.
   // That lock is therefore permanently off: the gear passes `disabled: false` below and carries
@@ -87,12 +91,69 @@ export function SettingsControl({
             <ThemeControl value={theme} onChange={chooseTheme} />
           </div>
           <LoadedSitesRow setting={loadedSites} />
+          <IdleSiteSleepRow setting={idleSiteSleep} />
         </div>
       )}
     </div>
     <SitesFoldersDialog settings={sitesSettings} showTrigger={false} />
     </>
   );
+}
+
+/** Read once, then save through the existing locked preferences owner. A save supersedes a late
+ * startup read; failed saves retain the last shown choice. One request per read/save, O(1) state.
+ */
+function useIdleSiteSleep() {
+  const [value, setValue] = useState<IdleSiteSleepMinutes>(IDLE_SITE_SLEEP.fallback);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const revision = useRef(0);
+  const bridge = runnerInventoryBridge();
+  useEffect(() => {
+    let active = true;
+    const initialRevision = revision.current;
+    void runnerInventoryBridge()?.getIdleSiteSleepMinutes?.().then(saved => {
+      const choice = idleSiteSleepChoice({ value: saved });
+      if (active && revision.current === initialRevision && choice !== undefined) setValue(choice);
+    }, () => { if (active && revision.current === initialRevision) setError('Sleep idle sites setting could not be loaded.'); });
+    return () => { active = false; };
+  }, []);
+  const save = (next: IdleSiteSleepMinutes) => {
+    if (saving || next === value || !bridge?.setIdleSiteSleepMinutes) return;
+    revision.current++;
+    setSaving(true);
+    setError(null);
+    void bridge.setIdleSiteSleepMinutes(next).then(saved => {
+      const choice = idleSiteSleepChoice({ value: saved });
+      if (choice !== undefined) setValue(choice);
+      setSaving(false);
+    }, () => {
+      setError('Sleep idle sites setting could not be saved.');
+      setSaving(false);
+    });
+  };
+  return { value, saving, error, save, available: Boolean(bridge?.getIdleSiteSleepMinutes && bridge?.setIdleSiteSleepMinutes) };
+}
+
+/** The existing settings row and Theme radio treatment, with no native-menu duplicate. */
+function IdleSiteSleepRow({ setting }: { setting: ReturnType<typeof useIdleSiteSleep> }) {
+  if (!setting.available) return null;
+  return <>
+    <div className="settings__row">
+      <span className="settings__label">Sleep idle sites after</span>
+      <div className="themer" role="group" aria-label="Sleep idle sites after">
+        {IDLE_SITE_SLEEP.choices.map(minutes => <button
+          key={minutes} type="button" role="menuitemradio"
+          className={`themer__opt ${setting.value === minutes ? 'is-on' : ''}`}
+          aria-checked={setting.value === minutes} aria-label={minutes === 0 ? 'Off' : `${minutes} min`}
+          data-tip={minutes === 0 ? 'Off' : `${minutes} min`} disabled={setting.saving}
+          onClick={() => setting.save(minutes)}
+        >{minutes === 0 ? 'Off' : minutes}</button>)}
+      </div>
+      <span>min</span>
+    </div>
+    {setting.error && <p role="alert" className="settings__note settings__note--error">{setting.error}</p>}
+  </>;
 }
 
 function ThemeControl({

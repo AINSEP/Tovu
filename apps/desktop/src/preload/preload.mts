@@ -29,10 +29,11 @@ import { createSpeechBridge } from '@jini-ai/desktop-host/speech';
 import { RUNNER_AGENT_INVENTORY_CHANNELS } from '../contracts/runtime-inventory.js';
 import { RUNNER_APP_CHECK_FOR_UPDATES_CHANNEL, RUNNER_APP_VERSION_CHANNEL } from '../contracts/app-version.js';
 import { RUNNER_RESOURCES_GET_CHANNEL, type ResourcesRequest } from '../contracts/resources.js';
-import { SITE_VIEW_PREFERENCE_CHANNELS } from '../contracts/site-view-preference.js';
+import { SITE_VIEW_PREFERENCE_CHANNELS, IDLE_SITE_SLEEP_CHANNELS, type IdleSiteSleepMinutes } from '../contracts/site-view-preference.js';
 import { OWNER_STORE_CHANNELS, type OwnerStoreBridge } from '../contracts/owner-store.js';
 import {
   SITE_HISTORY_CHANNEL,
+  SITE_PRESENCE_CHANNEL,
   SITE_IPC_CHANNELS,
   type CreateSiteInput,
   type RenameSiteInput,
@@ -94,6 +95,9 @@ contextBridge.exposeInMainWorld(
   'tovuRunner',
   Object.freeze({
     getAppVersion: () => ipcRenderer.invoke(RUNNER_APP_VERSION_CHANNEL),
+    getIdleSiteSleepMinutes: () => ipcRenderer.invoke(IDLE_SITE_SLEEP_CHANNELS.read),
+    setIdleSiteSleepMinutes: (minutes: IdleSiteSleepMinutes) => ipcRenderer.invoke(IDLE_SITE_SLEEP_CHANNELS.write, minutes),
+    reportOpenSiteTabs: ({ siteIds }: { siteIds: readonly string[] }, _options = {}) => ipcRenderer.invoke(SITE_PRESENCE_CHANNEL, { siteIds }),
     getMaximumLiveSiteViews: () => ipcRenderer.invoke(SITE_VIEW_PREFERENCE_CHANNELS.read),
     setMaximumLiveSiteViews: (maximum: number) => ipcRenderer.invoke(SITE_VIEW_PREFERENCE_CHANNELS.write, maximum),
     onMaximumLiveSiteViewsChanged: (listener: (maximum: number) => void) => subscribe(SITE_VIEW_PREFERENCE_CHANNELS.changed, listener),

@@ -11,11 +11,10 @@ import { discoverAllBuiltInThemes } from "../theme.js";
 import { buildThemesRegistrations, type ThemeToolDeps } from "../tool-registrations.js";
 
 /**
- * @file Demo 2026-11-02: the chat rebuilt an existing theme IN PLACE (theme.css overwritten with a
- * placeholder mid-run) with no card and no undo. `theme_write_file` now asks before replacing an
- * existing file's bytes, keeps the old bytes as a restorable revision in the theme's `.trash/`, and
- * still creates brand-new files without asking. Exercised through the real handler and the real
- * held-open surface exchange — the same path every agent CLI's tool call takes.
+ * @file Demo 2026-11-02 exposed theme overwrites with no undo; the retained revision fixes that.
+ * Owner rule 2026-11-04: reversible overwrites run directly; only permanent deletes confirm.
+ * Exercise the real handler with and without the surface transport, retaining restorable bytes
+ * in the bounded `.trash/revisions` store without opening a confirmation exchange.
  */
 
 const ORIGINAL_CSS = "body{color:#123456}\n";
@@ -40,7 +39,7 @@ function themesFixture(t: TestContext): { deps: ThemeToolDeps; themesDir: string
   return { deps, themesDir };
 }
 
-/** One registration bound to a deterministic exchange store; `decision` answers the card if one is drawn. */
+/** One registration bound to a deterministic exchange store; any confirmation emission fails. */
 function harness(deps: ThemeToolDeps) {
   let exchanges = 0;
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: { schedule: () => () => {} },
@@ -48,37 +47,32 @@ function harness(deps: ThemeToolDeps) {
   const registrations = buildThemesRegistrations(deps, { surfaceExchanges });
   const handler = (id: string) => registrations.find((r) => r.descriptor.id === id)!.handler;
   const cards: SurfaceEmission[] = [];
-  const call = (id: string, input: Record<string, unknown>, { decision, withSurface = true }: { decision?: "confirm" | "cancel"; withSurface?: boolean } = {}) => {
+  const call = (id: string, input: Record<string, unknown>, { withSurface = true }: { withSurface?: boolean } = {}) => {
     const ctx: ToolExecutionContext = { executionId: "exec-1", principal: { id: "owner-1" }, run: { id: "run-1" }, input, signal: new AbortController().signal };
     return handler(id)(ctx, withSurface ? { emitSurface: async (emission: SurfaceEmission) => {
       cards.push(emission);
-      if (decision) surfaceExchanges.deliver({ exchangeId: `theme-write-card-${exchanges}`, principalId: "owner-1", params: { decision } }, { toolId: "theme_write_file" });
+      assert.fail('a reversible theme overwrite must not emit a confirmation surface');
     } } : {});
   };
   return { call, cards };
 }
 
-test("overwriting an existing theme file without a confirmation channel is refused and nothing changes", async (t) => {
+test("overwriting an existing theme file without a confirmation channel runs directly and saves a revision", async (t) => {
   const { deps, themesDir } = themesFixture(t);
   const h = harness(deps);
-  await assert.rejects(
-    () => h.call("theme_write_file", { themeId: "ground", path: "theme.css", content: "/* placeholder */" }, { withSurface: false }),
-    /NO_CONFIRMATION_CHANNEL/,
-  );
-  assert.equal(fs.readFileSync(path.join(themesDir, "ground", "theme.css"), "utf8"), ORIGINAL_CSS);
-  assert.equal(fs.existsSync(path.join(themesDir, "ground", ".trash")), false, "a refused write keeps no revision either");
+  const result = await h.call("theme_write_file", { themeId: "ground", path: "theme.css", content: "/* placeholder */" }, { withSurface: false }) as { previousRevision: { trashedPath: string } };
+  assert.equal(h.cards.length, 0);
+  assert.equal(fs.readFileSync(path.join(themesDir, "ground", "theme.css"), "utf8"), "/* placeholder */");
+  assert.equal(fs.readFileSync(path.join(themesDir, "ground", result.previousRevision.trashedPath), "utf8"), ORIGINAL_CSS);
 });
 
-test("overwriting an existing theme file shows the confirmation card; cancel changes nothing", async (t) => {
+test("overwriting an existing theme file emits no confirmation surface and saves the prior bytes", async (t) => {
   const { deps, themesDir } = themesFixture(t);
   const h = harness(deps);
-  const result = await h.call("theme_write_file", { themeId: "ground", path: "theme.css", content: "/* placeholder */" }, { decision: "cancel" }) as { written: boolean; cancelled: boolean };
-  assert.equal(h.cards.length, 1, "exactly one card is drawn");
-  const cardText = JSON.stringify(h.cards[0]!.payload);
-  assert.match(cardText, /theme\.css/);
-  assert.match(cardText, /Ground/);
-  assert.deepEqual([result.written, result.cancelled], [false, true]);
-  assert.equal(fs.readFileSync(path.join(themesDir, "ground", "theme.css"), "utf8"), ORIGINAL_CSS);
+  const result = await h.call("theme_write_file", { themeId: "ground", path: "theme.css", content: "/* placeholder */" }) as { previousRevision: { trashedPath: string } };
+  assert.equal(h.cards.length, 0);
+  assert.equal(fs.readFileSync(path.join(themesDir, "ground", "theme.css"), "utf8"), "/* placeholder */");
+  assert.equal(fs.readFileSync(path.join(themesDir, "ground", result.previousRevision.trashedPath), "utf8"), ORIGINAL_CSS);
 });
 
 test("creating a brand-new theme file needs no confirmation and keeps no revision", async (t) => {
@@ -98,11 +92,11 @@ test("rewriting a file with its identical bytes changes nothing, so it does not 
   assert.equal(h.cards.length, 0);
 });
 
-test("a confirmed overwrite keeps the prior bytes as a revision that restores the file", async (t) => {
+test("a direct overwrite keeps the prior bytes as a revision that restores the file", async (t) => {
   const { deps, themesDir } = themesFixture(t);
   const h = harness(deps);
-  const written = await h.call("theme_write_file", { themeId: "ground", path: "theme.css", content: "/* placeholder */" }, { decision: "confirm" }) as { bytesWritten: number; previousRevision: { trashedPath: string; note: string } };
-  assert.equal(h.cards.length, 1, "the shared replacement guard asks once");
+  const written = await h.call("theme_write_file", { themeId: "ground", path: "theme.css", content: "/* placeholder */" }) as { bytesWritten: number; previousRevision: { trashedPath: string; note: string } };
+  assert.equal(h.cards.length, 0);
   assert.equal(fs.readFileSync(path.join(themesDir, "ground", "theme.css"), "utf8"), "/* placeholder */");
   const { trashedPath } = written.previousRevision;
   assert.match(trashedPath, /^\.trash\/revisions\/\d+\/theme\.css$/);
@@ -114,7 +108,8 @@ test("a confirmed overwrite keeps the prior bytes as a revision that restores th
   const revision = await h.call("theme_read_file", { themeId: "ground", path: trashedPath }) as { content: string };
   assert.equal(revision.content, ORIGINAL_CSS);
 
-  // Restoring it is one more confirmed write of the revision's bytes.
-  await h.call("theme_write_file", { themeId: "ground", path: "theme.css", content: revision.content }, { decision: "confirm" });
+  // Restoring it is one more reversible, direct write of the revision's bytes.
+  await h.call("theme_write_file", { themeId: "ground", path: "theme.css", content: revision.content });
+  assert.equal(h.cards.length, 0);
   assert.equal(fs.readFileSync(path.join(themesDir, "ground", "theme.css"), "utf8"), ORIGINAL_CSS);
 });

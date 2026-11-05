@@ -190,11 +190,11 @@ test("resolveDevCliEntry fails loudly when the TS source is missing", () => {
   assert.throws(() => resolveDevCliEntry(root), /Tovu's CLI source is missing/);
 });
 
-test("buildCliSpawnPlan defaults to compiled mode, unchanged from before source mode existed", () => {
+test("buildCliSpawnPlan defaults to compiled mode with the size flag before the entry", () => {
   const root = makeTempRepo();
   const plan = buildCliSpawnPlan({ repoRoot: root, cliArgs: ["serve", "/tmp/site", "--port", "3601"] });
   assert.equal(plan.command, process.execPath);
-  assert.deepEqual(plan.args, [path.join(root, "dist", "src", "cli", "main.js"), "serve", "/tmp/site", "--port", "3601"]);
+  assert.deepEqual(plan.args, ["--optimize-for-size", path.join(root, "dist", "src", "cli", "main.js"), "serve", "/tmp/site", "--port", "3601"]);
 });
 
 test("buildCliSpawnPlan in source mode runs the TS entry under --import tsx, never npx", () => {
@@ -202,6 +202,7 @@ test("buildCliSpawnPlan in source mode runs the TS entry under --import tsx, nev
   const plan = buildCliSpawnPlan({ repoRoot: root, cliMode: "source", cliArgs: ["serve", "/tmp/site", "--port", "3601"] });
   assert.equal(plan.command, process.execPath);
   assert.deepEqual(plan.args, [
+    "--optimize-for-size",
     "--import",
     pathToFileURL(path.join(root, "development", "scripts", "dev-tsx-loader.mjs")).href,
     "--import",
@@ -516,8 +517,9 @@ test("startTovuServer redacts split secret values on both mirrored streams", asy
   }
   child.stdout.write(REAL_BOOT_LINE);
   await started;
-  assert.equal(mirror.stdout.read()?.toString(), `key [REDACTED:credential]\n${REAL_BOOT_LINE.replace(`/Users/${path.basename(os.homedir())}`, "/Users/<USER>")}`);
-  assert.equal(mirror.stderr.read()?.toString(), "key [REDACTED:credential]\n");
+  // Jini's built-in sk_key rule precedes its generic credential-shape rules.
+  assert.equal(mirror.stdout.read()?.toString(), `key [REDACTED:sk_key]\n${REAL_BOOT_LINE.replace(`/Users/${path.basename(os.homedir())}`, "/Users/<USER>")}`);
+  assert.equal(mirror.stderr.read()?.toString(), "key [REDACTED:sk_key]\n");
 });
 
 test("startTovuServer passes the site dir and port through as `serve <dir> --port <n>`", async () => {
@@ -542,6 +544,7 @@ test("startTovuServer passes the site dir and port through as `serve <dir> --por
 
   assert.equal(recorded!.command, process.execPath);
   assert.deepEqual(recorded!.args, [
+    "--optimize-for-size",
     path.join(root, "dist", "src", "cli", "main.js"),
     "serve",
     "/tmp/my-site",
@@ -626,6 +629,7 @@ test("startTovuServer in source mode runs the TS entry under --import tsx instea
 
   assert.equal(recorded!.command, process.execPath);
   assert.deepEqual(recorded!.args, [
+    "--optimize-for-size",
     "--import",
     pathToFileURL(path.join(root, "development", "scripts", "dev-tsx-loader.mjs")).href,
     "--import",
@@ -1288,4 +1292,81 @@ test("tovu-server.ts imports no package outside apps/desktop dependencies (0.1.2
     .map(specifier => specifier.split("/").slice(0, specifier.startsWith("@") ? 2 : 1).join("/"))
     .filter(name => !declared.has(name));
   assert.deepEqual(packages, []);
+});
+
+test("the size flag applies only to serve, preserving init arguments in both modes", () => {
+  const root = makeTempRepo({ withTsCli: true });
+  for (const cliMode of ["compiled", "source"] as const) {
+    const plan = buildCliSpawnPlan({ repoRoot: root, cliMode, cliArgs: ["init", "/tmp/site"] });
+    assert.equal(plan.args.includes("--optimize-for-size"), false);
+    assert.deepEqual(plan.args.slice(-2), ["init", "/tmp/site"]);
+  }
+});
+
+
+test("post-ready output tail is bounded and redacts framed split and exact launch secrets before retaining", async t => {
+  const repoRoot = makeTempRepo();
+  t.after(() => fs.rmSync(repoRoot, { recursive: true, force: true }));
+  const child = fakeChild();
+  const mirror = silentMirror();
+  let launch: NodeJS.ProcessEnv = {};
+  const starting = startTovuServer({ repoRoot, siteDir: '/fake/site', port: 4321, mirror,
+    baseEnv: { TOVU_AGENT_DAEMON_TOKEN: 'opaque-launch-secret' },
+    spawnFn: (_command, _args, options) => { launch = options.env!; return child; },
+  });
+  child.stdout.write('tovu serve: bootToken=private-boot-token\n' + REAL_BOOT_LINE);
+  const handle = await starting;
+  const password = launch.TOVU_ADMIN_PASSWORD!;
+  child.stderr.write(`unlabelled opaque-launch-`);
+  child.stderr.write(`secret ${password}\n`);
+  child.stdout.write('tovu serve: bootToken=late-secret\n');
+  const retained = handle.outputTail!();
+  assert.match(retained, /unlabelled/);
+  assert.doesNotMatch(retained, /opaque-launch-secret|private-boot-token|late-secret/);
+  assert.equal(retained.includes(password), false);
+  for (let i = 0; i < 50; i++) child.stderr.write(`${i} ${'x'.repeat(1000)}\n`);
+  assert.ok(handle.outputTail!().length <= 16_384);
+  child.stderr.write('native failure without newline');
+  child.stderr.end();
+  await new Promise<void>(resolve => setImmediate(resolve));
+  assert.match(handle.outputTail!(), /native failure without newline/);
+  child.exitCode = 1; child.emit('exit', 1, null);
+});
+
+test("owned idle stop waits for confirmed sleep exit and never sends a signal", async t => {
+  const repoRoot = makeTempRepo();
+  t.after(() => fs.rmSync(repoRoot, { recursive: true, force: true }));
+  const child = fakeChild();
+  const starting = startTovuServer({ repoRoot, siteDir: '/fake/site', port: 4321, mirror: silentMirror(), spawnFn: () => child,
+    agentService: { bindServer: () => ({ setIdentity() {}, dispose() {}, stopIfIdle: async () => true }) },
+  });
+  child.stdout.write(REAL_BOOT_LINE);
+  const handle = await starting;
+  let settled = false;
+  const sleeping = handle.stopIfIdle!().then(value => { settled = true; return value; });
+  await new Promise<void>(resolve => setImmediate(resolve));
+  assert.equal(settled, false);
+  assert.deepEqual(child.killed, []);
+  child.exitCode = 89; child.emit('exit', 89, null);
+  assert.equal(await sleeping, true);
+});
+
+
+test("idle acceptance without a confirmed exit times out as busy without a kill", async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const repoRoot = makeTempRepo();
+  t.after(() => fs.rmSync(repoRoot, { recursive: true, force: true }));
+  const child = fakeChild();
+  const starting = startTovuServer({ repoRoot, siteDir: '/fake/site', port: 4321, stopGraceMs: 100,
+    mirror: silentMirror(), spawnFn: () => child,
+    agentService: { bindServer: () => ({ setIdentity() {}, dispose() {}, stopIfIdle: async () => true }) },
+  });
+  child.stdout.write(REAL_BOOT_LINE);
+  const handle = await starting;
+  const sleeping = handle.stopIfIdle!();
+  await Promise.resolve();
+  t.mock.timers.tick(200);
+  assert.equal(await sleeping, false);
+  assert.deepEqual(child.killed, []);
+  child.exitCode = 0; child.emit('exit', 0, null);
 });

@@ -50,6 +50,17 @@ test('SiteStartPanel: a stopped site shows its name, its status sentence and an 
   assert.equal(view.container.querySelector('.workspace__error'), null);
 });
 
+test('SiteStartPanel: Sleeping has neutral wording and Wake uses the normal start call', async t => {
+  const view = renderPanel(t, { project: site('a', { status: 'sleeping' }) });
+  assert.equal(view.container.querySelector('.empty__body')?.textContent, 'Sleeping.');
+  assert.equal(view.button()?.textContent, 'Wake site');
+  assert.equal(view.container.querySelector('.workspace__error'), null);
+  await view.click(view.button());
+  assert.equal(view.starts[0]?.id, 'a');
+  await act(async () => { view.starts[0]!.resolve(site('a', { status: 'running', port: 4200 })); });
+  assert.deepEqual(view.events, ['updated:running', 'started']);
+});
+
 test('SiteStartPanel: a caller-supplied body replaces the status sentence', (t) => {
   const view = renderPanel(t, { project: site('a', { status: 'running', port: 4100 }), body: 'Site a is not answering.' });
   assert.equal(view.container.querySelector('.empty__body')?.textContent, 'Site a is not answering.');
@@ -91,4 +102,13 @@ test('SiteStartPanel: a blocked site offers no Start at all', (t) => {
   const view = renderPanel(t, { project: site('b', { status: 'blocked' }) });
   assert.equal(view.button(), null);
   assert.equal(view.container.querySelector('.empty__body')?.textContent, 'Provider support required.');
+});
+
+
+test('B2 crash cap renders selectable redacted details beside manual Start', t => {
+  const detail = 'Automatic restart has stopped. Try starting it again.\n\nRedacted details:\nExit code: 9\n[REDACTED]';
+  const view = renderPanel(t, { project: site('a', { status: 'error', statusDetail: detail }) });
+  assert.equal(view.container.querySelector('pre')?.textContent, detail);
+  assert.equal(view.button()?.textContent, 'Start site');
+  assert.equal(view.starts.length, 0, 'a terminal error must wait for manual Start');
 });

@@ -59,6 +59,8 @@ interface SiteWindowPorts<S extends SiteWindowServer, W extends SiteWindow, C ex
   /** The live `quitPhase`, read when the window closes. */
   quitPhase: () => QuitPhase;
   logError: (message: string) => void;
+  /** Deliberate close must also revoke retries while its server is between boots. */
+  cancelRestart?: (input: { siteDir: string }) => void;
 }
 
 /** What a close handler needs to know about the site it belongs to. */
@@ -150,15 +152,36 @@ function handleSiteWindowClosed<S extends SiteWindowServer, W extends SiteWindow
   // The supervisor's own `handleExit` guards by entry identity for exactly this reason; this is
   // its missing sibling.
   const entry = ports.openSites.get(siteDir);
+  cancelClosedWindowRestart({ closed, entry });
   if (entry?.window === window) {
     ports.sitePreviewScheduler.cancel({ siteDir }, {});
     ports.siteThemePreviews.stop({ siteDir }, {});
     ports.openSites.delete(siteDir);
   }
-  // A replacement can reuse both the child and the partition. A stale close owns neither;
-  // when only the child differs, retire that old child without revoking the shared cookie jar.
   else if (entry?.server === closed.server) return;
-  trackSiteTeardown(closed, { revokeSession: entry === undefined || entry.window === window });
+  stopClosedWindowServer({ closed, entry });
+}
+
+/** A stale window must not revoke its replacement's retry intent. */
+function cancelClosedWindowRestart<S extends SiteWindowServer, W extends SiteWindow, C extends { registryPath: string }>(
+  { closed, entry }: { closed: ClosedWindow<S, W, C>; entry: SiteWindowEntry<S, W> | undefined }, _optional = {},
+): void {
+  if (entry && entry.window !== closed.window) return;
+  closed.ports.cancelRestart?.({ siteDir: closed.siteDir });
+}
+
+/** A replacement can reuse both the child and the partition. A stale close owns neither;
+ * when only the child differs, retire that old child without revoking the shared cookie jar.
+ * A crash retry can reattach this SAME window to a new authenticated server. Its old close
+ * closure must stop that replacement; a different window still owns only its original child.
+ * @complexity O(1) beyond the tracked shutdown.
+ */
+function stopClosedWindowServer<S extends SiteWindowServer, W extends SiteWindow, C extends { registryPath: string }>(
+  { closed, entry }: { closed: ClosedWindow<S, W, C>; entry: SiteWindowEntry<S, W> | undefined }, _optional = {},
+): void {
+  const sameWindow = entry?.window === closed.window;
+  const server = sameWindow && entry ? entry.server : closed.server;
+  trackSiteTeardown({ ...closed, server }, { revokeSession: entry === undefined || sameWindow });
 }
 
 /**

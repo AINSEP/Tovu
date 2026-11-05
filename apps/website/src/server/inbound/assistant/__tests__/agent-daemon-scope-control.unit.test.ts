@@ -38,3 +38,11 @@ test("a shared-host registration without a scope key is refused in plain words",
   await assert.rejects(h.control({ operation: "register", siteId: "workspace-local", token: "rpc", env: { TOVU_SITE_DIR: "/sites/a" } }),
     /scope key/);
 });
+
+
+test("site idle shutdown cannot be sent to the shared daemon's scope control", async () => {
+  const h = harness();
+  await assert.rejects(h.control({ operation: "stopIfIdle" }), /site server/);
+  assert.equal(h.created.length, 0);
+  assert.equal(h.disposed.length, 0);
+});

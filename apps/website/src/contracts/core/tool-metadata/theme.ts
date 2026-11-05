@@ -3,7 +3,9 @@ import type { ToolApprovalPolicy } from './approval-policy.js';
 
 const THEME_AUTHORING = "theme-authoring";
 
-/** These tools share one content-replacement plan, including when the caller passes items. */
+/** These tools share one content-replacement preflight, including when the caller passes items.
+ * Revisions keep the old bytes in the bounded .trash/revisions store, so overwrites run directly.
+ * Owner rule: only permanent deletes ask for confirmation; `edit` keeps new-file batches batchable. */
 export const THEME_CONTENT_REPLACEMENT_TOOL_IDS = ['theme_write_file', 'theme_edit_file', 'theme_reset_file', 'theme_import_file_from_url', 'theme_import_local_file'] as const;
 
 /** theme registration declarations; shared placement rationale is in ./index.ts. */
@@ -49,7 +51,7 @@ export const toolMetadata = {
     search: {
       keywords: "theme stylesheet css template edit change design code file one line small change patch replace single word snippet section footer copyright text font fonts typography color colors colour primary brand palette style styles look",
     },
-    approval: { class: 'edit', confirmation: 'plan' },
+    approval: { class: 'edit', confirmation: 'direct' },
   },
   // URL binary import (2026-10-08); local imports share its validation and persistence.
   "theme_import_file_from_url": {
@@ -63,7 +65,7 @@ export const toolMetadata = {
         "Import the favicon from that URL into the theme.",
       ],
     },
-    approval: { class: 'edit', confirmation: 'plan' },
+    approval: { class: 'edit', confirmation: 'direct' },
   },
   "theme_import_local_file": {
     guidanceCapabilities: [THEME_AUTHORING, "ui-design"],
@@ -74,7 +76,7 @@ export const toolMetadata = {
         "Import a local favicon into this theme.",
       ],
     },
-    approval: { class: 'edit', confirmation: 'plan' },
+    approval: { class: 'edit', confirmation: 'direct' },
   },
   "theme_list": {
     search: {
@@ -149,7 +151,7 @@ export const toolMetadata = {
         "Can you revert this theme file from its stored pristine copy?",
       ],
     },
-    approval: { class: 'restore-over-existing', confirmation: 'plan' },
+    approval: { class: 'restore-over-existing', confirmation: 'direct' },
   },
   "theme_restore_trashed_file": {
     search: {
@@ -218,10 +220,7 @@ export const toolMetadata = {
         "Can you create a new file inside the theme folder?",
       ],
     },
-    // The shared file-mutation guard asks once per call or batch before replacing different bytes;
-    // new and identical writes run directly. Revisions stay in the bounded .trash/revisions store.
-    // `plan` leaves disk-dependent approval with that owner; `edit` keeps new-file batches batchable.
-    approval: { class: 'edit', confirmation: 'plan' },
+    approval: { class: 'edit', confirmation: 'direct' },
   },
 
   // --- theme ---------------------------------------------------------------------------------------

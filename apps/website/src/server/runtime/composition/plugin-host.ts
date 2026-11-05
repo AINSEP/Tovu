@@ -15,6 +15,7 @@ import { agentPluginActivations } from '#src/features/agent-plugins/activation-e
 import { setAgentPluginEnabled } from '#src/features/agent-plugins/set-enabled';
 import { runAgentPluginUninstall, type AgentPluginUninstallToolDeps } from '#src/features/agent-plugins/uninstall-tool';
 import { provisionAgentPluginMcpServers, resolveAgentPluginMcpServers } from '#src/features/agent-plugins/federate-mcp';
+import { grantDeclaredToolsToSignedInRows } from '#src/features/agent-plugins/grant-signed-in-defaults';
 
 export interface TovuPluginHostDeps extends AgentPluginUninstallToolDeps {
   readonly discoverPlugins: () => Promise<readonly PluginDiscoveryRecord[]>;
@@ -144,6 +145,14 @@ export function createTovuPluginHost(
         for (const failure of result.failed) {
           warn(redactSecrets({ input: `Plugin '${pluginId}': MCP provisioning for server '${failure.serverKey}' failed — ${failure.reason}` }));
         }
+        // Same as the admin toggle: an account signed in while the plugin was off gets the plugin's
+        // declared tools now (bug 2026-11-04, `grant-signed-in-defaults.ts`).
+        await grantDeclaredToolsToSignedInRows({
+          deps: { workspaceId: deps.workspaceId, agentPluginLayout: deps.agentPluginLayout, repo: deps.mcp.repo, clock: deps.clock,
+            notifyRosterChanged: () => deps.mcp.notifyRosterChanged({}, {}), warn: message => warn(redactSecrets({ input: message })) },
+          pluginId,
+          servers,
+        }, { skipServerKeys: result.failed.map(failure => failure.serverKey) });
       } catch (error) {
         warn(redactSecrets({ input: `Plugin '${pluginId}': MCP provisioning could not run — ${error instanceof Error ? error.message : String(error)}` }));
       }

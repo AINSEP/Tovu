@@ -96,3 +96,35 @@ describe("createInMemoryChatHistory", () => {
     assert.deepEqual(await store.messages({ conversationId: "c1" }), [], "no orphaned messages may reappear when the conversation id is reused");
   });
 });
+
+it("the lazy ledger forwards checkpoint receipts and expected lengths", async () => {
+  const { chatHistory, chatRunLedger: ledger } = createInMemoryChatHistory();
+  const store = chatHistory({ kind: 'user', workspaceId: 'ws', userId: 'owner' });
+  await store.create({ id: 'c' });
+  const run = { conversationId: 'c', messageId: 'a', runId: 'run-1' };
+  await ledger.durable!.accept({ ...run, principalId: 'owner', workspaceId: 'ws', now: 1, request: { contextRef: '{}' } }, {});
+  type State = NonNullable<Parameters<typeof ledger.checkpoint>[1]>['previous'];
+  let receipt: State;
+  const first = { ...run, content: 'first', events: [{ kind: 'text' as const, text: 'first' }] };
+  assert.equal(await ledger.checkpoint(first, { onPersisted: state => { receipt = state; } }), true);
+  assert.equal(receipt?.length, JSON.stringify(first.events).length);
+  const second = { ...run, content: 'first second', events: [{ kind: 'text' as const, text: 'first second' }] };
+  assert.equal(await ledger.checkpoint(second, { expected: receipt?.length, previous: receipt }), true);
+  assert.deepEqual((await store.messages({ conversationId: 'c' }))[0]?.events, second.events);
+});
+
+
+describe("in-memory idle probe", () => {
+  it("is false before lazy open and protects an active row from any principal", async () => {
+    const { chatHistory, chatRunLedger } = createInMemoryChatHistory();
+    assert.equal(await chatRunLedger.hasActiveRuns({}, {}), false);
+    const store = chatHistory({ kind: "user", workspaceId: "ws", userId: "other-owner" });
+    await store.create({ id: "idle-check" });
+    await store.appendMessage({ conversationId: "idle-check", message: {
+      id: "active", role: "assistant", content: "", runId: "run-idle-check", runStatus: "running",
+    } });
+    assert.equal(await chatRunLedger.hasActiveRuns({}, {}), true);
+    await store.delete({ id: "idle-check" });
+    assert.equal(await chatRunLedger.hasActiveRuns({}, {}), false);
+  });
+});

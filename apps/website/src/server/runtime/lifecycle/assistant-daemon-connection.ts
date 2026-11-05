@@ -14,9 +14,12 @@ export const daemonControlRequest = z.discriminatedUnion("operation", [
   daemonSiteRegistration.extend({ operation: z.literal("register") }),
   z.object({ operation: z.literal("withdraw"), siteId: z.string().min(1), scopeKey }).strict(),
   z.object({ operation: z.literal("ready") }).strict(),
+  z.object({ operation: z.literal("stopIfIdle") }).strict(),
   z.object({ operation: z.literal("parking"), pid: z.number().int().positive() }).strict(),
   z.object({ operation: z.literal("unavailable"), pid: z.number().int().positive() }).strict(),
 ]);
+/** Only a strict idle result can acknowledge guarded shutdown; invalid replies mean busy. */
+export const siteIdleStopReply = z.object({ idle: z.boolean() }).strict();
 export const daemonEndpoint = z.object({ url: z.string().url(), pid: z.number().int().positive() });
 export const daemonConnection = daemonEndpoint.extend({ token: z.string().min(1) });
 export type AssistantDaemonConnection = Readonly<z.infer<typeof daemonConnection>>;

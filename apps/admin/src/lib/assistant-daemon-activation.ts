@@ -1,6 +1,8 @@
 import type { FrontendSessionBridge } from "@jini-ai/chat/react";
 
-/** Dock-open pre-warm and first send share the authenticated API demand path. */
+/** Dock-open pre-warm and first send share the authenticated API demand path.
+ * Refusals throw the server's public reason so chat can show the cause and recovery action.
+ */
 export async function activateAssistantDaemon(
   { signal }: { signal?: AbortSignal } = {}, { request = fetch }: { request?: typeof fetch } = {},
 ): Promise<void> {
@@ -8,7 +10,12 @@ export async function activateAssistantDaemon(
   const response = await request("/api/frontend-sessions/activate", {
     method: "POST", credentials: "same-origin", signal: signal ? AbortSignal.any([signal, deadline]) : deadline,
   });
-  if (!response.ok) throw new Error("the assistant could not start");
+  if (!response.ok) {
+    const body = await response.json().catch(() => undefined) as { error?: unknown } | undefined;
+    const reason = typeof body?.error === "string" && body.error.trim() ? body.error
+      : `The assistant service returned HTTP ${response.status}. Restart the site or the app.`;
+    throw new Error(reason);
+  }
 }
 
 /** Wake through the authenticated API, then ensure a current page attachment.

@@ -54,7 +54,7 @@ for (const bootPath of ["index.ts", "cli/commands/serve.ts"]) {
   test(`${bootPath} builds its app with createServingApp, never a bare createApp`, () => {
     const lines = readCodeLines(bootPath);
     assert.ok(
-      lines.some((line) => /(?:\bcreateServingApp|\(optional\.createServingApp \?\? createServingApp\))\(deps\)/.test(line)),
+      lines.some((line) => /(?:\bcreateServingApp|\(optional\.createServingApp \?\? createServingApp\))\(deps(?:, servingOptions)?\)/.test(line)),
       `${bootPath} must call createServingApp(deps) so the outbox drainer starts after createApp's subscribers`,
     );
     assert.deepEqual(
@@ -94,7 +94,7 @@ test("the theme watcher starts only in the website's serving composition", () =>
 for (const bootPath of ["index.ts", "cli/commands/serve.ts"]) {
   test(`${bootPath} owns the theme watcher through shutdown and listener closure`, () => {
     const source = readCodeLines(bootPath).join("\n");
-    assert.match(source, /const \{[^}]*\bthemeWatcher\b[^}]*\} = (?:createServingApp|\(optional\.createServingApp \?\? createServingApp\))\(deps\)/);
+    assert.match(source, /const \{[^}]*\bthemeWatcher\b[^}]*\} = (?:createServingApp|\(optional\.createServingApp \?\? createServingApp\))\(deps(?:, servingOptions)?\)/);
     assert.match(source, /workers: \[[\s\S]*?\bthemeWatcher\b[\s\S]*?\]/);
     assert.match(source, /server\.once\("close", \(\) => \{\s*void themeWatcher\.stop\(\)/);
   });
@@ -129,7 +129,7 @@ test("index.ts hands the legacy tail and createServingApp's bootWork to the stor
   assert.match(source, /closeStoreOnShutdown\([^;]*\bbootWork: \(\) => bootWork\b/, "the store close must read the boot work list");
   assert.match(source, /bootWork\.push\(deps\.legacyPublishCredentialsReady\)/, "the legacy publish-credential tail must be awaited");
   // Other destructured fields (the drainer/sweeper handed to stopServing) may sit beside these two.
-  assert.match(source, /const \{[^}]*\bbootWork: servingBootWork\b[^}]*\} = createServingApp\(deps\);/);
+  assert.match(source, /const \{[^}]*\bbootWork: servingBootWork\b[^}]*\} = createServingApp\(deps(?:, servingOptions)?\);/);
   assert.match(source, /bootWork\.push\(\.\.\.servingBootWork\)/, "createApp's BYOK pass must be awaited");
 });
 
@@ -157,7 +157,7 @@ test("createServingApp pulls once at startup, after createApp attached the subsc
 for (const bootPath of ["index.ts", "cli/commands/serve.ts"]) {
   test(`${bootPath} stops the automatic form pull trigger at shutdown`, () => {
     const source = readCodeLines(bootPath).join("\n");
-    assert.match(source, /const \{[^}]*\bformPullTrigger\b[^}]*\} = (?:createServingApp|\(optional\.createServingApp \?\? createServingApp\))\(deps\)/);
+    assert.match(source, /const \{[^}]*\bformPullTrigger\b[^}]*\} = (?:createServingApp|\(optional\.createServingApp \?\? createServingApp\))\(deps(?:, servingOptions)?\)/);
     assert.match(source, /workers: \[[^\]]*\bformPullTrigger\b[^\]]*\]/);
   });
 }
@@ -175,7 +175,7 @@ test("the webhook delivery loop starts only in createServingApp", () => {
 for (const bootPath of ["index.ts", "cli/commands/serve.ts"]) {
   test(`${bootPath} stops the webhook delivery loop at shutdown`, () => {
     const source = readCodeLines(bootPath).join("\n");
-    assert.match(source, /const \{[^}]*\bwebhookDeliveryWorker\b[^}]*\} = (?:createServingApp|\(optional\.createServingApp \?\? createServingApp\))\(deps\)/);
+    assert.match(source, /const \{[^}]*\bwebhookDeliveryWorker\b[^}]*\} = (?:createServingApp|\(optional\.createServingApp \?\? createServingApp\))\(deps(?:, servingOptions)?\)/);
     assert.match(source, /workers: \[[^\]]*\bwebhookDeliveryWorker\b[^\]]*\]/);
   });
 }
@@ -191,7 +191,7 @@ test("the due-bindings DNS sweep starts only in createServingApp", () => {
 for (const bootPath of ["index.ts", "cli/commands/serve.ts"]) {
   test(`${bootPath} stops the due-bindings DNS sweep at shutdown`, () => {
     const source = readCodeLines(bootPath).join("\n");
-    assert.match(source, /const \{[^}]*\bdomainBindingSweeper\b[^}]*\} = (?:createServingApp|\(optional\.createServingApp \?\? createServingApp\))\(deps\)/);
+    assert.match(source, /const \{[^}]*\bdomainBindingSweeper\b[^}]*\} = (?:createServingApp|\(optional\.createServingApp \?\? createServingApp\))\(deps(?:, servingOptions)?\)/);
     assert.match(source, /workers: \[[^\]]*\bdomainBindingSweeper\b[^\]]*\]/);
   });
 }
@@ -212,7 +212,18 @@ test("the post go-live sweep is started only by createServingApp, after createAp
 for (const bootPath of ["index.ts", "cli/commands/serve.ts"]) {
   test(`${bootPath} stops the post go-live sweep at shutdown`, () => {
     const source = readCodeLines(bootPath).join("\n");
-    assert.match(source, /const \{[^}]*\bpostGoLiveSweep\b[^}]*\} = (?:createServingApp|\(optional\.createServingApp \?\? createServingApp\))\(deps\)/);
+    assert.match(source, /const \{[^}]*\bpostGoLiveSweep\b[^}]*\} = (?:createServingApp|\(optional\.createServingApp \?\? createServingApp\))\(deps(?:, servingOptions)?\)/);
     assert.match(source, /workers: \[[^\]]*\bpostGoLiveSweep\b[^\]]*\]/);
+  });
+}
+
+
+for (const bootPath of ["index.ts", "cli/commands/serve.ts"]) {
+  test(`${bootPath} routes idle shutdown through the existing registered store stop`, () => {
+    const source = readCodeLines(bootPath).join("\n");
+    assert.match(source, /const servingOptions = \{\s*stopForIdle:/);
+    assert.match(source, /registerStop: stop => \{ requestStop = stop; \}/);
+    assert.match(source, /setImmediate\(\(\) => stop\(input\)\)/);
+    assert.match(source, /\(deps, servingOptions\)/);
   });
 }

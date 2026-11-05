@@ -56,6 +56,15 @@ export class SqlNewsletterCampaignRepo implements NewsletterCampaignRepoPort {
     this.kernel = kernel;
   }
 
+  /** One covering-index existence lookup; never loads campaign bodies or applies list paging.
+   * @complexity O(log campaigns) lookup, O(1) returned payload/space; storage failures propagate.
+   */
+  async hasSending({ workspaceId }: { workspaceId: string }, _options = {}): Promise<boolean> {
+    const row = await this.kernel.run(db => db.selectFrom('newsletter_campaigns').select('workspace_id')
+      .where('workspace_id', '=', workspaceId).where('status', '=', 'sending').limit(1).executeTakeFirst());
+    return row !== undefined;
+  }
+
   async findById(required: { workspaceId: string; id: string }): Promise<CampaignRecord | null> {
     const row = await this.kernel.run((db) =>
       db

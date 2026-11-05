@@ -4,6 +4,7 @@ import { openNativeSqlite } from "../kernel/drivers/sqlite.js";
 
 import { sqliteKernel } from "@jini-ai/db/kernel/sqlite";
 import { SQLITE_CHAT_STATEMENTS } from "../migrations/chat/0001_sqlite_chat_tables.js";
+import { activeRunIndexStatement } from "../migrations/chat/0003_active_run_index.js";
 import { durableRunStatements } from "../migrations/chat/0002_durable_run_attempts.js";
 import { migrateChatDatabase } from "../migrations/index.js";
 
@@ -69,5 +70,6 @@ export function openChatDb(required: string | { filePath: string }, options: Cha
   const sqlite = openChatConnection(filePath, options);
   for (const statement of SQLITE_CHAT_STATEMENTS) sqlite.exec(statement);
   for (const statement of durableRunStatements({ dialect: "sqlite" }, {})) sqlite.exec(statement);
+  sqlite.exec(activeRunIndexStatement({ dialect: "sqlite" }, {}));
   return sqlite;
 }

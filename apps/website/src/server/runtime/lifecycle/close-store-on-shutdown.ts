@@ -76,12 +76,14 @@ export function closeWithinBound(
  * `optional.stopOnEnd` (the desktop's stdin pipe on Windows, which has no SIGTERM a parent can
  * deliver) runs the same stop when the stream ends: the desktop closes the pipe to ask for it.
  *
- * @returns `true` when the handlers were registered (the caller must then start the daemon with
+ * @returns `false` without an owned store; `true` when the handlers were registered (the caller must then start the daemon with
  *   `registerProcessSignalHandlers: false`).
  */
 export function closeStoreOnShutdown(
-  required: { store: Pick<SiteStore, "storage" | "close">; onShutdown: () => unknown },
+  required: { store: Pick<SiteStore, "storage" | "close"> | undefined; onShutdown: () => unknown },
   optional: {
+    /** Publish the same daemon-first stop for a private idle operation; signals still exit zero. */
+    registerStop?: (stop: (input: { exitCode: number }) => void) => void;
     proc?: ShutdownProcess;
     timeoutMs?: number;
     log?: (message: string) => void;
@@ -91,6 +93,8 @@ export function closeStoreOnShutdown(
   } = {}
 ): boolean {
   const { store, onShutdown } = required;
+  // Memory-only boots have no owned store; leave process shutdown with their existing owner.
+  if (!store) return false;
   const proc = optional.proc ?? process;
   const timeoutMs = optional.timeoutMs ?? DEFAULT_CLOSE_TIMEOUT_MS;
   const log = optional.log ?? ((message: string) => console.error(message));
@@ -119,14 +123,16 @@ export function closeStoreOnShutdown(
     return closing;
   };
 
-  const stop = (): void => {
+  let requestedExitCode: number | undefined;
+  const stop = ({ exitCode }: { exitCode: number }): void => {
+    requestedExitCode ??= exitCode;
     daemonStopped = onShutdown();
-    void closeBounded().then(() => proc.exit(0));
+    void closeBounded().then(() => proc.exit(requestedExitCode!));
   };
-  for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"] as const) proc.once(signal, stop);
-  optional.stopOnEnd?.once("end", stop);
-  // Flowing mode, or a paused stream never reports its end.
-  optional.stopOnEnd?.resume();
+  optional.registerStop?.(stop);
+  const stopNormally = () => stop({ exitCode: 0 });
+  for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"] as const) proc.once(signal, stopNormally);
+  registerStopOnEnd({ stream: optional.stopOnEnd, stop: stopNormally });
   // The drained loop closes the same shared store, so the daemon goes first here too.
   proc.once("beforeExit", () => {
     daemonStopped ??= onShutdown();
@@ -134,6 +140,17 @@ export function closeStoreOnShutdown(
   });
   proc.once("exit", onShutdown);
   return true;
+}
+
+/** Windows' existing EOF pipe asks for the same normal stop. Flowing mode is required, or a
+ * paused stream never reports its end. Missing stdin opt-in adds no listener or stream reads.
+ */
+function registerStopOnEnd({ stream, stop }: {
+  stream: { once(event: "end", listener: () => void): unknown; resume(): unknown } | undefined;
+  stop: () => void;
+}, _options = {}): void {
+  stream?.once("end", stop);
+  stream?.resume();
 }
 
 /** The slice of an `http.Server` {@link stopServingWithinGrace} closes. */

@@ -15,6 +15,8 @@ import { SITES_MCP_SERVER_ID, DESKTOP_MCP_URL_ENV, DESKTOP_MCP_TOKEN_ENV, DESKTO
  * `tovu: <CODE>: <message>` line on failure. This module reads both and nothing else, so no file
  * under `apps/website/` has to change for the desktop shell to exist.
  */
+import { redactSecrets } from "@jini-ai/core";
+import { SITE_SLEEP_EXIT_CODE } from "../../website/src/assistant/daemon-exit-codes.ts";
 import net from "node:net";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -249,12 +251,13 @@ interface CliSpawnPlan {
  */
 function buildCliSpawnPlan(input: CliSpawnPlanInput): CliSpawnPlan {
   const cliMode = input.cliMode ?? "compiled";
+  const nodeArgs = input.cliArgs[0] === "serve" ? ["--optimize-for-size"] : [];
   if (cliMode === "source") {
     const scripts = path.join(input.repoRoot, "development", "scripts");
-    return { command: process.execPath, args: ["--import", pathToFileURL(path.join(scripts, "dev-tsx-loader.mjs")).href,
+    return { command: process.execPath, args: [...nodeArgs, "--import", pathToFileURL(path.join(scripts, "dev-tsx-loader.mjs")).href,
       "--import", pathToFileURL(path.join(scripts, "dev-source-maps-off.mjs")).href, resolveDevCliEntry(input.repoRoot), ...input.cliArgs] };
   }
-  return { command: process.execPath, args: [resolveCliEntry(input.repoRoot), ...input.cliArgs] };
+  return { command: process.execPath, args: [...nodeArgs, resolveCliEntry(input.repoRoot), ...input.cliArgs] };
 }
 
 /**
@@ -930,12 +933,16 @@ interface TovuServerHandle {
   /** Resolve only after confirmed exit; reject if escalation's bounded exit wait expires. */
   stop(): Promise<void>;
   onExit: ExitSignal["onExit"];
+  /** Private owned-child operation. False means busy/uncertain; never escalates or signals. */
+  stopIfIdle?(required?: {}, optional?: {}): Promise<boolean>;
+  /** Bounded redacted diagnostics only, including post-ready lines; no environment snapshots. */
+  outputTail?(required?: {}, optional?: {}): string;
 }
 
 /**
  * Spawn `tovu serve <siteDir> --port <port>` and resolve once it reports the port it bound.
  *
- * Resolves to a handle whose `stop()` is the only supported way to shut the server down. Rejects
+ * Resolves to a handle with explicit `stop()` and private guarded `stopIfIdle()`. Rejects
  * after shutdown if the boot line does not arrive before `readyTimeoutMs`, or if the child exits
  * first, in which case Tovu's own `tovu: <CODE>: <message>` line is reported. Unconfirmed cleanup
  * instead reports its bounded exit-wait failure.
@@ -962,8 +969,8 @@ interface TovuServerHandle {
  *   {@link taskkillTree}.
  * @param input.nodeToolchainEnv forwarded to {@link buildServeEnv}'s field of the same name — the
  *   bundled node/npm toolchain's env contract. Omit to leave the child's env exactly as before.
- * @returns `{ port, pid, origin, adminUrl, workspaceId, schemaVersion, stop(), onExit(cb) }` —
- *   `onExit` is the post-ready liveness signal a supervisor needs; see {@link createExitSignal}.
+ * @returns The authenticated site handle, explicit and guarded stops, bounded redacted `outputTail`,
+ *   and `onExit`: the replayable post-ready liveness signal (see {@link createExitSignal}).
  * @throws {Error} when the CLI is unbuilt/missing, the boot line times out, or the child exits early.
  * @complexity O(1) plus `bootSiteDir`'s own cost inside the child.
  */
@@ -1008,13 +1015,35 @@ async function startTovuServer(input: StartTovuServerInput): Promise<TovuServerH
   const agentBinding = input.agentService?.bindServer({ child: child as ChildProcess, siteDir: input.siteDir }, {});
 
   const exitSignal = createExitSignal(child);
+  let outputTail = "";
+  let bootToken: string | null = null;
+  const exactSecrets = [...Object.values(startup.secrets), ...Object.entries(serveEnv)
+    .filter(([key]) => /secret|token|password|credential|authorization|api.?key|owner.?signin/i.test(key))
+    .map(([, value]) => value ?? "")];
+  const redactOutput = (text: string) => redactBootToken(redactSecrets({ input: text }, {
+    exactSecrets: bootToken ? [...exactSecrets, bootToken] : exactSecrets, redactPii: false,
+  }));
+
+  /** Intake is already fenced on acceptance. Keep serialized wake behind confirmed exit, bounded
+   * without a kill: uncertainty can only defer maintenance, never interrupt an active chat.
+   * @complexity O(1) plus one private IPC request; at most one exit wait per accepted sleep.
+   */
+  async function stopIfIdle(_required = {}, _optional = {}): Promise<boolean> {
+    try {
+      if (!agentBinding || !(await agentBinding.stopIfIdle({}, {}))) return false;
+      return await new Promise(resolve => {
+        const timer = setTimeout(() => resolve(false), stopGraceMs * 2);
+        exitSignal.onExit(exit => { clearTimeout(timer); resolve(exit.code === SITE_SLEEP_EXIT_CODE); });
+      });
+    } catch { return false; }
+  }
 
   return await new Promise<TovuServerHandle>((resolve, reject) => {
     let output = "";
     let settled = false;
 
     const timer = setTimeout(() => {
-      if (finish()) reject(new Error(describeBootFailure(redactBootToken(output), `tovu serve did not report a port within ${readyTimeoutMs}ms.`)));
+      if (finish()) reject(new Error(describeBootFailure(redactOutput(output), `tovu serve did not report a port within ${readyTimeoutMs}ms.`)));
     }, readyTimeoutMs);
 
     /** Single-settle guard: whichever of ready / timeout / exit happens first owns the outcome. */
@@ -1029,7 +1058,13 @@ async function startTovuServer(input: StartTovuServerInput): Promise<TovuServerH
 
     function readStream(stream: Readable, mirror: Writable): void {
       stream.setEncoding("utf8");
-      const safeMirror = createRedactedOutputSink({ sink: mirror, redact: (text) => redactBootToken(text).slice(0, MAX_ECHOED_OUTPUT_CHARS) });
+      // The framed sink redacts BEFORE either copy is retained or mirrored, even across chunks.
+      const safeMirror = createRedactedOutputSink({ sink: { write(safe: string) {
+        outputTail += safe;
+        // Amortize tail copies across small log lines; diagnostics expose only the latest 16 KiB.
+        if (outputTail.length > 32_768) outputTail = outputTail.slice(-16_384);
+        return mirror.write(safe);
+      } }, redact: redactOutput }, { maxLength: MAX_ECHOED_OUTPUT_CHARS });
       stream.once("end", () => safeMirror.end());
       stream.on("data", (chunk) => {
         safeMirror.write(chunk);
@@ -1045,6 +1080,7 @@ async function startTovuServer(input: StartTovuServerInput): Promise<TovuServerH
         agentBinding?.setIdentity({ siteId: boot.workspaceId }, {});
         const origin = `http://127.0.0.1:${boot.port}`;
         if (!finish()) return;
+        bootToken = parseBootToken(output);
         resolve({
           port: boot.port,
           pid: child.pid!, // `!`: resolved from a boot line this child printed, so it spawned and has a pid.
@@ -1055,11 +1091,14 @@ async function startTovuServer(input: StartTovuServerInput): Promise<TovuServerH
           // Printed BEFORE the boot line, so by the time this resolves it is already in `output`
           // — no second wait and no timing window. `null` whenever `--emit-boot-token` was not
           // passed, which is every caller but the desktop shell.
-          bootToken: parseBootToken(output),
+          bootToken,
           ownerSignInCapability: serveEnv.TOVU_DESKTOP_OWNER_SIGNIN,
           stop,
           onExit: exitSignal.onExit,
+          stopIfIdle,
+          outputTail: (_required = {}, _optional = {}) => outputTail.slice(-16_384),
         });
+        output = ""; // Boot parsing is finished; retain only the bounded redacted tail now.
       });
     }
 
@@ -1072,7 +1111,7 @@ async function startTovuServer(input: StartTovuServerInput): Promise<TovuServerH
       if (!finish()) return;
       const signalDetail = signal ? ` Signal: ${signal}.` : "";
       const detail = `tovu serve exited (code ${code ?? signal ?? "none"}) before reporting a port.${signalDetail}`;
-      reject(new Error(describeBootFailure(redactBootToken(output), detail)));
+      reject(new Error(describeBootFailure(redactOutput(output), detail)));
     });
   }).catch(async (error) => {
     await stopChild({ child, graceMs: stopGraceMs }, { platform: input.platform, killTree: input.killTree });

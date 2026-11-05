@@ -22,6 +22,11 @@ import { ensureIndependentSiteIdentity, type SiteIdentityOptions } from "./site-
  * module-level variable, so every handler here is callable from plain `node --test` against fakes —
  * no real Electron, no real `tovu serve` child, no real filesystem beyond what a test points it at.
  */
+import { createRespawnPolicy } from "@jini-ai/sidecar/respawn-policy";
+import { redactSecrets } from "@jini-ai/core";
+import { SITE_SLEEP_EXIT_CODE } from "../../website/src/assistant/daemon-exit-codes.ts";
+import { readIdleSiteSleepMinutes } from "./site-view-preference.ts";
+import type { ResourcesSnapshot } from "./contracts/resources.ts";
 import fs from "node:fs";
 import { classifySiteDirSafely } from "./site-dir-store.ts";
 import path from "node:path";
@@ -33,6 +38,7 @@ import { siteNameError } from "./contracts/site-name.ts";
 import type { SiteFoldersPort } from "./site-folders.ts";
 import type { SiteRecord } from "./contracts/project.ts";
 import type { ExternalSiteStopper } from "./external-site-stop.ts";
+import { registerIdleSiteSleepIpc } from "./site-view-preference.ts";
 
 import { SITE_ORIGIN, readProjectsFile, readTrackedSites, trackSite, untrackSite, discoverSiteDirs, adoptDiscoveredSites, updateProjectsFile } from "./tracked-sites.ts";
 import { mayEraseSiteDirectory, readSiteIdentity } from "./project-delete-guard.ts";
@@ -60,6 +66,58 @@ const SITE_IPC_CHANNELS = Object.freeze({
   locate: "runner:sites:locate",
   tokenSignInPlugins: "runner:sites:token-sign-in-plugins",
 });
+const SITE_PRESENCE_CHANNEL = "runner:sites:presence";
+
+interface PresenceSender {
+  isDestroyed(): boolean;
+  once(name: 'destroyed' | 'render-process-gone', listener: () => void): unknown;
+  removeListener(name: 'destroyed' | 'render-process-gone', listener: () => void): unknown;
+}
+
+/** The maintenance owner can query presence without learning about renderer senders. */
+export interface SitePresence<Sender extends PresenceSender = PresenceSender> {
+  replace(input: { sender: Sender; siteIds: unknown }, options?: {}): void;
+  has(input: { siteId: string }, options?: {}): boolean;
+  dispose(): void;
+}
+
+/** Retain complete lists per shell, never per loaded guest. Invalid updates reject atomically.
+ * Sender loss removes only that sender's claim, so another window can keep the same site present.
+ * @returns Replace/query/dispose operations; each sender owns one pair of cleanup listeners.
+ * @complexity Replacement O(t + n), where t is tracked sites and n is reported ids; lookup O(s)
+ * for s shells. Stored claims are bounded by tracked sites per live sender. No per-id I/O.
+ */
+export function createSitePresence<Sender extends PresenceSender>(
+  { allowed, trackedIds }: { allowed: (sender: Sender) => boolean; trackedIds: () => ReadonlySet<string> },
+  { hasSiteWindow = () => false, onRelease = () => {} }: { hasSiteWindow?: (siteId: string) => boolean; onRelease?: () => void } = {},
+): SitePresence<Sender> {
+  const owners = new Map<Sender, { siteIds: Set<string>; release: () => void }>();
+  const release = (sender: Sender) => {
+    const owner = owners.get(sender);
+    if (!owner) return;
+    onRelease();
+    owners.delete(sender);
+    sender.removeListener('destroyed', owner.release);
+    sender.removeListener('render-process-gone', owner.release);
+  };
+  const replace = ({ sender, siteIds }: { sender: Sender; siteIds: unknown }) => {
+    if (sender.isDestroyed() || !allowed(sender)) throw new Error('UNTRUSTED_SITE_PRESENCE_SENDER');
+    const tracked = trackedIds();
+    if (!Array.isArray(siteIds) || !siteIds.every(id => typeof id === 'string' && tracked.has(id))) throw new Error('INVALID_SITE_PRESENCE');
+    const ids = new Set<string>(siteIds);
+    const owner = owners.get(sender);
+    if (owner) { owner.siteIds = ids; return; }
+    const created = { siteIds: ids, release: () => release(sender) };
+    owners.set(sender, created);
+    sender.once('destroyed', created.release);
+    sender.once('render-process-gone', created.release);
+  };
+  return {
+    replace,
+    has: ({ siteId }) => hasSiteWindow(siteId) || [...owners.values()].some(owner => owner.siteIds.has(siteId)),
+    dispose: () => { for (const sender of owners.keys()) release(sender); },
+  };
+}
 
 /**
  * A tracked-project row as {@link buildSiteRecord} and its siblings need it — loosened from
@@ -106,12 +164,81 @@ interface OpenSiteEntry {
     origin?: string;
     stop?: () => Promise<unknown>;
     onExit?: (listener: (exit: ServerExitLike) => void) => void;
+    stopIfIdle?: (required?: {}, optional?: {}) => Promise<boolean>;
+    outputTail?: (required?: {}, optional?: {}) => string;
   };
   window?: {
     isDestroyed?: () => boolean;
     destroy?: () => void;
     setTitle?: (title: string) => void;
   };
+}
+
+/** Per directory retry policy survives readiness. Only manual Start resets its rolling window. */
+interface SiteRuntime {
+  policy: ReturnType<typeof createRespawnPolicy>;
+  failures: number;
+  cancelled: boolean;
+  cancelRetry?: () => void;
+  starting?: Promise<unknown>;
+  status?: "starting" | "sleeping" | "error";
+  detail?: string;
+  lastPresentAt: number;
+  rss?: { pid: number; since: number };
+  restartAfterExit?: OpenSiteEntry["server"];
+}
+
+interface SiteLifecycleOptions {
+  now?: () => number;
+  schedule?: (input: { delayMs: number; run: () => void }) => () => void;
+  sleepMinutes?: () => number;
+}
+
+export interface ProjectSiteLifecycle extends SitePresence<PresenceSender & { getURL(): string }> {
+  onServerExit(input: { siteDir: string; exit: ServerExitLike; server: OpenSiteEntry["server"] }, options?: {}): void;
+  maintain(input: { snapshot: ResourcesSnapshot }, options?: {}): Promise<void>;
+  manualStart(input: { siteDir: string }, options?: {}): void;
+  cancel(input: { siteDir: string; forget?: boolean }, options?: {}): void;
+  onBootFailure(input: { siteDir: string; error: unknown }, options?: {}): void;
+}
+
+/** Retry timers are independent of the one fleet maintenance tick, and never keep Quit alive. */
+function scheduleSiteRetry({ delayMs, run }: { delayMs: number; run: () => void }, _options = {}): () => void {
+  const timer = setTimeout(run, delayMs);
+  timer.unref();
+  return () => clearTimeout(timer);
+}
+
+/** Use only the owned root's current RSS. Totals include grandchildren and cannot enforce this cap.
+ * @complexity O(p) for the snapshot's p processes; O(1) retained observation per site.
+ */
+function siteRssOverTime({ state, server, snapshot, siteDir, at }: {
+  state: SiteRuntime; server: OpenSiteEntry["server"]; snapshot: ResourcesSnapshot; siteDir: string; at: number;
+}, _options = {}): boolean {
+  const root = currentSiteRss({ snapshot, siteDir, pid: server.pid, at });
+  if (!root || !Number.isFinite(root.rssBytes) || root.rssBytes < 1_500_000_000) {
+    state.rss = undefined;
+    return false;
+  }
+  if (state.rss?.pid !== root.pid) state.rss = { pid: root.pid, since: snapshot.sampledAt };
+  return snapshot.sampledAt - state.rss.since >= 120_000;
+}
+
+/** Cached or failed reads must not extend an RSS observation, nor can another boot's PID. */
+function currentSiteRss({ snapshot, siteDir, pid, at }: {
+  snapshot: ResourcesSnapshot; siteDir: string; pid: number | undefined; at: number;
+}, _options = {}) {
+  if (snapshot.status !== "available" || snapshot.sampledAt > at || at - snapshot.sampledAt > 30_000) return;
+  return snapshot.sites.find(site => site.siteId === siteDir)?.processes
+    .find(row => row.pid === pid && row.role === "site-server");
+}
+
+/** Final error is selectable plain text. Redact again at this IPC boundary and retain only a tail. */
+function siteFailureDetails({ exit, server, error }: {
+  exit?: ServerExitLike; server?: OpenSiteEntry["server"]; error?: unknown;
+}, _options = {}): string {
+  const reason = exit ? `Exit code: ${exit.code ?? "none"}; signal: ${exit.signal ?? "none"}.` : String(error instanceof Error ? error.message : error);
+  return redactSecrets({ input: `${reason}\n${server?.outputTail?.({}, {}) ?? ""}` }, { redactPii: false }).slice(-16_384);
 }
 
 /** `deps.openSites` — `Map`-compatible, per {@link registerSiteIpcHandlers}'s own doc; in production
@@ -183,6 +310,7 @@ interface ShellLike {
  *  type at the point that matters — the handler function it delegates to. */
 interface IpcMainLike {
   handle(channel: string, listener: (event: any, ...args: any[]) => any): void; // Mirrors Electron's own ipcMain.handle signature.
+  removeHandler?(channel: string): void;
 }
 
 /** `deps.serializer` — `keyed-serializer.ts`'s per-key promise chain, loosened from that file's own
@@ -275,16 +403,17 @@ function siteLifecycle(running: boolean, transition: "starting" | "stopping" | n
   return { status: "stopped" as const, desiredState: "stopped" as const };
 }
 
-/**
- * One tracked row plus `openSites` (ground truth for "running") joined into the `SiteRecord`
- * shape `contracts/project.ts` declares. Every field this shell cannot really know — `templateId`,
- * `templateVersion`, `database` — gets a stated, honest default rather than a fabricated value:
- * every project a JSON-file-tracked site can describe today was created outside a provisioner this
- * shell drives, so there is no template or vendor-database fact to report.
- *
- * @complexity O(1).
- */
-type SiteRecordDeps = Pick<ProjectIpcDeps, "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "sharedSites"> & Partial<Pick<ProjectIpcDeps, "classifySiteDir" | "externalSites">>;
+/** Retry/sleep/error details apply only after liveness and explicit transitions have settled. */
+function siteRecordPresentation({ lifecycle, sharedRunning, siteDir, deps }: {
+  lifecycle: ReturnType<typeof siteLifecycle>; sharedRunning: SharedRunning; siteDir: string; deps: SiteRecordDeps;
+}, _options = {}) {
+  const runtime = deps.siteRuntime?.get(siteDir);
+  if (lifecycle.status === "stopped" && runtime?.status) return { status: runtime.status,
+    desiredState: runtime.status === "starting" ? "running" as const : "stopped" as const, detail: runtime.detail ?? null };
+  return { ...lifecycle, detail: siteStatusDetail(sharedRunning, lifecycle.status, deps.openSites, siteDir) };
+}
+
+type SiteRecordDeps = Pick<ProjectIpcDeps, "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "sharedSites" | "siteRuntime"> & Partial<Pick<ProjectIpcDeps, "classifySiteDir" | "externalSites">>;
 type SharedRunning = ReturnType<ReturnType<SitesWorkspace["running"]>["read"]> | undefined;
 
 /** The admin URL of a server this window does not own: an external one it attached to, or the other app's. */
@@ -335,12 +464,22 @@ export function siteRecordLifecycle(
   return { sharedPort, lifecycle };
 }
 
+/**
+ * One tracked row plus `openSites` (ground truth for "running") joined into the `SiteRecord`
+ * shape `contracts/project.ts` declares. Every field this shell cannot really know — `templateId`,
+ * `templateVersion`, `database` — gets a stated, honest default rather than a fabricated value:
+ * every project a JSON-file-tracked site can describe today was created outside a provisioner this
+ * shell drives, so there is no template or vendor-database fact to report.
+ *
+ * @complexity O(1).
+ */
 function buildSiteRecord(row: SiteRow, deps: SiteRecordDeps) {
   const validSite = (deps.classifySiteDir ?? classifySiteDirSafely)(row.siteDir) === "site";
   const openEntry = deps.openSites.get(row.siteDir);
   const sharedRunning: SharedRunning = deps.sharedSites?.running({ path: row.siteDir }).read({});
   const { sharedPort, lifecycle } = siteRecordLifecycle({ siteDir: row.siteDir, openEntry, sharedRunning, transitions: deps.transitions });
-  const externalUrl = siteExternalUrl(openEntry, sharedRunning, lifecycle.status);
+  const presentation = siteRecordPresentation({ lifecycle, sharedRunning, siteDir: row.siteDir, deps });
+  const externalUrl = siteExternalUrl(openEntry, sharedRunning, presentation.status);
   return {
     id: row.siteDir,
     slug: path.basename(row.siteDir),
@@ -359,8 +498,8 @@ function buildSiteRecord(row: SiteRow, deps: SiteRecordDeps) {
     templateId: "tovu",
     templateVersion: null,
     database: { kind: "sqlite" as const },
-    desiredState: lifecycle.desiredState,
-    status: lifecycle.status,
+    desiredState: presentation.desiredState,
+    status: presentation.status,
     // Not always `null` any more: a site that DIED is `stopped` exactly like one that was never
     // started, and before `site-supervisor.ts` owned that transition the two were indistinguishable
     // to the renderer (D-06). This is the one place the difference can be told.
@@ -368,7 +507,7 @@ function buildSiteRecord(row: SiteRow, deps: SiteRecordDeps) {
     // Only for a settled `stopped`. Mid-transition the prior crash is not what the operator is
     // looking at — a card that says "Starting" and "the server exited (code 1)" in the same breath
     // is reporting two different moments as one.
-    statusDetail: siteStatusDetail(sharedRunning, lifecycle.status, deps.openSites, row.siteDir),
+    statusDetail: presentation.detail,
     createdAt: row.createdAt,
     updatedAt: row.createdAt,
     // Computed by the SAME function `handleDelete` obeys, never re-derived from `origin` in the
@@ -411,7 +550,7 @@ export function importSharedSiteDiscovery(
  * @complexity O(n) in the tracked-project count, plus `relocateMovedSites`' scan for a missing row.
  */
 function handleList(
-  deps: Pick<ProjectIpcDeps, "projectsPath" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "sharedSites"> &
+  deps: Pick<ProjectIpcDeps, "projectsPath" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "sharedSites" | "siteRuntime"> &
     Partial<Pick<ProjectIpcDeps, "siteScanRoots" | "siteFolders" | "classifySiteDir" | "externalSites">> & { relocationGate?: RelocationGate },
 ) {
   importSharedSiteDiscovery({ projectsPath: deps.projectsPath, sharedSites: deps.sharedSites, readSiteName: deps.readSiteName });
@@ -442,7 +581,7 @@ function rememberSiteName(
   }
 }
 function recordsWithRememberedNames(
-  { rows, deps }: { rows: SiteRow[]; deps: Pick<ProjectIpcDeps, "projectsPath" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "sharedSites"> }, _optional = {},
+  { rows, deps }: { rows: SiteRow[]; deps: Pick<ProjectIpcDeps, "projectsPath" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "sharedSites" | "siteRuntime"> }, _optional = {},
 ) {
   const records = rows.map((row) => buildSiteRecord(row, deps));
   const names = new Map(records.filter((record) => !record.folderMissing).map((record) => [record.id, record.displayName]));
@@ -468,7 +607,7 @@ function recordsWithRememberedNames(
  *   Tovu site, or `id` is not tracked.
  * @complexity O(n + r + m) for n tracked rows, r catalog rows and m marker bytes.
  */
-async function handleLocate(id: string, deps: Pick<ProjectIpcDeps, "dialog" | "classifySiteDir" | "projectsPath" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "sharedSites">) {
+async function handleLocate(id: string, deps: Pick<ProjectIpcDeps, "dialog" | "classifySiteDir" | "projectsPath" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "sharedSites" | "siteRuntime">) {
   const picked = await deps.dialog.showOpenDialog({
     title: "Locate your Tovu website's folder",
     message: `Pick the folder that now holds the website that was at ${id}. Nothing in it will be changed.`,
@@ -567,7 +706,7 @@ export function planNewSiteDir({ name }: { name: string }, {
  */
 async function handleCreate(
   input: CreateSiteInput,
-  deps: Pick<ProjectIpcDeps, "classifySiteDir" | "adoptSiteDir" | "repoRoot" | "statePath" | "cliMode" | "projectsPath" | "openSites" | "readSiteName" | "readPreviewVersion" | "transitions" | "siteFolders" | "sharedSites">
+  deps: Pick<ProjectIpcDeps, "classifySiteDir" | "adoptSiteDir" | "repoRoot" | "statePath" | "cliMode" | "projectsPath" | "openSites" | "readSiteName" | "readPreviewVersion" | "transitions" | "siteFolders" | "sharedSites" | "siteRuntime">
 ) {
   const agentPluginTokens = validateCreateInput({ input });
 
@@ -676,7 +815,7 @@ async function handleTokenSignInPlugins(deps: Pick<ProjectIpcDeps, "repoRoot" | 
  *   complete Tovu site — either way an operator-facing message that names the fix.
  * @complexity O(n) in the tracked-project count, plus one classification.
  */
-async function handleAddSite(deps: Pick<ProjectIpcDeps, "dialog" | "addSitePointer" | "projectsPath" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "sharedSites">) {
+async function handleAddSite(deps: Pick<ProjectIpcDeps, "dialog" | "addSitePointer" | "projectsPath" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "sharedSites" | "siteRuntime">) {
   const picked = await deps.dialog.showOpenDialog({
     title: "Choose your Tovu website's folder",
     message: "Pick a folder that already contains a Tovu website. Nothing in it will be changed.",
@@ -957,7 +1096,7 @@ function identityHasChanged(row: SiteRow): boolean {
  *   every boot).
  * @complexity O(n) in the tracked-site count, for the row lookup.
  */
-function handleRename(input: RenameSiteInput, deps: Pick<ProjectIpcDeps, "projectsPath" | "classifySiteDir" | "writeSiteName" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "sharedSites">) {
+function handleRename(input: RenameSiteInput, deps: Pick<ProjectIpcDeps, "projectsPath" | "classifySiteDir" | "writeSiteName" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "sharedSites" | "siteRuntime">) {
   const id = input?.id;
   const row = readTrackedSites(deps.projectsPath).find((tracked) => tracked.siteDir === id);
   if (row === undefined) {
@@ -1079,12 +1218,13 @@ function handleGetPreview(id: string, deps: Pick<ProjectIpcDeps, "readPreviewDat
  * @complexity O(n + r + m) for n tracked rows, r catalog rows and m marker bytes, beyond
  *   `openSiteServer` and any already-queued operation on the same site.
  */
-async function handleStart<TCtx>(id: string, deps: Pick<ProjectIpcDeps<TCtx>, "serializer" | "projectsPath" | "openSiteServer" | "ctx" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "sharedSites"> & Partial<Pick<ProjectIpcDeps, "classifySiteDir">>) {
+async function handleStart<TCtx>(id: string, deps: Pick<ProjectIpcDeps<TCtx>, "serializer" | "projectsPath" | "openSiteServer" | "ctx" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "sharedSites" | "siteRuntime"> & Partial<Pick<ProjectIpcDeps, "classifySiteDir" | "startAllowed">>) {
   return await deps.serializer.run(id, async () => {
     const row = readTrackedSites(deps.projectsPath).find((entry) => entry.siteDir === id);
     if (row === undefined) {
       throw new Error(`Unknown project: ${id}`);
     }
+    if (deps.startAllowed && !deps.startAllowed()) return buildSiteRecord(row, deps);
     if ((deps.classifySiteDir ?? classifySiteDirSafely)(row.siteDir) !== "site") throw new Error("Folder moved or not a site. Locate the website folder or remove this card.");
     ensureIndependentSiteIdentity({ siteDir: row.siteDir }, { workspace: deps.sharedSites });
     if (deps.sharedSites) shareSiteDirectories({ workspace: deps.sharedSites, dirs: [row.siteDir], createdBy: "Desktop", allowRelocation: true });
@@ -1153,7 +1293,7 @@ async function explainMissingSiteDir(siteDir: string, starting: Promise<unknown>
  * @complexity O(1) beyond `server.stop()`'s own drain (bounded by grace plus exit wait), plus however long
  *   an already-queued operation on the same site takes to settle.
  */
-async function handleStop(id: string, deps: Pick<ProjectIpcDeps, "serializer" | "projectsPath" | "openSites" | "cancelPreviewCapture" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "registryPath" | "recordSiteClosed" | "transitions" | "sharedSites" | "pendingTeardowns" | "externalSites">) {
+async function handleStop(id: string, deps: Pick<ProjectIpcDeps, "serializer" | "projectsPath" | "openSites" | "cancelPreviewCapture" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "registryPath" | "recordSiteClosed" | "transitions" | "sharedSites" | "siteRuntime" | "pendingTeardowns" | "externalSites">) {
   return await deps.serializer.run(id, async () => {
     const row = readTrackedSites(deps.projectsPath).find((entry) => entry.siteDir === id);
     if (row === undefined) {
@@ -1258,7 +1398,7 @@ function markTransition<T>(
  * @throws Discovery limit, timeout or cancellation errors before any candidate is adopted.
  * @complexity O(n log n) discovery plus O(n + m) adoption for n candidates and m stored rows.
  */
-async function rescanSites(deps: Pick<ProjectIpcDeps, "siteScanRoots" | "recentSiteDirs" | "classifySiteDir" | "projectsPath" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "siteFolders" | "sharedSites" | "discoverSites">) {
+async function rescanSites(deps: Pick<ProjectIpcDeps, "siteScanRoots" | "recentSiteDirs" | "classifySiteDir" | "projectsPath" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "siteFolders" | "sharedSites" | "siteRuntime" | "discoverSites">) {
   // Production injects the read-only worker. Legacy hosts/tests retain the same discovery owner.
   const found = deps.discoverSites ? await deps.discoverSites({}) : discoverSiteDirs({
     scanRoots: deps.siteFolders?.read({}).roots ?? deps.siteScanRoots,
@@ -1334,20 +1474,216 @@ async function handleAddSiteFolder({ deps }: { deps: Pick<ProjectIpcDeps, "dialo
  * @param deps.isLiveServeRow `site-process-registry.ts`'s "is this row's pid still its own live
  *   `tovu serve`" identity proof, so a stale or recycled pid can never block a delete.
  * @param deps.ctx `{cliMode, registryPath}` — `openSiteServer`'s own second argument.
- * @complexity O(1) — a fixed set of channel registrations.
+ * @param options Injected clock/scheduler and preference reader for deterministic lifecycle tests.
+ * @returns Presence, confirmed-exit recovery and one-pass maintenance; dispose revokes automatic
+ *   starts, retry timers and sender hooks. Start/Stop remain on the existing per-directory serializer.
+ * @example const sites = registerSiteIpcHandlers(deps, { now }); await sites.maintain({ snapshot }, {});
+ * @complexity O(1) registration; O(s) retained policy/observation state for s sites. Maintenance
+ *   costs O(s*p) snapshot lookups; retry decisions use Jini's bounded rolling failure window.
  */
-function registerSiteIpcHandlers<TCtx>(deps: ProjectIpcDeps<TCtx>): void {
+function registerSiteIpcHandlers<TCtx>(deps: ProjectIpcDeps<TCtx>, options: SiteLifecycleOptions = {}): ProjectSiteLifecycle {
+  const now = options.now ?? Date.now;
+  const schedule = options.schedule ?? scheduleSiteRetry;
+  const sleepMinutes = options.sleepMinutes ?? (() => readIdleSiteSleepMinutes({ preferencePath: path.join(path.dirname(deps.statePath), 'desktop-preferences.json') }));
+  const states = new Map<string, SiteRuntime>();
+  let disposed = false;
+  let maintenance: Promise<void> | undefined;
+
+  /** One policy per directory, including quiet periods and successful automatic boots. O(1). */
+  function stateFor({ siteDir }: { siteDir: string }, _options = {}): SiteRuntime {
+    let state = states.get(siteDir);
+    if (!state) {
+      state = { policy: createRespawnPolicy({ now }, { backoffScheduleMs: [1000, 5000, 30000],
+        crashLoopWindowMs: 300000, crashLoopMaxFailures: 4 }), failures: 0, cancelled: false, lastPresentAt: now() };
+      states.set(siteDir, state);
+    }
+    return state;
+  }
+
+  /** Stop/delete/quit revoke queued work before waiting on a serializer or a drain. */
+  function cancel({ siteDir, forget = false }: { siteDir: string; forget?: boolean }, _options = {}): void {
+    const state = states.get(siteDir);
+    if (!state) return;
+    state.cancelRetry?.(); state.cancelRetry = undefined; state.cancelled = true;
+    state.restartAfterExit = undefined; state.status = undefined; state.detail = undefined;
+    if (forget) states.delete(siteDir);
+  }
+
+  /** Manual recovery clears the trip; automatic starts deliberately never call this. */
+  function manualStart({ siteDir }: { siteDir: string }, _options = {}): void {
+    cancel({ siteDir });
+    const state = stateFor({ siteDir });
+    state.policy.reset();
+    // Replacing the intent object revokes starts already queued before this manual action while
+    // keeping exactly one policy for the directory. Cancellation alone must not be re-enabled.
+    states.set(siteDir, { ...state, cancelled: false, status: undefined, detail: undefined,
+      lastPresentAt: now(), rss: undefined, starting: undefined });
+  }
+
+  /** Recheck cancellation inside handleStart's serializer as well as before queueing it. */
+  function startSite(input: { siteDir: string; state: SiteRuntime }, optional: { manual?: boolean } = {}) {
+    if (input.state.starting) return input.state.starting;
+    const work = attemptStart(input, optional).finally(() => {
+      if (input.state.starting === work) input.state.starting = undefined;
+    });
+    input.state.starting = work;
+    deps.pendingTeardowns?.track({ promise: work });
+    return work;
+  }
+
+  /** Quit waits for an already-started boot, then drains any child it adopted after cancellation. */
+  async function attemptStart({ siteDir, state }: { siteDir: string; state: SiteRuntime }, { manual = false } = {}) {
+    const allowed = () => !disposed && !state.cancelled && states.get(siteDir) === state;
+    if (!allowed()) return;
+    const failures = state.failures;
+    state.cancelRetry = undefined;
+    try {
+      const record = await handleStart(siteDir, { ...deps, siteRuntime: states, startAllowed: allowed });
+      await finishStart({ siteDir, state, failures, allowed });
+      return record;
+    } catch (error) {
+      // An already-observed post-ready exit counts once, even if adoption also rejects.
+      if (allowed() && state.failures === failures) recordFailure({ siteDir, state, detail: siteFailureDetails({ error }) });
+      if (manual) throw error;
+    }
+  }
+
+  /** Publish success only for the still-current intent. A new failure observed during boot owns
+   * the status; readiness alone must not clear its scheduled retry or the policy's recent failures.
+   */
+  async function finishStart({ siteDir, state, failures, allowed }: {
+    siteDir: string; state: SiteRuntime; failures: number; allowed: () => boolean;
+  }, _options = {}): Promise<void> {
+    if (disposed) { await handleStop(siteDir, deps); return; }
+    if (!allowed() || state.failures !== failures) return;
+    if (deps.openSites.has(siteDir)) await deps.onServerRestarted?.({ siteDir });
+    state.status = undefined; state.detail = undefined;
+  }
+
+  /** Jini owns the rolling policy; this owner schedules its decision and supplies site wording. */
+  function recordFailure({ siteDir, state, detail }: { siteDir: string; state: SiteRuntime; detail: string }, _options = {}): void {
+    if (disposed || state.cancelled) return;
+    state.failures++;
+    state.cancelRetry?.();
+    const decision = state.policy.recordFailure({ isPortConflict: false });
+    if (decision.action === "give-up") {
+      state.cancelRetry = undefined; state.status = "error";
+      state.detail = "This site couldn’t stay running after three automatic restarts in five minutes. Automatic restart has stopped. Try starting it again.\n\nRedacted details (copy and paste):\n" + detail;
+      deps.onRestartStopped?.({ siteDir, detail: state.detail });
+      return;
+    }
+    state.status = "starting"; state.detail = undefined;
+    const cancelScheduled = schedule({ delayMs: decision.delayMs, run: () => {
+      if (state.cancelRetry !== cancelScheduled) return;
+      state.cancelRetry = undefined;
+      // A post-ready exit may arrive before session adoption settles. Wait for that boot's
+      // single-flight result before retrying, without losing this policy decision.
+      if (state.starting) {
+        void state.starting.then(() => startSite({ siteDir, state }), () => startSite({ siteDir, state }));
+      } else void startSite({ siteDir, state });
+    } });
+    state.cancelRetry = cancelScheduled;
+  }
+
+  /** Main has already removed the exited child and done PID-specific cleanup. Sleep isn't failure. */
+  function onServerExit({ siteDir, exit, server }: { siteDir: string; exit: ServerExitLike; server: OpenSiteEntry["server"] }, _options = {}): void {
+    if (disposed || server.external) return;
+    const state = stateFor({ siteDir });
+    if (state.cancelled) return;
+    if (exit.code !== SITE_SLEEP_EXIT_CODE) {
+      state.restartAfterExit = undefined;
+      recordFailure({ siteDir, state, detail: siteFailureDetails({ exit, server }) });
+      return;
+    }
+    if (state.restartAfterExit === server) {
+      state.restartAfterExit = undefined;
+      void startSite({ siteDir, state });
+      return;
+    }
+    state.status = "sleeping"; state.detail = undefined;
+  }
+
+  /** Server authority runs under the SAME key as Start/Stop. Accepted sleep waits for confirmed
+   * exit in the server handle, so a reopen cannot reuse a fenced, still-draining child.
+   */
+  async function parkSite({ siteDir, state, server, restart }: {
+    siteDir: string; state: SiteRuntime; server: OpenSiteEntry["server"]; restart: boolean;
+  }, _options = {}): Promise<void> {
+    const stopIfIdle = server.stopIfIdle;
+    if (!stopIfIdle) return;
+    await deps.serializer.run(siteDir, async () => {
+      if (disposed || state.cancelled || deps.openSites.get(siteDir)?.server !== server) return;
+      if (!restart && presence.has({ siteId: siteDir })) return;
+      if (restart) state.restartAfterExit = server;
+      try {
+        await stopIfIdle({}, {});
+      } catch { /* Timeout, rejection and disposed channels are busy; the next tick may retry. */ }
+      finally { if (state.restartAfterExit === server) state.restartAfterExit = undefined; }
+    });
+  }
+
+  /** Presence events update the absence clock at tab closure, not one sampler tick earlier. */
+  function notePresence(): void {
+    const at = now();
+    for (const [siteDir, state] of states) if (presence.has({ siteId: siteDir })) state.lastPresentAt = at;
+  }
+
+  /** One snapshot serves every owned site. Missing/stale samples reset only RSS observations;
+   * no suspension-gap special case is needed because the server always rechecks active work.
+   * @complexity O(s*p) snapshot lookups for s sites and p process rows; one sampler, no per-site I/O.
+   */
+  async function maintainSites({ snapshot }: { snapshot: ResourcesSnapshot }): Promise<void> {
+    const at = now();
+    const minutes = sleepMinutes();
+    const sites = readTrackedSites(deps.projectsPath);
+    for (const { siteDir } of sites) await maintainSite({ siteDir, snapshot, at, minutes });
+  }
+
+  /** Decide one site's timer/cap eligibility, then ask its own authority. O(p) snapshot lookup. */
+  async function maintainSite({ siteDir, snapshot, at, minutes }: { siteDir: string; snapshot: ResourcesSnapshot; at: number; minutes: number }): Promise<void> {
+    const entry = deps.openSites.get(siteDir);
+    if (!entry || entry.server.external) return;
+    const state = stateFor({ siteDir });
+    if (presence.has({ siteId: siteDir })) state.lastPresentAt = at;
+    const restart = siteRssOverTime({ state, server: entry.server, snapshot, siteDir, at });
+    const idle = minutes > 0 && at - state.lastPresentAt >= minutes * 60_000;
+    if (restart || idle) await parkSite({ siteDir, state, server: entry.server, restart });
+  }
+  const presence = createSitePresence({ allowed: deps.isPresenceShell ?? (() => false),
+    trackedIds: () => new Set(readTrackedSites(deps.projectsPath).map(row => row.siteDir)),
+  }, { hasSiteWindow: siteId => Boolean(deps.openSites.get(siteId)?.window), onRelease: notePresence });
+  deps.ipcMain.handle(SITE_PRESENCE_CHANNEL, ({ sender }, input: { siteIds?: unknown } | undefined) => {
+    notePresence();
+    presence.replace({ sender, siteIds: input?.siteIds });
+    notePresence();
+
+  });
+  // The state and preferences files share the launch's userData folder, including E2E profiles.
+  // Keep registration here: the original independent UI slice and the lifecycle share this profile.
+  const offSleep = registerIdleSiteSleepIpc({ ipcMain: deps.ipcMain, allowed: deps.isPresenceShell ?? (() => false),
+    preferencePath: path.join(path.dirname(deps.statePath), 'desktop-preferences.json') });
   const relocationGate = createRelocationGate({}, { classifySiteDir: deps.classifySiteDir });
-  deps.ipcMain.handle(SITE_IPC_CHANNELS.list, () => handleList({ ...deps, relocationGate }));
+  // Handlers share the live host ports: settings and discovery may be supplied after registration.
+  // Read them at dispatch and pass registration-owned runtime explicitly, without mutating deps.
+  deps.ipcMain.handle(SITE_IPC_CHANNELS.list, () => handleList({ ...deps, siteRuntime: states, relocationGate }));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.planNewDir, (_event, input) => ({
     path: planNewSiteDir({ name: input?.name }, { workspace: deps.sharedSites }), homeDir: os.homedir(),
   }));
-  deps.ipcMain.handle(SITE_IPC_CHANNELS.create, (_event, input) => handleCreate(input, deps));
-  deps.ipcMain.handle(SITE_IPC_CHANNELS.delete, (_event, id) => handleDelete(id, deps));
+  deps.ipcMain.handle(SITE_IPC_CHANNELS.create, (_event, input) => handleCreate(input, { ...deps, siteRuntime: states }));
+  deps.ipcMain.handle(SITE_IPC_CHANNELS.delete, (_event, id) => {
+    cancel({ siteDir: id, forget: true });
+    return handleDelete(id, deps);
+  });
   deps.ipcMain.handle(SITE_IPC_CHANNELS.openExternal, (_event, input) => handleOpenExternal(input, deps));
-  deps.ipcMain.handle(SITE_IPC_CHANNELS.start, (_event, id) => handleStart(id, deps));
-  deps.ipcMain.handle(SITE_IPC_CHANNELS.stop, (_event, id) => handleStop(id, deps));
-  deps.ipcMain.handle(SITE_IPC_CHANNELS.rescan, () => rescanSites(deps));
+  deps.ipcMain.handle(SITE_IPC_CHANNELS.start, (_event, id) => {
+    manualStart({ siteDir: id });
+    return startSite({ siteDir: id, state: stateFor({ siteDir: id }) }, { manual: true });
+  });
+  deps.ipcMain.handle(SITE_IPC_CHANNELS.stop, (_event, id) => {
+    cancel({ siteDir: id });
+    return handleStop(id, { ...deps, siteRuntime: states });
+  });
+  deps.ipcMain.handle(SITE_IPC_CHANNELS.rescan, () => rescanSites({ ...deps, siteRuntime: states }));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.setHome, async () => {
     if (!deps.sharedSites) throw new Error("Sites home settings are unavailable in this desktop version.");
     const picked = await deps.dialog.showOpenDialog({ title: "Choose Tovu Sites home", buttonLabel: "Use this folder", properties: ["openDirectory", "createDirectory"] });
@@ -1373,11 +1709,26 @@ function registerSiteIpcHandlers<TCtx>(deps: ProjectIpcDeps<TCtx>): void {
     if (!deps.siteFolders) throw new Error("Sites folders settings are unavailable in this desktop version.");
     return deps.siteFolders.remove({ root: input.root });
   });
-  deps.ipcMain.handle(SITE_IPC_CHANNELS.rename, (_event, input) => handleRename(input, deps));
-  deps.ipcMain.handle(SITE_IPC_CHANNELS.addSite, () => handleAddSite(deps));
+  deps.ipcMain.handle(SITE_IPC_CHANNELS.rename, (_event, input) => handleRename(input, { ...deps, siteRuntime: states }));
+  deps.ipcMain.handle(SITE_IPC_CHANNELS.addSite, () => handleAddSite({ ...deps, siteRuntime: states }));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.preview, (_event, id) => handleGetPreview(id, deps));
-  deps.ipcMain.handle(SITE_IPC_CHANNELS.locate, (_event, id) => handleLocate(id, deps));
+  deps.ipcMain.handle(SITE_IPC_CHANNELS.locate, (_event, id) => handleLocate(id, { ...deps, siteRuntime: states }));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.tokenSignInPlugins, () => handleTokenSignInPlugins(deps));
+  return { ...presence, onServerExit, manualStart, cancel,
+    onBootFailure({ siteDir, error }, _options = {}) {
+      recordFailure({ siteDir, state: stateFor({ siteDir }), detail: siteFailureDetails({ error }) });
+    },
+    maintain({ snapshot }, _options = {}) {
+      if (disposed) return Promise.resolve();
+      return maintenance ??= maintainSites({ snapshot }).finally(() => { maintenance = undefined; });
+    },
+    dispose: () => {
+    disposed = true;
+    for (const siteDir of states.keys()) cancel({ siteDir });
+    presence.dispose();
+    deps.ipcMain.removeHandler?.(SITE_PRESENCE_CHANNEL);
+    offSleep();
+  } };
 }
 
 /**
@@ -1386,6 +1737,16 @@ function registerSiteIpcHandlers<TCtx>(deps: ProjectIpcDeps<TCtx>): void {
  * file's own tests do) never has to fabricate the fields it does not touch.
  */
 interface ProjectIpcDeps<TCtx = unknown> {
+  /** Main owns the canonical shell URL. Missing authority rejects presence/preferences IPC. */
+  isPresenceShell?: (sender: PresenceSender & { getURL(): string }) => boolean;
+  /** Native site windows need the same final plain-words error as the shell's SiteRecord. */
+  onRestartStopped?: (input: { siteDir: string; detail: string }) => void;
+  /** Repoint an existing own-site window after authentication of a replacement server. */
+  onServerRestarted?: (input: { siteDir: string }) => Promise<void>;
+  /** Internal live status belongs to this registration, never persisted with tracked sites. */
+  siteRuntime?: ReadonlyMap<string, SiteRuntime>;
+  /** Automatic starts recheck revoked intent after acquiring the existing serializer. */
+  startAllowed?: () => boolean;
   ipcMain: IpcMainLike;
   dialog: DialogLike;
   shell: ShellLike;

@@ -1,4 +1,5 @@
 import { MEMBER_EXTERNAL_IDENTITIES_STATEMENTS } from "../migrations/0035_member_external_identities.js";
+import { NEWSLETTER_SENDING_INDEX_SQL } from "../migrations/0038_newsletter_sending_index.js";
 import { memberAuthStatements } from "../migrations/0034_member_auth.js";
 import { MAIL_ACTIVITY_MESSAGE_SQL } from "../migrations/0033_mail_activity_message.js";
 import { MEMBER_SIGNUP_EMAIL_SQL } from "../migrations/0032_member_signup_email.js";
@@ -205,6 +206,7 @@ export function bootstrapFreshContentDb(
     },
     "0036_publish_history_config_jsonb": () => {}, // Postgres-only conversion; SQLite retains 0016's text column.
     "0037_media_source_metadata": () => client.exec("ALTER TABLE media ADD COLUMN \"source_metadata_json\" text"),
+    "0038_newsletter_sending_index": () => client.exec(NEWSLETTER_SENDING_INDEX_SQL),
     "0018_form_submission_remote_receipts": () => {
       for (const statement of FORM_SUBMISSION_REMOTE_RECEIPTS_STATEMENTS) client.exec(statement);
     },

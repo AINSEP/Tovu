@@ -14,6 +14,7 @@ import {
   realpathSync,
   renameSync,
   rmSync,
+  rmdirSync,
   statSync,
   writeFileSync,
   type Stats,
@@ -601,10 +602,10 @@ export function themeFileDiffersFromOriginal(
  * {@link ThemePathError} if the pre-write stat on `target` hits a circular symlink (see
  * {@link statOrThemePathError}). The temp file is removed before the error propagates,
  * so a failed write leaves no artifact behind in the theme folder.
- * @complexity O(s) in the size of what `fillTemp` writes.
+ * @complexity O(s + r log r + r*d) time and O(r + d) space for s written/copied bytes, r revisions and path depth d.
  */
 function writeFileAtomically(target: string, relativePathForError: string, fillTemp: (tempPath: string) => void, stat: typeof statSync = statSync,
-  revisionFile?: { themeDir: string; themesRoot: string; relativePath: string }): string | undefined {
+  revisionFile?: ThemeRevisionFile, options: { now?: () => number } = {}): string | undefined {
   // statOrThemePathError, NEVER a bare statSync — same circular-symlink ELOOP escape the other
   // post-resolve stat calls in this file were fixed for (see that wrapper's own doc). In practice
   // both callers (`writeThemeFile`, `resetThemeFileToOriginal`) already run an identical stat on the
@@ -625,22 +626,31 @@ function writeFileAtomically(target: string, relativePathForError: string, fillT
     // Source I/O and authorization may have yielded since approval. Check in the persistence
     // owner, with no await before revision capture and replacement.
     assertReviewedThemeFileCurrent({ target });
-    if (existing && revisionFile) revision = saveThemeFileRevision({ ...revisionFile, target });
+    if (existing && revisionFile) revision = saveThemeFileRevision({ ...revisionFile, target }, options);
     renameSync(tempPath, target);
   } catch (err) {
     rmSync(tempPath, { force: true });
     if (revision) rmSync(revision, { recursive: true, force: true });
     throw err;
   }
-  if (revision && revisionFile) {
-    try { pruneThemeFileRevisions(revisionFile); }
-    catch (error) {
-      // The rename already committed. Report cleanup separately so callers still reload; the
-      // next replacement retries retention, including revisions left by this attempt.
-      console.warn('[theme-files] File saved; revision cleanup failed and will retry on the next replacement.', error);
-    }
-  }
+  pruneCommittedThemeRevision({ revision, revisionFile, target });
+  // A direct replacement remains reversible within the bounded revision store. Manual trash is
+  // retained until the owner explicitly permanently deletes it through the confirmation path.
   return revision;
+}
+
+/** Apply retention only after a replacement commits; cleanup failures never hide a saved edit.
+ * @complexity Inherits the per-file retention scan; no work for a new file or a write in trash. */
+function pruneCommittedThemeRevision({ revision, revisionFile, target }: {
+  revision: string | undefined; revisionFile: ThemeRevisionFile | undefined; target: string;
+}, _options = {}): void {
+  if (!revision || !revisionFile) return;
+  try { pruneThemeFileRevisions({ ...revisionFile, target }); }
+  catch (error) {
+    // The rename already committed. Report cleanup separately so callers still reload; the
+    // next replacement retries retention, including revisions left by this attempt.
+    console.warn('[theme-files] File saved; revision cleanup failed and will retry on the next replacement.', error);
+  }
 }
 
 type ReviewedThemeFile = {
@@ -686,7 +696,7 @@ const MAX_THEME_FILE_REVISIONS = 20;
 type ThemeRevisionFile = { themeDir: string; themesRoot: string; relativePath: string };
 
 /** Real numeric revision directories only; never follow or delete a symlink during retention.
- * @complexity O(r log r) for r stored revisions (normally at most 21). */
+ * @complexity O(r log r) time and O(r) space for r stored revision directories. */
 function themeRevisionDirectories({ root }: { root: string }, _options = {}): string[] {
   return readdirSync(root, { withFileTypes: true }).filter(entry => entry.isDirectory() && /^\d+$/.test(entry.name) && Number.isSafeInteger(Number(entry.name)))
     .map(entry => entry.name).sort((a, b) => Number(a) - Number(b));
@@ -696,9 +706,9 @@ function themeRevisionDirectories({ root }: { root: string }, _options = {}): st
  * Numeric directory creation is exclusive; parallel writes cannot overwrite a previous revision.
  * @returns The owned revision directory, or undefined for a write already inside trash.
  * @throws Containment/copy failures before the live file changes; partial revisions are removed.
- * @complexity O(file bytes + r log r) time, O(r) space; copyFileSync never buffers the whole file. */
+ * @complexity O(file bytes + r log r + timestamp collisions) time, O(r) space for r revisions; copyFileSync never buffers the whole file. */
 function saveThemeFileRevision(
-  required: ThemeRevisionFile & { target: string }, _options = {},
+  required: ThemeRevisionFile & { target: string }, { now = Date.now }: { now?: () => number } = {},
 ): string | undefined {
   // The resolver canonicalizes the target; use the same base for roots reached through symlinks.
   const normalized = relative(realpathSync(required.themeDir), required.target).split(sep).join('/');
@@ -706,18 +716,9 @@ function saveThemeFileRevision(
   const root = resolveThemeFilePath({ ...required, relativePath: THEME_REVISION_ROOT });
   mkdirSync(root, { recursive: true });
   const previous = themeRevisionDirectories({ root });
-  let next = Math.max(Date.now(), Number(previous.at(-1) ?? 0) + 1);
-  let directory = join(root, String(next));
-  for (;;) {
-    if (!Number.isSafeInteger(next)) throw new ThemePathError('theme revision sequence is exhausted');
-    try { mkdirSync(directory); break; }
-    catch (error) {
-      if (!(error instanceof Error && 'code' in error && error.code === 'EEXIST')) throw error;
-      directory = join(root, String(++next));
-    }
-  }
+  const { directory, sequence } = createThemeRevisionDirectory({ root, next: Math.max(now(), Number(previous.at(-1) ?? 0) + 1) });
   try {
-    const destination = resolveThemeFilePath({ ...required, relativePath: `${THEME_REVISION_ROOT}/${next}/${normalized}` });
+    const destination = resolveThemeFilePath({ ...required, relativePath: `${THEME_REVISION_ROOT}/${sequence}/${normalized}` });
     mkdirSync(dirname(destination), { recursive: true });
     copyFileSync(required.target, destination, fsConstants.COPYFILE_EXCL);
     return directory;
@@ -727,13 +728,62 @@ function saveThemeFileRevision(
   }
 }
 
-/** Keep only the latest 20 theme replacement revisions; manual trash is outside this root.
- * @throws Filesystem/containment errors rather than silently claiming successful retention.
- * @complexity O(r log r + removed bytes) time, O(r) space. */
-function pruneThemeFileRevisions(required: ThemeRevisionFile, _options = {}): void {
+/** Reserve a numeric directory exclusively; parallel writes cannot overwrite an old revision.
+ * @returns The owned directory and sequence. Only collisions retry; other filesystem errors and
+ * exhausted sequence numbers propagate before any live-file change.
+ * @complexity O(timestamp collisions) time, O(1) space. */
+function createThemeRevisionDirectory({ root, next }: { root: string; next: number }, _options = {}): { directory: string; sequence: number } {
+  for (;;) {
+    if (!Number.isSafeInteger(next)) throw new ThemePathError('theme revision sequence is exhausted');
+    const directory = join(root, String(next));
+    try { mkdirSync(directory); return { directory, sequence: next }; }
+    catch (error) {
+      if (!(error instanceof Error && (error as NodeJS.ErrnoException).code === 'EEXIST')) throw error;
+      next++;
+    }
+  }
+}
+
+/** Keep the latest 20 replacements per canonical file; manual trash and other files survive.
+ * Remove only that file from a revision directory, since restored/legacy directories may contain
+ * multiple files. Symlink ancestors are skipped rather than followed during retention.
+ * @throws Filesystem/containment errors; the committed-write caller reports these separately.
+ * @complexity O(r log r + r*d + removed bytes) time, O(r) space for r revisions and path depth d. */
+function pruneThemeFileRevisions(required: ThemeRevisionFile & { target: string }, _options = {}): void {
+  const normalized = relative(realpathSync(required.themeDir), required.target);
   const root = resolveThemeFilePath({ ...required, relativePath: THEME_REVISION_ROOT });
-  const directories = themeRevisionDirectories({ root });
-  for (const directory of directories.slice(0, -MAX_THEME_FILE_REVISIONS)) rmSync(join(root, directory), { recursive: true, force: true });
+  const files = themeRevisionDirectories({ root }).flatMap(directory => {
+    const file = regularRevisionFile({ root: join(root, directory), normalized });
+    return file ? [file] : [];
+  });
+  for (const file of files.slice(0, -MAX_THEME_FILE_REVISIONS)) {
+    rmSync(file);
+    removeEmptyRevisionParents({ directory: dirname(file), root });
+  }
+}
+
+/** Walk real directories only so retention cannot delete through even an in-theme symlink.
+ * @returns The regular revision file, or undefined for missing/nonregular/symlink paths.
+ * @complexity O(d) time and space for path depth d; metadata reads only. */
+function regularRevisionFile({ root, normalized }: { root: string; normalized: string }, _options = {}): string | undefined {
+  const parts = normalized.split(sep);
+  let file = root;
+  for (const part of parts.slice(0, -1)) {
+    file = join(file, part);
+    if (!lstatSync(file, { throwIfNoEntry: false })?.isDirectory()) return undefined;
+  }
+  file = join(file, parts.at(-1)!);
+  return lstatSync(file, { throwIfNoEntry: false })?.isFile() ? file : undefined;
+}
+
+/** Remove only empty revision parents after pruning; never erase a sibling file or manual trash.
+ * @throws Filesystem failures so the next replacement can retry cleanup.
+ * @complexity O(d + directory entries) metadata reads for the removed file's parent chain. */
+function removeEmptyRevisionParents({ directory, root }: { directory: string; root: string }, _options = {}): void {
+  while (directory !== root && readdirSync(directory).length === 0) {
+    rmdirSync(directory);
+    directory = dirname(directory);
+  }
 }
 
 /**
@@ -793,16 +843,17 @@ export function validateThemeFileWrite(
 /** Write validated theme text, retaining the previous bytes only after every precondition passes.
  * Preparation and execution share validation so impossible writes never require approval.
  * @returns The canonical path written. @throws ThemePathError for invalid paths or oversized files.
+ * @param optional.now - Injectable revision clock; persisted sequence numbers still increase on clock rollback.
  * @param optional.onRevision - Receives the retained theme-relative revision after a successful replacement.
- * @complexity O(content bytes + previous file bytes) time, bounded content memory. */
+ * @complexity O(content bytes + previous file bytes + r log r + r*d) time, O(r + d) revision metadata for r revisions and path depth d. */
 export function writeThemeFile(
   required: { themeDir: string; themesRoot: string; relativePath: string; content: string },
-  optional: { overwriteOversized?: boolean; stat?: typeof statSync;
+  optional: { overwriteOversized?: boolean; stat?: typeof statSync; now?: () => number;
     onRevision?: (required: { trashedPath: string }, optional: Record<string, never>) => void } = {}
 ): string {
   const target = validateThemeFileWrite(required, optional);
   mkdirSync(dirname(target), { recursive: true });
-  const revision = writeFileAtomically(target, required.relativePath, (tempPath) => writeFileSync(tempPath, required.content, "utf8"), optional.stat, required);
+  const revision = writeFileAtomically(target, required.relativePath, (tempPath) => writeFileSync(tempPath, required.content, "utf8"), optional.stat, required, optional);
   if (revision) {
     // Revision paths returned to tools must use that same canonical base, not a symlink spelling.
     const base = realpathSync(required.themeDir);

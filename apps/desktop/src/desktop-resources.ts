@@ -149,7 +149,8 @@ export function createDesktopResources(ports: DesktopResourcesPorts, _options = 
   }
 
   return {
-    /** Call only from a visible renderer; panelOpen selects the cheaper collapsed-badge cadence. */
+    /** Shared by visible renderers and the single 30 s main maintenance tick. That tick uses
+     * panelOpen: true so the collapsed 60 s cache cannot hide sustained site-server RSS. */
     async get({ panelOpen }: ResourcesRequest, _getOptions = {}): Promise<ResourcesSnapshot> {
       const { panelIntervalMs, pollIntervalMs } = resourcePollIntervals({ platform: ports.platform, panelOpen });
       // A launch-time failure must not strand the badge on a minute-long cached failure.

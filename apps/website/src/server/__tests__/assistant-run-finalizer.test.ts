@@ -278,11 +278,15 @@ test("a run that goes quiet right after a frame the interval skipped still gets 
   let lastSaved!: () => void;
   const last = new Promise<void>((resolve) => { lastSaved = resolve; });
   const saved: string[] = [];
-  t.mock.method(deps.chatRunLedger, "checkpoint", async (input: Parameters<typeof checkpoint>[0]) => {
-    await checkpoint(input);
+  // Skip-unchanged scheduling needs the real success result and persisted receipt. This spy
+  // observes writes without making the finalizer mistake a successful save for a failed one.
+  t.mock.method(deps.chatRunLedger, "checkpoint", async (...args: Parameters<typeof checkpoint>) => {
+    const written = await checkpoint(...args);
+    const [input] = args;
     saved.push(input.content);
     if (input.content === "Still ") firstSaved();
     if (input.content === "Still writ") lastSaved();
+    return written;
   });
   const bounded = async (signal: Promise<void>) => {
     let timer: ReturnType<typeof setTimeout>;

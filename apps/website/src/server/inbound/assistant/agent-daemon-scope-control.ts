@@ -23,6 +23,14 @@ function requireScopeKey({ scopeKey }: { scopeKey?: string }, _options = {}): st
   return scopeKey;
 }
 
+/** Shared scope control cannot stop a site listener or accept parent-only lifecycle notices. */
+function parseScopeControlRequest({ payload }: { payload: unknown }, _options = {}) {
+  const request = daemonControlRequest.parse(payload);
+  if (request.operation === "stopIfIdle") throw new Error("idle shutdown belongs to the site server");
+  if (request.operation === "parking" || request.operation === "unavailable") throw new Error("lifecycle notices belong to the parent supervisor");
+  return request;
+}
+
 /** Build the control handler over the entry's scope tables.
  * @param required Scope tables, the scope factory, the idle-park activity hold, and live listener facts.
  * @returns The handler for one parsed-on-entry control payload; it replies `{ url, pid }`.
@@ -43,9 +51,8 @@ export function createScopeControl<S extends ControlledScope>({ tables, createSc
    * Scopes are keyed by `scopeKey`; the scope itself keeps `siteId` as its workspace id. */
   return async function control(payload: unknown) {
     if (isExiting()) throw new Error("daemon is stopping");
-    const request = daemonControlRequest.parse(payload);
+    const request = parseScopeControlRequest({ payload });
     if (request.operation === "ready") return { url: listenerUrl(), pid };
-    if (request.operation === "parking" || request.operation === "unavailable") throw new Error("lifecycle notices belong to the parent supervisor");
     const key = requireScopeKey(request);
     if (request.operation === "withdraw") {
       const scope = scopes.get(key);

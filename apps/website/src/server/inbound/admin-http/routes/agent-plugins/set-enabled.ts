@@ -4,6 +4,7 @@ import type { Request, Response } from "express";
 
 import { AgentPluginActivationsBusyError, AgentPluginActivationsUnreadableError, AgentPluginHostIncompatibleError, AgentPluginUpdateError } from "@jini-ai/agent-plugins/lifecycle";
 import { provisionAgentPluginMcpServers, resolveAgentPluginMcpServers } from "#src/features/agent-plugins/federate-mcp";
+import { grantDeclaredToolsToSignedInRows } from "#src/features/agent-plugins/grant-signed-in-defaults";
 import { AgentPluginLinkedError, AgentPluginNotInstalledError, setAgentPluginEnabled } from "#src/features/agent-plugins/set-enabled";
 import { loadAgentPluginSearchCandidates } from "#src/features/agent-plugins/tool-registrations";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
@@ -154,6 +155,13 @@ async function provisionAgentPluginMcpServersBestEffort(
     for (const failure of result.failed) {
       console.warn(`[agent-plugins] '${input.pluginId}': MCP provisioning for server '${failure.serverKey}' failed — ${failure.reason}`);
     }
+    // An account signed in while the plugin was off gets the plugin's declared tools now: switching
+    // on is the moment "on + connected" first holds (bug 2026-11-04, `grant-signed-in-defaults.ts`).
+    await grantDeclaredToolsToSignedInRows({
+      deps: { workspaceId: deps.workspaceId, agentPluginLayout: deps.agentPluginLayout, repo: deps.mcp.repo, clock: deps.clock, notifyRosterChanged: () => deps.mcp.notifyRosterChanged({}, {}) },
+      pluginId: input.pluginId,
+      servers,
+    }, { skipServerKeys: result.failed.map((failure) => failure.serverKey) });
   } catch (error) {
     console.warn(
       `[agent-plugins] '${input.pluginId}': MCP provisioning could not run — ${redactSecretShapes({ text: String((error as { message?: unknown } | null)?.message ?? error) }).text}`,

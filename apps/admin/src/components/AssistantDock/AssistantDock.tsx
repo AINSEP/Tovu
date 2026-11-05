@@ -100,7 +100,7 @@ const typedAnswerPoster = createAdminTypedAnswerPoster({ fetch });
 /**
  * A message sent while a run streams goes to the running agent (`POST /api/runs/:runId/messages`,
  * proxied to the daemon) instead of waiting behind the run; an agent that cannot take it mid-run
- * gets stopped and the text goes out as the next turn. Module scope, like the typed-answer poster.
+ * keeps working and the text waits for its next turn. Module scope, like the typed-answer poster.
  */
 const midRunMessagePoster = createMidRunMessagePoster({ baseUrl: "", fetch }, { onSecretRedacted: onAdminSecretRedacted });
 declare global {

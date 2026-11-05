@@ -65,3 +65,31 @@ test("recover POST runs the finalizer for an owned run and answers the post-reco
   assert.deepEqual(await post({ body: {} }), { code: 404, body: { error: "not found" } });
   assert.deepEqual(calls.map((call) => (call as unknown[])[0]), ["find", "recover", "load"]);
 });
+
+
+test('unchanged checkpoint uses the scoped raw poll and returns an empty 304 without JSON parsing', async t => {
+  let handler!: (req: Request, res: Response, next: NextFunction) => void;
+  const app = { use: () => app, post: () => app, delete: () => app,
+    get: (path: string, route: typeof handler) => { if (path === '/api/runs/:runId/checkpoint') handler = route; return app; },
+  } as unknown as Express;
+  const calls: unknown[] = [];
+  const deps = { workspaceId: 'ws', siteStoragePaths: { chatAttachmentsDir: '/unused' }, chatRunLedger: { durable: {
+    poll: async (input: unknown, options: unknown) => { calls.push([input, options]); return { cursor: 'boot:10:1' }; },
+    head: () => assert.fail('poll must never read the parsed head'),
+  } } } as unknown as RouteDeps;
+  createAssistantModule(deps, {} as never).registerRoutes!(app);
+  const parse = t.mock.method(JSON, 'parse');
+  let status = 200;
+  const chunks: string[] = [];
+  await new Promise<void>((resolve, reject) => {
+    const res = { locals: { principal: { id: 'owner' } }, setHeader() {}, status(value: number) { status = value; return res; },
+      write(value: string) { chunks.push(value); }, end(value?: string) { if (value) chunks.push(value); resolve(); },
+      json() { assert.fail('unchanged poll must not serialize a message'); },
+    };
+    handler({ method: 'GET', params: { runId: 'old' }, query: { messageId: 'answer' }, get: () => '"boot:10:1"' } as unknown as Request, res as unknown as Response, reject);
+  });
+  assert.equal(status, 304);
+  assert.equal(chunks.join('').length, 0);
+  assert.equal(parse.mock.callCount(), 0);
+  assert.deepEqual(calls, [[{ messageId: 'answer', principalId: 'owner', workspaceId: 'ws' }, { cursor: 'boot:10:1' }]]);
+});

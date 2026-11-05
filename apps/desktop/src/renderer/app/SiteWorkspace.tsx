@@ -157,7 +157,7 @@ function SiteWorkspace({
       onSiteUpdated={onSiteUpdated}
     />
   ) : (
-    <SiteStartPanel project={project} body={workspace.attachError ?? (project.externalUrl ? "Connecting to the server already running in the other app…" : undefined)} onSiteUpdated={onSiteUpdated} />
+    <SiteStartPanel project={project} wakeOnOpen={!hidden} body={workspace.attachError ?? (project.externalUrl ? "Connecting to the server already running in the other app…" : undefined)} onSiteUpdated={onSiteUpdated} />
   );
 
   return (

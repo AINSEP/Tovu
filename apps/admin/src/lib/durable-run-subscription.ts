@@ -22,6 +22,22 @@ export function followDurableRun(required: Omit<Parameters<typeof follow>[0], "n
   return () => { stop(); endActivity(); };
 }
 
+/** Map the existing recovery/checkpoint routes to one fetch. Conditional headers apply only to
+ * routine polls; explicit recovery must always reach the finalizer. No response body is read here.
+ */
+function requestDurableProjection({ request, runId, messageId, recover, etag }: {
+  request: typeof fetch; runId: string; messageId?: string | undefined; recover: boolean; etag?: string | null | undefined;
+}, _options = {}): Promise<Response> {
+  const path = `/api/runs/${encodeURIComponent(runId)}`;
+  if (recover) return request(`${path}/recover`, {
+    method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ messageId }),
+  });
+  const query = messageId ? 'messageId=' + encodeURIComponent(messageId) : '';
+  return request(`${path}/checkpoint${querySuffix(query)}`, {
+    method: 'GET', credentials: 'same-origin', ...(etag ? { headers: { 'If-None-Match': etag } } : {}),
+  });
+}
+
 /** Browser adapters only: active run streams are never visibility-paused. Ports permit DI fakes
  * without replacing modules; native disconnects retain Jini's existing recovery/backoff behavior.
  */
@@ -35,17 +51,18 @@ export function browserDurableSubscriptionPorts(_required = {}, {
   open?: (url: string) => Pick<EventSource, "addEventListener" | "close" | "readyState">;
   schedule?: (required: { work: () => void; delayMs: number }) => () => void;
 } = {}): DurableSubscriptionPorts {
+  let checkpointKey: string | undefined;
+  let checkpointEtag: string | null | undefined;
   return {
     async read({ runId, messageId }, { recover = true }: { recover?: boolean } = {}) {
-      const path = `/api/runs/${encodeURIComponent(runId)}`;
-      const checkpointQuery = messageId ? "messageId=" + encodeURIComponent(messageId) : "";
-      const response = recover ? await request(`${path}/recover`, {
-        method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messageId }),
-      }) : await request(`${path}/checkpoint${querySuffix(checkpointQuery)}`, {
-        method: "GET", credentials: "same-origin",
-      });
+      const key = messageId ?? runId;
+      const etag = checkpointKey === key ? checkpointEtag : undefined;
+      const response = await requestDurableProjection({ request, runId, messageId, recover, etag });
+      if (recover) { checkpointKey = undefined; checkpointEtag = undefined; }
+      if (response.status === 304) return null;
       if (response.status === 404) return "gone";
       if (!response.ok) return null;
+      if (!recover) { checkpointKey = key; checkpointEtag = response.headers.get('ETag'); }
       const payload = await response.json() as { message: ChatMessage };
       return payload.message;
     },

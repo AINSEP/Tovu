@@ -1,4 +1,4 @@
-import { ExternalMcpValidationError, ExternalMcpSecretStoreUnconfiguredError } from "#src/features/external-mcp/external-mcp-store";
+import { ExternalMcpValidationError, ExternalMcpSecretStoreUnconfiguredError, saveExternalMcpServer } from "#src/features/external-mcp/external-mcp-store";
 import { composeAgentPluginMcp, composePluginProviderFaces } from "../agent-plugin-service-ports.js";
 import { InMemoryExternalMcpServerRepo } from "#src/features/external-mcp/external-mcp-store.memory";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
@@ -32,6 +32,8 @@ import { loadEnabledPluginCapabilityToolSources, buildPluginCapabilityToolRegist
 import { requiredPostReader } from '#src/features/plugin-runtime/__tests__/fixtures/plugin-post-read';
 import { buildToolCatalogQuery } from '#src/assistant/tool-catalog-query';
 import { InMemoryChangeSetRepo } from '#src/contracts/core/commands/index';
+import { createBundledSourceArchiveReader, installAgentPlugin, packAgentPluginDirectory } from '#src/features/agent-plugins/lifecycle';
+import { forceRemove } from '#src/features/agent-plugins/__tests__/fixtures/force-remove';
 
 const plugin: InstalledAgentPlugin = { pluginId: 'github', version: '1.2.3', archiveDigest: 'a'.repeat(64), packageRoot: '/never-read', files: [], skills: [{ name: 'github', skillPath: 'skills/github/SKILL.md' }] };
 const manifest = { name: 'github', keywords: ['repository'], extensions: { tovu: { id: 'tovu/github', provides: ['source-control'] } } };
@@ -321,6 +323,40 @@ test('MCP provisioning logs each server and reason while preserving activation s
   const unavailable = createTovuPluginHost({ deps: ctx.deps }, { warn: message => warnings.push(message), resolveMcpServers: async () => { throw new Error('manifest unavailable'); } });
   await unavailable.getHostCapability({ capability: 'agent-plugin-lifecycle' })!.provisionMcp({ pluginId: 'github', principalId: 'operator' });
   assert.equal(warnings[1], "Plugin 'github': MCP provisioning could not run — manifest unavailable");
+});
+
+test('bug 2026-11-04: a chat enable of a plugin whose account is already signed in turns its connection on with exactly the declared tools', async t => {
+  const ctx = await fixture(t);
+  const allow = ['generate_image', 'models_explore', 'job_status'];
+  const write = ['generate_image'];
+  const source = path.join(ctx.root, 'source');
+  await mkdir(source);
+  await writeFile(path.join(source, 'plugin.json'), JSON.stringify({ $schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json', name: 'media-fixture', version: '1.0.0' }));
+  await writeFile(path.join(source, 'mcp.json'), JSON.stringify({ $schema: 'https://agent-plugins.org/schemas/1.0.0/mcp.schema.json',
+    mcpServers: { media: { type: 'streamable-http', url: 'https://mcp.media.example/mcp', tovuAuthMode: 'oauth', tovuDefaultTools: { allow, write } } } }));
+  const packed = await packAgentPluginDirectory(source);
+  await installAgentPlugin({ archive: packed.bytes, expectedSha256: packed.sha256, archiveReader: createBundledSourceArchiveReader(), layout: ctx.deps.agentPluginLayout, workspaceId: ctx.deps.workspaceId });
+  try {
+    const workspaceRoot = ctx.deps.agentPluginLayout.forWorkspace(ctx.deps.workspaceId).root;
+    // Signed in while the operator had the plugin off (the sign-in grant skipped it), then switched on in chat.
+    const keyring = new InMemoryKeyring();
+    await saveExternalMcpServer({ repo: ctx.deps.mcp.repo as InMemoryExternalMcpServerRepo, sealer: new AesGcmSecretSealer(keyring), keyring, clock: ctx.deps.clock }, {
+      workspaceId: ctx.deps.workspaceId, serverId: 'media', label: 'media-fixture · media', transport: 'streamable_http', authMode: 'oauth', enabled: false,
+      command: '', url: 'https://mcp.media.example/mcp', args: '', allowedToolNames: '', writeAllowedToolNames: '', oauth: { grant: 'authorization_code' },
+      principalId: 'operator', provisionedByPluginId: 'media-fixture' });
+    const signedOut = await ctx.deps.mcp.repo.findByServerId({ workspaceId: ctx.deps.workspaceId, serverId: 'media' });
+    await ctx.deps.mcp.repo.upsert({ ...signedOut!, oauthStatus: 'connected' });
+    await agentPluginActivations.setAgentPluginActivation({ workspaceRoot, pluginId: 'media-fixture', enabled: true, actor: 'operator' });
+
+    await ctx.host.getHostCapability({ capability: 'agent-plugin-lifecycle' })!.provisionMcp({ pluginId: 'media-fixture', principalId: 'operator' });
+
+    const row = await ctx.deps.mcp.repo.findByServerId({ workspaceId: ctx.deps.workspaceId, serverId: 'media' });
+    assert.deepEqual([row?.enabled, JSON.parse(row?.allowedToolNames ?? '[]'), JSON.parse(row?.writeAllowedToolNames ?? '[]')], [true, allow, write]);
+    assert.deepEqual(ctx.warnings, []);
+  } finally {
+    // The installer freezes the package tree read-only, so the fixture's plain `rm` cannot remove it.
+    await forceRemove(path.join(ctx.root, 'ws'));
+  }
 });
 
 test('L058b site discovery omits invalid identities and propagates activation read failures', async t => {

@@ -15,3 +15,6 @@ export const AGENT_DAEMON_EXIT_CODE = {
   PORT_IN_USE: 87,
   IDLE_PARK: 88,
 } as const;
+
+/** A site server completed guarded idle shutdown; parents must never treat it as a crash. */
+export const SITE_SLEEP_EXIT_CODE = 89;

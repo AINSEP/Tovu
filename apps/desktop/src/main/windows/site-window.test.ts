@@ -313,3 +313,19 @@ test("closing an old window cannot stop the server reused by its replacement win
   assert.equal(server.stops, 0);
   assert.deepEqual(h.log, []);
 });
+
+
+test("B2 a window restored after a crash stops its replacement server and cancels retries", async () => {
+  const h = harness();
+  let cancellations = 0;
+  const window = await openSiteWindow({ siteDir: '/a', ctx: CTX, ports: h.ports });
+  const old = h.openSites.get('/a')!.server;
+  const replacement = fakeServer(90);
+  h.openSites.set('/a', { siteDir: '/a', server: replacement, window });
+  h.ports.cancelRestart = () => { cancellations++; };
+  window.closed!();
+  await h.tracker.drain();
+  assert.equal(cancellations, 1);
+  assert.equal(replacement.stops, 1);
+  assert.equal(old.stops, 0);
+});

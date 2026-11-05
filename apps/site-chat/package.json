@@ -16,7 +16,7 @@
   },
   "dependencies": {
     "@jini-ai/agentic": "^0.6.19",
-    "@jini-ai/chat": "^0.6.19",
+    "@jini-ai/chat": "^0.6.21",
     "@jini-ai/protocol": "^0.6.19",
     "@jini-ai/ui": "^0.6.19",
     "@mcp-ui/client": "7.1.1",
@@ -45,6 +45,6 @@
   },
   "overrides": {
     "@jini-ai/ui": "$@jini-ai/ui",
-    "@jini-ai/core": "^0.6.19"
+    "@jini-ai/core": "^0.6.21"
   }
 }

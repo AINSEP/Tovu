@@ -5,6 +5,7 @@ import { explicitRootAgentPluginActivations, listInstalledPlugins, seedBundledAg
 import { SELECTED_AGENT_PLUGIN_PACKAGES } from "#src/features/agent-plugins/bundled-catalog";
 import { importAgentPluginAccessToken, importAgentPluginAccessTokensFromEnv } from "#src/features/agent-plugins/import-access-token";
 import { applyAgentPluginToolRenames } from "#src/features/agent-plugins/apply-tool-renames";
+import { grantDeclaredToolsAtBoot } from "#src/features/agent-plugins/grant-signed-in-defaults";
 import { bindProviderFacePorts, syncProviderFaces } from "#src/features/agent-plugins/provider-plugin-link";
 import { notifyExternalMcpRosterChanged } from "#src/assistant/index";
 import type { BootModule, BootResult } from "../lifecycle/boot-lifecycle.js";
@@ -336,6 +337,18 @@ export function buildBootModules(deps: NewsletterRouteDeps, options: BuildBootMo
             workspaceId: deps.workspaceId,
             agentPluginLayout: deps.agentPluginLayout,
             externalMcpServerRepo: deps.externalMcpServerRepo,
+            clock: deps.clock,
+            notifyRosterChanged: () => notifyExternalMcpRosterChanged(),
+          },
+          bootLog,
+        );
+        // A plugin that is on with a signed-in account gets the tools it declares even when the
+        // sign-in's own grant missed them (bug 2026-11-04) — after the renames, so it grants the new names.
+        await grantDeclaredToolsAtBoot(
+          {
+            workspaceId: deps.workspaceId,
+            agentPluginLayout: deps.agentPluginLayout,
+            repo: deps.externalMcpServerRepo,
             clock: deps.clock,
             notifyRosterChanged: () => notifyExternalMcpRosterChanged(),
           },

@@ -34,6 +34,7 @@ export function recoveryLedgerFixture(
   };
   const ledger: ChatRunLedger = {
     durable,
+    hasActiveRuns: async () => ["queued", "running"].includes(message.runStatus ?? ""),
     unlessSettled: async (_run, write) => ({ written: true, value: await write() }),
     async checkpoint(input) {
       if (!current(input.runId) || input.content.length < message.content.length) return false;

@@ -36,6 +36,13 @@ export class InMemoryNewsletterCampaignRepo implements NewsletterCampaignRepoPor
     this.revisions = [...(initial.revisions ?? [])];
   }
 
+  /** Mirror the SQL existence probe without copying campaign records or applying pagination.
+   * @complexity O(campaigns) comparisons, O(1) space; no I/O.
+   */
+  async hasSending({ workspaceId }: { workspaceId: string }, _options = {}): Promise<boolean> {
+    return this.campaigns.some(campaign => campaign.workspaceId === workspaceId && campaign.status === 'sending');
+  }
+
   async findById(required: { workspaceId: string; id: string }): Promise<CampaignRecord | null> {
     return (
       this.campaigns.find((c) => c.workspaceId === required.workspaceId && c.id === required.id) ?? null

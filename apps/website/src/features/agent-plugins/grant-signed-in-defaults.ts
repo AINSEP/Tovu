@@ -1,0 +1,118 @@
+import type { Clock as ClockPort } from "@jini-ai/core/primitives";
+
+import { agentPluginActivations } from "./activation-effects.js";
+import { createApplyConnectDefaults } from "./apply-connect-defaults.js";
+import { hasStoredAgentPluginCredential } from "./connect-tool.js";
+import { deriveAgentPluginConnectionId } from "./federate-mcp.js";
+import { listInstalledAgentPluginServers, type InstalledAgentPluginServers, type TokenImportLog } from "./import-access-token.js";
+import type { AgentPluginLayout } from "./layout.js";
+import type { McpServerConfig } from "./mcp-metadata.js";
+import type { AgentPluginMcpPort } from "./service-ports.js";
+
+/**
+ * @file "Plugin on + account connected" grants the plugin's declared tools, whichever of the two
+ * happens LAST — not only when the sign-in happens last.
+ *
+ * `apply-connect-defaults.ts` grants a plugin's declared `tovuDefaultTools` (allowlist and "may
+ * write") when the operator's sign-in finishes, and `agent_plugin_connect` re-runs that grant for an
+ * already signed-in row. Both are sign-in moments. Bug 2026-11-04 (jared-floyd, Higgsfield Media):
+ * the owner turned the plugin on and signed in, yet the connection stayed off with zero tools, and
+ * the chat could only tell them to tick 8 tools and 3 writes by hand. Whenever the sign-in grant
+ * skipped or failed at sign-in time (the plugin was off then, the plugin did not declare the tools
+ * yet, a post-connect step failed and was only logged), nothing ever tried again: switching the
+ * plugin on and restarting Tovu both left the signed-in row empty. This file is the two other
+ * moments, and both reuse the sign-in grant itself (`createApplyConnectDefaults`) so every rule it
+ * enforces still holds — only a still-empty row this plugin provisioned, at the url it still
+ * declares, never for a plugin an operator turned off, exactly the declared lists:
+ *
+ * - {@link grantDeclaredToolsToSignedInRows} — the operator switching the plugin on (the admin
+ *   toggle and `plugins_set_enabled`). Switching on is the operator's consent, the sign-in already
+ *   was; a row that is not signed in gets nothing, because enabling alone is not a connection.
+ * - {@link grantDeclaredToolsAtBoot} — boot, for every plugin that is on. Heals a site whose grant
+ *   was missed before this file existed, with no action from the owner. Narrower than the toggle: a
+ *   row whose write grants were ever set by anyone (`writeGrantsUpdatedByPrincipalId`) is skipped,
+ *   so a boot never re-grants what an operator emptied on purpose after an earlier grant.
+ *
+ * Never widens a grant: a row with any tool already listed is left alone (the sign-in grant's own
+ * rule), so a plugin update that declares more tools reaches no row that already has its tools.
+ * The grant writes the row on and notifies the roster, so the running assistant admits the
+ * connection's tools without a restart (Jini `federation/reload.ts` admits a not-yet-admitted row).
+ */
+
+export interface GrantSignedInDefaultsDeps {
+  readonly workspaceId: string;
+  readonly agentPluginLayout: AgentPluginLayout;
+  readonly repo: AgentPluginMcpPort["repo"];
+  readonly clock: ClockPort;
+  /** The assistant's roster-reload port, so a granted row's tools load without a restart. */
+  readonly notifyRosterChanged: () => Promise<void>;
+  /** Injected for tests. Defaults to the sign-in's own grant, {@link createApplyConnectDefaults}. */
+  readonly onConnected?: (serverId: string) => Promise<void>;
+  /** Defaults to `console.warn`. A failed grant is reported with its real cause, never thrown. */
+  readonly warn?: (message: string) => void;
+}
+
+/**
+ * Runs the sign-in grant on each of `pluginId`'s declared remote servers whose row this plugin
+ * provisioned and that already holds a credential (finished sign-in or saved access token).
+ *
+ * @returns The connection ids whose tools the grant actually turned on (its own rules may skip one).
+ * @throws Nothing: a failing row is a warning naming the row and the cause; the others still run.
+ * @complexity O(s) in declared servers: one row read each, plus at most one grant and one re-read.
+ */
+export async function grantDeclaredToolsToSignedInRows(
+  required: { readonly deps: GrantSignedInDefaultsDeps; readonly pluginId: string; readonly servers: Readonly<Record<string, McpServerConfig>> },
+  optional: {
+    readonly onlyNeverGranted?: boolean;
+    /** Servers whose provisioning just failed (their row could not even be read or written): nothing to grant. */
+    readonly skipServerKeys?: readonly string[];
+  } = {},
+): Promise<readonly string[]> {
+  const { deps, pluginId, servers } = required;
+  const warn = deps.warn ?? ((message: string) => console.warn(message));
+  const onConnected = deps.onConnected ?? createApplyConnectDefaults({ workspaceId: deps.workspaceId, agentPluginLayout: deps.agentPluginLayout, repo: deps.repo, clock: deps.clock, notifyRosterChanged: deps.notifyRosterChanged });
+  const granted: string[] = [];
+  for (const [serverKey, config] of Object.entries(servers)) {
+    const connectionId = config.type === "stdio" || optional.skipServerKeys?.includes(serverKey) ? null : deriveAgentPluginConnectionId(serverKey);
+    if (connectionId === null) continue;
+    try {
+      const row = await deps.repo.findByServerId({ workspaceId: deps.workspaceId, serverId: connectionId });
+      if (!row || row.provisionedByPluginId !== pluginId || !hasStoredAgentPluginCredential(row)) continue;
+      if (optional.onlyNeverGranted && row.writeGrantsUpdatedByPrincipalId !== null) continue;
+      await onConnected(connectionId);
+      const after = await deps.repo.findByServerId({ workspaceId: deps.workspaceId, serverId: connectionId });
+      if (after && after.allowedToolNames !== row.allowedToolNames) granted.push(connectionId);
+    } catch (error) {
+      warn(`[agent-plugins] '${pluginId}': could not turn on the '${connectionId}' connection with the tools the plugin declares — ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  return granted;
+}
+
+/**
+ * Boot: {@link grantDeclaredToolsToSignedInRows} for every installed plugin that is on (no record
+ * reads as on, as everywhere else; the seeder's default-off and an operator's off are both skipped,
+ * so a boot never switches a plugin on), limited to rows nobody ever granted write access on.
+ *
+ * @throws Nothing: a listing or activation-read failure is one warning, and the next boot retries.
+ * @complexity O(p·s) over installed plugins and their servers.
+ */
+export async function grantDeclaredToolsAtBoot(
+  deps: GrantSignedInDefaultsDeps & { readonly listPlugins?: () => Promise<readonly InstalledAgentPluginServers[]> },
+  log: TokenImportLog,
+): Promise<void> {
+  let plugins: readonly InstalledAgentPluginServers[];
+  let activations: Awaited<ReturnType<typeof agentPluginActivations.readAgentPluginActivations>>;
+  try {
+    plugins = await (deps.listPlugins ?? (() => listInstalledAgentPluginServers(deps)))();
+    activations = await agentPluginActivations.readAgentPluginActivations({ workspaceRoot: deps.agentPluginLayout.forWorkspace(deps.workspaceId).root });
+  } catch (error) {
+    log.warn(`[agent-plugins] could not check signed-in plugin connections for their declared tools: ${error instanceof Error ? error.message : String(error)}`);
+    return;
+  }
+  for (const { pluginId, servers } of plugins) {
+    if (activations.plugins[pluginId]?.enabled === false) continue;
+    const granted = await grantDeclaredToolsToSignedInRows({ deps: { ...deps, warn: (message) => log.warn(message) }, pluginId, servers }, { onlyNeverGranted: true });
+    if (granted.length > 0) log.info(`[agent-plugins] '${pluginId}': turned on its signed-in connection(s) ${granted.join(", ")} with the tools the plugin declares.`);
+  }
+}

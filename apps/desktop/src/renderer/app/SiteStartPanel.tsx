@@ -2,6 +2,7 @@ import { startThenNotify, useSiteStart } from '../App.hooks.js';
 import { sitePortPresentation } from '../site-port.rules.js';
 import type { SiteRecord } from '../../contracts/project.js';
 import { Spinner } from './Spinner.js';
+import { useEffect, useRef } from 'react';
 
 /**
  * What a project tab shows when its process is not up — or when it is up but just failed to
@@ -21,6 +22,7 @@ export function SiteStartPanel({
   body,
   onStarted,
   onSiteUpdated,
+  wakeOnOpen = false,
 }: {
   project: SiteRecord;
   body?: string;
@@ -30,10 +32,20 @@ export function SiteStartPanel({
    *  test-only/incidental call sites this component has never needed a stub for it keep compiling;
    *  every real call site (`SiteWorkspace`, `app/SiteWorkspace.tsx`) passes it. */
   onSiteUpdated?: (record: SiteRecord) => void;
+  /** Only the visible workspace wakes automatically; hidden tabs still report presence. */
+  wakeOnOpen?: boolean;
 }) {
   const { starting, error, start } = useSiteStart(project, onSiteUpdated);
 
   const handleStart = startThenNotify(start, onStarted);
+  const wakeAttempted = useRef(false);
+  useEffect(() => {
+    if (project.status !== 'sleeping') { wakeAttempted.current = false; return; }
+    if (!wakeOnOpen || wakeAttempted.current) return;
+    // Claim the attempt before starting: re-renders and StrictMode must not start a second boot.
+    wakeAttempted.current = true;
+    void handleStart();
+  }, [project.status, wakeOnOpen, handleStart]);
 
   return (
     <div className="workspace__idle">
@@ -60,10 +72,18 @@ export function SiteStartPanel({
           onClick={() => void handleStart()}
           disabled={starting}
         >
-          {starting ? 'Starting…' : 'Start site'}
+          {starting ? 'Starting…' : project.status === 'sleeping' ? 'Wake site' : 'Start site'}
         </button>
       )}
       {error && <p className="workspace__error">{error}</p>}
+      <SiteFailureDetails project={project} />
     </div>
   );
+}
+
+
+/** Selectable diagnostics belong only to the terminal error; sleep and manual stops stay neutral. */
+function SiteFailureDetails({ project }: { project: SiteRecord }) {
+  if (project.status !== 'error' || !project.statusDetail) return null;
+  return <pre className="workspace__error">{project.statusDetail}</pre>;
 }

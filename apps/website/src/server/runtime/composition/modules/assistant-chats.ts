@@ -21,6 +21,7 @@ import { readPickedFolders } from "#src/assistant/run-page-context";
  * scope, so the two get separate mounts.
  */
 import type { Express, Request, Response } from "express";
+import { Readable, pipeline } from "node:stream";
 import { readPreviousAssistantDaemon } from "../../lifecycle/assistant-daemon-registry.js";
 
 import { deriveContentConversationTitle } from "#src/assistant/content-chat-title";
@@ -192,7 +193,7 @@ export function createAssistantChatsModule(deps: RouteDeps, options: AssistantCh
       app.delete("/api/assistant/chats/:id", (req, res, next) => {
         // Cancel before deleting the binding. Once cascaded away, recovery cannot recreate it.
         const store = storeFor(res);
-        store.messages({ conversationId: req.params.id! }).then(async (messages) => {
+        store.messages({ conversationId: req.params.id! }, { includeEvents: false }).then(async (messages) => {
           for (const message of messages) {
             if (!message.runId || !["queued", "running"].includes(message.runStatus ?? "")) continue;
             await deps.chatRunLedger.durable?.cancel({ runId: message.runId, reason: "conversation-deleted" }, {});
@@ -205,10 +206,27 @@ export function createAssistantChatsModule(deps: RouteDeps, options: AssistantCh
       });
 
       app.get("/api/assistant/chats/:id/messages", (req, res, next) => {
-        storeFor(res)
-          .messages({ conversationId: req.params.id! })
-          .then((messages) => res.json({ messages }))
-          .catch(next);
+        const store = storeFor(res);
+        // Resolve the cheap validator before borrowing any raw history strings. Keep the version
+        // read before the payload read: a racing write then invalidates the next refresh safely.
+        void (async () => {
+          const version = await store.messagesVersion?.({ conversationId: req.params.id! }, {});
+          if (version != null) {
+            const etag = '"' + encodeURIComponent(version) + '"';
+            res.setHeader('ETag', etag);
+            res.setHeader('Cache-Control', 'private, no-store');
+            if (req.query?.ifVersion === etag) { res.json({ unchanged: true }); return; }
+          }
+          if (store.messagesJson) {
+            // Native stream piping honors socket backpressure without building one enormous JSON body.
+            const chunks = await store.messagesJson({ conversationId: req.params.id! }, {});
+            pipeline(Readable.from(chunks, { objectMode: false }), res.type("json"), error => {
+              if (error && (error as NodeJS.ErrnoException).code !== 'ERR_STREAM_PREMATURE_CLOSE') next(error);
+            });
+            return;
+          }
+          res.json({ messages: await store.messages({ conversationId: req.params.id! }) });
+        })().catch(next);
       });
 
       app.put("/api/assistant/chats/:id/messages/:messageId", (req, res, next) => {
@@ -247,7 +265,8 @@ export function createAssistantChatsModule(deps: RouteDeps, options: AssistantCh
             // anything that is not an in-flight daemon run.
             // Acceptance already starts the authoritative watch; a browser save merely returns
             // that row. Re-reading its attempt base prevents a replay from erasing prior segments.
-            const durable = await deps.chatRunLedger.durable?.load({ messageId: saved.id }, {});
+            const runStore = deps.chatRunLedger.durable;
+            const durable = runStore && await (runStore.head ?? runStore.load)({ messageId: saved.id }, { events: false });
             finalizer.watch({ principalId: getAuthedPrincipal(res).id, conversationId: id, message: saved }, { attemptBase: [...(durable?.attemptBase ?? [])] });
             res.json({ message: saved });
           })

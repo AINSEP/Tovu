@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, test, vi } from "vitest";
 
 import { persistableMessages, messageWriteKey, activeRunStub } from "@jini-ai/chat/transports/http";
 import type { ChatMessage } from "@jini-ai/chat/core";
@@ -283,4 +283,16 @@ describe("activeRunStub", () => {
     const messages: ChatMessage[] = [stale, { id: "u1", role: "user", content: "another one" }];
     expect(activeRunStub({ messages: messages }, {})).toBeNull();
   });
+});
+
+
+test('unchanged focus refresh reads a tiny reply and retains the existing parsed messages', async () => {
+  const messages: ChatMessage[] = [{ id: 'saved', role: 'assistant', content: 'x'.repeat(100_000) }];
+  const first = jsonResponse({ messages }); first.headers.set('ETag', '"v-history"');
+  const unchanged = jsonResponse({ unchanged: true }); unchanged.headers.set('ETag', '"v-history"');
+  fetchMock = vi.fn().mockResolvedValueOnce(first).mockResolvedValueOnce(unchanged);
+  vi.stubGlobal('fetch', fetchMock);
+  const initial = await loadMessages('conditional-history');
+  expect(await loadMessages('conditional-history')).toBe(initial);
+  expect(fetchMock.mock.calls[1]?.[0]).toBe('/api/assistant/chats/conditional-history/messages?ifVersion=%22v-history%22');
 });

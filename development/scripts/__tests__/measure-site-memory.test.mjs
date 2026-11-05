@@ -20,13 +20,16 @@ function fakePorts({ tree, gone = [] }) {
 
 test("tsx launch imports the maps-off preload after tsx, like the real dev launchers", () => {
   assert.deepEqual(serverLaunchArgs({ entry: "/repo/cli/main.ts", mode: "tsx", siteCopy: "/t/site", port: 4100 }, { resolveTsx: () => TSX }), [
-    "--import", pathToFileURL(TSX).href, "--import", MAPS_OFF, "/repo/cli/main.ts", "serve", "/t/site", "--port", "4100",
+    "--optimize-for-size", "--import", pathToFileURL(TSX).href, "--import", MAPS_OFF, "/repo/cli/main.ts", "serve", "/t/site", "--port", "4100",
   ]);
   assert.deepEqual(serverLaunchArgs({ entry: "/t/dist/src/cli/main.js", mode: "compiled", siteCopy: "/t/site", port: 4100 }),
-    ["/t/dist/src/cli/main.js", "serve", "/t/site", "--port", "4100"]);
+    ["--optimize-for-size", "/t/dist/src/cli/main.js", "serve", "/t/site", "--port", "4100"]);
 });
 
 test("the daemon is expected running unless the idle wait outlasts --idle-minutes", () => {
+  const chatting = parseArgs({ argv: ["--site", "/s", "--mode", "compiled", "--workload", "chatting"] });
+  assert.equal(chatting.idleMinutes, 0, "the fake chat workload must not let the real idle daemon park midway");
+  assert.equal(chatting.expectDaemon, "running");
   assert.equal(parseArgs({ argv: ["--site", "/s", "--mode", "tsx"] }).expectDaemon, "running");
   assert.equal(parseArgs({ argv: ["--site", "/s", "--mode", "tsx", "--idle-minutes", "1"] }).expectDaemon, "parked");
   assert.equal(parseArgs({ argv: ["--site", "/s", "--mode", "tsx", "--idle-minutes", "0"] }).expectDaemon, "running");

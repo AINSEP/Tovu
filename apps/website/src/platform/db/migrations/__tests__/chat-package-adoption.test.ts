@@ -48,8 +48,9 @@ function seed(file: string, withLedger: boolean) {
   return db;
 }
 
-function snapshot(db: Database.Database, options: { tables?: string[]; migrationIds?: string[] } = {}) {
-  const schema = (db.prepare("SELECT type, name, tbl_name, sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name").all() as { tbl_name: string }[])
+function snapshot(db: Database.Database, options: { tables?: string[]; migrationIds?: string[]; beforeIdleIndex?: boolean } = {}) {
+  const schema = (db.prepare("SELECT type, name, tbl_name, sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name").all() as { tbl_name: string; name: string }[])
+    .filter(row => !options.beforeIdleIndex || row.name !== 'idx_ai_chat_messages_active')
     .filter(row => !options.tables || options.tables.includes(row.tbl_name));
   const tables = (db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name").all() as { name: string }[]).map(r => r.name)
     .filter(name => !options.tables || options.tables.includes(name));
@@ -57,10 +58,24 @@ function snapshot(db: Database.Database, options: { tables?: string[]; migration
     schema,
     columns: Object.fromEntries(tables.map(name => [name, db.prepare(`PRAGMA table_info('${name}')`).all()])),
     foreignKeys: Object.fromEntries(tables.map(name => [name, db.prepare(`PRAGMA foreign_key_list('${name}')`).all()])),
-    indexes: Object.fromEntries(tables.map(name => [name, db.prepare(`PRAGMA index_list('${name}')`).all()])),
+    indexes: Object.fromEntries(tables.map(name => [name,
+      (db.prepare(`PRAGMA index_list('${name}')`).all() as { name: string; seq: number }[])
+        .filter(index => !options.beforeIdleIndex || index.name !== 'idx_ai_chat_messages_active')
+        .map((index, seq) => ({ ...index, seq })),
+    ])),
     values: Object.fromEntries(tables.map(name => [name, db.prepare(`SELECT * FROM "${name}" ORDER BY rowid`).all()
       .filter(row => name !== "tovu_chat_migrations" || !options.migrationIds || options.migrationIds.includes((row as { id: string }).id))])),
   };
+}
+
+/** Only the authorized later index may differ from the historical fixture's schema. Values,
+ * columns, foreign keys and every historical index remain compared; assert the added index too.
+ */
+function assertIdleIndex(db: Database.Database): void {
+  const columns = db.prepare("PRAGMA index_info('idx_ai_chat_messages_active')").all() as { name: string }[];
+  assert.deepEqual(columns.map(column => column.name), ['role', 'run_status', 'id']);
+  const row = db.prepare("SELECT sql FROM sqlite_master WHERE name = 'idx_ai_chat_messages_active'").get() as { sql: string };
+  assert.match(row.sql, /WHERE run_status IN \('queued', 'running'\)/);
 }
 
 async function readBoth(db: Database.Database) {
@@ -101,8 +116,9 @@ test("normal bootstrap, adopted and rollback readers preserve existing schema, a
       assert.equal(db.pragma("journal_mode", { simple: true }), "wal");
       assert.equal(db.pragma("busy_timeout", { simple: true }), 5000);
       await readBoth(db);
+      assertIdleIndex(db);
       // Bootstrap adds later migrations; adoption must still preserve every historical byte/value.
-      assert.deepEqual(snapshot(db, { tables: Object.keys(initial.values), migrationIds: LEDGER.map(row => row.id) }), initial);
+      assert.deepEqual(snapshot(db, { tables: Object.keys(initial.values), migrationIds: LEDGER.map(row => row.id), beforeIdleIndex: true }), initial);
       const ledger = db.prepare("SELECT * FROM tovu_chat_migrations ORDER BY id").all() as typeof LEDGER;
       assert.deepEqual(ledger.slice(0, LEDGER.length), LEDGER);
       assert.deepEqual(ledger.map(({ id, checksum }) => ({ id, checksum })), CHAT_MIGRATIONS.map(({ id, checksum }) => ({ id, checksum })));
@@ -139,9 +155,10 @@ test("a pre-ledger fixture retains every chat value while adopting only its firs
     const file = join(dir, "chat.db"); db = seed(file, false);
     const initial = snapshot(db); db.close(); db = undefined;
     db = await openSiteChatDb(file);
+    assertIdleIndex(db);
     const adopted = snapshot(db);
     for (const name of Object.keys(initial.values)) assert.deepEqual(adopted.values[name], initial.values[name]);
-    assert.deepEqual(snapshot(db, { tables: Object.keys(initial.values) }), initial);
+    assert.deepEqual(snapshot(db, { tables: Object.keys(initial.values), beforeIdleIndex: true }), initial);
     assert.deepEqual(db.prepare("SELECT * FROM assistant_run_attempts").all(), []);
     const ledger = db.prepare("SELECT * FROM tovu_chat_migrations ORDER BY id").all() as typeof LEDGER;
     assert.deepEqual(ledger.map(({ id, checksum }) => ({ id, checksum })), CHAT_MIGRATIONS.map(({ id, checksum }) => ({ id, checksum })));
