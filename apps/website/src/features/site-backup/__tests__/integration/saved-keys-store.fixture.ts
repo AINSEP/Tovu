@@ -11,5 +11,5 @@ export async function createSavedKeysStore(required: { kernel: StorageKernel<Con
   const repo = new SqlSecretsVaultRepo({ kernel: required.kernel as unknown as StorageKernel<SecretsVaultDatabase> });
   const { metaParsers } = await loadSiteVaultKinds({ workspaceId: required.workspaceId });
   const vault = new SecretsVaultService({ ...required, repo, metaParsers, authorize: async () => {}, now: () => '2026-11-04T00:00:00.000Z', newId: () => 'fixture' });
-  return { workspaceId: required.workspaceId, vault, settings: new SqlSettingsRepo(required.kernel) };
+  return { workspaceId: required.workspaceId, vault, repo, settings: new SqlSettingsRepo(required.kernel) };
 }

@@ -218,7 +218,8 @@ function markFailedApiPair(row: VaultArchiveEntry, consumed: Set<string>): void 
 
 /** Owner references are site authority, never portable plugin preferences. */
 function ownerReference(row: VaultArchiveEntry): boolean {
-  return row.id.startsWith("plugin-state:tovu-key-references:") || row.id.startsWith("plugin-state:tovu-shared-oauth-binding:");
+  return row.id.startsWith("plugin-state:tovu-key-references:") || row.id.startsWith("plugin-state:tovu-shared-oauth-binding:")
+    || row.id.startsWith("plugin-state:tovu-shared-oauth:");
 }
 
 /** Transport only complete, connected record/token pairs using the live key/codec owners. Plugin

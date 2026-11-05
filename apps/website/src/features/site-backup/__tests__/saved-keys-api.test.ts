@@ -69,10 +69,12 @@ test("archive transport excludes owner references and shared OAuth bindings, pre
   const references = [
     state("plugin-state:tovu-key-references:reference", { credentialId: "owner-key" }),
     state("plugin-state:tovu-shared-oauth-binding:consumer", { credentialId: "owner-oauth" }),
+    state("plugin-state:tovu-shared-oauth:issuing-context", { clientSecret: "owner-client-secret" }),
   ];
   const ordinary = state("plugin-state:office:preferences", { view: "compact" });
   const result = rebindApiConnectionArchive({ entries: [...references, ordinary], workspaceId: "recipient" });
   assert.deepEqual(result.entries, [ordinary]);
   assert.equal(JSON.stringify(result.entries).includes("owner-oauth"), false);
   assert.equal(JSON.stringify(result.entries).includes("owner-key"), false);
+  assert.equal(JSON.stringify(result.entries).includes("owner-client-secret"), false);
 });
