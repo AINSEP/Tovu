@@ -92,9 +92,9 @@ it("shares boot reads, retains per-pane health probes, and honors post-save sett
   const settingCount = (namespace: string) => calls.filter(url => url.pathname.endsWith("/settings/effective") && url.searchParams.get("namespace") === namespace).length;
   for (const namespace of namespaces) expect(settingCount(namespace), namespace).toBe(1);
 
-  // Navigate after ordinary query freshness expires so a short-lived cache hit cannot mask
-  // repeated boot/settings reads. These resources refresh through explicit notifications.
-  await act(async () => { await vi.advanceTimersByTimeAsync(11_000); });
+  // Expire ordinary query freshness without firing the dock's independent five-second health
+  // poll: navigation must reuse boot/settings reads after a short-lived cache hit would expire.
+  vi.setSystemTime(Date.now() + 11_000);
 
   // A route may change its screen, but must not restart boot, settings, or the restored chat pane.
   const main = document.querySelector("#main-content");
