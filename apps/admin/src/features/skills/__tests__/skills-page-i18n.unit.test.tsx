@@ -14,7 +14,9 @@ const skill: InstalledSkill = { toolId: "skill_example", name: "example", descri
 it.each(locales)("%s translates loading, empty and add surfaces from the locale picker", async locale => {
   window.history.replaceState(null, "", "/admin/addons/skills");
   let resolve!: (value: InstalledSkill[]) => void;
-  const port = { listSkills: () => new Promise<InstalledSkill[]>(yes => { resolve = yes; }), enableSkill: vi.fn(), removeSkill: vi.fn() };
+  // The production query adapter starts reads asynchronously, after render returns.
+  const pending = new Promise<InstalledSkill[]>(yes => { resolve = yes; });
+  const port = { listSkills: () => pending, enableSkill: vi.fn(), removeSkill: vi.fn() };
   const tr = (key: string) => t({ locale, key });
   render(<Skills useLocaleHook={() => locale} useSkillsHook={options => useSkills({ ...options, port })} />);
   expect(screen.getByRole("status")).toHaveTextContent(tr("Loading skills…"));

@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@/__tests__/fetch-query-render";
+import { cleanup, render, screen, within } from "@/__tests__/fetch-query-render";
 import { afterEach, expect, it, vi } from "vitest";
 
 import { ADMIN_LOCALES } from "@/lib/settings-tabs";
@@ -58,7 +58,9 @@ it.each(NON_ENGLISH)("%s translates the install dialog's accessible name and cop
   const dialog = screen.getByRole("dialog");
   expect(dialog.getAttribute("aria-label")).not.toBe("Install skill");
   expect(dialog.getAttribute("aria-label")?.trim().length).toBeGreaterThan(0);
-  for (const english of ["Install skill?", "Review instructions from sources you trust. Installation runs no code.", "Cancel", "Confirm install"]) {
+  // Spanish and Portuguese correctly use "Cancelar"; reject the untranslated button, not that substring.
+  expect(within(dialog).queryByRole("button", { name: "Cancel", exact: true })).not.toBeInTheDocument();
+  for (const english of ["Install skill?", "Review instructions from sources you trust. Installation runs no code.", "Confirm install"]) {
     expect(dialog.textContent, `${locale}: ${english}`).not.toContain(english);
   }
 });

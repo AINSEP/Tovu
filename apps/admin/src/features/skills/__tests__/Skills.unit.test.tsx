@@ -73,7 +73,8 @@ describe("Skills", () => {
       ] });
     });
     vi.stubGlobal("fetch", fetchMock);
-    render(<Skills />);
+    // Locale loading has its own request; this test pins only the two skills API reads.
+    render(<Skills useLocaleHook={() => "en"} />);
     await screen.findByText("example");
     fireEvent.click(screen.getByRole("button", { name: trigger === "eye" ? "Inspect skill files — example" : "example" }));
     await screen.findByRole("dialog", { name: "example skill files preview" });
