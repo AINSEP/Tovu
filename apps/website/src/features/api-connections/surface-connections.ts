@@ -137,6 +137,10 @@ export function createSurfaceConnections(
     },
     async status({ connectionId }) {
       const { connection, connectionRef } = await resolve(connectionId);
+      if (host.sharedOAuth && await host.sharedOAuth.hasBinding(connection)) {
+        const shared = await host.sharedOAuth.getStatus(connection);
+        return statusFrom(host, connection, shared ? { ...shared, pendingSwitch: null } : NEVER_CONNECTED, connectionRef);
+      }
       const record = await host.records.read({ key: connectionRef });
       return statusFrom(host, connection, record ? { ...record, pendingSwitch: liveStagedAccount(host, record.staged) } : NEVER_CONNECTED, connectionRef);
     },
@@ -152,16 +156,22 @@ export function createSurfaceConnections(
     },
     async confirmSwitch({ connectionId }) {
       const { connection, connectionRef, actorId } = await forActor(connectionId);
+      if (host.sharedOAuth && await host.sharedOAuth.hasBinding(connection)) throw notAvailable();
       const view = await host.serviceFor({ connection }).confirmSwitchAccount({ connectionRef, workspaceId, actorId });
       return statusFrom(host, connection, await viewAfterAction(connectionRef, view), connectionRef);
     },
     async cancelSwitch({ connectionId }) {
       const { connection, connectionRef } = await forActor(connectionId);
+      if (host.sharedOAuth && await host.sharedOAuth.hasBinding(connection)) throw notAvailable();
       const view = await host.serviceFor({ connection }).cancelSwitchAccount({ connectionRef, workspaceId });
       return statusFrom(host, connection, await viewAfterAction(connectionRef, view), connectionRef);
     },
     async disconnect({ connectionId }) {
       const { connection, connectionRef } = await forActor(connectionId);
+      if (host.sharedOAuth && await host.sharedOAuth.hasBinding(connection)) {
+        await host.sharedOAuth.stopUsing(connection);
+        return { ...(await statusFrom(host, connection, NEVER_CONNECTED, connectionRef)), revocation: "not-needed" as const };
+      }
       const outcome = await host.serviceFor({ connection }).disconnect({ connectionRef, workspaceId });
       // Same vocabulary on both sides: the provider's outcome passes through unchanged.
       return { ...(await statusFrom(host, connection, await viewAfterAction(connectionRef, outcome), connectionRef)), revocation: outcome.remoteRevocation };

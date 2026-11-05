@@ -36,6 +36,7 @@ interface ConnectRun {
   readonly deps: ApiConnectionConnectDeps;
   readonly connection: DeclaredApiConnection;
   readonly actorId: string;
+  readonly destination?: "site" | "shared";
   /** Shows the waiting card with the sign-in link; returns once it is on screen. */
   readonly showSignIn: (input: { readonly signInUrl: string }) => Promise<void>;
   readonly signal: AbortSignal;
@@ -115,7 +116,7 @@ export async function startApiConnectionSignIn(
 
 interface SignInRequest {
   readonly host: ApiConnectionHost; readonly connection: DeclaredApiConnection; readonly actorId: string;
-  readonly intent: ApiConnectionIntent; readonly scopeSetIds: readonly string[];
+  readonly destination?: "site" | "shared"; readonly intent: ApiConnectionIntent; readonly scopeSetIds: readonly string[];
 }
 
 interface SignInOptions {
@@ -157,13 +158,14 @@ async function startDesktopSignIn(required: SignInRequest, optional: SignInOptio
       callbackFields: connection.descriptor.callbackFields.map((field) => field.name), signal: listening.signal,
       ...(optional.timeoutMs === undefined ? {} : { timeoutMs: optional.timeoutMs }),
     });
-    const service = host.serviceFor({ connection, redirectUri: receiver.redirectUri });
-    const start = await service.start({ workspaceId: host.workspaceId, actorId, intent, scopeSetIds, redirectUri: receiver.redirectUri }, startOptionsOf(optional));
+    const target = await host.prepareSignIn({ connection, actorId, destination: required.destination, redirectUri: receiver.redirectUri });
+    const service = target.service;
+    const start = await service.start({ workspaceId: target.workspaceId, actorId, intent, scopeSetIds, redirectUri: receiver.redirectUri }, startOptionsOf(optional));
     // `state` and `browserBinding` stay here: the receiver that gets the callback is this process,
     // so both go straight back to `complete`, never into the result.
     const { state, browserBinding } = start;
     const completion = receiver.receive({ expectedState: state }).then(
-      (callback) => service.complete({ workspaceId: host.workspaceId, actorId, redirectUri: receiver.redirectUri, callbackParams: { ...callback.fields, state, code: callback.code }, browserBinding }),
+      (callback) => service.complete({ workspaceId: target.workspaceId, actorId, redirectUri: receiver.redirectUri, callbackParams: { ...callback.fields, state, code: callback.code }, browserBinding }).then(async done => { await target.onCompleted(); return done; }),
       () => null,
     ).finally(release);
     return { authorizationUrl: start.authorizationUrl, attemptId: start.attemptId, expiresAt: start.expiresAt, completion };
@@ -201,7 +203,7 @@ async function connectDesktop(run: ConnectRun, scopeSetIds: readonly string[]): 
   try {
     // `runApiConnectionConnect` takes this path only for a desktop host, so the desktop start is
     // called directly and its completion is always present (no "no completion" case to handle).
-    const start = await startDesktopSignIn({ host, connection: run.connection, actorId: run.actorId, intent: "connect", scopeSetIds }, {
+    const start = await startDesktopSignIn({ host, connection: run.connection, actorId: run.actorId, intent: "connect", scopeSetIds, destination: run.destination }, {
       timeoutMs: run.waitTimeoutMs, signal: listening.signal,
     }).catch(asToolError);
     await run.showSignIn({ signInUrl: start.authorizationUrl });
@@ -229,7 +231,7 @@ export async function runApiConnectionConnect(
   const status = await host.statusOf({ connection });
   const { connectionRef } = status;
   const wanted = await host.requestedScopes({ connection, scopeSetIds });
-  if (status.status === "connected" && wanted.every((scope) => status.grantedScopes.includes(scope))) return { status: "connected", connectionRef };
+  if (required.destination !== "shared" && status.status === "connected" && wanted.every((scope) => status.grantedScopes.includes(scope))) return { status: "connected", connectionRef };
   const connected = host.runtime === "desktop" ? await connectDesktop(required, scopeSetIds) : await connectHosted(required, scopeSetIds);
   return { status: connected ? "connected" : "waiting-for-sign-in", connectionRef };
 }

@@ -20,7 +20,7 @@ export interface CredentialCopyToolDeps {
   readonly projectKeys?: ProjectKeysPort;
 }
 export const catalog: AgentToolDefinition[] = [{ name: CREDENTIAL_COPY_TOOL_ID,
-  description: 'Use a saved key on this site. Opens the owner-only Shared Keys picker and one approval card. ' +
+  description: 'Use a saved key or OAuth connection on this site. Opens the owner-only Shared Keys picker and one approval card. ' +
     'No key is copied. Choose Enter a new key to open the normal secure key card. ' +
     'Accepts no selections, site identity or secrets from the model; returns only the approved credentialId.',
   sideEffects: 'mutates-durable-state', authorization: { permission: 'system.write' },
@@ -99,7 +99,7 @@ export function buildCredentialCopyRegistrations({ deps, surfaces, saveNew }: {
       try {
         const result = await askThenReport<{ granted: boolean; credentialId?: string; newKey?: boolean }>({ exchange,
           confirmationEmission: { channel: 'mcp-ui', payload: { resource: buildFormSurface({ uri,
-            title: 'Use this saved key on this site', details: [{ label: 'Site', value: deps.projectKeys!.site?.name ?? 'This site' }], description: 'Shared Keys stay in the owner store. This site receives permission to use only the key you choose.',
+            title: 'Use a saved key or connection on this site', details: [{ label: 'Site', value: deps.projectKeys!.site?.name ?? 'This site' }], description: 'Shared Keys and OAuth accounts stay in the owner store. This site receives permission to use only the entry you choose. Shared OAuth keeps its original sign-in account and client.',
             fields: [{ kind: 'enum', name: 'credentialId', label: 'Shared Keys', required: true,
               options: [...rows.map(row => ({ value: row.keyId, label: row.name })), { value: NEW_KEY, label: 'Enter a new key' }] }],
             // Start compact; Jini's shared bridge fits the body on load and content changes.

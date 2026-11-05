@@ -1,3 +1,4 @@
+import { createSiteOAuthBindings } from "#src/features/project-keys/site-references";
 import { scheduleFormAttachmentCleanup } from "@jini-ai/cms/forms";
 import { protectExistingFormFiles } from "#src/features/forms/protect-existing-files";
 import { createFormFilePurgeHooks } from "#src/features/forms/form-file-purge";
@@ -1932,9 +1933,13 @@ async function composeSiteRouteDeps(
     await providerPlugins.dispose({});
     await pluginRuntime.dispose({});
   });
+  let bindSharedApiOAuth: ((input: { keyId: string; use: boolean }) => Promise<void>) | undefined;
   const projectKeys = projectStore ? createProjectKeys({ vault: projectStore.vault.repo, attachments: projectStore.attachments,
     siteId: projectSiteId, siteName: resolvedSiteBinding.name, providerUsage: input => providerConfigSource.usage(input), reapply: input => providerPlugins.reapply(input),
-    transaction: input => projectStore.transaction(input), inventory: projectStore.inventory ? () => projectStore.inventory!({}) : undefined, references: projectKeyReferences }) : undefined;
+    transaction: input => projectStore.transaction(input), inventory: projectStore.inventory ? () => projectStore.inventory!({}) : undefined, references: projectKeyReferences, bindOAuth: input => {
+      if (!bindSharedApiOAuth) throw new Error("Shared connections are not available yet. Reopen this saved connection and try again.");
+      return bindSharedApiOAuth(input);
+    } }) : undefined;
   onStoreClose(watchProviderRevisions({ read: () => projectStore?.providerRevisions({ siteId: projectSiteId }) ?? Promise.resolve([]),
     readSite: () => siteProviderRevisions({ kernel: kernel as unknown as StorageKernel<unknown>, workspaceId }),
     reapply: input => providerPlugins.reapply(input) }));
@@ -2161,9 +2166,14 @@ async function composeSiteRouteDeps(
     keyring: siteAssistantSecretKeyring, sealer: siteAssistantSecretSealer, customCredentialRepo: customCredentialSetRepo, clock, http: guardedOutboundHttpClient,
     env: process.env, derivedPublicOrigin,
   }, {
+    ...(projectStore && projectSiteId ? { shared: { scope: projectStore.vault, attachments: projectStore.attachments,
+      transaction: projectStore.transaction, siteId: projectSiteId, siteName: resolvedSiteBinding.name, ownerPrincipalId: identity.ownerPrincipalId,
+      bindings: createSiteOAuthBindings({ workspaceId, repo: siteReferenceRepo,
+        vault: createApiConnectionVault({ repo: siteReferenceRepo, keyring: siteAssistantSecretKeyring, sealer: siteAssistantSecretSealer, clock, workspaceId }) }) } } : {}),
     // A plugin's destination screen saves its own adapter's form-delivery bindings (an admin action).
     deliveryBindings: { settings: { repo: settingsRepo, clock, ids: idGen, authorize: identity.authorize, principals: settingsPrincipals }, forms: formDefinitionRepo, newBindingId: () => idGen.newId() },
   });
+  bindSharedApiOAuth = agentPluginConnections.apiConnections.host.sharedOAuth?.bind;
   // Boot load of plugin admin-surface handlers (each surface open reloads them too; see handlers.ts).
   const adminSurfaceHandlersReady = agentPluginConnections.adminSurfaceHost.refresh().then(() => {}, (error: unknown) => {
     console.warn(`[admin-surfaces] handler modules could not be loaded at boot, continuing without them — ${error instanceof Error ? error.message : String(error)}`);
