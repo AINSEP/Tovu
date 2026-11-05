@@ -1,14 +1,12 @@
-import { directPageAction } from "../../website/src/assistant/assistant-tool-approval-policy.js";
-import { PAGE_CAPABILITIES as APPROVAL_PAGE_CAPABILITIES } from "@jini-ai/agentic";
 import { setAdminDraftIdentity } from "./lib/admin-draft-identity";
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
-import { createFrontendSessionBridge, type FrontendSessionBridge } from "@jini-ai/chat/react";
+import { createFrontendSessionBridge, createFrontendRequestCaller, type FrontendSessionBridge } from "@jini-ai/chat/react";
 import { createDomPageDriver } from "@jini-ai/agentic/dom";
 import { toWebMcpTool, type WebMcpRegisterToolOptions, type WebMcpToolRegistration } from "@jini-ai/agentic";
 import { registerAdminPageWebMcpTools } from "./features/webmcp/admin-page-tools";
 import { isDesktopAdmin } from "./features/settings/ai-agent-presentation";
 import { getBrowserAgentEnabled, useBrowserAgentSettings } from "./features/webmcp/browser-agent-settings.hooks";
-import { adminPageApprovals } from "./features/webmcp/admin-page-approval.store";
+import { adminFrontendTabId, publishAdminPageSurface } from "./lib/admin-frontend-session";
 
 import { buildAdminAgentPages } from "./lib/agent-pages";
 import {
@@ -18,7 +16,7 @@ import {
   type RenderElementToCanvas,
 } from "./lib/agent-screenshot";
 import { publishScreenshotCaptured, subscribeToScreenshotCaptured } from "./lib/agent-screenshot-bus";
-import { installInternalLinkInterceptor, navigate } from "./lib/router";
+import { installInternalLinkInterceptor, navigate, useRouteLocation } from "./lib/router";
 import { WORKSPACE_ID, api, onUnauthenticated, type AdminUser } from "./lib/api";
 import { takeBootToken } from "./lib/boot-token-fragment";
 import { readInitialAdminSession } from "./lib/local-owner-signin";
@@ -1105,6 +1103,7 @@ export function useAgentPageBridge(
   const [contentEl, setContentEl] = useState<HTMLElement | null>(null);
   const [agentBridge, setAgentBridge] = useState<FrontendSessionBridge | null>(null);
   const { enabled: webMcpEnabled } = useBrowserAgentSettings({});
+  const routeLocation = useRouteLocation();
   // Stable for the app's lifetime: rebuilding it would tear down the driver (and with it the SSE
   // connection) on every render.
   const agentPages = useMemo(() => buildAdminAgentPages(), []);
@@ -1114,16 +1113,12 @@ export function useAgentPageBridge(
   useEffect(() => {
     if (!pageDriver) return undefined;
 
-    const bridge = createBridge({ baseUrl: "", fetch, openStream }, {
+    const bridge = createBridge({ baseUrl: "", fetch,
+      headers: () => ({ "x-frontend-tab-id": adminFrontendTabId }),
+      // EventSource cannot send custom headers; its authenticated stream carries the same tab id.
+      openStream: ({ url }) => openStream({ url: `${url}&tabId=${encodeURIComponent(adminFrontendTabId)}` }),
+    }, {
       pageDriver,
-      pageApproval: {
-        isDirect: directPageAction,
-        request: ({ capabilityId, input, signal }) => {
-          const capability = APPROVAL_PAGE_CAPABILITIES.find(entry => entry.id === capabilityId);
-          if (!capability) throw new Error("Unknown page capability");
-          return adminPageApprovals.request({ interaction: { capability, args: input }, signal });
-        },
-      },
       executors,
       onError: logFrontendSessionError,
     });
@@ -1143,18 +1138,25 @@ export function useAgentPageBridge(
   }, [pageDriver, executors, createBridge, openStream]);
 
   useEffect(() => {
-    if (!pageDriver || !webMcpEnabled) return undefined;
+    if (!pageDriver || !webMcpEnabled || !agentBridge) return undefined;
     // Plan §4 S5: expose the SAME admin dispatcher and page driver as the assistant relay.
     // Its own AbortController, not bridge.close()'s lifetime: these are unrelated surfaces
     // (daemon-relayed SSE vs. page-native WebMCP). Opting out unregisters browser tools while
     // keeping the assistant attached. Abort is the draft's only unregister mechanism.
     const webMcpController = new AbortController();
     registerAdminWebMcpTool(executors, webMcpController.signal);
+    const requestPageAction = createFrontendRequestCaller({
+      path: "/api/frontend-sessions/request", fetch,
+      bindToken: () => agentBridge.bindToken(), onSurface: publishAdminPageSurface,
+    }, { headers: () => ({ "x-frontend-tab-id": adminFrontendTabId }) });
     registerAdminPageWebMcpTools({ driver: pageDriver, signal: webMcpController.signal }, {
-      approvals: adminPageApprovals,
+      requestPageAction: async (request) => {
+        await agentBridge.rebind({ signal: request.signal }, {});
+        return requestPageAction(request);
+      },
     });
     return () => webMcpController.abort();
-  }, [pageDriver, executors, webMcpEnabled]);
+  }, [pageDriver, executors, webMcpEnabled, agentBridge, routeLocation]);
 
   return { contentEl, setContentEl, agentBridge };
 }

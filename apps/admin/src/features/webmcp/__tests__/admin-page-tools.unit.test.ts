@@ -1,12 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { PAGE_CAPABILITIES, type PageDriver, type WebMcpToolRegistration } from "@jini-ai/agentic";
-import { registerAdminPageWebMcpTools } from "../admin-page-tools";
+import { registerAdminPageWebMcpTools, type RequestAdminPageAction } from "../admin-page-tools";
 import type { AgentModelContextRegisterToolOptions, AgentModelContextToolRegistration } from "@jini-ai/agentic/dom";
-import { createAdminPageApprovalStore } from "../admin-page-approval.store";
 
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
-function fixture() {
+function fixture(options: { isEnabled?: () => boolean; requestPageAction?: RequestAdminPageAction } = {}) {
   const tools: WebMcpToolRegistration[] = [];
   const registerTool = vi.fn(({ tool }: { tool: AgentModelContextToolRegistration }, _options?: AgentModelContextRegisterToolOptions) => {
     tools.push(tool as WebMcpToolRegistration); return Promise.resolve();
@@ -15,90 +14,45 @@ function fixture() {
     findElements: vi.fn().mockResolvedValue([{ handle: "save", role: "button", label: "Save" }]),
     listPages: vi.fn().mockResolvedValue([{ id: "pages", label: "Pages" }]),
     describeField: vi.fn().mockResolvedValue({ type: "text", name: "title" }),
-    highlight: vi.fn(), scrollTo: vi.fn(), click: vi.fn(), fill: vi.fn(),
-    selectOption: vi.fn(), navigate: vi.fn(),
+    highlight: vi.fn(), scrollTo: vi.fn(), click: vi.fn(), fill: vi.fn(), selectOption: vi.fn(), navigate: vi.fn(),
   };
   const controller = new AbortController();
-  const requestUserInteraction = vi.fn().mockResolvedValue(true);
+  const requestPageAction = vi.fn(options.requestPageAction ?? (async () => ({ clicked: "save" })));
   const onError = vi.fn();
   registerAdminPageWebMcpTools({ driver, signal: controller.signal }, {
-    modelContext: { registerTool }, requestUserInteraction, onError,
+    modelContext: { registerTool }, requestPageAction, onError, isEnabled: options.isEnabled ?? (() => true),
   });
-  const tool = (name: string) => tools.find((entry) => entry.name === name)!;
-  return { tools, registerTool, driver, controller, requestUserInteraction, onError, tool };
+  const tool = (name: string) => tools.find(entry => entry.name === name)!;
+  return { tools, registerTool, driver, controller, requestPageAction, onError, tool };
 }
 
 describe("admin page WebMCP", () => {
-  it("only publishes the approval response channel when an approval store is supplied", () => {
+  it("publishes only page capabilities, with no approval response tool or answer instructions", () => {
     const f = fixture();
-    expect(f.tools.some(tool => tool.name === "admin.respond_page_approval")).toBe(false);
-    const tools: WebMcpToolRegistration[] = [];
-    registerAdminPageWebMcpTools({ driver: f.driver, signal: f.controller.signal }, {
-      approvals: createAdminPageApprovalStore({}), isEnabled: () => true,
-      modelContext: { registerTool: async ({ tool }) => { tools.push(tool as WebMcpToolRegistration); } },
-    });
-    expect(tools.map(tool => tool.name)).toEqual([
-      ...PAGE_CAPABILITIES.map(capability => capability.id), "admin.respond_page_approval",
-    ]);
-    expect(tools.at(-1)).toMatchObject({
-      inputSchema: { required: ["approvalId", "approved"], additionalProperties: false },
-      annotations: { readOnlyHint: false }, registerOptions: { signal: f.controller.signal },
-    });
+    expect(f.tools.map(tool => tool.name)).toEqual(PAGE_CAPABILITIES.map(capability => capability.id));
+    for (const tool of f.tools) {
+      expect(tool.description).not.toContain("respond_page_approval");
+      expect(tool.description).not.toContain("approval_required");
+    }
   });
 
-  it.each([
-    {}, { approvalId: "pending-1" }, { approvalId: "pending-1", approved: "true" },
-    { approvalId: "pending-1", approved: true, extra: false },
-  ])("keeps a pending proposal intact for invalid response input %j", async (args) => {
-    const f = fixture();
-    const approvals = createAdminPageApprovalStore({}, { createId: () => "pending-1" });
-    const tools: WebMcpToolRegistration[] = [];
-    registerAdminPageWebMcpTools({ driver: f.driver, signal: f.controller.signal }, {
-      approvals, isEnabled: () => true,
-      modelContext: { registerTool: async ({ tool }) => { tools.push(tool as WebMcpToolRegistration); } },
-    });
-    await tools.find(tool => tool.name === "page.click")!.execute({ handle: "save" });
-    await expect(tools.at(-1)!.execute(args)).rejects.toThrow("Expected approvalId (string) and approved (boolean)");
-    expect(approvals.getSnapshot().pending?.approvalId).toBe("pending-1");
-    expect(f.driver.click).not.toHaveBeenCalled();
-    f.controller.abort();
-  });
+  it.each([{}, { handle: 42 }, { handle: false }, { handle: null }, { approved: true }, { approvalId: "old-proposal", approved: true }])(
+    "rejects malformed click input before the confirmation request: %j", async args => {
+      const f = fixture();
+      await expect(f.tool("page.click").execute(args)).rejects.toThrow(/handle/);
+      expect(f.requestPageAction).not.toHaveBeenCalled();
+      expect(f.driver.click).not.toHaveBeenCalled();
+    },
+  );
 
-  it.each(["disabled", "aborted"])("rejects approval replies after access is %s", async (state) => {
-    const f = fixture();
-    const approvals = createAdminPageApprovalStore({}, { createId: () => "pending-1" });
-    const respond = vi.spyOn(approvals, "respond");
-    const tools: WebMcpToolRegistration[] = [];
+  it.each(["disabled", "aborted"])("refuses stale protected requests when access is %s", async state => {
     let enabled = true;
-    registerAdminPageWebMcpTools({ driver: f.driver, signal: f.controller.signal }, {
-      approvals, isEnabled: () => enabled,
-      modelContext: { registerTool: async ({ tool }) => { tools.push(tool as WebMcpToolRegistration); } },
-    });
-    await tools.find(tool => tool.name === "page.click")!.execute({ handle: "save" });
+    const f = fixture({ isEnabled: () => enabled });
     if (state === "disabled") enabled = false;
     else f.controller.abort();
-    await expect(tools.at(-1)!.execute({ approvalId: "pending-1", approved: true }))
-      .rejects.toThrow("WebMCP admin access is disabled or closed");
-    expect(respond).not.toHaveBeenCalled();
+    await expect(f.tool("page.click").execute({ handle: "save" })).rejects.toThrow("WebMCP admin access is disabled or closed");
+    expect(f.requestPageAction).not.toHaveBeenCalled();
     expect(f.driver.click).not.toHaveBeenCalled();
-    f.controller.abort();
-  });
-
-  it.each([true, false])("forwards a valid approval response with approved=%s", async (approved) => {
-    const f = fixture();
-    const approvals = createAdminPageApprovalStore({}, { createId: () => "pending-1" });
-    const respond = vi.spyOn(approvals, "respond");
-    const tools: WebMcpToolRegistration[] = [];
-    registerAdminPageWebMcpTools({ driver: f.driver, signal: f.controller.signal }, {
-      approvals, isEnabled: () => true,
-      modelContext: { registerTool: async ({ tool }) => { tools.push(tool as WebMcpToolRegistration); } },
-    });
-    await tools.find(tool => tool.name === "page.click")!.execute({ handle: "save" });
-    await expect(tools.at(-1)!.execute({ approvalId: "pending-1", approved }))
-      .resolves.toMatchObject(approved ? { clicked: "save" } : { status: "declined" });
-    expect(respond).toHaveBeenCalledWith({ approvalId: "pending-1", approved });
-    expect(f.driver.click).toHaveBeenCalledTimes(approved ? 1 : 0);
-    f.controller.abort();
   });
 
   it("does nothing when neither browser host exposes a model context", () => {
@@ -109,7 +63,7 @@ describe("admin page WebMCP", () => {
     expect(f.driver.findElements).not.toHaveBeenCalled();
   });
 
-  it.each(["document", "navigator"])("discovers and registers native tools through %s.modelContext", async (host) => {
+  it.each(["document", "navigator"])("discovers and registers native tools through %s.modelContext", async host => {
     const f = fixture();
     const tools: AgentModelContextToolRegistration[] = [];
     const registerTool = vi.fn(async (tool: AgentModelContextToolRegistration) => { tools.push(tool); });
@@ -118,8 +72,7 @@ describe("admin page WebMCP", () => {
     registerAdminPageWebMcpTools({ driver: f.driver, signal: f.controller.signal }, { isEnabled: () => true });
     expect(tools.map(tool => tool.name)).toEqual(PAGE_CAPABILITIES.map(capability => capability.id));
     expect(registerTool).toHaveBeenCalledWith(expect.objectContaining({ name: "page.find_elements" }), { signal: f.controller.signal });
-    const result = await tools.find(tool => tool.name === "page.find_elements")!.execute({});
-    expect(result).toMatchObject({ elements: [{ handle: "save" }], pages: [{ id: "pages" }] });
+    expect(await tools.find(tool => tool.name === "page.find_elements")!.execute({})).toMatchObject({ elements: [{ handle: "save" }], pages: [{ id: "pages" }] });
   });
 
   it("reports registration failures through the default warning callback", async () => {
@@ -129,14 +82,11 @@ describe("admin page WebMCP", () => {
     registerAdminPageWebMcpTools({ driver: f.driver, signal: f.controller.signal }, {
       modelContext: { registerTool: async () => { throw failure; } }, isEnabled: () => true,
     });
-    await Promise.resolve();
-    await Promise.resolve();
-    expect(warning.mock.calls).toEqual(PAGE_CAPABILITIES.map(capability => [
-      `[admin] WebMCP registration failed: ${capability.id}`, failure,
-    ]));
+    await Promise.resolve(); await Promise.resolve();
+    expect(warning.mock.calls).toEqual(PAGE_CAPABILITIES.map(capability => [`[admin] WebMCP registration failed: ${capability.id}`, failure]));
   });
 
-  it.each(["synchronous", "asynchronous"])("ignores %s registration failures after teardown", async (kind) => {
+  it.each(["synchronous", "asynchronous"])("ignores %s registration failures after teardown", async kind => {
     const f = fixture();
     const failure = new Error("closed context");
     const registerTool = vi.fn(() => {
@@ -146,78 +96,45 @@ describe("admin page WebMCP", () => {
     registerAdminPageWebMcpTools({ driver: f.driver, signal: f.controller.signal }, {
       modelContext: { registerTool }, onError: f.onError, isEnabled: () => true,
     });
-    f.controller.abort();
-    await Promise.resolve();
-    await Promise.resolve();
+    f.controller.abort(); await Promise.resolve(); await Promise.resolve();
     expect(registerTool).toHaveBeenCalledTimes(PAGE_CAPABILITIES.length);
     expect(f.onError).not.toHaveBeenCalled();
   });
 
-  it("rechecks browser access after confirmation even when the lifetime is still open", async () => {
-    const f = fixture();
+  it("rechecks access after the authenticated request returns", async () => {
     let enabled = true;
-    const tools: WebMcpToolRegistration[] = [];
-    registerAdminPageWebMcpTools({ driver: f.driver, signal: f.controller.signal }, {
-      modelContext: { registerTool: async ({ tool }) => { tools.push(tool as WebMcpToolRegistration); } },
-      isEnabled: () => enabled,
-      requestUserInteraction: async () => { enabled = false; return true; },
-    });
-    await expect(tools.find(tool => tool.name === "page.click")!.execute({ handle: "save" }))
-      .rejects.toThrow("WebMCP admin access is disabled or closed");
+    const f = fixture({ isEnabled: () => enabled, requestPageAction: async () => { enabled = false; return { executed: false }; } });
+    await expect(f.tool("page.click").execute({ handle: "save" })).rejects.toThrow("WebMCP admin access is disabled or closed");
     expect(f.controller.signal.aborted).toBe(false);
     expect(f.driver.click).not.toHaveBeenCalled();
   });
 
-  it.each([
-    { approvalId: 42, approved: true },
-    { approvalId: "pending-1", approved: true, extra: "unexpected" },
-  ])("rejects malformed approval replies without consuming a pending action: %j", async (args) => {
-    const f = fixture();
-    const approvals = createAdminPageApprovalStore({}, { createId: () => "pending-1" });
-    const tools: WebMcpToolRegistration[] = [];
-    registerAdminPageWebMcpTools({ driver: f.driver, signal: f.controller.signal }, {
-      modelContext: { registerTool: async ({ tool }) => { tools.push(tool as WebMcpToolRegistration); } },
-      approvals, isEnabled: () => true,
-    });
-    await tools.find(tool => tool.name === "page.click")!.execute({ handle: "save" });
-    const respond = tools.find(tool => tool.name === "admin.respond_page_approval")!;
-    await expect(respond.execute(args)).rejects.toThrow("Expected approvalId (string) and approved (boolean)");
-    expect(approvals.getSnapshot().pending?.approvalId).toBe("pending-1");
-    expect(f.driver.click).not.toHaveBeenCalled();
-    expect(await respond.execute({ approvalId: "pending-1", approved: false })).toEqual({ status: "declined" });
-    expect(approvals.getSnapshot().pending).toBeNull();
-  });
-
   it("publishes the whole Jini page manifest with an abort signal and read hints", async () => {
     const f = fixture();
-    expect(f.tools.map((tool) => tool.name)).toEqual(PAGE_CAPABILITIES.map((tool) => tool.id));
     for (const [index, call] of f.registerTool.mock.calls.entries()) {
       expect(call[1]).toEqual({ signal: f.controller.signal });
       expect(f.tools[index].annotations?.readOnlyHint).toBe(PAGE_CAPABILITIES[index].risk === "read");
     }
-    const result = await f.tool("page.find_elements").execute({});
-    expect(result).toMatchObject({ elements: [{ handle: "save" }], pages: [{ id: "pages" }] });
-    expect(f.requestUserInteraction).not.toHaveBeenCalled();
+    expect(await f.tool("page.find_elements").execute({})).toMatchObject({ elements: [{ handle: "save" }], pages: [{ id: "pages" }] });
+    expect(f.requestPageAction).not.toHaveBeenCalled();
   });
 
-  it("confirms before a click and never executes a declined action", async () => {
-    const f = fixture();
-    f.requestUserInteraction.mockResolvedValueOnce(false);
-    await expect(f.tool("page.click").execute({ handle: "save" })).rejects.toThrow(/declined/);
+  it("returns a human decline unchanged and never falls back to a local click", async () => {
+    const declined = { executed: false, cancelled: true, reason: "declined" };
+    const f = fixture({ requestPageAction: async () => declined });
+    await expect(f.tool("page.click").execute({ handle: "save" })).resolves.toEqual(declined);
+    expect(f.requestPageAction).toHaveBeenCalledExactlyOnceWith({ capabilityId: "page.click", input: { handle: "save" }, signal: f.controller.signal });
     expect(f.driver.click).not.toHaveBeenCalled();
-    await f.tool("page.click").execute({ handle: "save" });
-    expect(f.requestUserInteraction).toHaveBeenCalledWith(expect.objectContaining({ args: { handle: "save" } }));
-    expect(f.driver.click).toHaveBeenCalledWith({ handle: "save" });
   });
 
-  it("refuses writes when no confirmation handler is supplied", async () => {
+  it("refuses opaque effects without an authenticated chat confirmation channel", async () => {
     const f = fixture();
     const tools: WebMcpToolRegistration[] = [];
     registerAdminPageWebMcpTools({ driver: f.driver, signal: f.controller.signal }, {
-      modelContext: { registerTool: async ({ tool }) => { tools.push(tool as WebMcpToolRegistration); } },
+      modelContext: { registerTool: async ({ tool }) => { tools.push(tool as WebMcpToolRegistration); } }, isEnabled: () => true,
     });
-    await expect(tools.find((t) => t.name === "page.click")!.execute({ handle: "save" })).rejects.toThrow(/confirmation/);
-    expect(f.driver.fill).not.toHaveBeenCalled();
+    await expect(tools.find(tool => tool.name === "page.click")!.execute({ handle: "save" })).rejects.toThrow("authenticated chat confirmation channel");
+    expect(f.driver.click).not.toHaveBeenCalled();
   });
 
   it("retains Jini navigation and credential-field refusals", async () => {
@@ -227,20 +144,21 @@ describe("admin page WebMCP", () => {
     vi.mocked(f.driver.describeField).mockResolvedValue({ type: "password", name: "password" });
     await expect(f.tool("page.fill").execute({ handle: "save", text: "secret" })).rejects.toThrow();
     expect(f.driver.fill).not.toHaveBeenCalled();
+    expect(f.requestPageAction).not.toHaveBeenCalled();
   });
 
-  it("validates before confirmation and blocks stale calls after teardown", async () => {
+  it("validates before confirmation and blocks stale reads after teardown", async () => {
     const f = fixture();
     await expect(f.tool("page.click").execute({})).rejects.toThrow(/handle/);
-    expect(f.requestUserInteraction).not.toHaveBeenCalled();
+    expect(f.requestPageAction).not.toHaveBeenCalled();
     f.controller.abort();
     await expect(f.tool("page.find_elements").execute({})).rejects.toThrow(/disabled|closed/);
     expect(f.driver.findElements).not.toHaveBeenCalled();
   });
 
-  it("checks teardown again after an asynchronous confirmation", async () => {
+  it("passes teardown to an in-flight authenticated request and checks it after settlement", async () => {
     const f = fixture();
-    f.requestUserInteraction.mockImplementationOnce(async () => { f.controller.abort(); return true; });
+    f.requestPageAction.mockImplementationOnce(async ({ signal }) => { f.controller.abort(); expect(signal.aborted).toBe(true); return { executed: false }; });
     await expect(f.tool("page.click").execute({ handle: "save" })).rejects.toThrow(/disabled|closed/);
     expect(f.driver.click).not.toHaveBeenCalled();
   });
@@ -250,24 +168,18 @@ describe("admin page WebMCP", () => {
     const failure = new Error("registration failed");
     const registerTool = vi.fn().mockImplementationOnce(() => { throw failure; }).mockRejectedValue(failure);
     expect(() => registerAdminPageWebMcpTools({ driver: f.driver, signal: f.controller.signal }, {
-      modelContext: { registerTool }, onError: f.onError,
+      modelContext: { registerTool }, onError: f.onError, isEnabled: () => true,
     })).not.toThrow();
-    await Promise.resolve();
-    await Promise.resolve();
+    await Promise.resolve(); await Promise.resolve();
     expect(f.onError).toHaveBeenCalledWith(expect.objectContaining({ error: failure }));
   });
 
-  it("skips registration when access is disabled or the registration lifetime has ended", () => {
-    const f = fixture();
-    f.registerTool.mockClear();
-    registerAdminPageWebMcpTools({ driver: f.driver, signal: f.controller.signal }, {
-      modelContext: { registerTool: f.registerTool }, isEnabled: () => false,
-    });
+  it("skips registration when access is disabled or the registration lifetime ended", () => {
+    const f = fixture(); f.registerTool.mockClear();
+    registerAdminPageWebMcpTools({ driver: f.driver, signal: f.controller.signal }, { modelContext: { registerTool: f.registerTool }, isEnabled: () => false });
     expect(f.registerTool).not.toHaveBeenCalled();
     f.controller.abort();
-    registerAdminPageWebMcpTools({ driver: f.driver, signal: f.controller.signal }, {
-      modelContext: { registerTool: f.registerTool },
-    });
+    registerAdminPageWebMcpTools({ driver: f.driver, signal: f.controller.signal }, { modelContext: { registerTool: f.registerTool }, isEnabled: () => true });
     expect(f.registerTool).not.toHaveBeenCalled();
   });
 });

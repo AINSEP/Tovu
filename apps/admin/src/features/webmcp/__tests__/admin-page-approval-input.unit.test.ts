@@ -1,61 +1,46 @@
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 import { PAGE_CAPABILITIES, type PageDriver, type WebMcpToolRegistration } from "@jini-ai/agentic";
-import { createAdminPageApprovalStore } from "../admin-page-approval.store";
 import { registerAdminPageWebMcpTools } from "../admin-page-tools";
 
 function fixture() {
-  const approvals = createAdminPageApprovalStore({}, { createId: () => "input-approval" });
   const registrations: WebMcpToolRegistration[] = [];
-  const clicks: string[] = [];
   const driver: PageDriver = {
-    findElements: async () => [], listPages: async () => [],
-    describeField: async () => ({ type: "text" }),
-    highlight: async () => {}, scrollTo: async () => {},
-    click: async ({ handle }) => { clicks.push(handle); },
-    fill: async () => {}, selectOption: async () => {}, navigate: async () => {},
+    findElements: async () => [], listPages: async () => [], describeField: async () => ({ type: "text" }),
+    highlight: vi.fn(), scrollTo: vi.fn(), click: vi.fn(), fill: vi.fn(), selectOption: vi.fn(), navigate: vi.fn(),
   };
   const controller = new AbortController();
+  const requestPageAction = vi.fn().mockResolvedValue({ clicked: "post-delete-confirm" });
   registerAdminPageWebMcpTools({ driver, signal: controller.signal }, {
-    approvals, isEnabled: () => true,
+    requestPageAction, isEnabled: () => true,
     modelContext: { registerTool: async ({ tool }) => { registrations.push(tool as WebMcpToolRegistration); } },
   });
   const tool = (name: string) => registrations.find(entry => entry.name === name)!;
-  return { approvals, clicks, controller, tool };
+  return { driver, requestPageAction, controller, tool };
 }
 
-it("checks the Jini schema before proposing and returns its exact correction schema", async () => {
+it("checks the Jini schema before requesting a card and returns its exact correction schema", async () => {
   const f = fixture();
   const capability = PAGE_CAPABILITIES.find(entry => entry.id === "page.click")!;
-  await expect(f.tool("page.click").execute({})).rejects.toThrow(
-    `page.click: "handle" is required. Expected input: ${JSON.stringify(capability.inputSchema)}`,
-  );
-  expect(f.approvals.getSnapshot().pending).toBeNull();
-  expect(f.clicks).toEqual([]);
-  await f.tool("page.click").execute({ handle: "post-delete-confirm" });
-  expect(f.approvals.getSnapshot().pending?.capability.id).toBe("page.click");
-  expect(f.clicks).toEqual([]);
-  f.controller.abort();
+  await expect(f.tool("page.click").execute({})).rejects.toThrow(`page.click: "handle" is required. Expected input: ${JSON.stringify(capability.inputSchema)}`);
+  expect(f.requestPageAction).not.toHaveBeenCalled();
+  expect(f.driver.click).not.toHaveBeenCalled();
+  expect(await f.tool("page.click").execute({ handle: "post-delete-confirm" })).toEqual({ clicked: "post-delete-confirm" });
+  expect(f.driver.click).not.toHaveBeenCalled();
 });
 
-it("a valid proposal does not click until the matching explicit approval executes it once", async () => {
+it("returns the authenticated executor result once without creating a browser-local proposal", async () => {
   const f = fixture();
-  await expect(f.tool("page.click").execute({ handle: "post-delete-confirm" })).resolves.toEqual({
-    status: "approval_required", approvalId: "input-approval", capabilityId: "page.click",
-    args: { handle: "post-delete-confirm" }, responseTool: "admin.respond_page_approval",
-  });
-  expect(f.clicks).toEqual([]);
-  await f.tool("admin.respond_page_approval").execute({ approvalId: "input-approval", approved: true });
-  expect(f.clicks).toEqual(["post-delete-confirm"]);
-  await expect(f.tool("admin.respond_page_approval").execute({ approvalId: "input-approval", approved: true }))
-    .rejects.toThrow("Page approval is missing or expired");
-  f.controller.abort();
+  expect(await f.tool("page.click").execute({ handle: "post-delete-confirm" })).toEqual({ clicked: "post-delete-confirm" });
+  expect(f.requestPageAction).toHaveBeenCalledExactlyOnceWith({ capabilityId: "page.click", input: { handle: "post-delete-confirm" }, signal: f.controller.signal });
+  expect(f.driver.click).not.toHaveBeenCalled();
 });
 
-it("mutating a returned proposal cannot redirect the action that was captured for approval", async () => {
+it("does not expose captured request input through the result returned to the agent", async () => {
   const f = fixture();
-  const proposal = await f.tool("page.click").execute({ handle: "post-delete-confirm" }) as { args: Record<string, unknown> };
-  proposal.args.handle = "plugin-row-remove-confirm";
-  await f.tool("admin.respond_page_approval").execute({ approvalId: "input-approval", approved: true });
-  expect(f.clicks).toEqual(["post-delete-confirm"]);
-  f.controller.abort();
+  const args = { handle: "post-delete-confirm" };
+  const result = await f.tool("page.click").execute(args) as { clicked: string };
+  result.clicked = "plugin-row-remove-confirm";
+  args.handle = "changed-after-send";
+  expect(f.requestPageAction.mock.calls[0][0].input).toEqual({ handle: "post-delete-confirm" });
+  expect(f.driver.click).not.toHaveBeenCalled();
 });

@@ -11,7 +11,9 @@
  *
  * ## Why `chat.reset_conversation` is excluded, and why the filter is on the PROPERTY
  *
- * Page actions use the originating tab's app dialog. The kernel descriptor-level confirmation
+ * Page actions use the server's human chat-card exchange through applyToolApprovalPolicy. The
+ * browser receives an invocation only after that exchange is approved, without a second dialog.
+ * The kernel descriptor-level confirmation
  * transport is still absent for chat capabilities: `createToolExecutor` is built with
  * NO `ExecutionDelegate` (`agent-daemon-server.ts`), so a capability with `requiresConfirmation:
  * true` parks its execution on a promise only `resumeConfirmation` can settle — and nothing calls
@@ -167,7 +169,7 @@ const TOVU_FRONTEND_CAPABILITIES: readonly CapabilityDef[] = [
  * @overallScore 100
  */
 export const FRONTEND_CONTROL_CAPABILITIES: readonly CapabilityDef[] = [
-  ...PAGE_CAPABILITIES.map(capability => capability.id === "page.click" ? { ...capability, requiresFrontendApproval: true } : capability),
+  ...PAGE_CAPABILITIES,
   ...CHAT_CAPABILITIES.filter((capability) => capability.requiresConfirmation !== true),
   ...TOVU_FRONTEND_CAPABILITIES,
 ];

@@ -1,5 +1,4 @@
 import { useAdminThemeBoundary } from "./admin-themes/use-admin-theme.hooks";
-import { AdminPageApprovalDialog } from "./features/webmcp/AdminPageApprovalDialog";
 import { useCmsSidebarLabelTooltips } from "./hooks/use-cms-sidebar-label-tooltips.hooks";
 import { SitesSidebarNav } from "./components/SitesSidebarNav";
 import { useAdminDocumentLocale } from "./hooks/use-admin-document-locale.hooks";
@@ -773,7 +772,6 @@ function AdminShell(props: AppProps & { session: ReturnType<typeof useAdminSessi
           </Sidebar.Footer>
         </Sidebar>
         <LogoutConfirmDialog logoutConfirm={logoutConfirm} locale={navLocale} />
-        <AdminPageApprovalDialog locale={navLocale} />
         {/* Mobile-only backdrop behind the open drawer (`styles.css` hides `.cms-nav`'s off-canvas
             behavior above 900px, so this has nothing to sit behind there either — conditionally
             rendered rather than CSS-hidden since it would otherwise sit invisibly over the whole

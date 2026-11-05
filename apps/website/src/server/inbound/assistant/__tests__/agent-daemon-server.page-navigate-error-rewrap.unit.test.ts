@@ -66,7 +66,7 @@ describe("the toolRegistrations registration loop", () => {
 
   test("every registration is still handed to registry.register — the rewrap must not replace registration itself", () => {
     assert.match(registrationLoopSource, /const bound = lostFrontendBindings\.wrap\(registration\)/);
-    assert.match(registrationLoopSource, /registry\.register\(registration\.descriptor\.id\.startsWith\("page\."\) \? bound/);
+    assert.match(registrationLoopSource, /registry\.register\(applyToolApprovalPolicy\(/);
     assert.match(registrationLoopSource, /applyToolApprovalPolicy\(\{ registration: bound, surfaces: \{ surfaceExchanges \}/);
   });
 
