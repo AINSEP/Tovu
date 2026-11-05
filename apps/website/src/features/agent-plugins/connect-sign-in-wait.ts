@@ -14,9 +14,11 @@ export async function waitAtAgentPluginSignInCard(required: {
   connect: (input: { signal: AbortSignal; showSignIn: (input: { signInUrl: string }) => Promise<void> }) => Promise<AgentPluginConnectResult>;
 }, optional: ToolExecutionOptions = {}): Promise<AgentPluginConnectResult> {
   const { surfaces, ctx, pluginId, pluginDisplayName, credentialCard, connect } = required;
-  return waitAtSignInCard({
+  return waitAtSignInCard<AgentPluginConnectResult>({
     surfaceExchanges: surfaces.surfaceExchanges, ctx, toolId: 'agent_plugin_connect', connect,
-    card: state => buildAgentPluginConnectCard({ pluginId, pluginDisplayName, credentialCard, ...state }),
+    card: state => buildAgentPluginConnectCard(state.state === 'waiting'
+      ? { pluginId, pluginDisplayName, credentialCard, ...state }
+      : { pluginId, pluginDisplayName, ...state }),
     missingEmitterMessage: 'agent_plugin_connect: this execution context has no interactive channel (no emitSurface), so no sign-in card can be shown.',
     skippedResult: () => ({ status: 'not-connected', reason: 'cancelled', next: 'The person skipped this sign-in. Continue without this plugin; do not ask them to sign in again unless they request it.' }),
   }, optional);
