@@ -42,6 +42,8 @@ test('disabled restart drains an outbox-only backlog even after merchant configu
   t.after(async () => { await kernel.close(); await rm(directory, { recursive: true, force: true }); });
   await writeFile(path.join(directory, 'activations.json'), JSON.stringify({ schemaVersion: 1, plugins: { commerce: { enabled: false, origin: 'bundled', updatedAt: '2026-11-05T19:00:00.000Z', updatedBy: 'test' } } }));
   await migrateCommercePayments({ kernel });
+  const { migrateCommerceDatabase } = await import('#src/platform/db/migrations/index');
+  await migrateCommerceDatabase({ kernel });
   const ledger = sqlPaymentsLedger({ kernel });
   await ledger.transaction({ fn: tx => tx.enqueueOutbox({ message: { id: 'backlog', workspaceId: 'workspace', mode: 'test',
     topic: 'refund.succeeded', aggregateId: 'historical-payment', payloadJson: '{}', createdAt: 1000 } }) });
@@ -56,6 +58,31 @@ test('disabled restart drains an outbox-only backlog even after merchant configu
   }, { warn: () => {} });
   await runtime.close();
   assert.deepEqual(await ledger.transaction({ fn: tx => tx.listPendingOutbox({ limit: 10 }) }), []);
+  assert.equal(httpCalls, 0);
+});
+
+test('disabled payment-only restart preserves absent catalog and queued projection', async t => {
+  const { migrateCommercePayments, sqlPaymentsLedger } = await import('@jini-ai/commerce/payments/ledger/sql');
+  const directory = await mkdtemp(path.join(tmpdir(), 'commerce-drain-'));
+  const kernel = openMemorySqliteKernel<unknown>();
+  t.after(async () => { await kernel.close(); await rm(directory, { recursive: true, force: true }); });
+  await writeFile(path.join(directory, 'activations.json'), JSON.stringify({ schemaVersion: 1, plugins: { commerce: { enabled: false, origin: 'bundled', updatedAt: '2026-11-05T19:00:00.000Z', updatedBy: 'test' } } }));
+  await migrateCommercePayments({ kernel });
+  const ledger = sqlPaymentsLedger({ kernel });
+  await ledger.transaction({ fn: tx => tx.enqueueOutbox({ message: { id: 'backlog', workspaceId: 'workspace', mode: 'test',
+    topic: 'refund.succeeded', aggregateId: 'historical-payment', payloadJson: '{}', createdAt: 1000 } }) });
+  const settingsRepo = new InMemorySettingsRepo();
+  const clock = { nowMs: () => 1_800_000_000_000 }, idGen = { newId: () => randomUUID() };
+  await ensureCommerceSetting({ deps: { settingsRepo, clock, ids: idGen, principals: { findActiveById: async () => null } }, systemPrincipalId: 'commerce-test' });
+  let httpCalls = 0;
+  const runtime = composeCommerce({ kernel, workspaceId: 'workspace', siteId: 'site', workspaceRoot: directory,
+    workerOwner: true, workerDirectory: directory, settingsRepo, settingsReady: Promise.resolve(), clock, idGen,
+    providers: { paymentProviders: () => [] }, providerConfig: { read: async () => null } as unknown as ProviderConfigSource,
+    httpClient: { send: async () => { httpCalls++; throw new Error('no network'); } },
+  }, { warn: () => {} });
+  await runtime.close();
+  assert.equal((await kernel.query(sql`SELECT name FROM sqlite_master WHERE type='table' AND name='commerce_products'`)).length, 0);
+  assert.equal((await ledger.transaction({ fn: tx => tx.listPendingOutbox({ limit: 10 }) })).length, 1);
   assert.equal(httpCalls, 0);
 });
 
