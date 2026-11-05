@@ -8,7 +8,7 @@ export function appendProductCheckout(
   _optional: Record<string, never> = {},
 ): string {
   const orders = `/api/commerce/v1/workspaces/${encodeURIComponent(workspaceId)}/orders`;
-  const markup = `<section class="wrap commerce-checkout"><form data-commerce-checkout data-orders-url="${escapeHtml(orders)}" data-price-id="${escapeHtml(priceId)}"><button type="submit" class="button">Buy now</button><p data-checkout-status role="status" aria-live="polite"></p><a data-checkout-order hidden>View order</a></form></section><script src="/commerce/checkout.js" defer></script>`;
+  const markup = `<section class="wrap commerce-checkout"><form data-commerce-checkout data-orders-url="${escapeHtml(orders)}" data-price-id="${escapeHtml(priceId)}"><button type="submit" class="button">Buy now</button><button type="button" class="button" data-checkout-new-order hidden>Start a new order</button><p data-checkout-status role="status" aria-live="polite"></p><a data-checkout-order hidden>View order</a></form></section><script src="/commerce/checkout.js" defer></script>`;
   return appendMarkup({ html, markup });
 }
 
