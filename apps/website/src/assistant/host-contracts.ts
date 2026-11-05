@@ -5,6 +5,11 @@ import type { ChatStoreFactory } from './persistence/tenant-scope.js';
 
 export type { ProviderConfigSource } from '@jini-ai/plugins/host';
 
+/** Commerce owns its private repositories; the assistant sees only admitted tool registrations. */
+export interface CommerceToolHost {
+  toolRegistrations(required: { authorize: AuthorizeFn }): ToolRegistration[];
+}
+
 /** Registered local source identity, shared with the host's discovery adapter. */
 export type RegisteredSiteSource = { siteId: string; name: string; dir: string };
 type BuildRegistrations<TDeps> = (deps: TDeps) => ToolRegistration[];
