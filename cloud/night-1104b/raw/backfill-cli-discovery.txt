@@ -1,0 +1,19 @@
+✔ resolveExistingDbPath: returns the resolved path when the database is really there (4.558153ms)
+✔ resolveExistingDbPath: throws the exact loud message, naming the path it looked for (1.938972ms)
+✔ resolveExistingDbPath: rejects a directory as loudly as a missing file (1.589208ms)
+▶ every backfill, convert, migrate and cleanup CLI refuses its effective default in an isolated repository
+  ✔ backfill-media-slugs.ts (1199.712894ms)
+  ✔ backfill-slug-collision-defaults.ts (10075.103926ms)
+  ✔ backfill-trashed-items.ts (1038.988187ms)
+  ✔ cleanup-stale-owner-sessions.ts (1012.045639ms)
+  ✔ convert-legacy-doc-pages-to-html.ts (1254.474693ms)
+  ✔ migrate-page-embed-markers.ts (1070.804922ms)
+✔ every backfill, convert, migrate and cleanup CLI refuses its effective default in an isolated repository (15720.511289ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 16215.868518

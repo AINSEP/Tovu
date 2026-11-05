@@ -1,0 +1,29 @@
+
+[1m[7m[36m RUN [39m[27m[22m [36mv2.1.9 [39m[90m/home/user/Jini/packages/sidecar[39m
+
+
+[31m⎯⎯⎯⎯⎯⎯[1m[7m Unhandled Errors [27m[22m⎯⎯⎯⎯⎯⎯[39m
+[31m[1m
+Vitest caught 1 unhandled error during the test run.
+This might cause false positive tests. Resolve unhandled errors to make sure your tests are not affected.[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯[1m[7m Unhandled Error [27m[22m⎯⎯⎯⎯⎯⎯⎯[39m
+[31m[1mRangeError[22m: options.minThreads and options.maxThreads must not conflict[39m
+[90m [2m❯[22m new Tinypool ../../node_modules/.pnpm/tinypool@1.1.1/node_modules/tinypool/dist/index.js:[2m745:120[22m[39m
+[90m [2m❯[22m createForksPool ../../node_modules/.pnpm/vitest@2.1.9_@types+node@24.13.3_jsdom@26.1.0_lightningcss@1.33.0_sass@1.51.0/node_modules/vitest/dist/chunks/resolveConfig.rBxzbVsl.js:[2m6756:16[22m[39m
+[90m [2m❯[22m forks ../../node_modules/.pnpm/vitest@2.1.9_@types+node@24.13.3_jsdom@26.1.0_lightningcss@1.33.0_sass@1.51.0/node_modules/vitest/dist/chunks/resolveConfig.rBxzbVsl.js:[2m7664:20[22m[39m
+[90m [2m❯[22m ../../node_modules/.pnpm/vitest@2.1.9_@types+node@24.13.3_jsdom@26.1.0_lightningcss@1.33.0_sass@1.51.0/node_modules/vitest/dist/chunks/resolveConfig.rBxzbVsl.js:[2m7690:27[22m[39m
+[90m [2m❯[22m executeTests ../../node_modules/.pnpm/vitest@2.1.9_@types+node@24.13.3_jsdom@26.1.0_lightningcss@1.33.0_sass@1.51.0/node_modules/vitest/dist/chunks/resolveConfig.rBxzbVsl.js:[2m7681:5[22m[39m
+[90m [2m❯[22m ../../node_modules/.pnpm/vitest@2.1.9_@types+node@24.13.3_jsdom@26.1.0_lightningcss@1.33.0_sass@1.51.0/node_modules/vitest/dist/chunks/cli-api.DqsSTaIi.js:[2m10818:9[22m[39m
+[90m [2m❯[22m Vitest.runFiles ../../node_modules/.pnpm/vitest@2.1.9_@types+node@24.13.3_jsdom@26.1.0_lightningcss@1.33.0_sass@1.51.0/node_modules/vitest/dist/chunks/cli-api.DqsSTaIi.js:[2m10840:12[22m[39m
+[90m [2m❯[22m Vitest.start ../../node_modules/.pnpm/vitest@2.1.9_@types+node@24.13.3_jsdom@26.1.0_lightningcss@1.33.0_sass@1.51.0/node_modules/vitest/dist/chunks/cli-api.DqsSTaIi.js:[2m10682:7[22m[39m
+[90m [2m❯[22m startVitest ../../node_modules/.pnpm/vitest@2.1.9_@types+node@24.13.3_jsdom@26.1.0_lightningcss@1.33.0_sass@1.51.0/node_modules/vitest/dist/chunks/cli-api.DqsSTaIi.js:[2m11848:7[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[39m
+
+[2m Test Files [22m [2mno tests[22m
+[2m      Tests [22m [2mno tests[22m
+[2m     Errors [22m [1m[31m1 error[39m[22m
+[2m   Start at [22m 07:39:17
+[2m   Duration [22m 24ms[2m (transform 0ms, setup 0ms, collect 0ms, tests 0ms, environment 0ms, prepare 0ms)[22m
+

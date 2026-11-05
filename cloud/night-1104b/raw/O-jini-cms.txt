@@ -1,0 +1,13 @@
+
+[1m[7m[36m RUN [39m[27m[22m [36mv2.1.9 [39m[90m/home/user/Jini/packages/cms[39m
+
+ [32m✓[39m src/forms/__tests__/attachment-purge.test.ts [2m([22m[2m7 tests[22m[2m)[22m[90m 6[2mms[22m[39m
+ [32m✓[39m src/forms/__tests__/attachment-cleanup.test.ts [2m([22m[2m2 tests[22m[2m)[22m[90m 3[2mms[22m[39m
+ [32m✓[39m src/media/__tests__/list-page-w2g.unit.test.ts [2m([22m[2m8 tests[22m[2m)[22m[90m 97[2mms[22m[39m
+ [32m✓[39m src/forms/__tests__/request-admission.test.ts [2m([22m[2m3 tests[22m[2m)[22m[90m 3[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m4 passed[39m[22m[90m (4)[39m
+[2m      Tests [22m [1m[32m20 passed[39m[22m[90m (20)[39m
+[2m   Start at [22m 07:45:28
+[2m   Duration [22m 1.16s[2m (transform 579ms, setup 0ms, collect 792ms, tests 109ms, environment 1ms, prepare 288ms)[22m
+

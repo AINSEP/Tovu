@@ -1,0 +1,13 @@
+
+[1m[7m[36m RUN [39m[27m[22m [36mv2.1.9 [39m[90m/home/user/Jini/packages/admin[39m
+
+ [32m✓[39m src/forms/react/__tests__/submissions-states.unit.test.tsx [2m([22m[2m17 tests[22m[2m)[22m[33m 1653[2mms[22m[39m
+   [33m[2m✓[22m[39m forms module editor page[2m > [22mopens the editor for a formId prop [33m393[2mms[22m[39m
+   [33m[2m✓[22m[39m forms module editor page[2m > [22mopens the editor for a route param on the submissions tab [33m321[2mms[22m[39m
+   [33m[2m✓[22m[39m forms module editor page[2m > [22mrefuses to render the editor without a form id [33m308[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m17 passed[39m[22m[90m (17)[39m
+[2m   Start at [22m 07:45:29
+[2m   Duration [22m 3.89s[2m (transform 1.26s, setup 145ms, collect 1.50s, tests 1.65s, environment 329ms, prepare 77ms)[22m
+

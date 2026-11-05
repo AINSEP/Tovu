@@ -1,0 +1,1274 @@
+✔ desktop project saves and inventory share project_keys_list without opening owner.db or attaching (88.312355ms)
+✔ status and import on a profile without owner.db report none/empty and create no owner file (3.418107ms)
+✔ an empty legacy store (0 entries, 0 grants) reports empty and the CLI leaves deleting it to the desktop (45.361747ms)
+✔ a legacy store imports only on apply, non-default, reports site copies, and is never modified (110.78219ms)
+✔ an import whose label is already a project key reports label-taken and writes nothing (63.246035ms)
+✔ an apply is bound to the dry run the user confirmed: a source replaced meanwhile, or no digest, is refused and writes nothing (15644.330462ms)
+✔ missing owner.key with saved credentials requires recovery and never generates a replacement (38.729404ms)
+✔ relative and traversal paths are refused before any owner file is created or read (5.427082ms)
+✔ a backup import never moves or rewrites the file; empty imports nothing and damaged is refused (75.352207ms)
+✔ the registered CLI consumes secrets only on stdin and sanitizes malformed JSON (7462.630444ms)
+✔ Shared Keys lists custom and provider rows, replaces them without losing metadata, and deletes only unused rows (70.959362ms)
+✔ one owner card approves only its selected reference; metadata stays out of the model result (6.946582ms)
+✔ cancel, expiry and forged site identity never create a grant (2.888215ms)
+✔ permissions are rechecked after approval and deleted entries cannot be granted (2.101013ms)
+✔ new-key choice opens the normal secret card and model selection is rejected (1.176015ms)
+✔ a successful normal-card fallback creates its site grant through the common save-result owner (0.946367ms)
+✔ a save lands in the project store and a second site of the project reads it (11.376418ms)
+✔ an explicit local save stays editable with a configured owner store (12.860376ms)
+✔ existing local keys remain readable when an owner store is configured (6.619415ms)
+✔ a project save whose label this site already uses is refused (the site row would hide it) (2.743604ms)
+✔ a granted consumer cannot rename or rotate the shared owner entry (1.953972ms)
+✔ without a project store (Fly / production) saves go to the site vault and summaries carry no scope (2.48038ms)
+✔ a project row is rotated and deleted where it lives, for every site (13.049934ms)
+✔ a project row opens only with the project's key (1.875242ms)
+✔ an aborted save never writes the project half either (2.088123ms)
+✔ custom project keys stay hidden until attached and detach immediately across label and id lookups (2.103699ms)
+✔ the trusted owner replacement port rotates only a granted shared key (2.422598ms)
+✔ custom_credential_set_token has a catalog entry gated on the WRITE permission, with a schema that has no token field at all (1.912783ms)
+✔ custom_credential_set_token is classified as mutates-durable-state in this domain's own derived-risk map (0.187262ms)
+✔ custom_credential_set_token is wired to a real handler (2.21359ms)
+✔ rejects a model-issued call carrying a token-ish field alongside label — no dialog is ever raised, and nothing decrypts (8.113717ms)
+✔ the tool's own result never echoes the submitted token, on success or failure (37.619952ms)
+[custom-credentials] credential_save: save failed exchange=de126f4b-0ce9-46dc-bc93-f759af72ac8f credentialId=cred-1 error=CustomCredentialValidationError
+✔ a rotated token is trimmed of paste junk; an interior space is refused in plain words (19.56552ms)
+✔ the durable audit trail records only the model-issued call's key NAMES, never any value — describeInput never carries the label's own value, let alone a token (0.662967ms)
+✔ a token submitted through the delivery route never enters the durable tool-attempt records (53.328891ms)
+✔ with no emitSurface, the call is refused outright with the exact fail-closed message — no exchange, no decrypt, no seal (3.423351ms)
+✔ a denied principal never even sees the form, and nothing decrypts (2.506135ms)
+✔ an unknown label is refused with CustomCredentialNotFoundError-shaped message, before any form is raised (1.000863ms)
+✔ the call stays open after the form is shown, and nothing is sealed while it is pending (4.586907ms)
+✔ submit: a real token is sealed exactly once, the NEW token decrypts correctly, and the SAME call reports {saved:true} (6.181454ms)
+✔ submit: the credential's existing username is preserved across a token-only submission (10.186962ms)
+✔ submit: a username changed OUT-OF-BAND while the form was open survives a token-only submission (must not be overwritten by the value captured at form-open time) (5.448413ms)
+✔ submit: a whitespace-only token is refused as invalid, and nothing is written or re-sealed (3.989531ms)
+✔ submit: an exactly empty token keeps the stored token without re-sealing (3.470821ms)
+✔ cancel: a dismissed form saves nothing, never seals, and sends no outcome emission (1.98368ms)
+✔ an unanswered form expires and reports {saved:false, reason:'expired'} — never seals (1.539771ms)
+✔ a cancelled run abandons the form and reports {saved:false, reason:'abandoned'} — never seals (2.035826ms)
+✔ a run cancelled before the form opens returns {saved:false, reason:'abandoned'} at once — no form is emitted, nothing seals (2.064324ms)
+✔ token rotation preserves a saved metadata username (3.9036ms)
+✔ token rotation: abort wins over a buffered submit without re-sealing (2.295274ms)
+✔ token rotation aborted during its fresh username read keeps the existing credential untouched (2.457755ms)
+✔ the API rotation adapter itself rejects token fields before opening a form (0.797083ms)
+✔ API key rotation uses declared plugin copy while retaining the rotation field and save owner (4.287588ms)
+✔ capabilities recognize custom Vercel tokens without opening them or claiming verification (287.460441ms)
+✔ capabilities recognize custom Vercel tokens without opening them or claiming verification (137.460699ms)
+✔ buildStaticPublishRegistrations wires all five publish tools, each with an input schema (125.184713ms)
+✔ the catalog's risk map has an entry for every wired tool, matching its declared sideEffects (0.469284ms)
+✔ deployment_execute_static_publish's schema carries no token/credential field of any kind (0.566339ms)
+✔ preview/execute schemas name no host: target is any id the capabilities tool lists, not a fixed enum (0.756243ms)
+✔ preview/execute schemas provide concise approval field titles without dropping agent guidance (0.693018ms)
+✔ deployment_preview_static_publish refuses a field its host does not declare (a credential can never ride in as config) (128.943382ms)
+✔ deployment_execute_static_publish refuses a field its host does not declare, before any dialog is raised (138.039346ms)
+✔ deployment_preview_static_publish reports validity, computed base path, and credential presence — via isConfigured(), NEVER resolve() (126.772814ms)
+✔ preview and execute use the chosen credential when two compatible keys have no default (172.860316ms)
+✔ deployment_preview_static_publish reports invalid config and false credentials without throwing (135.611753ms)
+✔ deployment_get_static_publish_capabilities's description forbids ever asking the user to paste a token into chat (0.470161ms)
+✔ deployment_get_static_publish_capabilities lists exactly the registry's hosts, each with its label, config fields and vendor group from the descriptor (137.589081ms)
+✔ deployment_get_static_publish_capabilities reports per-provider readiness and saved credentials by id/label only, scoped to this workspace, and NEVER calls resolve() (126.877511ms)
+✔ deployment_get_static_publish_capabilities: a saved credential surfaces its server-derived hint and nothing more of the secret (115.235176ms)
+✔ deployment_get_static_publish_capabilities: a freshly saved s3-compatible credential reads as configured but not yet verified, through the real DB-backed credential source (120.019611ms)
+✔ deployment_get_static_publish_capabilities: a verified credential's accountLabel is surfaced so the model can default 'owner' instead of guessing (124.633439ms)
+✔ deployment_get_static_publish_capabilities: accountLabel is read from the default credential's DB column even when the in-memory verification cache is completely empty (Defect B — the cache is wiped by every process restart, the DB column is not) (136.350502ms)
+✔ deployment_get_static_publish_capabilities: accountLabel falls back to the cached verification result when the DEFAULT credential's DB column is null (an older row that has not healed yet) (154.312219ms)
+✔ deployment_get_static_publish_capabilities: the DB column wins over a stale/different cached value — the column is the healed, durable answer (127.259404ms)
+✔ deployment_get_static_publish_capabilities's description explains credentialConfigured as distinct from accountLabel — 'a credential exists but is unverified' must never read as 'nothing is saved' (1.005479ms)
+✔ deployment_get_static_publish_capabilities's description makes unverified environment credentials publishable without opening credential_save (0.635849ms)
+✔ deployment_get_static_publish_capabilities's description forbids ever offering an example/placeholder account name when accountLabel is unknown (0.640587ms)
+✔ deployment_get_static_publish_capabilities: a recorded lastPublish is surfaced per provider, and defaults to null when nothing has been published there yet (117.621741ms)
+✔ confirm: a real publish records history in the injected historyStore, readable back through deployment_get_static_publish_capabilities (181.405623ms)
+✔ publishing descriptions use known accountLabel and ask only for missing or ambiguous accounts (0.720428ms)
+✔ deployment_get_static_publish_capabilities: a saved credential that has NEVER been verified is reported as configured but NOT ready (139.364232ms)
+✔ deployment_get_static_publish_capabilities: a saved credential the provider REJECTED is reported as configured but NOT ready, with the rejection reason (137.267563ms)
+✔ deployment_get_static_publish_capabilities: a saved credential whose last check could not reach the provider is NOT ready, but the guidance must NOT read as 'your credential is bad' (115.469952ms)
+✔ deployment_get_static_publish_capabilities requires deployments.read and rejects extra input (113.183671ms)
+✔ no credential configured for the requested provider: an actionable result naming the provider and the Static Site tab, WITHOUT ever raising a dialog (113.108585ms)
+✔ Cloudflare Pages configured with a token but no account id: the REAL composed env-fallback credential source names the missing field, before any dialog (132.503397ms)
+✔ requires deployments.publish, checked before any dialog is raised (182.73884ms)
+﹣ execute: exported bytes reach publishStaticSite and the same call reports the provider outcome (0.799986ms) # port test: real site export binds loopback
+✔ provider rejection: an actionable message is returned, never a raw response body or the credential (257.715183ms)
+✔ confirm: a target that reports a non-'ready' terminal status returns a genuine partial outcome — published:true but reachable:false, never a plain success (210.883308ms)
+✔ confirm: a full 'ready' success explicitly reports reachable:true, not merely the absence of reachable:false (138.769549ms)
+✔ confirm: a full success ALSO emits a succeeded outcome surface, same uri as the confirmation, with the live URL as an open-link action (189.860975ms)
+✔ confirm: a partial (uploaded, not yet reachable) outcome ALSO emits its OWN partial-state surface — never rendered as success or failure (142.776487ms)
+✔ provider rejection ALSO emits a failed-state outcome surface carrying the SAME actionable message the model got, never the credential (196.08139ms)
+{"toolId":"credential_save","exchangeId":"df60461b-087e-49fa-a4bd-06d45d38d0b0","saved":false}
+{"toolId":"credential_save","exchangeId":"58d27d58-9d7d-4496-ae08-cc4690f0109d","saved":false}
+{"toolId":"credential_save","exchangeId":"7fa4f5db-3294-488f-9f27-b3c69840c39e","saved":false}
+✖ publish card saves attach to their site and reopening updates the sole attached non-default (424.208004ms)
+✔ propose-credential replaces its form with the saved hint and not-tested outcome when the host has no verifier (175.482492ms)
+✔ propose-credential replaces an invalid submission with its real failure outcome (191.284931ms)
+✔ deployment_propose_custom_provider_credential's schema carries no credential field: only target, plus string pre-fill hints the handler checks against the host (0.353432ms)
+✔ propose-credential: a secret field is refused as a pre-fill hint, so a secret can never come from the chat (127.016997ms)
+✔ propose-credential works for any host with a credential spec: a netlify form masks the token and saves a netlify row (164.128318ms)
+✔ propose-credential with a project store: cards have no site-only checkbox; forged opt-out values do not change the save target (213.845486ms)
+✔ propose-credential: an optional secret the person leaves blank (Vercel's Blob token) is not provided, so the save still succeeds (193.517274ms)
+✔ the secure card keeps a blank Blob token until Remove is explicitly selected, preserving the publishing token (210.408962ms)
+✔ with no emitSurface, the credential form is refused outright — no exchange is ever opened, nothing saved (168.54764ms)
+✔ requires deployments.credentials.write, checked before any form is raised (119.793594ms)
+✔ the rendered form pre-fills non-secret hints and marks ONLY secretAccessKey as masked (177.373418ms)
+✔ submit: a first-time save creates exactly one s3-compatible row, auto-defaulted, and NEVER echoes any field value back (195.937376ms)
+✔ submit: a SECOND save updates the existing row rather than creating a duplicate — one row per provider, matching the admin's own flat-row UX (254.223167ms)
+{"toolId":"credential_save","exchangeId":"54f9f6b9-e917-4e0e-bb31-0c191a88d8ff","saved":false}
+✔ submit: a blank required field is rejected server-side with an actionable message, never a saved row — form.ts's own novalidate makes this the real enforcement point (167.39571ms)
+✔ cancel: nothing is saved, and the SAME call reports the cancellation (180.289413ms)
+✔ re-calling the tool while a form is pending opens a SEPARATE form — it does not answer the first one (175.188765ms)
+✔ deployment_generate_bucket_hosting_setup requires deployments.read, checked before any content is composed (128.587194ms)
+✔ deployment_generate_bucket_hosting_setup rejects an unrecognized target rather than silently returning generic guidance (174.324437ms)
+✔ deployment_generate_bucket_hosting_setup: an unrecognized target is a ToolInputError (400), not a bare Error (redacted 500) (139.049673ms)
+✔ deployment_propose_custom_provider_credential: an unrecognized target is a ToolInputError (400), not a bare Error (redacted 500) (106.502437ms)
+✔ deployment_generate_bucket_hosting_setup: a host whose plugin module has no hosting-setup steps is refused with the reason (141.629901ms)
+✔ blank/omitted endpoint infers plain AWS S3 and returns a bucket-substituted public-read policy JSON, no warning (151.525287ms)
+✔ a Cloudflare R2 endpoint infers cloudflare-r2 and warns about the different credential system (126.515373ms)
+✔ a DigitalOcean Spaces endpoint infers digitalocean-spaces and warns about the different credential system (116.617114ms)
+✔ deployment_preview_static_publish: a github-pages preview with an explicit branch is accepted and does not throw (117.812516ms)
+✔ deployment_preview_static_publish: a vercel preview with a teamId is accepted and does not throw (130.098001ms)
+✔ deployment_preview_static_publish: a github-pages preview with owner/repo omitted reports the missing required field as invalid, never throws (117.40481ms)
+✔ deployment_preview_static_publish: an unrecognized target throws before any permission check or credential read (116.535907ms)
+✔ deployment_preview_static_publish: an unrecognized target is a ToolInputError (400), not a bare Error (redacted 500) (115.43857ms)
+✔ deployment_execute_static_publish: an unrecognized target is a ToolInputError (400), not a bare Error (redacted 500) (139.325157ms)
+✔ deployment_execute_static_publish: an invalid config is a ToolInputError (400), not a bare Error (redacted 500) (128.433549ms)
+✔ confirm: a partial outcome's deploymentId and basePath are both forwarded through to the tool result when the target reports them (192.580295ms)
+✔ confirm: a full success's deploymentId is forwarded through to the tool result when the target reports one (135.086734ms)
+✔ confirm: with no buildTarget override injected, the REAL default buildJiniTarget dispatch runs and a credential missing a required s3-compatible field is still refused cleanly — no real network ever touched (164.367129ms)
+✔ propose-credential form: an unanswered form expires and reports 'expired', not a hang or a throw (238.851863ms)
+✔ propose-credential form: a cancelled run abandons the form and reports 'abandoned', not a hang or a throw (158.910079ms)
+{"toolId":"credential_save","exchangeId":"fc368056-fc27-46fc-8e9e-3c2ec64f3a90","saved":false}
+✔ submit: a non-Error thrown by the credential write step still returns a safe string message, never the raw thrown value (209.622269ms)
+✔ n06: repository write runs without a confirmation channel (209.589332ms)
+✔ propose-credential: abort during sealing writes no credential (147.242238ms)
+✔ capabilities list explicit host compatibility without leaking keys across a shared vendor (118.061563ms)
+✔ deployment_preview_static_publish returns the provider inspection for the person's selected connection, never the credential (121.548437ms)
+✔ deployment_preview_static_publish refuses a malformed credentialId (42) before any provider read (116.266863ms)
+✔ deployment_preview_static_publish refuses a malformed credentialId ("   ") before any provider read (122.774052ms)
+✔ deployment_execute_static_publish sends a custom-domain publish through the shared gateway tool, refusing when it is absent (123.234771ms)
+✔ static publish tool returns consent choices before export or provider writes (130.051583ms)
+✔ L210 post-save probe preserves saved connection outcome (268.394477ms)
+✔ L210 post-save probe preserves connected connection outcome (139.982466ms)
+✔ L210 post-save probe preserves auth connection outcome (210.580649ms)
+✔ L210 post-save probe preserves timeout connection outcome (146.28146ms)
+✔ L210 post-save probe preserves unreachable connection outcome (152.271087ms)
+✔ L210 post-save probe preserves throws connection outcome (191.793403ms)
+[plugin-credential-cards] Optional card lookup failed; using the default credential form.
+✔ L210 credential hints reject secret and invalid values before displaying a form (192.267913ms)
+✔ L210 execute consent refusal preserves service availability true (119.752778ms)
+✔ L210 execute consent refusal preserves service availability false (115.97875ms)
+✔ deployment_generate_bucket_hosting_setup reports a host module's own refusal (Error or not) as a ToolInputError with its text (253.825911ms)
+✔ deployment_execute_static_publish: a call cancelled while readiness is checked is abandoned before any export or publish (115.497477ms)
+✔ hosts that declare no config or credential fields name that in their refusals (112.133947ms)
+✔ a throwing optional plugin card loader still opens and submits the default publish-host form (117.91069ms)
+{"toolId":"credential_save","exchangeId":"16d6de7a-8fe2-4627-9761-00732d559811","saved":false}
+✔ publish-host replacement HTTP 401 keeps the old sealed key (394.228114ms)
+{"toolId":"credential_save","exchangeId":"4f65a3b6-7634-49af-a57f-fb14877e458e","saved":false}
+✔ publish-host replacement HTTP 503 keeps the old sealed key (280.666207ms)
+✔ publish-host update with a blank secret skips the replacement check and keeps the stored secret (217.240244ms)
+✔ capabilities offer every installed host with truthful activation and enable guidance (126.193069ms)
+✔ static publish returns a job before export finishes, survives call abort, and exposes scoped final results (179.546155ms)
+✔ regression: an API key saved with Works for vercel lands in the project and deploy finds it (76.458958ms)
+✔ publish-host card (vercel): a save lands in the project store and every site of the project publishes with it (3.548658ms)
+✔ local publish-host credentials override a granted owner key (2.458916ms)
+✔ explicit local API keys remain available for publish selection (1.422828ms)
+✔ invalid publish scopes do not persist a key (0.938539ms)
+✔ readiness honors an attached project key among non-default peers and refuses an unattached key (5.445784ms)
+✔ a site-copy request cannot alter an existing shared publish key (2.070826ms)
+✖ create and rename translate hidden project label conflicts without attaching or changing either row (6.179921ms)
+✔ a stale project update remains a CAS conflict when no other row owns the requested label (2.926557ms)
+✔ update, heal and delete change a project row where it lives, through the abort guard (4.874878ms)
+✔ no project store (Fly): saves stay in the site vault and summaries carry no scope (1.605041ms)
+✔ deploy inventory and default selection see attached keys only; create returns its hidden saved row (1.809258ms)
+✖ a Deployments-page save attaches its project key to this site and survives a list reload, without attaching another site (12.172751ms)
+✔ attached inventory includes nondefaults while the vault default remains the stored default (3.947525ms)
+✔ unattached writes stay hidden; attachment, isolation and detach apply to every read immediately (1.110308ms)
+✔ cancellation after sealing cannot persist through the separate owner-create port (1.202127ms)
+✔ consumer cannot enumerate, guess, or mutate an ungranted owner entry (3.782299ms)
+✔ site metadata list excludes ungranted entries while owner picker can see them (2.334346ms)
+✔ model grant without an interactive approval channel fails closed and forged site input is refused (1.751428ms)
+✔ lookup does not read the owner vault for a guessed ungranted identity (0.511501ms)
+✔ human-create port cannot replace, delete, or enumerate existing owner entries (3.240744ms)
+✔ trusted replacement rechecks the grant inside the owner transaction (1.105911ms)
+✔ site reference stores only credentialId and removal touches only that reference (5.266535ms)
+✔ retaining a sealed owner row cannot bypass a later site revocation (1.617849ms)
+✔ a site receives only an active owner key handle and cannot derive owner key bytes (0.765833ms)
+✔ a revoke committed during asynchronous crypto prevents returning plaintext (0.403704ms)
+✔ save attaches to this site immediately, and detach leaves the saved row (5.890817ms)
+✔ model grant attempts always use the owner picker; revocation needs no second approval card (2.910361ms)
+✔ restart is fail-closed without a human channel, cancellation keeps the site running, and confirmation requests one supervisor restart (10.984928ms)
+✔ site_restart returns the supervisor refusal and never claims an unacknowledged success (1.638604ms)
+✔ provider inventory uses manifest labels and live-apply fallback returns restart without losing the attachment (1.108428ms)
+✔ a site override shadows an attached project provider in use results and inventory (0.557985ms)
+✔ a committed provider save attaches immediately and retains the restart outcome (2.098457ms)
+✔ publish-host uses the common save-result attachment path and becomes visible on reload (1.342488ms)
+✔ source-control uses the common save-result attachment path and becomes visible on reload (1.111474ms)
+✔ provider-settings uses the common save-result attachment path and becomes visible on reload (0.927234ms)
+✔ plugin-provider uses the common save-result attachment path and becomes visible on reload (0.766938ms)
+✔ site-only media saves, failed saves and site overrides never acquire project attachments (0.384139ms)
+✔ model inventory never reveals other sites using a granted key (0.570652ms)
+✖ exports and imports contain no saved keys or inherited grants (inSite) (898.296707ms)
+✖ exports and imports contain no saved keys or inherited grants (appData) (700.996198ms)
+[agent-plugins:migration-complete] /tmp/tovu-import-b-q6wtBG/sites/portable/agent-plugins/ws/workspace-local
+✔ edited bundled plugin labels survive production export and quarantined import (10449.332503ms)
+✔ retired saved-key capture refuses before touching owner or site storage (1.362852ms)
+✔ capture is refused even when source and project keys are available (1.476862ms)
+✔ historical key bundles require fresh site approval (password supplied: false) (0.415356ms)
+✔ historical key bundles require fresh site approval (password supplied: true) (0.21968ms)
+✔ historical key bundles require fresh site approval (password supplied: true) (0.161568ms)
+✔ cancelled import is refused before any recipient resource opens (1.989187ms)
+✔ a git host token saves to the project store and a second site of the project backs up with it (13.900419ms)
+✔ local source-control keys take precedence with an owner store configured (4.23718ms)
+✔ invalid source-control scopes are refused before any write (1.72185ms)
+✔ update and delete change a project row where it lives (6.035425ms)
+✔ shared owner metadata remains unchanged after a refused site-copy save (3.047636ms)
+✔ local source-control keys remain independently owned after shared revocation (5.741498ms)
+✔ no project store (Fly): tokens stay in the site vault and summaries carry no scope (2.887105ms)
+✔ git-host defaults, descriptions and lists only expose attached project rows (3.810263ms)
+✔ a sole attached nondefault opens through the vault; multiple attached nondefaults refuse ambiguity (7.056629ms)
+✖ a Source control-page save is visible after reload on this site only; site-only keys acquire no project attachment (16.118085ms)
+✔ a create-only owner conflict stays a source-control duplicate with safe guidance (4.234167ms)
+✔ vendor-credentials exposes the owning repo and scoped vault operations (1.665631ms)
+✔ admin inventory keeps an unattached key visible, reports exact site usage, and never grants runtime access by listing (106.998842ms)
+✔ local admin save preserves a separate shared key (15.153465ms)
+✔ admin inventory denies unauthorized readers before inspecting project metadata (6.433018ms)
+✔ Access Tokens project add attaches only the current site; site-only add never attaches (50.413951ms)
+✔ password reveal denies other principals, workspaces, origins, tools and machine credentials (46.128013ms)
+[migrations] /tmp/tovu-project-credentials-521NFx/Tovu/site-a/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata, 0038_newsletter_sending_index, 0039_owner_recovery_codes
+[migrations]   vault coverage site-assistant: rows=0, envelopes=0
+[migrations]   vault coverage personal-execution: rows=0, envelopes=0
+[migrations]   vault coverage media-provider: rows=0, envelopes=0
+[migrations]   vault coverage custom: rows=0, envelopes=0
+[migrations]   vault coverage publish-peer: rows=0, envelopes=0
+[migrations]   vault coverage database-destination: rows=0, envelopes=0
+[migrations]   vault coverage vendor: rows=0, envelopes=0
+[migrations]   vault coverage source-control: rows=0, envelopes=0
+[migrations]   vault coverage mcp-env: rows=0, envelopes=0
+[migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+[migrations] /tmp/tovu-project-credentials-521NFx/Tovu/site-b/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata, 0038_newsletter_sending_index, 0039_owner_recovery_codes
+[migrations]   vault coverage site-assistant: rows=0, envelopes=0
+[migrations]   vault coverage personal-execution: rows=0, envelopes=0
+[migrations]   vault coverage media-provider: rows=0, envelopes=0
+[migrations]   vault coverage custom: rows=0, envelopes=0
+[migrations]   vault coverage publish-peer: rows=0, envelopes=0
+[migrations]   vault coverage database-destination: rows=0, envelopes=0
+[migrations]   vault coverage vendor: rows=0, envelopes=0
+[migrations]   vault coverage source-control: rows=0, envelopes=0
+[migrations]   vault coverage mcp-env: rows=0, envelopes=0
+[migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+[migrations] /tmp/tovu-project-publish-credentials-K4fgHP/Tovu/site-a/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata, 0038_newsletter_sending_index, 0039_owner_recovery_codes
+[migrations]   vault coverage site-assistant: rows=0, envelopes=0
+[migrations]   vault coverage personal-execution: rows=0, envelopes=0
+[migrations]   vault coverage media-provider: rows=0, envelopes=0
+[migrations]   vault coverage custom: rows=0, envelopes=0
+[migrations]   vault coverage publish-peer: rows=0, envelopes=0
+[migrations]   vault coverage database-destination: rows=0, envelopes=0
+[migrations]   vault coverage vendor: rows=0, envelopes=0
+[migrations]   vault coverage source-control: rows=0, envelopes=0
+[migrations]   vault coverage mcp-env: rows=0, envelopes=0
+[migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+✔ a key saved from site A lands in project.db and site B cannot use it until attached (2026.024489ms)
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+[migrations] /tmp/tovu-project-publish-credentials-K4fgHP/Tovu/site-b/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata, 0038_newsletter_sending_index, 0039_owner_recovery_codes
+[migrations]   vault coverage site-assistant: rows=0, envelopes=0
+[migrations]   vault coverage personal-execution: rows=0, envelopes=0
+[migrations]   vault coverage media-provider: rows=0, envelopes=0
+[migrations]   vault coverage custom: rows=0, envelopes=0
+[migrations]   vault coverage publish-peer: rows=0, envelopes=0
+[migrations]   vault coverage database-destination: rows=0, envelopes=0
+[migrations]   vault coverage vendor: rows=0, envelopes=0
+[migrations]   vault coverage source-control: rows=0, envelopes=0
+[migrations]   vault coverage mcp-env: rows=0, envelopes=0
+[migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+[migrations] /tmp/tovu-project-credentials-down-s4YZhQ/site/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata, 0038_newsletter_sending_index, 0039_owner_recovery_codes
+[migrations]   vault coverage site-assistant: rows=0, envelopes=0
+[migrations]   vault coverage personal-execution: rows=0, envelopes=0
+[migrations]   vault coverage media-provider: rows=0, envelopes=0
+[migrations]   vault coverage custom: rows=0, envelopes=0
+[migrations]   vault coverage publish-peer: rows=0, envelopes=0
+[migrations]   vault coverage database-destination: rows=0, envelopes=0
+[migrations]   vault coverage vendor: rows=0, envelopes=0
+[migrations]   vault coverage source-control: rows=0, envelopes=0
+[migrations]   vault coverage mcp-env: rows=0, envelopes=0
+[migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+✔ a publish-host connection saved from site A deploys from site B only after attachment (2008.94438ms)
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+[migrations] /tmp/tovu-local-keys-stay-02LPJy/sites/existing/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata, 0038_newsletter_sending_index, 0039_owner_recovery_codes
+[migrations]   vault coverage site-assistant: rows=0, envelopes=0
+[migrations]   vault coverage personal-execution: rows=0, envelopes=0
+[migrations]   vault coverage media-provider: rows=0, envelopes=0
+[migrations]   vault coverage custom: rows=0, envelopes=0
+[migrations]   vault coverage publish-peer: rows=0, envelopes=0
+[migrations]   vault coverage database-destination: rows=0, envelopes=0
+[migrations]   vault coverage vendor: rows=0, envelopes=0
+[migrations]   vault coverage source-control: rows=0, envelopes=0
+[migrations]   vault coverage mcp-env: rows=0, envelopes=0
+[migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+✔ an owner-store outage leaves local saves usable (1119.010405ms)
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 1,
+      envelopes: 1,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+✔ opening Shared Keys never moves, edits or grants an existing site's local key (1262.080641ms)
+✔ desktop and localhost share one app-data owner store regardless of sites root (0.981585ms)
+✔ an explicitly configured localhost profile remains available in production mode (0.497577ms)
+✔ a newer project ledger refuses an older runtime instead of ignoring access-boundary migrations (71.705072ms)
+✔ project.db and its key share canonical app-data across sites roots (43.362218ms)
+✔ the project key is minted once (0600, under ~/.tovu, never in the sites root) and then reused (6.749561ms)
+✔ a damaged key file is refused, never overwritten; a non-EEXIST write failure surfaces (8.529193ms)
+✔ minting never exposes the final key file before its bytes are in (a concurrent opener never reads an empty key) (9.060692ms)
+✔ an existing key file must be a regular file owned by this user; modes broader than 0600 are narrowed (7.97021ms)
+✔ a fresh project.db runs in WAL mode (web and desktop share it without rollback-journal contention) (33.905228ms)
+✔ web and desktop open the SAME project.db: a save through one is read by the other; secrets are sealed at rest (54.936547ms)
+✔ two processes opening a fresh project at the same moment create ONE key and read each other's saves (2030.499095ms)
+✔ reopening keeps the data (own migration ledger, idempotent); a different project key cannot read the sealed rows (39.760502ms)
+✔ credentials save in the project store: sealed with the project key, read back after reopening (0001 admits credential kinds) (37.12055ms)
+✔ 0001 rebuilds a 0000 project vault: rows kept, credential kinds admitted, labels unique (2.348916ms)
+✔ a project.db that cannot be migrated is closed and the error surfaces (13.147538ms)
+✔ a sites root reached through a symlink, or spelled in another case on a case-insensitive disk, is the same project (5.722977ms)
+✔ an already-canonical sites root's id is the hash of the root as given (realpath changes nothing) (3.692447ms)
+✔ a sites root that does not exist yet gets the id it will have once created, even under a symlinked parent (4.683681ms)
+✔ 0002 is recorded once; a pre-existing provider row is never auto-attached and two openers share references (26.306968ms)
+✔ a transient SQLITE_BUSY while enabling project WAL is retried before migration (20.412558ms)
+✔ project WAL retry is bounded and closes the failed handle (13.654971ms)
+✔ a non-busy project WAL error is propagated immediately and closes the handle (8.803058ms)
+✔ provider usage checks one selected owner identity without listing the vault (29.490231ms)
+✔ owner picker inventory excludes unrelated API connections before offering keys (24.515235ms)
+✔ vault adapter: nothing saved reads as null; a write is read back as one row; the public read returns secret names only (2.43077ms)
+✔ vault adapter: malformed rows read as empty, never as values (0.543663ms)
+✔ a site without a stable id keeps saving locally (0.566802ms)
+✔ effective provider usage reports independently owned local settings first (0.51612ms)
+✔ precedence: without a project store the site vault is the source (0.123523ms)
+✔ ungranted sites cannot read or overwrite owner provider keys and revoke ignores site copies (1.138006ms)
+✔ a project provider save commits its attachment before returning usage (0.57083ms)
+✔ an unavailable owner store leaves local reads and saves working (0.314191ms)
+✔ vault adapter: a save that fails part-way leaves the previous settings + secrets pair whole (Codex fix-lane HIGH) (0.532074ms)
+✔ vault adapter: a read racing a rotation never pairs the old endpoint with the new secret (Codex fix-lane HIGH) (0.41094ms)
+✔ vault adapter: only a failure to OPEN a listed row is unreadable; a store failure (SQLITE_BUSY) surfaces, so a save never drops a valid key (1.382392ms)
+✔ vault adapter: a row this machine cannot open reads as unreadable (listed but not openable); any other failure surfaces as itself (0.65316ms)
+✔ OTel's old auth choice is normalized in both vault scopes, without writing or mutating the saved snapshot (3.308913ms)
+✔ an attached project's migrated OTel choice feeds boot and cards without mutating the shared owner entry (2.029382ms)
+✔ legacy header-only OTel rows survive boot/status/save, and changing their destination still requires re-entry (1.246974ms)
+✔ core applies another plugin's declared migrations and leaves the same raw row unchanged without that hook (0.376999ms)
+✔ local provider settings survive owner outages and override an attached shared row (0.206025ms)
+[shared-keys] Provider settings could not be read. Retry Shared Keys; local settings remain available. Details: P25_SHARED_PROVIDER_READ_FAILED; secret values omitted.
+✔ local provider keys survive revocation and owner-store outages (1.22558ms)
+✔ revocation during a provider read discards the opened config (0.382802ms)
+✔ a granted provider settings card cannot replace the shared owner key (1.535279ms)
+✔ a shared read failure is unconfigured, never a boot refusal (0.961719ms)
+✔ production saved-key composition cannot capture owner keys or restore inherited access (1.481779ms)
+ℹ tests 273
+ℹ suites 0
+ℹ pass 266
+ℹ fail 6
+ℹ cancelled 0
+ℹ skipped 1
+ℹ todo 0
+ℹ duration_ms 54333.940422
+
+✖ failing tests:
+
+test at apps/website/src/features/deployments/__tests__/publish-agent-tools.unit.test.ts:1:58351
+✖ publish card saves attach to their site and reopening updates the sole attached non-default (424.208004ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+  +   false,
+  +   false,
+  +   false
+  -   true,
+  -   true,
+  -   true
+    ]
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/deployments/__tests__/publish-agent-tools.unit.test.ts:1217:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ false, false, false ],
+    expected: [ true, true, true ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/deployments/publish-credentials/__tests__/project-scope.unit.test.ts:1:8315
+✖ create and rename translate hidden project label conflicts without attaching or changing either row (6.179921ms)
+  AssertionError [ERR_ASSERTION]: The error is expected to be an instance of "PublishCredentialDuplicateLabelError". Received "VaultError"
+  
+  Error message:
+  
+  Secrets vault: conflict
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/deployments/publish-credentials/__tests__/project-scope.unit.test.ts:173:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: VaultError: Secrets vault: conflict
+        at InMemoryVaultRepo.putRecord (/home/user/Jini/packages/platform/src/secrets/credential-sets/vault.repo.memory.ts:76:86)
+        at InMemoryVaultRepo.put (/home/user/Jini/packages/platform/src/secrets/credential-sets/vault.repo.memory.ts:66:17)
+        at SecretsVaultService.put (/home/user/Jini/packages/platform/src/secrets/credential-sets/vault.service.ts:158:52)
+        at async saveConnection (/home/user/Tovu/apps/website/src/features/deployments/publish-credentials/store.ts:386:16)
+        at async createPublishCredential (/home/user/Tovu/apps/website/src/features/deployments/publish-credentials/store.ts:411:19)
+        at async waitForActual (node:assert:646:5)
+        at async strict.rejects (node:assert:769:25)
+        at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/deployments/publish-credentials/__tests__/project-scope.unit.test.ts:173:3)
+        at async Test.run (node:internal/test_runner/test:1409:7)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:974:7),
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/deployments/publish-credentials/__tests__/project-scope.unit.test.ts:1:13297
+✖ a Deployments-page save attaches its project key to this site and survives a list reload, without attaching another site (12.172751ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  201 !== 400
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/deployments/publish-credentials/__tests__/project-scope.unit.test.ts:273:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 201,
+    expected: 400,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/site-backup/__tests__/integration/saved-keys-round-trip.integration.test.ts:1:2836
+✖ exports and imports contain no saved keys or inherited grants (inSite) (898.296707ms)
+  TypeError [Error]: Cannot read properties of undefined (reading 'join')
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/integration/saved-keys-round-trip.integration.test.ts:111:35)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+
+test at apps/website/src/features/site-backup/__tests__/integration/saved-keys-round-trip.integration.test.ts:1:2836
+✖ exports and imports contain no saved keys or inherited grants (appData) (700.996198ms)
+  TypeError [Error]: Cannot read properties of undefined (reading 'join')
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/integration/saved-keys-round-trip.integration.test.ts:111:35)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at apps/website/src/features/source-control/__tests__/project-scope.unit.test.ts:1:9266
+✖ a Source control-page save is visible after reload on this site only; site-only keys acquire no project attachment (16.118085ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  201 !== 400
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/source-control/__tests__/project-scope.unit.test.ts:206:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 201,
+    expected: 400,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

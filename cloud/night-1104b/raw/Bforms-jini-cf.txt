@@ -1,0 +1,71 @@
+✔ normalizeForms keeps the compact manifest and refuses unusable input with the next step (2.658927ms)
+✔ database name is stable and capped from the Worker identity (0.239733ms)
+✔ preview: create vs reuse, Pages unsupported, missing D1 permission named, other failures propagate (36.222943ms)
+✔ provision creates the database once, applies migrations once, and reruns as a no-op (13.171451ms)
+✔ provision recovers a concurrent create race and refuses a database without an id (8.998008ms)
+✔ worker parts compile the manifest in and bind D1 plus the receiver key (23.843507ms)
+✔ form page routes list exact paths of exported HTML pages that render a host form (0.847424ms)
+✔ pull reads one page with the bearer key from the site origin and validates its shape (1.319626ms)
+✔ pull failures name the cause and the next step without echoing the key (2.004957ms)
+✔ republish removes old acknowledged PII and raw IPs from earlier receivers before upload (3.000441ms)
+✔ an asset answer with no Content-Type passes through unchanged, never rewritten (90.23148ms)
+✔ a submission with no Content-Type header is refused as not a web form (415) (3.422649ms)
+✔ a rate counter answer without rows counts as over the limit (fail closed) (0.558498ms)
+✔ a pending row the binding returns without an ip column reads as ip null; no results reads as an empty page (2.153402ms)
+✔ an acknowledge whose run result has no meta reports zero acknowledged (1.174022ms)
+✔ stores a valid submission with repeated checkbox values as an array and 303s back with the host's result keys (58.09416ms)
+✔ a form success path wins; without a same-host referer the fallback is the home page (6.688406ms)
+✔ honeypot pretends success and stores nothing (2.039101ms)
+✔ light validation refusals render an accessible page with a Go back link and store nothing (9.317525ms)
+✔ unknown slug is 404, GET on the submit path is 405, other paths are static assets (1.988547ms)
+✔ body bounds: declared and streamed oversize, too many fields, wrong content type, file parts (10.697307ms)
+✔ multipart text fields are accepted like URL-encoded ones (9.22131ms)
+✔ rate limit: five valid submissions per IP per form per minute, then 429; a new window resets (15.730908ms)
+✖ stale rate windows are pruned in the same batch (4.515348ms)
+✔ storage failure answers 503 without logging answers (4.643636ms)
+✔ private API requires the exact bearer key (2.776364ms)
+✔ pending pages oldest first after a cursor; ack marks only listed unpulled rows (9.926013ms)
+✔ ack refuses malformed id lists; storage failure on the private API is 503 (16.40606ms)
+✔ default clock and id ports are the platform ones (2.467345ms)
+✔ a page GET after a successful submission shows the form's own success slot and hides the form (1.019392ms)
+✔ the plain data-tovu-form-success slot is revealed the same way (0.484088ms)
+✔ a page without a success slot gets one minimal accessible message after the first matching form (0.793193ms)
+✔ the sent state is skipped for unknown forms, other statuses, non-GET, non-HTML and failed assets (7.590873ms)
+✔ receiver rejects invalid email, unchecked consent and forged choices before reporting success (48.317903ms)
+✔ receiver stores no raw IP, including in its rate keys (18.087278ms)
+✔ acknowledgement erases committed answers and IP, and is idempotent (8.357704ms)
+✔ legacy pending IPs never leave the receiver while republish scrubs their stored copies (1.23427ms)
+✔ publish refuses files and validation the receiver cannot enforce (1.958583ms)
+✔ ordinary native fields and empty select placeholders still publish (0.678085ms)
+✔ rate pseudonyms depend on the receiver secret and never fall back to unsalted IP hashes (10.774099ms)
+ℹ tests 40
+ℹ suites 0
+ℹ pass 39
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 474.926264
+
+✖ failing tests:
+
+test at packages/agent-plugins/cloudflare/worker/__tests__/forms-receiver.test.mjs:125:1
+✖ stale rate windows are pruned in the same batch (4.515348ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+  +   '8a296fe420e26c371ee039e39fba5756bd06cecc17f4a788dffe91202397feff'
+  -   'ae42f6fb8b8c0562eea2650d52b7212f6f36622a722bcb5f215060f650c71bb0'
+    ]
+  
+      at TestContext.<anonymous> (file:///home/user/Jini/packages/agent-plugins/cloudflare/worker/__tests__/forms-receiver.test.mjs:129:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ '8a296fe420e26c371ee039e39fba5756bd06cecc17f4a788dffe91202397feff' ],
+    expected: [ 'ae42f6fb8b8c0562eea2650d52b7212f6f36622a722bcb5f215060f650c71bb0' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

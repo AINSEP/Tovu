@@ -1,0 +1,14 @@
+✔ dev keeps the checkout default despite Documents sites, while explicit selection attaches (14.56839ms)
+✔ Jini linking includes the Desktop consumer that needs the shared home exports (1.443067ms)
+✔ an existing owner exit explains no server was started and gives the exact alternate-site command (0.760879ms)
+✔ explicit dev selection scans the nested default and continues to find old-level sites (5.857096ms)
+✔ stalecard: dev resolves its default in the configured home and refuses a stale themes-only fallback (6.615913ms)
+✔ a keyless legacy dev site cannot select app-data storage implicitly (3.926722ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 299.651777

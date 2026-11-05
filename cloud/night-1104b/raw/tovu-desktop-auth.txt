@@ -1,0 +1,41 @@
+✔ accepts the loopback origins a spawned child actually binds (1.508621ms)
+✔ refuses every non-loopback host, including ones that merely LOOK loopback (1.680852ms)
+✔ refuses non-http schemes and unparseable input (0.436959ms)
+✔ every site dir gets its own partition, and the same dir always gets the same one (0.890472ms)
+✔ the partition name does not leak the operator's directory layout (0.494849ms)
+✔ a 200 redemption reports success (1.706243ms)
+✔ a 401 RESOLVES as not-ok rather than throwing — the caller falls through to the login form (0.84689ms)
+✔ a 403 (non-loopback, refused at the route) also resolves rather than throwing (0.386283ms)
+✔ posts the token to the boot-session route, with useSessionCookies (0.67722ms)
+✔ refuses to put the token on the wire for a non-loopback admin url (1.179348ms)
+✔ reports no active session when the partition's cookie jar is empty (1.154162ms)
+✔ reports an active session when the partition already carries a tovu_session cookie (0.624849ms)
+✔ looks the cookie up by NAME only — a port-scoped filter would never match a reused partition (4.235587ms)
+✔ a 200 logout reports success (0.519207ms)
+✔ a non-200 logout RESOLVES as not-ok rather than throwing (0.154118ms)
+✔ posts to the logout route, with useSessionCookies, so the revoke reaches THIS site's cookie (0.235625ms)
+✔ refuses to call logout for a non-loopback admin url (0.179339ms)
+✔ hasValidSession is false for a cookie the server no longer honours — the whole of DS-01 (0.279445ms)
+✔ hasValidSession is true only when the server itself confirms the session (0.195163ms)
+✔ hasValidSession asks the server nothing when there is no cookie to ask about (0.10659ms)
+✔ hasValidSession treats an unreachable server as not-authenticated rather than throwing (0.220589ms)
+✔ hasValidSession refuses a non-loopback origin, exactly like the other two callers (0.127594ms)
+✔ ensureSiteSession redeems NOTHING when the server confirms the existing session (0.308932ms)
+✔ ensureSiteSession redeems when the cookie is stale — the recovery DS-01 had none of (0.2531ms)
+✔ ensureSiteSession redeems for a brand-new partition with no cookie at all (0.129995ms)
+✔ ensureSiteSession reports a failed redeem honestly rather than claiming a session (0.112152ms)
+✔ deskfx2 MUST-1: only this session's exact bootstrap and reset URLs receive the capability header (1.800902ms)
+tovu desktop: skipped shared catalog entry /tmp/desktop-stale-repro-T2iIDP/repo/sites/tovu-dev; its metadata, identity or folder is unavailable/invalid.
+tovu desktop: removed stale duplicate site card /tmp/desktop-stale-repro-T2iIDP/repo/sites/tovu-dev; its valid twin is already tracked.
+✔ Websites grid merges a themes-only stale tovu-dev card with its valid tracked identity (30.048725ms)
+✔ a themes-only stale card without relocation proof cannot Start (7.860835ms)
+✔ desktop launch without NODE_ENV retains owner re-entry capability after logout (9.948591ms)
+✔ memory sums each owned PID once, excludes the Windows sampler, and labels Electron private bytes as committed (2.290394ms)
+ℹ tests 31
+ℹ suites 0
+ℹ pass 31
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2812.543589

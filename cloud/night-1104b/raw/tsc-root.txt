@@ -1,0 +1,12 @@
+apps/website/src/features/project-keys/site-sealer.ts(10,47): error TS2554: Expected 0 arguments, but got 1.
+apps/website/src/server/runtime/composition/app.ts(1848,71): error TS2304: Cannot find name 'taxonomyDb'.
+apps/website/src/server/runtime/composition/deps.ts(911,60): error TS2741: Property 'nowMs' is missing in type '{ nowIso: () => string; }' but required in type '{ nowMs(): number; nowIso(): string; }'.
+apps/website/src/server/runtime/composition/project-store.ts(258,5): error TS2322: Type '() => Promise<{ workspaceId: string; id: string; kind: VaultKind; label: string; ownerKey: string; principalId: null; binding: null; provider: null; isDefault: false; revision: number; sealed: null; ... 4 more ...; updatedAt: string; }[]>' is not assignable to type '(required: Record<string, never>, optional?: Record<string, never> | undefined) => Promise<VaultRecord[]>'.
+  Type 'Promise<{ workspaceId: string; id: string; kind: VaultKind; label: string; ownerKey: string; principalId: null; binding: null; provider: null; isDefault: false; revision: number; sealed: null; ... 4 more ...; updatedAt: string; }[]>' is not assignable to type 'Promise<VaultRecord[]>'.
+    Type '{ workspaceId: string; id: string; kind: VaultKind; label: string; ownerKey: string; principalId: null; binding: null; provider: null; isDefault: false; revision: number; sealed: null; ... 4 more ...; updatedAt: string; }[]' is not assignable to type 'VaultRecord[]'.
+      Type '{ workspaceId: string; id: string; kind: VaultKind; label: string; ownerKey: string; principalId: null; binding: null; provider: null; isDefault: false; revision: number; sealed: null; ... 4 more ...; updatedAt: string; }' is not assignable to type 'VaultRecord'.
+        Types of property 'meta' are incompatible.
+          Type '{ credentialType: string; } | { credentialType?: undefined; }' is not assignable to type 'VaultMeta'.
+            Type '{ credentialType?: undefined; }' is not assignable to type 'VaultMeta'.
+              Property 'credentialType' is incompatible with index signature.
+                Type 'undefined' is not assignable to type 'VaultJson'.

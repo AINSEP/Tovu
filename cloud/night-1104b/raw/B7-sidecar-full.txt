@@ -1,0 +1,26 @@
+
+[1m[7m[36m RUN [39m[27m[22m [36mv2.1.9 [39m[90m/home/user/Jini/packages/sidecar[39m
+
+ [32m✓[39m src/supervision/__tests__/supervisor.test.ts [2m([22m[2m38 tests[22m[2m)[22m[90m 20[2mms[22m[39m
+ [32m✓[39m src/__tests__/daemon-registry.test.ts [2m([22m[2m22 tests[22m[2m)[22m[90m 167[2mms[22m[39m
+ [32m✓[39m src/supervision/__tests__/supervisor-node.windows.test.ts [2m([22m[2m12 tests[22m[2m)[22m[90m 67[2mms[22m[39m
+ [32m✓[39m src/__tests__/index.test.ts [2m([22m[2m63 tests[22m[2m | [22m[33m2 skipped[39m[2m)[22m[33m 336[2mms[22m[39m
+ [32m✓[39m src/supervision/__tests__/supervisor-node.test.ts [2m([22m[2m7 tests[22m[2m)[22m[90m 14[2mms[22m[39m
+ [32m✓[39m src/supervision/__tests__/supervisor-node.l178.test.ts [2m([22m[2m14 tests[22m[2m)[22m[90m 20[2mms[22m[39m
+ [32m✓[39m src/supervision/__tests__/native-ipc.test.ts [2m([22m[2m8 tests[22m[2m)[22m[90m 15[2mms[22m[39m
+ [32m✓[39m src/supervision/__tests__/startup-secrets.test.ts [2m([22m[2m8 tests[22m[2m)[22m[90m 151[2mms[22m[39m
+ [32m✓[39m src/supervision/__tests__/respawn-policy.test.ts [2m([22m[2m9 tests[22m[2m)[22m[90m 4[2mms[22m[39m
+ [32m✓[39m src/__tests__/atomic-json-kernel.test.ts [2m([22m[2m5 tests[22m[2m)[22m[90m 30[2mms[22m[39m
+ [32m✓[39m src/__tests__/file-race-regressions.test.ts [2m([22m[2m4 tests[22m[2m)[22m[90m 54[2mms[22m[39m
+ [32m✓[39m src/supervision/__tests__/respawn-policy.l178.test.ts [2m([22m[2m24 tests[22m[2m)[22m[90m 11[2mms[22m[39m
+ [32m✓[39m src/__tests__/audit-regressions.test.ts [2m([22m[2m2 tests[22m[2m)[22m[90m 24[2mms[22m[39m
+ [32m✓[39m src/__tests__/daemon-registry.l178.test.ts [2m([22m[2m27 tests[22m[2m)[22m[90m 63[2mms[22m[39m
+ [32m✓[39m src/__tests__/supervisor-isolation.test.ts [2m([22m[2m1 test[22m[2m)[22m[90m 4[2mms[22m[39m
+ [32m✓[39m src/__tests__/integration-surface.test.ts [2m([22m[2m2 tests[22m[2m)[22m[90m 3[2mms[22m[39m
+ [32m✓[39m src/__tests__/args-convention.test.ts [2m([22m[2m1 test[22m[2m)[22m[90m 17[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m17 passed[39m[22m[90m (17)[39m
+[2m      Tests [22m [1m[32m245 passed[39m[22m[2m | [22m[33m2 skipped[39m[90m (247)[39m
+[2m   Start at [22m 07:50:57
+[2m   Duration [22m 3.69s[2m (transform 903ms, setup 0ms, collect 2.45s, tests 999ms, environment 3ms, prepare 1.05s)[22m
+

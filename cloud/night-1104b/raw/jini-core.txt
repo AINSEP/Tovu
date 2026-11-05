@@ -1,0 +1,33 @@
+
+[1m[7m[36m RUN [39m[27m[22m [36mv2.1.9 [39m[90m/home/user/Jini/packages/core[39m
+
+ [32m✓[39m src/__tests__/redact.gap-audit.test.ts [2m([22m[2m51 tests[22m[2m)[22m[90m 87[2mms[22m[39m
+ [31m❯[39m src/__tests__/redact.test.ts [2m([22m[2m120 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[90m 99[2mms[22m[39m
+[31m   [31m×[31m @jini-ai/core — redact — redactSecrets[2m > [22mstops URL secret values at surrounding quotes and text[90m 9[2mms[22m[31m[39m
+[31m     → expected 'failed "https://example.com/?token=[R…' to be 'failed "https://example.com/?token=[R…' // Object.is equality[39m
+ [32m✓[39m src/__tests__/redact.characterization.test.ts [2m([22m[2m18 tests[22m[2m)[22m[90m 24[2mms[22m[39m
+ [32m✓[39m src/user-facing-error.test.ts [2m([22m[2m7 tests[22m[2m)[22m[90m 73[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[1m[7m Failed Tests 1 [27m[22m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[31m[1m[7m FAIL [27m[22m[39m src/__tests__/redact.test.ts[2m > [22m@jini-ai/core — redact — redactSecrets[2m > [22mstops URL secret values at surrounding quotes and text
+[31m[1mAssertionError[22m: expected 'failed "https://example.com/?token=[R…' to be 'failed "https://example.com/?token=[R…' // Object.is equality[39m
+
+Expected: [32m"failed "https://example.com/?token=[REDACTED:[7murl_secret_param]"[27m next"[39m
+Received: [31m"failed "https://example.com/?token=[REDACTED:[7mlabeled_secret][27m next"[39m
+
+[36m [2m❯[22m src/__tests__/redact.test.ts:[2m331:8[22m[39m
+    [90m329| [39m  [34mit[39m([32m'stops URL secret values at surrounding quotes and text'[39m[33m,[39m () [33m=>[39m {
+    [90m330| [39m    [34mexpect[39m([34mredactSecrets[39m({ input[33m:[39m [32m'failed "https://example.com/?token=[39m…
+    [90m331| [39m      [33m.[39m[34mtoBe[39m([32m'failed "https://example.com/?token=[REDACTED:url_secret_p[39m…
+    [90m   | [39m       [31m^[39m
+    [90m332| [39m  })[33m;[39m
+    [90m333| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m3 passed[39m[22m[90m (4)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m195 passed[39m[22m[90m (196)[39m
+[2m   Start at [22m 07:45:21
+[2m   Duration [22m 939ms[2m (transform 306ms, setup 0ms, collect 423ms, tests 283ms, environment 1ms, prepare 270ms)[22m
+

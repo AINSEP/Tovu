@@ -1,0 +1,47 @@
+✔ only selected installed package subpaths can skip scanning; unknown files never read (2.35087ms)
+✔ resolution and read failures retain files for full scanning (0.603493ms)
+✔ credential-looking files stay included and warnings contain only locations and match kinds (7.935992ms)
+✔ export keeps database values and complete plugin packages; download requires a durable acknowledgement (4216.07955ms)
+✔ old share rows without warning metadata remain acknowledged (8.280104ms)
+✔ export retains every file, skips identical bundled bytes, and scans changed/custom files (43.842802ms)
+✔ a same-size, same-mtime swap of themes/static/site/index.html after planning refuses before encoding (16.438292ms)
+✔ a linked directory for themes/static/site/index.html after planning refuses even with matching bytes (8.027374ms)
+✔ a same-size, same-mtime swap of overrides/site/index.html after planning refuses before encoding (17.145643ms)
+✔ a linked directory for overrides/site/index.html after planning refuses even with matching bytes (6.883914ms)
+✔ root v2 inventory matches every actual entry and its mapped path (3.417137ms)
+✔ stale disk files and unsafe aliases refuse before encoding (3.139139ms)
+✔ limits refuse and credential-looking files stay included before encoding (4.685785ms)
+✔ v2 requires the database and portable settings (1.153383ms)
+✔ cancellation and encoder failures preserve their error (2.183755ms)
+✔ buffered files, then the database, then disk files, then the manifest reach the encoder once (4.403841ms)
+✔ each archived entry keeps its exact bytes (3.503083ms)
+✔ the manifest inventories every entry with its size and sha256, in archive order (3.984599ms)
+✔ a plan without a database is refused with the exact v2 message before encoding (4.916557ms)
+✔ progress counts every archived entry and its bytes, not the manifest (4.409965ms)
+✔ the plan's expanded caps are checked before any path claim or read (0.665053ms)
+✔ an unsafe path is refused before any entry is scanned (0.89082ms)
+✔ a file at the manifest path is refused as a duplicate (0.443377ms)
+✔ a buffered file and the database at the same path are refused as a duplicate (0.437114ms)
+✔ credential-shaped bytes stay included with a warning (1.573498ms)
+✔ a disk file that changed since the plan is refused as stale (4.291119ms)
+✔ an already-aborted signal stops at the first entry (0.726829ms)
+✔ an aborted signal stops before encoding even when the plan has no disk files (0.43886ms)
+✔ a live signal lets the share encode (0.780437ms)
+✔ a manifest over 2 MiB is refused before encoding (9.516763ms)
+✔ a manifest of exactly 2 MiB is accepted (10.196834ms)
+✔ the file cap counts the manifest itself after every entry is scanned (151.654828ms)
+✔ an encoder size failure ('Folder is over the upload limit.') is reported as the archive cap (0.987231ms)
+✔ an encoder size failure ('Too many entries.') is reported as the archive cap (0.491135ms)
+✔ an encoder size failure ('Archive too LARGE') is reported as the archive cap (0.393692ms)
+✔ any other encoder Error propagates unchanged (0.420712ms)
+✔ a non-Error encoder failure propagates unchanged, even if it mentions a limit (0.571152ms)
+✔ a packaged theme outside the site shares its reviewed bytes (linked bundle: false) (18.423627ms)
+✔ a packaged theme outside the site shares its reviewed bytes (linked bundle: true) (6.398758ms)
+ℹ tests 39
+ℹ suites 0
+ℹ pass 39
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7100.894319

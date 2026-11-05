@@ -1,0 +1,488 @@
+
+ RUN  v4.1.11 /home/user/Tovu/apps/admin
+
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/types.js" points to missing source files
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/shared/protocol.js" points to missing source files
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/server/zod-compat.js" points to missing source files
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/experimental/tasks/interfaces.js" points to missing source files
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/server/zod-json-schema-compat.js" points to missing source files
+ ❯ src/components/AssistantDock/__tests__/AgentFailureCard.unit.test.tsx (26 tests | 2 failed) 477ms
+   × shows a failure card with a safe next action and copyable disclosure when stderr is absent 22ms
+   × keeps history failures polite with host chrome and masks Tovu API keys 10ms
+ ❯ src/components/AssistantDock/__tests__/agent-failure.unit.test.ts (16 tests | 1 failed) 32ms
+     × preserves user messages and supplies a generic failure when events are absent 8ms
+stderr | src/features/security/__tests__/Security.unit.test.tsx > Security — page shell > handleTabChange navigates to the clicked tab's own URL, replacing history
+An error occurred in the <RecoveryCodesCard> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+stderr | src/features/security/__tests__/Security.unit.test.tsx > Security — page shell > Site key tab — gated on admin.security.site-key.manage (2026-09-10) > C3: publishes the site-key handle and navigates to the site-key tab URL
+An error occurred in the <RecoveryCodesCard> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+ ❯ src/features/security/__tests__/Security.unit.test.tsx (11 tests | 2 failed) 565ms
+     × handleTabChange navigates to the clicked tab's own URL, replacing history 93ms
+       × C3: publishes the site-key handle and navigates to the site-key tab URL 43ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components/AssistantDock/__tests__/AgentFailureCard.unit.test.tsx > shows a failure card with a safe next action and copyable disclosure when stderr is absent
+TestingLibraryElementError: Found multiple elements with the role "status"
+
+Here are the matching elements:
+
+Ignored nodes: comments, script, style
+[36m<div[39m
+  [33mclass[39m=[32m"notice error"[39m
+  [33mrole[39m=[32m"status"[39m
+[36m>[39m
+  [36m<p>[39m
+    [0mThe assistant could not continue this answer. Saved work is above.[0m
+  [36m</p>[39m
+  [36m<p>[39m
+    [0mReview the saved work above before sending another message. Copy details and report this problem.[0m
+  [36m</p>[39m
+  [36m<details>[39m
+    [36m<summary>[39m
+      [0mShow details[0m
+    [36m</summary>[39m
+    [36m<pre[39m
+      [33mstyle[39m=[32m"white-space: pre-wrap; overflow-wrap: anywhere; user-select: text;"[39m
+    [36m>[39m
+      [0mMessage: The assistant could not continue this answer. Saved work is above.
+Next action: Review the saved work above before sending another message. Copy details and report this problem.
+Error ID: Unavailable
+Step: assistant answer (gemini)
+Cause: The assistant stopped without reporting a cause.
+App version: Unavailable
+Jini version: Unavailable
+Time: Unavailable[0m
+    [36m</pre>[39m
+    [36m<button[39m
+      [33mtype[39m=[32m"button"[39m
+    [36m>[39m
+      [0mCopy details[0m
+    [36m</button>[39m
+  [36m</details>[39m
+[36m</div>[39m
+
+Ignored nodes: comments, script, style
+[36m<div[39m
+  [33mclass[39m=[32m"jini-message-error"[39m
+  [33mrole[39m=[32m"status"[39m
+[36m>[39m
+  [0mThis turn failed.[0m
+[36m</div>[39m
+
+(If this is intentional, then use the `*AllBy*` variant of the query (like `queryAllByText`, `getAllByText`, or `findAllByText`)).
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"jini-message jini-message-assistant"[39m
+      [33mdata-agent-element[39m=[32m"chat-message-nine"[39m
+      [33mdata-agent-label[39m=[32m"A reply from the assistant"[39m
+      [33mdata-agent-role[39m=[32m"region"[39m
+      [33mdata-message-id[39m=[32m"nine"[39m
+      [33mdata-run-status[39m=[32m"failed"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"jini-message-ext-events"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"admin-agent-failure jini-message-error"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"notice error"[39m
+              [33mrole[39m=[32m"status"[39m
+            [36m>[39m
+              [36m<p>[39m
+                [0mThe assistant could not continue this answer. Saved work is above.[0m
+              [36m</p>[39m
+              [36m<p>[39m
+                [0mReview the saved work above before sending another message. Copy details and report this problem.[0m
+              [36m</p>[39m
+              [36m<details>[39m
+                [36m<summary>[39m
+                  [0mShow details[0m
+                [36m</summary>[39m
+                [36m<pre[39m
+                  [33mstyle[39m=[32m"white-space: pre-wrap; overflow-wrap: anywhere; user-select: text;"[39m
+                [36m>[39m
+                  [0mMessage: The assistant could not continue this answer. Saved work is above.
+Next action: Review the saved work above before sending another message. Copy details and report this problem.
+Error ID: Unavailable
+Step: assistant answer (gemini)
+Cause: The assistant stopped without reporting a cause.
+App version: Unavailable
+Jini version: Unavailable
+Time: Unavailable[0m
+                [36m</pre>[39m
+                [36m<button[39m
+                  [33mtype[39m=[32m"button"[39m
+                [36m>[39m
+                  [0mCopy details[0m
+                [36m</button>[39m
+              [36m</details>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"jini-message-error"[39m
+        [33mrole[39m=[32m"status"[39m
+      [36m>[39m
+        [0mThis turn failed.[0m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"jini-message-actions jini-message-actions--assistant"[39m
+      [36m>[39m
+        [36m<button[39m
+          [33maria-label[39m=[32m"Copy message"[39m
+          [33mclass[39m=[32m"jini-message-action-btn"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<svg[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mfill[39m=[32m"none"[39m
+            [33mfocusable[39m=[32m"false"[39m
+            [33mheight[39m=[32m"14"[39m
+            [33mstroke[39m=[32m"currentColor"[39m
+            [33mstroke-linecap[39m=[32m"round"[39m
+            [33mstroke-linejoin[39m=[32m"round"[39m
+            [33mstroke-width[39m=[32m"1.6"[39m
+            [33mviewBox[39m=[32m"0 0 24 24"[39m
+            [33mwidth[39m=[32m"14"[39m
+          [36m>[39m
+            [36m<rect[39m
+              [33mheight[39m=[32m"14"[39m
+              [33mrx[39m=[32m"2"[39m
+              [33mry[39m=[32m"2"[39m
+              [33mwidth[39m=[32m"14"[39m
+              [33mx[39m=[32m"8"[39m
+              [33my[39m=[32m"8"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"[39m
+            [36m/>[39m
+          [36m</svg>[39m
+        [36m</button>[39m
+        [36m<span[39m
+          [33maria-live[39m=[32m"polite"[39m
+          [33mclass[39m=[32m"jini-message-copy-status"[39m
+        [36m/>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ ❯ Object.getElementError node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ getElementError node_modules/@testing-library/dom/dist/query-helpers.js:20:35
+ ❯ getMultipleElementsFoundError node_modules/@testing-library/dom/dist/query-helpers.js:23:10
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:55:13
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ❯ src/components/AssistantDock/__tests__/AgentFailureCard.unit.test.tsx:92:19
+     90|   const h = mount({ agents: [], events: [{ kind: "status", label: GENE…
+     91|   try {
+     92|     expect(screen.getByRole("status").textContent).toContain(GENERIC_A…
+       |                   ^
+     93|     expect(screen.getByRole("status").textContent).toContain("Review t…
+     94|     fireEvent.click(screen.getByText("Show details"));
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/5]⎯
+
+ FAIL  src/components/AssistantDock/__tests__/AgentFailureCard.unit.test.tsx > keeps history failures polite with host chrome and masks Tovu API keys
+TestingLibraryElementError: Found multiple elements with the role "status"
+
+Here are the matching elements:
+
+Ignored nodes: comments, script, style
+[36m<div[39m
+  [33mclass[39m=[32m"notice error"[39m
+  [33mrole[39m=[32m"status"[39m
+[36m>[39m
+  [36m<p>[39m
+    [0mfailed tovu_ak_012345abcdef.[REDACTED:tovu_api_key][0m
+  [36m</p>[39m
+  [36m<p>[39m
+    [0mReview the saved work above before sending another message. Copy details and report this problem.[0m
+  [36m</p>[39m
+  [36m<details>[39m
+    [36m<summary>[39m
+      [0mShow details[0m
+    [36m</summary>[39m
+    [36m<pre[39m
+      [33mstyle[39m=[32m"white-space: pre-wrap; overflow-wrap: anywhere; user-select: text;"[39m
+    [36m>[39m
+      [0mMessage: failed tovu_ak_012345abcdef.[REDACTED:tovu_api_key]
+Next action: Review the saved work above before sending another message. Copy details and report this problem.
+Error ID: Unavailable
+Step: assistant answer (gemini)
+Cause: failed tovu_ak_012345abcdef.[REDACTED:tovu_api_key]
+App version: Unavailable
+Jini version: Unavailable
+Time: Unavailable[0m
+    [36m</pre>[39m
+    [36m<button[39m
+      [33mtype[39m=[32m"button"[39m
+    [36m>[39m
+      [0mCopy details[0m
+    [36m</button>[39m
+  [36m</details>[39m
+[36m</div>[39m
+
+Ignored nodes: comments, script, style
+[36m<div[39m
+  [33mclass[39m=[32m"jini-message-error"[39m
+  [33mrole[39m=[32m"status"[39m
+[36m>[39m
+  [0mThis turn failed.[0m
+[36m</div>[39m
+
+(If this is intentional, then use the `*AllBy*` variant of the query (like `queryAllByText`, `getAllByText`, or `findAllByText`)).
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"jini-message jini-message-assistant"[39m
+      [33mdata-agent-element[39m=[32m"chat-message-nine"[39m
+      [33mdata-agent-label[39m=[32m"A reply from the assistant"[39m
+      [33mdata-agent-role[39m=[32m"region"[39m
+      [33mdata-message-id[39m=[32m"nine"[39m
+      [33mdata-run-status[39m=[32m"failed"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"jini-message-ext-events"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"admin-agent-failure jini-message-error"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"notice error"[39m
+              [33mrole[39m=[32m"status"[39m
+            [36m>[39m
+              [36m<p>[39m
+                [0mfailed tovu_ak_012345abcdef.[REDACTED:tovu_api_key][0m
+              [36m</p>[39m
+              [36m<p>[39m
+                [0mReview the saved work above before sending another message. Copy details and report this problem.[0m
+              [36m</p>[39m
+              [36m<details>[39m
+                [36m<summary>[39m
+                  [0mShow details[0m
+                [36m</summary>[39m
+                [36m<pre[39m
+                  [33mstyle[39m=[32m"white-space: pre-wrap; overflow-wrap: anywhere; user-select: text;"[39m
+                [36m>[39m
+                  [0mMessage: failed tovu_ak_012345abcdef.[REDACTED:tovu_api_key]
+Next action: Review the saved work above before sending another message. Copy details and report this problem.
+Error ID: Unavailable
+Step: assistant answer (gemini)
+Cause: failed tovu_ak_012345abcdef.[REDACTED:tovu_api_key]
+App version: Unavailable
+Jini version: Unavailable
+Time: Unavailable[0m
+                [36m</pre>[39m
+                [36m<button[39m
+                  [33mtype[39m=[32m"button"[39m
+                [36m>[39m
+                  [0mCopy details[0m
+                [36m</button>[39m
+              [36m</details>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"jini-message-error"[39m
+        [33mrole[39m=[32m"status"[39m
+      [36m>[39m
+        [0mThis turn failed.[0m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"jini-message-actions jini-message-actions--assistant"[39m
+      [36m>[39m
+        [36m<button[39m
+          [33maria-label[39m=[32m"Copy message"[39m
+          [33mclass[39m=[32m"jini-message-action-btn"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<svg[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mfill[39m=[32m"none"[39m
+            [33mfocusable[39m=[32m"false"[39m
+            [33mheight[39m=[32m"14"[39m
+            [33mstroke[39m=[32m"currentColor"[39m
+            [33mstroke-linecap[39m=[32m"round"[39m
+            [33mstroke-linejoin[39m=[32m"round"[39m
+            [33mstroke-width[39m=[32m"1.6"[39m
+            [33mviewBox[39m=[32m"0 0 24 24"[39m
+            [33mwidth[39m=[32m"14"[39m
+          [36m>[39m
+            [36m<rect[39m
+              [33mheight[39m=[32m"14"[39m
+              [33mrx[39m=[32m"2"[39m
+              [33mry[39m=[32m"2"[39m
+              [33mwidth[39m=[32m"14"[39m
+              [33mx[39m=[32m"8"[39m
+              [33my[39m=[32m"8"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"[39m
+            [36m/>[39m
+          [36m</svg>[39m
+        [36m</button>[39m
+        [36m<span[39m
+          [33maria-live[39m=[32m"polite"[39m
+          [33mclass[39m=[32m"jini-message-copy-status"[39m
+        [36m/>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ ❯ Object.getElementError node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ getElementError node_modules/@testing-library/dom/dist/query-helpers.js:20:35
+ ❯ getMultipleElementsFoundError node_modules/@testing-library/dom/dist/query-helpers.js:23:10
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:55:13
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ❯ src/components/AssistantDock/__tests__/AgentFailureCard.unit.test.tsx:272:19
+    270|   try {
+    271|     expect(screen.queryByRole('alert')).toBeNull();
+    272|     expect(screen.getByRole('status')).toHaveClass('notice', 'error');
+       |                   ^
+    273|     expect(screen.getByRole('status').closest('.jini-message-error')).…
+    274|     expect(document.body.textContent).toContain('[REDACTED:tovu_api_ke…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/5]⎯
+
+ FAIL  src/components/AssistantDock/__tests__/agent-failure.unit.test.ts > agent failure reasons > preserves user messages and supplies a generic failure when events are absent
+AssertionError: expected [ { kind: 'ext', …(2) } ] to deeply equal [ { kind: 'status', …(2) } ]
+
+- Expected
++ Received
+
+  [
+    {
+-     "code": "run_terminal",
+-     "kind": "status",
+-     "label": "The assistant could not continue this answer. Saved work is above.",
++     "data": {
++       "details": "The assistant stopped without reporting a cause.",
++       "reason": "The assistant could not continue this answer. Saved work is above.",
++     },
++     "kind": "ext",
++     "name": "agent_failure",
+    },
+  ]
+
+ ❯ src/components/AssistantDock/__tests__/agent-failure.unit.test.ts:144:8
+    142|     expect(projectAgentFailureMessage({ message: user })).toBe(user);
+    143|     expect(projectAgentFailureMessage({ message: { id: "empty", role: …
+    144|       .toEqual([{ kind: "status", code: "run_terminal", label: GENERIC…
+       |        ^
+    145|   });
+    146|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/5]⎯
+
+ FAIL  src/features/security/__tests__/Security.unit.test.tsx > Security — page shell > handleTabChange navigates to the clicked tab's own URL, replacing history
+AssertionError: expected '/' to be '/admin/access-tokens' // Object.is equality
+
+Expected: "/admin/access-tokens"
+Received: "/"
+
+ ❯ src/features/security/__tests__/Security.unit.test.tsx:119:38
+    117|     await user.click(screen.getByRole("tab", { name: /Access Tokens/ }…
+    118|     expect(window.history.length).toBe(historyLength);
+    119|     expect(window.location.pathname).toBe("/admin/access-tokens");
+       |                                      ^
+    120|     expect(window.location.search).toBe("?tab=access-tokens");
+    121|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/5]⎯
+
+ FAIL  src/features/security/__tests__/Security.unit.test.tsx > Security — page shell > Site key tab — gated on admin.security.site-key.manage (2026-09-10) > C3: publishes the site-key handle and navigates to the site-key tab URL
+AssertionError: expected '/' to be '/admin/access-tokens' // Object.is equality
+
+Expected: "/admin/access-tokens"
+Received: "/"
+
+ ❯ src/features/security/__tests__/Security.unit.test.tsx:130:40
+    128|       expect(tab).toHaveAttribute("data-agent-element", "security-tab-…
+    129|       await user.click(tab);
+    130|       expect(window.location.pathname).toBe("/admin/access-tokens");
+       |                                        ^
+    131|       expect(window.location.search).toBe("?tab=site-key");
+    132|     });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/5]⎯
+
+⎯⎯⎯⎯⎯⎯ Unhandled Errors ⎯⎯⎯⎯⎯⎯
+
+Vitest caught 2 unhandled errors during the test run.
+This might cause false positive tests. Resolve unhandled errors to make sure your tests are not affected.
+
+⎯⎯⎯⎯⎯ Uncaught Exception ⎯⎯⎯⎯⎯
+TypeError: Cannot read properties of undefined (reading 'length')
+ ❯ bound ../../../Jini/packages/core/src/user-facing-error.ts:67:15
+ ❯ safeField ../../../Jini/packages/core/src/user-facing-error.ts:63:10
+ ❯ formatUserFacingError ../../../Jini/packages/core/src/user-facing-error.ts:45:13
+ ❯ ownerRecoveryFailure src/lib/owner-recovery-api.ts:39:10
+     37|   _options = {},
+     38| ): UserFacingError {
+     39|   return formatUserFacingError({ message: describeApiError(error, t(me…
+       |          ^
+     40|     { ...TOVU_ERROR_REDACTION_OPTIONS, exactSecrets: secrets.filter(Bo…
+     41| }
+ ❯ src/features/security/RecoveryCodesCard.tsx:23:43
+ ❯ updateMemo node_modules/react-dom/cjs/react-dom-client.development.js:9179:19
+ ❯ Object.useMemo node_modules/react-dom/cjs/react-dom-client.development.js:29154:18
+ ❯ process.env.NODE_ENV.exports.useMemo node_modules/react/cjs/react.development.js:1297:34
+ ❯ RecoveryCodesCard src/features/security/RecoveryCodesCard.tsx:23:17
+ ❯ Object.react_stack_bottom_frame node_modules/react-dom/cjs/react-dom-client.development.js:28571:20
+
+This error originated in "src/features/security/__tests__/Security.unit.test.tsx" test file. It doesn't mean the error was thrown inside the file itself, but while it was running.
+The latest test that might've caused the error is "handleTabChange navigates to the clicked tab's own URL, replacing history". It might mean one of the following:
+- The error was thrown, while Vitest was running this test.
+- If the error occurred after the test had been completed, this was the last documented test before it was thrown.
+
+⎯⎯⎯⎯⎯ Uncaught Exception ⎯⎯⎯⎯⎯
+TypeError: Cannot read properties of undefined (reading 'length')
+ ❯ bound ../../../Jini/packages/core/src/user-facing-error.ts:67:15
+ ❯ safeField ../../../Jini/packages/core/src/user-facing-error.ts:63:10
+ ❯ formatUserFacingError ../../../Jini/packages/core/src/user-facing-error.ts:45:13
+ ❯ ownerRecoveryFailure src/lib/owner-recovery-api.ts:39:10
+     37|   _options = {},
+     38| ): UserFacingError {
+     39|   return formatUserFacingError({ message: describeApiError(error, t(me…
+       |          ^
+     40|     { ...TOVU_ERROR_REDACTION_OPTIONS, exactSecrets: secrets.filter(Bo…
+     41| }
+ ❯ src/features/security/RecoveryCodesCard.tsx:23:43
+ ❯ updateMemo node_modules/react-dom/cjs/react-dom-client.development.js:9179:19
+ ❯ Object.useMemo node_modules/react-dom/cjs/react-dom-client.development.js:29154:18
+ ❯ process.env.NODE_ENV.exports.useMemo node_modules/react/cjs/react.development.js:1297:34
+ ❯ RecoveryCodesCard src/features/security/RecoveryCodesCard.tsx:23:17
+ ❯ Object.react_stack_bottom_frame node_modules/react-dom/cjs/react-dom-client.development.js:28571:20
+
+This error originated in "src/features/security/__tests__/Security.unit.test.tsx" test file. It doesn't mean the error was thrown inside the file itself, but while it was running.
+The latest test that might've caused the error is "C3: publishes the site-key handle and navigates to the site-key tab URL". It might mean one of the following:
+- The error was thrown, while Vitest was running this test.
+- If the error occurred after the test had been completed, this was the last documented test before it was thrown.
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+
+ Test Files  3 failed | 11 passed (14)
+      Tests  5 failed | 162 passed (167)
+     Errors  2 errors
+   Start at  07:41:02
+   Duration  23.18s (transform 14.87s, setup 2.44s, import 24.29s, tests 5.77s, environment 9.26s)
+

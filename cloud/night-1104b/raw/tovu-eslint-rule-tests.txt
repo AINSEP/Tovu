@@ -1,0 +1,11 @@
+✔ release and release-branch pushes require the packaged two-site gate (2.583806ms)
+✔ manual dispatch from main with a desktop tag runs the gate and every release job (0.576828ms)
+✔ the autonomous release chain stops at a draft without adding a prerelease or Latest promotion gate (0.457575ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 258.534297

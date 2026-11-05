@@ -1,0 +1,243 @@
+✔ active forms map to names, required flags, lengths and multi-value groups only (1.91191ms)
+✔ no active forms means an empty manifest (0.214845ms)
+✔ T9: the static-host manifest includes default text caps and preserves authored limits (0.206236ms)
+✔ the delivery form adds each field's label and type to the manifest's names, flags, lengths and groups (0.268964ms)
+✔ the delivery form is built whatever the definition's status is now (the submission was already accepted) (0.135029ms)
+✔ the delivery form never carries notification recipients or option lists (0.145001ms)
+✔ receiver manifest carries validation semantics and identifies unsupported file fields before publish (0.221949ms)
+✔ empty select placeholders are omitted from the receiver allowlist (0.230904ms)
+✔ form and individual purges capture trashed submissions with a workspace-scoped bounded read (156.166597ms)
+✔ private source metadata survives the durable media adapter (134.828071ms)
+✔ legacy files are made private before public serving, including submissions already in Trash (140.518536ms)
+✔ protection warns for corrupt or mismatched legacy rows and records completion without refusing boot (105.376218ms)
+✔ unavailable protection storage warns and leaves completion absent for an automatic next-owner-start retry (2.754841ms)
+✔ delayed cleanup ownership probes include Trash and stay workspace scoped (89.801675ms)
+✔ form purge captures the attachment after submission 100 without truncation (91.682009ms)
+✔ transient legacy stamp failures keep the marker absent and retry automatically on the next owner start (96.265413ms)
+✔ download forms cannot submit answers through native GET, implicit submit or external controls (51.351727ms)
+✔ explicit empty actions require a server; external receivers remain usable (15.085611ms)
+✔ dialog forms and JS-only forms keep their authored markup in downloaded pages (0.756293ms)
+✔ downloaded backend forms retain form selectors and cannot override dialog submission (10.636453ms)
+✔ configured public origin replaces every render origin; exporter layout and root links stay pinned (719.340451ms)
+✔ no public origin omits sitemap and feed, removes identity metadata, and keeps root-relative llms and images (355.299153ms)
+✔ download removes server form actions, reports only actual removals, and writes a plain dated README (287.903506ms)
+✔ static publish pins about/index.html, media and theme paths, root links and working form actions (275.65527ms)
+✔ origin replacement handles remote render authorities, loopback aliases, JSON escaping and origin-only links (0.992041ms)
+✔ registry absence, dev evidence and configured loopback never provide export identity (0.826378ms)
+✔ download form edits preserve external and mailto actions, theme attributes and unrelated script bytes (1.310361ms)
+✔ fallback metadata removes nested JSON-LD identity and invalid blocks without serializing theme HTML (0.690784ms)
+[theme] active theme 'tovu-starter' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+✔ static download excludes a saved private Library document and removes every HTML and CSS reference to it (865.946369ms)
+▶ form delivery repo security [sqlite]
+  ✔ notification summary isolates workspace and submission and returns counts only (133.23335ms)
+  ✔ a plan for workspace B never returns or reuses workspace A's plan for the same submission id (99.55702ms)
+  ✔ a purged submission's jobs lose their answers and the unfinished ones fail, in its own workspace only (103.042409ms)
+  ✔ a purge during an in-flight attempt is final: the attempt's retryable failure neither revives the job nor resends it (99.817079ms)
+  ✔ a purge during an in-flight attempt is final: the attempt's success does not mark the purged job delivered (97.391375ms)
+  ✔ a purged form scrubs the jobs of every submission planned for it (121.274404ms)
+  ✔ status reads for workspace B list only workspace B's jobs (95.775835ms)
+  ✔ a built plan or child job naming another workspace is refused and nothing is stored (94.572215ms)
+  ✔ a built plan or child job for another submission of the same workspace is refused (97.556439ms)
+  ✔ a per-submission status read lists only that submission's bindings, ordered by binding id (102.802049ms)
+  ✔ the recent listing leaves out completed deliveries, lists the newest first and honours its limit (97.853375ms)
+  ✔ a status read returns only an allowlisted error code, never the raw outbox error text (97.432943ms)
+  ✔ a lease held in workspace A neither blocks workspace B nor can be released by B's token (93.055651ms)
+  ✔ release is fenced by token: a stale holder cannot clear a newer holder's lease (91.13289ms)
+  ✔ a claim says why it refused: a live lease is already-running, a recent start is recent (96.716481ms)
+  ✔ a lease that would already be over (leaseMs <= 0) is refused before anything is stored (96.809782ms)
+  ✔ a manual claim is not refused as recent when the clock moved back past the last start (92.585546ms)
+✔ form delivery repo security [sqlite] (1713.099243ms)
+▶ form delivery repo security [pglite]
+  ✔ notification summary isolates workspace and submission and returns counts only (3317.560851ms)
+  ✔ a plan for workspace B never returns or reuses workspace A's plan for the same submission id (17.39714ms)
+  ✔ a purged submission's jobs lose their answers and the unfinished ones fail, in its own workspace only (20.226393ms)
+  ✔ a purge during an in-flight attempt is final: the attempt's retryable failure neither revives the job nor resends it (18.881744ms)
+  ✔ a purge during an in-flight attempt is final: the attempt's success does not mark the purged job delivered (15.703586ms)
+  ✔ a purged form scrubs the jobs of every submission planned for it (16.797899ms)
+  ✔ status reads for workspace B list only workspace B's jobs (17.205156ms)
+  ✔ a built plan or child job naming another workspace is refused and nothing is stored (17.685972ms)
+  ✔ a built plan or child job for another submission of the same workspace is refused (18.916628ms)
+  ✔ a per-submission status read lists only that submission's bindings, ordered by binding id (15.875188ms)
+  ✔ the recent listing leaves out completed deliveries, lists the newest first and honours its limit (40.708607ms)
+  ✔ a status read returns only an allowlisted error code, never the raw outbox error text (18.246335ms)
+  ✔ a lease held in workspace A neither blocks workspace B nor can be released by B's token (14.605129ms)
+  ✔ release is fenced by token: a stale holder cannot clear a newer holder's lease (18.203677ms)
+  ✔ a claim says why it refused: a live lease is already-running, a recent start is recent (17.586823ms)
+  ✔ a lease that would already be over (leaseMs <= 0) is refused before anything is stored (8.06105ms)
+  ✔ a manual claim is not refused as recent when the clock moved back past the last start (10.962019ms)
+✔ form delivery repo security [pglite] (3606.115017ms)
+[routes/forms/authoring] {
+  errorId: '9da22578-f7f1-4eca-bd3f-ee2a44343d1e',
+  diagnostic: 'Error: private credential\n' +
+    '    at authorize (/home/user/Tovu/apps/website/src/server/__tests__/helpers/admin-route-failures.ts:36:80)\n' +
+    '    at authorizeOrRespond (/home/user/Tovu/apps/website/src/server/inbound/admin-http/authorize-guard.ts:56:28)\n' +
+    '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/forms/authoring.ts:35:32)\n' +
+    '    at Layer.handle [as handle_request] (/home/user/Tovu/node_modules/express/lib/router/layer.js:95:5)\n' +
+    '    at next (/home/user/Tovu/node_modules/express/lib/router/route.js:149:13)\n' +
+    '    at Route.dispatch (/home/user/Tovu/node_modules/express/lib/router/route.js:119:3)\n' +
+    '    at Layer.handle [as handle_request] (/home/user/Tovu/node_modules/express/lib/router/layer.js:95:5)\n' +
+    '    at /home/user/Tovu/node_modules/express/lib/router/index.js:284:15\n' +
+    '    at param (/home/user/Tovu/node_modules/express/lib/router/index.js:365:14)\n' +
+    '    at param (/home/user/Tovu/node_modules/express/lib/router/index.js:376:14)'
+}
+[routes/forms/get-by-id] {
+  errorId: 'ecee4407-f3f7-44b7-82cb-c1c62c5c71f6',
+  diagnostic: 'Error: private credential\n' +
+    '    at Object.authorize (/home/user/Tovu/apps/website/src/server/__tests__/helpers/admin-route-failures.ts:36:80)\n' +
+    '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/forms/get-by-id.ts:19:37)\n' +
+    '    at Layer.handle [as handle_request] (/home/user/Tovu/node_modules/express/lib/router/layer.js:95:5)\n' +
+    '    at next (/home/user/Tovu/node_modules/express/lib/router/route.js:149:13)\n' +
+    '    at Route.dispatch (/home/user/Tovu/node_modules/express/lib/router/route.js:119:3)\n' +
+    '    at Layer.handle [as handle_request] (/home/user/Tovu/node_modules/express/lib/router/layer.js:95:5)\n' +
+    '    at /home/user/Tovu/node_modules/express/lib/router/index.js:284:15\n' +
+    '    at param (/home/user/Tovu/node_modules/express/lib/router/index.js:365:14)\n' +
+    '    at param (/home/user/Tovu/node_modules/express/lib/router/index.js:376:14)\n' +
+    '    at param (/home/user/Tovu/node_modules/express/lib/router/index.js:376:14)'
+}
+[routes/forms/delete-submission] {
+  errorId: '80bed672-75e5-4f7f-ad35-05a92d52e569',
+  diagnostic: 'Error: private credential\n' +
+    '    at Object.authorize (/home/user/Tovu/apps/website/src/server/__tests__/helpers/admin-route-failures.ts:36:80)\n' +
+    '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/forms/delete-submission.ts:23:39)\n' +
+    '    at Layer.handle [as handle_request] (/home/user/Tovu/node_modules/express/lib/router/layer.js:95:5)\n' +
+    '    at next (/home/user/Tovu/node_modules/express/lib/router/route.js:149:13)\n' +
+    '    at Route.dispatch (/home/user/Tovu/node_modules/express/lib/router/route.js:119:3)\n' +
+    '    at Layer.handle [as handle_request] (/home/user/Tovu/node_modules/express/lib/router/layer.js:95:5)\n' +
+    '    at /home/user/Tovu/node_modules/express/lib/router/index.js:284:15\n' +
+    '    at param (/home/user/Tovu/node_modules/express/lib/router/index.js:365:14)\n' +
+    '    at param (/home/user/Tovu/node_modules/express/lib/router/index.js:376:14)\n' +
+    '    at param (/home/user/Tovu/node_modules/express/lib/router/index.js:376:14)'
+}
+[routes/forms/get-submission] {
+  errorId: '4cb0c320-cf56-4ceb-8429-2ce009d9adfa',
+  diagnostic: 'Error: private credential\n' +
+    '    at Object.authorize (/home/user/Tovu/apps/website/src/server/__tests__/helpers/admin-route-failures.ts:36:80)\n' +
+    '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/forms/get-submission.ts:38:39)\n' +
+    '    at Layer.handle [as handle_request] (/home/user/Tovu/node_modules/express/lib/router/layer.js:95:5)\n' +
+    '    at next (/home/user/Tovu/node_modules/express/lib/router/route.js:149:13)\n' +
+    '    at Route.dispatch (/home/user/Tovu/node_modules/express/lib/router/route.js:119:3)\n' +
+    '    at Layer.handle [as handle_request] (/home/user/Tovu/node_modules/express/lib/router/layer.js:95:5)\n' +
+    '    at /home/user/Tovu/node_modules/express/lib/router/index.js:284:15\n' +
+    '    at param (/home/user/Tovu/node_modules/express/lib/router/index.js:365:14)\n' +
+    '    at param (/home/user/Tovu/node_modules/express/lib/router/index.js:376:14)\n' +
+    '    at param (/home/user/Tovu/node_modules/express/lib/router/index.js:376:14)'
+}
+[routes/forms/list-submissions] {
+  errorId: 'fc019cf8-d9c7-4a5d-a8fa-4357eb6f668b',
+  diagnostic: 'Error: private credential\n' +
+    '    at Object.authorize (/home/user/Tovu/apps/website/src/server/__tests__/helpers/admin-route-failures.ts:36:80)\n' +
+    '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/forms/list-submissions.ts:53:37)\n' +
+    '    at Layer.handle [as handle_request] (/home/user/Tovu/node_modules/express/lib/router/layer.js:95:5)\n' +
+    '    at next (/home/user/Tovu/node_modules/express/lib/router/route.js:149:13)\n' +
+    '    at Route.dispatch (/home/user/Tovu/node_modules/express/lib/router/route.js:119:3)\n' +
+    '    at Layer.handle [as handle_request] (/home/user/Tovu/node_modules/express/lib/router/layer.js:95:5)\n' +
+    '    at /home/user/Tovu/node_modules/express/lib/router/index.js:284:15\n' +
+    '    at param (/home/user/Tovu/node_modules/express/lib/router/index.js:365:14)\n' +
+    '    at param (/home/user/Tovu/node_modules/express/lib/router/index.js:376:14)\n' +
+    '    at param (/home/user/Tovu/node_modules/express/lib/router/index.js:376:14)'
+}
+[routes/forms/list] {
+  errorId: '60b5a535-88f3-4266-b821-8e01fcf3c206',
+  diagnostic: 'Error: private credential\n' +
+    '    at Object.authorize (/home/user/Tovu/apps/website/src/server/__tests__/helpers/admin-route-failures.ts:36:80)\n' +
+    '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/forms/list.ts:16:37)\n' +
+    '    at Layer.handle [as handle_request] (/home/user/Tovu/node_modules/express/lib/router/layer.js:95:5)\n' +
+    '    at next (/home/user/Tovu/node_modules/express/lib/router/route.js:149:13)\n' +
+    '    at Route.dispatch (/home/user/Tovu/node_modules/express/lib/router/route.js:119:3)\n' +
+    '    at Layer.handle [as handle_request] (/home/user/Tovu/node_modules/express/lib/router/layer.js:95:5)\n' +
+    '    at /home/user/Tovu/node_modules/express/lib/router/index.js:284:15\n' +
+    '    at param (/home/user/Tovu/node_modules/express/lib/router/index.js:365:14)\n' +
+    '    at param (/home/user/Tovu/node_modules/express/lib/router/index.js:376:14)\n' +
+    '    at router.process_params (/home/user/Tovu/node_modules/express/lib/router/index.js:421:3)'
+}
+[routes/forms/update] {
+  errorId: 'c71cb8f1-bf03-4c59-b16b-f8384dcfd292',
+  diagnostic: 'Error: private credential\n' +
+    '    at authorize (/home/user/Tovu/apps/website/src/server/__tests__/helpers/admin-route-failures.ts:36:80)\n' +
+    '    at authorizeOrRespond (/home/user/Tovu/apps/website/src/server/inbound/admin-http/authorize-guard.ts:56:28)\n' +
+    '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/forms/update.ts:84:32)\n' +
+    '    at Layer.handle [as handle_request] (/home/user/Tovu/node_modules/express/lib/router/layer.js:95:5)\n' +
+    '    at next (/home/user/Tovu/node_modules/express/lib/router/route.js:149:13)\n' +
+    '    at Route.dispatch (/home/user/Tovu/node_modules/express/lib/router/route.js:119:3)\n' +
+    '    at Layer.handle [as handle_request] (/home/user/Tovu/node_modules/express/lib/router/layer.js:95:5)\n' +
+    '    at /home/user/Tovu/node_modules/express/lib/router/index.js:284:15\n' +
+    '    at param (/home/user/Tovu/node_modules/express/lib/router/index.js:365:14)\n' +
+    '    at param (/home/user/Tovu/node_modules/express/lib/router/index.js:376:14)'
+}
+[routes/forms/list] {
+  errorId: '417d462b-23ba-4e8e-ae7d-5360c8d39e39',
+  diagnostic: 'Error: private\n' +
+    '    at Object.list (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/forms/__tests__/forms-route-failures.unit.test.ts:82:106)\n' +
+    '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/forms/list.ts:31:57)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)'
+}
+[routes/forms/create] {
+  errorId: 'd3673e65-df57-4d10-a5d8-1583d3bab723',
+  diagnostic: 'Error: private\n' +
+    '    at Object.executeCommand (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/forms/__tests__/forms-route-failures.unit.test.ts:118:114)\n' +
+    '    at createFormDefinition (/home/user/Jini/packages/cms/src/forms/write-service.ts:158:33)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n' +
+    '    at async createFormDefinition (/home/user/Tovu/apps/website/src/features/forms/index.ts:103:12)\n' +
+    '    at async <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/forms/create.ts:45:30)'
+}
+✔ forms authoring: authorization failure is private and does not become a success (204.904511ms)
+✔ forms authoring: denied permission stops before reaching repositories (132.510055ms)
+✔ forms authoring: workspace isolation precedes authorization (145.403542ms)
+✔ forms authoring: `req.params.workspaceId ?? ""` fallback, forced via a direct handler call, is the workspace 404 before authorization (126.26394ms)
+✔ forms get: authorization failure is private and does not become a success (152.867144ms)
+✔ forms get: denied permission stops before reaching repositories (132.15713ms)
+✔ forms get: workspace isolation precedes authorization (138.395345ms)
+✔ forms get: `req.params.workspaceId ?? ""` fallback, forced via a direct handler call, is the workspace 404 before authorization (123.537555ms)
+✔ forms submissions delete: authorization failure is private and does not become a success (157.107766ms)
+✔ forms submissions delete: denied permission stops before reaching repositories (160.744638ms)
+✔ forms submissions delete: workspace isolation precedes authorization (137.113339ms)
+✔ forms submissions delete: `req.params.workspaceId ?? ""` fallback, forced via a direct handler call, is the workspace 404 before authorization (131.330571ms)
+✔ forms submissions get: authorization failure is private and does not become a success (129.898969ms)
+✔ forms submissions get: denied permission stops before reaching repositories (120.949105ms)
+✔ forms submissions get: workspace isolation precedes authorization (120.413811ms)
+✔ forms submissions get: `req.params.workspaceId ?? ""` fallback, forced via a direct handler call, is the workspace 404 before authorization (126.45577ms)
+✔ forms submissions list: authorization failure is private and does not become a success (126.316912ms)
+✔ forms submissions list: denied permission stops before reaching repositories (122.014416ms)
+✔ forms submissions list: workspace isolation precedes authorization (131.323556ms)
+✔ forms submissions list: `req.params.workspaceId ?? ""` fallback, forced via a direct handler call, is the workspace 404 before authorization (156.299274ms)
+✔ forms list: authorization failure is private and does not become a success (139.350078ms)
+✔ forms list: denied permission stops before reaching repositories (118.373759ms)
+✔ forms list: workspace isolation precedes authorization (117.882093ms)
+✔ forms list: `req.params.workspaceId ?? ""` fallback, forced via a direct handler call, is the workspace 404 before authorization (127.979458ms)
+✔ forms update: authorization failure is private and does not become a success (126.548861ms)
+✔ forms update: denied permission stops before reaching repositories (124.902085ms)
+✔ forms update: workspace isolation precedes authorization (115.18789ms)
+✔ forms update: `req.params.workspaceId ?? ""` fallback, forced via a direct handler call, is the workspace 404 before authorization (127.105338ms)
+✔ form submission GET: unknown form stops before reading or removing submissions (112.282365ms)
+✔ form submission DELETE: unknown form stops before reading or removing submissions (127.204386ms)
+✔ form submission GET: absent is not disclosed or removed (126.329612ms)
+✔ form submission DELETE: absent is not disclosed or removed (103.858114ms)
+✔ form submission GET: different form is not disclosed or removed (96.572776ms)
+✔ form submission DELETE: different form is not disclosed or removed (102.176347ms)
+✔ submission deletion race reports not-found and carries scoped removal metadata (142.685162ms)
+✔ submission deletion race reports version-changed and carries scoped removal metadata (156.389792ms)
+✔ forms list: repository rejection is an internal error (168.334123ms)
+✔ forms update: ignored fields read the existing definition, missing definition maps to 404 (168.372518ms)
+✔ forms create: absent body validates the required name instead of throwing (125.990873ms)
+✔ forms create: duplicate command reports the winning change set and does not save a definition (149.719767ms)
+✔ forms create: unexpected command failure is private and leaves no definition (145.659712ms)
+✔ forms authoring: supplied patch fields persist, absent fields and an absent body preserve them (147.589579ms)
+✔ forms submissions: non-string cursor is rejected without listing submissions (127.449009ms)
+✔ forms create: `req.params.workspaceId ?? ""` fallback, forced via a direct handler call, is the workspace 404 before authorization (117.483753ms)
+✔ forms get: `req.params.formId ?? ""` fallback, forced via a direct handler call, looks up the empty id and answers not-found (129.139334ms)
+✔ forms update: `req.params.formId ?? ""` fallback, forced via a direct handler call, looks up the empty id and answers not-found (134.721463ms)
+✔ forms submissions list: `req.params.formId ?? ""` fallback, forced via a direct handler call, looks up the empty id and answers not-found (113.100908ms)
+✔ forms submissions get: `req.params.formId ?? ""` / `req.params.submissionId ?? ""` fallback, forced via a direct handler call, looks up the empty id and answers not-found (141.651208ms)
+✔ forms submissions delete: `req.params.formId ?? ""` / `req.params.submissionId ?? ""` fallback, forced via a direct handler call, looks up the empty id and answers not-found (123.579374ms)
+✔ submission detail exposes permanent email failures without provider messages or recipient addresses (155.660676ms)
+✔ source and site admission runs before a body reader and uses injected time without sleeping (2.508162ms)
+✔ rotating IPs cannot bypass the aggregate site budget (3.528698ms)
+✔ URL-encoded signup spikes do not consume the multipart site budget (1.77447ms)
+ℹ tests 116
+ℹ suites 2
+ℹ pass 116
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 23673.463269

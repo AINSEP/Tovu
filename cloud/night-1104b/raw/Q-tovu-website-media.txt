@@ -1,0 +1,328 @@
+✔ media provenance: destination creates use the applying actor and updates keep that actor (2.539973ms)
+✔ importMediaEntity: the imported row is saved under the SOURCE id, never a freshly minted one (1.131857ms)
+✔ importMediaEntity: a slug already held by a different id is blocked and writes nothing — no blob bytes, no blob row, no media row (0.623475ms)
+✔ importMediaEntity: re-importing an existing id with a DIFFERENT claimed sha256 is blocked — source.sha256 is write-once, never silently rewritten (0.399937ms)
+✔ importMediaEntity: re-importing an existing id with the SAME claimed sha256 is idempotent and succeeds (0.593569ms)
+✔ importMediaEntity: a missing staged byte payload is an authoritative typed block and writes nothing (0.362594ms)
+✔ importMediaEntity: bytes that do not hash to the claimed sha256 are refused before putIfAbsent is ever called (0.387358ms)
+✔ importMediaEntity: a malformed (non-hex-64) claimed sha256 is refused before putIfAbsent, same as a real mismatch (0.243398ms)
+✔ importMediaEntity: a blob that already exists at the destination is never re-saved — its original createdByPrincipal survives a re-import by a DIFFERENT operator (0.695573ms)
+✔ importMediaEntity: a brand-new blob IS stamped with the supplied blobCreatedByPrincipal (0.524905ms)
+✔ importMediaEntity translates a slug acquired during the write window into a typed block (128.970168ms)
+✔ importMediaEntity: an empty slug skips the slug lookup entirely and imports (0.554992ms)
+✔ importMediaEntity: a create against an existing row is an early conflict naming its version (0.323776ms)
+✔ importMediaEntity: an update whose row is gone is an early conflict (0.189083ms)
+✔ importMediaEntity: an update against a different version is an early conflict naming both (0.221975ms)
+✔ importMediaEntity: an update keeps the destination createdAt and bumps the version past its basis (0.37339ms)
+✔ importMediaEntity: an update of a legacy row with no recorded creator keeps it honestly unknown (0.263608ms)
+✔ importMediaEntity: a create that loses the insert race reports the winner's version (0.231629ms)
+✔ importMediaEntity: a create refused with no row to re-read reports the id as in use (0.260281ms)
+✔ importMediaEntity: an update that loses the version race reports the newer version (0.268393ms)
+✔ importMediaEntity: an update refused while the re-read matches its basis (ABA) is still a conflict (0.160469ms)
+✔ importMediaEntity: a slug race whose holder cannot be re-read names it unknown (0.185789ms)
+✔ importMediaEntity: a write failure other than a slug conflict is rethrown unchanged (0.599789ms)
+✔ Library documents and their blobs are absent from publish output; forged apply and public duplication fail (5.106183ms)
+✔ apply() writes the media row under the SOURCE id — the id a post's embed already points at (6.460464ms)
+✔ apply() + renderDocNode: a post's embed authored against the SOURCE asset id renders a real <img>, never the placeholder (2.223119ms)
+✔ apply() blocks with 'blocked:missing-blob' when the bundle names a sha this destination never received — and writes nothing (1.6759ms)
+✔ apply() never re-stamps an existing asset_blobs row's createdByPrincipal, and reports the reuse as blobWritten:false (1.408777ms)
+✔ apply() attributes a BRAND-NEW asset_blobs row to the importing operator, and reports blobWritten:true (1.035677ms)
+✔ apply() blocks with 'blocked:slug-taken' when the slug is held by a DIFFERENT id — and writes neither a blob row nor a media row (0.849631ms)
+✔ apply() updates an existing row when expectedVersion matches, recording the prior record as the change set's inverse (1.327304ms)
+✔ apply() refuses to overwrite a destination row that moved on from expectedVersion (0.796411ms)
+✔ apply() refuses a 'created' row when the destination grew one between plan and apply (0.80084ms)
+✔ [sqlite] apply(): two concurrent updates planned against the same version cannot both land — one wins, the other is a conflict (151.045938ms)
+✔ [sqlite] apply(): two concurrent creates of the same id cannot both land (125.171442ms)
+✔ [memory] apply(): two concurrent updates planned against the same version cannot both land — one wins, the other is a conflict (1.014334ms)
+✔ [memory] apply(): two concurrent creates of the same id cannot both land (0.693125ms)
+✔ apply() throws a named error when changeSets/authorize/outbox are not wired (0.958484ms)
+✔ apply() throws a named error when ports.media is not wired (0.391913ms)
+✔ apply() no longer throws Task 12's 'not wired yet' stub error (0.425851ms)
+✔ precheck() reports a missing blob so the planner can emit a 'blocked' row before any apply is attempted (0.533728ms)
+✔ precheck() returns null once the blob has been staged and no slug holds the name (0.404194ms)
+✔ apply() compensates the complete create when recording its change set fails after the write (1.032817ms)
+✔ apply() compensates the complete update when recording its change set fails after the write (0.729183ms)
+✖ ordinary uploaded media retains its content hash after publishing (1.689314ms)
+✔ changed bytes require Overwrite even when the destination still matches its baseline (127.470978ms)
+✔ a confirmed replacement switches bytes, metadata, type and renditions once while preserving identity and attribution (109.573928ms)
+✔ packed overwrite flags cannot authorize replacement and ordinary imports stay strict (103.60524ms)
+✔ a live edit during staged-byte I/O refuses replacement without invalidating previews (102.782035ms)
+✔ recording failure restores source and metadata through the replacement seam (103.48506ms)
+✔ publishing a replacement retains Tovu's upload cap above the Jini default (127.572169ms)
+✖ rollback cannot clobber an edit that restores the old source while audit recording fails (103.029134ms)
+✔ stale reviewed source or version cannot replace the live file (96.434029ms)
+✔ a missing replacement adapter remains a hard refusal even when overwrite is requested (96.824527ms)
+✔ a denied publish permission cannot reach replacement (95.675079ms)
+✔ rollback can restore a replacement that also trashed the media row (130.041081ms)
+✔ confirmed overwrite still refuses missing staged bytes (116.639902ms)
+✔ confirmed overwrite still refuses mismatched staged bytes (82.971802ms)
+✖ private submitted media refuses Overwrite during planning (78.999707ms)
+✔ file replacement offers explain destination edits since the last sync (79.782346ms)
+✔ sanity: the fixture sha256 is the real digest of the staged bytes (15.313799ms)
+✔ write refuses a packed document discriminant before reading any bytes (2.715087ms)
+✔ write refuses to overwrite a destination document even when the packed state has no discriminant (0.612734ms)
+✔ write refuses media whose bytes are owned only by a Library document (0.70513ms)
+✔ write imports an explicit media discriminant and records the sniffed content type (2.567941ms)
+✔ write reports an unstaged blob as blocked:missing-blob naming the sha (0.466394ms)
+✔ write reports a slug held by another id as blocked:slug-taken (0.781167ms)
+✔ write reports a moved destination row as a conflict (0.55228ms)
+✔ write returns a typed block on forged packed state with no source (0.712599ms)
+✔ T12: malformed bundle hashes are refused before any filesystem blob probe or read (42.258928ms)
+✔ precheck refuses a packed document discriminant (0.731275ms)
+✔ precheck refuses to overwrite a destination document (0.280393ms)
+✔ precheck skips the document-blob probe for state with no sha256 and passes with nothing required (0.435724ms)
+✔ precheck passes an explicit media discriminant with its blob staged (0.230207ms)
+✔ the change-set summary names a new blob when the import created it (0.88585ms)
+✔ the change-set summary names a reused blob when the bytes were already there (0.456884ms)
+✔ verifyApplied reports nothing when no media port is wired (0.228679ms)
+✔ precheck refuses media whose bytes are owned only by a Library document (1.120075ms)
+✔ [sqlite] replacement commits source, metadata, type and original together with one version bump (133.682971ms)
+✔ [sqlite] stale CAS leaves metadata, source, type and previews unchanged (96.002965ms)
+✔ [sqlite] failed original insertion rolls back source, metadata, type, slug history and invalidation (97.7821ms)
+✔ [sqlite] replacement cannot claim another asset's slug (96.414254ms)
+✔ [pglite] replacement commits source, metadata, type and original together with one version bump (3625.154943ms)
+✔ [pglite] stale CAS leaves metadata, source, type and previews unchanged (46.536531ms)
+✔ [pglite] failed original insertion rolls back source, metadata, type, slug history and invalidation (53.514032ms)
+✔ [pglite] replacement cannot claim another asset's slug (72.708575ms)
+✔ media replacement context reaches apply only from its verified overwrite row: confirmed (5.317282ms)
+✔ media replacement context reaches apply only from its verified overwrite row: writes-only (0.938718ms)
+✔ media replacement context reaches apply only from its verified overwrite row: not-forced (1.109921ms)
+✔ media replacement context reaches apply only from its verified overwrite row: no-source (0.805697ms)
+✔ reviewed file reverts use the destination version in both command and durable retry keys (2.720696ms)
+✔ the per-item idempotency key is stable for one exact version and changes with version identity (0.68741ms)
+✔ a destination edit landing AFTER plan but BEFORE apply downgrades 'applied' to 'conflict' and never overwrites it (3.162288ms)
+✔ a destination row created by someone else between plan and apply downgrades 'created' to 'conflict' and never overwrites it (1.352118ms)
+✔ address-clash overwrite: the live holder is retired to Trash and the incoming row is created under its own id, with the create's changeSetId and the retire's tracked separately (6.096194ms)
+✔ the live holder changing between plan and apply downgrades the retire-forced row to 'conflict' — nothing is retired, nothing is created (1.726054ms)
+✔ the create failing after a successful retire puts the holder back live — the retire is never left stranded (1.967959ms)
+✔ a baseline failure AFTER the create landed must not undo the retire — the new row already holds the address (1.397042ms)
+✔ a retry after an undone retire uses a fresh retire idempotency key, so the command gateway never refuses it as already executed (0.991231ms)
+✔ applyReport returns the retire change sets beside changeSetIds, never mixed into them (0.784568ms)
+✔ a row without `retires` behaves exactly as before S5 — the generic created/removed guards still apply (1.216825ms)
+✔ a destination removed after planning applied stays removed and retains its prior baseline (1.27909ms)
+✔ a destination removed after planning forced stays removed and retains its prior baseline (0.798813ms)
+✔ baselines are upserted for created/unchanged/applied/forced and NEVER for conflict/blocked (6.450362ms)
+✔ a baseline is keyed on the bundle's sourcePrincipalId, never on the executing operator's principalId (1.15868ms)
+✔ the run row's changeSetIdsJson records every changeSetId the run produced (1.655452ms)
+✔ a baseline failure after the content command durably records the landed item and exact retry key (1.544792ms)
+✔ apply-loop: a 'created' row with a non-null source author imports with that author, never the operator's id (1.127943ms)
+✔ apply-loop: a 'created' row with a NULL source author imports as null, never the operator's id (0.955688ms)
+✔ a refused report is persisted as an 'abandoned' run and produces no writes (0.382743ms)
+✔ a media row blocked at apply time downgrades that ONE row and the rest of the run still applies (2.927378ms)
+✔ after applying, the run reports a published media item whose poster is not on the site (2.790459ms)
+✔ a write refused permission blocks that ONE row with the refusal as its reason; the rest of the run applies (1.60557ms)
+✔ D1: a row still matching the seed with NO baseline plans 'applied' AND is actually written at apply time (1.343124ms)
+✔ D1: a seed-matched row edited on the destination AFTER plan still downgrades to 'conflict' at apply (1.060335ms)
+✔ R5: after apply, a live menu's entryRef is repointed to the address-clash overwrite's new id, and routing resolves it (4.512975ms)
+✔ R5: a menu written by the same bundle keeps its own incoming tree — it is skipped, not repointed (5.689629ms)
+✔ R5: a repoint pass never runs when the create half of a retire+create pair fails and is undone (3.264563ms)
+✔ R6: a run that aborts after one landed overwrite still repoints references to that replacement (0.97359ms)
+✔ R5: a whole-handler repoint failure is reported in menuLinksNotUpdated and never fails the run (1.531245ms)
+✔ TW2 pins a missing packed entity as blocked without a write (0.785738ms)
+✔ publish-content applies the report the gateway verified, not one re-derived after the destination moved (5.013289ms)
+✖ confirmation binds the reviewed replacement version even when the row outcome stays blocked (6.558902ms)
+✖ confirmation binds the reviewed replacement source even when the row outcome stays blocked (4.875196ms)
+✔ planning a bundle that was never staged (or expired) is refused as not found (0.830611ms)
+✔ execute threads this request's backstop and authorize into the apply port, and omits them when absent (1.978175ms)
+✔ created: no destination row for the id (6.686636ms)
+✔ unchanged: destination hash equals source hash (0.61699ms)
+✔ applied: destination hash differs from source but matches the recorded baseline (untouched since last sync) (0.555145ms)
+✔ conflict: destination hash differs from BOTH source and the recorded baseline — edited on the destination (0.855992ms)
+✔ conflict: no baseline exists at all for this peer+entity — never a free pass to overwrite (1.205388ms)
+✔ applied (D1): no recorded baseline, but the destination hash matches the shipped seed's hash — untouched since seed, not a conflict (0.973233ms)
+✔ conflict (D1): no recorded baseline AND the destination hash differs from the seed hash too — genuinely edited since seed, stays a conflict (0.543278ms)
+✔ conflict (D1): getSeedHash resolves null for this entity (not in the seed at all) — falls through to the ordinary no-baseline conflict (0.590809ms)
+✔ applied (S-F4): no baseline, no deps.getSeedHash, but the destination matches handler.seedHash — untouched since seed (0.844409ms)
+✔ applied (S-F4): deps.getSeedHash answers null, so handler.seedHash is consulted and matches (0.775749ms)
+✔ conflict (S-F4): no baseline and the destination differs from handler.seedHash — edited on live, offered as an overwrite (0.918525ms)
+✔ conflict (S-F4): a recorded baseline wins over handler.seedHash, which is never consulted (0.554371ms)
+✔ conflict (D1): a REAL recorded baseline always wins — getSeedHash is a fallback for 'no baseline yet' only, never consulted once one exists (0.537462ms)
+✔ blocked: precheck fails (e.g. slug taken) — never caught as a write-time constraint violation (0.952808ms)
+✔ blocked: a required blob is not available on this instance (0.747712ms)
+✔ NOT blocked when the required blob IS available (0.471129ms)
+✔ forced: a conflict (edited on destination) the operator explicitly selected becomes 'forced' and would write (0.511711ms)
+✔ forced: the 'no baseline at all' conflict variant can also be forced (0.612865ms)
+✔ a forced key on a slug-blocked row with a resolvable retire target becomes 'forced' with the target attached (0.593105ms)
+✔ the SAME slug-blocked row, with no forced key, stays 'blocked' but is offered (canOverwrite:true) with the target attached (0.627271ms)
+✔ a retire target that is ALSO part of this bundle is never offered — publishing the holder would move its own slug mid-run (0.666943ms)
+✔ a forced key never turns a missing-blob block into an overwrite offer (0.525379ms)
+✔ a slug-blocked row whose handler has no planRetire at all behaves exactly as before this change (0.459189ms)
+✔ a slug-blocked row whose planRetire resolves null (nothing to retire) stays blocked and unoffered (0.509549ms)
+✔ referencedBy: a forced retire row gets the live holders that still link to it, from a handler with referencesTo (0.720291ms)
+✔ referencedBy: a holder whose own referencing row writes in this same bundle is dropped — the incoming tree already wins (0.665789ms)
+✔ referencedBy: no row retires anything — referencesTo is never called, and no row gains the field (0.427725ms)
+✔ referencedBy: two retire rows collect both ids into a single referencesTo call, one per handler, not one per row (0.707965ms)
+✔ refused: unknown artifact format version rejects the whole bundle before any catalog or baseline read (0.515511ms)
+✔ refused: unknown per-type schema version rejects the whole bundle before baseline reads (0.314283ms)
+✔ refused: bundle.hashVersion mismatch refuses the WHOLE run — no rows, no baseline reads (0.406417ms)
+✔ one unknown baseline generation does not refuse matching content or unrelated entities (9.801043ms)
+✔ blocked: an entity type present in the bundle with NO registered handler on this instance (0.483109ms)
+✔ a single planImport call classifies a mixed batch correctly, each entity independently of the others (3.077054ms)
+✔ planImport's applyOrder places a dependency's type before its dependent's, and rows follow that order (0.720081ms)
+✔ a contributor registered AFTER an earlier planImport call is picked up by the very next call (0.452138ms)
+✔ real post contributor: created + byte-identical destination (815.396256ms)
+✔ real post contributor: blocked on a genuine slug collision against a DIFFERENT existing post (2.0952ms)
+✔ entityKey joins entityType and id with a stable separator (0.162684ms)
+✔ entityDisplayLabel prefers the slug, then the title, then name/filename (0.174966ms)
+✔ entityDisplayLabel names a content type by its label and a widget area by its region (0.103404ms)
+✔ entityDisplayLabel returns null rather than an unusable label (0.093557ms)
+✔ packedEntityLabel prefers a non-blank displayLabel, else names the entity from its state (0.101491ms)
+✔ every planned row carries the label its own packed state named it, whatever the outcome (11.276854ms)
+✔ L044 preconditions precede unchanged and forcing; missing blobs stop later reads (0.589602ms)
+✔ L044 schema refusal precedes every baseline read even after a compatible first entity (0.348694ms)
+✔ referencedBy: only the retire row whose target is still linked gains holders; other retiring and non-retiring rows stay as they are (1.042822ms)
+✔ only selected installed package subpaths can skip scanning; unknown files never read (2.111801ms)
+✔ resolution and read failures retain files for full scanning (0.605405ms)
+✔ export retains every file, skips identical bundled bytes, and scans changed/custom files (31.196839ms)
+✔ a same-size, same-mtime swap of themes/static/site/index.html after planning refuses before encoding (13.305982ms)
+✔ a linked directory for themes/static/site/index.html after planning refuses even with matching bytes (10.526332ms)
+✔ a same-size, same-mtime swap of overrides/site/index.html after planning refuses before encoding (12.80654ms)
+✔ a linked directory for overrides/site/index.html after planning refuses even with matching bytes (8.992213ms)
+✔ root v2 inventory matches every actual entry and its mapped path (3.869254ms)
+✔ stale disk files and unsafe aliases refuse before encoding (5.863032ms)
+✔ limits refuse and credential-looking files stay included before encoding (4.138208ms)
+✔ v2 requires the database and portable settings (1.214681ms)
+✔ cancellation and encoder failures preserve their error (1.955475ms)
+✔ buffered files, then the database, then disk files, then the manifest reach the encoder once (4.695703ms)
+✔ each archived entry keeps its exact bytes (4.162961ms)
+✔ the manifest inventories every entry with its size and sha256, in archive order (4.319049ms)
+✔ a plan without a database is refused with the exact v2 message before encoding (4.389457ms)
+✔ progress counts every archived entry and its bytes, not the manifest (3.838522ms)
+✔ the plan's expanded caps are checked before any path claim or read (0.592493ms)
+✔ an unsafe path is refused before any entry is scanned (0.640499ms)
+✔ a file at the manifest path is refused as a duplicate (0.345196ms)
+✔ a buffered file and the database at the same path are refused as a duplicate (0.2394ms)
+✔ credential-shaped bytes stay included with a warning (0.913676ms)
+✔ a disk file that changed since the plan is refused as stale (4.14688ms)
+✔ an already-aborted signal stops at the first entry (0.626924ms)
+✔ an aborted signal stops before encoding even when the plan has no disk files (0.332983ms)
+✔ a live signal lets the share encode (0.72926ms)
+✔ a manifest over 2 MiB is refused before encoding (8.175659ms)
+✔ a manifest of exactly 2 MiB is accepted (9.213773ms)
+✔ the file cap counts the manifest itself after every entry is scanned (157.10674ms)
+✔ an encoder size failure ('Folder is over the upload limit.') is reported as the archive cap (1.120021ms)
+✔ an encoder size failure ('Too many entries.') is reported as the archive cap (0.462283ms)
+✔ an encoder size failure ('Archive too LARGE') is reported as the archive cap (0.456552ms)
+✔ any other encoder Error propagates unchanged (0.543067ms)
+✔ a non-Error encoder failure propagates unchanged, even if it mentions a limit (0.568903ms)
+✔ a packaged theme outside the site shares its reviewed bytes (linked bundle: false) (14.055738ms)
+✔ a packaged theme outside the site shares its reviewed bytes (linked bundle: true) (11.624729ms)
+ℹ tests 209
+ℹ suites 0
+ℹ pass 204
+ℹ fail 5
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 12223.67508
+
+✖ failing tests:
+
+test at apps/website/src/features/media/__tests__/publish-content.apply.test.ts:1:21289
+✖ ordinary uploaded media retains its content hash after publishing (1.689314ms)
+  AssertionError [ERR_ASSERTION]: losing uploaded source metadata must not make the next publish look like a destination edit
+  + actual - expected
+  
+  + '976e4ba55f32ecd77d100a52833f9ea628857e7e749143254480e8ac6ad79108'
+  - '9484cd426e254b8345eb6e2490d0d55796b8bf57fa014688fa465f0ef03ba246'
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/media/__tests__/publish-content.apply.test.ts:635:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: '976e4ba55f32ecd77d100a52833f9ea628857e7e749143254480e8ac6ad79108',
+    expected: '9484cd426e254b8345eb6e2490d0d55796b8bf57fa014688fa465f0ef03ba246',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/media/__tests__/publish-content.overwrite.test.ts:1:8583
+✖ rollback cannot clobber an edit that restores the old source while audit recording fails (103.029134ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /Could not restore media/. Input:
+  
+  'Error: media file changed before metadata could be saved'
+  
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/media/__tests__/publish-content.overwrite.test.ts:150:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: Error: media file changed before metadata could be saved
+        at <anonymous> (/home/user/Tovu/apps/website/src/platform/db/repos/media-repo.ts:279:19)
+        at async <anonymous> (/home/user/Tovu/apps/website/src/platform/db/repos/media-repo.ts:269:9)
+        at async Object.begin (/home/user/Jini/packages/db/src/kernel/sqlite/driver.ts:113:24)
+        at async <anonymous> (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:123:16)
+        at async takingTurn (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:77:12)
+        at async SqliteMediaRepo.save (/home/user/Tovu/apps/website/src/platform/db/repos/media-repo.ts:267:7)
+        at async InMemoryChangeSetRepo.f.changeSets.insert (/home/user/Tovu/apps/website/src/features/media/__tests__/publish-content.overwrite.test.ts:147:5)
+        at async executeCommand (/home/user/Jini/packages/cms/src/core/commands/command.ts:229:5)
+        at async Object.apply (/home/user/Tovu/apps/website/src/features/publish-content/repo-handler.ts:303:39)
+        at async waitForActual (node:assert:646:5),
+    expected: /Could not restore media/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/media/__tests__/publish-content.overwrite.test.ts:1:11576
+✖ private submitted media refuses Overwrite during planning (78.999707ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  'object' !== 'string'
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/media/__tests__/publish-content.overwrite.test.ts:207:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'object',
+    expected: 'string',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/publish-content/__tests__/gated-hooks.confirmed-report.test.ts:1:6800
+✖ confirmation binds the reviewed replacement version even when the row outcome stays blocked (6.558902ms)
+  AssertionError [ERR_ASSERTION]: The validation function is expected to return "true". Received false
+  
+  Caught error:
+  
+  Error: the plan backing this confirmation has changed since it was confirmed; re-plan and re-confirm
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/publish-content/__tests__/gated-hooks.confirmed-report.test.ts:254:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: Error: the plan backing this confirmation has changed since it was confirmed; re-plan and re-confirm
+        at execute (/home/user/Jini/packages/core/src/gated-mutations/gateway.ts:210:11)
+        at async waitForActual (node:assert:646:5)
+        at async strict.rejects (node:assert:769:25)
+        at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/publish-content/__tests__/gated-hooks.confirmed-report.test.ts:254:5)
+        at async Test.run (node:internal/test_runner/test:1409:7)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:974:7),
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/publish-content/__tests__/gated-hooks.confirmed-report.test.ts:1:6800
+✖ confirmation binds the reviewed replacement source even when the row outcome stays blocked (4.875196ms)
+  AssertionError [ERR_ASSERTION]: The validation function is expected to return "true". Received false
+  
+  Caught error:
+  
+  Error: the plan backing this confirmation has changed since it was confirmed; re-plan and re-confirm
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/publish-content/__tests__/gated-hooks.confirmed-report.test.ts:254:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: Error: the plan backing this confirmation has changed since it was confirmed; re-plan and re-confirm
+        at execute (/home/user/Jini/packages/core/src/gated-mutations/gateway.ts:210:11)
+        at async waitForActual (node:assert:646:5)
+        at async strict.rejects (node:assert:769:25)
+        at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/publish-content/__tests__/gated-hooks.confirmed-report.test.ts:254:5)
+        at async Test.run (node:internal/test_runner/test:1409:7)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:974:7),
+    operator: 'rejects',
+    diff: 'simple'
+  }

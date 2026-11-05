@@ -1,0 +1,8 @@
+
+/home/user/Jini/packages/core/src/redact.ts
+  207:25  warning  Simplify this regular expression to reduce its runtime, as it has super-linear performance due to backtracking  sonarjs/super-linear-regex
+  724:3   warning  Reduce the total number of "break" and "continue" statements in this loop to use one at most                    sonarjs/too-many-break-or-continue-in-loop
+  746:97  warning  Extract this nested ternary operation into an independent statement                                             sonarjs/no-nested-conditional
+
+✖ 3 problems (0 errors, 3 warnings)
+

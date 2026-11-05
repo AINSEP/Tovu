@@ -1,0 +1,52 @@
+
+[1m[7m[36m RUN [39m[27m[22m [36mv2.1.9 [39m[90m/home/user/Jini/packages/http-kit[39m
+
+ [31m❯[39m src/__tests__/adapter-pins.test.ts [2m([22m[2m21 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[90m 55[2mms[22m[39m
+[31m   [31m×[31m adapter characterization before complexity refactor[2m > [22mredacts unknown thrown values with a correlated injected sink: false[90m 17[2mms[22m[31m[39m
+[31m     → expected [ [ …(2) ] ] to deeply equal [ [ …(2) ] ][39m
+[90mstderr[2m | src/__tests__/adapter.test.ts[2m > [22m[2mhttp adapter[2m > [22m[2mleaves no dangling close listener after a route that throws
+[22m[39m[@jini-ai/http-kit] internal error (GET /boom-cleanup, correlationId=35b10525-3910-4df6-bbbf-a738d69ee6b9) Error: boom
+    at Object.handle (/home/user/Jini/packages/http-kit/src/__tests__/adapter.test.ts:340:15)
+    at Object.GET /boom-cleanup (/home/user/Jini/packages/http-kit/src/adapter.ts:135:33)
+    at /home/user/Jini/packages/http-kit/src/__tests__/adapter.test.ts:347:43
+    at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at runSuite (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+
+ [32m✓[39m src/__tests__/adapter.test.ts [2m([22m[2m16 tests[22m[2m)[22m[90m 53[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[1m[7m Failed Tests 1 [27m[22m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[31m[1m[7m FAIL [27m[22m[39m src/__tests__/adapter-pins.test.ts[2m > [22madapter characterization before complexity refactor[2m > [22mredacts unknown thrown values with a correlated injected sink: false
+[31m[1mAssertionError[22m: expected [ [ …(2) ] ] to deeply equal [ [ …(2) ] ][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[2m  Array [[22m
+[2m    Array [[22m
+[2m      "[@jini-ai/http-kit] internal error (POST /pin, correlationId=ecb9d59c-6318-4ba7-bd14-3abd9b4031d5)",[22m
+[32m-     "secret=/private/database",[39m
+[31m+     "'secret=[REDACTED:labeled_secret]",[39m
+[2m    ],[22m
+[2m  ][22m
+
+[36m [2m❯[22m src/__tests__/adapter-pins.test.ts:[2m207:39[22m[39m
+    [90m205| [39m      [34mexpect[39m(consoleError)[33m.[39mnot[33m.[39m[34mtoHaveBeenCalled[39m()[33m;[39m
+    [90m206| [39m    } [35melse[39m {
+    [90m207| [39m      [34mexpect[39m(consoleError[33m.[39mmock[33m.[39mcalls)[33m.[39m[34mtoEqual[39m([[[32m`[@jini-ai/http-kit] i[39m…
+    [90m   | [39m                                      [31m^[39m
+    [90m208| [39m    }
+    [90m209| [39m    [34mexpect[39m(f[33m.[39mevents[33m.[39m[34mlistenerCount[39m([32m'close'[39m))[33m.[39m[34mtoBe[39m([34m0[39m)[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m1 passed[39m[22m[90m (2)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m36 passed[39m[22m[90m (37)[39m
+[2m   Start at [22m 07:45:25
+[2m   Duration [22m 1.08s[2m (transform 611ms, setup 0ms, collect 1.47s, tests 109ms, environment 0ms, prepare 156ms)[22m
+
