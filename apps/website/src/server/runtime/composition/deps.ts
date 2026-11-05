@@ -259,6 +259,7 @@ import { SqliteExternalMcpServerRepo } from "../../../features/external-mcp/exte
 import { SqliteExternalMcpToolApprovalRepo } from "#src/platform/db/sqlite/external-mcp-tool-approval-repo.sqlite";
 import { createSqliteConversationToolApprovalStore } from "#src/assistant/persistence/conversation-tool-approval-store";
 import {
+  DEFAULT_GC_GRACE_MS,
   LocalFsBlobStore,
   purgeMedia,
   SharpImageTransformer,
@@ -1509,7 +1510,7 @@ async function composeSiteRouteDeps(
           await purgeFormMedia({ deps: { mediaRepo: snapshotMedia, blobRepo: assetBlobRepo, renditionRepo: assetRenditionRepo, blobStore, clock, entryRefsRepo, postRepo: snapshotPosts }, input: { workspaceId: ws, id: mediaId } });
           const index = assets.findIndex(row => row.id === mediaId);
           if (index >= 0) assets.splice(index, 1);
-          await scheduleFormAttachmentCleanup({ outbox, workspaceId: ws, mediaId, sha256: asset.source.sha256, now: clock.nowMs() });
+          await scheduleFormAttachmentCleanup({ outbox, workspaceId: ws, mediaId, sha256: asset.source.sha256, now: clock.nowMs(), graceMs: DEFAULT_GC_GRACE_MS });
         };
       },
       scrub: ({ workspaceId: ws, entityId }) => formDeliveryRepo.scrubPurged({ workspaceId: ws, purged: entityType === "form" ? { formId: entityId } : { submissionId: entityId } }),
