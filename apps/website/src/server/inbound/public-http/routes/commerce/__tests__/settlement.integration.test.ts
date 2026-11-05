@@ -132,13 +132,15 @@ async function fixture(t: test.TestContext, dialect: Dialect) {
       expiresAt: new Date(now + 86_400_000).toISOString() });
   }
   const app = express();
+  let base = "";
   registerPaymentsWebhookRoute({ app, deps: { resolveReceiver: () => receiver } }, { prefix: "/api" });
   app.use(express.json({ limit: "4kb" }));
-  registerCommerceRoutes({ app, deps: { workspaceId: scope.workspaceId, clock, memberRepo, memberSessionRepo, commerce } });
+  registerCommerceRoutes({ app, deps: { workspaceId: scope.workspaceId, clock, memberRepo, memberSessionRepo,
+    commerce: { ...commerce, checkoutOrigin: async () => base } } });
   const server = app.listen(0, "127.0.0.1");
   await once(server, "listening");
   t.after(() => new Promise<void>(resolve => server.close(() => resolve())));
-  const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
   const request = (url: string, body?: unknown, member = "buyer") => fetch(base + url, {
     method: body === undefined ? "GET" : "POST", headers: { cookie: `tovu_member_session=${member}-token`, origin: base, "content-type": "application/json" },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
