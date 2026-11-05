@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { createHash, createHmac } from "node:crypto";
+import { createHash, createHmac, randomUUID } from "node:crypto";
 import { once } from "node:events";
 import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
@@ -8,6 +8,7 @@ import path from "node:path";
 import test from "node:test";
 import { pathToFileURL } from "node:url";
 import express from "express";
+import { sql } from "kysely";
 import { createCommerceServer, createOrderPaymentProjector, type CommerceOrderView } from "@jini-ai/commerce";
 import { commerceOrderPaymentRepoFor, commerceOrderRepoFor, commercePriceProviderRefRepoFor,
   commercePriceRepoFor, commerceProductRepoFor } from "@jini-ai/commerce/repo";
@@ -21,6 +22,7 @@ import { createPluginContributionCapture, createPluginContributionRegistry, crea
 import { InMemoryMemberRepo, InMemoryMemberSessionRepo } from "#src/features/members/repo.memory";
 import { openMemorySqliteKernel } from "#src/platform/db/kernel/drivers/sqlite";
 import { openPgliteKernel } from "#src/platform/db/kernel/drivers/pglite";
+import { openPostgresKernel } from "#src/platform/db/kernel/drivers/postgres";
 import { migrateCommerceDatabase } from "#src/platform/db/migrations/index";
 import { registerCommerceRoutes } from "../purchase.js";
 
@@ -28,6 +30,29 @@ const scope = { workspaceId: "shop", siteId: "site", providerId: "stripe", provi
 const total = { minorUnits: 2400, currency: "JPY" };
 const webhookSecret = "whsec_integration_fixture_not_real";
 const ordersPath = "/api/commerce/v1/workspaces/shop/orders";
+type Dialect = "sqlite" | "pglite" | "postgres";
+
+/** A dedicated pool's startup search_path scopes raw migration SQL and query builders alike. */
+async function kernelFor(t: test.TestContext, dialect: Dialect) {
+  if (dialect === "sqlite") return openMemorySqliteKernel<unknown>();
+  if (dialect === "pglite") return openPgliteKernel<unknown>();
+  const connection = new URL(process.env.COMMERCE_PG_URL ?? `postgresql://${encodeURIComponent(process.env.PGUSER ?? "la")}@/postgres`);
+  if (!process.env.COMMERCE_PG_URL) {
+    connection.searchParams.set("host", process.env.PGHOST ?? "/tmp");
+    if (process.env.PGPORT) connection.searchParams.set("port", process.env.PGPORT);
+  }
+  const admin = openPostgresKernel<unknown>({ connectionString: connection.href });
+  const schema = `commerce_settlement_${randomUUID().replaceAll("-", "")}`;
+  await admin.execute(sql`CREATE SCHEMA ${sql.id(schema)}`);
+  connection.searchParams.set("options", `-c search_path=${schema}`);
+  const kernel = openPostgresKernel<unknown>({ connectionString: connection.href, max: 3 });
+  t.after(async () => {
+    await kernel.close();
+    try { await admin.execute(sql`DROP SCHEMA ${sql.id(schema)} CASCADE`); }
+    finally { await admin.close(); }
+  });
+  return kernel;
+}
 
 /** Load the packaged provider through its public manifest; no source paths or version pins. */
 async function stripeHost() {
@@ -50,9 +75,9 @@ async function stripeHost() {
 }
 
 /** Real HTTP/member boundary, catalog, SQL ledger and provider; only Stripe's outbound HTTP is fake. */
-async function fixture(t: test.TestContext, dialect: "sqlite" | "pglite") {
-  const kernel = dialect === "sqlite" ? openMemorySqliteKernel<unknown>() : openPgliteKernel<unknown>();
-  t.after(() => kernel.close());
+async function fixture(t: test.TestContext, dialect: Dialect) {
+  const kernel = await kernelFor(t, dialect);
+  if (dialect !== "postgres") t.after(() => kernel.close());
   const { host, item } = await stripeHost();
   t.after(() => host.dispose({}));
   let now = 1_800_000_000_000, sequence = 0;
@@ -133,7 +158,7 @@ async function fixture(t: test.TestContext, dialect: "sqlite" | "pglite") {
     pending: () => ledger.transaction({ fn: tx => tx.listPendingOutbox({ limit: 10 }) }) };
 }
 
-for (const dialect of ["sqlite", "pglite"] as const) {
+for (const dialect of ["sqlite", "pglite", "postgres"] as const) {
   test(`[${dialect}] member purchase settles only from signed paid evidence and survives relay redelivery`, async t => {
     const f = await fixture(t, dialect);
     const created = await f.request(ordersPath, { priceId: "book-price", quantity: 2 });
