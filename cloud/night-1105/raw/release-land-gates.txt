@@ -1,0 +1,4 @@
+package.json: @jini-ai/cms still permits an old or mismatched artifact; publish the new exports, raise the dependency floor above 0.6.19 and regenerate its lockfile.
+package.json: @jini-ai/agent-plugins still permits an old or mismatched artifact; publish the new exports, raise the dependency floor above 0.6.19 and regenerate its lockfile.
+apps/admin/package.json: @jini-ai/cms still permits an old or mismatched artifact; publish the new exports, raise the dependency floor above 0.6.19 and regenerate its lockfile.
+apps/admin/package.json: @jini-ai/agent-plugins still permits an old or mismatched artifact; publish the new exports, raise the dependency floor above 0.6.19 and regenerate its lockfile.

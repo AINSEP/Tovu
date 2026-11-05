@@ -1,0 +1,149 @@
+✖ caught forbidden fetch still fails after every cleanup; broken cleanup=false (402.970785ms)
+✖ caught forbidden fetch still fails after every cleanup; broken cleanup=true (358.702844ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1081.332253
+
+✖ failing tests:
+
+test at packages/agent-plugins/__tests__/vitest-compat.test.mjs:9:3
+✖ caught forbidden fetch still fails after every cleanup; broken cleanup=false (402.970785ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /ok 2 - clean following test/. Input:
+  
+  '✖ caught forbidden fetch (64.226819ms)\n' +
+    '✔ clean following test (1.039197ms)\n' +
+    'ℹ tests 2\n' +
+    'ℹ suites 0\n' +
+    'ℹ pass 1\n' +
+    'ℹ fail 1\n' +
+    'ℹ cancelled 0\n' +
+    'ℹ skipped 0\n' +
+    'ℹ todo 0\n' +
+    'ℹ duration_ms 336.618196\n' +
+    '\n' +
+    '✖ failing tests:\n' +
+    '\n' +
+    'test at ../../tmp/jini-network-guard-ezfiDV/guard.test.mjs:9:9\n' +
+    '✖ caught forbidden fetch (64.226819ms)\n' +
+    '  AssertionError [ERR_ASSERTION]: no test may reach the real network\n' +
+    '  + actual - expected\n' +
+    '  \n' +
+    '  + [\n' +
+    "  +   'https://guard.example.test/forbidden'\n" +
+    '  + ]\n' +
+    '  - []\n' +
+    '  \n' +
+    '      at step (file:///workspace/Jini/packages/agent-plugins/__tests__/vitest-compat.mjs:242:54)\n' +
+    '      at runTeardownSteps (/workspace/Jini/packages/core/src/teardown.ts:19:17)\n' +
+    '      at async TestHook.run (node:internal/test_runner/test:1409:7)\n' +
+    '      at async Test.runHook (node:internal/test_runner/test:1289:9)\n' +
+    '      at async after (node:internal/test_runner/test:1342:9)\n' +
+    '      at async Test.run (node:internal/test_runner/test:1428:7)\n' +
+    '      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {\n' +
+    '    generatedMessage: false,\n' +
+    "    code: 'ERR_ASSERTION',\n" +
+    "    actual: [ 'https://guard.example.test/forbidden' ],\n" +
+    '    expected: [],\n' +
+    "    operator: 'deepStrictEqual',\n" +
+    "    diff: 'simple'\n" +
+    '  }\n'
+  
+      at TestContext.<anonymous> (file:///workspace/Jini/packages/agent-plugins/__tests__/vitest-compat.test.mjs:39:14)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: "✖ caught forbidden fetch (64.226819ms)\n✔ clean following test (1.039197ms)\nℹ tests 2\nℹ suites 0\nℹ pass 1\nℹ fail 1\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 336.618196\n\n✖ failing tests:\n\ntest at ../../tmp/jini-network-guard-ezfiDV/guard.test.mjs:9:9\n✖ caught forbidden fetch (64.226819ms)\n  AssertionError [ERR_ASSERTION]: no test may reach the real network\n  + actual - expected\n  \n  + [\n  +   'https://guard.example.test/forbidden'\n  + ]\n  - []\n  \n      at step (file:///workspace/Jini/packages/agent-plugins/__tests__/vitest-compat.mjs:242:54)\n      at runTeardownSteps (/workspace/Jini/packages/core/src/teardown.ts:19:17)\n      at async TestHook.run (node:internal/test_runner/test:1409:7)\n      at async Test.runHook (node:internal/test_runner/test:1289:9)\n      at async after (node:internal/test_runner/test:1342:9)\n      at async Test.run (node:internal/test_runner/test:1428:7)\n      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {\n    generatedMessage: false,\n    code: 'ERR_ASSERTION',\n    actual: [ 'https://guard.example.test/forbidden' ],\n    expected: [],\n    operator: 'deepStrictEqual',\n    diff: 'simple'\n  }\n",
+    expected: /ok 2 - clean following test/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at packages/agent-plugins/__tests__/vitest-compat.test.mjs:9:3
+✖ caught forbidden fetch still fails after every cleanup; broken cleanup=true (358.702844ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /ok 2 - clean following test/. Input:
+  
+  '✖ caught forbidden fetch (26.584348ms)\n' +
+    '✔ clean following test (0.923052ms)\n' +
+    'ℹ tests 2\n' +
+    'ℹ suites 0\n' +
+    'ℹ pass 1\n' +
+    'ℹ fail 1\n' +
+    'ℹ cancelled 0\n' +
+    'ℹ skipped 0\n' +
+    'ℹ todo 0\n' +
+    'ℹ duration_ms 289.114706\n' +
+    '\n' +
+    '✖ failing tests:\n' +
+    '\n' +
+    'test at ../../tmp/jini-network-guard-rwTn1v/guard.test.mjs:9:9\n' +
+    '✖ caught forbidden fetch (26.584348ms)\n' +
+    '  Error [AggregateError]: test teardown failed\n' +
+    '      at runTeardownSteps (/workspace/Jini/packages/core/src/teardown.ts:22:34)\n' +
+    '      at async TestHook.run (node:internal/test_runner/test:1409:7)\n' +
+    '      at async Test.runHook (node:internal/test_runner/test:1289:9)\n' +
+    '      at async after (node:internal/test_runner/test:1342:9)\n' +
+    '      at async Test.run (node:internal/test_runner/test:1428:7)\n' +
+    '      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {\n' +
+    '    [cause]: Error: cleanup canary\n' +
+    '        at step (file:///tmp/jini-network-guard-rwTn1v/guard.test.mjs:11:140)\n' +
+    '        at runTeardownSteps (/workspace/Jini/packages/core/src/teardown.ts:19:17)\n' +
+    '        at TestContext.<anonymous> (/workspace/Jini/packages/core/src/teardown.ts:41:17)\n' +
+    '        at TestHook.runInAsyncScope (node:async_hooks:227:14)\n' +
+    '        at TestHook.run (node:internal/test_runner/test:1402:25)\n' +
+    '        at TestHook.run (node:internal/test_runner/test:1757:18)\n' +
+    '        at TestHook.run (node:internal/util:581:20)\n' +
+    '        at Test.runHook (node:internal/test_runner/test:1289:20)\n' +
+    '        at after (node:internal/test_runner/test:1342:20)\n' +
+    '        at Test.run (node:internal/test_runner/test:1428:13),\n' +
+    '    [errors]: [\n' +
+    '      Error: cleanup canary\n' +
+    '          at step (file:///tmp/jini-network-guard-rwTn1v/guard.test.mjs:11:140)\n' +
+    '          at runTeardownSteps (/workspace/Jini/packages/core/src/teardown.ts:19:17)\n' +
+    '          at TestContext.<anonymous> (/workspace/Jini/packages/core/src/teardown.ts:41:17)\n' +
+    '          at TestHook.runInAsyncScope (node:async_hooks:227:14)\n' +
+    '          at TestHook.run (node:internal/test_runner/test:1402:25)\n' +
+    '          at TestHook.run (node:internal/test_runner/test:1757:18)\n' +
+    '          at TestHook.run (node:internal/util:581:20)\n' +
+    '          at Test.runHook (node:internal/test_runner/test:1289:20)\n' +
+    '          at after (node:internal/test_runner/test:1342:20)\n' +
+    '          at Test.run (node:internal/test_runner/test:1428:13),\n' +
+    '      AssertionError [ERR_ASSERTION]: no test may reach the real network\n' +
+    '      + actual - expected\n' +
+    '      \n' +
+    '      + [\n' +
+    "      +   'https://guard.example.test/forbidden'\n" +
+    '      + ]\n' +
+    '      - []\n' +
+    '      \n' +
+    '          at step (file:///workspace/Jini/packages/agent-plugins/__tests__/vitest-compat.mjs:242:54)\n' +
+    '          at runTeardownSteps (/workspace/Jini/packages/core/src/teardown.ts:19:17)\n' +
+    '          at async TestHook.run (node:internal/test_runner/test:1409:7)\n' +
+    '          at async Test.runHook (node:internal/test_runner/test:1289:9)\n' +
+    '          at async after (node:internal/test_runner/test:1342:9)\n' +
+    '          at async Test.run (node:internal/test_runner/test:1428:7)\n' +
+    '          at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)\n' +
+    '    ]\n' +
+    '  }\n'
+  
+      at TestContext.<anonymous> (file:///workspace/Jini/packages/agent-plugins/__tests__/vitest-compat.test.mjs:39:14)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: "✖ caught forbidden fetch (26.584348ms)\n✔ clean following test (0.923052ms)\nℹ tests 2\nℹ suites 0\nℹ pass 1\nℹ fail 1\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 289.114706\n\n✖ failing tests:\n\ntest at ../../tmp/jini-network-guard-rwTn1v/guard.test.mjs:9:9\n✖ caught forbidden fetch (26.584348ms)\n  Error [AggregateError]: test teardown failed\n      at runTeardownSteps (/workspace/Jini/packages/core/src/teardown.ts:22:34)\n      at async TestHook.run (node:internal/test_runner/test:1409:7)\n      at async Test.runHook (node:internal/test_runner/test:1289:9)\n      at async after (node:internal/test_runner/test:1342:9)\n      at async Test.run (node:internal/test_runner/test:1428:7)\n      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {\n    [cause]: Error: cleanup canary\n        at step (file:///tmp/jini-network-guard-rwTn1v/guard.test.mjs:11:140)\n        at runTeardownSteps (/workspace/Jini/packages/core/src/teardown.ts:19:17)\n        at TestContext.<anonymous> (/workspace/Jini/packages/core/src/teardown.ts:41:17)\n        at TestHook.runInAsyncScope (node:async_hooks:227:14)\n        at TestHook.run (node:internal/test_runner/test:1402:25)\n        at TestHook.run (node:internal/test_runner/test:1757:18)\n        at TestHook.run (node:internal/util:581:20)\n        at Test.runHook (node:internal/test_runner/test:1289:20)\n        at after (node:internal/test_runner/test:1342:20)\n        at Test.run (node:internal/test_runner/test:1428:13),\n    [errors]: [\n      Error: cleanup canary\n          at step (file:///tmp/jini-network-guard-rwTn1v/guard.test.mjs:11:140)\n          at runTeardownSteps (/workspace/Jini/packages/core/src/teardown.ts:19:17)\n          at TestContext.<anonymous> (/workspace/Jini/packages/core/src/teardown.ts:41:17)\n          at TestHook.runInAsyncScope (node:async_hooks:227:14)\n          at TestHook.run (node:internal/test_runner/test:1402:25)\n          at TestHook.run (node:internal/test_runner/test:1757:18)\n          at TestHook.run (node:internal/util:581:20)\n          at Test.runHook (node:internal/test_runner/test:1289:20)\n          at after (node:internal/test_runner/test:1342:20)\n          at Test.run (node:internal/test_runner/test:1428:13),\n      AssertionError [ERR_ASSERTION]: no test may reach the real network\n      + actual - expected\n      \n      + [\n      +   'https://guard.example.test/forbidden'\n      + ]\n      - []\n      \n          at step (file:///workspace/Jini/packages/agent-plugins/__tests__/vitest-compat.mjs:242:54)\n          at runTeardownSteps (/workspace/Jini/packages/core/src/teardown.ts:19:17)\n          at async TestHook.run (node:internal/test_runner/test:1409:7)\n          at async Test.runHook (node:internal/test_runner/test:1289:9)\n          at async after (node:internal/test_runner/test:1342:9)\n          at async Test.run (node:internal/test_runner/test:1428:7)\n          at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)\n    ]\n  }\n",
+    expected: /ok 2 - clean following test/,
+    operator: 'match',
+    diff: 'simple'
+  }

@@ -1,0 +1,1774 @@
+✔ desktop project saves and inventory share project_keys_list without opening owner.db or attaching (67.077047ms)
+✔ status and import on a profile without owner.db report none/empty and create no owner file (2.47287ms)
+✔ an empty legacy store (0 entries, 0 grants) reports empty and the CLI leaves deleting it to the desktop (14.42959ms)
+✔ a legacy store imports only on apply, non-default, reports site copies, and is never modified (106.15495ms)
+✔ an import whose label is already a project key reports label-taken and writes nothing (42.390318ms)
+✔ an apply is bound to the dry run the user confirmed: a source replaced meanwhile, or no digest, is refused and writes nothing (17370.170622ms)
+✔ missing owner.key with saved credentials requires recovery and never generates a replacement (18.464986ms)
+✔ relative and traversal paths are refused before any owner file is created or read (2.400701ms)
+✔ a backup import never moves or rewrites the file; empty imports nothing and damaged is refused (98.715008ms)
+✔ the registered CLI consumes secrets only on stdin and sanitizes malformed JSON (8344.166901ms)
+✔ Shared Keys lists custom and provider rows, replaces them without losing metadata, and deletes only unused rows (50.480362ms)
+✔ one owner card approves only its selected reference; metadata stays out of the model result (10.165069ms)
+✔ cancel, expiry and forged site identity never create a grant (2.978291ms)
+✔ permissions are rechecked after approval and deleted entries cannot be granted (2.400621ms)
+✔ new-key choice opens the normal secret card and model selection is rejected (2.06884ms)
+✔ a successful normal-card fallback creates its site grant through the common save-result owner (2.291946ms)
+✔ a save lands in the project store and a second site of the project reads it (13.656886ms)
+✔ an explicit local save stays editable with a configured owner store (4.849122ms)
+✔ existing local keys remain readable when an owner store is configured (2.454632ms)
+✔ a project save whose label this site already uses is refused (the site row would hide it) (2.113217ms)
+✔ a granted consumer cannot rename or rotate the shared owner entry (1.823931ms)
+✔ without a project store (Fly / production) saves go to the site vault and summaries carry no scope (2.661854ms)
+✔ a project row is rotated and deleted where it lives, for every site (3.007486ms)
+✔ a project row opens only with the project's key (1.708046ms)
+✔ an aborted save never writes the project half either (1.769649ms)
+✔ custom project keys stay hidden until attached and detach immediately across label and id lookups (2.050202ms)
+✔ the trusted owner replacement port rotates only a granted shared key (2.292447ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ capabilities recognize custom Vercel tokens without opening them or claiming verification (294.847593ms)
+✔ capabilities recognize custom Vercel tokens without opening them or claiming verification (137.980766ms)
+✔ buildStaticPublishRegistrations wires all five publish tools, each with an input schema (127.441542ms)
+✔ the catalog's risk map has an entry for every wired tool, matching its declared sideEffects (0.383719ms)
+✔ deployment_execute_static_publish's schema carries no token/credential field of any kind (0.487535ms)
+✔ preview/execute schemas name no host: target is any id the capabilities tool lists, not a fixed enum (0.509268ms)
+✔ preview/execute schemas provide concise approval field titles without dropping agent guidance (0.439543ms)
+✔ deployment_preview_static_publish refuses a field its host does not declare (a credential can never ride in as config) (141.375977ms)
+✔ deployment_execute_static_publish refuses a field its host does not declare, before any dialog is raised (143.650626ms)
+✔ deployment_preview_static_publish reports validity, computed base path, and credential presence — via isConfigured(), NEVER resolve() (133.934223ms)
+✔ preview and execute use the chosen credential when two compatible keys have no default (248.281168ms)
+✔ deployment_preview_static_publish reports invalid config and false credentials without throwing (132.304425ms)
+✔ deployment_get_static_publish_capabilities's description forbids ever asking the user to paste a token into chat (0.320414ms)
+✔ deployment_get_static_publish_capabilities lists exactly the registry's hosts, each with its label, config fields and vendor group from the descriptor (133.989778ms)
+✔ deployment_get_static_publish_capabilities reports per-provider readiness and saved credentials by id/label only, scoped to this workspace, and NEVER calls resolve() (141.420123ms)
+✔ deployment_get_static_publish_capabilities: a saved credential surfaces its server-derived hint and nothing more of the secret (138.066915ms)
+✔ deployment_get_static_publish_capabilities: a freshly saved s3-compatible credential reads as configured but not yet verified, through the real DB-backed credential source (149.744351ms)
+✔ deployment_get_static_publish_capabilities: a verified credential's accountLabel is surfaced so the model can default 'owner' instead of guessing (136.56434ms)
+✔ deployment_get_static_publish_capabilities: accountLabel is read from the default credential's DB column even when the in-memory verification cache is completely empty (Defect B — the cache is wiped by every process restart, the DB column is not) (129.173784ms)
+✔ deployment_get_static_publish_capabilities: accountLabel falls back to the cached verification result when the DEFAULT credential's DB column is null (an older row that has not healed yet) (127.65244ms)
+✔ deployment_get_static_publish_capabilities: the DB column wins over a stale/different cached value — the column is the healed, durable answer (140.031148ms)
+✔ deployment_get_static_publish_capabilities's description explains credentialConfigured as distinct from accountLabel — 'a credential exists but is unverified' must never read as 'nothing is saved' (0.687977ms)
+✔ deployment_get_static_publish_capabilities's description makes unverified environment credentials publishable without opening credential_save (0.496008ms)
+✔ deployment_get_static_publish_capabilities's description forbids ever offering an example/placeholder account name when accountLabel is unknown (0.546204ms)
+✔ deployment_get_static_publish_capabilities: a recorded lastPublish is surfaced per provider, and defaults to null when nothing has been published there yet (134.861301ms)
+✔ confirm: a real publish records history in the injected historyStore, readable back through deployment_get_static_publish_capabilities (162.832163ms)
+✔ publishing descriptions use known accountLabel and ask only for missing or ambiguous accounts (0.438051ms)
+✔ deployment_get_static_publish_capabilities: a saved credential that has NEVER been verified is reported as configured but NOT ready (149.101787ms)
+✔ deployment_get_static_publish_capabilities: a saved credential the provider REJECTED is reported as configured but NOT ready, with the rejection reason (163.107809ms)
+✔ deployment_get_static_publish_capabilities: a saved credential whose last check could not reach the provider is NOT ready, but the guidance must NOT read as 'your credential is bad' (133.855271ms)
+✔ deployment_get_static_publish_capabilities requires deployments.read and rejects extra input (189.444757ms)
+✔ no credential configured for the requested provider: an actionable result naming the provider and the Static Site tab, WITHOUT ever raising a dialog (142.634932ms)
+✔ Cloudflare Pages configured with a token but no account id: the REAL composed env-fallback credential source names the missing field, before any dialog (129.55777ms)
+✔ requires deployments.publish, checked before any dialog is raised (135.714725ms)
+﹣ execute: exported bytes reach publishStaticSite and the same call reports the provider outcome (0.5304ms) # port test: real site export binds loopback
+✔ provider rejection: an actionable message is returned, never a raw response body or the credential (323.776056ms)
+✔ confirm: a target that reports a non-'ready' terminal status returns a genuine partial outcome — published:true but reachable:false, never a plain success (147.157682ms)
+✔ confirm: a full 'ready' success explicitly reports reachable:true, not merely the absence of reachable:false (128.460976ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ confirm: a full success ALSO emits a succeeded outcome surface, same uri as the confirmation, with the live URL as an open-link action (143.369349ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ confirm: a partial (uploaded, not yet reachable) outcome ALSO emits its OWN partial-state surface — never rendered as success or failure (131.897859ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ provider rejection ALSO emits a failed-state outcome surface carrying the SAME actionable message the model got, never the credential (133.806487ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ publish card saves attach to their site and reopening updates the sole attached non-default (325.412554ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ propose-credential replaces its form with the saved hint and not-tested outcome when the host has no verifier (141.353559ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ propose-credential replaces an invalid submission with its real failure outcome (145.886344ms)
+✔ deployment_propose_custom_provider_credential's schema carries no credential field: only target, plus string pre-fill hints the handler checks against the host (0.279401ms)
+✔ propose-credential: a secret field is refused as a pre-fill hint, so a secret can never come from the chat (136.477746ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ propose-credential works for any host with a credential spec: a netlify form masks the token and saves a netlify row (153.98015ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ propose-credential with a project store: cards have no site-only checkbox; forged opt-out values do not change the save target (147.245724ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ propose-credential: an optional secret the person leaves blank (Vercel's Blob token) is not provided, so the save still succeeds (139.847006ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ the secure card keeps a blank Blob token until Remove is explicitly selected, preserving the publishing token (168.970556ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ with no emitSurface, the credential form is refused outright — no exchange is ever opened, nothing saved (141.731769ms)
+✔ requires deployments.credentials.write, checked before any form is raised (124.456146ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ the rendered form pre-fills non-secret hints and marks ONLY secretAccessKey as masked (159.982452ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ submit: a first-time save creates exactly one s3-compatible row, auto-defaulted, and NEVER echoes any field value back (288.10055ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ submit: a SECOND save updates the existing row rather than creating a duplicate — one row per provider, matching the admin's own flat-row UX (166.880215ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+{"toolId":"credential_save","exchangeId":"72f9759e-ec61-4cb7-aab5-deca224ac530","saved":false}
+✔ submit: a blank required field is rejected server-side with an actionable message, never a saved row — form.ts's own novalidate makes this the real enforcement point (145.368593ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ cancel: nothing is saved, and the SAME call reports the cancellation (149.429742ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ re-calling the tool while a form is pending opens a SEPARATE form — it does not answer the first one (132.929194ms)
+✔ deployment_generate_bucket_hosting_setup requires deployments.read, checked before any content is composed (124.812795ms)
+✔ deployment_generate_bucket_hosting_setup rejects an unrecognized target rather than silently returning generic guidance (124.746323ms)
+✔ deployment_generate_bucket_hosting_setup: an unrecognized target is a ToolInputError (400), not a bare Error (redacted 500) (135.476716ms)
+✔ deployment_propose_custom_provider_credential: an unrecognized target is a ToolInputError (400), not a bare Error (redacted 500) (136.518897ms)
+✔ deployment_generate_bucket_hosting_setup: a host whose plugin module has no hosting-setup steps is refused with the reason (131.414129ms)
+✔ blank/omitted endpoint infers plain AWS S3 and returns a bucket-substituted public-read policy JSON, no warning (135.487252ms)
+✔ a Cloudflare R2 endpoint infers cloudflare-r2 and warns about the different credential system (133.878696ms)
+✔ a DigitalOcean Spaces endpoint infers digitalocean-spaces and warns about the different credential system (127.206094ms)
+✔ deployment_preview_static_publish: a github-pages preview with an explicit branch is accepted and does not throw (143.127022ms)
+✔ deployment_preview_static_publish: a vercel preview with a teamId is accepted and does not throw (158.091235ms)
+✔ deployment_preview_static_publish: a github-pages preview with owner/repo omitted reports the missing required field as invalid, never throws (214.288288ms)
+✔ deployment_preview_static_publish: an unrecognized target throws before any permission check or credential read (145.845673ms)
+✔ deployment_preview_static_publish: an unrecognized target is a ToolInputError (400), not a bare Error (redacted 500) (126.1956ms)
+✔ deployment_execute_static_publish: an unrecognized target is a ToolInputError (400), not a bare Error (redacted 500) (127.135877ms)
+✔ deployment_execute_static_publish: an invalid config is a ToolInputError (400), not a bare Error (redacted 500) (138.448708ms)
+✔ confirm: a partial outcome's deploymentId and basePath are both forwarded through to the tool result when the target reports them (184.061785ms)
+✔ confirm: a full success's deploymentId is forwarded through to the tool result when the target reports one (136.672649ms)
+✔ confirm: with no buildTarget override injected, the REAL default buildJiniTarget dispatch runs and a credential missing a required s3-compatible field is still refused cleanly — no real network ever touched (206.602817ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ propose-credential form: an unanswered form expires and reports 'expired', not a hang or a throw (157.847012ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ propose-credential form: a cancelled run abandons the form and reports 'abandoned', not a hang or a throw (142.191403ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+{"toolId":"credential_save","exchangeId":"eb511de9-ad95-4029-a5f4-656f473e8500","saved":false}
+✔ submit: a non-Error thrown by the credential write step still returns a safe string message, never the raw thrown value (156.565359ms)
+✔ n06: repository write runs without a confirmation channel (129.235964ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ propose-credential: abort during sealing writes no credential (138.049726ms)
+✔ capabilities list explicit host compatibility without leaking keys across a shared vendor (162.468551ms)
+✔ deployment_preview_static_publish returns the provider inspection for the person's selected connection, never the credential (131.176341ms)
+✔ deployment_preview_static_publish refuses a malformed credentialId (42) before any provider read (141.228871ms)
+✔ deployment_preview_static_publish refuses a malformed credentialId ("   ") before any provider read (133.550602ms)
+✔ deployment_execute_static_publish sends a custom-domain publish through the shared gateway tool, refusing when it is absent (126.563435ms)
+✔ static publish tool returns consent choices before export or provider writes (128.839448ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ L210 post-save probe preserves saved connection outcome (213.942668ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ L210 post-save probe preserves connected connection outcome (160.019819ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ L210 post-save probe preserves auth connection outcome (161.012346ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ L210 post-save probe preserves timeout connection outcome (136.46698ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ L210 post-save probe preserves unreachable connection outcome (137.4481ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ L210 post-save probe preserves throws connection outcome (141.537697ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-credential-cards] Optional card lookup failed; using the default credential form.
+✔ L210 credential hints reject secret and invalid values before displaying a form (153.016318ms)
+✔ L210 execute consent refusal preserves service availability true (124.651221ms)
+✔ L210 execute consent refusal preserves service availability false (147.53436ms)
+✔ deployment_generate_bucket_hosting_setup reports a host module's own refusal (Error or not) as a ToolInputError with its text (263.185379ms)
+✔ deployment_execute_static_publish: a call cancelled while readiness is checked is abandoned before any export or publish (145.041957ms)
+✔ hosts that declare no config or credential fields name that in their refusals (137.73391ms)
+✔ a throwing optional plugin card loader still opens and submits the default publish-host form (130.580704ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+{"toolId":"credential_save","exchangeId":"25bddbbc-7ba1-4580-8cbf-5943d80bbe51","saved":false}
+✔ publish-host replacement HTTP 401 keeps the old sealed key (248.076864ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+{"toolId":"credential_save","exchangeId":"b7af3562-ca71-4db9-b20e-c019ff9c77a6","saved":false}
+✔ publish-host replacement HTTP 503 keeps the old sealed key (146.091265ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ publish-host update with a blank secret skips the replacement check and keeps the stored secret (150.826334ms)
+✔ capabilities offer every installed host with truthful activation and enable guidance (136.792241ms)
+✔ static publish returns a job before export finishes, survives call abort, and exposes scoped final results (159.479765ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[routes/system/publish-credentials] {
+  errorId: '7185b496-5419-4249-ac53-d2e6f30f8ed7',
+  diagnostic: 'Error: attachment unavailable\n' +
+    '    at Object.use (/workspace/Tovu/apps/website/src/features/deployments/publish-credentials/__tests__/project-scope.unit.test.ts:280:35)\n' +
+    '    at async <anonymous> (/workspace/Tovu/apps/website/src/server/inbound/admin-http/routes/system/publish-credentials.ts:298:43)\n' +
+    '    at async TestContext.<anonymous> (/workspace/Tovu/apps/website/src/features/deployments/publish-credentials/__tests__/project-scope.unit.test.ts:308:3)\n' +
+    '    at async Test.run (node:internal/test_runner/test:1409:7)\n' +
+    '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)'
+}
+✔ publish replacement requires the trusted card port and rechecks its grant after sealing (61.766337ms)
+✔ regression: an API key saved with Works for vercel lands in the project and deploy finds it (8.277523ms)
+✔ publish-host card (vercel): a save lands in the project store and every site of the project publishes with it (1.725602ms)
+✔ local publish-host credentials override a granted owner key (2.223573ms)
+✔ explicit local API keys remain available for publish selection (1.075352ms)
+✔ invalid publish scopes do not persist a key (0.448947ms)
+✔ readiness honors an attached project key among non-default peers and refuses an unattached key (4.98661ms)
+✔ a site-copy request cannot alter an existing shared publish key (1.654825ms)
+✔ create and rename translate hidden project label conflicts without attaching or changing either row (3.150953ms)
+✔ a stale project update remains a CAS conflict when no other row owns the requested label (1.73043ms)
+✔ update, heal and delete change a project row where it lives, through the abort guard (4.272533ms)
+✔ no project store (Fly): saves stay in the site vault and summaries carry no scope (3.157331ms)
+✔ deploy inventory and default selection see attached keys only; create returns its hidden saved row (1.520423ms)
+✔ a Deployments-page save attaches its project key to this site and survives a list reload, without attaching another site (19.149819ms)
+✔ attached inventory includes nondefaults while the vault default remains the stored default (3.246897ms)
+✔ unattached writes stay hidden; attachment, isolation and detach apply to every read immediately (1.154421ms)
+✔ cancellation after sealing cannot persist through the separate owner-create port (1.718712ms)
+✔ consumer cannot enumerate, guess, or mutate an ungranted owner entry (3.347709ms)
+✔ site metadata list excludes ungranted entries while owner picker can see them (2.036681ms)
+✔ model grant without an interactive approval channel fails closed and forged site input is refused (1.635647ms)
+✔ lookup does not read the owner vault for a guessed ungranted identity (0.355295ms)
+✔ human-create port cannot replace, delete, or enumerate existing owner entries (2.737759ms)
+✔ trusted replacement rechecks the grant inside the owner transaction (0.8091ms)
+✔ site reference stores only credentialId and removal touches only that reference (5.527726ms)
+✔ retaining a sealed owner row cannot bypass a later site revocation (2.319016ms)
+✔ a site receives only an active owner key handle and cannot derive owner key bytes (0.992276ms)
+✔ a revoke committed during asynchronous crypto prevents returning plaintext (0.509628ms)
+✔ save attaches to this site immediately, and detach leaves the saved row (4.835701ms)
+✔ model grant attempts always use the owner picker; revocation needs no second approval card (2.928656ms)
+✔ restart is fail-closed without a human channel, cancellation keeps the site running, and confirmation requests one supervisor restart (5.635056ms)
+✔ site_restart returns the supervisor refusal and never claims an unacknowledged success (1.337506ms)
+✔ provider inventory uses manifest labels and live-apply fallback returns restart without losing the attachment (0.898494ms)
+✔ a site override shadows an attached project provider in use results and inventory (0.565653ms)
+✔ a committed provider save attaches immediately and retains the restart outcome (1.347201ms)
+✔ publish-host uses the common save-result attachment path and becomes visible on reload (1.047449ms)
+✔ source-control uses the common save-result attachment path and becomes visible on reload (0.573725ms)
+✔ provider-settings uses the common save-result attachment path and becomes visible on reload (0.612603ms)
+✔ plugin-provider uses the common save-result attachment path and becomes visible on reload (0.582748ms)
+✔ site-only media saves, failed saves and site overrides never acquire project attachments (0.337319ms)
+✔ model inventory never reveals other sites using a granted key (0.535998ms)
+✔ exports and imports contain no saved keys or inherited grants (inSite) (4487.46002ms)
+✔ exports and imports contain no saved keys or inherited grants (appData) (4359.219195ms)
+[agent-plugins:migration-complete] /tmp/tovu-import-b-56KTGz/sites/portable/agent-plugins/ws/workspace-local
+✔ edited bundled plugin labels survive production export and quarantined import (10320.432703ms)
+✔ retired saved-key capture refuses before touching owner or site storage (1.414703ms)
+✔ capture is refused even when source and project keys are available (4.074083ms)
+✔ historical key bundles require fresh site approval (password supplied: false) (0.946086ms)
+✔ historical key bundles require fresh site approval (password supplied: true) (0.521576ms)
+✔ historical key bundles require fresh site approval (password supplied: true) (0.67651ms)
+✔ cancelled import is refused before any recipient resource opens (1.030644ms)
+[routes/system/source-control-credentials] {
+  errorId: '528e3bf8-38af-457d-b4ff-e94b672d32eb',
+  diagnostic: 'Error: attachment unavailable\n' +
+    '    at Object.use (/workspace/Tovu/apps/website/src/features/source-control/__tests__/project-scope.unit.test.ts:188:35)\n' +
+    '    at async <anonymous> (/workspace/Tovu/apps/website/src/server/inbound/admin-http/routes/system/source-control-credentials.ts:173:43)\n' +
+    '    at async TestContext.<anonymous> (/workspace/Tovu/apps/website/src/features/source-control/__tests__/project-scope.unit.test.ts:215:3)\n' +
+    '    at async Test.run (node:internal/test_runner/test:1409:7)\n' +
+    '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)'
+}
+✔ a git host token saves to the project store and a second site of the project backs up with it (11.302696ms)
+✔ local source-control keys take precedence with an owner store configured (2.339248ms)
+✔ invalid source-control scopes are refused before any write (0.902581ms)
+✔ update and delete change a project row where it lives (3.973803ms)
+✔ shared owner metadata remains unchanged after a refused site-copy save (1.688476ms)
+✔ local source-control keys remain independently owned after shared revocation (2.690587ms)
+✔ no project store (Fly): tokens stay in the site vault and summaries carry no scope (1.442826ms)
+✔ git-host defaults, descriptions and lists only expose attached project rows (1.567474ms)
+✔ a sole attached nondefault opens through the vault; multiple attached nondefaults refuse ambiguity (3.185063ms)
+✔ a Source control-page save is visible after reload on this site only; site-only keys acquire no project attachment (12.975368ms)
+✔ a create-only owner conflict stays a source-control duplicate with safe guidance (2.089972ms)
+✔ canonical API key binding wins over stale source-control copies and revocation has no fallback (1.212268ms)
+✔ provider save reports each declared contract once and never sends field values to telemetry (58.061424ms)
+[admin-route] {
+  errorId: '5e085fff-962a-4e87-a3b6-54deb57f883a',
+  diagnostic: 'Error: private vault location\n' +
+    '    at TestContext.<anonymous> (/workspace/Tovu/apps/website/src/server/inbound/admin-http/routes/plugins/__tests__/unit/provider-settings-route.unit.test.ts:35:82)\n' +
+    '    at Test.runInAsyncScope (node:async_hooks:227:14)\n' +
+    '    at Test.run (node:internal/test_runner/test:1402:25)\n' +
+    '    at Test.processPendingSubtests (node:internal/test_runner/test:974:18)\n' +
+    '    at Test.postRun (node:internal/test_runner/test:1542:19)\n' +
+    '    at Test.run (node:internal/test_runner/test:1467:12)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n' +
+    '    at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)'
+}
+✔ project key use reports a typed unknown-key refusal as 400 and keeps opaque failures private (21.097345ms)
+✔ GET lists the declared fields (first declaration of a name wins); nothing saved yet (5.121984ms)
+✔ PUT saves public values and secrets; responses never carry a secret; a blank secret keeps the saved one (9.575039ms)
+✔ a provider settings save attaches to this site and reopening shows the saved fields (9.307034ms)
+✔ a changed public field never keeps a saved secret: it must be entered again, so a saved key can't be redirected to another server (11.546032ms)
+✔ a public field's declared default and options reach the card; filling a blank with its default is no change (6.83727ms)
+✔ PUT refuses undeclared names, non-text values and a malformed body (7.193437ms)
+[admin-route] {
+  errorId: '6fcefab2-3735-480a-b0a1-55c3aa584f29',
+  diagnostic: 'Error: disk\n' +
+    '    at Object.discoverPlugins (/workspace/Tovu/apps/website/src/server/inbound/admin-http/routes/plugins/__tests__/unit/provider-settings-route.unit.test.ts:192:73)\n' +
+    '    at resolveCard (/workspace/Tovu/apps/website/src/server/inbound/admin-http/routes/plugins/provider-settings.ts:83:30)\n' +
+    '    at async <anonymous> (/workspace/Tovu/apps/website/src/server/inbound/admin-http/routes/plugins/provider-settings.ts:105:20)'
+}
+[admin-route] {
+  errorId: '59797a6a-c6c7-4752-9ee8-f0ea15cda72e',
+  diagnostic: 'Error: disk\n' +
+    '    at Object.discoverPlugins (/workspace/Tovu/apps/website/src/server/inbound/admin-http/routes/plugins/__tests__/unit/provider-settings-route.unit.test.ts:192:73)\n' +
+    '    at resolveCard (/workspace/Tovu/apps/website/src/server/inbound/admin-http/routes/plugins/provider-settings.ts:83:30)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n' +
+    '    at async <anonymous> (/workspace/Tovu/apps/website/src/server/inbound/admin-http/routes/plugins/provider-settings.ts:111:20)'
+}
+✔ refusals: other workspace 404, plugin without declared settings 404, no settings store 503, denied 403, store failure 500 (15.236867ms)
+✖ a project store that could not open this run: a save is refused 503 with the cause, never a bare internal error (4.877445ms)
+✔ a key saved the retired way (API credential `plugin:<id>`) shows a re-entry notice until new settings are saved (Codex fix-lane MED) (6.304157ms)
+✔ the retired-key check failing never breaks the card (2.5006ms)
+✔ the route carries requiredUnless to the card and enforces token or explicit local auth on save (5.333934ms)
+✔ the route returns requiredWhen and enforces the declared default before saving (7.108679ms)
+[admin-route] {
+  errorId: '504b199e-6625-471d-8cc8-728efbe4eeb3',
+  diagnostic: 'Error: db down\n' +
+    '    at Object.config.read (/workspace/Tovu/apps/website/src/server/inbound/admin-http/routes/plugins/__tests__/unit/provider-settings-route.unit.test.ts:280:37)\n' +
+    '    at currentProviderConfig (/workspace/Tovu/apps/website/src/server/runtime/composition/provider-settings-save.ts:69:17)\n' +
+    '    at saveProviderSettings (/workspace/Tovu/apps/website/src/server/runtime/composition/provider-settings-save.ts:95:68)\n' +
+    '    at <anonymous> (/workspace/Tovu/apps/website/src/server/inbound/admin-http/routes/plugins/provider-settings.ts:113:27)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)'
+}
+✔ saved settings this machine can't open (lost or re-minted store key): the card reads as not configured with a notice, and a save overwrites them (7.690958ms)
+✔ admin attaches an encoded provider key with its save permission and returns live apply status (4.800619ms)
+✔ admin save calls live reapply and preserves restart fallback in the response (2.888395ms)
+✔ project key use denies base readers before looking up any existing or missing key (3.769365ms)
+✔ admin save preserves committed settings but returns the safe plugin startup failure (2.922637ms)
+✔ admin rejects non-auth headers before persistence and permits only declared auth alternatives (8.388669ms)
+✔ owner browser approval grants one reference and never submits a target site identity (5.220102ms)
+✔ API credentials, other actors, foreign workspaces and nonlocal requests cannot browse or grant (2.289553ms)
+✔ revoked RBAC or instance admission refuses before discovery (0.696771ms)
+✔ the selected key's instance permission is checked before granting (0.566444ms)
+✔ admin inventory keeps an unattached key visible, reports exact site usage, and never grants runtime access by listing (55.926895ms)
+✔ local admin save preserves a separate shared key (13.630564ms)
+✔ admin inventory denies unauthorized readers before inspecting project metadata (4.796573ms)
+✔ Access Tokens project add attaches only the current site; site-only add never attaches (26.128861ms)
+✔ an archive failure returns the actual job step and redacted copyable details (37.000329ms)
+✔ POST / logs unexpected share failures with the public error id (2.988396ms)
+✔ GET / logs unexpected share failures with the public error id (2.288572ms)
+✔ GET /static/options logs unexpected share failures with the public error id (1.998344ms)
+✔ POST /static logs unexpected share failures with the public error id (2.633912ms)
+✔ POST /share/acknowledge logs unexpected share failures with the public error id (1.963421ms)
+✔ GET /share/download logs unexpected share failures with the public error id (1.859974ms)
+✔ DELETE /share logs unexpected share failures with the public error id (2.004022ms)
+✔ PUT /artifacts/ABCDEFGHIJKLMNOP/site.tovu.zip logs unexpected share failures with the public error id (5.218029ms)
+✔ DELETE /artifacts/ABCDEFGHIJKLMNOP/site.tovu.zip logs unexpected share failures with the public error id (2.306979ms)
+✔ POST /share/password logs unexpected share failures with the public error id (1.890852ms)
+✔ share refusals retain their public diagnosis and do not log an internal incident (1.802087ms)
+✔ shared diagnostics remain correlated without a telemetry provider (0.739475ms)
+✔ password reveal denies other principals, workspaces, origins, tools and machine credentials (22.245112ms)
+[migrations] /tmp/tovu-project-credentials-vVtm2J/Tovu/site-a/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_archive_legacy_commerce, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata, 0038_newsletter_sending_index, 0039_owner_recovery_codes
+[migrations]   vault coverage site-assistant: rows=0, envelopes=0
+[migrations]   vault coverage personal-execution: rows=0, envelopes=0
+[migrations]   vault coverage media-provider: rows=0, envelopes=0
+[migrations]   vault coverage custom: rows=0, envelopes=0
+[migrations]   vault coverage publish-peer: rows=0, envelopes=0
+[migrations]   vault coverage database-destination: rows=0, envelopes=0
+[migrations]   vault coverage vendor: rows=0, envelopes=0
+[migrations]   vault coverage source-control: rows=0, envelopes=0
+[migrations]   vault coverage mcp-env: rows=0, envelopes=0
+[migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[migrations] /tmp/tovu-project-credentials-vVtm2J/Tovu/site-b/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_archive_legacy_commerce, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata, 0038_newsletter_sending_index, 0039_owner_recovery_codes
+[migrations]   vault coverage site-assistant: rows=0, envelopes=0
+[migrations]   vault coverage personal-execution: rows=0, envelopes=0
+[migrations]   vault coverage media-provider: rows=0, envelopes=0
+[migrations]   vault coverage custom: rows=0, envelopes=0
+[migrations]   vault coverage publish-peer: rows=0, envelopes=0
+[migrations]   vault coverage database-destination: rows=0, envelopes=0
+[migrations]   vault coverage vendor: rows=0, envelopes=0
+[migrations]   vault coverage source-control: rows=0, envelopes=0
+[migrations]   vault coverage mcp-env: rows=0, envelopes=0
+[migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[migrations] /tmp/tovu-project-publish-credentials-Zp6MRP/Tovu/site-a/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_archive_legacy_commerce, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata, 0038_newsletter_sending_index, 0039_owner_recovery_codes
+[migrations]   vault coverage site-assistant: rows=0, envelopes=0
+[migrations]   vault coverage personal-execution: rows=0, envelopes=0
+[migrations]   vault coverage media-provider: rows=0, envelopes=0
+[migrations]   vault coverage custom: rows=0, envelopes=0
+[migrations]   vault coverage publish-peer: rows=0, envelopes=0
+[migrations]   vault coverage database-destination: rows=0, envelopes=0
+[migrations]   vault coverage vendor: rows=0, envelopes=0
+[migrations]   vault coverage source-control: rows=0, envelopes=0
+[migrations]   vault coverage mcp-env: rows=0, envelopes=0
+[migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+✔ a key saved from site A lands in project.db and site B cannot use it until attached (1939.242118ms)
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[migrations] /tmp/tovu-project-publish-credentials-Zp6MRP/Tovu/site-b/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_archive_legacy_commerce, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata, 0038_newsletter_sending_index, 0039_owner_recovery_codes
+[migrations]   vault coverage site-assistant: rows=0, envelopes=0
+[migrations]   vault coverage personal-execution: rows=0, envelopes=0
+[migrations]   vault coverage media-provider: rows=0, envelopes=0
+[migrations]   vault coverage custom: rows=0, envelopes=0
+[migrations]   vault coverage publish-peer: rows=0, envelopes=0
+[migrations]   vault coverage database-destination: rows=0, envelopes=0
+[migrations]   vault coverage vendor: rows=0, envelopes=0
+[migrations]   vault coverage source-control: rows=0, envelopes=0
+[migrations]   vault coverage mcp-env: rows=0, envelopes=0
+[migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[migrations] /tmp/tovu-project-credentials-down-dKlV2j/site/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_archive_legacy_commerce, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata, 0038_newsletter_sending_index, 0039_owner_recovery_codes
+[migrations]   vault coverage site-assistant: rows=0, envelopes=0
+[migrations]   vault coverage personal-execution: rows=0, envelopes=0
+[migrations]   vault coverage media-provider: rows=0, envelopes=0
+[migrations]   vault coverage custom: rows=0, envelopes=0
+[migrations]   vault coverage publish-peer: rows=0, envelopes=0
+[migrations]   vault coverage database-destination: rows=0, envelopes=0
+[migrations]   vault coverage vendor: rows=0, envelopes=0
+[migrations]   vault coverage source-control: rows=0, envelopes=0
+[migrations]   vault coverage mcp-env: rows=0, envelopes=0
+[migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+✔ a publish-host connection saved from site A deploys from site B only after attachment (1605.765887ms)
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+[migrations] /tmp/tovu-local-keys-stay-0bVfST/sites/existing/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_archive_legacy_commerce, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata, 0038_newsletter_sending_index, 0039_owner_recovery_codes
+[migrations]   vault coverage site-assistant: rows=0, envelopes=0
+[migrations]   vault coverage personal-execution: rows=0, envelopes=0
+[migrations]   vault coverage media-provider: rows=0, envelopes=0
+[migrations]   vault coverage custom: rows=0, envelopes=0
+[migrations]   vault coverage publish-peer: rows=0, envelopes=0
+[migrations]   vault coverage database-destination: rows=0, envelopes=0
+[migrations]   vault coverage vendor: rows=0, envelopes=0
+[migrations]   vault coverage source-control: rows=0, envelopes=0
+[migrations]   vault coverage mcp-env: rows=0, envelopes=0
+[migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+✔ an owner-store outage leaves local saves usable (812.535144ms)
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 1,
+      envelopes: 1,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ opening Shared Keys never moves, edits or grants an existing site's local key (842.102011ms)
+✔ desktop and localhost share one app-data owner store regardless of sites root (1.071836ms)
+✔ an explicitly configured localhost profile remains available in production mode (0.448346ms)
+✔ a newer project ledger refuses an older runtime instead of ignoring access-boundary migrations (48.90647ms)
+✔ project.db and its key share canonical app-data across sites roots (31.544238ms)
+✔ the project key is minted once (0600, under ~/.tovu, never in the sites root) and then reused (6.002102ms)
+✔ a damaged key file is refused, never overwritten; a non-EEXIST write failure surfaces (3.512216ms)
+✔ minting never exposes the final key file before its bytes are in (a concurrent opener never reads an empty key) (7.333479ms)
+✔ an existing key file must be a regular file owned by this user; modes broader than 0600 are narrowed (3.186335ms)
+✔ a fresh project.db runs in WAL mode (web and desktop share it without rollback-journal contention) (19.4829ms)
+✔ web and desktop open the SAME project.db: a save through one is read by the other; secrets are sealed at rest (33.313987ms)
+✔ two processes opening a fresh project at the same moment create ONE key and read each other's saves (1910.920417ms)
+✔ reopening keeps the data (own migration ledger, idempotent); a different project key cannot read the sealed rows (35.463279ms)
+✔ credentials save in the project store: sealed with the project key, read back after reopening (0001 admits credential kinds) (29.061574ms)
+✔ 0001 rebuilds a 0000 project vault: rows kept, credential kinds admitted, labels unique (2.946273ms)
+✔ a project.db that cannot be migrated is closed and the error surfaces (10.106751ms)
+✔ a sites root reached through a symlink, or spelled in another case on a case-insensitive disk, is the same project (1.33956ms)
+✔ an already-canonical sites root's id is the hash of the root as given (realpath changes nothing) (1.024014ms)
+✔ a sites root that does not exist yet gets the id it will have once created, even under a symlinked parent (0.926808ms)
+✔ 0002 is recorded once; a pre-existing provider row is never auto-attached and two openers share references (21.755467ms)
+✔ a transient SQLITE_BUSY while enabling project WAL is retried before migration (21.73041ms)
+✔ project WAL retry is bounded and closes the failed handle (8.292025ms)
+✔ a non-busy project WAL error is propagated immediately and closes the handle (7.424135ms)
+✔ provider usage checks one selected owner identity without listing the vault (19.53581ms)
+✔ owner picker inventory excludes unrelated API connections before offering keys (20.400434ms)
+✔ vault adapter: nothing saved reads as null; a write is read back as one row; the public read returns secret names only (2.491728ms)
+✔ vault adapter: malformed rows read as empty, never as values (0.447445ms)
+✔ a site without a stable id keeps saving locally (0.586364ms)
+✔ effective provider usage reports independently owned local settings first (0.621457ms)
+✔ precedence: without a project store the site vault is the source (0.178269ms)
+✔ ungranted sites cannot read or overwrite owner provider keys and revoke ignores site copies (1.297607ms)
+✔ a project provider save commits its attachment before returning usage (0.573735ms)
+✔ an unavailable owner store leaves local reads and saves working (0.310688ms)
+✔ vault adapter: a save that fails part-way leaves the previous settings + secrets pair whole (Codex fix-lane HIGH) (0.504761ms)
+✔ vault adapter: a read racing a rotation never pairs the old endpoint with the new secret (Codex fix-lane HIGH) (0.490169ms)
+✔ vault adapter: only a failure to OPEN a listed row is unreadable; a store failure (SQLITE_BUSY) surfaces, so a save never drops a valid key (1.766704ms)
+✔ vault adapter: a row this machine cannot open reads as unreadable (listed but not openable); any other failure surfaces as itself (0.619945ms)
+✔ OTel's old auth choice is normalized in both vault scopes, without writing or mutating the saved snapshot (2.445958ms)
+✔ an attached project's migrated OTel choice feeds boot and cards without mutating the shared owner entry (1.937492ms)
+✔ legacy header-only OTel rows survive boot/status/save, and changing their destination still requires re-entry (1.108301ms)
+✔ core applies another plugin's declared migrations and leaves the same raw row unchanged without that hook (0.320714ms)
+✔ local provider settings survive owner outages and override an attached shared row (0.216476ms)
+[shared-keys] Provider settings could not be read. Retry Shared Keys; local settings remain available. Details: P25_SHARED_PROVIDER_READ_FAILED; secret values omitted.
+✔ local provider keys survive revocation and owner-store outages (3.938589ms)
+✔ revocation during a provider read discards the opened config (1.87031ms)
+✔ a granted provider settings card cannot replace the shared owner key (5.507505ms)
+✔ a shared read failure is unconfigured, never a boot refusal (3.316501ms)
+✔ browser restart after a committed attached save produces a success card with reload guidance (26.06758ms)
+✔ the chat card saves the provider's settings into the PROJECT store, not the site vault; the key never reaches the result, transcript or model input (5.094712ms)
+✔ a Custom… choice saves the typed host (3.320687ms)
+✔ the shared re-entry rule: a changed host with the saved key kept is refused and nothing is written (6.636147ms)
+✔ a blank key with an unchanged host keeps the saved key (3.121467ms)
+✔ a provider plugin that is not installed opens no card (2.862286ms)
+✔ the chat save refuses a missing conditional token with exact guidance and accepts explicit no auth (7.555394ms)
+✔ provider_status reports presence only: configured, missing, store, never a value (2.464266ms)
+✔ a different key card explains site isolation and retains the manifest's help and purposes (0.312411ms)
+✔ provider_status exposes manifest requirements and choices with the command that opens settings (0.634267ms)
+✔ the provider_status settings command opens the manifest card without an agent plugin (3.757296ms)
+✔ assistant reports saved settings with the plugin startup reason and correction, never restart guidance (3.996306ms)
+✔ production saved-key composition cannot capture owner keys or restore inherited access (9.691585ms)
+ℹ tests 297
+ℹ suites 0
+ℹ pass 295
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 1
+ℹ todo 0
+ℹ duration_ms 58065.172597
+
+✖ failing tests:
+
+test at apps/website/src/server/inbound/admin-http/routes/plugins/__tests__/unit/provider-settings-route.unit.test.ts:1:12358
+✖ a project store that could not open this run: a save is refused 503 with the cause, never a bare internal error (4.877445ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  200 !== 503
+  
+      at TestContext.<anonymous> (/workspace/Tovu/apps/website/src/server/inbound/admin-http/routes/plugins/__tests__/unit/provider-settings-route.unit.test.ts:200:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 200,
+    expected: 503,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 /workspace/Jini/packages/ui
+
+ ✓ src/features/panel-kit/__tests__/ErrorNotice.test.tsx (3 tests) 110ms
+
+ Test Files  1 passed (1)
+      Tests  3 passed (3)
+   Start at  18:17:43
+   Duration  933ms (transform 71ms, setup 138ms, collect 35ms, tests 110ms, environment 376ms, prepare 83ms)
+

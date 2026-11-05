@@ -1,0 +1,13 @@
+
+ RUN  v2.1.9 /workspace/Jini/packages/chat
+
+ ✓ src/server/durable-runs/__tests__/recover-boundaries.test.ts (65 tests) 81ms
+ ✓ src/server/durable-runs/__tests__/recover.test.ts (40 tests) 80ms
+ ✓ src/react/features/chat-pane/__tests__/components/AgentRuntimePicker.access-note-icon.unit.test.tsx (4 tests) 308ms
+ ✓ src/react/features/chat-pane/__tests__/components/AgentRuntimePicker.native-policy.unit.test.tsx (7 tests) 562ms
+
+ Test Files  4 passed (4)
+      Tests  116 passed (116)
+   Start at  18:15:29
+   Duration  15.86s (transform 8.35s, setup 1.43s, collect 22.85s, tests 1.03s, environment 1.53s, prepare 474ms)
+

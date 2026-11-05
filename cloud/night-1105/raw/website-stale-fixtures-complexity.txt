@@ -1,0 +1,12 @@
+
+/workspace/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.unit.test.ts
+  701:23  warning  Extract this increment operation into a dedicated statement  sonarjs/no-nested-incdec
+
+/workspace/Tovu/apps/website/src/server/inbound/admin-http/http/__tests__/ranked-user-facing-errors.test.ts
+  26:48  warning  Review this potentially hard-coded password  sonarjs/no-hardcoded-passwords
+
+/workspace/Tovu/apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/import-errors.test.ts
+  102:1  warning  Add at least one assertion to this test case  sonarjs/assertions-in-tests
+
+✖ 3 problems (0 errors, 3 warnings)
+

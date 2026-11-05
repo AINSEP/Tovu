@@ -1,0 +1,24 @@
+✔ new desktop copy is translated in all Tovu locales (3.762474ms)
+✔ the external-Stop confirm is translated in every locale and keeps `npm run dev` literal (0.439673ms)
+✔ the last-window quit ask is translated in every locale and keeps its count (0.536599ms)
+✔ runtimeLocale reads the navigator language and falls back to en without a navigator (0.315186ms)
+✔ closing the last window with a running site holds the close and asks on that window (1.736679ms)
+✔ Quit quits once; Cancel keeps the window and a later close asks again (7.77876ms)
+✔ with no running site the close goes through untouched, as it did before this ask (0.253632ms)
+✔ a site this app only attached to is not counted, and the box says it stays running (1.403227ms)
+✔ closing a window that is not the last never asks; the one left then counts as last (0.319932ms)
+✔ a second close while the box is open is held without a second box (0.190988ms)
+✔ once any quit has started no close asks, whatever is still open (0.744312ms)
+✔ a quit that starts while the box is open dismisses it and is not held by it (0.283477ms)
+✔ a box that fails is logged, leaves the window open, and does not wedge the next close (8.800151ms)
+✔ the box's buttons: Quit first, Escape cancels, plain buttons on Windows (0.493645ms)
+✔ the box follows the app's locale (0.211639ms)
+✔ main wires the ask to both app window kinds, never a capture window, and to every quit (1.30025ms)
+ℹ tests 16
+ℹ suites 0
+ℹ pass 16
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 438.997825

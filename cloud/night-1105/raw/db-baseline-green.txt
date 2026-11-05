@@ -1,0 +1,51 @@
+▶ 0000_legacy_baseline on Postgres (PGlite)
+  ✖ applies on an empty database and matches schema.postgres.ts at head (8176.373527ms)
+  ✔ the frozen baseline creates the composite FK (the 42830 case), then head retires core commerce (4965.940882ms)
+  ✔ a prototype schema with no ledger is refused, not overwritten (2636.683228ms)
+✖ 0000_legacy_baseline on Postgres (PGlite) (15782.567019ms)
+ℹ tests 3
+ℹ suites 1
+ℹ pass 2
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 18960.926233
+
+✖ failing tests:
+
+test at apps/website/src/platform/db/migrations/__tests__/postgres-baseline.test.ts:1:1054
+✖ applies on an empty database and matches schema.postgres.ts at head (8176.373527ms)
+  AssertionError [ERR_ASSERTION]: table owner_recovery_codes
+  + actual - expected
+  ... Skipped lines
+  
+    {
+      columns: [
+        'code_hash text NOT NULL',
+        'principal_id text NOT NULL',
+        'workspace_id text NOT NULL'
+  ...
+        'owner_recovery_codes_code_hash_not_null NOT NULL code_hash',
+  -     'owner_recovery_codes_workspace_id_principal_id_code_hash_pk PRIMARY KEY (workspace_id, principal_id, code_hash)',
+        'owner_recovery_codes_principal_id_not_null NOT NULL principal_id',
+        'owner_recovery_codes_workspace_id_not_null NOT NULL workspace_id',
+  +     'owner_recovery_codes_workspace_id_principal_id_code_hash_pk PRIMARY KEY (workspace_id, principal_id, code_hash)'
+      ],
+      indexes: [
+        'owner_recovery_codes_workspace_id_principal_id_code_hash_pk CREATE UNIQUE INDEX owner_recovery_codes_workspace_id_principal_id_code_hash_pk ON owner_recovery_codes USING btree (workspace_id, principal_id, code_hash)'
+      ]
+    }
+  
+      at TestContext.<anonymous> (/workspace/Tovu/apps/website/src/platform/db/migrations/__tests__/postgres-baseline.test.ts:73:61)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Promise.all (index 0)
+      at async Suite.run (node:internal/test_runner/test:1905:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: { columns: [ 'code_hash text NOT NULL', 'principal_id text NOT NULL', 'workspace_id text NOT NULL' ], indexes: [ 'owner_recovery_codes_workspace_id_principal_id_code_hash_pk CREATE UNIQUE INDEX owner_recovery_codes_workspace_id_principal_id_code_hash_pk ON owner_recovery_codes USING btree (workspace_id, principal_id, code_hash)' ], constraints: [ 'owner_recovery_codes_code_hash_not_null NOT NULL code_hash', 'owner_recovery_codes_principal_id_not_null NOT NULL principal_id', 'owner_recovery_codes_workspace_id_not_null NOT NULL workspace_id', 'owner_recovery_codes_workspace_id_principal_id_code_hash_pk PRIMARY KEY (workspace_id, principal_id, code_hash)' ] },
+    expected: { columns: [ 'code_hash text NOT NULL', 'principal_id text NOT NULL', 'workspace_id text NOT NULL' ], indexes: [ 'owner_recovery_codes_workspace_id_principal_id_code_hash_pk CREATE UNIQUE INDEX owner_recovery_codes_workspace_id_principal_id_code_hash_pk ON owner_recovery_codes USING btree (workspace_id, principal_id, code_hash)' ], constraints: [ 'owner_recovery_codes_code_hash_not_null NOT NULL code_hash', 'owner_recovery_codes_workspace_id_principal_id_code_hash_pk PRIMARY KEY (workspace_id, principal_id, code_hash)', 'owner_recovery_codes_principal_id_not_null NOT NULL principal_id', 'owner_recovery_codes_workspace_id_not_null NOT NULL workspace_id' ] },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

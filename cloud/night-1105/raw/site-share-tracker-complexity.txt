@@ -1,0 +1,6 @@
+
+/workspace/Tovu/apps/website/src/server/inbound/admin-http/routes/system/__tests__/site-share-failures.test.ts
+  16:27  warning  Review this potentially hard-coded password  sonarjs/no-hardcoded-passwords
+
+✖ 1 problem (0 errors, 1 warning)
+

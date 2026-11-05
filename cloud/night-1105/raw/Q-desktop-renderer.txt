@@ -1,0 +1,28 @@
+✔ one snapshot drives the chip and site figure, warnings and panel-open cadence request (1.447554ms)
+✔ Job M formats the owner's 0.55 GB footprint as ~0.6 GB (0.202316ms)
+✔ M2 labels footprint, committed, RSS and mixed fallback in memory copy (0.212781ms)
+✔ M2 shows provenance on toolbar, tooltip, site card, panel totals and individual process rows (99.506487ms)
+✔ Job M displays the same 0.55 GB memory reading on the toolbar and the site card (4.212845ms)
+✔ chip is a focusable dialog trigger; all readers share data and close restores collapsed cadence (13.386251ms)
+✔ groups join by identity: Tovu app first, external/stopped sites excluded, stale process rows withdrawn (0.431671ms)
+✔ panel is a Process | PID | Memory | CPU table with a subtotal row per group and right-aligned numbers (11.828762ms)
+✔ panel Stop reaches the existing stop API once, applies main record and shows a rejection (30.979856ms)
+✔ unavailable snapshot shows unavailable chip/cards, and stopped cards hide the previous figure (3.327429ms)
+✔ an externally served running card has no local-memory failure readout (2.685521ms)
+✔ starting a site refreshes the real sampler, hook and card while the toolbar cache is still young (8.250154ms)
+✔ visible badge and panel use main cadence; hidden documents and unmount release polling (1121.909439ms)
+✔ a panel change waits for an outstanding badge read and discards its result (3.835165ms)
+✔ a site lifecycle change refreshes the collapsed reading without waiting a minute (3.61327ms)
+✔ starts hidden without a read; IPC failures withdraw stale data and retry promptly (3.046866ms)
+✔ launch badge recovers from two initial sampler failures within ten seconds (5.146392ms)
+✔ a missing resource preload remains unavailable and creates no timer (2.179758ms)
+✔ hide/show during a read discards that reading and retries without overlapping (2.201721ms)
+✔ late replies after unmount cannot rearm polling (2.344186ms)
+ℹ tests 20
+ℹ suites 0
+ℹ pass 20
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2056.447737

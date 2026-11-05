@@ -1,0 +1,332 @@
+✔ a typed chat message resolves a parked assistant_ask_choice instead of leaving it to time out (60.275892ms)
+✔ a typed answer is reported as the administrator's words, never as one of the options the model offered (16.334909ms)
+✔ a typed answer that is not a string is refused rather than delivered as an answer (7.656677ms)
+✔ an empty typed answer is not treated as an answer at all (6.230997ms)
+✔ a parked ask-choice rejects a non-string typed answer without inventing a submission (3.410874ms)
+✔ a parked ask-choice rejects a whitespace typed answer without inventing a submission (2.253248ms)
+✔ a typed answer that names no exchange still reaches the one question outstanding for that human (7.349374ms)
+✔ a typed answer with nothing outstanding is refused, not executed as a fresh tool call (5.349627ms)
+✔ a typed answer never reaches another human's open question (8.166787ms)
+✔ secret-card POSTs only answer a principal-bound open exchange and never execute a fresh tool (140.042194ms)
+✔ agent_plugin_connect: a bundled plugin with one OAuth server shows exactly one https sign-in link and no token (61.30885ms)
+✔ agent_plugin_connect: a fake callback flipping the row to connected resolves { status: 'connected' } (11.144547ms)
+✔ agent_plugin_connect: a plugin with no OAuth server is refused (3.562784ms)
+✔ connect_token_only_uses_plugin_card_without_oauth (3.241408ms)
+✔ token-only card cancelled is never reported connected (2.467401ms)
+✔ token-only card expired is never reported connected (2.838571ms)
+✔ token-only card abandoned is never reported connected (2.476214ms)
+✔ token-only card refused is never reported connected (2.802917ms)
+✔ token-only card invalid is never reported connected (2.557397ms)
+✔ token-only card unavailable is never reported connected (2.309033ms)
+✔ token-only card error is never reported connected (2.195851ms)
+✔ token-only connect reuses a stored credential without prompting or changing grants (9.461739ms)
+✔ oauth_with_token_fallback_still_starts_oauth (3.707451ms)
+✔ a saved token with a different owner cannot report this plugin connected (5.030196ms)
+✔ a saved token with a different endpoint cannot report this plugin connected (4.010678ms)
+✔ token-only declarations refuse ambiguous or invalid targets and provide a key-card path without an adapter (6.880757ms)
+✔ agent_plugin_connect: an OAuth server provisioning skipped (legacy sse) is refused before any sign-in starts (2.378647ms)
+✔ agent_plugin_connect: a skipped stdio helper does not block its OAuth server (4.176699ms)
+✔ agent_plugin_connect: a device-code grant is refused rather than showing a link with no code (2.965001ms)
+✔ OAuth metadata failure reports that no card opened and points to the plugin key card (3.028206ms)
+✔ agent_plugin_connect: a failed 'connected' card update never turns a real connection into a tool failure (3.677587ms)
+✔ agent_plugin_connect: refuses unknown-plugin before starting sign-in (2.434182ms)
+✔ agent_plugin_connect: refuses two-servers before starting sign-in (3.007185ms)
+✔ agent_plugin_connect: refuses no-oauth before starting sign-in (2.676877ms)
+✔ agent_plugin_connect: refuses no-surface before starting sign-in (2.874495ms)
+✔ agent_plugin_connect: abort closes the exchange and returns waiting (3.064181ms)
+✔ agent_plugin_connect: denied permission provisions no row and emits no card (0.550019ms)
+✔ agent_plugin_connect: an already saved oauth starts no sign-in and preserves the row (3.232275ms)
+✔ agent_plugin_connect: an already saved static-token starts no sign-in and preserves the row (5.858816ms)
+✔ agent_plugin_connect: an already signed-in OAuth row gets the plugin's declared default tools, with no new sign-in (6.463277ms)
+[agent-plugins:migration-complete] /tmp/connect-installed-TaOrx9/ws/77777777-7777-4777-8777-777777777777
+✖ agent_plugin_connect resolves the installed package without an injected resolver (2175.959002ms)
+✔ agent_plugin_connect: signed-in servers recover their tools while another server still needs sign-in (22.146137ms)
+✔ agent_plugin_connect aborts during the polling sleep and cleans up promptly (6.031836ms)
+✔ connect pre-card behavior: unknown (3.547069ms)
+✔ connect pre-card behavior: no-oauth-service (4.152853ms)
+✔ connect pre-card behavior: already-connected (2.631839ms)
+✔ connect pre-card behavior: multiple (2.689747ms)
+✔ connect pre-card behavior: no-emitter (2.268491ms)
+✔ connect closes its exchange when the initial waiting card fails (3.84586ms)
+✔ connect refuses a different plugin's endpoint before OAuth: provisioning-refused (6.074641ms)
+✔ connect refuses a different plugin's endpoint before OAuth: ownership-changed (3.552077ms)
+✔ agent_plugin_connect: a non-http TOVU_PUBLIC_URL falls back to the derived origin (6.812884ms)
+✔ agent_plugin_connect: a malformed TOVU_PUBLIC_URL is treated as absent (3.279285ms)
+✔ agent_plugin_connect: no configured or derived origin leaves the redirect to the OAuth service (16.45204ms)
+✔ agent_plugin_connect: an OAuth validation refusal becomes a ToolInputError; any other failure propagates unchanged (9.904256ms)
+✔ agent_plugin_connect: a server key with no usable connection id is refused before any sign-in (7.278146ms)
+✔ agent_plugin_connect: an abort landing during a poll read ends the wait without sleeping (2.859031ms)
+✔ agent_plugin_connect: default poll timing still reports a connection observed on the first poll (5.842561ms)
+✔ defaultResolveInstalledAgentPlugin returns null for a plugin this workspace never installed (2.888716ms)
+✔ agent_plugin_connect carries plugin-owned connection and permission copy into the sign-in card (4.903745ms)
+✔ OAuth card copy comes only from the trusted merged loader and the declaring plugin (14.549972ms)
+✔ OAuth validation classification is supplied by the port before any card opens (6.111917ms)
+✔ MCP reuses browser cookies with an isolated name and callback scope (1.759723ms)
+✔ F1: handoffs expire, consume before actor checks, and refuse replays (1.603408ms)
+✔ F1: handoffs use Jini's bounded cache and evict the oldest at capacity (14.426116ms)
+✔ F1: callback cookie is host-only, HttpOnly, Secure, Lax, and callback scoped on set and clear (0.692104ms)
+✔ F1: missing, malformed and duplicate cookies fail closed; unrelated cookies cannot replace proof (0.239501ms)
+✔ F1: host links expose only an opaque handoff; path recognition rejects trailing and foreign paths (0.414565ms)
+✔ redirect state requires the starting browser proof, including after service reconstruction (27.795428ms)
+✔ beginConnect persists the discovered protected resource (discovered endpoints) (8.132415ms)
+✔ beginConnect persists the discovered protected resource (typed endpoints) (4.405493ms)
+✔ redirect, code exchange and refresh retain the stored resource (7.630777ms)
+✔ device start and poll use the stored resource (7.174751ms)
+✔ redirect, code exchange and refresh support legacy rows without a resource (6.154361ms)
+✔ device start and poll support legacy rows without a resource (4.34975ms)
+✔ saving an OAuth connection stores its identity in plaintext and its secret sealed (1.874006ms)
+✔ the admin read model never carries a token, a refresh token, or a client secret (5.080823ms)
+✔ a completed handshake writes expiresAt in PLAINTEXT — readable with no sealer at all (4.100223ms)
+✔ beginConnect moves the row to `pending` without contacting the provider for the redirect grant (2.092276ms)
+✔ a provider that is unreachable at connect time fails ONCE, fast, and is not retried (3.556954ms)
+✔ a replayed code reaches the provider once and its single-use check rejects it (7.081991ms)
+✔ a refresh reseals the token WITHOUT losing the client secret sharing its blob (5.767017ms)
+✔ refresh POST carries the saved refresh token and unsealed client secret to the token endpoint (5.839637ms)
+✔ a provider answering invalid_grant transitions to needs_reauth, clears the token, and surfaces a non-retryable error (11.774586ms)
+✔ markNeedsReauth clears the token but PRESERVES the client secret sharing its blob (16.63634ms)
+✔ needs_reauth is DURABLE — a second call does not re-probe the provider (14.411574ms)
+✔ a TRANSIENT refresh failure does not mark the connection needs_reauth (8.275371ms)
+✔ boot-time federation injects the access token into the operator's chosen env variable (11.539512ms)
+✔ a needs_reauth connection is REPORTED at boot, not silently dropped (12.937652ms)
+✔ an OAuth row read by a process with no token resolver is reported rather than launched credential-free (4.114105ms)
+✔ reportAuthFailure marks needs_reauth, preserves the client secret, and surfaces the same terminal error tokenResolver throws (52.976023ms)
+✔ reportAuthFailure is idempotent against a connection already needs_reauth — it does not re-clear or re-timestamp the row (96.950402ms)
+✔ reportAuthFailure passes a non-OAuth connection's error through unchanged — there is no reauth state to record (58.628619ms)
+✔ disconnect clears the token, preserves the client secret, and returns the row to disconnected (114.854193ms)
+✔ disconnect stops the read model claiming a stored token — even though the sealed blob survives (25.21735ms)
+✔ the device grant returns a user code and verification URL, and never exposes the device code (11.202159ms)
+✔ the device grant needs no redirect URI at all — beginConnect starts without one (7.576876ms)
+✔ the authorization-code grant with no redirect URI is refused with a message naming TOVU_PUBLIC_URL (6.924853ms)
+✔ polling a device authorization reports pending, then connects, and stores the token (42.943724ms)
+✔ a declined device authorization is terminal and drops the in-flight attempt (23.776427ms)
+✔ re-pointing an OAuth connection's client id discards the token it no longer matches (8.939852ms)
+✔ a save that changes nothing about the OAuth binding leaves the live connection alone (23.316624ms)
+✔ the settings deep link escapes its server id (0.261995ms)
+✔ the connection gate lets a healthy OAuth connection through (4.33632ms)
+✔ the connection gate refuses a needs_reauth connection with the terminal, model-legible error (5.837324ms)
+✔ the gate still refuses a needs_reauth ROSTER connection with the unchanged reauth error (6.868619ms)
+✔ the connection gate reads the ROW, so the daemon sees a state the web server discovered (5.605414ms)
+✔ the connection gate passes through a connection id it has no row for — presets have none (1.007109ms)
+✔ a preset call is not refused for a missing row, even for a connection id that looks like a roster one (1.337057ms)
+✔ the gate refuses an OAuth connection the operator disconnected (4.045692ms)
+✔ the gate refuses a non-preset call with no admission origin (3.073686ms)
+✔ the connection gate ignores a static_env server, which has no authorization to lose (1.620994ms)
+✔ sealed redirect state survives rebuilding the service and carries only encrypted verifier material (3.060776ms)
+✔ expired, tampered and oversize sealed redirect state cannot reach exchange (3.288269ms)
+✔ sealed redirect state rejects another workspace, server and exact callback URI (4.435909ms)
+✔ disconnect still clears an UNOPENABLE blob and reaches disconnected — a rotated site key must not wedge the escape hatch (4.005892ms)
+✔ a re-seal that fails once and then recovers is retried transparently — the clear still succeeds (4.23706ms)
+✔ disconnect does NOT wipe the client secret when the KEYRING re-seal leg keeps failing, and surfaces the failure instead of reporting a false success (4.227386ms)
+✔ markNeedsReauth records the durable state even when the blob became unopenable mid-session (5.886437ms)
+✔ reportAuthFailure throws the TERMINAL error even when the status write fails — the do-not-retry signal is the guarantee (3.989937ms)
+✔ a clear-token failure that is NOT the secret store still propagates — the degrade is targeted, not a blanket swallow (2.995247ms)
+✔ a nonrotating refresh token stays sealed for the next refresh (5.541017ms)
+✔ vault-backed memory writes publish both envelopes, status and expiry together (7.23469ms)
+✔ a carried vault pointer deleted by another writer cannot resurrect its old payload (1.608846ms)
+✔ the vault envelope stays opaque in JSON and a plain envelope cannot lose its ownership check (1.29987ms)
+✔ returned memory vault envelopes cannot mutate stored credentials through aliases (1.652572ms)
+✔ a post-connect step that throws is logged and does not fail the sign-in (4.317151ms)
+✔ a post-connect step that throws a non-Error is logged by its string form (3.121197ms)
+✔ connecting a server id with no row is refused, naming the id (1.026518ms)
+✔ connecting a row that does not use OAuth is refused, naming the row (1.214191ms)
+✔ a stored endpoints value that is valid JSON but not an object is read as no endpoints (1.824972ms)
+✔ a corrupt stored endpoints value is read as no endpoints (2.125905ms)
+✔ a row with no stored scopes asks the provider for none (3.172655ms)
+✔ stored scopes that are not a JSON array ask the provider for none (1.945424ms)
+✔ corrupt stored scopes ask the provider for none (1.645311ms)
+✔ a provider-less row with only token and device endpoints connects by device code under a connection-scoped provider (2.196443ms)
+✔ a callback for a row that names neither a provider nor a token endpoint is refused with the operator's fix (1.402405ms)
+✔ a callback for a row with no client id is refused, naming the missing client id (1.280761ms)
+✔ connecting a stdio row that names no provider and no endpoints is refused before any request (1.405289ms)
+✔ without a lookupProvider, a registered provider is resolved from the injected registry (1.908818ms)
+✔ disconnecting a row whose client id is already gone only resets its status (4.762001ms)
+✔ disconnecting a server id with no row writes nothing (1.334393ms)
+✔ a completed sign-in on a row with no client secret seals the tokens alone (3.827082ms)
+✔ resolving a token for a server id with no row reports re-authorization under the server id (1.149864ms)
+✔ resolving a token for a row that holds none reports re-authorization under its label (1.359771ms)
+✔ a refresh lease held elsewhere is waited on, then the still-valid token is used once the wait budget runs out (256.299848ms)
+✔ a post-connect step that succeeds is handed the server id and logs nothing (5.682119ms)
+✔ TOVU_PUBLIC_URL unset, a derived origin present: the derived origin is used and the connect is NOT refused (8.536605ms)
+✔ TOVU_PUBLIC_URL set: it wins over a derived origin, never the reverse (2.149402ms)
+✔ TOVU_PUBLIC_URL set to a malformed value: the connect is refused naming it, never silently demoted to the derived origin (2.691689ms)
+✔ neither TOVU_PUBLIC_URL nor a derived origin: the last-resort refusal still fires, naming both (1.595106ms)
+✔ configured URLs with a trailing slash or path send exactly one origin-based callback path (1.838713ms)
+✔ a blank operator override falls back to the derived HTTP origin (1.658441ms)
+✔ an explicit HTTP override is used after trimming and stripping its path (1.403096ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✖ a forwarded provider URL cannot finish MCP sign-in in another browser; reconnect still works (476.167202ms)
+✔ the admin OAuth routes require a session (518.758886ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ the public callback is NOT behind the session gate — it could never work if it were (213.623668ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ connect returns a redirect URL carrying PKCE, and no secret (402.479286ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ a full handshake connects, and no response anywhere carries a token or the client secret (360.187283ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+external-mcp oauth callback failed: the authorization request could not be matched — it may have expired or already been used
+external-mcp oauth callback failed: the authorization request could not be matched — it may have expired or already been used
+external-mcp oauth callback failed: the authorization request could not be matched — it may have expired or already been used
+✔ sealed-state callback rejects tampering, expiry and oversize before provider exchange (271.125972ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+external-mcp oauth callback failed: the authorization request could not be matched — it may have expired or already been used
+external-mcp oauth callback failed: the authorization server refused the request (HTTP 400, invalid_grant)
+✔ callback checks its exact URI and a replayed code is refused by the provider fake (312.671764ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+external-mcp oauth callback failed: the authorization request could not be matched — it may have expired or already been used
+✔ callback refuses state issued for another server before contacting the provider (404.98771ms)
+✔ a callback carrying an attacker-shaped state renders the fixed failure page, uninterpolated (195.784542ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ a callback with no state at all is refused before anything is attempted (215.919891ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ an unreachable provider is a 502 with retryable:false — distinct from a provider that refused us (266.531608ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ a provider that refuses the request is a 400, so the operator checks configuration rather than the network (328.038252ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ the device grant returns a user code over the wire and keeps the device code server-side (281.490965ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ a device poll returning access_denied is terminal at the HTTP boundary (331.98326ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ a device poll returning expired_token is terminal at the HTTP boundary (380.14322ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+external-mcp oauth callback failed: authorization was declined
+✔ a declined authorization callback renders failure and performs no exchange (388.867431ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ a workspace id that is not this site's is 404 on every OAuth route (356.784972ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ connecting a server that is not OAuth-authenticated is a 400 naming the field, not a 500 (349.737129ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ disconnect clears the authorization but keeps the server row (280.527969ms)
+✔ missing, malformed and duplicate browser proof stops before the OAuth service (101.781188ms)
+✔ rate_limited: the limiter's own 429, before the service is ever called (11.426852ms)
+✔ no_state: an empty state is refused before the service is ever called (4.985599ms)
+external-mcp oauth callback failed: the authorization request could not be matched — it may have expired or already been used
+✔ state_expired: OAUTH_INVALID_STATE from the service — covers tampered, expired and wrongly-bound state (5.92817ms)
+external-mcp oauth callback failed: authorization was declined
+✔ provider_denied: OAUTH_ACCESS_DENIED — the operator declined, or the provider denied the grant (5.635959ms)
+external-mcp oauth callback failed: no external MCP server is configured as 'higgs'
+✔ server_unknown: ExternalMcpValidationError — the serverId in the URL names no configured connection (4.794099ms)
+external-mcp oauth callback failed: the authorization server refused the authorization request
+external-mcp oauth callback failed: unexpected: token endpoint connection reset
+✔ exchange_failed: every other OAuthError code — and every non-OAuth error — falls back to the generic reason (9.087074ms)
+✔ ok: true carries no reason at all — there is nothing to react to on success (6.462886ms)
+external-mcp oauth callback failed: authorization was declined
+external-mcp oauth callback failed: the authorization server refused: PROVIDER_LEAKED_INTERNAL_TENANT_acme-secret-9f31
+external-mcp oauth callback failed: connection reset while talking to token endpoint: PROVIDER_LEAKED_INTERNAL_TENANT_acme-secret-9f31
+external-mcp oauth callback failed: no external MCP server is configured as 'PROVIDER_LEAKED_INTERNAL_TENANT_acme-secret-9f31'
+✔ no provider response text, in any form, ever reaches the response — the security-critical property (13.045483ms)
+✔ callback forwards the exact server, callback URI and normalized query fields (22.739421ms)
+✔ callback URI includes the trusted public origin but excludes provider query parameters (3.131252ms)
+✔ callback IP budgets stay independent after another client exhausts its allowance (10.041453ms)
+✔ route-param guard: a handler reached without a :serverId param forwards an empty server id instead of the string "undefined" (3.977889ms)
+✔ a non-Error rejection is logged by its string form and still renders the generic exchange_failed page (3.892741ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ MCP proxy pins validation, explicit/param/typed correlations and authoritative daemon fallback (471.347855ms)
+ℹ tests 188
+ℹ suites 0
+ℹ pass 186
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 18674.863708
+
+✖ failing tests:
+
+test at apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.unit.test.ts:1:27438
+✖ agent_plugin_connect resolves the installed package without an injected resolver (2175.959002ms)
+  Error [ToolInputError]: The 'supabase' plugin is off or its activation could not be checked. Ask to turn it on with plugins_set_enabled({family:"agent-plugin",pluginId:"supabase",enabled:true}), then retry agent_plugin_connect.
+      at assertPluginCanConnect (/workspace/Tovu/apps/website/src/features/agent-plugins/connect-tool.ts:360:22)
+      at async runAgentPluginConnect (/workspace/Tovu/apps/website/src/features/agent-plugins/connect-tool.ts:383:3)
+      at async TestContext.<anonymous> (/workspace/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.unit.test.ts:553:20)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at apps/website/src/server/__tests__/admin-external-mcp-oauth-routes.test.ts:1:4514
+✖ a forwarded provider URL cannot finish MCP sign-in in another browser; reconnect still works (476.167202ms)
+  ReferenceError [Error]: SERVER is not defined
+      at TestContext.<anonymous> (/workspace/Tovu/apps/website/src/server/__tests__/admin-external-mcp-oauth-routes.test.ts:154:69)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)

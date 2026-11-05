@@ -1,0 +1,21 @@
+✔ an archive failure returns the actual job step and redacted copyable details (27.25937ms)
+✔ POST / logs unexpected share failures with the public error id (3.417032ms)
+✔ GET / logs unexpected share failures with the public error id (2.821554ms)
+✔ GET /static/options logs unexpected share failures with the public error id (2.268861ms)
+✔ POST /static logs unexpected share failures with the public error id (8.034113ms)
+✔ POST /share/acknowledge logs unexpected share failures with the public error id (4.00552ms)
+✔ GET /share/download logs unexpected share failures with the public error id (2.325907ms)
+✔ DELETE /share logs unexpected share failures with the public error id (2.47316ms)
+✔ PUT /artifacts/ABCDEFGHIJKLMNOP/site.tovu.zip logs unexpected share failures with the public error id (3.757265ms)
+✔ DELETE /artifacts/ABCDEFGHIJKLMNOP/site.tovu.zip logs unexpected share failures with the public error id (2.91181ms)
+✔ POST /share/password logs unexpected share failures with the public error id (2.44091ms)
+✔ share refusals retain their public diagnosis and do not log an internal incident (1.995118ms)
+✔ shared diagnostics remain correlated without a telemetry provider (1.071736ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4788.652244

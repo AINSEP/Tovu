@@ -1,0 +1,25 @@
+[durable-recovery] {"runId":"old","trigger":"attempt-failed","probe":"dead","decision":"continued","failureClass":"retryable"}
+✔ a recovery launch rejection survives storage reload and the daemon replay (340.453228ms)
+✔ onStarted saves the preparation stage and cause on a pre-spawn rejection (376.194207ms)
+✔ buildDaemonSpawnArgs appends a --workspace token naming the daemon's own workspace (8.403045ms)
+✔ isDaemonProcessForWorkspace confirms a live process's argv names the expected workspace (0.274544ms)
+✔ isDaemonProcessForWorkspace refuses a different workspace's argv, even with a matching prefix (0.175344ms)
+✔ isDaemonProcessForWorkspace refuses argv with no --workspace token at all (0.111738ms)
+✔ restartAssistantDaemon() refuses with a named reason when no daemon was started this process boot (0.201944ms)
+✔ fallback daemon applies one V8 size flag before /app/agent-daemon-server.js (1.980186ms)
+✔ fallback daemon applies one V8 size flag before /app/agent-daemon-server.ts (0.164248ms)
+✔ the layout fixture honors its explicit environment independently for each site (3.936378ms)
+✔ dev: two site launch plans keep all three stores under their own roots despite parent overrides (1.756359ms)
+✔ desktop: two site launch plans keep all three stores under their own roots despite parent overrides (5.33043ms)
+✔ local supervisor: two site launch plans keep all three stores under their own roots despite parent overrides (0.723511ms)
+✔ a direct single-site run still resolves its explicit overrides after another site was launched (0.458863ms)
+✔ desktop init drops storage overrides too, and clean launches produce no warning (0.560886ms)
+✔ empty and relative inherited overrides are dropped on dev restarts rather than reaching layout validation (0.544952ms)
+ℹ tests 16
+ℹ suites 0
+ℹ pass 16
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 37804.315026

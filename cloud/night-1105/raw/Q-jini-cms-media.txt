@@ -1,0 +1,13 @@
+
+ RUN  v2.1.9 /workspace/Jini/packages/cms
+
+ ✓ src/media/__tests__/replace-media-file.test.ts (15 tests) 415ms
+   ✓ SVG replacement uses the upload sanitizer before hashing and persistence 391ms
+ ✓ src/media/__tests__/media-service.test.ts (60 tests) 429ms
+   ✓ SVG upload stores sanitized bytes under their own hash, deduplicates, and refuses SVG fonts 401ms
+
+ Test Files  2 passed (2)
+      Tests  75 passed (75)
+   Start at  18:24:36
+   Duration  1.09s (transform 393ms, setup 0ms, collect 848ms, tests 844ms, environment 0ms, prepare 123ms)
+

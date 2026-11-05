@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 /workspace/Jini/packages/platform
+
+ ✓ src/web/__tests__/strip-html-presentation.test.ts (3 tests) 11ms
+
+ Test Files  1 passed (1)
+      Tests  3 passed (3)
+   Start at  18:18:26
+   Duration  660ms (transform 175ms, setup 0ms, collect 214ms, tests 11ms, environment 0ms, prepare 151ms)
+

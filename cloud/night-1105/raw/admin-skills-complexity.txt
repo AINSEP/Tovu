@@ -1,0 +1,7 @@
+
+/workspace/Tovu/apps/admin/src/features/skills/__tests__/Skills.unit.test.tsx
+   61:5   warning  Prefer "expect(window.history).toHaveLength(historyLength)" over this generic assertion for better reporting; it works on any object with a numeric length property  sonarjs/prefer-specific-assertions
+  179:13  warning  Extract this increment operation into a dedicated statement                                                                                                          sonarjs/no-nested-incdec
+
+✖ 2 problems (0 errors, 2 warnings)
+

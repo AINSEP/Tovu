@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 /workspace/Jini/packages/platform
+
+ ✓ src/fs/__tests__/directory-user-config.test.ts (16 tests) 33ms
+
+ Test Files  1 passed (1)
+      Tests  16 passed (16)
+   Start at  18:21:20
+   Duration  512ms (transform 147ms, setup 0ms, collect 182ms, tests 33ms, environment 0ms, prepare 83ms)
+

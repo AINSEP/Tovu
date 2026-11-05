@@ -1,0 +1,11 @@
+
+ RUN  v4.1.11 /workspace/Tovu/apps/admin
+
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+
+ Test Files  2 passed (2)
+      Tests  27 passed (27)
+   Start at  18:26:54
+   Duration  6.89s (transform 4.33s, setup 543ms, import 5.35s, tests 697ms, environment 1.24s)
+

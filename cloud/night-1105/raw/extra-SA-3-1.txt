@@ -1,0 +1,121 @@
+
+ RUN  v4.1.11 /workspace/Tovu/apps/admin
+
+ ❯ src/features/skills/__tests__/Skills.unit.test.tsx (17 tests | 2 failed) 3937ms
+     × opens the read-only viewer from the eye and selects SKILL.md first 288ms
+     × opens the read-only viewer from the name and selects SKILL.md first 138ms
+ ❯ src/features/skills/__tests__/skill-install-i18n.unit.test.tsx (45 tests | 2 failed) 407ms
+   × es translates the install dialog's accessible name and copy 11ms
+   × pt-BR translates the install dialog's accessible name and copy 5ms
+ ❯ src/features/skills/__tests__/skills-page-i18n.unit.test.tsx (42 tests | 21 failed) 2242ms
+   × es translates loading, empty and add surfaces from the locale picker 225ms
+   × id translates loading, empty and add surfaces from the locale picker 16ms
+   × de translates loading, empty and add surfaces from the locale picker 12ms
+   × zh-CN translates loading, empty and add surfaces from the locale picker 11ms
+   × zh-TW translates loading, empty and add surfaces from the locale picker 12ms
+   × pt-BR translates loading, empty and add surfaces from the locale picker 9ms
+   × ru translates loading, empty and add surfaces from the locale picker 9ms
+   × fa translates loading, empty and add surfaces from the locale picker 8ms
+   × ar translates loading, empty and add surfaces from the locale picker 27ms
+   × ja translates loading, empty and add surfaces from the locale picker 12ms
+   × ko translates loading, empty and add surfaces from the locale picker 13ms
+   × pl translates loading, empty and add surfaces from the locale picker 8ms
+   × hu translates loading, empty and add surfaces from the locale picker 7ms
+   × fr translates loading, empty and add surfaces from the locale picker 9ms
+   × uk translates loading, empty and add surfaces from the locale picker 11ms
+   × tr translates loading, empty and add surfaces from the locale picker 15ms
+   × th translates loading, empty and add surfaces from the locale picker 25ms
+   × it translates loading, empty and add surfaces from the locale picker 18ms
+   × hi translates loading, empty and add surfaces from the locale picker 32ms
+   × ur translates loading, empty and add surfaces from the locale picker 72ms
+   × bn translates loading, empty and add surfaces from the locale picker 19ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 25 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/features/skills/__tests__/Skills.unit.test.tsx > Skills > opens the read-only viewer from the eye and selects SKILL.md first
+ FAIL  src/features/skills/__tests__/Skills.unit.test.tsx > Skills > opens the read-only viewer from the name and selects SKILL.md first
+AssertionError: expected "vi.fn()" to be called 2 times, but got 3 times
+ ❯ src/features/skills/__tests__/Skills.unit.test.tsx:83:23
+     81|     expect(screen.getByRole("treeitem", { name: "SKILL.md" }).getAttri…
+     82|     expect(screen.getByRole("treeitem", { name: "README.md" }).getAttr…
+     83|     expect(fetchMock).toHaveBeenCalledTimes(2);
+       |                       ^
+     84|   });
+     85|   it("lists real skills, disables and removes via the shared workspace…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/25]⎯
+
+ FAIL  src/features/skills/__tests__/skill-install-i18n.unit.test.tsx > es translates the install dialog's accessible name and copy
+AssertionError: es: Cancel: expected '¿Instalar habilidad?https://github.co…' not to contain 'Cancel'
+
+Expected: "Cancel"
+Received: "¿Instalar habilidad?https://github.com/acme/skillRevisa las instrucciones de fuentes en las que confíes. La instalación no ejecuta código.CancelarConfirmar instalación"
+
+ ❯ src/features/skills/__tests__/skill-install-i18n.unit.test.tsx:62:61
+     60|   expect(dialog.getAttribute("aria-label")?.trim().length).toBeGreater…
+     61|   for (const english of ["Install skill?", "Review instructions from s…
+     62|     expect(dialog.textContent, `${locale}: ${english}`).not.toContain(…
+       |                                                             ^
+     63|   }
+     64| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/25]⎯
+
+ FAIL  src/features/skills/__tests__/skill-install-i18n.unit.test.tsx > pt-BR translates the install dialog's accessible name and copy
+AssertionError: pt-BR: Cancel: expected 'Instalar habilidade?https://github.co…' not to contain 'Cancel'
+
+Expected: "Cancel"
+Received: "Instalar habilidade?https://github.com/acme/skillRevise instruções de fontes confiáveis. A instalação não executa código.CancelarConfirmar instalação"
+
+ ❯ src/features/skills/__tests__/skill-install-i18n.unit.test.tsx:62:61
+     60|   expect(dialog.getAttribute("aria-label")?.trim().length).toBeGreater…
+     61|   for (const english of ["Install skill?", "Review instructions from s…
+     62|     expect(dialog.textContent, `${locale}: ${english}`).not.toContain(…
+       |                                                             ^
+     63|   }
+     64| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/25]⎯
+
+ FAIL  src/features/skills/__tests__/skills-page-i18n.unit.test.tsx > es translates loading, empty and add surfaces from the locale picker
+ FAIL  src/features/skills/__tests__/skills-page-i18n.unit.test.tsx > id translates loading, empty and add surfaces from the locale picker
+ FAIL  src/features/skills/__tests__/skills-page-i18n.unit.test.tsx > de translates loading, empty and add surfaces from the locale picker
+ FAIL  src/features/skills/__tests__/skills-page-i18n.unit.test.tsx > zh-CN translates loading, empty and add surfaces from the locale picker
+ FAIL  src/features/skills/__tests__/skills-page-i18n.unit.test.tsx > zh-TW translates loading, empty and add surfaces from the locale picker
+ FAIL  src/features/skills/__tests__/skills-page-i18n.unit.test.tsx > pt-BR translates loading, empty and add surfaces from the locale picker
+ FAIL  src/features/skills/__tests__/skills-page-i18n.unit.test.tsx > ru translates loading, empty and add surfaces from the locale picker
+ FAIL  src/features/skills/__tests__/skills-page-i18n.unit.test.tsx > fa translates loading, empty and add surfaces from the locale picker
+ FAIL  src/features/skills/__tests__/skills-page-i18n.unit.test.tsx > ar translates loading, empty and add surfaces from the locale picker
+ FAIL  src/features/skills/__tests__/skills-page-i18n.unit.test.tsx > ja translates loading, empty and add surfaces from the locale picker
+ FAIL  src/features/skills/__tests__/skills-page-i18n.unit.test.tsx > ko translates loading, empty and add surfaces from the locale picker
+ FAIL  src/features/skills/__tests__/skills-page-i18n.unit.test.tsx > pl translates loading, empty and add surfaces from the locale picker
+ FAIL  src/features/skills/__tests__/skills-page-i18n.unit.test.tsx > hu translates loading, empty and add surfaces from the locale picker
+ FAIL  src/features/skills/__tests__/skills-page-i18n.unit.test.tsx > fr translates loading, empty and add surfaces from the locale picker
+ FAIL  src/features/skills/__tests__/skills-page-i18n.unit.test.tsx > uk translates loading, empty and add surfaces from the locale picker
+ FAIL  src/features/skills/__tests__/skills-page-i18n.unit.test.tsx > tr translates loading, empty and add surfaces from the locale picker
+ FAIL  src/features/skills/__tests__/skills-page-i18n.unit.test.tsx > th translates loading, empty and add surfaces from the locale picker
+ FAIL  src/features/skills/__tests__/skills-page-i18n.unit.test.tsx > it translates loading, empty and add surfaces from the locale picker
+ FAIL  src/features/skills/__tests__/skills-page-i18n.unit.test.tsx > hi translates loading, empty and add surfaces from the locale picker
+ FAIL  src/features/skills/__tests__/skills-page-i18n.unit.test.tsx > ur translates loading, empty and add surfaces from the locale picker
+ FAIL  src/features/skills/__tests__/skills-page-i18n.unit.test.tsx > bn translates loading, empty and add surfaces from the locale picker
+TypeError: resolve is not a function
+ ❯ src/features/skills/__tests__/skills-page-i18n.unit.test.tsx:22:25
+     20|   expect(screen.getByRole("status")).toHaveTextContent(tr("Loading ski…
+     21|   expect(tr("Loading skills…")).not.toBe("Loading skills…");
+     22|   await act(async () => resolve([]));
+       |                         ^
+     23|   expect(await screen.findByText(tr("No skills installed yet"))).toBeI…
+     24|   const navigation = screen.getByRole("complementary", { name: tr("Ski…
+ ❯ node_modules/@testing-library/react/dist/act-compat.js:47:24
+ ❯ process.env.NODE_ENV.exports.act node_modules/react/cjs/react.development.js:890:22
+ ❯ node_modules/@testing-library/react/dist/act-compat.js:46:25
+ ❯ src/features/skills/__tests__/skills-page-i18n.unit.test.tsx:22:9
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/25]⎯
+
+
+ Test Files  3 failed | 13 passed (16)
+      Tests  25 failed | 188 passed (213)
+   Start at  18:17:18
+   Duration  29.46s (transform 11.75s, setup 3.25s, import 25.70s, tests 11.67s, environment 14.60s)
+

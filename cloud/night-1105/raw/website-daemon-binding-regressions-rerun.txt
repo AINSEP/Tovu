@@ -1,0 +1,29 @@
+✔ Claude Local-CLI claiming and delegated discovery share the actual accepted-message binding (282.406831ms)
+✔ the real durable guard binds live attempt message ids, fences deleted rows, and clears at terminal (208.403599ms)
+✔ the daemon has no independent federation, installed-extension or consent controller (3.539548ms)
+✔ onStarted reads the site's federation refusal prefix afresh for each run (246.86532ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[reload-test] mcp-federation: 'probe' registered 1 federated tool(s): mcp__probe__lookup
+✔ the server executor diagnoses a refusal introduced after construction (590.545874ms)
+✔ a real federation reload makes native and newly admitted tools searchable and describable through existing daemon routes (67.496913ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[tool-failure] ERR-8628-5468-0670-4F08 tool=chat_list_pending_attachments run=att-run execution=ef70834c-c639-4f66-925d-120f8a935cf6 principal=e22eb5cb-4a24-48fd-8a15-8d1ed4df88c6 redactions=0: attachment store is not ready
+✔ the chat-attachment tools read the daemon's store over the lookup, and only inside a daemon call (896.814608ms)
+✔ approval memory reads and grants against the daemon's conversation, and is inert outside a daemon call (0.894469ms)
+✔ plugin-install attachments: a daemon call reads only its message refs; a BYOK turn reads by owner (52.383682ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 13538.98317

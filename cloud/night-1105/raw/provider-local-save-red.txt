@@ -1,0 +1,84 @@
+✔ provider save reports each declared contract once and never sends field values to telemetry (63.091462ms)
+[admin-route] {
+  errorId: '996f2901-938f-4cd7-be70-93d1eeef49cf',
+  diagnostic: 'Error: private vault location\n' +
+    '    at TestContext.<anonymous> (/workspace/Tovu/apps/website/src/server/inbound/admin-http/routes/plugins/__tests__/unit/provider-settings-route.unit.test.ts:35:82)\n' +
+    '    at Test.runInAsyncScope (node:async_hooks:227:14)\n' +
+    '    at Test.run (node:internal/test_runner/test:1402:25)\n' +
+    '    at Test.processPendingSubtests (node:internal/test_runner/test:974:18)\n' +
+    '    at Test.postRun (node:internal/test_runner/test:1542:19)\n' +
+    '    at Test.run (node:internal/test_runner/test:1467:12)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n' +
+    '    at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)'
+}
+✔ project key use reports a typed unknown-key refusal as 400 and keeps opaque failures private (29.437861ms)
+✔ GET lists the declared fields (first declaration of a name wins); nothing saved yet (6.226169ms)
+✔ PUT saves public values and secrets; responses never carry a secret; a blank secret keeps the saved one (10.982061ms)
+✔ a provider settings save attaches to this site and reopening shows the saved fields (10.620154ms)
+✔ a changed public field never keeps a saved secret: it must be entered again, so a saved key can't be redirected to another server (13.786329ms)
+✔ a public field's declared default and options reach the card; filling a blank with its default is no change (7.621072ms)
+✔ PUT refuses undeclared names, non-text values and a malformed body (8.30243ms)
+[admin-route] {
+  errorId: '42691fd3-92b1-4aa7-b702-163c6d0d97b0',
+  diagnostic: 'Error: disk\n' +
+    '    at Object.discoverPlugins (/workspace/Tovu/apps/website/src/server/inbound/admin-http/routes/plugins/__tests__/unit/provider-settings-route.unit.test.ts:192:73)\n' +
+    '    at resolveCard (/workspace/Tovu/apps/website/src/server/inbound/admin-http/routes/plugins/provider-settings.ts:83:30)\n' +
+    '    at async <anonymous> (/workspace/Tovu/apps/website/src/server/inbound/admin-http/routes/plugins/provider-settings.ts:105:20)'
+}
+[admin-route] {
+  errorId: 'd99025f4-bae4-41fb-8135-edfbfbfab45d',
+  diagnostic: 'Error: disk\n' +
+    '    at Object.discoverPlugins (/workspace/Tovu/apps/website/src/server/inbound/admin-http/routes/plugins/__tests__/unit/provider-settings-route.unit.test.ts:192:73)\n' +
+    '    at resolveCard (/workspace/Tovu/apps/website/src/server/inbound/admin-http/routes/plugins/provider-settings.ts:83:30)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n' +
+    '    at async <anonymous> (/workspace/Tovu/apps/website/src/server/inbound/admin-http/routes/plugins/provider-settings.ts:111:20)'
+}
+✔ refusals: other workspace 404, plugin without declared settings 404, no settings store 503, denied 403, store failure 500 (17.608674ms)
+✖ a project store that could not open this run: a save is refused 503 with the cause, never a bare internal error (4.873249ms)
+✔ a key saved the retired way (API credential `plugin:<id>`) shows a re-entry notice until new settings are saved (Codex fix-lane MED) (6.410967ms)
+✔ the retired-key check failing never breaks the card (2.867574ms)
+✔ the route carries requiredUnless to the card and enforces token or explicit local auth on save (6.150405ms)
+✔ the route returns requiredWhen and enforces the declared default before saving (7.809667ms)
+[admin-route] {
+  errorId: '7de10fc6-32de-4686-a0d7-a230a607de49',
+  diagnostic: 'Error: db down\n' +
+    '    at Object.config.read (/workspace/Tovu/apps/website/src/server/inbound/admin-http/routes/plugins/__tests__/unit/provider-settings-route.unit.test.ts:280:37)\n' +
+    '    at currentProviderConfig (/workspace/Tovu/apps/website/src/server/runtime/composition/provider-settings-save.ts:69:17)\n' +
+    '    at saveProviderSettings (/workspace/Tovu/apps/website/src/server/runtime/composition/provider-settings-save.ts:95:68)\n' +
+    '    at <anonymous> (/workspace/Tovu/apps/website/src/server/inbound/admin-http/routes/plugins/provider-settings.ts:113:27)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)'
+}
+✔ saved settings this machine can't open (lost or re-minted store key): the card reads as not configured with a notice, and a save overwrites them (9.421508ms)
+✔ admin attaches an encoded provider key with its save permission and returns live apply status (5.213893ms)
+✔ admin save calls live reapply and preserves restart fallback in the response (3.2763ms)
+✔ project key use denies base readers before looking up any existing or missing key (4.388437ms)
+✔ admin save preserves committed settings but returns the safe plugin startup failure (3.562923ms)
+✔ admin rejects non-auth headers before persistence and permits only declared auth alternatives (8.70726ms)
+ℹ tests 20
+ℹ suites 0
+ℹ pass 19
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2757.870661
+
+✖ failing tests:
+
+test at apps/website/src/server/inbound/admin-http/routes/plugins/__tests__/unit/provider-settings-route.unit.test.ts:1:12358
+✖ a project store that could not open this run: a save is refused 503 with the cause, never a bare internal error (4.873249ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  200 !== 503
+  
+      at TestContext.<anonymous> (/workspace/Tovu/apps/website/src/server/inbound/admin-http/routes/plugins/__tests__/unit/provider-settings-route.unit.test.ts:200:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 200,
+    expected: 503,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

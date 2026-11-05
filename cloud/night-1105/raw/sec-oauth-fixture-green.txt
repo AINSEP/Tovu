@@ -1,0 +1,17 @@
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+external-mcp oauth callback failed: the authorization request could not be matched — it may have expired or already been used
+external-mcp oauth callback failed: the authorization request could not be matched — it may have expired or already been used
+external-mcp oauth callback failed: the authorization request could not be matched — it may have expired or already been used
+✔ a forwarded provider URL cannot finish MCP sign-in in another browser; reconnect still works (686.367194ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8859.50393

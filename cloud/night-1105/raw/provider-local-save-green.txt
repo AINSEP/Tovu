@@ -1,0 +1,70 @@
+✔ provider save reports each declared contract once and never sends field values to telemetry (289.858898ms)
+[admin-route] {
+  errorId: '7b6c16fe-1078-4f6b-9fdc-ad9796f6e79d',
+  diagnostic: 'Error: private vault location\n' +
+    '    at TestContext.<anonymous> (/workspace/Tovu/apps/website/src/server/inbound/admin-http/routes/plugins/__tests__/unit/provider-settings-route.unit.test.ts:35:82)\n' +
+    '    at Test.runInAsyncScope (node:async_hooks:227:14)\n' +
+    '    at Test.run (node:internal/test_runner/test:1402:25)\n' +
+    '    at Test.processPendingSubtests (node:internal/test_runner/test:974:18)\n' +
+    '    at Test.postRun (node:internal/test_runner/test:1542:19)\n' +
+    '    at Test.run (node:internal/test_runner/test:1467:12)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n' +
+    '    at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)'
+}
+✔ project key use reports a typed unknown-key refusal as 400 and keeps opaque failures private (85.203173ms)
+✔ GET lists the declared fields (first declaration of a name wins); nothing saved yet (14.802381ms)
+✔ PUT saves public values and secrets; responses never carry a secret; a blank secret keeps the saved one (35.083714ms)
+✔ a provider settings save attaches to this site and reopening shows the saved fields (20.591962ms)
+✔ a changed public field never keeps a saved secret: it must be entered again, so a saved key can't be redirected to another server (35.966596ms)
+✔ a public field's declared default and options reach the card; filling a blank with its default is no change (8.34245ms)
+✔ PUT refuses undeclared names, non-text values and a malformed body (11.805842ms)
+[admin-route] {
+  errorId: '8b37ef7e-e99e-48ad-bd17-b467d8c1114f',
+  diagnostic: 'Error: disk\n' +
+    '    at Object.discoverPlugins (/workspace/Tovu/apps/website/src/server/inbound/admin-http/routes/plugins/__tests__/unit/provider-settings-route.unit.test.ts:192:73)\n' +
+    '    at resolveCard (/workspace/Tovu/apps/website/src/server/inbound/admin-http/routes/plugins/provider-settings.ts:83:30)\n' +
+    '    at async <anonymous> (/workspace/Tovu/apps/website/src/server/inbound/admin-http/routes/plugins/provider-settings.ts:105:20)'
+}
+[admin-route] {
+  errorId: 'dc32c5b7-d164-4ddb-ad13-f36eef3bcdee',
+  diagnostic: 'Error: disk\n' +
+    '    at Object.discoverPlugins (/workspace/Tovu/apps/website/src/server/inbound/admin-http/routes/plugins/__tests__/unit/provider-settings-route.unit.test.ts:192:73)\n' +
+    '    at resolveCard (/workspace/Tovu/apps/website/src/server/inbound/admin-http/routes/plugins/provider-settings.ts:83:30)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n' +
+    '    at async <anonymous> (/workspace/Tovu/apps/website/src/server/inbound/admin-http/routes/plugins/provider-settings.ts:111:20)'
+}
+✔ refusals: other workspace 404, plugin without declared settings 404, no settings store 503, denied 403, store failure 500 (19.877614ms)
+✔ a shared-only store that could not open this run: a save is refused 503 with the cause, never a bare internal error (4.997306ms)
+✔ an unavailable owner store does not block a local provider settings save (4.167204ms)
+✔ a key saved the retired way (API credential `plugin:<id>`) shows a re-entry notice until new settings are saved (Codex fix-lane MED) (6.098726ms)
+✔ the retired-key check failing never breaks the card (3.542302ms)
+✔ the route carries requiredUnless to the card and enforces token or explicit local auth on save (7.845722ms)
+✔ the route returns requiredWhen and enforces the declared default before saving (28.505885ms)
+[admin-route] {
+  errorId: '529b1834-10cb-4fda-b8e4-a752ebcbba9f',
+  diagnostic: 'Error: db down\n' +
+    '    at Object.config.read (/workspace/Tovu/apps/website/src/server/inbound/admin-http/routes/plugins/__tests__/unit/provider-settings-route.unit.test.ts:294:37)\n' +
+    '    at currentProviderConfig (/workspace/Tovu/apps/website/src/server/runtime/composition/provider-settings-save.ts:69:17)\n' +
+    '    at saveProviderSettings (/workspace/Tovu/apps/website/src/server/runtime/composition/provider-settings-save.ts:95:68)\n' +
+    '    at <anonymous> (/workspace/Tovu/apps/website/src/server/inbound/admin-http/routes/plugins/provider-settings.ts:113:27)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)'
+}
+✔ saved settings this machine can't open (lost or re-minted store key): the card reads as not configured with a notice, and a save overwrites them (11.752923ms)
+✔ admin attaches an encoded provider key with its save permission and returns live apply status (6.815167ms)
+✔ admin save calls live reapply and preserves restart fallback in the response (4.079802ms)
+✔ project key use denies base readers before looking up any existing or missing key (4.676021ms)
+✔ admin save preserves committed settings but returns the safe plugin startup failure (3.191033ms)
+✔ admin rejects non-auth headers before persistence and permits only declared auth alternatives (10.296456ms)
+[shared-keys] Provider settings could not be read. Retry Shared Keys; local settings remain available. Details: P25_SHARED_PROVIDER_READ_FAILED; secret values omitted.
+✔ local provider keys survive revocation and owner-store outages (2.077443ms)
+✔ revocation during a provider read discards the opened config (0.61682ms)
+✔ a granted provider settings card cannot replace the shared owner key (2.186968ms)
+✔ a shared read failure is unconfigured, never a boot refusal (1.290797ms)
+ℹ tests 25
+ℹ suites 0
+ℹ pass 25
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6135.771096

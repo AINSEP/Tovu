@@ -1,0 +1,24 @@
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✖ a forwarded provider URL cannot finish MCP sign-in in another browser; reconnect still works (575.767515ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 11236.723709
+
+✖ failing tests:
+
+test at apps/website/src/server/__tests__/admin-external-mcp-oauth-routes.test.ts:1:4514
+✖ a forwarded provider URL cannot finish MCP sign-in in another browser; reconnect still works (575.767515ms)
+  ReferenceError [Error]: SERVER is not defined
+      at TestContext.<anonymous> (/workspace/Tovu/apps/website/src/server/__tests__/admin-external-mcp-oauth-routes.test.ts:154:69)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)

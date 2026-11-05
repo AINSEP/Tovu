@@ -1,0 +1,293 @@
+
+RUN release-land-gates
+FAIL release-land-gates (exit 1); log: /workspace/Tovu/cloud/night-1105/raw/release-land-gates.txt
+package.json: @jini-ai/cms still permits an old or mismatched artifact; publish the new exports, raise the dependency floor above 0.6.19 and regenerate its lockfile.
+package.json: @jini-ai/agent-plugins still permits an old or mismatched artifact; publish the new exports, raise the dependency floor above 0.6.19 and regenerate its lockfile.
+apps/admin/package.json: @jini-ai/cms still permits an old or mismatched artifact; publish the new exports, raise the dependency floor above 0.6.19 and regenerate its lockfile.
+apps/admin/package.json: @jini-ai/agent-plugins still permits an old or mismatched artifact; publish the new exports, raise the dependency floor above 0.6.19 and regenerate its lockfile.
+
+RUN node-24
+PASS node-24
+
+RUN build-jini-core
+PASS build-jini-core
+
+RUN build-jini-dependents
+PASS build-jini-dependents
+
+RUN link-jini
+PASS link-jini
+
+RUN build-tovu-contracts
+PASS build-tovu-contracts
+
+RUN build-desktop-preload
+PASS build-desktop-preload
+
+RUN jini-core
+PASS jini-core
+
+RUN jini-ui
+PASS jini-ui
+
+RUN jini-http-kit
+PASS jini-http-kit
+
+RUN jini-owner-recovery
+PASS jini-owner-recovery
+
+RUN jini-vercel-node
+PASS jini-vercel-node
+
+RUN jini-eslint-complexity
+PASS jini-eslint-complexity
+
+RUN tovu-website
+FAIL tovu-website (exit 1); log: /workspace/Tovu/cloud/night-1105/raw/tovu-website.txt
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/inbound/admin-http/routes/system/__tests__/site-share-failures.test.ts:1:572
+✖ an archive failure returns the actual job step and redacted copyable details (24.867397ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /ERR-1234-5678-9ABC-DEF0/. Input:
+  
+  '[{"error":{}}]'
+  
+      at TestContext.<anonymous> (/workspace/Tovu/apps/website/src/server/inbound/admin-http/routes/system/__tests__/site-share-failures.test.ts:33:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '[{"error":{}}]',
+    expected: /ERR-1234-5678-9ABC-DEF0/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+RUN tovu-admin
+FAIL tovu-admin (exit 1); log: /workspace/Tovu/cloud/night-1105/raw/tovu-admin.txt
+ ❯ src/features/security/RecoveryCodesCard.tsx:23:43
+ ❯ updateMemo node_modules/react-dom/cjs/react-dom-client.development.js:9179:19
+ ❯ Object.useMemo node_modules/react-dom/cjs/react-dom-client.development.js:29154:18
+ ❯ process.env.NODE_ENV.exports.useMemo node_modules/react/cjs/react.development.js:1297:34
+ ❯ RecoveryCodesCard src/features/security/RecoveryCodesCard.tsx:23:17
+ ❯ Object.react_stack_bottom_frame node_modules/react-dom/cjs/react-dom-client.development.js:28571:20
+
+This error originated in "src/features/security/__tests__/Security.unit.test.tsx" test file. It doesn't mean the error was thrown inside the file itself, but while it was running.
+The latest test that might've caused the error is "C3: publishes the site-key handle and navigates to the site-key tab URL". It might mean one of the following:
+- The error was thrown, while Vitest was running this test.
+- If the error occurred after the test had been completed, this was the last documented test before it was thrown.
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+
+ Test Files  1 failed | 13 passed (14)
+      Tests  2 failed | 166 passed (168)
+     Errors  2 errors
+   Start at  18:20:26
+   Duration  40.53s (transform 20.15s, setup 3.81s, import 39.93s, tests 10.26s, environment 19.16s)
+
+
+RUN tovu-desktop-auth
+PASS tovu-desktop-auth
+
+RUN tovu-eslint-complexity
+PASS tovu-eslint-complexity
+
+RUN tovu-desktop-complexity
+PASS tovu-desktop-complexity
+
+RUN tovu-eslint-rule-tests
+PASS tovu-eslint-rule-tests
+
+RUN K1-dev-scripts
+PASS K1-dev-scripts
+
+RUN K1-platform-regression
+PASS K1-platform-regression
+
+RUN backfill-cli-discovery
+PASS backfill-cli-discovery
+
+RUN tsc-root
+PASS tsc-root
+
+RUN tsc-desktop-main
+PASS tsc-desktop-main
+
+RUN O-tovu-website-keys
+PASS O-tovu-website-keys
+
+RUN O-desktop-ipc
+PASS O-desktop-ipc
+
+RUN O-desktop-renderer
+PASS O-desktop-renderer
+
+RUN O-tovu-website-forms
+PASS O-tovu-website-forms
+
+RUN O-jini-cf-forms
+PASS O-jini-cf-forms
+
+RUN O-jini-cms
+PASS O-jini-cms
+
+RUN O-jini-admin
+PASS O-jini-admin
+
+RUN jini-gateway-regression
+FAIL jini-gateway-regression (exit 1); log: /workspace/Tovu/cloud/night-1105/raw/jini-gateway-regression.txt
+    at ModuleJob.run (node:internal/modules/esm/module_job:561:25)
+    at async node:internal/modules/esm/loader:647:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v24.22.1
+✖ packages/core/src/gated-mutations/__tests__/gateway.test.ts (368.283011ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 378.180706
+
+✖ failing tests:
+
+test at packages/core/src/gated-mutations/__tests__/gateway.test.ts:1:1
+✖ packages/core/src/gated-mutations/__tests__/gateway.test.ts (368.283011ms)
+  'test failed'
+
+RUN jini-chat-terminal-regression
+PASS jini-chat-terminal-regression
+
+RUN Q-jini-cms-media
+PASS Q-jini-cms-media
+
+RUN Q-jini-agent-plugins
+PASS Q-jini-agent-plugins
+
+RUN Q-tovu-website-media
+PASS Q-tovu-website-media
+
+RUN Q-desktop-renderer
+PASS Q-desktop-renderer
+
+RUN Bforms-jini-cf
+PASS Bforms-jini-cf
+
+RUN Bforms-jini-cms
+PASS Bforms-jini-cms
+
+RUN postgres-ready
+PASS postgres-ready
+
+RUN Bforms-website
+PASS Bforms-website
+
+RUN website-composition-regressions
+PASS website-composition-regressions
+
+RUN website-daemon-binding-regressions
+FAIL website-daemon-binding-regressions (exit 1); log: /workspace/Tovu/cloud/night-1105/raw/website-daemon-binding-regressions.txt
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8882.018003
+
+✖ failing tests:
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.federation-runtime-wiring.unit.test.ts:1:1569
+✖ the server executor diagnoses a refusal introduced after construction (340.622533ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (/workspace/Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.federation-runtime-wiring.unit.test.ts:36:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /unknown tool/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+RUN B25-keys-node
+FAIL B25-keys-node (exit 1); log: /workspace/Tovu/cloud/night-1105/raw/B25-keys-node.txt
+
+✖ failing tests:
+
+test at apps/website/src/server/inbound/admin-http/routes/plugins/__tests__/unit/provider-settings-route.unit.test.ts:1:12358
+✖ a project store that could not open this run: a save is refused 503 with the cause, never a bare internal error (4.877445ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  200 !== 503
+  
+      at TestContext.<anonymous> (/workspace/Tovu/apps/website/src/server/inbound/admin-http/routes/plugins/__tests__/unit/provider-settings-route.unit.test.ts:200:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 200,
+    expected: 503,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+RUN B25-keys-admin
+FAIL B25-keys-admin (exit 1); log: /workspace/Tovu/cloud/night-1105/raw/B25-keys-admin.txt
++ App version: Unavailable
++ Jini version: Unavailable
++ Time: UnavailableCopy details
+
+ ❯ src/features/sites/__tests__/site-transfer-tabs.unit.test.tsx:161:60
+    159|     renderExport(createFakeSiteTransferPort({ createShare: async () =>…
+    160|     fireEvent.click(await screen.findByRole("button", { name: "Export …
+    161|     expect((await screen.findByRole("alert")).textContent).toBe("Expor…
+       |                                                            ^
+    162|   });
+    163| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed | 6 passed (7)
+      Tests  2 failed | 256 passed (258)
+   Start at  18:26:35
+   Duration  18.41s (transform 9.40s, setup 1.32s, import 15.45s, tests 12.74s, environment 5.14s)
+
+
+RUN admin-navigation-regressions
+PASS admin-navigation-regressions
+
+RUN jini-admin-navigation-regressions
+PASS jini-admin-navigation-regressions
+
+RUN F-tovu-complexity
+FAIL F-tovu-complexity (exit 1); log: /workspace/Tovu/cloud/night-1105/raw/F-tovu-complexity.txt
+
+/workspace/Tovu/apps/website/src/features/deployments/publish-agent-tools.ts
+  1067:5   error    Async method 'deployment_get_static_publish_status' has a complexity of 12. Maximum allowed is 10  complexity
+  1091:29  warning  Remove this useless assignment to variable "detailRows"                                            sonarjs/no-dead-store
+
+✖ 2 problems (1 error, 1 warning)
+
+
+RUN F-jini-complexity
+FAIL F-jini-complexity (exit 1); log: /workspace/Tovu/cloud/night-1105/raw/F-jini-complexity.txt
+
+/workspace/Jini/packages/chat/src/react/components/MessageRow.tsx
+  321:1   error    Function 'AssistantMessageRow' has a complexity of 15. Maximum allowed is 10               complexity
+  544:17  warning  Reduce the number of conditional operators (4) used in the expression (maximum allowed 3)  sonarjs/expression-complexity
+
+/workspace/Jini/packages/core/src/redact.ts
+  207:25  warning  Simplify this regular expression to reduce its runtime, as it has super-linear performance due to backtracking  sonarjs/super-linear-regex
+  725:3   warning  Reduce the total number of "break" and "continue" statements in this loop to use one at most                    sonarjs/too-many-break-or-continue-in-loop
+  754:97  warning  Extract this nested ternary operation into an independent statement                                             sonarjs/no-nested-conditional
+
+✖ 5 problems (1 error, 4 warnings)
+
+
+Results: /workspace/Tovu/cloud/night-1105/raw/results.tsv
+Exact commands: /workspace/Tovu/cloud/night-1105/raw/commands.sh

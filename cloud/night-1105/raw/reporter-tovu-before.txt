@@ -1,0 +1,155 @@
+✔ the vitest compat matchers fail wrong assertions and pass right ones (29.361978ms)
+✔ compat mocks retain exact arguments, resolve configured values and clear calls (1.065067ms)
+✔ compat timers fire at the deadline and globals restore to their original value (48.605817ms)
+✖ caught forbidden fetch still fails after every cleanup; broken cleanup=false (913.0624ms)
+✖ caught forbidden fetch still fails after every cleanup; broken cleanup=true (521.081824ms)
+✔ compat value and error matchers accept the right value and reject the wrong one (4.622651ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 4
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2110.433852
+
+✖ failing tests:
+
+test at apps/website/src/features/agent-plugins/__tests__/unit/vitest-compat.unit.test.ts:1:2551
+✖ caught forbidden fetch still fails after every cleanup; broken cleanup=false (913.0624ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /ok 2 - clean following test/. Input:
+  
+  '✖ caught forbidden fetch (50.239541ms)\n' +
+    '✔ clean following test (2.206278ms)\n' +
+    'ℹ tests 2\n' +
+    'ℹ suites 0\n' +
+    'ℹ pass 1\n' +
+    'ℹ fail 1\n' +
+    'ℹ cancelled 0\n' +
+    'ℹ skipped 0\n' +
+    'ℹ todo 0\n' +
+    'ℹ duration_ms 695.676199\n' +
+    '\n' +
+    '✖ failing tests:\n' +
+    '\n' +
+    'test at ../../tmp/tovu-network-guard-hU5DAH/guard.test.mjs:9:7\n' +
+    '✖ caught forbidden fetch (50.239541ms)\n' +
+    '  AssertionError [ERR_ASSERTION]: no test may reach the real network\n' +
+    '  + actual - expected\n' +
+    '  \n' +
+    '  + [\n' +
+    "  +   'https://guard.example.test/forbidden'\n" +
+    '  + ]\n' +
+    '  - []\n' +
+    '  \n' +
+    '      at step (/workspace/Tovu/apps/website/src/features/agent-plugins/__tests__/fixtures/vitest-compat.ts:274:54)\n' +
+    '      at runTeardownSteps (/workspace/Jini/packages/core/src/teardown.ts:19:17)\n' +
+    '      at async TestHook.run (node:internal/test_runner/test:1409:7)\n' +
+    '      at async Test.runHook (node:internal/test_runner/test:1289:9)\n' +
+    '      at async after (node:internal/test_runner/test:1342:9)\n' +
+    '      at async Test.run (node:internal/test_runner/test:1428:7)\n' +
+    '      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {\n' +
+    '    generatedMessage: false,\n' +
+    "    code: 'ERR_ASSERTION',\n" +
+    "    actual: [ 'https://guard.example.test/forbidden' ],\n" +
+    '    expected: [],\n' +
+    "    operator: 'deepStrictEqual',\n" +
+    "    diff: 'simple'\n" +
+    '  }\n'
+  
+      at TestContext.<anonymous> (/workspace/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/vitest-compat.unit.test.ts:104:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: "✖ caught forbidden fetch (50.239541ms)\n✔ clean following test (2.206278ms)\nℹ tests 2\nℹ suites 0\nℹ pass 1\nℹ fail 1\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 695.676199\n\n✖ failing tests:\n\ntest at ../../tmp/tovu-network-guard-hU5DAH/guard.test.mjs:9:7\n✖ caught forbidden fetch (50.239541ms)\n  AssertionError [ERR_ASSERTION]: no test may reach the real network\n  + actual - expected\n  \n  + [\n  +   'https://guard.example.test/forbidden'\n  + ]\n  - []\n  \n      at step (/workspace/Tovu/apps/website/src/features/agent-plugins/__tests__/fixtures/vitest-compat.ts:274:54)\n      at runTeardownSteps (/workspace/Jini/packages/core/src/teardown.ts:19:17)\n      at async TestHook.run (node:internal/test_runner/test:1409:7)\n      at async Test.runHook (node:internal/test_runner/test:1289:9)\n      at async after (node:internal/test_runner/test:1342:9)\n      at async Test.run (node:internal/test_runner/test:1428:7)\n      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {\n    generatedMessage: false,\n    code: 'ERR_ASSERTION',\n    actual: [ 'https://guard.example.test/forbidden' ],\n    expected: [],\n    operator: 'deepStrictEqual',\n    diff: 'simple'\n  }\n",
+    expected: /ok 2 - clean following test/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/agent-plugins/__tests__/unit/vitest-compat.unit.test.ts:1:2551
+✖ caught forbidden fetch still fails after every cleanup; broken cleanup=true (521.081824ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /ok 2 - clean following test/. Input:
+  
+  '✖ caught forbidden fetch (32.342863ms)\n' +
+    '✔ clean following test (0.947519ms)\n' +
+    'ℹ tests 2\n' +
+    'ℹ suites 0\n' +
+    'ℹ pass 1\n' +
+    'ℹ fail 1\n' +
+    'ℹ cancelled 0\n' +
+    'ℹ skipped 0\n' +
+    'ℹ todo 0\n' +
+    'ℹ duration_ms 411.924836\n' +
+    '\n' +
+    '✖ failing tests:\n' +
+    '\n' +
+    'test at ../../tmp/tovu-network-guard-WqPfeB/guard.test.mjs:9:7\n' +
+    '✖ caught forbidden fetch (32.342863ms)\n' +
+    '  Error [AggregateError]: test teardown failed\n' +
+    '      at runTeardownSteps (/workspace/Jini/packages/core/src/teardown.ts:22:34)\n' +
+    '      at async TestHook.run (node:internal/test_runner/test:1409:7)\n' +
+    '      at async Test.runHook (node:internal/test_runner/test:1289:9)\n' +
+    '      at async after (node:internal/test_runner/test:1342:9)\n' +
+    '      at async Test.run (node:internal/test_runner/test:1428:7)\n' +
+    '      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {\n' +
+    '    [cause]: Error: cleanup canary\n' +
+    '        at step (file:///tmp/tovu-network-guard-WqPfeB/guard.test.mjs:11:138)\n' +
+    '        at runTeardownSteps (/workspace/Jini/packages/core/src/teardown.ts:19:17)\n' +
+    '        at TestContext.<anonymous> (/workspace/Jini/packages/core/src/teardown.ts:41:17)\n' +
+    '        at TestHook.runInAsyncScope (node:async_hooks:227:14)\n' +
+    '        at TestHook.run (node:internal/test_runner/test:1402:25)\n' +
+    '        at TestHook.run (node:internal/test_runner/test:1757:18)\n' +
+    '        at TestHook.run (node:internal/util:581:20)\n' +
+    '        at Test.runHook (node:internal/test_runner/test:1289:20)\n' +
+    '        at after (node:internal/test_runner/test:1342:20)\n' +
+    '        at Test.run (node:internal/test_runner/test:1428:13),\n' +
+    '    [errors]: [\n' +
+    '      Error: cleanup canary\n' +
+    '          at step (file:///tmp/tovu-network-guard-WqPfeB/guard.test.mjs:11:138)\n' +
+    '          at runTeardownSteps (/workspace/Jini/packages/core/src/teardown.ts:19:17)\n' +
+    '          at TestContext.<anonymous> (/workspace/Jini/packages/core/src/teardown.ts:41:17)\n' +
+    '          at TestHook.runInAsyncScope (node:async_hooks:227:14)\n' +
+    '          at TestHook.run (node:internal/test_runner/test:1402:25)\n' +
+    '          at TestHook.run (node:internal/test_runner/test:1757:18)\n' +
+    '          at TestHook.run (node:internal/util:581:20)\n' +
+    '          at Test.runHook (node:internal/test_runner/test:1289:20)\n' +
+    '          at after (node:internal/test_runner/test:1342:20)\n' +
+    '          at Test.run (node:internal/test_runner/test:1428:13),\n' +
+    '      AssertionError [ERR_ASSERTION]: no test may reach the real network\n' +
+    '      + actual - expected\n' +
+    '      \n' +
+    '      + [\n' +
+    "      +   'https://guard.example.test/forbidden'\n" +
+    '      + ]\n' +
+    '      - []\n' +
+    '      \n' +
+    '          at step (/workspace/Tovu/apps/website/src/features/agent-plugins/__tests__/fixtures/vitest-compat.ts:274:54)\n' +
+    '          at runTeardownSteps (/workspace/Jini/packages/core/src/teardown.ts:19:17)\n' +
+    '          at async TestHook.run (node:internal/test_runner/test:1409:7)\n' +
+    '          at async Test.runHook (node:internal/test_runner/test:1289:9)\n' +
+    '          at async after (node:internal/test_runner/test:1342:9)\n' +
+    '          at async Test.run (node:internal/test_runner/test:1428:7)\n' +
+    '          at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)\n' +
+    '    ]\n' +
+    '  }\n'
+  
+      at TestContext.<anonymous> (/workspace/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/vitest-compat.unit.test.ts:104:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: "✖ caught forbidden fetch (32.342863ms)\n✔ clean following test (0.947519ms)\nℹ tests 2\nℹ suites 0\nℹ pass 1\nℹ fail 1\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 411.924836\n\n✖ failing tests:\n\ntest at ../../tmp/tovu-network-guard-WqPfeB/guard.test.mjs:9:7\n✖ caught forbidden fetch (32.342863ms)\n  Error [AggregateError]: test teardown failed\n      at runTeardownSteps (/workspace/Jini/packages/core/src/teardown.ts:22:34)\n      at async TestHook.run (node:internal/test_runner/test:1409:7)\n      at async Test.runHook (node:internal/test_runner/test:1289:9)\n      at async after (node:internal/test_runner/test:1342:9)\n      at async Test.run (node:internal/test_runner/test:1428:7)\n      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {\n    [cause]: Error: cleanup canary\n        at step (file:///tmp/tovu-network-guard-WqPfeB/guard.test.mjs:11:138)\n        at runTeardownSteps (/workspace/Jini/packages/core/src/teardown.ts:19:17)\n        at TestContext.<anonymous> (/workspace/Jini/packages/core/src/teardown.ts:41:17)\n        at TestHook.runInAsyncScope (node:async_hooks:227:14)\n        at TestHook.run (node:internal/test_runner/test:1402:25)\n        at TestHook.run (node:internal/test_runner/test:1757:18)\n        at TestHook.run (node:internal/util:581:20)\n        at Test.runHook (node:internal/test_runner/test:1289:20)\n        at after (node:internal/test_runner/test:1342:20)\n        at Test.run (node:internal/test_runner/test:1428:13),\n    [errors]: [\n      Error: cleanup canary\n          at step (file:///tmp/tovu-network-guard-WqPfeB/guard.test.mjs:11:138)\n          at runTeardownSteps (/workspace/Jini/packages/core/src/teardown.ts:19:17)\n          at TestContext.<anonymous> (/workspace/Jini/packages/core/src/teardown.ts:41:17)\n          at TestHook.runInAsyncScope (node:async_hooks:227:14)\n          at TestHook.run (node:internal/test_runner/test:1402:25)\n          at TestHook.run (node:internal/test_runner/test:1757:18)\n          at TestHook.run (node:internal/util:581:20)\n          at Test.runHook (node:internal/test_runner/test:1289:20)\n          at after (node:internal/test_runner/test:1342:20)\n          at Test.run (node:internal/test_runner/test:1428:13),\n      AssertionError [ERR_ASSERTION]: no test may reach the real network\n      + actual - expected\n      \n      + [\n      +   'https://guard.example.test/forbidden'\n      + ]\n      - []\n      \n          at step (/workspace/Tovu/apps/website/src/features/agent-plugins/__tests__/fixtures/vitest-compat.ts:274:54)\n          at runTeardownSteps (/workspace/Jini/packages/core/src/teardown.ts:19:17)\n          at async TestHook.run (node:internal/test_runner/test:1409:7)\n          at async Test.runHook (node:internal/test_runner/test:1289:9)\n          at async after (node:internal/test_runner/test:1342:9)\n          at async Test.run (node:internal/test_runner/test:1428:7)\n          at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)\n    ]\n  }\n",
+    expected: /ok 2 - clean following test/,
+    operator: 'match',
+    diff: 'simple'
+  }

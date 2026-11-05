@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 /workspace/Jini/packages/agent-plugins
+
+ ✓ src/lifecycle/__tests__/unit/bundled-file-policy.unit.test.ts (16 tests) 6ms
+
+ Test Files  1 passed (1)
+      Tests  16 passed (16)
+   Start at  18:24:38
+   Duration  478ms (transform 41ms, setup 0ms, collect 35ms, tests 6ms, environment 0ms, prepare 70ms)
+

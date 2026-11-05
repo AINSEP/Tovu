@@ -1,0 +1,121 @@
+
+ RUN  v4.1.11 /workspace/Tovu/apps/admin
+
+Sourcemap for "/workspace/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/types.js" points to missing source files
+Sourcemap for "/workspace/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/shared/protocol.js" points to missing source files
+Sourcemap for "/workspace/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/server/zod-compat.js" points to missing source files
+Sourcemap for "/workspace/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/experimental/tasks/interfaces.js" points to missing source files
+Sourcemap for "/workspace/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/server/zod-json-schema-compat.js" points to missing source files
+stderr | src/features/security/__tests__/Security.unit.test.tsx > Security — page shell > handleTabChange navigates to the clicked tab's own URL, replacing history
+An error occurred in the <RecoveryCodesCard> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+stderr | src/features/security/__tests__/Security.unit.test.tsx > Security — page shell > Site key tab — gated on admin.security.site-key.manage (2026-09-10) > C3: publishes the site-key handle and navigates to the site-key tab URL
+An error occurred in the <RecoveryCodesCard> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+ ❯ src/features/security/__tests__/Security.unit.test.tsx (11 tests | 2 failed) 1017ms
+     × handleTabChange navigates to the clicked tab's own URL, replacing history 163ms
+       × C3: publishes the site-key handle and navigates to the site-key tab URL 37ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/features/security/__tests__/Security.unit.test.tsx > Security — page shell > handleTabChange navigates to the clicked tab's own URL, replacing history
+AssertionError: expected '/' to be '/admin/access-tokens' // Object.is equality
+
+Expected: "/admin/access-tokens"
+Received: "/"
+
+ ❯ src/features/security/__tests__/Security.unit.test.tsx:119:38
+    117|     await user.click(screen.getByRole("tab", { name: /Access Tokens/ }…
+    118|     expect(window.history.length).toBe(historyLength);
+    119|     expect(window.location.pathname).toBe("/admin/access-tokens");
+       |                                      ^
+    120|     expect(window.location.search).toBe("?tab=access-tokens");
+    121|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/features/security/__tests__/Security.unit.test.tsx > Security — page shell > Site key tab — gated on admin.security.site-key.manage (2026-09-10) > C3: publishes the site-key handle and navigates to the site-key tab URL
+AssertionError: expected '/' to be '/admin/access-tokens' // Object.is equality
+
+Expected: "/admin/access-tokens"
+Received: "/"
+
+ ❯ src/features/security/__tests__/Security.unit.test.tsx:130:40
+    128|       expect(tab).toHaveAttribute("data-agent-element", "security-tab-…
+    129|       await user.click(tab);
+    130|       expect(window.location.pathname).toBe("/admin/access-tokens");
+       |                                        ^
+    131|       expect(window.location.search).toBe("?tab=site-key");
+    132|     });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+⎯⎯⎯⎯⎯⎯ Unhandled Errors ⎯⎯⎯⎯⎯⎯
+
+Vitest caught 2 unhandled errors during the test run.
+This might cause false positive tests. Resolve unhandled errors to make sure your tests are not affected.
+
+⎯⎯⎯⎯⎯ Uncaught Exception ⎯⎯⎯⎯⎯
+TypeError: Cannot read properties of undefined (reading 'length')
+ ❯ bound ../../../Jini/packages/core/src/user-facing-error.ts:67:15
+ ❯ safeField ../../../Jini/packages/core/src/user-facing-error.ts:63:10
+ ❯ formatUserFacingError ../../../Jini/packages/core/src/user-facing-error.ts:45:13
+ ❯ ownerRecoveryFailure src/lib/owner-recovery-api.ts:39:10
+     37|   _options = {},
+     38| ): UserFacingError {
+     39|   return formatUserFacingError({ message: describeApiError(error, t(me…
+       |          ^
+     40|     { ...TOVU_ERROR_REDACTION_OPTIONS, exactSecrets: secrets.filter(Bo…
+     41| }
+ ❯ src/features/security/RecoveryCodesCard.tsx:23:43
+ ❯ updateMemo node_modules/react-dom/cjs/react-dom-client.development.js:9179:19
+ ❯ Object.useMemo node_modules/react-dom/cjs/react-dom-client.development.js:29154:18
+ ❯ process.env.NODE_ENV.exports.useMemo node_modules/react/cjs/react.development.js:1297:34
+ ❯ RecoveryCodesCard src/features/security/RecoveryCodesCard.tsx:23:17
+ ❯ Object.react_stack_bottom_frame node_modules/react-dom/cjs/react-dom-client.development.js:28571:20
+
+This error originated in "src/features/security/__tests__/Security.unit.test.tsx" test file. It doesn't mean the error was thrown inside the file itself, but while it was running.
+The latest test that might've caused the error is "handleTabChange navigates to the clicked tab's own URL, replacing history". It might mean one of the following:
+- The error was thrown, while Vitest was running this test.
+- If the error occurred after the test had been completed, this was the last documented test before it was thrown.
+
+⎯⎯⎯⎯⎯ Uncaught Exception ⎯⎯⎯⎯⎯
+TypeError: Cannot read properties of undefined (reading 'length')
+ ❯ bound ../../../Jini/packages/core/src/user-facing-error.ts:67:15
+ ❯ safeField ../../../Jini/packages/core/src/user-facing-error.ts:63:10
+ ❯ formatUserFacingError ../../../Jini/packages/core/src/user-facing-error.ts:45:13
+ ❯ ownerRecoveryFailure src/lib/owner-recovery-api.ts:39:10
+     37|   _options = {},
+     38| ): UserFacingError {
+     39|   return formatUserFacingError({ message: describeApiError(error, t(me…
+       |          ^
+     40|     { ...TOVU_ERROR_REDACTION_OPTIONS, exactSecrets: secrets.filter(Bo…
+     41| }
+ ❯ src/features/security/RecoveryCodesCard.tsx:23:43
+ ❯ updateMemo node_modules/react-dom/cjs/react-dom-client.development.js:9179:19
+ ❯ Object.useMemo node_modules/react-dom/cjs/react-dom-client.development.js:29154:18
+ ❯ process.env.NODE_ENV.exports.useMemo node_modules/react/cjs/react.development.js:1297:34
+ ❯ RecoveryCodesCard src/features/security/RecoveryCodesCard.tsx:23:17
+ ❯ Object.react_stack_bottom_frame node_modules/react-dom/cjs/react-dom-client.development.js:28571:20
+
+This error originated in "src/features/security/__tests__/Security.unit.test.tsx" test file. It doesn't mean the error was thrown inside the file itself, but while it was running.
+The latest test that might've caused the error is "C3: publishes the site-key handle and navigates to the site-key tab URL". It might mean one of the following:
+- The error was thrown, while Vitest was running this test.
+- If the error occurred after the test had been completed, this was the last documented test before it was thrown.
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+
+ Test Files  1 failed | 13 passed (14)
+      Tests  2 failed | 166 passed (168)
+     Errors  2 errors
+   Start at  18:20:26
+   Duration  40.53s (transform 20.15s, setup 3.81s, import 39.93s, tests 10.26s, environment 19.16s)
+
