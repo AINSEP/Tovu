@@ -29,9 +29,13 @@ test("an archive failure returns the actual job step and redacted copyable detai
   assert.match(failure.copyText, /ZIP writer failed/);
   assert.equal(failure.copyText.includes("CANARY_EXPORT"), false);
   assert.equal(failure.copyText.includes("Check storage configuration"), false);
-  for (const sink of [logged.mock.calls.map(call => call.arguments), tracked]) {
-    assert.match(JSON.stringify(sink), /ERR-1234-5678-9ABC-DEF0/);
-    assert.equal(JSON.stringify(sink).includes("CANARY_EXPORT"), false);
+  assert.equal(tracked.length, 1);
+  const trackedError = (tracked[0] as { error: Error }).error;
+  assert.ok(trackedError instanceof Error);
+  // Error.message is nonenumerable; inspect the diagnostic the tracker receives, not JSON's empty object.
+  for (const diagnostic of [JSON.stringify(logged.mock.calls.map(call => call.arguments)), trackedError.message]) {
+    assert.match(diagnostic, /ERR-1234-5678-9ABC-DEF0/);
+    assert.equal(diagnostic.includes("CANARY_EXPORT"), false);
   }
 });
 

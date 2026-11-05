@@ -1,0 +1,22 @@
+
+ RUN  v2.1.9 /workspace/Jini/packages/cms
+
+ ✓ src/media/__tests__/rendition-service.test.ts (14 tests) 404ms
+   ✓ SVG transform URLs serve the vector original without invoking the raster transformer or saving renditions 391ms
+ ✓ src/media/__tests__/media-service.test.ts (60 tests) 462ms
+   ✓ SVG upload stores sanitized bytes under their own hash, deduplicates, and refuses SVG fonts 433ms
+ ✓ src/forms/__tests__/notify-subscriber.test.ts (11 tests) 27ms
+ ✓ src/forms/__tests__/attachment-purge.test.ts (7 tests) 7ms
+ ✓ src/media/__tests__/replace-media-file.test.ts (15 tests) 564ms
+   ✓ SVG replacement uses the upload sanitizer before hashing and persistence 539ms
+ ✓ src/forms/__tests__/notify-durable.test.ts (4 tests) 5ms
+ ✓ src/forms/__tests__/submission-ip-retention.test.ts (5 tests) 6ms
+ ✓ src/forms/__tests__/attachment-cleanup.test.ts (2 tests) 4ms
+ ✓ src/forms/__tests__/request-admission.test.ts (3 tests) 3ms
+ ✓ src/forms/__tests__/submission-validation-metadata.test.ts (2 tests) 3ms
+
+ Test Files  10 passed (10)
+      Tests  123 passed (123)
+   Start at  18:24:54
+   Duration  2.85s (transform 751ms, setup 0ms, collect 1.78s, tests 1.49s, environment 2ms, prepare 666ms)
+

@@ -1,0 +1,8 @@
+
+/workspace/Tovu/apps/website/src/server/inbound/admin-http/routes/system/__tests__/site-share-failures.test.ts
+  16:27  warning  Review this potentially hard-coded password                                                   sonarjs/no-hardcoded-passwords
+  70:79  error    This conditional operation returns the same value whether the condition is "true" or "false"  sonarjs/no-all-duplicated-branches
+  70:79  warning  Extract this nested ternary operation into an independent statement                           sonarjs/no-nested-conditional
+
+✖ 3 problems (1 error, 2 warnings)
+

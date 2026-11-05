@@ -1,0 +1,786 @@
+[migrations] /tmp/tovu-schema-drift-PX4H2M/probe.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_archive_legacy_commerce, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata, 0038_newsletter_sending_index, 0039_owner_recovery_codes
+[migrations]   vault coverage site-assistant: rows=0, envelopes=0
+[migrations]   vault coverage personal-execution: rows=0, envelopes=0
+[migrations]   vault coverage media-provider: rows=0, envelopes=0
+[migrations]   vault coverage custom: rows=0, envelopes=0
+[migrations]   vault coverage publish-peer: rows=0, envelopes=0
+[migrations]   vault coverage database-destination: rows=0, envelopes=0
+[migrations]   vault coverage vendor: rows=0, envelopes=0
+[migrations]   vault coverage source-control: rows=0, envelopes=0
+[migrations]   vault coverage mcp-env: rows=0, envelopes=0
+[migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+[migrations] /tmp/tovu-schema-drift-Lcucup/probe.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_archive_legacy_commerce, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata, 0038_newsletter_sending_index, 0039_owner_recovery_codes
+[migrations]   vault coverage site-assistant: rows=0, envelopes=0
+[migrations]   vault coverage personal-execution: rows=0, envelopes=0
+[migrations]   vault coverage media-provider: rows=0, envelopes=0
+[migrations]   vault coverage custom: rows=0, envelopes=0
+[migrations]   vault coverage publish-peer: rows=0, envelopes=0
+[migrations]   vault coverage database-destination: rows=0, envelopes=0
+[migrations]   vault coverage vendor: rows=0, envelopes=0
+[migrations]   vault coverage source-control: rows=0, envelopes=0
+[migrations]   vault coverage mcp-env: rows=0, envelopes=0
+[migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+[migrations] /tmp/tovu-schema-drift-dTiENV/probe.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_archive_legacy_commerce, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata, 0038_newsletter_sending_index, 0039_owner_recovery_codes
+[migrations]   vault coverage site-assistant: rows=0, envelopes=0
+[migrations]   vault coverage personal-execution: rows=0, envelopes=0
+[migrations]   vault coverage media-provider: rows=0, envelopes=0
+[migrations]   vault coverage custom: rows=0, envelopes=0
+[migrations]   vault coverage publish-peer: rows=0, envelopes=0
+[migrations]   vault coverage database-destination: rows=0, envelopes=0
+[migrations]   vault coverage vendor: rows=0, envelopes=0
+[migrations]   vault coverage source-control: rows=0, envelopes=0
+[migrations]   vault coverage mcp-env: rows=0, envelopes=0
+[migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+[migrations] /tmp/tovu-schema-drift-rBYGdk/probe.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_archive_legacy_commerce, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata, 0038_newsletter_sending_index, 0039_owner_recovery_codes
+[migrations]   vault coverage site-assistant: rows=0, envelopes=0
+[migrations]   vault coverage personal-execution: rows=0, envelopes=0
+[migrations]   vault coverage media-provider: rows=0, envelopes=0
+[migrations]   vault coverage custom: rows=0, envelopes=0
+[migrations]   vault coverage publish-peer: rows=0, envelopes=0
+[migrations]   vault coverage database-destination: rows=0, envelopes=0
+[migrations]   vault coverage vendor: rows=0, envelopes=0
+[migrations]   vault coverage source-control: rows=0, envelopes=0
+[migrations]   vault coverage mcp-env: rows=0, envelopes=0
+[migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+[migrations] /tmp/tovu-schema-drift-2yWJVU/probe.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_archive_legacy_commerce, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata, 0038_newsletter_sending_index, 0039_owner_recovery_codes
+[migrations]   vault coverage site-assistant: rows=0, envelopes=0
+[migrations]   vault coverage personal-execution: rows=0, envelopes=0
+[migrations]   vault coverage media-provider: rows=0, envelopes=0
+[migrations]   vault coverage custom: rows=0, envelopes=0
+[migrations]   vault coverage publish-peer: rows=0, envelopes=0
+[migrations]   vault coverage database-destination: rows=0, envelopes=0
+[migrations]   vault coverage vendor: rows=0, envelopes=0
+[migrations]   vault coverage source-control: rows=0, envelopes=0
+[migrations]   vault coverage mcp-env: rows=0, envelopes=0
+[migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+[migrations] /tmp/tovu-schema-drift-Ee7Uxo/probe.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_archive_legacy_commerce, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata, 0038_newsletter_sending_index, 0039_owner_recovery_codes
+[migrations]   vault coverage site-assistant: rows=0, envelopes=0
+[migrations]   vault coverage personal-execution: rows=0, envelopes=0
+[migrations]   vault coverage media-provider: rows=0, envelopes=0
+[migrations]   vault coverage custom: rows=0, envelopes=0
+[migrations]   vault coverage publish-peer: rows=0, envelopes=0
+[migrations]   vault coverage database-destination: rows=0, envelopes=0
+[migrations]   vault coverage vendor: rows=0, envelopes=0
+[migrations]   vault coverage source-control: rows=0, envelopes=0
+[migrations]   vault coverage mcp-env: rows=0, envelopes=0
+[migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+[migrations] /tmp/tovu-schema-drift-ojwUX6/probe.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_archive_legacy_commerce, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata, 0038_newsletter_sending_index, 0039_owner_recovery_codes
+[migrations]   vault coverage site-assistant: rows=0, envelopes=0
+[migrations]   vault coverage personal-execution: rows=0, envelopes=0
+[migrations]   vault coverage media-provider: rows=0, envelopes=0
+[migrations]   vault coverage custom: rows=0, envelopes=0
+[migrations]   vault coverage publish-peer: rows=0, envelopes=0
+[migrations]   vault coverage database-destination: rows=0, envelopes=0
+[migrations]   vault coverage vendor: rows=0, envelopes=0
+[migrations]   vault coverage source-control: rows=0, envelopes=0
+[migrations]   vault coverage mcp-env: rows=0, envelopes=0
+[migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+[migrations] /tmp/tovu-schema-drift-oE14sA/probe.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_archive_legacy_commerce, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata, 0038_newsletter_sending_index, 0039_owner_recovery_codes
+[migrations]   vault coverage site-assistant: rows=0, envelopes=0
+[migrations]   vault coverage personal-execution: rows=0, envelopes=0
+[migrations]   vault coverage media-provider: rows=0, envelopes=0
+[migrations]   vault coverage custom: rows=0, envelopes=0
+[migrations]   vault coverage publish-peer: rows=0, envelopes=0
+[migrations]   vault coverage database-destination: rows=0, envelopes=0
+[migrations]   vault coverage vendor: rows=0, envelopes=0
+[migrations]   vault coverage source-control: rows=0, envelopes=0
+[migrations]   vault coverage mcp-env: rows=0, envelopes=0
+[migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+✔ commerce archive artifacts are retained without hiding unrelated schema drift (1.359409ms)
+✔ 0038 newsletter busy index matches on fresh and migrated content databases and covers the probe (657.432544ms)
+✔ 0003 active-run index matches on fresh and migrated chat databases and covers the probe (5.782208ms)
+✔ schema.sqlite.ts declares no COLUMN that the migrations on disk do not create (1030.506771ms)
+✔ the migrations on disk create no COLUMN that schema.sqlite.ts has dropped (664.862499ms)
+✔ schema.sqlite.ts declares no TABLE that the migrations on disk do not create (869.466459ms)
+✔ the migrations on disk create no TABLE that schema.sqlite.ts has dropped (423.019691ms)
+✔ every allowlisted non-drift object is actually present in the migrated database (324.939421ms)
+✔ no RAW_SQL_MANAGED_TABLES entry has since acquired a schema.sqlite.ts declaration (0.990143ms)
+✔ FTS5 shadow-table suffixes are exhaustive — an unknown one is a stale allowlist, not drift (529.114696ms)
+✔ the derived shape is non-trivial — a guard comparing two empty sets proves nothing (496.365527ms)
+✔ seam: a column in schema.sqlite.ts with no migration is reported as missing, by name (0.367885ms)
+✔ seam: a column the migrations create but schema.sqlite.ts dropped is reported as extra, by name (0.16561ms)
+✔ seam: a table missing on either side is reported once, and not re-reported as N missing columns (0.131889ms)
+✔ seam: an in-agreement pair reports no drift at all (0.175916ms)
+✔ 0012 head declares the vault and MCP pointers, retires folded stores, and retains device attempts (1021.148086ms)
+✔ sqlite: populated core archives the complete related set, warns and permits unchanged 0011 (31.557058ms)
+✔ sqlite: empty, missing and already-upgraded tables do not create archives (12.236399ms)
+✔ sqlite: one populated last table protects its empty siblings; partial sets are supported (4.882902ms)
+✔ sqlite: an archive-name collision refuses before any rename and preserves both sets (18.165649ms)
+✔ sqlite: a failed rename rolls back the entire set and its ledger entry (26.518621ms)
+✔ pglite: populated core archives the complete related set, warns and permits unchanged 0011 (3736.042803ms)
+✔ pglite: empty, missing and already-upgraded tables do not create archives (8203.659488ms)
+✔ pglite: one populated last table protects its empty siblings; partial sets are supported (4471.165735ms)
+✔ pglite: an archive-name collision refuses before any rename and preserves both sets (5364.775026ms)
+✔ pglite: a failed rename rolls back the entire set and its ledger entry (3313.94302ms)
+✔ SQLite: concurrent openers archive once; pre-change and post-change backups restore all rows (594.674953ms)
+✔ every step's pinned checksum matches its sources (302.593775ms)
+✔ the legacy drizzle chain is frozen (0.517821ms)
+✔ 0012 activation appends the final checksum after 0011 without replacing history (15.268684ms)
+✔ 0013 activation pins the data-only conversion after the historical vault step (4.010658ms)
+✔ sqlite: empty targets drop child-first, all other schema and plugin rows survive, rerun is a no-op (1046.25531ms)
+✔ sqlite: a fresh database ends without core commerce and keeps newsletter tables (517.32625ms)
+✔ sqlite: every populated target is named with its exact count before any DROP (23.966007ms)
+✔ sqlite: a populated last target protects its five empty siblings (13.186668ms)
+✔ sqlite: missing targets and partial manual cleanup are harmless (2.424166ms)
+✔ sqlite: absent or invalid counts refuse before a DROP (7.092366ms)
+✔ pglite: empty targets drop child-first, all other schema and plugin rows survive, rerun is a no-op (11644.971039ms)
+✔ pglite: a fresh database ends without core commerce and keeps newsletter tables (6408.760822ms)
+✔ pglite: every populated target is named with its exact count before any DROP (3703.723189ms)
+✔ pglite: a populated last target protects its five empty siblings (2637.231468ms)
+✔ pglite: missing targets and partial manual cleanup are harmless (2534.570941ms)
+✔ pglite: absent or invalid counts refuse before a DROP (3204.408097ms)
+▶ 0000_legacy_baseline on Postgres (PGlite)
+  ✔ applies on an empty database and matches schema.postgres.ts at head (10791.128548ms)
+  ✔ the frozen baseline creates the composite FK (the 42830 case), then head retires core commerce (3661.176223ms)
+  ✔ a prototype schema with no ledger is refused, not overwritten (3164.902279ms)
+✔ 0000_legacy_baseline on Postgres (PGlite) (17621.120812ms)
+✔ fresh in-memory openContentDb includes media.created_by and supports Drizzle inserts without attribution (209.405165ms)
+✔ fresh synchronous content databases match every declared table's columns and the real TS migration head (1000.715006ms)
+✔ fresh file openContentDb preserves creator attribution on reopen and needs no TS migrations afterward (217.681541ms)
+✔ fresh openContentDb creates the publish audit table, both complete indexes and its direction CHECK (185.202626ms)
+✔ fresh vault head enforces metadata, singleton and MCP pointer contracts before first boot (127.136515ms)
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ commerce off: a fresh site does not activate payment or store storage (1211.849075ms)
+[migrations] /tmp/commerce-retention-ZbJKVG/site/data.nosync/content.db: applied 0011_archive_legacy_commerce, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata, 0038_newsletter_sending_index, 0039_owner_recovery_codes
+[migrations]   backed up the database to /tmp/commerce-retention-ZbJKVG/site/data.nosync/ops/pre-migrations-2026-11-05T18-21-27-481Z.db before migrating it
+[migrations]   vault coverage site-assistant: rows=0, envelopes=0
+[migrations]   vault coverage personal-execution: rows=0, envelopes=0
+[migrations]   vault coverage media-provider: rows=0, envelopes=0
+[migrations]   vault coverage custom: rows=0, envelopes=0
+[migrations]   vault coverage publish-peer: rows=0, envelopes=0
+[migrations]   vault coverage database-destination: rows=0, envelopes=0
+[migrations]   vault coverage vendor: rows=0, envelopes=0
+[migrations]   vault coverage source-control: rows=0, envelopes=0
+[migrations]   vault coverage mcp-env: rows=0, envelopes=0
+[migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+resolveWorkspace: content.db has 2 workspace rows; defaulting to the oldest (id="workspace-local"). Pass --workspace <id> (tovu serve) to pick a different one — other ids: retained-ws.
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+resolveWorkspace: content.db has 2 workspace rows; defaulting to the oldest (id="workspace-local"). Pass --workspace <id> (tovu serve) to pick a different one — other ids: retained-ws.
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ commerce off: plugin storage survives; empty core is removed across two boots (2190.336986ms)
+[migrations] /tmp/commerce-retention-ARyr6V/site/data.nosync/content.db: applied 0011_archive_legacy_commerce, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata, 0038_newsletter_sending_index, 0039_owner_recovery_codes
+[migrations]   backed up the database to /tmp/commerce-retention-ARyr6V/site/data.nosync/ops/pre-migrations-2026-11-05T18-21-29-790Z.db before migrating it
+[migrations]   WARNING: Historical commerce rows were preserved by archiving tables: commerce_order_items -> _archive_0011_commerce_order_items, commerce_product_images -> _archive_0011_commerce_product_images, commerce_webhook_events -> _archive_0011_commerce_webhook_events, commerce_orders -> _archive_0011_commerce_orders, commerce_prices -> _archive_0011_commerce_prices, commerce_products -> _archive_0011_commerce_products. Upgrade continues with commerce off; no payments were imported. Keep these archives in database backups for historical records and recovery.
+[migrations]   vault coverage site-assistant: rows=0, envelopes=0
+[migrations]   vault coverage personal-execution: rows=0, envelopes=0
+[migrations]   vault coverage media-provider: rows=0, envelopes=0
+[migrations]   vault coverage custom: rows=0, envelopes=0
+[migrations]   vault coverage publish-peer: rows=0, envelopes=0
+[migrations]   vault coverage database-destination: rows=0, envelopes=0
+[migrations]   vault coverage vendor: rows=0, envelopes=0
+[migrations]   vault coverage source-control: rows=0, envelopes=0
+[migrations]   vault coverage mcp-env: rows=0, envelopes=0
+[migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+resolveWorkspace: content.db has 2 workspace rows; defaulting to the oldest (id="workspace-local"). Pass --workspace <id> (tovu serve) to pick a different one — other ids: retained-ws.
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+resolveWorkspace: content.db has 2 workspace rows; defaulting to the oldest (id="workspace-local"). Pass --workspace <id> (tovu serve) to pick a different one — other ids: retained-ws.
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ commerce off: plugin storage survives; populated core archives across two boots (2267.089229ms)
+ℹ tests 54
+ℹ suites 1
+ℹ pass 54
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 60707.612166

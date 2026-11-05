@@ -251,6 +251,7 @@ function defaultAgentExecutor(
     codexDisablePlugins: runtime.codexDisablePlugins,
     piGracefulShutdownMs: runtime.piGracefulShutdownMs,
     mcpJsonInjection: {
+      toolApprovalOwner: "host",
       command: process.execPath,
       args: [optional.mcpServeScript ?? defaultMcpServeScript()],
       env: { ELECTRON_RUN_AS_NODE: "1" },

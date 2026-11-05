@@ -1,0 +1,18 @@
+✔ loads metadata; import feedback counts imported keys and mentions kept site copies (3630.450178ms)
+✔ same-turn double submit performs one action and one refresh (35.068219ms)
+✔ opaque failures never expose submitted values and stale revisions are withdrawn (33.160101ms)
+✔ failed inventory reads clear old entries; unmounted completions do not read again (26.623304ms)
+✔ stale preload offers an unavailable state without any operation (3.349181ms)
+✔ new vendor save is unattached, clears its password input and never renders the secret (3805.411649ms)
+✔ backup import sends only the source and passphrase, clears it, and shows fixed feedback (68.744479ms)
+✔ replace carries the displayed revision; importing from this computer sends only the source (28.781839ms)
+✔ Shared Keys offers replacement and unused delete for custom (56.60909ms)
+✔ Shared Keys offers replacement and unused delete for api-connection (18.804825ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4791.83379

@@ -1,0 +1,91 @@
+
+.:
+  ok       agent-plugins
+  ok       agent-runtime
+  ok       agentic
+  ok       analytics
+  ok       capability-providers
+  ok       chat
+  ok       cli
+  ok       cms
+  ok       commerce
+  ok       cookie-consent
+  ok       core
+  ok       daemon
+  ok       db
+  ok       desktop-host
+  ok       devops
+  ok       diagnostics
+  ok       http-kit
+  ok       infra
+  ok       integrations
+  ok       mcp
+  ok       oauth
+  ok       platform
+  ok       plugin-catalog
+  ok       plugins
+  ok       protocol
+  ok       provider-plugins
+  ok       registry
+  ok       sandbox
+  ok       search
+  ok       server
+  ok       sidecar
+  ok       ui
+  ok       ui-kit
+  ok       user-management
+  ok       vibecoding
+
+apps/admin:
+  ok       admin
+  ok       agent-plugins
+  ok       agent-runtime
+  ok       agentic
+  ok       chat
+  ok       cms
+  ok       core
+  ok       db
+  ok       diagnostics
+  ok       integrations
+  ok       oauth
+  ok       platform
+  ok       plugins
+  ok       protocol
+  ok       ui
+  ok       ui-kit
+  ok       user-management
+
+apps/site-chat:
+  ok       agentic
+  ok       chat
+  ok       core
+  ok       db
+  ok       diagnostics
+  ok       platform
+  ok       protocol
+  ok       ui
+  ok       ui-kit
+
+apps/desktop:
+  ok       agent-runtime
+  ok       agentic
+  ok       chat
+  ok       core
+  ok       daemon
+  ok       db
+  ok       desktop-host
+  ok       devops
+  ok       diagnostics
+  ok       http-kit
+  ok       integrations
+  ok       mcp
+  ok       oauth
+  ok       platform
+  ok       protocol
+  ok       sidecar
+  ok       ui
+  ok       ui-kit
+
+Linked @jini-ai/* from /workspace/Jini/packages (0 link(s) changed).
+Builds are blocked while linked (check-no-linked-jini.mjs) — run `npm run unlink:jini` before building for real.
+

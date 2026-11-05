@@ -1,0 +1,212 @@
+✔ theme_duplicate: structure-only returns a valid unstyled inactive Starter copy (98.435949ms)
+✔ theme_duplicate: structure-only activation conflict and unknown mode refuse before writes (3.525797ms)
+✔ theme_duplicate: wires with its catalog schema, a mutating risk class, and is not read-only (2.013726ms)
+✔ theme_duplicate: the contributor registers under its own 'theme-duplicate' domain key (0.281234ms)
+✔ theme_duplicate: copies the source into a new, valid, discovered theme and leaves the live site on the source (6.783549ms)
+✔ theme_duplicate: a derived id that is taken is suffixed, not refused (8.211962ms)
+✔ theme_duplicate: activate:true also switches the live theme and returns the previous id for undo (11.016431ms)
+✔ theme_duplicate: activate:true without theme.set is refused before anything is copied (4.170278ms)
+✔ theme_duplicate: a principal without theme.edit is refused and nothing is written (3.609553ms)
+✔ theme_duplicate: an unknown source is refused by name with the published schema attached for retry (3.248969ms)
+✔ theme_duplicate: an explicit newId that is already taken is refused, not suffixed (3.814201ms)
+✔ theme_set_active: a marked structure copy refuses without saving, then activates after styling (68.465808ms)
+✔ theme_set_active: wires with a published schema and a cross-checked risk class (3.032853ms)
+✔ switching a theme advertises themeId as the single canonical argument before the first call (2.768725ms)
+✔ switching a theme accepts activeThemeId through the shared execution gate (5.23266ms)
+✔ theme_set_active: the contributor registers under its own domain key, distinct from the themes file-op domain (0.339131ms)
+✔ theme_set_active: switches from basic to a second valid theme, returning the previous id, and resolveActiveThemeId reflects the switch (2.752861ms)
+✔ theme_set_active: accepts the no-theme sentinel — the write allowlist `writableThemeIds` shares with the admin PATCH route (2.291856ms)
+✔ theme_set_active: an unknown theme id is rejected by name, and settings are left unchanged (2.839512ms)
+✔ theme_set_active: refuses a principal without theme.set, without writing (3.157752ms)
+✔ theme_set_active: checks exactly the theme.set permission (2.938551ms)
+✔ theme_set_active: activates a theme another process created after this one booted (2026-10-08 luvira) (5.503599ms)
+✔ theme_set_active: fails loudly — and restores the previous theme — when the public render of / would not resolve the theme (4.471302ms)
+✔ tovu-theme and site-import load ui-ux-design before designing themes or writing page layouts (20.307491ms)
+✔ Part C discovers the active theme through the site profile, rather than treating the theme list as an active id (3.071691ms)
+✔ every tool tovu-theme's skill and references cite is a real native tool or a per-plugin tool (3.539387ms)
+✔ matching a reference site uses theme_duplicate only as a scaffold and rebuilds layout, not just colours (1.473682ms)
+✔ a picture or URL match rebuilds the design system: no layered override stylesheet, starter fonts replaced, Media photos before placeholders (3.46881ms)
+✔ the compare loop is mandatory: source and own page, desktop and mobile, capped rounds, never done without a capture (0.998576ms)
+✔ theme guidance checks all pages at both sizes and uses asset tools (1.630469ms)
+✔ the header menu is wired by the menu marker's id, the way static themes resolve menus (1.21365ms)
+✔ site-import hands its theme step to tovu-theme and keeps no duplicate-and-tweak recipe (2.483706ms)
+✔ importing the homepage also imports the main menu and the header call-to-action (5.815809ms)
+✔ neither skill gates copying on ownership or the right to copy (28.382738ms)
+✔ Part C copies the source's real text, images, logo, brand names and fonts verbatim, never placeholder copy (8.154435ms)
+✔ fonts are imported into the theme with theme_import_file_from_url; linking the source's font URLs is only the fallback (1.922729ms)
+✔ the compare loop sees the theme copy through themeId, never by activating it, and reports cite the saved capture paths (3.5144ms)
+✔ copying a site is modular: every header and footer link list is a menu rendered through a marker, never hard-coded (1.269564ms)
+✔ site-import builds the footer link columns as menus too and hands their slugs to the theme step (8.635251ms)
+✔ Tovuize asks exactly one unchecked static opt-out before either conversion branch (3.062748ms)
+✔ Tovuize reuses local Media and shared Page mapping with matching family shells; static makes no Pages (2.921986ms)
+✔ structure-only Starter copies preserve wiring, discard appearance and remain previewable until styled (126.502029ms)
+✔ structure-only refuses unsupported themes before creating files (9.976843ms)
+✔ structure-only refuses compiled themes and cleans staging after a transform failure (94.193632ms)
+✔ copies every file; only theme.json changes, to the new identity with lineage (13.73449ms)
+✔ the source theme is never modified (7.333818ms)
+✔ duplication rewrites only the source theme's absolute asset prefix in copied text files (18.156178ms)
+✔ duplicateDiscoveredTheme rescans: the copy is in the live themes array and loads valid (12.06934ms)
+✔ an unknown source id is refused with the discovered ids listed (1.77028ms)
+✔ a derived id is suffixed past every collision: discovered ids, folders, and the catalog (17.921754ms)
+✔ an id discovered in ANOTHER tier still counts as taken (11.203403ms)
+✔ an explicit newId that is taken is refused, not suffixed, and nothing is written (1.948578ms)
+✔ path traversal and malformed ids are refused before anything is written (9.208725ms)
+✔ a name full of path characters only ever becomes a folder-safe id (5.548216ms)
+✔ a name with no Latin letters falls back to '<source>-copy' (7.180877ms)
+✔ empty, overlong, and control-character names are refused (2.546029ms)
+✔ a symlink anywhere in the source refuses the whole duplicate and leaves no staging folder (5.387213ms)
+✔ a source over the total size limit is refused before any copy (1.882198ms)
+✔ the source's .trash/ folder is not copied (9.25145ms)
+✔ a failure after staging removes the staging folder (unreadable manifest) (3.21021ms)
+✔ a folder that appears at the destination mid-copy is refused, never merged into (3.358323ms)
+✔ a source outside the themes root is refused (1.70426ms)
+✔ a real static stock theme duplicates and loads valid (47.223342ms)
+✔ the copy gets its own stored original, byte-identical to the copy, so Reset has something to restore (5.3186ms)
+✔ a failure writing the stored original removes the copy too — never a copy that cannot be reset (2.930028ms)
+✔ themeIdFromName folds diacritics and punctuation into single hyphens (0.276617ms)
+✔ an explicit newId that is free is used exactly as given (5.057426ms)
+✔ a source nested deeper than the walk limit is refused before any copy (3.359155ms)
+✔ a source with more files than the listing limit is refused before any copy (116.95634ms)
+✔ a theme.json that is not valid JSON is refused as unreadable and leaves nothing (2.981866ms)
+✔ a non-regular entry (a FIFO) in the source is skipped, not copied (9.638784ms)
+✔ a theme.json with no version records the discovered source version in lineage (3.384834ms)
+✔ an unknown source id with no discovered themes says none were discovered (0.334956ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ presentation patch: structure drafts use the shared readiness message and cannot save until styled (786.2807ms)
+✔ presentation patch: mismatched workspaceId 404s (521.16614ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ presentation patch: a body with no activeThemeId falls back to '' via `req.body?.activeThemeId ?? ""`, which is never an allowed theme id -> 400 PresentationSettingsValidationError (329.564078ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ presentation patch: no presentation_settings row for the workspace surfaces PresentationSettingsNotFoundError as a 404, even for a validly-shaped theme id (526.240979ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ presentation patch: a theme that vanishes from `deps.themes` between validation and the post-save lookup still 200s, with empty template/page lists -- a real race (an operator's concurrent theme rescan removing the folder), not dead code: `setActiveTheme`'s own id check runs before its repo call, so the id is proven valid at validation time but `deps.themes` is read again, fresh, after the awaited save (647.272563ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ presentation patch: switching valid themes persists the new id and refreshes both pickers (698.732839ms)
+✔ presentation patch: denied theme.set preserves the stored active theme (901.506669ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[routes/presentation/patch-active-theme] {
+  errorId: 'bdb0b1ff-0c6e-412b-ba68-be4fa22b7dde',
+  diagnostic: 'Error: boom\n' +
+    '    at Object.save (/workspace/Tovu/apps/website/src/server/inbound/admin-http/routes/presentation/__tests__/patch-active-theme.test.ts:213:15)\n' +
+    '    at setActiveTheme (/workspace/Jini/packages/cms/src/presentation/presentation.ts:120:19)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n' +
+    '    at async setActiveTheme (/workspace/Tovu/apps/website/src/features/presentation/set-active-theme.ts:16:18)\n' +
+    '    at async <anonymous> (/workspace/Tovu/apps/website/src/server/inbound/admin-http/routes/presentation/patch-active-theme.ts:74:22)'
+}
+✔ presentation patch: an unexpected repo failure 500s (850.741271ms)
+✔ presentation patch: workspaceId param can never actually be undefined through this app's real composition (a matched `:param` segment is always a populated string) -- its `?? ""` fallback is reached by calling the real handler directly, the same type-bypass technique put-entry.test.ts's own equivalent test uses (370.884158ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ presentation patch: the no-theme sentinel is ACCEPTED — this is the write allowlist (694.464557ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ presentation patch: the sentinel is NOT echoed into availableThemeIds — that list is the picker's catalogue (263.553785ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ presentation patch: a garbage theme id is still rejected — widening the allowlist by exactly one value (162.936536ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ supporting files follow the overlay naming rule the guidance reader enforces (23.77151ms)
+✔ every tool the overlay cites is a served native tool or a per-plugin tool (10.174402ms)
+✔ the overlay reads references through the plugin tool, never the refused repo root (9.123067ms)
+✔ Tovu-only routing lives here: backups and share links go to site_import_backup (1.37273ms)
+✔ the capability hand-off resolves to the Tovu plugins that provide it (1.57807ms)
+✔ the final / check names the published and live readers (1.509957ms)
+✔ the overlay is vendor-neutral: no model or vendor names (1.2008ms)
+✔ the overlay retains exactly the approved Tovu chat rules before the theme QA rules (12.189321ms)
+✔ design inspiration inspects Awwwards before Dribbble and Pinterest (13.162207ms)
+✔ theme QA fails clipped headlines, horizontal overflow and large dead gaps (2.32815ms)
+✔ theme guidance scales display type to its container and refuses overflow masking (1.554715ms)
+✔ the overlay keeps the safety rules the in-skill copy carried (1.117215ms)
+✔ the overlay ships guidance only: no supporting files, nothing else to stage (1.208322ms)
+✔ the overlay is vendor-neutral: no model or vendor names (0.88916ms)
+✔ the theme package ships its v2 contract and teaches native tool authoring (32.342719ms)
+ℹ tests 100
+ℹ suites 0
+ℹ pass 100
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 17447.746285

@@ -1,0 +1,13 @@
+
+ RUN  v2.1.9 /workspace/Jini/packages/core
+
+ ✓ src/__tests__/redact.test.ts (124 tests) 100ms
+ ✓ src/__tests__/redact.gap-audit.test.ts (51 tests) 108ms
+ ✓ src/__tests__/redact.characterization.test.ts (18 tests) 99ms
+ ✓ src/user-facing-error.test.ts (7 tests) 125ms
+
+ Test Files  4 passed (4)
+      Tests  200 passed (200)
+   Start at  18:17:42
+   Duration  1.08s (transform 281ms, setup 0ms, collect 445ms, tests 432ms, environment 1ms, prepare 433ms)
+

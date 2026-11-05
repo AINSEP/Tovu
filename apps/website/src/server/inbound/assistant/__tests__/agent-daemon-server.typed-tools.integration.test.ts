@@ -16,6 +16,7 @@ import { createRunScopedCredentials } from "../../../../assistant/daemon-access.
 import { resolveMcpJsonInjection } from "../../../../assistant/mcp-injection.js";
 import { createChatDeleteScope } from "../../../../assistant/permanent-delete-tool-gate.js";
 import { createAssistantToolExecutor } from "../../../../assistant/tool-recovery-preset.js";
+import { applyToolApprovalPolicy } from "../../../../assistant/tool-approval-policy.js";
 import { isChatToolAllowed } from "../../../../assistant/assistant-permanent-deletes-policy.js";
 import { PERMANENT_DELETE_TOOLS, type AssistantPermanentDeletesPolicy } from "../../../../contracts/headless/index.js";
 import { daemonInitializer, evaluateDaemonExpression } from "./helpers/daemon-source.js";
@@ -54,12 +55,16 @@ function stdioPair() {
  * Registrations remain behind ToolExecutor; GET lookup is the socket-free catalog storage port.
  * Optional delegates exercise the kernel confirmation decisions, while the default uses Tovu's
  * complete executor stack (including its parked descriptor-confirmation behavior). */
-function hostFixture({ descriptor = {}, delegate }: { descriptor?: Partial<ToolDescriptor>; delegate?: ExecutionDelegate } = {}) {
+function hostFixture({ descriptor = {}, delegate, humanApproval = false, boundedConfirmation = false }: {
+  descriptor?: Partial<ToolDescriptor>; delegate?: ExecutionDelegate; humanApproval?: boolean; boundedConfirmation?: boolean;
+} = {}) {
   const registry = createToolRegistry({});
   const policies = new Map<string, AssistantPermanentDeletesPolicy>();
   const principals = new Map<string, string>();
   const invocations: { principalId: string; runId: string; input: unknown }[] = [];
   let authorized = true;
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(),
+    idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }, { idleTtlMs: 100, maxLifetimeMs: 1_000 });
   const registration = (id: string): ToolRegistration => ({
     descriptor: { id, description: `Operate ${id}`, inputSchema: schema, readOnly: true, ...descriptor },
     policy: { authorize: ({ principal, run }) => authorized && principals.get(run.id) === principal.id ? "allow" : "deny" },
@@ -70,7 +75,8 @@ function hostFixture({ descriptor = {}, delegate }: { descriptor?: Partial<ToolD
     },
   });
   for (const id of [ordinaryId, "workspace_delete", "collections_execute_cleanup", ...PERMANENT_DELETE_TOOLS.map(tool => tool.id)]) {
-    registry.register(registration(id));
+    const tool = registration(id);
+    registry.register(humanApproval && id === ordinaryId ? applyToolApprovalPolicy({ registration: tool, surfaces: { surfaceExchanges } }) : tool);
   }
   const deleteScope = createChatDeleteScope({ readPolicy: async ({ principalId }) => policies.get(principalId ?? "") ?? disabledPolicy });
   const visibleRegistry = evaluateDaemonExpression<Pick<typeof registry, "list">>(daemonInitializer("visibleRegistry"), {
@@ -91,9 +97,17 @@ function hostFixture({ descriptor = {}, delegate }: { descriptor?: Partial<ToolD
   });
   assert.equal(executorOptions.mcpJsonInjection, bridgeInjection);
   const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
-  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(),
-    idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-  const toolExecutor = delegate ? createToolExecutor({ registry }, { delegate }) : createAssistantToolExecutor({ registry, surfaceExchanges });
+  let showCard!: (html: string) => void;
+  const card = new Promise<string>(resolve => { showCard = resolve; });
+  const emit = lifecycle.emit;
+  lifecycle.emit = async required => {
+    const event = await emit(required);
+    if (event.kind === "agent" && event.payload.type === "mcp-ui") {
+      showCard((event.payload.resource as { resource: { text: string } }).resource.text);
+    }
+    return event;
+  };
+  const toolExecutor = delegate || boundedConfirmation ? createToolExecutor({ registry }, { delegate }) : createAssistantToolExecutor({ registry, surfaceExchanges });
   const catalog: ToolCatalogQuery = deleteScope.catalog({ catalog: {
     search: () => [],
     describe: ({ id }) => {
@@ -130,7 +144,7 @@ function hostFixture({ descriptor = {}, delegate }: { descriptor?: Partial<ToolD
     return deleteScope.fresh({ principalId: caller.principalId,
       run: () => dispatchRequest({ path, init, body, principalId: caller.principalId }) });
   };
-  return { registry, policies, principals, invocations, deleteScope, bridgeInjection, lifecycle, requests, fetchImpl,
+  return { registry, policies, principals, invocations, deleteScope, bridgeInjection, lifecycle, requests, fetchImpl, surfaceExchanges, card, toolExecutor,
     registration, deny: () => { authorized = false; } };
 }
 
@@ -274,3 +288,61 @@ for (const decision of ["confirm", "deny"] as const) {
     assert.ok(host.requests.filter(request => request.body).every(request => request.body?.requireReadOnly === undefined));
   });
 }
+
+
+// This policy is host-owned even when the CLI approves access to the bridge itself.
+const confirmationDescriptor: Partial<ToolDescriptor> = {
+  readOnly: false, metadata: { approval: { class: "publish", confirmation: "policy" } },
+};
+
+test("the site hands host-owned bridge approval to its executor", () => {
+  assert.equal(hostFixture().bridgeInjection.toolApprovalOwner, "host");
+});
+
+for (const decision of ["confirm", "cancel"] as const) {
+  test(`bridge approval still waits for a person's ${decision} card answer`, { timeout: 5000 }, async t => {
+    const host = hostFixture({ humanApproval: true, descriptor: confirmationDescriptor });
+    const bridge = await launch({ t, host, principalId: "editor" });
+    const pending = bridge.client.callTool({ name: bridge.typed().name, arguments: { id: "post-1" } });
+    const html = await host.card;
+    const exchangeId = html.match(/__exchangeId"\s*:\s*"([^"]+)"/)![1];
+    assert.match(html, /data-mcpui-action="confirm"/);
+    assert.deepEqual(host.invocations, [], "CLI bridge approval cannot execute the target action");
+    assert.equal(host.surfaceExchanges.deliver({ exchangeId, principalId: "intruder", params: { decision } }, { toolId: ordinaryId }).ok, false);
+    assert.deepEqual(host.invocations, [], "another principal cannot answer the person's card");
+    assert.equal(host.surfaceExchanges.deliver({ exchangeId, principalId: "editor", params: { decision } }, { toolId: ordinaryId }).ok, true);
+    await pending;
+    assert.equal(host.invocations.length, decision === "confirm" ? 1 : 0);
+    assert.equal(host.surfaceExchanges.deliver({ exchangeId, principalId: "editor", params: { decision: "confirm" } }, { toolId: ordinaryId }).ok, false);
+    assert.equal(host.invocations.length, decision === "confirm" ? 1 : 0, "an answer is usable only once");
+  });
+}
+
+for (const ending of ["cancelled", "expired"] as const) {
+  test(`${ending === "expired" ? "An" : "A"} ${ending} delegated confirmation executes zero times and rejects late approval`, { timeout: 5000 }, async t => {
+    // Run-bound cards live until cancellation. The supported unleased path retains its TTL.
+    if (ending === "expired") t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: new Date("2026-11-05T00:00:00Z") });
+    const host = hostFixture({ humanApproval: true, boundedConfirmation: ending === "expired", descriptor: confirmationDescriptor });
+    const bridge = await launch({ t, host, principalId: "editor" });
+    const pending = bridge.client.callTool({ name: bridge.typed().name, arguments: { id: "post-1" } });
+    const html = await host.card;
+    const exchangeId = html.match(/__exchangeId"\s*:\s*"([^"]+)"/)![1];
+    assert.deepEqual(host.invocations, []);
+    if (ending === "expired") t.mock.timers.tick(100);
+    else await host.lifecycle.cancel({ runId: bridge.run.id });
+    await pending;
+    assert.deepEqual(host.invocations, []);
+    assert.equal(host.surfaceExchanges.deliver({ exchangeId, principalId: "editor", params: { decision: "confirm" } }, { toolId: ordinaryId }).ok, false);
+    assert.equal(host.surfaceExchanges.size(), 0);
+  });
+}
+
+test("host bridge approval cannot authorize a confirmation-required action without a human channel", async () => {
+  const host = hostFixture({ humanApproval: true, descriptor: confirmationDescriptor });
+  host.principals.set("headless", "editor");
+  const result = await host.toolExecutor.execute({ toolId: ordinaryId, principal: { id: "editor" }, run: { id: "headless" }, input: { id: "post-1" } });
+  assert.equal(result.status, "failed");
+  assert.match(String(result.error), /NO_CONFIRMATION_CHANNEL/);
+  assert.deepEqual(host.invocations, []);
+  assert.equal(host.surfaceExchanges.size(), 0);
+});

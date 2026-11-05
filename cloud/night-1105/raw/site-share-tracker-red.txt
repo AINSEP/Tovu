@@ -1,0 +1,41 @@
+✖ an archive failure returns the actual job step and redacted copyable details (25.395433ms)
+✔ POST / logs unexpected share failures with the public error id (3.863445ms)
+✔ GET / logs unexpected share failures with the public error id (2.551858ms)
+✔ GET /static/options logs unexpected share failures with the public error id (2.090131ms)
+✔ POST /static logs unexpected share failures with the public error id (2.37416ms)
+✔ POST /share/acknowledge logs unexpected share failures with the public error id (1.951232ms)
+✔ GET /share/download logs unexpected share failures with the public error id (2.018734ms)
+✔ DELETE /share logs unexpected share failures with the public error id (2.085685ms)
+✔ PUT /artifacts/ABCDEFGHIJKLMNOP/site.tovu.zip logs unexpected share failures with the public error id (2.986894ms)
+✔ DELETE /artifacts/ABCDEFGHIJKLMNOP/site.tovu.zip logs unexpected share failures with the public error id (2.193518ms)
+✔ POST /share/password logs unexpected share failures with the public error id (2.08264ms)
+✔ share refusals retain their public diagnosis and do not log an internal incident (1.692452ms)
+✔ shared diagnostics remain correlated without a telemetry provider (0.854378ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 12
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3302.31991
+
+✖ failing tests:
+
+test at apps/website/src/server/inbound/admin-http/routes/system/__tests__/site-share-failures.test.ts:1:572
+✖ an archive failure returns the actual job step and redacted copyable details (25.395433ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /ERR-1234-5678-9ABC-DEF0/. Input:
+  
+  '[{"error":{}}]'
+  
+      at TestContext.<anonymous> (/workspace/Tovu/apps/website/src/server/inbound/admin-http/routes/system/__tests__/site-share-failures.test.ts:33:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '[{"error":{}}]',
+    expected: /ERR-1234-5678-9ABC-DEF0/,
+    operator: 'match',
+    diff: 'simple'
+  }

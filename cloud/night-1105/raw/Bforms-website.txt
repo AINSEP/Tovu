@@ -1,0 +1,201 @@
+✔ notification jobs use the external delivery policy and permanent failures are terminal (1.189974ms)
+✔ only the forms capability advertises the wired durable email path (0.209145ms)
+✔ outbox persists notification failure as pending retry (28.620187ms)
+✔ outbox persists notification failure as terminal failed (0.518462ms)
+✔ forms_create_definition explains rich-text widget insertion and the HTML form marker alternative (1.335674ms)
+✔ all-fields demo: the CMS accepts the definition, name and slug included (11.153934ms)
+✔ all-fields demo: exactly one field of every registry type, so a new type fails here until it is added (0.775159ms)
+✔ all-fields demo: the Topic select carries the contact-page topics in order (0.590291ms)
+✔ all-fields demo: the public render emits every field with its native control (7.513583ms)
+✔ assistant tools create/edit a dropdown with options and persist only declared submissions (15.043331ms)
+✔ native multipart preserves choice arrays, file bytes, duplicate scalar controls and skips the empty file picker (20.367592ms)
+✔ form upload storage delegates to real media/blob/rendition ports and supports compensating cleanup (4.682823ms)
+✔ form upload removes its asset when recording the content type fails and preserves the original error (0.990133ms)
+✔ form discard keeps a referenced upload trashed rather than bypassing the reference check (0.9148ms)
+✔ assistant create/update schemas advertise common native fields and builder uses the shared semantic renderer (8.913245ms)
+✔ form upload attribution failure writes no media or blob (0.509418ms)
+✔ 'form' is a supported resource of content_duplicate (1.956531ms)
+✔ copying a form defaults the name to the source's own name with a numeric suffix, derives a matching free slug, and deep-copies fields and notify (5.952179ms)
+✔ the copy's fields and notify.recipients are fresh objects — mutating the copy cannot reach the source row (1.046208ms)
+✔ an explicit title and slug are honored (0.59007ms)
+✔ copying the same form twice increments the name/slug suffix instead of failing on the unique index (1.537639ms)
+✔ a copy of a DISABLED form comes back disabled — a copy is never more exposed than its source (1.211348ms)
+✔ a copy of an ACTIVE form stays active (0.654106ms)
+✔ the draft/published status override is REJECTED for forms rather than silently dropped, naming what IS honored (0.81565ms)
+✔ duplicating a nonexistent form is rejected as not-found, before anything is written (0.411ms)
+✔ a caller holding content.write but NOT admin.forms.manage cannot copy a form — the permission is the RESOURCE's own (0.554627ms)
+✔ a trashed copy still reserves the derived slug, so the next copy uses the next free suffix (1.442756ms)
+✔ duplicating an HTML form preserves authoring mode and markup (6.540785ms)
+✔ defaults: one-line text 100, long text 2000, non-text uncapped; a field's own maxLength wins (1.140711ms)
+✔ server accepts text exactly at the cap and refuses one character over with too_long (4.185233ms)
+✔ emoji count as one character each (code points, not UTF-16 units) (1.092738ms)
+✔ a per-field maxLength overrides the default in both directions (0.737682ms)
+✔ choice fields keep their option check and are not length-capped (0.671734ms)
+✔ active forms map to names, required flags, lengths and multi-value groups only (3.095609ms)
+✔ no active forms means an empty manifest (0.25192ms)
+✔ T9: the static-host manifest includes default text caps and preserves authored limits (0.399222ms)
+✔ the delivery form adds each field's label and type to the manifest's names, flags, lengths and groups (0.405441ms)
+✔ the delivery form is built whatever the definition's status is now (the submission was already accepted) (0.263137ms)
+✔ the delivery form never carries notification recipients or option lists (0.279471ms)
+✔ receiver manifest carries validation semantics and identifies unsupported file fields before publish (0.425712ms)
+✔ empty select placeholders are omitted from the receiver allowlist (0.372992ms)
+✔ form and individual purges capture trashed submissions with a workspace-scoped bounded read (119.756378ms)
+✔ private source metadata survives the durable media adapter (137.862549ms)
+✔ legacy files are made private before public serving, including submissions already in Trash (126.654684ms)
+✔ protection warns for corrupt or mismatched legacy rows and records completion without refusing boot (121.402ms)
+✔ unavailable protection storage warns and leaves completion absent for an automatic next-owner-start retry (2.955538ms)
+✔ delayed cleanup ownership probes include Trash and stay workspace scoped (137.559105ms)
+✔ form purge captures the attachment after submission 100 without truncation (111.343128ms)
+✔ transient legacy stamp failures keep the marker absent and retry automatically on the next owner start (127.97479ms)
+✔ form photos are private before store resolves and failed submission compensation removes their asset (4.250711ms)
+✔ valid rows become submissions with one received event each, keeping the host's time and IP (3.675975ms)
+✔ a row seen again (same destination and remote id) is acknowledged as a duplicate and writes nothing (0.821158ms)
+✔ rows the live validator rejects are imported with declared text fields only and listed with their errors (1.19318ms)
+✔ T9: remote imports report the live submit path's default text-length violations (1.535116ms)
+✔ T9: an invalid remote row is stored cut to the live text caps (100 one-line, 2000 long text) and nothing is lost (1.003113ms)
+✔ T9: an invalid remote row emits no form.submission.received; a valid one beside it still does (0.483149ms)
+✔ rows for a form that no longer exists are skipped and not acknowledged; a disabled form still imports (0.5767ms)
+✔ a failed write rolls back that row's receipt and event, stops the page and leaves earlier rows committed (0.951245ms)
+✔ without a store transaction the writes still run in order (0.418511ms)
+✔ the store's transaction is called on the store itself, as the SQL adapter's `this.kernel` needs (0.777883ms)
+✔ per-form counts keep first-seen order across interleaved forms; an invalid row counts as imported, a repeat as already imported (0.710772ms)
+✔ a form slug shaped like an object key is counted as its own form (0.247202ms)
+✔ an empty page reports no forms (0.174363ms)
+✔ invalid imports durably retain classification and original validation errors beside accepted rows (0.455477ms)
+✔ late imports never revive an IP whose original submission is already 90 days old (0.315126ms)
+✔ form round trip: created on an empty destination, then unchanged, keyed by slug (8.774762ms)
+✔ form: a destination edit after the plan is a conflict, not an overwrite (1.346671ms)
+✔ form: a slug held only by a trashed destination form is refused at precheck (0.896242ms)
+✔ form: submissions never pack, and packed state carries no instance-local fields (0.433423ms)
+✔ form: a changed source form updates the destination row in place (forced past the no-baseline conflict) (3.14365ms)
+✔ FORMS_SUBMIT_PROFILE: 5 requests / 60s / 0 burst (api.spec.md §3, behavior.spec.md §3) (1.124836ms)
+✔ buildFormsRateLimitKey: composes `${sourceIp}:${formDefinitionId}` (0.195425ms)
+✔ buildFormsRateLimitKey: INV-09 — two different forms from the same IP get independent windows (0.890423ms)
+✔ AC-14/behavior.spec.md §7 — the 5th submission in-window is accepted, the 6th is rejected (1.411859ms)
+▶ forms repos [sqlite]
+  ✔ transaction rolls a submission back with the event write that failed after it, and commits both on success (130.318373ms)
+  ✔ submitForm: a failed enqueue leaves no row; the retry of that attempt stores the row and its event (112.4638ms)
+  ✔ submitForm: two concurrent POSTs of one attempt store exactly one row and answer both the same (106.000934ms)
+✔ forms repos [sqlite] (350.028845ms)
+▶ forms repos [pglite]
+  ✔ transaction rolls a submission back with the event write that failed after it, and commits both on success (4366.908467ms)
+  ✔ submitForm: a failed enqueue leaves no row; the retry of that attempt stores the row and its event (37.218038ms)
+  ✔ submitForm: two concurrent POSTs of one attempt store exactly one row and answer both the same (20.585414ms)
+✔ forms repos [pglite] (4425.579168ms)
+✔ postgres: racing creates of one slug persist one winner and give the loser FormSlugConflictError (2019.018861ms)
+✔ 15b invalid_email uses the existing localized, exact visitor copy (6.797141ms)
+✔ starts exactly one boot pass, schedules daily, and stops future ticks (8.107227ms)
+✔ skips overlapping ticks; stop waits for a running pass (1.106539ms)
+✔ sync errors, rejected sweeps and throwing reporters stay contained; later ticks retry (6.043064ms)
+✔ a failed clock is warned and a later tick retries (0.909371ms)
+✔ an old published package warns once and registers no timer (0.500544ms)
+✔ without onError, failures are warned with their message (or string form); a non-positive interval is refused (1.387493ms)
+▶ submission IP retention adapter and migration 0006 [sqlite]
+  ✔ migration preserves every column; 89d/before-boundary keep IP, 90d/older clear only IP, including Trash (157.737997ms)
+✔ submission IP retention adapter and migration 0006 [sqlite] (159.125319ms)
+▶ submission IP retention adapter and migration 0006 [pglite]
+  ✔ migration preserves every column; 89d/before-boundary keep IP, 90d/older clear only IP, including Trash (3811.322069ms)
+✔ submission IP retention adapter and migration 0006 [pglite] (3812.765126ms)
+✔ old NOT NULL schema rejects before changing a submission (130.690413ms)
+✔ forms_list_submissions for an unknown definition is BAD_REQUEST with the real not-found reason, not a redacted 500 (7.994967ms)
+✔ forms_get_submission for an unknown submission says so rather than 'an internal error occurred' (1.662838ms)
+✔ forms_update_definition for an unknown definition surfaces the not-found class, not a 500 (2.382753ms)
+✔ forms_create_definition at a taken slug says SLUG CONFLICT, not a 500 — a conflict is not a shape rejection and never was decorated (3.900883ms)
+✔ forms_create_definition rejects the editor's reserved new slug and persists nothing (1.127671ms)
+✔ every Forms tool surfaces a denial with the permission named — the sibling-arm check (4.341777ms)
+✔ the pre-existing withSchemaOnRejection path is UNCHANGED — a shape rejection still arrives schema-decorated and un-prefixed (0.558292ms)
+✔ submission read tools require submissions.read independently of manage (9.842353ms)
+✔ submission get refuses a mismatched form, while correct get and paginated list preserve content (1.640213ms)
+✔ download forms cannot submit answers through native GET, implicit submit or external controls (57.270559ms)
+✔ explicit empty actions require a server; external receivers remain usable (13.282581ms)
+✔ dialog forms and JS-only forms keep their authored markup in downloaded pages (0.690932ms)
+✔ downloaded backend forms retain form selectors and cannot override dialog submission (8.027136ms)
+✔ form definition responses clone field objects and notification recipients (2.012054ms)
+✔ form responses preserve explicit html authoring mode and markup (0.277488ms)
+✔ form responses preserve explicit builder authoring mode and markup (0.147793ms)
+✔ submission envelopes preserve boolean data and pagination while copying the data bag (0.282646ms)
+✔ expired submission IPs serialize as an empty display string in detail and list responses (0.248875ms)
+✔ forms error mapper sends exact forbidden status and details (0.263908ms)
+✔ forms error mapper sends exact field validation status and details (0.131107ms)
+✔ forms error mapper sends exact slug conflict status and details (0.147752ms)
+✔ forms error mapper sends exact definition not found status and details (0.130487ms)
+✔ forms error mapper sends exact submission not found status and details (0.193381ms)
+✔ unknown forms errors leave the response untouched for the caller's generic fallback (0.243237ms)
+✔ invalid import classification is exposed beside answers on detail and list responses (0.17304ms)
+✔ source and site admission runs before a body reader and uses injected time without sleeping (8.68031ms)
+✔ rotating IPs cannot bypass the aggregate site budget (8.28852ms)
+✔ URL-encoded signup spikes do not consume the multipart site budget (1.831652ms)
+✔ a members-only post's featured image is a 404 private no-store for an anonymous caller (399.733636ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ a public post's featured image keeps the asset ungated with bare-id revalidation (637.062929ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ a library document is never served on the rendition route, even unreferenced (415.697542ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ a library document is never served on the original route (247.685602ms)
+✔ an active saved widget placed in a gated post gates the media it shows (211.97503ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ a trashed saved widget does not render, so it gates nothing (200.469968ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ a malformed saved widget does not render, so it gates nothing (185.119882ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ a soft-deleted saved widget row does not render, so it gates nothing (195.434158ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ a saved widget placed by its slug gates the media it shows (191.308156ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ saved widgets are not listed when no live entry places a widget (213.68299ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ private submitted photos deny anonymous originals and renditions by id and slug (290.367795ms)
+ℹ tests 130
+ℹ suites 4
+ℹ pass 130
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 23641.369444

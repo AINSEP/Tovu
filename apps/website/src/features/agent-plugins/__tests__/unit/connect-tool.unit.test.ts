@@ -11,6 +11,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { forceRemove } from "../fixtures/force-remove.js";
 import { seedBundledAgentPlugins } from "../../lifecycle.js";
+import { agentPluginActivations } from "../../activation-effects.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
 
 import type { SurfaceEmission, ToolExecutionContext } from "@jini-ai/core";
@@ -548,6 +549,11 @@ test("agent_plugin_connect resolves the installed package without an injected re
   process.env.TOVU_AGENT_PLUGINS_DIR = dir;
   try {
     await seedBundledAgentPlugins({ layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }), workspaceId: WORKSPACE_ID, sourceRoot: bundledSource.root });
+    // Bundled plugins seed disabled; this resolver test starts after the operator enables Supabase.
+    await agentPluginActivations.setAgentPluginActivation({
+      workspaceRoot: resolveAgentPluginLayout({ siteDir: dir }).forWorkspace(WORKSPACE_ID).root,
+      pluginId: "supabase", enabled: true, actor: PRINCIPAL_ID,
+    });
     const store = makeStoreDeps();
     const emissions: SurfaceEmission[] = [];
     const result = await runAgentPluginConnect(baseDeps(store, {

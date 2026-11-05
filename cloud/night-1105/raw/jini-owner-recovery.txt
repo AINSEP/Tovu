@@ -1,0 +1,11 @@
+
+ RUN  v2.1.9 /workspace/Jini/packages/user-management
+
+ ✓ src/server/__tests__/owner-reset-input.test.ts (4 tests) 13ms
+ ✓ src/server/__tests__/recovery-codes.test.ts (7 tests) 36ms
+
+ Test Files  2 passed (2)
+      Tests  11 passed (11)
+   Start at  18:17:47
+   Duration  1.26s (transform 428ms, setup 736ms, collect 400ms, tests 49ms, environment 1ms, prepare 569ms)
+

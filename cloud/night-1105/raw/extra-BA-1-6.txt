@@ -1,0 +1,9 @@
+✔ 2026-09-05 dispatch: tovu serve mints TOVU_AGENT_DAEMON_TOKEN before spawning the agent daemon — `src/index.ts`'s `main()` calls `ensureAgentDaemonToken()` as its first statement (see `daemon-auth.ts`), but `serve.ts` never did, so every `tovu serve`-booted daemon answered fail-closed 503 to its own proxy. An unauthenticated request straight against the daemon's own port must get 401 (a real token is configured), never 503 (AGENT_DAEMON_UNCONFIGURED) (28955.881835ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 29909.673285

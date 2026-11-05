@@ -1,0 +1,43 @@
+[agent-plugins:migration-complete] /tmp/connect-installed-dvlaUS/ws/77777777-7777-4777-8777-777777777777
+✖ agent_plugin_connect resolves the installed package without an injected resolver (3278.536516ms)
+✖ content.import: unexpected failure retains its concrete message without a failure envelope (16.271296ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 10939.002139
+
+✖ failing tests:
+
+test at apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.unit.test.ts:1:27438
+✖ agent_plugin_connect resolves the installed package without an injected resolver (3278.536516ms)
+  Error [ToolInputError]: The 'supabase' plugin is off or its activation could not be checked. Ask to turn it on with plugins_set_enabled({family:"agent-plugin",pluginId:"supabase",enabled:true}), then retry agent_plugin_connect.
+      at assertPluginCanConnect (/workspace/Tovu/apps/website/src/features/agent-plugins/connect-tool.ts:360:22)
+      at async runAgentPluginConnect (/workspace/Tovu/apps/website/src/features/agent-plugins/connect-tool.ts:383:3)
+      at async TestContext.<anonymous> (/workspace/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.unit.test.ts:553:20)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+
+test at apps/website/src/server/inbound/admin-http/http/__tests__/ranked-user-facing-errors.test.ts:1:3484
+✖ content.import: unexpected failure retains its concrete message without a failure envelope (16.271296ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'The content import could not finish. Check import history for content already applied before trying again. Copy details and report this problem. (error e6e0d3ba-4137-4293-995f-a8ce5466ffd2)'
+  - 'The content import could not finish. (error e6e0d3ba-4137-4293-995f-a8ce5466ffd2)'
+  
+      at TestContext.<anonymous> (/workspace/Tovu/apps/website/src/server/inbound/admin-http/http/__tests__/ranked-user-facing-errors.test.ts:66:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'The content import could not finish. Check import history for content already applied before trying again. Copy details and report this problem. (error e6e0d3ba-4137-4293-995f-a8ce5466ffd2)',
+    expected: 'The content import could not finish. (error e6e0d3ba-4137-4293-995f-a8ce5466ffd2)',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

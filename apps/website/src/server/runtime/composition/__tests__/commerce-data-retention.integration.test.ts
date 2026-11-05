@@ -42,7 +42,9 @@ function snapshot(filePath: string) {
     const rows = tables.map(({ name }) => ({ name: originalName(name), rows: db.prepare(`SELECT * FROM "${name.replaceAll('"', '""')}" ORDER BY id`).all() }));
     const objects = db.prepare("SELECT type, name, tbl_name, sql FROM sqlite_master WHERE tbl_name GLOB 'commerce_*' OR tbl_name GLOB '_archive_0011_commerce_*' OR tbl_name GLOB 'p_lipay__*' OR tbl_name GLOB 'p_store__*' ORDER BY type, name").all() as Array<{ type: string; name: string; tbl_name: string; sql: string | null }>;
     const schema = objects.map(object => ({ ...object, name: originalName(object.name), tbl_name: originalName(object.tbl_name),
-      sql: object.sql === null ? null : originalName(object.sql).replaceAll('"', "") }))
+      // SQLite's native rename renders table identifiers with double quotes even when the frozen
+      // baseline used backticks. Compare identical schema definitions, not that quote spelling.
+      sql: object.sql === null ? null : originalName(object.sql).replaceAll('"', "").replace(/`(commerce_[a-z_]+)`/g, "$1") }))
       .sort((a, b) => a.type.localeCompare(b.type) || a.name.localeCompare(b.name));
     const retirement = db.prepare("SELECT id FROM tovu_migrations WHERE id = ?").all(DROP_EMPTY_CORE_COMMERCE_TABLES_ID);
     const bookkeeping = ["_plugin_identity", "_plugin_migrations", "_plugin_migration_journal"].map(name => {

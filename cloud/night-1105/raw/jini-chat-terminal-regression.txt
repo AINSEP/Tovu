@@ -1,0 +1,11 @@
+
+ RUN  v2.1.9 /workspace/Jini/packages/chat
+
+ ✓ src/react/__tests__/ext-event-renderer-registry.test.ts (6 tests) 4ms
+ ✓ src/react/components/__tests__/MessageRow.terminal-extension.test.tsx (3 tests) 116ms
+
+ Test Files  2 passed (2)
+      Tests  9 passed (9)
+   Start at  18:24:29
+   Duration  5.35s (transform 2.51s, setup 250ms, collect 4.57s, tests 120ms, environment 697ms, prepare 146ms)
+

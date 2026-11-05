@@ -1,0 +1,772 @@
+▶ 0000_legacy_baseline on Postgres (PGlite)
+  ✖ applies on an empty database and matches schema.postgres.ts at head (10718.644508ms)
+  ✔ the frozen baseline creates the composite FK (the 42830 case), then head retires core commerce (4698.846436ms)
+  ✔ a prototype schema with no ledger is refused, not overwritten (2926.713809ms)
+✖ 0000_legacy_baseline on Postgres (PGlite) (18349.673359ms)
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ commerce off: a fresh site does not activate payment or store storage (1727.828625ms)
+[migrations] /tmp/commerce-retention-ANTr14/site/data.nosync/content.db: applied 0011_archive_legacy_commerce, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata, 0038_newsletter_sending_index, 0039_owner_recovery_codes
+[migrations]   backed up the database to /tmp/commerce-retention-ANTr14/site/data.nosync/ops/pre-migrations-2026-11-05T18-18-26-513Z.db before migrating it
+[migrations]   vault coverage site-assistant: rows=0, envelopes=0
+[migrations]   vault coverage personal-execution: rows=0, envelopes=0
+[migrations]   vault coverage media-provider: rows=0, envelopes=0
+[migrations]   vault coverage custom: rows=0, envelopes=0
+[migrations]   vault coverage publish-peer: rows=0, envelopes=0
+[migrations]   vault coverage database-destination: rows=0, envelopes=0
+[migrations]   vault coverage vendor: rows=0, envelopes=0
+[migrations]   vault coverage source-control: rows=0, envelopes=0
+[migrations]   vault coverage mcp-env: rows=0, envelopes=0
+[migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+resolveWorkspace: content.db has 2 workspace rows; defaulting to the oldest (id="workspace-local"). Pass --workspace <id> (tovu serve) to pick a different one — other ids: retained-ws.
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+resolveWorkspace: content.db has 2 workspace rows; defaulting to the oldest (id="workspace-local"). Pass --workspace <id> (tovu serve) to pick a different one — other ids: retained-ws.
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ commerce off: plugin storage survives; empty core is removed across two boots (2465.83438ms)
+[migrations] /tmp/commerce-retention-PuUokc/site/data.nosync/content.db: applied 0011_archive_legacy_commerce, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata, 0038_newsletter_sending_index, 0039_owner_recovery_codes
+[migrations]   backed up the database to /tmp/commerce-retention-PuUokc/site/data.nosync/ops/pre-migrations-2026-11-05T18-18-29-339Z.db before migrating it
+[migrations]   WARNING: Historical commerce rows were preserved by archiving tables: commerce_order_items -> _archive_0011_commerce_order_items, commerce_product_images -> _archive_0011_commerce_product_images, commerce_webhook_events -> _archive_0011_commerce_webhook_events, commerce_orders -> _archive_0011_commerce_orders, commerce_prices -> _archive_0011_commerce_prices, commerce_products -> _archive_0011_commerce_products. Upgrade continues with commerce off; no payments were imported. Keep these archives in database backups for historical records and recovery.
+[migrations]   vault coverage site-assistant: rows=0, envelopes=0
+[migrations]   vault coverage personal-execution: rows=0, envelopes=0
+[migrations]   vault coverage media-provider: rows=0, envelopes=0
+[migrations]   vault coverage custom: rows=0, envelopes=0
+[migrations]   vault coverage publish-peer: rows=0, envelopes=0
+[migrations]   vault coverage database-destination: rows=0, envelopes=0
+[migrations]   vault coverage vendor: rows=0, envelopes=0
+[migrations]   vault coverage source-control: rows=0, envelopes=0
+[migrations]   vault coverage mcp-env: rows=0, envelopes=0
+[migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+resolveWorkspace: content.db has 2 workspace rows; defaulting to the oldest (id="workspace-local"). Pass --workspace <id> (tovu serve) to pick a different one — other ids: retained-ws.
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✖ commerce off: plugin storage survives; populated core archives across two boots (2580.602988ms)
+ℹ tests 6
+ℹ suites 1
+ℹ pass 4
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 21077.408931
+
+✖ failing tests:
+
+test at apps/website/src/platform/db/migrations/__tests__/postgres-baseline.test.ts:1:1054
+✖ applies on an empty database and matches schema.postgres.ts at head (10718.644508ms)
+  AssertionError [ERR_ASSERTION]: table owner_recovery_codes
+  + actual - expected
+  ... Skipped lines
+  
+    {
+      columns: [
+        'code_hash text NOT NULL',
+        'principal_id text NOT NULL',
+        'workspace_id text NOT NULL'
+  ...
+        'owner_recovery_codes_code_hash_not_null NOT NULL code_hash',
+  -     'owner_recovery_codes_pkey PRIMARY KEY (workspace_id, principal_id, code_hash)',
+        'owner_recovery_codes_principal_id_not_null NOT NULL principal_id',
+        'owner_recovery_codes_workspace_id_not_null NOT NULL workspace_id',
+  +     'owner_recovery_codes_workspace_id_principal_id_code_hash_pk PRIMARY KEY (workspace_id, principal_id, code_hash)'
+      ],
+      indexes: [
+  +     'owner_recovery_codes_workspace_id_principal_id_code_hash_pk CREATE UNIQUE INDEX owner_recovery_codes_workspace_id_principal_id_code_hash_pk ON owner_recovery_codes USING btree (workspace_id, principal_id, code_hash)'
+  -     'owner_recovery_codes_pkey CREATE UNIQUE INDEX owner_recovery_codes_pkey ON owner_recovery_codes USING btree (workspace_id, principal_id, code_hash)'
+      ]
+    }
+  
+      at TestContext.<anonymous> (/workspace/Tovu/apps/website/src/platform/db/migrations/__tests__/postgres-baseline.test.ts:66:61)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Promise.all (index 0)
+      at async Suite.run (node:internal/test_runner/test:1905:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: { columns: [ 'code_hash text NOT NULL', 'principal_id text NOT NULL', 'workspace_id text NOT NULL' ], indexes: [ 'owner_recovery_codes_workspace_id_principal_id_code_hash_pk CREATE UNIQUE INDEX owner_recovery_codes_workspace_id_principal_id_code_hash_pk ON owner_recovery_codes USING btree (workspace_id, principal_id, code_hash)' ], constraints: [ 'owner_recovery_codes_code_hash_not_null NOT NULL code_hash', 'owner_recovery_codes_principal_id_not_null NOT NULL principal_id', 'owner_recovery_codes_workspace_id_not_null NOT NULL workspace_id', 'owner_recovery_codes_workspace_id_principal_id_code_hash_pk PRIMARY KEY (workspace_id, principal_id, code_hash)' ] },
+    expected: { columns: [ 'code_hash text NOT NULL', 'principal_id text NOT NULL', 'workspace_id text NOT NULL' ], indexes: [ 'owner_recovery_codes_pkey CREATE UNIQUE INDEX owner_recovery_codes_pkey ON owner_recovery_codes USING btree (workspace_id, principal_id, code_hash)' ], constraints: [ 'owner_recovery_codes_code_hash_not_null NOT NULL code_hash', 'owner_recovery_codes_pkey PRIMARY KEY (workspace_id, principal_id, code_hash)', 'owner_recovery_codes_principal_id_not_null NOT NULL principal_id', 'owner_recovery_codes_workspace_id_not_null NOT NULL workspace_id' ] },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/runtime/composition/__tests__/commerce-data-retention.integration.test.ts:1:5433
+✖ commerce off: plugin storage survives; populated core archives across two boots (2580.602988ms)
+  AssertionError [ERR_ASSERTION]: core rows are archived or empty tables removed; plugin data remains exact
+  + actual - expected
+  ... Skipped lines
+  
+    {
+      archives: [
+        '_archive_0011_commerce_order_items',
+        '_archive_0011_commerce_orders',
+        '_archive_0011_commerce_prices',
+  ...
+          name: 'commerce_product_images_product_media_unique',
+  +       sql: 'CREATE UNIQUE INDEX `commerce_product_images_product_media_unique` ON commerce_product_images (`product_id`,`media_id`)',
+  -       sql: 'CREATE UNIQUE INDEX `commerce_product_images_product_media_unique` ON `commerce_product_images` (`product_id`,`media_id`)',
+          tbl_name: 'commerce_product_images',
+          type: 'index'
+        },
+        {
+          name: 'commerce_products_workspace_slug_unique',
+  +       sql: 'CREATE UNIQUE INDEX `commerce_products_workspace_slug_unique` ON commerce_products (`workspace_id`,`slug`)',
+  -       sql: 'CREATE UNIQUE INDEX `commerce_products_workspace_slug_unique` ON `commerce_products` (`workspace_id`,`slug`)',
+          tbl_name: 'commerce_products',
+          type: 'index'
+        },
+        {
+          name: 'commerce_webhook_events_provider_event_unique',
+  +       sql: 'CREATE UNIQUE INDEX `commerce_webhook_events_provider_event_unique` ON commerce_webhook_events (`provider`,`event_id`)',
+  -       sql: 'CREATE UNIQUE INDEX `commerce_webhook_events_provider_event_unique` ON `commerce_webhook_events` (`provider`,`event_id`)',
+          tbl_name: 'commerce_webhook_events',
+          type: 'index'
+        },
+        {
+          name: 'idx_commerce_order_items_order',
+  +       sql: 'CREATE INDEX `idx_commerce_order_items_order` ON commerce_order_items (`order_id`)',
+  -       sql: 'CREATE INDEX `idx_commerce_order_items_order` ON `commerce_order_items` (`order_id`)',
+          tbl_name: 'commerce_order_items',
+          type: 'index'
+        },
+        {
+          name: 'idx_commerce_orders_workspace_member',
+  +       sql: 'CREATE INDEX `idx_commerce_orders_workspace_member` ON commerce_orders (`workspace_id`,`member_id`)',
+  -       sql: 'CREATE INDEX `idx_commerce_orders_workspace_member` ON `commerce_orders` (`workspace_id`,`member_id`)',
+          tbl_name: 'commerce_orders',
+          type: 'index'
+        },
+        {
+          name: 'idx_commerce_prices_product',
+  +       sql: 'CREATE INDEX `idx_commerce_prices_product` ON commerce_prices (`product_id`)',
+  -       sql: 'CREATE INDEX `idx_commerce_prices_product` ON `commerce_prices` (`product_id`)',
+          tbl_name: 'commerce_prices',
+          type: 'index'
+        },
+        {
+          name: 'idx_commerce_product_images_product_position',
+  +       sql: 'CREATE INDEX `idx_commerce_product_images_product_position` ON commerce_product_images (`product_id`,`position`)',
+  -       sql: 'CREATE INDEX `idx_commerce_product_images_product_position` ON `commerce_product_images` (`product_id`,`position`)',
+          tbl_name: 'commerce_product_images',
+          type: 'index'
+        },
+        {
+          name: 'idx_commerce_webhook_events_claim',
+  +       sql: 'CREATE INDEX `idx_commerce_webhook_events_claim` ON commerce_webhook_events (`status`,`received_at`)',
+  -       sql: 'CREATE INDEX `idx_commerce_webhook_events_claim` ON `commerce_webhook_events` (`status`,`received_at`)',
+          tbl_name: 'commerce_webhook_events',
+          type: 'index'
+        },
+        {
+          name: 'idx_p_lipay__events__bypayment',
+  ...
+          name: 'commerce_order_items',
+  +       sql: 'CREATE TABLE commerce_order_items (\n' +
+  -       sql: 'CREATE TABLE `commerce_order_items` (\n' +
+            '\t`id` text PRIMARY KEY NOT NULL,\n' +
+            '\t`workspace_id` text NOT NULL,\n' +
+            '\t`order_id` text NOT NULL,\n' +
+            '\t`price_id` text NOT NULL,\n' +
+            '\t`product_id` text NOT NULL,\n' +
+  ...
+            '\tFOREIGN KEY (`workspace_id`) REFERENCES `workspaces`(`id`) ON UPDATE no action ON DELETE restrict,\n' +
+  +         '\tFOREIGN KEY (`order_id`) REFERENCES commerce_orders(`id`) ON UPDATE no action ON DELETE cascade,\n' +
+  +         '\tFOREIGN KEY (`price_id`) REFERENCES commerce_prices(`id`) ON UPDATE no action ON DELETE restrict,\n' +
+  +         '\tFOREIGN KEY (`product_id`) REFERENCES commerce_products(`id`) ON UPDATE no action ON DELETE restrict,\n' +
+  -         '\tFOREIGN KEY (`order_id`) REFERENCES `commerce_orders`(`id`) ON UPDATE no action ON DELETE cascade,\n' +
+  -         '\tFOREIGN KEY (`price_id`) REFERENCES `commerce_prices`(`id`) ON UPDATE no action ON DELETE restrict,\n' +
+  -         '\tFOREIGN KEY (`product_id`) REFERENCES `commerce_products`(`id`) ON UPDATE no action ON DELETE restrict,\n' +
+            '\tCONSTRAINT commerce_order_items_unit_amount_cents_check CHECK(commerce_order_items.unit_amount_cents >= 0),\n' +
+            '\tCONSTRAINT commerce_order_items_quantity_check CHECK(commerce_order_items.quantity > 0)\n' +
+            ')',
+          tbl_name: 'commerce_order_items',
+          type: 'table'
+  ...
+          name: 'commerce_orders',
+  +       sql: 'CREATE TABLE commerce_orders (\n' +
+  -       sql: 'CREATE TABLE `commerce_orders` (\n' +
+            '\t`id` text PRIMARY KEY NOT NULL,\n' +
+            '\t`workspace_id` text NOT NULL,\n' +
+            '\t`member_id` text NOT NULL,\n' +
+            '\t`status` text NOT NULL,\n' +
+            '\t`currency` text NOT NULL,\n' +
+  ...
+            '\tFOREIGN KEY (`workspace_id`) REFERENCES `workspaces`(`id`) ON UPDATE no action ON DELETE restrict,\n' +
+  +         '\tFOREIGN KEY (`product_id`) REFERENCES commerce_products(`id`) ON UPDATE no action ON DELETE restrict,\n' +
+  -         '\tFOREIGN KEY (`product_id`) REFERENCES `commerce_products`(`id`) ON UPDATE no action ON DELETE restrict,\n' +
+            '\tCONSTRAINT commerce_prices_unit_amount_cents_check CHECK(commerce_prices.unit_amount_cents >= 0),\n' +
+            '\tCONSTRAINT commerce_prices_compare_at_amount_cents_check CHECK(commerce_prices.compare_at_amount_cents IS NULL OR commerce_prices.compare_at_amount_cents > commerce_prices.unit_amount_cents),\n' +
+            '\tCONSTRAINT commerce_prices_currency_check CHECK(length(commerce_prices.currency) = 3 AND commerce_prices.currency = lower(commerce_prices.currency)),\n' +
+            "\tCONSTRAINT commerce_prices_status_check CHECK(commerce_prices.status IN ('active', 'archived')),\n" +
+            "\tCONSTRAINT commerce_prices_billing_interval_check CHECK(commerce_prices.billing_interval IS NULL OR commerce_prices.billing_interval IN ('month', 'year'))\n" +
+  ...
+          name: 'commerce_product_images',
+  +       sql: 'CREATE TABLE commerce_product_images (\n' +
+  -       sql: 'CREATE TABLE `commerce_product_images` (\n' +
+            '\t`id` text PRIMARY KEY NOT NULL,\n' +
+            '\t`workspace_id` text NOT NULL,\n' +
+            '\t`product_id` text NOT NULL,\n' +
+            '\t`media_id` text NOT NULL,\n' +
+            '\t`position` integer DEFAULT 0 NOT NULL,\n' +
+            '\t`created_at` text NOT NULL,\n' +
+            '\tFOREIGN KEY (`workspace_id`) REFERENCES `workspaces`(`id`) ON UPDATE no action ON DELETE restrict,\n' +
+  +         '\tFOREIGN KEY (`product_id`) REFERENCES commerce_products(`id`) ON UPDATE no action ON DELETE cascade,\n' +
+  -         '\tFOREIGN KEY (`product_id`) REFERENCES `commerce_products`(`id`) ON UPDATE no action ON DELETE cascade,\n' +
+            '\tFOREIGN KEY (`media_id`) REFERENCES `media`(`id`) ON UPDATE no action ON DELETE restrict\n' +
+            ')',
+          tbl_name: 'commerce_product_images',
+          type: 'table'
+        },
+        {
+          name: 'commerce_products',
+  +       sql: 'CREATE TABLE commerce_products (\n' +
+  -       sql: 'CREATE TABLE `commerce_products` (\n' +
+            '\t`id` text PRIMARY KEY NOT NULL,\n' +
+            '\t`workspace_id` text NOT NULL,\n' +
+            '\t`name` text NOT NULL,\n' +
+            '\t`slug` text NOT NULL,\n' +
+            '\t`kind` text NOT NULL,\n' +
+  ...
+          name: 'commerce_webhook_events',
+  +       sql: 'CREATE TABLE commerce_webhook_events (\n' +
+  -       sql: 'CREATE TABLE `commerce_webhook_events` (\n' +
+            '\t`id` text PRIMARY KEY NOT NULL,\n' +
+            '\t`workspace_id` text NOT NULL,\n' +
+            '\t`provider` text NOT NULL,\n' +
+            '\t`event_id` text NOT NULL,\n' +
+            '\t`event_type` text NOT NULL,\n' +
+  
+      at TestContext.<anonymous> (/workspace/Tovu/apps/website/src/server/runtime/composition/__tests__/commerce-data-retention.integration.test.ts:146:16)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: {
+      rows: [
+        [Object], [Object],
+        [Object], [Object],
+        [Object], [Object],
+        [Object], [Object],
+        [Object], [Object],
+        [Object]
+      ],
+      schema: [
+        [Object], [Object], [Object], [Object],
+        [Object], [Object], [Object], [Object],
+        [Object], [Object], [Object], [Object],
+        [Object], [Object], [Object], [Object],
+        [Object], [Object], [Object], [Object],
+        [Object], [Object], [Object], [Object],
+        [Object], [Object], [Object], [Object],
+        [Object], [Object], [Object], [Object],
+        [Object], [Object], [Object], [Object],
+        [Object]
+      ],
+      bookkeeping: [ [Object], [Object], [Object] ],
+      retirement: [ [Object] ],
+      archives: [ '_archive_0011_commerce_order_items', '_archive_0011_commerce_orders', '_archive_0011_commerce_prices', '_archive_0011_commerce_product_images', '_archive_0011_commerce_products', '_archive_0011_commerce_webhook_events' ]
+    },
+    expected: {
+      rows: [
+        [Object], [Object],
+        [Object], [Object],
+        [Object], [Object],
+        [Object], [Object],
+        [Object], [Object],
+        [Object]
+      ],
+      schema: [
+        [Object], [Object], [Object], [Object],
+        [Object], [Object], [Object], [Object],
+        [Object], [Object], [Object], [Object],
+        [Object], [Object], [Object], [Object],
+        [Object], [Object], [Object], [Object],
+        [Object], [Object], [Object], [Object],
+        [Object], [Object], [Object], [Object],
+        [Object], [Object], [Object], [Object],
+        [Object], [Object], [Object], [Object],
+        [Object]
+      ],
+      bookkeeping: [ [Object], [Object], [Object] ],
+      retirement: [ [Object] ],
+      archives: [ '_archive_0011_commerce_order_items', '_archive_0011_commerce_orders', '_archive_0011_commerce_prices', '_archive_0011_commerce_product_images', '_archive_0011_commerce_products', '_archive_0011_commerce_webhook_events' ]
+    },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

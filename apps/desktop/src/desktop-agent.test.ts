@@ -141,6 +141,7 @@ test("the runtime registers the built tools plus the owner gap list, and wires t
   assert.deepEqual(h.chat.toolIds(), ["probe.whoami", "tool_gaps_list"]);
   const options = h.options();
   assert.equal(options.mcpJsonInjection!.daemonUrl, h.chat.daemonUrl);
+  assert.equal(options.mcpJsonInjection!.toolApprovalOwner, "host", "the desktop owns target-tool approval independently of the CLI bridge");
   assert.deepEqual(options.mcpJsonInjection!.env, { ELECTRON_RUN_AS_NODE: "1" });
   assert.match(String(options.mcpJsonInjection!.args![0]), /bin[\\/]serve\.js$/, "the default bridge is @jini-ai/mcp's own serve script");
   const augmenter = options.promptAugmenter!;

@@ -1,0 +1,19 @@
+#!/bin/bash
+set -u
+source /workspace/shared/dev-env.sh
+printf 'section\texit\n' > /workspace/shared/extra-worker-retries.tsv
+echo RETRY extra-BA-1-1
+(cd /workspace/Jini/packages/agent-runtime && timeout --kill-after=10s 900s bash -c 'npx --no-install vitest run --maxWorkers=2 --minWorkers=1 src/__tests__/startup-failure.test.ts src/__tests__/native-tool-compatibility.unit.test.ts') > /workspace/Tovu/cloud/night-1105/raw/extra-BA-1-1-workers.txt 2>&1
+printf "extra-BA-1-1-workers\t%s\n" "$?" >> /workspace/shared/extra-worker-retries.tsv
+echo RETRY extra-BA-1-2
+(cd /workspace/Jini/packages/daemon && timeout --kill-after=10s 900s bash -c 'npx --no-install vitest run --maxWorkers=2 --minWorkers=1 src/__tests__/startup-failure.test.ts src/__tests__/agent-run-concurrency.test.ts') > /workspace/Tovu/cloud/night-1105/raw/extra-BA-1-2-workers.txt 2>&1
+printf "extra-BA-1-2-workers\t%s\n" "$?" >> /workspace/shared/extra-worker-retries.tsv
+echo RETRY extra-BA-1-3
+(cd /workspace/Jini/packages/chat && timeout --kill-after=10s 900s bash -c 'npx --no-install vitest run --maxWorkers=2 --minWorkers=1 src/server/durable-runs/__tests__/recover.test.ts src/server/durable-runs/__tests__/recover-boundaries.test.ts src/react/features/chat-pane/__tests__/components/AgentRuntimePicker.native-policy.unit.test.tsx src/react/features/chat-pane/__tests__/components/AgentRuntimePicker.access-note-icon.unit.test.tsx') > /workspace/Tovu/cloud/night-1105/raw/extra-BA-1-3-workers.txt 2>&1
+printf "extra-BA-1-3-workers\t%s\n" "$?" >> /workspace/shared/extra-worker-retries.tsv
+echo RETRY extra-SA-3-1
+(cd /workspace/Tovu/apps/admin && timeout --kill-after=10s 900s bash -c 'npx vitest run --maxWorkers=2 --minWorkers=1 src/features/auth/__tests__ src/features/skills/__tests__') > /workspace/Tovu/cloud/night-1105/raw/extra-SA-3-1-workers.txt 2>&1
+printf "extra-SA-3-1-workers\t%s\n" "$?" >> /workspace/shared/extra-worker-retries.tsv
+echo RETRY extra-SEC-2-1
+(cd /workspace/Jini && timeout --kill-after=10s 900s bash -c 'npx vitest run --maxWorkers=2 --minWorkers=1    packages/ui/src/features/mcp-ui/__tests__/secret-card.unit.test.ts    packages/mcp/src/federation/__tests__/http-result-secrets.test.ts    packages/mcp/src/federation/__tests__/stdio-result-secrets.test.ts    packages/mcp/src/federation/__tests__/http-authentication-ports.test.ts    packages/mcp/src/federation/__tests__/default-connect.unit.test.ts    packages/mcp/src/federation/__tests__/mcp-federation.stdio-adapter.test.ts') > /workspace/Tovu/cloud/night-1105/raw/extra-SEC-2-1-workers.txt 2>&1
+printf "extra-SEC-2-1-workers\t%s\n" "$?" >> /workspace/shared/extra-worker-retries.tsv

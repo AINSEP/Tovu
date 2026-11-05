@@ -1,0 +1,74 @@
+
+ RUN  v4.1.11 /workspace/Tovu/apps/admin
+
+ ❯ src/features/sites/__tests__/site-transfer-tabs.unit.test.tsx (39 tests | 2 failed) 1409ms
+     × renders the server's flat refusal as plain text through the real client 192ms
+     × shows an export failure as an alert 28ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/features/sites/__tests__/site-transfer-tabs.unit.test.tsx > SiteExportTab > renders the server's flat refusal as plain text through the real client
+AssertionError: expected 'Share refused: \'targets/cloudflare-p…' to be 'Share refused: \'targets/cloudflare-p…' // Object.is equality
+
+- Expected
++ Received
+
+- Share refused: 'targets/cloudflare-pages.mjs' contains credential-shaped content. <strong>remove it</strong>
++ Share refused: 'targets/cloudflare-pages.mjs' contains credential-shaped content. <strong>remove it</strong>Check export history before starting another export. Copy details and report this problem.Show detailsMessage: Share refused: 'targets/cloudflare-pages.mjs' contains credential-shaped content. <strong>remove it</strong>
++ Next action: Check export history before starting another export. Copy details and report this problem.
++ Error ID: Unavailable
++ Step: export request
++ Cause: Error: Share refused: 'targets/cloudflare-pages.mjs' contains credential-shaped content. <strong>remove it</strong>
++     at buildRequestFailedError (/workspace/Tovu/apps/admin/src/lib/api.ts:2639:17)
++     at requestOnce (/workspace/Tovu/apps/admin/src/lib/api.ts:2670:26)
++     at processTicksAndRejections (node:internal/process/task_queues:104:5)
++     at requestRidingOutRestart (/workspace/Tovu/apps/admin/src/lib/api.ts:2693:20)
++     at createShareUntilDone (/workspace/Tovu/apps/admin/src/features/sites/hooks/use-site-transfer.hooks.ts:41:16)
++     at exportSite (/workspace/Tovu/apps/admin/src/features/sites/hooks/use-site-transfer.hooks.ts:211:22)
++ {"status":400,"code":"SECRET_IN_CONTENT","body":{"code":"SECRET_IN_CONTENT","message":"Share refused: 'targets/cloudflare-pages.mjs' contains credential-shaped content. <strong>remove it</strong>"}}
++ App version: Unavailable
++ Jini version: Unavailable
++ Time: UnavailableCopy details
+
+ ❯ src/features/sites/__tests__/site-transfer-tabs.unit.test.tsx:108:33
+    106|       fireEvent.click(screen.getByRole("button", { name: "Export Tovu …
+    107|       const alert = await screen.findByRole("alert");
+    108|       expect(alert.textContent).toBe(message);
+       |                                 ^
+    109|       expect(alert.querySelector("strong")).toBeNull();
+    110|     } finally { fetch.mockRestore(); }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/features/sites/__tests__/site-transfer-tabs.unit.test.tsx > SiteExportTab > shows an export failure as an alert
+AssertionError: expected 'The site export could not finish.Chec…' to be 'Export failed.' // Object.is equality
+
+- Expected
++ Received
+
+- Export failed.
++ The site export could not finish.Check export history before starting another export. Copy details and report this problem.Show detailsMessage: The site export could not finish.
++ Next action: Check export history before starting another export. Copy details and report this problem.
++ Error ID: Unavailable
++ Step: export request
++ Cause: no
++ App version: Unavailable
++ Jini version: Unavailable
++ Time: UnavailableCopy details
+
+ ❯ src/features/sites/__tests__/site-transfer-tabs.unit.test.tsx:161:60
+    159|     renderExport(createFakeSiteTransferPort({ createShare: async () =>…
+    160|     fireEvent.click(await screen.findByRole("button", { name: "Export …
+    161|     expect((await screen.findByRole("alert")).textContent).toBe("Expor…
+       |                                                            ^
+    162|   });
+    163| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed | 6 passed (7)
+      Tests  2 failed | 256 passed (258)
+   Start at  18:26:35
+   Duration  18.41s (transform 9.40s, setup 1.32s, import 15.45s, tests 12.74s, environment 5.14s)
+

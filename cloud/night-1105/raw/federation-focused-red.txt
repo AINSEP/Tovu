@@ -1,0 +1,34 @@
+✔ the daemon has no independent federation, installed-extension or consent controller (2.975056ms)
+✔ onStarted reads the site's federation refusal prefix afresh for each run (148.608246ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[reload-test] mcp-federation: 'probe' registered 1 federated tool(s): mcp__probe__lookup
+✖ the server executor diagnoses a refusal introduced after construction (434.888483ms)
+✔ a real federation reload makes native and newly admitted tools searchable and describable through existing daemon routes (58.955505ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 3
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6863.157603
+
+✖ failing tests:
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.federation-runtime-wiring.unit.test.ts:1:1569
+✖ the server executor diagnoses a refusal introduced after construction (434.888483ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (/workspace/Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.federation-runtime-wiring.unit.test.ts:36:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /unknown tool/,
+    operator: 'rejects',
+    diff: 'simple'
+  }

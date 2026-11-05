@@ -105,8 +105,9 @@ describe("SiteExportTab", () => {
       renderExport(createFakeSiteTransferPort({ createShare: defaultSiteTransferPort.createShare }));
       fireEvent.click(screen.getByRole("button", { name: "Export Tovu site" }));
       const alert = await screen.findByRole("alert");
-      expect(alert.textContent).toBe(message);
+      expect(within(alert).getByText(message, { selector: "p" }).textContent).toBe(message);
       expect(alert.querySelector("strong")).toBeNull();
+      expect(alert.querySelector("pre")?.textContent).toContain(`Message: ${message}`);
     } finally { fetch.mockRestore(); }
   });
   it("shows an empty state, then exports with one press and no confirmation", async () => {
@@ -158,7 +159,11 @@ describe("SiteExportTab", () => {
   it("shows an export failure as an alert", async () => {
     renderExport(createFakeSiteTransferPort({ createShare: async () => { throw "no"; } }));
     fireEvent.click(await screen.findByRole("button", { name: "Export Tovu site" }));
-    expect((await screen.findByRole("alert")).textContent).toBe("Export failed.");
+    const alert = await screen.findByRole("alert");
+    expect(within(alert).getByText("The site export could not finish.", { selector: "p" }).textContent).toBe("The site export could not finish.");
+    expect(within(alert).getByText("Check export history before starting another export. Copy details and report this problem.", { selector: "p" })).toBeTruthy();
+    expect(alert.querySelector("details")?.hasAttribute("open")).toBe(false);
+    expect(alert.querySelector("pre")?.textContent).toContain("Cause: no");
   });
 });
 

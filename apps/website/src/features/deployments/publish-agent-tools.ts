@@ -1070,7 +1070,7 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
       const jobId = raw.jobId === undefined ? undefined : requireString({ input: raw, key: "jobId" });
       const requestId = raw.executionId === undefined ? undefined : requireString({ input: raw, key: "executionId" });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: DEPLOYMENTS_READ_PERMISSION }, { entityType: SITE_PUBLISH_ENTITY });
-      const snapshot = getPublishJobSnapshot({ workspaceId: deps.workspaceId, ...(jobId !== undefined ? { jobId } : {}), ...(requestId !== undefined ? { requestId } : {}) });
+      const snapshot = getPublishJobSnapshot({ workspaceId: deps.workspaceId, jobId, requestId });
       if (!snapshot) return { code: "PUBLISH_JOB_NOT_FOUND", message: "No retained publish job was found for this site. A restart clears job snapshots. Check the hosting dashboard before starting another publish." };
       const mapped = snapshot.result ? mapPublishOutcomeToToolResult(snapshot.result, { id: snapshot.jobId }, { target: snapshot.target }, [], "") : undefined;
       return { ...snapshot, ...(mapped ? { result: mapped.result } : {}),

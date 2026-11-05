@@ -1,0 +1,9 @@
+
+ RUN  v4.1.11 /workspace/Tovu/apps/admin
+
+
+ Test Files  1 passed (1)
+      Tests  39 passed (39)
+   Start at  18:28:09
+   Duration  16.65s (transform 10.55s, setup 771ms, import 12.55s, tests 2.53s, environment 662ms)
+

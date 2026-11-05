@@ -151,7 +151,7 @@ async function openHostedSignIn(authorizationUrl: string, cookie: string) {
 test("a forwarded provider URL cannot finish MCP sign-in in another browser; reconnect still works", async t => {
   const { app, deps, http } = await buildTestApp({ script: [{ json: { access_token: 'at-wire', token_type: 'Bearer' } }] });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
-  const old = await deps.externalMcpOAuth!.beginConnect({ serverId: SERVER, redirectUri: `${baseUrl}${EXTERNAL_MCP_OAUTH_CALLBACK_PATH}/${SERVER_ID}` });
+  const old = await deps.externalMcpOAuth!.beginConnect({ serverId: SERVER_ID, redirectUri: `${baseUrl}${EXTERNAL_MCP_OAUTH_CALLBACK_PATH}/${SERVER_ID}` });
   assert.equal(old.kind, 'redirect_required');
   if (old.kind !== 'redirect_required') throw new Error('Expected redirect sign-in');
   const unbound = await fetch(`${baseUrl}${EXTERNAL_MCP_OAUTH_CALLBACK_PATH}/${SERVER_ID}?state=${encodeURIComponent(new URL(old.authorizationUrl).searchParams.get('state')!)}&code=old`,

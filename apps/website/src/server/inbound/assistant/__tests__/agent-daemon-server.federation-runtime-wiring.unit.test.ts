@@ -30,6 +30,9 @@ test("the server executor diagnoses a refusal introduced after construction", as
   const { toolSurface } = createAssistantByokModule(deps);
   await toolSurface.ready;
   assert.ok(toolSurface.federation);
+  // Registry readiness does not settle the federation roster. Before that separate boot pass,
+  // an unknown federated id correctly reports "still connecting" instead of throwing.
+  await toolSurface.federation.start();
   let reports: import("@jini-ai/mcp/federation").FederationAdmissionSnapshotEntry[] = [];
   Object.assign(toolSurface.federation, { reports: () => reports });
   const request = { principal: { id: "principal" }, run: { id: "run" }, toolId: "mcp__probe__lookup", input: {} };

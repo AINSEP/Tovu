@@ -412,6 +412,7 @@ async function isPublishLabelConflict({ error, target, input }: { error: unknown
   if (!current || current.revision !== input.expectedRevision) return false;
   // The unique label belongs to its provider, so moving providers can conflict without a rename.
   return current.label !== input.label || (input.provider !== undefined && current.provider !== input.provider);
+
 }
 
 /** Validate before the vault write. Jini atomically auto-defaults the first vendor credential. */

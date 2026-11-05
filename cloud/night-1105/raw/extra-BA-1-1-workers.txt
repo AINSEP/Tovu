@@ -1,0 +1,11 @@
+
+ RUN  v2.1.9 /workspace/Jini/packages/agent-runtime
+
+ ✓ src/__tests__/startup-failure.test.ts (3 tests) 13ms
+ ✓ src/__tests__/native-tool-compatibility.unit.test.ts (5 tests) 31ms
+
+ Test Files  2 passed (2)
+      Tests  8 passed (8)
+   Start at  18:15:23
+   Duration  1.56s (transform 1.11s, setup 0ms, collect 1.74s, tests 43ms, environment 0ms, prepare 234ms)
+

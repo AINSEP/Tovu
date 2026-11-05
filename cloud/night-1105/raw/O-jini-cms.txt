@@ -1,0 +1,13 @@
+
+ RUN  v2.1.9 /workspace/Jini/packages/cms
+
+ ✓ src/forms/__tests__/attachment-purge.test.ts (7 tests) 7ms
+ ✓ src/forms/__tests__/attachment-cleanup.test.ts (2 tests) 4ms
+ ✓ src/media/__tests__/list-page-w2g.unit.test.ts (8 tests) 97ms
+ ✓ src/forms/__tests__/request-admission.test.ts (3 tests) 3ms
+
+ Test Files  4 passed (4)
+      Tests  20 passed (20)
+   Start at  18:24:21
+   Duration  974ms (transform 477ms, setup 0ms, collect 615ms, tests 111ms, environment 1ms, prepare 262ms)
+
