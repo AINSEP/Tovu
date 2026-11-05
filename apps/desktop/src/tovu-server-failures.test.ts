@@ -57,7 +57,7 @@ test("owned site control inherits IPC without daemon credentials in its spawn en
     },
     agentService: { bindServer: ({ child, siteDir }) => {
       assert.equal(child, f.child); assert.equal(siteDir, f.input.siteDir); bound = true;
-      return { setIdentity: ({ siteId }) => { identity = siteId; }, dispose() {} };
+      return { setIdentity: ({ siteId }) => { identity = siteId; }, dispose() {}, stopIfIdle: async () => false };
     } }, platform: "linux",
   });
   assert.equal(bound, true);
