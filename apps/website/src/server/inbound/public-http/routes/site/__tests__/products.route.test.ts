@@ -185,7 +185,7 @@ test("GET /products/:id 500s with 'No themes installed' when resolveActiveTheme 
   assert.match(await res.text(), /No themes installed/);
 });
 
-test("GET /products 500s with a generic 'Site error' when an unexpected exception is thrown", async (t) => {
+test("GET /products 500s with a specific catalog error when an unexpected exception is thrown", async (t) => {
   const { server, baseUrl } = await startServer({
     commerceCatalog: {
       listProducts: async () => { throw new Error("boom"); },
@@ -195,10 +195,10 @@ test("GET /products 500s with a generic 'Site error' when an unexpected exceptio
 
   const res = await fetch(`${baseUrl}/products`);
   assert.equal(res.status, 500);
-  assert.match(await res.text(), /Site error/);
+  assert.match(await res.text(), /The product catalog could not be loaded/);
 });
 
-test("GET /products/:id 500s with a generic 'Site error' when an unexpected exception is thrown", async (t) => {
+test("GET /products/:id 500s with a specific product error when an unexpected exception is thrown", async (t) => {
   const { server, baseUrl } = await startServer({
     commerceCatalog: {
       listProducts: async () => { throw new Error("boom"); },
@@ -208,7 +208,7 @@ test("GET /products/:id 500s with a generic 'Site error' when an unexpected exce
 
   const res = await fetch(`${baseUrl}/products/anything`);
   assert.equal(res.status, 500);
-  assert.match(await res.text(), /Site error/);
+  assert.match(await res.text(), /This product could not be loaded/);
 });
 
 /** `/products/:id`'s `String(req.params.id ?? "")` is unreachable through any real HTTP request --
@@ -356,4 +356,10 @@ test("GET /products and /products/:id cache only with consent off; the static-ex
       assert.equal(exported.headers.get("cache-control"), "private, no-store", path);
     }
   }
+});
+
+
+test("the catalog resolver ignores an injected legacy store runtime", async () => {
+  const deps = Object.assign(createRouteDeps(), { store: { listProducts: async () => { throw new Error("legacy runtime must not run"); } } });
+  assert.deepEqual(await resolveStorefrontProducts(deps), []);
 });

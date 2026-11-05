@@ -77,7 +77,7 @@ export const registerProductRoutes = (app: import("express").Express, deps: Comm
       const html = await renderSite({ theme, route: "products", siteTitle, posts: [], products, siteAssistantEnabled });
       res.set("Cache-Control", cacheControlFor(req)).type("html").send(markOffSiteLinksOpenInNewTab(html, req.hostname));
     } catch {
-      res.status(500).type("html").send("<h1>Site error</h1>");
+      res.status(500).type("html").send("<h1>The product catalog could not be loaded</h1><p>Please try again shortly.</p>");
     }
   });
 
@@ -109,7 +109,7 @@ export const registerProductRoutes = (app: import("express").Express, deps: Comm
       const html = await renderSite({ theme, route: "product", siteTitle, posts: [], products, product, siteAssistantEnabled });
       res.set("Cache-Control", cacheControlFor(req)).type("html").send(markOffSiteLinksOpenInNewTab(html, req.hostname));
     } catch {
-      res.status(500).type("html").send("<h1>Site error</h1>");
+      res.status(500).type("html").send("<h1>This product could not be loaded</h1><p>Please try again shortly.</p>");
     }
   });
 };

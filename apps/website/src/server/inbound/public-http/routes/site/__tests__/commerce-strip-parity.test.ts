@@ -93,7 +93,7 @@ const commerceCatalog: StoreApi = { listProducts: async () => products, };
 
 describe("storefront under the production composition", () => {
   async function startServer() {
-    const server = createServer(createCommerceSiteTestApp({ ...createRouteDeps(), commerceCatalog: store }));
+    const server = createServer(createCommerceSiteTestApp({ ...createRouteDeps(), commerceCatalog }));
     server.listen(0);
     await once(server, "listening");
     return { server, baseUrl: `http://127.0.0.1:${(server.address() as AddressInfo).port}` };
@@ -102,7 +102,7 @@ describe("storefront under the production composition", () => {
   test("/products renders exactly the store plugin's products, the pre-strip fallback", async (t) => {
     const deps = createRouteDeps();
     assert.equal("commerceProductRepo" in deps || "commercePriceRepo" in deps, false, "the core catalog was never wired");
-    assert.deepEqual(await resolveStorefrontProducts({ ...deps, commerceCatalog: store }), products);
+    assert.deepEqual(await resolveStorefrontProducts({ ...deps, commerceCatalog }), products);
     const { server, baseUrl } = await startServer();
     t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
     const res = await fetch(`${baseUrl}/products`);
@@ -128,7 +128,7 @@ describe("storefront under the production composition", () => {
   test("the static-export route manifest lists the same product routes", async () => {
     // `resolveStorefrontProducts` is a closure over the composed object: mutate it, never spread it.
     const deps = createRouteDeps() as ReturnType<typeof createRouteDeps> & CommerceSiteTestDeps;
-    deps.commerceCatalog = store;
+    deps.commerceCatalog = commerceCatalog;
     const { routes } = await buildRouteManifest(deps);
     assert.deepEqual(routes.filter(route => route.kind === "product-list" || route.kind === "product"), [
       { path: "/products", kind: "product-list", label: "products" },

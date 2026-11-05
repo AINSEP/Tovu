@@ -104,8 +104,9 @@ test("buildTemplateRenderData: a product never emits a `description` field, even
 });
 
 test("buildTemplateRenderData: prices honor zero- and three-decimal currencies on list and detail", () => {
-  const data = buildTemplateRenderData(minimalContext({ products: [siteProduct({ price: 2800, compareAtPrice: 3500, currency: "JPY" }), siteProduct({ price: 1234, currency: "KWD" })], product: siteProduct({ price: 9900, currency: "EUR" }) }));
+  const data = buildTemplateRenderData(minimalContext({ products: [siteProduct({ price: 2800, compareAtPrice: 3500, currency: "JPY", priceId: "yen-price" }), siteProduct({ price: 1234, currency: "KWD" })], product: siteProduct({ price: 9900, currency: "EUR" }) }));
   const products = data.products as Array<Record<string, unknown>>;
+  assert.equal(products[0].priceId, "yen-price");
   assert.equal(products[0].priceFormatted, "¥2,800");
   assert.equal(products[0].compareAtPriceFormatted, "¥3,500");
   assert.equal(products[1].priceFormatted, "KWD 1.234");
