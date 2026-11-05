@@ -10,7 +10,7 @@ import { createProjectKeys } from "#src/features/project-keys/service";
 import { fakeAttachments, vaultRow } from "#src/features/project-keys/__tests__/helpers";
 import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
 
-import { ProviderConfigUnreadableError, withAttachedProject, withUnavailableProject, type ProviderConfigSource, type ProviderPluginConfig } from "#src/server/runtime/composition/provider-config-source";
+import { ProviderConfigUnreadableError, ProviderStoreUnavailableError, withAttachedProject, withUnavailableProject, type ProviderConfigSource, type ProviderPluginConfig } from "#src/server/runtime/composition/provider-config-source";
 import { registerPluginProviderSettingsRoutes, type ProviderSettingsRouteDeps } from "../../provider-settings.js";
 
 /**
@@ -194,11 +194,25 @@ test("refusals: other workspace 404, plugin without declared settings 404, no se
   assert.equal((await failing.call("PUT", `${WS}/plugins/obs/provider-settings`, { values: {} })).status, 500);
 });
 
-test("a project store that could not open this run: a save is refused 503 with the cause, never a bare internal error", async (t) => {
-  const { call } = await serve(t, { providerConfig: withUnavailableProject({ site: memoryConfig(), reason: "EACCES: permission denied" }) });
+test("a shared-only store that could not open this run: a save is refused 503 with the cause, never a bare internal error", async (t) => {
+  // Owner outages no longer block independent local saves; this refusal is specific to a shared-only write.
+  const unavailable = { ...memoryConfig(), write: async () => { throw new ProviderStoreUnavailableError({ reason: "EACCES: permission denied" }); } };
+  const { call } = await serve(t, { providerConfig: unavailable });
   const response = await call("PUT", `${WS}/plugins/obs/provider-settings`, { values: { endpoint: "https://otlp.example.test" } });
   assert.equal(response.status, 503);
   assert.deepEqual(response.json, { code: "PROVIDER_SETTINGS_UNAVAILABLE", error: "Project settings can't be saved right now: EACCES: permission denied" });
+});
+
+test("an unavailable owner store does not block a local provider settings save", async t => {
+  const site = { ...memoryConfig(), scope: "site" as const };
+  site.usage = async ({ pluginId }) => ({ store: "site", usedByThisSite: site.saved.has(pluginId), usedBy: [] });
+  const { call } = await serve(t, { providerConfig: withUnavailableProject({ site, reason: "EACCES: permission denied" }) });
+  const response = await call("PUT", `${WS}/plugins/obs/provider-settings`, { values: { endpoint: "https://otlp.example.test", headers: "private-local-fixture" } });
+  assert.equal(response.status, 200);
+  assert.equal(response.json.store, "site");
+  assert.equal(response.json.usedByThisSite, true);
+  assert.deepEqual(site.saved.get("obs"), { settings: { endpoint: "https://otlp.example.test" }, secrets: { headers: "private-local-fixture" } });
+  assert.equal(response.text.includes("private-local-fixture"), false);
 });
 
 test("a key saved the retired way (API credential `plugin:<id>`) shows a re-entry notice until new settings are saved (Codex fix-lane MED)", async (t) => {
