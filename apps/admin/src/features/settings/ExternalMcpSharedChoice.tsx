@@ -28,19 +28,31 @@ export function ExternalMcpSharedChoice({ serverId, busy, signIn, onChanged }: {
     catch (cause) { setError(describeApiError(cause, 'The connection could not be stopped here. Try again.')); }
     finally { setPending(false); }
   }
+  async function useLocal() {
+    setPending(true); setError('');
+    try { await api.useLocalMcpConnection(serverId); await load(); onChanged(); }
+    catch (cause) { setError(describeApiError(cause, 'The local connection could not be selected. Try again.')); }
+    finally { setPending(false); }
+  }
   return <div className="external-mcp-shared-choice">
     <button type="button" disabled={busy || pending} onClick={() => void load()}>Use a saved connection on this Mac</button>
-    {view?.available && <>
-      <button type="button" disabled={busy || pending} onClick={signIn}>Sign in and save on this Mac</button>
-      <label>Saved connection <select aria-label="Saved MCP connection" disabled={busy || pending} value="" onChange={event => void useSaved(event.target.value)}>
-        <option value="">Choose a saved connection</option>
-        {view.connections.map(item => <option key={item.credentialId} value={item.credentialId}>{item.label}</option>)}
-      </select></label>
-      {view.current && <p>{view.current.granted ? `Shared connection: ${view.current.status}.` : 'This shared connection is stopped on this site.'}
-        {view.current.granted && <button type="button" disabled={busy || pending} onClick={() => void stopHere()}>Stop using here</button>}</p>}
-      <p>Saving here lets you grant this connection to other sites on this Mac. Existing local connections stay separate.</p>
-    </>}
-    {view && !view.available && <p>Saved connections are available in the desktop owner profile.</p>}
+    <SharedChoices view={view} disabled={busy || pending} signIn={signIn} useSaved={credentialId => void useSaved(credentialId)} stopHere={() => void stopHere()} useLocal={() => void useLocal()} />
     {error && <p role="alert">{error}</p>}
   </div>;
+}
+
+function SharedChoices({ view, disabled, signIn, useSaved, stopHere, useLocal }: { view: SharedView | undefined; disabled: boolean; signIn: () => void; useSaved: (id: string) => void; stopHere: () => void; useLocal: () => void }) {
+  if (!view) return null;
+  if (!view.available) return <p>Saved connections are available in the desktop owner profile.</p>;
+  return <>
+    <button type="button" disabled={disabled} onClick={signIn}>Sign in and save on this Mac</button>
+    <label>Saved connection <select aria-label="Saved MCP connection" disabled={disabled} value="" onChange={event => useSaved(event.target.value)}>
+      <option value="">Choose a saved connection</option>
+      {view.connections.map(item => <option key={item.credentialId} value={item.credentialId}>{item.label}</option>)}
+    </select></label>
+    {view.current && <button type="button" disabled={disabled} onClick={useLocal}>Use this site's local connection</button>}
+    {view.current && <p>{view.current.granted ? `Shared connection: ${view.current.status}.` : 'This shared connection is stopped on this site.'}
+      {view.current.granted && <button type="button" disabled={disabled} onClick={stopHere}>Stop using here</button>}</p>}
+    <p>Saving here lets you grant this connection to other sites on this Mac. Existing local connections stay separate.</p>
+  </>;
 }

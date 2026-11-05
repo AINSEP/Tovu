@@ -17,6 +17,8 @@ import { externalMcpOAuthCallbackUrl } from "#src/server/inbound/public-http/rou
 import type { ExternalMcpRouteDeps } from "./deps.js";
 import { guardExternalMcpRequest } from "./guard.js";
 
+const SHARED_MCP_PERMISSION = 'admin.integrations.manage';
+
 /**
  * @file The operator-facing half of external-MCP OAuth: start a connection, poll a device
  * authorization, drop a connection.
@@ -133,7 +135,7 @@ export function registerAdminExternalMcpOAuthConnectRoute(
       const serverId = String(req.params.serverId ?? "");
       const destination = req.body?.destination;
       if (destination !== undefined && destination !== 'shared') throw new ExternalMcpValidationError('Choose local sign-in or save the connection on this Mac.', 'destination');
-      if (destination === 'shared' && !rejectUnlessSessionCredential(res, { message: 'Open Settings → External MCP in your signed-in owner browser to save a shared connection.', permission: 'admin.integrations.manage' })) return;
+      if (destination === 'shared' && !rejectUnlessSessionCredential(res, { message: 'Open Settings → External MCP in your signed-in owner browser to save a shared connection.', permission: SHARED_MCP_PERMISSION })) return;
       const started = await deps.externalMcpOAuth.beginConnect({
         serverId, actorId: getAuthedPrincipal(res).id,
         ...(destination === 'shared' ? { destination } : {}),
@@ -154,7 +156,7 @@ function registerExternalMcpBrowserSignInRoute(app: Express, deps: ExternalMcpOA
   app.get(EXTERNAL_MCP_SIGN_IN_PATH, async (req, res) => {
     res.set({ 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' });
     if (!(await withinRateLimit(limiter, req, res))) return;
-    if (!rejectUnlessSessionCredential(res, { message: 'Open this sign-in link from your signed-in Tovu browser, then try again.', permission: 'admin.integrations.manage' })) return;
+    if (!rejectUnlessSessionCredential(res, { message: 'Open this sign-in link from your signed-in Tovu browser, then try again.', permission: SHARED_MCP_PERMISSION })) return;
     try {
       if (!(await guardExternalMcpRequest(deps, req.params.workspaceId, res))) return;
       const serverId = String(req.params.serverId ?? '');
@@ -230,18 +232,29 @@ function registerSharedMcpRoutes(app: Express, deps: ExternalMcpOAuthRouteDeps, 
   app.get(route, async (req, res) => {
     try {
       if (!(await guardExternalMcpRequest(deps, req.params.workspaceId, res))) return;
-      if (!rejectUnlessSessionCredential(res, { message: 'Open saved connections from your signed-in owner browser.', permission: 'admin.integrations.manage' })) return;
+      if (!rejectUnlessSessionCredential(res, { message: 'Open saved connections from your signed-in owner browser.', permission: SHARED_MCP_PERMISSION })) return;
       const result = await deps.externalMcpOAuth.listSharedConnections?.({ serverId: String(req.params.serverId), actorId: getAuthedPrincipal(res).id });
       res.json(result ?? { available: false, connections: [], current: null });
+    } catch (error) { sendExternalMcpOAuthError(res, error); }
+  });
+  app.delete(route, async (req, res) => {
+    if (!(await withinRateLimit(limiter, req, res))) return;
+    try {
+      if (!(await guardExternalMcpRequest(deps, req.params.workspaceId, res))) return;
+      if (!rejectUnlessSessionCredential(res, { message: 'Choose the local connection from your signed-in owner browser.', permission: SHARED_MCP_PERMISSION })) return;
+      if (!deps.externalMcpOAuth.useLocalConnection) throw new ExternalMcpValidationError('Shared connections are unavailable in this profile.', 'credentialId');
+      await deps.externalMcpOAuth.useLocalConnection({ serverId: String(req.params.serverId), actorId: getAuthedPrincipal(res).id });
+      res.json({ selected: 'local' });
     } catch (error) { sendExternalMcpOAuthError(res, error); }
   });
   app.post(route, async (req, res) => {
     if (!(await withinRateLimit(limiter, req, res))) return;
     try {
       if (!(await guardExternalMcpRequest(deps, req.params.workspaceId, res))) return;
-      if (!rejectUnlessSessionCredential(res, { message: 'Choose a saved connection from your signed-in owner browser.', permission: 'admin.integrations.manage' })) return;
+      if (!rejectUnlessSessionCredential(res, { message: 'Choose a saved connection from your signed-in owner browser.', permission: SHARED_MCP_PERMISSION })) return;
       const body = req.body as Record<string, unknown> | undefined;
-      if (!body || Object.keys(body).some(key => key !== 'credentialId') || typeof body.credentialId !== 'string' || body.credentialId.length > 512 || !body.credentialId) {
+      if (!body || Object.keys(body).some(key => key !== 'credentialId')) throw new ExternalMcpValidationError('Choose an existing saved connection.', 'credentialId');
+      if (typeof body.credentialId !== 'string' || body.credentialId.length > 512 || !body.credentialId) {
         throw new ExternalMcpValidationError('Choose an existing saved connection.', 'credentialId');
       }
       if (!deps.externalMcpOAuth.useSharedConnection) throw new ExternalMcpValidationError('Shared connections are available only in this Mac owner profile.', 'credentialId');

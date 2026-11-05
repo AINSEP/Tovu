@@ -3327,6 +3327,7 @@ export const api = {
       `/workspaces/${WORKSPACE_ID}/mcp-servers/${encodeURIComponent(serverId)}/oauth/connect`,
       { method: "POST", ...(options?.destination ? { body: JSON.stringify(options) } : {}) }
     ),
+  useLocalMcpConnection: (serverId: string) => request<void>(`/workspaces/${WORKSPACE_ID}/mcp-servers/${encodeURIComponent(serverId)}/oauth/shared`, { method: "DELETE" }),
   stopSharedMcpConnection: (serverId: string) => request<void>(`/workspaces/${WORKSPACE_ID}/mcp-servers/${encodeURIComponent(serverId)}/oauth`, { method: "DELETE" }),
   listSharedMcpConnections: (serverId: string) => request<{ available: boolean; connections: { credentialId: string; label: string }[]; current: { credentialId: string; status: string; granted: boolean } | null }>(
     `/workspaces/${WORKSPACE_ID}/mcp-servers/${encodeURIComponent(serverId)}/oauth/shared`),

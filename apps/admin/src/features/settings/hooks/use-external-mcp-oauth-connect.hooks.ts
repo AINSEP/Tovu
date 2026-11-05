@@ -117,7 +117,7 @@ export function useExternalMcpOAuthConnect(
     const popup = grant === "device_code" ? null : w.open("about:blank");
     setState({ phase: "starting" });
     try {
-      const { auth } = await (options.destination ? port.connectExternalMcpOAuth(serverId, options) : port.connectExternalMcpOAuth(serverId));
+      const { auth } = await startConnection({ port, serverId, options });
       if (auth.kind === "redirect_required") {
         if (popup) popup.location.href = auth.authorizationUrl;
         else w.open(auth.authorizationUrl);
@@ -141,4 +141,9 @@ export function useExternalMcpOAuthConnect(
   }, [stop]);
 
   return { state, connect, cancel };
+}
+
+/** Preserve the existing one-argument local port call while making shared saving explicit. */
+function startConnection({ port, serverId, options }: { port: ExternalMcpOAuthConnectPort; serverId: string; options: { destination?: "shared" } }) {
+  return options.destination ? port.connectExternalMcpOAuth(serverId, options) : port.connectExternalMcpOAuth(serverId);
 }

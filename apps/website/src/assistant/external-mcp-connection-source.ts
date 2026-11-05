@@ -96,7 +96,7 @@ export function createStoredExternalMcpConnectionSource(
           console.warn(`${deps.log} mcp-federation: stored server '${failure.serverId}' skipped — ${failure.reason}`);
         }
         configFailures = failures.map((failure) => ({ connectionId: failure.serverId, reason: failure.reason }));
-        return toResolvedFederatedConnections(configs, await pluginReadOnlyNames({ deps, configs, resolvePluginReads }), { oauth: deps.oauth });
+        return toResolvedFederatedConnections(configs, await pluginReadOnlyNames({ deps, configs, resolvePluginReads }));
       } catch (error) {
         console.warn(
           `${deps.log} mcp-federation: the stored external-MCP roster could not be read, continuing without it — ${errorDetail(error)}`,

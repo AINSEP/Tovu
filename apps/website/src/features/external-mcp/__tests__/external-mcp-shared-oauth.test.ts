@@ -25,7 +25,15 @@ async function harness() {
   const ownerKeyring = new InMemoryKeyring();
   const ownerSealer = new AesGcmSecretSealer(ownerKeyring);
   const owner = createSharedOAuthOwnerStorage({ scope: { workspaceId: 'project', repo: ownerRepo, keyring: ownerKeyring, sealer: ownerSealer }, clock });
-  const attachments = fakeAttachments();
+  const originalAttachments = fakeAttachments();
+  let beforeAttach: (() => Promise<void>) | undefined;
+  const attachments = { ...originalAttachments, attach: async (input: Parameters<typeof originalAttachments.attach>[0]) => { await beforeAttach?.(); await originalAttachments.attach(input); } };
+  let transactionTail = Promise.resolve();
+  const transaction: import('../../project-keys/attachments.js').ProjectKeyTransaction = ({ run }) => {
+    const result = transactionTail.then(run);
+    transactionTail = result.then(() => undefined, () => undefined);
+    return result;
+  };
   const requests: URLSearchParams[] = [];
   let tokens = 0;
   let onRefresh: (() => Promise<void>) | undefined;
@@ -35,7 +43,7 @@ async function harness() {
     if (String(url).endsWith('/device')) return new Response(JSON.stringify({ device_code: 'private-device', user_code: 'USER', verification_uri: 'https://auth.example/verify', expires_in: 600, interval: 1 }));
     if (params.get('grant_type') === 'refresh_token') await onRefresh?.();
     tokens++;
-    return new Response(JSON.stringify({ access_token: `access-${tokens}`, refresh_token: `refresh-${tokens}`, token_type: 'Bearer', expires_in: 60, scope: 'read' }), { headers: { 'content-type': 'application/json' } });
+    return new Response(JSON.stringify({ access_token: `access-${tokens}`, refresh_token: `refresh-${tokens}`, token_type: 'Bearer', expires_in: 3600, scope: 'read' }), { headers: { 'content-type': 'application/json' } });
   };
   async function site(siteId: string, clientId = 'original-client', grant = 'authorization_code') {
     const repo = new InMemoryExternalMcpServerRepo();
@@ -47,11 +55,11 @@ async function harness() {
       authMode: 'oauth', enabled: true, url: 'https://resource.example/mcp', command: '', args: '', allowedToolNames: 'read', principalId: 'owner',
       oauth: { providerId: provider.providerId, grant, clientId, clientSecret: `${clientId}-secret`, scopes: 'read' } });
     const service = createExternalMcpOAuthService({ workspaceId: 'workspace-local', repo, keyring, sealer, clock,
-      devices: createDeviceAuthorizationStore(), lookupProvider: () => provider, httpPorts: { guard: createTovuOAuthGuard({}), fetchFn },
-      shared: { owner, bindings, attachments, siteId, siteName: siteId, ownerPrincipalId: 'owner', transaction: ({ run }) => run() } });
+      devices: createDeviceAuthorizationStore(), lookupProvider: id => id === 'provider-b' ? { ...provider, providerId: id, tokenEndpoint: 'https://other-auth.example/token' } : provider, httpPorts: { guard: createTovuOAuthGuard({}), fetchFn },
+      shared: { owner, bindings, attachments, siteId, siteName: siteId, ownerPrincipalId: 'owner', transaction } });
     return { repo, bindings, service, sealer };
   }
-  return { clock, owner, ownerRepo, attachments, requests, site, advance: (ms: number) => { now += ms; }, onRefresh: (handler: () => Promise<void>) => { onRefresh = handler; } };
+  return { clock, owner, ownerRepo, attachments, requests, site, advance: (ms: number) => { now += ms; }, onRefresh: (handler: () => Promise<void>) => { onRefresh = handler; }, onAttach: (handler: () => Promise<void>) => { beforeAttach = handler; } };
 }
 async function signIn(site: Awaited<ReturnType<Awaited<ReturnType<typeof harness>>['site']>>) {
   const start = await site.service.beginConnect({ serverId: 'server', destination: 'shared', redirectUri, browserBinding: 'browser-a', actorId: 'owner' });
@@ -71,7 +79,7 @@ test('explicit shared sign-in stores tokens only in the owner vault; two sites r
   assert.equal((await openExternalMcpOAuthPayload(a.sealer, after!)).tokens, undefined);
   const b = await h.site('site-b', 'different-site-client');
   await b.service.useSharedConnection!({ serverId: 'server', credentialId, actorId: 'owner' });
-  h.advance(120_000);
+  h.advance(3_700_000);
   assert.deepEqual(await Promise.all([a.service.tokenResolver.resolveAccessToken({ serverId: 'server' }), b.service.tokenResolver.resolveAccessToken({ serverId: 'server' })]), ['access-2', 'access-2']);
   const refreshes = h.requests.filter(params => params.get('grant_type') === 'refresh_token');
   assert.equal(refreshes.length, 1);
@@ -98,7 +106,7 @@ test('revocation while refresh is in flight returns no token to that site', asyn
   const h = await harness();
   const a = await h.site('site-a');
   const credentialId = await signIn(a);
-  h.advance(120_000);
+  h.advance(3_700_000);
   h.onRefresh(() => h.attachments.detach({ siteId: 'site-a', keyId: credentialId }));
   await assert.rejects(a.service.tokenResolver.resolveAccessToken({ serverId: 'server' }), /shared|saved/i);
 });
@@ -129,4 +137,96 @@ test('shared redirect and device completions stay stopped after local disconnect
     else await assert.rejects(a.service.pollDeviceAuthorization({ serverId: 'server' }));
     assert.equal(h.requests.length, before, 'stopped completion must fail before provider exchange');
   }
+});
+
+
+test('shared device sign-in persists only owner tokens and is immediately usable', async () => {
+  const h = await harness();
+  const a = await h.site('site-a', 'device-client', 'device_code');
+  const start = await a.service.beginConnect({ serverId: 'server', destination: 'shared', actorId: 'owner' });
+  assert.equal(start.kind, 'device_code');
+  assert.deepEqual(await a.service.pollDeviceAuthorization({ serverId: 'server' }), { status: 'connected' });
+  assert.equal(await a.service.tokenResolver.resolveAccessToken({ serverId: 'server' }), 'access-1');
+  const row = (await a.repo.findByServerId({ workspaceId: 'workspace-local', serverId: 'server' }))!;
+  assert.equal((await openExternalMcpOAuthPayload(a.sealer, row)).tokens, undefined);
+  const exchange = h.requests.find(request => request.get('device_code'))!;
+  assert.equal(exchange.get('client_id'), 'device-client');
+  assert.equal(exchange.get('client_secret'), 'device-client-secret');
+});
+
+test('wrong browser proof and a globally advanced generation reject callback before exchanging code', async () => {
+  for (const changedGeneration of [false, true]) {
+    const h = await harness();
+    const a = await h.site('site-a');
+    const start = await a.service.beginConnect({ serverId: 'server', destination: 'shared', redirectUri, browserBinding: 'browser-a', actorId: 'owner' });
+    if (start.kind !== 'redirect_required') throw new Error('redirect required');
+    if (changedGeneration) {
+      const binding = (await a.bindings.read({ consumerId: 'mcp:server' }))!;
+      const record = (await h.owner.records.read({ key: binding.credentialId }))!;
+      await h.owner.records.compareAndSet({ key: record.key, expectedRevision: record.revision,
+        record: { ...record, generation: record.generation + 1, revision: record.revision + 1, status: 'disconnected' } });
+    }
+    const before = h.requests.length;
+    await assert.rejects(a.service.completeAuthorizationCallback({ serverId: 'server', redirectUri, browserBinding: changedGeneration ? 'browser-a' : 'browser-b',
+      params: { state: new URL(start.authorizationUrl).searchParams.get('state')!, code: 'synthetic-code' } }));
+    assert.equal(h.requests.length, before);
+  }
+});
+
+test('Stop using here waits for an in-progress initial grant then removes its authority', async () => {
+  const h = await harness();
+  const a = await h.site('site-a');
+  let release!: () => void;
+  let entered!: () => void;
+  const barrier = new Promise<void>(resolve => { release = resolve; });
+  const reached = new Promise<void>(resolve => { entered = resolve; });
+  h.onAttach(async () => { entered(); await barrier; });
+  const beginning = a.service.beginConnect({ serverId: 'server', destination: 'shared', redirectUri, actorId: 'owner' });
+  await reached;
+  const binding = (await a.bindings.read({ consumerId: 'mcp:server' }))!;
+  let stopped = false;
+  const stopping = a.service.disconnect({ serverId: 'server' }).then(() => { stopped = true; });
+  await Promise.resolve();
+  assert.equal(stopped, false, 'Stop here must serialize behind the unfinished grant');
+  release();
+  await Promise.allSettled([beginning, stopping]);
+  assert.equal(stopped, true);
+  assert.equal(await h.attachments.isAttached({ siteId: 'site-a', keyId: binding.credentialId }), false);
+  await assert.rejects(a.service.tokenResolver.resolveAccessToken({ serverId: 'server' }));
+});
+
+test('registered provider and issuer changes reject before granting; stdio cannot opt into shared renewal', async () => {
+  const h = await harness();
+  const a = await h.site('site-a');
+  const credentialId = await signIn(a);
+  for (const change of [{ oauthProviderId: 'provider-b' }, { oauthEndpointsJson: JSON.stringify({ issuer: 'https://different-issuer.example' }) }]) {
+    const b = await h.site('site-b');
+    const row = (await b.repo.findByServerId({ workspaceId: 'workspace-local', serverId: 'server' }))!;
+    await b.repo.upsert({ ...row, ...change });
+    await assert.rejects(b.service.useSharedConnection!({ serverId: 'server', credentialId, actorId: 'owner' }));
+    assert.equal(await h.attachments.isAttached({ siteId: 'site-b', keyId: credentialId }), false);
+  }
+  const stdio = await h.site('stdio');
+  const row = (await stdio.repo.findByServerId({ workspaceId: 'workspace-local', serverId: 'server' }))!;
+  await stdio.repo.upsert({ ...row, transport: 'stdio' });
+  await assert.rejects(stdio.service.beginConnect({ serverId: 'server', destination: 'shared', redirectUri, actorId: 'owner' }));
+  assert.equal(await stdio.bindings.read({ consumerId: 'mcp:server' }), null);
+});
+
+test('switching back to the untouched local sign-in requires an explicit owner choice', async () => {
+  const h = await harness();
+  const a = await h.site('site-a');
+  const local = await a.service.beginConnect({ serverId: 'server', redirectUri, browserBinding: 'local-browser' });
+  if (local.kind !== 'redirect_required') throw new Error('redirect required');
+  await a.service.completeAuthorizationCallback({ serverId: 'server', redirectUri, browserBinding: 'local-browser',
+    params: { state: new URL(local.authorizationUrl).searchParams.get('state')!, code: 'local-code' } });
+  const credentialId = await signIn(a);
+  assert.equal(await a.service.tokenResolver.resolveAccessToken({ serverId: 'server' }), 'access-2');
+  await a.service.disconnect({ serverId: 'server' });
+  await assert.rejects(a.service.tokenResolver.resolveAccessToken({ serverId: 'server' }));
+  await assert.rejects(a.service.useLocalConnection!({ serverId: 'server', actorId: 'editor' }));
+  await a.service.useLocalConnection!({ serverId: 'server', actorId: 'owner' });
+  assert.equal(await a.bindings.read({ consumerId: 'mcp:server' }), null);
+  assert.equal(await h.attachments.isAttached({ siteId: 'site-a', keyId: credentialId }), false);
+  assert.equal(await a.service.tokenResolver.resolveAccessToken({ serverId: 'server' }), 'access-1');
 });

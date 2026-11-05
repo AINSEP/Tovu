@@ -1017,7 +1017,7 @@ export function createExternalMcpOAuthService(required: ExternalMcpOAuthDeps, _o
     },
   });
 
-  const shared = deps.shared ? createSharedExternalMcpOAuth({ deps, shared: deps.shared, configure: async input => {
+  const shared = deps.shared ? createSharedExternalMcpOAuth({ deps, shared: deps.shared, resolveProvider: record => resolveProviderDescriptor(deps, record), configure: async input => {
     const record = await selfConfigureConnection(deps, await requireOAuthRecord(deps, input.serverId), input.redirectUri, { configurationOnly: true });
     const provider = resolveProviderDescriptor(deps, record);
     const endpoints = readStoredEndpoints(record);
@@ -1026,7 +1026,7 @@ export function createExternalMcpOAuthService(required: ExternalMcpOAuthDeps, _o
   } }) : undefined;
 
   return {
-    ...(shared ? { assertSharedAuthorized: shared.assertAuthorized, useSharedConnection: shared.useSaved, listSharedConnections: shared.list } : {}),
+    ...(shared ? { assertSharedAuthorized: shared.assertAuthorized, useSharedConnection: shared.useSaved, useLocalConnection: shared.useLocal, listSharedConnections: shared.list } : {}),
     async beginConnect(input) {
       if (input.destination === 'shared' && !shared) throw new ExternalMcpValidationError('Shared sign-in is available only in this Mac owner profile. Use local sign-in here.', 'destination');
       if (shared && (input.destination === 'shared' || await shared.hasBinding(input))) return shared.beginConnect(input);
@@ -1134,7 +1134,11 @@ export function createExternalMcpOAuthService(required: ExternalMcpOAuthDeps, _o
     },
 
     async pollDeviceAuthorization(input) {
-      if (shared && await shared.hasBinding(input)) { const result = await shared.pollDeviceAuthorization(input); if (result.status === "connected") await notifyConnected(deps, input.serverId); return result; }
+      if (shared && await shared.hasBinding(input)) {
+        const result = await shared.pollDeviceAuthorization(input);
+        if (result.status === "connected") await notifyConnected(deps, input.serverId);
+        return result;
+      }
       const record = await requireOAuthRecord(deps, input.serverId);
       const authorization = await deps.devices.get(input.serverId);
       if (!authorization) {
@@ -1172,7 +1176,10 @@ export function createExternalMcpOAuthService(required: ExternalMcpOAuthDeps, _o
     },
 
     async disconnect(input) {
-      if (shared && await shared.hasBinding(input)) return shared.disconnect(input);
+      if (shared && await shared.hasBinding(input)) {
+        await shared.disconnect(input);
+        return;
+      }
       await deps.devices.delete(input.serverId);
       // A self-registered client goes too, so a reconnect is a clean one: a client the vendor has
       // since dropped would otherwise be reused forever. An operator-typed client is kept.
@@ -1180,6 +1187,10 @@ export function createExternalMcpOAuthService(required: ExternalMcpOAuthDeps, _o
     },
 
     async reportAuthFailure(serverId, error) {
+      if (shared && await shared.hasBinding({ serverId })) {
+        await shared.markNeedsReauth({ serverId });
+        throw new ExternalMcpReauthRequiredError({ serverId, cause: error });
+      }
       const record = await deps.repo.findByServerId({ workspaceId: deps.workspaceId, serverId });
       // A preset connection, a `static_env` row, or one already deleted has no reauth state this
       // service owns — see `createExternalMcpConnectionGate`'s identical passthrough.

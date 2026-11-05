@@ -161,6 +161,8 @@ export type ExternalMcpServerTarget =
        * the same reason.
        */
       readonly headers: Record<string, string>;
+      /** Captures the selected shared connection; missing/revoked bindings refuse instead of using launch headers. */
+      readonly bearerToken?: import("@jini-ai/mcp/federation").McpBearerTokenSupplier;
     };
 
 export interface ExternalMcpServerConfig {
@@ -507,6 +509,7 @@ export interface ExternalMcpOAuthService {
   listSharedConnections?(input: { serverId: string; actorId: string }): Promise<{ available: boolean; connections: readonly { credentialId: string; label: string }[];
     current: { credentialId: string; status: string; granted: boolean } | null }>;
   assertSharedAuthorized?(input: { serverId: string }): Promise<boolean>;
+  useLocalConnection?(input: { serverId: string; actorId: string }): Promise<void>;
   useSharedConnection?(input: { serverId: string; credentialId: string; actorId: string }): Promise<void>;
 }
 
