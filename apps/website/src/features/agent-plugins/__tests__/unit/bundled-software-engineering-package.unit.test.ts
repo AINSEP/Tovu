@@ -58,12 +58,10 @@ test("software-engineering seeds OFF, explicit enablement delivers its skill/ove
   assert.deepEqual(tool.files, ["references/debugging.md", "references/implementation.md", "references/planning.md", "references/verification.md"]);
   const injected = await lifecycle.resolveAgentPluginRefs([PLUGIN_ID], workspace, "inject");
   assert.equal(injected.ok, true);
-  if (!injected.ok) throw new Error(injected.reason);
   assert.ok(injected.promptPrefix.includes(overlay));
   assert.ok(injected.promptPrefix.includes(await readSkill()));
   const pointer = await lifecycle.resolveAgentPluginRefs([PLUGIN_ID], workspace, "pointer");
   assert.equal(pointer.ok, true);
-  if (!pointer.ok) throw new Error(pointer.reason);
   assert.match(pointer.promptPrefix, /agent_plugin_software_engineering/);
   assert.equal(pointer.promptPrefix.includes(overlay), false, "pointer defers guidance until the gated tool call");
 
