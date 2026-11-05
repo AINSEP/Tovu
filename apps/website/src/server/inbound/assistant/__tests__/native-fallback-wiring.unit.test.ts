@@ -206,7 +206,7 @@ for (const ownerPrincipalId of ['daemon-test-principal', 'another-admin']) {
       readAssistantCliPermissions: async () => assistantCliPermissions({ enabled: true, capabilities: { userMcp: true } }),
       verifyJsonAgentInstall: async () => { bridgeChecked = true; throw new Error('fixture bridge unavailable'); },
       agentExecutor: { run: async () => { spawned = true; } },
-    } }), ownerPrincipalId === 'daemon-test-principal' ? /CLI bridge could not be prepared/ : /only the owner can turn them on/);
+    } }), ownerPrincipalId === 'daemon-test-principal' ? /Antigravity's connector could not be installed safely in its personal settings\. Choose another available agent/ : /only the owner can turn them on/);
     assert.equal(bridgeChecked, ownerPrincipalId === 'daemon-test-principal');
     assert.equal(spawned, false);
   });

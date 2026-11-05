@@ -1,6 +1,6 @@
 import { assistantRunToolFacts } from './assistant-run-tool-facts.js';
 import { readAssistantRunToolPolicy, assistantRunPlan, assistantToolSetupMessage } from './assistant-run-tool-policy.js';
-import { requestAssistantToolConsent } from './assistant-tool-consent.js';
+import { requestAssistantToolConsent, requestAssistantToolAlternative } from './assistant-tool-consent.js';
 import { registerToolAccessLoweringRoute } from './tool-access-lowering-route.js';
 import { createChatSettingsGetRegistration, type ChatSettingsSnapshot } from '@jini-ai/daemon/chat-settings';
 import { stopRunsForToolAccessChange, admittedToolSources, type ToolAccessRun } from '@jini-ai/daemon';
@@ -73,7 +73,7 @@ import { homedir } from "node:os";
 import express from "express";
 
 import { createToolRegistry } from "@jini-ai/core";
-import type { Principal } from "@jini-ai/core";
+import type { Principal, ToolExecutionContext, SurfaceEmitter } from "@jini-ai/core";
 import { isTerminalRunState, type RunAgentPayload } from '@jini-ai/protocol';
 import type { RunLifecycle } from "@jini-ai/daemon";
 import { traceRunLifecycle } from "./run-lifecycle-tracing.js";
@@ -1217,21 +1217,28 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
     const plan = assistantRunPlan({ snapshot, installed: !!snapshot.def && !!resolveAgentLaunch({ def: snapshot.def }).launchPath,
       ...(detected?.authStatus ? { auth: detected.authStatus } : {}) });
     if (plan.verdict === 'RUN') return true;
-    if (plan.verdict === 'SETUP' || !snapshot.def) {
-      await emitToolSetupFailure({ selected, snapshot, plan }); return null;
-    }
+    if (plan.verdict === 'SETUP' || !snapshot.def) return prepareUnavailableToolChoice({ selected, snapshot, plan, inventory });
     const result = await askForRunToolAccess({ snapshot, keys: plan.keys, inventory });
     if (result.status === 'alternative') return result.agentId;
     if (result.status === 'allowed') return selected;
     await runLifecycle.finish({ runId: run.id, status: 'cancelled', code: null, signal: null, resumable: false }); return null;
   }
 
-  async function emitToolSetupFailure({ selected, snapshot, plan }: {
+  async function prepareUnavailableToolChoice({ selected, snapshot, plan, inventory }: {
     selected: string; snapshot: Awaited<ReturnType<typeof resolveRunNativePolicy>>; plan: ReturnType<typeof assistantRunPlan>;
-  }) {
-    const message = assistantToolSetupMessage({ name: snapshot.def?.name ?? selected, reason: plan.verdict === 'SETUP' ? plan.reason : 'not_installed',
+    inventory: Awaited<ReturnType<typeof assistantInventory.listAssistantAgents>>;
+  }): Promise<string | null> {
+    const name = snapshot.def?.name ?? selected;
+    const message = assistantToolSetupMessage({ name, reason: plan.verdict === 'SETUP' ? plan.reason : 'not_installed',
       ...(snapshot.lock ? { lock: snapshot.lock } : {}), ...('keys' in plan ? { keys: plan.keys } : {}) });
+    const alternatives = await qualifiedRunAlternatives({ inventory, selectedAgentId: selected });
+    if (alternatives.length) {
+      const alternative = await withRunToolAccessCard({ ask: ({ ctx, emitSurface }) => requestAssistantToolAlternative({ name, message,
+        ctx, surfaces: { surfaceExchanges }, alternatives, isLive: runToolAccessIsLive }, { emitSurface }) });
+      if (alternative) return alternative;
+    }
     await failRunBeforeStart({ lifecycle: runLifecycle, runId: run.id, message }, {});
+    return null;
   }
 
   async function askForRunToolAccess({ snapshot, keys, inventory }: {
@@ -1240,15 +1247,23 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
   }) {
     const selected = snapshot.def!;
     const alternatives = await qualifiedRunAlternatives({ inventory, selectedAgentId: selected.id });
+    return withRunToolAccessCard({ ask: ({ ctx, emitSurface }) => requestAssistantToolConsent({ def: selected, keys, surfaces: { surfaceExchanges }, ctx,
+      isLive: runToolAccessIsLive,
+      readFresh: () => routeDeps.readToolConsentSnapshot({ runId: run.id, agentId: selected.id }),
+      allowSelected: input => runToolAccessIsLive().then(live => live ? routeDeps.allowRunTools({ runId: run.id, ...input }) : false),
+    }, { alternatives, emitSurface }) });
+  }
+
+  /** Both access and setup cards use the existing principal-bound exchange event stream. */
+  async function withRunToolAccessCard<T>({ ask }: {
+    ask: (input: { ctx: ToolExecutionContext; emitSurface: SurfaceEmitter }) => Promise<T>;
+  }): Promise<T> {
     const toolUseId = randomUUID();
     await runLifecycle.emit({ runId: run.id, input: { event: 'agent', data: { type: 'tool_use', id: toolUseId, name: 'settings_set_value', input: {} } } });
     try {
-      return await requestAssistantToolConsent({ def: selected, keys, surfaces: { surfaceExchanges },
-        ctx: { executionId: toolUseId, principal, run: { id: run.id }, input: {}, signal: pluginAbort.signal },
-        isLive: runToolAccessIsLive,
-        readFresh: () => routeDeps.readToolConsentSnapshot({ runId: run.id, agentId: selected.id }),
-        allowSelected: input => runToolAccessIsLive().then(live => live ? routeDeps.allowRunTools({ runId: run.id, ...input }) : false),
-      }, { alternatives, emitSurface: async emission => { await runLifecycle.emit({ runId: run.id, input: { event: 'agent', data: { ...emission.payload, type: emission.channel, toolUseId } as RunAgentPayload } }); } });
+      return await ask({ ctx: { executionId: toolUseId, principal, run: { id: run.id }, input: {}, signal: pluginAbort.signal },
+        emitSurface: async emission => { await runLifecycle.emit({ runId: run.id, input: { event: 'agent', data: { ...emission.payload, type: emission.channel, toolUseId } as RunAgentPayload } }); },
+      });
     } finally {
       await runLifecycle.emit({ runId: run.id, input: { event: 'agent', data: { type: 'tool_result', toolUseId, content: 'Tool access request reviewed.' } } });
     }
