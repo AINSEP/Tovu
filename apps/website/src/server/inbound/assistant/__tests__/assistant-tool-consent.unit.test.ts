@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { buildAssistantToolConsentSpec } from '../assistant-tool-consent.js';
+import { buildAssistantToolConsentSpec, requestAssistantToolAlternative } from '../assistant-tool-consent.js';
 
 const snapshot = { permissions: { enabled: true, capabilities: { userMcp: false } }, revisionSeq: 3, allowed: true };
 
@@ -69,4 +69,42 @@ test('ending the originating run closes its pending card and never writes', asyn
   controller.abort();
   assert.deepEqual(await pending, { status: 'cancelled' });
   assert.equal(store.size(), 0);
+});
+
+function alternativeInput() {
+  return { name: 'Antigravity', message: 'Antigravity needs setup before this answer can start.',
+    ctx: { executionId: 'setup-exec', run: { id: 'run-one' }, principal: { id: 'owner' }, input: {}, signal: new AbortController().signal },
+    surfaces: {} as Parameters<typeof requestAssistantToolAlternative>[0]['surfaces'],
+    alternatives: [{ agentId: 'claude', name: 'Claude' }, { agentId: 'pi', name: 'pi' }], isLive: () => true };
+}
+
+test('SETUP offers only qualified Use Agent buttons and no Allow action', async () => {
+  const input = alternativeInput();
+  const selected = await requestAssistantToolAlternative(input, { askHuman: async ({ spec }) => {
+    assert.equal(spec.confirmLabel, 'Use Claude');
+    assert.deepEqual(spec.alternatives, [{ id: 'agent-0', label: 'Use pi', choice: 'pi' }]);
+    assert.doesNotMatch(JSON.stringify(spec), /Allow/);
+    assert.equal(spec.description, input.message);
+    return { confirmed: true };
+  } });
+  assert.equal(selected, 'claude');
+  assert.equal(await requestAssistantToolAlternative(input, { askHuman: async () => ({ confirmed: true, choice: 'pi' }) }), 'pi');
+});
+
+test('SETUP cancellation and unknown choices never select an agent', async () => {
+  assert.equal(await requestAssistantToolAlternative(alternativeInput(), { askHuman: async () => ({ confirmed: false, reason: 'declined' }) }), null);
+  assert.equal(await requestAssistantToolAlternative(alternativeInput(), { askHuman: async () => ({ confirmed: true, choice: 'unoffered-agent' }) }), null);
+});
+
+test('SETUP does not open a card without alternatives or after the run ends', async () => {
+  const askHuman = async (): Promise<never> => { throw new Error('must not open a card'); };
+  assert.equal(await requestAssistantToolAlternative({ ...alternativeInput(), alternatives: [] }, { askHuman }), null);
+  assert.equal(await requestAssistantToolAlternative({ ...alternativeInput(), isLive: () => false }, { askHuman }), null);
+});
+
+test('SETUP rechecks run liveness after the human click', async () => {
+  let live = true;
+  assert.equal(await requestAssistantToolAlternative({ ...alternativeInput(), isLive: () => live }, { askHuman: async () => {
+    live = false; return { confirmed: true };
+  } }), null);
 });

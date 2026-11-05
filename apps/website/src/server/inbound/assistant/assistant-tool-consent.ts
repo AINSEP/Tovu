@@ -63,3 +63,24 @@ export async function requestAssistantToolConsent(required: {
       spec: buildAssistantToolConsentSpec({ def: required.def, keys: required.keys, snapshot, stale }, optional) }, optional),
   });
 }
+
+/** Offer already-qualified RUN agents through the same principal-bound exchange, without grants.
+ * The caller revalidates the selected agent's plan before session binding and launch.
+ * @complexity O(a) for the bounded qualified alternative list; no settings reads or writes.
+ */
+export async function requestAssistantToolAlternative(required: {
+  name: string; message: string; ctx: ToolExecutionContext; surfaces: AssistantSurfaceDeps;
+  alternatives: readonly AssistantToolConsentAlternative[]; isLive: RunToolConsentPorts['isLive'];
+}, optional: ToolExecutionOptions & { askHuman?: typeof requireHumanConfirm } = {}): Promise<string | null> {
+  const alternatives = required.alternatives.map(agent => ({ ...agent }));
+  const first = alternatives[0];
+  if (!first || !(await required.isLive())) return null;
+  const outcome = await (optional.askHuman ?? requireHumanConfirm)({ ctx: required.ctx, surfaces: required.surfaces, spec: {
+    toolId: 'settings_set_value', errorCode: 'ASSISTANT_TOOL_ALTERNATIVE', title: `${required.name} needs setup.`,
+    description: required.message, details: [], confirmLabel: `Use ${first.name}`, cancelLabel: 'Cancel',
+    alternatives: alternatives.slice(1).map((agent, index) => ({ id: `agent-${index}`, label: `Use ${agent.name}`, choice: agent.agentId })),
+  } }, optional);
+  if (!outcome.confirmed || !(await required.isLive())) return null;
+  const selected = outcome.choice ?? first.agentId;
+  return alternatives.some(agent => agent.agentId === selected) ? selected : null;
+}
