@@ -110,7 +110,7 @@
     "complexity:strict": "eslint --no-error-on-unmatched-pattern --no-inline-config --ignore-pattern '**/{__tests__,__measurements__,__mocks__,fixtures,test,tests,vendor,.build}/**' --ignore-pattern '**/*.{test,spec,typecheck}.*' --ignore-pattern '**/*.d.{ts,mts,cts}' --ignore-pattern 'apps/website/src/platform/db/migrations/{0002,0006,0011,0012,0013,0020}_*.ts' --rule '{\"complexity\":[\"error\",10],\"sonarjs/cognitive-complexity\":[\"error\",10]}' \"apps/*/src/**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}\" \"packages/*/src/**/*.{ts,tsx}\" \"content/agent-plugins/**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}\""
   },
   "overrides": {
-    "@jini-ai/chat@^0.6.22": {
+    "@jini-ai/chat@^0.6.23": {
       "@jini-ai/ui": "^0.6.23"
     },
     "@jini-ai/http-kit": {

@@ -1,6 +1,6 @@
 # security-release — approved follow-up
 
-Status: requested follow-up complete. Earlier verification exceptions remain recorded below. No publication performed.
+Status: in progress — published dependency refresh and desktop release preparation.
 
 Only `cloud/security-release` is pushed in Jini and Tovu. No main push, force push, publication, tag or deployment.
 
