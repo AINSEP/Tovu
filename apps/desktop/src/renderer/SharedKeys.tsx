@@ -44,7 +44,7 @@ export function SharedKeys({ onClose, bridge = ownerStoreBridge({}) }: {
     <p>Save keys to your project. Saving a new key does not attach it to any site.</p>
     {/* Hook-up point: project-key attachments must provide authoritative usedBy site names.
         Legacy owner_grants describe copies, so they must never masquerade as project usage. */}
-    <p className="shared-keys__note">Site usage and site selection are unavailable in this version.</p>
+    <p className="shared-keys__note">Shared OAuth connections show their granted sites. Site selection is managed from each site's connection settings.</p>
     {!state.available && <p role="alert">Shared keys are unavailable. Update or restart the desktop app.</p>}
     {state.error && <p role="alert">{state.error}</p>}
     <p role="status" aria-live="polite">{state.busy ? 'Working…' : state.message}</p>
@@ -63,6 +63,7 @@ export function SharedKeys({ onClose, bridge = ownerStoreBridge({}) }: {
 /** Metadata stays visible; Replace asks for a fresh secret and never reveals the stored value. */
 function SavedKey({ entry, bridge, state }: { entry: OwnerStoreEntry; bridge: OwnerStoreBridge; state: StoreState }) {
   const [replacing, setReplacing] = useState(false);
+  if (entry.sharedOAuth) return <SavedOAuthConnection entry={entry} bridge={bridge} state={state} />;
   return <article className="shared-keys__row">
     <h3>{entry.label}</h3>
     <p>{entry.provider} · revision {entry.revision}</p>
@@ -74,6 +75,20 @@ function SavedKey({ entry, bridge, state }: { entry: OwnerStoreEntry; bridge: Ow
       {replacing && (entry.kind === 'api-connection' ? <ProviderKeyForm bridge={bridge} state={state} entry={entry} /> : <KeyForm bridge={bridge} state={state} entry={entry} />)}
     </>
     <button type="button" className="button button--quiet" disabled={state.busy} onClick={() => void state.run({ action: () => bridge.delete({ id: entry.id, expectedRevision: entry.revision }, {}) })}>Delete unused key</button>
+  </article>;
+}
+
+/** Shared connections use their fenced lifecycle, never a pasted token or an unused-key delete. */
+function SavedOAuthConnection({ entry, bridge, state }: { entry: OwnerStoreEntry; bridge: OwnerStoreBridge; state: StoreState }) {
+  const statuses: Record<string, string> = { connected: 'Connected', 'reconnect-required': 'Sign in again',
+    'revocation-pending': 'Stopped here; provider revocation pending', disconnected: 'Disconnected' };
+  return <article className="shared-keys__row">
+    <h3>{entry.label}</h3>
+    <p>Shared connection · {statuses[entry.status ?? ''] ?? 'Status unavailable'} · {entry.usedBy?.join(', ') || 'No sites'}</p>
+    <button type="button" className="button button--quiet" disabled={state.busy || !bridge.disconnect}
+      onClick={() => void state.run({ action: () => bridge.disconnect({ id: entry.id, expectedRevision: entry.revision }, {}) })}>
+      {entry.status === 'revocation-pending' ? 'Retry disconnect everywhere' : 'Disconnect this shared connection from every site on this Mac'}
+    </button>
   </article>;
 }
 

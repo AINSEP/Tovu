@@ -144,3 +144,28 @@ for (const kind of ['custom', 'api-connection'] as const) {
     assert.equal(host.innerHTML.includes('new-fixture-value'), false);
   });
 }
+
+test('shared OAuth row offers owner disconnect with metadata only and never a secret replacement form', async t => {
+  const shared: OwnerStoreEntry = { ...entry, id: 'shared-oauth', kind: 'api-connection', sharedOAuth: true, status: 'connected', usedBy: ['A', 'B'] };
+  const calls: OwnerStoreInput['disconnect'][] = [];
+  const bridge = {
+    list: async () => ({ version: 1, ok: true, action: 'list', data: { entries: [shared] } }),
+    disconnect: async (input: OwnerStoreInput['disconnect']) => { calls.push(input); return { version: 1, ok: true, action: 'disconnect',
+      data: { id: shared.id, label: shared.label, sites: ['A', 'B'], revision: 8, applied: true, status: 'revocation-pending', remoteRevocation: 'pending' } }; },
+    put: async () => assert.fail('OAuth row cannot be replaced by entering a token'),
+    delete: async () => assert.fail('OAuth row must disconnect through lifecycle'),
+  } as unknown as OwnerStoreBridge;
+  const { host, dom } = mount(t, bridge); await settle();
+  const row = host.querySelector('article')!;
+  assert.match(row.textContent!, /A, B/);
+  assert.equal(row.querySelector('form'), null);
+  assert.equal(row.textContent!.includes('Delete unused key'), false);
+  const disconnect = [...row.querySelectorAll('button')].find(button => button.textContent!.includes('Disconnect this shared connection'))!;
+  assert.ok(disconnect);
+  act(() => disconnect.dispatchEvent(new dom.MouseEvent('click', { bubbles: true })));
+  await settle();
+  assert.deepEqual(calls, [{ id: shared.id, expectedRevision: shared.revision }]);
+  assert.match(host.textContent!, /Stopped on every site on this Mac/);
+  assert.match(host.textContent!, /Provider revocation has not been confirmed/);
+  assert.match(host.textContent!, /Independent local connections remain connected/);
+});
