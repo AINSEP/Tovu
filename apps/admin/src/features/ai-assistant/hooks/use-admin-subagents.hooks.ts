@@ -22,6 +22,10 @@ export function useAdminSubagents(required: { port: AssistantSubagentsPort; t?: 
   }, { ...optional, confirmEnable: false });
   return { ...state, setEnabled: async ({ enabled }: { enabled: boolean }, _options = {}) => {
     await state.save({ settings: assistantCliPermissions({ enabled }) });
+  }, setAgentMcp: async ({ agentId, enabled }: { agentId: string; enabled: boolean }, _options = {}) => {
+    if (!state.settings) return;
+    await state.save({ settings: { enabled: state.settings.enabled, agentId,
+      capabilities: { userMcp: enabled } } });
   }, setCapability: async ({ key, enabled }: { key: AssistantCliCapability; enabled: boolean }, _options = {}) => {
     if (!state.settings) return;
     const current = assistantCliPermissions(state.settings);
