@@ -10,6 +10,7 @@ import { SqliteFormDefinitionRepo, SqliteFormSubmissionRepo } from "#src/feature
 import { createMailSendLedgerRepo } from "#src/features/mail/ledger.repo";
 import { createMailSuppressionRepo } from "#src/features/mail/suppression.repo";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
+import type { StorageKernel } from "#src/platform/db/kernel/port";
 import { dropDatabase, freshPostgresDatabase } from "#src/platform/db/__tests__/postgres-database";
 import { closeSqliteConnection, openPostgresKernel, openSqliteFileKernel } from "#src/platform/db/kernel/index";
 import { migrateContentDatabase } from "#src/platform/db/migrations/index";
@@ -45,7 +46,7 @@ async function store(t: TestContext, dialect: "sqlite" | "postgres", suffix: str
     if (dialect === "postgres") dropDatabase({ database });
     rmSync(dir, { recursive: true, force: true });
   });
-  if (dialect === "postgres") await migrateContentDatabase(db);
+  if (dialect === "postgres") await migrateContentDatabase(db as StorageKernel<unknown>);
   return { db, restart: async () => { await db.close(); db = open(); return db; } };
 }
 
