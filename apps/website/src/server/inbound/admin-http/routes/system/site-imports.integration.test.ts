@@ -100,7 +100,7 @@ test("import routes preserve principal/source contracts and sanitize failures ac
     failure = fault;
     for (const [response, step] of [[await fetch(root), "Import history"], [await post("", view.source), "Archive verification"], [await fetch(root + owner), "Import owner setup"], [await post(owner, { adminPassword: "new-password" }), "Imported site creation"], [await fetch(root + "/uploads", { method: "POST", headers: { "content-type": "application/zip" }, body: "PK zip" }), "ZIP upload"]] as const) {
       assert.equal(response.status, fault instanceof SiteShareRefusal ? (fault.code === "NOT_FOUND" ? 404 : 400) : 500);
-      assertAdminResponse({ actual: await response.json(), expected: fault instanceof SiteShareRefusal ? { code: fault.code, message: `${step} failed: ${fault.message}` } : { code: "IMPORT_FAILED", message: `${step} failed. No existing site was changed.` } });
+      assertAdminResponse({ actual: await response.json(), expected: fault instanceof SiteShareRefusal ? { code: fault.code, message: `${step} failed: ${fault.message}` } : { code: "IMPORT_FAILED", message: `${step} failed. No existing site was changed.` } }, { failure: { message: `${step} failed. No existing site was changed.`, action: ["Import history", "Import owner setup"].includes(step) ? "Try loading them again. If it still fails, copy details and report this problem." : "Check the result before repeating this operation. Copy details and report this problem.", step: ["Import history", "Import owner setup"].includes(step) ? "Load site imports" : "site import operation" } });
     }
   }
 });
@@ -221,7 +221,7 @@ test("upload admission failures and a refused owner gate on POST answer without 
   const origin = await startTestServer(app, t), root = origin + "/api/admin/v1/workspaces/ws/site-imports";
   const upload = await fetch(root + "/uploads", { method: "POST", headers: { "content-type": "application/zip" }, body: "zip" });
   assert.equal(upload.status, 500);
-  assertAdminResponse({ actual: await upload.json(), expected: { code: "IMPORT_FAILED", message: "ZIP upload failed. No existing site was changed." } });
+  assertAdminResponse({ actual: await upload.json(), expected: { code: "IMPORT_FAILED", message: "ZIP upload failed. No existing site was changed." } }, { failure: {"message":"ZIP upload failed. No existing site was changed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"site import operation"} });
   const machine = await fetch(root + "/00000000-0000-4000-8000-000000000001/owner", { method: "POST", headers: { origin, "x-kind": "api_key", "content-type": "application/x-www-form-urlencoded" }, body: "adminPassword=x" });
   assert.equal(machine.status, 403);
 });

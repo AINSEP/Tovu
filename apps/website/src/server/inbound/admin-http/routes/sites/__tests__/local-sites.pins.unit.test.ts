@@ -58,7 +58,7 @@ test("lifecycle gates retain workspace, capability, binding, authorization and h
 
 test("lifecycle catches principal/auth failures and sanitizes typed and opaque effect errors", async (t) => {
   const missingPrincipal = await fixture({ t }, { principal: false });
-  assertAdminResponse({ actual: await missingPrincipal.request(), expected: { status: 500, body: { code: "INTERNAL_ERROR", error: "internal error" } } });
+  assertAdminResponse({ actual: await missingPrincipal.request(), expected: { status: 500, body: { code: "INTERNAL_ERROR", error: "internal error" } } }, { failure: {"message":"The site operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"site operation","discloseDetails":false} });
   assert.deepEqual(missingPrincipal.calls, []);
   const failures: [unknown, number, string][] = [
     [new Error("private connection details"), 500, "INTERNAL_ERROR"], ["opaque", 500, "INTERNAL_ERROR"],
@@ -69,9 +69,9 @@ test("lifecycle catches principal/auth failures and sanitizes typed and opaque e
   for (const [error, status, code] of failures) {
     const f = await fixture({ t }, { overrides: { authorize: async () => { throw error; } } });
     const body = error instanceof LocalSiteError ? { code, error: code } : { code: "INTERNAL_ERROR", error: "internal error" };
-    assertAdminResponse({ actual: await f.request(), expected: { status, body } }); assert.deepEqual(f.calls, []);
+    assertAdminResponse({ actual: await f.request(), expected: { status, body } }, { failure: {"message":"The site operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"site operation"} }); assert.deepEqual(f.calls, []);
     const effect = await fixture({ t }, { overrides: { afterTrash: () => { throw error; } } });
-    assertAdminResponse({ actual: await effect.request({ suffix: "/alpha/trash", body: { confirmed: true } }), expected: { status, body } });
+    assertAdminResponse({ actual: await effect.request({ suffix: "/alpha/trash", body: { confirmed: true } }), expected: { status, body } }, { failure: {"message":"The trash item operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"trash item operation"} });
   }
 });
 

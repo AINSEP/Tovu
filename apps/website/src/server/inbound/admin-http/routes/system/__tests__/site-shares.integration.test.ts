@@ -63,7 +63,7 @@ test("share routes validate sources and authorize before effects, preserve downl
     for (const [response, step] of [[await fetch(root), "Export history"], [await post({}), "Export creation"], [await fetch(root + "/" + record.shareId, { method: "DELETE" }), "Export revocation"]] as const) {
       // 88f429c25: expected refusals retain their status; unexpected failures carry an incident ID.
       assert.equal(response.status, fault instanceof SiteShareRefusal ? (fault.code === "NOT_FOUND" ? 404 : 400) : 500);
-      assertAdminResponse({ actual: await response.json(), expected: fault instanceof SiteShareRefusal ? { code: fault.code, message: `${step} failed: ${fault.message}` } : { code: "SHARE_FAILED", message: `${step} failed. Check storage configuration and retry.` } });
+      assertAdminResponse({ actual: await response.json(), expected: fault instanceof SiteShareRefusal ? { code: fault.code, message: `${step} failed: ${fault.message}` } : { code: "SHARE_FAILED", message: `${step} could not finish.` } }, { failure: {message: `${step} could not finish.`, action: "Copy details and report this problem. Check export history before starting another export.", step, includeAction:true} });
     }
   }
   failure = undefined;
@@ -129,7 +129,7 @@ test("share artifact routes admit a connected-computer grant, and every route re
     authorize: async () => { if (authorizeFault) throw authorizeFault; return { allowed, reason: "test" }; } }) });
   const root = (await startTestServer(app, t)) + "/api/admin/v1/workspaces/ws/site-shares";
   const artifact = root + "/artifacts/" + "a".repeat(16) + "/received.tovu.zip";
-  const sanitized = (step: string) => ({ code: "SHARE_FAILED", message: `${step} failed. Check storage configuration and retry.` });
+  const sanitized = (step: string) => ({ code: "SHARE_FAILED", message: `${step} could not finish.` });
 
   // A publishing grant (not RBAC) answers for the artifact routes: it reaches the registry.
   trusted = true;
@@ -145,12 +145,12 @@ test("share artifact routes admit a connected-computer grant, and every route re
 
   authorizeFault = new Error("SECRET authorizer detail");
   const put = await fetch(artifact, { method: "PUT", headers: { "content-type": "application/zip" }, body: Buffer.from([80, 75, 3, 4]) });
-  assert.equal(put.status, 500); assertAdminResponse({ actual: await put.json(), expected: sanitized("Share artifact upload") });
+  assert.equal(put.status, 500); assertAdminResponse({ actual: await put.json(), expected: sanitized("Share artifact upload") }, { failure: {"message":"Share artifact upload could not finish.","action":"Copy details and report this problem. Check export history before starting another export.","step":"Share artifact upload","includeAction":true} });
   authorizeFault = undefined;
 
   registryFault = new Error("SECRET disk detail");
   for (const [response, step] of [[await fetch(root + "/share-1/download"), "Export download"], [await fetch(artifact, { method: "DELETE" }), "Share artifact deletion"]] as const) {
-    assert.equal(response.status, 500); assertAdminResponse({ actual: await response.json(), expected: sanitized(step) });
+    assert.equal(response.status, 500); assertAdminResponse({ actual: await response.json(), expected: sanitized(step) }, { failure: {message: `${step} could not finish.`, action: "Copy details and report this problem. Check export history before starting another export.", step, includeAction:true} });
   }
   assert.deepEqual(effects, ["get", "list"]);
 });

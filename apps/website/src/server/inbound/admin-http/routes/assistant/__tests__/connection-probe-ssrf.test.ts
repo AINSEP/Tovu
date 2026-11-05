@@ -214,7 +214,7 @@ test("list-models redacts an authorization-store failure as a generic 500 before
   const body = await probe(registerAdminAssistantListModelsRoute, "http://provider.invalid", {
     authorize: async () => { throw new Error("policy store at /private/policies.db is down"); },
   }, { body: { protocol: "openai", baseUrl: "http://provider.invalid", apiKey: "sk-fake" }, expectedStatus: 500 });
-  assertAdminResponse({ actual: body, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: body, expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: {"message":"The assistant task operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"assistant task operation"} });
   assertAdminResponse({ actual: { transportCalls, lookups: lookups.length }, expected: before }, { message: "a failed permission check must never reach DNS or the provider" });
 });
 

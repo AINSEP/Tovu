@@ -88,7 +88,7 @@ test("list: an Error is a private, correlated 500 that never leaks its message",
   const res = await fetch(`${baseUrl}/api/admin/v1/content-types`);
   assert.equal(res.status, 500);
 
-  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: {"message":"The content types could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load content types"} });
 });
 
 test("list: returns 500 when non-Error is thrown", async (t) => {
@@ -105,5 +105,5 @@ test("list: returns 500 when non-Error is thrown", async (t) => {
 
   const body = await res.json();
   assert.equal(body.code, "INTERNAL_ERROR");
-  assertAdminResponse({ actual: body, expected: { error: "internal error" } });
+  assertAdminResponse({ actual: body, expected: { error: "internal error" } }, { failure: {"message":"The content types could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load content types"} });
 });

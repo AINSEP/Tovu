@@ -153,7 +153,7 @@ test("database schema-state route: a failing introspection read is a 500 inciden
   const res = await fetch(`${baseUrl}/api/admin/v1/database/schema-state`, { headers: { cookie } });
   assert.equal(res.status, 500);
   // 88f429c25: exact envelope (so no fabricated status field and no "content.db is locked" text).
-  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The database information could not be loaded.", action: "Try loading them again. If it still fails, copy details and report this problem.", step: "Load database information" } });
 });
 
 test("database schema-state route: a caller with zero grants is rejected FORBIDDEN (database.read)", async (t) => {
@@ -186,6 +186,6 @@ test("schema-state non-Error read rejection returns a generic failure without a 
   const read = t.mock.method(deps.databaseIntrospection, "getSchemaState", async () => { throw "private failure"; });
   const response = await fetch(`${baseUrl}/api/admin/v1/database/schema-state`, { headers: { cookie } });
   assert.equal(response.status, 500);
-  assertAdminResponse({ actual: await response.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: await response.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The database information could not be loaded.", action: "Try loading them again. If it still fails, copy details and report this problem.", step: "Load database information" } });
   assert.equal(read.mock.callCount(), 1);
 });

@@ -476,7 +476,7 @@ test("recovery restore: plan surfaces a throwing dbOps capability probe as 500 I
   };
   const errorRes = await postJson(baseUrl, cookie, "plan", { restorePointId });
   assert.equal(errorRes.status, 500);
-  assertAdminResponse({ actual: await errorRes.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: await errorRes.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "Restore preparation could not be completed.", action: "Try preparing the restore again. Copy details and report this problem if it still fails.", step: "Prepare restore" } });
 
   deps.dbOps.getCapabilities = async () => {
     // eslint-disable-next-line @typescript-eslint/only-throw-error
@@ -484,7 +484,7 @@ test("recovery restore: plan surfaces a throwing dbOps capability probe as 500 I
   };
   const nonErrorRes = await postJson(baseUrl, cookie, "plan", { restorePointId });
   assert.equal(nonErrorRes.status, 500);
-  assertAdminResponse({ actual: await nonErrorRes.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: await nonErrorRes.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "Restore preparation could not be completed.", action: "Try preparing the restore again. Copy details and report this problem if it still fails.", step: "Prepare restore" } });
 });
 
 test("recovery restore: a gateway error whose code has no mapped status (INTERNAL_ERROR from a throwing restore-points repo) is a 500", async (t) => {
@@ -496,7 +496,7 @@ test("recovery restore: a gateway error whose code has no mapped status (INTERNA
 
   const res = await postJson(baseUrl, cookie, "plan", { restorePointId: "rp-1" });
   assert.equal(res.status, 500);
-  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "Restore preparation could not be completed.", action: "Try preparing the restore again. Copy details and report this problem if it still fails.", step: "Prepare restore" } });
 });
 
 test("recovery restore: confirm reached without a session principal (requireAdminSession not mounted) is a 500 INTERNAL_ERROR whose redacted log names the miswiring", async (t) => {
@@ -509,7 +509,7 @@ test("recovery restore: confirm reached without a session principal (requireAdmi
 
   // 88f429c25: the reply is the concealed incident envelope; the miswiring diagnosis moved to the
   // redacted log line carrying the same incident id, so an operator can still find it.
-  assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } } });
+  assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } } }, { failure: { message: "The recovery operation restore could not be completed.", action: "Check the result before repeating this operation. Copy details and report this problem.", step: "recovery operation restore" } });
   const errorId = (capture.jsonBody as { errorId: string }).errorId;
   const diagnostics = logged.mock.calls.map((call) => call.arguments[1] as { errorId?: string; diagnostic?: string });
   assert.ok(diagnostics.some((entry) => entry?.errorId === errorId && /no principal on res\.locals/.test(entry.diagnostic ?? "")));
@@ -524,7 +524,7 @@ test("recovery restore: execute surfaces a throwing instance-authorization port 
 
   const res = await postJson(baseUrl, cookie, "execute", { confirmationToken: "tok", restorePointId: "rp-1" });
   assert.equal(res.status, 500);
-  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The restore result could not be confirmed.", action: "Check recovery status before starting another restore. Copy details and report this problem.", step: "Execute restore" } });
 });
 
 test("sendRecoveryError: a contract-valid payload with no message falls back to its code as the error text", () => {

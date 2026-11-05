@@ -23,7 +23,7 @@ for (const failure of [new Error('private exporter failure'), 'opaque exporter f
     const { res, capture } = createCapturingResponse();
     res.locals.principal = { id: 'owner' };
     await extractRouteHandler(app, 'post', `${ROOT}/observability/test-error`)({ params: { workspaceId: 'ws' } }, res);
-    assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: 'internal error', code: 'INTERNAL_ERROR' } } });
+    assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: 'internal error', code: 'INTERNAL_ERROR' } } }, { failure: {"message":"The system setting operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"system setting operation"} });
     assert.equal(reports.length, 1);
     const [{ error }, context] = reports[0] as [{ error: Error }, unknown];
     assert.equal(error.message, failure instanceof Error ? failure.message : 'telemetry test failed');
@@ -68,5 +68,5 @@ test('browser telemetry answers a fixed 500 if its limiter rejects, without forw
   res.locals.principal = { id: 'owner' };
   res.locals.authCredentialKind = 'session';
   await extractRouteHandler(app, 'post', '/api/admin/v1/telemetry')({ headers: {}, body: { type: 'pageview', route: '/admin' } }, res);
-  assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: 'internal error', code: 'INTERNAL_ERROR' } } });
+  assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: 'internal error', code: 'INTERNAL_ERROR' } } }, { failure: {"message":"The system setting operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"system setting operation"} });
 });

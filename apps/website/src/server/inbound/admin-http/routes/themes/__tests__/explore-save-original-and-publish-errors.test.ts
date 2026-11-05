@@ -33,6 +33,6 @@ test("save-as-original refuses a caller without theme.set with the standard 403"
 test("save-as-original and page publish hide an unexpected failure behind a bare 500", async () => {
   const offline: ContentRouteDeps["authorize"] = async () => { throw new Error("SECRET authorizer detail"); };
   for (const suffix of ["/original", "/page/publish"] as const) {
-    assertAdminResponse({ actual: await invoke(offline, suffix), expected: { statusCode: 500, jsonBody: { error: "internal error" } } });
+    assertAdminResponse({ actual: await invoke(offline, suffix), expected: { statusCode: 500, jsonBody: { error: "internal error" } } }, { failure: {"message":"The theme operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"theme operation"} });
   }
 });

@@ -178,7 +178,7 @@ test("an unexpected failure (a throwing authorizer) is a generic 500 that names 
 
   const res = await fetch(`${server}${BASE}`);
   assert.equal(res.status, 500);
-  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error" } });
+  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error" } }, { failure: {"message":"The publishing information could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load publishing information"} });
 });
 
 test("direct invoke: a missing :workspaceId param (unreachable through Express routing) falls back to \"\" and 404s", async () => {

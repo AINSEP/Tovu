@@ -111,7 +111,7 @@ test("custom-credentials: an unexpected store failure on list or delete is a fix
   t.mock.method(deps.customCredentialSetRepo, "findById", fault);
   const send = await client(t, app, deps.workspaceId);
   for (const [method, suffix] of [["GET", ""], ["DELETE", "/some-id"]] as const) {
-    assertAdminResponse({ actual: await send(method, suffix), expected: { status: 500, json: { error: "internal error", code: "INTERNAL_ERROR" } } });
+    assertAdminResponse({ actual: await send(method, suffix), expected: { status: 500, json: { error: "internal error", code: "INTERNAL_ERROR" } } }, { failure: method === "GET" ? {"message":"The system information could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load system information"} : {"message":"The system setting removal could not be confirmed.","action":"Check the list before repeating the removal. Copy details and report this problem.","step":"Remove system setting"} });
   }
   assertAdminDiagnostics({ calls: logged.mock.calls.map(c => c.arguments), operation: "[routes/system/custom-credentials]", diagnostics: [/vault corrupted at \/private\/vault.db/, /vault corrupted at \/private\/vault.db/] });
 });

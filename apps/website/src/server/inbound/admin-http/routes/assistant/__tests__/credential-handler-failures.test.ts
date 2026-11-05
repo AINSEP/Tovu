@@ -1,4 +1,4 @@
-import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
+import { assertAdminResponse, type ExpectedAdminFailure } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -64,8 +64,12 @@ async function invoke(
   return capture;
 }
 
-function assertInternalError(capture: unknown) {
-  assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } } });
+function assertInternalError(capture: unknown, failure: ExpectedAdminFailure = {
+  message: "The assistant task operation could not be completed.",
+  action: "Check the result before repeating this operation. Copy details and report this problem.",
+  step: "assistant task operation",
+}) {
+  assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } } }, { failure });
 }
 
 const fail = async () => { throw new Error("db failed at /private/credentials.db; secret=do-not-leak"); };
@@ -122,7 +126,11 @@ test("site credential DELETE redacts a workspace clear-key failure", async (t) =
 test("settings GET redacts an effective-setting read failure", async (t) => {
   const deps = depsForHandler();
   const fault = t.mock.method(deps, "getEffective", fail);
-  assertInternalError(await invoke(registerAdminAssistantGetSettingsRoute, deps, "get", "settings"));
+  assertInternalError(await invoke(registerAdminAssistantGetSettingsRoute, deps, "get", "settings"), {
+    message: "Assistant settings could not be loaded.",
+    action: "Check the result before repeating this operation. Copy details and report this problem.",
+    step: "assistant task operation", includeAction: false,
+  });
   assert.equal(fault.mock.callCount(), 1);
   assert.deepEqual(fault.mock.calls[0].arguments[1], {
     namespace: "site.assistant", key: "public_enabled", scopeContext: { workspaceId: "ws-7" },

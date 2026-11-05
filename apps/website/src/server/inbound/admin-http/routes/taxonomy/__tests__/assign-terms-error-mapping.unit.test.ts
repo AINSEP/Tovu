@@ -34,8 +34,8 @@ test("assigned-terms maps workspace and content-type mismatches to 400 VALIDATIO
 test("assigned-terms maps Error and non-Error failures to private correlated 500s", async () => {
   assertAdminResponse({ actual: await readAssigned(async () => { throw "authz offline"; }), expected: {
     statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" },
-  } });
+  } }, { failure: {"message":"The request could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"Request"} });
   assertAdminResponse({ actual: await readAssigned(async () => { throw new Error("db closed"); }), expected: {
     statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" },
-  } });
+  } }, { failure: {"message":"The request could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"Request"} });
 });

@@ -117,7 +117,7 @@ for (const broken of ["logger", "tracker"]) {
     sendAdminFailure({ res, tracker, error: new Error("private path") });
     assert.equal(status, 500);
     assert.equal(typeof body.errorId, "string");
-    assert.equal(body.error, `The admin request could not finish. Check whether your change was saved, then copy the error ID and report this problem. (error ${body.errorId})`);
+    assert.equal(body.error, `The request could not be completed. Check the result before repeating this operation. Copy details and report this problem. (error ${body.errorId})`);
     assert.equal(logged, 1); assert.equal(tracked, 1);
   });
 }
@@ -141,7 +141,10 @@ for (const [name, map] of Object.entries({
       assert.match(String(body.errorId), /^[0-9a-f-]{36}$/);
       assert.equal(body.error, name === "publishing"
         ? `The content import could not finish. Check import history for content already applied before trying again. Copy details and report this problem. (error ${body.errorId})`
-        : `The admin request could not finish. Check whether your change was saved, then copy the error ID and report this problem. (error ${body.errorId})`);
+        : `The ${({ newsletter: "newsletter", widgets: "widget", peers: "publishing", installation: "agent plugin" } as Record<string, string>)[name]} operation could not be completed. Check the result before repeating this operation. Copy details and report this problem. (error ${body.errorId})`);
+      assert.equal((body.details as any).failure.errorId, body.errorId);
+      assert.equal((body.details as any).failure.cause, "The error ID identifies the server report.");
+      assert.equal(JSON.stringify(body).includes(secret), false);
       assert.ok(JSON.stringify(logs.at(-1)).includes(String(body.errorId)));
       assert.ok(JSON.stringify(tracked.at(-1)).includes(String(body.errorId)));
       assert.equal(JSON.stringify(logs).includes(secret), false);

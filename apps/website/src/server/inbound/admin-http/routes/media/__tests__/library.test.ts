@@ -103,7 +103,7 @@ test('Library HTTP: configured text extraction returns its page; typed failures 
   extractor.extract = async () => { throw new Error('private parser details'); };
   const unexpected = await fetch(`${base}${root}/${media.id}/text`);
   assert.equal(unexpected.status, 500);
-  assertAdminResponse({ actual: await unexpected.json(), expected: { error: 'internal error' } });
+  assertAdminResponse({ actual: await unexpected.json(), expected: { error: 'internal error' } }, { failure: {"message":"The media could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load media"} });
 });
 
 test('Library HTTP: 64 KiB pages, Trash exclusion, wrong workspace and denied principals fail before blob I/O', async t => {

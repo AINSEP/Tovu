@@ -159,7 +159,7 @@ test("put-settings: unexpected error returns 500 (INTERNAL_ERROR)", async (t) =>
   const app = buildApp({ settingsRepo });
   const { status, json } = await put(t, app, { sitemapEnabled: true });
   assert.equal(status, 500);
-  assertAdminResponse({ actual: json, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: json, expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: {"message":"The setting save could not be completed.","action":"Check whether your changes were saved before repeating the save. Copy details and report this problem.","step":"Save setting"} });
   assert.ok(settingsRepo.calls > 0, "the 500 must come from the injected settings failure");
 });
 

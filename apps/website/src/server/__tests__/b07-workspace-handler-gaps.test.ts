@@ -58,7 +58,7 @@ test("workspace get/list conceal a repository failure after attempting the bound
       throw new Error("private database url");
     } });
     assert.deepEqual(reads, [{ id: WS }]);
-    assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } } });
+    assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } } }, { failure: { message: "The workspace operation could not be completed.", action: "Check the result before repeating this operation. Copy details and report this problem.", step: "workspace operation" } });
   }
 });
 
@@ -110,7 +110,7 @@ test("workspace PATCH conceals a failed write and leaves the active row unchange
   t.mock.method(repo, "update", async (row: unknown) => { writes.push(row); throw new Error("private storage path"); });
   assertAdminResponse({ actual: await invoke(registerAdminWorkspaceUpdateRoute, repo, { name: "Failed rename" }), expected: {
     statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" },
-  } });
+  } }, { failure: { message: "The workspace save could not be completed.", action: "Check whether your changes were saved before repeating the save. Copy details and report this problem.", step: "Save workspace" } });
   assert.deepEqual(writes, [{ id: WS, name: "Failed rename", slug: "curated-journal", createdAt: "2026-09-03T14:23:00Z" }]);
   assert.deepEqual(await invoke(registerAdminWorkspaceGetRoute, repo), { statusCode: 200, jsonBody: { workspace: {
     id: WS, name: "Curated Journal", slug: "curated-journal", createdAt: "2026-09-03T14:23:00Z",

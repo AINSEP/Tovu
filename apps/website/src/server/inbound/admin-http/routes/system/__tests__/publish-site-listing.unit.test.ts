@@ -108,7 +108,7 @@ test("publish-targets and destinations: a registry load failure is a fixed 500 t
   const { app, deps, register } = setup({ loadDeployTargets: async () => { throw cause; } });
   register();
   for (const path of ["/publish-targets", "/publish/destinations"]) {
-    assertAdminResponse({ actual: await direct(app, path, { params: { workspaceId: deps.workspaceId } }), expected: { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } } }, { message: path });
+    assertAdminResponse({ actual: await direct(app, path, { params: { workspaceId: deps.workspaceId } }), expected: { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } } }, { message: path, failure: {"message": "The system setting operation could not be completed.", "action": "Check the result before repeating this operation. Copy details and report this problem.", "step": "system setting operation"} });
   }
   assertAdminDiagnostics({ calls: logged.mock.calls.map(c => c.arguments), operation: "[routes/system/publish-site]", diagnostics: [/plugin directory unreadable at \/private\/plugins/, /plugin directory unreadable at \/private\/plugins/] });
 });

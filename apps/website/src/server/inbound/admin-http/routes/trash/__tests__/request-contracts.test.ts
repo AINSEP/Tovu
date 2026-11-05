@@ -171,7 +171,7 @@ test("unexpected failures on every trash route return generic 500 without detail
   const invoke = harness({ authorize: async () => { throw new Error("private evaluator details"); },
     registry: new Map([["form", { permission: "admin.forms.manage" }]]) });
   for (const [method, suffix, body] of [["get", "", undefined], ["post", "/purge", { ids: ["row-7"] }], ["post", "/restore", { items: [{ entityType: "post", entityId: "post-8" }] }], ["post", "/items", { type: "form", id: "form-7" }]] as const) {
-    assertAdminResponse({ actual: await invoke(method, suffix, body), expected: { statusCode: 500, jsonBody: { error: "internal error" } } });
+    assertAdminResponse({ actual: await invoke(method, suffix, body), expected: { statusCode: 500, jsonBody: { error: "internal error" } } }, { failure: suffix === "/restore" ? {"message":"The trash item restore could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"trash item restore"} : {"message":"The trash item operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"trash item operation"} });
   }
 });
 // Route-param guards (`String(req.params.workspaceId ?? "")`) and the foreign-workspace 404 run before any port.

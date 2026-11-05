@@ -123,7 +123,7 @@ test("explore: an unreadable theme directory 500s via the detail route's generic
   try {
     const res = await fetch(`${baseUrl}${BASE}`, { headers: { cookie } });
     assert.equal(res.status, 500);
-    assertAdminResponse({ actual: await res.json(), expected: { error: "internal error" } });
+    assertAdminResponse({ actual: await res.json(), expected: { error: "internal error" } }, { failure: {"message":"The themes could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load themes"} });
     assert.equal(failureReached, true);
   } finally {
     injected.mock.restore();
@@ -172,7 +172,7 @@ test("explore: filesystem I/O failures return 500 through the composed app witho
         ...(scenario.body ? { body: JSON.stringify(scenario.body) } : {}),
       });
       assert.equal(response.status, 500, `${scenario.method} ${scenario.url}`);
-      assertAdminResponse({ actual: await response.json(), expected: { error: "internal error" } });
+      assertAdminResponse({ actual: await response.json(), expected: { error: "internal error" } }, { failure: scenario.method === "GET" ? {"message":"The themes could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load themes"} : scenario.method === "PUT" ? {"message":"The theme save could not be completed.","action":"Check whether your changes were saved before repeating the save. Copy details and report this problem.","step":"Save theme"} : {"message":"The theme operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"theme operation"} });
       assert.equal(failedOperationReached, true, `${scenario.operation} must cause this failure`);
     } finally {
       mocked.mock.restore();
@@ -1067,7 +1067,7 @@ test("explore: reset with an unreadable catalog file 500s via the route's outer 
   }
   assert.equal(res.status, 500);
   const body = (await res.json()) as { error: string };
-  assertAdminResponse({ actual: body, expected: { error: "internal error" } });
+  assertAdminResponse({ actual: body, expected: { error: "internal error" } }, { failure: {"message":"The theme operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"theme operation"} });
 });
 
 // --- handleGeneratedTreeReset's own catch-and-rethrow -----------------------------------------------
@@ -1096,7 +1096,7 @@ test("explore: reset of a built theme with an unreadable catalog generated file 
   }
   assert.equal(res.status, 500);
   const body = (await res.json()) as { error: string };
-  assertAdminResponse({ actual: body, expected: { error: "internal error" } });
+  assertAdminResponse({ actual: body, expected: { error: "internal error" } }, { failure: {"message":"The theme operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"theme operation"} });
 });
 
 // --- RENAME's remaining branches --------------------------------------------------------------------

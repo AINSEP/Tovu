@@ -46,7 +46,7 @@ test('media original: a blob store failure is a private 500', async (t) => {
   const { app, deps } = mediaApp(registerAdminMediaOriginalRoute);
   const id = await seedPng(app);
   t.mock.method(deps.blobStore, 'get', async () => { throw new Error('private disk failure'); });
-  assertAdminResponse({ actual: await dispatchJsonRequest(app, 'GET', `${BASE}/media/${id}/original`), expected: { status: 500, body: INTERNAL } });
+  assertAdminResponse({ actual: await dispatchJsonRequest(app, 'GET', `${BASE}/media/${id}/original`), expected: { status: 500, body: INTERNAL } }, { failure: {"message":"The media could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load media"} });
 });
 
 test('media original: a media row whose source blob is missing is a data-integrity 500, not a 404', async (t) => {
@@ -54,7 +54,7 @@ test('media original: a media row whose source blob is missing is a data-integri
   const id = await seedPng(app);
   t.mock.method(deps.assetBlobRepo, 'findByHash', async () => null);
   const get = t.mock.method(deps.blobStore, 'get');
-  assertAdminResponse({ actual: await dispatchJsonRequest(app, 'GET', `${BASE}/media/${id}/original`), expected: { status: 500, body: INTERNAL } });
+  assertAdminResponse({ actual: await dispatchJsonRequest(app, 'GET', `${BASE}/media/${id}/original`), expected: { status: 500, body: INTERNAL } }, { failure: {"message":"The media could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load media"} });
   assert.equal(get.mock.callCount(), 0);
 });
 

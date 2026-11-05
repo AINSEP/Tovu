@@ -180,5 +180,5 @@ test("test-agent: an authenticated CLI offering the requested model reports ok:t
   detectionFails = true;
   const failed = await post(baseUrl, TEST_AGENT_PATH, { agentId: "mocked-cli" });
   assert.equal(failed.status, 500);
-  assertAdminResponse({ actual: await failed.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: await failed.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: {"message":"The assistant task operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"assistant task operation"} });
 });

@@ -60,5 +60,5 @@ test("a run-status read whose store fails answers 500 INTERNAL_ERROR with fixed 
   const server = await startTestServer(routeApp({ jsonBody: true, deps: { publishContentRunRepo: failing } }), t);
   const res = await fetch(`${server}${BASE}/runs/run-1`);
   assert.equal(res.status, 500);
-  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: await res.json(), expected: { error: "The content import could not finish. Check import history for content already applied before trying again. Copy details and report this problem.", code: "INTERNAL_ERROR" } }, { failure: {"message":"The content import could not finish. Check import history for content already applied before trying again. Copy details and report this problem.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"publishing operation"} });
 });

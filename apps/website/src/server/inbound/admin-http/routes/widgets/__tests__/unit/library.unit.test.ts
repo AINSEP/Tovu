@@ -115,8 +115,8 @@ test("create rejects missing title or type with the validation envelope and no e
 test("list and get repository failures map to generic 500", async () => {
   const fail = async () => { throw new Error("private db detail"); };
   const { invoke } = harness({ entryRepo: { listByWorkspace: fail, findBySlug: fail } });
-  assertAdminResponse({ actual: await invoke("get"), expected: { statusCode: 500, jsonBody: { error: "internal error" } } });
-  assertAdminResponse({ actual: await invoke("get", "/:id"), expected: { statusCode: 500, jsonBody: { error: "internal error" } } });
+  assertAdminResponse({ actual: await invoke("get"), expected: { statusCode: 500, jsonBody: { error: "internal error" } } }, { failure: {"message":"The widget operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"widget operation"} });
+  assertAdminResponse({ actual: await invoke("get", "/:id"), expected: { statusCode: 500, jsonBody: { error: "internal error" } } }, { failure: {"message":"The widget operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"widget operation"} });
 });
 
 // F1.2/F4.1: a count-only diagnostic can hide dropped or misidentified source locations.
@@ -229,7 +229,7 @@ test("regions list retains binding metadata and counts disabled placements while
 test("regions list returns a generic 500 if an area repository read fails", async () => {
   const { deps, invoke } = harness({ entryRepo: { findById: async () => { throw new Error("private area database detail"); } } });
   await deps.widgetBindingRepo.upsert({ workspaceId: "ws-7", regionKey: "footer", areaEntryId: "area-7", updatedAt: "2026-09-29T14:00:00Z" });
-  assertAdminResponse({ actual: await invoke("get", "/regions"), expected: { statusCode: 500, jsonBody: { error: "internal error" } } });
+  assertAdminResponse({ actual: await invoke("get", "/regions"), expected: { statusCode: 500, jsonBody: { error: "internal error" } } }, { failure: {"message":"The widget operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"widget operation"} });
 });
 
 // F4.4/F6.2: a real binding isolates the missing-area guard from the unbound-region guard.

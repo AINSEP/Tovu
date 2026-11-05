@@ -76,3 +76,111 @@ test("a request whose tracked operation already reported is not reported again a
   await new Promise((resolve) => setImmediate(resolve));
   assert.deepEqual(reports.map(({ context }) => context.operation), ["site.publish"]);
 });
+
+
+test("uncaught admin exceptions use one safe correlated incident, including anonymous failures", async t => {
+  t.mock.method(console, "error", () => {});
+  const { port, reports } = recording();
+  const app = express();
+  applyRequestTracking(app, { tracker: createTracker({ observability: port }), env: { TOVU_LOG_REQUESTS: undefined, TOVU_LOG_SLOW_REQUESTS: undefined } });
+  app.get("/api/admin/v1/pages/:id", (_req, res) => {
+    res.locals.principal = { id: "owner" };
+    throw new Error("PRIVATE_BACKEND password=SECRET_CANARY");
+  });
+  app.post("/api/admin/v1/auth/login", () => { throw new Error("PRIVATE_LOGIN password=SECRET_CANARY"); });
+  app.use(captureRouteError);
+  const baseUrl = await startTestServer(app, t);
+  const owner = await fetch(`${baseUrl}/api/admin/v1/pages/PRIVATE_ID?token=SECRET_CANARY`);
+  assert.equal(owner.status, 500);
+  const body = await owner.json() as any;
+  assert.equal(body.code, "INTERNAL_ERROR");
+  assert.match(body.error, /pages/i);
+  assert.equal(body.details.failure.errorId, body.errorId);
+  assert.equal(body.details.failure.cause, "The error ID identifies the server report.");
+  const anonymous = await fetch(`${baseUrl}/api/admin/v1/auth/login`, { method: "POST" });
+  assert.equal(anonymous.status, 500);
+  const anonymousBody = await anonymous.json() as any;
+  assert.equal(anonymousBody.details, undefined);
+  assert.equal(anonymousBody.code, "INTERNAL_ERROR");
+  assert.match(anonymousBody.error, new RegExp(anonymousBody.errorId));
+  for (const canary of ["PRIVATE_BACKEND", "PRIVATE_LOGIN", "PRIVATE_ID", "SECRET_CANARY"])
+    assert.equal(JSON.stringify([body, anonymousBody]).includes(canary), false);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(reports.length, 2);
+  assert.deepEqual(reports.map(report => report.context.attributes?.errorId), [body.errorId, anonymousBody.errorId]);
+});
+
+test("admin error middleware preserves headers-sent delegation", () => {
+  const error = new Error("already streaming");
+  let delegated: unknown;
+  captureRouteError(error, { path: "/api/admin/v1/pages" } as any, { headersSent: true, locals: {} } as any,
+    value => { delegated = value; });
+  assert.equal(delegated, error);
+});
+
+test("an uncaught admin error already reported by a tracked operation is not reported twice", async t => {
+  const logged = t.mock.method(console, "error", () => {});
+  const { port, reports } = recording();
+  const tracker = createTracker({ observability: port });
+  const app = express();
+  applyRequestTracking(app, { tracker, env: { TOVU_LOG_REQUESTS: undefined, TOVU_LOG_SLOW_REQUESTS: undefined } });
+  app.get("/api/admin/v1/pages", (_req, res, next) => {
+    res.locals.principal = { id: "owner" };
+    void tracker.trace({ name: "pages.load", run: async () => { throw new Error("PRIVATE_BACKEND password=SECRET_CANARY"); } }).catch(next);
+  });
+  app.use(captureRouteError);
+  const baseUrl = await startTestServer(app, t);
+  const response = await fetch(`${baseUrl}/api/admin/v1/pages`);
+  assert.equal(response.status, 500);
+  const body = await response.json() as any;
+  assert.equal(body.details.failure.errorId, body.errorId);
+  assert.equal(JSON.stringify(body).includes("SECRET_CANARY"), false);
+  assert.equal(logged.mock.callCount(), 1);
+  assert.equal((logged.mock.calls[0].arguments[1] as any).errorId, body.errorId);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(reports.map(report => report.context.operation), ["pages.load"]);
+});
+
+test("admin JSON parser 400s retain the expected error responder without incident reporting", async t => {
+  const logged = t.mock.method(console, "error", () => {});
+  const { port, reports } = recording();
+  const app = express();
+  applyRequestTracking(app, { tracker: createTracker({ observability: port }), env: { TOVU_LOG_REQUESTS: undefined, TOVU_LOG_SLOW_REQUESTS: undefined } });
+  app.use(express.json());
+  let handled = false;
+  app.post("/api/admin/v1/pages", (_req, res) => { handled = true; res.status(204).end(); });
+  app.use(captureRouteError);
+  const delegated: unknown[] = [];
+  app.use((error: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+    delegated.push(error);
+    res.status(error.status).json({ code: "INVALID_JSON", message: "The request body must contain valid JSON." });
+  });
+  const baseUrl = await startTestServer(app, t);
+  const response = await fetch(`${baseUrl}/api/admin/v1/pages`, {
+    method: "POST", headers: { "content-type": "application/json" }, body: '{"title":',
+  });
+  assert.equal(response.status, 400);
+  assert.deepEqual(await response.json(), { code: "INVALID_JSON", message: "The request body must contain valid JSON." });
+  assert.equal(handled, false);
+  assert.equal(delegated.length, 1);
+  assert.equal((delegated[0] as any).type, "entity.parse.failed");
+  assert.equal((delegated[0] as any).status, 400);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(reports, []);
+  assert.equal(logged.mock.callCount(), 0);
+});
+
+test("admin errors with statusCode 413 are delegated unchanged before a response is sent", t => {
+  const logged = t.mock.method(console, "error", () => {});
+  const error = Object.assign(new Error("Request body is too large."), { statusCode: 413 });
+  let delegated: unknown;
+  let responseStatus: number | undefined;
+  const res = { headersSent: false, locals: {}, status: (status: number) => {
+    responseStatus = status;
+    return { json: () => {} };
+  } };
+  captureRouteError(error, { path: "/api/admin/v1/pages" } as any, res as any, value => { delegated = value; });
+  assert.equal(delegated, error);
+  assert.equal(responseStatus, undefined);
+  assert.equal(logged.mock.callCount(), 0);
+});

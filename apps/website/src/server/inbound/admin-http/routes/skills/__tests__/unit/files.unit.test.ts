@@ -113,5 +113,5 @@ test("an unexpected failure returns the generic 500 without its internal message
   // block, and the response must carry only the fixed refusal.
   const res = await call("skill_example", "workspace-local", { locals: {} });
   assert.equal(res.code, 500);
-  assertAdminResponse({ actual: res.body, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: res.body, expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: {"message":"The skill operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"skill operation"} });
 }, true, 0));

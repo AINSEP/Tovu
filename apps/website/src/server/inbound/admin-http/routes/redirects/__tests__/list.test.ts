@@ -129,7 +129,7 @@ test("LIST_REDIRECTS route: 500 on unexpected repository error", async (t) => {
   const res = await fetch(`${baseUrl}${URL_BASE}`);
   assert.equal(res.status, 500);
   const body = (await res.json()) as { error: string; code: string };
-  assertAdminResponse({ actual: body, expected: { error: "internal error" } });
+  assertAdminResponse({ actual: body, expected: { error: "internal error" } }, { failure: {"message":"The redirects could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load redirects"} });
   assert.equal(body.code, "INTERNAL_ERROR");
 });
 

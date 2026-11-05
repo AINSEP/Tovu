@@ -109,7 +109,13 @@ export function respondWithError(res: Response, err: unknown, { message }: { mes
     res.status(502).json({ error: err.message, code: err.code });
     return;
   }
-  sendRefusal(res, mappedErrorResponse(err, PEER_ACTION_ERRORS, { tracker: res.locals?.adminFailureTracker, message }));
+  // The mapper needs the registered template to distinguish preparation from an uncertain send.
+  // Concrete request paths and mounted base URLs can contain private IDs and never enter copy.
+  sendRefusal(res, mappedErrorResponse(err, PEER_ACTION_ERRORS, {
+    tracker: res.locals?.adminFailureTracker, message, method: res.req?.method,
+    route: typeof res.req?.route?.path === "string" ? res.req.route.path : undefined,
+    discloseDetails: !res.req || !!res.locals?.principal,
+  }));
 }
 
 /** The per-request transport bag: the guarded client plus the opened credential.

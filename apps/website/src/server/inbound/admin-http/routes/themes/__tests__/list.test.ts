@@ -45,7 +45,7 @@ test("missing settings or an unknown stored theme leaves every theme inactive", 
   }
 });
 test("presentation read failure returns a generic error without leaking details", async () => {
-  assertAdminResponse({ actual: await invoke([], null, true), expected: { statusCode: 500, jsonBody: { error: "internal error" } } });
+  assertAdminResponse({ actual: await invoke([], null, true), expected: { statusCode: 500, jsonBody: { error: "internal error" } } }, { failure: {"message":"The theme operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"theme operation"} });
 });
 // Route-param guard (`String(req.params.workspaceId ?? "")`) and the theme.set gate, before any read.
 test("an absent or foreign workspace 404s and a caller without theme.set gets 403, both before reading settings", async () => {

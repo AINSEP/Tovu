@@ -21,7 +21,7 @@ const ranked = [
 ];
 
 for (const row of ranked) {
-  test(`${row.step}: unexpected failure names the operation without an unconsumed failure envelope`, async t => {
+  test(`${row.step}: unexpected failure names the operation with safe copyable evidence`, async t => {
     const logged = t.mock.method(console, "error", () => {});
     const fail = async () => { throw new Error("CANARY_BACKEND password=CANARY_SECRET"); };
     const app = express();
@@ -35,7 +35,9 @@ for (const row of ranked) {
     const body = response.body as any;
     assert.match(body.errorId, /^[0-9a-f-]{36}$/);
     assert.equal(body.error, `${row.message} (error ${body.errorId})`);
-    assert.equal(body.details, undefined);
+    assert.equal(body.details.failure.errorId, body.errorId);
+    assert.match(body.details.failure.copyText, new RegExp(body.errorId));
+    assert.equal(body.details.failure.cause, "The error ID identifies the server report.");
     assert.equal(JSON.stringify(body).includes("CANARY_"), false);
     assert.match(JSON.stringify(logged.mock.calls.map(call => call.arguments)), /CANARY_BACKEND/);
   });
@@ -53,17 +55,22 @@ for (const [step, invoke] of [
     const body = capture.jsonBody as any;
     const message = step === "settings.change" ? "The settings request could not finish." : "The media upload or change could not finish.";
     assert.equal(body.error, `${message} (error ${body.errorId})`);
-    assert.equal(body.details, undefined);
+    assert.equal(body.details.failure.errorId, body.errorId);
+    assert.match(body.details.failure.copyText, new RegExp(body.errorId));
+    assert.equal(body.details.failure.cause, "The error ID identifies the server report.");
     assert.equal(JSON.stringify(body).includes("private backend"), false);
   });
 }
 
-test("content.import: unexpected failure retains its concrete message without a failure envelope", t => {
+test("content.import: unexpected failure retains its concrete message with safe copyable evidence", t => {
   t.mock.method(console, "error", () => {});
   const response = importErrorResponse(new Error("private backend"));
   assert.equal(response.status, 500);
   const body = response.body as any;
   assert.equal(body.error, `The content import could not finish. Check import history for content already applied before trying again. Copy details and report this problem. (error ${body.errorId})`);
-  assert.equal(body.details, undefined);
+  assert.deepEqual(Object.keys(body.details), ["failure"]);
+  assert.equal(body.details.failure.errorId, body.errorId);
+    assert.match(body.details.failure.copyText, new RegExp(body.errorId));
+    assert.equal(body.details.failure.cause, "The error ID identifies the server report.");
   assert.equal(JSON.stringify(body).includes("private backend"), false);
 });

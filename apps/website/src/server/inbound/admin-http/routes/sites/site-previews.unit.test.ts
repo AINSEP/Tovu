@@ -90,7 +90,7 @@ test("a read that throws is a 500 without the error text", async () => {
   const original = console.error;
   console.error = () => {};
   try {
-    assertAdminResponse({ actual: await r.get("alpha"), expected: { status: 500, json: { error: "internal error", code: "INTERNAL_ERROR" } } });
+    assertAdminResponse({ actual: await r.get("alpha"), expected: { status: 500, json: { error: "internal error", code: "INTERNAL_ERROR" } } }, { failure: {"message": "The site operation could not be completed.", "action": "Check the result before repeating this operation. Copy details and report this problem.", "step": "site operation"} });
   } finally {
     console.error = original;
   }

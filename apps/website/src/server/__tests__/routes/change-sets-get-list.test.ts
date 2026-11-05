@@ -158,7 +158,7 @@ test("change-sets list + get: a repository failure is a 500 'internal error', ne
   for (const path of ["/change-sets", "/change-sets/cs-get-1"]) {
     const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WS}${path}`, { headers: { cookie } });
     assert.equal(res.status, 500, path);
-    assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { message: path });
+    assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { message: path , failure: { message: "The change sets could not be loaded.", action: "Try loading them again. If it still fails, copy details and report this problem.", step: "Load change sets" } });
   }
 });
 

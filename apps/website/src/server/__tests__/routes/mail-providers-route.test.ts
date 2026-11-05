@@ -158,7 +158,7 @@ test("a non-object body reads as empty; an unexpected fault is a 500 without det
   const broken = await rig(t);
   (broken.deps.mailProviderControl as MailProviderControl).describe = async () => { throw new Error("catalog exploded"); };
   const res = await broken.send("GET", "mail-providers");
-  assertAdminResponse({ actual: [res.status, await res.json()], expected: [500, { error: "internal error", code: "INTERNAL_ERROR" }] });
+  assertAdminResponse({ actual: [res.status, await res.json()], expected: [500, { error: "internal error", code: "INTERNAL_ERROR" }] }, { failure: { message: "The system information could not be loaded.", action: "Try loading them again. If it still fails, copy details and report this problem.", step: "Load system information" } });
   assert.equal(logged.mock.callCount(), 1);
 });
 

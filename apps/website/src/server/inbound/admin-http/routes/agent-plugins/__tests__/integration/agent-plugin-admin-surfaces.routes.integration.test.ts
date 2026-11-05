@@ -150,7 +150,7 @@ test("list: a source fault is a generic 500 that names no server detail", async 
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const response = await fetch(listUrl(baseUrl), { headers: { cookie } });
   assert.equal(response.status, 500);
-  assertAdminResponse({ actual: await response.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: await response.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: {"message":"The agent plugins could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load agent plugins"} });
 });
 
 test("bootstrap: with no host bound, the surface starts with null data", async (t) => {
@@ -180,7 +180,7 @@ test("bootstrap: a host fault is a generic 500 that names no server detail", asy
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const response = await post(surfaceUrl(baseUrl, "bootstrap"), { cookie, origin: baseUrl }, {});
   assert.equal(response.status, 500);
-  assertAdminResponse({ actual: await response.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: await response.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: {"message":"The agent plugin operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"agent plugin operation"} });
 });
 
 test("actions: with no host bound, a declared action answers action-unavailable", async (t) => {

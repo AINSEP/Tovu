@@ -98,8 +98,15 @@ export function registerAdminAnalyticsRecentHitsRoute(app: Express, deps: AdminA
       res.json({ hits });
     } catch (err) {
       // Keep shared redacted diagnostics without replacing the canonical analytics wire contract.
-      adminFailureResponse({ error: err, tracker: res.locals.adminFailureTracker }, { operation: "analytics/recent-hits" });
-      respondToApiError({ res, code: "INTERNAL_ERROR", message: "internal error" });
+      const failure = adminFailureResponse({ error: err, tracker: res.locals.adminFailureTracker }, {
+        operation: "analytics/recent-hits", method: req.method, route: req.route.path,
+        discloseDetails: !!res.locals.principal,
+      });
+      res.status(failure.status).json({ error: {
+        code: failure.body.code, message: failure.body.error,
+        ...(res.locals.principal ? { details: { errorId: failure.body.errorId, ...failure.body.details } } : {}),
+        ...(typeof res.locals.requestId === "string" ? { requestId: res.locals.requestId } : {}),
+      } });
     }
   });
 }

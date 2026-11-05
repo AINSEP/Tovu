@@ -9,8 +9,8 @@ import { registerAdminIntegrationsDeleteRoute } from '../delete.js';
 import { registerAdminIntegrationsPauseRoute } from '../pause.js';
 
 const routes: RouteFailureCase[] = [
-  { name: 'integrations deliveries', register: registerAdminIntegrationsDeliveriesRoute, method: 'GET', path: `${BASE}/integrations/subscriptions/sub/deliveries` },
-  { name: 'integrations list', register: registerAdminIntegrationsListRoute, method: 'GET', path: `${BASE}/integrations/subscriptions` },
+  { name: 'integrations deliveries', register: registerAdminIntegrationsDeliveriesRoute, method: 'GET', path: `${BASE}/integrations/subscriptions/sub/deliveries` , failure: {"message":"The integrations could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load integrations"} },
+  { name: 'integrations list', register: registerAdminIntegrationsListRoute, method: 'GET', path: `${BASE}/integrations/subscriptions` , failure: {"message":"The integrations could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load integrations"} },
 ];
 
 testRouteFailureMatrix(routes);

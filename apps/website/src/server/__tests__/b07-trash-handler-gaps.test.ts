@@ -90,7 +90,7 @@ test("trash list returns a generic error when the page or username lookup fails"
       userRepo: { async list() { reached.push("users"); throw new Error("private user table"); } },
     });
     assert.deepEqual(reached, failUsers ? ["page", "users"] : ["page"]);
-    assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } } });
+    assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } } }, { failure: { message: "The trash item operation could not be completed.", action: "Check the result before repeating this operation. Copy details and report this problem.", step: "trash item operation" } });
   }
 });
 
@@ -129,7 +129,7 @@ test("trash items maps a marker-write race to 409 and an unexpected write failur
     // A failed write answers the shared incident envelope; the 409 stays an exact snapshot.
     assertAdminResponse({ actual: capture, expected: fail
       ? { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } }
-      : { statusCode: 409, jsonBody: { error: "the item changed since it was last read", code: "TRASH_VERSION_CHANGED" } } });
+      : { statusCode: 409, jsonBody: { error: "the item changed since it was last read", code: "TRASH_VERSION_CHANGED" } } }, { failure: { message: "The trash item operation could not be completed.", action: "Check the result before repeating this operation. Copy details and report this problem.", step: "trash item operation" } });
   }
   assert.deepEqual(calls, [false, true].map(() => ({
     workspaceId: WS, entityType: "form", entityId: "form-7", actor: { principalId: "operator-b07" },

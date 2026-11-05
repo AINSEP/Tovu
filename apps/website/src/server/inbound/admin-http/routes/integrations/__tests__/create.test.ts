@@ -192,6 +192,6 @@ test("create: an unexpected repo failure (not a validation/not-found error) 500s
   const { status, json } = await post(t, app, { label: "x", targetUrl: "https://example.com/hook", topics: ["a"] });
   assert.equal(insertReached, true);
   assert.equal(status, 500);
-  assertAdminResponse({ actual: json, expected: { error: "internal error" } });
+  assertAdminResponse({ actual: json, expected: { error: "internal error" } }, { failure: {"message":"The integration operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"integration operation"} });
   assert.deepEqual(await base.webhookSubscriptionRepo.listByWorkspace({ workspaceId: WORKSPACE_ID }), []);
 });

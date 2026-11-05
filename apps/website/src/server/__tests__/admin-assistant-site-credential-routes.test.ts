@@ -231,7 +231,7 @@ test("PUT 500s (generic) when the repo explodes on an otherwise-valid request", 
   assert.equal(res.status, 500);
   // Shared admin failure envelope: a correlatable id, never the repository cause or the submitted key.
   const body: unknown = await res.json();
-  assertAdminResponse({ actual: body, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: body, expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The assistant task save could not be completed.", action: "Check whether your changes were saved before repeating the save. Copy details and report this problem.", step: "Save assistant task" } });
   assert.doesNotMatch(JSON.stringify(body), /db exploded|would-be-a-real-key/);
 });
 

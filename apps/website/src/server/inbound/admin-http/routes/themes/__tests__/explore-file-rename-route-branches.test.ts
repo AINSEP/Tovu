@@ -238,7 +238,7 @@ test("rename that fails for a reason OTHER than ThemePathError 500s via the rout
   try {
     const res = await rename(baseUrl, "plain", "pages/about.html", "renamed-about.html");
     assert.equal(res.status, 500);
-    assertAdminResponse({ actual: await res.json(), expected: { error: "internal error" } });
+    assertAdminResponse({ actual: await res.json(), expected: { error: "internal error" } }, { failure: {"message":"The theme operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"theme operation"} });
     assert.equal(failureReached, true);
     assertAdminResponse({ actual: fs.readFileSync(target), expected: originalBytes });
     assert.equal(fs.existsSync(path.join(path.dirname(target), "renamed-about.html")), false);

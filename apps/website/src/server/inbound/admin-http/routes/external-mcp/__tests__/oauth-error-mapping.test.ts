@@ -267,8 +267,8 @@ test("an unexpected error is a 500 INTERNAL_ERROR on every route, never the raw 
     await post(baseUrl, "/device/poll"),
     await fetch(`${baseUrl}${BASE}`, { method: "DELETE" }),
   ];
-  for (const res of responses) {
+  for (const [index, res] of responses.entries()) {
     assert.equal(res.status, 500);
-    assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+    assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: index === 2 ? {"message":"The tool connection removal could not be confirmed.","action":"Check the list before repeating the removal. Copy details and report this problem.","step":"Remove tool connection"} : {"message":"The tool connection operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"tool connection operation"} });
   }
 });

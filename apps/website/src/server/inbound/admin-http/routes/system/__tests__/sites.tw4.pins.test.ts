@@ -84,7 +84,7 @@ test("listing and create keep workspace, permission and exception responses", as
     const denied = fixture({ authorize: async () => ({ allowed: false, reason: "denied" }) });
     assert.equal((await denied.request({ method, body: { name: "new" } })).statusCode, 403);
     const broken = fixture({ authorize: async () => { throw new Error("pin"); } });
-    assertAdminResponse({ actual: await broken.request({ method }), expected: { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } } });
+    assertAdminResponse({ actual: await broken.request({ method }), expected: { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } } }, { failure: {"message":"The site operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"site operation"} });
   }
 });
 
@@ -146,7 +146,7 @@ test("create reports unexpected creation errors as internal", async () => {
   const f = fixture({ createSite: async () => { throw new Error("pin creation failure"); } });
   assertAdminResponse({ actual: await f.request({ method: "post", body: { name: "new" } }), expected: {
     statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" },
-  } });
+  } }, { failure: {"message":"The site operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"site operation"} });
 });
 
 /** Invoke any sites route on a fixture's app with a hand-built request. */
@@ -176,8 +176,8 @@ test("token sign-in plugins and activate hide unexpected failures behind a logge
     listSites: () => { throw new Error("SECRET disk detail"); },
   });
   const internal = { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } };
-  assertAdminResponse({ actual: await invokeOn(app, "get", "/token-sign-in-plugins", { params: { workspaceId: "ws" } }), expected: internal });
-  assertAdminResponse({ actual: await invokeOn(app, "post", "/:name/activate", { params: { workspaceId: "ws", name: "other" }, body: {} }), expected: internal });
+  assertAdminResponse({ actual: await invokeOn(app, "get", "/token-sign-in-plugins", { params: { workspaceId: "ws" } }), expected: internal }, { failure: {"message":"The site operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"site operation"} });
+  assertAdminResponse({ actual: await invokeOn(app, "post", "/:name/activate", { params: { workspaceId: "ws", name: "other" }, body: {} }), expected: internal }, { failure: {"message":"The site operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"site operation"} });
   assertAdminDiagnostics({ calls: logged, operation: "[routes/system/sites]", diagnostics: [/SECRET plugin detail/, /SECRET disk detail/] });
 });
 

@@ -15,13 +15,13 @@ import { startTestServer } from '#src/server/__tests__/helpers/http-test-server'
 import { WS, BASE, INTERNAL_CODE, allowed, limiter, fixture, invokeRouteDirectly, testRouteFailureMatrix, type RouteFailureCase } from '#src/server/__tests__/helpers/admin-route-failures';
 
 const routes: RouteFailureCase[] = [
-  { name: 'MCP admissions', register: registerAdminExternalMcpAdmissionsRoute, method: 'GET', path: `${BASE}/mcp-servers/admissions`, coded: true },
-  { name: 'MCP delete', register: registerAdminExternalMcpDeleteRoute, method: 'DELETE', path: `${BASE}/mcp-servers/server`, coded: true },
-  { name: 'MCP list', register: registerAdminExternalMcpListRoute, method: 'GET', path: `${BASE}/mcp-servers`, coded: true },
-  { name: 'MCP put', register: registerAdminExternalMcpPutRoute, method: 'PUT', path: `${BASE}/mcp-servers/server`, coded: true },
-  { name: 'MCP approvals list', register: registerAdminExternalMcpToolApprovalsRoutes, method: 'GET', path: `${BASE}/mcp-servers/tool-approvals`, coded: true },
-  { name: 'MCP approvals revoke', register: registerAdminExternalMcpToolApprovalsRoutes, method: 'DELETE', path: `${BASE}/mcp-servers/server/tool-approvals/tool`, coded: true },
-  { name: 'MCP probe', register: (app, deps) => registerAdminExternalMcpProbeRoute(app, deps, limiter), method: 'POST', path: `${BASE}/mcp-servers/server/probe`, coded: true },
+  { name: 'MCP admissions', register: registerAdminExternalMcpAdmissionsRoute, method: 'GET', path: `${BASE}/mcp-servers/admissions`, coded: true , failure: {"message":"The tool connections could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load tool connections"} },
+  { name: 'MCP delete', register: registerAdminExternalMcpDeleteRoute, method: 'DELETE', path: `${BASE}/mcp-servers/server`, coded: true , failure: {"message":"The tool connection removal could not be confirmed.","action":"Check the list before repeating the removal. Copy details and report this problem.","step":"Remove tool connection"} },
+  { name: 'MCP list', register: registerAdminExternalMcpListRoute, method: 'GET', path: `${BASE}/mcp-servers`, coded: true , failure: {"message":"The tool connections could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load tool connections"} },
+  { name: 'MCP put', register: registerAdminExternalMcpPutRoute, method: 'PUT', path: `${BASE}/mcp-servers/server`, coded: true , failure: {"message":"The tool connection save could not be completed.","action":"Check whether your changes were saved before repeating the save. Copy details and report this problem.","step":"Save tool connection"} },
+  { name: 'MCP approvals list', register: registerAdminExternalMcpToolApprovalsRoutes, method: 'GET', path: `${BASE}/mcp-servers/tool-approvals`, coded: true , failure: {"message":"The tool connections could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load tool connections"} },
+  { name: 'MCP approvals revoke', register: registerAdminExternalMcpToolApprovalsRoutes, method: 'DELETE', path: `${BASE}/mcp-servers/server/tool-approvals/tool`, coded: true , failure: {"message":"The tool connection removal could not be confirmed.","action":"Check the list before repeating the removal. Copy details and report this problem.","step":"Remove tool connection"} },
+  { name: 'MCP probe', register: (app, deps) => registerAdminExternalMcpProbeRoute(app, deps, limiter), method: 'POST', path: `${BASE}/mcp-servers/server/probe`, coded: true , failure: {"message":"The tool connection operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"tool connection operation"} },
 ];
 
 testRouteFailureMatrix(routes);
@@ -31,7 +31,7 @@ for (const method of ['GET', 'DELETE']) {
     const fail = async () => { throw new Error('private fingerprint'); };
     const { app } = fixture(registerAdminExternalMcpToolApprovalsRoutes, { externalMcpToolApprovalRepo: { listByWorkspaceId: fail, delete: fail } });
     const path = method === 'GET' ? `${BASE}/mcp-servers/tool-approvals` : `${BASE}/mcp-servers/server/tool-approvals/tool`;
-    assertAdminResponse({ actual: await dispatchJsonRequest(app, method, path), expected: { status: 500, body: INTERNAL_CODE } });
+    assertAdminResponse({ actual: await dispatchJsonRequest(app, method, path), expected: { status: 500, body: INTERNAL_CODE } }, { failure: method === 'GET' ? {"message":"The tool connections could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load tool connections"} : {"message":"The tool connection removal could not be confirmed.","action":"Check the list before repeating the removal. Copy details and report this problem.","step":"Remove tool connection"} });
   });
 }
 
@@ -39,7 +39,7 @@ test('MCP probe: repository failure is a private 500 rather than an unreachable-
   const { app } = fixture((app, deps) => registerAdminExternalMcpProbeRoute(app, deps, limiter), {
     externalMcpServerRepo: { findByServerId: async () => { throw new Error('secret'); } },
   });
-  assertAdminResponse({ actual: await dispatchJsonRequest(app, 'POST', `${BASE}/mcp-servers/server/probe`), expected: { status: 500, body: INTERNAL_CODE } });
+  assertAdminResponse({ actual: await dispatchJsonRequest(app, 'POST', `${BASE}/mcp-servers/server/probe`), expected: { status: 500, body: INTERNAL_CODE } }, { failure: {"message":"The tool connection operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"tool connection operation"} });
 });
 
 test('MCP probe limiter uses the shared outbound call budget and restores it after the window', async () => {
@@ -134,7 +134,7 @@ for (const [method, path, repo] of [
   test(`MCP ${method}: storage failure is a private 500`, async () => {
     const register = method === 'GET' ? registerAdminExternalMcpListRoute : method === 'DELETE' ? registerAdminExternalMcpDeleteRoute : registerAdminExternalMcpPutRoute;
     const { app } = fixture(register, { externalMcpServerRepo: repo });
-    assertAdminResponse({ actual: await dispatchJsonRequest(app, method, path, { command: 'node' }), expected: { status: 500, body: INTERNAL_CODE } });
+    assertAdminResponse({ actual: await dispatchJsonRequest(app, method, path, { command: 'node' }), expected: { status: 500, body: INTERNAL_CODE } }, { failure: method === 'GET' ? {"message":"The tool connections could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load tool connections"} : method === 'DELETE' ? {"message":"The tool connection removal could not be confirmed.","action":"Check the list before repeating the removal. Copy details and report this problem.","step":"Remove tool connection"} : {"message":"The tool connection save could not be completed.","action":"Check whether your changes were saved before repeating the save. Copy details and report this problem.","step":"Save tool connection"} });
   });
 }
 
@@ -143,7 +143,7 @@ for (const thrown of ['secret upstream body', new Error('secret upstream body')]
     const { app } = fixture((app, deps) => registerAdminExternalMcpOAuthDisconnectRoute(app, {
       ...deps, externalMcpOAuth: { disconnect: async () => { throw thrown; } },
     } as any));
-    assertAdminResponse({ actual: await dispatchJsonRequest(app, 'DELETE', `${BASE}/mcp-servers/server/oauth`), expected: { status: 500, body: INTERNAL_CODE } });
+    assertAdminResponse({ actual: await dispatchJsonRequest(app, 'DELETE', `${BASE}/mcp-servers/server/oauth`), expected: { status: 500, body: INTERNAL_CODE } }, { failure: {"message":"The tool connection removal could not be confirmed.","action":"Check the list before repeating the removal. Copy details and report this problem.","step":"Remove tool connection"} });
   });
 }
 

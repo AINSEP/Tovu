@@ -108,7 +108,7 @@ test("mail-activity/:activityId returns the detail, 404 when absent, 403 masked,
   console.error = () => {};
   try {
     const fault = await call(deps(["mail.activity.read"], { mailActivity: { list: async () => { throw new Error("db"); }, get: async () => null } }), LIST);
-    assertAdminResponse({ actual: [fault.statusCode, fault.jsonBody], expected: [500, { error: "internal error", code: "INTERNAL_ERROR" }] });
+    assertAdminResponse({ actual: [fault.statusCode, fault.jsonBody], expected: [500, { error: "internal error", code: "INTERNAL_ERROR" }] }, { failure: {"message":"The system setting operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"system setting operation"} });
   } finally {
     console.error = original;
   }
@@ -149,7 +149,7 @@ test("feedback dependency failures are safe HTTP errors without partial receivin
   ]) {
     const provider = { id: "fake", label: "Fake", lanes: ["transactional"], capabilities: { feedback: true } };
     const d = deps(["admin.forms.manage"], { mailProviderControl: { describe: async () => ({ providers: [provider] }) } as never, customCredentialSetRepo: { listByWorkspace: async () => [] } as never, ...override } as never);
-    const response = await call(d, FEEDBACK); assertAdminResponse({ actual: [response.statusCode, response.jsonBody], expected: [500, { error: "internal error", code: "INTERNAL_ERROR" }] });
+    const response = await call(d, FEEDBACK); assertAdminResponse({ actual: [response.statusCode, response.jsonBody], expected: [500, { error: "internal error", code: "INTERNAL_ERROR" }] }, { failure: {"message":"The system setting operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"system setting operation"} });
   }
   assert.doesNotMatch(JSON.stringify(logged), /ghp_/);
   assert.match(JSON.stringify(logged), /describe unavailable/);

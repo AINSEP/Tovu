@@ -66,7 +66,7 @@ test("list repository failures return generic 500 without leaking storage detail
   const fail = async () => { throw new Error("private storage detail"); };
   const invoke = harness({ policyRepo: { list: fail, findById: async () => ({ id: "policy-7" }) }, roleRepo: { list: fail }, policyPermissionRepo: { listByPolicyId: fail } });
   for (const suffix of ["/roles", "/policies", "/policies/:policyId/permissions"]) {
-    assertAdminResponse({ actual: await invoke(suffix), expected: { statusCode: 500, jsonBody: { error: "internal error" } } });
+    assertAdminResponse({ actual: await invoke(suffix), expected: { statusCode: 500, jsonBody: { error: "internal error" } } }, { failure: {"message":"The user operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"user operation"} });
   }
 });
 test("wrong workspace returns 404 before any repository access", async () => {

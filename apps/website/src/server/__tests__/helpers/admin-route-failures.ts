@@ -1,4 +1,4 @@
-import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
+import { assertAdminResponse, type ExpectedAdminFailure } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import express from 'express';
@@ -27,7 +27,7 @@ export function fixture(register: Register, overrides: Record<string, unknown> =
 }
 
 
-export type RouteFailureCase = { name: string; register: Register; method: string; path: string; body?: unknown; coded?: boolean };
+export type RouteFailureCase = { name: string; register: Register; method: string; path: string; body?: unknown; coded?: boolean; failure?: ExpectedAdminFailure };
 
 /** Every admin route keeps authorization failures private, stops on denial and isolates workspaces. */
 export function testRouteFailureMatrix(routes: readonly RouteFailureCase[]): void {
@@ -36,7 +36,7 @@ export function testRouteFailureMatrix(routes: readonly RouteFailureCase[]): voi
       const { app } = fixture(route.register, { authorize: async () => { throw new Error('private credential'); } });
       assertAdminResponse({ actual: await dispatchJsonRequest(app, route.method, route.path, route.body), expected: {
         status: 500, body: INTERNAL_CODE,
-      } });
+      } }, { failure: route.failure });
     });
     test(`${route.name}: denied permission stops before reaching repositories`, async () => {
       let calls = 0;

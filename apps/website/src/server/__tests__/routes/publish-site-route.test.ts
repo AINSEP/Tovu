@@ -822,15 +822,15 @@ test("publish-site: an authorize() failure surfaces as a 500 on all three routes
     body: JSON.stringify({ target: "vercel", projectName: "demo" }),
   });
   assert.equal(trigger.status, 500);
-  assertAdminResponse({ actual: await trigger.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: await trigger.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The system setting publishing could not be completed.", action: "Check the result before repeating this operation. Copy details and report this problem.", step: "system setting publishing" } });
 
   const status = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${PUBLISH_PATH}`, { headers: { cookie } });
   assert.equal(status.status, 500);
-  assertAdminResponse({ actual: await status.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: await status.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The system information could not be loaded.", action: "Try loading them again. If it still fails, copy details and report this problem.", step: "Load system information" } });
 
   const preview = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${PUBLISH_PATH}/preview?target=vercel`, { headers: { cookie } });
   assert.equal(preview.status, 500);
-  assertAdminResponse({ actual: await preview.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: await preview.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The system information could not be loaded.", action: "Try loading them again. If it still fails, copy details and report this problem.", step: "Load system information" } });
 });
 
 test("publish-site: workspaceId can never actually be undefined through this app's real composition on any of the three routes (a matched `:param` segment is always a populated string) -- reached by calling each real handler directly, the same type-bypass technique put-entry.test.ts's own equivalent test uses", async (t) => {

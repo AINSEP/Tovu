@@ -32,7 +32,7 @@ test('page delete compensates a failed audit write using its captured page', asy
   await extractRouteHandler(app, 'delete', '/api/admin/v1/workspaces/:workspaceId/pages/:pageId')({
     params: { workspaceId: deps.workspaceId, pageId: post.id }, get: () => undefined,
   }, res);
-  assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: 'internal error' } } });
+  assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: 'internal error' } } }, { failure: {"message":"The page removal could not be confirmed.","action":"Check the list before repeating the removal. Copy details and report this problem.","step":"Remove page"} });
   const restored = await deps.postRepo.findById({ workspaceId: deps.workspaceId, id: post.id });
   assert.ok(restored);
   assert.equal(restored.title, 'Keep after audit failure');

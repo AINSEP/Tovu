@@ -241,7 +241,7 @@ test("moderation-queue: a repository failure that is not a ToolInputError is a 5
   const consoleError = t.mock.method(console, "error", () => undefined);
   const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/comments/queue`);
   assert.equal(res.status, 500);
-  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: {"message":"The comments could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load comments"} });
   assert.equal(consoleError.mock.callCount(), 1);
   assert.equal(consoleError.mock.calls[0]?.arguments[0], "[routes/comments/moderation-queue]");
 });

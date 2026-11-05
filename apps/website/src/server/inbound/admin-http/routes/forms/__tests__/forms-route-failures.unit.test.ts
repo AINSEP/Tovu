@@ -15,13 +15,13 @@ import { DuplicateCommandError } from '@jini-ai/cms/core';
 import { WS, BASE, INTERNAL_CODE, fixture, invokeRouteDirectly, testRouteFailureMatrix, type RouteFailureCase } from '#src/server/__tests__/helpers/admin-route-failures';
 
 const routes: RouteFailureCase[] = [
-  { name: 'forms authoring', register: registerAdminFormsAuthoringRoute, method: 'PUT', path: `${BASE}/forms/form/authoring`, coded: true },
-  { name: 'forms get', register: registerAdminFormsGetRoute, method: 'GET', path: `${BASE}/forms/form`, coded: true },
-  { name: 'forms submissions delete', register: registerAdminFormsDeleteSubmissionRoute, method: 'DELETE', path: `${BASE}/forms/form/submissions/sub`, coded: true },
-  { name: 'forms submissions get', register: registerAdminFormsGetSubmissionRoute, method: 'GET', path: `${BASE}/forms/form/submissions/sub`, coded: true },
-  { name: 'forms submissions list', register: registerAdminFormsListSubmissionsRoute, method: 'GET', path: `${BASE}/forms/form/submissions`, coded: true },
-  { name: 'forms list', register: registerAdminFormsListRoute, method: 'GET', path: `${BASE}/forms`, coded: true },
-  { name: 'forms update', register: registerAdminFormsUpdateRoute, method: 'PUT', path: `${BASE}/forms/form`, coded: true },
+  { name: 'forms authoring', register: registerAdminFormsAuthoringRoute, method: 'PUT', path: `${BASE}/forms/form/authoring`, coded: true , failure: {"message":"The form save could not be completed.","action":"Check whether your changes were saved before repeating the save. Copy details and report this problem.","step":"Save form"} },
+  { name: 'forms get', register: registerAdminFormsGetRoute, method: 'GET', path: `${BASE}/forms/form`, coded: true , failure: {"message":"The forms could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load forms"} },
+  { name: 'forms submissions delete', register: registerAdminFormsDeleteSubmissionRoute, method: 'DELETE', path: `${BASE}/forms/form/submissions/sub`, coded: true , failure: {"message":"The form submission removal could not be confirmed.","action":"Check the list before repeating the removal. Copy details and report this problem.","step":"Remove form submission"} },
+  { name: 'forms submissions get', register: registerAdminFormsGetSubmissionRoute, method: 'GET', path: `${BASE}/forms/form/submissions/sub`, coded: true , failure: {"message":"The form submissions could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load form submissions"} },
+  { name: 'forms submissions list', register: registerAdminFormsListSubmissionsRoute, method: 'GET', path: `${BASE}/forms/form/submissions`, coded: true , failure: {"message":"The form submissions could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load form submissions"} },
+  { name: 'forms list', register: registerAdminFormsListRoute, method: 'GET', path: `${BASE}/forms`, coded: true , failure: {"message":"The forms could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load forms"} },
+  { name: 'forms update', register: registerAdminFormsUpdateRoute, method: 'PUT', path: `${BASE}/forms/form`, coded: true , failure: {"message":"The form save could not be completed.","action":"Check whether your changes were saved before repeating the save. Copy details and report this problem.","step":"Save form"} },
 ];
 
 testRouteFailureMatrix(routes);
@@ -80,7 +80,7 @@ for (const reason of ['not-found', 'version-changed']) {
 
 test('forms list: repository rejection is an internal error', async () => {
   const { app } = fixture(registerAdminFormsListRoute, { formDefinitionRepo: { list: async () => { throw new Error('private'); } } });
-  assertAdminResponse({ actual: await dispatchJsonRequest(app, 'GET', `${BASE}/forms`), expected: { status: 500, body: INTERNAL_CODE } });
+  assertAdminResponse({ actual: await dispatchJsonRequest(app, 'GET', `${BASE}/forms`), expected: { status: 500, body: INTERNAL_CODE } }, { failure: {"message":"The forms could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load forms"} });
 });
 
 test('forms update: ignored fields read the existing definition, missing definition maps to 404', async () => {
@@ -119,7 +119,7 @@ test('forms create: unexpected command failure is private and leaves no definiti
   // Builder forms require a field before the command gateway can be reached.
   assertAdminResponse({ actual: await dispatchJsonRequest(app, 'POST', `${BASE}/forms`, {
     name: 'Contact', slug: 'contact', fields: [{ id: 'message', type: 'text', label: 'Message', required: false }],
-  }), expected: { status: 500, body: INTERNAL_CODE } });
+  }), expected: { status: 500, body: INTERNAL_CODE } }, { failure: {"message":"The form operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"form operation"} });
   assert.equal(attempts, 1);
   assert.deepEqual(await deps.formDefinitionRepo.list({ workspaceId: WS }), []);
 });

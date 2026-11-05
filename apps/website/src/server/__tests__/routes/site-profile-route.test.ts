@@ -310,7 +310,7 @@ test("site profile route: an unexpected failure while building the profile is a 
   res.locals.principal = { id: "owner" };
   await profileHandler(deps)({ params: { workspaceId: deps.workspaceId }, query: {} }, res);
   // Shared admin failure envelope: the reply carries only an incident id; the redacted log keeps the cause.
-  assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } } });
+  assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } } }, { failure: { message: "The site operation could not be completed.", action: "Check the result before repeating this operation. Copy details and report this problem.", step: "site operation" } });
   assert.doesNotMatch(JSON.stringify(capture), /clock exploded|\/private\/var\/site\.db/);
   const calls = logged.mock.calls.map((c) => c.arguments);
   assertAdminDiagnostics({ calls, operation: "[routes/site/profile]", diagnostics: [/clock exploded at \/private\/var\/site\.db/] });

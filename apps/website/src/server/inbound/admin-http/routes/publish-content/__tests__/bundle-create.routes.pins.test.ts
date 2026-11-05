@@ -67,7 +67,7 @@ test("POST .../bundles with no principal (requireAdminSession did not run) is th
   const server = await startTestServer(routeApp(registerPublishContentBundleCreateRoute, routeDeps()), t);
   const response = await fetch(`${server}${BUNDLES}`, { method: "POST", headers: { "content-type": "application/json", "x-principal": "none" }, body: JSON.stringify(envelope()) });
   assert.equal(response.status, 500);
-  assertAdminResponse({ actual: await response.json(), expected: { error: "internal error" } });
+  assertAdminResponse({ actual: await response.json(), expected: { error: "internal error" } }, { failure: {"message":"The publishing operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"publishing operation","discloseDetails":false} });
 });
 
 /** A bundle repo whose save fails, as a full disk would. */
@@ -79,7 +79,7 @@ class FailingBundleRepo extends InMemoryPublishContentBundleRepo {
 
 test("POST .../bundles answers a failing stage with the fixed 500, never the store's message", async () => {
   const app = routeApp(registerPublishContentBundleCreateRoute, routeDeps({ publishContentBundleRepo: new FailingBundleRepo() }));
-  assertAdminResponse({ actual: await dispatchJsonRequest(app, "POST", BUNDLES, envelope()), expected: { status: 500, body: { error: "internal error" } } });
+  assertAdminResponse({ actual: await dispatchJsonRequest(app, "POST", BUNDLES, envelope()), expected: { status: 500, body: { error: "internal error" } } }, { failure: {"message":"The publishing operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"publishing operation"} });
 });
 
 test("POST .../bundles stages an empty bundle for a human session and answers 201", async () => {

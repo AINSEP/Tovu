@@ -174,5 +174,5 @@ test("an unrecognized theme root triggers the route's outer catch-all 500", asyn
   const res = await fetch(`${baseUrl}${BASE("fresh")}`);
   assert.equal(res.status, 500);
   const body = (await res.json()) as { error: string };
-  assertAdminResponse({ actual: body, expected: { error: "internal error" } });
+  assertAdminResponse({ actual: body, expected: { error: "internal error" } }, { failure: {"message":"The themes could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load themes"} });
 });

@@ -40,7 +40,7 @@ test('project key use reports a typed unknown-key refusal as 400 and keeps opaqu
     } });
     const reply = await call('PUT', `${WS}/project-keys/missing/use`, { use: true });
     assertAdminResponse({ actual: [reply.status, reply.json], expected: failure instanceof ToolInputError
-      ? [400, { error: 'Unknown project key' }] : [500, { error: 'internal error', code: 'INTERNAL_ERROR' }] });
+      ? [400, { error: 'Unknown project key' }] : [500, { error: 'internal error', code: 'INTERNAL_ERROR' }] }, { failure: {"message":"The project key save could not be completed.","action":"Check whether your changes were saved before repeating the save. Copy details and report this problem.","step":"Save project key"} });
     assert.equal(writes, 0);
   }
 });

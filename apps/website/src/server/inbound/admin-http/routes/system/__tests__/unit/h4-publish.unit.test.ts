@@ -27,7 +27,7 @@ test('publish preview logs registry refusals and redacts credential metadata rea
   }));
   const { res, capture } = createCapturingResponse(); res.locals.principal = { id: 'owner' };
   await extractRouteHandler(app, 'get', `${ROOT}/publish/preview`)({ params: { workspaceId: 'ws' }, query: { target: 'fixture' } }, res);
-  assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: 'internal error', code: 'INTERNAL_ERROR' } } });
+  assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: 'internal error', code: 'INTERNAL_ERROR' } } }, { failure: {"message":"The system setting operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"system setting operation"} });
   assert.equal(reads, 1);
   assert.deepEqual(warnings.mock.calls.map(call => call.arguments), [['[publish-site] private plugin path refused']]);
 });
