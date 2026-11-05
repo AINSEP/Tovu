@@ -78,6 +78,7 @@ export function composeAgentPluginConnectServices(required: {
       isValidationError: ({ error }, _options = {}) => error instanceof ExternalMcpValidationError,
     },
     apiConnections: apiConnections && {
+      sharingAvailable: apiConnections.host.sharingAvailable,
       listConnections: (input, _options = {}) => apiConnections.host.listConnections(input),
       connect: (input, _options = {}) => runApiConnectionConnect({ ...input, deps: { host: apiConnections.host } }),
     },

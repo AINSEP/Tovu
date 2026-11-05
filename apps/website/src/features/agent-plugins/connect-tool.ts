@@ -11,6 +11,7 @@ import { resolveExternalMcpOAuthStatus } from "../../contracts/core/external-mcp
 import type { ExternalMcpServerRecord } from "../external-mcp/contracts.js";
 import { externalMcpRecordHasStaticAccessToken } from "../../contracts/core/external-mcp-auth.js";
 
+import { chooseApiConnectionDestination } from './connect-destination.js';
 import { waitAtAgentPluginSignInCard } from "./connect-sign-in-wait.js";
 import { deriveAgentPluginConnectionId, provisionAgentPluginMcpServers } from "./federate-mcp.js";
 import { readInstalledMcpServers } from "./capability-projection.js";
@@ -192,6 +193,7 @@ function sleepOrAbort(ms: number, signal: AbortSignal): Promise<void> {
 /** Consumer-owned services; composition binds persistence, secret custody and sign-in providers.
  * OAuth remains optional so token-only declarations work without an OAuth service. */
 export interface AgentPluginConnectToolDeps {
+  readonly ownerPrincipalId?: Promise<string>;
   /** Fresh activation owner; injected so OFF-plugin refusal needs no filesystem in unit tests. */
   readonly isPluginEnabled?: (pluginId: string) => Promise<boolean>;
   readonly credentials: Pick<PluginCredentialsPort, "loadSafe">;
@@ -527,10 +529,14 @@ async function connectDeclaredApiConnectionOrRefuse(
   if (declared.length > 1) {
     throw new ToolInputError({ message: `agent_plugin_connect: '${pluginId}' declares ${declared.length} API connections — this Tovu version connects one per plugin.` });
   }
+  const destination = await chooseApiConnectionDestination({ surfaces, ctx, pluginDisplayName: titleCaseFromPluginId(pluginId),
+    available: apiConnections.sharingAvailable === true && ctx.principal.id === await routeDeps.ownerPrincipalId }, optional);
+  if (destination === null) return { status: 'not-connected', reason: 'cancelled', next: 'Sign-in was cancelled. Continue without this connection.' };
+  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: 'system.write' });
   const credentialCard = await findPluginOAuthCard(routeDeps, pluginId);
   return waitAtAgentPluginSignInCard({ surfaces, ctx, pluginId, pluginDisplayName: titleCaseFromPluginId(pluginId), credentialCard,
     connect: ({ signal, showSignIn }) => apiConnections.connect({
-      connection, actorId: ctx.principal.id, signal, showSignIn,
+      destination, connection, actorId: ctx.principal.id, signal, showSignIn,
       pollIntervalMs: routeDeps.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS,
       waitTimeoutMs: routeDeps.waitTimeoutMs ?? DEFAULT_WAIT_TIMEOUT_MS,
     }),

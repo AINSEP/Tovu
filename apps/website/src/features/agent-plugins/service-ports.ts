@@ -38,8 +38,9 @@ export interface AgentPluginPreferencesPort {
 
 /** Declared API connections; the host retains OAuth clients, browser binding and token custody. */
 export interface AgentPluginApiConnectionsPort {
+  readonly sharingAvailable?: boolean;
   listConnections(input: { pluginId: string }, options?: Record<string, never>): Promise<readonly DeclaredApiConnection[]>;
-  connect(input: { connection: DeclaredApiConnection; actorId: string; signal: AbortSignal; pollIntervalMs: number; waitTimeoutMs: number; showSignIn: (input: { readonly signInUrl: string }) => Promise<void> }, options?: Record<string, never>): Promise<ApiConnectionConnectStatus>;
+  connect(input: { destination?: 'site' | 'shared'; connection: DeclaredApiConnection; actorId: string; signal: AbortSignal; pollIntervalMs: number; waitTimeoutMs: number; showSignIn: (input: { readonly signInUrl: string }) => Promise<void> }, options?: Record<string, never>): Promise<ApiConnectionConnectStatus>;
 }
 
 /** Resolved host paths; consumers take only the facts they need. */
