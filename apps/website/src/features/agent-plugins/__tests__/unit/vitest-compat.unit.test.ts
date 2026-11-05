@@ -86,7 +86,8 @@ for (const brokenCleanup of [false, true]) test(`caught forbidden fetch still fa
       });
       test('clean following test', () => {});
     `);
-    const run = spawnSync(process.execPath, ["--import", "tsx", "--test", "--test-timeout=60000", "--test-concurrency=2", childPath], { encoding: "utf8", timeout: 60_000, env });
+    // These assertions inspect TAP; Node's default reporter can be spec instead.
+    const run = spawnSync(process.execPath, ["--import", "tsx", "--test", "--test-reporter=tap", "--test-timeout=60000", "--test-concurrency=2", childPath], { encoding: "utf8", timeout: 60_000, env });
     assert.ifError(run.error);
     assert.equal(run.status, 1);
     if (brokenCleanup) {
