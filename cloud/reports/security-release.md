@@ -1,18 +1,28 @@
-# security-release — approved follow-up
+# security-release — Tovu Desktop 0.1.30
 
-Status: in progress — published dependency refresh and desktop release preparation.
+Status: complete. Tovu only, on `cloud/security-release`. No tag, publication, deployment, main push or force push performed.
 
-Only `cloud/security-release` is pushed in Jini and Tovu. No main push, force push, publication, tag or deployment.
+## Changes
 
-## Integration
+- Bumped desktop to **0.1.30**, including both lockfile version fields and `RELEASE-NOTES-0.1.30.md`, following commit `9be473ab5`.
+- Refreshed all four lockfiles and installed consumers from the real npm registry using npm **11.20.0**. All 12 published Jini packages use **0.6.23**. Existing floors were already correct; the scoped chat override key now follows its 0.6.23 range.
+- Verified npm versions, tarball URLs and registry integrity values. No integrity was invented or edited manually. Changes outside Jini lock entries are limited to the intended root specifications and desktop version metadata.
+- Removed **79 local Jini symlinks** and the local link-state marker. All **79 installed/locked Jini entries** across root, admin, desktop and site-chat are registry artifacts, with no local Jini link/file entries.
+- Jini repository unchanged. No production function, test assertion, rule, timeout or threshold changed.
 
-Merged `origin/cloud/om-chat` in both repositories. The requested Jini `origin/integ/night-1105` and Tovu `origin/night-1105` are included through that ancestry; their explicit merge commands returned already up to date. All four ancestry checks pass.
+## Validation
 
-Conflicts were limited to the Jini subprocess test helper and Tovu credential store. Resolutions retain all assertions, the rationale comment and existing defensive guards. No test, rule, timeout or threshold was weakened. Merge-preserving pull/rebase retained the integration history. Tovu pushes used the documented hook bypass to honor focused tests only; no hook file was changed.
+- Root, desktop, admin and site-chat typechecks: **PASS**.
+- Focused tests: **88 PASS** — dependency/catalog/chart pins 31, actual chart bundle 13, desktop version 5, link guard 3, site security integration 13, selected desktop integration 1, desktop tools 10, privacy components 12.
+- The previously deferred lockfile-alignment test now **passes**.
+- Four installed-tree release link guards and direct registry/lock/install integrity verification: **PASS**.
+- Final range secret scan and `git diff --check`: **PASS**.
 
-The Jini merge changes only **agent-plugins and daemon**, both already in the release set. **Additional package bumps: none.** All 12 remain at **0.6.23**. Rebuilt all Jini packages, regenerated the catalog, and relinked Tovu. Tovu lockfiles remain deferred until publication.
+Exception: published artifacts emit non-failing source-map warnings in the component run. No test failed. Earlier unrelated source-test timeout and strict-lint debt were not rerun for these metadata/dependency changes; their details remain in the [prior report](https://github.com/AINSEP/Tovu/blob/3f83e357477ce692187a111a2eb509e9536c64de/cloud/reports/security-release.md). No full suite was launched. Pushes use the documented hook bypass to honor focused tests only; no hook was modified.
 
-## Final publish list
+## Published Jini package set
+
+All at **0.6.23**:
 
 - `@jini-ai/agent-plugins`
 - `@jini-ai/agent-runtime`
@@ -27,50 +37,40 @@ The Jini merge changes only **agent-plugins and daemon**, both already in the re
 - `@jini-ai/plugin-catalog`
 - `@jini-ai/provider-plugins`
 
-## Follow-up validation
+## Commands and evidence
 
-- Full Jini recursive build: PASS.
-- Jini complete typecheck and Tovu root, desktop, admin and site-chat typechecks: PASS.
-- Focused tests: **197 PASS** — Jini daemon 40; conflict-related helper 2; Tovu site 13; selected desktop integration 1; desktop tools 10; conflict-related store/project scope 131.
-- An incoming test-query typing error was corrected without changing its exact matching or assertions; its additional focused file has **45 PASS** and the fresh admin typecheck passes. Total focused follow-up tests: **242 PASS**.
-- Changed production paths at the required complexity ceilings: no errors; existing warnings retained.
-- `guard:plugins` and `guard:plugins:packed`: PASS.
-- Packed catalog: **38 entries / 538 exact file digests PASS**, including all release versions and Tovu floors.
-- Expanded final commit-range secret scans: PASS, no leaks. `git diff --check`: PASS.
+All commands used `source /workspace/.tovu-build/env.sh`. Registry reads requested `version dist --json` for each of the 12 `@jini-ai/<name>@0.6.23` packages with `--registry=https://registry.npmjs.org`.
 
-Only the requested focused tests were run in this follow-up. Existing unrelated admin timeout, publication-dependent lockfile alignment and inherited lint debt were not represented as fixed or green. Earlier detailed evidence is preserved in the [Jini prior report](https://github.com/AINSEP/Jini/blob/6f9799532db208cdf2e977b5ba63c1aaf02177e6/cloud/reports/security-release.md) and [Tovu prior report](https://github.com/AINSEP/Tovu/blob/3cf74191925aac83ee78f425396f7039a1b5decc/cloud/reports/security-release.md).
-
-BUG — Earlier repeated admin test timeout remains unresolved; not retried here.
-
-BUG — Earlier inherited strict-lint findings remain outside the changed production paths.
-
-OPEN — Registry publication and subsequent Tovu lockfile refresh remain coordinator work.
-
-No additional framework, schema, polling or persistent state was introduced by the merge resolutions. Generic behavior remains in Jini; Tovu retains product wiring. The site/desktop focused tests verify the merged compositions; live model execution remains outside the verified evidence.
-
-## Exact commands
-
-Commands use `source /workspace/.tovu-build/env.sh` first. Working directory is indicated for each group.
+In each of `.`, `apps/admin`, `apps/desktop` and `apps/site-chat`, ran the following npm 11.20.0 commands after removing the existing Jini symlinks through the repository's consumer inventory:
 
 ```sh
-# /workspace/Jini
-pnpm -r build
-pnpm --filter @jini-ai/plugin-catalog run generate
-pnpm guard:plugins
-pnpm guard:plugins:packed
-python /workspace/work/security-release/verify-packed-catalog.py
+node /workspace/Tovu/apps/desktop/node_modules/npm/bin/npm-cli.js install --package-lock-only --ignore-scripts --no-audit --no-fund --registry=https://registry.npmjs.org --cache=/workspace/work/security-release/registry-followup/npm-cache
+node /workspace/Tovu/apps/desktop/node_modules/npm/bin/npm-cli.js install --ignore-scripts --no-audit --no-fund --registry=https://registry.npmjs.org --cache=/workspace/work/security-release/registry-followup/npm-cache
+node /workspace/Tovu/development/scripts/check-no-linked-jini.mjs
+```
+
+The direct probe `node /workspace/work/security-release/registry-followup/verify.mjs` compares every applicable manifest floor, lock root specification, resolved URL/integrity, installed version and physical directory against the npm metadata; checks all 79 entries; checks the absent link marker; and verifies desktop's three version fields are 0.1.30. Raw logs and metadata are retained under `/workspace/work/security-release/registry-followup`.
+
+Exact focused test and typecheck commands:
+
+```sh
 # /workspace/Tovu
-JINI_PACKAGES_DIR=/workspace/Jini/packages npm run link:jini
+TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node --import tsx --test --test-concurrency=1 apps/website/src/server/runtime/composition/__tests__/recharts-package-pin.unit.test.ts apps/website/src/server/runtime/composition/__tests__/product-telemetry.unit.test.ts apps/website/src/server/runtime/composition/__tests__/browser-provider.integration.test.ts
 ```
 
 ```sh
-# /workspace/Jini/packages/agent-plugins
-node --test __tests__/vitest-compat.test.mjs
+# /workspace/Tovu/apps/desktop
+node --experimental-test-module-mocks --import ./scripts/resolve-ts-ext.ts --test src/app-version-ipc.test.ts
 ```
 
 ```sh
 # /workspace/Tovu
-node --import tsx --experimental-test-module-mocks --test --test-isolation=none apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.typed-tools.integration.test.ts
+node --import tsx --test development/scripts/__tests__/check-no-linked-jini.test.ts
+```
+
+```sh
+# /workspace/Tovu/apps/admin
+node_modules/.bin/vitest run src/integrations/chart-providers/__tests__/recharts-bundle-integer-ticks.unit.test.ts --maxWorkers=1 --pool=threads
 ```
 
 ```sh
@@ -84,13 +84,8 @@ node --experimental-test-module-mocks --import ./scripts/resolve-ts-ext.ts --tes
 ```
 
 ```sh
-# /workspace/Jini
-npm --prefix packages/daemon test -- src/agent-executor/codex/__tests__/home-config.test.ts src/agent-executor/codex/__tests__/home-http-staging.test.ts src/agent-executor/codex/__tests__/home-cleanup.test.ts src/agent-executor/__tests__/http-mcp-launch.integration.test.ts --maxWorkers=1 --minWorkers=1
-```
-
-```sh
 # /workspace/Tovu
-node --import tsx --test --test-concurrency=1 apps/website/src/features/deployments/publish-credentials/__tests__/store.unit.test.ts apps/website/src/features/deployments/publish-credentials/__tests__/project-scope.unit.test.ts
+node --import tsx --experimental-test-module-mocks --test --test-isolation=none apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.typed-tools.integration.test.ts
 ```
 
 ```sh
@@ -104,63 +99,30 @@ npm --prefix apps/desktop run typecheck
 ```
 
 ```sh
-# /workspace/Tovu/apps/admin
-npm run typecheck
-```
-
-```sh
 # /workspace/Tovu
 npm --prefix apps/site-chat run typecheck
 ```
 
 ```sh
-# /workspace/Jini
-pnpm typecheck
+# /workspace/Tovu
+npm --prefix apps/admin run typecheck
 ```
 
 ```sh
 # /workspace/Tovu/apps/admin
-node_modules/.bin/vitest run src/features/skills/__tests__/skill-install-i18n.unit.test.tsx --maxWorkers=1 --pool=threads
-```
-
-Strict lint used `--no-inline-config --rule '{"complexity":["error",10],"sonarjs/cognitive-complexity":["error",10]}'` on the three merged daemon production files and the Tovu site composition/store. Desktop composition used both ceilings at 9. No suppression or debt baseline changed.
-
-Final secret scans, after the report commit:
-
-```sh
-# /workspace/Jini
-/workspace/work/security-release/tools/gitleaks git . --config .gitleaks.toml --log-opts='651571c5f..HEAD' --redact
+node_modules/.bin/vitest run src/components/__tests__/SecretInput.unit.test.tsx src/features/security/__tests__/SiteKeyTab.agent-secrecy.unit.test.tsx src/features/sites/__tests__/SiteExportTab.secret.unit.test.tsx --maxWorkers=1 --pool=threads
 # /workspace/Tovu
 /workspace/work/security-release/tools/gitleaks git . --log-opts='e327c07c8..HEAD' --redact
+git diff --check
 ```
 
-## Inputs and pushed commits
+## SHAs
 
-Jini inputs (prior tip, om-chat, night):
+Validated implementation tip before the final documentation commit: `8d3fe13e6aaecd03f19daa89259d2b67058661b2`.
 
-- `6f9799532db208cdf2e977b5ba63c1aaf02177e6`
-- `fc5dbec699c170a03137a1926da692c72c42e65f`
-- `a9b1d949ffb0363ddaa3df2278e8a3fcf034add5`
+This step's implementation commits, both on `cloud/security-release`:
 
-Jini follow-up commits on `cloud/security-release`:
+- `bab8d7468bc6fee657c3ea708561cb9269c8f0a0`
+- `8d3fe13e6aaecd03f19daa89259d2b67058661b2`
 
-- `5edda64ef538fd9a5747caf78fa85b35b781cea8`
-- `c4c50e2406a7b9d50ba3d57467a20dca76ea1043`
-- `78329edf0d5bec53d772b12935cc9e0f4068c400`
-- `a30742e1a946a13b72eeda549049c361b022ae7b`
-
-Tovu inputs (prior tip, om-chat, night):
-
-- `3cf74191925aac83ee78f425396f7039a1b5decc`
-- `74beba62dd4b43c4e8104c251ed43f98e63bd21e`
-- `ce99e7eba807b91d12926fe5889a9958032bc398`
-
-Tovu follow-up commits on `cloud/security-release`:
-
-- `6422c562d348b4dfbf88b5278a877a663d08a25b`
-- `d93ec0a53acfe899052af0488f9769e56027a094`
-- `8876cad02ad9b0a10c3e8adba6974af0cc7ab75a`
-- `aa172f97160602d237b36bd67be341b11237e52e`
-- `98d6ea8ed3e12ecdcd9da6d6d341c50d5e0b7b39`
-
-These are the validated tips before the final documentation-only report commit. The final response gives the final report-commit SHAs, and this file is present at those heads. Earlier pushed commit inventories remain in the prior reports. Raw evidence is under `/workspace/work/security-release/merge-followup` and `followup-*.log`.
+The final response provides the final report-commit SHA; that commit changes documentation only. Earlier integration and checkpoint SHAs remain in the prior report/history.
