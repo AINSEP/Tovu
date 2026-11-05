@@ -217,12 +217,13 @@ export const pluginAgentToolCatalog: AgentToolDefinition[] = [
       "say which with the required 'family' argument: 'agent-plugin' for an Agent Plugin found by search_agent_plugin_local (e.g. the " +
       "image/video plugin), 'site-runtime' for a .tovu-plugin site plugin listed by content_read.plugin. Use this when the " +
       "user asks to enable, disable, turn on, turn off, activate or deactivate a plugin, or when a plugin you need is installed but not " +
-      "active. Site plugins sealed here with plugin_source_seal enable directly; other plugins open a confirmation dialog and wait for approval. " +
+      "active. Every enable opens the owner's approval card, including site plugins sealed here with plugin_source_seal. " +
+      "For Agent Plugins the same card lists the external MCP sources, declared tools and may-write grants to turn on; discovery reloads after approval. " +
       "Disabling is not confirmed. Author site-local behavior with plugin_source_create/open → write/edit → seal → enable (family 'site-runtime'). " +
       "Site plugins support content filters, content types and fields, plus sdk.routes.add (http.route.register + contributes.routes, mounted under /api/p/<plugin-id>), sdk.tools.add (tools.register + contributes.tools, ids p_<normalized-plugin-id>__<name>), and sdk.widgets.add (render.contribute + contributes.widgets, public SSR partials). Refuses to enable a site-runtime plugin whose discovery status is 'invalid' " +
       "or 'incompatible'; enabling one with a data module runs live schema DDL (ADR-023) — reversible in the sense that disabling flips the " +
       "activation flag back, but not a pure no-op toggle. Installing and uninstalling are SEPARATE tools, deliberately: this one only flips " +
-      "an already-installed plugin's switch and never adds or deletes anything.",
+      "an already-installed plugin's switch and its listed access; it never installs or removes plugin packages.",
     sideEffects: "mutates-durable-state",
     authorization: { permission: "admin.plugins.enable" },
     inputSchema: SET_ENABLED_SCHEMA,

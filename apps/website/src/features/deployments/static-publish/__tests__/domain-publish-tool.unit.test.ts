@@ -12,7 +12,7 @@ import { buildGatewayDeps } from '#src/contracts/core/gated-mutations/compositio
 import { InMemoryTokenStore, type TokenStorePort } from '#src/contracts/core/gated-mutations/token';
 import { domainPublishTool } from '../domain-publish-tool.js';
 import { InMemoryPublishHistoryStore } from '../publish-history.js';
-import { getPublishRunSnapshot, startPublishRun } from '../publish-run.js';
+import { getPublishJobSnapshot, getPublishRunSnapshot, startPublishRun } from '../publish-run.js';
 import type { PublishCredentialSource } from '../types.js';
 import type { StaticPublishInput } from '../adapter.js';
 import type { StaticPublishToolDeps } from '../../publish-agent-tools.js';
@@ -20,7 +20,7 @@ import type { DeployTargetInspection, DeployTargetRegistry, LoadedDeployTarget }
 
 /** Real approval exchange + gateway, with typed registry/export/provider ports; no live account. */
 async function setup(options: { tokenState?: 'expired' | 'redeemed' | 'foreign' | 'fault'; publish?: 'ready' | 'link-delayed' | 'throws'; inventory?: 'unknown' | 'silent';
-  anonymous?: boolean } = {}) {
+  anonymous?: boolean; exportGate?: Promise<void>; onSettled?: () => void } = {}) {
   const base = createRouteDeps();
   const root = await mkdtemp(path.join(tmpdir(), 'domain-publish-test-'));
   const historyStore = new InMemoryPublishHistoryStore();
@@ -66,12 +66,20 @@ async function setup(options: { tokenState?: 'expired' | 'redeemed' | 'foreign' 
   const deps: StaticPublishToolDeps = { ...base, authorize, credentialSource, loadDeployTargets: async () => registry,
     publishOutputRootDir: root, publishHistoryStore: historyStore,
     gatedMutations: { gatewayDeps: buildGatewayDeps({ clock: base.clock, idGen: base.idGen, authorize, tokens }) },
-    exportSiteBound: async ({ outputDir }) => { exports++; return { outputDir, routes: { succeeded: [{ path: '/', kind: 'home', outputFile: 'index.html', data: 'site' }], failed: [] }, assets: { succeeded: [], failed: [] }, skippedManifestEntries: [], unreferencedThemeFiles: [], droppedReferences: [] }; },
+    exportSiteBound: async ({ outputDir }) => { await options.exportGate; exports++; return { outputDir, routes: { succeeded: [{ path: '/', kind: 'home', outputFile: 'index.html', data: 'site' }], failed: [] }, assets: { succeeded: [], failed: [] }, skippedManifestEntries: [], unreferencedThemeFiles: [], droppedReferences: [] }; },
   };
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: base.clock, idGenerator: base.idGen, defaultChannel: 'mcp-ui' });
-  const handler = domainPublishTool({ deps, surfaces: { surfaceExchanges }, credentialSource, historyStore, config: { target: 'fixture', customDomain: 'example.com' }, projectName: 'demo', ...(options.anonymous ? {} : { credentialId: 'chosen' }) });
+  const handler = domainPublishTool({ deps, surfaces: { surfaceExchanges }, credentialSource, historyStore, config: { target: 'fixture', customDomain: 'example.com' }, projectName: 'demo', ...(options.onSettled ? { onSettled: options.onSettled } : {}), ...(options.anonymous ? {} : { credentialId: 'chosen' }) });
   const ctx: ToolExecutionContext = { executionId: 'execution', principal: { id: 'human' }, run: { id: 'run' }, input: { confirmed: true }, signal: new AbortController().signal };
-  return { handler, ctx, surfaceExchanges, deps, credentialSource, historyStore, counts: () => ({ exports, publishes }), change: () => { changed = true; }, cleanup: () => rm(root, { recursive: true, force: true }) };
+  const followJob = async (...args: Parameters<typeof handler>) => {
+    const accepted = await handler(...args) as { accepted?: boolean; jobId?: string };
+    if (!accepted.accepted) return accepted;
+    const result = await finalJob(deps.workspaceId, accepted.jobId!);
+    if (!result.ok) return { published: false, ...result };
+    return { published: true, reachable: result.ok === true, target: result.targetId, url: result.url, status: result.status,
+      ...(result.ok === 'partial' ? { message: result.message } : {}), providerMetadata: result.providerMetadata };
+  };
+  return { start: handler, handler: followJob, ctx, surfaceExchanges, deps, credentialSource, historyStore, counts: () => ({ exports, publishes }), change: () => { changed = true; }, cleanup: () => rm(root, { recursive: true, force: true }) };
 }
 
 function exchangeId(surface: SurfaceEmission): string {
@@ -189,4 +197,46 @@ test('an approved domain publish refuses while another publish run is still runn
     while (getPublishRunSnapshot().status === 'running') await new Promise(resolve => setImmediate(resolve));
     await f.cleanup();
   }
+});
+
+/** Read the job's result without a wall-clock sleep; provider/export ports settle under test control. */
+async function finalJob(workspaceId: string, jobId: string) {
+  for (let turn = 0; turn < 1000; turn++) {
+    const job = getPublishJobSnapshot({ workspaceId, jobId });
+    if (job?.status !== 'running') { assert.ok(job?.result); return job.result; }
+    await new Promise<void>(resolve => setImmediate(resolve));
+  }
+  assert.fail('Domain publish did not settle after 1000 event-loop turns');
+}
+
+test('approved domain publish returns a job before export; call cancellation cannot revoke that job', async () => {
+  let release!: () => void;
+  const exportGate = new Promise<void>(resolve => { release = resolve; });
+  const f = await setup({ exportGate });
+  const controller = new AbortController();
+  try {
+    const result = await f.start({ ...f.ctx, signal: controller.signal }, confirmAs(f)) as { accepted: boolean; published: boolean; jobId: string };
+    assert.equal(result.accepted, true);
+    assert.equal(result.published, false);
+    assert.ok(result.jobId);
+    assert.equal(getPublishJobSnapshot({ workspaceId: f.deps.workspaceId, jobId: result.jobId })?.status, 'running');
+    controller.abort();
+    release();
+    assert.equal((await finalJob(f.deps.workspaceId, result.jobId)).ok, 'partial');
+    assert.deepEqual(f.counts(), { exports: 1, publishes: 1 });
+  } finally { release(); await f.cleanup(); }
+});
+
+test('an approved domain publish reports settlement once without depending on status polling', async () => {
+  let count = 0;
+  let finish!: () => void;
+  const settled = new Promise<void>(resolve => { finish = resolve; });
+  const f = await setup({ onSettled: () => { count++; finish(); } });
+  try {
+    const accepted = await f.start(f.ctx, confirmAs(f)) as { accepted: boolean; jobId: string };
+    assert.equal(accepted.accepted, true);
+    await settled;
+    assert.equal(count, 1);
+    assert.equal(getPublishJobSnapshot({ workspaceId: f.deps.workspaceId, jobId: accepted.jobId })?.status, 'completed');
+  } finally { await f.cleanup(); }
 });

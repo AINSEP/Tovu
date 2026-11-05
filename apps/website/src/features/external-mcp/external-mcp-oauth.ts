@@ -156,6 +156,7 @@ export function createDeviceAuthorizationStore(): DeviceAuthorizationStore {
 interface ExternalMcpConnectionGateDeps {
   readonly workspaceId: UUID;
   readonly repo: Pick<ExternalMcpServerRepoPort, "findByServerId">;
+  readonly isPluginEnabled: (pluginId: string) => Promise<boolean>;
 }
 
 /**
@@ -193,9 +194,11 @@ interface ExternalMcpConnectionGateDeps {
 export function createExternalMcpConnectionGate(deps: ExternalMcpConnectionGateDeps): (connectionId: string, call: FederatedCallTarget) => Promise<void | FederatedGateVerdict> {
   return async (connectionId, call) => {
     const record = await readConnectionRowOrRefuse(deps, connectionId);
+    await assertProvisioningPluginEnabled({ deps, record });
     const isPreset = call.origin?.kind === "preset";
     const refusal = isPreset ? null : rosterRefusalFor(record, call);
     if (refusal !== null) {
+      offerPluginAccessCard({ record, refusal });
       throw new ExternalMcpConnectionRevokedError({ serverId: connectionId, label: record?.label ?? null, remoteName: call.remoteName, reason: refusal });
     }
     assertNotAwaitingReauth(record, connectionId);
@@ -203,6 +206,30 @@ export function createExternalMcpConnectionGate(deps: ExternalMcpConnectionGateD
     // admitted-grants snapshot does not refuse a grant added since boot. A preset vouches for nothing.
     return isPreset ? undefined : "current-grants-checked";
   };
+}
+
+/** Point an active plugin with missing source/tool/write grants back to its existing single card.
+ * @throws ToolInputError naming that review flow; no grant or configuration is changed here.
+ * @complexity O(1), no I/O.
+ */
+function offerPluginAccessCard({ record, refusal }: { record: ExternalMcpServerRecord | null; refusal: string }, _options = {}): void {
+  const pluginId = record?.provisionedByPluginId;
+  if (!pluginId || !['turned-off', 'tool-not-allowed', 'write-not-allowed'].includes(refusal)) return;
+  const reason = refusal === "turned-off" ? "connection was turned off" : "connection needs access approval";
+  throw new ToolInputError({ message: `The '${pluginId}' plugin's '${record!.serverId}' ${reason} (${refusal}). Use plugins_set_enabled({family:"agent-plugin",pluginId:${JSON.stringify(pluginId)},enabled:true}) to show the owner one card for its declared source, tools and may-write grants.` });
+}
+
+/** A surviving connection never overrides its provisioning plugin's OFF switch.
+ * @throws ToolInputError before any remote call when activation is off or cannot be verified.
+ * @complexity One activation-owner check for plugin rows; no extra row read.
+ */
+async function assertProvisioningPluginEnabled({ deps, record }: { deps: ExternalMcpConnectionGateDeps; record: ExternalMcpServerRecord | null }, _options = {}): Promise<void> {
+  const pluginId = record?.provisionedByPluginId;
+  if (!pluginId) return;
+  let enabled = false;
+  try { enabled = await deps.isPluginEnabled(pluginId); }
+  catch { /* An unreadable activation must not authorize a remote call. */ }
+  if (!enabled) throw new ToolInputError({ message: `The '${pluginId}' plugin is off or its activation could not be checked. Ask to turn it on with plugins_set_enabled before using its tools.` });
 }
 
 /** The gate's row read, guarded: a read that THROWS (a locked database, a corrupt row) must not leak

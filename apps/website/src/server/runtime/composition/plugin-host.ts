@@ -2,7 +2,7 @@ import type { Clock } from "@jini-ai/core/primitives";
 /** The host is the only cross-family composition point. Bind the existing lifecycle owners;
  * discovery is metadata-only and fresh on each call so disable/uninstall cannot leave stale grants. */
 import path from 'node:path';
-import { redactSecrets } from '@jini-ai/core';
+import { redactSecrets, ToolInputError } from '@jini-ai/core';
 import { withFileLock } from '@jini-ai/platform/fs/file-lock';
 import { createPluginLookup, readPluginIdentity, assertPluginIdentityAvailable, type PluginProvider } from '@jini-ai/core/plugin-directory';
 import type { InstalledAgentPlugin } from '@jini-ai/agent-plugins/lifecycle';
@@ -16,6 +16,15 @@ import { setAgentPluginEnabled } from '#src/features/agent-plugins/set-enabled';
 import { runAgentPluginUninstall, type AgentPluginUninstallToolDeps } from '#src/features/agent-plugins/uninstall-tool';
 import { provisionAgentPluginMcpServers, resolveAgentPluginMcpServers } from '#src/features/agent-plugins/federate-mcp';
 import { grantDeclaredToolsToSignedInRows } from '#src/features/agent-plugins/grant-signed-in-defaults';
+import { previewAgentPluginEnableAccess } from '#src/features/agent-plugins/enable-access';
+
+/** Preserve best-effort diagnostics for background provisioning; an approved card must instead
+ * report a partial failure to its caller. O(s) in failed declared servers, no extra I/O.
+ */
+function reportProvisioningFailures({ pluginId, failed, approved, warn }: { pluginId: string; failed: Awaited<ReturnType<typeof provisionAgentPluginMcpServers>>['failed']; approved: boolean; warn: (message: string) => void }): void {
+  for (const failure of failed) warn(redactSecrets({ input: `Plugin '${pluginId}': MCP provisioning for server '${failure.serverKey}' failed — ${failure.reason}` }));
+  if (approved && failed.length) throw new ToolInputError({ message: redactSecrets({ input: `Plugin '${pluginId}' could not create these connections: ${failed.map(failure => `${failure.serverKey}: ${failure.reason}`).join('; ')}. Request plugins_set_enabled again to retry.` }) });
+}
 
 export interface TovuPluginHostDeps extends AgentPluginUninstallToolDeps {
   readonly discoverPlugins: () => Promise<readonly PluginDiscoveryRecord[]>;
@@ -133,18 +142,28 @@ export function createTovuPluginHost(
   const lookup = createPluginLookup({ listPlugins: listProviders }, { warn });
 
   const agentPlugins: AgentPluginHostCapability = {
+    inactivePluginIds: async () => {
+      const activations = await agentPluginActivations.readAgentPluginActivations({ workspaceRoot: resolveWorkspaceRoot() });
+      return new Set(Object.entries(activations.plugins).filter(([, activation]) => !activation.enabled).map(([id]) => id));
+    },
+    previewEnableAccess: async ({ pluginId }) => previewAgentPluginEnableAccess({
+      workspaceId: deps.workspaceId, pluginId, repo: deps.mcp.repo,
+      servers: await (optional.resolveMcpServers ?? resolveAgentPluginMcpServers)({ agentPluginLayout: deps.agentPluginLayout, workspaceId: deps.workspaceId, pluginId }),
+    }),
     listInstalled,
     assertWritable: async () => (deps.assertAgentPluginActivationsWritable ?? agentPluginActivations.assertAgentPluginActivationsWritable)({ workspaceRoot: resolveWorkspaceRoot() }),
-    setEnabled: async (input: Parameters<AgentPluginHostCapability["setEnabled"]>[0]) => (deps.setAgentPluginEnabled ?? setAgentPluginEnabled)({ ...input, agentPluginLayout: deps.agentPluginLayout }),
+    setEnabled: async (input: Parameters<AgentPluginHostCapability["setEnabled"]>[0]) => {
+      const result = await (deps.setAgentPluginEnabled ?? setAgentPluginEnabled)({ ...input, agentPluginLayout: deps.agentPluginLayout });
+      if (!result.enabled) await deps.mcp.notifyRosterChanged({}, {});
+      return result;
+    },
     /** Provisioning must use the same two owners as the admin toggle. A failed connection never
      * rolls back a successful activation; report fixed diagnostics without credential material. */
-    provisionMcp: async ({ pluginId, principalId }: { pluginId: string; principalId: string }) => {
+    provisionMcp: async ({ pluginId, principalId }: { pluginId: string; principalId: string }, execution = {}) => {
       try {
         const servers = await (optional.resolveMcpServers ?? resolveAgentPluginMcpServers)({ agentPluginLayout: deps.agentPluginLayout, workspaceId: deps.workspaceId, pluginId });
         const result = await (optional.provisionMcpServers ?? provisionAgentPluginMcpServers)(deps.mcp, { workspaceId: deps.workspaceId, pluginId, servers, principalId });
-        for (const failure of result.failed) {
-          warn(redactSecrets({ input: `Plugin '${pluginId}': MCP provisioning for server '${failure.serverKey}' failed — ${failure.reason}` }));
-        }
+        reportProvisioningFailures({ pluginId, failed: result.failed, approved: execution.approvedEnable === true, warn });
         // Same as the admin toggle: an account signed in while the plugin was off gets the plugin's
         // declared tools now (bug 2026-11-04, `grant-signed-in-defaults.ts`).
         await grantDeclaredToolsToSignedInRows({
@@ -152,8 +171,9 @@ export function createTovuPluginHost(
             notifyRosterChanged: () => deps.mcp.notifyRosterChanged({}, {}), warn: message => warn(redactSecrets({ input: message })) },
           pluginId,
           servers,
-        }, { skipServerKeys: result.failed.map(failure => failure.serverKey) });
+        }, { skipServerKeys: result.failed.map(failure => failure.serverKey), ...(execution.approvedEnable ? { approvedEnable: { principalId } } : {}) });
       } catch (error) {
+        if (execution.approvedEnable) throw new ToolInputError({ message: redactSecrets({ input: `The plugin is on, but its approved connections could not be loaded. Request plugins_set_enabled again to retry. Details: ${error instanceof Error ? error.message : String(error)}` }) });
         warn(redactSecrets({ input: `Plugin '${pluginId}': MCP provisioning could not run — ${error instanceof Error ? error.message : String(error)}` }));
       }
     },

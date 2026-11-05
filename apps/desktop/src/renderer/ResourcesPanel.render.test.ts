@@ -9,6 +9,9 @@ import type { SiteRecord } from '../contracts/project.js';
 import { installDom, settle } from './dom-hook-harness.js';
 import { ResourcesMonitor, ResourcesChip, ResourceSiteFigure, ResourcesPanel, memoryText, resourceWarnings, resourceGroups } from './ResourcesPanel.js';
 import { useSitePower } from './use-site-power.hooks.js';
+import { useResources, type ResourcesPorts } from './use-resources.hooks.js';
+import { createDesktopResources } from '../desktop-resources.ts';
+import type { ProcessUsage } from '@jini-ai/platform/process';
 
 Object.assign(globalThis, { React });
 installDom();
@@ -146,4 +149,43 @@ test('unavailable snapshot shows unavailable chip/cards, and stopped cards hide 
   assert.equal(host.querySelector('.resources-chip')!.getAttribute('data-tooltip'), 'Memory used by Tovu and running sites: unavailable');
   assert.equal(host.querySelectorAll('.card__resources').length, 1);
   assert.equal(host.querySelector('.card__resources')!.textContent, 'Memory unavailable');
+});
+
+test('an externally served running card has no local-memory failure readout', (t) => {
+  const { host } = mount(t, createElement(ResourcesMonitor, {
+    projects: [SITE], onSiteUpdated() {}, useReadings: () => SNAPSHOT,
+    children: createElement(React.Fragment, null, createElement(ResourcesChip),
+      createElement(ResourceSiteFigure, { project: { ...SITE, externalUrl: 'http://localhost:4000/admin/' } })),
+  }));
+  assert.equal(host.querySelector('.resources-chip')!.textContent, '~1.5GB · High memory use · Sustained high CPU use');
+  assert.equal(host.querySelector('.card__resources'), null);
+});
+
+test('starting a site refreshes the real sampler, hook and card while the toolbar cache is still young', async (t) => {
+  let at = 0, reads = 0;
+  let sites: { id: string; pid: number }[] = [];
+  let rows: ProcessUsage[] = [{ pid: 1, ppid: 0, name: 'Tovu', rssBytes: 100_000_000, cpuSeconds: 0 }];
+  const monitor = createDesktopResources({ desktopPid: 1, platform: 'darwin', now: () => at,
+    totalMem: () => 8_000_000_000, openSites: () => sites,
+    listUsage: async () => { reads++; return rows; } });
+  const ports: ResourcesPorts = {
+    getBridge: () => ({ getResources: request => monitor.get(request) }),
+    document: { hidden: false, addEventListener() {}, removeEventListener() {} },
+    setTimer: () => 1, clearTimer() {},
+  };
+  const useReadings: typeof useResources = (request, options) => useResources(request, { ...options, ports });
+  const element = (project: SiteRecord) => createElement(ResourcesMonitor, {
+    projects: [project], onSiteUpdated() {}, useReadings,
+    children: createElement(React.Fragment, null, createElement(ResourcesChip), createElement(ResourceSiteFigure, { project })),
+  });
+  const { host, render } = mount(t, element({ ...SITE, status: 'stopped' }));
+  await settle();
+  assert.equal(host.querySelector('.resources-chip')!.textContent, '~100MB');
+  at += 5_000;
+  sites = [{ id: SITE.id, pid: 10 }];
+  rows = [...rows, { pid: 10, ppid: 1, name: 'node', rssBytes: 300_000_000, cpuSeconds: 0 }];
+  render(element(SITE)); await settle();
+  assert.equal(host.querySelector('.card__resources')!.textContent, '~300MB');
+  assert.equal(host.querySelector('.resources-chip')!.textContent, '~400MB');
+  assert.equal(reads, 2);
 });

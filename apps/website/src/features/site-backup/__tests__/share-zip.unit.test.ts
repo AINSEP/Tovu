@@ -23,7 +23,8 @@ function encoder(error?: Error) {
 function disk(t: TestContext, relative: string, text: string): PlannedDiskFile {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "v2-zip-")); t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const absPath = path.join(root, "file"); fs.writeFileSync(absPath, text);
-  return { path: relative, bytes: Buffer.byteLength(text), scope: "themes", absPath, mtimeMs: fs.statSync(absPath).mtimeMs };
+  const ids = fs.statSync(absPath, { bigint: true });
+  return { root: path.dirname(absPath), identity: ids.ino === 0n ? null : `${ids.dev}:${ids.ino}`, nlink: Number(ids.nlink), path: relative, bytes: Buffer.byteLength(text), scope: "themes", absPath, mtimeMs: fs.statSync(absPath).mtimeMs };
 }
 
 /** Uses the real share collector so these tests require planning to pin theme and override bytes. */
@@ -272,3 +273,27 @@ test("any other encoder Error propagates unchanged", { timeout: 120000 }, async 
 test("a non-Error encoder failure propagates unchanged, even if it mentions a limit", { timeout: 120000 }, async () => {
   await assert.rejects(buildShareZip({ plan: plan(), zip: throwingEncoder("limit") }), (thrown: unknown) => thrown === "limit");
 });
+
+for (const linkedBundle of [false, true]) {
+  test(`a packaged theme outside the site shares its reviewed bytes (linked bundle: ${linkedBundle})`, { skip: linkedBundle && process.platform === "win32" }, async t => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "packaged-theme-share-"));
+    t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+    const siteDir = path.join(root, "site");
+    const bundle = path.join(root, "bundle");
+    fs.mkdirSync(siteDir);
+    fs.mkdirSync(path.join(bundle, "themes/static/site"), { recursive: true });
+    fs.writeFileSync(path.join(bundle, "themes/static/site/index.html"), "packaged page");
+    const bundlePath = linkedBundle ? path.join(root, "bundle-link") : bundle;
+    if (linkedBundle) fs.symlinkSync(bundle, bundlePath);
+    const themesDir = path.join(bundlePath, "themes");
+    const sources = { siteDir, themesDir, mediaUploadsDir: null, skillsDir: path.join(siteDir, "skills"), tovuVersion: "test",
+      agentPlugins: resolveAgentPluginLayout({ siteDir }, { env: { TOVU_AGENT_PLUGINS_DIR: path.join(siteDir, "agent-plugins") } }) };
+    const collected = await collectSiteBackupFiles({ sources, include: { database: false, media: false, themes: true, plugins: false, settings: false } }, { profile: "share" });
+    assert.equal(collected.files.length, 1);
+    assert.equal(collected.files[0]!.root, fs.realpathSync(themesDir));
+    const { zip, calls } = encoder();
+    await buildShareZip({ plan: plan({ files: collected.files }), zip }, { packageFiles: new Map() });
+    assert.equal(await calls[0]!.files[2]!.text(), "packaged page");
+    assert.equal(calls[0]!.files[2]!.webkitRelativePath, "share/themes/site/index.html");
+  });
+}

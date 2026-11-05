@@ -8,6 +8,7 @@ import ts from "typescript";
 // self-starting module, arm its watchdog, open a database, or bind a socket.
 function bootHarness(required: {
   memory: boolean;
+  attached?: boolean;
   tls?: boolean;
   bindError?: Error;
   schema?: "allow" | "refuse";
@@ -61,7 +62,7 @@ function bootHarness(required: {
       assert.equal(input.app, "Web");
       assert.equal(input.scheme, required.tls ? "https" : "http");
       calls.push("claim");
-      return { ready: (input: { port: number }) => { assert.equal(input.port, 4322); calls.push("ready"); } };
+      return { attached: required.attached ? { port: 4320 } : null, ready: (input: { port: number }) => { assert.equal(input.port, 4322); calls.push("ready"); } };
     },
     reportSitesSyncWarning: () => { calls.push("sync-warning"); },
     defaultContentDbPath: () => "/site/content.db",
@@ -142,3 +143,11 @@ for (const code of ["EADDRINUSE", "EACCES"]) {
     else assert.deepEqual(boot.messages, []);
   });
 }
+
+test("an existing site attachment bypasses schema reads, composition and a second listener", async () => {
+  const boot = bootHarness({ memory: false, attached: true });
+  await boot.main();
+  assert.equal(boot.calls.at(-1), "claim");
+  for (const step of ["schema", "ensure-key", "http", "https", "reserve", "ready"]) assert.equal(boot.calls.includes(step), false);
+  assert.deepEqual(boot.exits, []);
+});

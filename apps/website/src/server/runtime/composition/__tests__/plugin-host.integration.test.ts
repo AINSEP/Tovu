@@ -440,3 +440,20 @@ test('the composed MCP port preserves store errors by identity and persists thro
   assert.equal(row?.enabled, false);
   assert.equal(row?.allowedToolNames, "[]");
 });
+
+test('an approved enable reports the failed server and redacted reason to the owner', async t => {
+  const ctx = await fixture(t);
+  const token = ['ghp_', 'x'.repeat(36)].join('');
+  const host = createTovuPluginHost({ deps: ctx.deps }, {
+    warn: () => {}, resolveMcpServers: async () => ({}),
+    provisionMcpServers: async () => ({ provisioned: [], alreadyProvisioned: [], adopted: [], skipped: [],
+      failed: [{ serverKey: 'repository', reason: `provider refused credential ${token}` }] }),
+  });
+  await assert.rejects(host.getHostCapability({ capability: 'agent-plugin-lifecycle' })!.provisionMcp({ pluginId: 'github', principalId: 'owner' }, { approvedEnable: true }), error => {
+    assert.ok(error instanceof Error);
+    assert.match(error.message, /repository.*provider refused/);
+    assert.match(error.message, /plugins_set_enabled/);
+    assert.equal(error.message.includes(token), false);
+    return true;
+  });
+});

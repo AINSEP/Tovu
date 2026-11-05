@@ -12,7 +12,8 @@ function fixture(t: TestContext) {
   const sources: SiteBackupSources = { siteDir: root, mediaUploadsDir: null, themesDir: path.join(root, "themes"), skillsDir: path.join(root, "skills"), agentPlugins: resolveAgentPluginLayout({ siteDir: root }, { env: {} }), tovuVersion: "test" };
   const put = (file: string, text: string): PlannedDiskFile => {
     const absPath = path.join(root, file); fs.mkdirSync(path.dirname(absPath), { recursive: true }); fs.writeFileSync(absPath, text);
-    const stat = fs.statSync(absPath); return { path: file, absPath, bytes: stat.size, mtimeMs: stat.mtimeMs, scope: "themes" };
+    const ids = fs.statSync(absPath, { bigint: true });
+    const stat = fs.statSync(absPath); return { root, identity: ids.ino === 0n ? null : `${ids.dev}:${ids.ino}`, nlink: Number(ids.nlink), path: file, absPath, bytes: stat.size, mtimeMs: stat.mtimeMs, scope: "themes" };
   };
   return { root, sources, put };
 }

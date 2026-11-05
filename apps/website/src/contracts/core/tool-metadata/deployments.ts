@@ -3,6 +3,10 @@ import type { ToolApprovalPolicy } from './approval-policy.js';
 
 /** deployments registration declarations; shared placement rationale is in ./index.ts. */
 export const toolMetadata = {
+  "deployment_get_static_publish_status": {
+    search: { keywords: "publish deployment job progress timeout finished uploaded files did it land status result" },
+    approval: { class: 'read', confirmation: 'direct' },
+  },
   "deployment_execute_static_publish": {
     summary: 'This publishes the current site to the selected hosting project.',
     title: 'Publish static site',

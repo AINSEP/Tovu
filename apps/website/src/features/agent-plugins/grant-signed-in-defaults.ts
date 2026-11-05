@@ -1,4 +1,5 @@
 import type { Clock as ClockPort } from "@jini-ai/core/primitives";
+import { ToolInputError, redactSecrets } from '@jini-ai/core';
 
 import { agentPluginActivations } from "./activation-effects.js";
 import { createApplyConnectDefaults } from "./apply-connect-defaults.js";
@@ -33,8 +34,10 @@ import type { AgentPluginMcpPort } from "./service-ports.js";
  *   row whose write grants were ever set by anyone (`writeGrantsUpdatedByPrincipalId`) is skipped,
  *   so a boot never re-grants what an operator emptied on purpose after an earlier grant.
  *
- * Never widens a grant: a row with any tool already listed is left alone (the sign-in grant's own
- * rule), so a plugin update that declares more tools reaches no row that already has its tools.
+ * Automatic healing never widens a grant: a row with any tool already listed is left alone (the
+ * sign-in grant's own rule), so an update cannot silently reach a row that already has its tools.
+ * An explicit enable card is the exception: the owner reviewed the source and resulting lists,
+ * so its approvedEnable option can add those declared names even before sign-in.
  * The grant writes the row on and notifies the roster, so the running assistant admits the
  * connection's tools without a restart (Jini `federation/reload.ts` admits a not-yet-admitted row).
  */
@@ -52,6 +55,43 @@ export interface GrantSignedInDefaultsDeps {
   readonly warn?: (message: string) => void;
 }
 
+interface GrantDeclaredToolsOptions {
+  readonly onlyNeverGranted?: boolean;
+  /** Servers whose provisioning just failed (their row could not even be read or written): nothing to grant. */
+  readonly skipServerKeys?: readonly string[];
+  /** The enable card already named these sources and grants; sign-in can happen afterwards. */
+  readonly approvedEnable?: { readonly principalId: string };
+}
+
+/** Bind the existing sign-in grant to its explicit approval occasion; test ports retain precedence.
+ * @complexity O(1) construction, no I/O.
+ */
+function connectGrantFor({ deps, options }: { deps: GrantSignedInDefaultsDeps; options: GrantDeclaredToolsOptions }): (serverId: string) => Promise<void> {
+  return deps.onConnected ?? createApplyConnectDefaults({ workspaceId: deps.workspaceId, agentPluginLayout: deps.agentPluginLayout, repo: deps.repo, clock: deps.clock, notifyRosterChanged: deps.notifyRosterChanged }, options.approvedEnable ? { approvedEnable: options.approvedEnable } : {});
+}
+
+/** Run the existing grant owner for one eligible row, then report its actual durable change.
+ * @complexity Two indexed row reads plus the existing grant's own point read/write and reload.
+ */
+async function grantConnection({ deps, pluginId, connectionId, onConnected, options }: { deps: GrantSignedInDefaultsDeps; pluginId: string; connectionId: string; onConnected: (serverId: string) => Promise<void>; options: GrantDeclaredToolsOptions }): Promise<boolean> {
+  const row = await deps.repo.findByServerId({ workspaceId: deps.workspaceId, serverId: connectionId });
+  if (!eligibleGrantRow({ row, pluginId, approvedEnable: options.approvedEnable !== undefined })) return false;
+  if (options.onlyNeverGranted && row.writeGrantsUpdatedByPrincipalId !== null) return false;
+  await onConnected(connectionId);
+  const after = await deps.repo.findByServerId({ workspaceId: deps.workspaceId, serverId: connectionId });
+  return after !== null && (after.enabled !== row.enabled || after.allowedToolNames !== row.allowedToolNames || after.writeAllowedToolNames !== row.writeAllowedToolNames);
+}
+
+/** Explicit approvals must report a partial failure to the caller; boot healing remains advisory.
+ * @throws ToolInputError for the approved enable path, with bounded redacted cause.
+ * @complexity O(e) in error-message bytes; no I/O beyond the injected warning port.
+ */
+function grantFailure({ error, pluginId, connectionId, approved, warn }: { error: unknown; pluginId: string; connectionId: string; approved: boolean; warn: (message: string) => void }): void {
+  const detail = error instanceof Error ? error.message : String(error);
+  if (approved) throw new ToolInputError({ message: redactSecrets({ input: `The plugin is on, but '${connectionId}' could not load its approved tools. Request plugins_set_enabled again to retry. Details: ${detail.slice(0, 2000)}` }) });
+  warn(`[agent-plugins] '${pluginId}': could not turn on the '${connectionId}' connection with the tools the plugin declares — ${detail}`);
+}
+
 /**
  * Runs the sign-in grant on each of `pluginId`'s declared remote servers whose row this plugin
  * provisioned and that already holds a credential (finished sign-in or saved access token).
@@ -62,31 +102,29 @@ export interface GrantSignedInDefaultsDeps {
  */
 export async function grantDeclaredToolsToSignedInRows(
   required: { readonly deps: GrantSignedInDefaultsDeps; readonly pluginId: string; readonly servers: Readonly<Record<string, McpServerConfig>> },
-  optional: {
-    readonly onlyNeverGranted?: boolean;
-    /** Servers whose provisioning just failed (their row could not even be read or written): nothing to grant. */
-    readonly skipServerKeys?: readonly string[];
-  } = {},
+  optional: GrantDeclaredToolsOptions = {},
 ): Promise<readonly string[]> {
   const { deps, pluginId, servers } = required;
   const warn = deps.warn ?? ((message: string) => console.warn(message));
-  const onConnected = deps.onConnected ?? createApplyConnectDefaults({ workspaceId: deps.workspaceId, agentPluginLayout: deps.agentPluginLayout, repo: deps.repo, clock: deps.clock, notifyRosterChanged: deps.notifyRosterChanged });
+  const onConnected = connectGrantFor({ deps, options: optional });
   const granted: string[] = [];
   for (const [serverKey, config] of Object.entries(servers)) {
     const connectionId = config.type === "stdio" || optional.skipServerKeys?.includes(serverKey) ? null : deriveAgentPluginConnectionId(serverKey);
     if (connectionId === null) continue;
     try {
-      const row = await deps.repo.findByServerId({ workspaceId: deps.workspaceId, serverId: connectionId });
-      if (!row || row.provisionedByPluginId !== pluginId || !hasStoredAgentPluginCredential(row)) continue;
-      if (optional.onlyNeverGranted && row.writeGrantsUpdatedByPrincipalId !== null) continue;
-      await onConnected(connectionId);
-      const after = await deps.repo.findByServerId({ workspaceId: deps.workspaceId, serverId: connectionId });
-      if (after && after.allowedToolNames !== row.allowedToolNames) granted.push(connectionId);
+      if (await grantConnection({ deps, pluginId, connectionId, onConnected, options: optional })) granted.push(connectionId);
     } catch (error) {
-      warn(`[agent-plugins] '${pluginId}': could not turn on the '${connectionId}' connection with the tools the plugin declares — ${error instanceof Error ? error.message : String(error)}`);
+      grantFailure({ error, pluginId, connectionId, approved: optional.approvedEnable !== undefined, warn });
     }
   }
   return granted;
+}
+
+/** Explicit activation consent can precede sign-in; automatic healing still requires credentials.
+ * @complexity O(1), no I/O. */
+function eligibleGrantRow({ row, pluginId, approvedEnable }: { row: Awaited<ReturnType<GrantSignedInDefaultsDeps['repo']['findByServerId']>>; pluginId: string; approvedEnable: boolean }, _options = {}): row is NonNullable<typeof row> {
+  if (!row || row.provisionedByPluginId !== pluginId) return false;
+  return approvedEnable || hasStoredAgentPluginCredential(row);
 }
 
 /**

@@ -141,7 +141,18 @@ test("deployment_execute_static_publish waits for one human approval over HTTP b
   assert.equal(executed.status, "completed", `the approved call must complete: ${JSON.stringify(executed)}`);
   assert.equal(approvalCards, 1, "exactly one approval mechanism asks for this publish");
   assert.equal(routeExecutions, 0, "the human answer resumes the parked call without starting another");
-  const output = executed.output as { published: boolean; target: string; url: string };
+  const accepted = executed.output as { accepted: boolean; jobId: string };
+  assert.equal(accepted.accepted, true);
+  assert.ok(accepted.jobId);
+  let output!: { published: boolean; target: string; url: string };
+  for (let turn = 0; turn < 1000; turn++) {
+    const checked = await toolExecutor.execute({ principal: { id: PRINCIPAL }, run: { id: "run-status" }, toolId: "deployment_get_static_publish_status", input: { jobId: accepted.jobId } });
+    assert.equal(checked.status, "completed");
+    const job = checked.output as { status: string; result: typeof output };
+    if (job.status !== "running") { output = job.result; break; }
+    await new Promise<void>(resolve => setImmediate(resolve));
+  }
+  assert.ok(output, "background publish must produce a retrievable result");
   assert.equal(output.published, true, `expected a real publish to have happened: ${JSON.stringify(output)}`);
   assert.equal(output.target, "vercel");
   assert.equal(output.url, "https://example.test/published");

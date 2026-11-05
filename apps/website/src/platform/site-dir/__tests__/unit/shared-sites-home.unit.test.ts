@@ -41,14 +41,14 @@ test("Web creation uses the home, shared external registrations appear, and lega
     assert.equal(workspace.registry({}).list({}).find((entry) => entry.path === external)?.createdBy, "Desktop");
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
-test("a second boot refuses admission before touching database content", () => {
+test("a second boot attaches before touching database content", () => {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "tovu-running-home-")));
   const workspace = createSitesWorkspace({}, { homeDir: root, env: {} });
   const dir = path.join(root, "website"); writeSite(dir, "id"); fs.writeFileSync(path.join(dir, "content.db"), "keep bytes");
   const lease = claimSiteRunning({ dir, app: "Desktop" }, { workspace });
   try {
     lease.ready({ port: 3456 });
-    assert.throws(() => claimSiteRunning({ dir, app: "Web" }, { workspace }), /Running in Desktop \(port 3456\)/);
+    assert.equal(claimSiteRunning({ dir, app: "Web" }, { workspace }).attached?.port, 3456);
     assert.equal(fs.readFileSync(path.join(dir, "content.db"), "utf8"), "keep bytes");
   } finally { lease.release(); fs.rmSync(root, { recursive: true, force: true }); }
 });

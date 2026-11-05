@@ -36,5 +36,8 @@ test(`enabling a plugin mid-session makes its guidance discoverable through relo
   assert.ok(catalog.describe({ id: 'agent_plugin_ui_ux_design' }));
   await extensions.federation.reload();
   assert.equal(registry.list({}).filter(tool => tool.id === 'agent_plugin_ui_ux_design').length, 1);
+  await agentPluginActivations.setAgentPluginActivation({ ...activation, enabled: false });
+  await extensions.federation.reload();
+  assert.equal(catalog.describe({ id: 'agent_plugin_ui_ux_design' }), null, 'OFF plugins leave discovery on reload');
 });
 }

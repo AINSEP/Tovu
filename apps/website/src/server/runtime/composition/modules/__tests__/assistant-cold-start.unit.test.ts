@@ -112,3 +112,19 @@ test("admissions reads the server while the daemon stays stopped", async t => {
   assert.deepEqual(await readServerAdmissions({ awaitFederation: async () => ({ settled: true }), readAdmissions: async () => ({ connections: [] }) }), { ok: true, connections: [] });
   assert.equal(sends, 0);
 });
+
+test("activation keeps the upstream refusal status and redacted recovery details", async t => {
+  t.mock.method(globalThis, 'fetch', async () => Response.json({ error: 'The page service has no credential. Restart the site.',
+    code: 'DAEMON_TOKEN_MISSING', detail: 'Authorization: Bearer secret-token-value' }, { status: 503 }));
+  const urlBefore = process.env.JINI_AGENT_DAEMON_URL;
+  process.env.JINI_AGENT_DAEMON_URL = 'http://127.0.0.1:12345';
+  t.after(() => { if (urlBefore === undefined) delete process.env.JINI_AGENT_DAEMON_URL; else process.env.JINI_AGENT_DAEMON_URL = urlBefore; });
+  const result = response();
+  await assistantModule.activateFrontendDaemon({ req: req('POST', '/api/frontend-sessions/activate'), res: result.res }, {
+    ensureReady: async () => {},
+  });
+  assert.equal(result.status(), 503);
+  assert.match(JSON.stringify(result.body()), /no credential/);
+  assert.match(JSON.stringify(result.body()), /DAEMON_TOKEN_MISSING/);
+  assert.doesNotMatch(JSON.stringify(result.body()), /secret-token-value/);
+});

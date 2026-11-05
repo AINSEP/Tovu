@@ -43,7 +43,7 @@ test("2026-09-09 durability fix: boot-readiness-gate.ts imports inspectSiteKeyMa
   );
 });
 
-test("the production boot adapter refuses missing or invalid site keys and accepts a valid durable key file", (t) => {
+test("the production boot adapter warns for missing or invalid site keys and accepts a valid durable key file", (t) => {
   const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "boot-gate-"));
   t.after(() => fs.rmSync(cwd, { recursive: true, force: true }));
   const gateUrl = pathToFileURL(path.join(import.meta.dirname, "..", "boot-readiness-gate.ts")).href;
@@ -53,18 +53,18 @@ test("the production boot adapter refuses missing or invalid site keys and accep
   const run = () => spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e", script], { env, encoding: "utf8", timeout: 30000 });
   const missing = run();
   assert.equal(missing.error, undefined);
-  assert.equal(missing.status, 1, missing.stderr);
+  assert.equal(missing.status, 0, missing.stderr);
   assert.match(missing.stderr, /missing-site-key/);
-  assert.doesNotMatch(missing.stdout, /gate-passed/);
+  assert.match(missing.stdout, /gate-passed/);
 
   const keyFile = path.join(cwd, "sites", ".tovu", LEGACY_SITE_KEY_FILENAME);
   fs.mkdirSync(path.dirname(keyFile), { recursive: true });
   fs.writeFileSync(keyFile, "not-a-key");
   const invalid = run();
   assert.equal(invalid.error, undefined);
-  assert.equal(invalid.status, 1, invalid.stderr);
+  assert.equal(invalid.status, 0, invalid.stderr);
   assert.match(invalid.stderr, /missing-site-key/);
-  assert.doesNotMatch(invalid.stdout, /gate-passed/);
+  assert.match(invalid.stdout, /gate-passed/);
 
   fs.writeFileSync(keyFile, "7a".repeat(32), { mode: 0o600 });
   const valid = run();
@@ -81,17 +81,18 @@ test("production boot reads only TOVU_SITE_KEY: the removed pre-rename env name 
   const script = `process.chdir(process.env.TEST_GATE_CWD); const { runProductionReadinessGateOrExit } = await import(${JSON.stringify(gateUrl)}); await runProductionReadinessGateOrExit(); console.log("gate-passed");`;
   // Built from parts so the site-key naming guard does not flag this regression check itself.
   const removedName = ["TOVU", "INTEGRATIONS", "ROOT", "KEY"].join("_");
-  for (const [name, exit] of [[SITE_KEY_ENV_VAR_NAME, 0], [removedName, 1]] as const) {
+  for (const [name, missingKey] of [[SITE_KEY_ENV_VAR_NAME, false], [removedName, true]] as const) {
     const env: NodeJS.ProcessEnv = { ...process.env, TEST_GATE_CWD: cwd, HOME: cwd, TOVU_RUNTIME_MODE: "production", TOVU_ADMIN_PASSWORD: "nondefault-test-password", ANALYTICS_ROOT_KEY_SEED: "test-analytics-seed" };
     delete env.TOVU_SITE_KEY;
     delete env[removedName];
     env[name] = "7a".repeat(32);
     const child = spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e", script], { env, encoding: "utf8", timeout: 30000 });
     assert.equal(child.error, undefined);
-    assert.equal(child.status, exit, child.stderr);
-    if (exit) {
+    assert.equal(child.status, 0, child.stderr);
+    assert.match(child.stdout, /gate-passed/);
+    if (missingKey) {
       assert.match(child.stderr, /missing-site-key/);
-      assert.doesNotMatch(child.stdout, /gate-passed/);
+      assert.match(child.stdout, /gate-passed/);
       assert.doesNotMatch(child.stderr, /7a7a7a/);
     } else assert.match(child.stdout, /gate-passed/);
   }
@@ -125,7 +126,7 @@ test("the boot gate warns, without refusing, for a deployed local-mode boot and 
   assert.doesNotMatch(production.stderr, /7a7a7a/);
 });
 
-test("the boot gate prints the local owner sign-in refusal, and production with no admin password set refuses on the default owner password", (t) => {
+test("the boot gate prints the local owner sign-in refusal, and production with no admin password set warns on the default owner password", (t) => {
   const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "boot-gate-owner-"));
   t.after(() => fs.rmSync(cwd, { recursive: true, force: true }));
   const gateUrl = pathToFileURL(path.join(import.meta.dirname, "..", "boot-readiness-gate.ts")).href;
@@ -144,8 +145,10 @@ test("the boot gate prints the local owner sign-in refusal, and production with 
 
   const defaultPassword = run({ TOVU_RUNTIME_MODE: "production", ANALYTICS_ROOT_KEY_SEED: "test-analytics-seed", TOVU_SITE_KEY: "7a".repeat(32) });
   assert.equal(defaultPassword.error, undefined);
-  assert.equal(defaultPassword.status, 1, defaultPassword.stderr);
+  assert.equal(defaultPassword.status, 0, defaultPassword.stderr);
   assert.match(defaultPassword.stderr, /default-owner-password/);
-  assert.match(defaultPassword.stderr, /Refusing to boot in production mode/);
-  assert.doesNotMatch(defaultPassword.stdout, /gate-passed/);
+  assert.match(defaultPassword.stderr, /TOVU_ADMIN_PASSWORD is unset or the default/);
+  assert.match(defaultPassword.stderr, /already changed.*Admin.*ignore/i);
+  assert.doesNotMatch(defaultPassword.stderr, /default-owner-password, \d{4}-/);
+  assert.match(defaultPassword.stdout, /gate-passed/);
 });

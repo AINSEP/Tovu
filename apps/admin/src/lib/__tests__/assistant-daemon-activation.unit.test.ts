@@ -36,6 +36,23 @@ test("dock pre-warm uses the session-authenticated activation endpoint", async (
   assert.equal(seen?.init?.credentials, "same-origin");
 });
 
+test('activation failures retain pasteable server diagnostics for the chat notice', async () => {
+  await assert.rejects(activateAssistantDaemon({}, { request: async () => Response.json({
+    error: 'The assistant could not attach this page. Retry your message.', code: 'PAGE_SERVICE_NOT_READY',
+    detail: 'scope registration timed out',
+  }, { status: 503 }) }), error => error instanceof Error
+    && error.message.includes('Retry your message.') && error.message.includes('PAGE_SERVICE_NOT_READY')
+    && error.message.includes('scope registration timed out'));
+});
+
+test('network failure and failed attachment name the failed step and give a recovery action', async () => {
+  await assert.rejects(activateAssistantDaemon({}, { request: async () => { throw new TypeError('Failed to fetch'); } }),
+    /could not reach.*Retry.*Details:/s);
+  await assert.rejects(prepareAssistantPageBinding({ bridge: {
+    rebind: async () => { throw new DOMException('deadline', 'TimeoutError'); }, bindToken: () => undefined,
+  } }, { activate: async () => {} }), /could not attach.*Reload/s);
+});
+
 test("wake rebinds a previously parked bridge", async () => {
   const tab = fakeBrowserOrigin().tab(); const sources: StreamFake[] = [];
   const bridge = createFrontendSessionBridge({ baseUrl: "", fetch: vi.fn() as typeof fetch,

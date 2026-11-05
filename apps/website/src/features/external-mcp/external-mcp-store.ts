@@ -1,3 +1,4 @@
+import { ToolInputError } from "@jini-ai/core";
 import { resolveExternalMcpOAuthStatus } from "../../contracts/core/external-mcp-auth.js";
 /**
  * @file The operator-editable roster of external MCP servers — what Settings → External MCP writes,
@@ -123,12 +124,14 @@ function parseJsonObject(raw: string | null): Record<string, string> {
   }
 }
 
-function parseJsonArray(raw: string | null): string[] {
-  if (!raw) return [];
+function parseJsonArray(raw: string | null, strict = false): string[] {
+  if (raw === null) return [];
   try {
     const parsed: unknown = JSON.parse(raw);
+    if (strict && (!Array.isArray(parsed) || !parsed.every(v => typeof v === "string"))) throw new Error("malformed");
     return Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === "string") : [];
   } catch {
+    if (strict) throw new ToolInputError({ message: "The plugin connection has an unreadable tool list. Save its tool list again before enabling it." });
     return [];
   }
 }
@@ -187,10 +190,11 @@ export function externalMcpAdmissionRevision(
  *  @complexity O(n) in the size of the two JSON blobs. */
 export function readExternalMcpToolGrants(
   record: Pick<ExternalMcpServerRecord, "allowedToolNames" | "writeAllowedToolNames">,
+  options: { strict?: boolean } = {},
 ): { allowedToolNames: string[]; writeAllowedToolNames: string[] } {
   return {
-    allowedToolNames: parseJsonArray(record.allowedToolNames),
-    writeAllowedToolNames: parseJsonArray(record.writeAllowedToolNames),
+    allowedToolNames: parseJsonArray(record.allowedToolNames, options.strict),
+    writeAllowedToolNames: parseJsonArray(record.writeAllowedToolNames, options.strict),
   };
 }
 
@@ -354,6 +358,14 @@ function parseToolNameList(raw: string, field: string): string[] {
     .map((part) => part.trim())
     .filter((part) => part.length > 0);
 
+  return validateExternalMcpToolNames({ names, field });
+}
+
+/** Validate already-decoded names using the save path's charset, cap and dedup rule.
+ * @throws ExternalMcpValidationError for a refused name or more than 64 tools.
+ * @complexity O(names), no I/O.
+ */
+export function validateExternalMcpToolNames({ names, field }: { names: readonly string[]; field: string }, _options = {}): string[] {
   if (names.length > MAX_ALLOWED_TOOLS) {
     throw new ExternalMcpValidationError(`at most ${MAX_ALLOWED_TOOLS} tools are supported`, field);
   }
@@ -499,8 +511,8 @@ async function toView(record: ExternalMcpServerRecord, sealer?: SecretSealerPort
     command: record.command ?? "",
     url: record.url,
     args: parseJsonArray(record.args),
-    allowedToolNames: parseJsonArray(record.allowedToolNames),
-    writeAllowedToolNames: parseJsonArray(record.writeAllowedToolNames),
+    allowedToolNames: parseJsonArray(record.allowedToolNames, options.strict),
+    writeAllowedToolNames: parseJsonArray(record.writeAllowedToolNames, options.strict),
     writeGrantsUpdatedByPrincipalId: record.writeGrantsUpdatedByPrincipalId,
     writeGrantsUpdatedAt: record.writeGrantsUpdatedAt,
     envNames: parseJsonArray(record.envNames),

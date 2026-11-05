@@ -1,3 +1,5 @@
+import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
+import { createPublishJobStore, type PublishJobSnapshot, type DeployPublishProgress } from "@jini-ai/devops/deploy";
 import { publishStaticSite, type StaticPublishDeps, type StaticPublishInput } from "./adapter.js";
 import type { PublishHistoryEntry, PublishHistoryStore, PublishTrigger } from "./publish-history.js";
 import { publicPublishConfigFields } from "./publish-history.js";
@@ -31,7 +33,7 @@ import type { StaticPublishOutcome, StaticPublishTargetId } from "./types.js";
  * is what lets both callers import ONE real module without either one crossing that back-edge.
  *
  * DISCLOSED CROSS-PROCESS GAP, same shape `export-run.ts`'s own header already discloses for its own
- * `currentRun`: this module's `currentRun` is a plain in-memory variable, single-flight-correct only
+ * `currentRun`: this module's publish-job store is process-local, single-flight-correct only
  * WITHIN one OS process. Tovu's admin HTTP server and the standalone agent daemon
  * (`assistant/agent-daemon-server.ts`) each load their own independent copy of this module — there is
  * no cross-process lock, and this file does not attempt to add one (that is a design change, e.g. a
@@ -54,8 +56,7 @@ import type { StaticPublishOutcome, StaticPublishTargetId } from "./types.js";
  * persistence code. See `./publish-history.ts`'s own header for the storage design (an append-only
  * `publish_history` table, `src/platform/db/schema.sqlite.ts`; migration `0043`).
  *
- * `historyStore` is a REQUIRED parameter on both {@link startPublishRun} and
- * {@link runPublishAndAwait} — deliberately no module-level default the way this file's original
+ * `historyStore` is a REQUIRED parameter on {@link startPublishRun} — deliberately no module-level default the way this file's original
  * (file-backed) design had one. A DB-backed store needs a live `ContentDb` handle to construct, and
  * only the composition root (`server/deps.ts`/`server/app.ts`) has one; a module-level singleton
  * constructed at import time cannot get one without either module-load-time I/O (this module's own
@@ -67,21 +68,23 @@ import type { StaticPublishOutcome, StaticPublishTargetId } from "./types.js";
  * an explicit `InMemoryPublishHistoryStore`, so this change needed no test-signature updates.
  *
  * `toHistoryEntry` below also decides `triggeredBy` (`'admin_ui'` vs `'agent_tool'`) — not a
- * caller-supplied field, but a literal each of {@link startPublishRun}/{@link runPublishAndAwait}
- * hardcodes when it calls {@link recordHistoryIfPublished}, since which function ran IS the answer
+ * caller-supplied field, but a trigger bound by each caller of {@link startPublishRun}
+ * when it calls {@link recordHistoryIfPublished}, since which function ran IS the answer
  * (see `publish-history.ts`'s own `PublishTrigger` doc).
  */
 
 export type PublishRunStatus = "idle" | "running" | "completed" | "errored";
 
 export interface PublishRunSnapshot {
+  readonly jobId?: string;
+  readonly requestId?: string;
+  readonly progress?: DeployPublishProgress;
   status: PublishRunStatus;
   startedAtIso: string | null;
   finishedAtIso: string | null;
   target: StaticPublishTargetId | null;
   /** Present only once `status` is `"completed"` or `"errored"` AND the run reached a real outcome
-   *  (see {@link runPublishAndAwait}'s own doc for the one path that settles the run WITHOUT ever
-   *  populating this — an unexpected throw out of `publishStaticSite` populates `error` instead). */
+   *  (an unexpected throw out of `publishStaticSite` populates `error` instead). */
   result?: StaticPublishOutcome;
   /** Populated only when the run settled via an unexpected throw rather than a normal
    *  `StaticPublishOutcome` — a message, never the raw error object, same boundary
@@ -91,9 +94,9 @@ export interface PublishRunSnapshot {
 
 const IDLE_RUN: PublishRunSnapshot = { status: "idle", startedAtIso: null, finishedAtIso: null, target: null };
 
-/** Process-local mutable slot — see this file's header for exactly which callers share ONE instance
+/** Process-local job store — see this file's header for exactly which callers share ONE instance
  *  of it and which do not. */
-let currentRun: PublishRunSnapshot = IDLE_RUN;
+const publishJobs = createPublishJobStore<StaticPublishOutcome>({});
 
 /**
  * Maps a settled `outcome` into the durable record this run's publish produced — `undefined` when
@@ -187,7 +190,7 @@ async function recordHistoryIfPublished(
  * @complexity O(1).
  */
 export function getPublishRunSnapshot(): PublishRunSnapshot {
-  return currentRun;
+  return publishJobs.latest() ?? IDLE_RUN;
 }
 
 /** Capture one accepted/settled publish at the shared run owner. No provider payload leaves here.
@@ -198,18 +201,32 @@ function publishEvent(required: { deps: StaticPublishDeps; input: StaticPublishI
   deps.tracker?.capture({ name: outcome ? "deploy_finished" : "site_publish_started", userId: input.productEvent.userId }, { properties: { operationId, eventId: `publish:${operationId}:${outcome ?? "started"}`, target: input.config.target, source: input.productEvent.source, ...(outcome ? { outcome } : {}) } });
 }
 
-function beginRun(target: StaticPublishTargetId, clock: { nowIso(): string }): string {
-  const startedAtIso = clock.nowIso();
-  currentRun = { status: "running", startedAtIso, finishedAtIso: null, target };
-  return startedAtIso;
+/** Scoped job lookup for transport adapters; permission checks belong to the caller.
+ * No export bytes, credentials or raw provider error objects enter a snapshot.
+ * @complexity O(1) by ID; O(20) for the site's latest retained job.
+ */
+export function getPublishJobSnapshot({ workspaceId, jobId, requestId }: { workspaceId: string; jobId?: string; requestId?: string }, _options = {}): PublishJobSnapshot<StaticPublishOutcome> | undefined {
+  return publishJobs.get({ scopeId: workspaceId, ...(jobId !== undefined ? { jobId } : {}), ...(requestId !== undefined ? { requestId } : {}) });
 }
 
-function settleWithOutcome(startedAtIso: string, target: StaticPublishTargetId, outcome: StaticPublishOutcome, clock: { nowIso(): string }): void {
-  currentRun = { status: outcome.ok ? "completed" : "errored", startedAtIso, finishedAtIso: clock.nowIso(), target, result: outcome };
+function beginRun(input: StaticPublishInput, clock: { nowIso(): string }, jobId: string): void {
+  publishJobs.begin({ jobId, ...(input.requestId ? { requestId: input.requestId } : {}), scopeId: input.workspaceId, target: input.config.target, startedAtIso: clock.nowIso() });
 }
 
-function settleWithError(startedAtIso: string, target: StaticPublishTargetId, err: unknown, clock: { nowIso(): string }): void {
-  currentRun = { status: "errored", startedAtIso, finishedAtIso: clock.nowIso(), target, error: err instanceof Error ? err.message : String(err) };
+function settleWithOutcome(jobId: string, outcome: StaticPublishOutcome, clock: { nowIso(): string }): void {
+  if (outcome.ok) publishJobs.progress({ jobId, progress: { url: outcome.url,
+    ...(outcome.deploymentId ? { deploymentCreated: true, deploymentId: outcome.deploymentId } : {}) } });
+  publishJobs.settle({ jobId, status: outcome.ok ? "completed" : "errored", finishedAtIso: clock.nowIso(), result: outcome });
+}
+
+function settleWithError(jobId: string, err: unknown, clock: { nowIso(): string }): void {
+  // Unexpected exceptions can embed credentials. Provider errors use the adapter's safe outcome.
+  publishJobs.settle({ jobId, status: "errored", finishedAtIso: clock.nowIso(), error: redactSecretShapes({ text: err instanceof Error ? err.message : String(err) }).text });
+}
+
+/** Bind provider progress to this job, independently of the initiating tool's signal. */
+function jobInput(input: StaticPublishInput, jobId: string): StaticPublishInput {
+  return { ...input, onProgress: progress => publishJobs.progress({ jobId, progress }) };
 }
 
 /**
@@ -219,9 +236,9 @@ function settleWithError(startedAtIso: string, target: StaticPublishTargetId, er
  * fire-and-forget shape as `export-run.ts`'s `startExportRun`, which this mirrors).
  *
  * Caller contract: the caller must have already confirmed `getPublishRunSnapshot().status !==
- * "running"` in the SAME synchronous stretch of the event loop, with no `await` in between — this
- * function does not re-check, so calling it while a run is already in flight would silently start a
- * second one; it is deliberately not the guard itself (identical contract to `startExportRun`'s own
+ * "running"` in the SAME synchronous stretch of the event loop, with no `await` in between. The
+ * shared Jini store also refuses a second running job, so a missed caller guard fails closed rather
+ * than starting concurrent exports. This preserves the caller contract (`startExportRun`'s own
  * doc, restated here rather than merely cross-referenced since violating it is exactly the bug this
  * whole file exists to close).
  *
@@ -233,73 +250,23 @@ function settleWithError(startedAtIso: string, target: StaticPublishTargetId, er
  *   complexity note (one export pass plus one provider's fixed poll budget).
  */
 export function startPublishRun(deps: StaticPublishDeps, input: StaticPublishInput, clock: { nowIso(): string }, historyStore: PublishHistoryStore,
-  optional: { onSettled?: (settled: { status: "completed" | "errored" }) => void } = {}): PublishRunSnapshot {
+  optional: { onSettled?: (settled: { status: "completed" | "errored" }) => void; triggeredBy?: PublishTrigger } = {}): PublishRunSnapshot {
   const operationId = input.idGen.newId();
-  const startedAtIso = beginRun(input.config.target, clock);
+  beginRun(input, clock, operationId);
   publishEvent({ deps, input, operationId });
 
-  void publishStaticSite(deps, input)
+  void publishStaticSite(deps, jobInput(input, operationId))
     .then(async (outcome) => {
       // Record first: callers that refresh destinations once the snapshot completes must see this run.
-      await recordHistoryIfPublished(deps, historyStore, input, outcome, clock, "admin_ui");
-      settleWithOutcome(startedAtIso, input.config.target, outcome, clock);
+      await recordHistoryIfPublished(deps, historyStore, input, outcome, clock, optional.triggeredBy ?? "admin_ui");
+      settleWithOutcome(operationId, outcome, clock);
     })
-    .catch((err: unknown) => settleWithError(startedAtIso, input.config.target, err, clock))
+    .catch((err: unknown) => settleWithError(operationId, err, clock))
     .finally(() => {
-      const status = currentRun.status === "completed" ? "completed" : "errored";
+      const status = publishJobs.get({ scopeId: input.workspaceId, jobId: operationId })?.status === "completed" ? "completed" : "errored";
       publishEvent({ deps, input, operationId, outcome: status });
       optional.onSettled?.({ status });
     });
 
-  return currentRun;
-}
-
-/**
- * Starts a new publish run and awaits its outcome, for a caller that must return the real result
- * synchronously within one call rather than poll a separate status endpoint —
- * `deployment_execute_static_publish`'s confirmed path (`publish-agent-tools.ts`): the agent's tool
- * call blocks until the human confirms AND the publish itself settles, so there is no separate poll
- * step for it to report through the way the HTTP trigger route does.
- *
- * Updates the SAME shared {@link currentRun} slot {@link startPublishRun} does, so a concurrent HTTP
- * trigger sees "running" while this call is in flight, and vice versa — this is the actual fix for
- * the cross-caller race: both entry points into a real publish now go through one guarded slot.
- *
- * Same caller contract as {@link startPublishRun}: the caller must have already confirmed
- * `getPublishRunSnapshot().status !== "running"` in the same synchronous stretch, no `await` in
- * between, before calling this.
- *
- * If `publishStaticSite` itself throws (it documents that it never does, but see this dispatch's
- * separate finding on that contract), the run is still settled to `"errored"` — the slot must never
- * stay stuck on `"running"` forever just because the underlying call broke its own contract — and the
- * error is RE-THROWN unchanged, preserving `deployment_execute_static_publish`'s existing behavior for
- * an unexpected throw (this function adds single-flight bookkeeping around the call, not a new error
- * shape).
- *
- * @param historyStore - See this file's header ("Publish history") — REQUIRED, no module-level
- *   default; real callers pass `RouteDeps.publishHistoryStore`, tests pass an
- *   `InMemoryPublishHistoryStore`.
- * @complexity Same bound as {@link startPublishRun} — one export pass plus one provider's fixed poll
- *   budget — but AWAITED by the caller rather than backgrounded.
- */
-export async function runPublishAndAwait(
-  deps: StaticPublishDeps,
-  input: StaticPublishInput,
-  clock: { nowIso(): string },
-  historyStore: PublishHistoryStore
-): Promise<StaticPublishOutcome> {
-  const operationId = input.idGen.newId();
-  const startedAtIso = beginRun(input.config.target, clock);
-  publishEvent({ deps, input, operationId });
-  try {
-    const outcome = await publishStaticSite(deps, input);
-    settleWithOutcome(startedAtIso, input.config.target, outcome, clock);
-    await recordHistoryIfPublished(deps, historyStore, input, outcome, clock, "agent_tool");
-    publishEvent({ deps, input, operationId, outcome: outcome.ok ? "completed" : "errored" });
-    return outcome;
-  } catch (err) {
-    publishEvent({ deps, input, operationId, outcome: "errored" });
-    settleWithError(startedAtIso, input.config.target, err, clock);
-    throw err;
-  }
+  return getPublishRunSnapshot();
 }

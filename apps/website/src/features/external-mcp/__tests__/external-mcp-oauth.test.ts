@@ -838,7 +838,7 @@ test("the connection gate lets a healthy OAuth connection through", async () => 
     script: [{ json: { token_type: "Bearer", access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } }],
   });
   await connect(service);
-  const gate = createExternalMcpConnectionGate({ workspaceId: WORKSPACE, repo });
+  const gate = createExternalMcpConnectionGate({ workspaceId: WORKSPACE, isPluginEnabled: async () => true, repo });
 
   await gate(SERVER, await rosterCallTarget(repo, SERVER, "generate_image"));
 });
@@ -853,7 +853,7 @@ test("the connection gate refuses a needs_reauth connection with the terminal, m
   await connect(service);
   clock.advance(60 * 60 * 1000);
   await assert.rejects(() => service.tokenResolver.resolveAccessToken({ serverId: SERVER }));
-  const gate = createExternalMcpConnectionGate({ workspaceId: WORKSPACE, repo });
+  const gate = createExternalMcpConnectionGate({ workspaceId: WORKSPACE, isPluginEnabled: async () => true, repo });
   const call = await rosterCallTarget(repo, SERVER, "generate_image");
 
   let caught: unknown;
@@ -882,7 +882,7 @@ test("the gate still refuses a needs_reauth ROSTER connection with the unchanged
   await connect(service);
   clock.advance(60 * 60 * 1000);
   await assert.rejects(() => service.tokenResolver.resolveAccessToken({ serverId: SERVER }));
-  const gate = createExternalMcpConnectionGate({ workspaceId: WORKSPACE, repo });
+  const gate = createExternalMcpConnectionGate({ workspaceId: WORKSPACE, isPluginEnabled: async () => true, repo });
   const call = await rosterCallTarget(repo, SERVER, "generate_image");
 
   await assert.rejects(
@@ -906,7 +906,7 @@ test("the connection gate reads the ROW, so the daemon sees a state the web serv
     ],
   });
   await connect(service);
-  const daemonGate = createExternalMcpConnectionGate({ workspaceId: WORKSPACE, repo });
+  const daemonGate = createExternalMcpConnectionGate({ workspaceId: WORKSPACE, isPluginEnabled: async () => true, repo });
   const call = await rosterCallTarget(repo, SERVER, "generate_image");
   await daemonGate(SERVER, call);
 
@@ -920,14 +920,14 @@ test("the connection gate reads the ROW, so the daemon sees a state the web serv
 
 test("the connection gate passes through a connection id it has no row for — presets have none", async () => {
   const { repo } = await makeHarness();
-  const gate = createExternalMcpConnectionGate({ workspaceId: WORKSPACE, repo });
+  const gate = createExternalMcpConnectionGate({ workspaceId: WORKSPACE, isPluginEnabled: async () => true, repo });
 
   await gate("supabase", { remoteName: "some_tool", declaredAnnotations: undefined, origin: { kind: "preset" } });
 });
 
 test("a preset call is not refused for a missing row, even for a connection id that looks like a roster one", async () => {
   const { repo } = await makeHarness();
-  const gate = createExternalMcpConnectionGate({ workspaceId: WORKSPACE, repo });
+  const gate = createExternalMcpConnectionGate({ workspaceId: WORKSPACE, isPluginEnabled: async () => true, repo });
 
   // `higgs` DOES have a row (created by `makeHarness`) — this proves the preset short-circuit is
   // driven by `call.origin.kind`, not by whether a row happens to exist.
@@ -940,7 +940,7 @@ test("the gate refuses an OAuth connection the operator disconnected", async () 
   });
   await connect(service);
   await service.disconnect({ serverId: SERVER });
-  const gate = createExternalMcpConnectionGate({ workspaceId: WORKSPACE, repo });
+  const gate = createExternalMcpConnectionGate({ workspaceId: WORKSPACE, isPluginEnabled: async () => true, repo });
   const call = await rosterCallTarget(repo, SERVER, "generate_image");
 
   await assert.rejects(
@@ -963,7 +963,7 @@ test("the gate refuses a non-preset call with no admission origin", async () => 
     script: [{ json: { token_type: "Bearer", access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } }],
   });
   await connect(service);
-  const gate = createExternalMcpConnectionGate({ workspaceId: WORKSPACE, repo });
+  const gate = createExternalMcpConnectionGate({ workspaceId: WORKSPACE, isPluginEnabled: async () => true, repo });
 
   await assert.rejects(
     () => gate(SERVER, { remoteName: "generate_image", declaredAnnotations: undefined, origin: undefined }),
@@ -992,7 +992,7 @@ test("the connection gate ignores a static_env server, which has no authorizatio
       principalId: "principal-1",
     },
   );
-  const gate = createExternalMcpConnectionGate({ workspaceId: WORKSPACE, repo });
+  const gate = createExternalMcpConnectionGate({ workspaceId: WORKSPACE, isPluginEnabled: async () => true, repo });
 
   await gate("plain", await rosterCallTarget(repo, "plain", "some_tool"));
 });

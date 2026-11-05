@@ -9,26 +9,29 @@ import type { DirectoryRunningRecord } from "@jini-ai/platform/fs";
 export function readSiteRunning({ dir }: { dir: string }, { workspace = createSitesWorkspace({}) }: { workspace?: SitesWorkspace } = {}): DirectoryRunningRecord | null {
   return workspace.running({ path: dir }).read({});
 }
-export function runningSiteUrl({ record }: { record: DirectoryRunningRecord }, _options = {}): string | null {
+export function runningSiteUrl({ record }: { record: DirectoryRunningRecord }): string | null {
   return record.port > 0 ? `${record.scheme}://localhost:${record.port}/admin/` : null;
 }
 /** Must precede all database reads/writes; a concurrent loser cannot open content.db.
- * @throws An actionable running/starting message; malformed locks also fail closed.
+ * Returns an attachment when a live server already owns the database; only a new owner updates it.
+ * @throws Malformed locks still fail closed because their database owner cannot be established.
  * @complexity O(1) JSON I/O and liveness probe.
  */
 export function claimSiteRunning(
   { dir, app, scheme = "http" }: { dir: string; app: "Web" | "Desktop"; scheme?: "http" | "https" },
-  { workspace = createSitesWorkspace({}), readSite = readSiteDir }: { workspace?: SitesWorkspace; readSite?: typeof readSiteDir } = {},
+  { workspace = createSitesWorkspace({}), readSite = readSiteDir, log = (line: string) => console.log(line) }: { workspace?: SitesWorkspace; readSite?: typeof readSiteDir; log?: (line: string) => void } = {},
 ) {
   const claim = workspace.claim({ path: dir, app, scheme });
   if (!claim.acquired) {
-    const status = claim.record.port > 0 ? `port ${claim.record.port}` : "starting";
-    throw new Error(`Running in ${claim.record.app} (${status}). ${runningSiteUrl({ record: claim.record }) ?? "Wait for this site to finish starting."}`);
+    const url = runningSiteUrl({ record: claim.record });
+    log(url ? `Using the site already running in ${claim.record.app}: ${url}` : `Using the site starting in ${claim.record.app}. Its admin URL will be available when that server finishes starting.`);
+    // Attachment never owns the other process's token, database or exit cleanup.
+    return { attached: claim.record, ready: () => {}, release: () => {} };
   }
   const lock = workspace.running({ path: dir });
   const release = () => lock.release({ token: claim.record.token });
   process.once("exit", release);
-  return { ready: ({ port }: { port: number }, _options = {}) => {
+  return { attached: null, ready: ({ port }: { port: number }) => {
     lock.update({ token: claim.record.token, port });
     let site: ReturnType<typeof readSiteDir>;
     try { site = readSite({ dir }); }
@@ -40,5 +43,5 @@ export function claimSiteRunning(
     workspace.registry({}).merge({ entries: [{ id: site.meta.siteId, name: site.config.name, path: dir, createdBy: app, lastOpened: null }] });
     workspace.registry({}).opened({ path: dir, at: new Date().toISOString() });
   },
-    release: (_required: Record<string, never> = {}, _options = {}) => { process.removeListener("exit", release); release(); } };
+    release: () => { process.removeListener("exit", release); release(); } };
 }

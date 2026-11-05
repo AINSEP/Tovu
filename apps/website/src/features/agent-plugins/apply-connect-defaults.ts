@@ -2,17 +2,19 @@ import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 /**
  * @file Grants a plugin's declared default tools (`mcp.json`'s `tovuDefaultTools`, parsed by
  * `manifest.ts`) on the operator's FIRST successful sign-in to a server that plugin provisioned — so
- * connecting is the only step, with no trip to Settings to tick tools.
+ * connecting is the only step, with no trip to Settings to tick tools. An explicit enable card
+ * calls the same owner with its listed grants, even when sign-in will happen afterwards.
  *
  * `federate-mcp.ts` rule 3 ("provisioning is not authorization") still holds: provisioning writes a
- * disabled row with empty lists, and only the human's own sign-in, which is what calls this, turns
- * the declared defaults on.
+ * disabled row with empty lists; a human sign-in or an enable card naming the source and grants
+ * is what authorizes turning the declared defaults on.
  *
  * Applied only when ALL of these hold, and otherwise nothing is written:
  * - the row names a provisioning plugin (`provisionedByPluginId`), so an operator's own row is never
  *   touched;
- * - both tool lists are still empty, so a row the operator already edited is never touched, and a
- *   second sign-in (lists now filled) is a no-op;
+ * - on sign-in both tool lists are still empty, so a row the operator already edited is never
+ *   touched, and a second sign-in (lists now filled) is a no-op. An explicit enable card may add
+ *   its listed defaults to existing grants, preserving the owner's other granted names;
  * - the installed plugin still declares a server that maps to this row at the SAME url, so defaults
  *   written for one endpoint never land on a row an operator pointed somewhere else;
  * - no operator turned the plugin off (a seeder's default-off record does not count).
@@ -24,6 +26,7 @@ import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
  */
 import type { AgentPluginMcpPort } from "./service-ports.js";
 import type { Clock as ClockPort } from "@jini-ai/core/primitives";
+import { storedAgentPluginGrants, validatedAgentPluginToolGrant } from './enable-access.js';
 
 // activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
 import { agentPluginActivations } from "./activation-effects.js";
@@ -81,6 +84,22 @@ export interface ApplyConnectDefaultsDeps extends Pick<AgentPluginMcpPort, "repo
   readonly isPluginOffByOperator?: (pluginId: string) => Promise<boolean>;
 }
 
+/** Read one matching plugin row and delegate the grant decision to Jini.
+ * @complexity One indexed row read plus that plugin's existing manifest resolution; O(a+w) lists.
+ */
+async function readConnectGrant({ deps, serverId, resolveServers, approvedEnable }: { deps: ApplyConnectDefaultsDeps; serverId: string; resolveServers: NonNullable<ApplyConnectDefaultsDeps['resolveServers']>; approvedEnable: boolean }) {
+  const row = await deps.repo.findByServerId({ workspaceId: deps.workspaceId, serverId });
+  if (!row) return null;
+  const pluginId = row.provisionedByPluginId;
+  if (!pluginId) return null;
+  if (!approvedEnable && (!isEmptyJsonList(row.allowedToolNames) || !isEmptyJsonList(row.writeAllowedToolNames))) return null;
+  const defaults = findAgentPluginMcpServerDefaults(await resolveServers({ workspaceId: deps.workspaceId, pluginId }), row);
+  // A read-only declaration is classification, not permission to change sign-in grants.
+  if (!defaults?.allow) return null;
+  const grant = validatedAgentPluginToolGrant({ current: storedAgentPluginGrants({ row }), declared: defaults }, { reason: approvedEnable ? 'owner-enable' : 'sign-in' });
+  return grant ? { row, pluginId, grant } : null;
+}
+
 /**
  * Builds the `onConnected(serverId)` port.
  *
@@ -88,21 +107,16 @@ export interface ApplyConnectDefaultsDeps extends Pick<AgentPluginMcpPort, "repo
  * failing the sign-in.
  * @complexity O(s) in the plugin's declared server count, plus one row write and one activation write.
  */
-export function createApplyConnectDefaults(deps: ApplyConnectDefaultsDeps, _options = {}): (serverId: string) => Promise<void> {
+export function createApplyConnectDefaults(deps: ApplyConnectDefaultsDeps, options: { readonly approvedEnable?: { readonly principalId: string } } = {}): (serverId: string) => Promise<void> {
   const resolveServers = deps.resolveServers ?? ((input: { workspaceId: string; pluginId: string }) => resolveAgentPluginMcpServers({ ...input, agentPluginLayout: deps.agentPluginLayout }));
   const enablePlugin =
     deps.enablePlugin ?? ((input: { workspaceId: string; pluginId: string }) => switchPluginOnUnlessOperatorOff({ ...input, agentPluginLayout: deps.agentPluginLayout }));
   const isOff = deps.isPluginOffByOperator ?? ((pluginId: string) => isPluginOffByOperator({ workspaceId: deps.workspaceId, agentPluginLayout: deps.agentPluginLayout, pluginId }));
 
   return async (serverId) => {
-    const row = await deps.repo.findByServerId({ workspaceId: deps.workspaceId, serverId });
-    const pluginId = row?.provisionedByPluginId;
-    if (!row || !pluginId) return;
-    if (!isEmptyJsonList(row.allowedToolNames) || !isEmptyJsonList(row.writeAllowedToolNames)) return;
-
-    const defaults = findAgentPluginMcpServerDefaults(await resolveServers({ workspaceId: deps.workspaceId, pluginId }), row);
-    // A read-only declaration is classification, not permission to change sign-in grants.
-    if (!defaults?.allow) return;
+    const prepared = await readConnectGrant({ deps, serverId, resolveServers, approvedEnable: options.approvedEnable !== undefined });
+    if (!prepared) return;
+    const { row, pluginId, grant } = prepared;
     // A sign-in is not an "on" switch: an operator's explicit plugin-off stays off, exactly as on
     // the saved-token path (`switch-on-saved-token.ts`). The sign-in itself still completes.
     if (await isOff(pluginId)) return;
@@ -117,9 +131,9 @@ export function createApplyConnectDefaults(deps: ApplyConnectDefaultsDeps, _opti
     await deps.repo.upsert({
       ...row,
       enabled: true,
-      allowedToolNames: JSON.stringify(defaults.allow),
-      writeAllowedToolNames: JSON.stringify(defaults.write),
-      writeGrantsUpdatedByPrincipalId: CONNECT_DEFAULTS_ACTOR,
+      allowedToolNames: JSON.stringify(grant.allow),
+      writeAllowedToolNames: JSON.stringify(grant.write),
+      writeGrantsUpdatedByPrincipalId: options.approvedEnable?.principalId ?? CONNECT_DEFAULTS_ACTOR,
       writeGrantsUpdatedAt: nowIso,
       updatedAt: nowIso,
     });

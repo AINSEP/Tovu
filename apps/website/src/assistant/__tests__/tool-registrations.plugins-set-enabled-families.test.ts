@@ -589,7 +589,7 @@ test("plugins_set_enabled: disabling a site-runtime plugin says its tool is refu
   );
 });
 
-test("disabling an Agent Plugin says exactly what stopped — and that its provisioned external MCP connections did NOT", async () => {
+test("disabling an Agent Plugin reports that its guidance and external tools stop while credentials are retained", async () => {
   await withInstalledAgentPlugin(async () => {
     const { deps } = fakeRouteDeps();
     const tool = setEnabledTool(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }));
@@ -597,11 +597,8 @@ test("disabling an Agent Plugin says exactly what stopped — and that its provi
 
     assert.equal(
       out.note,
-      `Disabled and saved. This takes effect immediately, with no restart: the activation record is re-read at ` +
-        `the start of every run AND again before every agent_plugin_${AGENT_PLUGIN_ID} call, so the plugin's own ` +
-        `tool stops answering at once rather than lingering until Tovu restarts. This does NOT change any external ` +
-        `MCP server connection the plugin set up: if an operator turned one on, its mcp__<server>__* tools keep ` +
-        `working until that connection is disabled under Integrations → External MCP.`,
+      'Disabled and saved. Its guidance and provisioned external MCP tools stop immediately. ' +
+        'The connection rows and saved sign-in are retained. Ask to turn the plugin on through plugins_set_enabled before using it again.',
     );
   });
 });
@@ -680,11 +677,11 @@ test("a version changed while enabling was approved is refused without an activa
   await assert.rejects(call(tool, { family: "site-runtime", pluginId: SITE_PLUGIN.id, enabled: true }, async surface => {
     version = "2.0.0";
     surfaces.deliver({ exchangeId: exchangeIdFromSurface(surface), principalId: PRINCIPAL_ID, params: { decision: "confirm" } }, { toolId: SET_ENABLED });
-  }), { message: "PLUGINS_STALE_APPROVAL: The plugin version or digest changed. Review and approve it again. Nothing was changed." });
+  }), { message: "PLUGINS_STALE_APPROVAL: The plugin or its connection changed. Review and approve it again. Nothing was changed." });
   assert.equal(await pluginActivationRepo.getActivation({ workspaceId: WORKSPACE_ID, pluginId: SITE_PLUGIN.id }), null);
 });
 
-test("daemon-composed approval memory asks on first enable, skips the same version, and asks on a new version", async () => {
+test("daemon-composed approval memory cannot replace the owner card when enabling the same or a new version", async () => {
   const { deps } = fakeRouteDeps();
   const store = createInMemoryConversationToolApprovalStore();
   const nativeApprovalMemory = createNativeApprovalMemory({ store, workspaceId: WORKSPACE_ID,
@@ -714,7 +711,8 @@ test("daemon-composed approval memory asks on first enable, skips the same versi
   const enable = { family: "site-runtime", pluginId: SITE_PLUGIN.id, enabled: true };
   const first = await answerDialog(tool, surfaces, enable, "confirm");
   assert.equal(first.emitted.length, 1);
-  await call(tool, enable, async () => assert.fail("the same version must reuse the saved enable grant"));
+  const same = await answerDialog(tool, surfaces, enable, "confirm");
+  assert.equal(same.emitted.length, 1, 'the same version still requires a fresh owner approval');
   version = "2.0.0";
   const changed = await answerDialog(tool, surfaces, enable, "confirm");
   assert.equal(changed.emitted.length, 1);

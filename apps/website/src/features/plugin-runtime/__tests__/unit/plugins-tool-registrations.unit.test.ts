@@ -12,7 +12,7 @@ import type { AssistantToolRegistryDeps } from "../../../../assistant/tool-regis
 import { toAssistantRegistryDeps } from "../../../../assistant/__tests__/fixtures/registry-deps.js";
 import { createRouteDeps } from "../../../../server/runtime/composition/app.js";
 import { contributePluginsTools, pluginApprovalIdentity, pluginsDerivedRisk, type PluginsToolDeps } from "../../tool-registrations.js";
-import { ABANDONED_NOTE, PLUGIN_ID, WORKSPACE_ID, answerCard, context, harness, installedAgentPlugin, noDialog, siteRecord } from "../fixtures/plugins-tool-harness.js";
+import { ABANDONED_NOTE, PLUGIN_ID, WORKSPACE_ID, answerCard, approveEnable, context, harness, installedAgentPlugin, noDialog, siteRecord } from "../fixtures/plugins-tool-harness.js";
 
 /**
  * @file The Plugins tool handlers' remaining boundaries: `plugins_list`'s per-plugin conflicts, the
@@ -24,6 +24,7 @@ test("plugins_list attaches each plugin's own conflicts and an empty list to plu
   const conflict: PluginConflict = { kind: "hook", key: "content.entry.beforeSave", heldBy: "other", heldByName: "Other", heldKey: "content.entry.beforeSave" };
   const h = harness({
     discovery: () => [siteRecord(), siteRecord({ id: "quiet", name: "Quiet" })],
+    initialRows: [PLUGIN_ID, 'quiet'].map(pluginId => ({ pluginId, workspaceId: WORKSPACE_ID, version: '1.0.0', enabled: true, updatedAt: '2026-11-04T00:00:00.000Z' })),
     listPluginConflicts: async () => new Map([[PLUGIN_ID, [conflict]]]),
   });
   const result = await h.tool("plugins_list").handler(context({}), {}) as { plugins: Array<{ id: string; conflicts: readonly PluginConflict[] }> };
@@ -125,7 +126,7 @@ test("injected Agent Plugin owners are used in place of the host capability, sco
       setAgentPluginEnabled: async (required) => { calls.push(["set", required.enabled, required.agentPluginLayout === layout]); return { pluginId: required.pluginId, enabled: required.enabled }; },
     },
   });
-  const result = await h.tool("plugins_set_enabled").handler(context({ family: "agent-plugin", pluginId: "higgsfield", enabled: true }), {}) as { changed: boolean };
+  const result = await approveEnable({ h, input: { family: "agent-plugin", pluginId: "higgsfield", enabled: true } }) as { changed: boolean };
   assert.equal(result.changed, true);
   const root = `/ws-root/${WORKSPACE_ID}`;
   assert.deepEqual(calls, [["assert", { workspaceRoot: root }], ["list", root], ["list", root], ["list", root], ["set", true, true]], "host-compatibility pre-flight, identity, identity re-check");
@@ -156,13 +157,13 @@ test("any other pre-flight failure propagates unchanged, before identity or card
 
 test("an Agent Plugin missing at the write is a ToolInputError carrying the lifecycle's message", async () => {
   const h = harness({ confirmEnable: () => false, agentHost: { setEnabled: async ({ pluginId }) => { throw new AgentPluginNotInstalledError({ pluginId }); } } });
-  await assert.rejects(h.tool("plugins_set_enabled").handler(context(AGENT_ENABLE), {}),
+  await assert.rejects(approveEnable({ h, input: AGENT_ENABLE }),
     (error: unknown) => error instanceof ToolInputError && error.message === "agent plugin 'higgsfield' is not installed in this workspace");
 });
 
 test("any other Agent Plugin write failure propagates unchanged and provisions nothing", async () => {
   const h = harness({ confirmEnable: () => false, agentHost: { setEnabled: async () => { throw new Error("disk full"); } } });
-  await assert.rejects(h.tool("plugins_set_enabled").handler(context(AGENT_ENABLE), {}), /^Error: disk full$/);
+  await assert.rejects(approveEnable({ h, input: AGENT_ENABLE }), /^Error: disk full$/);
   assert.equal(h.events.includes("provisionMcp:higgsfield"), false);
 });
 
@@ -261,7 +262,7 @@ test("the injected classifier keeps the owner's linked-switch refusal at write t
 
 test("an unreadable provider link is left to the existing write and provisioning path", async () => {
   const h = harness({ confirmEnable: () => false, providerFaces: { linkedProvider: async () => { throw new Error("manifest unreadable"); } } });
-  const result = await h.tool("plugins_set_enabled").handler(context(AGENT_ENABLE), { emitSurface: noDialog }) as { changed: boolean };
+  const result = await approveEnable({ h, input: AGENT_ENABLE }) as { changed: boolean };
   assert.equal(result.changed, true);
   assert.deepEqual(h.events.slice(-2), ["setEnabled:true", "provisionMcp:higgsfield"]);
 });

@@ -9,10 +9,10 @@ import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
 import { InMemoryChangeSetRepo } from "../../../../contracts/core/commands/index.js";
 import { createExpiringSurfaces } from "../../../../__tests__/support/expiring-surfaces.js";
 import { buildPluginsRegistrations } from "../../tool-registrations.js";
-import { ABANDONED_NOTE, CAPABILITIES, PLUGIN_ID, PRINCIPAL_ID, WORKSPACE_ID, answerCard, context, harness, installedAgentPlugin, noDialog, siteRecord } from "../fixtures/plugins-tool-harness.js";
+import { ABANDONED_NOTE, CAPABILITIES, PLUGIN_ID, PRINCIPAL_ID, WORKSPACE_ID, answerCard, approveEnable, context, harness, installedAgentPlugin, noDialog, siteRecord } from "../fixtures/plugins-tool-harness.js";
 
 /**
- * @file Pins every branch of `plugins_set_enabled`'s consent path — which inputs reach the source
+ * @file Pins every branch of `plugins_set_enabled`'s consent path — fresh owner consent independent of source
  * policy, when a card is raised, what it lists, the stale-approval and abort refusals, and that the
  * owner's approval is recorded BEFORE the activation write. Ports are typed fakes; the approval
  * transport, `executeCommand` and `setPluginEnabled` are the real modules.
@@ -54,19 +54,19 @@ test("authorization names the entity per family: 'plugin' for site-runtime, 'age
 // What reaches the source policy, and when a card is raised
 // ---------------------------------------------------------------------------
 
-test("disabling consults the policy with sealedHere:false and nothing added, never asks, and reads discovery once", async () => {
+test("disabling never asks or consults enable policy, and reads discovery once", async () => {
   const h = harness({ confirmEnable: () => true });
   const result = await h.tool("plugins_set_enabled").handler(context(DISABLE), { emitSurface: noDialog }) as { changed: boolean };
   assert.equal(result.changed, true);
-  assert.deepEqual(h.policyCalls, [{ sealedHere: false, added: [] }]);
+  assert.deepEqual(h.policyCalls, []);
   assert.deepEqual(h.events, ["discover", "save:false", "onDisabled:site-rules"]);
 });
 
-test("a built-in package never reaches the source port; the policy alone decides and may skip the card", async () => {
+test("a built-in package requires owner approval without reading the source port", async () => {
   const h = harness({ discovery: () => [siteRecord({ source: "built-in" })], confirmEnable: () => false });
-  const result = await h.tool("plugins_set_enabled").handler(context(ENABLE), { emitSurface: noDialog }) as { changed: boolean };
+  const result = await approveEnable({ h, input: ENABLE }) as { changed: boolean };
   assert.equal(result.changed, true);
-  assert.deepEqual(h.policyCalls, [{ sealedHere: false, added: [] }]);
+  assert.deepEqual(h.policyCalls, []);
   assert.deepEqual(h.events, ["discover", "discover", "save:true", "onEnabled:site-rules"], "no isSealedHere, readApproval or recordApproval for a built-in");
 });
 
@@ -76,38 +76,38 @@ test("without a source policy every enable asks (fails closed with no channel)",
   assert.deepEqual(h.events, ["discover"]);
 });
 
-test("a site package sealed here whose capabilities match the last approval skips the card and records no new approval", async () => {
+test("a sealed site package with unchanged capabilities still asks and records the fresh approval", async () => {
   const h = harness({ source: { isSealedHere: async () => true, readApproval: async () => [...CAPABILITIES] }, confirmEnable: ({ sealedHere, added }) => !sealedHere || added.length > 0 });
-  const result = await h.tool("plugins_set_enabled").handler(context(ENABLE), { emitSurface: noDialog }) as { changed: boolean };
+  const result = await approveEnable({ h, input: ENABLE }) as { changed: boolean };
   assert.equal(result.changed, true);
-  assert.deepEqual(h.policyCalls, [{ sealedHere: true, added: [] }]);
-  assert.deepEqual(h.events, ["discover", "isSealedHere:site-rules@1.0.0", "readApproval:site-rules", "discover", "save:true", "onEnabled:site-rules"]);
+  assert.deepEqual(h.policyCalls, []);
+  assert.deepEqual(h.events, ["discover", "readApproval:site-rules", "discover", `recordApproval:${CAPABILITIES.join("|")}`, "save:true", "onEnabled:site-rules"]);
 });
 
-test("a site package not sealed here passes sealedHere:false and only the capabilities beyond the last approval", async () => {
+test("a site package without a local seal still requires consent", async () => {
   const h = harness({ source: { isSealedHere: async () => false, readApproval: async () => ["tier:tier-3"] }, confirmEnable: () => true });
   await assert.rejects(h.tool("plugins_set_enabled").handler(context(ENABLE), {}), NO_CHANNEL);
-  assert.deepEqual(h.policyCalls, [{ sealedHere: false, added: ["capability:hooks.attach", "hook:content.entry.beforeSave"] }]);
+  assert.deepEqual(h.policyCalls, []);
 });
 
 test("a site package sealed here with no validated manifest always asks, without consulting the policy", async () => {
   const h = harness({ discovery: () => [siteRecord({ manifest: undefined })], source: { isSealedHere: async () => true }, confirmEnable: () => false });
   await assert.rejects(h.tool("plugins_set_enabled").handler(context(ENABLE), {}), NO_CHANNEL);
   assert.deepEqual(h.policyCalls, []);
-  assert.deepEqual(h.events, ["discover", "isSealedHere:site-rules@1.0.0"], "no manifest means no capability set, so no approval read");
+  assert.deepEqual(h.events, ["discover"], "no manifest means no capability set, so no approval read");
 });
 
-test("with no source port a site package is never sealed here and every declared capability counts as added", async () => {
+test("with no source port a site package still requires consent", async () => {
   const h = harness({ source: false, confirmEnable: () => true });
   await assert.rejects(h.tool("plugins_set_enabled").handler(context(ENABLE), {}), NO_CHANNEL);
-  assert.deepEqual(h.policyCalls, [{ sealedHere: false, added: [...CAPABILITIES] }]);
+  assert.deepEqual(h.policyCalls, []);
 });
 
-test("an Agent Plugin enable reaches the policy with sealedHere:false and nothing added; the policy may skip the card", async () => {
+test("an Agent Plugin enable requires a real card even when a supplied policy says to skip it", async () => {
   const h = harness({ confirmEnable: () => false });
-  const result = await h.tool("plugins_set_enabled").handler(context({ family: "agent-plugin", pluginId: "higgsfield", enabled: true }), { emitSurface: noDialog }) as { changed: boolean };
+  const result = await approveEnable({ h, input: { family: "agent-plugin", pluginId: "higgsfield", enabled: true } }) as { changed: boolean };
   assert.equal(result.changed, true);
-  assert.deepEqual(h.policyCalls, [{ sealedHere: false, added: [] }]);
+  assert.deepEqual(h.policyCalls, []);
   assert.deepEqual(h.events, ["assertWritable", "listInstalled", "listInstalled", "listInstalled", "setEnabled:true", "provisionMcp:higgsfield"],
     "pre-flight host check, identity before the card, identity again before the write");
 });
@@ -117,12 +117,12 @@ test("an unwritable Agent Plugin activation record is returned before identity, 
   const result = await h.tool("plugins_set_enabled").handler(context({ family: "agent-plugin", pluginId: "higgsfield", enabled: true }), { emitSurface: noDialog }) as { changed: boolean; reason: string };
   assert.deepEqual([result.changed, result.reason], [false, "activations-busy"]);
   assert.deepEqual(h.events, ["assertWritable"]);
-  assert.deepEqual(h.policyCalls, [{ sealedHere: false, added: [] }]);
+  assert.deepEqual(h.policyCalls, []);
 });
 
 test("an Agent Plugin this host cannot run is a nothing-changed result naming PLUGIN_HOST_INCOMPATIBLE, with no MCP provisioning", async () => {
   const h = harness({ confirmEnable: () => false, agentHost: { setEnabled: async () => { throw new AgentPluginHostIncompatibleError({ pluginId: "higgsfield" }); } } });
-  const result = await h.tool("plugins_set_enabled").handler(context({ family: "agent-plugin", pluginId: "higgsfield", enabled: true }), { emitSurface: noDialog }) as Record<string, unknown>;
+  const result = await approveEnable({ h, input: { family: "agent-plugin", pluginId: "higgsfield", enabled: true } }) as Record<string, unknown>;
   assert.deepEqual({ ...result, note: undefined }, {
     changed: false, cancelled: false, family: "agent-plugin", pluginId: "higgsfield", restartRequired: false,
     reason: "host-incompatible", code: "PLUGIN_HOST_INCOMPATIBLE", note: undefined,
@@ -141,14 +141,14 @@ test("an Agent Plugin whose installed revision this host cannot run is refused b
 
 test("an Agent Plugin whose host range this host satisfies passes the pre-flight", async () => {
   const h = harness({ confirmEnable: () => false, agentHost: { listInstalled: async () => [installedAgentPlugin({ hostRange: "^1.0.0" }), installedAgentPlugin({ pluginId: "other", hostRange: ">=99" })] } });
-  const result = await h.tool("plugins_set_enabled").handler(context({ family: "agent-plugin", pluginId: "higgsfield", enabled: true }), { emitSurface: noDialog }) as { changed: boolean };
+  const result = await approveEnable({ h, input: { family: "agent-plugin", pluginId: "higgsfield", enabled: true } }) as { changed: boolean };
   assert.equal(result.changed, true, "another plugin's incompatible range does not block this one");
 });
 
 test("an Agent Plugin whose interrupted update awaits recovery is a nothing-changed update-pending result", async () => {
   const h = harness({ confirmEnable: () => false, agentHost: { setEnabled: async () => { throw new AgentPluginUpdateError({ code: "PLUGIN_UPDATE_PENDING", message: "pending" }); } } });
   for (const enabled of [true, false]) {
-    const result = await h.tool("plugins_set_enabled").handler(context({ family: "agent-plugin", pluginId: "higgsfield", enabled }), { emitSurface: noDialog }) as Record<string, unknown>;
+    const result = await (enabled ? approveEnable({ h, input: { family: "agent-plugin", pluginId: "higgsfield", enabled } }) : h.tool("plugins_set_enabled").handler(context({ family: "agent-plugin", pluginId: "higgsfield", enabled }), { emitSurface: noDialog })) as Record<string, unknown>;
     assert.deepEqual([result.changed, result.reason, result.code, result.restartRequired], [false, "update-pending", "PLUGIN_UPDATE_PENDING", false]);
     assert.match(String(result.note), new RegExp(`was NOT ${enabled ? "enabled" : "disabled"}\\. Tell the user to restart Tovu`));
   }
@@ -164,7 +164,7 @@ test("an Agent Plugin update refusal other than PLUGIN_UPDATE_PENDING asks for m
 
 test("Agent Plugin warnings (an unmet requirement, a dependent losing a capability) reach the model", async () => {
   const h = harness({ confirmEnable: () => false, agentHost: { setEnabled: async (input) => ({ pluginId: input.pluginId, enabled: input.enabled, warnings: ["Needs x:y"] }) } });
-  const result = await h.tool("plugins_set_enabled").handler(context({ family: "agent-plugin", pluginId: "higgsfield", enabled: true }), { emitSurface: noDialog }) as { changed: boolean; warnings: string[] };
+  const result = await approveEnable({ h, input: { family: "agent-plugin", pluginId: "higgsfield", enabled: true } }) as { changed: boolean; warnings: string[] };
   assert.equal(result.changed, true);
   assert.deepEqual(result.warnings, ["Needs x:y"]);
   // A lifecycle result without warnings reports an empty list, never an absent one.
@@ -181,7 +181,7 @@ test("a confirmed widening lists the added capabilities on the card and records 
   const { html, outcome } = await answerCard({ tool: h.tool("plugins_set_enabled"), surfaceExchanges: h.surfaceExchanges, input: ENABLE, decision: "confirm" });
   assert.ok(html.includes(CAPABILITIES.join(", ")), "the card must name exactly what this version adds");
   assert.equal((await outcome as { changed: boolean }).changed, true);
-  assert.deepEqual(h.events, ["discover", "isSealedHere:site-rules@1.0.0", "readApproval:site-rules", "discover", `recordApproval:${CAPABILITIES.join("|")}`, "save:true", "onEnabled:site-rules"]);
+  assert.deepEqual(h.events, ["discover", "readApproval:site-rules", "discover", `recordApproval:${CAPABILITIES.join("|")}`, "save:true", "onEnabled:site-rules"]);
 });
 
 test("a failed approval record leaves the plugin off and propagates the failure", async () => {
@@ -203,7 +203,7 @@ test("a declined card writes and records nothing", async () => {
   const h = harness({ source: { isSealedHere: async () => false }, confirmEnable: () => true });
   const { outcome } = await answerCard({ tool: h.tool("plugins_set_enabled"), surfaceExchanges: h.surfaceExchanges, input: ENABLE, decision: "cancel" });
   assert.deepEqual(await outcome, { changed: false, family: "site-runtime", pluginId: PLUGIN_ID, restartRequired: false, cancelled: true, note: "The user cancelled. Nothing was changed." });
-  assert.deepEqual(h.events, ["discover", "isSealedHere:site-rules@1.0.0", "readApproval:site-rules"]);
+  assert.deepEqual(h.events, ["discover", "readApproval:site-rules"]);
 });
 
 for (const family of ['site-runtime', 'agent-plugin'] as const) {
@@ -239,8 +239,8 @@ test("a version changed while the card was open is refused as PLUGINS_STALE_APPR
   let reads = 0;
   const h = harness({ discovery: () => [siteRecord({ version: ++reads === 1 ? "1.0.0" : "1.0.1" })], source: { isSealedHere: async () => false }, confirmEnable: () => true });
   const { outcome } = await answerCard({ tool: h.tool("plugins_set_enabled"), surfaceExchanges: h.surfaceExchanges, input: ENABLE, decision: "confirm" });
-  await assert.rejects(outcome, (error: unknown) => error instanceof ToolInputError && error.message === "PLUGINS_STALE_APPROVAL: The plugin version or digest changed. Review and approve it again. Nothing was changed.");
-  assert.deepEqual(h.events, ["discover", "isSealedHere:site-rules@1.0.0", "readApproval:site-rules", "discover"]);
+  await assert.rejects(outcome, (error: unknown) => error instanceof ToolInputError && error.message === "PLUGINS_STALE_APPROVAL: The plugin or its connection changed. Review and approve it again. Nothing was changed.");
+  assert.deepEqual(h.events, ["discover", "readApproval:site-rules", "discover"]);
 });
 
 test("a principal whose grant is revoked while the card was open is refused at the write", async () => {

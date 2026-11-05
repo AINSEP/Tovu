@@ -34,19 +34,21 @@ test("readSiteRunning reports no record for an idle site, through the default sh
   assert.equal(readSiteRunning({ dir }), null);
 });
 
-test("a starting claim refuses a second app with a wait message, and ready records the port", (t) => {
+test("a second app attaches without changing the owner token, and ready records the port", (t) => {
   const { dir, workspace } = fixture(t);
   const lease = claimSiteRunning({ dir, app: "Web" }, { workspace });
   try {
-    assert.throws(() => claimSiteRunning({ dir, app: "Desktop" }, { workspace }), {
-      message: "Running in Web (starting). Wait for this site to finish starting.",
-    });
+    const starting = claimSiteRunning({ dir, app: "Desktop" }, { workspace });
+    assert.equal(starting.attached?.port, 0);
+    starting.ready({ port: 4999 }); starting.release();
+    assert.equal(readSiteRunning({ dir }, { workspace })?.port, 0, "an attachment cannot publish its own port");
     assert.equal(readSiteRunning({ dir }, { workspace })?.scheme, "http", "http is the default scheme");
     lease.ready({ port: 3001 });
     assert.equal(readSiteRunning({ dir }, { workspace })?.port, 3001);
-    assert.throws(() => claimSiteRunning({ dir, app: "Desktop" }, { workspace }), {
-      message: "Running in Web (port 3001). http://localhost:3001/admin/",
-    });
+    const attached = claimSiteRunning({ dir, app: "Desktop" }, { workspace });
+    assert.equal(attached.attached?.port, 3001);
+    attached.release();
+    assert.equal(readSiteRunning({ dir }, { workspace })?.port, 3001, "attachment cannot release the owner's lease");
     assert.deepEqual(workspace.registry({}).list({}), [], "a folder without install-dir markers is never registered");
   } finally { lease.release(); }
   assert.equal(readSiteRunning({ dir }, { workspace }), null, "release ends the lease");

@@ -34,7 +34,7 @@ function validBody(listId: string): Record<string, unknown> {
     fromEmail: "news@acme.test",
     replyTo: "help@acme.test",
     listId,
-    bodyJson: { type: "doc", content: [] },
+    bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Keep campaign text" }] }] },
   };
 }
 
@@ -97,7 +97,7 @@ test("create-campaign: bodyJson must be a non-null object — missing, null and 
   const { app, listId } = await buildApp();
   const baseUrl = await startTestServer(app, t);
 
-  for (const bodyJson of [undefined, null, "a doc"]) {
+  for (const bodyJson of [undefined, null, "a doc", []]) {
     const res = await post(baseUrl, { ...validBody(listId), bodyJson });
     assert.equal(res.status, 400, `bodyJson=${JSON.stringify(bodyJson)}`);
     assert.deepEqual(res.json, VALIDATION_BODY);
@@ -128,6 +128,8 @@ test("create-campaign: a valid body is a 201 draft carrying the submitted envelo
 
   const stored = await deps.newsletterCampaignRepo.findById({ workspaceId: WORKSPACE_ID, id: String(data.id) });
   assert.equal(stored?.subject, "Autumn news");
+  assert.deepEqual(data.bodyJson, validBody(listId).bodyJson);
+  assert.deepEqual(stored?.bodyJson, validBody(listId).bodyJson);
 });
 
 test("create-campaign: a non-string preheader is stored as null, not coerced to text", async (t) => {

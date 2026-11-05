@@ -159,6 +159,8 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
   let lifecycle: { ok: boolean; modules: unknown[] } = { ok: true, modules: [] };
   const criticalFailureLogs: unknown[] = [];
   let leaseReadyError: Error | undefined;
+  let attached = false;
+  let bootCalls = 0;
   let serverCloses = 0;
   /** Off by default: the BR-07 shutdown's worker-stop order is asserted without the listener's own "close" hook. */
   let emitCloseEvent = false;
@@ -178,6 +180,7 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
   }
   module("../../../server/runtime/composition/site-dir.ts", {
     bootSiteDir: async ({ dir }: { dir: string }) => {
+      bootCalls++;
       assert.equal(process.env.TOVU_SITE_DIR, dir, "site must be pinned before boot reads it");
       return bootResult;
     },
@@ -225,7 +228,7 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
   });
   // The running lease (1cffdf3cf) releases on a real process exit, which this test mocks away; each
   // scenario would otherwise find the previous one still "Running in Web".
-  module("../../../platform/site-dir/site-running.ts", { claimSiteRunning: (claim: unknown) => (leaseClaims.push(claim), { ready: () => { if (leaseReadyError) throw leaseReadyError; }, release: () => {} }) });
+  module("../../../platform/site-dir/site-running.ts", { claimSiteRunning: (claim: unknown) => (leaseClaims.push(claim), { attached: attached ? { port: 4320 } : null, ready: () => { if (leaseReadyError) throw leaseReadyError; }, release: () => {} }) });
   module("../../../features/plugin-runtime/sdk-resolver.ts", { registerPluginSdkResolver: () => {} });
   module("../../../server/runtime/boot/process-error-guards.ts", { installUnhandledRejectionGuard: () => {} });
   module("../../../server/runtime/boot/boot-readiness-gate.ts", { runProductionReadinessGateOrExit: async () => {} });
@@ -339,6 +342,14 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
       assert.equal(exitCode, 0);
       assert.deepEqual(stopped, ["outbox", "trash", "themes", "form-pull", "go-live", "webhooks", "dns-sweep", "site-search"], "each worker stops exactly once");
     }
+
+    attached = true;
+    const priorBootCalls = bootCalls;
+    const priorListens = listens.length;
+    await runServeCommand({ dir: "/tmp/already-running-site", port: "4567" });
+    assert.equal(bootCalls, priorBootCalls, "an attachment never opens the database");
+    assert.equal(listens.length, priorListens, "an attachment never binds a second listener");
+    attached = false;
 
     // Refusals after the boot: nothing keeps serving, and what the boot opened is closed again.
     const refusalTarget = path.resolve("/tmp/tovu-serve-wiring-fixture");

@@ -1,7 +1,7 @@
 import { createFederatedMcpPresetRegistry, resolveFederatedMcpPresets, type FederatedMcpPresetRegistry } from "@jini-ai/mcp/federation";
 // Boot-loop implementation and rationale: Jini/packages/mcp/src/federation/bootstrap.ts.
 import { attachFederatedMcpTools as attachJiniTools } from "@jini-ai/mcp/federation";
-import type { ToolRegistration, ToolRegistry } from "@jini-ai/core";
+import type { ToolRegistry } from "@jini-ai/core";
 
 import { createDefaultConnect as createJiniConnect, stdioLaunchResolverFromEnv, type McpStdioLaunchResolver, type ResolvedStdioLaunch, type StdioLaunchResolverFromEnvOptions } from "@jini-ai/mcp/federation/stdio";
 import type { ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
@@ -191,34 +191,14 @@ export function tovuStdioLaunchResolverFromEnv(env: NodeJS.ProcessEnv, options: 
 
 export async function attachFederatedMcpTools(params: AttachFederatedMcpToolsParams): Promise<AttachFederatedToolsResult> {
   const { logger, connect, connections } = resolveFederationAttachInputs(params);
-  const originalSessions = new Map<McpSessionPort, McpSessionPort>();
-  const classified = new Map<string, ToolRegistration>();
   const result = await attachJiniTools({
     // Jini owns the boot loop, reports and session cleanup. Bind the same enumerated tools to
     // the host policy before registration, so boot and reload cannot bypass per-call approval.
-    registry: { ...params.registry, register(registration) {
-      const reviewed = classified.get(registration.descriptor.id);
-      if (!reviewed) throw new Error(`${registration.descriptor.id} has no approval classification`);
-      params.registry.register(reviewed);
-    } }, deps: toJiniFederationDeps({ deps: params.deps }),
-    async connect({ connection }) {
-      const hostSession = await connect(connection);
-      const session: McpSessionPort = {
-        callTool: (request, options = {}) => hostSession.callTool(request, options),
-        close: required => hostSession.close(required),
-        async listTools() {
-          const tools = await hostSession.listTools();
-          const built = buildFederatedMcpRegistrations({ tools, session: hostSession, config: connection.config,
-            deps: params.deps, nativeToolIds: new Set(params.registry.list({}).map(tool => tool.id)),
-          });
-          for (const registration of built.registrations) classified.set(registration.descriptor.id, registration);
-          return tools;
-        },
-      };
-      originalSessions.set(session, hostSession);
-      return session;
-    },
+    // Passing the real registry also keeps Jini's core revocation scopes attached to its executor.
+    registry: params.registry, deps: toJiniFederationDeps({ deps: params.deps }),
+    connect: ({ connection }) => connect(connection),
   }, {
+    buildRegistrations: ({ tools, session, config, nativeToolIds }) => buildFederatedMcpRegistrations({ tools, session, config, nativeToolIds, deps: params.deps }),
     // Resolve the injected host instance once; presets retain first claim over roster entries.
     connections: connections.filter(entry => entry.isPreset).map(entry => entry.connection),
     extraConnections: connections.filter(entry => !entry.isPreset).map(entry => entry.connection),
@@ -229,7 +209,7 @@ export async function attachFederatedMcpTools(params: AttachFederatedMcpToolsPar
       error: ({ message }) => logger.warn(message),
     },
   });
-  return { ...result, sessions: result.sessions.map(session => originalSessions.get(session) ?? session) };
+  return result;
 }
 
 /**

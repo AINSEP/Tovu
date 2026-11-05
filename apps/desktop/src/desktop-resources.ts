@@ -119,29 +119,45 @@ function resourcePollIntervals({ platform, panelOpen }: { platform: NodeJS.Platf
   return { panelIntervalMs, pollIntervalMs: panelOpen ? panelIntervalMs : 60_000 };
 }
 
+/** Stable across renderer ordering; only site identity and process replacement invalidate attribution. */
+function sitesKeyOf(sites: readonly OpenResourceSite[]): string {
+  return sites.map(site => `${site.id}:${site.pid}`).sort().join('|');
+}
+
+/** An in-flight read owns the sampler until it settles, even if a site changes meanwhile. */
+function shouldSample({ cached, inFlight, sitesKey, sampledSitesKey, now, lastAttempt, retryIntervalMs }: {
+  cached: ResourcesSnapshot | undefined; inFlight: Promise<ResourcesSnapshot> | undefined;
+  sitesKey: string; sampledSitesKey: string; now: number; lastAttempt: number; retryIntervalMs: number;
+}): boolean {
+  if (inFlight) return false;
+  return !cached || sitesKey !== sampledSitesKey || now - lastAttempt >= retryIntervalMs;
+}
+
 /**
  * Main owns request-driven sampling and caches between polls. Concurrent callers share one read;
  * failures clear CPU history and return unavailable without leaking native errors. No timers to leak.
  * @param ports Desktop identity, OS sampler, clock, physical RAM and current owned site handles.
  * @returns get(request, options): resolves a serializable snapshot; never stops a process.
  * @example const monitor = createDesktopResources(ports); await monitor.get({ panelOpen: true });
- * @complexity Per sample O((s+1) * (n + tree(n))) time/O(n+s) space (see groupSample); cached reads O(1).
+ * @complexity Per sample O((s+1) * (n + tree(n))) time/O(n+s) space (see groupSample);
+ * cached reads compare owned site handles in O(s log s) time/O(s) space.
  */
 export function createDesktopResources(ports: DesktopResourcesPorts, _options = {}) {
   let previous: PreviousSample = { at: 0, processes: new Map() };
   let cached: ResourcesSnapshot | undefined;
   let inFlight: Promise<ResourcesSnapshot> | undefined;
   let lastAttempt = -Infinity;
+  let sampledSitesKey = '';
 
   /** Sampler failures intentionally use the same unavailable outcome as Jini's empty result. */
-  async function sample({ pollIntervalMs }: { pollIntervalMs: number }, _sampleOptions = {}): Promise<ResourcesSnapshot> {
+  async function sample({ pollIntervalMs, sites }: { pollIntervalMs: number; sites: readonly OpenResourceSite[] }, _sampleOptions = {}): Promise<ResourcesSnapshot> {
     let usages: readonly ProcessUsage[];
     try {
       const sampled = await ports.listUsage();
       usages = applyElectronMemoryReadings({ processes: withoutUsageProbe({ usages: sampled, desktopPid: ports.desktopPid, platform: ports.platform }),
         electronMetrics: ports.listElectronMetrics?.() ?? [] });
     } catch { usages = []; }
-    const result = groupSample({ usages, sites: ports.openSites(), desktopPid: ports.desktopPid,
+    const result = groupSample({ usages, sites, desktopPid: ports.desktopPid,
       previous, at: ports.now(), totalMemoryBytes: ports.totalMem(), pollIntervalMs });
     previous = result.history;
     cached = result.snapshot;
@@ -153,14 +169,18 @@ export function createDesktopResources(ports: DesktopResourcesPorts, _options = 
      * panelOpen: true so the collapsed 60 s cache cannot hide sustained site-server RSS. */
     async get({ panelOpen }: ResourcesRequest, _getOptions = {}): Promise<ResourcesSnapshot> {
       const { panelIntervalMs, pollIntervalMs } = resourcePollIntervals({ platform: ports.platform, panelOpen });
+      const sites = ports.openSites();
+      const sitesKey = sitesKeyOf(sites);
       // A launch-time failure must not strand the badge on a minute-long cached failure.
       const retryIntervalMs = cached?.status === 'unavailable' ? panelIntervalMs : pollIntervalMs;
-      if (!inFlight && (!cached || ports.now() - lastAttempt >= retryIntervalMs)) {
+      // Start/stop/restart changes the attribution, so the old total-only cache cannot serve cards.
+      if (shouldSample({ cached, inFlight, sitesKey, sampledSitesKey, now: ports.now(), lastAttempt, retryIntervalMs })) {
         lastAttempt = ports.now();
-        inFlight = sample({ pollIntervalMs }).finally(() => { inFlight = undefined; });
+        sampledSitesKey = sitesKey;
+        inFlight = sample({ pollIntervalMs, sites }).finally(() => { inFlight = undefined; });
       }
       const snapshot = inFlight ? await inFlight : cached!;
-      return { ...snapshot, pollIntervalMs: snapshot.status === 'unavailable' ? panelIntervalMs : pollIntervalMs };
+      return { ...snapshot, pollIntervalMs: snapshot.status === 'unavailable' || sitesKey !== sampledSitesKey ? panelIntervalMs : pollIntervalMs };
     },
   };
 }

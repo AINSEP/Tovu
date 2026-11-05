@@ -71,7 +71,8 @@ export function mintToolErrorId(required: Record<string, never>, optional = {}):
 }
 /** Default reporter receives only already-redacted messages from the shared owner. */
 function failurePorts(options: RedactedToolFailuresDeps): DaemonFailureDeps {
-  return { redactSecretShapes, mintErrorId: options.mintErrorId ?? (() => mintToolErrorId({}, {})),
+  return { redactSecretShapes,
+    mintErrorId: options.mintErrorId ?? (() => mintToolErrorId({}, {})),
     onFailure: options.onFailure ?? ((record) => console.error(`[tool-failure] ${record.errorId} tool=${record.toolId} run=${record.runId} execution=${record.executionId} principal=${record.principalId} redactions=${record.redactions}: ${record.message}`)) };
 }
 const recoveryPorts = {

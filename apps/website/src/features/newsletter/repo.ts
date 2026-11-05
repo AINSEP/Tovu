@@ -1,3 +1,5 @@
+import type { Kysely } from "kysely";
+import type { ContentDatabase } from "../../platform/db/content-database.generated.js";
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
 import type {
   CampaignOutcomeCounter,
@@ -50,6 +52,23 @@ import type {
 
 const DEFAULT_LIST_LIMIT = 100;
 
+/** One query with indexed latest-body and sequence projections for the opened campaign; no history scan.
+ * Body ownership stays in revision state_json; live counters/status always come from the campaign row.
+ * @complexity O(log revisions), one round trip and one revision snapshot per detail read.
+ */
+function campaignsWithEditorialState({ db }: { db: Kysely<ContentDatabase> }) {
+  return db.selectFrom("newsletter_campaigns").selectAll().select(eb => eb
+    .selectFrom("newsletter_campaign_revisions")
+    .select("state_json")
+    .whereRef("campaign_id", "=", "newsletter_campaigns.id")
+    .whereRef("workspace_id", "=", "newsletter_campaigns.workspace_id")
+    .orderBy("seq", "desc").limit(1).as("editorial_state_json"))
+    .select(eb => eb.selectFrom("newsletter_campaign_revisions").select("seq")
+      .whereRef("campaign_id", "=", "newsletter_campaigns.id")
+      .whereRef("workspace_id", "=", "newsletter_campaigns.workspace_id")
+      .orderBy("seq", "desc").limit(1).as("editorial_seq"));
+}
+
 export class SqlNewsletterCampaignRepo implements NewsletterCampaignRepoPort {
   protected readonly kernel: ContentKernel;
   constructor(kernel: ContentKernel) {
@@ -67,9 +86,7 @@ export class SqlNewsletterCampaignRepo implements NewsletterCampaignRepoPort {
 
   async findById(required: { workspaceId: string; id: string }): Promise<CampaignRecord | null> {
     const row = await this.kernel.run((db) =>
-      db
-        .selectFrom("newsletter_campaigns")
-        .selectAll()
+      campaignsWithEditorialState({ db })
         .where("workspace_id", "=", required.workspaceId)
         .where("id", "=", required.id)
         .limit(1)
@@ -80,6 +97,7 @@ export class SqlNewsletterCampaignRepo implements NewsletterCampaignRepoPort {
 
   async list(required: { workspaceId: string; afterId?: string; limit?: number }): Promise<CampaignRecord[]> {
     const rows = await this.kernel.run((db) => {
+      // One bounded page of envelopes per list call; bodies are loaded only by findById.
       let query = db.selectFrom("newsletter_campaigns").selectAll().where("workspace_id", "=", required.workspaceId);
       if (required.afterId) query = query.where("id", ">", required.afterId);
       return query

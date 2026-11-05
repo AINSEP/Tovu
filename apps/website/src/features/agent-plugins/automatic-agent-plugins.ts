@@ -103,7 +103,7 @@ export function createAutomaticPluginRuns({ deps, surfaces, askAgentPluginChoice
       list: async () => {
         const candidates = await loadAgentPluginSearchCandidates(deps);
         maturities.clear();
-        for (const candidate of candidates) maturities.set(candidate.pluginId, candidate.maturity);
+        for (const candidate of candidates) if (candidate.enabled) maturities.set(candidate.pluginId, candidate.maturity);
         return candidates;
       },
       rank: (input) => rankInstalledAgentPlugins(input.query.slice(0, 16000), input.candidates, input.limit, { automatic: true }),

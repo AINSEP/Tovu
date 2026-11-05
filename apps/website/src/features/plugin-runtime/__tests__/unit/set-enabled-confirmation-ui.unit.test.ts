@@ -21,7 +21,7 @@ for (const family of ["agent-plugin", "site-runtime"] as const) {
       ? "guidance and tools"
       : "change its database"));
     assert.doesNotMatch(html, /injects|daemon|six assistant execution settings/);
-    assert.match(html, /service receiving your requests/, "plain language must retain the access disclosure");
+    assert.match(html, /Only the listed access is turned on/, "plain language must retain the access disclosure");
     assert.ok(html.includes("<dt>Version</dt><dd>2.7.0</dd>"));
   });
 }

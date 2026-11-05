@@ -32,6 +32,18 @@ import { installSitePlugin, jiniSitePlugins } from "./fixtures/site-plugin.fixtu
 const ALL: SiteBackupInclude = { database: true, media: true, themes: true, plugins: true, settings: true };
 const NONE: SiteBackupInclude = { database: false, media: false, themes: false, plugins: false, settings: false };
 
+test("backup plans record the scope root, exact bigint inode and link count", async t => {
+  const site = makeSite(); t.after(site.cleanup);
+  const { files } = await collectSiteBackupFiles({ sources: site.sources, include: { ...NONE, themes: true } });
+  for (const file of files) {
+    const info = await lstat(file.absPath, { bigint: true });
+    assert.equal(file.root, site.sources.themesDir);
+    assert.equal(file.identity, info.ino === 0n ? null : `${info.dev}:${info.ino}`);
+    assert.equal(file.nlink, Number(info.nlink));
+  }
+  assert.ok(files.length > 0);
+});
+
 function write(file: string, content: string): void {
   mkdirSync(path.dirname(file), { recursive: true });
   writeFileSync(file, content);
@@ -390,7 +402,7 @@ test("a host that declares no per-file limit gets no per-file check, only this t
 });
 
 test("a disk file over the host's per-file limit is left out and named in skipped with its size; exactly the limit stays", () => {
-  const file = (filePath: string, bytes: number) => ({ path: filePath, absPath: `/site/${filePath}`, bytes, mtimeMs: 1, scope: "media" as const });
+  const file = (filePath: string, bytes: number) => ({ path: filePath, absPath: `/site/${filePath}`, root: "/site", identity: null, nlink: 1, bytes, mtimeMs: 1, scope: "media" as const });
   const result = skipOversizedFiles([file("uploads/a.png", 10), file("uploads/movie.mp4", GITHUB_HOST.maxFileBytes + 1), file("uploads/b.png", GITHUB_HOST.maxFileBytes)], GITHUB_HOST);
   assert.deepEqual(result.files.map((f) => f.path), ["uploads/a.png", "uploads/b.png"]);
   assert.deepEqual(result.skipped, [{ path: "uploads/movie.mp4", reason: "100 MiB, over GitHub's 100 MiB per-file limit" }]);
@@ -499,7 +511,7 @@ test("the manifest names the format, Tovu version, schema, timestamp, scopes, da
   assert.deepEqual(manifest.files, [{ path: "database/content.db", bytes: 6, sha256: "a".repeat(64) }]);
 });
 
-const walkFileSystem = { lstat, readdir: (dir: string) => readdir(dir, { withFileTypes: true }) };
+const walkFileSystem = { lstat, lstatBigInt: (file: string) => lstat(file, { bigint: true }), readdir: (dir: string) => readdir(dir, { withFileTypes: true }) };
 
 test("absent scope folders and settings files produce an empty backup", async (t) => {
   const site = makeSite();
@@ -620,13 +632,13 @@ test("a planned file replaced by a directory is stale", async (t) => {
 });
 
 test("a file truncated after fstat is refused and its handle is closed", async () => {
-  const file = { path: "themes/index.html", absPath: "/fixture/index.html", scope: "themes" as const, bytes: 6, mtimeMs: 12 };
+  const file = { path: "themes/index.html", absPath: "/fixture/index.html", scope: "themes" as const, root: "/fixture", identity: "1:2", nlink: 1, bytes: 6, mtimeMs: 12 };
   let closed = false;
-  assert.deepEqual(await readPlannedFile(file, { openFile: async () => ({
-    stat: async () => ({ isFile: () => true, size: 6, mtimeMs: 12 }),
+  assert.deepEqual(await readPlannedFile(file, { fileSystem: { lstat: async () => ({ isDirectory: () => true, isSymbolicLink: () => false, dev: 1n, ino: 2n, nlink: 1n }), realpath: async file => file, open: async () => ({
+    stat: async () => ({ isFile: () => true, size: 6, mtimeMs: 12, dev: 1n, ino: 2n }),
     readFile: async () => Buffer.from("short"),
     close: async () => { closed = true; },
-  }) }), { ok: false, message: "'themes/index.html' changed since the plan was made. Call site_backup_plan again." });
+  }) } }), { ok: false, message: "'themes/index.html' changed since the plan was made. Call site_backup_plan again." });
   assert.equal(closed, true);
 });
 
@@ -634,12 +646,12 @@ for (const failingOperation of ["stat", "readFile"] as const) {
   test(`a handle ${failingOperation} failure propagates after closing the handle`, async () => {
     const failure = new Error(`${failingOperation} failed`);
     let closed = false;
-    const file = { path: "themes/index.html", absPath: "/fixture/index.html", scope: "themes" as const, bytes: 6, mtimeMs: 12 };
-    await assert.rejects(readPlannedFile(file, { openFile: async () => ({
-      stat: async () => { if (failingOperation === "stat") throw failure; return { isFile: () => true, size: 6, mtimeMs: 12 }; },
+    const file = { path: "themes/index.html", absPath: "/fixture/index.html", scope: "themes" as const, root: "/fixture", identity: "1:2", nlink: 1, bytes: 6, mtimeMs: 12 };
+    await assert.rejects(readPlannedFile(file, { fileSystem: { lstat: async () => ({ isDirectory: () => true, isSymbolicLink: () => false, dev: 1n, ino: 2n, nlink: 1n }), realpath: async file => file, open: async () => ({
+      stat: async () => { if (failingOperation === "stat") throw failure; return { isFile: () => true, size: 6, mtimeMs: 12, dev: 1n, ino: 2n }; },
       readFile: async () => { throw failure; },
       close: async () => { closed = true; },
-    }) }), error => error === failure);
+    }) } }), error => error === failure);
     assert.equal(closed, true);
   });
 }

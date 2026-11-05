@@ -97,9 +97,24 @@ export type NewsletterTables = {
 export type CampaignTableRow = Selectable<ContentDatabase["newsletter_campaigns"]>;
 export type CampaignRevisionTableRow = Selectable<ContentDatabase["newsletter_campaign_revisions"]>;
 
+/** Read only the opened campaign's document. Corrupt revisions keep the envelope usable;
+ * log identity/sequence only, never document text or the parser's potentially private message. */
+function editorialBody({ row }: { row: { id: string; editorial_state_json?: string | null; editorial_seq?: number | null } }): CampaignRecord["bodyJson"] {
+  if (!row.editorial_state_json) return undefined;
+  try {
+    const state = JSON.parse(row.editorial_state_json) as CampaignRecord | null;
+    return state?.bodyJson;
+  } catch {
+    console.warn(`[newsletter] Cannot read campaign ${row.id} body (seq=${row.editorial_seq}). Open the campaign and restore a valid revision.`);
+    return undefined;
+  }
+}
+
 /** One `newsletter_campaigns` row as a {@link CampaignRecord}. */
-export function toCampaignRecord(row: CampaignTableRow): CampaignRecord {
+export function toCampaignRecord(row: CampaignTableRow & { editorial_state_json?: string | null; editorial_seq?: number | null }): CampaignRecord {
+  const bodyJson = editorialBody({ row });
   return {
+    ...(bodyJson === undefined ? {} : { bodyJson }),
     id: row.id,
     workspaceId: row.workspace_id,
     status: row.status as CampaignRecord["status"],

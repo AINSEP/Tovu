@@ -177,7 +177,7 @@ test("unknown nonempty tables cause a refusal naming the unsupported table", asy
 });
 
 test("v1 refuses above the expanded/file cap instead of silently omitting required content", async () => {
-  await assert.rejects(buildShareZip({ plan: { ...common(Buffer.alloc(0)), target: { kind: "zip" }, profile: "share", files: Array.from({ length: SHARE_LIMITS.maxFiles + 1 }, (_, n) => ({ path: `themes/${n}`, bytes: 0, absPath: "unused", mtimeMs: 0, scope: "themes" as const })) }, zip: zipFolderFiles }), /2,?000|file.*cap/i);
+  await assert.rejects(buildShareZip({ plan: { ...common(Buffer.alloc(0)), target: { kind: "zip" }, profile: "share", files: Array.from({ length: SHARE_LIMITS.maxFiles + 1 }, (_, n) => ({ path: `themes/${n}`, bytes: 0, absPath: "unused", root: "/unused", identity: null, nlink: 1, mtimeMs: 0, scope: "themes" as const })) }, zip: zipFolderFiles }), /2,?000|file.*cap/i);
   await assert.rejects(buildShareZip({ plan: { ...common(Buffer.alloc(0)), target: { kind: "zip" }, profile: "share", totalBytes: SHARE_LIMITS.maxExpandedBytes + 1 }, zip: zipFolderFiles }), /300 MiB/);
 });
 

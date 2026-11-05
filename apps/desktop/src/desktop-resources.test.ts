@@ -258,3 +258,69 @@ test('B2 maintenance and panel reads share one sampler and bypass the collapsed 
   assert.equal(maintenance.sampledAt, panel.sampledAt);
   assert.equal(maintenance.pollIntervalMs, 5_000);
 });
+
+test('a newly running site gets its own reading before the collapsed cache expires', async () => {
+  const f = fixture();
+  const initial = await f.monitor.get({ panelOpen: false });
+  assert.deepEqual(initial.sites, []);
+  f.advance(5_000);
+  f.sites([{ id: '/sites/one', pid: 10 }]);
+  f.rows([usage(1, 0, 100), usage(10, 1, 300), usage(11, 10, 200)]);
+  const running = await f.monitor.get({ panelOpen: false });
+  assert.equal(running.sites[0]?.rssBytes, 500);
+  assert.equal(running.total.rssBytes, 600);
+  assert.equal(f.reads(), 2);
+  await f.monitor.get({ panelOpen: false });
+  assert.equal(f.reads(), 2, 'an unchanged site set keeps the normal cache');
+});
+
+test('replacing a site PID or stopping it withdraws the old process group before cache expiry', async () => {
+  const f = fixture();
+  f.sites([{ id: '/sites/one', pid: 10 }]);
+  f.rows([usage(1, 0, 100), usage(10, 1, 300)]);
+  await f.monitor.get({ panelOpen: false });
+  f.advance(5_000);
+  f.sites([{ id: '/sites/one', pid: 20 }]);
+  f.rows([usage(1, 0, 100), usage(20, 1, 500)]);
+  const restarted = await f.monitor.get({ panelOpen: false });
+  assert.equal(restarted.sites[0]?.rssBytes, 500);
+  assert.deepEqual(restarted.sites[0]?.processes.map(row => row.pid), [20]);
+  f.advance(5_000);
+  f.sites([]);
+  f.rows([usage(1, 0, 100)]);
+  const stopped = await f.monitor.get({ panelOpen: false });
+  assert.deepEqual(stopped.sites, []);
+  assert.equal(stopped.total.rssBytes, 100);
+  assert.equal(f.reads(), 3);
+});
+
+test('reordered site handles retain the cached sample', async () => {
+  const f = fixture();
+  const one = { id: '/sites/one', pid: 10 }, two = { id: '/sites/two', pid: 20 };
+  f.sites([one, two]);
+  f.rows([usage(1, 0), usage(10, 1), usage(20, 1)]);
+  await f.monitor.get({ panelOpen: false });
+  f.sites([two, one]);
+  await f.monitor.get({ panelOpen: false });
+  assert.equal(f.reads(), 1);
+});
+
+test('a site opened during an in-flight sample gets a bounded retry without overlapping OS reads', async () => {
+  let finish!: (rows: ProcessUsage[]) => void;
+  let sites: { id: string; pid: number }[] = [];
+  let reads = 0;
+  const monitor = createDesktopResources({ desktopPid: 1, platform: 'darwin', now: () => 0,
+    totalMem: () => 1000, openSites: () => sites,
+    listUsage: () => { reads++; return new Promise(resolve => { finish = resolve; }); } });
+  const beforeStart = monitor.get({ panelOpen: false });
+  sites = [{ id: '/sites/one', pid: 10 }];
+  const afterStart = monitor.get({ panelOpen: false });
+  assert.equal(reads, 1);
+  finish([usage(1, 0)]);
+  await beforeStart;
+  assert.equal((await afterStart).pollIntervalMs, 5_000);
+  const refreshed = monitor.get({ panelOpen: false });
+  assert.equal(reads, 2);
+  finish([usage(1, 0), usage(10, 1, 300)]);
+  assert.equal((await refreshed).sites[0]?.rssBytes, 300);
+});

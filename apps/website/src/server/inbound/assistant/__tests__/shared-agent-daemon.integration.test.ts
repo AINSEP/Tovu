@@ -31,31 +31,31 @@ async function harness() {
   const idlePark = createAgentDaemonIdlePark({ isBusy: () => false, exit: () => assert.fail("unexpected park") }, { env: { TOVU_AGENT_DAEMON_IDLE_MINUTES: "0" } });
   app.get('/internal/tool-catalog', (_req, res) => res.json({ tools: [] }));
   app.post('/internal/agent-plugin-preflight', (_req, res) => res.json({ prefix: '', refusalPrefix: '' }));
-  async function site(instance: number, siteId: string, db: "memory" | "sqlite" = "memory", options: {
+  async function site(instance: number, siteLabel: string, db: "memory" | "sqlite" = "memory", options: {
     prepare?: { entered(): void; resume: Promise<void> };
   } = {}) {
-    const dir = join(root, `${instance}-${siteId}`);
+    const dir = join(root, `${instance}-${siteLabel}`);
     await mkdir(dir, { recursive: true });
     if (db === "sqlite") {
       await writeFile(join(dir, "content.db"), ""); await writeFile(join(dir, "chat.db"), "");
     }
-    const token = `proxy-${instance}-${siteId}-${scopes.length}`;
+    const token = `proxy-${instance}-${siteLabel}-${scopes.length}`;
     const env = { PATH: "", HOME: dir, TOVU_SITE_DIR: dir, TOVU_DB: db,
-      TOVU_WORKSPACE: siteId, TOVU_SITE_LISTENER_ORIGIN: options.prepare ? url : "http://127.0.0.1:1",
+      TOVU_WORKSPACE: "workspace-local", TOVU_SITE_LISTENER_ORIGIN: options.prepare ? url : "http://127.0.0.1:1",
       TOVU_AGENT_DAEMON_TOKEN: token, TOVU_AGENT_PERMISSION_MODE: instance ? "restricted" : "bypass",
-      JINI_AGENT_DAEMON_URL: `${url}/s/${instance}-${siteId}` };
-    const scope = await createSiteScope({ siteId, env, token: `rpc-${instance}-${siteId}` }, {
+      JINI_AGENT_DAEMON_URL: `${url}/s/${instance}-${siteLabel}` };
+    const scope = await createSiteScope({ siteId: "workspace-local", env, token: `rpc-${instance}-${siteLabel}` }, {
       idlePark, probeBridge: async () => {}, coreOptions: {
         storage: { kind: "sqlite" },
         fetch: async (_input, init) => {
-          assert.equal(new Headers(init?.headers).get("authorization"), `Bearer rpc-${instance}-${siteId}`);
+          assert.equal(new Headers(init?.headers).get("authorization"), `Bearer rpc-${instance}-${siteLabel}`);
           const request = JSON.parse(String(init?.body)) as { operation: string; input?: { namespace?: string } };
           if (request.operation === 'getEffective' && request.input?.namespace === 'core.interface' && options.prepare) {
             options.prepare.entered();
             await options.prepare.resume;
           }
           return Response.json({ value: request.operation === "bootstrap" ? {
-            workspaceId: siteId, ownerPrincipalId: "owner", siteBinding: { dir, name: siteId },
+            workspaceId: "workspace-local", ownerPrincipalId: "owner", siteBinding: { dir, name: siteLabel },
             siteStoragePaths: { contentDbPath: join(dir, "content.db"), mediaUploadsDir: join(dir, "uploads"), chatAttachmentsDir: join(dir, "attachments") },
             traceCapture: "off", traceEnabled: false,
           } : null });
@@ -63,8 +63,8 @@ async function harness() {
       },
     });
     scopes.push(scope);
-    mounted.set(`${instance}-${siteId}`, scope);
-    return { scope, env, token, base: `${url}/s/${instance}-${siteId}` };
+    mounted.set(`${instance}-${siteLabel}`, scope);
+    return { scope, env, token, base: `${url}/s/${instance}-${siteLabel}` };
   }
   return { site, close: async () => {
     await Promise.all(scopes.map(scope => scope.dispose({}, {})));
@@ -210,7 +210,7 @@ test("concurrent scope launches keep filesystem roots and host permission signal
   const launches = await Promise.all(Array.from({ length: 4 }, (_, index) => captureDaemonRun({ prompt: `scope-${index}` }, {
     bindings: {
       env: { TOVU_RUNTIME_MODE: index % 2 === 0 ? "local" : "production", TOVU_AGENT_NATIVE_FALLBACKS: "1", HOME: `/home/scope-${index}` },
-      routeDeps: { workspaceId: index % 2 === 0 ? "site-a" : "site-b", ownerPrincipalId: Promise.resolve("daemon-test-principal"), siteBinding: { dir: `/sites/scope-${index}` } },
+      routeDeps: { workspaceId: "workspace-local", ownerPrincipalId: Promise.resolve("daemon-test-principal"), siteBinding: { dir: `/sites/scope-${index}` } },
       createToolGapCollector: () => ({ observe() {} }),
     },
   })));

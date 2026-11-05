@@ -290,6 +290,10 @@ export const registerAgentPluginSetEnabledRoute: AgentPluginsRouteRegistrar = (a
       // previously-provisioned row survives a disable untouched (`federate-mcp.ts`'s own header).
       if (written.enabled) {
         await provisionAgentPluginMcpServersBestEffort(deps, { pluginId, principalId: principal.id });
+      } else {
+        // Keep the durable OFF switch effective in discovery too; surviving OAuth rows keep
+        // their credentials, while the existing reload withdraws their tools and guidance.
+        await deps.mcp.notifyRosterChanged({}, {});
       }
 
       sendUpdatedRow(res, candidate, written.enabled, written.warnings);

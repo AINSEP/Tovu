@@ -123,7 +123,8 @@ export function ResourcesMonitor({ projects, onSiteUpdated, children, useReading
   Panel?: typeof ResourcesPanel;
 }, _options = {}) {
   const [open, setOpen] = useState(false);
-  const snapshot = useReadings({ panelOpen: open });
+  const refreshKey = JSON.stringify(projects.map(project => [project.id, project.status, project.externalUrl]));
+  const snapshot = useReadings({ panelOpen: open }, { refreshKey });
   const sites = useMemo(() => new Map(snapshot?.status === 'available' ? snapshot.sites.map((group) => [group.siteId, group]) : []), [snapshot]);
   return <ResourcesContext.Provider value={{ snapshot, sites, open, setOpen }}>
     {children}
@@ -154,10 +155,11 @@ export function ResourcesChip(_input: Record<string, never>, _options = {}) {
   </button>;
 }
 
-/** Site-card reading from the same snapshot as the total; stopped cards carry no stale figure. */
+/** Site-card reading from the same snapshot as the total; stopped cards carry no stale figure.
+ * External servers are outside this desktop's sampler, just as they are in the Resources panel. */
 export function ResourceSiteFigure({ project }: { project: SiteRecord }, _options = {}) {
   const monitor = useContext(ResourcesContext);
-  if (project.status !== 'running') return null;
+  if (project.status !== 'running' || project.externalUrl) return null;
   const group = monitor?.sites.get(project.id);
   const warning = resourceWarnings({ metrics: group });
   return <p className={`card__resources${warning ? ' is-warning' : ''}`}>

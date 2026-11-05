@@ -91,10 +91,12 @@ export function harness(options: HarnessOptions = {}) {
     confirmEnable: (required, opts) => { policyCalls.push({ sealedHere: required.sealedHere, added: [...required.added] }); return confirmEnable(required, opts); },
   };
   const agentHost: AgentPluginHostCapability = {
+    ...(options.agentHost?.inactivePluginIds ? { inactivePluginIds: options.agentHost.inactivePluginIds } : {}),
+    ...(options.agentHost?.previewEnableAccess ? { previewEnableAccess: options.agentHost.previewEnableAccess } : {}),
     listInstalled: async () => { events.push("listInstalled"); return (await options.agentHost?.listInstalled?.({}, {})) ?? [installedAgentPlugin()]; },
     assertWritable: async () => { events.push("assertWritable"); await options.agentHost?.assertWritable?.({}, {}); },
     setEnabled: async (input) => { events.push(`setEnabled:${input.enabled}`); return (await options.agentHost?.setEnabled?.(input, {})) ?? { pluginId: input.pluginId, enabled: input.enabled }; },
-    provisionMcp: async (input) => { events.push(`provisionMcp:${input.pluginId}`); },
+    provisionMcp: async (input, opts) => { events.push(`provisionMcp:${input.pluginId}`); await options.agentHost?.provisionMcp?.(input, opts); },
     uninstall: notUsed("uninstall"),
   };
   const pluginHost: PluginHostPort = {
@@ -171,4 +173,10 @@ export async function answerCard(
   const delivery = surfaceExchanges.deliver({ exchangeId, params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, decision }, principalId: PRINCIPAL_ID }, { toolId: tool.descriptor.id });
   assert.equal(delivery.ok, true, JSON.stringify(delivery));
   return { html, outcome };
+}
+
+/** Exercise write-only assertions after a real owner confirmation, never a policy bypass. */
+export async function approveEnable({ h, input }: { h: ReturnType<typeof harness>; input: unknown }): Promise<unknown> {
+  const { outcome } = await answerCard({ tool: h.tool("plugins_set_enabled"), surfaceExchanges: h.surfaceExchanges, input, decision: "confirm" });
+  return outcome;
 }

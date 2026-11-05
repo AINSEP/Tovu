@@ -17,6 +17,7 @@ import { readInstalledMcpServers } from "./capability-projection.js";
 import { preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from "./lifecycle.js";
 import type { AgentPluginLayout } from "./layout.js";
 import { listInstalledPlugins } from "./lifecycle.js";
+import { isAgentPluginEnabled } from './activation-effects.js';
 import type { McpServerConfig, RemoteMcpServerConfig } from "./mcp-metadata.js";
 import type { DeclaredApiConnection } from "../api-connections/contribution.js";
 import { OAuthError } from "../../platform/oauth/errors.js";
@@ -191,6 +192,8 @@ function sleepOrAbort(ms: number, signal: AbortSignal): Promise<void> {
 /** Consumer-owned services; composition binds persistence, secret custody and sign-in providers.
  * OAuth remains optional so token-only declarations work without an OAuth service. */
 export interface AgentPluginConnectToolDeps {
+  /** Fresh activation owner; injected so OFF-plugin refusal needs no filesystem in unit tests. */
+  readonly isPluginEnabled?: (pluginId: string) => Promise<boolean>;
   readonly credentials: Pick<PluginCredentialsPort, "loadSafe">;
   readonly agentPluginLayout: AgentPluginLayout;
   readonly workspaceId: UUID;
@@ -347,6 +350,16 @@ async function connectWithoutOAuth(
   return { status: "not-connected", reason: result.reason, ...(result.message ? { message: result.message } : {}) };
 }
 
+/** Deny before reading an off plugin's connection instructions or starting a sign-in.
+ * @throws ToolInputError naming the existing approval flow when activation is off/unverifiable.
+ * @complexity One activation-owner read, no connection reads or writes.
+ */
+async function assertPluginCanConnect({ routeDeps, pluginId }: { routeDeps: AgentPluginConnectToolDeps; pluginId: string }, _options = {}): Promise<void> {
+  const active = routeDeps.isPluginEnabled ? await routeDeps.isPluginEnabled(pluginId)
+    : await isAgentPluginEnabled({ workspaceRoot: routeDeps.agentPluginLayout.forWorkspace(routeDeps.workspaceId).root, pluginId });
+  if (!active) throw new ToolInputError({ message: `The '${pluginId}' plugin is off or its activation could not be checked. Ask to turn it on with plugins_set_enabled({family:"agent-plugin",pluginId:${JSON.stringify(pluginId)},enabled:true}), then retry agent_plugin_connect.` });
+}
+
 /**
  * Runs `agent_plugin_connect`: permission, resolve, then the declared token, OAuth or API flow.
  * @example runAgentPluginConnect({ routeDeps, surfaces, ctx, pluginId }, { saveToken });
@@ -366,6 +379,8 @@ export async function runAgentPluginConnect(
   optional: AgentPluginConnectOptions = {},
 ): Promise<AgentPluginConnectResult> {
   await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: AGENT_PLUGIN_CONNECT_PERMISSION }, { entityType: "agent-plugin", entityId: pluginId });
+
+  await assertPluginCanConnect({ routeDeps, pluginId });
 
   const resolvePlugin = routeDeps.resolveInstalledPlugin ?? ((id: string) => defaultResolveInstalledAgentPlugin({ workspaceId: routeDeps.workspaceId, pluginId: id, agentPluginLayout: routeDeps.agentPluginLayout }));
   const plugin = await resolvePlugin(pluginId);

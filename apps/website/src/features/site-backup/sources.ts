@@ -1,9 +1,10 @@
 import { excludedSharePath, validateSharePath } from "./share-file-policy.js";
 import { checkShareLimits, SiteShareRefusal } from "./share-policy.js";
 import { createHash } from "node:crypto";
-import { constants as fsConstants, type Dirent, type Stats } from "node:fs";
-import { lstat, mkdtemp, open, readdir, readFile, realpath, rm, stat, unlink } from "node:fs/promises";
+import type { BigIntStats, Dirent, Stats } from "node:fs";
+import { lstat, mkdtemp, readdir, readFile, realpath, rm, stat, unlink } from "node:fs/promises";
 import path from "node:path";
+import { readReviewedFile, reviewedFileIdentity, type ReviewedFile, type ReviewedFileHandle, type ReviewedFileSystem } from "@jini-ai/platform/fs";
 
 import type { DbOpsPort } from "#src/contracts/core/gated-mutations/ports";
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
@@ -96,9 +97,9 @@ export interface SiteBackupSources {
   readonly sitePlugins?: () => Promise<{ installDir: string; records: readonly PluginDiscoveryRecord[] }>;
 }
 
-/** One file on disk a backup will upload. `bytes` and `mtimeMs` are what {@link readPlannedFile}
- *  compares against at push time. */
-export interface PlannedDiskFile {
+/** One file on disk a backup will upload. Jini verifies its bigint identity, link count, ancestry,
+ *  `bytes` and `mtimeMs` again at push time. */
+export interface PlannedDiskFile extends ReviewedFile {
   /** Relative to the backup folder, `/`-separated. A share's site plugin file is already its archive
    *  path (`plugins/<id>/package/<path in the package>`); `absPath` is still the file on disk. */
   readonly path: string;
@@ -145,11 +146,13 @@ interface WalkSink {
 /** The filesystem reads used by backup collection, including files removed during the walk. */
 export interface SiteBackupWalkFileSystem {
   readonly lstat: (file: string) => Promise<Stats>;
+  readonly lstatBigInt: (file: string) => Promise<Pick<BigIntStats, "dev" | "ino">>;
   readonly readdir: (dir: string) => Promise<Dirent[]>;
 }
 
 const WALK_FILE_SYSTEM: SiteBackupWalkFileSystem = {
   lstat,
+  lstatBigInt: file => lstat(file, { bigint: true }),
   readdir: (dir) => readdir(dir, { withFileTypes: true }),
 };
 
@@ -172,9 +175,9 @@ async function readdirOrEmpty(dir: string, fileSystem: SiteBackupWalkFileSystem)
  * Adds one regular file to the sink, or records why it was left out. `lstat`, never `stat`: a
  * symlink's own metadata, never its target's.
  *
- * @complexity O(1) — one `lstat`.
+ * @complexity O(1) — two metadata reads, the second preserving bigint file identity.
  */
-async function addFile(sink: WalkSink, input: { absPath: string; relPath: string; scope: SiteBackupScope }): Promise<void> {
+async function addFile(sink: WalkSink, input: { root: string; absPath: string; relPath: string; scope: SiteBackupScope }): Promise<void> {
   if (sink.profile === "share" && excludedSharePath({ path: input.relPath }, { notices: sink.notices })) return;
   let info;
   try {
@@ -191,12 +194,18 @@ async function addFile(sink: WalkSink, input: { absPath: string; relPath: string
     sink.skipped.push({ path: input.relPath, reason: "not a regular file" });
     return;
   }
-  if (sink.profile === "share") {
-    validateSharePath({ path: input.relPath });
-    if (info.nlink > 1) throw new SiteShareRefusal({ code: "UNSAFE_FILE", message: `Share refuses hardlinked file '${input.relPath}'.` });
-    checkShareLimits({ files: [...sink.files, { path: input.relPath, bytes: info.size }] });
-  }
-  sink.files.push({ path: input.relPath, bytes: info.size, scope: input.scope, absPath: input.absPath, mtimeMs: info.mtimeMs });
+  checkShareFile({ sink, relPath: input.relPath, info });
+  const ids = await sink.fileSystem.lstatBigInt(input.absPath).catch(err => isMissing(err) ? null : Promise.reject(err));
+  if (ids === null) return;
+  sink.files.push({ path: input.relPath, bytes: info.size, scope: input.scope, root: input.root, absPath: input.absPath, mtimeMs: info.mtimeMs, identity: reviewedFileIdentity({ info: ids }), nlink: info.nlink });
+}
+
+/** Sharing refuses existing hardlinks; ordinary backups can preserve files already linked at plan time. */
+function checkShareFile({ sink, relPath, info }: { sink: WalkSink; relPath: string; info: Stats }, _options = {}): void {
+  if (sink.profile !== "share") return;
+  validateSharePath({ path: relPath });
+  if (info.nlink > 1) throw new SiteShareRefusal({ code: "UNSAFE_FILE", message: `Share refuses hardlinked file '${relPath}'.` });
+  checkShareLimits({ files: [...sink.files, { path: relPath, bytes: info.size }] });
 }
 
 /**
@@ -206,12 +215,12 @@ async function addFile(sink: WalkSink, input: { absPath: string; relPath: string
  *
  * @complexity O(entries under `absDir`) filesystem calls; recursion depth is the folder depth.
  */
-async function walkTree(sink: WalkSink, input: { absDir: string; relDir: string; scope: SiteBackupScope; excludeTopLevel?: ReadonlySet<string> }): Promise<void> {
+async function walkTree(sink: WalkSink, input: { root?: string; absDir: string; relDir: string; scope: SiteBackupScope; excludeTopLevel?: ReadonlySet<string> }): Promise<void> {
   if (sink.profile === "share" && !(await enterShareDirectory({ sink, absDir: input.absDir, relDir: input.relDir }))) return;
   const entries = await readdirOrEmpty(input.absDir, sink.fileSystem);
   for (const entry of entries) {
     if (skippedWalkEntry({ sink, relDir: input.relDir, name: entry.name }, { excludeTopLevel: input.excludeTopLevel })) continue;
-    await walkEntry({ sink, entry, absDir: input.absDir, relDir: input.relDir, scope: input.scope });
+    await walkEntry({ sink, entry, root: input.root ?? input.absDir, absDir: input.absDir, relDir: input.relDir, scope: input.scope });
   }
 }
 
@@ -235,16 +244,16 @@ function skippedWalkEntry(required: { sink: WalkSink; relDir: string; name: stri
   return ignored || optional.excludeTopLevel?.has(name) === true;
 }
 
-async function walkEntry(required: { sink: WalkSink; entry: Dirent; absDir: string; relDir: string; scope: SiteBackupScope }): Promise<void> {
-  const { sink, entry, scope } = required;
+async function walkEntry(required: { sink: WalkSink; entry: Dirent; root: string; absDir: string; relDir: string; scope: SiteBackupScope }): Promise<void> {
+  const { sink, entry, root, scope } = required;
   const absPath = path.join(required.absDir, entry.name);
   const relPath = `${required.relDir}/${entry.name}`;
   if (entry.isSymbolicLink()) {
     sink.skipped.push({ path: relPath, reason: SYMLINK_REASON });
   } else if (entry.isDirectory()) {
-    await walkTree(sink, { absDir: absPath, relDir: relPath, scope });
+    await walkTree(sink, { root, absDir: absPath, relDir: relPath, scope });
   } else {
-    await addFile(sink, { absPath, relPath, scope });
+    await addFile(sink, { root, absPath, relPath, scope });
   }
 }
 
@@ -277,7 +286,7 @@ async function walkOwnedDir(sink: WalkSink, input: { layout: AgentPluginLayout; 
     }
     if (!info.isDirectory()) return;
   }
-  await walkTree(sink, { absDir: input.absDir, relDir: agentPluginsRelPath(input.layout, input.absDir), scope: "plugins" });
+  await walkTree(sink, { root: input.layout.workspacesDir, absDir: input.absDir, relDir: agentPluginsRelPath(input.layout, input.absDir), scope: "plugins" });
 }
 
 /**
@@ -327,7 +336,7 @@ async function walkPluginWorkspace(required: { sink: WalkSink; layout: AgentPlug
   const { sink, layout, workspace } = required;
   for (const name of PLUGIN_WORKSPACE_FILES) {
     const absPath = path.join(workspace.root, name);
-    await addFile(sink, { absPath, relPath: agentPluginsRelPath(layout, absPath), scope: "plugins" });
+    await addFile(sink, { root: layout.workspacesDir, absPath, relPath: agentPluginsRelPath(layout, absPath), scope: "plugins" });
   }
   await walkOwnedDir(sink, { layout, baseDir: workspace.root, absDir: workspace.packages });
   for (const pluginEntry of await readdirOrEmpty(workspace.root, sink.fileSystem)) await walkInstalledPlugin({ sink, layout, workspace, pluginEntry });
@@ -384,7 +393,7 @@ export async function collectSiteBackupFiles(input: { sources: SiteBackupSources
   }
   if (include.settings) {
     for (const name of ["config.json", ".site-meta.json"]) {
-      await addFile(sink, { absPath: path.join(sources.siteDir, name), relPath: `settings/${name}`, scope: "settings" });
+      await addFile(sink, { root: sources.siteDir, absPath: path.join(sources.siteDir, name), relPath: `settings/${name}`, scope: "settings" });
     }
   }
 
@@ -404,9 +413,12 @@ async function pinShareThemeFiles(required: { sink: WalkSink; siteDir: string })
   const sitePrefix = path.resolve(required.siteDir) + path.sep;
   for (const [index, file] of files.entries()) {
     if (file.scope !== "themes") continue;
-    // Packaged originals can live outside the site; retain their own absolute path.
-    const absPath = file.absPath.startsWith(sitePrefix) ? path.join(root, file.absPath.slice(sitePrefix.length)) : file.absPath;
-    const planned = { ...file, absPath };
+    // Packaged originals can live outside the site; trust their package root, not the site root.
+    // Canonicalize that root once; descendants must still pass the no-linked-ancestor read.
+    const inSite = file.absPath.startsWith(sitePrefix);
+    const scopeRoot = inSite ? root : await realpath(file.root);
+    const relative = path.relative(inSite ? required.siteDir : file.root, file.absPath);
+    const planned = { ...file, absPath: path.join(scopeRoot, relative), root: scopeRoot };
     const read = await readDiskFile(planned, { unlinkedPath: true });
     if (!read.ok) throw new SiteShareRefusal({ code: "PLAN_STALE", message: read.message });
     files[index] = { ...planned, sha256: sha256Hex(read.bytes) };
@@ -479,7 +491,7 @@ async function sitePluginPackageFiles(required: { sink: WalkSink; installDir: st
   if (listed === null) return null;
   const staged: WalkSink = { ...required.sink, files: [], skipped: [] };
   for (const file of listed.files) {
-    await addFile(staged, { absPath: path.join(listed.rootDir, file.relativePath), relPath: `plugins/${record.id}/package/${file.relativePath}`, scope: "plugins" });
+    await addFile(staged, { root: listed.rootDir, absPath: path.join(listed.rootDir, file.relativePath), relPath: `plugins/${record.id}/package/${file.relativePath}`, scope: "plugins" });
   }
   // addFile adds nothing for a missing, excluded, linked or non-regular file, so a short list is every refusal.
   if (staged.files.length !== listed.files.length) return null;
@@ -624,14 +636,9 @@ export function checkSiteBackupLimits(
 
 export type ReadPlannedFileResult = { ok: true; bytes: Buffer } | { ok: false; message: string };
 
-/** The opened file's metadata and bytes must come from the same handle. */
-export interface SiteBackupReadHandle {
-  stat(): Promise<Pick<Stats, "isFile" | "size" | "mtimeMs">>;
-  readFile(): Promise<Buffer>;
-  close(): Promise<void>;
-}
-
-type ReadPlannedFileOptions = { openFile?: (file: string, flags: number) => Promise<SiteBackupReadHandle> };
+/** The generic descriptor contract belongs to Jini; backup retains its existing test seam. */
+export type SiteBackupReadHandle = ReviewedFileHandle;
+type ReadPlannedFileOptions = { fileSystem?: ReviewedFileSystem; openFile?: ReviewedFileSystem["open"] };
 
 /**
  * Reads a planned file at push time, refusing it if it is no longer the file the human reviewed.
@@ -641,7 +648,7 @@ type ReadPlannedFileOptions = { openFile?: (file: string, flags: number) => Prom
  * actually read. A file planned with a `sha256` must also still be reached through no linked folder
  * and hash to exactly that digest.
  *
- * @complexity O(file size) — one open, one fstat, one read (plus one realpath and one hash when pinned).
+ * @complexity O(file size + path depth) — Jini proves identity and plain ancestry; pinned files add a hash.
  */
 export async function readPlannedFile(file: PlannedDiskFile, optional: ReadPlannedFileOptions = {}): Promise<ReadPlannedFileResult> {
   const read = await readDiskFile(file, { ...optional, unlinkedPath: file.sha256 !== undefined });
@@ -655,22 +662,13 @@ function staleResult(file: PlannedDiskFile): ReadPlannedFileResult {
 /** The one disk read behind planning checks and push: `unlinkedPath` also refuses an `absPath` whose
  *  realpath differs, i.e. one reached through a linked folder (`O_NOFOLLOW` guards only the last name). */
 async function readDiskFile(file: PlannedDiskFile, optional: ReadPlannedFileOptions & { unlinkedPath?: boolean }): Promise<ReadPlannedFileResult> {
-  const stale = staleResult(file);
-  let handle;
-  try {
-    handle = await (optional.openFile ?? open)(file.absPath, fsConstants.O_RDONLY | (fsConstants.O_NOFOLLOW ?? 0));
-  } catch {
-    return stale;
-  }
-  try {
-    if (optional.unlinkedPath && (await realpath(file.absPath).catch(() => null)) !== file.absPath) return stale;
-    const info = await handle.stat();
-    if (!info.isFile() || info.size !== file.bytes || info.mtimeMs !== file.mtimeMs) return stale;
-    const bytes = await handle.readFile();
-    return bytes.length === file.bytes ? { ok: true, bytes } : stale;
-  } finally {
-    await handle.close();
-  }
+  // Preserve the stricter absolute-path check for pinned package/theme bytes.
+  if (optional.unlinkedPath && (await realpath(file.absPath).catch(() => null)) !== file.absPath) return staleResult(file);
+  const fileSystem = optional.fileSystem ?? (optional.openFile ? {
+    open: optional.openFile, lstat: (file: string) => lstat(file, { bigint: true }), realpath,
+  } : undefined);
+  const bytes = await readReviewedFile({ file }, { fileSystem });
+  return bytes === null ? staleResult(file) : { ok: true, bytes };
 }
 
 export interface SiteBackupManifestInput {

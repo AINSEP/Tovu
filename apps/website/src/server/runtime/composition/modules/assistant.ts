@@ -1,4 +1,6 @@
 import { assistantDaemonToken } from "../../lifecycle/assistant-daemon-connection.js";
+import { redactSecrets } from '@jini-ai/core';
+import { maskLocalPaths } from '@jini-ai/diagnostics';
 import { redactAdminRunContextRef } from "#src/assistant/credential-chat-intake";
 import { tryRestoreSurface } from '@jini-ai/daemon/http';
 /**
@@ -199,8 +201,15 @@ async function proxyPassthrough(req: Request, res: Response, daemon: DaemonCallO
 export async function activateFrontendDaemon({ req, res }: { req: Request; res: Response }, daemon: DaemonCallOptions = {}): Promise<void> {
   const response = await fetchAgentDaemon(req, res, { ...daemon, path: "/api/active", method: "GET" });
   if (!response) return;
+  if (!response.ok) {
+    const body: unknown = await response.json().catch(() => undefined);
+    const detail = maskLocalPaths({ text: redactSecrets({ input: JSON.stringify(body ?? { status: response.status }) },
+      { exactSecrets: [assistantDaemonToken({}, {})].filter((value): value is string => Boolean(value)) }) }).slice(0, 2048);
+    res.status(response.status).json({ error: 'The assistant could not attach to this page. Retry your message; if it keeps failing, restart the site.',
+      code: 'FRONTEND_ACTIVATION_FAILED', detail: `GET /api/active: HTTP ${response.status}; ${detail}` });
+    return;
+  }
   await response.body?.cancel();
-  if (!response.ok) { res.status(503).json({ error: "the agent daemon is currently unavailable", code: "AGENT_DAEMON_UNAVAILABLE" }); return; }
   res.sendStatus(204);
 }
 

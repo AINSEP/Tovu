@@ -540,6 +540,7 @@ function attachSurfaceExtensions(
       federation: {
         presetRegistry: routeDeps.federatedMcpPresetRegistry,
         deps: buildExternalMcpFederationDeps({
+          agentPluginLayout: routeDeps.agentPluginLayout,
           authorize: routeDeps.authorize,
           workspaceId: routeDeps.workspaceId,
           repo: routeDeps.externalMcpServerRepo,

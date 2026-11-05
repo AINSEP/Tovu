@@ -9,12 +9,17 @@ export async function activateAssistantDaemon(
   const deadline = AbortSignal.timeout(35_000);
   const response = await request("/api/frontend-sessions/activate", {
     method: "POST", credentials: "same-origin", signal: signal ? AbortSignal.any([signal, deadline]) : deadline,
+  }).catch((error: unknown) => {
+    signal?.throwIfAborted();
+    const detail = error instanceof Error ? error.name : 'request failed';
+    throw new Error(`The assistant could not reach its page service. Retry your message; if it keeps failing, restart the site. Details: POST /api/frontend-sessions/activate; ${detail}`);
   });
   if (!response.ok) {
-    const body = await response.json().catch(() => undefined) as { error?: unknown } | undefined;
+    const body = await response.json().catch(() => undefined) as { error?: unknown; code?: unknown; detail?: unknown } | undefined;
     const reason = typeof body?.error === "string" && body.error.trim() ? body.error
       : `The assistant service returned HTTP ${response.status}. Restart the site or the app.`;
-    throw new Error(reason);
+    const details = [body?.code, body?.detail].filter((value): value is string => typeof value === 'string' && value.length > 0);
+    throw new Error(details.length ? `${reason}\nDetails: HTTP ${response.status}; ${details.join('; ')}` : reason);
   }
 }
 
@@ -39,9 +44,12 @@ export async function prepareAssistantPageBinding(
   const deadline = AbortSignal.timeout(5_000);
   const waitSignal = signal ? AbortSignal.any([signal, deadline]) : deadline;
   waitSignal.throwIfAborted();
-  await bridge.rebind({ signal: waitSignal }, {});
+  await bridge.rebind({ signal: waitSignal }, {}).catch(() => {
+    signal?.throwIfAborted();
+    throw new Error('The assistant could not attach to this page. Reload this admin page, then retry your message. Details: page attachment did not finish after service activation.');
+  });
   signal?.throwIfAborted();
   const token = bridge.bindToken();
-  if (!token) throw new Error("the assistant page is not attached");
+  if (!token) throw new Error("The assistant page is not attached. Reload this admin page, then retry your message. Details: no page binding token after attachment.");
   return token;
 }

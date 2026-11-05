@@ -1,3 +1,4 @@
+import { publishJobRecoveryMessage } from "@jini-ai/devops/deploy";
 import { createDaemonSiteTools } from "./agent-daemon-site-tools.js";
 import { createAgentDaemonIdlePark } from "./agent-daemon-idle-park.js";
 import { registerAgentPluginEvents } from "./agent-plugin-preflight-events.js";
@@ -1289,6 +1290,19 @@ const delegatedToolRouteDeps = {
   resolvePrincipal,
   toolRegistry: siteTools.registry,
   ...delegatedToolErrorDisclosure({}, {}),
+  // Static jobs live at the site server. Read once through its normal permission gate after a
+  // lost delegated response; the five-second deadline cannot extend or repeat the publish.
+  recoverInterruptedTool: async ({ principal, runId, toolId, result }: {
+    principal: import("@jini-ai/core").Principal; runId: string; toolId: string; result: import("@jini-ai/daemon").ToolExecutionResult;
+  }) => {
+    if (toolId !== "deployment_execute_static_publish") return undefined;
+    try {
+      const checked = await toolExecutor.execute({ principal, run: { id: runId }, toolId: "deployment_get_static_publish_status", input: { executionId: result.executionId } }, { signal: AbortSignal.timeout(5_000) });
+      const output = checked.output as { status?: unknown; message?: unknown } | null;
+      if (checked.status === "completed" && output?.status && typeof output.message === "string") return output.message;
+    } catch { /* A failed status read cannot prove whether the publish started. */ }
+    return publishJobRecoveryMessage({ statusToolId: "deployment_get_static_publish_status" });
+  },
 };
 registerDurableToolGuard({ app, ledger: routeDeps.chatRunLedger,
   isRegistered: ({ toolId }) => siteTools.registry.has({ toolId }),

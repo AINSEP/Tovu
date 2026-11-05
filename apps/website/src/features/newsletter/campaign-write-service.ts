@@ -97,6 +97,7 @@ export async function saveCampaign(required: {
     expectedVersion?: number;
     fields: {
       subject: string;
+      bodyJson?: Record<string, unknown>;
       preheader?: string | null;
       fromName: string;
       fromEmail: string;
@@ -104,7 +105,7 @@ export async function saveCampaign(required: {
       listId: UUID;
     };
   };
-}): Promise<{ campaign: CampaignRecord; revisionSeq: number }> {
+}, _options = {}): Promise<{ campaign: CampaignRecord; revisionSeq: number }> {
   const { deps, input } = required;
   validateFields(input.fields);
   await requireEditableListId(deps, input.workspaceId, input.fields.listId);
@@ -165,6 +166,7 @@ export async function saveCampaign(required: {
       };
     }
 
+    if (input.fields.bodyJson !== undefined) campaign = { ...campaign, bodyJson: input.fields.bodyJson };
     await writeRevision(deps, campaign, input.actorId);
     const revisions = await deps.campaignRepo.listRevisions({ workspaceId: campaign.workspaceId, campaignId: campaign.id });
     return { campaign, revisionSeq: Math.max(...revisions.map((r) => r.seq)) };

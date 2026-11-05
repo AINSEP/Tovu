@@ -215,6 +215,7 @@ export async function runServeCommand(input: RunServeCommandInput, optional: Run
   attachServerLogFile({ filePath: logFiles.server }, { alsoRead: [logFiles.daemon] });
   pinPlainHttpIntoEnv();
   const runningLease = claimSiteRunning({ dir: target, app: process.env.TOVU_RUNNING_APP === "Desktop" ? "Desktop" : "Web" });
+  if (runningLease.attached) return;
   let bootResult: BootSiteDirResult;
   try { bootResult = await bootSiteDir({ dir: target }, { workspaceId: input.workspaceId }); }
   catch (error) { runningLease.release(); throw error; }

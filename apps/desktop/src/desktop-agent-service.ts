@@ -1,11 +1,14 @@
 /** One cold Jini supervisor per desktop instance. Sites retain tools and durable authority. */
 import { spawn as nodeSpawn } from "node:child_process";
 import type { ChildProcess } from "node:child_process";
+import type { Writable } from "node:stream";
 import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { createHash, randomUUID } from "node:crypto";
-import { redactSecrets } from "@jini-ai/core";
+import { createPrivateKeyLineRedactor, redactSecrets } from "@jini-ai/core";
+import type { SiteScopeKey } from "@tovu/contracts/site-scope-key";
+import { maskLocalPaths } from "@jini-ai/diagnostics";
 import { createRedactedOutputSink } from "../../website/src/platform/server-logs/console-tee.ts";
 import { redactLocalText } from "../../website/src/platform/server-logs/redact-local-text.ts";
 import { createDaemonSupervisor, type DaemonSupervisorRequired } from "@jini-ai/sidecar/supervisor";
@@ -22,6 +25,18 @@ export interface DesktopAgentServiceOptions {
   readonly terminate?: DaemonSupervisorRequired["terminateProcess"];
   readonly stdout?: NodeDaemonProcessOptions["stdout"];
   readonly stderr?: NodeDaemonProcessOptions["stderr"];
+}
+
+/** Bind Jini's per-stream PEM state to framed child output; EOF flush precedes reset.
+ * @complexity O(n) in output characters plus the injected policy; bounded by the existing framer.
+ */
+function daemonOutputSink({ sink, redact }: {
+  sink: Pick<Writable, "write">; redact: (text: string) => string;
+}, _options = {}): Writable {
+  const privateKeys = createPrivateKeyLineRedactor({}, {});
+  const output = createRedactedOutputSink({ sink, redact: text => redact(privateKeys.redact({ text }, {})) });
+  output.on("unpipe", () => privateKeys.reset({}, {}));
+  return output;
 }
 
 /** Select only process-wide launch facts for the shared daemon.
@@ -66,12 +81,12 @@ function siteControlRefusal({ error }: { error: unknown }, _options = {}): strin
  * Hashed so the key is bounded and the URL path never carries the owner's directory.
  * @complexity O(n) in directory path length; one realpath call.
  */
-export function siteScopeKey({ siteDir }: { siteDir: string }, _options = {}): string {
+export function siteScopeKey({ siteDir }: { siteDir: string }, _options = {}): SiteScopeKey {
   let canonical = path.resolve(siteDir);
   try { canonical = fs.realpathSync.native(canonical); } catch { /* an absent dir still has one resolved spelling */ }
   // Windows paths are case-insensitive; one site must not get two scopes from two spellings.
   if (process.platform === "win32") canonical = canonical.toLowerCase();
-  return createHash("sha256").update(canonical).digest("hex").slice(0, 32);
+  return createHash("sha256").update(canonical).digest("hex").slice(0, 32) as SiteScopeKey;
 }
 
 /** Bind process launch to existing instance discovery and the existing retry/parking owner.
@@ -97,21 +112,25 @@ export function createDesktopAgentService({ repoRoot, registryPath, cliMode = "c
   let daemonPid: number | undefined;
   let stopWork: Promise<void> = Promise.resolve();
   let stopping = false;
-  type ScopedSite = DaemonSiteRegistration & { scopeKey: string };
+  type ScopedSite = DaemonSiteRegistration & { scopeKey: SiteScopeKey };
   type Site = { config: ScopedSite; token: string; server?: ChildProcess; host?: typeof channel; ready?: Promise<{ url: string; pid: number; token: string }> };
-  const sites = new Map<string, Site>();
+  const sites = new Map<SiteScopeKey, Site>();
   const bindings = new Set<() => void>();
   const notices = new Set<(pid: number) => void>();
-  const withdrawals = new Map<string, Promise<void>>();
-  // Frame first, then use the existing redactors. Site capabilities have no recognizable shape;
-  // cover their exact values too. Work is bounded by a framed line and the registered sites.
-  const redact = (text: string) => redactLocalText({ text: redactSecrets({ input: text }, {
-    exactSecrets: [...sites.values()].flatMap(site => [site.token, site.config.token]), redactPii: false,
-  }) });
+  const withdrawals = new Map<SiteScopeKey, Promise<void>>();
+  // Frame first, then use the existing redactors. Site capabilities have no recognizable
+  // shape; cover their exact values too. Mask local paths before credential replacement. Work is bounded by a framed line and the registered sites; no registry I/O.
+  const redact = (text: string) => {
+    const exactSecrets: string[] = [];
+    for (const site of sites.values()) {
+      exactSecrets.push(site.token, site.config.token);
+    }
+    return redactLocalText({ text: redactSecrets({ input: maskLocalPaths({ text }) }, { exactSecrets, redactPii: false }) });
+  };
   const processPorts = createNodeDaemonProcessAdapter({ command: process.execPath, args, cwd: repoRoot, env: spawnEnv, registry }, {
     ipc: true,
-    stdout: createRedactedOutputSink({ sink: optional.stdout ?? process.stdout, redact }),
-    stderr: createRedactedOutputSink({ sink: optional.stderr ?? process.stderr, redact }),
+    stdout: daemonOutputSink({ sink: optional.stdout ?? process.stdout, redact }),
+    stderr: daemonOutputSink({ sink: optional.stderr ?? process.stderr, redact }),
     spawn(input) {
       const child = optional.spawn ? optional.spawn(input, {}) : nodeSpawn(input.command, input.args, input.options);
       channel?.dispose({});
@@ -206,7 +225,7 @@ export function createDesktopAgentService({ repoRoot, registryPath, cliMode = "c
   /** Remove only the requesting boot's scope; a late exit must never evict a replacement.
    * @complexity O(1) local work and one bounded daemon request.
    */
-  async function withdraw({ scopeKey }: { scopeKey: string }, { server }: { server?: ChildProcess } = {}): Promise<void> {
+  async function withdraw({ scopeKey }: { scopeKey: SiteScopeKey }, { server }: { server?: ChildProcess } = {}): Promise<void> {
     const site = sites.get(scopeKey);
     if (!site) return;
     if (server && site.server !== server) return;

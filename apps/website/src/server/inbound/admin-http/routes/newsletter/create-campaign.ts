@@ -7,11 +7,12 @@ import { toCampaignWriteServiceDeps, type NewsletterRouteDeps } from "./deps.js"
 /** This route's five required string fields, in the one order used for validation. */
 const REQUIRED_CAMPAIGN_STRING_FIELDS = ["subject", "fromName", "fromEmail", "replyTo", "listId"] as const;
 
-/** This route's six body fields, validated and read off an untyped body in one place, or `null` if
+/** This route's campaign fields, validated and read off an untyped body in one place, or `null` if
  *  a required field is missing or the wrong shape.
  *  @complexity O(1) — iterates a fixed 5-entry field list. */
 function parseCreateCampaignBody(rawBody: unknown): {
   subject: string;
+  bodyJson: Record<string, unknown>;
   preheader: string | null;
   fromName: string;
   fromEmail: string;
@@ -24,11 +25,12 @@ function parseCreateCampaignBody(rawBody: unknown): {
       return null;
     }
   }
-  if (typeof body.bodyJson !== "object" || body.bodyJson === null) {
+  if (typeof body.bodyJson !== "object" || body.bodyJson === null || Array.isArray(body.bodyJson)) {
     return null;
   }
   return {
     subject: body.subject as string,
+    bodyJson: body.bodyJson as Record<string, unknown>,
     preheader: typeof body.preheader === "string" ? body.preheader : null,
     fromName: body.fromName as string,
     fromEmail: body.fromEmail as string,
@@ -41,16 +43,10 @@ function parseCreateCampaignBody(rawBody: unknown): {
  * `CREATE_CAMPAIGN` (api.spec.md §1/§4) — `POST .../newsletter/campaigns`, creates a `draft`
  * campaign. `admin.newsletter.campaign.compose`-gated.
  *
- * DISCLOSED GAP (found while wiring, not fixed — out of this dispatch's scope, which is routes
- * only): api.spec.md's request contract names a required `bodyJson` field (the campaign's TipTap
- * document), but `campaign-write-service.ts`'s `saveCampaign` (Stage 2, already implemented) has no
- * such field on its input, and `src/platform/db/schema.sqlite.ts`'s `newsletterCampaigns` table has no
- * body/content column at all — ADR-PIPE-011 Decision §2 superseded the original ADR-034 draft's
- * "campaign is an `entries` content-type row" design with a bespoke Drizzle pair that only carries
- * the envelope fields (subject/preheader/from/replyTo/listId), and api.spec.md's request contract
- * was never updated to match. This route validates `bodyJson`'s presence (satisfying the
- * documented request shape) but cannot persist it — there is no real slot to put it in without
- * changing `campaign-write-service.ts`'s domain logic, which is out of bounds for this task.
+ * The bespoke campaign table (ADR-PIPE-011 Decision §2) stores only envelope fields, which
+ * previously caused this route to validate then discard bodyJson. The write chokepoint now keeps
+ * the document in its existing same-transaction revision state_json; detail reads project the
+ * latest document alongside the live envelope; list reads keep only the envelope. No new column or alternate content owner is needed.
  */
 export const registerAdminNewsletterCreateCampaignRoute: RouteRegistrar = (app, routeDeps) => {
   const deps = routeDeps as NewsletterRouteDeps;

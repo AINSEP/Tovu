@@ -1,11 +1,12 @@
+import type { SiteScopeKey } from "@tovu/contracts/site-scope-key";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createScopeControl, type ControlledScope } from "../agent-daemon-scope-control.js";
+import { createScopeControl, requireScopeKey, type ControlledScope } from "../agent-daemon-scope-control.js";
 
 function harness() {
   const created: { siteId: string; env: NodeJS.ProcessEnv }[] = [];
   const disposed: string[] = [];
-  const tables = { scopes: new Map<string, Promise<ControlledScope>>(), scopeEnvironments: new Map<string, string>(), scopedExchanges: new Map<string, () => boolean>() };
+  const tables = { scopes: new Map<SiteScopeKey, Promise<ControlledScope>>(), scopeEnvironments: new Map<SiteScopeKey, string>(), scopedExchanges: new Map<SiteScopeKey, () => boolean>() };
   const control = createScopeControl({ tables, hold: () => () => {}, listenerUrl: () => "http://127.0.0.1:7700", pid: 42, isExiting: () => false,
     createScope: async input => {
       created.push(input);
@@ -28,7 +29,7 @@ test("two sites sharing one workspace id each get their own scope, and withdrawi
 
   await h.control({ operation: "withdraw", siteId: "workspace-local", scopeKey: "key-bigger-tax" });
   assert.deepEqual(h.disposed, ["/sites/bigger-tax"]);
-  assert.equal(h.tables.scopes.has("key-story-squid"), true, "the other site's scope stays mounted");
+  assert.equal(h.tables.scopes.has("key-story-squid" as SiteScopeKey), true, "the other site's scope stays mounted");
   assert.deepEqual(await h.register("story-squid"), second);
   assert.equal(h.created.length, 2, "re-registering the surviving site reuses its scope");
 });
@@ -45,4 +46,9 @@ test("site idle shutdown cannot be sent to the shared daemon's scope control", a
   await assert.rejects(h.control({ operation: "stopIfIdle" }), /site server/);
   assert.equal(h.created.length, 0);
   assert.equal(h.disposed.length, 0);
+});
+
+test('standalone scope identity requires its site directory before it can be registered', () => {
+  for (const scopeKey of [undefined, '']) assert.throws(() => requireScopeKey({ scopeKey }), /site scope key/);
+  assert.equal(requireScopeKey({ scopeKey: '/sites/a' }), '/sites/a');
 });

@@ -73,10 +73,14 @@ export type SetAgentPluginEnabledInput = AgentPluginEnableInput & { agentPluginL
 
 /** The lifecycle owner remains responsible for authorization, confirmation and durable writes. */
 export interface AgentPluginHostCapability {
+  /** Read the activation owner's off records once for a model-facing catalog request. */
+  inactivePluginIds?(required: Record<string, never>, optional?: Record<string, never>): Promise<ReadonlySet<string>>;
+  /** Point-read preview binds the plugin enable card to its external source and exact grants. */
+  previewEnableAccess?(required: { pluginId: string }, optional?: Record<string, never>): Promise<{ readonly key: string; readonly details: readonly { readonly label: string; readonly value: string }[] }>;
   listInstalled(required: Record<string, never>, optional?: Record<string, never>): Promise<readonly InstalledAgentPlugin[]>;
   assertWritable(required: Record<string, never>, optional?: Record<string, never>): Promise<void>;
   setEnabled(required: AgentPluginEnableInput, optional?: Record<string, never>): Promise<SetAgentPluginEnabledResult>;
-  provisionMcp(required: { pluginId: string; principalId: string }, optional?: Record<string, never>): Promise<void>;
+  provisionMcp(required: { pluginId: string; principalId: string }, optional?: { readonly approvedEnable?: boolean }): Promise<void>;
   uninstall(required: { surfaces: AssistantSurfaceDeps; ctx: ToolExecutionContext; pluginId: string; executionOptions: ToolExecutionOptions }, optional?: Record<string, never>): Promise<unknown>;
 }
 

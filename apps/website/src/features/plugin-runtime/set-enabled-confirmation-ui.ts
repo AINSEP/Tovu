@@ -58,6 +58,7 @@ export interface EnableConfirmationSubject {
   readonly version?: string;
   /** Site plugins: capability entries beyond the owner's last approval (all of them the first time). */
   readonly adds?: readonly string[];
+  readonly accessDetails?: readonly { readonly label: string; readonly value: string }[];
 }
 
 /** Per-family wording. Kept as data rather than branches inside the builder so the two families'
@@ -90,8 +91,9 @@ export function describeEnableApproval({ subject }: { subject: EnableConfirmatio
     description: `This turns on the ${copy.noun} "${subject.pluginId}" for this workspace.`,
     details: [{ label: "Plugin", value: subject.pluginId }, { label: "Kind", value: copy.noun },
       ...(subject.version === undefined ? [] : [{ label: "Version", value: subject.version }]),
-      ...(subject.adds?.length ? [{ label: "Adds", value: subject.adds.join(", ") }] : [])],
-    warning: copy.warning + " Your approval is remembered for this version. It also permits changes to the assistant's access and the service receiving your requests, within your access limits.", confirmLabel: "Enable",
+      ...(subject.adds?.length ? [{ label: "Adds", value: subject.adds.join(", ") }] : []),
+      ...(subject.accessDetails ?? [])],
+    warning: copy.warning + " Only the listed access is turned on. A browser sign-in may still be needed to connect your account.", confirmLabel: "Enable",
     // Cancelling posts back and resolves the parked call immediately, rather than stranding it.
     cancelLabel: "Cancel",
   };

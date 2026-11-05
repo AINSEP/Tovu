@@ -37,6 +37,17 @@ function makeMemoryDeps(): CampaignWriteServiceDeps {
   return { campaignRepo: new InMemoryNewsletterCampaignRepo(), listRepo, clock, ids };
 }
 
+test("saveCampaign retains the document in its revision and across metadata edits", async () => {
+  const deps = makeMemoryDeps();
+  const bodyJson = { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Keep this body" }] }] };
+  const first = await saveCampaign({ deps, input: { workspaceId: WS, actorId: "author", fields: { ...validFields, bodyJson } } });
+  assert.deepEqual(first.campaign.bodyJson, bodyJson);
+  const edited = await saveCampaign({ deps, input: { workspaceId: WS, id: first.campaign.id, actorId: "editor", fields: { ...validFields, subject: "New subject" } } });
+  assert.deepEqual(edited.campaign.bodyJson, bodyJson);
+  const revisions = await deps.campaignRepo.listRevisions({ workspaceId: WS, campaignId: first.campaign.id });
+  assert.deepEqual(revisions.map(revision => revision.state.bodyJson), [bodyJson, bodyJson]);
+});
+
 test("saveCampaign: create + edit round-trip, revisionSeq increments", async () => {
   const deps = makeMemoryDeps();
   const created = await saveCampaign({ deps, input: { workspaceId: WS, actorId: "actor-1", fields: validFields } });

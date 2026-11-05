@@ -1,0 +1,81 @@
+/** Bind Jini's grant plan to the existing external-MCP rows and plugin enable card. */
+import { ToolInputError, redactSecrets } from '@jini-ai/core';
+import { planAgentPluginToolGrant, type AgentPluginToolGrant, type AgentPluginDeclaredTools } from '@jini-ai/agent-plugins/lifecycle';
+import type { ExternalMcpServerRecord } from '../external-mcp/contracts.js';
+import { externalMcpAdmissionRevision, ExternalMcpValidationError, readExternalMcpToolGrants, validateExternalMcpToolNames } from '../external-mcp/external-mcp-store.js';
+import type { AgentPluginHostCapability } from '../../contracts/headless/plugin-host.js';
+import type { AgentPluginMcpPort } from './service-ports.js';
+import { findAgentPluginMcpServerDefaults, planAgentPluginMcpFederation, type PlannedAgentPluginMcpUpsert } from './federate-mcp.js';
+import type { McpServerConfig } from './mcp-metadata.js';
+
+/** Translate persisted host columns to Jini's grant contract. O(n) in stored list bytes; no I/O. */
+export function storedAgentPluginGrants({ row }: { row: Pick<ExternalMcpServerRecord, 'enabled' | 'allowedToolNames' | 'writeAllowedToolNames'> | null }, _options = {}): AgentPluginToolGrant {
+  if (!row) return { enabled: false, allow: [], write: [] };
+  const grants = readExternalMcpToolGrants(row, { strict: true });
+  return { enabled: row.enabled, allow: grants.allowedToolNames, write: grants.writeAllowedToolNames };
+}
+
+/** Bind Jini's grant decision to the existing store's name and 64-tool bounds before card/write.
+ * @throws ToolInputError with the store's exact validation reason and a repair action.
+ * @complexity O(a+w) names; no I/O or schema changes.
+ */
+export function validatedAgentPluginToolGrant(
+  required: { current: AgentPluginToolGrant; declared: AgentPluginDeclaredTools },
+  options: { reason?: 'sign-in' | 'owner-enable' } = {},
+): AgentPluginToolGrant | null {
+  const grant = planAgentPluginToolGrant(required, options);
+  if (!grant) return null;
+  try {
+    return { enabled: true, allow: validateExternalMcpToolNames({ names: grant.allow, field: 'allowedToolNames' }), write: validateExternalMcpToolNames({ names: grant.write, field: 'writeAllowedToolNames' }) };
+  } catch (error) {
+    if (!(error instanceof ExternalMcpValidationError)) throw error;
+    throw new ToolInputError({ message: `The plugin's combined tool grant cannot be saved: ${error.message}. Review its tool selection with external_mcp_save before enabling it.` });
+  }
+}
+
+/** Check the exact source identity, rather than inheriting grants from an id collision. O(1). */
+function assertPluginSource({ row, pluginId, source }: { row: ExternalMcpServerRecord | null; pluginId: string; source: PlannedAgentPluginMcpUpsert }): void {
+  if (!row) return;
+  const declaredSignIn = row.authMode === source.authMode || (source.acceptsAccessToken && row.authMode === 'static_env');
+  if (row.provisionedByPluginId === pluginId && row.url === source.url && row.transport === 'streamable_http' && declaredSignIn) return;
+  throw new ToolInputError({ message: `The '${source.connectionId}' connection was configured separately or points somewhere else. Review it with external_mcp_save before enabling this plugin.` });
+}
+
+/** One indexed row lookup, with the same Jini grant decision used by the writer. O(a+w). */
+async function previewSource({ workspaceId, pluginId, source, servers, repo }: { workspaceId: string; pluginId: string; source: PlannedAgentPluginMcpUpsert; servers: Readonly<Record<string, McpServerConfig>>; repo: AgentPluginMcpPort['repo'] }) {
+  const row = await repo.findByServerId({ workspaceId, serverId: source.connectionId });
+  assertPluginSource({ row, pluginId, source });
+  const current = storedAgentPluginGrants({ row });
+  const declared = findAgentPluginMcpServerDefaults(servers, { serverId: source.connectionId, url: source.url });
+  const grant = declared ? validatedAgentPluginToolGrant({ current, declared }, { reason: 'owner-enable' }) : null;
+  const snapshot = { connectionId: source.connectionId, url: source.url, revision: row ? externalMcpAdmissionRevision(row) : null, current, declared, grant };
+  const details = grant ? [
+    { label: 'External MCP source', value: redactSecrets({ input: `${source.connectionId} — ${source.url}` }, { redactPii: false }) },
+    { label: 'Tools', value: grant.allow.join(', ') || 'None' },
+    { label: 'May write', value: grant.write.join(', ') || 'None' },
+  ] : [];
+  return { snapshot, details };
+}
+
+/** Read only this plugin's declared rows before and after approval. No credentials enter the
+ * card or fingerprint; the existing admission revision binds the source without copying secrets
+ * or making an ordinary OAuth token refresh invalidate an otherwise unchanged approval.
+ * @returns Exact resulting access and a stable comparison key for the existing approval identity.
+ * @throws ToolInputError for a conflicting endpoint/owner or unsupported declaration.
+ * @complexity O(s*(a+w)) in declared servers and tool lists; s point reads, no network calls.
+ */
+export async function previewAgentPluginEnableAccess(
+  { workspaceId, pluginId, servers, repo }: { workspaceId: string; pluginId: string; servers: Readonly<Record<string, McpServerConfig>>; repo: AgentPluginMcpPort['repo'] },
+  _options = {},
+): ReturnType<NonNullable<AgentPluginHostCapability['previewEnableAccess']>> {
+  const planned = planAgentPluginMcpFederation({ servers });
+  if (planned.skipped.length) throw new ToolInputError({ message: `The plugin connection cannot be enabled here: ${planned.skipped.map(entry => `${entry.serverKey}: ${entry.reason}`).join('; ')}` });
+  const snapshots = [];
+  const details: { label: string; value: string }[] = [];
+  for (const source of planned.toUpsert) {
+    const preview = await previewSource({ workspaceId, pluginId, source, servers, repo });
+    snapshots.push(preview.snapshot);
+    details.push(...preview.details);
+  }
+  return { key: JSON.stringify(snapshots), details };
+}

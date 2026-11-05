@@ -41,8 +41,8 @@ function harness(cliMode: "compiled" | "source" = "compiled") {
     },
     terminate: async ({ child }) => { child.kill({}, { signal: "SIGTERM" }); },
   });
-  const demand = (siteId: string) => service.demand({ siteId, scopeKey: `scope-${siteId}`, token: `rpc-${siteId}`, env: {
-    TOVU_SITE_DIR: `/sites/${siteId}`, TOVU_WORKSPACE: siteId, TOVU_AGENT_DAEMON_TOKEN: `proxy-${siteId}`,
+  const demand = (siteId: string) => service.demand({ siteId: "workspace-local", scopeKey: siteScopeKey({ siteDir: `/sites/${siteId}` }), token: `rpc-${siteId}`, env: {
+    TOVU_SITE_DIR: `/sites/${siteId}`, TOVU_WORKSPACE: "workspace-local", TOVU_AGENT_DAEMON_TOKEN: `proxy-${siteId}`,
   } }, {});
   return { service, demand, children, environments, spawnArgs, output: () => text };
 }
@@ -62,7 +62,7 @@ test("site shutdown never stops the shared daemon", async () => {
   const h = harness();
   try {
     await Promise.all([h.demand("a"), h.demand("b")]);
-    await h.service.withdraw({ scopeKey: "scope-a" }, {});
+    await h.service.withdraw({ scopeKey: siteScopeKey({ siteDir: "/sites/a" }) }, {});
     assert.equal(h.children[0]!.connected, true);
     await h.demand("b"); assert.equal(h.children.length, 1);
   } finally { await h.service.shutdown({}, {}); }
@@ -100,6 +100,78 @@ test("shared child output redacts the registered scopes' credentials", async () 
     assert.doesNotMatch(h.output(), /rpc-a/);
     assert.equal(h.output().includes(connection!.token), false);
     assert.ok(h.output().includes("unlabelled"));
+  } finally { await h.service.shutdown({}, {}); }
+});
+
+for (const chunks of [
+  ["before\n-----BEGIN PRIVATE KEY-----\nYm9keS1vbmU=\nYm9keS10d28=\n-----END PRIVATE KEY-----\nafter\n"],
+  ["before\n-----BE", "GIN RSA PRIVATE KEY-----\nYm9keS1v", "bmU=\nYm9keS10d28=\n-----END RSA PRIVATE KEY-----\nafter\n"],
+  ["before\n-----BEGIN EC PRIVATE KEY-----\nYm9keS1vbmU=\n", "Ym9keS10d28="],
+]) {
+  test(`private-key bodies never reach either child output sink (${chunks.length} writes)`, async () => {
+    const h = harness();
+    try {
+      await h.demand("a");
+      for (const stream of [h.children[0]!.stderr, h.children[0]!.stdout]) {
+        const ended = new Promise<void>(resolve => stream.once("end", resolve));
+        for (const chunk of chunks) stream.write(chunk);
+        stream.end();
+        await ended;
+      }
+      assert.doesNotMatch(h.output(), /Ym9keS1v|Ym9keS10|PRIVATE KEY/);
+      assert.match(h.output(), /before/);
+      if (chunks.join("").includes("after")) assert.match(h.output(), /after/);
+    } finally { await h.service.shutdown({}, {}); }
+  });
+}
+
+test("shared child output preserves workspace identifiers and masks complete local paths", async () => {
+  const h = harness();
+  try {
+    await h.service.demand({ siteId: "customer-42", scopeKey: siteScopeKey({ siteDir: "/srv/workspaces/customer-42" }), token: "private-rpc", env: {
+      TOVU_SITE_DIR: "/srv/workspaces/customer-42", TOVU_WORKSPACE: "customer-42",
+    } }, {});
+    h.children[0]!.stderr.write("customer-42 could not open /srv/workspaces/customer-42/ops/db\n");
+    assert.match(h.output(), /customer-42 could not open/);
+    assert.doesNotMatch(h.output(), /\/srv\/workspaces|ops\/db/);
+    assert.match(h.output(), /could not open/);
+  } finally { await h.service.shutdown({}, {}); }
+});
+
+
+test("output redaction preserves site identities and masks paths on both streams", async () => {
+  const h = harness();
+  try {
+    await h.service.demand({ siteId: "private-site", scopeKey: siteScopeKey({ siteDir: "/srv/workspaces/customer-42" }), token: "private-rpc", env: {
+      TOVU_SITE_DIR: "/srv/workspaces/customer-42", TOVU_WORKSPACE: "private-workspace",
+    } }, {});
+    for (const stream of [h.children[0]!.stdout, h.children[0]!.stderr]) {
+      stream.write('private-site private-workspace could not open "/srv/workspaces/customer-42/ops/db"\n');
+      stream.write(String.raw`failed C:\workspaces\customer-42\ops\db` + '\n');
+    }
+    assert.match(h.output(), /private-site private-workspace/);
+    assert.doesNotMatch(h.output(), /customer-42|workspaces|ops\\db/);
+    assert.match(h.output(), /could not open/);
+    assert.match(h.output(), /failed/);
+  } finally { await h.service.shutdown({}, {}); }
+});
+
+test("an unterminated stderr key cannot suppress stdout or the next child's output", async () => {
+  const h = harness();
+  try {
+    await h.demand("a");
+    h.children[0]!.stderr.write('-----BEGIN PRIVATE KEY-----\nYm9keS1vbmU=\n');
+    h.children[0]!.stdout.write('other stream diagnostic\n');
+    const ended = new Promise<void>(resolve => h.children[0]!.stderr.once('end', resolve));
+    h.children[0]!.stderr.end();
+    // EOF unpipes the persistent sink; the replacement must not inherit the open PEM state.
+    await ended;
+    h.children[0]!.emit('exit', 88, null);
+    await h.demand("a");
+    h.children[1]!.stderr.write('next child diagnostic\n');
+    assert.doesNotMatch(h.output(), /Ym9keS|PRIVATE KEY/);
+    assert.match(h.output(), /other stream diagnostic/);
+    assert.match(h.output(), /next child diagnostic/);
   } finally { await h.service.shutdown({}, {}); }
 });
 

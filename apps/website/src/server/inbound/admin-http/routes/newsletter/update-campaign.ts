@@ -27,12 +27,12 @@ function findInvalidStringField(body: Record<string, unknown>): string | null {
 }
 
 /**
- * Checks that `bodyJson` (see the module doc's disclosed gap) is a non-null object when present.
+ * Checks that `bodyJson` (persisted in editorial revision JSON) is a non-null object when present.
  *
  * @complexity O(1).
  */
 function validateBodyJsonField(body: Record<string, unknown>): string | null {
-  if (body.bodyJson !== undefined && (typeof body.bodyJson !== "object" || body.bodyJson === null)) {
+  if (body.bodyJson !== undefined && (typeof body.bodyJson !== "object" || body.bodyJson === null || Array.isArray(body.bodyJson))) {
     return "bodyJson must be an object when provided";
   }
   return null;
@@ -75,9 +75,10 @@ function validateCampaignPatchBody(body: Record<string, unknown>): string | null
 function mergeCampaignPatchFields(
   body: Record<string, unknown>,
   existing: ExistingCampaign
-): Pick<ExistingCampaign, (typeof CAMPAIGN_STRING_FIELD_NAMES)[number]> {
+): Pick<ExistingCampaign, (typeof CAMPAIGN_STRING_FIELD_NAMES)[number] | "bodyJson"> {
   return {
     subject: typeof body.subject === "string" ? body.subject : existing.subject,
+    bodyJson: body.bodyJson === undefined ? existing.bodyJson : body.bodyJson as Record<string, unknown>,
     preheader: typeof body.preheader === "string" ? body.preheader : existing.preheader,
     fromName: typeof body.fromName === "string" ? body.fromName : existing.fromName,
     fromEmail: typeof body.fromEmail === "string" ? body.fromEmail : existing.fromEmail,
@@ -111,8 +112,8 @@ function mergeCampaignPatchFields(
  * dispatch's explicit boundary against changing Stage 1-4 domain logic; flagged rather than
  * silently patched.
  *
- * Same `bodyJson`-has-no-persisted-slot gap `create-campaign.ts` discloses applies here too — if
- * present, it is type-checked but not persisted.
+ * The envelope-only table previously caused bodyJson to be discarded here too. The document now
+ * travels through the write chokepoint into revision JSON; an omitted document remains unchanged.
  */
 export const registerAdminNewsletterUpdateCampaignRoute: RouteRegistrar = (app, routeDeps) => {
   const deps = routeDeps as NewsletterRouteDeps;

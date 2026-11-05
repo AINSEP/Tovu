@@ -101,6 +101,7 @@
     "e2e:journeys:real": "TOVU_E2E_REAL_SERVICES=1 playwright test --config=development/playwright.journeys.config.ts",
     "e2e:desktop": "env -u TOVU_DESKTOP_E2E_APP -u TOVU_E2E_DESKTOP_APP playwright test --config=development/playwright.desktop-journeys.config.ts",
     "e2e:desktop:app": "node development/e2e/support/run-packaged-desktop.mjs",
+    "quality:site-identity": "eslint --no-config-lookup --config development/scripts/site-identity-eslint.config.mjs apps/desktop/src apps/website/src/server/inbound/assistant/agent-daemon-server.ts apps/website/src/server/inbound/assistant/agent-daemon-scope-control.ts",
     "quality:semgrep": "node development/scripts/quality-semgrep.mjs",
     "quality:semgrep:test": "node development/scripts/quality-semgrep.mjs --test",
     "quality:knip": "knip --config knip.json --no-progress",

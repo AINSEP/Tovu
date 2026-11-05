@@ -1,3 +1,4 @@
+import { delegatedToolErrorDisclosure } from "../../../assistant/tool-recovery-preset.js";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { credentialSaveFixtureInput, credentialSaveFixtureRegistrations } from "../../../__tests__/support/credential-save.js";
 import { deploymentRefusal } from "../../consent/service.js";
@@ -97,8 +98,14 @@ function fakeDeps(
   return { deps, authorizeCalls, setAllow: (value: boolean) => { allow = value; } };
 }
 
+const fixtureStatusTools = new WeakMap<ToolRegistration, ToolRegistration>();
+
 function buildRegistrations(deps: StaticPublishToolDeps, surfaceExchanges: SurfaceExchangeStore): Map<string, ToolRegistration> {
-  return new Map(credentialSaveFixtureRegistrations({ registrations: buildStaticPublishRegistrations(deps, { surfaceExchanges }), adapters: { publishHost: buildPublishHostCredentialHandler({ deps, surfaces: { surfaceExchanges } }) } }).map((r) => [r.descriptor.id, r]));
+  const registrations = new Map(credentialSaveFixtureRegistrations({ registrations: buildStaticPublishRegistrations(deps, { surfaceExchanges }), adapters: { publishHost: buildPublishHostCredentialHandler({ deps, surfaces: { surfaceExchanges } }) } }).map((r) => [r.descriptor.id, r]));
+  const execute = registrations.get("deployment_execute_static_publish");
+  const status = registrations.get("deployment_get_static_publish_status");
+  if (execute && status) fixtureStatusTools.set(execute, status);
+  return registrations;
 }
 
 function tool(registrations: Map<string, ToolRegistration>, id: string): ToolRegistration {
@@ -367,7 +374,7 @@ async function fakeCredentialRepo(records: readonly VendorCredentialSetRecord[])
 // 1. Wiring shape — four publish tools; credential_save is owned by the shared contributor.
 // ---------------------------------------------------------------------------
 
-test("buildStaticPublishRegistrations wires all four publish tools, each with an input schema", () => {
+test("buildStaticPublishRegistrations wires all five publish tools, each with an input schema", () => {
   const { deps } = fakeDeps({ credentialSource: { async resolve() { return { ok: false, reason: "n/a" }; }, async isConfigured() { return { configured: false, reason: "n/a" }; } } });
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const registrations = buildStaticPublishRegistrations(deps, { surfaceExchanges });
@@ -376,6 +383,7 @@ test("buildStaticPublishRegistrations wires all four publish tools, each with an
     "deployment_execute_static_publish",
     "deployment_generate_bucket_hosting_setup",
     "deployment_get_static_publish_capabilities",
+    "deployment_get_static_publish_status",
     "deployment_preview_static_publish",
   ]);
   for (const entry of registrations) {
@@ -2023,12 +2031,24 @@ test("submit: a non-Error thrown by the credential write step still returns a sa
 });
 
 /** Supplies the fixture emitter through the canonical handler options, including headless calls. */
-function invokeFixtureHandler(
+/** Existing outcome assertions now follow the public job-status contract. The Job C test below
+ * calls the raw handler to prove enqueue returns while export is blocked. No real sleeps. */
+async function invokeFixtureHandler(
   registration: import("@jini-ai/core").ToolRegistration,
   context: import("@jini-ai/core").ToolExecutionContext & { emitSurface?: import("@jini-ai/core").SurfaceEmitter },
 ) {
   const { emitSurface, ...required } = context;
-  return registration.handler(required, emitSurface ? { emitSurface } : {});
+  const result = await registration.handler(required, emitSurface ? { emitSurface } : {});
+  const accepted = result as { accepted?: boolean; jobId?: string } | undefined;
+  if (!accepted?.accepted || !accepted.jobId) return result;
+  const status = fixtureStatusTools.get(registration);
+  assert.ok(status, "accepted jobs have a registered status tool");
+  for (let turn = 0; turn < 1000; turn++) {
+    const snapshot = await status.handler({ ...required, input: { jobId: accepted.jobId }, signal: new AbortController().signal }, emitSurface ? { emitSurface } : {}) as { status: string; result?: unknown; error?: string };
+    if (snapshot.status !== "running") return snapshot.result ?? { published: false, message: snapshot.error };
+    await new Promise<void>(resolve => setImmediate(resolve));
+  }
+  assert.fail("publish fixture did not settle after 1000 event-loop turns");
 }
 
 // Cancellation during an async seal must still refuse the eventual repository write.
@@ -2316,4 +2336,72 @@ test("capabilities offer every installed host with truthful activation and enabl
   setAllow(false);
   await assert.rejects(call(capabilities), /deployments.read/);
   assert.equal(inventoryReads, 1, "denied reads must not enumerate installed hosts");
+});
+
+// Job C: keep provider work pending while the delegated tool returns a reusable job handle.
+test('static publish returns a job before export finishes, survives call abort, and exposes scoped final results', async () => {
+  let release!: () => void;
+  const blocked = new Promise<void>(resolve => { release = resolve; });
+  const { deps, setAllow } = fakeDeps({ credentialSource: {
+    resolve: async () => ({ ok: true, token: 'secret-canary' }),
+    isConfigured: async () => ({ configured: true }),
+  }, buildTarget: () => ({ id: 'vercel', publish: async (_input, options) => {
+    options?.onProgress?.({ phase: 'uploading', totalFiles: 1, uploadedFiles: 1, deploymentCreated: true, deploymentId: 'dpl_new', url: 'https://new.test', providerStatus: 'READY' });
+    return { targetId: 'vercel', url: 'https://new.test', status: 'ready', deploymentId: 'dpl_new' };
+  }, checkReachability: async () => ({ reachable: true }) }) });
+  const originalExport = deps.exportSiteBound;
+  deps.exportSiteBound = async options => { await blocked; return originalExport(options); };
+  const registrations = buildRegistrations(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' }));
+  const execute = tool(registrations, 'deployment_execute_static_publish');
+  const controller = new AbortController();
+  const context = { executionId: 'job-start', principal: { id: PRINCIPAL_ID }, run: { id: 'run-job' }, input: { target: 'vercel', projectName: 'demo' }, signal: controller.signal };
+  try {
+    const accepted = await execute.handler(context) as { jobId: string; status: string; published: boolean };
+    assert.ok(accepted.jobId);
+    assert.equal(accepted.status, 'running');
+    assert.equal(accepted.published, false);
+    controller.abort();
+    const status = tool(registrations, 'deployment_get_static_publish_status');
+    const running = await call(status, { input: { jobId: accepted.jobId } }) as { status: string; progress: { phase: string } };
+    assert.equal(running.status, 'running');
+    assert.equal(running.progress.phase, 'exporting');
+    const retry = await execute.handler({ ...context, signal: new AbortController().signal }) as { jobId: string; code: string };
+    assert.equal(retry.jobId, accepted.jobId);
+    assert.equal(retry.code, 'ALREADY_RUNNING');
+    setAllow(false);
+    await assert.rejects(call(status, { input: { jobId: accepted.jobId } }), /deployments.read/);
+    setAllow(true);
+    const other = buildRegistrations({ ...deps, workspaceId: 'another-site' }, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' }));
+    const missing = await call(tool(other, 'deployment_get_static_publish_status'), { input: { jobId: accepted.jobId } }) as { code: string };
+    assert.equal(missing.code, 'PUBLISH_JOB_NOT_FOUND');
+    release();
+    let finished: { status: string; result: { deploymentId: string; url: string }; progress: { uploadedFiles: number }; message: string } | undefined;
+    for (let turn = 0; turn < 1000; turn++) {
+      finished = await call(status, { input: { jobId: accepted.jobId } }) as NonNullable<typeof finished>;
+      if (finished.status !== 'running') break;
+      await new Promise<void>(resolve => setImmediate(resolve));
+    }
+    assert.ok(finished);
+    assert.equal(finished.status, 'completed');
+    assert.equal(finished.result.deploymentId, 'dpl_new');
+    assert.equal(finished.result.url, 'https://new.test');
+    assert.equal(finished.progress.uploadedFiles, 1);
+    const replayedCards: unknown[] = [];
+    for (let read = 0; read < 2; read++) await call(status, { input: { jobId: accepted.jobId }, emitSurface: async card => { replayedCards.push(card); } });
+    assert.deepEqual(replayedCards, [], 'status polling must not emit the settled result card again');
+    const recovered = await call(status, { input: { executionId: 'job-start' } }) as { jobId: string };
+    assert.equal(recovered.jobId, accepted.jobId);
+    assert.doesNotMatch(JSON.stringify(finished), /secret-canary/);
+    const disclosure = delegatedToolErrorDisclosure({}, { mintErrorId: () => 'ERR-AAAA-BBBB-CCCC-DDDD', onFailure: () => {} });
+    const interrupted = { source: 'delegated-tool-execute', toolId: 'deployment_execute_static_publish', runId: 'run-job', executionId: 'job-start', status: 'timed-out', correlationId: 'corr', error: 'timed-out' } as const;
+    const recovery = disclosure.describeInternalError({ ...interrupted, recoveryMessage: finished.message });
+    assert.match(recovery, /Deployment: created/);
+    assert.match(recovery, /uploaded files: 1 of 1/);
+    assert.match(recovery, /dpl_new/);
+    assert.match(recovery, /https:\/\/new.test/);
+    assert.match(recovery, /deployment_get_static_publish_status/);
+    const otherCall = disclosure.describeInternalError({ ...interrupted, executionId: 'another-call-in-same-run' });
+    assert.match(otherCall, /No publish job was recorded for this call/);
+    assert.doesNotMatch(otherCall, /dpl_new/);
+  } finally { release(); }
 });

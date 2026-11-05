@@ -966,20 +966,27 @@ export function useAssistantTransport(
 
 /** Pre-warms the per-site agent daemon while the dock is open in Local CLI mode (ADR-070 #7).
  * API · BYOK runs in the API process, so it never wakes the daemon; neither does the default mode
- * before the saved one has loaded. A failed wake is left to the first send, which retries it. */
+ * before the saved one has loaded. Return a failed wake for the dock's visible status; first send retries it.
+ * @complexity O(1), one activation per open/config/bridge change; no polling. */
 export function useLocalCliDaemonPrewarm(
   { mode, configLoaded, agentBridge }: { mode: ExecutionConfig["mode"]; configLoaded: boolean; agentBridge?: FrontendSessionBridge | null },
   { activate = activateAssistantDaemon }: { activate?: typeof activateAssistantDaemon } = {},
-): void {
+): string | null {
   const dockOpen = useSyncExternalStore(subscribeToAssistantDock, getAssistantDockOpen);
+  const [error, setError] = useState<string | null>(null);
   const wake = useRef(activate);
   wake.current = activate;
   useEffect(() => {
     if (!dockOpen || !configLoaded || mode !== "local-cli") return;
     const controller = new AbortController();
-    void prepareAssistantPageBinding({ bridge: agentBridge, signal: controller.signal }, { activate: wake.current }).catch(() => undefined);
+    setError(null);
+    void prepareAssistantPageBinding({ bridge: agentBridge, signal: controller.signal }, { activate: wake.current }).catch((failure: unknown) => {
+      if (controller.signal.aborted) return;
+      setError(failure instanceof Error ? failure.message : "The assistant could not attach to this page. Retry your message; if it keeps failing, restart the site.");
+    });
     return () => controller.abort();
   }, [dockOpen, configLoaded, mode, agentBridge]);
+  return dockOpen && mode === 'local-cli' ? error : null;
 }
 
 /** A required page binding must succeed before dispatch; failures and Stop reject the send.

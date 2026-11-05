@@ -1,3 +1,4 @@
+import { publishJobRecoveryMessage } from "@jini-ai/devops/deploy";
 export type { StaticPublishToolDeps } from "./publish-tool-deps.js";
 import type { StaticPublishToolDeps } from "./publish-tool-deps.js";
 import type { AgentToolDefinition as SharedAgentToolDefinition } from "@jini-ai/core";
@@ -70,9 +71,10 @@ import { createPublishCredential, updatePublishCredential, type PublishCredentia
 import {
   composePublishCredentialSource,
   getPublishRunSnapshot,
+  getPublishJobSnapshot,
+  startPublishRun,
   planStaticPublish,
   readStaticPublishConfig,
-  runPublishAndAwait,
   unknownTargetMessage,
   type PublishCredentialSource,
   type PublishCredentialVerificationCache,
@@ -207,6 +209,13 @@ const SITE_PUBLISH_ENTITY = "site-publish";
  */
 export const staticPublishAgentToolCatalog: AgentToolDefinition[] = [
   {
+    name: "deployment_get_static_publish_status",
+    description: "Read a static-publish job's progress and final result. Pass the jobId returned by deployment_execute_static_publish, or executionId for an interrupted tool call; omit both to recover this site's most recent job after a lost response. Poll no more often than every 5 seconds. Read the job before retrying a timed-out publish; a public site's 200 may belong to an older deployment. Jobs survive call timeouts and are retained in this process for the last 20 completed publishes; a server restart loses these snapshots, so inspect the hosting dashboard then.",
+    sideEffects: "none",
+    authorization: { permission: DEPLOYMENTS_READ_PERMISSION },
+    inputSchema: { type: "object", additionalProperties: false, properties: { jobId: { type: "string", minLength: 1 }, executionId: { type: "string", minLength: 1 } } },
+  },
+  {
     name: "deployment_preview_static_publish",
     description:
       "Previews publishing the current site WITHOUT publishing anything. Hosts with authenticatedPreview require projectName (same value at execute) and resolve the selected credential server-side for authenticated READS of resource collisions and current domain records/bindings/routes. providerInspection includes the exact hosting/domain changes and per-hostname states; inventoryStatus unknown refuses domain changes. This never uploads or provisions. Other hosts retain local-only previews: validates the target's config fields, reports the base path a real publish would use (computed from the host and its config, never passed in, so it can never mismatch the export), and reports whether a publish credential is configured for that target (true/false only, never the credential itself). Use this before telling a human what a publish would do, or to check readiness. This tool NEVER publishes or changes remote state. Authenticated previews send provider API reads; secrets never reach the caller. Account fields: when a host's config field names the account to publish under (an owner, user or organization), do NOT guess it from the human's name, email address or any other context. Call deployment_get_static_publish_capabilities first: a verified credential reports its real account login as that provider's accountLabel. Use the requested account, or default to accountLabel when present. Ask only when the target account is missing or ambiguous. If accountLabel is null and no account was supplied the account is UNKNOWN: say so plainly and ask the human directly. Never soften that question with an illustrative example, placeholder, or 'e.g. <name>' value of any kind: this tool cannot know whether a made-up example matches a real account, and offering one is how an invented account name once got published to.",
@@ -225,7 +234,7 @@ export const staticPublishAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "deployment_execute_static_publish",
     description:
-      "Publishes a fresh static export immediately to a host listed by deployment_get_static_publish_capabilities using its saved credential.\n\nInput is {target, projectName, credentialId?, ...host configFields as top-level strings}; customDomain and zoneId are descriptor-owned fields. A requested domain is freshly inspected, shown in a human confirmation card and checked for stale state before mutation. A model-supplied confirmation flag is refused. unknown fields and secrets are refused. Requires deployments.publish. Wait for the result: {published:true, reachable:true, target, url, status, deploymentId?, basePath?} confirms the site is live. An upload awaiting public reachability returns {published:true, reachable:false, target, url, status, message, deploymentId?, basePath?}; report that partial outcome honestly. Missing credentials return {published:false, reason:'no-credential', message}; failures return {published:false, code, message}. Never exposes a token or raw provider response. A concurrent publish returns ALREADY_RUNNING; wait for it to settle.",
+      "Starts a background publish and returns jobId quickly. Read deployment_get_static_publish_status with that jobId every 5 seconds for progress and the final result. A running job is not a completed publication. If this call times out, read status without jobId before retrying. Publishes a fresh static export to a host listed by deployment_get_static_publish_capabilities using its saved credential.\n\nInput is {target, projectName, credentialId?, ...host configFields as top-level strings}; customDomain and zoneId are descriptor-owned fields. A requested domain is freshly inspected, shown in a human confirmation card and checked for stale state before mutation. A model-supplied confirmation flag is refused. unknown fields and secrets are refused. Requires deployments.publish. Wait for the result: {published:true, reachable:true, target, url, status, deploymentId?, basePath?} confirms the site is live. An upload awaiting public reachability returns {published:true, reachable:false, target, url, status, message, deploymentId?, basePath?}; report that partial outcome honestly. Missing credentials return {published:false, reason:'no-credential', message}; failures return {published:false, code, message}. Never exposes a token or raw provider response. A concurrent publish returns ALREADY_RUNNING; wait for it to settle.",
     // Genuinely destructive in the sense that matters for this domain (sends content to the public
     // internet with a write-scoped external credential) — classified accordingly, and cross-checked
     // against `staticPublishDerivedRisk` below at build time (`assertToolIsWirable`) so this
@@ -258,6 +267,7 @@ export const staticPublishDerivedRisk: DerivedRiskByToolId = new Map<string, Age
   // config shape (`validateStaticPublishConfig`, pure). Authenticated provider inspection may
   // resolve server-side for GETs only; no provisioning, uploads or export run.
   ["deployment_preview_static_publish", "none"],
+  ["deployment_get_static_publish_status", "none"],
   // -> `listPublishCredentials` (a pure DB read, never decrypts — `publish-credentials/store.ts`'s own
   // doc) plus `PublishCredentialSource.isConfigured` per provider (same non-decrypting contract the
   // preview tool relies on). No write, no decrypt, no network call.
@@ -615,6 +625,7 @@ function mapPublishOutcomeToToolResult(
         target: outcome.targetId,
         url: outcome.url,
         status: outcome.status,
+        ...(outcome.providerMetadata ? { providerMetadata: outcome.providerMetadata } : {}),
         message: outcome.message,
         ...(outcome.deploymentId !== undefined ? { deploymentId: outcome.deploymentId } : {}),
         ...(outcome.basePath !== undefined ? { basePath: outcome.basePath } : {}),
@@ -643,6 +654,7 @@ function mapPublishOutcomeToToolResult(
       target: outcome.targetId,
       url: outcome.url,
       status: outcome.status,
+      ...(outcome.providerMetadata ? { providerMetadata: outcome.providerMetadata } : {}),
       ...(outcome.deploymentId !== undefined ? { deploymentId: outcome.deploymentId } : {}),
       ...(outcome.basePath !== undefined ? { basePath: outcome.basePath } : {}),
     },
@@ -1083,9 +1095,22 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
       return { executionMode: deps.publishExecutionMode, providers, refusals };
     },
 
-    /** Validates and publishes with server-side credentials after the shared registration policy
-     * asks for human approval. The result still waits for the provider and
-     * public reachability check; headless assistant calls without consent fail closed. */
+    /** Permission-checked job reads; no credentials or provider requests on the polling path. */
+    deployment_get_static_publish_status: async (ctx) => {
+      const raw = requireInputRecord({ input: ctx.input ?? {} });
+      for (const key of Object.keys(raw)) if (key !== "jobId" && key !== "executionId") throw new ToolInputError({ message: `Unknown publish-status field '${key}'. Pass jobId or executionId, or {} for this site's latest publish.` });
+      const jobId = raw.jobId === undefined ? undefined : requireString({ input: raw, key: "jobId" });
+      const requestId = raw.executionId === undefined ? undefined : requireString({ input: raw, key: "executionId" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: DEPLOYMENTS_READ_PERMISSION }, { entityType: SITE_PUBLISH_ENTITY });
+      const snapshot = getPublishJobSnapshot({ workspaceId: deps.workspaceId, ...(jobId !== undefined ? { jobId } : {}), ...(requestId !== undefined ? { requestId } : {}) });
+      if (!snapshot) return { code: "PUBLISH_JOB_NOT_FOUND", message: "No retained publish job was found for this site. A restart clears job snapshots. Check the hosting dashboard before starting another publish." };
+      const mapped = snapshot.result ? mapPublishOutcomeToToolResult(snapshot.result, { id: snapshot.jobId }, { target: snapshot.target }, [], "") : undefined;
+      return { ...snapshot, ...(mapped ? { result: mapped.result } : {}),
+        message: publishJobRecoveryMessage({ job: snapshot, statusToolId: "deployment_get_static_publish_status" }) };
+    },
+
+    /** Validates and starts the existing background publish path after approval. The job owns
+     * its lifetime; the initiating delegated call can finish or be cancelled independently. */
     deployment_execute_static_publish: async (ctx, optional = {}) => {
       const raw = requireInputRecord({ input: ctx.input });
       const registry = await deployTargetsLoader(deps)(deps.workspaceId);
@@ -1106,8 +1131,15 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
         return { published: false, cancelled: false, ...consent };
       }
 
+      const onSettled = () => {
+        const settled = getPublishJobSnapshot({ workspaceId: deps.workspaceId, requestId: ctx.executionId });
+        if (settled?.result && optional.emitSurface) {
+          const mapped = mapPublishOutcomeToToolResult(settled.result, { id: settled.jobId }, config, [], "");
+          void optional.emitSurface(mapped.outcome).catch(() => console.warn("[static-publish] result card could not be delivered; read deployment_get_static_publish_status for the result"));
+        }
+      };
       if (config.customDomain && loaded.module.preview) {
-        return domainPublishTool({ deps, surfaces, credentialSource, historyStore, config, projectName,
+        return domainPublishTool({ deps, surfaces, credentialSource, historyStore, config, projectName, onSettled,
           ...toolCredentialChoice({ raw }) })(ctx, optional);
       }
 
@@ -1126,20 +1158,21 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
       }
 
       if (ctx.signal.aborted) return { published: false, cancelled: false, reason: "abandoned" };
-      if (getPublishRunSnapshot().status === "running") {
+      const active = getPublishRunSnapshot();
+      if (active.status === "running") {
         trackBlockedToolPublish({ deps, principalId: ctx.principal.id, target, reasonClass: "busy" });
-        return { published: false, cancelled: false, code: "ALREADY_RUNNING", message: "A publish is already running. Wait for it to finish before publishing again." };
+        return { published: false, cancelled: false, code: "ALREADY_RUNNING", jobId: getPublishJobSnapshot({ workspaceId: deps.workspaceId, jobId: active.jobId! })?.jobId, message: "A publish is already running. Call deployment_get_static_publish_status with this jobId (or {} for the latest job on this site). Do not start another publish." };
       }
-      const outcome = await runPublishAndAwait(
+      const job = startPublishRun(
         { credentialSource, loadDeployTargets: deployTargetsLoader(deps), buildTarget: deps.buildTarget, tracker: deps.tracker, observability: deps.observability, hostKit: deps.hostKit, formDestination: deps.formDestination },
-        { productEvent: { userId: ctx.principal.id, source: "assistant" }, workspaceId: deps.workspaceId, publishOutputRootDir: deps.publishOutputRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, config, projectName,
+        { requestId: ctx.executionId, productEvent: { userId: ctx.principal.id, source: "assistant" }, workspaceId: deps.workspaceId, publishOutputRootDir: deps.publishOutputRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, config, projectName,
           ...toolCredentialChoice({ raw }) },
         { nowIso: () => clockNowIso({ clock: deps.clock }) },
         historyStore,
+        { triggeredBy: "agent_tool", onSettled },
       );
-      const mapped = mapPublishOutcomeToToolResult(outcome, { id: ctx.executionId }, config, detailRows, projectName);
-      if (optional.emitSurface) await optional.emitSurface(mapped.outcome);
-      return mapped.result;
+      return { published: false, accepted: true, jobId: job.jobId, status: job.status, progress: job.progress,
+        message: "Publish started in the background. Call deployment_get_static_publish_status with this jobId in 5 seconds for progress and the final result. Do not publish again while it is running." };
     },
 
     /**

@@ -270,6 +270,7 @@ test("SECURITY-CRITICAL: isMcpUiToolCallAllowed admits a tool id if and ONLY if 
     "skills_install",
     "collections_execute_cleanup",
     "deployment_get_static_publish_capabilities",
+    "deployment_get_static_publish_status",
     "deployment_generate_bucket_hosting_setup",
     "deployment_preview_static_publish",
     "source_control_execute_push",

@@ -3,7 +3,7 @@ import { rmSync } from "node:fs";
 import path from "node:path";
 import { createHash } from "node:crypto";
 
-import { DeployError, type DeployFile, type DeployPublishInput, type DeployPublishResult, type DeployTarget, type UnknownRecord } from "@jini-ai/devops/deploy";
+import { DeployError, type DeployFile, type DeployPublishInput, type DeployPublishResult, type DeployPublishProgress, type DeployTarget, type UnknownRecord } from "@jini-ai/devops/deploy";
 
 import { publicPageSecurityHeaders } from "#src/features/theme/public-page-security-headers";
 import { createDeployHostKit } from "#src/features/deployments/deploy-targets/host-kit";
@@ -252,6 +252,10 @@ export type StaticPublishFormDestinationPort = FormReceiverPort;
 export type ExportSiteBoundFn = (options: { outputDir: string; clean?: boolean; basePath?: string; publicUrl?: string }) => Promise<ExportReport>;
 
 export interface StaticPublishInput {
+  /** Initiating tool execution, for scoped recovery after a lost response. */
+  readonly requestId?: string;
+  /** Job-owned progress, independent of a delegated call lifetime. */
+  readonly onProgress?: (progress: DeployPublishProgress) => void;
   /** Authenticated caller attribution, supplied by the HTTP/tool adapter, never publish config. */
   readonly productEvent?: { readonly userId: string; readonly source: "admin" | "assistant" };
   /** Server-held approval from the existing human exchange/gateway; never read from JSON input. */
@@ -449,8 +453,13 @@ async function publishAndMapOutcome(
   formDestination?: FormDestinationPublishInput
 ): Promise<StaticPublishOutcome> {
   try {
+    // Older plugins may not report progress. Once provider work starts, creation is unknown
+    // until that plugin reports evidence or returns a deployment ID.
+    input.onProgress?.({ phase: "uploading", deploymentCreated: "unknown" });
     const result = await jiniTarget.publish(publishInput, { responseHeaders: publicPageSecurityHeaders({}),
+      ...(input.onProgress ? { onProgress: input.onProgress } : {}),
       metadata: { ...input.config, ...(input.domainApproval ? { domainApproval: input.domainApproval } : {}), ...(formDestination ? { formDestination } : {}) } });
+    if (result.status === "failed") return { ok: false, code: "PROVIDER_ERROR", message: result.statusMessage ?? `Publishing to ${input.config.target} failed. Check the provider dashboard before publishing again. Deployment ID: ${result.deploymentId ?? "unknown"}.` };
     if (result.status !== "ready") {
       return buildPartialPublishOutcome(input.config.target, result, basePath);
     }
