@@ -52,7 +52,7 @@ export function buildFormDeliveryForm({ definition: stored }: { definition: Form
 
 /** Project the existing receiver identity and cardinality wire fields.
  * @complexity O(1) time/space; no I/O. @overallScore 100 */
-function manifestField(field: FormDefinitionRecord["fields"][number]): FormDestinationManifestForm["fields"][number] {
+function manifestField(field: FormDefinitionRecord["fields"][number]): Pick<FormDestinationManifestForm["fields"][number], "name" | "required" | "maxLength" | "multiple"> {
   return {
     name: field.name ?? field.id,
     required: field.required,

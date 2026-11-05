@@ -1942,7 +1942,7 @@ async function composeSiteRouteDeps(
     readSite: () => siteProviderRevisions({ kernel: kernel as unknown as StorageKernel<unknown>, workspaceId }),
     reapply: input => providerPlugins.reapply(input) }));
   const { observability, tracker, aiTraceSink } = providerPlugins;
-  formCollectionProviders = providerPlugins.formCollectionProviders ?? formCollectionProviders;
+  formCollectionProviders = () => providerPlugins.formCollectionProviders?.() ?? createFormCollectionRegistry({});
   // Local logging reads only the current site tracing scope, through the live gated provider ports.
   setServerLogTraceReader({ traceIds: () => observability.activeTraceIds?.() });
   lifecycleTracker = tracker;

@@ -2391,6 +2391,9 @@ function collectionHtmlOptions({ props }: { props: JsonObject }): { html?: strin
   return { ...(props.mode === "html" && typeof props.html === "string" ? { html: props.html } : {}), className: FORM_CLASS };
 }
 
+/** Render the resolved collection plan for native external forms or the existing built-in form shell.
+ * @complexity O(fields + HTML bytes) time/space, no I/O.
+ * @overallScore 95 — Low: the legacy built-in Builder shell remains separate for compatibility. */
 function renderWidgetContactForm(props: JsonObject): string {
   const slug = str(props.slug);
   if (!slug) return renderWidgetPlaceholder();

@@ -83,9 +83,11 @@ export function legacyProviderCredentialCheck(
 
 /**
  * The factory input a provider's saved settings make, or undefined when it is not configured: no row
- * saved, no declared settings, or a required declared field without a value. Only declared names pass.
+ * saved, no declared settings, or a required declared field without a value. Stateless form collection
+ * providers initialize with empty input; their public endpoint stays on the form. Only declared names pass.
  * A blank public field takes the plugin's declared `default` (e.g. its vendor's cloud host).
  * @complexity O(f) declared fields.
+ * @overallScore 96 — Recommended: only the stateless collection contract bypasses saved settings.
  */
 export function providerInputOf({ declaration, saved }: { declaration: PluginProviderDeclaration; saved: ProviderPluginConfig | null }, _optional = {}): Readonly<Record<string, string>> | undefined {
   const fields = declaration.settings ?? [];
