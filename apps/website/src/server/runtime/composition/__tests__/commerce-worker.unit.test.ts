@@ -84,6 +84,19 @@ test('lost PostgreSQL session ownership stops future cycles and releases the wor
   });
   await worker.kick(); assert.equal(runs, 1);
   valid = false; timers.shift()!(); await tick();
-  assert.equal(runs, 1); assert.equal(timers.length, 0); assert.equal(released, true);
+  assert.equal(runs, 1); assert.equal(timers.length, 1); assert.equal(released, true);
   assert.equal(warnings.length, 1); await worker.close();
+});
+
+test('standby retries ownership and takes over after the former owner exits without another HTTP request', async () => {
+  let available = false, runs = 0;
+  const timers: (() => void)[] = [];
+  const worker = createCommerceWorker({ owner: true, directory: 'unused', active: async () => true,
+    hasPending: async () => true, run: async () => { runs++; }, warn: () => {} }, {
+    withOwnership: async run => { if (!available) return { acquired: false }; await run(); return { acquired: true }; },
+    schedule: run => { timers.push(run); return () => { const i = timers.indexOf(run); if (i >= 0) timers.splice(i, 1); }; },
+  });
+  await worker.kick(); await tick(); assert.equal(runs, 0); assert.equal(timers.length, 1);
+  available = true; timers.shift()!(); await tick(); assert.equal(runs, 1); assert.equal(timers.length, 1);
+  await worker.close(); assert.equal(timers.length, 0);
 });

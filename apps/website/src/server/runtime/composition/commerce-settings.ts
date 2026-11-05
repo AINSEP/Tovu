@@ -26,12 +26,18 @@ export async function readCommerceConfiguration({ settingsRepo, workspaceId }: {
   const resolved = await getEffective({ repo: settingsRepo }, {
     namespace: 'core.commerce', key: 'configuration', scopeContext: { workspaceId },
   });
-  const value = resolved?.value;
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const value = configurationObject(resolved?.value);
+  if (!value) return null;
   const { providerId, accountId, mode, publicOrigin } = value;
-  if (typeof providerId !== 'string' || !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(providerId)) return null;
-  if (typeof accountId !== 'string' || !accountId.trim()) return null;
+  if (!validProvider(providerId) || !nonempty(accountId)) return null;
   if (mode !== 'test' && mode !== 'live') return null;
-  if (typeof publicOrigin !== 'string' || !publicOrigin.trim()) return null;
+  if (!nonempty(publicOrigin)) return null;
   return { providerId, accountId, mode, publicOrigin };
+}
+
+function validProvider(value: unknown): value is string { return typeof value === 'string' && /^[a-z0-9]+(-[a-z0-9]+)*$/.test(value); }
+function nonempty(value: unknown): value is string { return typeof value === 'string' && value.trim().length > 0; }
+
+function configurationObject(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null;
 }

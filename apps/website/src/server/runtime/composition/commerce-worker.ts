@@ -33,15 +33,20 @@ export function createCommerceWorker(required: CommerceWorkerRequired, optional:
   let cancel: (() => void) | undefined;
   let current: Promise<void> | undefined;
   let holding: Promise<void> | undefined;
+  let checking: Promise<void> | undefined;
   let finish: (() => void) | undefined;
   let closed = false;
   let assertOwned: (() => Promise<void>) | undefined;
   let delayed = false;
-  async function step(): Promise<void> {
-    if (closed) { finish?.(); return; }
-    try { await assertOwned?.(); } catch {
-      required.warn('Payment settlement ownership was lost; this process stopped its worker.'); finish?.(); return;
+  let ownershipBlocked = false;
+  async function stillOwner(): Promise<boolean> {
+    if (closed) return false;
+    try { await assertOwned?.(); return true; } catch {
+      required.warn('Payment settlement ownership was lost; this process stopped its worker.'); return false;
     }
+  }
+  async function step(): Promise<void> {
+    if (!await stillOwner()) { finish?.(); return; }
     try {
       if (!await required.active() && !await required.hasPending()) { finish?.(); return; }
       await required.run(); delayed = false;
@@ -54,25 +59,39 @@ export function createCommerceWorker(required: CommerceWorkerRequired, optional:
       current = step().finally(() => { current = undefined; });
     }, 5000);
   }
-  return {
+  async function retryOwnership(): Promise<void> {
+    if (closed) return;
+    try {
+      if (!await required.active() && !await required.hasPending()) return;
+      if (!closed) cancel = schedule(() => { cancel = undefined; void worker.kick(); }, 5000);
+    } catch { required.warn('Payment settlement ownership retry is delayed; recorded work remains queued.'); }
+  }
+  const worker = {
     async kick() {
       if (!required.owner || closed || holding) return;
+      cancel?.(); cancel = undefined;
       let started!: () => void;
       const ready = new Promise<void>(resolve => { started = resolve; });
       const done = new Promise<void>(resolve => { finish = resolve; });
       holding = own(async (lease?: { assertOwned(): Promise<void> }) => {
+        ownershipBlocked = false;
         assertOwned = lease?.assertOwned;
         current = step().finally(() => { current = undefined; started(); });
         await current; await done;
       }).then(result => {
-        if (!result.acquired) required.warn('Another serving process owns payment settlement for this database.');
-      }).catch(() => required.warn('Payment settlement ownership could not be acquired; recorded payments remain queued.'))
-        .finally(() => { holding = undefined; started(); });
+        if (!result.acquired && !ownershipBlocked) required.warn('Another serving process owns payment settlement for this database.');
+        ownershipBlocked = !result.acquired;
+      }).catch(() => {
+        if (!ownershipBlocked) required.warn('Payment settlement ownership could not be acquired; recorded payments remain queued.');
+        ownershipBlocked = true;
+      })
+        .finally(async () => { holding = undefined; started(); checking = retryOwnership(); await checking; checking = undefined; });
       await ready;
     },
     async close() {
       closed = true; cancel?.(); cancel = undefined;
-      await current; finish?.(); await holding;
+      await current; finish?.(); await holding; await checking;
     },
   };
+  return worker;
 }
