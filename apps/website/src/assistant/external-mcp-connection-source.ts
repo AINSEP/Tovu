@@ -96,7 +96,7 @@ export function createStoredExternalMcpConnectionSource(
           console.warn(`${deps.log} mcp-federation: stored server '${failure.serverId}' skipped — ${failure.reason}`);
         }
         configFailures = failures.map((failure) => ({ connectionId: failure.serverId, reason: failure.reason }));
-        return toResolvedFederatedConnections(configs, await pluginReadOnlyNames({ deps, configs, resolvePluginReads }));
+        return toResolvedFederatedConnections(configs, await pluginReadOnlyNames({ deps, configs, resolvePluginReads }), { oauth: deps.oauth });
       } catch (error) {
         console.warn(
           `${deps.log} mcp-federation: the stored external-MCP roster could not be read, continuing without it — ${errorDetail(error)}`,
@@ -202,7 +202,7 @@ export function buildExternalMcpFederationDeps(inputs: {
    *  NEXT call cheaply) and replaces the transport-shaped error with the gate's own terminal
    *  message. Absent, `onAuthFailed` is left unset — not set to a no-op — so `FederationDeps`'s own
    *  "propagate unchanged" default applies. */
-  readonly oauth?: Pick<ExternalMcpOAuthService, "reportAuthFailure">;
+  readonly oauth?: Pick<ExternalMcpOAuthService, "reportAuthFailure" | "assertSharedAuthorized">;
   /**
    * G3: the exchange store the root's MCP-UI click route is mounted with. When present, every
    * federated tool that is not marked read-only asks the human on a per-call Confirm/Cancel card
@@ -222,6 +222,7 @@ export function buildExternalMcpFederationDeps(inputs: {
     workspaceId: inputs.workspaceId,
     repo: inputs.repo,
     isPluginEnabled,
+    ...(inputs.oauth?.assertSharedAuthorized ? { assertSharedAuthorized: inputs.oauth.assertSharedAuthorized } : {}),
   });
   const { oauth, surfaceExchanges } = inputs;
   return {

@@ -568,7 +568,7 @@ export function buildExternalMcpRegistrations(routeDeps: ExternalMcpToolDeps, su
 
       const redirectUri = resolveExternalMcpOAuthRedirectUri(id, routeDeps.derivedPublicOrigin);
       try {
-        return await routeDeps.externalMcpOAuth.beginConnect({ serverId: id, ...(redirectUri === undefined ? {} : { redirectUri }), delivery: 'hosted' });
+        return await routeDeps.externalMcpOAuth.beginConnect({ serverId: id, actorId: ctx.principal.id, ...(redirectUri === undefined ? {} : { redirectUri }), delivery: 'hosted' });
       } catch (error) {
         // `ExternalMcpValidationError` is exactly "the caller named something this connection cannot
         // do, and a different input or one config change fixes it" — an unknown id, a non-OAuth row,

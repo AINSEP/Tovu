@@ -3322,11 +3322,16 @@ export const api = {
   /** Starts an OAuth sign-in for one saved server. `redirect_required` carries the provider URL to
    *  open; `device_code` carries a code the operator types at `verificationUri`, then
    *  {@link api.pollExternalMcpOAuthDevice} reports when it lands. */
-  connectExternalMcpOAuth: (serverId: string) =>
+  connectExternalMcpOAuth: (serverId: string, options?: { destination?: "shared" }) =>
     request<{ auth: AdminExternalMcpConnectStart }>(
       `/workspaces/${WORKSPACE_ID}/mcp-servers/${encodeURIComponent(serverId)}/oauth/connect`,
-      { method: "POST" }
+      { method: "POST", ...(options?.destination ? { body: JSON.stringify(options) } : {}) }
     ),
+  stopSharedMcpConnection: (serverId: string) => request<void>(`/workspaces/${WORKSPACE_ID}/mcp-servers/${encodeURIComponent(serverId)}/oauth`, { method: "DELETE" }),
+  listSharedMcpConnections: (serverId: string) => request<{ available: boolean; connections: { credentialId: string; label: string }[]; current: { credentialId: string; status: string; granted: boolean } | null }>(
+    `/workspaces/${WORKSPACE_ID}/mcp-servers/${encodeURIComponent(serverId)}/oauth/shared`),
+  useSharedMcpConnection: (input: { serverId: string; credentialId: string }) => request<{ connected: boolean }>(
+    `/workspaces/${WORKSPACE_ID}/mcp-servers/${encodeURIComponent(input.serverId)}/oauth/shared`, { method: "POST", body: JSON.stringify({ credentialId: input.credentialId }) }),
   /** One poll of a device sign-in; the caller owns the loop and waits `retryAfterSeconds`. */
   pollExternalMcpOAuthDevice: (serverId: string) =>
     request<{ status: "pending"; retryAfterSeconds: number } | { status: "connected" }>(

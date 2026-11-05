@@ -111,13 +111,13 @@ export function useExternalMcpOAuthConnect(
     cleanup.current = () => { stopped = true; clearTimeout(timer); };
   }, [port, serverId, finish, fallbackError]);
 
-  const connect = useCallback(async () => {
+  const connect = useCallback(async (options: { destination?: "shared" } = {}) => {
     stop();
     const w = win();
     const popup = grant === "device_code" ? null : w.open("about:blank");
     setState({ phase: "starting" });
     try {
-      const { auth } = await port.connectExternalMcpOAuth(serverId);
+      const { auth } = await (options.destination ? port.connectExternalMcpOAuth(serverId, options) : port.connectExternalMcpOAuth(serverId));
       if (auth.kind === "redirect_required") {
         if (popup) popup.location.href = auth.authorizationUrl;
         else w.open(auth.authorizationUrl);

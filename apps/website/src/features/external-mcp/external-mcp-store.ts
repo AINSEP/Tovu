@@ -609,6 +609,10 @@ async function resolveExternalMcpAccessToken(
   record: ExternalMcpServerRecord,
   oauth: ExternalMcpOAuthTokenResolverPort | undefined,
 ): Promise<{ readonly ok: true; readonly token: string } | { readonly ok: false; readonly reason: string }> {
+  try {
+    const shared = await oauth?.resolveSharedAccessToken?.({ serverId: record.serverId });
+    if (shared !== undefined) return { ok: true, token: shared };
+  } catch { return { ok: false, reason: "This shared connection is no longer granted to this site. Choose it again or sign in from Settings → External MCP." }; }
   const statusFailure = oauthStatusFailure(record);
   if (statusFailure !== null) return { ok: false, reason: statusFailure };
   if (!oauth) {
@@ -820,8 +824,11 @@ export async function readEnabledExternalMcpConfigs(
 export function toResolvedFederatedConnections(
   configs: readonly ExternalMcpServerConfig[],
   readOnlyRemoteNamesByServer: ReadonlyMap<string, ReadonlySet<string>> = new Map(),
+  optional: { readonly oauth?: ExternalMcpOAuthTokenResolverPort } = {},
 ): ResolvedFederatedConnection[] {
   return configs.map((config) => ({
+    ...(config.authMode === "oauth" && config.target.kind === "streamable_http" && optional.oauth?.resolveSharedAccessToken
+      ? { bearerToken: () => optional.oauth!.resolveSharedAccessToken!({ serverId: config.serverId }) } : {}),
     config: {
       connectionId: config.serverId,
       label: config.label,
