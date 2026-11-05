@@ -96,6 +96,11 @@ afterEach(() => {
 });
 
 describe("Security — page shell", () => {
+  it("keeps the recovery status visible through the page translator", () => {
+    renderPage({ canManageSiteKey: false });
+    expect(screen.getByText("Loading owner recovery…")).toBeInTheDocument();
+  });
+
   it("renders a page header (Operations kicker, Secrets title) above a TabBar", () => {
     renderPage({ canManageSiteKey: false });
     expect(screen.getByText("Operations")).toBeInTheDocument();

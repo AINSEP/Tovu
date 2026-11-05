@@ -21,6 +21,7 @@ it("redacts request metadata before putting it into fallback text or copy detail
 it("masks a Tovu key in the fallback path without constructing a failure envelope", async () => {
   vi.stubGlobal("fetch", vi.fn(async () => new Response("{}", { status: 400 })));
   const error = await requestOnce({ path: "/tovu_ak_012345abcdef.HOST_SECRET_CANARY_abcdefghijklmnop" }).catch(error => error);
+  if (!(error instanceof ApiError)) throw new Error("Expected an API error");
   expect(error.message).toContain("[REDACTED:tovu_api_key]");
   expect(error.message).not.toContain("HOST_SECRET_CANARY");
   expect(error).not.toHaveProperty("failure");

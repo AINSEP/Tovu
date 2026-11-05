@@ -180,7 +180,7 @@ export function Security(props: SecurityProps) {
           </p>
         </div>
       </div>
-      <RecoveryCodesCard t={key => t(locale, key)} />
+      <RecoveryCodesCard t={key => t({ locale, key })} />
       <TabBar
         ariaLabel={t({ locale: locale, key: "Secrets" })}
         tabs={tabs}
