@@ -130,3 +130,5 @@ The final response provides the final report-commit SHA; that commit changes doc
 ## Desktop gate repair — in progress
 
 The untruncated main-process baseline found 9 failures across 2,174 tests. Causes include stale shutdown VM dependencies, an outdated staging-path inventory, subprocess timeouts and container-only process/Electron availability. Two requested complexity refactors preserve all thresholds and behavior. The affected source/fixture tests pass 169 checks. All gate configurations, floors and debt inventories remain unchanged. Full gate verification is pending.
+
+Gate checkpoint: the missing locked Electron runtime was installed with checksum verification, and unchanged process-reaping assertions pass under a temporary standard init/subreaper. Strict complexity passes 247 files at 9/9 with zero new debt. The first full gate attempt found a typing mistake in a newly added invalid fixture; the fixture now uses the supported unavailable-snapshot contract and retains every reset assertion. A fresh full gate run will be authoritative.

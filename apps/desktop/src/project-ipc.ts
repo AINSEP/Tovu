@@ -210,7 +210,7 @@ function scheduleSiteRetry({ delayMs, run }: { delayMs: number; run: () => void 
 }
 
 /** Invalid samples cannot extend a high-RSS observation. */
-function isHighSiteRss({ rssBytes }: { rssBytes: number | null | undefined }): boolean {
+function isHighSiteRss({ rssBytes }: { rssBytes: number | undefined }): boolean {
   return typeof rssBytes === "number" && Number.isFinite(rssBytes) && rssBytes >= 1_500_000_000;
 }
 
