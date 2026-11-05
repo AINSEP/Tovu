@@ -5,7 +5,6 @@ import {
   commerceOrderPaymentRepoFor, commercePriceProviderRefRepoFor,
   commercePriceRepoFor, commerceProductRepoFor,
 } from "@jini-ai/commerce/repo";
-import type { CommerceDatabase } from "@jini-ai/commerce/repo";
 import { openMemorySqliteKernel } from "../../kernel/drivers/sqlite.js";
 import { openPgliteKernel } from "../../kernel/drivers/pglite.js";
 import { listTables } from "../../kernel/dialect.js";
@@ -17,7 +16,7 @@ const TABLES = ["commerce_order_items", "commerce_order_payments", "commerce_ord
 
 for (const dialect of ["sqlite", "pglite"] as const) {
   test(`[${dialect}] activation creates exactly the borrowed catalog once without importing historical rows`, async t => {
-    const kernel = dialect === "sqlite" ? openMemorySqliteKernel<CommerceDatabase>() : openPgliteKernel<CommerceDatabase>();
+    const kernel = dialect === "sqlite" ? openMemorySqliteKernel<unknown>() : openPgliteKernel<unknown>();
     t.after(() => kernel.close());
     await kernel.execute(sql`CREATE TABLE p_store__products (id text PRIMARY KEY, name text NOT NULL)`);
     await kernel.execute(sql`INSERT INTO p_store__products VALUES ('historical', 'Do not import')`);

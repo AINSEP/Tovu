@@ -10,7 +10,7 @@ import { pathToFileURL } from "node:url";
 import express from "express";
 import { createCommerceServer, createOrderPaymentProjector, type CommerceOrderView } from "@jini-ai/commerce";
 import { commerceOrderPaymentRepoFor, commerceOrderRepoFor, commercePriceProviderRefRepoFor,
-  commercePriceRepoFor, commerceProductRepoFor, type CommerceDatabase } from "@jini-ai/commerce/repo";
+  commercePriceRepoFor, commerceProductRepoFor } from "@jini-ai/commerce/repo";
 import { createInboxWorker, createKernelProviderRegistry, createMemoryGrantStore, createOutboxRelay,
   createPaymentsService, createProviderContexts, createWebhookReceiver, leasedProviderItem, noopAlertPort,
   paymentsProviderContract, type ProviderContext } from "@jini-ai/commerce/payments/kernel";
@@ -51,13 +51,13 @@ async function stripeHost() {
 
 /** Real HTTP/member boundary, catalog, SQL ledger and provider; only Stripe's outbound HTTP is fake. */
 async function fixture(t: test.TestContext, dialect: "sqlite" | "pglite") {
-  const kernel = dialect === "sqlite" ? openMemorySqliteKernel<CommerceDatabase>() : openPgliteKernel<CommerceDatabase>();
+  const kernel = dialect === "sqlite" ? openMemorySqliteKernel<unknown>() : openPgliteKernel<unknown>();
   t.after(() => kernel.close());
   const { host, item } = await stripeHost();
   t.after(() => host.dispose({}));
   let now = 1_800_000_000_000, sequence = 0;
   const clock = { nowMs: () => now, nowIso: () => new Date(now).toISOString() };
-  const newId = () => `commerce_${++sequence}`;
+  const newId = () => { sequence += 1; return `commerce_${sequence}`; };
   const requests: Parameters<ProviderContext["httpClient"]["send"]>[0][] = [];
   const session = { object: "checkout.session", id: "cs_fixture", mode: "payment", livemode: false,
     amount_total: total.minorUnits, currency: "jpy", status: "open", payment_status: "unpaid",
