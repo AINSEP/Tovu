@@ -64,7 +64,7 @@ function wrapper(options: { testMode?: MailTestModeSetting; suppressed?: string[
   return { ledger, wrap };
 }
 
-test("resendPolicyFor: sign-in links never re-send; other mail may re-send once unknown", () => {
+test("resendPolicyFor: sign-in links and forms never re-send; other mail may re-send once unknown", () => {
   assert.equal(resendPolicyFor({ options: { sourceContext: { module: "members" }, purpose: "transactional" } }), "never");
   assert.equal(resendPolicyFor({ options: { sourceContext: { module: "x" }, purpose: "feature:magic_link" } }), "never");
   assert.equal(resendPolicyFor({ options: { sourceContext: { module: "newsletter" }, purpose: "transactional" } }), "on_unknown");
