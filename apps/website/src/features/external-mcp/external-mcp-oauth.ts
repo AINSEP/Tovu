@@ -1,3 +1,4 @@
+import { createSharedExternalMcpOAuth } from "./external-mcp-shared-oauth.js";
 import { ToolInputError } from "@jini-ai/core";
 import type { DeviceAuthorizationStore, ExternalMcpOAuthDeps, ExternalMcpOAuthService } from "./contracts.js";
 import { createTovuIssuerBoundDiscoveryPolicy, tovuOAuthMessages, withTovuOAuthCopy } from "../../platform/oauth/endpoint-safety.js";
@@ -159,6 +160,7 @@ interface ExternalMcpConnectionGateDeps {
   readonly workspaceId: UUID;
   readonly repo: Pick<ExternalMcpServerRepoPort, "findByServerId">;
   readonly isPluginEnabled: (pluginId: string) => Promise<boolean>;
+  readonly assertSharedAuthorized?: (input: { serverId: string }) => Promise<boolean>;
 }
 
 /**
@@ -203,7 +205,8 @@ export function createExternalMcpConnectionGate(deps: ExternalMcpConnectionGateD
       offerPluginAccessCard({ record, refusal });
       throw new ExternalMcpConnectionRevokedError({ serverId: connectionId, label: record?.label ?? null, remoteName: call.remoteName, reason: refusal });
     }
-    assertNotAwaitingReauth(record, connectionId);
+    const shared = await deps.assertSharedAuthorized?.({ serverId: connectionId });
+    if (!shared) assertNotAwaitingReauth(record, connectionId);
     // A roster call just passed `rosterRefusalFor`'s current-row grant check; tell Jini so its
     // admitted-grants snapshot does not refuse a grant added since boot. A preset vouches for nothing.
     return isPreset ? undefined : "current-grants-checked";
@@ -308,6 +311,7 @@ function noOAuthProviderError(required: { readonly serverId: string }): OAuthErr
  *  connection names a registered provider for that part instead", or — on a remote connection — that
  *  discovery has not run yet. */
 interface StoredOAuthEndpoints {
+  issuer?: string;
   authorizationEndpoint?: string;
   tokenEndpoint?: string;
   deviceAuthorizationEndpoint?: string;
@@ -458,6 +462,7 @@ function needsEndpointDiscovery(record: ExternalMcpServerRecord, endpoints: Stor
 function toStoredEndpoints(discovered: DiscoveredOAuthConfiguration & { readonly resource?: string | null }): StoredOAuthEndpoints {
   const server = discovered.server;
   return {
+    issuer: server.issuer,
     tokenEndpoint: server.tokenEndpoint,
     ...(discovered.resource == null ? {} : { resource: discovered.resource }),
     ...(server.authorizationEndpoint === null ? {} : { authorizationEndpoint: server.authorizationEndpoint }),
@@ -589,6 +594,7 @@ async function persistSelfConfiguration(
      *  not inherit the secret of the client it replaced). */
     readonly clientSecret: string | null | undefined;
   },
+  options: { readonly configurationOnly?: boolean } = {},
 ): Promise<ExternalMcpServerRecord> {
   const existing = await openExternalMcpOAuthPayload(deps.sealer, record);
   const clientSecret = identity.clientSecret === undefined ? existing.clientSecret : (identity.clientSecret ?? undefined);
@@ -608,7 +614,7 @@ async function persistSelfConfiguration(
     oauthAadVersion,
     updatedAt: readNowIso({ clock: deps.clock }),
   };
-  await deps.repo.upsert(next);
+  if (!options.configurationOnly) await deps.repo.upsert(next);
   return next;
 }
 
@@ -634,6 +640,7 @@ async function selfConfigureConnection(
   deps: ExternalMcpOAuthDeps,
   record: ExternalMcpServerRecord,
   redirectUri: string | undefined,
+  options: { readonly configurationOnly?: boolean } = {},
 ): Promise<ExternalMcpServerRecord> {
   const stored = readStoredEndpoints(record);
   const mustDiscover = needsEndpointDiscovery(record, stored);
@@ -652,7 +659,7 @@ async function selfConfigureConnection(
   // Narrowed on the field rather than on `mustRegister`, so there is no fallback that could write an
   // empty client id if the two ever disagreed.
   if (keepClient && record.oauthClientId !== null) {
-    return persistSelfConfiguration(deps, record, { endpoints, scopes, grant, clientId: record.oauthClientId, clientSecret: undefined });
+    return persistSelfConfiguration(deps, record, { endpoints, scopes, grant, clientId: record.oauthClientId, clientSecret: undefined }, options);
   }
 
   const minted = await mintClientForConnection(deps, record, discovered, { redirectUri, scopes, grant });
@@ -662,7 +669,7 @@ async function selfConfigureConnection(
     grant,
     clientId: minted.clientId,
     clientSecret: minted.clientSecret,
-  });
+  }, options);
 }
 
 /**
@@ -1010,8 +1017,19 @@ export function createExternalMcpOAuthService(required: ExternalMcpOAuthDeps, _o
     },
   });
 
+  const shared = deps.shared ? createSharedExternalMcpOAuth({ deps, shared: deps.shared, resolveProvider: record => resolveProviderDescriptor(deps, record), configure: async input => {
+    const record = await selfConfigureConnection(deps, await requireOAuthRecord(deps, input.serverId), input.redirectUri, { configurationOnly: true });
+    const provider = resolveProviderDescriptor(deps, record);
+    const endpoints = readStoredEndpoints(record);
+    return { record, provider, client: await resolveClient(deps, record, provider), scopes: readStoredScopes(record),
+      resource: endpoints.resource ?? record.url ?? undefined, issuer: endpoints.issuer };
+  } }) : undefined;
+
   return {
+    ...(shared ? { assertSharedAuthorized: shared.assertAuthorized, useSharedConnection: shared.useSaved, useLocalConnection: shared.useLocal, listSharedConnections: shared.list } : {}),
     async beginConnect(input) {
+      if (input.destination === 'shared' && !shared) throw new ExternalMcpValidationError('Shared sign-in is available only in this Mac owner profile. Use local sign-in here.', 'destination');
+      if (shared && (input.destination === 'shared' || await shared.hasBinding(input))) return shared.beginConnect(input);
       // Self-configuration first: a row that names no endpoints or no client id gets them here, once,
       // and every step below then reads an ordinary fully-specified connection.
       const record = await selfConfigureConnection(deps, await requireOAuthRecord(deps, input.serverId), input.redirectUri);
@@ -1083,6 +1101,7 @@ export function createExternalMcpOAuthService(required: ExternalMcpOAuthDeps, _o
     },
 
     async completeAuthorizationCallback(input, _options = {}) {
+      if (shared && await shared.hasBinding(input)) { await shared.completeAuthorizationCallback(input); await notifyConnected(deps, input.serverId); return; }
       const record = await requireOAuthRecord(deps, input.serverId);
       const provider = resolveProviderDescriptor(deps, record);
       const client = await resolveClient(deps, record, provider);
@@ -1115,6 +1134,11 @@ export function createExternalMcpOAuthService(required: ExternalMcpOAuthDeps, _o
     },
 
     async pollDeviceAuthorization(input) {
+      if (shared && await shared.hasBinding(input)) {
+        const result = await shared.pollDeviceAuthorization(input);
+        if (result.status === "connected") await notifyConnected(deps, input.serverId);
+        return result;
+      }
       const record = await requireOAuthRecord(deps, input.serverId);
       const authorization = await deps.devices.get(input.serverId);
       if (!authorization) {
@@ -1152,6 +1176,10 @@ export function createExternalMcpOAuthService(required: ExternalMcpOAuthDeps, _o
     },
 
     async disconnect(input) {
+      if (shared && await shared.hasBinding(input)) {
+        await shared.disconnect(input);
+        return;
+      }
       await deps.devices.delete(input.serverId);
       // A self-registered client goes too, so a reconnect is a clean one: a client the vendor has
       // since dropped would otherwise be reused forever. An operator-typed client is kept.
@@ -1159,6 +1187,10 @@ export function createExternalMcpOAuthService(required: ExternalMcpOAuthDeps, _o
     },
 
     async reportAuthFailure(serverId, error) {
+      if (shared && await shared.hasBinding({ serverId })) {
+        await shared.markNeedsReauth({ serverId });
+        throw new ExternalMcpReauthRequiredError({ serverId, cause: error });
+      }
       const record = await deps.repo.findByServerId({ workspaceId: deps.workspaceId, serverId });
       // A preset connection, a `static_env` row, or one already deleted has no reauth state this
       // service owns — see `createExternalMcpConnectionGate`'s identical passthrough.
@@ -1193,7 +1225,10 @@ export function createExternalMcpOAuthService(required: ExternalMcpOAuthDeps, _o
     },
 
     tokenResolver: {
+      ...(shared ? { resolveSharedAccessToken: shared.getAccessToken } : {}),
       async resolveAccessToken({ serverId }) {
+        const sharedToken = await shared?.getAccessToken({ serverId });
+        if (sharedToken !== undefined) return sharedToken;
         try {
           return await refresher.getAccessToken({ key: serverId });
         } catch (error) {

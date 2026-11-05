@@ -202,7 +202,7 @@ export function buildExternalMcpFederationDeps(inputs: {
    *  NEXT call cheaply) and replaces the transport-shaped error with the gate's own terminal
    *  message. Absent, `onAuthFailed` is left unset — not set to a no-op — so `FederationDeps`'s own
    *  "propagate unchanged" default applies. */
-  readonly oauth?: Pick<ExternalMcpOAuthService, "reportAuthFailure">;
+  readonly oauth?: Pick<ExternalMcpOAuthService, "reportAuthFailure" | "assertSharedAuthorized">;
   /**
    * G3: the exchange store the root's MCP-UI click route is mounted with. When present, every
    * federated tool that is not marked read-only asks the human on a per-call Confirm/Cancel card
@@ -222,6 +222,7 @@ export function buildExternalMcpFederationDeps(inputs: {
     workspaceId: inputs.workspaceId,
     repo: inputs.repo,
     isPluginEnabled,
+    ...(inputs.oauth?.assertSharedAuthorized ? { assertSharedAuthorized: inputs.oauth.assertSharedAuthorized } : {}),
   });
   const { oauth, surfaceExchanges } = inputs;
   return {

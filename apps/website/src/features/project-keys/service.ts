@@ -10,6 +10,8 @@ export type { ProviderKeyUsage, ProviderWriteResult } from "@jini-ai/plugins/hos
 export const providerKeyId = ({ pluginId }: { pluginId: string }, _optional = {}) => `plugin-state:${pluginId}:provider.config`;
 
 export const providerPluginOf = ({ keyId }: { keyId: string }, _optional = {}) => /^plugin-state:([a-z0-9-]+):provider\.config$/.exec(keyId)?.[1];
+export const isSharedOAuthKey = ({ row }: { row: Pick<VaultRecord, 'kind' | 'meta'> }, _optional = {}) =>
+  row.kind === 'api-connection' && row.meta.credentialFormat === 'oauth-token-set';
 export interface ProjectKeyRow { keyId: string; name: string; kind: string; usedByThisSite: boolean; usedBy: readonly string[] }
 export interface ProjectKeysPort {
   readonly site?: { readonly id: string; readonly name: string };
@@ -23,22 +25,27 @@ export interface ProjectKeysPort {
 /** Permission follows the same domain that owns saving this row. Unknown kinds fail closed. */
 export function projectKeyPermission({ row }: { row: VaultRecord }, _optional = {}): string {
   if (row.kind === "api-connection" && providerPluginOf({ keyId: row.id })) return "admin.plugins.enable";
+  if (isSharedOAuthKey({ row })) return "admin.plugins.enable";
   if (row.kind === "custom" || row.kind === "vendor" && row.meta.credentialType === "custom") return "custom-credentials.write";
   if (row.kind === "vendor") return "deployments.credentials.write";
   if (row.kind === "source-control") return "source-control.credentials.write";
-  throw new ToolInputError({ message: "Choose an API key or provider-settings key in Shared Keys. OAuth connections cannot be shared in this phase. Details: P25_KEY_KIND_NOT_SUPPORTED." });
+  throw new ToolInputError({ message: "Choose an API key, provider-settings key or saved OAuth connection in Shared Keys. Details: P25_KEY_KIND_NOT_SUPPORTED." });
 }
 
-/** Metadata-only project inventory; card saves and explicit opt-in share the attachment owner.
- * No decrypt or secret projection. A failed attachment is propagated instead of reporting success.
+/** Bounded project inventory; OAuth labels may project the selected sealed account identity.
+ * Token payloads never enter the picker. A failed attachment propagates instead of reporting success.
  */
-export function createProjectKeys({ vault, attachments, siteId, siteName, reapply, transaction, providerUsage, inventory, references }: {
+export function createProjectKeys({ vault, attachments, siteId, siteName, reapply, transaction, providerUsage, inventory, references, bindOAuth, describeOAuth }: {
   vault: VaultRepoPort; attachments: KeyAttachments; siteId: string; siteName: string;
   providerUsage: (input: { pluginId: string }) => Promise<ProviderKeyUsage>;
   reapply: (input: { pluginId: string }) => Promise<import("@jini-ai/plugins/host").PluginProviderApplyResult>;
   transaction: ProjectKeyTransaction;
   inventory?: () => Promise<VaultRecord[]>;
   references?: SiteKeyReferences;
+  /** Validates the consumer against the issuing identity, then saves its inert site binding. */
+  bindOAuth?: (input: { keyId: string; use: boolean }) => Promise<void>;
+  /** Selected-row account/connection label only; never returns an issuing client or tokens. */
+  describeOAuth?: (input: { keyId: string }) => Promise<string>;
 }, _optional = {}): ProjectKeysPort {
   const find = async ({ keyId }: { keyId: string }) => {
     const row = await vault.find({ workspaceId: "project", id: keyId });
@@ -58,8 +65,12 @@ export function createProjectKeys({ vault, attachments, siteId, siteName, reappl
   const use: ProjectKeysPort["use"] = async (input, _optional = {}) => {
     if (!siteId) throw new ToolInputError({ message: "This site has no id yet; restart it." });
     await transaction({ run: async () => {
-      await find(input);
+      const row = await find(input);
       if (input.use) {
+        if (isSharedOAuthKey({ row })) {
+          if (!bindOAuth) throw new ToolInputError({ message: "Choose a saved connection from this site's connection settings before granting access." });
+          await bindOAuth(input);
+        }
         // A failed owner commit can leave an inert reference, never an unauthorized secret copy.
         await references?.set({ credentialId: input.keyId });
         await attachments.attach({ siteId, keyId: input.keyId, siteName });
@@ -76,10 +87,11 @@ export function createProjectKeys({ vault, attachments, siteId, siteName, reappl
       const kinds = ["api-connection", "vendor", "custom", "source-control"] as const;
       const source = owner ? vault : granted;
       const rows = owner && inventory ? await inventory() : (await Promise.all(kinds.map(kind => source.list({ workspaceId: "project", kind, ownerKey: "tovu", principalId: null })))).flat();
-      return Promise.all(rows.filter(row => row.kind !== "api-connection" || providerPluginOf({ keyId: row.id })).map(async row => {
+      return Promise.all(rows.filter(row => row.kind !== "api-connection" || providerPluginOf({ keyId: row.id }) || isSharedOAuthKey({ row })).map(async row => {
         const pluginId = providerPluginOf({ keyId: row.id });
         const card = pluginId ? cards.find(card => card.saveKind === "provider-settings" && card.saveTarget === pluginId) : undefined;
-        return { ...(await usage({ keyId: row.id })), name: card?.label ?? row.label, kind: row.kind };
+        const oauthLabel = isSharedOAuthKey({ row }) ? await describeOAuth?.({ keyId: row.id }) : undefined;
+        return { ...(await usage({ keyId: row.id })), name: oauthLabel ?? card?.label ?? row.label, kind: row.kind };
       }));
   }
   return {

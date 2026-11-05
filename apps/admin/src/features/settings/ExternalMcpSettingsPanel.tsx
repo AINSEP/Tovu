@@ -1,3 +1,4 @@
+import { ExternalMcpSharedChoice } from "./ExternalMcpSharedChoice";
 import { useState } from "react";
 import {
   Icon,
@@ -364,6 +365,8 @@ function ExternalMcpSourceRow(props: {
         </button>
       </div>
       <ExternalMcpConnectStatus state={signIn.state} tDrift={tDrift} onCancel={signIn.cancel} />
+      {source.fields["authMode"] === "oauth" && source.fields["transport"] !== "stdio" && <ExternalMcpSharedChoice serverId={source.id} busy={signIn.state.phase !== "idle"}
+        signIn={() => void signIn.connect({ destination: "shared" })} onChanged={() => void list.reload()} />}
 
       {toolsOpen ? (
         <ExternalMcpToolsModal

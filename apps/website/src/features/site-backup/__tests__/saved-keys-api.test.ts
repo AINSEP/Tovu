@@ -60,3 +60,21 @@ test("the real recipient record and OAuth token stores can use the re-sealed con
   assert.equal(await tokens.load({ key }), null);
   assert.equal((await records.read({ key: targetKey }))?.staged, null);
 });
+
+
+test("archive transport excludes owner references and shared OAuth bindings, preserving ordinary plugin state", () => {
+  const state = (id: string, value: Record<string, string>): VaultArchiveEntry => ({
+    ...base, id, meta: { credentialFormat: "agent-plugin-state" }, payload: { value },
+  });
+  const references = [
+    state("plugin-state:tovu-key-references:reference", { credentialId: "owner-key" }),
+    state("plugin-state:tovu-shared-oauth-binding:consumer", { credentialId: "owner-oauth" }),
+    state("plugin-state:tovu-shared-oauth:issuing-context", { clientSecret: "owner-client-secret" }),
+  ];
+  const ordinary = state("plugin-state:office:preferences", { view: "compact" });
+  const result = rebindApiConnectionArchive({ entries: [...references, ordinary], workspaceId: "recipient" });
+  assert.deepEqual(result.entries, [ordinary]);
+  assert.equal(JSON.stringify(result.entries).includes("owner-oauth"), false);
+  assert.equal(JSON.stringify(result.entries).includes("owner-key"), false);
+  assert.equal(JSON.stringify(result.entries).includes("owner-client-secret"), false);
+});

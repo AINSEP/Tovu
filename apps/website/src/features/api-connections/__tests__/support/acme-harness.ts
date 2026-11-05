@@ -5,6 +5,7 @@
  * "browser" consent step. Every outbound URL that is not the fake provider's host throws, so no
  * test can reach a real network. Callers close the harness in `after`.
  */
+import type { SharedApiConnectionDeps } from "../../shared-api.js";
 import assert from "node:assert/strict";
 import { createHash, randomBytes } from "node:crypto";
 import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -46,6 +47,7 @@ export interface FakeProviderState {
 }
 
 export interface AcmeHostOptions {
+  readonly shared?: SharedApiConnectionDeps;
   readonly workspaceId?: string;
   readonly runtime?: ApiConnectionRuntime;
   readonly env?: Readonly<Record<string, string | undefined>>;
@@ -167,7 +169,7 @@ export async function startAcmeHarness(): Promise<AcmeHarness> {
       sealer: new AesGcmSecretSealer({ keyring }), customCredentialRepo: options.customCredentialRepo ?? new InMemoryCustomCredentialSetRepo(),
       clock: options.clock ?? { nowMs: () => Date.now() }, oauthHttp, pluginHttp: options.pluginHttp ?? pluginHttp,
       runtime: options.runtime ?? "hosted", env: options.env ?? env, publicOrigin: options.publicOrigin ?? (() => siteOrigin),
-    }, options.startLoopback === undefined ? {} : { startLoopback: options.startLoopback });
+    }, { ...(options.startLoopback === undefined ? {} : { startLoopback: options.startLoopback }), ...(options.shared ? { shared: options.shared } : {}) });
     const app = express();
     const logs = options.logs;
     registerApiConnectionOAuthCallbackRoute(app, { host, callbackLimiter: { check: async () => ({ allowed: true, retryAfterSeconds: 0 }) }, log: (line) => { logs?.push(line); } });

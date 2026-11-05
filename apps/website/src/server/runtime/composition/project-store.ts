@@ -257,11 +257,11 @@ export async function openProjectStore(
     },
     inventory: async () => {
       // One picker open × at most 50 metadata rows. Never select ciphertext for owner discovery.
-      const rows = await kernel.query<{ id: string; kind: VaultRecord["kind"]; label: string; credential_type: string | null }>(sql`SELECT id, kind, label, json_extract(meta, '$.credentialType') AS credential_type FROM secrets_vault WHERE workspace_id='project' AND owner_key='tovu' AND principal_id IS NULL AND (kind IN ('vendor','custom','source-control') OR (kind='api-connection' AND id LIKE 'plugin-state:%:provider.config')) ORDER BY id LIMIT 51`);
+      const rows = await kernel.query<{ id: string; kind: VaultRecord["kind"]; label: string; credential_type: string | null; credential_format: string | null }>(sql`SELECT id, kind, label, json_extract(meta, '$.credentialType') AS credential_type, json_extract(meta, '$.credentialFormat') AS credential_format FROM secrets_vault WHERE workspace_id='project' AND owner_key='tovu' AND principal_id IS NULL AND (kind IN ('vendor','custom','source-control') OR (kind='api-connection' AND (id LIKE 'plugin-state:%:provider.config' OR json_extract(meta, '$.credentialFormat')='oauth-token-set'))) ORDER BY id LIMIT 51`);
       if (rows.length > 50) throw new Error("Shared Keys has more than 50 entries. Narrow the saved keys in Shared Keys before opening this picker.");
       return rows.map((row): VaultRecord => ({ workspaceId: PROJECT_WORKSPACE_ID, id: row.id, kind: row.kind, label: row.label,
         ownerKey: "tovu", principalId: null, binding: null, provider: null, isDefault: false, revision: 1,
-        sealed: null, last4: null, tokenLength: null, meta: row.credential_type ? { credentialType: row.credential_type } : {}, createdAt: "", updatedAt: "" }));
+        sealed: null, last4: null, tokenLength: null, meta: { ...(row.credential_type ? { credentialType: row.credential_type } : {}), ...(row.credential_format ? { credentialFormat: row.credential_format } : {}) }, createdAt: "", updatedAt: "" }));
     },
     transaction: ({ run }) => kernel.transaction(run),
     providerRevisions: ({ siteId }) => kernel.query<{ id: string; revision: number; attached_at: string }>(sql`SELECT v.id, v.revision, a.attached_at FROM site_key_attachments a JOIN secrets_vault v ON v.id=a.key_id AND v.workspace_id='project' WHERE a.site_id=${siteId} AND v.kind='api-connection' ORDER BY v.id`),

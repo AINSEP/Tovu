@@ -137,12 +137,20 @@ export function createSurfaceConnections(
     },
     async status({ connectionId }) {
       const { connection, connectionRef } = await resolve(connectionId);
+      if (host.sharedOAuth && await host.sharedOAuth.hasBinding(connection)) {
+        const shared = await host.sharedOAuth.getStatus(connection);
+        const account = shared?.account ? { ...shared.account, displayName: `${shared.account.displayName} (shared on this Mac)` } : null;
+        return statusFrom(host, connection, shared ? { ...shared, account, pendingSwitch: null } : NEVER_CONNECTED, connectionRef);
+      }
       const record = await host.records.read({ key: connectionRef });
       return statusFrom(host, connection, record ? { ...record, pendingSwitch: liveStagedAccount(host, record.staged) } : NEVER_CONNECTED, connectionRef);
     },
     async begin({ connectionId, action }, optional = {}) {
       const { connection, actorId } = await forActor(connectionId);
-      const start = await startApiConnectionSignIn({ host, connection, actorId, intent: ADMIN_SURFACE_ACTION_INTENTS[action], scopeSetIds: optional.scopeSetIds ?? [] }, {
+      const shared = host.sharedOAuth && await host.sharedOAuth.hasBinding(connection);
+      if (shared && ADMIN_SURFACE_ACTION_INTENTS[action] === "switch-account") throw notAvailable();
+      const start = await startApiConnectionSignIn({ host, connection, actorId, intent: ADMIN_SURFACE_ACTION_INTENTS[action], scopeSetIds: optional.scopeSetIds ?? [],
+        ...(shared ? { destination: "shared" as const } : {}) }, {
         ...(optional.startParams === undefined ? {} : { startParams: optional.startParams }),
       });
       const issued = { authorizationUrl: start.authorizationUrl, attemptId: start.attemptId, expiresAt: start.expiresAt };
@@ -152,16 +160,22 @@ export function createSurfaceConnections(
     },
     async confirmSwitch({ connectionId }) {
       const { connection, connectionRef, actorId } = await forActor(connectionId);
+      if (host.sharedOAuth && await host.sharedOAuth.hasBinding(connection)) throw notAvailable();
       const view = await host.serviceFor({ connection }).confirmSwitchAccount({ connectionRef, workspaceId, actorId });
       return statusFrom(host, connection, await viewAfterAction(connectionRef, view), connectionRef);
     },
     async cancelSwitch({ connectionId }) {
       const { connection, connectionRef } = await forActor(connectionId);
+      if (host.sharedOAuth && await host.sharedOAuth.hasBinding(connection)) throw notAvailable();
       const view = await host.serviceFor({ connection }).cancelSwitchAccount({ connectionRef, workspaceId });
       return statusFrom(host, connection, await viewAfterAction(connectionRef, view), connectionRef);
     },
     async disconnect({ connectionId }) {
       const { connection, connectionRef } = await forActor(connectionId);
+      if (host.sharedOAuth && await host.sharedOAuth.hasBinding(connection)) {
+        await host.sharedOAuth.stopUsing(connection);
+        return { ...(await statusFrom(host, connection, NEVER_CONNECTED, connectionRef)), revocation: "not-needed" as const };
+      }
       const outcome = await host.serviceFor({ connection }).disconnect({ connectionRef, workspaceId });
       // Same vocabulary on both sides: the provider's outcome passes through unchanged.
       return { ...(await statusFrom(host, connection, await viewAfterAction(connectionRef, outcome), connectionRef)), revocation: outcome.remoteRevocation };

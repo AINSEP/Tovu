@@ -1,10 +1,13 @@
-import { providerPluginOf } from "#src/features/project-keys/service";
+import { isSharedOAuthKey, providerPluginOf } from "#src/features/project-keys/service";
+import { createSharedOAuthOwnerStorage, type SharedOAuthOwnerStorage } from '#src/features/api-connections/shared-owner';
+import { disconnectSharedOAuth, inspectSharedOAuthDisconnect } from '#src/features/project-keys/shared-oauth-disconnect';
 import type { KeyAttachments } from "#src/features/project-keys/attachments";
 import { createHash, randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { isAbsolute, join } from "node:path";
 import { readPromptFromFlags } from "@jini-ai/cli";
+import { ApiConnectionError } from '@jini-ai/integrations/api-connections';
 import { countLegacyOwnerStore, OwnerStoreBackupError, OwnerStoreRecoveryError, readLegacyOwnerBackup,
   readLegacyOwnerStore, type LegacyOwnerSnapshot } from "@jini-ai/server/owner-store";
 import { isCopyableKind, SecretsVaultService, VAULT_KINDS, VaultError,
@@ -25,7 +28,7 @@ import { EMPTY_IMPORT, importLegacyKeys, type LegacyImportReport } from "./owner
  * one stdout JSON line {version:1,ok,action,data|error}. No secret values or key hints are returned.
  * put uses {entry}; delete uses {id,expectedRevision} and requires no site grants; import uses {source,apply,filePath?,passphrase?,expectedDigest?} (an apply names its dry run's sourceDigest); status reports the legacy owner.db.
  */
-export const OWNER_STORE_ACTIONS = ["status", "list", "put", "delete", "import"] as const;
+export const OWNER_STORE_ACTIONS = ["status", "list", "put", "delete", "import", "disconnect"] as const;
 export type OwnerStoreAction = typeof OWNER_STORE_ACTIONS[number];
 
 /** Stdin contract for S3; kind defaults to vendor, ownership is always Tovu/site-wide.
@@ -36,6 +39,7 @@ export type OwnerStoreRequestByAction = {
   list: { userDataDir: string; store?: 'project' };
   put: { userDataDir: string; store?: 'project'; entry: Pick<VaultPutInput, "id" | "expectedRevision" | "label" | "meta"> & { kind?: VaultKind; provider: string | null; payload: VaultMeta } };
   delete: { userDataDir: string; id: string; expectedRevision: number };
+  disconnect: { userDataDir: string; id: string; expectedRevision: number; apply: boolean; expectedDigest?: string };
   import: { userDataDir: string; source: 'backup' | 'owner-store'; apply: boolean; filePath?: string; passphrase?: string; expectedDigest?: string };
 };
 
@@ -43,6 +47,7 @@ export type OwnerStoreRequestByAction = {
 export interface OwnerStoreEntry {
   id: string; kind: VaultKind; label: string; provider: string | null; revision: number;
   configured: boolean; isDefault: boolean; worksFor: string[];
+  sharedOAuth?: boolean; usedBy?: string[]; status?: string;
 }
 export type OwnerStoreReply = { version: 1; action: OwnerStoreAction } & (
   | { ok: true; data: Record<string, unknown> }
@@ -52,6 +57,7 @@ type Optional = { home?: string; workspace?: SitesWorkspace };
 type ProjectTarget = Parameters<typeof importLegacyKeys>[0]["target"];
 type OwnerTarget = ProjectTarget & {
   attachments: KeyAttachments;
+  sharedOAuth: SharedOAuthOwnerStorage;
   find: (id: string) => Promise<import("@jini-ai/platform/secrets/credential-sets").VaultRecord | null>;
 };
 
@@ -62,6 +68,8 @@ class OwnerStoreInputError extends Error {
 /** The import source no longer matches the dry run the apply names (replaced, or no digest given). */
 class ImportSourceChangedError extends Error {}
 class SharedKeyInUseError extends Error {}
+class SharedOAuthChangedError extends Error {}
+class SharedOAuthDeleteError extends Error {}
 
 /** Execute one private request, close all handles, and emit exactly one safe JSON line.
  * @param required Commander's action (never credentials).
@@ -84,10 +92,11 @@ export async function runOwnerStoreCommand(required: { action: OwnerStoreAction 
     assertTestHomeIsolation({ homeDir: optional.home ?? homedir() }, { paths: [userDataDir] });
     const handlers: Record<OwnerStoreAction, () => Promise<Record<string, unknown>>> = {
       status: () => legacyStatus({ userDataDir }, optional),
-      list: () => withProjectVault({ userDataDir, loadInventory: true, work: async ({ rows }) => ({ entries: rows.map(row => entryView({ row })) }) }, optional),
+      list: () => withProjectVault({ userDataDir, loadInventory: true, work: async target => ({ entries: await Promise.all(target.rows.map(row => projectEntryView({ target, row }))) }) }, optional),
       put: () => withProjectVault({ userDataDir, work: async target => ({ entry: entryView({ row: await putProjectKey({ target, request }) }) }) }, optional),
       delete: () => withProjectVault({ userDataDir, work: target => deleteProjectKey({ target, request }) }, optional),
       import: () => importRequest({ request, userDataDir }, optional),
+      disconnect: () => withProjectVault({ userDataDir, work: target => disconnectProjectOAuth({ target, request }) }, optional),
     };
     reply = { version: 1, ok: true, action: required.action, data: await handlers[required.action]() };
   } catch (error) {
@@ -118,13 +127,36 @@ async function withProjectVault<T>({ userDataDir, work, loadInventory = false }:
     // Inventory is a cold explicit list/import only; mutations read one selected identity.
     const kinds: VaultKind[] = [...VAULT_KINDS.filter(kind => isCopyableKind[kind]), "custom", "api-connection"];
     const rows = loadInventory ? (await Promise.all(kinds.map(kind => vault.list({ workspaceId: scope.workspaceId, kind, ownerKey: 'tovu', principalId: null })))).flat().filter(row => ownerKind(row)) : [];
-    return await work({ vault, workspaceId: scope.workspaceId, transaction: store.transaction, rows, attachments: store.attachments, find: id => scope.repo.find({ workspaceId: scope.workspaceId, id }) });
+    const sharedOAuth = createSharedOAuthOwnerStorage({ scope, clock: { nowMs: () => Date.now() } });
+    return await work({ vault, workspaceId: scope.workspaceId, transaction: store.transaction, rows, attachments: store.attachments, sharedOAuth, find: id => scope.repo.find({ workspaceId: scope.workspaceId, id }) });
   } finally { store.close({}); }
 }
 
-/** OAuth/API connection rows remain site-specific; only provider-settings identities are shared. */
-function ownerKind({ kind, id }: { kind: VaultKind; id: string }): boolean {
-  return isCopyableKind[kind] || kind === "custom" || kind === "api-connection" && providerPluginOf({ keyId: id }) !== undefined;
+/** Provider settings and explicit owner OAuth token rows are shared; internal records stay private. */
+function ownerKind(row: { kind: VaultKind; id: string; meta?: VaultMeta }): boolean {
+  return isCopyableKind[row.kind] || row.kind === "custom" || row.kind === "api-connection" && (providerPluginOf({ keyId: row.id }) !== undefined || row.meta?.credentialFormat === 'oauth-token-set');
+}
+
+/** OAuth inventory uses lifecycle revisions, so lease-only token updates do not invalidate a confirmation. */
+async function projectEntryView({ target, row }: { target: OwnerTarget; row: VaultSummary }): Promise<OwnerStoreEntry> {
+  const view = entryView({ row });
+  if (!isSharedOAuthKey({ row })) return view;
+  const { report } = await inspectSharedOAuthDisconnect({ storage: target.sharedOAuth, attachments: target.attachments, transaction: target.transaction,
+    clock: { nowMs: () => Date.now() }, credentialId: row.id });
+  return { ...view, label: report.label, revision: report.revision, sharedOAuth: true, usedBy: report.sites, status: report.status };
+}
+
+/** Owner-only native confirmation is bound to the exact lifecycle revision and site-grant digest. */
+async function disconnectProjectOAuth({ target, request }: { target: OwnerTarget; request: Record<string, unknown> }): Promise<Record<string, unknown>> {
+  const credentialId = stringValue({ value: request.id });
+  const expectedRevision = revision({ value: request.expectedRevision });
+  if (typeof request.apply !== 'boolean') throw new OwnerStoreInputError();
+  const required = { storage: target.sharedOAuth, attachments: target.attachments, transaction: target.transaction,
+    clock: { nowMs: () => Date.now() }, credentialId };
+  const { report } = await inspectSharedOAuthDisconnect(required);
+  if (report.revision !== expectedRevision) throw new SharedOAuthChangedError();
+  if (!request.apply) return { ...report };
+  return { ...await disconnectSharedOAuth({ ...required, expectedRevision, expectedDigest: stringValue({ value: request.expectedDigest }) }) };
 }
 
 /** Human replacement preserves the saved kind, metadata, companions and provider settings.
@@ -161,6 +193,7 @@ async function deleteProjectKey({ target, request }: { target: OwnerTarget; requ
     if ((await target.attachments.usersOf({ keyId: id })).length) throw new SharedKeyInUseError();
     const row = await target.find(id);
     if (!row) return { removed: false };
+    if (isSharedOAuthKey({ row })) throw new SharedOAuthDeleteError();
     if (!ownerKind(row)) throw new OwnerStoreInputError();
     return { removed: await target.vault.delete({ workspaceId: target.workspaceId, id, kind: row.kind, ownerKey: "tovu", principalId: null, binding: row.binding, expectedRevision }) };
   } });
@@ -239,6 +272,7 @@ function requestObject({ text }: { text: string | null }, _options = {}): Record
  */
 function assertRequestFields({ action, request }: { action: OwnerStoreAction; request: Record<string, unknown> }, _options = {}): void {
   const fields: Record<OwnerStoreAction, readonly string[]> = { status: [], list: ['store'], put: ["entry", 'store'], delete: ["id", "expectedRevision"],
+    disconnect: ['id', 'expectedRevision', 'apply', 'expectedDigest'],
     import: ['source', 'apply', 'filePath', 'passphrase', 'expectedDigest'] };
   assertFields({ record: request, fields: ["userDataDir", ...fields[action]] });
   if (request.store !== undefined && request.store !== 'project') throw new OwnerStoreInputError();
@@ -320,7 +354,16 @@ function entryView({ row }: { row: VaultSummary }, _options = {}): OwnerStoreEnt
 }
 
 /** Never forward Error.message/cause/stack: JSON, crypto and SQLite can embed secret input. */
+function sharedOAuthActionError(error: unknown): { code: string; message: string } | undefined {
+  if (error instanceof SharedOAuthChangedError || error instanceof ApiConnectionError && error.code === 'storage-conflict') return { code: 'source-changed', message: 'This shared connection or its site grants changed. Review the disconnect confirmation again.' };
+  if (error instanceof SharedOAuthDeleteError) return { code: 'connection-action-required', message: 'Disconnect this shared connection from every site on this Mac before removing its saved sign-in.' };
+  return undefined;
+}
+
+/** Never forward Error.message/cause/stack: JSON, crypto and SQLite can embed secret input. */
 function safeError({ error }: { error: unknown }, _options = {}): { code: string; message: string } {
+  const connectionError = sharedOAuthActionError(error);
+  if (connectionError) return connectionError;
   if (error instanceof SharedKeyInUseError) return { code: "key-in-use", message: "This key is still granted to a site. Revoke its site grants before deleting it. Details: P25_KEY_IN_USE; secret values omitted." };
   if (error instanceof OwnerStoreInputError) return { code: "invalid-input", message: error.message };
   if (error instanceof OwnerStoreRecoveryError) return { code: "recovery-required", message: "The older shared-key store cannot be opened. Restore its original owner.key." };

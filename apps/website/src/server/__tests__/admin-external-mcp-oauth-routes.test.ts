@@ -77,7 +77,7 @@ function scriptedFetch(script: readonly ScriptStep[], options: { rejectReplayedC
   return { fetchFn, requests };
 }
 
-async function buildTestApp(options: { script?: readonly ScriptStep[]; grant?: string; rejectReplayedCodes?: boolean } = {}) {
+async function buildTestApp(options: { script?: readonly ScriptStep[]; grant?: string; rejectReplayedCodes?: boolean; sharedOAuth?: Partial<import("../../features/external-mcp/contracts.js").ExternalMcpOAuthService> } = {}) {
   const base = createRouteDeps();
   const http = scriptedFetch(options.script ?? [], options);
   const oauthDeps: Parameters<typeof createExternalMcpOAuthService>[0] = {
@@ -91,7 +91,7 @@ async function buildTestApp(options: { script?: readonly ScriptStep[]; grant?: s
       fetchFn: ({ url }, init) => (http.fetchFn)(url, init) },
     lookupProvider: () => PROVIDER,
   };
-  const deps: RouteDeps = { ...base, externalMcpOAuth: createExternalMcpOAuthService(oauthDeps) };
+  const deps: RouteDeps = { ...base, externalMcpOAuth: { ...createExternalMcpOAuthService(oauthDeps), ...options.sharedOAuth } };
 
   await saveExternalMcpServer(
     {
@@ -543,4 +543,38 @@ test("disconnect clears the authorization but keeps the server row", async (t) =
   assert.ok(list.includes(`"serverId":"${SERVER_ID}"`), "the row survives — only the authorization is dropped");
   assert.ok(list.includes('"status":"disconnected"'));
   assert.ok(list.includes('"hasStoredToken":false'));
+});
+
+
+test("saved MCP routes expose metadata and accept only an existing credential id from a session", async t => {
+  const used: unknown[] = [];
+  const local: unknown[] = [];
+  const { app } = await buildTestApp({ sharedOAuth: {
+    listSharedConnections: async () => ({ available: true, connections: [{ credentialId: 'opaque-owner-id', label: 'Saved fixture' }], current: null }),
+    useSharedConnection: async input => { used.push(input); },
+    useLocalConnection: async input => { local.push(input); },
+  } });
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const unauthenticated = await fetch(`${baseUrl}${BASE}/oauth/shared`);
+  assert.equal(unauthenticated.status, 401);
+  await unauthenticated.text();
+  const list = await req(baseUrl, `${BASE}/oauth/shared`, cookie);
+  assert.equal(list.status, 200);
+  assert.deepEqual(await list.json(), { available: true, connections: [{ credentialId: 'opaque-owner-id', label: 'Saved fixture' }], current: null });
+  for (const body of [{ credentialId: 'opaque-owner-id', accessToken: 'attacker-token' }, { credentialId: 7 }, { credentialId: '' }]) {
+    const rejected = await req(baseUrl, `${BASE}/oauth/shared`, cookie, { method: 'POST', body: JSON.stringify(body) });
+    assert.equal(rejected.status, 400);
+    await rejected.text();
+  }
+  assert.equal(used.length, 0);
+  const selected = await req(baseUrl, `${BASE}/oauth/shared`, cookie, { method: 'POST', body: JSON.stringify({ credentialId: 'opaque-owner-id' }) });
+  assert.equal(selected.status, 200);
+  assert.deepEqual(await selected.json(), { connected: true });
+  assert.equal(used.length, 1);
+  assert.deepEqual(Object.keys(used[0] as object).sort(), ['actorId', 'credentialId', 'serverId']);
+  assert.equal((used[0] as { serverId: string }).serverId, SERVER_ID);
+  const switched = await req(baseUrl, `${BASE}/oauth/shared`, cookie, { method: 'DELETE' });
+  assert.equal(switched.status, 200);
+  assert.deepEqual(await switched.json(), { selected: 'local' });
+  assert.equal(local.length, 1);
 });

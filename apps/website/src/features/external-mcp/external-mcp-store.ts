@@ -608,7 +608,11 @@ function oauthStatusFailure(record: ExternalMcpServerRecord): string | null {
 async function resolveExternalMcpAccessToken(
   record: ExternalMcpServerRecord,
   oauth: ExternalMcpOAuthTokenResolverPort | undefined,
-): Promise<{ readonly ok: true; readonly token: string } | { readonly ok: false; readonly reason: string }> {
+): Promise<{ readonly ok: true; readonly token: string; readonly shared?: true } | { readonly ok: false; readonly reason: string }> {
+  try {
+    const shared = await oauth?.resolveSharedAccessToken?.({ serverId: record.serverId });
+    if (shared !== undefined) return { ok: true, token: shared, shared: true };
+  } catch { return { ok: false, reason: "This shared connection is no longer granted to this site. Choose it again or sign in from Settings → External MCP." }; }
   const statusFailure = oauthStatusFailure(record);
   if (statusFailure !== null) return { ok: false, reason: statusFailure };
   if (!oauth) {
@@ -683,18 +687,26 @@ async function resolveHttpTarget(
   if (!record.url) return externalMcpFailure(record, "no URL is configured to reach it");
 
   const headers: Record<string, string> = {};
+  let shared = false;
   if (authMode === "static_env" && staticAccessToken !== null) headers.authorization = `Bearer ${staticAccessToken}`;
   if (authMode === "oauth") {
     const token = await resolveExternalMcpAccessToken(record, oauth);
     if (!token.ok) return externalMcpFailure(record, token.reason);
     headers.authorization = `Bearer ${token.token}`;
+    shared = token.shared === true;
   }
 
   if (headers.authorization !== undefined) {
     const failure = hostedTokenFailure({ authorization: headers.authorization });
     if (failure !== null) return externalMcpFailure(record, failure);
   }
-  return { ok: true, target: { kind: "streamable_http", url: record.url, headers } };
+  return { ok: true, target: { kind: "streamable_http", url: record.url, headers,
+    ...(shared ? { bearerToken: async () => {
+      const token = await oauth!.resolveSharedAccessToken!({ serverId: record.serverId });
+      if (token === undefined) throw new Error("This shared connection was removed from this site. Choose a saved connection again in Settings → External MCP.");
+      return token;
+    } } : {}),
+  } };
 }
 
 function hostedTokenFailure({ authorization }: { authorization: string }, _options = {}): string | null {
@@ -822,6 +834,7 @@ export function toResolvedFederatedConnections(
   readOnlyRemoteNamesByServer: ReadonlyMap<string, ReadonlySet<string>> = new Map(),
 ): ResolvedFederatedConnection[] {
   return configs.map((config) => ({
+    ...(config.target.kind === "streamable_http" && config.target.bearerToken ? { bearerToken: config.target.bearerToken } : {}),
     config: {
       connectionId: config.serverId,
       label: config.label,

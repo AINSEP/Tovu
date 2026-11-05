@@ -161,6 +161,8 @@ export type ExternalMcpServerTarget =
        * the same reason.
        */
       readonly headers: Record<string, string>;
+      /** Captures the selected shared connection; missing/revoked bindings refuse instead of using launch headers. */
+      readonly bearerToken?: import("@jini-ai/mcp/federation").McpBearerTokenSupplier;
     };
 
 export interface ExternalMcpServerConfig {
@@ -248,6 +250,8 @@ export interface ExternalMcpStoreDeps {
  * it comes from. That is also what keeps this module testable without a network.
  */
 export interface ExternalMcpOAuthTokenResolverPort {
+  /** Undefined identifies an existing local connection. Shared failures must throw, never fall back. */
+  resolveSharedAccessToken?(input: { serverId: string }): Promise<string | undefined>;
   /**
    * Returns the access token to inject, refreshing first when it is due.
    *
@@ -394,6 +398,8 @@ export interface DeviceAuthorizationStore {
 }
 
 export interface ExternalMcpOAuthDeps {
+  /** Desktop owner storage is optional; absence retains existing site-local sign-in. */
+  readonly shared?: import("./external-mcp-shared-oauth.js").SharedExternalMcpOwner;
   readonly workspaceId: UUID;
   readonly repo: ExternalMcpServerRepoPort;
   readonly sealer: SecretSealerPort;
@@ -460,7 +466,7 @@ export interface ExternalMcpOAuthService {
    *   reveals the provider URL and sets the browser cookie. Device grants keep their existing shape.
    * @param input.browserBinding - Host-issued cookie proof when that browser hop mints provider state.
    */
-  beginConnect(input: { serverId: string; redirectUri?: string; delivery?: "hosted"; browserBinding?: string }): Promise<ExternalMcpConnectStart>;
+  beginConnect(input: { serverId: string; redirectUri?: string; delivery?: "hosted"; browserBinding?: string; destination?: "shared"; actorId?: string }): Promise<ExternalMcpConnectStart>;
   /**
    * Finishes an authorization-code handshake from the public callback route.
    *
@@ -499,6 +505,12 @@ export interface ExternalMcpOAuthService {
   reportAuthFailure(serverId: string, error: Error): Promise<never>;
   /** The port `readEnabledExternalMcpConfigs` takes, wired to this service's refresher. */
   readonly tokenResolver: ExternalMcpOAuthTokenResolverPort;
+  /** True when a shared binding was checked; throws if its current grant is unavailable. */
+  listSharedConnections?(input: { serverId: string; actorId: string }): Promise<{ available: boolean; connections: readonly { credentialId: string; label: string }[];
+    current: { credentialId: string; status: string; granted: boolean } | null }>;
+  assertSharedAuthorized?(input: { serverId: string }): Promise<boolean>;
+  useLocalConnection?(input: { serverId: string; actorId: string }): Promise<void>;
+  useSharedConnection?(input: { serverId: string; credentialId: string; actorId: string }): Promise<void>;
 }
 
 /** Why an admitted federated tool is refused on THIS call. Every value pairs with one D3 message in

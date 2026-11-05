@@ -1,3 +1,6 @@
+import { createSharedOAuthOwnerStorage } from "#src/features/api-connections/shared-owner";
+import type { SharedApiConnectionDeps } from "#src/features/api-connections/shared-api";
+import type { ProjectStore, ProjectVaultScope } from "./project-store.js";
 import { defineAdminSurfaceContribution } from "@jini-ai/agent-plugins/admin-surfaces";
 import { notifyExternalMcpRosterChanged } from "#src/assistant/index";
 import { ADMIN_SURFACES_FILENAME } from "#src/features/agent-plugins/admin-surfaces/surfaces";
@@ -101,6 +104,17 @@ function formDeliveryBindingsStore(required: { settings: SetValueRequired["deps"
   };
 }
 
+type SharedSiteConnections = Omit<SharedApiConnectionDeps, "storage"> & { readonly scope: ProjectVaultScope };
+
+/** Owner storage is optional; a site without an immutable UUID keeps its existing local flow. */
+export function sharedApiConnectionOptions(required: Omit<SharedSiteConnections, "scope" | "attachments" | "transaction"> & {
+  readonly projectStore: ProjectStore | undefined;
+}, _optional = {}): SharedSiteConnections | undefined {
+  const { projectStore, ...site } = required;
+  if (!projectStore || !site.siteId) return undefined;
+  return { ...site, scope: projectStore.vault, attachments: projectStore.attachments, transaction: projectStore.transaction };
+}
+
 /**
  * Builds the shared connection port and the three seams over it.
  * @param required.customCredentialRepo - The site's saved custom credentials (an admin's own OAuth client lives there).
@@ -118,7 +132,7 @@ export function composeAgentPluginConnections(
     readonly clock: { nowMs(): number; nowIso(): string }; readonly http: HttpClientPort;
     readonly env: Readonly<Record<string, string | undefined>>; readonly derivedPublicOrigin: string | undefined;
   },
-  optional: { readonly deliveryBindings?: AgentPluginDeliveryBindingsDeps } = {},
+  optional: { readonly deliveryBindings?: AgentPluginDeliveryBindingsDeps; readonly shared?: SharedSiteConnections } = {},
 ): AgentPluginConnectionsComposition {
   const { workspaceId, loadContributions, clock, http, env } = required;
   const runtime = resolveApiConnectionRuntime({ env });
@@ -131,7 +145,7 @@ export function composeAgentPluginConnections(
     oauthHttp: createTovuOAuthHttpPorts({ http }, { allowLoopbackHttp: runtime === "desktop" }), pluginHttp: createGuardedPluginHttp({ http }),
     runtime, env,
     publicOrigin: () => apiConnectionPublicOrigin({ env, derivedPublicOrigin: required.derivedPublicOrigin }),
-  });
+  }, optional.shared ? { shared: { ...optional.shared, storage: createSharedOAuthOwnerStorage({ scope: optional.shared.scope, clock }) } } : {});
   const limiter = createRateLimiter({ profile: AGENT_PLUGIN_OUTBOUND_BUDGET, clock });
   const connections = host.toolConnections;
   // One plugin-settings store: surfaces write it, tools (and later form delivery) only read it.
