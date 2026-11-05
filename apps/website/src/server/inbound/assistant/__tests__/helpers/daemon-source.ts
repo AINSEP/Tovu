@@ -1,6 +1,6 @@
 import { assistantCliPermissions } from "#src/assistant/assistant-subagents-policy";
 import { resolveNativeToolPolicy } from "@jini-ai/agent-runtime/native-tool-policy";
-import { resolveFullCliAccess, resolveAssistantCliPermissions } from "#src/contracts/core/assistant-native-fallbacks";
+import { resolveFullCliAccess, resolveAssistantCliPermissions, fullCliEnvLock, isHostedAssistantRuntime } from "#src/contracts/core/assistant-native-fallbacks";
 import { resolveHostSignals } from "#src/server/runtime/composition/host-signals";
 import { createToolGapCollector } from "@jini-ai/daemon/tool-audit";
 import { redactSecretShapes } from "#src/contracts/core/secret-redaction";
@@ -10,7 +10,11 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import ts from "typescript";
-import type { AgentExecutorRunInput, RunLifecycle } from "@jini-ai/daemon";
+import { admittedToolSources, type AgentExecutorRunInput, type RunLifecycle } from "@jini-ai/daemon";
+import { createChatSettingsSnapshot } from "@jini-ai/daemon/chat-settings";
+import { isTerminalRunState } from "@jini-ai/protocol";
+import { type readAssistantRunToolPolicy as ReadAssistantRunToolPolicy, assistantRunPlan, assistantToolSetupMessage } from "../../assistant-run-tool-policy.js";
+import { assistantRunToolFacts } from "../../assistant-run-tool-facts.js";
 
 import { createEarlySessionCapture } from "../../early-run-session.js";
 import type { AgentSessionStore } from "#src/assistant/persistence/agent-session-store";
@@ -80,6 +84,11 @@ export async function captureDaemonRun(
     env: { ...((options.bindings?.process as { env?: NodeJS.ProcessEnv } | undefined)?.env ?? process.env), HOME: "/home/daemon-test" },
     idlePark: { hold: () => () => {} },
     stagedAttachmentCleanupByRunId: new Map(),
+    chatSettingsByRunId: new Map(), toolAccessRuns: new Map(), revokedToolRuns: new Set(), noToolsNotices: new Set(), cleanupFailures: new Map(),
+    visibleRegistry: { list: () => [] }, createChatSettingsSnapshot, admittedToolSources, isTerminalRunState,
+    assistantRunPlan, assistantToolSetupMessage, assistantRunToolFacts, surfaceExchanges: {},
+    resolveAgentLaunch: () => ({ launchPath: process.execPath }),
+    assistantInventory: { listAssistantAgents: async () => [{ id: options.request?.agentId ?? "claude", available: true, authStatus: "unknown" }] },
     ownerRetentionTimers: new Set(),
     captureEarlySession: createEarlySessionCapture({ sessions: fixtureDeps?.agentSessions ?? { getSessionId: async () => null, setSessionId: async () => {}, clearSessionId: async () => {} }, readStart: async () => null }, {}),
     parseRunStartContextRef, buildPageContextPromptBlock, assemblePromptWithPluginPrefix,
@@ -88,11 +97,18 @@ export async function captureDaemonRun(
     ASSISTANT_DISALLOWED_TOOLS, ASSISTANT_SETTING_SOURCES, resolveAssistantDisallowedTools, resolveAssistantRunSettings,
     formatRunEndLogLine, formatRunErrorLogLine,
     durableAttemptOwnsAnswer, resolveStoredSessionId, selectRunHistoryPrompt,
-    readAssistantCliPermissions: async () => assistantCliPermissions({ enabled: true }),
+    readAssistantCliPermissions: async (_required?: unknown, _optional?: unknown) => assistantCliPermissions({ enabled: true }),
     assistantCliCapabilitiesContext: new AsyncLocalStorage<ReturnType<typeof assistantCliPermissions>["capabilities"]>(),
     assistantNativeToolsContext: new AsyncLocalStorage<boolean>(),
     // Real preference resolution; fixtures without settings ports read the registered defaults.
-    resolveAssistantRuntimeLaunch, getAgentDef, assistantRuntimeGuidanceContext: new AsyncLocalStorage(),
+    resolveAssistantRuntimeLaunch,
+    // These wiring fixtures exercise already-consented run assembly, not live isolation claims.
+    // Real registry definitions remain conservative and are covered by the planner/consent contracts.
+    getAgentDef: ({ id }: { id: string }) => {
+      const def = getAgentDef({ id });
+      return def && ["claude", "codex"].includes(id) ? { ...def, mcpIsolation: { perRun: "fixture@2026-11-05" } } : def;
+    },
+    assistantRuntimeGuidanceContext: new AsyncLocalStorage(),
     // A CLI whose `--help` lists `--chrome`; fixtures override it to model an older CLI.
     probeAssistantChrome: async () => true,
     // No picked folder unless a fixture sets one (the run reads the site's custom fs root).
@@ -101,6 +117,18 @@ export async function captureDaemonRun(
     // Preserve existing preflight spies at the recovery boundary; recovery I/O has its own tests.
     ensureJsonAgentInstall: async (): Promise<void> => { await bindings.verifyJsonAgentInstall(); },
     resolveNativeToolPolicy, resolveFullCliAccess, resolveAssistantCliPermissions, resolveHostSignals, assistantCliPermissions, createToolGapCollector, redactSecretShapes,
+    readAssistantRunToolPolicy: async (required: { deps: { ownerPrincipalId?: Promise<string>; settingsUiTabsReady?: Promise<void> }; principalId: string; agentId: string; env: NodeJS.ProcessEnv; getDef: typeof getAgentDef }): Promise<Awaited<ReturnType<typeof ReadAssistantRunToolPolicy>>> => {
+      const isOwner = required.principalId === await required.deps.ownerPrincipalId;
+      const hostSignals = bindings.resolveHostSignals({ env: required.env });
+      const settings = bindings.resolveFullCliAccess({ isOwner, env: required.env }, { hostSignals })
+        ? await bindings.readAssistantCliPermissions({ ...required.deps, principalId: required.principalId, settingsReady: required.deps.settingsUiTabsReady }, {}) : assistantCliPermissions({ enabled: false });
+      const effective = bindings.resolveAssistantCliPermissions({ isOwner, env: required.env, settings, agentId: required.agentId }, { hostSignals });
+      const def = required.getDef({ id: required.agentId });
+      const policy = bindings.resolveNativeToolPolicy({ def: def ?? {}, policy: { nativeToolAccess: effective.enabled, nativeCapabilities: effective.capabilities } });
+      const lock = !isOwner ? "not_owner" : isHostedAssistantRuntime({ env: required.env }, { hostSignals }) ? "hosted" : fullCliEnvLock({ env: required.env });
+      return { isOwner, def, settings, effective, policy, nativeCapabilities: effective.capabilities, lock, settingsSource: "site" as const };
+    },
+    requestAssistantToolConsent: async () => { reject(new Error("Tool access requires owner consent before launch (ASK).")); return { status: "cancelled" as const }; },
     readLoginShellEnvironment: async () => ({ PATH: "/test/login-shell" }),
     siteTools: { start: async () => {}, preflight: async () => ({ prefix: "", refusalPrefix: "" }),
       withRun: ({ fn }: { fn: () => unknown }) => fn(), finish() {} },
@@ -162,11 +190,13 @@ export async function captureDaemonRun(
  */
 export function withDaemonLifecycle({ lifecycle }: { lifecycle: unknown }, _optional = {}): unknown {
   const has = (name: string) => typeof (lifecycle as Record<string, unknown>)[name] === "function";
-  if (has("onCancelRequested") && has("stream") && has("emit")) return lifecycle;
+  if (has("onCancelRequested") && has("stream") && has("emit") && has("get")) return lifecycle;
   return Object.assign(Object.create(lifecycle as object), {
     ...(has("onCancelRequested") ? {} : { onCancelRequested: () => () => {} }),
     ...(has("stream") ? {} : { stream: async () => {} }),
     ...(has("emit") ? {} : { emit: async () => {} }),
+    ...(has("get") ? {} : { get: async () => ({ state: "running" }) }),
+    ...(has("finish") ? {} : { finish: async () => {} }),
   });
 }
 

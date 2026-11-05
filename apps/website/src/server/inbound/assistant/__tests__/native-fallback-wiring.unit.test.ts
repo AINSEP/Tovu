@@ -86,14 +86,14 @@ test('prompt and runtime share the per-run grant across concurrent contexts', as
   })));
 });
 
-test('one fresh owner setting controls all native tools, configuration and the parity grant', async () => {
+test('fresh consent and pre-spawn snapshots control all native tools, configuration and parity', async () => {
   for (const enabled of [false, true]) {
     let reads = 0;
     const input = await captureDaemonRun({ prompt: 'Delegate to Codex' }, { bindings: {
       routeDeps: { ownerPrincipalId: Promise.resolve('daemon-test-principal'), workspaceId: 'w', siteBinding: { dir: '/site' }, toolAttemptAuditSink: { append: async () => {} } },
       readAssistantCliPermissions: async () => { reads++; return assistantCliPermissions({ enabled }); },
     }, lifecycle: { waitForTerminal: () => new Promise(() => {}), stream: async () => ({ kind: 'ok' }) } });
-    assert.equal(reads, 1);
+    assert.equal(reads, 2, "consent preflight and the final launch both read current permissions");
     assert.equal(input.cliParity, enabled);
     assert.equal(input.nativeToolAccess, enabled);
     for (const tool of ['Bash', 'Edit', 'Write', 'Task', 'Agent', 'Workflow', 'CronCreate', 'RemoteTrigger']) {
@@ -156,54 +156,59 @@ test('the real launch snapshot carries each independent OFF choice into Claude a
 });
 
 for (const ownerPrincipalId of ['daemon-test-principal', 'another-admin']) {
-  test(`Antigravity gets full access with every workspace switch off and one run note (owner: ${ownerPrincipalId})`, async () => {
-    const events: unknown[] = [];
+  test(`Antigravity never receives implicit full access with switches off (owner: ${ownerPrincipalId})`, async () => {
     let bridgeChecked = false;
-    const input = await captureDaemonRun({ prompt: 'Hello' }, { request: { agentId: 'antigravity' }, bindings: {
+    let consentKeys: readonly string[] | undefined;
+    let spawned = false;
+    const capture = captureDaemonRun({ prompt: 'Hello' }, { request: { agentId: 'antigravity' }, bindings: {
       routeDeps: { ownerPrincipalId: Promise.resolve(ownerPrincipalId), workspaceId: 'w', siteBinding: { dir: '/site' }, toolAttemptAuditSink: { append: async () => {} } },
       readAssistantCliPermissions: async () => assistantCliPermissions({ enabled: false }),
       verifyJsonAgentInstall: async () => { bridgeChecked = true; },
-    }, lifecycle: { waitForTerminal: () => new Promise(() => {}), emit: async (event: unknown) => { events.push(event); } } });
-    assert.equal(input.nativeToolAccess, true);
-    assert.equal(input.cliParity, true);
-    assert.equal(input.permissionMode, 'bypass');
-    assert.deepEqual(input.nativeCapabilities, Object.fromEntries(ASSISTANT_CLI_CAPABILITIES.map(({ key }) => [key, true])));
-    assert.equal(input.disallowedTools?.includes('Read(//**/.tovu/**)'), true);
-    assert.equal(input.env?.PATH, '/test/login-shell');
-    assert.equal(bridgeChecked, true);
-    assert.deepEqual(events, [{ runId: 'daemon-test-run', input: { event: 'agent', data: { type: 'status', label: 'full_cli_access',
-      detail: 'Gemini (Antigravity) always runs with full access to this computer, like running it in your own terminal. Pick Claude or Codex if you want the tool limits.' } } }]);
+      requestAssistantToolConsent: async ({ keys }: { keys: readonly string[] }) => { consentKeys = keys; throw new Error('owner consent required'); },
+      agentExecutor: { run: async () => { spawned = true; } },
+    } });
+    await assert.rejects(capture, ownerPrincipalId === 'daemon-test-principal' ? /owner consent required/ : /only the owner can turn them on/);
+    assert.equal(spawned, false);
+    assert.equal(bridgeChecked, false, 'personal settings must not be repaired before Allow');
+    if (ownerPrincipalId === 'daemon-test-principal') {
+      assert.deepEqual(new Set(consentKeys), new Set(['enabled', ...ASSISTANT_CLI_CAPABILITIES.map(({ key }) => key)]));
+    } else assert.equal(consentKeys, undefined, 'locked principals never receive an Allow card');
   });
 }
 
-test('Antigravity full-only projection does not depend on workspace full-access eligibility', async () => {
+test('Antigravity host restrictions cannot be overridden by stored full-access choices', async () => {
   for (const policy of [
     { ownerPrincipalId: 'another-admin', env: {} },
     { ownerPrincipalId: 'daemon-test-principal', env: { TOVU_RUNTIME_MODE: 'production' } },
     { ownerPrincipalId: 'daemon-test-principal', env: { TOVU_AGENT_FORBID_BASH: '1' } },
   ]) {
     let bridgeChecked = false;
-    const input = await captureDaemonRun({ prompt: 'Hello' }, { request: { agentId: 'antigravity' }, bindings: {
+    let spawned = false;
+    await assert.rejects(captureDaemonRun({ prompt: 'Hello' }, { request: { agentId: 'antigravity' }, bindings: {
       routeDeps: { ownerPrincipalId: Promise.resolve(policy.ownerPrincipalId), siteBinding: { dir: '/site' }, toolAttemptAuditSink: { append: async () => {} } },
       process: { env: policy.env, cwd: () => '/site' },
+      readAssistantCliPermissions: async () => assistantCliPermissions({ enabled: true, capabilities: { userMcp: true } }),
       verifyJsonAgentInstall: async () => { bridgeChecked = true; },
-    }, lifecycle: { waitForTerminal: () => new Promise(() => {}), emit: async () => {} } });
-    assert.equal(input.nativeToolAccess, true);
-    assert.equal(input.cliParity, true);
-    assert.equal(input.permissionMode, 'bypass');
-    assert.deepEqual(input.nativeCapabilities, Object.fromEntries(ASSISTANT_CLI_CAPABILITIES.map(({ key }) => [key, true])));
-    assert.equal(input.disallowedTools?.includes('Read(//**/.tovu/**)'), true);
-    assert.equal(bridgeChecked, true);
+      requestAssistantToolConsent: async () => assert.fail('host locks never offer Allow'),
+      agentExecutor: { run: async () => { spawned = true; } },
+    } }), /only the owner can turn them on|off on hosted sites|TOVU_AGENT_FORBID_BASH turns them off/);
+    assert.equal(bridgeChecked, false);
+    assert.equal(spawned, false);
   }
 });
 
 for (const ownerPrincipalId of ['daemon-test-principal', 'another-admin']) {
-  test(`a broken Antigravity bridge reports its repair message before dispatch (owner: ${ownerPrincipalId})`, async () => {
-    const message = 'Run "mcp install antigravity" to repair the bridge entry';
+  test(`Antigravity bridge repair requires an effective owner grant (owner: ${ownerPrincipalId})`, async () => {
+    let bridgeChecked = false;
+    let spawned = false;
     await assert.rejects(captureDaemonRun({ prompt: 'Hello' }, { request: { agentId: 'antigravity' }, bindings: {
       routeDeps: { ownerPrincipalId: Promise.resolve(ownerPrincipalId), siteBinding: { dir: '/site' }, toolAttemptAuditSink: { append: async () => {} } },
-      verifyJsonAgentInstall: async () => { throw new Error(message); },
-    } }), /mcp install antigravity/);
+      readAssistantCliPermissions: async () => assistantCliPermissions({ enabled: true, capabilities: { userMcp: true } }),
+      verifyJsonAgentInstall: async () => { bridgeChecked = true; throw new Error('fixture bridge unavailable'); },
+      agentExecutor: { run: async () => { spawned = true; } },
+    } }), ownerPrincipalId === 'daemon-test-principal' ? /CLI bridge could not be prepared/ : /only the owner can turn them on/);
+    assert.equal(bridgeChecked, ownerPrincipalId === 'daemon-test-principal');
+    assert.equal(spawned, false);
   });
 }
 
