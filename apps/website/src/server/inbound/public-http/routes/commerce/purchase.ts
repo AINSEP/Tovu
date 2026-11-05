@@ -3,6 +3,7 @@ import type { Express, Request, Response } from "express";
 import { CommerceCheckoutValidationError, CommerceOrderNotFoundError, CommercePriceNotFoundError,
   CommerceProductNotFoundError } from "@jini-ai/commerce";
 import { resolveMemberSession } from "#src/features/members/access-resolver";
+import { MemberLoginError } from "#src/features/member-login/index";
 import { createRateLimiter, OUTBOUND_CALL_PER_IP, resolveClientIp, type RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import type { RouteDeps } from "#src/server/routes/types";
 import { uniqueMemberCookie } from "../members/oidc-deps.js";
@@ -25,7 +26,9 @@ type RequestContext = { req: Request; res: Response; deps: CommerceHttpDeps; lim
 
 /** Resolve only the member cookie, including revocation; operator cookies cannot purchase. O(1) reads. */
 async function buyer({ req, deps }: Pick<RequestContext, "req" | "deps">): Promise<string | null> {
-  const sessionToken = uniqueMemberCookie({ req, name: "tovu_member_session" });
+  let sessionToken: string | undefined;
+  try { sessionToken = uniqueMemberCookie({ req, name: "tovu_member_session" }); }
+  catch (error) { if (error instanceof MemberLoginError) return null; throw error; }
   const session = await resolveMemberSession({ sessions: deps.memberSessionRepo, workspaceId: deps.workspaceId,
     sessionToken, nowIso: deps.clock.nowIso() });
   if (!session) return null;
