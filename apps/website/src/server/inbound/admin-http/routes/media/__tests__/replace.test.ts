@@ -147,7 +147,7 @@ test('replace reports the stored size of a sanitized SVG, and null when that siz
 test('replace fails closed on wrong workspace, missing principal, missing asset, trash and missing transaction capability', async t => {
   const { deps, media } = await fixture(t);
   assert.deepEqual(await invoke({ deps, id: media.id, workspaceId: 'other' }), { status: 404, json: { error: 'workspace was not found' } });
-  assertAdminResponse({ actual: await invoke({ deps, id: media.id, principal: false }), expected: { status: 500, json: { error: 'internal error' } } });
+  assertAdminResponse({ actual: await invoke({ deps, id: media.id, principal: false }), expected: { status: 500, json: { error: 'The media upload or change could not finish.', code: "INTERNAL_ERROR" } } });
   assert.deepEqual(await invoke({ deps, id: 'missing' }), { status: 404, json: { error: "media 'missing' was not found" } });
   await deps.mediaRepo.save({ ...media, status: 'trashed' });
   assert.deepEqual(await invoke({ deps, id: media.id }), { status: 409, json: { error: 'trashed media cannot be replaced', code: 'ENTITY_IN_TRASH' } });
@@ -173,7 +173,7 @@ test('replace rolls back the source change and preview invalidation if the origi
   const { deps, media, before } = await fixture(t);
   await deps.assetRenditionRepo.save({ ...before[0], id: 'occupied', assetId: 'another-asset' });
   deps.idGen = { newId: () => 'occupied' };
-  assertAdminResponse({ actual: await invoke({ deps, id: media.id }), expected: { status: 500, json: { error: 'internal error' } } });
+  assertAdminResponse({ actual: await invoke({ deps, id: media.id }), expected: { status: 500, json: { error: 'The media upload or change could not finish.', code: "INTERNAL_ERROR" } } });
   assertAdminResponse({ actual: await deps.mediaRepo.findById({ workspaceId: deps.workspaceId, id: media.id }), expected: media });
   assertAdminResponse({ actual: await deps.assetRenditionRepo.listByAsset({ workspaceId: deps.workspaceId, assetId: media.id }), expected: before });
 });

@@ -1,3 +1,4 @@
+import { registerOwnerRecoveryRoutes } from "./owner-recovery-routes.js";
 import { readRequestCookie } from "#src/server/http/request-cookie";
 import type { Express, NextFunction, Request, Response } from "express";
 
@@ -546,6 +547,11 @@ export function registerAuthRoutes(app: Express, deps: RouteDeps,
   // `createApp()`/`createRouteDeps()` pair (and therefore each test's server)
   // gets an isolated counter store rather than sharing process-wide state.
   const loginRateLimiter = createRateLimiter({ profile: LOGIN_STRICT, clock: { nowMs: () => Date.parse(deps.clock.nowIso()) } });
+
+  registerOwnerRecoveryRoutes({ app, deps, limiter: loginRateLimiter,
+    authenticate: req => currentPrincipal(deps, req, { localOwnerSignIn }),
+    desktopOwnerReset: localOwnerSignIn.enabled && !!localOwnerSignIn.acceptsCapability,
+    ...(localOwnerSignIn.acceptsCapability ? { acceptsDesktopCapability: localOwnerSignIn.acceptsCapability } : {}) });
 
   app.post("/api/admin/v1/auth/login", async (req, res) => {
     try {

@@ -1,3 +1,5 @@
+import { TOVU_ERROR_REDACTION_OPTIONS } from '@tovu/contracts/secret-redaction';
+import { applyOwnerPasswordReset } from "#src/features/identity/owner-reset-env";
 import { notifyExternalMcpRosterChanged } from "../../../assistant/external-mcp-roster-change.js";
 import { outboxEventValues } from "#src/platform/db/repos/outbox-repo";
 import { composeAgentPluginMcp, composeAgentPluginPreferences, composePluginProviderFaces } from "./agent-plugin-service-ports.js";
@@ -166,7 +168,7 @@ import { SqlitePresentationSettingsRepo, resolveActiveThemeId } from "#src/featu
 import { SqliteSettingsRepo } from "#src/features/settings/repo.sqlite";
 import { SqliteToolAttemptAuditSink } from "#src/features/tool-audit/repo.sqlite";
 import { createSiteAssistantErrorReporter } from "#src/assistant/site/public-errors";
-import { redactSecrets } from "@jini-ai/core";
+import { formatErrorForLog, redactSecrets } from "@jini-ai/core";
 import { discoverAllBuiltInThemes, rescanThemes, syncThemeRoster, resolveActiveTheme, NO_THEME_ID } from "#src/features/theme/index";
 import { createMemberTrashAdapter } from "#src/features/trash/adapters/member";
 import { createThemeTrashAdapter } from "#src/features/theme/theme-trash";
@@ -177,7 +179,6 @@ import { openSiteContentDb } from "./open-site-content-db.js";
 import { openSiteStore, type SiteStore, type SiteStoreRole } from "./open-site-store.js";
 import { createSite } from "./site-dir.js";
 import { storeBoundServicesFor } from "./store-bound-services.js";
-import type { DbOpsPort } from "#src/contracts/core/gated-mutations/ports";
 import { isInMemoryDbPath } from "#src/features/plugins/snapshot";
 import { resolveSiteStorage } from "#src/platform/site-dir/site-storage";
 import type { SiteStorage } from "#src/platform/site-dir/types";
@@ -255,10 +256,6 @@ import { readBundledObjectStoreEnvDeclarations, createMediaBlobStore, ensureMedi
 import { ensureCoreMediaTransform } from "#src/features/media/bootstrap";
 import { createSqliteIdentityRouteDeps, resolveOwnerCredentials, type IdentityRouteDepsSlice } from "#src/features/identity/wiring";
 import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
-import {
-  resetAdminPasswordSelfVerified,
-  AdminPasswordResetVerificationFailedError,
-} from "#src/features/identity/reset-admin-password-self-verified";
 import { SqliteUserPurge } from "#src/features/identity/user-purge.sqlite";
 import type { IdentityRepos } from "@jini-ai/user-management";
 import type { Clock as ClockPort, IdGenerator as IdGeneratorPort } from "@jini-ai/core/primitives";
@@ -872,9 +869,9 @@ async function resolveWorkspaceIdOverride(kernel: ContentKernel, overrides?: Par
  *
  * Exists because the admin UI's own reset-password route is not always trustworthy as a recovery
  * path — it is exactly what failed in the incident this closes (see
- * `features/identity/reset-admin-password-self-verified.ts`'s own header for the full story) — so
+ * `features/identity/owner-reset-env.ts`'s own header for the full story) — so
  * an operator locked out of the admin panel needs a way to fix the credential that does not depend
- * on the admin panel already working. `resetAdminPasswordSelfVerified` re-reads and verifies the
+ * on the admin panel already working. Jini owner recovery re-reads and verifies the
  * write before this function ever reports success; a failure here is logged loudly but never
  * crashes the boot (mirrors `hydrateBlobStoreFromSeed`'s own catch-and-log posture below) —
  * crashing the ENTIRE public site over a failed ADMIN-only credential fix would be a strictly worse
@@ -885,7 +882,7 @@ async function resolveWorkspaceIdOverride(kernel: ContentKernel, overrides?: Par
  * function cannot assume equals `dbPath`) before reaching here.
  */
 function applyAdminPasswordResetFromEnvIfConfigured(required: {
-  dbOps: DbOpsPort;
+  beforeReset: () => Promise<unknown>;
   workspaceId: string;
   identity: IdentityRouteDepsSlice;
   clock: ClockPort;
@@ -896,56 +893,21 @@ function applyAdminPasswordResetFromEnvIfConfigured(required: {
 
   const password = process.env.TOVU_ADMIN_RESET_PASSWORD;
   if (!password) return Promise.resolve();
-  const username = process.env.TOVU_ADMIN_RESET_USERNAME ?? "admin";
-
-  const { dbOps, workspaceId, identity, clock, idGen } = required;
-  const repos: IdentityRepos = {
-    transactions: identity.transactions,
-    principals: identity.principalRepo,
-    users: identity.userRepo,
-    sessions: identity.sessionRepo,
-    roles: identity.roleRepo,
-    policies: identity.policyRepo,
-    policyPermissions: identity.policyPermissionRepo,
-    rolePolicies: identity.rolePolicyRepo,
-    principalRoles: identity.principalRoleRepo,
-    principalPolicies: identity.principalPolicyRepo,
-  };
-  // eslint-disable-next-line no-console
-  console.error(
-    `TOVU_ADMIN_RESET_PASSWORD is set — checking password recovery for username='${username}' at boot. ` +
-      "Unset this env var/secret again immediately after a successful reset."
-  );
-
-  return identity.identityReady
-    .then(async () => {
-      // A secret left set after recovery must not re-salt the same credential, revoke sessions,
-      // or copy the whole database on every boot. The actual reset keeps its pre-write backup.
-      const target = await identity.userRepo.findByUsername({ workspaceId, username });
-      if (target && await identity.passwordHasher.verify({ hash: target.passwordHash, password })) return;
-      return resetAdminPasswordSelfVerified(
-        // eslint-disable-next-line no-console
-        {
-          auth: { repos, hasher: identity.passwordHasher, clock, idGen, tokens: identity.tokens },
-          dbOps,
-          ownerPrincipalId: identity.ownerPrincipalId,
-          log: (m) => console.error(`[admin-password-reset] ${m}`),
-        },
-        { workspaceId, username, password, restorePointScopeId: "boot-admin-password-reset" }
-      );
-    })
-    .then(() => {
-      // eslint-disable-next-line no-console
-      console.error(`[admin-password-reset] SUCCESS — username='${username}' configured password self-verified at boot.`);
-    })
-    .catch((err) => {
-      const detail =
-        err instanceof AdminPasswordResetVerificationFailedError
-          ? err.message
-          : `${(err as Error).message ?? err}`;
-      // eslint-disable-next-line no-console
-      console.error(`[admin-password-reset] FAILED for username='${username}': ${detail}`);
-    });
+  const username = process.env.TOVU_ADMIN_RESET_USERNAME;
+  const { workspaceId, identity, clock, idGen } = required;
+  return identity.identityReady.then(async () => {
+    if (!identity.recoveryCodes) throw new Error("Owner recovery storage is unavailable");
+    // A secret left set after recovery must not re-salt the same credential, revoke sessions,
+    // or copy the whole database on every boot. Capture a backup only before an actual write.
+    return applyOwnerPasswordReset({ workspaceId, password, ...(username === undefined ? {} : { username }),
+      deps: { auth: identityServiceDepsFrom({ ...identity, clock: { nowIso: () => new Date(clock.nowMs()).toISOString() }, idGen }),
+        codes: identity.recoveryCodes, seededOwnerPrincipalId: await identity.ownerPrincipalId } }, { beforeReset: required.beforeReset });
+  }).then((resolvedUsername) => {
+    console.error(`[admin-password-reset] SUCCESS — username='${resolvedUsername}' configured password self-verified at boot. Unset TOVU_ADMIN_RESET_PASSWORD now.`);
+  }).catch((error: unknown) => {
+    const details = formatErrorForLog({ error }, { ...TOVU_ERROR_REDACTION_OPTIONS, exactSecrets: [password] });
+    console.error(`[admin-password-reset] FAILED: the owner password could not be reset. Check the owner username and identity database, then retry. Details: boot-owner-reset\n${details}`);
+  });
 }
 
 /**
@@ -1239,7 +1201,7 @@ async function composeSiteRouteDeps(
   // Fire-and-forget, mirroring `identityReady`/`blobHydrationReady` below — opt-in only (see the
   // function's own doc), so this is a genuine no-op on every ordinary boot. Exposed on the returned
   // deps (like `blobHydrationReady`) so a boot test can await the reset; nothing gates on it.
-  const adminPasswordResetReady = applyAdminPasswordResetFromEnvIfConfigured({ dbOps: storeBound.dbOps, workspaceId, identity, clock, idGen, overrides });
+  const adminPasswordResetReady = applyAdminPasswordResetFromEnvIfConfigured({ beforeReset: () => storeBound.dbOps.captureRestorePoint({ scopeId: "boot-admin-password-reset" }), workspaceId, identity, clock, idGen, overrides });
   const presentationRepo = new SqlitePresentationSettingsRepo(kernel);
   const settingsRepo = new SqliteSettingsRepo(kernel);
   // Fire-and-forget, mirroring `identityReady` (see routes/types.ts's `settingsReady` doc) — this

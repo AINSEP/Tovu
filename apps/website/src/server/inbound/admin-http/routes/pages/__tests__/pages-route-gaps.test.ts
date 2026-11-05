@@ -176,7 +176,7 @@ test("pages list: a permission lookup that throws is an opaque 500, not a hung r
   const baseUrl = await startTestServer(app, t);
   const res = await fetch(`${baseUrl}${PAGES}`);
   assert.equal(res.status, 500);
-  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error" } });
+  assertAdminResponse({ actual: await res.json(), expected: { error: "Pages could not be loaded.", code: "INTERNAL_ERROR" } });
 });
 
 test("pages get-by-id / update / delete: `req.params.pageId ?? \"\"` fallback resolves no page and is the ENTRY_NOT_FOUND 404", async () => {
@@ -344,7 +344,7 @@ test("pages update: a change-set record failure after the edit applied is rolled
     body: JSON.stringify({ title: "Should Be Rolled Back", slug: "rolled-back-slug", bodyJson: VALID_BODY_JSON, status: "published" }),
   });
   assert.equal(res.status, 500);
-  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error" } });
+  assertAdminResponse({ actual: await res.json(), expected: { error: "The page could not be saved.", code: "INTERNAL_ERROR" } });
 
   const restored = await deps.postRepo.findById({ workspaceId: WS, id: page.id });
   assert.ok(restored);

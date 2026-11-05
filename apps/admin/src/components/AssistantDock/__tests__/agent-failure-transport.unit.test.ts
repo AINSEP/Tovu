@@ -125,7 +125,8 @@ it("keeps a generic failure when the transport error contains no meaningful outp
   h.emit().onDone([]);
   expect(h.seen).toEqual([]);
   expect(h.errors).toEqual([""]);
-  expect(h.completed[0]?.at(-1)).toEqual({ kind: "status", code: "run_terminal", label: GENERIC_AGENT_FAILURE });
+  expect(h.completed[0]?.at(-1)).toEqual({ kind: "ext", name: AGENT_FAILURE_EVENT, data: {
+    reason: GENERIC_AGENT_FAILURE, details: "The assistant stopped without reporting a cause." } });
 });
 
 it("completes successful runs using the authoritative final events without a failure card", async () => {

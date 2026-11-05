@@ -3,7 +3,7 @@ import { CredentialWarningList, credentialSummary } from "./CredentialWarnings";
 import type { CredentialGate } from "./hooks/use-share-credential-gate.hooks";
 import { DataTable } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/agentic";
-import { formatTimestamp, type Translate } from "@jini-ai/ui/panel-kit";
+import { ErrorNotice, formatTimestamp, type Translate } from "@jini-ai/ui/panel-kit";
 import { siteShareNotices, type SiteShare } from "./hooks/site-transfer-dependencies.hooks";
 import { useWiredSiteExport, type SiteExportController } from "./hooks/use-site-transfer.hooks";
 import { formatTransferBytes, shareStatusView, shortLink } from "./site-transfer-rules";
@@ -50,7 +50,7 @@ export function SiteExportTab({ t, useExport = useWiredSiteExport }: SiteExportT
         </button>
         <StaticExportPicker controller={controller} t={t} />
       </div>
-      {controller.exportError ? <div className="notice error" role="alert">{controller.exportError}</div> : null}
+      <ExportFailureNotice controller={controller} t={t} />
       {controller.passwordError ? <div className="notice error" role="alert">{controller.passwordError}</div> : null}
       {controller.exportNotices?.map((notice, index) => <div className="notice" role="status" key={index}>{notice}</div>)}
       <ExportPassword controller={controller} t={t} />
@@ -60,6 +60,11 @@ export function SiteExportTab({ t, useExport = useWiredSiteExport }: SiteExportT
       <ExportList controller={controller} t={t} />
     </section>
   );
+}
+
+function ExportFailureNotice({ controller, t }: { controller: SiteExportController; t: Translate }) {
+  if (controller.exportFailure) return <ErrorNotice failure={controller.exportFailure} t={t} />;
+  return controller.exportError ? <div className="notice error" role="alert">{controller.exportError}</div> : null;
 }
 
 /** Passwords exist only while explicitly displayed; refreshing requires an owner reveal again. */

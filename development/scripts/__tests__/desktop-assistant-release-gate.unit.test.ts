@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import yaml from 'js-yaml';
+import { load } from 'js-yaml';
 
-const workflow = yaml.load(readFileSync(new URL('../../../.github/workflows/desktop-release.yml', import.meta.url), 'utf8')) as any;
+const workflow = load(readFileSync(new URL('../../../.github/workflows/desktop-release.yml', import.meta.url), 'utf8')) as any;
 
 test('release and release-branch pushes require the packaged two-site gate', () => {
   assert.deepEqual(workflow.on.push.branches, ['release/*']);

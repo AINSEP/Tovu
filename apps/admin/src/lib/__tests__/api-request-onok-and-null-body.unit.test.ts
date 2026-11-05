@@ -78,9 +78,9 @@ test("a literal JSON null error body is treated as a body with no code/error fie
 
   expect(error).toBeInstanceOf(Error);
   const apiError = error as import("../api").ApiError;
-  // Parseable JSON (even `null`) proves an application answered, so this keeps the status-only
-  // fallback rather than the "cannot reach the API" message an unparseable 5xx gets.
-  expect(apiError.message).toBe("request failed (500)");
+  // Parseable JSON (even `null`) proves an application answered, so name the failed request
+  // rather than the "cannot reach the API" message an unparseable 5xx gets.
+  expect(apiError.message).toBe("The API could not finish POST /auth/login (HTTP 500). Check whether your change was saved before trying again. Copy details and report this problem.");
   expect(apiError.code).toBeUndefined();
   expect(apiError.body).toBeNull();
 });
@@ -92,7 +92,7 @@ test("a literal JSON null 401 body does not notify unauthenticated listeners —
   const unsubscribe = onUnauthenticated(listener);
   try {
     const error = await api.login({ username: "a", password: "b" }).catch((e: unknown) => e);
-    expect((error as Error).message).toBe("request failed (401)");
+    expect((error as Error).message).toBe("The API could not finish POST /auth/login (HTTP 401). Check whether your change was saved before trying again. Copy details and report this problem.");
     expect(listener).not.toHaveBeenCalled();
   } finally {
     unsubscribe();

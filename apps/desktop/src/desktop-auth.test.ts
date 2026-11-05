@@ -321,18 +321,18 @@ test("ensureSiteSession reports a failed redeem honestly rather than claiming a 
 });
 
 
-test("deskfx2 MUST-1: only this session's exact bootstrap URL receives the capability header", async () => {
+test("deskfx2 MUST-1: only this session's exact bootstrap and reset URLs receive the capability header", async () => {
   const { armDesktopOwnerSignIn } = await import("./desktop-auth.ts");
   type SessionPort = Parameters<typeof armDesktopOwnerSignIn>[0]["session"];
   let filter: { urls: string[] } | undefined;
   let listener: Parameters<SessionPort["webRequest"]["onBeforeSendHeaders"]>[1] | undefined;
   const session: SessionPort = { webRequest: { onBeforeSendHeaders: (value, handler) => { filter = value; listener = handler; } } };
   armDesktopOwnerSignIn({ session, adminUrl: "http://127.0.0.1:3001/admin/", capability: "a".repeat(64) });
-  assert.deepEqual(filter, { urls: ["http://127.0.0.1:3001/api/admin/v1/auth/local-boot-session"] });
-  for (const url of [filter!.urls[0]!, "http://127.0.0.1:3002/api/admin/v1/auth/local-boot-session", "http://evil.example/api/admin/v1/auth/local-boot-session", "http://127.0.0.1:3001/api/admin/v1/auth/me"]) {
+  assert.deepEqual(filter, { urls: ["http://127.0.0.1:3001/api/admin/v1/auth/local-boot-session", "http://127.0.0.1:3001/api/admin/v1/auth/reset-owner"] });
+  for (const url of [...filter!.urls, "http://127.0.0.1:3002/api/admin/v1/auth/reset-owner", "http://evil.example/api/admin/v1/auth/reset-owner", "http://127.0.0.1:3002/api/admin/v1/auth/local-boot-session", "http://evil.example/api/admin/v1/auth/local-boot-session", "http://127.0.0.1:3001/api/admin/v1/auth/me"]) {
     let headers: Record<string, string> | undefined;
     listener!({ url, requestHeaders: { Accept: "application/json" } }, (response) => { headers = response.requestHeaders; });
-    assert.deepEqual(headers, url === filter!.urls[0] ? { Accept: "application/json", "X-Tovu-Desktop-Owner-SignIn": "a".repeat(64) } : { Accept: "application/json" });
+    assert.deepEqual(headers, filter!.urls.includes(url) ? { Accept: "application/json", "X-Tovu-Desktop-Owner-SignIn": "a".repeat(64) } : { Accept: "application/json" });
   }
   assert.throws(() => armDesktopOwnerSignIn({ session, adminUrl: "https://remote.example/admin/", capability: "a".repeat(64) }));
   assert.throws(() => armDesktopOwnerSignIn({ session, adminUrl: "http://127.0.0.1:3001/admin/", capability: "bad" }));

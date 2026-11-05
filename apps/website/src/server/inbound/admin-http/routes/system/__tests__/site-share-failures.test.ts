@@ -8,6 +8,30 @@ import type { RouteDeps } from "#src/server/routes/types";
 import { registerAdminSiteShareRoutes } from "../site-shares.js";
 import { SiteShareRefusal } from "#src/features/site-backup/share-policy";
 import { sendSiteShareFailure } from "../site-share-errors.js";
+import { SiteShareExportFailure } from "#src/features/site-backup/share-export-failure";
+
+test("an archive failure returns the actual job step and redacted copyable details", async t => {
+  const logged = t.mock.method(console, "error", () => {});
+  const tracked: unknown[] = [];
+  const cause = new Error("ZIP writer failed password=CANARY_EXPORT ERR-1234-5678-9ABC-DEF0");
+  const response = await request(appFor(new SiteShareExportFailure({ step: "archive", cause, appVersion: "test-app", jiniVersion: "test-jini", time: "2026-11-04T12:00:00.000Z" }), tracked), "POST", "");
+  assert.equal(response.status, 500);
+  assert.equal(response.body.errorId, "ERR-1234-5678-9ABC-DEF0");
+  const failure = response.body.details.failure;
+  assert.equal(failure.message, "The export stopped while building the ZIP.");
+  assert.equal(failure.action, "Copy details and report this problem. Check export history before starting another export.");
+  assert.equal(failure.step, "archive");
+  assert.equal(failure.appVersion, "test-app");
+  assert.equal(failure.jiniVersion, "test-jini");
+  assert.equal(failure.time, "2026-11-04T12:00:00.000Z");
+  assert.match(failure.copyText, /ZIP writer failed/);
+  assert.equal(failure.copyText.includes("CANARY_EXPORT"), false);
+  assert.equal(failure.copyText.includes("Check storage configuration"), false);
+  for (const sink of [logged.mock.calls.map(call => call.arguments), tracked]) {
+    assert.match(JSON.stringify(sink), /ERR-1234-5678-9ABC-DEF0/);
+    assert.equal(JSON.stringify(sink).includes("CANARY_EXPORT"), false);
+  }
+});
 
 const root = "/api/admin/v1/workspaces/ws/site-shares";
 

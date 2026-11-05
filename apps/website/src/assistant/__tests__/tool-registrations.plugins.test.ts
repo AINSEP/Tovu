@@ -369,7 +369,10 @@ test("workflow: list plugins, enable one the list returned, list again to confir
   assert.ok(target, "the fixture's valid plugin must appear in the initial list");
   assert.equal(target.enabled, false, "a never-activated plugin starts disabled");
   assert.match(target.description, /installed, off:/);
-  assert.equal(Object.hasOwn(target, 'status'), false, 'OFF plugins disclose only their catalog line');
+  assert.equal((target as { status?: string }).status, VALID_PLUGIN.status, 'OFF plugins retain their discovery health');
+  const broken = before.plugins.find(plugin => plugin.id === INVALID_PLUGIN.id);
+  assert.equal((broken as unknown as { status: string }).status, 'invalid');
+  assert.deepEqual(Object.keys(broken!).sort(), ['description', 'enabled', 'id', 'status']);
 
   // Step 2: enable — using the id step 1 returned, not a hardcoded literal. Enabling now parks on a
   // human confirmation, so the workflow answers it the way a real click does.

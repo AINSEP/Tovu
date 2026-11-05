@@ -116,7 +116,7 @@
     "newsletter_schedule_campaign": "newsletter schedule campaign scheduled date time tomorrow later future issue email send",
     "newsletter_resume_campaign": "newsletter resume paused continue sending restart delivery remaining campaign email mailing list",
     "newsletter_pause_campaign": "pause hold stop email campaign newsletter sending",
-    "newsletter_create_campaign": "email campaign newsletter blast send announcement compose",
+    "newsletter_create_campaign": "email campaign newsletter blast send announcement compose draft write create new",
     "newsletter_list_campaigns": "email campaigns newsletters sent scheduled drafts list",
     "newsletter_remove_subscription": "unsubscribe remove subscriber opt out mailing list",
     "newsletter_list_send_log": "email sent delivery delivered log history newsletter campaign who received",
@@ -2687,7 +2687,7 @@
       "confirmation": "plan"
     },
     "external_mcp_get_admissions": {
-      "class": "read",
+      "class": "edit",
       "confirmation": "direct"
     },
     "external_mcp_list": {
@@ -3282,7 +3282,7 @@
     },
     "theme_reset_file": {
       "class": "restore-over-existing",
-      "confirmation": "policy"
+      "confirmation": "direct"
     },
     "theme_restore_trashed_file": {
       "class": "edit",
@@ -3306,7 +3306,7 @@
     },
     "theme_write_file": {
       "class": "edit",
-      "confirmation": "plan"
+      "confirmation": "direct"
     },
     "trash_empty": {
       "class": "delete",
@@ -3726,11 +3726,9 @@
     "source_control_delete_credential",
     "source_control_execute_commit",
     "taxonomy_execute_merge_term",
-    "theme_reset_file",
     "theme_trash",
     "theme_trash_file",
     "theme_set_active",
-    "theme_write_file",
     "trash_empty",
     "trash_item",
     "trash_purge_item",
@@ -3821,11 +3819,9 @@
     "source_control_delete_credential",
     "source_control_execute_commit",
     "taxonomy_execute_merge_term",
-    "theme_reset_file",
     "theme_trash",
     "theme_trash_file",
     "theme_set_active",
-    "theme_write_file",
     "trash_empty",
     "trash_item",
     "trash_purge_item",
@@ -3896,11 +3892,9 @@
     "source_control_delete_credential",
     "source_control_execute_commit",
     "taxonomy_execute_merge_term",
-    "theme_reset_file",
     "theme_trash",
     "theme_trash_file",
     "theme_set_active",
-    "theme_write_file",
     "trash_empty",
     "trash_item",
     "trash_purge_item",

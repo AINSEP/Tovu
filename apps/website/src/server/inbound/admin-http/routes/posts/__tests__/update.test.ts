@@ -289,7 +289,7 @@ test("PUT posts/:postId: a change-set record failure AFTER the mutation applied 
       body: JSON.stringify({ title: "Should be rolled back", slug: "failed-new-slug", bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Failed new document" }] }] }, status: "published" }),
     });
     assert.equal(res.status, 500);
-    assertAdminResponse({ actual: await res.json(), expected: { error: "internal error" } });
+    assertAdminResponse({ actual: await res.json(), expected: { error: "The post could not be saved.", code: "INTERNAL_ERROR" } });
   } finally {
     deps.changeSets.insert = originalInsert;
   }
@@ -586,7 +586,7 @@ test("PUT posts/:postId: when the row was invisible to captureInverse but presen
     body: JSON.stringify({ title: "Uncompensated edit", slug: "racing-update", bodyJson: { type: "doc", content: [] }, status: "draft" }),
   });
   assert.equal(res.status, 500);
-  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error" } });
+  assertAdminResponse({ actual: await res.json(), expected: { error: "The post could not be saved.", code: "INTERNAL_ERROR" } });
   const stored = await realFindById({ workspaceId: WS, id });
   assert.equal(stored?.title, "Uncompensated edit", "with no captured prior row, rollback must not fabricate a restore");
 });

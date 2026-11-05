@@ -1,3 +1,5 @@
+import { requireShareSecretFree } from "../share-file-policy.js";
+import type { CredentialWarning } from "../credential-warnings.js";
 import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import assert from "node:assert/strict";
 import { lstat, readdir } from "node:fs/promises";
@@ -705,7 +707,16 @@ test("share collection omits only private runtime files and includes overrides a
   // A site plugin file is walked as its archive path, with no version folder.
   assert.ok(paths(result.files).includes("plugins/custom/package/src/data/default.json"), "plugin source");
   assert.equal(paths(result.files).some(file => file.endsWith("data/private.json")), false);
-  assert.equal(paths(result.files).includes("themes/static/demo/.env.local"), false);
+  // The reviewed warning-only credential policy carries user-owned bytes unchanged.
+  assert.equal(paths(result.files).includes("themes/static/demo/.env.local"), true);
+  // Warning belongs to the byte scanner used by ZIP assembly, after collection's metadata pass.
+  const envFile = result.files.find(file => file.path === "themes/static/demo/.env.local")!;
+  const loaded = await readPlannedFile(envFile);
+  assert.ok(loaded.ok);
+  const credentialWarnings: CredentialWarning[] = [];
+  requireShareSecretFree({ path: envFile.path, bytes: loaded.bytes }, { credentialWarnings });
+  assert.ok(credentialWarnings.some(warning => warning.path === envFile.path && warning.kind === "credential filename"));
+
   // A v2 share carries a plugin's memory notes and learned facts; every other memory folder is private.
   assert.ok(paths(result.files).includes("agent-plugins/ws/workspace-local/composio/memory/notes/notes.md"));
   assert.equal(result.files.some(file => /\/memory\/(?!notes\/|learned\/)/.test(file.path)), false);

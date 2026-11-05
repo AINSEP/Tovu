@@ -51,6 +51,7 @@ export interface ContentDatabase {
   oauth_device_authorizations: OauthDeviceAuthorizationsTable;
   origin_settings: OriginSettingsTable;
   outbox_events: OutboxEventsTable;
+  owner_recovery_codes: OwnerRecoveryCodesTable;
   plugin_activations: PluginActivationsTable;
   policies: PoliciesTable;
   policy_permissions: PolicyPermissionsTable;
@@ -610,6 +611,12 @@ export interface OutboxEventsTable {
   next_attempt_at: string;
   last_error: string | null;
   created_at: string;
+}
+
+export interface OwnerRecoveryCodesTable {
+  workspace_id: string;
+  principal_id: string;
+  code_hash: string;
 }
 
 export interface PluginActivationsTable {

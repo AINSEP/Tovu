@@ -54,7 +54,7 @@ it("renders the exact reason, hint and full stderr disclosure in Jini's real mes
       .toBe("Google ended free sign-in for Gemini CLI. Switch to Antigravity, or set Gemini CLI to use an API key.");
     expect(screen.getByText("Show details").closest("details")?.open).toBe(false);
     expect(screen.getByText("Show details").closest("details")?.querySelector("pre")?.textContent)
-      .toBe((fixture as AgentEvent[]).filter(event => event.kind === "raw").map(event => event.line).join("\n").trim());
+      .toContain((fixture as AgentEvent[]).filter(event => event.kind === "raw").map(event => event.line).join("\n").trim());
     expect(screen.queryByRole("button", { name: "Switch to Antigravity" })).toBeNull();
     await h.load();
     fireEvent.click(screen.getByRole("button", { name: "Switch to Antigravity" }));
@@ -81,17 +81,19 @@ it("uses injected declarative hints for other agents and redacts both reason and
     expect(screen.getAllByText("AuthenticationError: Incorrect API key provided: [REDACTED]").find(node => node.tagName === "P")?.textContent)
       .toBe("AuthenticationError: Incorrect API key provided: [REDACTED]");
     expect(screen.getByText("Replace the configured API key and retry.").textContent).toBe("Replace the configured API key and retry.");
-    expect(document.querySelector("pre")?.textContent).toBe("AuthenticationError: Incorrect API key provided: [REDACTED]");
+    expect(document.querySelector("pre")?.textContent).toContain("Cause: AuthenticationError: Incorrect API key provided: [REDACTED]");
     expect(document.body.textContent).not.toContain("sk-secret");
   } finally { h.unregister(); }
 });
 
-it("shows today's exact generic notice when stderr is absent", () => {
+it("shows a failure card with a safe next action and copyable disclosure when stderr is absent", () => {
   const h = mount({ agents: [], events: [{ kind: "status", label: GENERIC_AGENT_FAILURE }] });
   try {
-    expect(screen.getByRole("status").textContent).toBe("The assistant could not continue this answer. Saved work is above.");
-    expect(screen.queryByText("Show details")).toBeNull();
-    expect(document.querySelector(".admin-agent-failure")).toBeNull();
+    expect(screen.getByRole("status").textContent).toContain(GENERIC_AGENT_FAILURE);
+    expect(screen.getByRole("status").textContent).toContain("Review the saved work above before sending another message.");
+    fireEvent.click(screen.getByText("Show details"));
+    expect(screen.getByRole("button", { name: "Copy details" })).toBeTruthy();
+    expect(document.querySelector(".admin-agent-failure pre")?.textContent).toContain("Cause: The assistant stopped without reporting a cause.");
   } finally { h.unregister(); }
 });
 
@@ -259,4 +261,17 @@ it("covers required dock keys through their actual translator in every admin loc
     expect(adapter.t("Switch to {name}", { name: "Antigravity" })).toContain("Antigravity");
   }
   expect(missing).toEqual([]);
+});
+
+
+it('keeps history failures polite with host chrome and masks Tovu API keys', () => {
+  const secret = 'HISTORY_CANARY_abcdefghijklmnop';
+  const h = mount({ agents: [], events: [{ kind: 'raw', line: `failed tovu_ak_012345abcdef.${secret}` }] as AgentEvent[] });
+  try {
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.getByRole('status')).toHaveClass('notice', 'error');
+    expect(screen.getByRole('status').closest('.jini-message-error')).toBeTruthy();
+    expect(document.body.textContent).toContain('[REDACTED:tovu_api_key]');
+    expect(document.body.textContent).not.toContain(secret);
+  } finally { h.unregister(); }
 });

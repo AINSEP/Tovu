@@ -1,4 +1,6 @@
 import { useStaticExportSelection, type StaticExportSelection } from "./use-static-export-selection.hooks";
+import type { UserFacingError } from "@jini-ai/core";
+import { siteExportFailure } from "../site-export-error";
 import { useShareCredentialGate, type CredentialGate } from "./use-share-credential-gate.hooks";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { copyToClipboard } from "@jini-ai/ui";
@@ -61,6 +63,7 @@ export interface SiteExportController extends StaticExportSelection {
   exporting: boolean;
   exportingStatic: boolean;
   exportError: string | null;
+  exportFailure?: UserFacingError | null;
   exportSite: () => Promise<void>;
   exportStaticSite: () => Promise<void>;
   revokingId: string | null;
@@ -175,10 +178,11 @@ export function useSiteExport(
   const invalidate = useInvalidate();
   const [exportKind, setExportKind] = useState<"backup" | "static" | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
+  const [exportFailure, setExportFailure] = useState<UserFacingError | null>(null);
   const [revokingId, setRevokingId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const refreshShares = () => invalidate({ key: [...SITE_TRANSFER_KEYS.shares, scope.queryScope] });
-  const credentials = useShareCredentialGate({ port, t, refresh: refreshShares, onDownloadError: setExportError });
+  const credentials = useShareCredentialGate({ port, t, refresh: refreshShares, onDownloadError: error => { setExportFailure(null); setExportError(error); } });
   const alive = useRef(true);
   useEffect(() => {
     // StrictMode replays setup after cleanup; each setup must mark this mount alive again.
@@ -201,6 +205,7 @@ export function useSiteExport(
     if (format === "static" && !staticSelection.staticExportReady) return;
     setExportKind(format);
     setExportError(null);
+    setExportFailure(null);
     passwordDisplay.hidePassword();
     setExportNotices([]);
     setNoticeShareId(null);
@@ -209,7 +214,11 @@ export function useSiteExport(
       const result = await createShareUntilDone({ create, alive: () => alive.current, initial });
       await finishExport({ result, format });
     } catch (failure) {
-      if (alive.current) setExportError(describeApiError(failure, t("Export failed.")));
+      if (alive.current) {
+        const formatted = siteExportFailure({ error: failure, t });
+        setExportError(formatted.message);
+        setExportFailure(formatted);
+      }
     } finally {
       if (alive.current) setExportKind(null);
       invalidate({ key: [...SITE_TRANSFER_KEYS.shares, scope.queryScope] });
@@ -222,6 +231,7 @@ export function useSiteExport(
     passwordDisplay.hidePassword();
     setRevokingId(share.shareId);
     setExportError(null);
+    setExportFailure(null);
     try {
       await port.revokeShare({ shareId: share.shareId });
     } catch (failure) {
@@ -254,6 +264,7 @@ export function useSiteExport(
     exporting: exportKind === "backup",
     exportingStatic: exportKind === "static",
     exportError,
+    exportFailure,
     exportSite: () => exportSite({ format: "backup" }),
     exportStaticSite: () => exportSite({ format: "static" }),
     revokingId,

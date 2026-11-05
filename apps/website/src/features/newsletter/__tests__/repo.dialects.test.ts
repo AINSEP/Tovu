@@ -127,7 +127,7 @@ function token(id: string, overrides: Partial<ConfirmationTokenRecord> = {}): Co
 describeEachDialect(
   "newsletter repos",
   { tables: ["newsletter_campaigns", "newsletter_campaign_revisions"], make: repos },
-  (makeRepos) => {
+  (makeRepos, dialect) => {
     describe("campaign repo", () => {
       test("detail restores the latest body while list stays envelope-only without reverting live counters", async () => {
         const { kernel, campaigns } = makeRepos();
@@ -149,7 +149,9 @@ describeEachDialect(
         const c = campaign("corrupt-body");
         await campaigns.saveCampaignRow(c);
         await campaigns.appendRevision(revision(c));
-        await kernel.run(db => db.updateTable("newsletter_campaign_revisions").set({ state_json: "{broken" })
+        await kernel.run(db => db.updateTable("newsletter_campaign_revisions").set({ // JSONB refuses malformed syntax before a read. Preserve SQLite's malformed
+          // text probe; Postgres stores a JSON string that is equally invalid revision state.
+          state_json: dialect === "sqlite" ? "{broken" : JSON.stringify("{broken") })
           .where("campaign_id", "=", c.id).where("workspace_id", "=", WS).execute());
         const queries: string[] = [];
         const observed = new SqlNewsletterCampaignRepo({ ...kernel, run: work => kernel.run(db => work(db.withPlugin({

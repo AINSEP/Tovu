@@ -1,7 +1,7 @@
 import { createContext, useContext, useMemo, useRef, useState } from "react";
 import type { ChatMessage, ChatTransport } from "@jini-ai/chat/core";
 import { useT, type ChatPaneAgentSelection, type ChatPaneRuntimeAccess } from "@jini-ai/chat/react";
-import { extractAgentFailure, matchAgentFailureHint, projectAgentFailureMessage, redactAgentFailure,
+import { GENERIC_AGENT_FAILURE, extractAgentFailure, matchAgentFailureHint, projectAgentFailureMessage, redactAgentFailure,
   suggestedFailureAgent, withAgentFailureSurface, type AgentFailure, type FailureAgent } from "./agent-failure";
 import { localFailureHints } from "./agent-failure-hints";
 
@@ -46,6 +46,8 @@ function failureData(value: unknown): AgentFailure | null {
   if (!value || typeof value !== "object") return null;
   const data = value as Partial<AgentFailure>;
   if (typeof data.reason !== "string" || typeof data.details !== "string") return null;
+  if (data.reason === GENERIC_AGENT_FAILURE) return { reason: data.reason, details: redactAgentFailure({ text: data.details }, {}),
+    ...(typeof data.agentId === "string" ? { agentId: data.agentId } : {}) };
   // The renderer is also a boundary: persisted extension data need not have used our transport.
   return extractAgentFailure({ events: [{ kind: "raw", line: data.details || data.reason }],
     ...(typeof data.agentId === "string" ? { agentId: data.agentId } : {}) }, {});

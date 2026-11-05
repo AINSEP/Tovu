@@ -189,6 +189,8 @@ export interface ClockDeps {
  * Principal-centric auth ports (ADR-021 / SPEC-006) used by admin authentication.
  */
 export interface IdentityDeps {
+  /** Scoped recovery hashes share the identity SQL transaction; absent on ephemeral hosts. */
+  recoveryCodes?: import("@jini-ai/user-management/server").RecoveryCodeStore;
   /** The same transaction/session token ports the identity root binds; callers cannot omit them. */
   transactions: import("@jini-ai/user-management").IdentityRepos["transactions"];
   tokens: import("@jini-ai/user-management").SessionTokenPort;

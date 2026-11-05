@@ -1,4 +1,6 @@
+import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { formatUserFacingError, type UserFacingError } from "@jini-ai/core";
 
 import {
   describeApiError,
@@ -31,7 +33,7 @@ import {
 import { defaultStaticPublishPort } from "./static-publish-dependencies.hooks";
 import type { StaticPublishPort } from "./static-publish-port.hooks";
 
-const UNKNOWN_ERROR = "unknown error";
+const UNKNOWN_ERROR = "The publish service returned no explanation. Check publish status before trying again, and report this message if the problem continues.";
 
 /**
  * @file Everything the Static Site tab's "Getting it online" provider form does — target selection,
@@ -109,6 +111,7 @@ export interface StaticPublishController {
    *  would strand the operator on a stuck "Publishing…" spinner with the button disabled forever. */
   pollError: string | null;
   publishError: string | null;
+  publishFailure?: UserFacingError | null;
   /** True while a {@link publish} POST is in flight — briefer than {@link isPublishing}, which stays
    *  true for the whole publish, not just the initial request. Exposed (unlike an internal-only flag)
    *  so the caller can disable the Publish button on this alone, before any run comes back — without
@@ -238,6 +241,7 @@ export function useStaticPublish(port: StaticPublishPort, t: Translate, locale: 
   const [run, setRun] = useState<AdminPublishRunSnapshot | undefined>(undefined);
   const [publishing, setPublishing] = useState(false);
   const [publishError, setPublishError] = useState<string | null>(null);
+  const [publishFailure, setPublishFailure] = useState<UserFacingError | null>(null);
   const [pollError, setPollError] = useState<string | null>(null);
 
   // Seeds `run` from the query's first successful load, exactly once — same shape
@@ -324,6 +328,7 @@ export function useStaticPublish(port: StaticPublishPort, t: Translate, locale: 
     pollFailuresRef.current = 0;
     setPollError(null);
     setPublishError(null);
+    setPublishFailure(null);
     setPublishing(true);
     try {
       const started = await port.triggerPublish({
@@ -334,7 +339,10 @@ export function useStaticPublish(port: StaticPublishPort, t: Translate, locale: 
       });
       setRun(started);
     } catch (err) {
-      setPublishError(publishTriggerErrorMessage(locale, describeApiError(err, UNKNOWN_ERROR)));
+      const failure = formatUserFacingError({ message: publishTriggerErrorMessage(locale, describeApiError(err, UNKNOWN_ERROR)),
+        action: t("Check publish status before starting another publish. Copy details and report this problem."), step: "static.publish.start", cause: err }, TOVU_ERROR_REDACTION_OPTIONS);
+      setPublishError(failure.message);
+      setPublishFailure(failure);
     } finally {
       publishingRef.current = false;
       setPublishing(false);
@@ -363,6 +371,7 @@ export function useStaticPublish(port: StaticPublishPort, t: Translate, locale: 
     loadError,
     pollError,
     publishError,
+    publishFailure,
     publishing,
     publish,
     t,

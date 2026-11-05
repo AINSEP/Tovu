@@ -206,7 +206,8 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
     createServingApp: () => ({
       app: { listen: (...args: unknown[]) => {
         listens.push(args);
-        const server = new EventEmitter() as InstanceType<typeof EventEmitter> & { close(done?: () => void): void };
+        const server = new EventEmitter() as InstanceType<typeof EventEmitter> & { close(done?: () => void): void; address(): { port: number } };
+        server.address = () => ({ port: 4567 });
         server.close = done => {
           serverCloses += 1;
           if (emitCloseEvent) server.emit("close");
@@ -232,6 +233,10 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
   module("../../../features/plugin-runtime/sdk-resolver.ts", { registerPluginSdkResolver: () => {} });
   module("../../../server/runtime/boot/process-error-guards.ts", { installUnhandledRejectionGuard: () => {} });
   module("../../../server/runtime/boot/boot-readiness-gate.ts", { runProductionReadinessGateOrExit: async () => {} });
+  // Startup IPC and the private callback listener are approved boot steps. Keep this
+  // wiring test entirely in-process; the listener's implementation has its own tests.
+  module("../../../server/runtime/boot/startup-secrets.ts", { initializeStartupSecrets: async () => {} });
+  module("../../../server/runtime/boot/site-daemon-listener.ts", { startSiteDaemonListener: async () => ({ origin: "http://127.0.0.1:4568", close: async () => {} }) });
   module("../../../server/runtime/boot/site-key-boot-notice.ts", { warnIfNoSiteKeyAtBoot: () => {} });
   module("../../../features/webhooks/site-key-ensure.ts", { ensureSiteKeyForBoot: async () => {} });
   module("../../../server/runtime/boot/bootstrap.ts", { buildBootModules: () => [], logCriticalBootFailures: (result: unknown) => { criticalFailureLogs.push(result); } });
@@ -315,7 +320,8 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
       // Boot registers the daemon cold, exactly once; eligibility and seeding gate the first demand.
       assert.equal(daemonStarts.length, 1);
       const [spawnInput, startOptions] = daemonStarts[0] as [unknown, { registerProcessSignalHandlers: boolean; beforeStart: () => Promise<void> }];
-      assert.deepEqual(spawnInput, { workspaceId: "wiring-workspace", siteDir: target, pgSocketPath: scenario.pgliteSocketPath });
+      assert.deepEqual(spawnInput, { workspaceId: "wiring-workspace", siteDir: target, pgSocketPath: scenario.pgliteSocketPath,
+        siteApiOrigin: `http://${scenario.expected === "127.0.0.1" ? "127.0.0.1" : "localhost"}:4567`, siteCallbackOrigin: "http://127.0.0.1:4568" });
       assert.equal(startOptions.registerProcessSignalHandlers, false);
       assert.equal(typeof startOptions.beforeStart, "function");
       if (scenario.identityFails === true) await assert.rejects(startOptions.beforeStart(), readinessFailure);

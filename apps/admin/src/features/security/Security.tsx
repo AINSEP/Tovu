@@ -1,3 +1,4 @@
+import { RecoveryCodesCard } from "./RecoveryCodesCard";
 import { agentHandle } from "@jini-ai/agentic";
 
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
@@ -179,6 +180,7 @@ export function Security(props: SecurityProps) {
           </p>
         </div>
       </div>
+      <RecoveryCodesCard t={key => t(locale, key)} />
       <TabBar
         ariaLabel={t({ locale: locale, key: "Secrets" })}
         tabs={tabs}

@@ -1048,6 +1048,17 @@ export const identityUsers = sqliteTable(
   (table) => [uniqueIndex("idx_identity_users_workspace_username").on(table.workspaceId, table.username)]
 );
 
+/** Recovery kits store only scoped digests; raw codes are returned once at issuance. */
+export const ownerRecoveryCodes = sqliteTable(
+  "owner_recovery_codes",
+  {
+    workspaceId: text("workspace_id").notNull(),
+    principalId: text("principal_id").notNull(),
+    codeHash: text("code_hash").notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.workspaceId, table.principalId, table.codeHash] })]
+);
+
 export const sessions = sqliteTable(
   "sessions",
   {

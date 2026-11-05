@@ -102,8 +102,9 @@ export type CampaignRevisionTableRow = Selectable<ContentDatabase["newsletter_ca
 function editorialBody({ row }: { row: { id: string; editorial_state_json?: string | null; editorial_seq?: number | null } }): CampaignRecord["bodyJson"] {
   if (!row.editorial_state_json) return undefined;
   try {
-    const state = JSON.parse(row.editorial_state_json) as CampaignRecord | null;
-    return state?.bodyJson;
+    const state: unknown = JSON.parse(row.editorial_state_json);
+    if (!state || typeof state !== "object" || Array.isArray(state)) throw new TypeError("Campaign revision must be an object");
+    return (state as CampaignRecord).bodyJson;
   } catch {
     console.warn(`[newsletter] Cannot read campaign ${row.id} body (seq=${row.editorial_seq}). Open the campaign and restore a valid revision.`);
     return undefined;

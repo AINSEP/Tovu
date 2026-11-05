@@ -9,7 +9,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import type { DeployFile, DeployPublishInput, DeployPublishResult, DeployTarget } from "@jini-ai/devops/deploy";
+import { publishJobRecoveryMessage, type DeployFile, type DeployPublishInput, type DeployPublishResult, type DeployTarget } from "@jini-ai/devops/deploy";
 import { ToolInputError, type SurfaceEmitter, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 
 import { createRouteDeps } from "#src/server/runtime/composition/app";
@@ -2400,8 +2400,10 @@ test('static publish returns a job before export finishes, survives call abort, 
     assert.match(recovery, /dpl_new/);
     assert.match(recovery, /https:\/\/new.test/);
     assert.match(recovery, /deployment_get_static_publish_status/);
-    const otherCall = disclosure.describeInternalError({ ...interrupted, executionId: 'another-call-in-same-run' });
-    assert.match(otherCall, /No publish job was recorded for this call/);
+    const otherCall = disclosure.describeInternalError({ ...interrupted, executionId: 'another-call-in-same-run',
+      recoveryMessage: publishJobRecoveryMessage({ statusToolId: 'deployment_get_static_publish_status' }) });
+    assert.match(otherCall, /Publish job status could not be confirmed for this call/);
+    assert.match(otherCall, /Deployment: unknown/);
     assert.doesNotMatch(otherCall, /dpl_new/);
   } finally { release(); }
 });

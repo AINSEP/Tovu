@@ -94,13 +94,13 @@ test("a plugin save-hook refusal mid-import is a 500 PLUGIN_HOOK_FAILED naming t
 test("an unrecognised error is a 500 with fixed text; its own message goes only to the server log", (t) => {
   const logged = t.mock.method(console, "error", () => undefined);
   const err = new Error("SQLITE_CANTOPEN: unable to open /srv/tovu/site.db (password=hunter2)");
-  assertAdminResponse({ actual: importErrorResponse(err), expected: { status: 500, body: { error: "internal error", code: "INTERNAL_ERROR" } } });
+  assertAdminResponse({ actual: importErrorResponse(err), expected: { status: 500, body: { error: "The content import could not finish.", code: "INTERNAL_ERROR" } } });
   assertAdminDiagnostics({ calls: logged.mock.calls.map(call => call.arguments), operation: "[routes/publish-content/import-errors]", diagnostics: [/SQLITE_CANTOPEN: unable to open \/srv\/tovu\/site.db/] });
   assert.equal(JSON.stringify(logged.mock.calls).includes("hunter2"), false);
 });
 
 test("a non-Error throw is a 500 with the generic message, logged the same way", (t) => {
   const logged = t.mock.method(console, "error", () => undefined);
-  assertAdminResponse({ actual: importErrorResponse("secret detail"), expected: { status: 500, body: { error: "internal error", code: "INTERNAL_ERROR" } } });
+  assertAdminResponse({ actual: importErrorResponse("secret detail"), expected: { status: 500, body: { error: "The content import could not finish.", code: "INTERNAL_ERROR" } } });
   assertAdminDiagnostics({ calls: logged.mock.calls.map(call => call.arguments), operation: "[routes/publish-content/import-errors]", diagnostics: [/^secret detail$/] });
 });

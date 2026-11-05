@@ -6,12 +6,17 @@ import {
   type SecretRedaction,
 } from "@jini-ai/diagnostics/redaction/secrets-only";
 
-/** Tovu application keys retain their public key ID while hiding only the secret half. */
+/** Host policy shared by browser copy blocks and server diagnostics; keep public key IDs visible. */
+export const TOVU_ERROR_REDACTION_OPTIONS = {
+  extraPatterns: [{ name: "tovu_api_key", regex: /(?<=tovu_ak_[0-9a-f]{12}\.)[A-Za-z0-9_-]{20,}/g }],
+} as const;
+
+/** The legacy diagnostic adapter uses the same secret span as core's injected policy. */
 const TOVU_SECRET_POLICY: RedactionPolicy = {
   additionalRules: [{
     kind: "tovu_api_key",
-    pattern: /(tovu_ak_[0-9a-f]{12}\.)[A-Za-z0-9_-]{20,}/g,
-    replacement: ({ match }) => `${match[1]}[REDACTED:tovu_api_key]`,
+    pattern: TOVU_ERROR_REDACTION_OPTIONS.extraPatterns[0].regex,
+    replacement: () => "[REDACTED:tovu_api_key]",
   }],
 };
 

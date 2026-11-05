@@ -1,3 +1,4 @@
+import { runResetOwnerCommand } from "./commands/reset-owner.js";
 import { Command } from "commander";
 import { runPluginInstallCommand } from "./commands/plugin/install.js";
 import { runPluginIntegrityCommand } from "./commands/plugin/integrity.js";
@@ -49,6 +50,9 @@ export function createProgram(): Command {
   program.exitOverride();
   program.configureOutput({ writeErr: () => {} });
   registerOwnerStoreCommands({ program });
+  program.command("reset-owner").description("recover the stored site owner using hidden password input or TOVU_ADMIN_RESET_PASSWORD; never accepts a password argument")
+    .argument("<dir>", "site directory with an already-migrated identity database")
+    .action(async (dir: string) => { await runResetOwnerCommand({ dir }); });
   program.command("site").description("manage local site folders")
     .command("rename").description("rename a stopped site's folder in the sites home; preserve its display name")
     .argument("<old-name>", "current folder name")

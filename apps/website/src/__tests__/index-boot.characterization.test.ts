@@ -52,6 +52,7 @@ function bootHarness(required: {
       assert.deepEqual(Array.from(options.alsoRead), ["/site/daemon.log"]);
       calls.push("attach-logs");
     },
+    initializeStartupSecrets: async () => { calls.push("startup-secrets"); },
     ensureAgentDaemonToken: () => { calls.push("token"); },
     ensureToolExecToken: () => { calls.push("tool-token"); },
     registerPluginSdkResolver: () => { calls.push("sdk"); },
@@ -110,8 +111,8 @@ for (const memory of [true, false]) {
       const boot = bootHarness({ memory, tls });
       await assert.rejects(boot.main(), (error) => error === boot.compositionReached);
       const preparation = memory
-        ? ["rejections", "capture", "token", "tool-token", "sdk", "production-gate", "key-notice"]
-        : ["rejections", "pin-root", "capture", "attach-logs", "token", "tool-token", "sdk", "production-gate", "claim", "sync-warning", "schema", "ensure-key", "key-notice"];
+        ? ["rejections", "capture", "sdk", "startup-secrets", "token", "tool-token", "production-gate", "key-notice"]
+        : ["rejections", "pin-root", "capture", "attach-logs", "sdk", "startup-secrets", "token", "tool-token", "production-gate", "claim", "sync-warning", "schema", "ensure-key", "key-notice"];
       assert.deepEqual(boot.calls, [...preparation, tls ? "https" : "http", "reserve", "origin", ...(memory ? [] : ["ready"]), "error-listener"]);
       assert.equal(boot.env.PORT, "4322");
       const response = boot.response();

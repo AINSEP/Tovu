@@ -78,7 +78,7 @@ function sendPageUpdateError(res: Response, err: unknown): void {
     res.status(404).json({ error: err.message, code: "ENTRY_NOT_FOUND" });
     return;
   }
-  sendAdminFailure({ res, error: err }, { operation: "routes/pages/update", code: "INTERNAL_ERROR" });
+  sendAdminFailure({ res, error: err }, { operation: "routes/pages/update", code: "INTERNAL_ERROR", message: "The page could not be saved." });
 }
 
 /**

@@ -1,3 +1,4 @@
+import { ToolInputError } from "@jini-ai/core";
 import type { DeviceAuthorizationStore, ExternalMcpOAuthDeps, ExternalMcpOAuthService } from "./contracts.js";
 import { createTovuIssuerBoundDiscoveryPolicy, tovuOAuthMessages, withTovuOAuthCopy } from "../../platform/oauth/endpoint-safety.js";
 import { randomBytes } from "node:crypto";

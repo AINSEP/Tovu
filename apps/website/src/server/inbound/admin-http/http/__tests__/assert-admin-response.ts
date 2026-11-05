@@ -21,7 +21,8 @@ function expectedWithIncidentIds({ actual, expected }: { actual: unknown; expect
   const publicText = row[field];
   if (isIncidentSnapshot(row)) {
     assert.match(String(received?.errorId), /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
-    return { ...row, code: row.code ?? "INTERNAL_ERROR", errorId: received!.errorId, [field]: `${publicText} (error ${received!.errorId})` };
+    const text = publicText === "internal error" ? "The admin request could not finish. Check whether your change was saved, then copy the error ID and report this problem." : publicText;
+    return { ...row, code: row.code ?? "INTERNAL_ERROR", errorId: received!.errorId, [field]: `${text} (error ${received!.errorId})` };
   }
   return Object.fromEntries(Object.entries(row).map(([key, value]) => [key, expectedWithIncidentIds({ actual: received?.[key], expected: value })]));
 }

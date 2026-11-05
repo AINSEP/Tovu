@@ -120,6 +120,8 @@ test("TOVU_ADMIN_RESET_PASSWORD resets the admin password at boot: the new one l
   assert.ok(deps.adminPasswordResetReady, "the real composition exposes the boot reset's completion");
   await deps.adminPasswordResetReady;
 
+  const backups = fs.readdirSync(dir).filter(name => name.startsWith("restore-point-boot-admin-password-reset-"));
+  assert.equal(backups.length, 1, "one pre-write recovery backup is retained");
   assert.ok(errors.some((line) => line.includes("[admin-password-reset] SUCCESS — username='admin'")), errors.join("\n"));
   const baseUrl = await startTestServer(createApp(deps), t);
   assert.equal(await loginStatus(baseUrl, NEW_PASSWORD), 200, "the reset password logs in");
@@ -135,7 +137,7 @@ test("a boot reset for a username that does not exist resolves without throwing,
   await deps.identityReady;
   await deps.adminPasswordResetReady;
 
-  assert.ok(errors.some((line) => line.includes("[admin-password-reset] FAILED for username='no-such-admin'") && line.includes("user 'no-such-admin' was not found")), errors.join("\n"));
+  assert.ok(errors.some((line) => line.includes("[admin-password-reset] FAILED") && line.includes("Details: boot-owner-reset") && line.includes("That username is not the site owner")), errors.join("\n"));
   const baseUrl = await startTestServer(createApp(deps), t);
   assert.equal(await loginStatus(baseUrl, "tovu-dev"), 200, "the seeded password still logs in");
   assert.equal(await loginStatus(baseUrl, NEW_PASSWORD), 401, "nothing was reset");

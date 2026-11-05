@@ -1,4 +1,5 @@
 import { decodeApiError } from "@jini-ai/protocol";
+import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 import type { CredentialTokenHint } from './credential-copy';
 import type { SettingScope } from "@jini-ai/core/settings";
 import type { MediaProviderCredentials } from "@jini-ai/ui/core";
@@ -2611,7 +2612,8 @@ function notifyIfUnauthenticated({ status, body }: { status: number; body: Recor
  *  to. It names the likeliest cause, keeps the status for the other one, and points at the server
  *  either way, which is the correct first action for both. Parseable JSON (including a literal
  *  `null` body) is the discriminator that IS reliable: it proves an application, not a proxy,
- *  composed the response, so those keep `request failed (n)`.
+ *  composed the response, so an otherwise empty error names its request and HTTP status, with
+ *  guidance to check for a completed write before trying again.
  *
  *  Pulled out of `request` (2026-09-04, complexity pass) as its own pure step: a `{status, body,
  *  wasUnparseable}` triple in, an `ApiError` out, no `fetch`/parsing involved. */
@@ -2619,16 +2621,23 @@ function buildRequestFailedError({
   status,
   body,
   wasUnparseable,
+  init,
+  path,
 }: {
   status: number;
   body: Record<string, unknown>;
   wasUnparseable: boolean;
+  init: RequestInit | undefined;
+  path: string;
 }): ApiError {
   const noAppEnvelope = wasUnparseable && status >= 500;
+  const method = init?.method ?? "GET";
+  const fallback = redactSecretShapes({ text: `The API could not finish ${method} ${path} (HTTP ${status}). Check whether your change was saved before trying again. Copy details and report this problem.` }).text;
   const decoded = decodeApiError({ body }, {
-    fallbackMessage: noAppEnvelope ? unreachableApiMessage(status) : `request failed (${status})`,
+    fallbackMessage: noAppEnvelope ? unreachableApiMessage(status) : fallback,
   });
-  return new ApiError(decoded.message, status, noAppEnvelope ? API_UNREACHABLE_CODE : decoded.code, body);
+  const error = new ApiError(decoded.message, status, noAppEnvelope ? API_UNREACHABLE_CODE : decoded.code, body);
+  return error;
 }
 
 /**
@@ -2658,7 +2667,7 @@ export async function requestOnce<T>(
   const { body, wasUnparseable } = await parseJsonBody(res, { requireJson: res.ok && options.requireJson });
   if (!res.ok) {
     notifyIfUnauthenticated({ status: res.status, body });
-    const defaultError = buildRequestFailedError({ status: res.status, body, wasUnparseable });
+    const defaultError = buildRequestFailedError({ status: res.status, body, wasUnparseable, init, path });
     const error = options.errorFactory?.({ response: res, error: defaultError }) ?? defaultError;
     // The dev proxy's mark for "the API refused the connection": this request never reached it.
     if (res.headers.get(UPSTREAM_REFUSED_HEADER) === UPSTREAM_REFUSED_VALUE) upstreamRefusedErrors.add(error);
@@ -2799,7 +2808,7 @@ export function adminSitePreviewUrl({ name, version }: { name: string; version: 
  */
 export function describeApiError(e: unknown, fallback: string): string {
   if (e instanceof ApiError) return e.message || fallback;
-  return e instanceof Error ? e.message : fallback;
+  return e instanceof Error ? e.message || fallback : fallback;
 }
 
 export const api = {

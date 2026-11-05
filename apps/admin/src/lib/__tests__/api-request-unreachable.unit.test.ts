@@ -167,7 +167,7 @@ test("a JSON error envelope still wins — the server answered, so its own messa
   expect(error.code).toBe("UNAUTHORIZED");
 });
 
-test("a JSON-bodied 500 keeps the status-only fallback — parseable JSON proves an app answered", async () => {
+test("a JSON-bodied 500 names the failed request — parseable JSON proves an app answered", async () => {
   stubFetch(
     async () =>
       new Response(JSON.stringify({}), { status: 500, headers: { "Content-Type": "application/json" } })
@@ -175,16 +175,16 @@ test("a JSON-bodied 500 keeps the status-only fallback — parseable JSON proves
 
   const error = (await api.login({ username: "a", password: "b" }).catch((e: unknown) => e)) as ApiError;
 
-  expect(error.message).toBe("request failed (500)");
+  expect(error.message).toBe("The API could not finish POST /auth/login (HTTP 500). Check whether your change was saved before trying again. Copy details and report this problem.");
   expect(error.code).toBeUndefined();
 });
 
-test("an unparseable 4xx keeps the status-only fallback — a proxy that answered 404 is reachable", async () => {
+test("an unparseable 4xx names the failed request — a proxy that answered 404 is reachable", async () => {
   stubFetch(async () => proxyFailureResponse(404));
 
   const error = (await api.login({ username: "a", password: "b" }).catch((e: unknown) => e)) as ApiError;
 
-  expect(error.message).toBe("request failed (404)");
+  expect(error.message).toBe("The API could not finish POST /auth/login (HTTP 404). Check whether your change was saved before trying again. Copy details and report this problem.");
 });
 
 test("a successful request with an empty body still resolves, unchanged", async () => {

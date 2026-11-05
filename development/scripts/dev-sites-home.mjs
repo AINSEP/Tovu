@@ -32,10 +32,26 @@ export function devSitesHome({ repoRoot }, { env = process.env, homeDir = os.hom
   }, { isAvailable: isInitialized });
   // Refuse before the API child can create logs/DB parents or seed themes at a stale default.
   if (!isInitialized({ path: dir })) throw new Error(`Site folder is unavailable: ${dir}. No development server was started.`);
-  const warning = workspace.config({}).warning;
-  const meta = JSON.parse(fs.readFileSync(path.join(dir, ".site-meta.json"), "utf8"));
-  const dbPath = env.TOVU_CONTENT_DB ?? workspace.databasePath({ dir, id: meta.siteId ?? meta.siteKeyId, filename: "content.db" });
+  const config = workspace.config({});
+  const warning = config.warning;
+  const dbPath = devDatabasePath({ dir, workspace, config, env });
   return { dir, dbPath, warning, running: workspace.running({ path: dir }).peek({}) };
+}
+
+/** Bind the selected site's metadata to Jini's database placement owner. Keyless legacy
+ * development folders may use in-site storage; app-data requires a stable site identity.
+ * @complexity One metadata read per dev selection; one fixed set of DB path probes, no writes.
+ */
+function devDatabasePath({ dir, workspace, config, env }, _options = {}) {
+  const meta = JSON.parse(fs.readFileSync(path.join(dir, ".site-meta.json"), "utf8"));
+  const stableId = meta.siteId ?? meta.siteKeyId;
+  if (!env.TOVU_CONTENT_DB && !stableId && config.databases === "appData") throw new Error("App-data databases require a stable siteId in .site-meta.json. Initialize this site before starting development.");
+  // Legacy keyless dev folders use the same path-derived identity as the server's
+  // readDatabaseIdentity (apps/website/src/platform/site-dir/site-databases.ts); update both together.
+  // Keep two startup copies until a third consumer justifies extraction. Only a real metadata
+  // identity may select app-data storage.
+  const id = stableId ?? createHash("sha256").update(path.resolve(dir)).digest("hex");
+  return env.TOVU_CONTENT_DB ?? workspace.databasePath({ dir, id, filename: "content.db" });
 }
 
 /** Create a disposable development site through the existing CLI initializer, never by copying a

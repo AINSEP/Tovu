@@ -1,3 +1,4 @@
+import { OwnerRecoverySignIn } from "./OwnerRecoverySignIn";
 import type { AdminUser } from "../../lib/api";
 import { SecretInput } from "@/components/SecretInput/SecretInput";
 import { useWiredAdminLocale } from "../../hooks/use-admin-locale.hooks";
@@ -42,6 +43,7 @@ export function Login({ onLogin, useLoginHook = useWiredLogin }: LoginProps) {
         {error ? <div className="login-error">{error}</div> : null}
         <button disabled={busy}>{busy ? t("Signing in…") : t("Sign in")}</button>
       </form>
+      <OwnerRecoverySignIn t={t} />
     </div>
   );
 }

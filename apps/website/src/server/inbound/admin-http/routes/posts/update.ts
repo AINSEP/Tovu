@@ -104,7 +104,7 @@ function sendPostUpdateError(res: Response, err: unknown): void {
     res.status(404).json({ error: err.message });
     return;
   }
-  sendAdminFailure({ res, error: err }, { operation: "routes/posts/update", code: "INTERNAL_ERROR" });
+  sendAdminFailure({ res, error: err }, { operation: "routes/posts/update", code: "INTERNAL_ERROR", message: "The post could not be saved." });
 }
 
 /**

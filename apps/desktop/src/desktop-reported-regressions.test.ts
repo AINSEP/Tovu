@@ -65,19 +65,20 @@ test('desktop launch without NODE_ENV retains owner re-entry capability after lo
   }
 });
 
-test('memory sums each owned PID once, excludes the sampler, and uses native private bytes where supplied', async () => {
-  const monitor = createDesktopResources({ desktopPid: 1, platform: 'darwin', now: () => 0,
+test('memory sums each owned PID once, excludes the Windows sampler, and labels Electron private bytes as committed', async () => {
+  const monitor = createDesktopResources({ desktopPid: 1, platform: 'win32', now: () => 0,
     totalMem: () => 8_000_000_000, openSites: () => [{ id: 'one', pid: 3 }, { id: 'same-process', pid: 3 }],
     listUsage: async () => [
       { pid: 1, ppid: 0, name: 'Tovu', rssBytes: 200_000_000, cpuSeconds: 0 },
       { pid: 2, ppid: 1, name: 'Tovu Helper', rssBytes: 300_000_000, cpuSeconds: 0 },
       { pid: 3, ppid: 1, name: 'node', rssBytes: 400_000_000, cpuSeconds: 0 },
-      { pid: 4, ppid: 1, name: 'ps', rssBytes: 900_000_000, cpuSeconds: 0 },
+      { pid: 4, ppid: 1, name: 'powershell.exe', rssBytes: 900_000_000, cpuSeconds: 0 },
       { pid: 5, ppid: 0, name: 'other desktop', rssBytes: 900_000_000, cpuSeconds: 0 },
     ], listElectronMetrics: () => [{ pid: 1, memory: { privateBytes: 100_000, workingSetSize: 200_000 } }],
   });
   const result = await monitor.get({ panelOpen: false });
   assert.equal(result.total.rssBytes, 102_400_000 + 300_000_000 + 400_000_000);
+  assert.equal(result.app.processes.find(row => row.pid === 1)?.memoryMetric, 'committed');
   assert.deepEqual([...result.app.processes, ...result.sites.flatMap(site => site.processes)].map(row => row.pid), [1, 2, 3]);
   assert.equal(result.approximate, true);
 });

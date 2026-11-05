@@ -55,6 +55,8 @@ function readDatabaseIdentity({ dir }: { dir: string }): { id: string; kind?: st
     const meta = JSON.parse(fs.readFileSync(path.join(dir, ".site-meta.json"), "utf8")) as { siteId?: string; siteKeyId?: string; storage?: { kind?: string } };
     if (meta.siteId || meta.siteKeyId) return { id: meta.siteId ?? meta.siteKeyId!, kind: meta.storage?.kind, stable: true };
   } catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
+  // Keep the keyless fallback identical to devDatabasePath in development/scripts/dev-sites-home.mjs;
+  // these two startup entry points must open the same database. Extract together if a third consumer appears.
   return { id: createHash("sha256").update(path.resolve(dir)).digest("hex") };
 }
 

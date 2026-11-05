@@ -165,17 +165,11 @@ const EXPECTED_ALLOWLIST = [
   "publish_content_publish",
   "redirects_tombstone",
   "source_control_execute_commit",
-  "theme_reset_file",
   // Demo 2026-11-02: switching the live site's theme is a `publish`-class policy card.
   "theme_set_active",
   "theme_trash",
   "theme_trash_file",
-  // Demo 2026-11-02: replacing an existing theme file's bytes asks on the handler's own plan card.
-  "theme_write_file",
-  // Shared theme replacement plans and theme duplication park on principal-bound exchanges.
-  "theme_edit_file",
-  "theme_import_file_from_url",
-  "theme_import_local_file",
+  // Reversible theme replacements run directly; duplication retains its activation policy card.
   "theme_duplicate",
   "trash_item",
   "widgets_trash_instance",
@@ -254,7 +248,7 @@ test("SECURITY-CRITICAL: the allowlist is exactly this set — widening it canno
 });
 
 test("file-batch callbacks can only answer parked exchanges, never start fresh writes", () => {
-  for (const id of ["fs_write_files", "files_copy", "image_transform", "theme_edit_file", "theme_import_file_from_url", "theme_import_local_file", "theme_duplicate"]) {
+  for (const id of ["fs_write_files", "files_copy", "image_transform", "theme_duplicate"]) {
     assert.equal(isMcpUiToolCallAllowed(id), true);
     assert.equal(isMcpUiToolCallPermitted(id, false), false, id);
     assert.equal(isMcpUiToolCallPermitted(id, true), true, id);
@@ -325,6 +319,14 @@ test("SECURITY-CRITICAL: isMcpUiToolCallAllowed admits a tool id if and ONLY if 
 test("security: only an exact plugin-tool id shape may answer a parked exchange; look-alikes are refused", () => {
   assert.equal(isMcpUiToolCallPermitted("p_acme_office__append_rows", true), true);
   for (const id of ["xp_acme__append", "p_acme__append/../x", "p_Acme__append", "p_acme__", "p_acme_append", "content_p_acme__x"]) {
+    assert.equal(isMcpUiToolCallPermitted(id, true), false, id);
+  }
+});
+
+test("direct theme replacements cannot execute through surface callbacks", () => {
+  for (const id of ["theme_write_file", "theme_reset_file", "theme_edit_file", "theme_import_file_from_url", "theme_import_local_file"]) {
+    assert.equal(isMcpUiToolCallAllowed(id), false, id);
+    assert.equal(isMcpUiToolCallPermitted(id, false), false, id);
     assert.equal(isMcpUiToolCallPermitted(id, true), false, id);
   }
 });

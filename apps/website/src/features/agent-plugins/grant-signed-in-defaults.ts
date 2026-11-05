@@ -75,7 +75,7 @@ function connectGrantFor({ deps, options }: { deps: GrantSignedInDefaultsDeps; o
  */
 async function grantConnection({ deps, pluginId, connectionId, onConnected, options }: { deps: GrantSignedInDefaultsDeps; pluginId: string; connectionId: string; onConnected: (serverId: string) => Promise<void>; options: GrantDeclaredToolsOptions }): Promise<boolean> {
   const row = await deps.repo.findByServerId({ workspaceId: deps.workspaceId, serverId: connectionId });
-  if (!eligibleGrantRow({ row, pluginId, approvedEnable: options.approvedEnable !== undefined })) return false;
+  if (!row || !eligibleGrantRow({ row, pluginId, approvedEnable: options.approvedEnable !== undefined })) return false;
   if (options.onlyNeverGranted && row.writeGrantsUpdatedByPrincipalId !== null) return false;
   await onConnected(connectionId);
   const after = await deps.repo.findByServerId({ workspaceId: deps.workspaceId, serverId: connectionId });
@@ -122,8 +122,8 @@ export async function grantDeclaredToolsToSignedInRows(
 
 /** Explicit activation consent can precede sign-in; automatic healing still requires credentials.
  * @complexity O(1), no I/O. */
-function eligibleGrantRow({ row, pluginId, approvedEnable }: { row: Awaited<ReturnType<GrantSignedInDefaultsDeps['repo']['findByServerId']>>; pluginId: string; approvedEnable: boolean }, _options = {}): row is NonNullable<typeof row> {
-  if (!row || row.provisionedByPluginId !== pluginId) return false;
+function eligibleGrantRow({ row, pluginId, approvedEnable }: { row: NonNullable<Awaited<ReturnType<GrantSignedInDefaultsDeps['repo']['findByServerId']>>>; pluginId: string; approvedEnable: boolean }, _options = {}): boolean {
+  if (row.provisionedByPluginId !== pluginId) return false;
   return approvedEnable || hasStoredAgentPluginCredential(row);
 }
 

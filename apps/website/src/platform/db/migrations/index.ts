@@ -1,3 +1,4 @@
+import { ownerRecoveryCodes } from './0039_owner_recovery_codes.js';
 import { newsletterSendingIndex } from "./0038_newsletter_sending_index.js";
 import { mediaSourceMetadata } from './0037_media_source_metadata.js';
 import { publishHistoryConfigJsonb } from "./0036_publish_history_config_jsonb.js";
@@ -108,6 +109,7 @@ export const CONTENT_MIGRATIONS: readonly MigrationStep[] = [
   publishHistoryConfigJsonb({ checksum: pinned("0036_publish_history_config_jsonb") }),
   mediaSourceMetadata({ checksum: pinned('0037_media_source_metadata') }),
   newsletterSendingIndex({ checksum: pinned('0038_newsletter_sending_index') }),
+  ownerRecoveryCodes({ checksum: pinned('0039_owner_recovery_codes') }),
 ];
 
 export const CHAT_MIGRATIONS: readonly MigrationStep[] = [

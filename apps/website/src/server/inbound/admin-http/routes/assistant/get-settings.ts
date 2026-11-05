@@ -49,7 +49,7 @@ export const registerAdminAssistantGetSettingsRoute: AssistantSettingsRouteRegis
       );
       res.json({ data: settings, adminAssistantEnabled: deps.adminAssistantEnabled });
     } catch (error) {
-      sendAdminFailure({ res, error }, { operation: "routes/assistant/get-settings", code: "INTERNAL_ERROR" });
+      sendAdminFailure({ res, error }, { operation: "routes/assistant/get-settings", code: "INTERNAL_ERROR", message: "Assistant settings could not be loaded." });
     }
   });
 };

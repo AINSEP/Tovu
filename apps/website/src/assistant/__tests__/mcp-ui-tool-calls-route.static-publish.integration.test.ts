@@ -124,9 +124,13 @@ test("deployment_execute_static_publish waits for one human approval over HTTP b
   } });
   const baseUrl = await startTestServer(app, t);
   let approvalCards = 0;
+  let completePublish!: () => void;
+  const publishCompleted = new Promise<void>(resolve => { completePublish = resolve; });
   const executed = await toolExecutor.execute({ principal: { id: PRINCIPAL }, run: { id: "run-1" }, toolId: "deployment_execute_static_publish", input: PUBLISH_INPUT }, { emitSurface: async (emission: SurfaceEmission) => {
     const match = surfaceHtml(emission).match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`));
-    if (!match) return; // Outcome surfaces carry no answer correlation.
+    // Background publication has no fixed number of event-loop turns. Its final surface
+    // is the completion signal; the cloud runner bounds the test, without polling or sleeps.
+    if (!match) { completePublish(); return; }
     approvalCards += 1;
     assert.equal(captured.value, null, "no publish may occur before the human approves");
     const response = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
@@ -144,14 +148,12 @@ test("deployment_execute_static_publish waits for one human approval over HTTP b
   const accepted = executed.output as { accepted: boolean; jobId: string };
   assert.equal(accepted.accepted, true);
   assert.ok(accepted.jobId);
-  let output!: { published: boolean; target: string; url: string };
-  for (let turn = 0; turn < 1000; turn++) {
-    const checked = await toolExecutor.execute({ principal: { id: PRINCIPAL }, run: { id: "run-status" }, toolId: "deployment_get_static_publish_status", input: { jobId: accepted.jobId } });
-    assert.equal(checked.status, "completed");
-    const job = checked.output as { status: string; result: typeof output };
-    if (job.status !== "running") { output = job.result; break; }
-    await new Promise<void>(resolve => setImmediate(resolve));
-  }
+  await publishCompleted;
+  const checked = await toolExecutor.execute({ principal: { id: PRINCIPAL }, run: { id: "run-status" }, toolId: "deployment_get_static_publish_status", input: { jobId: accepted.jobId } });
+  assert.equal(checked.status, "completed");
+  const job = checked.output as { status: string; result: { published: boolean; target: string; url: string } };
+  assert.equal(job.status, "completed", JSON.stringify(job));
+  const output = job.result;
   assert.ok(output, "background publish must produce a retrievable result");
   assert.equal(output.published, true, `expected a real publish to have happened: ${JSON.stringify(output)}`);
   assert.equal(output.target, "vercel");
