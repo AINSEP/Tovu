@@ -81,9 +81,11 @@ describe("SecretInput", () => {
   });
 
   it("renders a non-secret declared field as plain text with no toggle and autocomplete off", () => {
-    render(<SecretInput label="Username" secret={false} autoComplete="new-password" aria-label="Username" />);
+    render(<SecretInput label="Username" secret={false} autoComplete="new-password" aria-label="Username" data-agent-element="username" />);
     expect(screen.getByLabelText("Username")).toHaveAttribute("type", "text");
     expect(screen.getByLabelText("Username")).toHaveAttribute("autocomplete", "off");
+    expect(screen.getByLabelText("Username")).toHaveAttribute("data-agent-element", "username");
+    expect(screen.getByLabelText("Username")).not.toHaveAttribute("data-agent-private");
     expect(screen.queryByRole("button")).toBeNull();
   });
 

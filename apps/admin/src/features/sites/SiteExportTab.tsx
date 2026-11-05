@@ -63,7 +63,7 @@ function ExportFailureNotice({ controller, t }: { controller: SiteExportControll
 function ExportPassword({ controller, t }: { controller: SiteExportController; t: Translate }) {
   if (!controller.revealedPassword) return null;
   return (
-    <div className="notice">
+    <div className="notice" data-agent-private="">
       <div className="field">
         <label className="field-label" htmlFor="sites-export-password">{t("Export password")}</label>
         <input id="sites-export-password" type="text" readOnly autoComplete="off" spellCheck={false}
@@ -71,8 +71,7 @@ function ExportPassword({ controller, t }: { controller: SiteExportController; t
         <p className="field-hint" id="sites-export-password-hint">{t("Send this password separately")}</p>
       </div>
       <div className="site-transfer-actions">
-        <button type="button" className="btn-secondary" onClick={() => void controller.copyPassword()}
-          {...agentHandle({ handle: "sites-export-password-copy" }, { role: "button", label: "Copy this export's saved keys password" })}>
+        <button type="button" className="btn-secondary" onClick={() => void controller.copyPassword()}>
           <span aria-live="polite">{controller.passwordCopied ? t("Copied") : t("Copy")}</span>
         </button>
         <button type="button" className="btn-secondary" onClick={controller.hidePassword}>{t("Hide password")}</button>
@@ -138,6 +137,16 @@ function ShareLinkCell({ share, t }: { share: SiteShare; t: Translate }) {
   return <span className="site-transfer-link" title={share.url}>{shortLink(share.url)}</span>;
 }
 
+/** Human-only reveal: keep the native control private even when its export row is published. */
+function ExportPasswordRevealAction({ share, controller, t }: { share: SiteShare; controller: SiteExportController; t: Translate }) {
+  if (!share.hasEncryptedKeys || !controller.canManageSavedKeys) return null;
+  return <button type="button" className="btn-secondary" disabled={controller.revealingId !== null || controller.exporting || controller.exportingStatic}
+    onClick={() => void controller.revealPassword({ shareId: share.shareId })}
+    data-agent-private="">
+    {controller.revealingId === share.shareId ? t("Revealing…") : t("Reveal password")}
+  </button>;
+}
+
 /** Copy link, Download zip and Revoke for an active export; nothing for a revoked or failed one.
  * Copy link and Download zip stay disabled while the row's credential warning waits for "I understand". */
 function ShareActions({ share, index, controller, t }: { share: SiteShare; index: number; controller: SiteExportController; t: Translate }) {
@@ -147,13 +156,7 @@ function ShareActions({ share, index, controller, t }: { share: SiteShare; index
   const gated = controller.credentialGate(share) !== null;
   return (
     <div className="site-transfer-actions">
-      {share.hasEncryptedKeys && controller.canManageSavedKeys ? (
-        <button type="button" className="btn-secondary" disabled={controller.revealingId !== null || controller.exporting || controller.exportingStatic}
-          onClick={() => void controller.revealPassword({ shareId: share.shareId })}
-          {...agentHandle({ handle: `sites-export-${index + 1}-password` }, { role: "button", label: "Reveal this export's saved keys password" })}>
-          {controller.revealingId === share.shareId ? t("Revealing…") : t("Reveal password")}
-        </button>
-      ) : null}
+      <ExportPasswordRevealAction share={share} controller={controller} t={t} />
       {share.url ? (
         <button
           type="button"

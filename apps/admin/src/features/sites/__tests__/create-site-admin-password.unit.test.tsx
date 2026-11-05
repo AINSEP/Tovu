@@ -1,6 +1,7 @@
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
+import { createDomPageDriver } from "@jini-ai/agentic/dom";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import type { AdminSitesSnapshot } from "@/lib/api";
 import { CreateSiteOnboarding } from "../CreateSiteOnboarding";
@@ -64,6 +65,10 @@ describe("new-site admin credentials", () => {
     const starter = "starter-fixture-pw";
     const { requests, user } = setup({ ...snapshot, starterAdminPassword: starter });
     await waitFor(() => expect(screen.getByText(starter)).toBeVisible());
+    const driver = createDomPageDriver({ root: document.body, pages: {} });
+    expect(JSON.stringify(await driver.findElements({}))).not.toContain(starter);
+    expect(await driver.findElements({}, { query: starter })).toEqual([]);
+    expect(JSON.stringify(await driver.describeState?.({ handle: "sites-create-form" }))).not.toContain(starter);
     const hint = screen.getByText(starter).closest("p")!;
     expect(hint.textContent).toContain("Starter login: admin / starter-fixture-pw.");
     expect(hint.textContent).toContain("Change it under Users before you deploy.");
@@ -76,6 +81,8 @@ describe("new-site admin credentials", () => {
     await user.click(screen.getByRole("button", { name: "Create site" }));
     await waitFor(() => expect(requests).toEqual([{ name: "starter-site" }]));
     await waitFor(() => expect(screen.getByText("Admin login: admin / starter-fixture-pw — change it under Users before you deploy")).toBeVisible());
+    expect(JSON.stringify(await driver.findElements({}))).not.toContain(starter);
+    expect(JSON.stringify(await driver.describeState?.({ handle: "sites-created-notice" }))).not.toContain(starter);
   });
 
   it("reveals and masks the optional password, preserves it exactly, and confirms it without echoing it", async () => {
