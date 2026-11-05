@@ -1,6 +1,7 @@
 import { directPageAction } from "../../website/src/assistant/assistant-tool-approval-policy.js";
 import { PAGE_CAPABILITIES as APPROVAL_PAGE_CAPABILITIES } from "@jini-ai/agentic";
-import { setAdminDraftIdentity } from "./lib/admin-draft-identity";
+import { adminFailureChannel } from "./lib/admin-failure-channel";
+import { setAdminDraftIdentity, getAdminDraftIdentity } from "./lib/admin-draft-identity";
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import { createFrontendSessionBridge, type FrontendSessionBridge } from "@jini-ai/chat/react";
 import { createDomPageDriver } from "@jini-ai/agentic/dom";
@@ -118,6 +119,7 @@ export function useAdminSession(_required: Record<string, never> = {}, {
 
   function acceptSession(r: Awaited<ReturnType<typeof api.me>>) {
     setPublishToLiveAvailable(readPublishToLiveAvailability(r));
+    if (getAdminDraftIdentity() !== r.user.id) adminFailureChannel.reset();
     setAdminDraftIdentity({ id: r.user.id });
     setUser(r.user);
     // No `?? []`: an absent field stays "not known", so the nav filter shows everything instead
@@ -169,6 +171,7 @@ export function useAdminSession(_required: Record<string, never> = {}, {
       // The initial reader handles its own 401. Later 401s must never retry local bootstrap:
       // login's settings readers also run unauthenticated when that endpoint is disabled.
       if (initialReadPending.current) return;
+      adminFailureChannel.reset();
       sessionEpoch.current++;
       setAdminDraftIdentity({ id: null });
       setUser(null);
@@ -212,6 +215,7 @@ export function useAdminSession(_required: Record<string, never> = {}, {
    * feed above on `user`; this is the read side of it.
    */
   function handleLogin(next: AdminUser) {
+    adminFailureChannel.reset();
     initialReadPending.current = false;
     sessionEpoch.current += 1;
     const readEpoch = sessionEpoch.current;
@@ -234,6 +238,7 @@ export function useAdminSession(_required: Record<string, never> = {}, {
   }
 
   async function logout() {
+    adminFailureChannel.reset();
     // Late 401s from unmounting screens must not undo an explicit sign-out in this tab.
     initialReadPending.current = false;
     sessionEpoch.current++;
@@ -241,6 +246,7 @@ export function useAdminSession(_required: Record<string, never> = {}, {
     setEffectivePermissions([]);
     await sessionApi.logout().catch(() => undefined);
     setAdminDraftIdentity({ id: null });
+    adminFailureChannel.reset();
     setUser(null);
     setEffectivePermissions([]);
   }

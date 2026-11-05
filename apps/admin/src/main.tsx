@@ -6,6 +6,7 @@ import { App } from "./App";
 import { useAdminSession } from "./App.hooks";
 import { CommentQueueScopeProvider } from "@jini-ai/admin/comments/react";
 import { createCommentsQueueScope } from "./integrations/jini-admin/comments-ports";
+import { AdminFailureNotice } from "./components/AdminFailureNotice/AdminFailureNotice";
 import { ServerRestartingBanner } from "./components/ServerRestartingBanner/ServerRestartingBanner";
 import { FetchQueryProvider } from "./lib/fetch-query/provider";
 import { redirectLegacyHashUrl } from "./lib/router";
@@ -75,6 +76,7 @@ ReactDOM.createRoot(document.getElementById("root")!, reactRootErrorOptions({ te
     <FetchQueryProvider>
       {/* Outside `App` so it also shows on the login and boot screens while the API restarts. */}
       <ServerRestartingBanner />
+      <AdminFailureNotice />
       <SessionApp />
     </FetchQueryProvider>
     </KitProvider>

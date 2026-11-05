@@ -12,6 +12,7 @@ import type {
 } from "@tovu/publish-content-ui";
 
 import { isPageUnloading } from "./page-lifecycle";
+import { adminFailureChannel, publishAdminFailure } from "./admin-failure-channel";
 import { siteUrl } from "./site-url";
 import { shareSettingsEffectiveRead } from "./settings-effective-reads";
 import { serverReconnect, shouldRetryAfterReconnect, UPSTREAM_REFUSED_HEADER, UPSTREAM_REFUSED_VALUE, type ServerReconnect } from "./server-reconnect";
@@ -2588,6 +2589,7 @@ async function parseJsonBody(res: Response, { requireJson = false }: { requireJs
  *  own step, run before {@link buildRequestFailedError} builds the thrown error. */
 function notifyIfUnauthenticated({ status, body }: { status: number; body: Record<string, unknown> }): void {
   if (status === 401 && decodeApiError({ body }).code === "UNAUTHENTICATED") {
+    adminFailureChannel.reset();
     for (const listener of unauthenticatedListeners) listener();
   }
 }
@@ -2702,8 +2704,24 @@ export async function requestRidingOutRestart<T>(
   }
 }
 
+/** Publish one unexpected failure after restart recovery settles, preserving the caller's rejection.
+ * The captured generation prevents an older session/site response from restoring cleared details.
+ * @complexity O(1) orchestration plus existing request/retry and bounded failure formatting.
+ * @overallScore 98 — approved backend copy remains a server disclosure contract.
+ */
 async function request<T>(path: string, init?: RequestInit, onOk?: (res: Response) => void, options: AuthenticatedAdminRequestOptions = {}): Promise<T> {
-  return requestRidingOutRestart({ send: () => requestOnce<T>({ path, init, onOk }, options), method: init?.method }, options);
+  const generation = adminFailureChannel.getGeneration();
+  try {
+    return await requestRidingOutRestart({ send: () => requestOnce<T>({ path, init, onOk }, options), method: init?.method }, options);
+  } catch (error) {
+    // Only the final unexpected failure is shared; callers keep their original error and body.
+    try {
+      if (error instanceof ApiError && (error.status === 0 || error.status >= 500)) {
+        publishAdminFailure({ body: error.body, path, method: init?.method, status: error.status, generation });
+      }
+    } catch { /* Notice effects must never replace the original request rejection. */ }
+    throw error;
+  }
 }
 
 /** C2's safe inventory contract. Eligibility and the minimum hint length remain server-owned. */
@@ -4072,7 +4090,7 @@ export const api = {
   manageLocalSite: (input: { name: string; action: AdminLocalSiteAction; confirmed?: boolean; checked?: boolean }) => {
     const name = encodeURIComponent(input.name);
     if (input.action === "switch") return request<AdminSiteActivation>(
-      `/workspaces/${WORKSPACE_ID}/system/sites/${name}/activate`, { method: "POST", body: JSON.stringify({ restartNow: true }) });
+      `/workspaces/${WORKSPACE_ID}/system/sites/${name}/activate`, { method: "POST", body: JSON.stringify({ restartNow: true }) }, () => adminFailureChannel.reset());
     const path = input.action === "restore" || input.action === "delete"
       ? `trash/${name}/${input.action}` : `${name}/${input.action}`;
     return request<unknown>(`/workspaces/${WORKSPACE_ID}/system/sites/${path}`, {
