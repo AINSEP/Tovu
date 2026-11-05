@@ -53,17 +53,23 @@ export function useAssistantOwnerGrant<T extends Grant>(required: {
   const locked = useRef(false);
   const [busy, setBusy] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  async function save(input: { settings: Omit<T, "canEdit"> }, _options = {}) {
+  type SaveInput = { settings: Omit<T, "canEdit">; confirmation?: Parameters<ReturnType<typeof useConfirmRequest>["confirm"]>[0]["dialog"] };
+  async function requestConsent({ input, current }: { input: SaveInput; current: T }, _options = {}) {
+    const acknowledged = input.confirmation !== undefined || enableNeedsConsent({ next: input.settings.enabled, current: current.enabled }, optional);
+    const allowed = !acknowledged || await confirmation.confirm({ dialog: input.confirmation ?? {
+      title: t(required.title), body: required.dangers.map(t).join("\n"),
+      confirmLabel: t(required.confirmLabel), cancelLabel: t("Cancel"), tone: "danger",
+    } });
+    return { allowed, acknowledged };
+  }
+  async function save(input: SaveInput, _options = {}) {
     const current = state.settings;
     if (locked.current || !current?.canEdit || state.loadError) return;
     locked.current = true; setBusy(true); setSaveError(null);
     try {
-      const needsConfirmation = enableNeedsConsent({ next: input.settings.enabled, current: current.enabled }, optional);
-      if (needsConfirmation && !await confirmation.confirm({ dialog: {
-        title: t(required.title), body: required.dangers.map(t).join("\n"),
-        confirmLabel: t(required.confirmLabel), cancelLabel: t("Cancel"), tone: "danger",
-      } })) return;
-      const saved = await mutation.mutate({ input: { ...input.settings, riskAcknowledged: needsConfirmation } });
+      const consent = await requestConsent({ input, current });
+      if (!consent.allowed) return;
+      const saved = await mutation.mutate({ input: { ...input.settings, riskAcknowledged: consent.acknowledged } });
       state.loader.replace({ value: saved });
       publishSettingsRefresh([required.namespace]);
     } catch (error) { setSaveError(describeApiError(error, required.failure)); }

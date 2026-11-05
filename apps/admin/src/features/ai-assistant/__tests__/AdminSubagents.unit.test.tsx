@@ -209,7 +209,7 @@ it("disables the switch and shows Saving… while a write is in flight", async (
 
 
 it("shows tools provided here and saves personal MCP for only the selected agent", async () => {
-  const f = fakePort({ enabled: true, canEdit: true, agents: [{ id: "claude", name: "Claude" }, { id: "antigravity", name: "Antigravity" }], byAgent: { claude: { capabilities: { userMcp: true } } } });
+  const f = fakePort({ enabled: true, canEdit: true, agents: [{ id: "claude", name: "Claude" }, { id: "antigravity", name: "Antigravity", writesPersonalConfig: true, inheritedRunKey: true }], byAgent: { claude: { capabilities: { userMcp: true } } } });
   mount(f.port);
   await ready();
   expect(screen.getByText("Tools provided here")).toBeVisible();
@@ -219,8 +219,31 @@ it("shows tools provided here and saves personal MCP for only the selected agent
   expect(claude).toBeChecked();
   expect(agy).not.toBeChecked();
   await userEvent.setup().click(agy);
+  expect(f.writes).toEqual([]);
+  const dialog = await screen.findByRole("dialog");
+  expect(dialog).toHaveTextContent("changes settings outside Tovu");
+  expect(dialog).toHaveTextContent("Those servers can see this chat's run key while it runs.");
+  await userEvent.setup().click(screen.getByRole("button", { name: "Allow" }));
   await waitFor(() => expect(f.writes).toHaveLength(1));
-  expect(f.writes[0]).toEqual({ enabled: true, agentId: "antigravity", capabilities: { userMcp: true }, riskAcknowledged: false });
+  expect(f.writes[0]).toEqual({ enabled: true, agentId: "antigravity", capabilities: { userMcp: true }, riskAcknowledged: true });
   await waitFor(() => expect(agy).toBeChecked());
   expect(claude).toBeChecked();
+  await ready();
+  await userEvent.setup().click(agy);
+  await waitFor(() => expect(f.writes).toHaveLength(2));
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(f.writes[1]).toEqual({ enabled: true, agentId: "antigravity", capabilities: { userMcp: false }, riskAcknowledged: false });
+  await waitFor(() => expect(agy).not.toBeChecked());
+  expect(claude).toBeChecked();
+});
+
+it("declining personal MCP access writes nothing", async () => {
+  const f = fakePort({ enabled: true, canEdit: true, agents: [{ id: "claude", name: "Claude" }] });
+  mount(f.port); await ready();
+  const personal = screen.getByRole("checkbox", { name: "Also use Claude's personal MCP servers." });
+  await userEvent.setup().click(personal);
+  await screen.findByRole("dialog");
+  await userEvent.setup().click(screen.getByRole("button", { name: "Cancel" }));
+  expect(f.writes).toEqual([]);
+  expect(personal).not.toBeChecked();
 });

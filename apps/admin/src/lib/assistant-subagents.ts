@@ -14,7 +14,7 @@ export interface AssistantSubagentsSettings {
   /** Effective launch mode; older responses remain unknown and preflight fails closed. */
   permissionMode?: "bypass" | "restricted";
   byAgent?: AssistantCliPermissions["byAgent"];
-  agents?: readonly { id: string; name: string }[];
+  agents?: readonly { id: string; name: string; writesPersonalConfig?: boolean; inheritedRunKey?: boolean }[];
   /** Only sent by the per-agent patch action; never interpreted as a site-default change. */
   agentId?: string;
 }

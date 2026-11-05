@@ -1,4 +1,5 @@
 import { useId } from "react";
+import { ConfirmDialog } from "@jini-ai/admin/react";
 import { AssistantToggleRow } from "./AssistantToggleRow";
 import { OwnerGrantStatus } from "./OwnerGrantStatus";
 import { useWiredAdminSubagents } from "./hooks/use-admin-subagents.hooks";
@@ -52,6 +53,7 @@ export function AdminSubagents({ t = (key: string) => key, useController = useWi
     {view.lockReason && <p id={ownerNoteId} className="muted-cell">{t(view.lockReason)}</p>}
     <AgentToolSources controller={controller} disabled={view.disabled} t={t} />
     {!controller.settings && !controller.loadError && <p role="status">{t("Loading Full CLI access…")}</p>}
+    <ConfirmDialog {...controller.dialog} agentMayConfirm={false} />
     <OwnerGrantStatus t={t} busyKey="Saving…" busy={controller.busy} loadError={controller.loadError} saveError={controller.saveError} />
   </section>;
 }
