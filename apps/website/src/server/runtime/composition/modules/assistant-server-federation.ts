@@ -40,7 +40,12 @@ export function createAssistantServerFederation(
     admissions: () => readServerAdmissions({ awaitFederation: toolSurface.awaitFederation, readAdmissions }, {}),
     reload,
     registerRosterListener: () => onExternalMcpRosterChanged("byok", async lowered => {
-      if (lowered) await Promise.all([lowerAssistantToolAccess(lowered, {}), optional.lowerLocal?.(lowered)]);
+      if (lowered) {
+        await Promise.all([lowerAssistantToolAccess(lowered, {}), optional.lowerLocal?.(lowered)]);
+        // Stop/cleanup certifies OFF; optional discovery latency must not turn that into a failure.
+        void reload({}, {}).catch(() => {});
+        return;
+      }
       await reload({}, {});
     }),
     daemonCalls: {

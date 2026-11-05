@@ -468,6 +468,18 @@ async function attachTurnMessagesOrRespond({ attachmentIds, messages, principalI
   return true;
 }
 
+interface LiveByokToolRun extends ToolAccessRun {
+  serverIds: readonly string[]; pluginIds: readonly string[];
+  readonly abort: AbortController; readonly done: Promise<void>; lowered: boolean; readonly res: Response;
+}
+
+/** Retain every source this dynamic BYOK catalog admitted, including sources later withdrawn.
+ * @complexity O(admitted source IDs), memory only; no configuration or network reads. */
+function rememberByokSources(run: LiveByokToolRun, sources: ReturnType<typeof admittedToolSources>): void {
+  run.serverIds = [...new Set([...run.serverIds, ...sources.serverIds])];
+  run.pluginIds = [...new Set([...run.pluginIds, ...sources.pluginIds])];
+}
+
 /** Access revocation is an owner's Stop even when a provider reports its aborted socket as error. */
 function endByokResponse({ res, lowered, reason }: { res: Response; lowered: boolean; reason: string }): void {
   sse(res, 'end', { reason: lowered ? 'stop' : reason });
@@ -511,12 +523,14 @@ export function createAssistantByokModule(
     derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: DerivedToolContributor<AssistantToolRegistryDeps, AssistantSurfaceDeps> }) => contribution.domain }),
   };
   let serverFederation: ReturnType<typeof createAssistantServerFederation>;
-  const liveToolRuns = new Map<string, ToolAccessRun & { abort: AbortController; done: Promise<void>; lowered: boolean; res: Response }>();
+  const liveToolRuns = new Map<string, LiveByokToolRun>();
   /** Abort is the provider turn's existing Stop path and closes its signal-bound cards/tools.
    * No credentials are minted for provider-direct execution. Await the existing turn finally.
    * @complexity O(live runs), no I/O besides the existing Stop/cleanup paths. */
   async function lowerLocal(change: ToolAccessChange): Promise<void> {
     const selected = new Map(liveToolRuns);
+    const current = admittedToolSources({ tools: resolvedToolSurface.registry.list({}) });
+    for (const run of selected.values()) rememberByokSources(run, current);
     const result = await stopRunsForToolAccessChange({ runs: [...selected.values()], change,
       revoke: ({ runId }) => { const entry = selected.get(runId)!; entry.lowered = true; entry.abort.abort(); },
       cancel: async ({ runId }) => { automaticPluginRuns.forget({ runId }); },
@@ -734,6 +748,7 @@ export function createAssistantByokModule(
       // closure per invocation costs nothing a turn with real tool calls wasn't already paying.
       const executeTool = (call: { id: string; name: string; input: unknown }) => {
         abort.signal.throwIfAborted();
+        rememberByokSources(liveToolRun, admittedToolSources({ tools: resolvedToolSurface.registry.list({}) }));
         const emitSurface: SurfaceEmitter = async (emission) => {
           sse(res, "agent", toWireSurfacePayload(emission, call.id));
         };

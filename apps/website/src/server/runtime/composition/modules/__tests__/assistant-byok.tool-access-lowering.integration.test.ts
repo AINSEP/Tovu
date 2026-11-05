@@ -53,10 +53,15 @@ test('plugin OFF aborts an affected provider stream, awaits cleanup, and preserv
     for (;;) { const chunk = await reader.read(); if (chunk.done) return tail; tail += decoder.decode(chunk.value); }
   })();
   await providerStarted;
+  // Existing BYOK discovery can admit a slow server after launch; OFF must cover that live access.
+  surface.registry.register({ descriptor: { id: 'mcp__late__read', metadata: { mcpSource: { id: 'late', host: 'late.example', pluginId: 'late-plugin' } } }, policy: { authorize: async () => ({ allowed: true, reason: 'fixture-grant' }) }, handler: async () => ({ ok: true }) });
   await notifyExternalMcpRosterChanged({ lowered: { serverIds: ['unrelated'] } });
   assert.equal(disconnected, false, 'an unrelated source must not stop this answer');
-  await notifyExternalMcpRosterChanged({ lowered: { pluginIds: ['mail-plugin'] } });
-  output += await rest;
+  await notifyExternalMcpRosterChanged({ lowered: { pluginIds: ['late-plugin'] } });
+  let cleanupTimer: NodeJS.Timeout | undefined;
+  try {
+    output += await Promise.race([rest, new Promise<string>((_resolve, reject) => { cleanupTimer = setTimeout(() => reject(new Error('OFF acknowledged while affected stream stayed active')), 1_000); })]);
+  } finally { if (cleanupTimer) clearTimeout(cleanupTimer); }
   assert.match(output, /Partial answer survives\./);
   assert.match(output, /Stopped because tool access changed\./);
   assert.match(output, /event: end\ndata: \{"reason":"stop"\}/);
