@@ -44,9 +44,9 @@ export async function disconnectSharedOAuth(required: DisconnectOwner & {
     await required.attachments.removeKey({ keyId: required.credentialId });
     return current;
   } });
-  const result = await disconnectApiConnection({ descriptor: inspected.context.descriptor, records: required.storage.records,
+  const result = await disconnectApiConnection({ deps: { descriptor: inspected.context.descriptor, records: required.storage.records,
     tokens: required.storage.tokensFor({ context: inspected.context }), clock: required.clock,
     hooks: { revoke: optional.revoke ?? (async () => { throw Object.assign(new Error('Provider revocation is not available in this owner window.'), { code: 'provider-unreachable' }); }) } },
-  { connectionRef: required.credentialId, workspaceId: 'project' });
+    connectionRef: required.credentialId, workspaceId: 'project' });
   return { ...inspected.report, applied: true, status: result.status, remoteRevocation: result.remoteRevocation };
 }
