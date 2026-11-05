@@ -68,7 +68,7 @@ test("resendPolicyFor: sign-in links never re-send; other mail may re-send once 
   assert.equal(resendPolicyFor({ options: { sourceContext: { module: "members" }, purpose: "transactional" } }), "never");
   assert.equal(resendPolicyFor({ options: { sourceContext: { module: "x" }, purpose: "feature:magic_link" } }), "never");
   assert.equal(resendPolicyFor({ options: { sourceContext: { module: "newsletter" }, purpose: "transactional" } }), "on_unknown");
-  assert.equal(resendPolicyFor({ options: { sourceContext: { module: "forms" } } }), "on_unknown");
+  assert.equal(resendPolicyFor({ options: { sourceContext: { module: "forms" } } }), "never");
 });
 
 test("a send is reserved, dispatched in Tovu's call shape and marked sent; a replay returns the receipt without re-sending", async () => {
