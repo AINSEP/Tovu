@@ -8,6 +8,7 @@ import { createSitesWorkspace as createCliWorkspace } from "../../website/src/pl
 import { createSiteFolders } from "./site-folders.ts";
 import { registerSiteIpcHandlers, SITE_IPC_CHANNELS, type ProjectIpcDeps } from "./project-ipc.ts";
 import { buildCliEnv } from "./tovu-server.ts";
+import { IDLE_SITE_SLEEP_CHANNELS } from "./contracts/site-view-preference.ts";
 
 test("Sites settings IPC and child CLI share the scratch profile and leave owner app-data unchanged", async (t) => {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "desktop-profile-")));
@@ -25,14 +26,22 @@ test("Sites settings IPC and child CLI share the scratch profile and leave owner
   const handlers = new Map<string, Parameters<ProjectIpcDeps["ipcMain"]["handle"]>[1]>();
   const home = path.join(root, "chosen-home"), extra = path.join(root, "folders", "extra"); fs.mkdirSync(home); fs.mkdirSync(extra, { recursive: true });
   // Only settings handlers run; other registered callbacks must not need their dependencies yet.
-  registerSiteIpcHandlers({ sharedSites: workspace, siteFolders, siteScanRoots: [], recentSiteDirs: () => [],
+  const deps = { sharedSites: workspace, siteFolders, siteScanRoots: [], recentSiteDirs: () => [],
+    isPresenceShell: () => true,
     ipcMain: { handle: (channel: string, listener: Parameters<ProjectIpcDeps["ipcMain"]["handle"]>[1]) => handlers.set(channel, listener) },
     dialog: { showOpenDialog: async () => ({ canceled: false, filePaths: [home] }) },
-  } as unknown as ProjectIpcDeps);
+  } as unknown as ProjectIpcDeps;
+  const lifecycle = registerSiteIpcHandlers(deps);
+  t.after(() => lifecycle.dispose());
   const invoke = async (channel: string, payload?: unknown) => {
     const handler = handlers.get(channel); assert.ok(handler); return handler({}, payload);
   };
   const before = await invoke(SITE_IPC_CHANNELS.listFolders);
+  // Registration and unrelated settings work before lifecycle storage is supplied.
+  deps.statePath = statePath;
+  await invoke(IDLE_SITE_SLEEP_CHANNELS.write, 5);
+  assert.equal(await invoke(IDLE_SITE_SLEEP_CHANNELS.read), 5);
+  assert.equal(JSON.parse(fs.readFileSync(path.join(profile, 'desktop-preferences.json'), 'utf8')).idleSiteSleepMinutes, 5);
   assert.equal(before.configPath, path.join(profile, "config.json"));
   assert.equal(before.databases, "inSite"); assert.deepEqual(before.extraRoots, []);
   await invoke(SITE_IPC_CHANNELS.setHome);

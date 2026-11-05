@@ -84,6 +84,6 @@ export function SiteStartPanel({
 
 /** Selectable diagnostics belong only to the terminal error; sleep and manual stops stay neutral. */
 function SiteFailureDetails({ project }: { project: SiteRecord }) {
-  if (project.status !== 'error' || !project.statusDetail) return null;
+  if (project.status !== 'failed' || !project.statusDetail) return null;
   return <pre className="workspace__error">{project.statusDetail}</pre>;
 }

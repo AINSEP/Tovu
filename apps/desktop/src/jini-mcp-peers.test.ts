@@ -83,16 +83,21 @@ test("packaged peer discovery follows transitive and required peer edges, but no
 
 test('desktop model discovery declares its integrations runtime library', () => {
   const manifest = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'apps', 'desktop', 'package.json'), 'utf8'));
-  assert.equal(manifest.dependencies['@jini-ai/integrations'], '^0.6.19');
+  const lock = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'apps', 'desktop', 'package-lock.json'), 'utf8'));
+  assert.ok(manifest.dependencies['@jini-ai/integrations']);
+  assert.equal(lock.packages[''].dependencies['@jini-ai/integrations'], manifest.dependencies['@jini-ai/integrations']);
 });
 
 test('the packaged desktop can load its shared agent daemon supervisor without the site payload', () => {
   const directory = path.join(REPO_ROOT, 'apps', 'desktop');
   const manifest = JSON.parse(fs.readFileSync(path.join(directory, 'package.json'), 'utf8'));
   const lock = JSON.parse(fs.readFileSync(path.join(directory, 'package-lock.json'), 'utf8'));
-  assert.equal(manifest.dependencies['@jini-ai/sidecar'], '^0.6.19');
+  assert.ok(manifest.dependencies['@jini-ai/sidecar']);
   assert.equal(lock.packages[''].dependencies['@jini-ai/sidecar'], manifest.dependencies['@jini-ai/sidecar']);
-  assert.equal(lock.packages['node_modules/@jini-ai/sidecar'].version, '0.6.19');
+  const sidecar = findPackageDir(directory, '@jini-ai/sidecar');
+  assert.ok(sidecar, 'the desktop must resolve its daemon supervisor without the site payload');
+  const sidecarManifest = JSON.parse(fs.readFileSync(path.join(sidecar, 'package.json'), 'utf8'));
+  assert.equal(lock.packages['node_modules/@jini-ai/sidecar'].version, sidecarManifest.version);
 });
 
 /** Source inputs only: build output, tests and fixtures are not shipped runtime modules. */

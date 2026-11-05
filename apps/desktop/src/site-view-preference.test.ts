@@ -53,6 +53,37 @@ test('sleep IPC validates shell and choices, and failed saves preserve the previ
   assert.equal(handlers.size, 0);
 });
 
+test('sleep IPC resolves the current profile lazily, after authorization and validation', t => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'site-sleep-profile-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  let profile: string | undefined;
+  let resolutions = 0;
+  const handlers = new Map<string, (event: { sender: string }, value?: unknown) => number>();
+  const off = registerIdleSiteSleepIpc({
+    preferencePath: () => { resolutions++; assert.ok(profile); return path.join(profile, 'preferences.json'); },
+    allowed: (sender: string) => sender === 'shell',
+    ipcMain: { handle: (channel, handler) => { handlers.set(channel, handler); }, removeHandler: channel => { handlers.delete(channel); } },
+  });
+  t.after(off);
+  const read = handlers.get(IDLE_SITE_SLEEP_CHANNELS.read)!;
+  const write = handlers.get(IDLE_SITE_SLEEP_CHANNELS.write)!;
+  assert.equal(resolutions, 0, 'registration must not resolve a profile or touch preferences');
+  assert.throws(() => read({ sender: 'guest' }), /UNTRUSTED/);
+  assert.throws(() => write({ sender: 'guest' }, 5), /UNTRUSTED/);
+  assert.throws(() => write({ sender: 'shell' }, 15), /INVALID/);
+  assert.equal(resolutions, 0, 'rejected requests must not resolve storage');
+  profile = path.join(dir, 'first');
+  fs.mkdirSync(profile);
+  assert.equal(write({ sender: 'shell' }, 5), 5);
+  assert.equal(read({ sender: 'shell' }), 5);
+  profile = path.join(dir, 'second');
+  fs.mkdirSync(profile);
+  assert.equal(read({ sender: 'shell' }), 10);
+  assert.equal(write({ sender: 'shell' }, 30), 30);
+  assert.equal(resolutions, 4);
+  assert.equal(readIdleSiteSleepMinutes({ preferencePath: path.join(dir, 'first', 'preferences.json') }), 5);
+});
+
 test('one loaded site by default; a saved choice persists without overwriting other preferences', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'site-views-'));
   const preferencePath = path.join(dir, 'preferences.json');

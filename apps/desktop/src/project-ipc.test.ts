@@ -2322,7 +2322,7 @@ test('B2 crash plus failed boots use 1/5/30 seconds, then show a pasteable plain
     await h.next();
   }
   assert.equal(h.boots(), 3); assert.equal(h.pending().length, 0);
-  assert.equal(h.record().status, 'error');
+  assert.equal(h.record().status, 'failed');
   assert.match(h.record().statusDetail, /three automatic restarts.*five minutes/i);
   assert.match(h.record().statusDetail, /last boot failed/);
 });
@@ -2346,7 +2346,7 @@ test('B2 failed manual boot is counted and a final exit retains redacted output'
   h.failBoot(); await h.next();
   for (let i = 0; i < 2; i++) { h.server().die(7); await h.next(); }
   h.server().die(9);
-  assert.equal(h.record().status, 'error'); assert.equal(h.pending().length, 0);
+  assert.equal(h.record().status, 'failed'); assert.equal(h.pending().length, 0);
   assert.match(h.record().statusDetail, /9/); assert.match(h.record().statusDetail, /safe redacted output \[REDACTED\]/);
 });
 

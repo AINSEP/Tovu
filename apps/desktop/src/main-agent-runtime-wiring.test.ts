@@ -52,6 +52,7 @@ test("quit waits for owned runtime disposal even without sites and disposes once
   let disposals = 0;
   let mcpCloses = 0;
   let agentShutdowns = 0;
+  let lifecycleStops = 0;
   let prevented = 0;
   let finalQuits = 0;
   let onQuit!: (event: { preventDefault(): void }) => void;
@@ -59,6 +60,7 @@ test("quit waits for owned runtime disposal even without sites and disposes once
   const quitCompleted = new Promise<void>((resolve) => { finishedQuit = resolve; });
   const event = { preventDefault: () => { prevented++; } };
   const context = vm.createContext({
+    stopSiteLifecycle: () => { lifecycleStops++; },
     siteDiscovery: { abortAll: () => {} },
     quitPhase: "idle", openSites: new Map(),
     pendingTeardowns: createShutdownTracker({}), decideBeforeQuit,
@@ -85,6 +87,7 @@ test("quit waits for owned runtime disposal even without sites and disposes once
   onQuit(event);
   assert.equal(prevented, 2);
   assert.equal(disposals, 1);
+  assert.equal(lifecycleStops, 2, 'each quit attempt revokes automatic site work before draining');
   assert.deepEqual(shutdownOrder, ["product-listeners", "product-memory", "product", "runtime", "mcp", "previews"]);
   assert.equal(vm.runInContext("quitPhase", context), "draining");
   await new Promise<void>((resolve) => setImmediate(resolve));
@@ -103,6 +106,7 @@ test("quit waits for owned runtime disposal even without sites and disposes once
   assert.equal(mcpCloses, 1);
   assert.equal(agentShutdowns, 1);
   assert.equal(prevented, 2);
+  assert.equal(lifecycleStops, 3, 'the final reentrant quit also revokes lifecycle work');
   assert.equal(vm.runInContext("quitPhase", context), "drained");
   assert.deepEqual(shutdownOrder, ["product-listeners", "product-memory", "product", "runtime", "mcp", "previews", "agent-service", "quit"]);
 });

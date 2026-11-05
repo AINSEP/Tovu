@@ -1,6 +1,6 @@
 /**
  * @file Coverage for `use-site-power.hooks.ts`'s decision logic — what the card's Start/Stop button
- * says for each of the seven lifecycle statuses, and what one press actually does.
+ * says for each lifecycle status, and what one press actually does.
  *
  * The decisions the hook makes are plain exported functions — `powerControl`,
  * `performPowerAction`, `powerToggleIntent`, `runPowerToggle` — and every test below calls one of
@@ -50,6 +50,11 @@ test('a FAILED site is offered Start, not a disabled button — a failed boot is
   assert.deepEqual(powerControl('failed'), { action: 'start', label: 'Start', tooltip: 'Start site', busy: false, on: false });
 });
 
+test('a SLEEPING site uses Start directly without changing its lifecycle record', () => {
+  assert.deepEqual(powerControl('sleeping'), { action: 'start', label: 'Start', tooltip: 'Start site', busy: false, on: false });
+  assert.equal(powerControl('sleeping', { external: true }), null);
+});
+
 test('mid-start the button says Starting… and does nothing when pressed', () => {
   const control = powerControl('starting');
   assert.equal(control?.label, 'Starting…');
@@ -78,7 +83,7 @@ test('provisioning and blocked get NO button rather than an inert one', () => {
 test('no status produces a label that contradicts its action', () => {
   // The whole contract in one sweep: an actionable control never reads as busy, and a busy one
   // never offers an action.
-  for (const status of ['provisioning', 'starting', 'running', 'stopping', 'stopped', 'failed', 'blocked'] as const) {
+  for (const status of ['provisioning', 'starting', 'running', 'stopping', 'stopped', 'sleeping', 'failed', 'blocked'] as const) {
     const control = powerControl(status);
     if (control === null) continue;
     assert.equal(control.busy, control.action === null, `${status}: busy and action disagree`);

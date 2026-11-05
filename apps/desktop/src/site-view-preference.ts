@@ -31,6 +31,7 @@ export function writeIdleSiteSleepMinutes({ preferencePath, idleSiteSleepMinutes
 }
 
 /** Shell-only sleep preference endpoints. Failed writes reject without changing the saved value.
+ * A path resolver is evaluated only for an authorized, valid request, so registration needs no storage.
  * @returns Teardown for both handlers. O(1) registration; storage costs belong to read/write above.
  */
 export function registerIdleSiteSleepIpc<Sender>({ ipcMain, allowed, preferencePath }: {
@@ -39,18 +40,19 @@ export function registerIdleSiteSleepIpc<Sender>({ ipcMain, allowed, preferenceP
     removeHandler?: (channel: string) => void;
   };
   allowed: (sender: Sender) => boolean;
-  preferencePath: string;
+  preferencePath: string | (() => string);
 }, _options = {}): () => void {
   const trusted = (sender: Sender) => { if (!allowed(sender)) throw new Error('UNTRUSTED_SITE_VIEW_PREFERENCE_SENDER'); };
+  const resolvePath = () => typeof preferencePath === 'function' ? preferencePath() : preferencePath;
   ipcMain.handle(IDLE_SITE_SLEEP_CHANNELS.read, ({ sender }) => {
     trusted(sender);
-    return readIdleSiteSleepMinutes({ preferencePath });
+    return readIdleSiteSleepMinutes({ preferencePath: resolvePath() });
   });
   ipcMain.handle(IDLE_SITE_SLEEP_CHANNELS.write, ({ sender }, value) => {
     trusted(sender);
     const saved = idleSiteSleepChoice({ value });
     if (saved === undefined) throw new Error('INVALID_IDLE_SITE_SLEEP_MINUTES');
-    return writeIdleSiteSleepMinutes({ preferencePath, idleSiteSleepMinutes: saved });
+    return writeIdleSiteSleepMinutes({ preferencePath: resolvePath(), idleSiteSleepMinutes: saved });
   });
   return () => {
     ipcMain.removeHandler?.(IDLE_SITE_SLEEP_CHANNELS.read);

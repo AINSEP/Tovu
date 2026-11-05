@@ -459,9 +459,7 @@ function CardActions({
 }) {
   // `null` for `provisioning`/`blocked` — a site with nothing to start yet, or ever. See
   // `powerControl`'s own doc on why that is no button rather than a disabled one.
-  // Sleeping keeps its own label and neutral styling; its power action uses the normal Start path.
-  const startableProject = project.status === 'sleeping' ? { ...project, status: 'stopped' as const } : project;
-  const control = powerControl(status === 'sleeping' ? 'stopped' : status, { external: Boolean(project.externalUrl) && !project.externalLauncher });
+  const control = powerControl(status, { external: Boolean(project.externalUrl) && !project.externalLauncher });
   const restart = power.restartControlOf?.(project);
 
   return (
@@ -500,7 +498,7 @@ function CardActions({
           disabled={control.action === null}
           aria-busy={control.busy}
           aria-label={`${control.label} ${project.displayName}`}
-          onClick={() => void power.toggle(startableProject)}
+          onClick={() => void power.toggle(project)}
         >
           <ToolIcon kind="power" />
         </button>

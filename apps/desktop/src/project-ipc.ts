@@ -181,7 +181,7 @@ interface SiteRuntime {
   cancelled: boolean;
   cancelRetry?: () => void;
   starting?: Promise<unknown>;
-  status?: "starting" | "sleeping" | "error";
+  status?: "starting" | "sleeping" | "failed";
   detail?: string;
   lastPresentAt: number;
   rss?: { pid: number; since: number };
@@ -1567,7 +1567,7 @@ function registerSiteIpcHandlers<TCtx>(deps: ProjectIpcDeps<TCtx>, options: Site
     state.cancelRetry?.();
     const decision = state.policy.recordFailure({ isPortConflict: false });
     if (decision.action === "give-up") {
-      state.cancelRetry = undefined; state.status = "error";
+      state.cancelRetry = undefined; state.status = "failed";
       state.detail = "This site couldn’t stay running after three automatic restarts in five minutes. Automatic restart has stopped. Try starting it again.\n\nRedacted details (copy and paste):\n" + detail;
       deps.onRestartStopped?.({ siteDir, detail: state.detail });
       return;
@@ -1614,12 +1614,22 @@ function registerSiteIpcHandlers<TCtx>(deps: ProjectIpcDeps<TCtx>, options: Site
     await deps.serializer.run(siteDir, async () => {
       if (disposed || state.cancelled || deps.openSites.get(siteDir)?.server !== server) return;
       if (!restart && presence.has({ siteId: siteDir })) return;
-      if (restart) state.restartAfterExit = server;
-      try {
-        await stopIfIdle({}, {});
-      } catch { /* Timeout, rejection and disposed channels are busy; the next tick may retry. */ }
-      finally { if (state.restartAfterExit === server) state.restartAfterExit = undefined; }
+      await requestIdleStop({ state, server, restart, stopIfIdle });
     });
+  }
+
+  /** Fence an RSS restart until confirmed exit; a refused sleep leaves it eligible next tick.
+   * @complexity O(1) state, one existing bounded child IPC request; no additional I/O.
+   */
+  async function requestIdleStop({ state, server, restart, stopIfIdle }: {
+    state: SiteRuntime; server: OpenSiteEntry["server"]; restart: boolean;
+    stopIfIdle: NonNullable<OpenSiteEntry["server"]["stopIfIdle"]>;
+  }, _options = {}): Promise<void> {
+    if (restart) state.restartAfterExit = server;
+    try {
+      await stopIfIdle({}, {});
+    } catch { /* Timeout, rejection and disposed channels are busy; the next tick may retry. */ }
+    finally { if (state.restartAfterExit === server) state.restartAfterExit = undefined; }
   }
 
   /** Presence events update the absence clock at tab closure, not one sampler tick earlier. */
@@ -1661,7 +1671,7 @@ function registerSiteIpcHandlers<TCtx>(deps: ProjectIpcDeps<TCtx>, options: Site
   // The state and preferences files share the launch's userData folder, including E2E profiles.
   // Keep registration here: the original independent UI slice and the lifecycle share this profile.
   const offSleep = registerIdleSiteSleepIpc({ ipcMain: deps.ipcMain, allowed: deps.isPresenceShell ?? (() => false),
-    preferencePath: path.join(path.dirname(deps.statePath), 'desktop-preferences.json') });
+    preferencePath: () => path.join(path.dirname(deps.statePath), 'desktop-preferences.json') });
   const relocationGate = createRelocationGate({}, { classifySiteDir: deps.classifySiteDir });
   // Handlers share the live host ports: settings and discovery may be supplied after registration.
   // Read them at dispatch and pass registration-owned runtime explicitly, without mutating deps.
