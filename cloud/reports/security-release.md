@@ -1,136 +1,53 @@
-# security-release — Tovu Desktop 0.1.30
+# security-release — desktop gates
 
-Status: in progress — desktop gate repairs on cloud/security-release. No tag, publication, deployment or main push performed.
+Status: complete — six local gates pass. Tovu `cloud/security-release` only; no main push, tag, publication or deployment.
 
-## Changes
+## Repairs
 
-- Bumped desktop to **0.1.30**, including both lockfile version fields and `RELEASE-NOTES-0.1.30.md`, following commit `9be473ab5`.
-- Refreshed all four lockfiles and installed consumers from the real npm registry using npm **11.20.0**. All 12 published Jini packages use **0.6.23**. Existing floors were already correct; the scoped chat override key now follows its 0.6.23 range.
-- Verified npm versions, tarball URLs and registry integrity values. No integrity was invented or edited manually. Changes outside Jini lock entries are limited to the intended root specifications and desktop version metadata.
-- Removed **79 local Jini symlinks** and the local link-state marker. All **79 installed/locked Jini entries** across root, admin, desktop and site-chat are registry artifacts, with no local Jini link/file entries.
-- Jini repository unchanged. No production function, test assertion, rule, timeout or threshold changed.
+- Split locale resolution and the resource-sample decision into small helpers, preserving existing behavior and constants. Both requested functions now meet the complexity ceiling of 9.
+- Restored missing lifecycle dependencies in three VM fixture scenarios and added notification assertions while retaining all teardown assertions.
+- Made staging inventory cover all three existing release paths. Updated two exact resource-display expectations to the intentional decimal-GB contract already covered by dedicated tests.
+- Added locale and invalid/unavailable resource-observation cases. No tests, rules, timeouts, floors, skips or debt entries were weakened or added to bypass a check.
+
+## Findings and environment
+
+The untruncated baseline found nine main-process failures. Four came from stale fixture/inventory assumptions; the others involved missing Electron, container orphan reaping and subprocess timeouts. An initial renderer pass then exposed two stale resource-format expectations and two missing-browser failures.
+
+Installed the locked Electron runtime with its normal checksum verification; its unchanged import test passes. The unchanged process-reaping assertions pass under temporary `tini -s`, providing the child reaping this container's init lacks. The unchanged subprocess probes pass in isolation. A typing error in an added edge-case fixture was corrected to use the supported unavailable-snapshot contract.
+
+Exception: the network policy blocks Playwright's Chromium 149 download. Local browser tests use the installed Debian Chromium **155.0.8059.79**, selected through a scratch browser-cache symlink. Both unchanged layout tests pass. This is a local browser-version difference, not evidence that the pinned CI browser ran.
 
 ## Validation
 
-- Root, desktop, admin and site-chat typechecks: **PASS**.
-- Focused tests: **88 PASS** — dependency/catalog/chart pins 31, actual chart bundle 13, desktop version 5, link guard 3, site security integration 13, selected desktop integration 1, desktop tools 10, privacy components 12.
-- The previously deferred lockfile-alignment test now **passes**.
-- Four installed-tree release link guards and direct registry/lock/install integrity verification: **PASS**.
-- Final range secret scan and `git diff --check`: **PASS**.
+`npm run gates`: **6 PASS, 0 FAIL, 0 DISABLED** — tree-quiet, tests, typecheck, coverage, complexity and js-backslide. Coverage passes its existing floors after both suites pass. The ten existing platform skips remain unchanged. Focused source/fixture checks: 169 pass; renderer checks: 50 pass; browser layout checks: 2 pass. Gate settings, coverage floors and complexity debt remain unchanged. Strict complexity passes 247 files at 9/9, with three existing grandfathered entries and zero new entries.
 
-Exception: published artifacts emit non-failing source-map warnings in the component run. No test failed. Earlier unrelated source-test timeout and strict-lint debt were not rerun for these metadata/dependency changes; their details remain in the [prior report](https://github.com/AINSEP/Tovu/blob/3f83e357477ce692187a111a2eb509e9536c64de/cloud/reports/security-release.md). No full suite was launched. Pushes use the documented hook bypass to honor focused tests only; no hook was modified.
-
-## Published Jini package set
-
-All at **0.6.23**:
-
-- `@jini-ai/agent-plugins`
-- `@jini-ai/agent-runtime`
-- `@jini-ai/agentic`
-- `@jini-ai/chat`
-- `@jini-ai/core`
-- `@jini-ai/daemon`
-- `@jini-ai/mcp`
-- `@jini-ai/platform`
-- `@jini-ai/ui`
-- `@jini-ai/ui-kit`
-- `@jini-ai/plugin-catalog`
-- `@jini-ai/provider-plugins`
-
-## Commands and evidence
-
-All commands used `source /workspace/.tovu-build/env.sh`. Registry reads requested `version dist --json` for each of the 12 `@jini-ai/<name>@0.6.23` packages with `--registry=https://registry.npmjs.org`.
-
-In each of `.`, `apps/admin`, `apps/desktop` and `apps/site-chat`, ran the following npm 11.20.0 commands after removing the existing Jini symlinks through the repository's consumer inventory:
+Commands run from `apps/desktop` after sourcing `/workspace/.tovu-build/env.sh`:
 
 ```sh
-node /workspace/Tovu/apps/desktop/node_modules/npm/bin/npm-cli.js install --package-lock-only --ignore-scripts --no-audit --no-fund --registry=https://registry.npmjs.org --cache=/workspace/work/security-release/registry-followup/npm-cache
-node /workspace/Tovu/apps/desktop/node_modules/npm/bin/npm-cli.js install --ignore-scripts --no-audit --no-fund --registry=https://registry.npmjs.org --cache=/workspace/work/security-release/registry-followup/npm-cache
-node /workspace/Tovu/development/scripts/check-no-linked-jini.mjs
+npm test
+node --experimental-test-module-mocks --import ./scripts/resolve-ts-ext.ts --test src/desktop-i18n.test.ts src/project-ipc.test.ts src/main-agent-runtime-wiring.test.ts src/main-shutdown-wiring.test.ts src/packaging-selection.test.ts
+node --import tsx --test src/renderer/App.render.test.ts src/renderer/SiteGrid.jsdom.test.ts src/renderer/ResourcesPanel.render.test.ts
+node --import tsx --test src/renderer/websites-width.test.ts
+node scripts/check-complexity.ts
+PLAYWRIGHT_BROWSERS_PATH=/workspace/work/security-release/desktop-gates/playwright-cache npm_config_cache=/workspace/work/security-release/desktop-gates/npm-cache /workspace/work/security-release/desktop-gates/tools/usr/bin/tini -s -- npm run gates
 ```
 
-The direct probe `node /workspace/work/security-release/registry-followup/verify.mjs` compares every applicable manifest floor, lock root specification, resolved URL/integrity, installed version and physical directory against the npm metadata; checks all 79 entries; checks the absent link marker; and verifies desktop's three version fields are 0.1.30. Raw logs and metadata are retained under `/workspace/work/security-release/registry-followup`.
-
-Exact focused test and typecheck commands:
+The renderer/browser probes also used the same scratch browser-cache variable and `tini -s`. Untruncated logs remain in `/workspace/work/security-release/desktop-gates`. From the repository root:
 
 ```sh
-# /workspace/Tovu
-TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node --import tsx --test --test-concurrency=1 apps/website/src/server/runtime/composition/__tests__/recharts-package-pin.unit.test.ts apps/website/src/server/runtime/composition/__tests__/product-telemetry.unit.test.ts apps/website/src/server/runtime/composition/__tests__/browser-provider.integration.test.ts
-```
-
-```sh
-# /workspace/Tovu/apps/desktop
-node --experimental-test-module-mocks --import ./scripts/resolve-ts-ext.ts --test src/app-version-ipc.test.ts
-```
-
-```sh
-# /workspace/Tovu
-node --import tsx --test development/scripts/__tests__/check-no-linked-jini.test.ts
-```
-
-```sh
-# /workspace/Tovu/apps/admin
-node_modules/.bin/vitest run src/integrations/chart-providers/__tests__/recharts-bundle-integer-ticks.unit.test.ts --maxWorkers=1 --pool=threads
-```
-
-```sh
-# /workspace/Tovu/apps/desktop
-node --experimental-test-module-mocks --import ./scripts/resolve-ts-ext.ts --test --test-isolation=none '--test-name-pattern=runtime registers the built tools' src/desktop-agent.test.ts
-```
-
-```sh
-# /workspace/Tovu/apps/desktop
-node --experimental-test-module-mocks --import ./scripts/resolve-ts-ext.ts --test --test-isolation=none src/desktop-agent-tools.test.ts
-```
-
-```sh
-# /workspace/Tovu
-node --import tsx --experimental-test-module-mocks --test --test-isolation=none apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.typed-tools.integration.test.ts
-```
-
-```sh
-# /workspace/Tovu
-node_modules/.bin/tsc -p tsconfig.json --noEmit
-```
-
-```sh
-# /workspace/Tovu
-npm --prefix apps/desktop run typecheck
-```
-
-```sh
-# /workspace/Tovu
-npm --prefix apps/site-chat run typecheck
-```
-
-```sh
-# /workspace/Tovu
-npm --prefix apps/admin run typecheck
-```
-
-```sh
-# /workspace/Tovu/apps/admin
-node_modules/.bin/vitest run src/components/__tests__/SecretInput.unit.test.tsx src/features/security/__tests__/SiteKeyTab.agent-secrecy.unit.test.tsx src/features/sites/__tests__/SiteExportTab.secret.unit.test.tsx --maxWorkers=1 --pool=threads
-# /workspace/Tovu
 /workspace/work/security-release/tools/gitleaks git . --log-opts='e327c07c8..HEAD' --redact
 git diff --check
+git diff --quiet be3d549b42be3a0c6bedc80f152004bc2abd29d2 HEAD -- apps/desktop/quality-gates.json apps/desktop/coverage-floors.json apps/desktop/complexity-debt.json
 ```
 
-## SHAs
+## SHAs and package state
 
-Validated implementation tip before the final documentation commit: `8d3fe13e6aaecd03f19daa89259d2b67058661b2`.
+Implementation checkpoints on `cloud/security-release`:
 
-This step's implementation commits, both on `cloud/security-release`:
+- `ebac4f26985acf521e8bdd0f8e6e7f8cc34a49c1`
+- `0c8e5d99549c0449d0ce04811b88bc471bd61f58`
+- `4728311fb25058b6db04c4340ad425dc52323fba` — final tested source tip.
 
-- `bab8d7468bc6fee657c3ea708561cb9269c8f0a0`
-- `8d3fe13e6aaecd03f19daa89259d2b67058661b2`
+The final response provides the subsequent documentation-only report commit SHA. Final range secret scan and whitespace validation pass. Checkpoint pushes bypassed the pre-push hook; the actual six-gate command above ran independently, with no hook changes.
 
-The final response provides the final report-commit SHA; that commit changes documentation only. Earlier integration and checkpoint SHAs remain in the prior report/history.
-
-## Desktop gate repair — in progress
-
-The untruncated main-process baseline found 9 failures across 2,174 tests. Causes include stale shutdown VM dependencies, an outdated staging-path inventory, subprocess timeouts and container-only process/Electron availability. Two requested complexity refactors preserve all thresholds and behavior. The affected source/fixture tests pass 169 checks. All gate configurations, floors and debt inventories remain unchanged. Full gate verification is pending.
-
-Gate checkpoint: the missing locked Electron runtime was installed with checksum verification, and unchanged process-reaping assertions pass under a temporary standard init/subreaper. Strict complexity passes 247 files at 9/9 with zero new debt. The first full gate attempt found a typing mistake in a newly added invalid fixture; the fixture now uses the supported unavailable-snapshot contract and retains every reset assertion. A fresh full gate run will be authoritative.
-
-Renderer checkpoint: two exact resource-text expectations now match the already-tested decimal-GB display contract; all 50 focused renderer checks pass. The pinned Playwright browser download is blocked by the cloud network policy. An unchanged browser-test probe uses the installed Debian Chromium 155 through a scratch cache; Playwright expects Chromium 149, so this version difference remains a validation exception. No test, rule, threshold or timeout was relaxed.
+Desktop remains **0.1.30**. The 12 published Jini packages remain **0.6.23**, with no dependency, lockfile or Jini repository changes in this step. The full package list and registry-integrity evidence remain in the [previous report](https://github.com/AINSEP/Tovu/blob/be3d549b42be3a0c6bedc80f152004bc2abd29d2/cloud/reports/security-release.md).
