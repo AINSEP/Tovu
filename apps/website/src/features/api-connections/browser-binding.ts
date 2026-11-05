@@ -4,8 +4,7 @@
  * Jini owns expiry, capacity and consumption; this file owns Tovu's routes and cookie policy.
  */
 import { serialize } from "cookie";
-import type { Clock } from "@jini-ai/core/primitives";
-import { createPendingAuthorizationStore, generateOAuthState, type OAuthRandomBytes } from "@jini-ai/oauth";
+export { createSignInHandoffs, type SignInHandoffs } from "@jini-ai/integrations/api-connections";
 
 export const API_CONNECTION_OAUTH_CALLBACK_PATH = "/api/agent-plugins/connections/oauth/callback";
 export const API_CONNECTION_BINDING_COOKIE = "__Secure-tovu_api_connection_binding";
@@ -31,42 +30,6 @@ export const EXTERNAL_MCP_SIGN_IN_PATH = '/api/admin/v1/workspaces/:workspaceId/
 export function hostedMcpSignInLink(required: { readonly callbackUrl: string; readonly workspaceId: string; readonly serverId: string }, _optional: Record<string, never> = {}): string {
   const path = EXTERNAL_MCP_SIGN_IN_PATH.replace(':workspaceId', encodeURIComponent(required.workspaceId)).replace(':serverId', encodeURIComponent(required.serverId));
   return new URL(path, required.callbackUrl).href;
-}
-
-interface SignInHandoff {
-  readonly authorizationUrl: string;
-  readonly browserBinding: string;
-  readonly actorId: string;
-  readonly expiresAt: string;
-}
-
-export interface SignInHandoffs {
-  issue(required: SignInHandoff, optional?: Record<string, never>): string;
-  take(required: { readonly handoffId: string; readonly actorId: string }, optional?: Record<string, never>): SignInHandoff | null;
-}
-
-/** Actor-bound handoffs over Jini's 256-entry, 10-minute cache. No timers or background processes.
- * @returns issue (opaque id) and take (consumes even on actor mismatch).
- * @example const handoffs = createSignInHandoffs({ clock, randomBytesFn }); // only host code may hold it
- * @complexity O(n) insertion sweep, O(1) take; O(256) bounded space.
- */
-export function createSignInHandoffs(required: { readonly clock: Clock; readonly randomBytesFn: OAuthRandomBytes }, _optional: Record<string, never> = {}): SignInHandoffs {
-  const pending = createPendingAuthorizationStore<SignInHandoff>({ clock: required.clock }, {
-    expiry: ({ value }) => Date.parse(value.expiresAt),
-  });
-  return {
-    /** Stores host-only proof; entropy errors propagate before anything is issued. */
-    issue(input: SignInHandoff, _options: Record<string, never> = {}): string {
-      const id = generateOAuthState({ randomBytesFn: required.randomBytesFn }, { stateBytes: 32 });
-      pending.put({ state: id, value: { ...input } });
-      return id;
-    },
-    /** Burns the id first; unknown, expired, used or foreign actors all return null. */
-    take(input: { readonly handoffId: string; readonly actorId: string }, _options: Record<string, never> = {}): SignInHandoff | null {
-      const entry = pending.consume({ state: input.handoffId });
-      return entry?.actorId === input.actorId ? entry : null;
-    },
-  };
 }
 
 /** Build the host link without exposing either the provider state or browser binding. O(1) space/time. */

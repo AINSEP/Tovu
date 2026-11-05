@@ -1,8 +1,8 @@
 import type { PluginCredentialCard } from "../../contracts/core/plugin-credential-card.js";
 import type { PluginCredentialsPort } from "./service-ports.js";
-import { buildOutcomeSurface, type SurfaceOutcomeSpec, type UIResource, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
+import { type SurfaceOutcomeSpec, type UIResource, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
 import type { SecretCardForm } from "@jini-ai/ui/mcp-ui/secret-card";
-import { SURFACE_EXCHANGE_ID_PARAM, SURFACE_DISMISSED_PARAM } from "@jini-ai/core";
+import { buildSignInCard } from "@jini-ai/ui/mcp-ui/sign-in-card";
 
 /**
  * @file The card `agent_plugin_connect` shows while it parks on a human's sign-in (`connect-tool.ts`).
@@ -39,38 +39,19 @@ export type AgentPluginConnectCardSpec =
  *
  * @complexity O(1).
  */
-export function buildAgentPluginConnectCard(spec: AgentPluginConnectCardSpec): UIResource {
-  const uri = agentPluginConnectSurfaceUri(spec.pluginId);
-
-  if (spec.state === "skipped") {
-    return buildOutcomeSurface({ uri, title: "Sign-in skipped", state: "partial",
-      message: `Skipped connecting ${spec.pluginDisplayName}. The assistant can continue without this plugin.`,
-      app: { appName: "tovu-agent-plugins-connect", appVersion: "1" }, preferredFrameSize: ["100%", "200px"] });
-  }
-
-  if (spec.state === "connected") {
-    return buildOutcomeSurface({
-      uri,
-      title: `${spec.pluginDisplayName} connected`,
-      state: "success",
-      message: "Connected ✓",
-      app: { appName: "tovu-agent-plugins-connect", appVersion: "1" },
-      preferredFrameSize: ["100%", "200px"],
-    });
-  }
-
-  return buildOutcomeSurface({
-    uri,
-    title: spec.credentialCard?.title ?? `Let's connect ${spec.pluginDisplayName}`,
-    description: spec.credentialCard ? `${spec.credentialCard.intro ?? ""} ${spec.credentialCard.permissions ?? spec.credentialCard.keyHint ?? ""}`.trim() : "It's free and takes about two minutes.",
-    state: "partial",
-    message: "Waiting for you to sign in...",
-    openLinkUrl: spec.signInUrl,
-    openLinkLabel: `Sign in to ${spec.pluginDisplayName}`,
-    ...(spec.exchangeId ? { cancel: { label: "Skip", toolName: "agent_plugin_connect",
-      params: { [SURFACE_EXCHANGE_ID_PARAM]: spec.exchangeId, [SURFACE_DISMISSED_PARAM]: true } } } : {}),
+export function buildAgentPluginConnectCard(spec: AgentPluginConnectCardSpec, _optional = {}): UIResource {
+  const credentialCard = spec.state === "waiting" ? spec.credentialCard : undefined;
+  return buildSignInCard({
+    uri: agentPluginConnectSurfaceUri(spec.pluginId), toolId: "agent_plugin_connect",
     app: { appName: "tovu-agent-plugins-connect", appVersion: "1" },
-    preferredFrameSize: ["100%", "280px"],
+    waiting: {
+      title: credentialCard?.title ?? `Let's connect ${spec.pluginDisplayName}`,
+      description: credentialCard ? `${credentialCard.intro ?? ""} ${credentialCard.permissions ?? credentialCard.keyHint ?? ""}`.trim() : "It's free and takes about two minutes.",
+      message: "Waiting for you to sign in...", openLinkLabel: `Sign in to ${spec.pluginDisplayName}`, cancelLabel: "Skip",
+    },
+    connected: { title: `${spec.pluginDisplayName} connected`, message: "Connected ✓" },
+    skipped: { title: "Sign-in skipped", message: `Skipped connecting ${spec.pluginDisplayName}. The assistant can continue without this plugin.` },
+    ...spec,
   });
 }
 

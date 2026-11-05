@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 
-import { createApiConnectionService, deriveApiConnectionKey, ApiConnectionError, type ApiConnectionClientKind, type ApiConnectionService } from "@jini-ai/integrations/api-connections";
+import { createApiConnectionService, createSignInHandoffs, deriveApiConnectionKey, ApiConnectionError, type ApiConnectionClientKind, type ApiConnectionService } from "@jini-ai/integrations/api-connections";
 import { startLoopbackAuthorizationReceiver, type OAuthClient, type OAuthHttpPorts } from "@jini-ai/oauth";
 import type { ApiConnectionRecord } from "@jini-ai/integrations/api-connections";
 import type { VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
@@ -16,7 +16,7 @@ import { createConnectionBudgets } from "./budgets.js";
 import { createConnectionHookHttp, type PluginHttp } from "./hook-http.js";
 import { createAgentPluginStateStore } from "./plugin-state.js";
 import { loadDeclaredApiConnections, type ApiConnectionClientConfig, type DeclaredApiConnection } from "./contribution.js";
-import { API_CONNECTION_OAUTH_CALLBACK_PATH as CALLBACK_PATH, createSignInHandoffs } from "./browser-binding.js";
+import { API_CONNECTION_OAUTH_CALLBACK_PATH as CALLBACK_PATH } from "./browser-binding.js";
 import { createApiConnectionVault, createApiConnectionVaultRecordStore, createApiConnectionVaultTokenStore, type ApiConnectionVaultRecordStore } from "./vault-stores.js";
 
 /**

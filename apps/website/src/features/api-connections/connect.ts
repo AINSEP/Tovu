@@ -1,5 +1,5 @@
 import {
-  ApiConnectionError, createApiConnectionGenerationReader, deriveApiConnectionKey, type ApiConnectionIntent, type ApiConnectionService, type CompletedAuthorization,
+  ApiConnectionError, createApiConnectionGenerationReader, deriveApiConnectionKey, waitForHostedSignIn, type ApiConnectionIntent, type CompletedAuthorization,
 } from "@jini-ai/integrations/api-connections";
 import { ToolInputError } from "@jini-ai/core";
 
@@ -47,33 +47,6 @@ interface ConnectRun {
 function asToolError(error: unknown): never {
   if (error instanceof ApiConnectionError) throw new ToolInputError({ message: `agent_plugin_connect: ${error.message}` });
   throw error;
-}
-
-function pause(ms: number, signal: AbortSignal): Promise<void> {
-  return new Promise((resolve) => {
-    const timer = setTimeout(done, ms);
-    signal.addEventListener("abort", done, { once: true });
-    function done(): void { clearTimeout(timer); signal.removeEventListener("abort", done); resolve(); }
-  });
-}
-
-interface CallbackWatch {
-  readonly connectionRef: string;
-  readonly startGeneration: number;
-  readonly readGeneration: ReturnType<typeof createApiConnectionGenerationReader>;
-}
-
-/** Hosted: wait for the callback route to install a newer credential. @complexity O(t / interval) record reads. */
-async function waitForCallback(run: ConnectRun, service: ApiConnectionService, watch: CallbackWatch): Promise<boolean> {
-  const { connectionRef, startGeneration, readGeneration } = watch;
-  const { workspaceId } = run.deps.host;
-  const deadline = Date.now() + run.waitTimeoutMs;
-  while (Date.now() < deadline && !run.signal.aborted) {
-    const status = await service.getStatus({ connectionRef, workspaceId });
-    if (status.status === "connected" && (await readGeneration({ key: connectionRef })) > startGeneration) return true;
-    await pause(Math.min(run.pollIntervalMs, Math.max(deadline - Date.now(), 0)), run.signal);
-  }
-  return false;
 }
 
 /** A started sign-in. Desktop also carries its own completion; hosted completes at the public callback. */
@@ -185,7 +158,10 @@ async function connectHosted(run: ConnectRun, scopeSetIds: readonly string[]): P
   // client secret) raw, past the `ToolInputError` mapping above.
   const service = host.serviceFor({ connection: run.connection });
   await run.showSignIn({ signInUrl: start.authorizationUrl });
-  return waitForCallback(run, service, { connectionRef, startGeneration, readGeneration });
+  return waitForHostedSignIn({
+    workspaceId: host.workspaceId, connectionRef, startGeneration, getStatus: service.getStatus, readGeneration,
+    signal: run.signal, pollIntervalMs: run.pollIntervalMs, waitTimeoutMs: run.waitTimeoutMs,
+  });
 }
 
 /**

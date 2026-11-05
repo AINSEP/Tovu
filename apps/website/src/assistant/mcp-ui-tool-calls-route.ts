@@ -7,7 +7,7 @@ import type { ToolExecutionResult, ToolExecutor } from "@jini-ai/daemon";
 
 import { RUN_PRINCIPAL_HEADER } from "./daemon-access.js";
 import { isMcpUiToolCallPermitted, MCP_UI_TYPED_ANSWER_REFUSAL } from "./mcp-ui-tool-calls.js";
-import { tryRestoreSurface } from '@jini-ai/daemon/http';
+import { deliverSurfaceCallback } from '@jini-ai/daemon/http';
 import {
   SURFACE_EXCHANGE_ID_PARAM,
   SURFACE_TYPED_ANSWER_PARAM,
@@ -221,32 +221,13 @@ async function deliverMcpUiExchange(
   input: { exchangeId: string; params: Record<string, unknown>; toolId: string; principalId: string },
   req?: Request,
 ): Promise<void> {
-  const restoreOnly = (req?.body as { restore?: unknown } | undefined)?.restore === true;
-  if (restoreOnly && req) {
-    if (await tryRestoreSurface({ res, store: deps.surfaceExchanges, ...input })) return;
-    res.status(409).json({ code: 'SURFACE_NOT_PENDING' });
-    return;
-  }
-  const delivered = deps.surfaceExchanges.deliver(input, { toolId: input.toolId });
-  if (!delivered.ok) {
-    if (delivered.reason === 'unknown-or-closed' && req && await tryRestoreSurface(
-      { res, store: deps.surfaceExchanges, ...input }, { params: input.params },
-    )) return;
-    // 409, not 404: from the browser's side both reasons mean "this dialog is no longer the
-    // one waiting on you" — a second click, a reload of stale scrollback, or an expired form.
-    // The distinction between them is not the human's to act on, and reporting it would only
-    // describe server state they cannot change.
-    res.status(409).json({
-      error: "that dialog is no longer waiting for an answer",
-      code: "SURFACE_NOT_PENDING",
-      reason: delivered.reason,
-    });
-    return;
-  }
-  // Deliberately not the tool's result. The agent's own call is what returns that, to the
-  // model, where it belongs — echoing it here would make this response a second copy of an
-  // answer the human already gave, and hand the iframe output it has no use for.
-  res.status(202).json({ delivered: true });
+  await deliverSurfaceCallback({
+    res, store: deps.surfaceExchanges, ...input,
+    admit: ({ toolId, answersAnExchange, typedAnswer }) => isMcpUiToolCallPermitted(toolId, answersAnExchange, { typedAnswer }),
+  }, {
+    restoreOnly: (req?.body as { restore?: unknown } | undefined)?.restore === true,
+    restoreOnMiss: req !== undefined,
+  });
 }
 
 /**
