@@ -11,6 +11,7 @@ import { MEMBER_SESSION_COOKIE } from "../../inbound/public-http/routes/members/
 import { registerSiteRoutes } from "../../inbound/public-http/routes/site/pages.js";
 import { registerProductRoutes, type CommerceSiteAdapterDeps } from "../../inbound/public-http/routes/site/products.js";
 import { registerStoreRoutes } from "../../inbound/public-http/routes/site/__tests__/fixtures/legacy-store.js";
+import type { StoreApi } from "../../../features/plugins/store/__tests__/fixtures/store-runtime.js";
 import { createSeoModule } from "../../runtime/composition/modules/seo.js";
 import type { RouteDeps } from "../../routes/types.js";
 import { startTestServer } from "../helpers/http-test-server.js";
@@ -35,8 +36,10 @@ import { startTestServer } from "../helpers/http-test-server.js";
  * cookies/headers), not asserted from reading the source.
  */
 
-function buildPublicSiteApp(): { app: express.Express; deps: CommerceSiteAdapterDeps } {
-  const deps: CommerceSiteAdapterDeps = createRouteDeps();
+type CommerceSiteTestDeps = CommerceSiteAdapterDeps & { store?: StoreApi };
+
+function buildPublicSiteApp(): { app: express.Express; deps: CommerceSiteTestDeps } {
+  const deps: CommerceSiteTestDeps = createRouteDeps();
   const app = express();
   // Registration order matters — mirrors `app.ts`'s real order: SEO (sitemap/robots) and
   // store/products must precede `registerSiteRoutes`'s `/:slug` catch-all.
@@ -160,7 +163,7 @@ test("A: GET /store — plugin NOT wired (createRouteDeps()'s own default) — h
 });
 
 test("A: GET /store — plugin wired — query-string-dependent (not visitor-dependent) variance", async (t) => {
-  const deps: CommerceSiteAdapterDeps = createRouteDeps();
+  const deps: CommerceSiteTestDeps = createRouteDeps();
   // Minimal fake matching RouteDeps' own `store?` shape (types.ts:518) — exercises the flash-message
   // branch `req.query.msg` actually reads, which the no-plugin default above never reaches.
   deps.store = {
@@ -191,7 +194,7 @@ test("A: GET /store — plugin wired — query-string-dependent (not visitor-dep
 });
 
 test("A: GET /store/buy — MUST NEVER get a cache header of any kind (it's a GET that mutates)", async (t) => {
-  const deps: CommerceSiteAdapterDeps = createRouteDeps();
+  const deps: CommerceSiteTestDeps = createRouteDeps();
   deps.store = {
     listProducts: async () => [{ id: "p1", slug: "p1", title: "Test Widget", price: 500, stock: 3, version: 1 }],
     checkout: async () => ({ ok: true, orderId: "o1", remainingStock: 2, retries: 0 }),
