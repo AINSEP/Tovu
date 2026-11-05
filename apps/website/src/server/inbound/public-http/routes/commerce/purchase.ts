@@ -8,10 +8,13 @@ import { createRateLimiter, OUTBOUND_CALL_PER_IP, resolveClientIp, type RateLimi
 import type { RouteDeps } from "#src/server/routes/types";
 import { uniqueMemberCookie } from "../members/oidc-deps.js";
 import { isSameOriginCommentPost } from "../site/comments-submit.js";
+import { resolveProtocol } from "../oauth/public-origin.js";
 
 /** Narrow structural port; no credential, provider or ledger mutation capability crosses HTTP. */
 export interface CommerceHttpPort {
   status(): Promise<{ active: boolean; ready: boolean; reason: string | null }>;
+  activate(): Promise<{ active: boolean; ready: boolean; reason: string | null }>;
+  checkoutOrigin(): Promise<string | null>;
   createOrder(input: { memberId: string; priceId: string; quantity?: number }): Promise<unknown>;
   pay(input: { memberId: string; orderId: string }): Promise<unknown>;
   readOrder(input: { memberId: string; orderId: string }): Promise<unknown>;
@@ -50,22 +53,31 @@ async function admit(context: RequestContext): Promise<{ memberId: string; comme
   }
   const commerce = deps.commerce;
   if (!commerce) { unavailable(res); return null; }
-  if (req.method === "POST" && !await admitWrite({ req, res, commerce })) return null;
   const limit = await limiter.check({ key: resolveClientIp(req) });
   if (!limit.allowed) {
     res.set("Retry-After", String(limit.retryAfterSeconds)).status(429).json({ error: "Too many checkout requests. Please wait a minute and try again.", code: "RATE_LIMIT_EXCEEDED" }); return null;
   }
   const memberId = await buyer(context);
   if (!memberId) { res.status(401).json({ error: "Sign in as a shop member to view or pay for your order.", code: "MEMBER_SIGN_IN_REQUIRED" }); return null; }
+  if (req.method === "POST" && !await admitWrite({ req, res, commerce })) return null;
   return { memberId, commerce };
 }
 
 /** Only ready checkout accepts mutations, with the existing site origin policy. O(1). */
 async function admitWrite({ req, res, commerce }: { req: Request; res: Response; commerce: CommerceHttpPort }): Promise<boolean> {
-  const status = await commerce.status();
-  if (!status.ready) { unavailable(res, status.reason ?? undefined); return false; }
-  if (isSameOriginCommentPost({ request: req })) return true;
-  res.status(403).json({ error: "Open this shop to complete your purchase.", code: "SAME_ORIGIN_REQUIRED" });
+  if (!isSameOriginCommentPost({ request: req })) {
+    res.status(403).json({ error: "Open this shop to complete your purchase.", code: "SAME_ORIGIN_REQUIRED" }); return false;
+  }
+  const origin = await commerce.checkoutOrigin();
+  if (!origin) { unavailable(res); return false; }
+  const requestOrigin = req.get("origin") ?? `${resolveProtocol(req)}://${req.get("host")}`;
+  if (requestOrigin !== origin) {
+    res.status(403).json({ error: "Open the deployed shop to complete your purchase. The desktop app manages the catalog.",
+      code: "DEPLOYED_SHOP_REQUIRED", checkoutOrigin: origin }); return false;
+  }
+  const status = await commerce.activate();
+  if (status.ready) return true;
+  unavailable(res, status.reason ?? undefined);
   return false;
 }
 

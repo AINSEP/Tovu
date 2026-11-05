@@ -22,6 +22,8 @@ async function fixture(t: test.TestContext) {
   const calls: Array<{ action: string; input: unknown }> = [];
   const commerce = {
     status: async () => ({ active: true, ready: true, reason: null }),
+    activate: async () => ({ active: true, ready: true, reason: null }),
+    checkoutOrigin: async () => base,
     createOrder: async (input: { memberId: string; priceId: string; quantity?: number }) => {
       calls.push({ action: "create", input }); return { order: { id: "order-one", status: "pending" } };
     },
@@ -103,6 +105,15 @@ test("return and cancel pages read owned ledger truth; a forged paid query canno
 test("disabled commerce rejects new purchases without invoking it", async t => {
   const f = await fixture(t); f.deps.commerce = undefined;
   assert.equal((await f.request(orders, { priceId: "p" })).status, 503);
+  assert.deepEqual(f.calls, []);
+});
+
+test("desktop requests use the configured deployed shop for payment acceptance", async t => {
+  const f = await fixture(t);
+  f.deps.commerce!.checkoutOrigin = async () => "https://deployed-shop.example.test";
+  const response = await f.request(orders, { priceId: "p" });
+  assert.equal(response.status, 403);
+  assert.equal((await response.json()).code, "DEPLOYED_SHOP_REQUIRED");
   assert.deepEqual(f.calls, []);
 });
 
