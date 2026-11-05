@@ -1,3 +1,4 @@
+import { createSharedOAuthOwnerStorage, createSharedOAuthLabels } from "#src/features/api-connections/shared-owner";
 import { createSiteOAuthBindings } from "#src/features/project-keys/site-references";
 import { scheduleFormAttachmentCleanup } from "@jini-ai/cms/forms";
 import { protectExistingFormFiles } from "#src/features/forms/protect-existing-files";
@@ -62,7 +63,7 @@ import { createToolGapReader } from "#src/features/tool-audit/tool-gaps.repo";
 import { createNativeAgentRuntime } from "@jini-ai/agent-runtime";
 import { createAssistantAgentInventory } from "#src/assistant/agents";
 import { loadSiteVaultKinds, normalizeSiteVaultAtBoot } from "./vault-boot.js";
-import { composeAgentPluginConnections, resolveApiConnectionRuntime } from "./agent-plugin-connections.js";
+import { composeAgentPluginConnections, sharedApiConnectionOptions, resolveApiConnectionRuntime } from "./agent-plugin-connections.js";
 import { SqlSecretsVaultRepo, type SecretsVaultDatabase } from "@jini-ai/db/secrets-vault";
 import type { StorageKernel } from "@jini-ai/db/kernel";
 import { createPeerSiteReads } from "./peer-site-reads.js";
@@ -1935,6 +1936,7 @@ async function composeSiteRouteDeps(
   });
   let bindSharedApiOAuth: ((input: { keyId: string; use: boolean }) => Promise<void>) | undefined;
   const projectKeys = projectStore ? createProjectKeys({ vault: projectStore.vault.repo, attachments: projectStore.attachments,
+    describeOAuth: createSharedOAuthLabels({ scope: projectStore.vault, clock }),
     siteId: projectSiteId, siteName: resolvedSiteBinding.name, providerUsage: input => providerConfigSource.usage(input), reapply: input => providerPlugins.reapply(input),
     transaction: input => projectStore.transaction(input), inventory: projectStore.inventory ? () => projectStore.inventory!({}) : undefined, references: projectKeyReferences, bindOAuth: input => {
       if (!bindSharedApiOAuth) throw new Error("Shared connections are not available yet. Reopen this saved connection and try again.");
@@ -2166,10 +2168,9 @@ async function composeSiteRouteDeps(
     keyring: siteAssistantSecretKeyring, sealer: siteAssistantSecretSealer, customCredentialRepo: customCredentialSetRepo, clock, http: guardedOutboundHttpClient,
     env: process.env, derivedPublicOrigin,
   }, {
-    ...(projectStore && projectSiteId ? { shared: { scope: projectStore.vault, attachments: projectStore.attachments,
-      transaction: projectStore.transaction, siteId: projectSiteId, siteName: resolvedSiteBinding.name, ownerPrincipalId: identity.ownerPrincipalId,
+    shared: sharedApiConnectionOptions({ projectStore, siteId: projectSiteId, siteName: resolvedSiteBinding.name, ownerPrincipalId: identity.ownerPrincipalId,
       bindings: createSiteOAuthBindings({ workspaceId, repo: siteReferenceRepo,
-        vault: createApiConnectionVault({ repo: siteReferenceRepo, keyring: siteAssistantSecretKeyring, sealer: siteAssistantSecretSealer, clock, workspaceId }) }) } } : {}),
+        vault: createApiConnectionVault({ repo: siteReferenceRepo, keyring: siteAssistantSecretKeyring, sealer: siteAssistantSecretSealer, clock, workspaceId }) }) }),
     // A plugin's destination screen saves its own adapter's form-delivery bindings (an admin action).
     deliveryBindings: { settings: { repo: settingsRepo, clock, ids: idGen, authorize: identity.authorize, principals: settingsPrincipals }, forms: formDefinitionRepo, newBindingId: () => idGen.newId() },
   });
@@ -2332,6 +2333,11 @@ async function composeSiteRouteDeps(
       keyring: siteAssistantSecretKeyring,
       clock,
       devices: externalMcpOAuthDevices,
+      ...(projectStore && projectSiteId ? { shared: { owner: createSharedOAuthOwnerStorage({ scope: projectStore.vault, clock }),
+        bindings: createSiteOAuthBindings({ workspaceId, repo: siteReferenceRepo,
+          vault: createApiConnectionVault({ repo: siteReferenceRepo, keyring: siteAssistantSecretKeyring, sealer: siteAssistantSecretSealer, clock, workspaceId }) }),
+        attachments: projectStore.attachments, transaction: projectStore.transaction, siteId: projectSiteId, siteName: resolvedSiteBinding.name,
+        ownerPrincipalId: identity.ownerPrincipalId, inventory: projectStore.inventory ? () => projectStore.inventory!({}) : undefined } } : {}),
       onConnected: createApplyConnectDefaults({ agentPluginLayout, workspaceId, repo: externalMcpServerRepo, clock, notifyRosterChanged: notifyExternalMcpRosterChanged }),
     }),
     externalMcpOAuthDevices,
