@@ -32,10 +32,10 @@ export function projectKeyPermission({ row }: { row: VaultRecord }, _optional = 
   throw new ToolInputError({ message: "Choose an API key, provider-settings key or saved OAuth connection in Shared Keys. Details: P25_KEY_KIND_NOT_SUPPORTED." });
 }
 
-/** Metadata-only project inventory; card saves and explicit opt-in share the attachment owner.
- * No decrypt or secret projection. A failed attachment is propagated instead of reporting success.
+/** Bounded project inventory; OAuth labels may project the selected sealed account identity.
+ * Token payloads never enter the picker. A failed attachment propagates instead of reporting success.
  */
-export function createProjectKeys({ vault, attachments, siteId, siteName, reapply, transaction, providerUsage, inventory, references, bindOAuth }: {
+export function createProjectKeys({ vault, attachments, siteId, siteName, reapply, transaction, providerUsage, inventory, references, bindOAuth, describeOAuth }: {
   vault: VaultRepoPort; attachments: KeyAttachments; siteId: string; siteName: string;
   providerUsage: (input: { pluginId: string }) => Promise<ProviderKeyUsage>;
   reapply: (input: { pluginId: string }) => Promise<import("@jini-ai/plugins/host").PluginProviderApplyResult>;
@@ -44,6 +44,8 @@ export function createProjectKeys({ vault, attachments, siteId, siteName, reappl
   references?: SiteKeyReferences;
   /** Validates the consumer against the issuing identity, then saves its inert site binding. */
   bindOAuth?: (input: { keyId: string; use: boolean }) => Promise<void>;
+  /** Selected-row account/connection label only; never returns an issuing client or tokens. */
+  describeOAuth?: (input: { keyId: string }) => Promise<string>;
 }, _optional = {}): ProjectKeysPort {
   const find = async ({ keyId }: { keyId: string }) => {
     const row = await vault.find({ workspaceId: "project", id: keyId });
@@ -88,7 +90,8 @@ export function createProjectKeys({ vault, attachments, siteId, siteName, reappl
       return Promise.all(rows.filter(row => row.kind !== "api-connection" || providerPluginOf({ keyId: row.id }) || isSharedOAuthKey({ row })).map(async row => {
         const pluginId = providerPluginOf({ keyId: row.id });
         const card = pluginId ? cards.find(card => card.saveKind === "provider-settings" && card.saveTarget === pluginId) : undefined;
-        return { ...(await usage({ keyId: row.id })), name: card?.label ?? row.label, kind: row.kind };
+        const oauthLabel = isSharedOAuthKey({ row }) ? await describeOAuth?.({ keyId: row.id }) : undefined;
+        return { ...(await usage({ keyId: row.id })), name: oauthLabel ?? card?.label ?? row.label, kind: row.kind };
       }));
   }
   return {

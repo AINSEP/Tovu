@@ -77,3 +77,16 @@ export function createSharedOAuthOwnerStorage(required: { scope: SharedOAuthOwne
   };
 }
 export type SharedOAuthOwnerStorage = ReturnType<typeof createSharedOAuthOwnerStorage>;
+
+/** Picker projection opens only the listed lifecycle/context rows, never token payloads.
+ * @complexity At most three selected reads per OAuth item in the existing bounded 50-row inventory.
+ */
+export function createSharedOAuthLabels(required: { scope: SharedOAuthOwnerScope; clock: Clock }, _optional = {}) {
+  const storage = createSharedOAuthOwnerStorage(required);
+  return async ({ keyId }: { keyId: string }) => {
+    const [context, connection] = await Promise.all([storage.readContext({ credentialId: keyId }), storage.readConnection({ credentialId: keyId })]);
+    if (!context || !connection) return 'Unavailable saved connection (shared on this Mac)';
+    const account = connection.account?.displayName ?? connection.account?.id ?? 'No connected account';
+    return `${context.descriptor.label} — ${account} (shared on this Mac)`;
+  };
+}

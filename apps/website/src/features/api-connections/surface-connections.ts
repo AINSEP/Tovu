@@ -139,7 +139,8 @@ export function createSurfaceConnections(
       const { connection, connectionRef } = await resolve(connectionId);
       if (host.sharedOAuth && await host.sharedOAuth.hasBinding(connection)) {
         const shared = await host.sharedOAuth.getStatus(connection);
-        return statusFrom(host, connection, shared ? { ...shared, pendingSwitch: null } : NEVER_CONNECTED, connectionRef);
+        const account = shared?.account ? { ...shared.account, displayName: `${shared.account.displayName} (shared on this Mac)` } : null;
+        return statusFrom(host, connection, shared ? { ...shared, account, pendingSwitch: null } : NEVER_CONNECTED, connectionRef);
       }
       const record = await host.records.read({ key: connectionRef });
       return statusFrom(host, connection, record ? { ...record, pendingSwitch: liveStagedAccount(host, record.staged) } : NEVER_CONNECTED, connectionRef);

@@ -101,6 +101,7 @@ export async function startApiConnectionSignIn(
   optional: SignInOptions = {},
 ): Promise<ApiConnectionSignInStart> {
   if (required.host.runtime === "desktop") return startDesktopSignIn(required, optional);
+  if (required.destination === "shared") throw new ApiConnectionError({ code: 'connection-not-found', message: 'Shared connections are available only on this Mac. Choose this site for a hosted sign-in.' });
   const { host, connection, actorId, intent, scopeSetIds } = required;
   // The service first: its setup refusals (no client configured) come before the callback address's.
   const service = host.serviceFor({ connection });

@@ -103,11 +103,15 @@ test('shared OAuth attach validates its consumer before grant; stop here leaves 
   const row = { ...vaultRow({ id: 'oauth-owner', kind: 'api-connection' }), meta: { credentialFormat: 'oauth-token-set' } };
   await vault.put({ record: row, expectedRevision: null });
   const validated: string[] = [];
-  const keys = createProjectKeys({ ...inputs, bindOAuth: async ({ keyId, use }) => {
+  const keys = createProjectKeys({ ...inputs, describeOAuth: async ({ keyId }) => {
+    assert.equal(keyId, row.id);
+    return 'Office — Ada (shared on this Mac)';
+  }, bindOAuth: async ({ keyId, use }) => {
     assert.equal(await attachments.isAttached({ siteId: 'site-a', keyId }), false);
     validated.push(`${keyId}:${use}`);
   } });
   assert.equal((await keys.list({})).some(item => item.keyId === row.id), true);
+  assert.equal((await keys.list({})).find(item => item.keyId === row.id)?.name, 'Office — Ada (shared on this Mac)');
   await assert.rejects(createProjectKeys(inputs).use({ keyId: row.id, use: true }), /saved connection/);
   assert.equal(await attachments.isAttached({ siteId: 'site-a', keyId: row.id }), false);
   await keys.use({ keyId: row.id, use: true });

@@ -62,6 +62,19 @@ export function createSharedApiConnections(required: SharedApiConnectionDeps & {
     assertSharedOAuthCompatibility({ connection: shared, target: await target(connection) });
     await bindings.set({ consumerId: ref(connection), credentialId: keyId });
   }
+  async function assertGeneration({ credentialId, generation }: { credentialId: string; generation: number }) {
+    if (((await storage.records.read({ key: credentialId }))?.generation ?? 0) !== generation) {
+      throw new ApiConnectionError({ code: 'storage-conflict', message: 'This saved connection changed while sign-in was opening. Choose it again to start a new sign-in.' });
+    }
+  }
+  function fencedService({ service, credentialId, generation }: { service: ApiConnectionService; credentialId: string; generation: number }): ApiConnectionService {
+    return { ...service, start: (input, options) => required.transaction({ run: async () => {
+      // Store the attempt under the same owner transaction as the generation check. A global
+      // stop either precedes this start or invalidates its saved attempt before any callback.
+      await assertGeneration({ credentialId, generation });
+      return service.start(input, options);
+    } }) };
+  }
   return {
     bind,
     hasBinding: (connection: DeclaredApiConnection, _options = {}) => bindings.read({ consumerId: ref(connection) }).then(Boolean),
@@ -72,23 +85,37 @@ export function createSharedApiConnections(required: SharedApiConnectionDeps & {
     },
     getAccessToken: async (connection: DeclaredApiConnection, options: { expectedAccountId?: string } = {}) => consumer.getAccessToken({ ...await target(connection), ...options }),
     async selectLocal(connection: DeclaredApiConnection, _options = {}) {
-      const binding = await bindings.read({ consumerId: ref(connection) });
-      if (binding) await required.attachments.detach({ siteId, keyId: binding.credentialId });
-      await bindings.remove({ consumerId: ref(connection) });
+      await required.transaction({ run: async () => {
+        const binding = await bindings.read({ consumerId: ref(connection) });
+        if (binding) await required.attachments.detach({ siteId, keyId: binding.credentialId });
+        await bindings.remove({ consumerId: ref(connection) });
+      } });
     },
     async stopUsing(connection: DeclaredApiConnection, _options = {}) {
-      const binding = await bindings.read({ consumerId: ref(connection) });
-      if (binding) await required.attachments.detach({ siteId, keyId: binding.credentialId });
+      await required.transaction({ run: async () => {
+        const binding = await bindings.read({ consumerId: ref(connection) });
+        if (binding) await required.attachments.detach({ siteId, keyId: binding.credentialId });
+      } });
     },
     async prepare({ connection, actorId, context, redirectUri }: { connection: DeclaredApiConnection; actorId: string; context: SharedOAuthIssuingContext; redirectUri?: string }, _options = {}) {
       if (!siteId || actorId !== await required.ownerPrincipalId) throw unavailable();
+      const generation = (await storage.records.read({ key: context.credentialId }))?.generation ?? 0;
       const liveConnection = await declared(context);
       await storage.saveContext({ credentialId: context.credentialId, context });
       const service = required.createService({ connection: liveConnection, context, redirectUri });
-      return { service, workspaceId: 'project', async onCompleted() {
+      // The person's explicit choice grants this site before the provider round trip. A stop
+      // removes that grant; a late callback only verifies it and can never restore it.
+      await required.transaction({ run: async () => {
+        await assertGeneration({ credentialId: context.credentialId, generation });
+        await bindings.set({ consumerId: ref(liveConnection), credentialId: context.credentialId });
+        await required.attachments.attach({ siteId, keyId: context.credentialId, siteName: required.siteName });
+      } });
+      return { service: fencedService({ service, credentialId: context.credentialId, generation }), workspaceId: 'project', async onCompleted() {
         await required.transaction({ run: async () => {
-          await bind({ keyId: context.credentialId, use: true });
-          await required.attachments.attach({ siteId, keyId: context.credentialId, siteName: required.siteName });
+          const binding = await bindings.read({ consumerId: ref(liveConnection) });
+          if (binding?.credentialId !== context.credentialId) throw new ApiConnectionError({ code: 'access-denied',
+            message: 'This site stopped using the shared connection while sign-in was open. Choose the shared connection again to allow access.' });
+          await consumer.assertAuthorized(await target(liveConnection));
         } });
       } };
     },
