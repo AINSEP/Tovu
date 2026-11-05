@@ -897,18 +897,11 @@ describe("custom project-key usage", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("Could not change site usage.");
   });
 
-  it.each([
-    { initial: undefined, selected: "site", label: "This site only" },
-    { initial: "site" as const, selected: "project", label: "Save to project and use on this site" },
-  ])("offers both storage choices and forwards $selected", ({ initial, selected, label }) => {
-    const setCustomAddField = vi.fn();
-    renderTab({ projectKeysAvailable: true, setCustomAddField, customAddForm: { ...makeAccessTokens().customAddForm, scope: initial } });
+  it("saves to Shared Keys without offering a site ciphertext copy", () => {
+    renderTab({ projectKeysAvailable: true });
     fireEvent.click(screen.getByRole("button", { name: "+ Add custom provider" }));
-    const project = screen.getByRole("radio", { name: "Save to project and use on this site" });
-    expect(project).toHaveProperty("checked", initial !== "site");
-    expect(screen.getByRole("radio", { name: "This site only" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("radio", { name: label }));
-    expect(setCustomAddField).toHaveBeenLastCalledWith({ scope: selected });
+    expect(screen.getByText("Save to project and use on this site")).toBeInTheDocument();
+    expect(screen.queryByRole("radio", { name: "This site only" })).toBeNull();
   });
 
   it("offers only site storage when no project store is available", () => {

@@ -33,6 +33,7 @@ export type {
   TransformDefinitionRepoPort,
 } from "@jini-ai/cms/media";
 
+export { replaceMediaFile } from "@jini-ai/cms/media";
 export { computeBlobStorageKey } from "@jini-ai/cms/media";
 
 export {

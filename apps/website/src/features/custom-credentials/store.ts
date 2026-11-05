@@ -1,3 +1,4 @@
+import { ProjectKeyCreateConflictError } from "../project-keys/create-vault.js";
 import { normalizeCredentialWorksFor, VaultError, type VaultSummary } from "@jini-ai/platform/secrets/credential-sets";
 import { CredentialInputError, CREDENTIAL_MESSAGES, assertCredentialFreeField, normalizeCredentialToken } from '../../contracts/core/credential-token.js';
 import type { Clock as ClockPort, UUID } from "@jini-ai/core/primitives";
@@ -6,7 +7,7 @@ import { isUniqueViolation } from "@jini-ai/db/kernel";
 import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
 import { byVaultLabel, createTovuStoreVault } from "#src/platform/secrets/vault-kinds";
 import { customVaultRecord, customVaultScope } from "./vault-repo.js";
-import { credentialDeletionRepo, credentialCreateTarget, credentialScopes, type ScopedCredentialDeps } from "../vendor-credentials/index.js";
+import { credentialCreateTarget, credentialScopes, type ScopedCredentialDeps } from "../vendor-credentials/index.js";
 import { CUSTOM_CREDENTIAL_CATEGORIES, type CustomCredentialCategoryId } from "../../contracts/core/custom-credential-categories.js";
 import { type CustomCredentialScope, type CustomCredentialSetRecord, type CustomCredentialSetRepoPort, type CustomCredentialSummary, type CustomProviderConnectionInput } from "./types.js";
 
@@ -120,7 +121,7 @@ export async function describeCredential(deps: CustomCredentialReadDeps, input: 
  *   repo method (see that function's own doc for why).
  */
 export async function describeCredentialByLabel(deps: CustomCredentialReadDeps, input: { workspaceId: UUID; label: string }): Promise<CustomCredentialSummary | null> {
-  const located = (await listEffective(deps, input.workspaceId)).find(({ record }) => record.label === input.label);
+  const located = await locateByLabel({ deps, input });
   return located ? toSummary(located.record, reportedScope(deps, located.scoped)) : null;
 }
 
@@ -147,15 +148,17 @@ export async function listCustomCredentials(deps: CustomCredentialInventoryDeps,
 export async function listCustomCredentialInventory({ deps, workspaceId }: {
   deps: CustomCredentialInventoryDeps; workspaceId: UUID;
 }, _optional = {}): Promise<CustomCredentialSummary[]> {
-  const inventoryDeps = { ...deps, repo: credentialDeletionRepo({ repo: deps.repo }) };
-  const stores = await Promise.all(credentialScopes(inventoryDeps, workspaceId).map(async scoped => {
-    const records = await scoped.deps.repo.listByWorkspace({ workspaceId: scoped.workspaceId });
+  const stores = await Promise.all(credentialScopes(deps, workspaceId).map(async scoped => {
+    const source = scoped.scope === "project" ? deps.repo.project?.inventoryRepo ?? scoped.deps.repo : scoped.deps.repo;
+    const records = await source.listByWorkspace({ workspaceId: scoped.workspaceId });
     return Promise.all(records.map(record => toSummary(record, reportedScope(deps, scoped))));
   }));
   return stores.flat().sort((a, b) => a.label.localeCompare(b.label));
 }
 
 export interface CustomCredentialWriteDeps extends CustomCredentialReadDeps {
+  /** Trusted owner session after human submission; never populated from tool/request input. */
+  allowSharedKeyReplacement?: boolean;
   sealer: SecretSealerPort;
   keyring: KeyringPort;
   clock: ClockPort;
@@ -348,9 +351,10 @@ async function assertLabelFreeOnSite(deps: CustomCredentialReadDeps, input: { ta
  */
 async function throwSaveError(deps: CustomCredentialReadDeps, input: { err: unknown; target: ScopedCredentialDeps<unknown>; id: UUID; label: string }): Promise<never> {
   const { err, target, id, label } = input;
+  if (err instanceof ProjectKeyCreateConflictError) throw new CustomCredentialDuplicateLabelError(err.message);
   // Unattached project rows are hidden from the normal reader. Check metadata only to distinguish
   // a duplicate label from a CAS conflict; never attach or open the existing credential.
-  const inventory = credentialDeletionRepo({ repo: deps.repo }).project;
+  const inventory = deps.repo.project;
   const hiddenDuplicate = target.scope === "project" && err instanceof VaultError && err.code === "conflict"
     && (await inventory!.repo.listByWorkspace({ workspaceId: target.workspaceId })).some(row => row.label === label && row.id !== id);
   // The storage kernel recognizes the label's UNIQUE (workspace_id, …, label) index on any database.
@@ -449,6 +453,17 @@ function updatedConnection({ input, existing }: {
   return { connection, username };
 }
 
+/** Only the trusted owner card may replace a granted shared entry. Local rows use their own repo.
+ * The replacement adapter rechecks the grant at commit, so revocation while a card is open wins.
+ * @complexity O(1); no inventory reads or key material are exposed.
+ */
+function sharedReplacementScope({ deps, scoped }: { deps: CustomCredentialWriteDeps; scoped: ScopedCredentialDeps<CustomCredentialWriteDeps> }): ScopedCredentialDeps<CustomCredentialWriteDeps> {
+  const project = deps.repo.project;
+  if (scoped.scope !== "project" || !project?.createRepo) return scoped;
+  if (!deps.allowSharedKeyReplacement || !project.replaceRepo) throw new CustomCredentialValidationError("Change this saved key in Shared Keys, or open its secure key card in the owner session. Details: P25_OWNER_KEY_READ_ONLY.");
+  return { ...scoped, deps: { ...scoped.deps, repo: project.replaceRepo } };
+}
+
 /** Partial update: blank/omitted connection preserves the envelope, replacing a connection resets
  * its username, and a supplied top-level username wins (null clears). Username is metadata only;
  * removing the old ciphertext fallback makes clear impossible to resurrect, without opening it.
@@ -458,7 +473,8 @@ export async function updateCustomCredential(deps: CustomCredentialWriteDeps, in
   // Changed where it lives: this site's own row, else the project's attached row.
   const located = await locateById(deps, input);
   if (!located) throw new CustomCredentialNotFoundError(`no custom credential '${input.id}' in this workspace`);
-  const { scoped, record: existing } = located;
+  const { record: existing } = located;
+  const scoped = sharedReplacementScope({ deps, scoped: located.scoped });
   const { label, category, baseUrl, additionalHosts } = updatedMetadata({ input, existing });
   const { connection, username } = updatedConnection({ input, existing });
   // A rename gets the same site-label check as a create (`assertLabelFreeOnSite`).
@@ -484,7 +500,8 @@ export async function updateCustomCredential(deps: CustomCredentialWriteDeps, in
  */
 export async function deleteCustomCredential(deps: CustomCredentialReadDeps, input: { workspaceId: UUID; id: UUID }): Promise<void> {
   // A project row is removed only when no other site uses it, with its attachments.
-  const located = await locateById({ ...deps, repo: credentialDeletionRepo({ repo: deps.repo }) }, input);
+  const located = await locateById({ ...deps, repo: deps.repo }, input);
+  if (located?.scoped.scope === "project" && deps.repo.project?.createRepo) throw new CustomCredentialValidationError("To stop using this key here, revoke its site grant. Manage the saved key itself in Shared Keys. Details: P25_OWNER_KEY_READ_ONLY.");
   if (located) await located.scoped.deps.repo.delete({ workspaceId: located.scoped.workspaceId, id: input.id });
 }
 
@@ -502,10 +519,9 @@ export async function resolveCustomCredentialByLabel(
   deps: CustomCredentialResolveDeps,
   input: { workspaceId: UUID; label: string }
 ): Promise<{ id: UUID; category: CustomCredentialCategoryId; baseUrl: string; additionalHosts: readonly string[]; connection: CustomProviderConnectionInput } | null> {
-  // Site row first, else the project's (`credentialScopes`); opened with the store that sealed it.
-  const located = (await listEffective(deps, input.workspaceId)).find(({ record }) => record.label === input.label);
+  const located = await locateByLabel({ deps, input });
   if (!located) return null;
-  const opened = await openLocated(located);
+  const opened = await openLocated(located as Located<CustomCredentialResolveDeps>);
   if (!opened) return null;
   // Use metadata from the same read as the payload, so a concurrent origin/username update cannot
   // pair a new token with the old allowlist. Never fall back to an embedded legacy username.
@@ -513,6 +529,20 @@ export async function resolveCustomCredentialByLabel(
   return { id: located.record.id, category: current.category as CustomCredentialCategoryId, baseUrl: current.baseUrl as string,
     additionalHosts: current.additionalHosts as string[], connection: { token,
       ...(typeof current.username === "string" ? { username: current.username } : {}) } };
+}
+
+/** Production project readers resolve one granted label through an indexed join, never inventory.
+ * Compatibility fixture ports without that query retain their existing metadata scan.
+ * @complexity O(1) selected row reads on the composed owner store.
+ */
+async function locateByLabel({ deps, input }: { deps: CustomCredentialReadDeps; input: { workspaceId: UUID; label: string } }): Promise<Located<CustomCredentialReadDeps> | undefined> {
+  for (const scoped of credentialScopes(deps, input.workspaceId)) {
+    const repo = scoped.deps.repo;
+    const record = repo.findByLabel ? await repo.findByLabel({ workspaceId: scoped.workspaceId, label: input.label })
+      : (await repo.listByWorkspace({ workspaceId: scoped.workspaceId })).find(row => row.label === input.label);
+    if (record) return { scoped, record };
+  }
+  return undefined;
 }
 
 /** Opens one located row with the store that sealed it: its token and the metadata of that same read.

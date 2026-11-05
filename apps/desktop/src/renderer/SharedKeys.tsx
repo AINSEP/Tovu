@@ -67,12 +67,13 @@ function SavedKey({ entry, bridge, state }: { entry: OwnerStoreEntry; bridge: Ow
     <h3>{entry.label}</h3>
     <p>{entry.provider} · revision {entry.revision}</p>
     <p>Saved — site usage unavailable</p>
-    {entry.kind === 'vendor' && <>
+    <>
       <button type="button" className="button button--quiet" disabled={state.busy} onClick={() => setReplacing(!replacing)}>
         {replacing ? 'Cancel replacement' : 'Replace key'}
       </button>
-      {replacing && <KeyForm bridge={bridge} state={state} entry={entry} />}
-    </>}
+      {replacing && (entry.kind === 'api-connection' ? <ProviderKeyForm bridge={bridge} state={state} entry={entry} /> : <KeyForm bridge={bridge} state={state} entry={entry} />)}
+    </>
+    <button type="button" className="button button--quiet" disabled={state.busy} onClick={() => void state.run({ action: () => bridge.delete({ id: entry.id, expectedRevision: entry.revision }, {}) })}>Delete unused key</button>
   </article>;
 }
 
@@ -86,31 +87,57 @@ function KeyForm({ bridge, state, entry }: { bridge: OwnerStoreBridge; state: St
     const form = event.currentTarget;
     const fields = new FormData(form);
     const provider = String(fields.get('provider')).trim();
-    const input = { store: 'project' as const, entry: {
-      ...(entry ? { id: entry.id } : {}), kind: 'vendor' as const,
-      label: String(fields.get('label')).trim(), provider,
-      expectedRevision: entry?.revision ?? null,
-      meta: { credentialType: 'vendor', worksFor: entry?.worksFor ?? [provider] },
+    const replacement = entry ? { id: entry.id, kind: entry.kind, label: entry.label, provider: entry.provider,
+      expectedRevision: entry.revision, meta: {}, payload: { token: String(fields.get('token')) } } : {
+      kind: 'vendor' as const, label: String(fields.get('label')).trim(), provider,
+      expectedRevision: null, meta: { credentialType: 'vendor', worksFor: [provider] },
       payload: { vendorId: provider, token: String(fields.get('token')) },
-    } };
+    };
+    const input = { store: 'project' as const, entry: replacement };
     form.reset();
     void state.run({ action: () => bridge.put(input, {}) });
   };
   return <form className="shared-keys__form" onSubmit={submit}>
     <h3>{entry ? 'Replace saved key' : 'Save a key'}</h3>
     <p>For credentials with one API key or token.</p>
-    {entry && <p>Replacing writes a single-token credential and resets other credential fields. Sites using this project key use the replacement.</p>}
+    {entry && <p>Replacing preserves the saved settings and other credential fields. Sites using this shared key use the replacement.</p>}
     <fieldset disabled={state.busy || !state.loaded}>
       <label className="create-field"><span>Key name</span>
         <input name="label" required maxLength={200} defaultValue={entry?.label} readOnly={!!entry} />
       </label>
       <label className="create-field"><span>Provider ID</span>
-        <input name="provider" required maxLength={100} placeholder="Provider's plugin ID" defaultValue={entry?.provider ?? ''} readOnly={!!entry} autoCapitalize="none" spellCheck={false} />
+        <input name="provider" required={!entry} maxLength={100} placeholder="Provider's plugin ID" defaultValue={entry?.provider ?? ''} readOnly={!!entry} autoCapitalize="none" spellCheck={false} />
       </label>
       <label className="create-field"><span>{entry ? 'New API key or token' : 'API key or token'}</span>
         <input name="token" type="password" required maxLength={32000} autoComplete="off" spellCheck={false} />
       </label>
       <button type="submit" className="button button--primary">{entry ? 'Replace key' : 'Save to project'}</button>
+    </fieldset>
+  </form>;
+}
+
+/** Provider settings stay intact; only the secret fields entered here are replaced. */
+function ProviderKeyForm({ bridge, state, entry }: { bridge: OwnerStoreBridge; state: StoreState; entry: OwnerStoreEntry }) {
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const input = form.elements.namedItem('secrets') as HTMLInputElement;
+    let secrets: Record<string, string>;
+    try {
+      secrets = JSON.parse(input.value);
+      if (!secrets || Array.isArray(secrets) || typeof secrets !== 'object' || !Object.values(secrets).every(value => typeof value === 'string')) throw new Error();
+    } catch { input.setCustomValidity('Enter a JSON object with secret field names and their new text values.'); input.reportValidity(); return; }
+    input.setCustomValidity('');
+    form.reset();
+    void state.run({ action: () => bridge.put({ store: 'project', entry: { id: entry.id, kind: entry.kind, label: entry.label, provider: entry.provider,
+      expectedRevision: entry.revision, meta: {}, payload: { secrets } } }, {}) });
+  };
+  return <form className="shared-keys__form" onSubmit={submit}>
+    <h3>Replace provider secrets</h3>
+    <p>Enter a JSON object using the secret field names from the provider settings. Saved endpoints and other settings are preserved.</p>
+    <fieldset disabled={state.busy}>
+      <label>New secret fields<input type="password" name="secrets" required autoComplete="off" spellCheck={false} maxLength={32000} onInput={event => event.currentTarget.setCustomValidity('')} /></label>
+      <button type="submit" className="button button--primary">Replace key</button>
     </fieldset>
   </form>;
 }

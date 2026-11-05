@@ -117,6 +117,7 @@ export interface CustomCredentialsToolDeps extends OperatorLocaleDeps {
   readonly workspaceId: string;
   readonly clock: Clock;
   readonly customCredentialSetRepo: CustomCredentialSetRepoPort;
+  readonly ownerPrincipalId?: Promise<string>;
   readonly siteAssistantSecretSealer: SecretSealerPort;
   /** `updateCustomCredential`'s OTHER write dependency (`CustomCredentialWriteDeps.keyring`), needed
    *  ONLY so `custom_credential_set_username`'s handler can build the full write-deps shape that
@@ -598,7 +599,7 @@ interface SetTokenAnswerContext {
  */
 // Lifecycle classification and outcome delivery now belong to Jini; this function is only the save port.
 async function saveSetToken(
-  { token, signal, routeDeps, existing, pluginCard }: SetTokenAnswerContext & { token: string; signal: AbortSignal }, _optional = {},
+  { token, signal, routeDeps, existing, pluginCard, principalId }: SetTokenAnswerContext & { token: string; signal: AbortSignal; principalId: string }, _optional = {},
 ): Promise<CustomCredentialSummary> {
   // Paste artifacts are dropped before anything is read or written; see card-token.ts.
   const cleanedToken = cleanCardToken({ token });
@@ -624,6 +625,7 @@ async function saveSetToken(
   return await updateCustomCredential(
     {
       repo: abortGuardedCredentialRepo({ store: routeDeps.customCredentialSetRepo, signal }),
+      allowSharedKeyReplacement: principalId === await routeDeps.ownerPrincipalId,
       sealer: routeDeps.siteAssistantSecretSealer,
       keyring: routeDeps.siteAssistantSecretKeyring,
       clock: routeDeps.clock,
@@ -981,7 +983,7 @@ export function buildApiCredentialSaveHandlers({ routeDeps, surfaces }: { routeD
         toolId: CREDENTIAL_SAVE_TOOL_ID,
         prepare: async () => ({ label }),
         form: ({ prep }) => applyPluginCredentialCard({ card: pluginCard, form: setTokenForm(prep) }),
-        save: ({ values, signal }) => saveSetToken({ token: values.token as string, signal, routeDeps, existing, pluginCard }),
+        save: ({ values, signal }) => saveSetToken({ token: values.token as string, signal, routeDeps, existing, pluginCard, principalId: ctx.principal.id }),
         result: ({ run }) => {
           // Token hints belong on the human's card, never in the model-facing result or audit output.
           if (run.status === "saved") return { saved: true };

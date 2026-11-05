@@ -18,12 +18,6 @@ it.each([false, true])("copy forms and outcomes grow from content rather than re
   const deps: CredentialCopyToolDeps = {
     workspaceId: "target", ownerPrincipalId: Promise.resolve("owner"),
     authorize: async () => ({ allowed: true, reason: "matched" }), gatedMutations: { gatewayDeps: {} },
-    localCredentialCopy: {
-      localHost: true,
-      list: async () => [{ siteId: "source", name: "plannie", ...(needsUpgrade ? { reasonCode: "source-needs-upgrade" } : {}),
-        keys: [{ kind: "vendor", id: "one", label: "OpenAI", provider: "openai", worksFor: [] }] }],
-      copy: async () => [{ kind: "vendor", id: "one", status: "copied" }],
-    },
   };
   const tool = buildCredentialCopyRegistrations({ deps, surfaces: { surfaceExchanges } })[0]!;
   const emitSurface = async (emission: SurfaceEmission) => { resources.push((emission.payload as { resource: UIResource }).resource); };

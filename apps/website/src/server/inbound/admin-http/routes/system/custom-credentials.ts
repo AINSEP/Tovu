@@ -17,7 +17,7 @@ import {
   type UpdateCustomCredentialInput,
   type CustomCredentialSummary,
 } from "#src/features/custom-credentials/index";
-import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
+import { getAuthedPrincipal, rejectUnlessSessionCredential } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
 
 /**
@@ -41,7 +41,7 @@ import type { RouteDeps } from "#src/server/routes/types";
 export type AdminCustomCredentialsDeps = Pick<
   RouteDeps,
   "workspaceId" | "authorize" | "clock" | "idGen" | "customCredentialSetRepo" | "siteAssistantSecretSealer" | "siteAssistantSecretKeyring"
-> & Partial<Pick<RouteDeps, "loadDeployTargets" | "publishCredentialVerificationCache" | "projectKeys">>;
+> & Partial<Pick<RouteDeps, "loadDeployTargets" | "publishCredentialVerificationCache" | "projectKeys" | "ownerPrincipalId">>;
 
 const PERMISSION = "custom-credentials.write";
 const ENTITY_TYPE = "custom-credentials";
@@ -157,6 +157,10 @@ export function registerAdminCustomCredentialsRoutes(app: Express, deps: AdminCu
 
   app.get(BASE_PATH, async (req, res) => {
     if (await rejectUnlessAuthorized(req, res)) return;
+    if (deps.projectKeys) {
+      if (!rejectUnlessSessionCredential(res, { message: "Use the owner's session to view Shared Keys.", permission: PERMISSION })) return;
+      if (getAuthedPrincipal(res).id !== await deps.ownerPrincipalId) { res.status(403).json({ error: "Sign in as the installation owner to view Shared Keys." }); return; }
+    }
     try {
       const [inventory, keys] = await Promise.all([
         listCustomCredentialInventory({ deps: readDeps, workspaceId: deps.workspaceId }),
@@ -200,7 +204,8 @@ export function registerAdminCustomCredentialsRoutes(app: Express, deps: AdminCu
     try {
       const registry = deps.loadDeployTargets && deps.publishCredentialVerificationCache ? await deps.loadDeployTargets(deps.workspaceId) : undefined;
       const before = await describeCredential(readDeps, { workspaceId: deps.workspaceId, id: req.params.id });
-      const credential = await updateCustomCredential(writeDeps, buildUpdateCredentialInput(deps.workspaceId, req.params.id, body));
+      const ownerSession = res.locals.authCredentialKind === "session" && getAuthedPrincipal(res).id === await deps.ownerPrincipalId;
+      const credential = await updateCustomCredential({ ...writeDeps, allowSharedKeyReplacement: ownerSession }, buildUpdateCredentialInput(deps.workspaceId, req.params.id, body));
       if (before && body.worksFor !== undefined && registry && deps.publishCredentialVerificationCache) invalidatePublishCredentialCompatibility({ workspaceId: deps.workspaceId, registry, cache: deps.publishCredentialVerificationCache, before, after: credential });
       res.status(200).json({ credential });
     } catch (err) {

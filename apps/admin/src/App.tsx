@@ -64,10 +64,10 @@ import {
 } from "./App.hooks";
 
 /**
- * A resolved route, plus Tovu's legacy sections and Add-ons migration metadata — see `parseRoute`.
+ * A resolved route, plus Tovu's legacy sections and URL migration metadata — see `parseRoute`.
  */
 interface Route extends AdminRoute {
-  /** Replacement URL for a retired Add-ons route; resolved in one migration adapter. */
+  /** Replacement URL for a retired Tovu route, executed before mounting its screen. */
   redirectPath?: string;
   /**
    * Set only by the legacy `/section/:id` branch when `id` does not match a registered panel.
@@ -97,9 +97,9 @@ const NO_PERMISSIONS: readonly string[] = [];
 /**
  * Parses a *route path* (base already stripped by `router.ts`) into a `Route`.
  *
- * Delegates to `@jini-ai/admin/core`'s `matchRoute` against `panels.tsx`'s `ADMIN_PANELS` for
- * Tovu's Add-ons URLs first pass through `resolveAddonsRoute`; Jini still matches their stable
- * panel IDs. Another Tovu-specific shape the generic matcher was never given a branch for is:
+ * Delegates to `@jini-ai/admin/core`'s `matchRoute` against `panels.tsx`'s `ADMIN_PANELS`.
+ * Tovu's `/assistant` alias and Add-ons URLs are canonicalized first; Jini still matches their
+ * stable panel IDs. Another Tovu-specific shape the generic matcher was never given a branch for is:
  * legacy `/section/:id` URLs, which — unlike a modern bare `/settings` segment — accept an
  * *arbitrary* id. `matchRoute` matches over an array (`panels.find(p => p.id === segment)`), so
  * the historic `Object.hasOwn` hazard this file used to guard against (`/admin/constructor` etc.
@@ -109,12 +109,23 @@ const NO_PERMISSIONS: readonly string[] = [];
  * `section/` is still accepted as a leading segment. Not for new URLs — nothing generates it any
  * more — but `router.ts`'s legacy-hash redirect strips it, and this is the second line of defence
  * for a stored URL that reaches the parser without going through that redirect.
+ *
+ * @returns The canonical panel/query plus a replacement URL for a retired Tovu path; no I/O.
+ * @complexity O(n + p·r·s) time and O(n + s) space: n URL characters, p registered panels,
+ * r patterns per panel, s path segments. Legacy/alias rewrites add only a bounded parsing pass.
  */
 export function parseRoute(routePath: string): Route {
   // Everything before the first `?` (the query is `matchRoute`'s to read). A replace rather than
   // `split("?")[0]`, whose `?? ""` fallback for an index that always exists could never fire.
   const rawPath = routePath.split("?", 1)[0]!;
   const parts = rawPath.split("/").filter(Boolean);
+
+  // Stored assistant links must reach the registered page without mounting Dashboard first.
+  // Keep the original query bytes; serializing URLSearchParams would change encodings/order.
+  if (rawPath === "/assistant" || rawPath === "/assistant/") {
+    const redirectPath = `/ai-assistant${routePath.slice(rawPath.length)}`;
+    return { ...parseRoute(redirectPath), redirectPath };
+  }
 
   if (parts[0] === "section" && parts[1]) {
     const id = parts[1];

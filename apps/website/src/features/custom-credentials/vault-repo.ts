@@ -37,9 +37,15 @@ export function customVaultRecord({ row, expectedRevision }: { row: VaultPutReco
 export class CustomCredentialVaultRepo implements CustomCredentialSetRepoPort {
   readonly vault: VaultRepoPort;
   readonly project?: CustomCredentialProjectScope;
+  readonly findByLabel?: (input: { workspaceId: string; label: string }) => Promise<CustomCredentialSetRecord | null>;
   /** @param optional.project The project store this site's rows fall back to (`types.ts`). */
   constructor({ vault }: { vault: VaultRepoPort }, optional: { project?: CustomCredentialProjectScope } = {}) {
     this.vault = vault;
+    const reader = vault as import("../project-keys/attached-vault.js").SiteGrantedVault;
+    if (reader.findByLabel) this.findByLabel = async input => {
+      const row = await reader.findByLabel!(input);
+      return row && isCustomCredentialRow({ row }) ? customVaultRecord({ row }) : null;
+    };
     if (optional.project) this.project = optional.project;
   }
   async findById(input: { workspaceId: string; id: string }): Promise<CustomCredentialSetRecord | null> {

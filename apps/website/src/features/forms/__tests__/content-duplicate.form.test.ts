@@ -240,3 +240,12 @@ test("a trashed copy still reserves the derived slug, so the next copy uses the 
   assert.equal((await formDefinitionRepo.findById({ workspaceId: WORKSPACE_ID, id: next.definition.id }))?.slug, "contact-us-2-2");
   assert.deepEqual(await formDefinitionRepo.findAnyById({ workspaceId: WORKSPACE_ID, id: held.id }), { ...held, deletedAt: NOW });
 });
+
+test('duplicating an HTML form preserves authoring mode and markup', async () => {
+  const { deps, formDefinitionRepo } = fakeRouteDeps(['admin.forms.manage', 'pages.edit_html']);
+  const html = '<form><p>Original introduction</p><input type="email" name="email" required><textarea name="message"></textarea><button type="submit">Send</button></form>';
+  await seedForm(formDefinitionRepo, { mode: 'html', html });
+  const result = await call(duplicateTool(deps), { resource: 'form', id: 'source-form' }) as { definition: FormView };
+  const copy = await formDefinitionRepo.findById({ workspaceId: WORKSPACE_ID, id: result.definition.id }) as unknown as { mode: string; html: string };
+  assert.equal(copy.mode, 'html'); assert.match(copy.html, /Original introduction/);
+});

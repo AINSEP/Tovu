@@ -54,6 +54,16 @@ describeEachDialect(
     make: (kernel: ContentKernel) => ({ kernel, repo: new SqlFormDeliveryRepo({ kernel }), leases: new SqlFormPullLeaseRepo({ kernel }), outbox: new SqlOutboxAdapter(kernel) }),
   },
   (make) => {
+    test("notification summary isolates workspace and submission and returns counts only", async () => {
+      const ctx = make();
+      for (const [id, workspaceId] of [['forms:notify:s1:a@example.com', 'wa'], ['forms:notify:s10:a@example.com', 'wa'], ['forms:notify:s1:b@example.com', 'wb']]) {
+        await ctx.outbox.enqueue({ id, name: 'form.notification.deliver', workspaceId, aggregateId: 's1', occurredAt: T0, payload: { private: 'never exposed' } });
+      }
+      await ctx.kernel.run(db => db.updateTable('outbox_events').set({ status: 'failed', last_error: 'provider echoed secret' }).where('id', '=', 'forms:notify:s1:a@example.com').execute());
+      assert.deepEqual(await ctx.repo.notificationSummary({ workspaceId: 'wa', submissionId: 's1' }), { failed: 1, pending: 0 });
+      assert.deepEqual(await ctx.repo.notificationSummary({ workspaceId: 'wb', submissionId: 's1' }), { failed: 0, pending: 1 });
+    });
+
     test("a plan for workspace B never returns or reuses workspace A's plan for the same submission id", async () => {
       const ctx = make();
       const a = await plan(ctx, "wa", ["b1"]);

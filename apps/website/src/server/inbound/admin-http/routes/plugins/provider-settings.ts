@@ -3,7 +3,7 @@ import type { Express, Request, Response } from "express";
 import type { PluginProviderSettingField } from "@jini-ai/plugins/host";
 
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
-import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
+import { getAuthedPrincipal, rejectUnlessSessionCredential } from "#src/server/inbound/admin-http/dev-auth";
 import type { ProviderConfigSource } from "#src/server/runtime/composition/provider-config-source";
 import { declaredProviderSettingFields, saveProviderSettings } from "#src/server/runtime/composition/provider-settings-save";
 import type { PluginsRouteDeps } from "./deps.js";
@@ -26,6 +26,7 @@ import type { PluginsRouteDeps } from "./deps.js";
 export interface ProviderSettingsRouteDeps extends Pick<PluginsRouteDeps, "workspaceId" | "authorize" | "discoverPlugins"> {
   tracker?: import('@jini-ai/diagnostics/observability').Tracker;
   providerConfig?: ProviderConfigSource;
+  ownerPrincipalId?: Promise<string>;
   projectKeys?: import("#src/features/project-keys/service").ProjectKeysPort;
   providerAppliesAt?: (input: { pluginId: string }) => "now" | "restart" | "failed";
   reapplyProvider?: (input: { pluginId: string }) => Promise<import("@jini-ai/plugins/host").PluginProviderApplyResult>;
@@ -124,6 +125,8 @@ function registerProjectKeyUseRoute(app: Express, deps: ProviderSettingsRouteDep
     try {
       if (String(req.params.workspaceId) !== deps.workspaceId) { res.status(404).json({ error: "workspace was not found" }); return; }
       const principal = getAuthedPrincipal(res);
+      if (!rejectUnlessSessionCredential(res, { message: "Use the owner's session to approve or revoke a saved key for this site.", permission: "custom-credentials.write" })) return;
+      if (principal.id !== await deps.ownerPrincipalId) { res.status(403).json({ error: "Sign in as the installation owner to change this site's saved key grants." }); return; }
       if (!deps.projectKeys) { res.status(503).json({ error: "This site has no project key store." }); return; }
       const input = req.body as Record<string, unknown> | null;
       if (!isProjectKeyUseInput(input)) { res.status(400).json({ error: "use must be true or false" }); return; }

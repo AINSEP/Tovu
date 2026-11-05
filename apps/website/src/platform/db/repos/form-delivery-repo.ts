@@ -157,6 +157,18 @@ export class SqlFormDeliveryRepo implements FormDeliveryPlanPort {
     }
   }
 
+  /** Indexed stable-id range, at most four grouped status counts, on detail reads only.
+   * No recipient addresses, event payloads or provider error messages leave storage.
+   * @complexity O(recipient jobs for this submission), constant response bytes. */
+  async notificationSummary({ workspaceId, submissionId }: { workspaceId: string; submissionId: string }, _optional = {}): Promise<{ failed: number; pending: number }> {
+    const prefix = `forms:notify:${submissionId}:`;
+    const rows = await this.required.kernel.run(db => db.selectFrom('outbox_events')
+      .select(['status', db.fn.countAll().as('count')]).where('workspace_id', '=', workspaceId)
+      .where('id', '>=', prefix).where('id', '<', prefix + '\uffff').groupBy('status').execute());
+    return { failed: Number(rows.find(row => row.status === 'failed')?.count ?? 0),
+      pending: rows.filter(row => row.status === 'pending' || row.status === 'processing').reduce((total, row) => total + Number(row.count), 0) };
+  }
+
   /**
    * Every binding's status for one submission of `workspaceId`, ordered by binding id.
    * @complexity O(bindings of the submission), via `ux_form_delivery_jobs_binding` and primary keys.

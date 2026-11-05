@@ -1,7 +1,10 @@
 /** Tovu policy over Jini's bounded OS sampler and process-tree owner. Monitor only. */
-import { collectProcessTreePids, type ProcessUsage } from '@jini-ai/platform/process';
-import { applyElectronMemoryReadings, type ElectronProcessMemory } from '@jini-ai/desktop-host/electron';
-import type { ResourceGroup, ResourceMetrics, ResourceProcess, ResourcesRequest, ResourcesSnapshot } from './contracts/resources.ts';
+import { collectProcessTreePids, type ProcessUsage, type ProcessPrivateMemory } from '@jini-ai/platform/process';
+import type { ElectronProcessMemory } from '@jini-ai/desktop-host/electron';
+import type { ResourcesRequest, ResourceMetrics, ResourceProcess, ResourcesSnapshot } from './contracts/resources.ts';
+import { groupMemoryMetric, readDesktopMemory, sampleTopMemory, type MemoryUsage, type PrivateMemorySampler } from './desktop-memory-sampler.ts';
+
+type ResourceGroup = ResourcesSnapshot['app'];
 
 /** Review specifies GB (decimal), inclusive edges, and CPU sustained across two measured intervals. */
 const SITE_WARNING_BYTES = 1_500_000_000;
@@ -18,6 +21,8 @@ export interface DesktopResourcesPorts {
   listUsage: () => Promise<readonly ProcessUsage[]>;
   /** Native Electron PIDs only; Electron-as-node children stay in the OS sample. */
   listElectronMetrics?: () => readonly ElectronProcessMemory[];
+  /** One bulk read for owned PIDs; missing/failed readings retain labelled RSS. */
+  samplePrivateMemory?: PrivateMemorySampler;
   now: () => number;
   totalMem: () => number;
   openSites: () => readonly OpenResourceSite[];
@@ -39,7 +44,7 @@ function cpuReading({ usage, previous, at }: { usage: ProcessUsage; previous: Pr
  * carries the server's executable name instead of "node".
  */
 function processRows({ usages, rootPid, rootRole, readings }: {
-  usages: readonly ProcessUsage[]; rootPid: number; rootRole: 'site-server' | 'app';
+  usages: readonly MemoryUsage[]; rootPid: number; rootRole: 'site-server' | 'app';
   readings: ReadonlyMap<number, ReturnType<typeof cpuReading>>;
 }, _options = {}): ResourceProcess[] {
   const rootName = usages.find((row) => row.pid === rootPid)?.name;
@@ -48,28 +53,40 @@ function processRows({ usages, rootPid, rootRole, readings }: {
   return usages.map((row) => {
     let role: ResourceProcess['role'] = row.pid === daemonPid ? 'daemon' : 'process';
     if (row.pid === rootPid) role = rootRole;
-    return { pid: row.pid, ppid: row.ppid, name: row.name, rssBytes: row.rssBytes, role,
+    return { pid: row.pid, ppid: row.ppid, name: row.name, rssBytes: row.rssBytes, rawRssBytes: row.rawRssBytes, memoryMetric: row.memoryMetric, role,
       cpuPercent: readings.get(row.pid)!.cpuPercent, cpuWarning: readings.get(row.pid)!.cpuWarning };
   });
 }
 
-/** The sampler's own probe (`ps`; PowerShell on Windows) is a fresh direct child of the desktop on every
+/** The sampler's own probe (`ps`/`top`; PowerShell on Windows) is a fresh direct child of the desktop on every
  * read: not a cost of Tovu, and its always-unmeasured CPU would make the total unavailable forever. O(n). */
 function withoutUsageProbe({ usages, desktopPid, platform }: {
   usages: readonly ProcessUsage[]; desktopPid: number; platform: NodeJS.Platform;
 }, _options = {}): readonly ProcessUsage[] {
-  const probe = platform === 'win32' ? /^powershell(?:\.exe)?$/i : /^ps$/;
+  const probe = platform === 'win32' ? /^powershell(?:\.exe)?$/i : /^(?:ps|top)$/;
   return usages.filter((row) => !(row.ppid === desktopPid && probe.test(row.name)));
+}
+
+/** Only this desktop's tree reaches the memory port; foreign roots and the probe never enter its argv. O(n+tree(n)). */
+function ownedUsages({ usages, desktopPid, platform }: {
+  usages: readonly ProcessUsage[]; desktopPid: number; platform: NodeJS.Platform;
+}, _options = {}): readonly ProcessUsage[] {
+  const rows = withoutUsageProbe({ usages, desktopPid, platform });
+  if (!rows.some(row => row.pid === desktopPid)) return [];
+  const tree = rows.map(row => ({ pid: row.pid, ppid: row.ppid, command: '' }));
+  const owned = new Set(collectProcessTreePids(tree, [desktopPid]));
+  return rows.filter(row => owned.has(row.pid));
 }
 
 /** Null is distinct from zero: missing roots and failed samples must not look inexpensive. */
 function metrics({ processes, available, warningBytes }: {
   processes: readonly ResourceProcess[]; available: boolean; warningBytes: number;
 }, _options = {}): ResourceMetrics {
-  if (!available) return { rssBytes: null, cpuPercent: null, memoryWarning: false, cpuWarning: false };
+  const memoryMetric = groupMemoryMetric({ processes });
+  if (!available) return { rssBytes: null, memoryMetric, cpuPercent: null, memoryWarning: false, cpuWarning: false };
   const rssBytes = processes.reduce((sum, row) => sum + row.rssBytes, 0);
   return {
-    rssBytes,
+    rssBytes, memoryMetric,
     // Every pid must be measured: a new pid has no previous sample, so a partial sum would understate CPU.
     cpuPercent: processes.every((row) => row.cpuPercent !== null)
       ? processes.reduce((sum, row) => sum + row.cpuPercent!, 0) : null,
@@ -79,18 +96,17 @@ function metrics({ processes, available, warningBytes }: {
 }
 
 /** Group only descendants of this desktop; each pid contributes to exactly one displayed bucket.
- * Tree walking stays in Jini. One bounded OS read serves the whole fleet, with no per-site I/O.
+ * Tree walking stays in Jini. One shared sample cycle serves the whole fleet, with no per-site I/O.
  * @complexity O((s+1) * (n + tree(n))) time/O(n+s) space for n processes and s sites;
  * tree(n) is Jini's traversal, including its deterministic PID sort.
  */
 function groupSample({ usages, sites, desktopPid, previous, at, totalMemoryBytes, pollIntervalMs }: {
-  usages: readonly ProcessUsage[]; sites: readonly OpenResourceSite[]; desktopPid: number;
+  usages: readonly MemoryUsage[]; sites: readonly OpenResourceSite[]; desktopPid: number;
   previous: PreviousSample; at: number; totalMemoryBytes: number; pollIntervalMs: number;
 }, _options = {}): { snapshot: ResourcesSnapshot; history: PreviousSample } {
   const tree = usages.map((row) => ({ pid: row.pid, ppid: row.ppid, command: '' }));
-  const owned = new Set(collectProcessTreePids(tree, [desktopPid]));
   const available = usages.some((row) => row.pid === desktopPid);
-  const rows = available ? usages.filter((row) => owned.has(row.pid)) : [];
+  const rows = usages;
   const readings = new Map(rows.map((usage) => [usage.pid, cpuReading({ usage, previous, at })]));
   const claimed = new Set<number>();
   const groups = sites.map((site): ResourceGroup => {
@@ -137,25 +153,45 @@ function shouldSample({ cached, inFlight, sitesKey, sampledSitesKey, now, lastAt
  * Main owns request-driven sampling and caches between polls. Concurrent callers share one read;
  * failures clear CPU history and return unavailable without leaking native errors. No timers to leak.
  * @param ports Desktop identity, OS sampler, clock, physical RAM and current owned site handles.
+ * @param options Reserved; inject native reads through ports.samplePrivateMemory.
  * @returns get(request, options): resolves a serializable snapshot; never stops a process.
  * @example const monitor = createDesktopResources(ports); await monitor.get({ panelOpen: true });
  * @complexity Per sample O((s+1) * (n + tree(n))) time/O(n+s) space (see groupSample);
  * cached reads compare owned site handles in O(s log s) time/O(s) space.
+ * macOS adds at most one top read per 60 s (512 owned PIDs, 5 s timeout, 1 MiB output cap);
+ * ps still supplies ownership/CPU/RSS because top's PID/MEM table cannot replace that inventory.
  */
 export function createDesktopResources(ports: DesktopResourcesPorts, _options = {}) {
+  const samplePrivateMemory: PrivateMemorySampler | undefined = ports.samplePrivateMemory ?? (ports.platform === 'darwin'
+    ? input => sampleTopMemory(input) : undefined);
+  let lastMemoryAttempt = -Infinity;
+  let memory: ProcessPrivateMemory = { metric: 'unavailable', readings: [] };
+
+  /** The Tovu panel refreshes CPU faster than footprint. New PIDs retain labelled RSS until the
+   * next minute; disappeared PIDs are evicted, including between native reads. O(p+r) space/time. */
+  async function panelMemory({ pids }: { pids: readonly number[] }): Promise<ProcessPrivateMemory> {
+    const live = new Set(pids);
+    memory = { ...memory, readings: memory.readings.filter(row => live.has(row.pid)) };
+    if (ports.now() - lastMemoryAttempt < 60_000) return memory;
+    lastMemoryAttempt = ports.now();
+    memory = { metric: 'unavailable', readings: [] };
+    memory = await samplePrivateMemory!({ pids });
+    return memory;
+  }
+
   let previous: PreviousSample = { at: 0, processes: new Map() };
   let cached: ResourcesSnapshot | undefined;
   let inFlight: Promise<ResourcesSnapshot> | undefined;
   let lastAttempt = -Infinity;
   let sampledSitesKey = '';
 
-  /** Sampler failures intentionally use the same unavailable outcome as Jini's empty result. */
+  /** Inventory failures use Jini's unavailable outcome; memory-source failures retain labelled RSS. */
   async function sample({ pollIntervalMs, sites }: { pollIntervalMs: number; sites: readonly OpenResourceSite[] }, _sampleOptions = {}): Promise<ResourcesSnapshot> {
-    let usages: readonly ProcessUsage[];
+    let usages: readonly MemoryUsage[];
     try {
       const sampled = await ports.listUsage();
-      usages = applyElectronMemoryReadings({ processes: withoutUsageProbe({ usages: sampled, desktopPid: ports.desktopPid, platform: ports.platform }),
-        electronMetrics: ports.listElectronMetrics?.() ?? [] });
+      usages = await readDesktopMemory({ usages: ownedUsages({ usages: sampled, desktopPid: ports.desktopPid, platform: ports.platform }),
+        platform: ports.platform, electronMetrics: ports.listElectronMetrics?.() ?? [], samplePrivateMemory: samplePrivateMemory ? panelMemory : undefined });
     } catch { usages = []; }
     const result = groupSample({ usages, sites, desktopPid: ports.desktopPid,
       previous, at: ports.now(), totalMemoryBytes: ports.totalMem(), pollIntervalMs });
@@ -166,7 +202,7 @@ export function createDesktopResources(ports: DesktopResourcesPorts, _options = 
 
   return {
     /** Shared by visible renderers and the single 30 s main maintenance tick. That tick uses
-     * panelOpen: true so the collapsed 60 s cache cannot hide sustained site-server RSS. */
+     * panelOpen: true so the collapsed 60 s cache cannot hide sustained site-server memory use. */
     async get({ panelOpen }: ResourcesRequest, _getOptions = {}): Promise<ResourcesSnapshot> {
       const { panelIntervalMs, pollIntervalMs } = resourcePollIntervals({ platform: ports.platform, panelOpen });
       const sites = ports.openSites();

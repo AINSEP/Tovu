@@ -59,7 +59,7 @@ test('opaque failures never expose submitted values and stale revisions are with
   const hook = renderHook(t, () => useSharedKeys({ bridge: f.bridge })); await settle();
   const secret = ['fixture', 'private', String(123)].join('-');
   await act(async () => { await hook.current().run({ action: async () => { throw new Error(secret); } }); });
-  assert.equal(hook.current().error, 'The shared-key operation failed. Refresh and try again.');
+  assert.equal(hook.current().error, 'Shared Keys could not finish the request. Refresh the key list and submit the secure form again. Details: OWNER_STORE_OPERATION_FAILED; secret values omitted.');
   assert.equal(JSON.stringify(hook.current()).includes(secret), false);
   assert.deepEqual(hook.current().entries, []); assert.equal(hook.current().loaded, false);
   await act(async () => { await hook.current().run({ action: async () => ({ version: 1, ok: false, action: 'put',

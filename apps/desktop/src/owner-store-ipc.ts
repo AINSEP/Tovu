@@ -30,7 +30,7 @@ const INVALID_REQUEST = 'Invalid shared-key request.';
  */
 function requestInput({ action, input }: { action: OwnerStoreAction; input: unknown }, _options = {}): Record<string, unknown> {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error(INVALID_REQUEST);
-  const fields: Record<OwnerStoreAction, readonly string[]> = { status: [], list: ['store'], put: ['entry', 'store'],
+  const fields: Record<OwnerStoreAction, readonly string[]> = { status: [], list: ['store'], put: ['entry', 'store'], delete: ['id', 'expectedRevision'],
     import: ['source', 'passphrase'] };
   if (Object.keys(input).some(field => !fields[action].includes(field))) throw new Error(INVALID_REQUEST);
   if ('store' in input && input.store !== 'project') throw new Error(INVALID_REQUEST);
@@ -95,6 +95,7 @@ async function executeRequest({ action, input, ports, serialize }: {
     list: () => serialize(() => ports.run({ action: 'list', fields: request.store === 'project' ? { store: 'project' } : {} })),
     // Project attachments reference the original row; a save never creates a site copy.
     put: () => serialize(() => ports.run({ action: 'put', fields: { store: 'project', entry: request.entry as OwnerStoreCliFields['put']['entry'] } })),
+    delete: () => serialize(() => ports.run({ action: 'delete', fields: { id: requiredString({ value: request.id }), expectedRevision: request.expectedRevision as number } })),
     import: async () => withoutSourceDigest(await importRequest({ request, ports, serialize })),
   };
   return handlers[action]();

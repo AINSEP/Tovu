@@ -67,7 +67,16 @@ export interface SourceControlCredentialSummary {
  * `true`, `insert`/`update` atomically clear `isDefault` on every OTHER row sharing
  * `(workspaceId, providerId)`, in the SAME transaction as the write. `delete` promotes the group's
  * most-recently-updated remaining row to default if the deleted row WAS the default. */
+/** The host binds provider-declared API-key identities once for every source-control reader. */
+export interface CanonicalSourceControlKeys {
+  supports(input: { providerId: string }, options?: Record<string, never>): boolean;
+  describe(input: { workspaceId: string; providerId: string }, options?: Record<string, never>): Promise<Pick<SourceControlCredentialSetRecord, "id" | "label" | "providerId"> | null>;
+  resolve(input: { workspaceId: string; providerId: string }, options?: Record<string, never>): Promise<{ id: string; label: string; connection: SourceControlConnectionInput } | null>;
+  create?(input: { workspaceId: string; connection: SourceControlConnectionInput }, options?: { signal?: AbortSignal }): Promise<SourceControlCredentialSummary>;
+}
+
 export interface SourceControlCredentialSetRepoPort {
+  readonly canonical?: CanonicalSourceControlKeys;
   readonly vault?: VaultRepoPort;
   /** The project store this site's rows fall back to (`store.ts`'s scope rule, shared in
    *  `vendor-credentials/project-scope.ts`: site first, then attached project rows; new rows go to the project

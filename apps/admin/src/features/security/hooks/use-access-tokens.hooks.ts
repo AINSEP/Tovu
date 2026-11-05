@@ -828,7 +828,7 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
    *  {@link RemoveConfirmDialog} already draws). */
   async function createCustomCredential(): Promise<boolean> {
     const fields: CustomCredentialFormFields = customAddDraft;
-    const scope = customQuery.data?.projectKeysAvailable ? customAddDraft.scope ?? "project" : "site";
+    const scope = customQuery.data?.projectKeysAvailable ? "project" : "site";
     const error = credentialDraftError({ value: fields.token }, { locale, required: true });
     if (error) { setCustomAddBusy({ saving: false, error }); return false; }
     if (!customCredentialReadyToSave(fields)) return false;

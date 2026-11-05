@@ -260,7 +260,7 @@ describe("SiteImportTab", () => {
 // Exercise markup through the components' supported controller seam. Effects and persistence
 // remain covered above through the real hooks; these cases pin every transient display state.
 function exportController(overrides: Partial<SiteExportController> = {}): SiteExportController {
-  return { canManageSavedKeys: false, includeSavedKeys: false, setIncludeSavedKeys: vi.fn(), exportNotices: [], noticeShareId: null,
+  return { canManageSavedKeys: false, exportNotices: [], noticeShareId: null,
     revealedPassword: null, passwordError: null, revealingId: null, passwordCopied: false, revealPassword: vi.fn(async () => {}), copyPassword: vi.fn(async () => {}), hidePassword: vi.fn(),
     staticThemes: [], selectedThemeIds: [], staticExportReady: false, staticOptionsLoading: false, staticOptionsError: null, toggleStaticTheme: vi.fn(), selectAllStaticThemes: vi.fn(),
     shares: [], listError: null, exporting: false, exportError: null, zipOnly: false,

@@ -4,15 +4,15 @@ import type { ToolApprovalPolicy } from './approval-policy.js';
 /** custom-credentials registration declarations; shared placement rationale is in ./index.ts. */
 export const toolMetadata = {
   project_keys_list: { search: { keywords: "project keys saved credentials used sites attach" }, approval: { class: "read", confirmation: "direct" } },
-  project_key_use: { search: { keywords: "apply use attach detach project saved key stop using site" }, approval: { class: "edit", confirmation: "direct" } },
+  project_key_use: { search: { keywords: "apply use attach detach project saved key stop using site" }, approval: { class: "edit", confirmation: "plan", input: "human-form" }, mcpUi: { redeemable: true, exchangeOnly: true } },
   site_restart: {
     title: 'Restart this site',
     summary: 'This restarts the site so its saved provider settings can take effect.',
     search: { keywords: "restart site provider settings apply" }, approval: { class: "edit", confirmation: "plan", input: "human-form" }, mcpUi: { redeemable: true, exchangeOnly: true } },
   "credential_copy_from_project": {
     search: {
-      keywords: "copy import reuse keys credentials tokens local project site source overwrite",
-      queries: ["Copy keys from another local project.", "Reuse another site's saved API keys in this project."],
+      keywords: "use saved shared keys reuse credentials local project site grant revoke",
+      queries: ["Use a saved key on this site.", "Choose from Shared Keys without copying a token."],
     },
     approval: { class: 'edit', confirmation: 'direct', input: 'human-form' },
     mcpUi: { redeemable: true, exchangeOnly: true },

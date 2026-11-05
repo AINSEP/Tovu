@@ -28,14 +28,6 @@ export function SiteExportTab({ t, useExport = useWiredSiteExport }: SiteExportT
     <section className="site-transfer" aria-label={t("Export Site")}>
       <p className="onboarding-section-lead site-transfer-lead">{t("Makes a .tovu.zip copy of this site that another Tovu can import.")}</p>
       <p className="site-transfer-lead">{t("Images are exported as web-optimized copies.")}</p>
-      {controller.canManageSavedKeys ? (
-        <label className="field-label">
-          <input type="checkbox" checked={controller.includeSavedKeys} disabled={exporting}
-            onChange={event => controller.setIncludeSavedKeys(event.target.checked)}
-            {...agentHandle({ handle: "sites-export-include-keys" }, { role: "field", label: "Include saved keys in an encrypted bundle" })} />
-          {" "}{t("Include saved keys")}
-        </label>
-      ) : null}
       <div className="site-export-actions">
         <button
           type="button"

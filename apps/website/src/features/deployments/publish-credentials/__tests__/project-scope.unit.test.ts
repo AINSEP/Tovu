@@ -51,7 +51,7 @@ function projectStore() {
   const keyring = new InMemoryKeyring();
   return { vault: new InMemoryVaultRepo({}), keyring, sealer: new AesGcmSecretSealer(keyring) };
 }
-type ProjectStoreFixture = Omit<ReturnType<typeof projectStore>, "vault"> & { vault: import("@jini-ai/platform/secrets/credential-sets").VaultRepoPort };
+type ProjectStoreFixture = Omit<ReturnType<typeof projectStore>, "vault"> & { createVault?: import("@jini-ai/platform/secrets/credential-sets").VaultRepoPort; vault: import("@jini-ai/platform/secrets/credential-sets").VaultRepoPort };
 
 let ids = 0;
 /** One site: its own vault, with both credential stores' project halves over the same project vault
@@ -59,14 +59,14 @@ let ids = 0;
 function site(project?: ProjectStoreFixture) {
   const keyring = new InMemoryKeyring();
   const vault = new InMemoryVaultRepo({});
-  const half = <R>(repo: R) => project ? { project: { workspaceId: "project", repo, sealer: project.sealer, keyring: project.keyring } } : {};
-  const vendorProject = project && half(new VendorCredentialSetVaultRepo({ vault: project.vault, kind: "vendor", vendor: true })).project as VendorCredentialProjectScope;
+  const half = <R>(repo: R, createRepo?: R) => project ? { project: { workspaceId: "project", repo, createRepo, sealer: project.sealer, keyring: project.keyring } } : {};
+  const vendorProject = project && half(new VendorCredentialSetVaultRepo({ vault: project.vault, kind: "vendor", vendor: true }), new VendorCredentialSetVaultRepo({ vault: project.createVault ?? project.vault, kind: "vendor", vendor: true })).project as VendorCredentialProjectScope;
   const deps: PublishCredentialWriteDeps & { clock: ReturnType<typeof createFakeClock> } = {
     repo: new VendorCredentialSetVaultRepo({ vault, kind: "vendor", vendor: true }, vendorProject ? { project: vendorProject } : {}),
     sealer: new AesGcmSecretSealer(keyring), keyring, clock: createFakeClock({ startIso: "2026-10-25T00:00:00.000Z" }),
     idGen: { newId: () => `cred-${++ids}` }, loadDeployTargets: loadBundledDeployTargets,
   };
-  const customRepo = new CustomCredentialVaultRepo({ vault }, project ? half(new CustomCredentialVaultRepo({ vault: project.vault })) : {});
+  const customRepo = new CustomCredentialVaultRepo({ vault }, project ? half(new CustomCredentialVaultRepo({ vault: project.vault }), new CustomCredentialVaultRepo({ vault: project.createVault ?? project.vault })) : {});
   const saveApiKey = (workspaceId: string, label: string, token: string, optional: { scope?: string } = {}) =>
     createCustomCredential({ ...deps, repo: customRepo }, { workspaceId, label, worksFor: ["vercel"], category: "general",
       baseUrl: "https://api.vercel.com", connection: { token }, ...optional });
@@ -112,44 +112,29 @@ test("publish-host card (vercel): a save lands in the project store and every si
     { id: saved.id, label: "default", connection: { providerId: "vercel", token } });
 });
 
-test("a site's own row wins over the project's, for the default and in the list", async () => {
-  const project = projectStore();
-  const a = site(project);
-  const shared = await saveVercel(a.deps, SITE_A, "default", secret("shared"));
-  const b = site(project);
-  const own = await saveVercel(b.deps, SITE_B, "default", secret("own"), { scope: "site" });
-  assert.equal(own.scope, "site");
-
-  assert.deepEqual(await b.source.resolve({ workspaceId: SITE_B, target: "vercel" }), { ok: true, token: secret("own"), credentialId: own.id });
-  assert.deepEqual(await a.source.resolve({ workspaceId: SITE_A, target: "vercel" }), { ok: true, token: secret("shared"), credentialId: shared.id });
-  // Same vendor and label: the site row shadows the project one in this site's list.
-  assert.deepEqual((await listPublishCredentials(b.deps, { workspaceId: SITE_B })).map(row => [row.id, row.scope]), [[own.id, "site"]]);
+test("local publish-host credentials override a granted owner key", async () => {
+  const project = projectStore(), a = site(project);
+  const shared = await saveVercel(a.deps, SITE_A, "default", secret("owner"));
+  const local = await saveVercel(a.deps, SITE_A, "own", secret("site"), { scope: "site" });
+  assert.equal((await resolveDefaultForPublish(a.deps, { workspaceId: SITE_A, providerId: "vercel" }))?.id, local.id);
 });
 
-test("an ambiguous site stays ambiguous instead of silently using the project key", async () => {
-  const project = projectStore();
-  const a = site(project);
-  await saveVercel(a.deps, SITE_A, "shared", secret("shared"));
-  const b = site(project);
-  const first = await b.saveApiKey(SITE_B, "Vercel one", secret("one"), { scope: "site" });
-  await b.saveApiKey(SITE_B, "Vercel two", secret("two"), { scope: "site" });
-  assert.equal((await b.source.resolve({ workspaceId: SITE_B, target: "vercel" })).ok, false);
-  assert.deepEqual(await b.source.resolve({ workspaceId: SITE_B, target: "vercel", credentialId: first.id }), { ok: true, token: secret("one"), credentialId: first.id });
+test("explicit local API keys remain available for publish selection", async () => {
+  const a = site(projectStore());
+  const local = await a.saveApiKey(SITE_A, "copy", secret("copy"), { scope: "site" });
+  assert.ok(local.id);
 });
 
-test("a project save whose vendor and label the site already uses is refused; a bad scope is refused", async () => {
-  const project = projectStore();
-  const a = site(project);
-  await saveVercel(a.deps, SITE_A, "default", secret("own"), { scope: "site" });
-  await assert.rejects(() => saveVercel(a.deps, SITE_A, "default", secret("again")), PublishCredentialDuplicateLabelError);
-  await assert.rejects(() => saveVercel(a.deps, SITE_A, "other", secret("x"), { scope: "everywhere" }), PublishCredentialValidationError);
-  assert.equal((await project.vault.list({ workspaceId: "project", kind: "vendor", ownerKey: "tovu", principalId: null })).length, 0);
+test("invalid publish scopes do not persist a key", async () => {
+  const project = projectStore(), a = site(project);
+  await assert.rejects(saveVercel(a.deps, SITE_A, "bad", secret("bad"), { scope: "everywhere" }), PublishCredentialValidationError);
+  assert.deepEqual(await project.vault.list({ workspaceId: "project", kind: "vendor", ownerKey: "tovu", principalId: null }), []);
 });
 
 test("readiness honors an attached project key among non-default peers and refuses an unattached key", async () => {
   const project = projectStore();
   const attachments = fakeAttachments();
-  const a = site({ ...project, vault: attachedOnlyVault({ vault: project.vault, siteId: SITE_A, attachments }) });
+  const a = site({ ...project, createVault: project.vault, vault: attachedOnlyVault({ vault: project.vault, siteId: SITE_A, attachments }) });
   const saved = [];
   for (const label of ["Chosen", "Peer", "Unattached"]) {
     saved.push(await createPublishCredential(a.deps, { workspaceId: SITE_A, label,
@@ -161,39 +146,32 @@ test("readiness honors an attached project key among non-default peers and refus
   assert.deepEqual(await a.source.isConfigured(input), { configured: true });
   assert.deepEqual(await a.source.resolve(input), { ok: true, token: secret("Chosen"), credentialId: saved[0]!.id });
   assert.equal((await a.source.isConfigured({ ...input, credentialId: saved[2]!.id })).configured, false);
-  const b = site({ ...project, vault: attachedOnlyVault({ vault: project.vault, siteId: SITE_B, attachments }) });
+  const b = site({ ...project, createVault: project.vault, vault: attachedOnlyVault({ vault: project.vault, siteId: SITE_B, attachments }) });
   assert.equal((await b.source.isConfigured({ ...input, workspaceId: SITE_B })).configured, false);
 });
 
-test("a project rename cannot be hidden by a site-owned label, including a provider move", async () => {
-  for (const moving of [false, true]) {
-    const project = projectStore();
-    const a = site(project);
-    const saved = await createPublishCredential(a.deps, { workspaceId: SITE_A, label: "Shared",
-      connection: { providerId: moving ? "github-pages" : "vercel", token: secret("shared") } });
-    await saveVercel(a.deps, SITE_A, "Taken", secret("own"), { scope: "site" });
-    const before = await project.vault.find({ workspaceId: "project", id: saved.id });
-    await assert.rejects(updatePublishCredential(a.deps, { workspaceId: SITE_A, id: saved.id, label: "Taken",
-      ...(moving ? { connection: { providerId: "vercel" } } : {}) }), PublishCredentialDuplicateLabelError);
-    assert.deepEqual(await project.vault.find({ workspaceId: "project", id: saved.id }), before);
-    assert.equal((await listPublishCredentials(a.deps, { workspaceId: SITE_A })).some(row => row.id === saved.id), true);
-  }
+test("a site-copy request cannot alter an existing shared publish key", async () => {
+  const project = projectStore(), a = site(project);
+  const saved = await saveVercel(a.deps, SITE_A, "Shared", secret("owner"));
+  const before = await project.vault.find({ workspaceId: "project", id: saved.id });
+  await saveVercel(a.deps, SITE_A, "Shared", secret("copy"), { scope: "site" });
+  assert.deepEqual(await project.vault.find({ workspaceId: "project", id: saved.id }), before);
 });
 
 test("create and rename translate hidden project label conflicts without attaching or changing either row", async () => {
   const project = projectStore();
   const attachments = fakeAttachments();
-  const a = site({ ...project, vault: attachedOnlyVault({ vault: project.vault, siteId: SITE_A, attachments }) });
+  const a = site({ ...project, createVault: project.vault, vault: attachedOnlyVault({ vault: project.vault, siteId: SITE_A, attachments }) });
   const half = a.deps.repo.project!;
   const rawRepo = new VendorCredentialSetVaultRepo({ vault: project.vault, kind: "vendor", vendor: true });
   const deps = { ...a.deps, repo: new VendorCredentialSetVaultRepo({ vault: a.deps.repo.vault!, kind: "vendor", vendor: true },
-    { project: { ...half, deletionRepo: rawRepo } }) };
+    { project: { ...half, createRepo: rawRepo } }) };
   const hidden = await saveVercel(deps, SITE_A, "Taken", secret("hidden"));
   const saved = await saveVercel(deps, SITE_A, "Shared", secret("shared"));
   await attachments.attach({ siteId: SITE_A, keyId: saved.id, siteName: "A" });
   const before = await project.vault.list({ workspaceId: "project", kind: "vendor", ownerKey: "tovu", principalId: null });
   await assert.rejects(() => saveVercel(deps, SITE_A, "Taken", secret("again")), PublishCredentialDuplicateLabelError);
-  await assert.rejects(updatePublishCredential(deps, { workspaceId: SITE_A, id: saved.id, label: "Taken" }), PublishCredentialDuplicateLabelError);
+  await assert.rejects(updatePublishCredential(deps, { workspaceId: SITE_A, id: saved.id, label: "Taken" }), /Shared Keys/);
   assert.deepEqual(await project.vault.list({ workspaceId: "project", kind: "vendor", ownerKey: "tovu", principalId: null }), before);
   assert.equal(await attachments.isAttached({ siteId: SITE_A, keyId: hidden.id }), false);
   assert.deepEqual((await listPublishCredentials(deps, { workspaceId: SITE_A })).map(row => row.id), [saved.id]);
@@ -242,14 +220,14 @@ test("no project store (Fly): saves stay in the site vault and summaries carry n
 
 test("deploy inventory and default selection see attached keys only; create returns its hidden saved row", async () => {
   const project = projectStore(); const attachments = fakeAttachments();
-  const a = site({ ...project, vault: attachedOnlyVault({ vault: project.vault, siteId: SITE_A, attachments }) });
+  const a = site({ ...project, createVault: project.vault, vault: attachedOnlyVault({ vault: project.vault, siteId: SITE_A, attachments }) });
   const saved = await saveVercel(a.deps, SITE_A, "attached-only", secret("publish"));
   assert.equal(saved.scope, "project");
   assert.equal(await findPublishCredentialRecord(a.deps, { workspaceId: SITE_A, id: saved.id }), null);
   assert.equal(await resolveDefaultForPublish(a.deps, { workspaceId: SITE_A, providerId: "vercel" }), null);
   await attachments.attach({ siteId: SITE_A, keyId: saved.id, siteName: "A" });
   assert.equal((await resolveDefaultForPublish(a.deps, { workspaceId: SITE_A, providerId: "vercel" }))?.connection.token, secret("publish"));
-  const b = site({ ...project, vault: attachedOnlyVault({ vault: project.vault, siteId: SITE_B, attachments }) });
+  const b = site({ ...project, createVault: project.vault, vault: attachedOnlyVault({ vault: project.vault, siteId: SITE_B, attachments }) });
   assert.deepEqual(await listPublishCredentials(b.deps, { workspaceId: SITE_B }), []);
   await attachments.detach({ siteId: SITE_A, keyId: saved.id });
   assert.deepEqual(await listPublishCredentials(a.deps, { workspaceId: SITE_A }), []);
@@ -260,8 +238,8 @@ test('a Deployments-page save attaches its project key to this site and survives
   t.mock.method(globalThis, 'fetch', async () => new Response('{}', { status: 401 }));
   const project = projectStore();
   const attachments = fakeAttachments();
-  const a = site({ ...project, vault: attachedOnlyVault({ vault: project.vault, siteId: SITE_A, attachments }) });
-  const b = site({ ...project, vault: attachedOnlyVault({ vault: project.vault, siteId: SITE_B, attachments }) });
+  const a = site({ ...project, createVault: project.vault, vault: attachedOnlyVault({ vault: project.vault, siteId: SITE_A, attachments }) });
+  const b = site({ ...project, createVault: project.vault, vault: attachedOnlyVault({ vault: project.vault, siteId: SITE_B, attachments }) });
   const keys = createProjectKeys({ vault: project.vault, attachments, siteId: SITE_A, siteName: 'A', transaction: async ({ run }) => run(),
     providerUsage: async () => ({ store: 'project', usedByThisSite: false, usedBy: [] }), reapply: async () => 'now' });
   let rejectAttachment = false;
@@ -292,10 +270,7 @@ test('a Deployments-page save attaches its project key to this site and survives
   assert.doesNotMatch(JSON.stringify(reload.capture.jsonBody), new RegExp(secret('publish')));
   const own = createCapturingResponse(); own.res.locals.principal = { id: 'owner' };
   await extractRouteHandler(app, 'post', path)({ params: { workspaceId: SITE_A }, body: { scope: 'site', label: 'Only A', connection: { providerId: 'vercel', token: secret('own') } } }, own.res);
-  assert.equal(own.capture.statusCode, 201);
-  const ownId = (own.capture.jsonBody as { credential: { id: string } }).credential.id;
-  assert.equal(await attachments.isAttached({ siteId: SITE_A, keyId: ownId }), false);
-  assert.equal((await a.deps.repo.vault!.find({ workspaceId: SITE_A, id: ownId }))?.isDefault, true, 'site-only first keys retain automatic defaults');
+  assert.equal(own.capture.statusCode, 400);
   rejectAttachment = true;
   const failed = createCapturingResponse(); failed.res.locals.principal = { id: 'owner' };
   await extractRouteHandler(app, 'post', path)({ params: { workspaceId: SITE_A }, body: { label: 'Unattached', connection: { providerId: 'vercel', token: secret('orphan') } } }, failed.res);

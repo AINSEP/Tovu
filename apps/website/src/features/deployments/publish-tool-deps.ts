@@ -3,7 +3,6 @@ import type { LoadPluginCredentialCards } from "../custom-credentials/plugin-cre
 import type { SiteConsentService } from '#src/features/consent/service';
 import type { GatewayDeps } from '#src/contracts/core/gated-mutations/gateway';
 import type { OperatorLocaleDeps } from '../../contracts/headless/index.js';
-import type { CredentialCopyToolDeps } from '../custom-credentials/index.js';
 import type { Clock } from "@jini-ai/core/primitives";
 import type { ExportReport } from "#src/features/site-export/index";
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
@@ -35,7 +34,6 @@ export interface StaticPublishToolDeps extends OperatorLocaleDeps {
   readonly hostKit?: StaticPublishDeps["hostKit"];
   /** `RouteDeps.formDestination`: the site's forms and receiver key, for a host that receives submissions. */
   readonly formDestination?: StaticPublishDeps["formDestination"];
-  readonly localCredentialCopy?: CredentialCopyToolDeps['localCredentialCopy'];
   readonly ownerPrincipalId?: Promise<string>;
   readonly authorize: AuthorizeFn;
   readonly workspaceId: string;

@@ -194,3 +194,15 @@ for (const { name, register, method, path, body } of [
     });
   });
 }
+
+test('submission detail exposes permanent email failures without provider messages or recipient addresses', async () => {
+  const submission = { id: 'sub', workspaceId: WS, formDefinitionId: 'form', data: {}, sourceIp: null, submittedAt: '2026-11-04T00:00:00.000Z' };
+  const calls: unknown[] = [];
+  const { app } = fixture(registerAdminFormsGetSubmissionRoute, {
+    formDefinitionRepo: { findBySlug: async () => ({ id: 'form' }) }, formSubmissionRepo: { findById: async () => submission },
+    formDeliveryStatus: { notificationSummary: async (input: unknown) => { calls.push(input); return { failed: 1, pending: 0 }; } },
+  });
+  const response = await dispatchJsonRequest(app, 'GET', `${BASE}/forms/form/submissions/sub`);
+  assert.equal(response.status, 200); assert.deepEqual(response.body.data.notificationDelivery, { failed: 1, pending: 0 });
+  assert.deepEqual(calls, [{ workspaceId: WS, submissionId: 'sub' }]);
+});

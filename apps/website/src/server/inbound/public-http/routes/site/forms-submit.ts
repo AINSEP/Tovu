@@ -1,3 +1,4 @@
+import { createFormsAdmissionMiddleware } from "./forms-admission.js";
 import { captureVisitorEvent, visitorAnalyticsProvenance } from "../../visitor-analytics.js";
 import { FormSubmissionValidationError, FormRateLimitExceededError, FormDefinitionNotFoundError, FormSubmissionTooFastError, type SubmissionAttempts } from "@jini-ai/cms/forms";
 import type { VisitorAnalyticsDeps } from "../../visitor-analytics.js";
@@ -54,7 +55,7 @@ export interface RegisterFormsSubmitRouteDeps extends VisitorAnalyticsDeps {
  * file) is unaffected — Express dispatches to whichever parser matches the request's actual
  * `Content-Type`, so mounting both here is additive, never a double-parse of the same request. */
 export function registerFormsSubmitRoute(app: Express, deps: RegisterFormsSubmitRouteDeps): void {
-  app.post("/forms/:slug/submit", express.urlencoded({ extended: false, limit: "1mb", parameterLimit: 2002 }), express.raw({ type: "multipart/form-data", limit: "12mb" }), parseFormMultipartMiddleware, (request, response) => createFormSubmitHandler({
+  app.post("/forms/:slug/submit", createFormsAdmissionMiddleware({ workspaceId: deps.workspaceId, clock: deps.submitForm.clock }), express.urlencoded({ extended: false, limit: "1mb", parameterLimit: 2002 }), express.raw({ type: "multipart/form-data", limit: "12mb" }), parseFormMultipartMiddleware, (request, response) => createFormSubmitHandler({
     workspaceId: deps.workspaceId,
     definitionRepo: deps.submitForm.definitionRepo,
     submit: async ({ input }) => {

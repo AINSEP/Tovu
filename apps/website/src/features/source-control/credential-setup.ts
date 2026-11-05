@@ -90,6 +90,11 @@ export async function proposeSourceControlCredential(spec: { ctx: ToolExecutionC
       // Saves write through `vault`, so it must be forwarded (omitting it fails every save) with the same guard.
       const vault = store.vault;
       const repo: SourceControlCredentialSetupDeps['sourceControlCredentialSetRepo'] = {
+        ...(store.canonical ? { canonical: { ...store.canonical, create: async (input) => {
+          signal.throwIfAborted();
+          if (!store.canonical!.create) throw new ToolInputError({ message: 'Open the provider API key card to save this key.' });
+          return store.canonical!.create(input, { signal });
+        } } } : {}),
         ...(vault ? { vault: sourceControlSaveVault({ vault, signal }) } : {}),
         insert: record => { signal.throwIfAborted(); return store.insert(record); },
         update: record => store.update(record),
@@ -100,7 +105,7 @@ export async function proposeSourceControlCredential(spec: { ctx: ToolExecutionC
         delete: input => store.delete(input),
         ...(store.updateAccountLabel ? { updateAccountLabel: (input: Parameters<NonNullable<typeof store.updateAccountLabel>>[0]) => store.updateAccountLabel!(input) } : {}),
         // The project half writes too (project-first saves): guarded alike.
-        ...(store.project ? { project: { ...store.project, repo: abortGuardedCredentialRepo({ store: store.project.repo, signal }) } } : {}),
+        ...(store.project ? { project: { ...store.project, repo: abortGuardedCredentialRepo({ store: store.project.repo, signal }), ...(store.project.createRepo ? { createRepo: abortGuardedCredentialRepo({ store: store.project.createRepo, signal }) } : {}) } } : {}),
       };
       // New project keys stay non-default while the shared save-result path attaches them to this site.
       return createSourceControlCredential({ deps: {

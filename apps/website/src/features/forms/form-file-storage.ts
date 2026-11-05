@@ -25,7 +25,7 @@ export function createFormFileStorage(
       // escaped display value in the submission, never a storage path or executable extension.
       const filename = `${submissionId}-${fieldId}.${file.filename.split(".").at(-1)!.toLowerCase()}`;
       const createdByPrincipal = await resolveCreatedByPrincipal({ workspaceId }, {});
-      const { media: asset } = await uploadMedia({ deps: media, input: { workspaceId, bytes: file.bytes, filename, contentType: file.contentType, createdByPrincipal } }, { maxUploadBytes: 10 * 1024 * 1024, allowedMimeTypes: new Set([file.contentType]) });
+      const { media: asset } = await uploadMedia({ deps: media, input: { workspaceId, access: "private", bytes: file.bytes, filename, contentType: file.contentType, createdByPrincipal } }, { maxUploadBytes: 10 * 1024 * 1024, allowedMimeTypes: new Set([file.contentType]) });
       try { await contentTypes.set({ workspaceId, sha256: asset.source.sha256, contentType: file.contentType }); }
       catch (error) {
         await trashMedia({ deps: { mediaRepo: media.mediaRepo, clock: media.clock }, input: { workspaceId, id: asset.id } });

@@ -200,3 +200,19 @@ test("a form slug shaped like an object key is counted as its own form", async (
 test("an empty page reports no forms", async () => {
   assert.deepEqual((await importRemoteFormSubmissions({ deps: setup().deps, workspaceId: "w", destinationKey: "d", items: [] })).forms, []);
 });
+
+test('invalid imports durably retain classification and original validation errors beside accepted rows', async () => {
+  const s = setup();
+  const result = await importRemoteFormSubmissions({ deps: s.deps, workspaceId: 'w', destinationKey: 'd', items: [row('bad', { email: '', note: 'too long' }), row('good', { email: 'a@b.co' })] });
+  assert.deepEqual(s.rows[0]!.validation, { status: 'invalid', fieldErrors: result.invalid[0]!.fieldErrors });
+  assert.equal(s.rows[1]!.validation, undefined);
+  assert.equal(s.events.length, 1);
+  await importRemoteFormSubmissions({ deps: s.deps, workspaceId: 'w', destinationKey: 'd', items: [row('bad', { email: 'changed@x.co' })] });
+  assert.deepEqual(s.rows[0]!.validation, { status: 'invalid', fieldErrors: result.invalid[0]!.fieldErrors });
+});
+
+test('late imports never revive an IP whose original submission is already 90 days old', async () => {
+  const s = setup();
+  await importRemoteFormSubmissions({ deps: s.deps, workspaceId: 'w', destinationKey: 'd', items: [row('old', { email: 'a@b.co' }, { submittedAt: '2026-01-01T00:00:00.000Z' })] });
+  assert.equal(s.rows[0]!.sourceIp, null);
+});

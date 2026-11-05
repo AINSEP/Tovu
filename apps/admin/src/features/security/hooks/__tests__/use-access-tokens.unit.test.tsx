@@ -125,7 +125,7 @@ function findGroup(groups: readonly AccessTokenProviderGroupState[] | undefined,
 describe("custom project-key attachments", () => {
   it.each([
     { available: true, selected: undefined, expected: "project" },
-    { available: true, selected: "site" as const, expected: "site" },
+    { available: true, selected: "site" as const, expected: "project" },
     { available: false, selected: "project" as const, expected: "site" },
   ])("creates a $expected key when project storage is $available and selection is $selected", async ({ available, selected, expected }) => {
     const create = vi.fn(async () => customCredential());

@@ -70,18 +70,16 @@ function memorySource(scope: ProviderConfigSource["scope"]): ProviderConfigSourc
   };
 }
 
-test("a site without a stable id saves usable site settings and leaves the project untouched", async () => {
+test("a site without a stable id keeps saving locally", async () => {
   const site = memorySource("site"), project = memorySource("project");
   const config = withAttachedProject({ site }, { project, attachments: fakeAttachments(), siteId: "" });
-  const values = { settings: { endpoint: "https://collector.example.test" }, secrets: {} };
-  assert.deepEqual(await config.write({ pluginId: "obs", config: values }), {
-    keyId: "plugin-state:obs:provider.config", store: "site", usedByThisSite: true, usedBy: [],
-  });
-  assert.deepEqual(await config.read({ pluginId: "obs" }), values);
+  await config.write({ pluginId: "obs", config: { settings: {}, secrets: {} } });
+  assert.deepEqual(await config.read({ pluginId: "obs" }), { settings: {}, secrets: {} });
   assert.deepEqual(project.writes, []);
+  assert.deepEqual(site.writes, ["obs"]);
 });
 
-test("effective provider usage observes site precedence through metadata without opening either envelope", async () => {
+test("effective provider usage reports independently owned local settings first", async () => {
   const site = memorySource("site"), project = memorySource("project"), attachments = fakeAttachments();
   const pluginId = "obs", keyId = "plugin-state:obs:provider.config";
   const config = withAttachedProject({ site }, { project, attachments, siteId: "a" });
@@ -99,28 +97,22 @@ test("precedence: without a project store the site vault is the source", () => {
   assert.equal(site.scope, "site");
 });
 
-test("site values win; unattached project values stay hidden; a different key on B leaves A unchanged", async () => {
-  const project = memorySource("project"), site = memorySource("site"); const attachments = fakeAttachments();
+test("ungranted sites cannot read or overwrite owner provider keys and revoke ignores site copies", async () => {
+  const project = memorySource("project"), site = memorySource("site"), attachments = fakeAttachments();
   const keyId = "plugin-state:obs:provider.config";
-  const a = withAttachedProject({ site }, { project, attachments, siteId: "a" });
-  const bSite = memorySource("site");
-  const b = withAttachedProject({ site: bSite }, { project, attachments, siteId: "b" });
-  const first = { settings: { endpoint: "https://a.example.test" }, secrets: { token: ["fake", "a"].join("_") } };
-  assert.deepEqual(await a.write({ pluginId: "obs", config: first }), { keyId, store: "project", usedByThisSite: true, usedBy: ["a"] });
-  assert.deepEqual(await a.read({ pluginId: "obs" }), first);
+  const a = withAttachedProject({ site }, { project, attachments, siteId: "a", siteName: "A" });
+  const b = withAttachedProject({ site: memorySource("site") }, { project, attachments, siteId: "b", siteName: "B" });
+  const first = { settings: { endpoint: "https://a.example.test" }, secrets: { token: "fixture-a" } };
+  await a.write({ pluginId: "obs", config: first });
   assert.equal(await b.readSettings({ pluginId: "obs" }), null);
-  await attachments.attach({ siteId: "a", keyId, siteName: "A" });
+  await assert.rejects(b.write({ pluginId: "obs", config: { settings: {}, secrets: {} } }), /Use a saved key/);
   assert.deepEqual(await a.read({ pluginId: "obs" }), first);
-  const second = { settings: { endpoint: "https://b.example.test" }, secrets: { token: ["fake", "b"].join("_") } };
-  assert.deepEqual(await b.write({ pluginId: "obs", config: second }), { keyId, store: "site", usedByThisSite: true, usedBy: [] });
-  assert.deepEqual(await a.read({ pluginId: "obs" }), first);
-  assert.deepEqual(await b.read({ pluginId: "obs" }), second);
   await attachments.attach({ siteId: "b", keyId, siteName: "B" });
-  assert.deepEqual(await b.read({ pluginId: "obs" }), second, "the site row wins even when a project row is attached");
+  assert.deepEqual(await b.read({ pluginId: "obs" }), first);
+  await site.write({ pluginId: "obs", config: first });
   await attachments.detach({ siteId: "a", keyId });
-  assert.equal(await a.read({ pluginId: "obs" }), null);
-  const missing = withAttachedProject({ site: memorySource("site") }, { project, attachments });
-  assert.equal(await missing.read({ pluginId: "obs" }), null);
+  assert.deepEqual(await a.read({ pluginId: "obs" }), first);
+  assert.deepEqual(await withAttachedProject({ site }, { project, attachments }).read({ pluginId: "obs" }), first);
 });
 
 test("a project provider save commits its attachment before returning usage", async () => {
@@ -143,18 +135,16 @@ test("a project provider save commits its attachment before returning usage", as
   assert.deepEqual(await config.read({ pluginId: "obs" }), values);
 });
 
-test("a project store that failed to open: reads fall back to the site vault, a save is refused (never written to the site vault)", async () => {
+test("an unavailable owner store leaves local reads and saves working", async () => {
   const site = memorySource("site");
-  await site.write({ pluginId: "a", config: { settings: { from: "site" }, secrets: {} } });
+  const local = { settings: { from: "site" }, secrets: {} };
+  await site.write({ pluginId: "a", config: local });
   const source = withUnavailableProject({ site, reason: "EACCES: permission denied" });
-  assert.equal(source.scope, "project");
-  assert.deepEqual(await source.read({ pluginId: "a" }), { settings: { from: "site" }, secrets: {} });
-  assert.deepEqual(await source.readSettings({ pluginId: "a" }), { settings: { from: "site" }, secretNames: [] });
-  await assert.rejects(source.write({ pluginId: "b", config: { settings: {}, secrets: {} } }), ProviderStoreUnavailableError);
-  // Both cards share this save rule: the refusal names the cause instead of a bare internal error.
-  const saved = await saveProviderSettings({ config: source, pluginId: "b", fields: [{ name: "host", label: "Host" }], values: { host: "https://h" } });
-  assert.deepEqual(saved, { refusal: { code: "PROVIDER_SETTINGS_UNAVAILABLE", error: "Project settings can't be saved right now: EACCES: permission denied" } });
-  assert.deepEqual(site.writes, ["a"], "nothing reached the site vault");
+  assert.equal(source.scope, "site");
+  assert.deepEqual(await source.read({ pluginId: "a" }), local);
+  assert.deepEqual(await source.readSettings({ pluginId: "a" }), { settings: local.settings, secretNames: [] });
+  await source.write({ pluginId: "b", config: { settings: {}, secrets: {} } });
+  assert.deepEqual(site.writes, ["a", "b"]);
 });
 
 const PAIR_A = { settings: { endpoint: "https://old.example" }, secrets: { headers: "old=1" } };
@@ -230,7 +220,7 @@ test("vault adapter: a row this machine cannot open reads as unreadable (listed 
   await assert.rejects(missing.readSettings({ pluginId: "obs" }), (caught) => caught === sealed);
   const down = createVaultProviderConfigSource({ state: stateWith(new Error("db down")), workspaceId: "ws", scope: "project" });
   await assert.rejects(down.read({ pluginId: "obs" }), (caught) => caught === sealed);
-  // Site precedence also applies when the project row is unreadable.
+  // An ungranted project row stays hidden even when the site retains a legacy copy.
   const site: ProviderConfigSource = { scope: "site", usage: async () => ({ store: "site", usedByThisSite: true, usedBy: [] }), read: async () => ({ settings: { endpoint: "https://site" }, secrets: {} }),
     readSettings: async () => ({ settings: { endpoint: "https://site" }, secretNames: [] }), write: async () => {} };
   const both = withAttachedProject({ site }, { project: unreadable, attachments: fakeAttachments(), siteId: "a" });
@@ -284,7 +274,7 @@ test("OTel's old auth choice is normalized in both vault scopes, without writing
   }
 });
 
-test("an attached project's migrated OTel choice feeds boot, both cards and the next save without secret re-entry", async () => {
+test("an attached project's migrated OTel choice feeds boot and cards without mutating the shared owner entry", async () => {
   const pluginId = "observability-opentelemetry";
   const { state, rows } = fakeState();
   const project = createVaultProviderConfigSource({ state, workspaceId: "project", scope: "project" });
@@ -303,8 +293,9 @@ test("an attached project's migrated OTel choice feeds boot, both cards and the 
   assert.deepEqual(providerInputOf({ declaration: { contract: "observability", id: "opentelemetry", contractVersion: 1, settings: OTEL_FIELDS }, saved: await source.read({ pluginId }) }), { ...expected.settings, token: "fixture-only" });
   assert.deepEqual(await providerSettingsStatus({ config: source, pluginId, fields: OTEL_FIELDS }), { configured: true, keyId, store: "project", usedByThisSite: true, usedBy: ["A"], appliesAt: "now", missing: [] });
   const result = await saveProviderSettings({ config: source, pluginId, fields: OTEL_FIELDS, values: { auth: "grafana-cloud", token: "" } });
-  assert.deepEqual(result, { saved: true, configured: true, keyId, store: "project", usedByThisSite: true, usedBy: ["A"], appliesAt: "restart" });
-  assert.deepEqual(rows.get(`project/${pluginId}/provider.config`), expected);
+  assert.ok("refusal" in result);
+  if ("refusal" in result) assert.match(result.refusal.error, /Shared Keys/);
+  assert.deepEqual(rows.get(`project/${pluginId}/provider.config`), { settings, secrets });
 });
 
 test("legacy header-only OTel rows survive boot/status/save, and changing their destination still requires re-entry", async () => {
@@ -340,4 +331,20 @@ test("core applies another plugin's declared migrations and leaves the same raw 
   assert.deepEqual(await source.readSettings({ pluginId: 'unrelated' }), { settings: { mode: 'current' }, secretNames: ['credential'] });
   assert.deepEqual(await raw.read({ pluginId: 'unrelated' }), original);
   assert.deepEqual(rows.get('ws/unrelated/provider.config'), original);
+});
+
+
+test("local provider settings survive owner outages and override an attached shared row", async () => {
+  const site = memorySource("site"), project = memorySource("project"), attachments = fakeAttachments();
+  const local = { settings: { endpoint: "https://local.example.test" }, secrets: { token: "local-fixture" } };
+  await site.write({ pluginId: "obs", config: local });
+  await project.write({ pluginId: "obs", config: PAIR_A });
+  await attachments.attach({ siteId: "a", siteName: "A", keyId: "plugin-state:obs:provider.config" });
+  const source = withAttachedProject({ site }, { project, attachments, siteId: "a" });
+  assert.deepEqual(await source.read({ pluginId: "obs" }), local);
+  await source.write({ pluginId: "obs", config: PAIR_B });
+  assert.deepEqual(await project.read({ pluginId: "obs" }), PAIR_A);
+  const unavailable = withUnavailableProject({ site, reason: "SQLITE_BUSY" });
+  assert.deepEqual(await unavailable.read({ pluginId: "obs" }), PAIR_B);
+  assert.equal(await unavailable.read({ pluginId: "missing" }), null);
 });

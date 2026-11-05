@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { LegacyImportReport, OwnerStoreBridge, OwnerStoreEntry, OwnerStoreReply } from '../contracts/owner-store.js';
 import { ownerStoreBridge } from './runner-api.js';
 
-const FAILED = 'The shared-key operation failed. Refresh and try again.';
+const FAILED = 'Shared Keys could not finish the request. Refresh the key list and submit the secure form again. Details: OWNER_STORE_OPERATION_FAILED; secret values omitted.';
 
 /** Fixed copy ignores arbitrary reply/transport messages that might contain submitted secrets.
  * @complexity O(1); no effects.
@@ -12,7 +12,9 @@ function failureText({ code }: { code: string }, _options = {}): string {
   const messages: Record<string, string> = {
     'recovery-required': 'The older key store needs its original owner.key. Restore it, or import a backup.',
     'invalid-backup': 'Check the encrypted backup and passphrase.',
+    'invalid-input': 'Complete the saved key form and submit it again. Details: OWNER_STORE_INVALID_INPUT; secret values omitted.',
     conflict: 'This key changed. Refresh before replacing it.',
+    'key-in-use': 'This key is still granted to a site. Revoke its site grants before deleting it. Details: P25_KEY_IN_USE; secret values omitted.',
     cancelled: 'The import was cancelled.',
     timeout: 'The operation timed out. Refresh before retrying.',
   };

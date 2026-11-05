@@ -135,16 +135,41 @@ function emailAlternative({ nodes }: { nodes: Element[] }, _options = {}): strin
 
 /** Disable one backend-dependent form and disclose the missing server immediately after it. */
 function formEdits({ node, alternative }: { node: Element; alternative: string }, _options = {}): Edit[] {
-  const edits: Edit[] = [];
   const attrs = node.sourceCodeLocation?.attrs ?? {};
-  for (const name of ["action", "method"]) {
-    if (name === "method" && attribute({ node, name })?.toLowerCase() !== "post") continue;
-    const location = attrs[name];
-    if (location) edits.push({ ...location, text: "" });
+  const edits: Edit[] = [];
+  if (attrs.action) edits.push({ ...attrs.action, text: "" });
+  // Removing action/method alone defaults to GET and leaks answers into the URL. The native
+  // dialog method performs no network submission while preserving theme form selectors.
+  if (attrs.method) edits.push({ ...attrs.method, text: 'method="dialog"' });
+  else {
+    const start = node.sourceCodeLocation!.startTag!.endOffset - 1;
+    edits.push({ startOffset: start, endOffset: start, text: ' method="dialog"' });
   }
   const end = node.sourceCodeLocation!.endOffset;
   edits.push({ startOffset: end, endOffset: end, text: `<p>This form needs a server to send messages.${alternative}</p>` });
   return edits;
+}
+
+/** Explicit form owners take precedence over ancestors for outside submit controls. */
+function submitOwner({ node, ids, disabled }: { node: Element; ids: Set<string>; disabled: Set<Element> }, _options = {}): boolean {
+  const form = attribute({ node, name: 'form' });
+  if (form !== undefined) return ids.has(form);
+  let parent = node.parentNode;
+  while (parent) {
+    if ('tagName' in parent && parent.tagName === 'form') return disabled.has(parent);
+    parent = 'parentNode' in parent ? parent.parentNode : null;
+  }
+  return false;
+}
+
+/** Dialogs and action-less script/search forms have no known backend destination to disable. */
+function backendFormTarget({ node, publicOrigin, page }: { node: Element; publicOrigin: string | undefined; page: string }, _options = {}): URL | undefined {
+  if (node.tagName !== 'form' || !node.sourceCodeLocation) return undefined;
+  const method = attribute({ node, name: 'method' })?.toLowerCase();
+  if (method === 'dialog') return undefined;
+  const action = attribute({ node, name: 'action' });
+  if (action === undefined && method !== 'post' && attribute({ node, name: 'data-form-slug' }) === undefined) return undefined;
+  return serverAction({ action: action ?? '', publicOrigin, page });
 }
 
 /** Download-only form policy. Publish retains receiver-enabled actions. Report only removed actions.
@@ -155,17 +180,21 @@ function formEdits({ node, alternative }: { node: Element; alternative: string }
 export function downloadForms({ html, page, publicOrigin }: { html: string; page: string; publicOrigin?: string }, _options = {}): { html: string; removed: DroppedReference[]; serverLinks: DroppedReference[] } {
   const nodes = elements({ html });
   const alternative = emailAlternative({ nodes });
+  const disabled = new Set<Element>();
   const edits: Edit[] = [], removed: DroppedReference[] = [], serverLinks: DroppedReference[] = [];
   for (const node of nodes) {
     const signin = signInReference({ node, page, publicOrigin });
     if (signin) serverLinks.push(signin);
-    if (node.tagName !== "form" || !node.sourceCodeLocation) continue;
-    const action = attribute({ node, name: "action" });
-    if (action === undefined) continue;
-    const target = serverAction({ action, publicOrigin, page });
+    const target = backendFormTarget({ node, publicOrigin, page });
     if (!target) continue;
+    disabled.add(node);
     edits.push(...formEdits({ node, alternative }));
     removed.push({ page, url: target.pathname, attribute: "action", reason: "needs-server" });
+  }
+  const ids = new Set([...disabled].map(node => attribute({ node, name: 'id' })).filter((id): id is string => id !== undefined));
+  for (const node of nodes) {
+    const override = node.sourceCodeLocation?.attrs?.formmethod;
+    if (override && submitOwner({ node, ids, disabled })) edits.push({ ...override, text: 'formmethod="dialog"' });
   }
   return { html: editedHtml({ html, edits }), removed, serverLinks };
 }

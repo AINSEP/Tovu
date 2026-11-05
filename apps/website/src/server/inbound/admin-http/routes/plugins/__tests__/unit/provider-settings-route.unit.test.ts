@@ -35,7 +35,7 @@ test('project key use reports a typed unknown-key refusal as 400 and keeps opaqu
   for (const failure of [new ToolInputError({ message: 'Unknown project key' }), new Error('private vault location')]) {
     let writes = 0;
     const { call } = await serve(t, { projectKeys: {
-      list: async () => [], savedResult: async ({ result }) => result,
+      list: async () => [], listGranted: async () => [], savedResult: async ({ result }) => result,
       permissionFor: async () => { throw failure; }, use: async () => { writes++; assert.fail('missing key cannot be attached'); },
     } });
     const reply = await call('PUT', `${WS}/project-keys/missing/use`, { use: true });
@@ -76,8 +76,8 @@ async function serve(t: TestContext, deps: Partial<ProviderSettingsRouteDeps> = 
   const config = memoryConfig();
   const app = express();
   app.use(express.json());
-  app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; next(); });
-  registerPluginProviderSettingsRoutes(app, { workspaceId: WS, discoverPlugins: async () => RECORDS, providerConfig: config,
+  app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; res.locals.authCredentialKind = "session"; next(); });
+  registerPluginProviderSettingsRoutes(app, { workspaceId: WS, ownerPrincipalId: Promise.resolve("owner"), discoverPlugins: async () => RECORDS, providerConfig: config,
     authorize: async ({ permission }: { permission: string }) => { permissions.push(permission); return { allowed: true, reason: "ok" }; }, ...deps } as ProviderSettingsRouteDeps);
   const server = app.listen(0);
   t.after(() => server.close());
@@ -286,7 +286,7 @@ test("admin attaches an encoded provider key with its save permission and return
   const calls: { keyId: string; use: boolean }[] = [];
   const keyId = "plugin-state:observability-example:provider.config";
   const { call, permissions } = await serve(t, { projectKeys: {
-    list: async () => [], savedResult: async ({ result }) => result,
+    list: async () => [], listGranted: async () => [], savedResult: async ({ result }) => result,
     permissionFor: async ({ keyId: found }) => { assert.equal(found, keyId); return "admin.plugins.enable"; },
     use: async input => { calls.push(input); return { ...input, usedByThisSite: input.use, usedBy: input.use ? ["A"] : [], appliesAt: "now" }; },
   } });
@@ -312,7 +312,7 @@ test("project key use denies base readers before looking up any existing or miss
   const { call } = await serve(t, {
     authorize: async () => ({ allowed: false, reason: "no_grant" }),
     projectKeys: {
-      list: async () => [], savedResult: async ({ result }) => result,
+      list: async () => [], listGranted: async () => [], savedResult: async ({ result }) => result,
       permissionFor: async () => assert.fail("must authorize before revealing existence"),
       use: async () => assert.fail("must not mutate"),
     },

@@ -1,11 +1,13 @@
 import { lazy } from "react";
 
 /**
- * Tovu's route components. Declaring a lazy component evaluates no feature module; React loads
- * the owning feature's public entry only when that page renders. Related detail routes share
- * their feature chunk and keep the keys/props declared in panels.tsx. Redirects and the Forms
- * bridge stay eager: Jini keeps Forms List eager to let its API read escape saturated streams;
- * adding a native import before that read would restore the documented loading deadlock.
+ * Tovu's route components. React loads each lazy feature's public entry only when that page
+ * renders. Related detail routes share their feature chunk and keep the keys/props declared in
+ * panels.tsx. Comments, Redirects, SEO, and Widgets adapters stay eager because Jini already
+ * defers their actual pages/tabs; another import here adds a serial wrapper-loading step.
+ * Navigation redirects and the Forms bridge also stay eager: Jini keeps Forms List eager to let
+ * its API read escape saturated streams; adding a native import before that read would restore
+ * the documented loading deadlock.
  * Jini already loads the Form Editor itself lazily beneath this bridge.
  * React owns promise caching and forwards failed imports to the existing root error handling.
  * Use these components only beneath the panel registry's Suspense boundary.
@@ -22,7 +24,7 @@ export const Posts = lazy(() => import("./features/posts").then(module => ({ def
 export const PageEditor = lazy(() => import("./features/pages").then(module => ({ default: module.PageEditor })));
 export const Pages = lazy(() => import("./features/pages").then(module => ({ default: module.Pages })));
 export const Members = lazy(() => import("./features/members").then(module => ({ default: module.Members })));
-export const Comments = lazy(() => import("./features/comments").then(module => ({ default: module.Comments })));
+export { Comments } from "./features/comments";
 export const Analytics = lazy(() => import("./features/analytics").then(module => ({ default: module.Analytics })));
 export const Library = lazy(() => import("./features/library").then(module => ({ default: module.Library })));
 export const Menus = lazy(() => import("./features/menus").then(module => ({ default: module.Menus })));
@@ -33,8 +35,8 @@ export const Users = lazy(() => import("./features/users").then(module => ({ def
 export const Authentication = lazy(() => import("./features/authentication").then(module => ({ default: module.Authentication })));
 export const Roles = lazy(() => import("./features/roles").then(module => ({ default: module.Roles })));
 export const SettingsUi = lazy(() => import("./features/settings").then(module => ({ default: module.SettingsUi })));
-export const Seo = lazy(() => import("./features/seo").then(module => ({ default: module.Seo })));
-export const Redirects = lazy(() => import("./features/redirects").then(module => ({ default: module.Redirects })));
+export { Seo } from "./features/seo";
+export { Redirects } from "./features/redirects";
 export const Plugins = lazy(() => import("./features/plugins").then(module => ({ default: module.Plugins })));
 export const AgentPlugins = lazy(() => import("./features/plugins").then(module => ({ default: module.AgentPlugins })));
 export { FormsList, FormEditor } from "./features/forms";
@@ -51,10 +53,7 @@ export const Deployment = lazy(() => import("./features/deployment").then(module
 export const SourceControl = lazy(() => import("./features/source-control").then(module => ({ default: module.SourceControl })));
 export const Security = lazy(() => import("./features/security").then(module => ({ default: module.Security })));
 export const Observability = lazy(() => import("./features/observability").then(module => ({ default: module.Observability })));
-export const WidgetsLibrary = lazy(() => import("./features/widgets").then(module => ({ default: module.WidgetsLibrary })));
-export const WidgetInstanceEditor = lazy(() => import("./features/widgets").then(module => ({ default: module.WidgetInstanceEditor })));
-export const WidgetRegions = lazy(() => import("./features/widgets").then(module => ({ default: module.WidgetRegions })));
-export const WidgetRegionEditor = lazy(() => import("./features/widgets").then(module => ({ default: module.WidgetRegionEditor })));
+export { WidgetsLibrary, WidgetInstanceEditor, WidgetRegions, WidgetRegionEditor } from "./features/widgets";
 export { WorkspaceRedirect } from "./features/workspace/WorkspaceRedirect";
 export const AiAssistant = lazy(() => import("./features/ai-assistant").then(module => ({ default: module.AiAssistant })));
 export const Playground = lazy(() => import("./features/playground").then(module => ({ default: module.Playground })));

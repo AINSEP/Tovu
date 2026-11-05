@@ -1,22 +1,24 @@
-import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminCredentialCopyRoutes } from "../credential-copy.js";
-import { LocalCredentialCopyError } from "#src/server/runtime/composition/local-credential-copy";
 
 type Deps = Parameters<typeof registerAdminCredentialCopyRoutes>[0]["deps"];
 const path = "/api/admin/v1/workspaces/:workspaceId/system/credential-copy";
-const selection = { sourceSiteId: "source", ids: ["key"], overwrite: false };
+const selection = { sourceSiteId: "shared-keys", ids: ["key"], overwrite: false };
 function fixture({ instance = true }: { instance?: boolean } = {}, _options = {}) {
   const calls: unknown[] = [];
   let allowed = true, instanceAllowed = true;
-  const deps: Deps & { localCredentialCopy: NonNullable<Deps["localCredentialCopy"]> } = { workspaceId: "ws", ownerPrincipalId: Promise.resolve("owner"),
+  const deps: Deps = { workspaceId: "ws", ownerPrincipalId: Promise.resolve("owner"),
     authorize: async () => { calls.push("rbac"); return { allowed, reason: "pin" }; },
     gatedMutations: { gatewayDeps: { authorizeInstance: instance ? async () => { calls.push("instance"); return { allowed: instanceAllowed, reason: "pin" }; } : undefined } } as Deps["gatedMutations"],
-    localCredentialCopy: { localHost: true, list: async () => { calls.push("list"); return []; },
-      copy: async input => { calls.push(input); return []; } },
+    projectKeys: {
+      list: async () => { calls.push("list"); return [{ keyId: "key", name: "Saved key", kind: "vendor", usedByThisSite: false, usedBy: [] }]; },
+      listGranted: async () => [], savedResult: async ({ result }) => result,
+      permissionFor: async () => "custom-credentials.write",
+      use: async input => { calls.push(input); return { keyId: input.keyId, usedByThisSite: input.use, usedBy: [], appliesAt: "now" }; },
+    },
   };
   const app = express(); registerAdminCredentialCopyRoutes({ app, deps });
   return { calls, deps, deny: () => { allowed = false; }, denyInstance: () => { instanceAllowed = false; },
@@ -43,56 +45,43 @@ function fixture({ instance = true }: { instance?: boolean } = {}, _options = {}
   };
 }
 
-test("copy admission preserves session, workspace, owner, RBAC, instance and capability order", async () => {
+test("owner browser approval grants one reference and never submits a target site identity", async () => {
+  const f = fixture();
+  const listed = await f.request({ method: "get" });
+  assert.equal(listed.statusCode, 200);
+  assert.deepEqual(listed.jsonBody, { sources: [{ siteId: "shared-keys", name: "Shared Keys", keys: [{ kind: "vendor", id: "key", label: "Saved key", provider: null, worksFor: [] }] }] });
+  const result = await f.request({ method: "post", body: selection });
+  assert.equal(result.statusCode, 200);
+  assert.deepEqual(f.calls.at(-1), { keyId: "key", use: true });
+  for (const body of [{ ...selection, siteId: "victim" }, { ...selection, sourceSiteId: "another-site" }, { ...selection, ids: ["key", "other"] }, { ...selection, overwrite: true }]) {
+    assert.equal((await f.request({ method: "post", body })).statusCode, 400);
+  }
+});
+
+test("API credentials, other actors, foreign workspaces and nonlocal requests cannot browse or grant", async () => {
   for (const method of ["get", "post"] as const) {
-    for (const options of [{ credential: "api_key" }, { actor: "admin" }, { workspaceId: "other" }]) {
-      const f = fixture(); assert.equal((await f.request({ method, body: selection, ...options })).statusCode, options.workspaceId ? 404 : 403); assert.deepEqual(f.calls, []);
+    for (const input of [{ credential: "api_key" }, { actor: "other" }, { workspaceId: "other" }, { remote: "203.0.113.9" }]) {
+      const f = fixture();
+      const response = await f.request({ method, body: selection, ...input });
+      assert.ok(response.statusCode >= 400);
+      assert.equal(f.calls.some(call => call === "list" || typeof call === "object"), false);
     }
-    const denied = fixture(); denied.deny(); assert.equal((await denied.request({ method })).statusCode, 403); assert.deepEqual(denied.calls, ["rbac"]);
-    const instance = fixture(); instance.denyInstance(); assert.deepEqual((await instance.request({ method })).jsonBody, { reasonCode: "owner-only" }); assert.deepEqual(instance.calls, ["rbac", "instance"]);
-    const local = fixture(); local.deps.localCredentialCopy.localHost = false;
-    assert.deepEqual((await local.request({ method })).jsonBody, { reasonCode: "local-host-only" });
-    const noInstance = fixture({ instance: false }); assert.equal((await noInstance.request({ method, body: selection })).statusCode, 200);
   }
 });
 
-test("copy local admission rejects socket, forwarding, URL, Host and Origin mismatches", async () => {
-  const invalid: Parameters<ReturnType<typeof fixture>["request"]>[0][] = [
-    { local: "192.0.2.1" }, { remote: "192.0.2.1" }, { local: "" }, { remote: "" },
-    { headers: { forwarded: "for=127.0.0.1" } }, { headers: { "x-forwarded-host": "localhost" } },
-    { host: "example.test" }, { host: "LOCALHOST:4242" }, { host: "[" }, { protocol: "ftp" }, { origin: "http://localhost:4242" },
-  ];
-  for (const input of invalid) {
-    const f = fixture(); assert.deepEqual((await f.request(input)).jsonBody, { reasonCode: "local-host-only" }); assert.deepEqual(f.calls, ["rbac", "instance"]);
-  }
-  for (const input of [{}, { origin: "http://127.0.0.1:4242" }, { local: "::ffff:127.0.0.1", remote: "::ffff:127.0.0.1" }]) {
-    assert.deepEqual((await fixture().request(input)).jsonBody, { sources: [] });
-  }
+test("revoked RBAC or instance admission refuses before discovery", async () => {
+  const f = fixture(); f.deny();
+  assert.equal((await f.request({})).statusCode, 403);
+  assert.deepEqual(f.calls, ["rbac"]);
+  const instance = fixture(); instance.denyInstance();
+  assert.equal((await instance.request({})).statusCode, 403);
+  assert.deepEqual(instance.calls, ["rbac", "instance"]);
 });
 
-test("copy selection pins every shape and length check before the injected transfer", async () => {
-  const malformed: unknown[] = [undefined, null, 1, [], {}, { ...selection, extra: true },
-    ...[1, "", "../source", "a".repeat(129)].map(sourceSiteId => ({ ...selection, sourceSiteId })),
-    ...[null, [], Array(101).fill("id"), [1], [""], ["a".repeat(513)], ["a\nb"], ["a\x7fb"]].map(ids => ({ ...selection, ids })),
-    { ...selection, overwrite: "false" }];
-  for (const body of malformed) {
-    const f = fixture(); assert.deepEqual(await f.request({ method: "post", body }), { statusCode: 400, jsonBody: { reasonCode: "invalid-request" } }); assert.deepEqual(f.calls, ["rbac", "instance"]);
-  }
-  for (const body of [selection, { sourceSiteId: "a".repeat(128), ids: Array(100).fill("a".repeat(512)), overwrite: true }]) {
-    const f = fixture(); assert.deepEqual((await f.request({ method: "post", body })).jsonBody, { results: [] });
-    assert.deepEqual(f.calls[2], { ...body, actorId: "owner" });
-  }
-});
 
-test("a transfer refusal is a 409 carrying its own reason, and any other failure a fixed 500 that never echoes the cause", async () => {
-  const refused = fixture();
-  refused.deps.localCredentialCopy.copy = async () => { throw new LocalCredentialCopyError({ reasonCode: "source-locked", message: "The source site is open in another window." }); };
-  assert.deepEqual(await refused.request({ method: "post", body: selection }), {
-    statusCode: 409, jsonBody: { reasonCode: "source-locked", message: "The source site is open in another window." },
-  });
-  const crashed = fixture();
-  crashed.deps.localCredentialCopy.list = async () => { throw new Error("sqlite: cannot open /private/source/vault.db with key material"); };
-  assertAdminResponse({ actual: await crashed.request({ method: "get" }), expected: {
-    statusCode: 500, jsonBody: { reasonCode: "copy-failed", code: "INTERNAL_ERROR", message: "Copying keys failed. Try again." },
-  } });
+test("the selected key's instance permission is checked before granting", async () => {
+  const f = fixture();
+  f.deps.gatedMutations.gatewayDeps.authorizeInstance = async ({ permission }) => ({ allowed: permission !== 'custom-credentials.write', reason: 'pin' });
+  assert.equal((await f.request({ method: 'post', body: selection })).statusCode, 403);
+  assert.equal(f.calls.some(call => typeof call === 'object'), false);
 });

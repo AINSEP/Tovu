@@ -1,3 +1,4 @@
+import { ProjectKeyCreateConflictError } from '../project-keys/create-vault.js';
 import { CredentialInputError, CREDENTIAL_MESSAGES, assertCredentialFreeField, normalizeCredentialToken, type CredentialConnection } from '../../contracts/core/credential-token.js';
 import type { Clock as ClockPort, UUID } from "@jini-ai/core/primitives";
 
@@ -5,7 +6,7 @@ import { isUniqueViolation } from "@jini-ai/db/kernel";
 import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
 import { VaultError, type VaultSummary } from "@jini-ai/platform/secrets/credential-sets";
 import { credentialVault, credentialScope, credentialHint } from "../vendor-credentials/index.js";
-import { credentialDeletionRepo, credentialCreateTarget, credentialScopes, type CredentialScope, type ScopedCredentialDeps } from "../vendor-credentials/index.js";
+import { credentialCreateTarget, credentialScopes, type CredentialScope, type ScopedCredentialDeps } from "../vendor-credentials/index.js";
 import { buildSourceControlProvider, type LoadSourceControlProviders, type SourceControlProviderRegistry, type SourceControlProviderDescriptor } from "./provider-registry.js";
 import type {
   SourceControlConnectionInput,
@@ -376,6 +377,11 @@ export async function createSourceControlCredential(
 ): Promise<SourceControlCredentialSummary> {
   const label = validateLabel(input.label);
   const connection = validateConnection({ raw: input.connection, registry: await credentialRegistry({ deps, workspaceId: input.workspaceId }) });
+  const canonical = deps.repo.canonical;
+  if (canonical?.supports({ providerId: connection.providerId })) {
+    if (!canonical.create) throw new SourceControlCredentialValidationError("Open the provider's API key card to save this shared key.");
+    return canonical.create({ workspaceId: input.workspaceId, connection });
+  }
   const isDefault = optionalBoolean(input.isDefault, "isDefault");
   // Project-first (`vendor-credentials/project-scope.ts`); "site" = only for this site.
   const target = credentialCreateTarget(deps, input, message => new SourceControlCredentialValidationError(message));
@@ -391,6 +397,7 @@ export async function createSourceControlCredential(
 async function saveConnection({ deps, input }: { deps: SourceControlCredentialWriteDeps; input: Parameters<ReturnType<typeof vault>["put"]>[0] }, _options = {}): Promise<VaultSummary> {
   try { return await vault(deps).put(input); }
   catch (error) {
+    if (error instanceof ProjectKeyCreateConflictError) throw new SourceControlCredentialDuplicateLabelError(error.message);
     const duplicate = isUniqueLabelViolation(error) || error instanceof VaultError && error.code === "conflict" &&
       (await deps.repo.listByProvider({ workspaceId: input.workspaceId, providerId: input.provider as SourceControlProviderId }))
         .some(row => row.id !== input.id && row.label === input.label);
@@ -476,7 +483,7 @@ export async function updateSourceControlCredential(
  */
 export async function deleteSourceControlCredential(deps: SourceControlCredentialReadDeps, input: { workspaceId: UUID; id: UUID }): Promise<void> {
   // A project row is removed only when no other site uses it, with its attachments.
-  const located = await locateById({ ...deps, repo: credentialDeletionRepo({ repo: deps.repo }) }, input);
+  const located = await locateById({ ...deps, repo: deps.repo }, input);
   if (located) await located.scoped.deps.repo.delete({ workspaceId: located.scoped.workspaceId, id: input.id });
 }
 
@@ -498,7 +505,8 @@ async function selectSourceControlCredential({ repo, workspaceId, providerId, cl
 
 /** The selected credential's metadata for a host, never decrypted: this site's, else the project's. */
 export async function findDefaultSourceControlCredential(deps: SourceControlCredentialReadDeps,
-  input: { workspaceId: UUID; providerId: SourceControlProviderId }): Promise<SourceControlCredentialSetRecord | null> {
+  input: { workspaceId: UUID; providerId: SourceControlProviderId }): Promise<Pick<SourceControlCredentialSetRecord, "id" | "label" | "providerId"> | null> {
+  if (deps.repo.canonical?.supports(input)) return deps.repo.canonical.describe(input);
   const claimed = new Set<string>();
   for (const scoped of credentialScopes(deps, input.workspaceId)) {
     const found = await selectSourceControlCredential({ repo: scoped.deps.repo, workspaceId: scoped.workspaceId, providerId: input.providerId, claimed });
@@ -530,6 +538,7 @@ export async function resolveDefaultForSourceControl(
   input: { workspaceId: UUID; providerId: SourceControlProviderId }
 ): Promise<{ id: UUID; label: string; connection: SourceControlConnectionInput } | null> {
   try {
+    if (deps.repo.canonical?.supports(input)) return await deps.repo.canonical.resolve(input);
     // This site's default first (a site with any row for the host has one), else the project's.
     const resolved = await findDefaultOpened(deps, input);
     if (!resolved) return null;

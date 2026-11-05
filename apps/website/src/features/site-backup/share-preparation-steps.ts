@@ -42,12 +42,8 @@ export async function captureProjectedDatabase(required: { dbOps: DbOpsPort; san
   const snapshot = await captureDatabaseSnapshot({ dbOps: required.dbOps, scopeId: "site-share" }, { maxBytes: SHARE_LIMITS.maxExpandedBytes, snapshotRoot: required.snapshotRoot });
   if (!snapshot.ok) throw new SiteShareRefusal({ code: "DATABASE_SNAPSHOT_FAILED", message: snapshot.message });
   const projected = await required.sanitize({ snapshot: snapshot.bytes }, { signal: optional.signal });
-  let savedKeys: Awaited<ReturnType<SiteSavedKeysPort["capture"]>> | undefined;
-  if (required.includeSavedKeys) {
-    if (!required.savedKeys || !required.shareId || !required.workspaceId) throw new SiteShareRefusal({ code: "UNAVAILABLE", message: "Saved keys export is unavailable." });
-    savedKeys = await required.savedKeys.capture({ snapshot: snapshot.bytes, shareId: required.shareId, workspaceId: required.workspaceId }, optional);
-  }
-  return { projected, watermarkAtCapture: snapshot.watermarkAtCapture, savedKeys };
+  return { projected, watermarkAtCapture: snapshot.watermarkAtCapture };
+
 }
 
 /** Collects the share profile's files (never the media folder); any skipped file refuses by name. */

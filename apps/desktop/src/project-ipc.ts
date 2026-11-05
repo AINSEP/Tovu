@@ -209,14 +209,15 @@ function scheduleSiteRetry({ delayMs, run }: { delayMs: number; run: () => void 
   return () => clearTimeout(timer);
 }
 
-/** Use only the owned root's current RSS. Totals include grandchildren and cannot enforce this cap.
+/** Use only the owned root's current OS RSS, independent of the cached footprint display. Totals include grandchildren and cannot enforce this cap.
  * @complexity O(p) for the snapshot's p processes; O(1) retained observation per site.
  */
 function siteRssOverTime({ state, server, snapshot, siteDir, at }: {
   state: SiteRuntime; server: OpenSiteEntry["server"]; snapshot: ResourcesSnapshot; siteDir: string; at: number;
 }, _options = {}): boolean {
   const root = currentSiteRss({ snapshot, siteDir, pid: server.pid, at });
-  if (!root || !Number.isFinite(root.rssBytes) || root.rssBytes < 1_500_000_000) {
+  const rssBytes = root?.rawRssBytes ?? root?.rssBytes;
+  if (!root || rssBytes === undefined || !Number.isFinite(rssBytes) || rssBytes < 1_500_000_000) {
     state.rss = undefined;
     return false;
   }

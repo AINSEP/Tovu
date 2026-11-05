@@ -42,6 +42,8 @@ export interface AdminFormDefinitionDto {
 }
 
 export interface AdminFormSubmissionDto {
+  notificationDelivery?: { failed: number; pending: number };
+  validation?: FormSubmissionRecord["validation"];
   id: string;
   formDefinitionId: string;
   workspaceId: string;
@@ -82,6 +84,7 @@ export function toAdminFormSubmissionDto(submission: FormSubmissionRecord): Admi
     formDefinitionId: submission.formDefinitionId,
     workspaceId: submission.workspaceId,
     data: { ...submission.data },
+    ...(submission.validation ? { validation: submission.validation } : {}),
     // cms-forms 0.2.2 types an expired IP as null; the wire DTO keeps repo.rows.ts's empty string.
     sourceIp: submission.sourceIp ?? "",
     submittedAt: submission.submittedAt,

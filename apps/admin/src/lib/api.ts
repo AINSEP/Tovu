@@ -2718,7 +2718,7 @@ export interface AdminCredentialCopySource {
 export interface AdminCredentialCopyResult {
   kind: string;
   id: string;
-  status: "copied" | "skipped" | "failed";
+  status: "granted" | "copied" | "skipped" | "failed";
   last4?: string;
   reasonCode?: string;
 }
@@ -4298,12 +4298,12 @@ export const api = {
   deleteSourceControlCredential: (id: string) =>
     request<void>(`/workspaces/${WORKSPACE_ID}/system/source-control/credentials/${encodeURIComponent(id)}`, { method: "DELETE" }),
 
-  /** Safe local project choices and eligible key summaries; no credential values. */
+  /** Owner-only Shared Keys metadata; no other site inventories or credential values. */
   listCredentialCopySources: (_required: Record<string, never>, options: AuthenticatedAdminRequestOptions = {}) =>
     authenticatedAdminRequest<{ sources: AdminCredentialCopySource[] }>({
       path: `/workspaces/${WORKSPACE_ID}/system/credential-copy`, method: "GET",
     }, options),
-  /** Copy selected source IDs through the owner-only route; overwrite is explicit. */
+  /** Approve one Shared Keys reference for this site; sourceSiteId is the fixed shared-keys group. */
   copyCredentials: (input: { sourceSiteId: string; ids: string[]; overwrite: boolean }, options: AuthenticatedAdminRequestOptions = {}) =>
     authenticatedAdminRequest<{ results: AdminCredentialCopyResult[] }>({
       path: `/workspaces/${WORKSPACE_ID}/system/credential-copy`, method: "POST", body: input,

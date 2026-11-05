@@ -13,7 +13,7 @@ import type { FormsDeps, RouteDeps } from "#src/server/routes/types";
  * subscriber (SPEC-031).
  */
 // The package clock is bound here explicitly; composition supplies nowMs rather than an ISO getter.
-export type FormsRouteDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "idGen" | "changeSets" | "outbox"> & FormsDeps & {
+export type FormsRouteDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "idGen" | "changeSets" | "outbox" | "formDeliveryStatus"> & FormsDeps & {
   clock: Clock;
   executeCommand: FormCommandExecutorPort;
 };

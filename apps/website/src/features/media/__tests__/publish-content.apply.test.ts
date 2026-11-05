@@ -624,3 +624,14 @@ for (const operation of ["create", "update"] as const) {
     assert.deepEqual(await fixture.deps.outbox!.claimPending({ batchSize: 10, nowIso: "2026-09-18T12:00:00.000Z" }), []);
   });
 }
+
+test("ordinary uploaded media retains its content hash after publishing", async () => {
+  const fixture = await makeFixture();
+  const record = makeMediaRecord({ source: { sha256: PHOTO_SHA256, contentType: 'application/octet-stream', provenance: { kind: 'upload' } } });
+  await stageBlobBytes(fixture.blobStore, PHOTO_SHA256, PHOTO_BYTES);
+  const handler = handlerFor(fixture.deps);
+  const entity = packedFrom(record);
+  await handler.apply({ entity, expectedVersion: undefined, principalId: OPERATOR_ID, idempotencyKey: 'ordinary-upload-round-trip' });
+  assert.equal((await handler.inspect(record.id))!.hash, entity.contentHash,
+    'losing uploaded source metadata must not make the next publish look like a destination edit');
+});

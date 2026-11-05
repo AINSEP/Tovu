@@ -127,3 +127,12 @@ test("saved widgets are not listed when no live entry places a widget", async t 
   assert.equal((await fetch(`${baseUrl}/m/${media.id}/public.v1/a.webp`)).status, 200);
   assert.equal(listings.mock.callCount(), 0);
 });
+
+test('private submitted photos deny anonymous originals and renditions by id and slug', async t => {
+  const { deps, baseUrl } = await boot(t);
+  const { media } = await uploadMedia({ deps: { clock: deps.clock, idGen: deps.idGen, mediaRepo: deps.mediaRepo, blobRepo: deps.assetBlobRepo, renditionRepo: deps.assetRenditionRepo, blobStore: deps.blobStore }, input: { workspaceId: deps.workspaceId, createdByPrincipal: 'system', filename: 's-photo.png', bytes: PNG, contentType: 'image/png', access: 'private' } });
+  for (const alias of [media.id, media.slug]) for (const suffix of ['original', 'public.v1/photo.webp']) {
+    const response = await fetch(`${baseUrl}/m/${alias}/${suffix}`);
+    assert.equal(response.status, 404); assert.equal(response.headers.get('cache-control'), 'private, no-store');
+  }
+});

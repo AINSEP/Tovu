@@ -555,7 +555,7 @@ export function installFirstPartyToolContributors(
   contributions.contributors.register({ contribution: contributeStaticPublishTools() });
   contributions.contributors.register({ contribution: {
     domain: "credential-copy", risk: credentialCopyDerivedRisk,
-    build: (deps, surfaces) => buildCredentialCopyRegistrations({ deps, surfaces }),
+    build: (deps, surfaces) => buildCredentialCopyRegistrations({ deps, surfaces, saveNew: buildApiCredentialSaveHandlers({ routeDeps: deps, surfaces }).create }),
   } });
   const candidatePaths = readBundledDeployConfigCandidatePaths({ sourceRoot: bundledPluginsRoot });
   const committedRoot = resolveCommittedConfigRoot();

@@ -128,3 +128,9 @@ test("unknown forms errors leave the response untouched for the caller's generic
   assert.equal(mapFormsWriteError(new Error("private db path"), res), false);
   assert.deepEqual(capture, { statusCode: 200, jsonBody: undefined });
 });
+
+test('invalid import classification is exposed beside answers on detail and list responses', () => {
+  const submission = { id: 's', workspaceId: 'w', formDefinitionId: 'f', data: { email: '' }, sourceIp: null, submittedAt: 'now', validation: { status: 'invalid' as const, fieldErrors: [{ field: 'email', reason: 'required' }] } };
+  assert.deepEqual(toAdminFormSubmissionResponse(submission).data.validation, submission.validation);
+  assert.deepEqual(toAdminFormSubmissionListResponse({ items: [submission], nextCursor: null }).data[0]!.validation, submission.validation);
+});

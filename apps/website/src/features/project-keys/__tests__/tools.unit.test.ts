@@ -33,19 +33,16 @@ test("save attaches to this site immediately, and detach leaves the saved row", 
   await assert.rejects(createProjectKeys({ ...inputs, siteId: "" }).use({ keyId: "key-a", use: true }), { message: "This site has no id yet; restart it." });
 });
 
-test("tool authorization precedes mutation, malformed input is refused and restart without supervisor does nothing", async () => {
-  const { keys } = await fixture(); const permissions: string[] = [];
-  let denied = true;
-  const tools = buildProjectKeyRegistrations({ keys, surfaces: {} as never, restart: null, loadCards: async () => [], authorize: async ({ permission }) => { permissions.push(permission); if (denied && permission === "custom-credentials.write") throw new Error("denied"); } });
+test("model grant attempts always use the owner picker; revocation needs no second approval card", async () => {
+  const { keys } = await fixture();
+  const tools = buildProjectKeyRegistrations({ keys, surfaces: {} as never, restart: null, loadCards: async () => [], authorize: async () => {} });
   const use = tools.find(tool => tool.descriptor.id === "project_key_use")!;
   const ctx = { executionId: "use", principal: { id: "owner" }, run: { id: "run" }, signal: new AbortController().signal, input: { keyId: "key-a", use: true } };
-  await assert.rejects(use.handler(ctx), { message: "denied" });
-  assert.equal((await keys.list({}))[0]!.usedByThisSite, false);
-  assert.deepEqual(permissions, ["custom-credentials.read", "custom-credentials.write"]);
-  denied = false;
-  await use.handler(ctx);
-  assert.equal((await keys.list({}))[0]!.usedByThisSite, true);
-  await assert.rejects(use.handler({ ...ctx, input: { ...ctx.input, secret: "refused" } }), { message: "project_key_use requires keyId and use (true or false)." });
+  await assert.rejects(use.handler(ctx), /credential_copy_from_project/);
+  await keys.use({ keyId: "key-a", use: true });
+  await assert.rejects(use.handler(ctx), /credential_copy_from_project/);
+  await assert.rejects(use.handler({ ...ctx, input: { ...ctx.input, secret: "refused" } }), /credential_copy_from_project/);
+  assert.equal((await use.handler({ ...ctx, input: { keyId: "key-a", use: false } }) as { usedByThisSite: boolean }).usedByThisSite, false);
   const restart = tools.find(tool => tool.descriptor.id === "site_restart")!;
   assert.deepEqual(await restart.handler({ ...ctx, input: {} }), { restarted: false, message: "Restart the site from the Sites list" });
 });
@@ -165,8 +162,19 @@ for (const kind of ["publish-host", "source-control", "provider-settings", "plug
 test("site-only media saves, failed saves and site overrides never acquire project attachments", async () => {
   const { keys, attachments } = await fixture();
   for (const result of [{ saved: true, provider: "openai", configured: true }, { saved: false, credentialId: "key-a" },
-    { saved: true, keyId: "key-a", store: "site" }]) {
+    { saved: true, keyId: "key-a", store: "site" },
+    { created: true, credential: { id: "key-a", scope: "site" } }]) {
     assert.equal(await keys.savedResult({ result }), result);
   }
   assert.deepEqual(await attachments.usersOf({ keyId: "key-a" }), []);
+});
+
+
+test("model inventory never reveals other sites using a granted key", async () => {
+  const { keys, attachments } = await fixture();
+  await keys.use({ keyId: "key-a", use: true });
+  await attachments.attach({ siteId: "other", siteName: "Private customer site", keyId: "key-a" });
+  const rows = await keys.listGranted({});
+  assert.equal(JSON.stringify(rows).includes("Private customer site"), false);
+  assert.equal(rows.length, 1);
 });

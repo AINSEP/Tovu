@@ -93,7 +93,7 @@ export interface AccessTokensTabProps {
   useAccessTokensHook?: typeof useWiredAccessTokens;
   useOtherCredentialsHook?: typeof useWiredOtherCredentials;
   useCopyKeysHook?: typeof useWiredCopyKeys;
-  /** Whether the "Copy keys from another project…" entry renders; defaults to
+  /** Whether the "Use a saved key" entry renders; defaults to
    *  {@link SHOW_COPY_KEYS_ENTRY} (hidden per owner 2026-10-11). */
   showCopyKeysEntry?: boolean;
 }
@@ -110,7 +110,7 @@ function resolveOtherCredentialsHook(override: typeof useWiredOtherCredentials |
   return override ?? useWiredOtherCredentials;
 }
 
-/** Whether the "Copy keys from another project…" entry renders above the list (see its render site). */
+/** Whether the "Use a saved key" entry renders above the list (see its render site). */
 const SHOW_COPY_KEYS_ENTRY = false;
 
 export function AccessTokensTab(props: AccessTokensTabProps) {
@@ -138,7 +138,7 @@ export function AccessTokensTab(props: AccessTokensTabProps) {
           restore the entry. */}
       {(props.showCopyKeysEntry ?? SHOW_COPY_KEYS_ENTRY) ? (
         <>
-          <button type="button" className="btn-secondary" onClick={copyDialog.show}>{controller.t("Copy keys from another project…")}</button>
+          <button type="button" className="btn-secondary" onClick={copyDialog.show}>{controller.t("Use a saved key")}</button>
           <CopyKeysDialog dialog={copyDialog} t={controller.t} />
         </>
       ) : null}
@@ -923,19 +923,9 @@ function AdditionalHostsField({ value, onChange, translate }: { value: string; o
   );
 }
 
-/** Explicit storage choice; hosts without a project store can truthfully offer site-only saving. */
+/** Local API keys live in Shared Keys; this site's selection is only a grant/reference. */
 function CustomKeyStorageChoice({ controller }: { controller: AccessTokensController }) {
-  const translate = controller.t;
-  if (!controller.projectKeysAvailable) return <p className="field-hint">{translate("This site only")}</p>;
-  return (
-    <fieldset className="access-tokens-key-scope" disabled={controller.customAddForm.saving}>
-      <legend className="field-label">{translate("Save key to")}</legend>
-      <label><input type="radio" name="custom-key-scope" value="project" checked={(controller.customAddForm.scope ?? "project") === "project"}
-        onChange={() => controller.setCustomAddField({ scope: "project" })} /> {translate("Save to project and use on this site")}</label>
-      <label><input type="radio" name="custom-key-scope" value="site" checked={controller.customAddForm.scope === "site"}
-        onChange={() => controller.setCustomAddField({ scope: "site" })} /> {translate("This site only")}</label>
-    </fieldset>
-  );
+  return <p className="field-hint">{controller.t(controller.projectKeysAvailable ? "Save to project and use on this site" : "This site only")}</p>;
 }
 
 /**

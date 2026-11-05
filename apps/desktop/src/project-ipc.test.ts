@@ -2402,6 +2402,17 @@ test('B2 sustained root RSS restarts at 120 seconds only after an accepted stop 
   assert.equal(h.boots(), 1); assert.equal(h.record().status, 'running'); assert.equal(h.pending().length, 0);
 });
 
+test('B2 restart policy uses raw RSS across footprint and fallback display changes', async t => {
+  const h = b2LifecycleHarness(t); h.setMinutes(0); let stops = 0;
+  h.server().stopIfIdle = async () => { stops++; return false; };
+  for (const memoryMetric of ['physical-footprint', 'rss', 'physical-footprint'] as const) {
+    const snapshot = h.snapshot(2_000_000_000);
+    snapshot.sites[0]!.processes = snapshot.sites[0]!.processes.map(row => ({ ...row, memoryMetric, rawRssBytes: 100_000_000 }));
+    await h.lifecycle.maintain({ snapshot }, {}); h.advance(120000);
+  }
+  assert.equal(stops, 0, 'a large display estimate cannot trigger the raw RSS cap');
+});
+
 test('B2 below-cap, missing, stale and replacement PID samples reset sustained RSS', async t => {
   for (const reset of ['below', 'missing', 'stale', 'pid'] as const) {
     const h = b2LifecycleHarness(t); h.setMinutes(0); let requests = 0;

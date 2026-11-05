@@ -1,4 +1,4 @@
-import type { PublishContentExecuteResult, PublishContentPlanResult } from "./contract.js";
+import type { PublishContentExecuteResult, PublishContentPlanResult, PublishContentReport } from "./contract.js";
 import { summarizePublishReport, toPublishReportRows } from "./report-rows.js";
 
 /**
@@ -93,4 +93,12 @@ export function planOnScreen(phase: PublishContentPhase): PublishContentPlanResu
     default:
       return null;
   }
+}
+
+/** The current plan before execution, the server's actual row outcomes afterwards.
+ * Older peers without a result report show their completion count only.
+ * @complexity O(1); no I/O. */
+export function reportOnScreen({ phase }: { phase: PublishContentPhase }, _options = {}): PublishContentReport | null {
+  if (phase.kind === "done") return phase.result.report ?? null;
+  return planOnScreen(phase)?.details ?? null;
 }

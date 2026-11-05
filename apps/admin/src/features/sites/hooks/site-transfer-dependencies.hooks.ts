@@ -67,7 +67,7 @@ export interface SiteTransferPort {
   revealSharePassword(required: { shareId: string }, optional?: Record<string, never>): Promise<{ password: string }>;
   staticExportOptions(required: Record<string, never>, optional?: Record<string, never>): Promise<StaticExportOptions>;
   listShares(): Promise<{ shares: SiteShare[] }>;
-  createShare(input: { jobId?: string; includeSavedKeys?: boolean }): Promise<SiteShareCreateResult>;
+  createShare(input: { jobId?: string }): Promise<SiteShareCreateResult>;
   createStaticShare(input: { jobId?: string; themeIds?: readonly string[] }, optional?: Record<string, never>): Promise<SiteShareCreateResult>;
   downloadShare(required: { share: SiteShare }, optional?: Record<string, never>): void;
   revokeShare(input: { shareId: string }): Promise<SiteShare>;
@@ -121,7 +121,7 @@ export const defaultSiteTransferPort: SiteTransferPort = {
   },
   revealSharePassword: ({ shareId }, _optional = {}) => authenticatedAdminRequest({ method: "POST", path: `${SHARES}/${encodeURIComponent(shareId)}/password`, body: {} }),
   listShares: () => authenticatedAdminRequest({ method: "GET", path: SHARES }),
-  createShare: (input) => authenticatedAdminRequest({ method: "POST", path: SHARES, body: input.jobId ? { jobId: input.jobId } : input.includeSavedKeys === true ? { includeSavedKeys: true } : {} }),
+  createShare: (input) => authenticatedAdminRequest({ method: "POST", path: SHARES, body: input.jobId ? { jobId: input.jobId } : {} }),
   staticExportOptions: (_input, _options = {}) => authenticatedAdminRequest({ method: "GET", path: `${SHARES}/static/options` }),
   createStaticShare: (input, _options = {}) => authenticatedAdminRequest({ method: "POST", path: `${SHARES}/static`, body: staticShareInput(input) }),
   downloadShare: ({ share }, _options = {}) => {

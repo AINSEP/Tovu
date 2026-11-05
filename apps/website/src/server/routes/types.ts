@@ -18,7 +18,6 @@ import type {
   SiteAssistantCredentialRepoPort,
   AdminExecutionCredentialRepoPort,
 } from "#src/assistant/host-ports";
-import type { LocalCredentialCopy } from "#src/server/runtime/composition/local-credential-copy";
 import type { SiteSearchRuntime } from "#src/server/runtime/composition/modules/site-search";
 import type { SiteBinding } from "#src/platform/site-dir/index";
 import type { SiteBackupSources } from "#src/features/site-backup/sources";
@@ -1126,7 +1125,6 @@ export interface DatabaseOpsDeps {
    */
   verifyDueDomainBindings?: (required: { limit: number }) => Promise<string[]>;
   /** Local source reader/transfer; absent in the hermetic root, which has no target content DB. */
-  localCredentialCopy?: LocalCredentialCopy;
   /** Owner-only reads of other local SQLite sites; absent in hermetic/deployed roots. */
   peerSiteReads?: PeerSiteReads;
   /** Bumps `database_write_watermark` for taxonomy writes (create/rename/assign/delete). Real in

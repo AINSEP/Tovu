@@ -600,3 +600,19 @@ test("a row the source tagged as trashing reads 'Will trash on live', still publ
     ]
   );
 });
+test("completed reports describe actual writes and retain named skips without selection controls", () => {
+  const rows = toPublishReportRows({ refused: false, refusalReason: null, applyOrder: ["media"], rows: [
+    { entityType: "media", entityId: "one", entityLabel: "Published photo", outcome: "forced", writes: true, reason: null },
+    { entityType: "media", entityId: "two", entityLabel: "Skipped photo", outcome: "blocked", writes: false, canOverwrite: true,
+      reason: "This replaces the file on the live site. Tick Overwrite on live to publish it." },
+    { entityType: "media", entityId: "three", entityLabel: "Skipped trash", outcome: "conflict", writes: false, trashes: true,
+      reason: "The live file changed. Plan publishing again." },
+  ] }, { completed: true });
+  assert.equal(rows[0]!.dispositionLabel, "Published — overwrite");
+  assert.equal(rows[0]!.selectable, false);
+  assert.equal(rows[1]!.entityLabel, "Skipped photo");
+  assert.equal(rows[1]!.dispositionLabel, "Skipped");
+  assert.equal(rows[1]!.overwritable, false);
+  assert.match(rows[1]!.reason!, /Tick Overwrite on live/);
+  assert.equal(rows[2]!.dispositionLabel, "Skipped");
+});

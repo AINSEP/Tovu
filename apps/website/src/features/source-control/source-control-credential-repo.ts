@@ -7,10 +7,12 @@ import type { ContentKernel } from "../../platform/db/content-kernel.js";
 
 /** Thin historical port mapping; Jini owns transactions, defaults, JSON patches and CAS. */
 export class SqlSourceControlCredentialSetRepo extends TovuCredentialSetVaultAdapter<SourceControlCredentialSetRecord> implements SourceControlCredentialSetRepoPort {
+  readonly canonical?: import("./types.js").CanonicalSourceControlKeys;
   readonly project?: CredentialProjectHalf<SourceControlCredentialSetRepoPort>;
   /** @param optional.project The project store this site's rows fall back to (`features/source-control/types.ts`). */
-  constructor(kernel: ContentKernel, optional: { project?: CredentialProjectHalf<SourceControlCredentialSetRepoPort> } = {}) {
+  constructor(kernel: ContentKernel, optional: { project?: CredentialProjectHalf<SourceControlCredentialSetRepoPort>; canonical?: import("./types.js").CanonicalSourceControlKeys } = {}) {
     super({ vault: new SqlSecretsVaultRepo({ kernel: kernel as unknown as StorageKernel<SecretsVaultDatabase> }), kind: "source-control" });
+    this.canonical = optional.canonical;
     if (optional.project) this.project = optional.project;
   }
 }

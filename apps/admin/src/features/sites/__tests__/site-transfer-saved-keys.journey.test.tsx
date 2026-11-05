@@ -60,37 +60,16 @@ function importScreen() {
 
 afterEach(() => { vi.unstubAllGlobals(); });
 
-it("defaults keys off and does not fetch a password for an ordinary export", async () => {
+it("exports without a saved-keys option or saved-key request payload", async () => {
   const calls = service();
   exportScreen();
-  expect(await screen.findByLabelText("Include saved keys")).not.toBeChecked();
+  expect(screen.queryByLabelText("Include saved keys")).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Export Tovu site" }));
   await screen.findByRole("link", { name: "Download zip" });
   expect(calls.filter(call => call.method === "POST").map(call => call.body)).toEqual(["{}", '{"jobId":"job-1"}']);
   expect(calls.some(call => call.path.endsWith("/password"))).toBe(false);
 }, 10000);
 
-it("opts in only on the first POST, shows the password once with Copy, and requires reveal after refresh", async () => {
-  const calls = service();
-  const clipboard = { writeText: vi.fn(async (_text: string) => {}) };
-  const first = exportScreen(clipboard);
-  fireEvent.click(await screen.findByLabelText("Include saved keys"));
-  fireEvent.click(screen.getByRole("button", { name: "Export Tovu site" }));
-  expect(await screen.findByDisplayValue(archivePassword)).toBeVisible();
-  expect(screen.getByText("Send this password separately")).toBeVisible();
-  fireEvent.click(screen.getByRole("button", { name: "Copy" }));
-  await waitFor(() => expect(clipboard.writeText).toHaveBeenCalledExactlyOnceWith(archivePassword));
-  expect(calls.filter(call => call.path.endsWith("/site-shares") && call.method === "POST").map(call => call.body)).toEqual(['{"includeSavedKeys":true}', '{"jobId":"job-1"}']);
-  expect(calls.filter(call => call.path.endsWith("/password"))).toHaveLength(1);
-  first.unmount();
-  exportScreen(clipboard);
-  const reveal = await screen.findByRole("button", { name: "Reveal password" });
-  expect(screen.queryByDisplayValue(archivePassword)).toBeNull();
-  expect(screen.getByText(omission)).toBeVisible();
-  fireEvent.click(reveal);
-  expect(await screen.findByDisplayValue(archivePassword)).toBeVisible();
-  expect(calls.filter(call => call.path.endsWith("/password"))).toHaveLength(2);
-}, 10000);
 
 it("withholds key export and reveal from a non-owner even with a saved encrypted export", async () => {
   const calls = service({ owner: false });
@@ -105,13 +84,12 @@ it("withholds key export and reveal from a non-owner even with a saved encrypted
   expect(calls.some(call => call.path.endsWith("/password"))).toBe(false);
 }, 10000);
 
-it("keeps export omissions visible when password retrieval fails", async () => {
-  service({ revealFails: true });
+it("keeps export omissions visible without retrieving any key password", async () => {
+  const calls = service({ revealFails: true });
   exportScreen();
-  fireEvent.click(await screen.findByLabelText("Include saved keys"));
   fireEvent.click(screen.getByRole("button", { name: "Export Tovu site" }));
   expect(await screen.findByText(omission)).toBeVisible();
-  expect(await screen.findByRole("alert")).toHaveTextContent("Only the owner");
+  expect(calls.some(call => call.path.endsWith("/password"))).toBe(false);
   expect(screen.queryByDisplayValue(archivePassword)).toBeNull();
 }, 10000);
 
@@ -161,5 +139,5 @@ it.each([true, false])("allows owner setup without a saved keys password (bundle
 it("reads the new saved keys labels from the Sites dictionary in the admin's locale", async () => {
   service();
   render(<FetchQueryProvider><SiteExportTab t={key => sitesTranslator({ locale: "zh-CN", key })} useExport={({ t }) => useSiteExport({ port: defaultSiteTransferPort, t })} /></FetchQueryProvider>);
-  expect(await screen.findByLabelText("包含已保存的密钥")).not.toBeChecked();
+  expect(screen.queryByLabelText("包含已保存的密钥")).toBeNull();
 }, 10000);

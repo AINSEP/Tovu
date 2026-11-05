@@ -1,5 +1,5 @@
 import type { UUID } from "@jini-ai/core/primitives";
-import { MediaConflictError, type MediaFileReplacementRepoPort } from "@jini-ai/cms/media";
+import { MediaConflictError, mediaFileReplacementRecord, type MediaFileReplacementRepoPort, type MediaFileReplacementInput } from "@jini-ai/cms/media";
 import { preserveMediaCreator, type MediaRecord } from "@jini-ai/cms/media";
 
 /**
@@ -179,5 +179,15 @@ export class InMemoryVersionedMediaRepo implements VersionedMediaRepoPort {
     this.reclaimOwnSlug(record.workspaceId, record.id, record.slug);
     this.rows.push(record);
     return { applied: true };
+  }
+
+  /** In-process source CAS for publish tests. Durable rendition/type atomicity is covered by the
+   * SQL adapter contracts; this row-only fake has no blob/rendition tables.
+   * @complexity O(n) rows, as with saveIfVersion; no await between compare and switch. */
+  async replaceFileIfVersion(input: MediaFileReplacementInput, _options = {}): Promise<{ applied: boolean }> {
+    const current = this.rows.find(row => row.workspaceId === input.workspaceId && row.id === input.id);
+    if (!current || (!input.restore && current.status !== "active") || current.kind === "document") return { applied: false };
+    const record = mediaFileReplacementRecord({ media: current, input });
+    return this.saveIfVersion({ record, ifVersion: input.ifVersion });
   }
 }

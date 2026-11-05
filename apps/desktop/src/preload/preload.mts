@@ -85,6 +85,7 @@ const ownerStoreBridge: OwnerStoreBridge = {
   list: (input, _options = {}) => ipcRenderer.invoke(OWNER_STORE_CHANNELS.list, input),
   put: (input, _options = {}) => ipcRenderer.invoke(OWNER_STORE_CHANNELS.put, input),
   import: (input, _options = {}) => ipcRenderer.invoke(OWNER_STORE_CHANNELS.import, input),
+  delete: (input, _options = {}) => ipcRenderer.invoke(OWNER_STORE_CHANNELS.delete, input),
 };
 contextBridge.exposeInMainWorld('tovuOwnerStore', Object.freeze(ownerStoreBridge));
 contextBridge.exposeInMainWorld('tovuTelemetry', Object.freeze({

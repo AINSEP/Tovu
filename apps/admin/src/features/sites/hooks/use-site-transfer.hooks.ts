@@ -37,7 +37,7 @@ function isFinishedShare(result: SiteShareCreateResult): result is SiteShare & {
 /** Starts an export and re-posts its job id until a finished share returns, the caller stops
  *  wanting it (`alive()` false, the tab unmounted) or the poll cap is spent.
  *  @returns The last answer: a finished share, or a still-running job. */
-async function createShareUntilDone({ create, alive, initial = {} }: { create: SiteTransferPort["createStaticShare"]; alive: () => boolean; initial?: { themeIds?: readonly string[]; includeSavedKeys?: boolean } }, _options = {}): Promise<SiteShareCreateResult> {
+async function createShareUntilDone({ create, alive, initial = {} }: { create: SiteTransferPort["createStaticShare"]; alive: () => boolean; initial?: { themeIds?: readonly string[] } }, _options = {}): Promise<SiteShareCreateResult> {
   let result = await create(initial);
   for (let polls = 0; !isFinishedShare(result) && alive() && polls < MAX_EXPORT_POLLS; polls += 1) {
     result = await create({ jobId: result.jobId });
@@ -47,8 +47,6 @@ async function createShareUntilDone({ create, alive, initial = {} }: { create: S
 
 export interface SiteExportController extends StaticExportSelection {
   canManageSavedKeys: boolean;
-  includeSavedKeys: boolean;
-  setIncludeSavedKeys: (include: boolean) => void;
   exportNotices: readonly string[];
   noticeShareId: string | null;
   revealedPassword: { shareId: string; password: string } | null;
@@ -147,14 +145,14 @@ function useSavedKeysAccess({ port, scope }: { port: SiteTransferPort; scope: Re
 }
 
 /** Capture the selected export format and its initial request; polls send only the job id.
- * Static exports retain theme selection; only authorized backups may opt into saved keys. O(1).
+ * Static exports retain theme selection; backups always exclude saved keys. O(1).
  */
-function selectExportRequest({ port, format, themeIds, includeSavedKeys }: {
-  port: SiteTransferPort; format: "backup" | "static"; themeIds: readonly string[]; includeSavedKeys: boolean;
+function selectExportRequest({ port, format, themeIds }: {
+  port: SiteTransferPort; format: "backup" | "static"; themeIds: readonly string[];
 }, _options = {}) {
   return format === "static"
     ? { create: port.createStaticShare.bind(port), initial: { themeIds } }
-    : { create: port.createShare.bind(port), initial: includeSavedKeys ? { includeSavedKeys: true } : {} };
+    : { create: port.createShare.bind(port), initial: {} };
 }
 
 /**
@@ -170,7 +168,6 @@ export function useSiteExport(
   const scope = useAdminBootScope();
   const canManageSavedKeys = useSavedKeysAccess({ port, scope });
   const passwordDisplay = useExportPassword({ port, t, canManageSavedKeys, identity: scope.queryScope, clipboard });
-  const [includeSavedKeys, setIncludeSavedKeys] = useState(false);
   const [exportNotices, setExportNotices] = useState<readonly string[]>([]);
   const [noticeShareId, setNoticeShareId] = useState<string | null>(null);
   const list = useFetchQuery({ key: [...SITE_TRANSFER_KEYS.shares, scope.queryScope], fetch: () => port.listShares() }, { enabled: !scope.checking });
@@ -210,7 +207,7 @@ export function useSiteExport(
     setExportNotices([]);
     setNoticeShareId(null);
     try {
-      const { create, initial } = selectExportRequest({ port, format, themeIds: [...staticSelection.selectedThemeIds], includeSavedKeys: canManageSavedKeys && includeSavedKeys });
+      const { create, initial } = selectExportRequest({ port, format, themeIds: [...staticSelection.selectedThemeIds] });
       const result = await createShareUntilDone({ create, alive: () => alive.current, initial });
       await finishExport({ result, format });
     } catch (failure) {
@@ -254,8 +251,6 @@ export function useSiteExport(
   return {
     ...passwordDisplay,
     canManageSavedKeys,
-    includeSavedKeys,
-    setIncludeSavedKeys,
     exportNotices,
     noticeShareId,
     ...staticSelection,

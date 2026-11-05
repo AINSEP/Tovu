@@ -191,14 +191,14 @@ export async function undoRawRow(
   if (!rows) return "Send by hand is not available on this destination.";
   const handler = contributeRawRowPublish().build(deps);
   const reason = await handler.precheck(entity);
-  if (reason) return reason;
+  if (reason) return typeof reason === "string" ? reason : reason.reason;
   return rows.transaction({ work: async () => {
     const live = await handler.inspect(entity.id);
     if (live?.hash !== afterHash) return `Row '${entity.id}' changed on live after this send; it was left alone.`;
     if (before) {
       const inverse = { ...entity, state: rowState(before), contentHash: rowHash(before) };
       const denied = await handler.precheck(inverse);
-      if (denied) return denied;
+      if (denied) return typeof denied === "string" ? denied : denied.reason;
       await rows.upsert(before);
     } else {
       const incoming = entity.state as unknown as RawRowSnapshot;

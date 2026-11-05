@@ -119,3 +119,28 @@ test('replace carries the displayed revision; importing from this computer sends
   assert.deepEqual(calls.slice(1), [{ source: 'owner-store' }]);
   assert.equal(host.querySelector('[role="status"]')!.textContent, 'Nothing new to import.');
 });
+
+
+for (const kind of ['custom', 'api-connection'] as const) {
+  test(`Shared Keys offers replacement and unused delete for ${kind}`, async t => {
+    const saved = { ...entry, kind, provider: null, id: kind === 'api-connection' ? 'plugin-state:obs:provider.config' : 'custom-key' };
+    const calls: unknown[] = [];
+    const bridge = {
+      list: async () => ({ version: 1, ok: true, action: 'list', data: { entries: [saved] } }),
+      put: async (input: unknown) => { calls.push(input); return { version: 1, ok: true, action: 'put', data: { entry: saved } }; },
+      delete: async (input: unknown) => { calls.push(input); return { version: 1, ok: true, action: 'delete', data: { removed: true } }; },
+    } as unknown as OwnerStoreBridge;
+    const { host, dom } = mount(t, bridge); await settle();
+    act(() => [...host.querySelectorAll('button')].find(b => b.textContent === 'Replace key')!.click());
+    const form = host.querySelector<HTMLFormElement>('article form')!;
+    const input = form.elements.namedItem(kind === 'api-connection' ? 'secrets' : 'token') as HTMLInputElement;
+    input.value = kind === 'api-connection' ? JSON.stringify({ token: 'new-fixture-value' }) : 'new-fixture-value';
+    act(() => { form.dispatchEvent(new dom.Event('submit', { bubbles: true, cancelable: true })); });
+    assert.equal(input.value, ''); await settle();
+    assert.equal((calls[0] as OwnerStoreInput['put']).entry.kind, kind);
+    act(() => [...host.querySelectorAll('button')].find(b => b.textContent === 'Delete unused key')!.click());
+    await settle();
+    assert.deepEqual(calls[1], { id: saved.id, expectedRevision: saved.revision });
+    assert.equal(host.innerHTML.includes('new-fixture-value'), false);
+  });
+}

@@ -1,6 +1,7 @@
 import { CredentialInputError, CREDENTIAL_MESSAGES, assertCredentialFreeField, normalizeCredentialToken } from '../../../contracts/core/credential-token.js';
 import type { Clock as ClockPort, UUID } from "@jini-ai/core/primitives";
 
+import { ProjectKeyCreateConflictError } from "../../project-keys/create-vault.js";
 import { isUniqueViolation } from "@jini-ai/db/kernel";
 import type { StorageKernel } from "@jini-ai/db/kernel";
 import { parseTovuStoreMeta } from "#src/platform/secrets/vault-kinds";
@@ -8,7 +9,7 @@ import type { KeyringPort, SecretSealerPort } from "../../webhooks/index.js";
 import { VaultError, matchingCredentialProviderIds, selectCredentialForProvider, normalizeCredentialWorksFor, type VaultSummary } from "@jini-ai/platform/secrets/credential-sets";
 import { credentialVault, credentialScope, credentialHint } from "../../vendor-credentials/index.js";
 import type { VendorCredentialSetRecord, VendorCredentialSetRepoPort } from "../../vendor-credentials/index.js";
-import { credentialDeletionRepo, credentialCreateTarget, credentialScopes, type ScopedCredentialDeps } from "../../vendor-credentials/index.js";
+import { credentialCreateTarget, credentialScopes, type ScopedCredentialDeps } from "../../vendor-credentials/index.js";
 import type { DeployTargetCredentialSpec, DeployTargetFieldSpec, DeployTargetRegistry } from "../deploy-targets/types.js";
 import type { PublishConnectionInput, PublishCredentialScope, PublishCredentialSummary, PublishProviderId } from "./types.js";
 
@@ -384,9 +385,10 @@ async function saveConnection({ deps, target, input, providerId }: { deps: Publi
   input: Parameters<ReturnType<typeof vault>["put"]>[0]; providerId: PublishProviderId }, _options = {}): Promise<VaultSummary> {
   try { return await vault(target.deps).put(input); }
   catch (error) {
+    if (error instanceof ProjectKeyCreateConflictError) throw new PublishCredentialDuplicateLabelError(error.message);
     // Unattached project rows are hidden from normal reads. Use only deletion metadata to
     // distinguish a duplicate label from a CAS conflict; never attach or open the existing key.
-    const labelRepo = target.scope === "project" ? credentialDeletionRepo({ repo: deps.repo }).project!.repo : target.deps.repo;
+    const labelRepo = target.scope === "project" ? deps.repo.project!.repo : target.deps.repo;
     // The storage kernel recognizes UNIQUE (workspace_id, vendor_id, label) via SQLite's
     // code/message or Postgres SQLSTATE 23505.
     const duplicate = isUniqueViolation(error) || error instanceof VaultError && error.code === "conflict" &&
@@ -550,7 +552,7 @@ export async function deletePublishCredential(deps: {
   repo: Pick<VendorCredentialSetRepoPort, "delete" | "findById" | "project">;
   transaction?: Pick<StorageKernel<unknown>, "transaction">;
 }, input: { workspaceId: UUID; id: UUID }): Promise<void> {
-  const owner = await ownerOf(credentialDeletionRepo({ repo: deps.repo }), input);
+  const owner = await ownerOf(deps.repo, input);
   await owner.repo.delete({ workspaceId: owner.workspaceId, id: input.id });
 }
 

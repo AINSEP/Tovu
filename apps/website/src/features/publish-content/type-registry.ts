@@ -293,6 +293,18 @@ export interface RepointResult {
   readonly notUpdated: readonly string[];
 }
 
+/** Destination source/version reviewed by the operator, carried only by a verified report row. */
+export interface MediaSourceReplacement {
+  readonly version: number;
+  readonly sourceSha256: string;
+}
+
+/** Only this structured refusal can offer a same-identity source replacement. Strings stay hard blocks. */
+export interface OverwritablePrecheckRefusal {
+  readonly reason: string;
+  readonly sourceReplacement: MediaSourceReplacement;
+}
+
 /**
  * One content type's contract for participating in Publish Content — plan §3's own interface,
  * carried here verbatim. See plan §4 task table for which of `pack`/`inspect`/`precheck`/`apply`
@@ -336,11 +348,12 @@ export interface PublishContentHandler {
   inspect(id: string): Promise<{ version: number; hash: string } | null>;
   /** Import side: a PURE precondition check that never writes — slug availability, a
    *  format/shape violation, a required blob's absence. Returns a human-readable blocking reason, or
-   *  `null` when there is no blocking condition. Must never be skipped in favor of "just try the
+   *  `null` when there is no blocking condition. A structured source refusal can be overwritten
+   *  only after review of its destination source/version. Must never be skipped in favor of "just try the
    *  write and catch the constraint violation" — plan §5 risk #4 is specifically that a caught
    *  constraint violation kills the whole surrounding chunk transaction (Task 8), not just the one
    *  offending entity. */
-  precheck(entity: PackedEntity): Promise<string | null>;
+  precheck(entity: PackedEntity): Promise<string | OverwritablePrecheckRefusal | null>;
   /** Import side: applies ONE entity through the real domain write function, inside the caller's own
    *  `executeCommand` (plan §1.4) — never through the raw repo. Receives `expectedVersion` (`undefined`
    *  for a brand-new entity with no destination row yet) and MUST fail rather than overwrite when the
@@ -352,6 +365,8 @@ export interface PublishContentHandler {
     principalId: string;
     /** Stable for this source principal + exact entity schema/hash version; safe to reuse on retry. */
     idempotencyKey: string;
+    /** Trusted apply-loop context, never read from PackedEntity.state. */
+    sourceReplacement?: MediaSourceReplacement;
   }): Promise<{ changeSetId: string }>;
 
   /**

@@ -10,6 +10,7 @@ import {
   confirmationTokenFor,
   countSelectedPublishing,
   planOnScreen,
+  reportOnScreen,
   publishEntityTypePluralLabel,
   publishOrderComparator,
   rowPublishesWithSelection,
@@ -19,6 +20,7 @@ import {
   toPublishReportRows,
   type CriteriaSelection,
   type PublishContentNotSupportedByLive,
+  type PublishContentExecuteResult,
   type PublishContentOutcomeRow,
   type PublishContentPeerSummary,
   type PublishContentPhase,
@@ -321,15 +323,14 @@ function peerSelectionOpen(phase: PublishContentPhase): boolean {
  * all, rather than a confusing "Menu links updated: 0." `?? 0` covers a peer built before R5, whose
  * `PublishContentExecuteResult` carries no `menuLinksUpdated` at all.
  *
- * @complexity O(1).
+ * @complexity O(n) in actual report rows, with no additional requests.
  */
 function completionMessagesFor(
   { phase, t }: { phase: PublishContentPhase; t: Translate },
   _options: Record<string, never> = {}
 ): Pick<PublishContentConfirmView, "doneMessage" | "doneNotices" | "doneProblems"> {
   if (phase.kind !== "done") return { doneMessage: null, doneNotices: [], doneProblems: [] };
-  const changeCount = phase.result.changeSetIds.length;
-  const base = `${t("Published")} ${changeCount} ${changeCount === 1 ? t("change") : t("changes")}.`;
+  const base = completionOutcomeMessage({ result: phase.result, t });
   const menuLinksUpdated = phase.result.menuLinksUpdated ?? 0;
   return {
     doneMessage: menuLinksUpdated <= 0 ? base : `${base} ${t("Menu links updated:")} ${menuLinksUpdated}.`,
@@ -337,6 +338,24 @@ function completionMessagesFor(
     doneNotices: [...new Set(phase.result.menuLinksNotUpdated ?? [])],
     doneProblems: [...new Set(phase.result.verificationProblems ?? [])],
   };
+}
+
+/** Count actual row outcomes, retaining the count-only reply from older peers.
+ * @complexity O(n) actual report rows; no I/O. */
+function completionOutcomeMessage({ result, t }: { result: PublishContentExecuteResult; t: Translate }, _options = {}): string {
+  const actual = result.report ? summarizePublishReport(toPublishReportRows(result.report)) : null;
+  const changeCount = actual?.publishing ?? result.changeSetIds.length;
+  const published = publishedCountMessage({ count: changeCount, t });
+  const skipped = actual?.skipped ?? 0;
+  if (skipped === 0) return published;
+  return `${published} ${skipped} ${skipped === 1 ? t("item skipped.") : t("items skipped.")}`;
+}
+
+/** Word a completed count, including a run in which every proposed write was refused.
+ * @complexity O(1), pure translation. */
+function publishedCountMessage({ count, t }: { count: number; t: Translate }, _options = {}): string {
+  if (count === 0) return t("Nothing published.");
+  return `${t("Published")} ${count} ${count === 1 ? t("change") : t("changes")}.`;
 }
 
 /**
@@ -1147,11 +1166,12 @@ function publishReportSelection(
   // one, so this file never has to re-enumerate them (and cannot get `planning`, which has no plan
   // yet, wrong).
   const visiblePlan = planOnScreen(phase);
+  const report = reportOnScreen({ phase });
   // Display order only (owner rule 2026-09-26, `publish-order.ts`): to publish, then skipped, then up
   // to date, A–Z in each. Selection and re-plans go by row key, so the order never reaches the plan.
   const rows =
-    visiblePlan === null ? EMPTY_ROWS : sortPublishReportRows(toPublishReportRows(visiblePlan.details), locale);
-  const summary = visiblePlan === null ? null : summarizePublishReport(rows);
+    report === null ? EMPTY_ROWS : sortPublishReportRows(toPublishReportRows(report, { completed: phase.kind === "done" }), locale);
+  const summary = report === null || phase.kind === "done" ? null : summarizePublishReport(rows);
   // Owner 2026-09-26 — up-to-date rows fold into one row. They already sort last (`publish-order.ts`),
   // so splitting them off keeps both halves in the shared order.
   const listedRows = rows.filter((row) => row.disposition !== "unchanged");
@@ -1210,7 +1230,7 @@ function publishOverwriteSelection(
   const overwriteOfferKeys: ReadonlySet<string> = new Set(
     rows.filter((row) => row.overwritable || overwriteKeys.has(row.key)).map((row) => row.key)
   );
-  const showOverwriteColumn = liveCanOverwrite && overwriteOfferKeys.size > 0;
+  const showOverwriteColumn = visiblePlan !== null && liveCanOverwrite && overwriteOfferKeys.size > 0;
   const allOverwriteTicked =
     overwriteOfferKeys.size > 0 && [...overwriteOfferKeys].every((key) => overwriteKeys.has(key));
   const someOverwriteTicked = overwriteKeys.size > 0 && !allOverwriteTicked;

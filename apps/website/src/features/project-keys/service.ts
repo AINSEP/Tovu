@@ -1,5 +1,7 @@
 import { ToolInputError } from "@jini-ai/core";
 import type { VaultRecord, VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
+import type { SiteKeyReferences } from "./site-references.js";
+import { attachedOnlyVault } from "./attached-vault.js";
 import type { KeyAttachments, ProjectKeyTransaction } from "./attachments.js";
 import type { PluginCredentialCard } from "../../contracts/core/plugin-credential-card.js";
 
@@ -10,7 +12,9 @@ export const providerKeyId = ({ pluginId }: { pluginId: string }, _optional = {}
 export const providerPluginOf = ({ keyId }: { keyId: string }, _optional = {}) => /^plugin-state:([a-z0-9-]+):provider\.config$/.exec(keyId)?.[1];
 export interface ProjectKeyRow { keyId: string; name: string; kind: string; usedByThisSite: boolean; usedBy: readonly string[] }
 export interface ProjectKeysPort {
+  readonly site?: { readonly id: string; readonly name: string };
   list(required: { cards?: readonly PluginCredentialCard[] }, optional?: Record<string, never>): Promise<ProjectKeyRow[]>;
+  listGranted(required: { cards?: readonly PluginCredentialCard[] }, optional?: Record<string, never>): Promise<ProjectKeyRow[]>;
   permissionFor(required: { keyId: string }, optional?: Record<string, never>): Promise<string>;
   use(required: { keyId: string; use: boolean }, optional?: Record<string, never>): Promise<{ keyId: string; usedByThisSite: boolean; usedBy: readonly string[]; appliesAt: "now" | "restart" | "failed"; message?: string }>;
   savedResult(required: { result: unknown }, optional?: Record<string, never>): Promise<unknown>;
@@ -22,17 +26,19 @@ export function projectKeyPermission({ row }: { row: VaultRecord }, _optional = 
   if (row.kind === "custom" || row.kind === "vendor" && row.meta.credentialType === "custom") return "custom-credentials.write";
   if (row.kind === "vendor") return "deployments.credentials.write";
   if (row.kind === "source-control") return "source-control.credentials.write";
-  throw new ToolInputError({ message: "This kind of project key cannot be attached here." });
+  throw new ToolInputError({ message: "Choose an API key or provider-settings key in Shared Keys. OAuth connections cannot be shared in this phase. Details: P25_KEY_KIND_NOT_SUPPORTED." });
 }
 
 /** Metadata-only project inventory; card saves and explicit opt-in share the attachment owner.
  * No decrypt or secret projection. A failed attachment is propagated instead of reporting success.
  */
-export function createProjectKeys({ vault, attachments, siteId, siteName, reapply, transaction, providerUsage }: {
+export function createProjectKeys({ vault, attachments, siteId, siteName, reapply, transaction, providerUsage, inventory, references }: {
   vault: VaultRepoPort; attachments: KeyAttachments; siteId: string; siteName: string;
   providerUsage: (input: { pluginId: string }) => Promise<ProviderKeyUsage>;
   reapply: (input: { pluginId: string }) => Promise<import("@jini-ai/plugins/host").PluginProviderApplyResult>;
   transaction: ProjectKeyTransaction;
+  inventory?: () => Promise<VaultRecord[]>;
+  references?: SiteKeyReferences;
 }, _optional = {}): ProjectKeysPort {
   const find = async ({ keyId }: { keyId: string }) => {
     const row = await vault.find({ workspaceId: "project", id: keyId });
@@ -53,24 +59,33 @@ export function createProjectKeys({ vault, attachments, siteId, siteName, reappl
     if (!siteId) throw new ToolInputError({ message: "This site has no id yet; restart it." });
     await transaction({ run: async () => {
       await find(input);
-      if (input.use) await attachments.attach({ siteId, keyId: input.keyId, siteName });
-      else await attachments.detach({ siteId, keyId: input.keyId });
+      if (input.use) {
+        // A failed owner commit can leave an inert reference, never an unauthorized secret copy.
+        await references?.set({ credentialId: input.keyId });
+        await attachments.attach({ siteId, keyId: input.keyId, siteName });
+      } else await attachments.detach({ siteId, keyId: input.keyId });
     } });
+    // References are portable-site metadata only; the owner grant remains the authority after revoke.
     const pluginId = providerPluginOf(input);
     const result = pluginId ? await reapply({ pluginId }) : "now";
     return { ...(await usage(input)), appliesAt: typeof result === "string" ? result : result.appliesAt,
       ...(typeof result === "string" ? {} : { message: `${result.reason} ${result.action}` }) };
   };
-  return {
-    async list({ cards = [] }) {
+  const granted = attachedOnlyVault({ vault, attachments, siteId });
+  async function listRows({ cards = [], owner = false }: { cards?: readonly PluginCredentialCard[]; owner?: boolean }) {
       const kinds = ["api-connection", "vendor", "custom", "source-control"] as const;
-      const rows = (await Promise.all(kinds.map(kind => vault.list({ workspaceId: "project", kind, ownerKey: "tovu", principalId: null })))).flat();
+      const source = owner ? vault : granted;
+      const rows = owner && inventory ? await inventory() : (await Promise.all(kinds.map(kind => source.list({ workspaceId: "project", kind, ownerKey: "tovu", principalId: null })))).flat();
       return Promise.all(rows.filter(row => row.kind !== "api-connection" || providerPluginOf({ keyId: row.id })).map(async row => {
         const pluginId = providerPluginOf({ keyId: row.id });
         const card = pluginId ? cards.find(card => card.saveKind === "provider-settings" && card.saveTarget === pluginId) : undefined;
         return { ...(await usage({ keyId: row.id })), name: card?.label ?? row.label, kind: row.kind };
       }));
-    },
+  }
+  return {
+    site: { id: siteId, name: siteName },
+    list: input => listRows({ ...input, owner: true }),
+    listGranted: async input => (await listRows(input)).map(row => ({ ...row, usedBy: [] })),
     permissionFor: async input => projectKeyPermission({ row: await find(input) }),
     use,
     async savedResult({ result }, _optional = {}) {
@@ -80,7 +95,7 @@ export function createProjectKeys({ vault, attachments, siteId, siteName, reappl
       const row = await vault.find({ workspaceId: "project", id: keyId });
       if (!row) return result;
       // Provider ids also exist in site vaults; a site-only save must never attach its project sibling.
-      if (value.store === "site") return result;
+      if (value.store === "site" || value.scope === "site" || (value.credential as { scope?: string } | undefined)?.scope === "site") return result;
       const current = await usage({ keyId });
       return { ...value, ...(current.usedByThisSite ? current : await use({ keyId, use: true })) };
     },

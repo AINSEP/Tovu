@@ -6,11 +6,16 @@ export interface ResourcesRequest {
   panelOpen: boolean;
 }
 
+/** Source of the bytes carried by the historical rssBytes wire field. */
+export type MemoryMetric = 'physical-footprint' | 'private-working-set' | 'committed' | 'rss' | 'mixed-rss' | 'mixed';
+
 /** CPU percent uses one core as 100%; null means there is no comparable previous sample. */
 export interface ResourceMetrics {
-  /** Memory estimate: Electron private bytes where available, otherwise its resident working
-   * set; OS RSS for non-Electron children. Historical field name retained for IPC compatibility. */
+  /** Display estimate: macOS footprint when available, Windows committed bytes for Electron,
+   * otherwise RSS. Historical field name retained for IPC compatibility. */
   rssBytes: number | null;
+  /** Optional on input for existing IPC clients; new samples always label their source. */
+  memoryMetric?: MemoryMetric;
   cpuPercent: number | null;
   memoryWarning: boolean;
   cpuWarning: boolean;
@@ -23,6 +28,9 @@ export interface ResourceProcess {
   name: string;
   role: 'site-server' | 'daemon' | 'app' | 'process';
   rssBytes: number;
+  memoryMetric?: MemoryMetric;
+  /** Current OS RSS for safety limits and stable telemetry, independent of display sampling. */
+  rawRssBytes?: number;
   cpuPercent: number | null;
   cpuWarning: boolean;
 }

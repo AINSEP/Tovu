@@ -101,7 +101,7 @@ test('desktop project saves and inventory share project_keys_list without openin
     assert.equal(fs.existsSync(path.join(f.userDataDir, 'owner.db')), false);
     assert.equal(fs.existsSync(path.join(f.userDataDir, 'owner.key')), false);
     const workspace = createSitesWorkspace({}, { homeDir: f.home, cwd: f.home, env: {}, sourceRoots: [], appDataDir: f.userDataDir });
-    const project = await openProjectStore({ sitesHome: workspace.home({}), home: f.home });
+    const project = await openProjectStore({ sitesHome: workspace.home({}), home: f.home, appDataDir: f.userDataDir });
     try {
       const keys = createProjectKeys({ vault: project.vault.repo, attachments: project.attachments, transaction: project.transaction,
         siteId: 'first', siteName: 'First', providerUsage: async () => assert.fail("custom keys have no provider usage"), reapply: async () => 'now' });
@@ -310,4 +310,33 @@ test("the registered CLI consumes secrets only on stdin and sanitizes malformed 
     assert.ok(!result.stdout.includes(secret));
     assert.ok(!result.stderr.includes(secret));
   } finally { fs.rmSync(home, { recursive: true, force: true }); }
+});
+
+
+test("Shared Keys lists custom and provider rows, replaces them without losing metadata, and deletes only unused rows", async () => {
+  const f = await fixture();
+  try {
+    const custom = { kind: "vendor", label: "Custom API", provider: null, expectedRevision: null,
+      meta: { credentialType: "custom", worksFor: ["github"], category: "source-control", baseUrl: "https://api.github.com", additionalHosts: [], username: null }, payload: { token: "custom-fixture-123456" } };
+    const saved = await f.invoke({ action: "put", request: { entry: custom } });
+    assert.ok(saved.ok);
+    const row = saved.data.entry as OwnerStoreEntry;
+    const changed = await f.invoke({ action: "put", request: { entry: { ...custom, id: row.id, expectedRevision: row.revision, payload: { token: "rotated-fixture-123456" } } } });
+    assert.ok(changed.ok);
+    const provider = await f.invoke({ action: "put", request: { entry: { kind: "api-connection", id: "plugin-state:obs:provider.config", label: "Provider", provider: null, expectedRevision: null, meta: { credentialFormat: "agent-plugin-state" }, payload: { value: { settings: { endpoint: "https://example.test" }, secrets: { token: "provider-fixture" } } } } } });
+    assert.ok(provider.ok);
+    const listed = await f.invoke({ action: "list" });
+    assert.ok(listed.ok);
+    assert.equal((listed.data.entries as OwnerStoreEntry[]).length, 2);
+    const store = await openProjectStore({ sitesHome: path.join(f.home, "sites"), home: f.home, appDataDir: f.userDataDir });
+    await store.attachments.attach({ siteId: "site-a", siteName: "A", keyId: row.id });
+    store.close({});
+    const blocked = await f.invoke({ action: "delete", request: { id: row.id, expectedRevision: row.revision + 1 } });
+    assert.equal(blocked.ok, false);
+    const reopened = await openProjectStore({ sitesHome: path.join(f.home, "sites"), home: f.home, appDataDir: f.userDataDir });
+    await reopened.attachments.detach({ siteId: "site-a", keyId: row.id });
+    reopened.close({});
+    const removed = await f.invoke({ action: "delete", request: { id: row.id, expectedRevision: row.revision + 1 } });
+    assert.ok(removed.ok);
+  } finally { await f.close(); }
 });

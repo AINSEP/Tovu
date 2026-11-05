@@ -234,6 +234,29 @@ function minimalHooks(bundleRepo: InMemoryPublishContentBundleRepo, extraDeps: R
   return { hooks, deps: { clock, idGen, authorize: async () => ({ allowed: true, reason: "ok" }), tokens: new InMemoryTokenStore() } };
 }
 
+for (const changed of ["version", "source"] as const) {
+  test(`confirmation binds the reviewed replacement ${changed} even when the row outcome stays blocked`, async () => {
+    let version = 1;
+    let sourceSha256 = "a".repeat(64);
+    const handler: PublishContentHandler = { entityType: ENTITY_TYPE, schemaVersion: 1, permission: "content.write", dependsOn: [],
+      pack: async function* () {}, inspect: async () => ({ version, hash: DRIFTED_HASH }),
+      precheck: async () => ({ reason: "Tick Overwrite on live to replace this file.", sourceReplacement: { version, sourceSha256 } }),
+      apply: async () => { throw new Error("stale confirmation must never apply"); } };
+    registerPublishContentContributor({ entityType: ENTITY_TYPE, dependsOn: [], build: () => handler });
+    const bundleRepo = new InMemoryPublishContentBundleRepo();
+    await bundleRepo.save(stagedBundle());
+    const seen: Array<Record<string, unknown>> = [];
+    const { hooks, deps } = minimalHooks(bundleRepo, {}, seen);
+    const planned = await plan({ deps, principalId: ACTOR_ID, principalKind: "user", hooks });
+    const token = await confirm({ deps, principalId: ACTOR_ID, principalKind: "user", hooks, planId: planned.planId, planHash: planned.planHash });
+    if (changed === "version") version = 2;
+    else sourceSha256 = "b".repeat(64);
+    await assert.rejects(execute({ deps, principalId: ACTOR_ID, principalKind: "user", hooks, confirmationToken: token.confirmationToken }),
+      (error: unknown) => (error as { code?: string }).code === "PLAN_STALE");
+    assert.equal(seen.length, 0);
+  });
+}
+
 test("planning a bundle that was never staged (or expired) is refused as not found", async () => {
   registerFakeHandler(new Map());
   const { hooks, deps } = minimalHooks(new InMemoryPublishContentBundleRepo(), {}, []);

@@ -18,8 +18,11 @@ export function abortGuardedCredentialRepo<T extends { readonly vault?: VaultRep
     };
   } });
   // A store's project half (`custom-credentials/types.ts`'s `repo.project`) writes too: guarded alike.
-  const project = (store as { readonly project?: { readonly repo: { readonly vault?: VaultRepoPort } } }).project;
-  const guardedProject = project && { ...project, repo: abortGuardedCredentialRepo({ store: project.repo, signal }) };
+  const project = (store as { readonly project?: { readonly repo: { readonly vault?: VaultRepoPort }; readonly createRepo?: { readonly vault?: VaultRepoPort }; readonly replaceRepo?: { readonly vault?: VaultRepoPort } } }).project;
+  const guardedProject = project && { ...project, repo: abortGuardedCredentialRepo({ store: project.repo, signal }),
+    ...(project.createRepo ? { createRepo: abortGuardedCredentialRepo({ store: project.createRepo, signal }) } : {}),
+    ...(project.replaceRepo ? { replaceRepo: abortGuardedCredentialRepo({ store: project.replaceRepo, signal }) } : {}),
+  };
   return new Proxy(store, { get(target, key) {
     if (key === 'vault') return vault;
     if (key === 'project') return guardedProject;

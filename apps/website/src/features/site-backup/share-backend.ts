@@ -13,7 +13,7 @@ import { captureStaticSite, type StaticSitePorts, type StaticSiteCopy } from "./
 import { createSiteShare, acknowledgeSiteShare, isOwnShareFolder, revokeSiteShare, type ShareDelivery } from "./share-service.js";
 import { SiteShareRegistry, type SiteShareRecord, newShareIdentity } from "./share-registry.js";
 import { allocateStaticExportThemes, parseStaticExportInput, type StaticExportOptions } from "./static-export-selection.js";
-import type { SiteSavedKeysPort } from "./saved-keys-port.js";
+import { SAVED_KEYS_PATH, type SiteSavedKeysPort } from "./saved-keys-port.js";
 import { checkShareLimits, SiteShareRefusal } from "./share-policy.js";
 
 export interface SiteShareBackend {
@@ -123,18 +123,11 @@ async function captureSelection({ ports, themeIds, signal, publicUrl }: { ports:
   return { copy: copies[0]!, copies, activeThemeId, themes };
 }
 
-/** Opt-in capture is owner-only; polls cannot change the captured selection. */
-async function requireSavedKeysOwner(required: { input: { principalId: string; includeSavedKeys?: boolean; jobId?: string; format?: "static" }; ownerPrincipalId?: PromiseLike<string> | string }, _options = {}): Promise<void> {
-  const { input } = required;
-  if (!input.includeSavedKeys) return;
-  if (input.principalId !== await required.ownerPrincipalId) throw new SiteShareRefusal({ code: "FORBIDDEN", message: "Only the site owner can export saved keys." });
-  if (input.jobId || input.format) throw new SiteShareRefusal({ code: "INVALID_INPUT", message: "Saved keys can only be selected on the initial backup request." });
-}
-
-/** A lost sealed password must prevent artifact publication, even if capture returned bytes. */
-function requireRetainedPassword(required: { content: Awaited<ReturnType<typeof prepareShareContent>>; includeSavedKeys?: boolean }, _options = {}): void {
-  if (!required.includeSavedKeys) return;
-  if (!required.content.encryptedKeys || !required.content.sealedPassword) throw new SiteShareRefusal({ code: "UNAVAILABLE", message: "Saved keys export could not retain its password. No archive was published." });
+/** Retired option fails closed for internal callers as well as HTTP. */
+/** Retired payloads cannot be published even if a stale preparation adapter returns one. */
+function requireCredentialFreeExport({ content }: { content: Awaited<ReturnType<typeof prepareShareContent>> }): void {
+  const hasKeyFile = content.bufferedFiles?.some(file => file.path === SAVED_KEYS_PATH);
+  if (content.encryptedKeys || content.sealedPassword || hasKeyFile) throw new SiteShareRefusal({ code: "INVALID_INPUT", message: "Exports no longer include saved keys. Update the export adapter and create this export again." });
 }
 
 /** Reuses backup jobs and the common backup plan content. Only one bounded, buffered preparation runs per site at a time.
@@ -170,9 +163,9 @@ export function createSiteShareBackend(required: {
         return await createSiteShare({ registry: required.registry, site: required.site, name: copy.filename, archive }, { signal: bounded, filename: copy.filename, notices, credentialWarnings });
       }
       const identity = newShareIdentity({});
-      const content = await required.prepare({ signal: bounded, includeSavedKeys, shareId: identity.shareId, workspaceId: required.site });
+      const content = await required.prepare({ signal: bounded, shareId: identity.shareId, workspaceId: required.site });
       stage.appVersion = content.tovuVersion;
-      requireRetainedPassword({ content, includeSavedKeys });
+      requireCredentialFreeExport({ content });
       const notices = [...new Set(content.notices ?? [])];
       const credentialWarnings = [...(content.credentialWarnings ?? [])];
       const notes = Object.values(content.scopeNotes).map(note => redactSecretShapes({ text: note }).text);
@@ -206,7 +199,6 @@ export function createSiteShareBackend(required: {
     },
     async create(input, options = {}) {
       input.signal.throwIfAborted();
-      await requireSavedKeysOwner({ input, ownerPrincipalId: required.ownerPrincipalId });
       const selection = input.format === "static" ? parseStaticExportInput({ input: { jobId: input.jobId, themeIds: input.themeIds, publicUrl: input.publicUrl } }) : {};
       const jobId = input.jobId ?? randomUUID();
       const key = { planId: jobId, principalId: input.principalId, workspaceId: required.site + (input.format === "static" ? "/static" : "") };

@@ -1,3 +1,4 @@
+import { createFormAttachmentPurgeHooks, scheduleFormAttachmentCleanup } from "@jini-ai/cms/forms";
 import { getExportRunSnapshot } from '../../../features/deployments/export-run.js';
 import { getPublishRunSnapshot } from '../../../features/deployments/static-publish/publish-run.js';
 import { createSiteIdlePark } from "../lifecycle/site-idle-park.js";
@@ -20,6 +21,7 @@ import { createCommentTargetLookup } from '#src/features/comments/comment-target
 import { applyThemePreviewSwitcher } from "../../inbound/public-http/middleware/theme-preview-switcher.js";
 import { ensurePreviewSwitcherSetting, preparePreviewSwitcherWrite } from "#src/features/theme/preview-switcher";
 import { contentKernel } from '#src/platform/db/content-kernel';
+import { hasFormFileOwners } from '#src/features/forms/form-file-purge';
 import { createSiteConsentStore } from '#src/features/consent/revisions.repo';
 import { bindSiteConsentService } from './site-consent.js';
 import { registerAdminConsentRoutes } from '../../inbound/admin-http/routes/consent/routes.js';
@@ -855,6 +857,26 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
       })),
     ],
   ]);
+  for (const entityType of ["form", "form_submission"] as const) {
+    const adapter = trashAdapters.get(entityType)!;
+    trashAdapters.set(entityType, withFollowUps({ adapter }, createFormAttachmentPurgeHooks({
+      readSubmissions: async ({ workspaceId, entityId, limit }) => {
+        const rows = entityType === "form" ? await formSubmissionRepo.listAllForDefinition({ workspaceId, formDefinitionId: entityId })
+          : [await formSubmissionRepo.findAnyById({ workspaceId, id: entityId })];
+        return rows.filter(row => row !== null).slice(0, limit).map(row => ({ id: row.id, dataJson: JSON.stringify(row.data) }));
+      },
+      remove: async ({ workspaceId, mediaId }) => {
+        const asset = await mediaRepo.findById({ workspaceId, id: mediaId });
+        if (!asset) return;
+        const files = createFormFileStorage({ media: {
+          mediaRepo, clock, idGen, entryRefsRepo, postRepo, blobRepo: routeDeps.assetBlobRepo,
+          renditionRepo: routeDeps.assetRenditionRepo, blobStore: routeDeps.blobStore,
+        }, contentTypes: routeDeps.mediaContentTypeStore, resolveCreatedByPrincipal: async () => { throw new Error("Purge never creates files"); } });
+        await files.discard({ workspaceId, reference: { mediaId } });
+        await scheduleFormAttachmentCleanup({ outbox, workspaceId, mediaId, sha256: asset.source.sha256, now: clock.nowMs() });
+      },
+    })));
+  }
   const trash = createTrashService({
     repo: trashRepo,
     adapters: trashAdapters,
@@ -1819,6 +1841,14 @@ function subscribeSiteEventHandlersOnce(routeDeps: NewsletterRouteDeps): void {
    */
   startModule(
     createFormsModule({
+      outbox: routeDeps.outbox,
+      fileCleanup: {
+        findBlob: input => routeDeps.assetBlobRepo.findByHash(input),
+        // This is a delayed cold GC job, never a visitor or upload hot path.
+        hasOwners: input => hasFormFileOwners({ kernel: contentKernel(taxonomyDb), ...input }),
+        deleteBytes: input => routeDeps.blobStore.remove(input),
+        removeBlob: input => routeDeps.assetBlobRepo.remove(input),
+      },
       visitorAnalyticsDeliveryAllowed: routeDeps.visitorAnalyticsDeliveryAllowed,
       bus: routeDeps.bus,
       mailer: routeDeps.mailer,

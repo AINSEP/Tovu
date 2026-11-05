@@ -29,6 +29,7 @@ export function ownerStoreFailure<A extends OwnerStoreAction>({ action, code }: 
     'recovery-required': 'The older shared-key store cannot be opened. Restore its original owner.key.',
     'invalid-backup': 'Check the encrypted backup and passphrase.',
     'conflict': 'This key changed. Refresh before retrying.',
+    'key-in-use': 'This key is still granted to a site. Revoke its site grants before deleting it. Details: P25_KEY_IN_USE; secret values omitted.',
     'context': 'The shared-key operation is outside the allowed credential scope.',
     'invalid-meta': 'The shared-key metadata is invalid.',
     'invalid-record': 'The shared-key entry is invalid.',
@@ -145,7 +146,7 @@ function singleLineJson({ output }: { output: string }, _options = {}): Record<s
  */
 function cleanData<A extends OwnerStoreAction>({ action, data }: { action: A; data: Record<string, unknown> }, _options = {}): OwnerStoreData[A] {
   const fields: Record<OwnerStoreAction, readonly string[]> = {
-    status: ['legacy', 'entries', 'grants'], list: ['entries'], put: ['entry'], import: ['applied', 'items', 'pending', 'sourceDigest'],
+    status: ['legacy', 'entries', 'grants'], list: ['entries'], put: ['entry'], delete: ['removed'], import: ['applied', 'items', 'pending', 'sourceDigest'],
   };
   const out = pick({ value: data, fields: fields[action] });
   if (action === 'list') out.entries = (data.entries as object[]).map(value => cleanEntry({ value }));

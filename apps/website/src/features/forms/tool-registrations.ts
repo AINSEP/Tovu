@@ -567,6 +567,7 @@ async function duplicateFormDefinition(
       // source's — the same class of silent shared-state corruption `duplicate-embeds.ts` exists
       // to prevent on the post side.
       fields: source.fields.map((field) => ({ ...field })),
+      ...((source as { mode?: string }).mode === "html" ? { mode: "html" as const, html: (source as { html?: string }).html ?? "" } : {}),
       notify: { enabled: source.notify.enabled, recipients: [...source.notify.recipients] },
     },
   });
