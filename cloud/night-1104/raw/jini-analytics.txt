@@ -1,0 +1,10 @@
+
+[1m[7m[36m RUN [39m[27m[22m [36mv2.1.9 [39m[90m/home/user/Jini/packages/analytics[39m
+
+ [32m✓[39m src/__tests__/ingest.test.ts [2m([22m[2m69 tests[22m[2m)[22m[90m 33[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m69 passed[39m[22m[90m (69)[39m
+[2m   Start at [22m 03:47:43
+[2m   Duration [22m 666ms[2m (transform 262ms, setup 0ms, collect 304ms, tests 33ms, environment 0ms, prepare 95ms)[22m
+

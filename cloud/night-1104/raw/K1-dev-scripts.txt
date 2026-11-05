@@ -1,0 +1,120 @@
+✔ restart marks the old child planned, stops it, waits for its ports, then starts a new one with the restart env (3.132999ms)
+✔ two requests at once share one restart (0.587501ms)
+✔ a Ctrl-C during the restart wins: nothing new is started (0.496616ms)
+✔ an unplanned exit is still a crash; a planned one is not; shutdown ignores both (0.273561ms)
+✔ the restarted child gets the TOVU_SITE the switch just wrote to .env (0.342562ms)
+✔ a shell-exported TOVU_SITE wins and the warning says the switch is inert (0.410137ms)
+✔ an occupied target keeps the old child and restores the persisted choice before stopping anything (0.655272ms)
+✔ a refused boot inside a live watcher restores the previous site and its persisted selection (6.303378ms)
+✔ the rollback baseline advances only after a successful boot (0.724623ms)
+✔ shutdown after a refused boot prevents rollback from starting another child (0.438531ms)
+✔ a rollback persistence failure still restores the previous running API (0.416996ms)
+✔ an unreadable target leaves the old API running (0.31547ms)
+✔ dev preflight observes the newly selected site and gives the existing Desktop URL (0.365314ms)
+✔ same-site restart allows only a lease in this supervisor's API tree (0.445364ms)
+✔ supervisor refusal is acknowledged with its reason before any API is stopped (0.48391ms)
+✔ supervisor acceptance gives the tool delivery time before stopping its API (0.424082ms)
+✔ an unverifiable target and shutdown return refusal acknowledgements (0.432286ms)
+✔ invalid reply identifiers cannot select a write path or restart the API (0.157895ms)
+✔ an acknowledgement write failure leaves the old API running (0.676608ms)
+✔ rollback rewrites only the site selection using the current file, including on Windows (0.26746ms)
+✔ rollback never treats an unreadable env file as empty (0.255615ms)
+✔ Windows restart stops the watcher and every descendant through the platform owner (0.581582ms)
+✔ a synchronous target spawn failure still boots the previous site (0.445062ms)
+✔ a failed rollback is bounded to one attempt and reports the failure (0.578215ms)
+✔ a busy API port never starts a second writing child (0.248132ms)
+✔ failed target and rollback readiness shut down the whole stack visibly (0.317627ms)
+✔ ports remaining busy after recovery shut down instead of leaving only Vite alive (0.379996ms)
+✔ joining restart requests each receive the shared precheck decision with one restart (0.546476ms)
+tovu dev: preparing prebuilt admin…
+tovu dev: preparing prebuilt admin…
+✔ dev:lite rebuilds after an admin dependency changes in website features/post/slug.ts (39.736793ms)
+tovu dev: preparing prebuilt admin…
+tovu dev: preparing prebuilt admin…
+✔ dev:lite rebuilds after an admin dependency changes in website platform/html/slug.ts (14.619111ms)
+tovu dev: preparing prebuilt admin…
+tovu dev: preparing prebuilt admin…
+tovu dev: preparing prebuilt admin…
+tovu dev: preparing prebuilt admin…
+tovu dev: preparing prebuilt admin…
+tovu dev: preparing prebuilt admin…
+✔ dev:lite rebuilds after an admin dependency changes in website assistant/assistant-tool-approval-policy.ts (17.917595ms)
+✔ dev:lite opens the ready API admin without starting an admin Vite process (0.781248ms)
+✔ dev:lite reuses a current admin without starting Vite or rebuilding (0.732118ms)
+✔ dev:lite builds missing or stale admin once and marks only a successful build current (1.674517ms)
+✔ dev:lite rebuilds a missing admin entry even when its freshness marker survived (0.560405ms)
+✔ dev:lite never marks a failed build current (0.802642ms)
+✖ dev keeps the checkout default despite Documents sites, while explicit selection attaches (20.057353ms)
+✔ Jini linking includes the Desktop consumer that needs the shared home exports (1.928227ms)
+✔ an existing owner exit explains no server was started and gives the exact alternate-site command (1.159078ms)
+✖ explicit dev selection scans the nested default and continues to find old-level sites (4.333492ms)
+✖ stalecard: dev resolves its default in the configured home and refuses a stale themes-only fallback (3.591855ms)
+✔ the dev entrypoint gates its admin startup through the API readiness result (2.134853ms)
+✔ a failed API boot never announces success or leaves admin Vite running (0.597115ms)
+✔ admin Vite starts and success is announced only after API readiness (1.224478ms)
+✔ an API that exits during readiness cannot start admin Vite (0.303208ms)
+✔ a bound API socket cannot announce readiness until readyz accepts the configured TLS leaf (0.566843ms)
+✔ failed HTTP readiness returns false to the dev stack shutdown owner (0.280934ms)
+✔ an API that binds before boot completes must answer readyz successfully before dev reports success (189.493845ms)
+✔ a split attachment line adopts only the launched site's verified lease (4.106952ms)
+✔ a URL line without a lease for the selected site cannot attach to a different site or foreign process (0.854424ms)
+✔ readiness follows an attached site's address and startup continues without a second admin (0.977005ms)
+✔ an unreadable selected-site lease refuses attachment with a recovery step (0.89305ms)
+✔ an attachment still starting cannot probe the requested port or report success early (0.582332ms)
+ℹ tests 53
+ℹ suites 0
+ℹ pass 50
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 959.906406
+
+✖ failing tests:
+
+test at development/scripts/__tests__/dev-sites-home.test.mjs:11:1
+✖ dev keeps the checkout default despite Documents sites, while explicit selection attaches (20.057353ms)
+  TypeError [ERR_INVALID_ARG_TYPE]: The "path" argument must be of type string. Received undefined
+      at Object.join (node:path:1336:7)
+      at Object.databasePath (file:///home/user/Jini/packages/platform/dist/fs/directory-user-config.js:178:30)
+      at Object.databasePath (file:///home/user/Jini/packages/platform/dist/fs/directory-workspace.js:138:27)
+      at devSitesHome (file:///home/user/Tovu/development/scripts/dev-sites-home.mjs:37:51)
+      at TestContext.<anonymous> (file:///home/user/Tovu/development/scripts/__tests__/dev-sites-home.test.mjs:22:18)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    code: 'ERR_INVALID_ARG_TYPE'
+  }
+
+test at development/scripts/__tests__/dev-sites-home.test.mjs:42:1
+✖ explicit dev selection scans the nested default and continues to find old-level sites (4.333492ms)
+  TypeError [ERR_INVALID_ARG_TYPE]: The "path" argument must be of type string. Received undefined
+      at Object.join (node:path:1336:7)
+      at Object.databasePath (file:///home/user/Jini/packages/platform/dist/fs/directory-user-config.js:178:30)
+      at Object.databasePath (file:///home/user/Jini/packages/platform/dist/fs/directory-workspace.js:138:27)
+      at devSitesHome (file:///home/user/Tovu/development/scripts/dev-sites-home.mjs:37:51)
+      at TestContext.<anonymous> (file:///home/user/Tovu/development/scripts/__tests__/dev-sites-home.test.mjs:49:20)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12) {
+    code: 'ERR_INVALID_ARG_TYPE'
+  }
+
+test at development/scripts/__tests__/dev-sites-home.test.mjs:54:1
+✖ stalecard: dev resolves its default in the configured home and refuses a stale themes-only fallback (3.591855ms)
+  TypeError [ERR_INVALID_ARG_TYPE]: The "path" argument must be of type string. Received undefined
+      at Object.join (node:path:1336:7)
+      at Object.databasePath (file:///home/user/Jini/packages/platform/dist/fs/directory-user-config.js:178:30)
+      at Object.databasePath (file:///home/user/Jini/packages/platform/dist/fs/directory-workspace.js:138:27)
+      at devSitesHome (file:///home/user/Tovu/development/scripts/dev-sites-home.mjs:37:51)
+      at TestContext.<anonymous> (file:///home/user/Tovu/development/scripts/__tests__/dev-sites-home.test.mjs:64:18)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12) {
+    code: 'ERR_INVALID_ARG_TYPE'
+  }

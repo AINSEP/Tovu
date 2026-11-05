@@ -1,0 +1,46 @@
+✔ one snapshot drives the chip and site figure, warnings and panel-open cadence request (1.479987ms)
+✔ chip is a focusable dialog trigger; all readers share data and close restores collapsed cadence (62.230414ms)
+✔ groups join by identity: Tovu app first, external/stopped sites excluded, stale process rows withdrawn (1.360222ms)
+✔ panel is a Process | PID | Memory | CPU table with a subtotal row per group and right-aligned numbers (28.334933ms)
+✔ panel Stop reaches the existing stop API once, applies main record and shows a rejection (58.718812ms)
+✔ unavailable snapshot shows unavailable chip/cards, and stopped cards hide the previous figure (6.861903ms)
+✔ an externally served running card has no local-memory failure readout (10.947032ms)
+✔ starting a site refreshes the real sampler, hook and card while the toolbar cache is still young (16.17286ms)
+✔ a stopped card opens on click and Enter, shows its details, and Start reaches the power hook (72.719427ms)
+✔ running cards join resource figures by site id even when names match; stopped cards hide figures (33.656126ms)
+✔ a running card shows its capture, failure line and details; the menu offers browser, rename and delete (61.548865ms)
+✔ duplicate names show each parent folder; a root-level folder reads as "/" (22.107173ms)
+✔ a missing folder offers Locate and Remove instead of Start, and shows Locate progress and refusal (28.369233ms)
+✔ mid-transition, provisioning, external and restart-less cards render the matching control (15.489845ms)
+✔ the delete confirm owns the card: cancel, confirm, busy label and main's refusal (15.676563ms)
+✔ a confirm body names commands as code (10.102274ms)
+✔ an external stop panel falls back to the delete copy and tolerates a power hook without stop confirm (8.884211ms)
+✔ the rename panel edits the draft, saves, cancels, and shows both hints and main's refusal (22.149495ms)
+✔ the default hooks render a card outside the desktop app without a bridge (10.918726ms)
+✔ every control sits in the card body: the head reads name, ⋮, SQLite, status; the button row follows it (11.042226ms)
+✔ no standalone trash control exists — with the menu closed the card offers only ⋮, Start/Stop and Restart (11.008691ms)
+✔ the tile shows the capture usePreview returns for the card's own id and version, as decoration, never the port (13.228702ms)
+✔ a card wears the status the power hook decided, not the polled one, and its menu follows it (10.437497ms)
+✔ a site another app serves gets a ⏻ only when Tovu knows how to stop it (9.478576ms)
+✔ a Restart in flight reads Restarting…, pulses and cannot be pressed again (11.885909ms)
+✔ Start opens through the grid's own onOpen, and main's refreshed records reach onSiteUpdated (8.338749ms)
+✔ Enter or Space on the card opens it; the same key on anything inside the card does not (36.474188ms)
+✔ the ⋮ menu keeps its keys to itself, and closes on a press outside it or on Escape (11.786865ms)
+✔ the rename panel makes the card inert, bounds the input, and owns Escape and Enter (9.417011ms)
+✔ delete through the real confirmation hook: the ⋮ entry only asks, Cancel keeps the site, Confirm deletes it (47.132024ms)
+✔ visible badge and panel use main cadence; hidden documents and unmount release polling (1246.554445ms)
+✔ a panel change waits for an outstanding badge read and discards its result (4.543629ms)
+✔ a site lifecycle change refreshes the collapsed reading without waiting a minute (3.817269ms)
+✔ starts hidden without a read; IPC failures withdraw stale data and retry promptly (3.614918ms)
+✔ launch badge recovers from two initial sampler failures within ten seconds (5.110832ms)
+✔ a missing resource preload remains unavailable and creates no timer (2.018651ms)
+✔ hide/show during a read discards that reading and retries without overlapping (2.317155ms)
+✔ late replies after unmount cannot rearm polling (2.09219ms)
+ℹ tests 38
+ℹ suites 0
+ℹ pass 38
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4688.359169

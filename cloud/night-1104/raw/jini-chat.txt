@@ -1,0 +1,11 @@
+
+[1m[7m[36m RUN [39m[27m[22m [36mv2.1.9 [39m[90m/home/user/Jini/packages/chat[39m
+
+ [32m✓[39m src/react/components/__tests__/MessageList.test.tsx [2m([22m[2m25 tests[22m[2m)[22m[33m 937[2mms[22m[39m
+ [32m✓[39m src/react/components/__tests__/MessageRow.test.tsx [2m([22m[2m67 tests[22m[2m)[22m[33m 1402[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m2 passed[39m[22m[90m (2)[39m
+[2m      Tests [22m [1m[32m92 passed[39m[22m[90m (92)[39m
+[2m   Start at [22m 03:47:30
+[2m   Duration [22m 10.43s[2m (transform 5.07s, setup 330ms, collect 15.72s, tests 2.34s, environment 1.12s, prepare 205ms)[22m
+

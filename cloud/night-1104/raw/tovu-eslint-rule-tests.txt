@@ -1,0 +1,46 @@
+✔ rejects set keyed by workspaceId (64.380876ms)
+✔ rejects get keyed by workspaceId (5.348471ms)
+✔ rejects has keyed by workspaceId (4.813457ms)
+✔ rejects delete keyed by workspaceId (3.477162ms)
+✔ rejects add keyed by workspaceId (3.177677ms)
+✔ rejects set keyed by request.workspaceId (2.715947ms)
+✔ rejects get keyed by request.workspaceId (2.762704ms)
+✔ rejects has keyed by request.workspaceId (2.746217ms)
+✔ rejects delete keyed by request.workspaceId (2.889498ms)
+✔ rejects add keyed by request.workspaceId (2.980421ms)
+✔ rejects set keyed by request["workspaceId"] (3.553877ms)
+✔ rejects get keyed by request["workspaceId"] (2.211822ms)
+✔ rejects has keyed by request["workspaceId"] (2.435141ms)
+✔ rejects delete keyed by request["workspaceId"] (2.200684ms)
+✔ rejects add keyed by request["workspaceId"] (2.008864ms)
+✔ rejects workspace identity in shared keyed storage: const scopes = { [workspaceId]: value }; (5.124095ms)
+✔ rejects workspace identity in shared keyed storage: cache[request.workspaceId] = value; (2.941603ms)
+✔ rejects workspace identity in shared keyed storage: const scopes = new Map([[workspaceId, value]]); (2.627208ms)
+✔ rejects workspace identity in shared keyed storage: const scopes = new Set([request.workspaceId]); (2.384083ms)
+✔ catches the original daemon siteId alias for workspaceId (3.764535ms)
+✔ allows site keys and workspace data inside a site (6.821985ms)
+/home/user/Tovu/development/scripts/__tests__/desktop-assistant-release-gate.unit.test.ts:4
+import yaml from 'js-yaml';
+       ^
+SyntaxError: The requested module 'js-yaml' does not provide an export named 'default'
+    at #asyncInstantiate (node:internal/modules/esm/module_job:455:21)
+    at async ModuleJob.run (node:internal/modules/esm/module_job:553:5)
+    at async node:internal/modules/esm/loader:647:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v24.22.2
+✖ development/scripts/__tests__/desktop-assistant-release-gate.unit.test.ts (275.512745ms)
+ℹ tests 22
+ℹ suites 0
+ℹ pass 21
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1948.415897
+
+✖ failing tests:
+
+test at development/scripts/__tests__/desktop-assistant-release-gate.unit.test.ts:1:1
+✖ development/scripts/__tests__/desktop-assistant-release-gate.unit.test.ts (275.512745ms)
+  'test failed'

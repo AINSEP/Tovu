@@ -1,0 +1,216 @@
+✔ saveCampaign retains the document in its revision and across metadata edits (3.804737ms)
+✔ saveCampaign: create + edit round-trip, revisionSeq increments (1.166435ms)
+✔ saveCampaign: unknown listId is rejected (AC-11) (0.882545ms)
+✔ saveCampaign: subject 998 chars accepted, 999 chars rejected (behavior.spec §4/§7) (0.52144ms)
+✔ saveCampaign: preheader over 300 chars rejected (0.316874ms)
+✔ saveCampaign: empty subject is rejected (below SUBJECT_MIN) (1.476214ms)
+✔ saveCampaign: a non-null preheader within the 300-char limit is accepted and stored (0.470301ms)
+✔ saveCampaign: concurrent same-version writers -> second gets NEWSLETTER_CONFLICT (EC-06) (1.156055ms)
+✔ saveCampaign: a non-draft campaign cannot be edited via UPDATE_CAMPAIGN (1.451751ms)
+✔ cancelCampaign: draft and scheduled campaigns can be canceled (1.073316ms)
+✔ scheduleCampaign: scheduling an already-'scheduled' campaign again is a same-status no-op, rejected (0.737529ms)
+✔ cancelCampaign: a campaign already 'sending' cannot be canceled (compose tier only cancels draft/scheduled) (0.495296ms)
+✔ scheduleCampaign: unknown listId at schedule time is rejected (AC-11) (0.436336ms)
+✔ saveCampaign: AC-08 — a forced mid-tx failure at the REAL SQLite adapter leaves zero campaign rows and zero revision rows (INV-01) (163.816393ms)
+✔ saveCampaign: at the REAL SQLite adapter, a successful save writes exactly 1 campaign row + 1 revision row in the same tx (162.171073ms)
+✔ scheduleCampaign: invalid timestamp tomorrow is rejected without changing campaign or revisions (0.656056ms)
+✔ scheduleCampaign: invalid timestamp not-a-date is rejected without changing campaign or revisions (0.298446ms)
+✔ scheduleCampaign: invalid timestamp 2030-13-01T00:00:00.000Z is rejected without changing campaign or revisions (0.231823ms)
+✔ scheduleCampaign: invalid timestamp 2030-02-30T00:00:00.000Z is rejected without changing campaign or revisions (0.307885ms)
+✔ scheduleCampaign: valid leap-day or offset timestamp 2028-02-29T23:59:59.123Z remains verbatim (0.337007ms)
+✔ scheduleCampaign: valid leap-day or offset timestamp 2030-01-01T03:04:05+02:30 remains verbatim (0.203721ms)
+✔ saveCampaign / cancelCampaign / scheduleCampaign: an unknown campaign id is not-found, and nothing is written (0.572966ms)
+✔ saveCampaign: an omitted preheader creates null and clears a prior preview on edit (0.429741ms)
+▶ newsletter repos [sqlite]
+  ▶ campaign repo
+    ✔ detail restores the latest body while list stays envelope-only without reverting live counters (223.972145ms)
+    ✔ list queries never select revision bodies, and a corrupt latest body does not break detail (163.623778ms)
+    ✔ incrementCounter initializes an absent stored counter without losing other counters (165.453176ms)
+    ✔ saveCampaignRow then findById round-trips; misses and other workspaces are null (158.102056ms)
+    ✔ re-saving updates every editorial field but keeps the stored counters and id (142.360942ms)
+    ✔ list is scoped, ordered by id, and keyset-paginated with a limit (134.402132ms)
+    ✔ revisions append in seq order, are scoped, and carry the JSON state (130.475992ms)
+    ✔ incrementCounter bumps one counter, sets updatedAt, ignores misses and other workspaces (135.814246ms)
+    ✔ concurrent increments never lose a count (147.091182ms)
+    ✔ transaction commits its writes and returns the callback's value (135.929905ms)
+    ✔ a throw inside transaction rolls back both the row and its revision (137.22863ms)
+  ✔ campaign repo (1677.258345ms)
+  ▶ list repo
+    ✔ save then findById round-trips; misses and other workspaces are null (137.154205ms)
+    ✔ findDefault returns only the workspace's default list (136.974427ms)
+    ✔ list is scoped to the workspace and ordered by id (137.259838ms)
+    ✔ re-saving updates name, slug, default flag, status and updatedAt but keeps createdAt (160.562693ms)
+    ✔ a failed save inside a rolled-back transaction leaves no list behind (182.834122ms)
+  ✔ list repo (755.543866ms)
+  ▶ subscription repo
+    ✔ save then findById round-trips (with nulls); misses and other workspaces are null (168.983077ms)
+    ✔ findBySubscriberAndList hits on all three keys and misses on any other (164.378025ms)
+    ✔ list is scoped to workspace and list, ordered by id, keyset-paginated with a limit (234.645541ms)
+    ✔ listSubscribed returns only subscribed rows of that workspace and list (181.981637ms)
+    ✔ re-saving updates the lifecycle fields only, never the identity fields (139.61138ms)
+    ✔ remove deletes one row of its workspace and is a no-op on a miss or another workspace (207.957022ms)
+    ✔ a save and a remove inside a rolled-back transaction leave the table as it was (147.975991ms)
+  ✔ subscription repo (1246.328997ms)
+  ▶ audience snapshot repo
+    ✔ save then findById / findByCampaignId round-trip; misses and other workspaces are null (146.393358ms)
+    ✔ a snapshot is immutable: saving the same id again throws and keeps the original (145.181921ms)
+    ✔ a snapshot saved inside a rolled-back transaction is not there afterwards (148.6639ms)
+  ✔ audience snapshot repo (440.731525ms)
+  ▶ send repo
+    ✔ save then findById / findByIdempotencyKey round-trip; misses and other workspaces are null (140.638368ms)
+    ✔ re-saving updates delivery state only, never the identity fields (137.675823ms)
+    ✔ listByCampaign is scoped, ordered by id and keyset-paginated with a limit (137.327979ms)
+    ✔ listPendingByAudienceSnapshot returns only pending rows of that snapshot, up to the limit (142.291896ms)
+    ✔ countPendingByCampaign counts only pending rows of that campaign and workspace (170.608505ms)
+    ✔ saveBatch stores every row, and a failing row rolls the whole batch back (166.904336ms)
+    ✔ claimForDispatch leases a due pending row once and rejects every other case (142.415835ms)
+    ✔ concurrent claims of one send: exactly one wins (143.560016ms)
+    ✔ recordOutcome writes the outcome once, keeps a stored provider id when given null, and rejects a repeat (201.062396ms)
+  ✔ send repo (1383.740914ms)
+  ▶ confirmation token repo
+    ✔ save then findById / findByTokenHash round-trip; misses and other workspaces are null (159.36963ms)
+    ✔ findUnconsumedBySubscription skips consumed tokens and other subscriptions or workspaces (189.451918ms)
+    ✔ re-saving only moves consumedAt; every other field stays as first stored (152.606316ms)
+    ✔ a consume saved inside a rolled-back transaction leaves the token unconsumed (161.171935ms)
+  ✔ confirmation token repo (663.124133ms)
+✔ newsletter repos [sqlite] (6167.984604ms)
+▶ newsletter repos [pglite]
+  ▶ campaign repo
+    ✔ detail restores the latest body while list stays envelope-only without reverting live counters (7070.092976ms)
+    ✖ list queries never select revision bodies, and a corrupt latest body does not break detail (93.614283ms)
+    ✔ incrementCounter initializes an absent stored counter without losing other counters (106.279093ms)
+    ✔ saveCampaignRow then findById round-trips; misses and other workspaces are null (105.664565ms)
+    ✔ re-saving updates every editorial field but keeps the stored counters and id (125.684908ms)
+    ✔ list is scoped, ordered by id, and keyset-paginated with a limit (156.566496ms)
+    ✔ revisions append in seq order, are scoped, and carry the JSON state (83.666255ms)
+    ✔ incrementCounter bumps one counter, sets updatedAt, ignores misses and other workspaces (78.33253ms)
+    ✔ concurrent increments never lose a count (88.866333ms)
+    ✔ transaction commits its writes and returns the callback's value (63.95426ms)
+    ✔ a throw inside transaction rolls back both the row and its revision (59.916624ms)
+  ✖ campaign repo (8035.466597ms)
+  ▶ list repo
+    ✔ save then findById round-trips; misses and other workspaces are null (57.03183ms)
+    ✔ findDefault returns only the workspace's default list (59.33195ms)
+    ✔ list is scoped to the workspace and ordered by id (89.673778ms)
+    ✔ re-saving updates name, slug, default flag, status and updatedAt but keeps createdAt (56.476782ms)
+    ✔ a failed save inside a rolled-back transaction leaves no list behind (73.263118ms)
+  ✔ list repo (336.412645ms)
+  ▶ subscription repo
+    ✔ save then findById round-trips (with nulls); misses and other workspaces are null (64.398413ms)
+    ✔ findBySubscriberAndList hits on all three keys and misses on any other (61.725207ms)
+    ✔ list is scoped to workspace and list, ordered by id, keyset-paginated with a limit (64.878861ms)
+    ✔ listSubscribed returns only subscribed rows of that workspace and list (56.491753ms)
+    ✔ re-saving updates the lifecycle fields only, never the identity fields (56.864568ms)
+    ✔ remove deletes one row of its workspace and is a no-op on a miss or another workspace (54.833122ms)
+    ✔ a save and a remove inside a rolled-back transaction leave the table as it was (92.561513ms)
+  ✔ subscription repo (452.543462ms)
+  ▶ audience snapshot repo
+    ✔ save then findById / findByCampaignId round-trip; misses and other workspaces are null (59.218565ms)
+    ✔ a snapshot is immutable: saving the same id again throws and keeps the original (54.877515ms)
+    ✔ a snapshot saved inside a rolled-back transaction is not there afterwards (56.145692ms)
+  ✔ audience snapshot repo (170.613401ms)
+  ▶ send repo
+    ✔ save then findById / findByIdempotencyKey round-trip; misses and other workspaces are null (62.206095ms)
+    ✔ re-saving updates delivery state only, never the identity fields (56.205762ms)
+    ✔ listByCampaign is scoped, ordered by id and keyset-paginated with a limit (79.019835ms)
+    ✔ listPendingByAudienceSnapshot returns only pending rows of that snapshot, up to the limit (65.382851ms)
+    ✔ countPendingByCampaign counts only pending rows of that campaign and workspace (63.371394ms)
+    ✔ saveBatch stores every row, and a failing row rolls the whole batch back (344.16937ms)
+    ✔ claimForDispatch leases a due pending row once and rejects every other case (82.048652ms)
+    ✔ concurrent claims of one send: exactly one wins (64.55608ms)
+    ✔ recordOutcome writes the outcome once, keeps a stored provider id when given null, and rejects a repeat (64.837738ms)
+  ✔ send repo (882.763671ms)
+  ▶ confirmation token repo
+    ✔ save then findById / findByTokenHash round-trip; misses and other workspaces are null (58.677333ms)
+    ✔ findUnconsumedBySubscription skips consumed tokens and other subscriptions or workspaces (58.936366ms)
+    ✔ re-saving only moves consumedAt; every other field stays as first stored (71.810634ms)
+    ✔ a consume saved inside a rolled-back transaction leaves the token unconsumed (95.452176ms)
+  ✔ confirmation token repo (285.319147ms)
+✖ newsletter repos [pglite] (10163.797698ms)
+Using the site starting in Web. Its admin URL will be available when that server finishes starting.
+Using the site already running in Web: http://localhost:3001/admin/
+✔ runningSiteUrl names the admin URL only once a port is bound (1.373068ms)
+✔ readSiteRunning reports no record for an idle site, through the default shared workspace too (9.665208ms)
+✔ a second app attaches without changing the owner token, and ready records the port (21.056329ms)
+✔ ready registers an install-dir site and marks it opened (17.47138ms)
+✔ ready rethrows a site read failure that is not an invalid install dir (11.08545ms)
+✔ with the default workspace a claim is exclusive and released (11.428982ms)
+✔ create-campaign: each required string field, missing or non-string, is a 400 before authorize() and before anything is saved (751.463995ms)
+✔ create-campaign: bodyJson must be a non-null object — missing, null and a string are all 400 (346.564768ms)
+✔ create-campaign: a valid body is a 201 draft carrying the submitted envelope fields, attributed to the caller (266.920301ms)
+✔ create-campaign: a non-string preheader is stored as null, not coerced to text (269.533242ms)
+✔ list-campaigns: ?status= returns only campaigns in that status; without it, every campaign (493.819565ms)
+✔ list-subscriptions: returns only the subscriptions of the list in the URL, gated by subscriber.read (194.947382ms)
+✔ list-campaigns + list-subscriptions: a workspace id that is not this site's is 404 (194.714103ms)
+✔ update-campaign: keeps the supplied document on PATCH and a later metadata-only edit (352.00162ms)
+✔ update-campaign: mismatched workspaceId 404s (387.635682ms)
+✔ update-campaign: direct-invoke fallback for nullish params.workspaceId (unreachable through real HTTP) (195.20838ms)
+✔ update-campaign: direct-invoke with an undefined body hits `(req.body ?? {})` and still succeeds as a true no-op patch (233.138737ms)
+✔ update-campaign: a non-string value for a patchable field -> 400 VALIDATION_ERROR, write service never called (266.588718ms)
+✔ update-campaign: bodyJson as a non-object (e.g. a string) -> 400 (first half of the OR) (239.827677ms)
+✔ update-campaign: bodyJson: null -> 400 (typeof null IS 'object', so this trips the SECOND half of the OR, not the first) (191.162811ms)
+✔ update-campaign: forbidden 403s when unauthorized (179.787639ms)
+✔ update-campaign: unknown campaign id -> 404 NEWSLETTER_CAMPAIGN_NOT_FOUND (184.281348ms)
+✔ update-campaign: patches all six string fields; bodyJson is accepted for validation only (document storage is unsupported) (201.592975ms)
+✔ update-campaign: a 'scheduled' campaign is rejected 409 NEWSLETTER_CAMPAIGN_NOT_EDITABLE — no post-send mutation (184.174118ms)
+✔ update-campaign: a 'sending' campaign is rejected 409 NEWSLETTER_CAMPAIGN_NOT_EDITABLE — no post-send mutation (178.797362ms)
+✔ update-campaign: a 'sent' campaign is rejected 409 NEWSLETTER_CAMPAIGN_NOT_EDITABLE — no post-send mutation (228.974104ms)
+✔ update-campaign: a 'paused' campaign is rejected 409 NEWSLETTER_CAMPAIGN_NOT_EDITABLE — no post-send mutation (181.432093ms)
+✔ update-campaign: a 'canceled' campaign is rejected 409 NEWSLETTER_CAMPAIGN_NOT_EDITABLE — no post-send mutation (213.225828ms)
+✔ update-campaign: a stale expectedVersion from a losing concurrent PATCH -> 409 NEWSLETTER_CONFLICT, no mutation (187.305894ms)
+✔ update-campaign: a matching expectedVersion succeeds and advances the version (200.673414ms)
+✔ update-campaign: an omitted expectedVersion still succeeds (backward compatibility — the field remains optional) (183.105523ms)
+✔ update-campaign: expectedVersion as a string -> 400 VALIDATION_ERROR, write service never called (186.77644ms)
+✔ update-campaign: expectedVersion as a negative number -> 400 VALIDATION_ERROR, write service never called (230.989834ms)
+✔ update-campaign: expectedVersion as NaN -> 400 VALIDATION_ERROR (direct-invoke, since JSON can't carry a literal NaN over HTTP) (165.327283ms)
+✔ 2026-09-09 durability fix: hasMissingSiteKey reads !inspectSiteKeyMaterial().active, not the env var alone (1.320497ms)
+✔ 2026-09-09 durability fix: boot-readiness-gate.ts imports inspectSiteKeyMaterial from the real keyring module, not a local reimplementation (0.277382ms)
+✔ the production boot adapter warns for missing or invalid site keys and accepts a valid durable key file (7466.87493ms)
+✔ production boot reads only TOVU_SITE_KEY: the removed pre-rename env name alone is a missing key (4229.577816ms)
+✔ the boot gate warns, without refusing, for a deployed local-mode boot and for production without COMMENTS_IP_SALT (4022.997584ms)
+✔ the boot gate prints the local owner sign-in refusal, and production with no admin password set warns on the default owner password (4209.953106ms)
+ℹ tests 141
+ℹ suites 14
+ℹ pass 140
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 49285.121126
+
+✖ failing tests:
+
+test at apps/website/src/features/newsletter/__tests__/repo.dialects.test.ts:1:4366
+✖ list queries never select revision bodies, and a corrupt latest body does not break detail (93.614283ms)
+  error: invalid input syntax for type json
+      at pe.Ue (/home/user/Tovu/node_modules/@electric-sql/pg-protocol/src/parser.ts:442:11)
+      at pe.tt (/home/user/Tovu/node_modules/@electric-sql/pg-protocol/src/parser.ts:220:16)
+      at pe.parse (/home/user/Tovu/node_modules/@electric-sql/pg-protocol/src/parser.ts:104:21)
+      at N.qe (/home/user/Tovu/node_modules/@electric-sql/pglite/dist/index.js:5:1762)
+      at <anonymous> (/home/user/Tovu/node_modules/@electric-sql/pglite/dist/index.js:5:1155)
+      at wasm://wasm/0267bb86:wasm-function[10930]:0x5a5ccf
+      at wasm://wasm/0267bb86:wasm-function[3585]:0x27eaeb
+      at wasm://wasm/0267bb86:wasm-function[3627]:0x2869d1
+      at wasm://wasm/0267bb86:wasm-function[3637]:0x286c2d
+      at wasm://wasm/0267bb86:wasm-function[9914]:0x54fd4d {
+    length: 192,
+    severity: 'ERROR',
+    code: '22P02',
+    detail: 'Token "broken" is invalid.',
+    hint: undefined,
+    position: undefined,
+    internalPosition: undefined,
+    internalQuery: undefined,
+    where: "JSON data, line 1: {broken\nunnamed portal parameter $1 = '...'",
+    schema: undefined,
+    table: undefined,
+    column: undefined,
+    dataType: undefined,
+    constraint: undefined,
+    file: 'jsonfuncs.c',
+    line: '663',
+    routine: 'json_errsave_error',
+    query: 'update "newsletter_campaign_revisions" set "state_json" = $1 where "campaign_id" = $2 and "workspace_id" = $3',
+    params: [ '{broken', 'corrupt-body', 'ws-dialects' ],
+    queryOptions: undefined
+  }

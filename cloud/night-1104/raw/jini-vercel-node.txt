@@ -1,0 +1,93 @@
+✔ retry on a fresh target sends only hashes the provider is missing (54.485723ms)
+✔ upload timeout reports confirmed counts, no deployment, and a safe next step (3.417134ms)
+✔ creation timeout says unknown rather than claiming no deployment was created (2.124347ms)
+✔ poll timeout returns the created deployment facts and never probes the old public alias (1.754328ms)
+✔ exhausted BUILDING poll budget cannot turn an old production 200 into success (4.507711ms)
+✔ retry after failed upload preserves provider bytes without resending acknowledgements (2.596149ms)
+▶ hosting plugin module contract (vercel)
+  ✔ create() builds a target from the credential token and the config's teamId (1041.770709ms)
+  ✔ validateConfig refuses a blank teamId with the exact legacy text, accepts none or a real one (1.075513ms)
+  ✔ serves from the root (0.678347ms)
+  ✔ verifyCredential authenticates the user probe and classifies failures without reading an account label (3.547379ms)
+  ✔ verifyCredential takes its public account label only from user.username (5.39055ms)
+✔ hosting plugin module contract (vercel) (1055.365018ms)
+▶ VercelDeployTarget.publish — responseHeaders
+  ✔ renders responseHeaders into a root vercel.json, replacing a site-supplied one (17.846117ms)
+  ✔ no responseHeaders (or an empty set) leaves the file set exactly as given (5.538236ms)
+✔ VercelDeployTarget.publish — responseHeaders (24.078483ms)
+▶ VercelDeployTarget.publish — per-file uploads (/v2/files)
+  ✔ uploads each distinct file once with its SHA-1 digest and size, and the deployment references them by sha/size with no inline data (3.23726ms)
+  ✔ a site over 10 MB never goes in one request: every request body stays under Vercel's 10 MB cap (64.386309ms)
+  ✔ uploads exactly the missing hashes Vercel names once, then creates the deployment (2.294217ms)
+  ✔ a second missing_files answer fails the publish instead of looping (8.46615ms)
+  ✔ retries an upload Vercel answers with 429 or 5xx, and fails on a non-transient error without creating a deployment (3.517544ms)
+  ✔ retries an upload whose connection drops, and names the transport cause once the tries run out (7.48256ms)
+  ✔ does not retry an upload that hit the host-kit timeout (1.013332ms)
+  ✔ gives up on a file after three transient failures (1.205713ms)
+✔ VercelDeployTarget.publish — per-file uploads (/v2/files) (92.430834ms)
+▶ isVercelProtectedResponse
+  ✔ detects Vercel SSO nonce cookie as a protected-link signal (0.580492ms)
+  ✔ detects the Vercel Authentication body text as a protected-link signal (0.330413ms)
+  ✔ returns false for a plain unrelated 401 (0.307134ms)
+✔ isVercelProtectedResponse (1.409083ms)
+▶ VercelDeployTarget.publish
+  ✔ throws DeployError without making a network call when token is missing (0.702587ms)
+  ✔ refuses to follow a redirect on the create-deployment call, and requests redirect: manual (0.820911ms)
+  ✔ creates a deployment, polls until READY, and returns the reachable URL (1.237097ms)
+  ✔ bounds both the create-deployment call and the status-poll call with a timeout signal, so a stalled Vercel response cannot hang a publish forever (1.635921ms)
+  ✔ reports the injected host-kit deadline with deployment facts for create and poll requests (1.285731ms)
+  ✔ rejects with DeployError when the Vercel build failed, retaining deployment facts (0.726756ms)
+  ✔ surfaces a permission-denied Vercel error with a friendly message (0.600594ms)
+  ✔ surfaces a generic permission-phrased error message even without a "forbidden" code (0.497037ms)
+  ✔ falls back to a generic "Vercel request failed" message when the error body carries neither an error object nor a message (0.502151ms)
+  ✔ throws DeployError when Vercel responds with a non-JSON body (0.526681ms)
+  ✔ falls back to `uid` for polling/deploymentId when the create response has no `id` field (1.036704ms)
+  ✖ retains the deployment and falls back to "Vercel deployment failed" when terminal ERROR has no error object (1.057086ms)
+  ✔ retains the deployment and reports incomplete verification when the status poll receives a non-ok response (0.64975ms)
+  ✔ falls back to `resp.status || 502` when a zero-status network-error response is also non-JSON (0.593467ms)
+  ✔ leaves the url already-absolute when a candidate is returned with an explicit https:// prefix (0.88746ms)
+  ✔ falls back to alias[0] in deploymentUrl()'s own url resolution when the response has no top-level url field (0.796759ms)
+  ✔ collects a plain-string entry from the `aliases` array (not just object-shaped {domain}/{url} entries) (0.779792ms)
+  ✔ falls all the way through to an empty url/no-reachableAt result when neither the create/ready responses nor a fallback url exist (0.478848ms)
+  ✔ skips polling entirely when the create response carries neither an id nor a uid (0.702519ms)
+  ✔ collects deployment URL candidates from string aliases, and from aliases entries shaped as {domain} or {url} objects (1.489642ms)
+  ✔ returns each object alias when it is the only reachable production URL (1.222282ms)
+  ✔ keeps polling past a status-check response that fails to parse as JSON instead of treating it as a hard failure (0.937784ms)
+  ✔ returns the last known deployment state once polling exhausts its 30-attempt budget without a terminal readyState (3.750249ms)
+  ✔ checkReachability probes the URL with the Vercel-protected-response detector wired in (1.323109ms)
+  ✔ publish reports a Deployment Protection auth wall as protected (0.720193ms)
+  ✔ creates a production deployment and reports the production alias, not the per-deployment URL (0.981835ms)
+  ✔ tries the public <project>.vercel.app alias first even when Vercel lists the team-scoped alias before it (0.891741ms)
+  ✔ reports a URL that redirects to Vercel login as protected, not ready (0.945151ms)
+  ✔ includes teamId (preferred over teamSlug) or teamSlug in the query string when configured (2.247119ms)
+  ✔ falls back to a random project name when the caller-supplied projectName sanitizes to nothing (0.995828ms)
+✖ VercelDeployTarget.publish (32.902965ms)
+▶ VercelDeployTarget — edge answers (bodies that cannot be read, missing headers, unreadable polls)
+  ✔ verifyCredential reads no account label from a non-JSON body, a null body, or a non-object user (1.027275ms)
+  ✔ an upload ack, a retried upload answer and the login-check HEAD whose bodies cannot be drained do not fail the publish (4.657507ms)
+  ✔ a redirect with no Location header is not Vercel's login wall (0.92423ms)
+  ✔ a login-check HEAD that throws leaves the reachability result as it was (0.705787ms)
+  ✔ when no status poll is ever readable, the URL candidates come from the create answer alone (3.833796ms)
+✔ VercelDeployTarget — edge answers (bodies that cannot be read, missing headers, unreadable polls) (11.506654ms)
+ℹ tests 59
+ℹ suites 6
+ℹ pass 58
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1435.684226
+
+✖ failing tests:
+
+test at packages/agent-plugins/vercel/__tests__/vercel.test.mjs:544:3
+✖ retains the deployment and falls back to "Vercel deployment failed" when terminal ERROR has no error object (1.057086ms)
+  Error [DeployError]: Vercel deployment failed. Deployment: created. 0 of 1 distinct files uploaded this attempt; 1 already stored. Deployment ID: dpl_noerr; URL: https://demo.vercel.app; provider status: ERROR. Check deployment dpl_noerr in the Vercel dashboard for project 'demo' before publishing again. A public site's 200 can belong to the previous deployment.
+      at VercelDeployTarget.publish (file:///home/user/Jini/packages/agent-plugins/vercel/targets/vercel.mjs:181:21)
+      at async TestContext.<anonymous> (file:///home/user/Jini/packages/agent-plugins/vercel/__tests__/vercel.test.mjs:555:20)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    status: 502,
+    details: undefined,
+    code: undefined
+  }

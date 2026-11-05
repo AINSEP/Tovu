@@ -1,0 +1,36 @@
+
+[1m[7m[36m RUN [39m[27m[22m [36mv2.1.9 [39m[90m/home/user/Jini/packages/daemon[39m
+
+[90mstderr[2m | src/http/__tests__/delegated-tools-host-described-internal-error.test.ts[2m > [22m[2mdelegated tool route: describeInternalError (host-supplied model-safe text for the 500)[2m > [22m[2mfalls back to the generic message when the host describer throws
+[22m[39m[@jini-ai/http-kit] describeInternalError threw (correlationId=2b8f19cf-15eb-45ec-b6ed-27692809cac1) Error: describer bug
+    at Object.describeInternalError (/home/user/Jini/packages/daemon/src/http/__tests__/delegated-tools-host-described-internal-error.test.ts:148:15)
+    at describeSafely (/home/user/Jini/packages/daemon/src/http/delegated-tools.ts:172:23)
+    at reportInternalError (/home/user/Jini/packages/daemon/src/http/delegated-tools.ts:190:19)
+    at Object.handle (/home/user/Jini/packages/daemon/src/http/delegated-tools.ts:381:27)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at callRoute (/home/user/Jini/packages/daemon/src/http/__tests__/delegated-tools-host-described-internal-error.test.ts:47:18)
+    at /home/user/Jini/packages/daemon/src/http/__tests__/delegated-tools-host-described-internal-error.test.ts:152:41
+    at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:5
+    at runTest (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:11)
+    at runSuite (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+
+ [32m✓[39m src/http/__tests__/delegated-tools-host-described-internal-error.test.ts [2m([22m[2m13 tests[22m[2m)[22m[90m 43[2mms[22m[39m
+[90mstderr[2m | src/agent-executor/__tests__/agent-executor.test.ts[2m > [22m[2mAgentExecutor — a single failed queued emit does not block the run from reaching a terminal state[2m > [22m[2mswallows an emit() race against an already-terminal run instead of leaving an unhandled rejection
+[22m[39m[daemon] Queued lifecycle event could not be delivered.
+[daemon] Queued lifecycle event could not be delivered.
+
+[90mstderr[2m | src/agent-executor/__tests__/agent-executor.test.ts[2m > [22m[2mAgentExecutor — ACP dispatch (fake attachAcpSession)[2m > [22m[2mswallows an emit() race against an already-terminal run on the ACP path without an unhandled rejection
+[22m[39m[daemon] Queued lifecycle event could not be delivered.
+
+[90mstderr[2m | src/agent-executor/__tests__/agent-executor.test.ts[2m > [22m[2mAgentExecutor — pi-rpc dispatch (fake attachPiRpcSession)[2m > [22m[2mswallows an emit() race against an already-terminal run on the pi-rpc path without an unhandled rejection
+[22m[39m[daemon] Queued lifecycle event could not be delivered.
+
+ [32m✓[39m src/tool-recovery/__tests__/redaction.test.ts [2m([22m[2m8 tests[22m[2m)[22m[90m 10[2mms[22m[39m
+ [32m✓[39m src/agent-executor/__tests__/agent-executor.test.ts [2m([22m[2m389 tests[22m[2m)[22m[33m 1170[2mms[22m[39m
+ [32m✓[39m src/agent-executor/__tests__/sanitized-line-stream.test.ts [2m([22m[2m2 tests[22m[2m)[22m[90m 5[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m4 passed[39m[22m[90m (4)[39m
+[2m      Tests [22m [1m[32m412 passed[39m[22m[90m (412)[39m
+[2m   Start at [22m 03:47:17
+[2m   Duration [22m 7.47s[2m (transform 5.00s, setup 0ms, collect 11.43s, tests 1.23s, environment 1ms, prepare 505ms)[22m
+

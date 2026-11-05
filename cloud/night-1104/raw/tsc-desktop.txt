@@ -1,0 +1,8 @@
+
+> tovu-desktop@0.1.29 typecheck
+> tsc -p tsconfig.preload.json --noEmit && tsc -p tsconfig.renderer.json && tsc -p tsconfig.main.json && tsc -p tsconfig.live-verify.json
+
+../website/src/features/external-mcp/external-mcp-oauth.ts(219,13): error TS2304: Cannot find name 'ToolInputError'.
+../website/src/features/external-mcp/external-mcp-oauth.ts(232,27): error TS2304: Cannot find name 'ToolInputError'.
+../website/src/features/external-mcp/external-mcp-store.ts(514,63): error TS2304: Cannot find name 'options'.
+../website/src/features/external-mcp/external-mcp-store.ts(515,73): error TS2304: Cannot find name 'options'.

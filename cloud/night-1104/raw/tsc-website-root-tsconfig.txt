@@ -1,0 +1,9 @@
+apps/website/src/features/agent-plugins/grant-signed-in-defaults.ts(79,35): error TS18047: 'row' is possibly 'null'.
+apps/website/src/features/agent-plugins/grant-signed-in-defaults.ts(82,47): error TS18047: 'row' is possibly 'null'.
+apps/website/src/features/agent-plugins/grant-signed-in-defaults.ts(82,89): error TS18047: 'row' is possibly 'null'.
+apps/website/src/features/agent-plugins/grant-signed-in-defaults.ts(82,145): error TS18047: 'row' is possibly 'null'.
+apps/website/src/features/agent-plugins/grant-signed-in-defaults.ts(125,204): error TS1230: A type predicate cannot reference element 'row' in a binding pattern.
+apps/website/src/features/external-mcp/external-mcp-oauth.ts(219,13): error TS2304: Cannot find name 'ToolInputError'.
+apps/website/src/features/external-mcp/external-mcp-oauth.ts(232,27): error TS2304: Cannot find name 'ToolInputError'.
+apps/website/src/features/external-mcp/external-mcp-store.ts(514,63): error TS2552: Cannot find name 'options'. Did you mean 'Option'?
+apps/website/src/features/external-mcp/external-mcp-store.ts(515,73): error TS2552: Cannot find name 'options'. Did you mean 'Option'?

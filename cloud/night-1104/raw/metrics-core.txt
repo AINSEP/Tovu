@@ -1,0 +1,22 @@
+Measuring ../Jini/packages/core/src …
+  … complexity
+  … cognitive_complexity
+  … git history
+
+2/9 metrics measured
+report: /tmp/claude-0/-home-user/00bcb845-7028-5e98-8fa3-e6fe75cd76fa/scratchpad/metrics-core/2026-11-05-code-metrics.md
+  GAP  complexity: eslint produced no JSON (Oops! Something went wrong! :(
+
+ESLint: 10.8.0
+
+Error: Error while loading rule 'sona
+  GAP  cognitive_complexity: eslint produced no JSON (Oops! Something went wrong! :(
+
+ESLint: 10.8.0
+
+Error: Error while loading rule 'sona
+  GAP  duplication: skipped via --skip
+  GAP  type_safety: skipped via --skip
+  GAP  dead_code: skipped via --skip
+  GAP  hotspots: needs complexity data (lizard unavailable). Churn alone is not a hotspot — the whole point is the intersection
+  GAP  coverage: skipped via --skip

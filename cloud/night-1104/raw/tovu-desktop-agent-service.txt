@@ -1,0 +1,107 @@
+[desktop-agent-service] spawn
+[desktop-agent-service] exit
+[desktop-agent-service] spawn
+[desktop-agent-service] exit
+[desktop-agent-service] spawn
+[desktop-agent-service] exit
+[desktop-agent-service] spawn
+[desktop-agent-service] exit
+[desktop-agent-service] spawn
+[desktop-agent-service] exit
+[desktop-agent-service] spawn
+✔ five simultaneous site demands spawn one child (10.576082ms)
+✔ site shutdown never stops the shared daemon (2.740813ms)
+✔ park wake races produce one replacement (2.657022ms)
+✔ spawn environments contain no shared or foreign-site credentials (1.434602ms)
+[desktop-agent-service] exit
+[desktop-agent-service] spawn
+[desktop-agent-service] exit
+✔ shared child output redacts the registered scopes' credentials (22.789565ms)
+[desktop-agent-service] spawn
+[desktop-agent-service] exit
+[desktop-agent-service] spawn
+[desktop-agent-service] exit
+✔ private-key bodies never reach either child output sink (1 writes) (6.877741ms)
+[desktop-agent-service] spawn
+[desktop-agent-service] exit
+[desktop-agent-service] spawn
+[desktop-agent-service] exit
+[desktop-agent-service] spawn
+[desktop-agent-service] exit
+[desktop-agent-service] spawn
+[desktop-agent-service] exit
+[desktop-agent-service] spawn
+[desktop-agent-service] exit
+[desktop-agent-service] spawn
+[desktop-agent-service] exit
+[desktop-agent-service] spawn
+[desktop-agent-service] exit
+[desktop-agent-service] spawn
+[desktop-agent-service] exit
+[desktop-agent-service] spawn
+[desktop-agent-service] exit
+[desktop-agent-service] spawn
+[desktop-agent-service] exit
+[desktop-agent-service] spawn
+[desktop-agent-service] exit
+[desktop-agent-service] spawn
+[desktop-agent-service] exit
+[desktop-agent-service] spawn
+[desktop-agent-service] exit
+[desktop-agent-service] spawn
+[desktop-agent-service] exit
+[desktop-agent-service] spawn
+[desktop-agent-service] exit
+[desktop-agent-service] spawn
+[desktop-agent-service] exit
+[desktop-agent-service] spawn
+[desktop-agent-service] exit
+[desktop-agent-service] spawn
+[desktop-agent-service] exit
+✔ private-key bodies never reach either child output sink (3 writes) (3.383904ms)
+✔ private-key bodies never reach either child output sink (2 writes) (4.209056ms)
+✔ shared child output preserves workspace identifiers and masks complete local paths (3.831572ms)
+✔ output redaction preserves site identities and masks paths on both streams (3.951371ms)
+✔ an unterminated stderr key cannot suppress stdout or the next child's output (3.758308ms)
+✔ desktop withdraws on stop without server withdrawal; restart accepts the new boot (4.042967ms)
+✔ desktop withdraws on crash without server withdrawal; restart accepts the new boot (1.777911ms)
+✔ a boot with exitCode is replaced even before its exit listener runs (3.763117ms)
+✔ a boot with signalCode is replaced even before its exit listener runs (1.935045ms)
+✔ disconnect alone never authorizes a second live boot (2.3035ms)
+✔ a different directory under the same scope key remains refused, even after death (1.976687ms)
+✔ a second live boot gets a plain refusal and its exit cannot withdraw the first (1.611861ms)
+✔ an exit while demand is queued cannot recreate the departed boot's scope (1.376562ms)
+✔ two sites sharing one workspace id each keep their own ready daemon scope (2.409048ms)
+✔ shared daemon compiled launches and park wakes put the size flag before loaders (1.668295ms)
+✔ shared daemon source launches and park wakes put the size flag before loaders (1.506225ms)
+✔ sleep exit uses the existing control channel and P0 withdraws before the same directory registers again (2.518004ms)
+✔ stopIfIdle treats a rejected, timed out or malformed reply as busy (2.70333ms)
+✔ stopIfIdle request timeout is busy and never withdraws or signals (1.881465ms)
+✔ native Electron memory replaces RSS once per PID; packaged serve/daemon keep RSS (3.382342ms)
+✔ native metric failure reports unavailable instead of silently reverting to inflated RSS (0.665244ms)
+✔ S2 groups owned server/daemon/agent trees and Electron helpers; excludes other desktops (1.708598ms)
+✔ S2 packaged daemon (Electron as node) shares the server executable name and is still labelled (1.579183ms)
+✔ S2 overlapping site roots cannot double-count a pid in the total (0.502833ms)
+✔ S2 missing roots and empty/foreign-only samples are unavailable, never zero or stale rows (1.090559ms)
+✔ S2 inclusive site 1.5 GB and total 25% warnings; one byte below remains quiet (0.999405ms)
+✔ S2 CPU uses elapsed seconds and warns at 80% on two measured intervals, then clears (0.632786ms)
+✔ S2 CPU counters are forgotten when a pid vanishes, and decreasing counters are unknown (0.794003ms)
+✔ S2 enforces 5s POSIX, 10s Windows and 60s collapsed cadence even with eager callers (0.948872ms)
+✔ S2 concurrent calls share a single in-flight sample even when the clock passes its cadence (0.436883ms)
+✔ S2 sampler rejection returns unavailable without native error text and can recover (0.473716ms)
+✔ collapsed launch failures use the bounded panel retry cadence, then restore the normal cache (0.443651ms)
+✔ the usage probe (ps; PowerShell on Windows) never counts itself, so the total CPU is measured (0.638884ms)
+✔ a ps that is not the desktop's own probe is still counted (0.400958ms)
+✔ B2 maintenance and panel reads share one sampler and bypass the collapsed 60 s cache (0.389868ms)
+✔ a newly running site gets its own reading before the collapsed cache expires (0.388537ms)
+✔ replacing a site PID or stopping it withdraws the old process group before cache expiry (0.394996ms)
+✔ reordered site handles retain the cached sample (0.303749ms)
+✔ a site opened during an in-flight sample gets a bounded retry without overlapping OS reads (0.473838ms)
+ℹ tests 45
+ℹ suites 0
+ℹ pass 45
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 797.913111
