@@ -1231,7 +1231,7 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
     const name = snapshot.def?.name ?? selected;
     const message = assistantToolSetupMessage({ name, reason: plan.verdict === 'SETUP' ? plan.reason : 'not_installed',
       ...(snapshot.lock ? { lock: snapshot.lock } : {}), ...('keys' in plan ? { keys: plan.keys } : {}) });
-    const alternatives = await qualifiedRunAlternatives({ inventory, selectedAgentId: selected });
+    const alternatives = await qualifiedRunAlternatives({ inventory, selectedAgentId: selected, snapshot });
     if (alternatives.length) {
       const alternative = await withRunToolAccessCard({ ask: ({ ctx, emitSurface }) => requestAssistantToolAlternative({ name, message,
         ctx, surfaces: { surfaceExchanges }, alternatives, isLive: runToolAccessIsLive }, { emitSurface }) });
@@ -1246,7 +1246,7 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
     inventory: Awaited<ReturnType<typeof assistantInventory.listAssistantAgents>>;
   }) {
     const selected = snapshot.def!;
-    const alternatives = await qualifiedRunAlternatives({ inventory, selectedAgentId: selected.id });
+    const alternatives = await qualifiedRunAlternatives({ inventory, selectedAgentId: selected.id, snapshot });
     return withRunToolAccessCard({ ask: ({ ctx, emitSurface }) => requestAssistantToolConsent({ def: selected, keys, surfaces: { surfaceExchanges }, ctx,
       isLive: runToolAccessIsLive,
       readFresh: () => routeDeps.readToolConsentSnapshot({ runId: run.id, agentId: selected.id }),
@@ -1269,14 +1269,19 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
     }
   }
 
-  async function qualifiedRunAlternatives({ inventory, selectedAgentId }: {
+  function qualifiedRunAlternatives({ inventory, selectedAgentId, snapshot }: {
     inventory: Awaited<ReturnType<typeof assistantInventory.listAssistantAgents>>; selectedAgentId: string;
+    snapshot: Awaited<ReturnType<typeof resolveRunNativePolicy>>;
   }) {
+    // Reuse the launch snapshot for choices; the selected agent is read fresh before dispatch.
     const alternatives = [];
     for (const agent of inventory) {
       if (agent.id === selectedAgentId || !agent.available || agent.authStatus === 'missing') continue;
-      const snapshot = await resolveRunNativePolicy({ agentId: agent.id });
-      if (assistantRunPlan({ snapshot, installed: true }).verdict === 'RUN') alternatives.push({ agentId: agent.id, name: agent.name });
+      const def = getAgentDef({ id: agent.id });
+      const effective = resolveAssistantCliPermissions({ isOwner: snapshot.isOwner, env, settings: snapshot.settings, agentId: agent.id }, { hostSignals: resolveHostSignals({ env }) });
+      const policy = resolveNativeToolPolicy({ def: def ?? {}, policy: { nativeToolAccess: effective.enabled, nativeCapabilities: effective.capabilities } });
+      const candidate = { ...snapshot, def, effective, policy, nativeCapabilities: effective.capabilities };
+      if (assistantRunPlan({ snapshot: candidate, installed: true }).verdict === 'RUN') alternatives.push({ agentId: agent.id, name: agent.name });
     }
     return alternatives;
   }

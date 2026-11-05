@@ -34,7 +34,7 @@ test('plugin OFF aborts an affected provider stream, awaits cleanup, and preserv
   t.after(() => { provider.closeAllConnections(); provider.close(); });
   const deps = createRouteDeps();
   const surface = createByokToolSurface(deps, { installExtensions: false });
-  surface.registry.register({ descriptor: { id: 'mcp__mail__read', description: 'Read mail', inputSchema: { type: 'object' }, metadata: { mcpSource: { id: 'mail', host: 'mail.example', pluginId: 'mail-plugin' } } }, policy: { authorize: async () => ({ allowed: true, reason: "fixture-grant" }) }, handler: async () => ({ ok: true }) });
+  surface.registry.register({ descriptor: { id: 'mcp__mail__read', description: 'Read mail', inputSchema: { type: 'object' }, metadata: { mcpSource: { id: 'mail', host: 'mail.example', pluginId: 'mail-plugin' } } }, policy: { authorize: async () => "allow" as const }, handler: async () => ({ ok: true }) });
   const module = createAssistantByokModule(deps, surface);
   const app = express(); app.use(express.json()); registerAuthRoutes(app, deps);
   module.registerRoutes?.(app); module.activateServerFederation?.({ router: app });
@@ -54,7 +54,7 @@ test('plugin OFF aborts an affected provider stream, awaits cleanup, and preserv
   })();
   await providerStarted;
   // Existing BYOK discovery can admit a slow server after launch; OFF must cover that live access.
-  surface.registry.register({ descriptor: { id: 'mcp__late__read', metadata: { mcpSource: { id: 'late', host: 'late.example', pluginId: 'late-plugin' } } }, policy: { authorize: async () => ({ allowed: true, reason: 'fixture-grant' }) }, handler: async () => ({ ok: true }) });
+  surface.registry.register({ descriptor: { id: 'mcp__late__read', metadata: { mcpSource: { id: 'late', host: 'late.example', pluginId: 'late-plugin' } } }, policy: { authorize: async () => "allow" as const }, handler: async () => ({ ok: true }) });
   await notifyExternalMcpRosterChanged({ lowered: { serverIds: ['unrelated'] } });
   assert.equal(disconnected, false, 'an unrelated source must not stop this answer');
   await notifyExternalMcpRosterChanged({ lowered: { pluginIds: ['late-plugin'] } });
