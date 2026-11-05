@@ -10,8 +10,9 @@ import { SqliteFormDefinitionRepo, SqliteFormSubmissionRepo } from "#src/feature
 import { createMailSendLedgerRepo } from "#src/features/mail/ledger.repo";
 import { createMailSuppressionRepo } from "#src/features/mail/suppression.repo";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
-import { dropDatabase, freshPostgresContentDatabase } from "#src/platform/db/__tests__/postgres-database";
+import { dropDatabase, freshPostgresDatabase } from "#src/platform/db/__tests__/postgres-database";
 import { closeSqliteConnection, openPostgresKernel, openSqliteFileKernel } from "#src/platform/db/kernel/index";
+import { migrateContentDatabase } from "#src/platform/db/migrations/index";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqlOutboxAdapter } from "#src/platform/db/repos/outbox-repo";
 import type { MailerPort, MailerSendOptions, OutboundEmail } from "#src/platform/mail/index";
@@ -35,7 +36,7 @@ async function store(t: TestContext, dialect: "sqlite" | "postgres", suffix: str
     closeSqliteConnection(openContentDb(filePath));
     open = () => openSqliteFileKernel(filePath);
   } else {
-    const connectionString = freshPostgresContentDatabase(database);
+    const connectionString = freshPostgresDatabase(database);
     open = () => openPostgresKernel({ connectionString });
   }
   let db = open();
@@ -44,6 +45,7 @@ async function store(t: TestContext, dialect: "sqlite" | "postgres", suffix: str
     if (dialect === "postgres") dropDatabase({ database });
     rmSync(dir, { recursive: true, force: true });
   });
+  if (dialect === "postgres") await migrateContentDatabase(db);
   return { db, restart: async () => { await db.close(); db = open(); return db; } };
 }
 
