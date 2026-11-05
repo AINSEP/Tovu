@@ -97,3 +97,23 @@ test('trusted replacement rechecks the grant inside the owner transaction', asyn
   await assert.rejects(replace.put({ record: { ...vaultRow(), revision: 3 }, expectedRevision: 2 }));
   assert.equal((await vault.find({ workspaceId: 'project', id: 'key-a' }))?.revision, 2);
 });
+
+test('shared OAuth attach validates its consumer before grant; stop here leaves other sites granted', async () => {
+  const { inputs, vault, attachments } = await fixture();
+  const row = { ...vaultRow({ id: 'oauth-owner', kind: 'api-connection' }), meta: { credentialFormat: 'oauth-token-set' } };
+  await vault.put({ record: row, expectedRevision: null });
+  const validated: string[] = [];
+  const keys = createProjectKeys({ ...inputs, bindOAuth: async ({ keyId, use }) => {
+    assert.equal(await attachments.isAttached({ siteId: 'site-a', keyId }), false);
+    validated.push(`${keyId}:${use}`);
+  } });
+  assert.equal((await keys.list({})).some(item => item.keyId === row.id), true);
+  await assert.rejects(createProjectKeys(inputs).use({ keyId: row.id, use: true }), /saved connection/);
+  assert.equal(await attachments.isAttached({ siteId: 'site-a', keyId: row.id }), false);
+  await keys.use({ keyId: row.id, use: true });
+  await attachments.attach({ siteId: 'site-b', siteName: 'B', keyId: row.id });
+  await keys.use({ keyId: row.id, use: false });
+  assert.deepEqual(validated, ['oauth-owner:true']);
+  assert.equal(await attachments.isAttached({ siteId: 'site-a', keyId: row.id }), false);
+  assert.equal(await attachments.isAttached({ siteId: 'site-b', keyId: row.id }), true);
+});
