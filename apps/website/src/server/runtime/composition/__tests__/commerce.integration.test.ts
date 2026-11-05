@@ -128,6 +128,13 @@ for (const dialect of ['sqlite', 'pglite'] as const) {
     assert.deepEqual(await runtime.commerceCatalog.listProducts(), []);
     await f.stop();
     assert.deepEqual((await listTables(f.kernel())).filter(table => table.startsWith('commerce_')), []);
+    await f.activation(true);
+    runtime = f.boot();
+    assert.equal((await runtime.commerce.status()).ready, false);
+    await f.stop();
+    assert.deepEqual((await listTables(f.kernel())).filter(table => table.startsWith('commerce_')), []);
+    assert.ok(f.warnings.some(message => /configuration|configured|account|HTTPS/i.test(message)),
+      'enabled checkout without merchant settings must warn specifically while keeping the CMS available');
     await f.write(configuration); await f.activation(true);
     await f.saveProvider('acct_foreign');
     runtime = f.boot();
