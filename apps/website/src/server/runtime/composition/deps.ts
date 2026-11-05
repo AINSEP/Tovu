@@ -1,3 +1,5 @@
+import { composeCommerce } from "./commerce.js";
+import { ensureCommerceSetting } from "./commerce-settings.js";
 import { scheduleFormAttachmentCleanup } from "@jini-ai/cms/forms";
 import { protectExistingFormFiles } from "#src/features/forms/protect-existing-files";
 import { createFormFilePurgeHooks } from "#src/features/forms/form-file-purge";
@@ -1256,7 +1258,8 @@ async function composeSiteRouteDeps(
     .then(() => ensureSearchProviderSetting({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     .then(() => ensureSiteTitleSettingDefinition(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     // Bug D: `core.site.timezone` (`features/settings/site-timezone.ts`), the zone post dates render in.
-    .then(() => ensureSiteTimeZoneSettingDefinition(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }));
+    .then(() => ensureSiteTimeZoneSettingDefinition(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
+    .then(() => ensureCommerceSetting({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }));
   // Public title reads already handle pending pins; consent must not inherit this migration wait.
   const siteTitleReady = siteSettingsReady
     .then(() =>
@@ -2829,6 +2832,16 @@ async function composeSiteRouteDeps(
     // Fail closed: an unreadable activations file is `undetermined`, never active.
     isPluginActive: async ({ pluginId }) => (await agentPluginLifecycle.resolveAgentPluginActivation({ workspaceRoot: agentPluginLayout.root, pluginId })).verdict === "active",
   }), { storage: kernel, settingsReady: siteTitleReady });
+
+  const commerceBinding = composeCommerce({ kernel: kernel as unknown as StorageKernel<unknown>,
+    workspaceId, siteId: projectSiteId || workspaceId, workspaceRoot: agentPluginLayout.forWorkspace(workspaceId).root,
+    workerOwner: (overrides.storeRole ?? 'owner') === 'owner', workerDirectory: resolvedSiteBinding.dir,
+    settingsRepo, settingsReady: siteTitleReady, providerConfig: providerConfigSource, providers: providerPlugins,
+    httpClient: { send: ({ request }, options) => createDefaultHttpClient(SINGLE_HOP_HTTPS_EGRESS_POLICY, { observability }).send(request, options) }, clock, idGen,
+  });
+  routeDeps.commerce = commerceBinding.commerce;
+  routeDeps.commerceCatalog = commerceBinding.commerceCatalog;
+  onStoreClose(() => commerceBinding.close());
 
   siteAppBootWorkByDeps.set(routeDeps, siteAppBootWork);
   routeDeps.pluginHost = createTovuPluginHost({ deps: routeDeps });
