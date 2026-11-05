@@ -146,7 +146,7 @@ export interface BootProviderPluginsOptional {
 }
 
 type ProviderSlot = { pluginId: string; contract: ProviderContract; id: string;
-  declaration: PluginProviderDeclaration; lease?: PluginProviderLease; retirement?: AbortController; input?: string; initializationObserved?: boolean };
+  declaration: PluginProviderDeclaration; lease?: PluginProviderLease; retirement: AbortController; input?: string; initializationObserved?: boolean };
 /** An absent input is already inert; a configured input must also retain a current generation. */
 function unchangedSlot({ slot, signature }: { slot: ProviderSlot; signature: string | undefined }, _optional = {}): boolean {
   if (signature !== slot.input) return false;
@@ -305,7 +305,7 @@ export async function bootProviderPlugins(required: BootProviderPluginsRequired,
   const timeoutMs = optional.initializeTimeoutMs ?? 10_000;
   const slots: ProviderSlot[] = (await required.runtime.listProviderPlugins({})).flatMap(({ pluginId, providers }) =>
     providers.filter(declaration => KNOWN_CONTRACTS.has(declaration.contract)).map(declaration => ({ pluginId,
-      contract: declaration.contract as ProviderContract, id: declaration.id, declaration })));
+        contract: declaration.contract as ProviderContract, id: declaration.id, declaration, retirement: new AbortController() })));
   const loaded = new Set<string>();
   const host = createPluginProviderHost({ contributions: required.runtime.providerContributions, contracts: PROVIDER_CONTRACTS }, {
     initializeTimeoutMs: timeoutMs,
@@ -332,7 +332,7 @@ export async function bootProviderPlugins(required: BootProviderPluginsRequired,
     }
     const old = slot.lease;
     // Reconfiguration/revocation drops queued exports before SDK shutdown can flush the old key.
-    slot.retirement?.abort();
+    slot.retirement.abort();
     const retirement = new AbortController();
     slot.retirement = retirement;
     try {
@@ -396,7 +396,7 @@ export async function bootProviderPlugins(required: BootProviderPluginsRequired,
       return restartBrowser ? 'restart' : 'now';
     } catch (error) {
       for (const slot of selected) initialization({ slot, outcome: 'failure', reasonClass: 'initialization_failed' });
-      const retired = selected.map(slot => { slot.retirement?.abort(); const lease = slot.lease; slot.lease = undefined; slot.input = undefined; return lease; });
+      const retired = selected.map(slot => { slot.retirement.abort(); const lease = slot.lease; slot.lease = undefined; slot.input = undefined; return lease; });
       await Promise.all(retired.map(lease => lease?.dispose({})));
       // Class only: an SDK's construction error can quote the endpoint or DSN it was given.
       // Names are allowlisted too: custom Error.name values can themselves contain credentials.

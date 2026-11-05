@@ -100,6 +100,21 @@ test("provider inventory uses manifest labels and live-apply fallback returns re
   assert.equal(rows.find(row => row.keyId === keyId)?.name, "Example");
 });
 
+test('revoking a provider grant commits before local reapply and states the cross-process window', async () => {
+  const { inputs, vault, attachments } = await fixture();
+  const keyId = 'plugin-state:analytics-example:provider.config';
+  await vault.put({ record: { ...vaultRow({ id: keyId, kind: 'api-connection' }), isDefault: false }, expectedRevision: null });
+  await attachments.attach({ siteId: inputs.siteId, siteName: inputs.siteName, keyId });
+  let reapplied = 0;
+  const keys = createProjectKeys({ ...inputs, reapply: async ({ pluginId }) => {
+    assert.equal(pluginId, 'analytics-example');
+    assert.equal(await attachments.isAttached({ siteId: inputs.siteId, keyId }), false);
+    reapplied++; return 'now';
+  } });
+  assert.deepEqual(await keys.use({ keyId, use: false }), { keyId, usedByThisSite: false, usedBy: [], appliesAt: 'now', message: 'Access is revoked within 30 seconds.' });
+  assert.equal(reapplied, 1);
+});
+
 test("a site override shadows an attached project provider in use results and inventory", async () => {
   const { inputs, vault } = await fixture();
   const keyId = "plugin-state:analytics-example:provider.config";

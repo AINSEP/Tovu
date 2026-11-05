@@ -69,6 +69,7 @@ export function createProjectKeys({ vault, attachments, siteId, siteName, reappl
     const pluginId = providerPluginOf(input);
     const result = pluginId ? await reapply({ pluginId }) : "now";
     return { ...(await usage(input)), appliesAt: typeof result === "string" ? result : result.appliesAt,
+      ...(input.use ? {} : { message: "Access is revoked within 30 seconds." }),
       ...(typeof result === "string" ? {} : { message: `${result.reason} ${result.action}` }) };
   };
   const granted = attachedOnlyVault({ vault, attachments, siteId });
