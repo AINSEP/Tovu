@@ -479,6 +479,7 @@ const assistantPromptAugmenter: PromptAugmenter = {
 // Each run's bridge gets its own credential, resolved back to that run's principal; see
 // `run-scoped-credential.ts`. A closure because `runCredentials` is declared further down.
 const bridgeInjection = {
+  toolApprovalOwner: "host" as const,
   ...resolveMcpJsonInjection(daemonUrl, (runId) => runCredentials.mint({ runId: runId }, {}), {
     execPath: process.execPath, electronVersion: process.versions.electron, env,
   }),
