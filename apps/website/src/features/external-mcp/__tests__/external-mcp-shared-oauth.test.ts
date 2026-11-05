@@ -9,7 +9,7 @@ import { createSiteOAuthBindings } from '../../project-keys/site-references.js';
 import { fakeAttachments } from '../../project-keys/__tests__/helpers.js';
 import { createExternalMcpOAuthService, createDeviceAuthorizationStore } from '../external-mcp-oauth.js';
 import { InMemoryExternalMcpServerRepo } from '../external-mcp-store.memory.js';
-import { openExternalMcpOAuthPayload, saveExternalMcpServer } from '../external-mcp-store.js';
+import { openExternalMcpOAuthPayload, readEnabledExternalMcpConfigs, toResolvedFederatedConnections, saveExternalMcpServer } from '../external-mcp-store.js';
 import { createTovuOAuthGuard } from '../../../platform/oauth/endpoint-safety.js';
 import type { OAuthProviderDescriptor } from '@jini-ai/oauth';
 
@@ -57,16 +57,16 @@ async function harness() {
     const service = createExternalMcpOAuthService({ workspaceId: 'workspace-local', repo, keyring, sealer, clock,
       devices: createDeviceAuthorizationStore(), lookupProvider: id => id === 'provider-b' ? { ...provider, providerId: id, tokenEndpoint: 'https://other-auth.example/token' } : provider, httpPorts: { guard: createTovuOAuthGuard({}), fetchFn },
       shared: { owner, bindings, attachments, siteId, siteName: siteId, ownerPrincipalId: 'owner', transaction } });
-    return { repo, bindings, service, sealer };
+    return { repo, bindings, service, sealer, keyring };
   }
   return { clock, owner, ownerRepo, attachments, requests, site, advance: (ms: number) => { now += ms; }, onRefresh: (handler: () => Promise<void>) => { onRefresh = handler; }, onAttach: (handler: () => Promise<void>) => { beforeAttach = handler; } };
 }
-async function signIn(site: Awaited<ReturnType<Awaited<ReturnType<typeof harness>>['site']>>) {
-  const start = await site.service.beginConnect({ serverId: 'server', destination: 'shared', redirectUri, browserBinding: 'browser-a', actorId: 'owner' });
+async function signIn(site: Awaited<ReturnType<Awaited<ReturnType<typeof harness>>['site']>>, serverId = 'server') {
+  const start = await site.service.beginConnect({ serverId, destination: 'shared', redirectUri, browserBinding: 'browser-a', actorId: 'owner' });
   assert.equal(start.kind, 'redirect_required');
   if (start.kind !== 'redirect_required') throw new Error('redirect required');
-  await site.service.completeAuthorizationCallback({ serverId: 'server', redirectUri, browserBinding: 'browser-a', params: { state: new URL(start.authorizationUrl).searchParams.get('state')!, code: 'synthetic-code' } });
-  return (await site.bindings.read({ consumerId: 'mcp:server' }))!.credentialId;
+  await site.service.completeAuthorizationCallback({ serverId, redirectUri, browserBinding: 'browser-a', params: { state: new URL(start.authorizationUrl).searchParams.get('state')!, code: 'synthetic-code' } });
+  return (await site.bindings.read({ consumerId: `mcp:${serverId}` }))!.credentialId;
 }
 
 test('explicit shared sign-in stores tokens only in the owner vault; two sites refresh once with original client', async () => {
@@ -229,4 +229,30 @@ test('switching back to the untouched local sign-in requires an explicit owner c
   assert.equal(await a.bindings.read({ consumerId: 'mcp:server' }), null);
   assert.equal(await h.attachments.isAttached({ siteId: 'site-a', keyId: credentialId }), false);
   assert.equal(await a.service.tokenResolver.resolveAccessToken({ serverId: 'server' }), 'access-1');
+});
+
+
+test('production config mapping keeps two shared MCP suppliers distinct at the same URL and live after rotation', async () => {
+  const h = await harness();
+  const a = await h.site('site-a');
+  await signIn(a);
+  await saveExternalMcpServer({ repo: a.repo, sealer: a.sealer, keyring: a.keyring, clock: h.clock }, {
+    workspaceId: 'workspace-local', serverId: 'server-b', label: 'Second account', transport: 'streamable_http', authMode: 'oauth', enabled: true,
+    url: 'https://resource.example/mcp', command: '', args: '', allowedToolNames: 'read', principalId: 'owner',
+    oauth: { providerId: provider.providerId, grant: 'authorization_code', clientId: 'second-client', clientSecret: 'second-secret', scopes: 'read' },
+  });
+  await signIn(a, 'server-b');
+  const { configs, failures } = await readEnabledExternalMcpConfigs({ repo: a.repo, sealer: a.sealer, oauth: a.service.tokenResolver }, 'workspace-local');
+  assert.deepEqual(failures, []);
+  const connections = toResolvedFederatedConnections(configs);
+  const first = connections.find(connection => connection.config.connectionId === 'server')!;
+  const second = connections.find(connection => connection.config.connectionId === 'server-b')!;
+  assert.equal(await first.bearerToken!({ url: 'https://resource.example/mcp' }), 'access-1');
+  assert.equal(await second.bearerToken!({ url: 'https://resource.example/mcp' }), 'access-2');
+  h.advance(3_700_000);
+  assert.equal(await first.bearerToken!({ url: 'https://resource.example/mcp' }), 'access-3');
+  assert.equal(await second.bearerToken!({ url: 'https://resource.example/mcp' }), 'access-4');
+  await a.service.disconnect({ serverId: 'server' });
+  await assert.rejects(async () => first.bearerToken!({ url: 'https://resource.example/mcp' }));
+  assert.equal(await second.bearerToken!({ url: 'https://resource.example/mcp' }), 'access-4');
 });

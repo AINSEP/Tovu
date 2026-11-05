@@ -59,7 +59,7 @@ export type ExternalMcpOAuthRouteDeps = ExternalMcpRouteDeps & { readonly extern
  * @complexity O(1).
  */
 function sendExternalMcpOAuthError(res: import("express").Response, error: unknown): void {
-  if (error instanceof ApiConnectionError) { res.status(400).json({ error: error.message, code: error.code }); return; }
+  if (error instanceof ApiConnectionError) { res.status(error.code === 'access-denied' ? 403 : 400).json({ error: error.message, code: error.code }); return; }
   if (error instanceof ExternalMcpValidationError) {
     res.status(400).json({ error: error.message, code: "INVALID_MCP_SERVER", details: { field: error.field } });
     return;

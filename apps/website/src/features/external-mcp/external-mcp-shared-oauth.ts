@@ -48,6 +48,7 @@ export function createSharedExternalMcpOAuth(required: {
   const { deps, shared, configure, resolveProvider } = required;
   const { owner, bindings, attachments, siteId } = shared;
   const refreshers = new Map<string, ReturnType<typeof createTokenRefresher>>();
+  const deviceKeyFor = (serverId: string, credentialId: string, generation: number) => JSON.stringify(['shared', siteId, serverId, credentialId, generation]);
   const bindingFor = ({ serverId }: { serverId: string }) => bindings.read({ consumerId: consumerId(serverId) });
   async function contextFor(credentialId: string): Promise<SharedMcpContext> {
     const context = await owner.readContext({ credentialId }) as SharedMcpContext | null;
@@ -116,7 +117,7 @@ export function createSharedExternalMcpOAuth(required: {
     } });
   }
   async function assertOwner(actorId: string | undefined) {
-    if (actorId !== await shared.ownerPrincipalId) throw unavailable();
+    if (actorId !== await shared.ownerPrincipalId) throw new ApiConnectionError({ code: 'access-denied', message: 'Use the installation owner’s signed-in session on this Mac to manage saved connections.' });
   }
   async function createSelection(input: { serverId: string; redirectUri?: string }) {
     const server = await deps.repo.findByServerId({ workspaceId: deps.workspaceId, serverId: input.serverId });
@@ -212,7 +213,8 @@ export function createSharedExternalMcpOAuth(required: {
       if (context.mcp.grant === 'device_code') {
         const authorization = await beginDeviceAuthorization({ ...deps.httpPorts, provider, clock: deps.clock, client: context.client },
           { scopes: context.mcp.scopes, resource: context.identity.resource, timeoutMs: 15_000 });
-        await deps.devices.put(`shared:${input.serverId}:${record.generation}`, authorization);
+        await assertAttempt(input.serverId, binding.credentialId, record.generation);
+        await deps.devices.put(deviceKeyFor(input.serverId, binding.credentialId, record.generation), authorization);
         return { kind: 'device_code', userCode: authorization.userCode, verificationUri: authorization.verificationUri,
           verificationUriComplete: authorization.verificationUriComplete, expiresAt: authorization.expiresAt, intervalSeconds: authorization.intervalSeconds };
       }
@@ -244,7 +246,7 @@ export function createSharedExternalMcpOAuth(required: {
       const record = await owner.records.read({ key: binding.credentialId });
       if (!record) throw invalidState();
       await assertAttempt(input.serverId, binding.credentialId, record.generation);
-      const deviceKey = `shared:${input.serverId}:${record.generation}`;
+      const deviceKey = deviceKeyFor(input.serverId, binding.credentialId, record.generation);
       const authorization = await deps.devices.get(deviceKey);
       if (!authorization) throw invalidState();
       try {
