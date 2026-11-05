@@ -1,0 +1,26 @@
+[hardwiring] HW1-env-default: 0 total; 0 new
+[hardwiring] HW2-vendor-adapter: 12 total; 2 new
+[hardwiring] HW3-module-state: 0 total; 0 new
+[hardwiring] HW4-injected-fetch: 0 total; 0 new
+[hardwiring] HW5-jini-export: 26 total; 7 new
+[hardwiring] HW6-boot-default: 2 total; 2 new
+[hardwiring] HW7-public-react: 45 total; 3 new
+[hardwiring] HW8-provider-url: 4 total; 2 new
+[hardwiring] HW9-plugin-import: 0 total; 0 new
+[hardwiring] 3 stale debt occurrences; remove them from /workspace/Tovu/development/scripts/hardwiring-debt.json.
+[hardwiring] HW5-jini-export apps/desktop/src/renderer/app/Spinner.tsx:8: Export Spinner duplicates a Jini function without using its owner.
+[hardwiring] HW5-jini-export apps/desktop/src/renderer/app/TabStrip.tsx:12: Export TabStrip duplicates a Jini function without using its owner.
+[hardwiring] HW5-jini-export apps/desktop/src/renderer/app/component-harness.ts:40: Export mount duplicates a Jini function without using its owner.
+[hardwiring] HW5-jini-export apps/site-chat/scripts/check-bundle-mounts.mjs:332: Export main duplicates a Jini function without using its owner.
+[hardwiring] HW5-jini-export apps/site-chat/scripts/measure-bundles.mjs:37: Export main duplicates a Jini function without using its owner.
+[hardwiring] HW5-jini-export apps/site-chat/src/main.tsx:29: Export mount duplicates a Jini function without using its owner.
+[hardwiring] HW8-provider-url apps/website/src/features/custom-credentials/credential-save-tool.ts:36: Vendor API URL belongs in a provider, adapter or catalog.
+[hardwiring] HW8-provider-url apps/website/src/features/custom-credentials/custom-credential-create-ui.ts:93: Vendor API URL belongs in a provider, adapter or catalog.
+[hardwiring] HW5-jini-export apps/website/src/features/site-backup/import-backend-steps.ts:25: Export refusal duplicates a Jini function without using its owner.
+[hardwiring] HW2-vendor-adapter apps/website/src/platform/headless-browser/playwright-loader.ts:9: Driver/vendor dependency belongs in an adapter, kernel or provider.
+[hardwiring] HW6-boot-default apps/website/src/server/runtime/boot/boot-readiness-gate.ts:65: Unsafe development default has no matching environment check in the production refusal gate.
+[hardwiring] HW6-boot-default apps/website/src/server/runtime/composition/app.ts:2517: Unsafe development default has no matching environment check in the production refusal gate.
+[hardwiring] HW2-vendor-adapter apps/website/src/server/runtime/composition/charts-recharts-source.ts:5: Driver/vendor dependency belongs in an adapter, kernel or provider.
+[hardwiring] HW7-public-react apps/site-chat/src/SiteToolConfirmation.hooks.ts:1: Public-site runtime graph must not load React or React DOM.
+[hardwiring] HW7-public-react apps/site-chat/src/SiteAssistantHeader.hooks.ts:1: Public-site runtime graph must not load React or React DOM.
+[hardwiring] HW7-public-react node_modules/@jini-ai/ui-kit:1: Public-site dependency package loads React or React DOM.
