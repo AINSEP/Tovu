@@ -67,7 +67,7 @@ function appFor(error: unknown, tracked: unknown[] = []) {
   const app = express();
   app.use((req, res, next) => {
     res.locals.principal = { id: "owner" }; res.locals.authCredentialKind = "session";
-    req.body = req.method === "PUT" ? Buffer.from([0x50, 0x4b, 0x03, 0x04]) : {};
+    req.body = req.method === "PUT" ? Buffer.from([0x50, 0x4b, 0x03, 0x04]) : req.path === root ? {} : {};
     next();
   });
   registerAdminSiteShareRoutes({ app, deps: {
