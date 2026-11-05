@@ -1,3 +1,4 @@
+import type { FormAuthoring } from "@jini-ai/cms/forms";
 import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { mapFormsWriteError, toAdminFormDefinitionResponse } from "#src/server/inbound/admin-http/http/forms";
 import {
@@ -34,10 +35,11 @@ async function resolveFormUpdateResult(
 ): Promise<FormDefinitionRecord> {
   const { workspaceId, actor, formId, body } = params;
 
-  const patch: { name?: string; fields?: FieldDescriptor[]; notify?: NotifyConfig } = {};
+  const patch: { name?: string; fields?: FieldDescriptor[]; notify?: NotifyConfig } & FormAuthoring = {};
   if (typeof body.name === "string") patch.name = body.name;
   if (Array.isArray(body.fields)) patch.fields = body.fields as FieldDescriptor[];
   if (body.notify !== undefined) patch.notify = body.notify as NotifyConfig;
+  if (body.provider !== undefined) patch.provider = body.provider as FormAuthoring["provider"];
 
   let definition: FormDefinitionRecord | undefined;
   if (Object.keys(patch).length > 0) {

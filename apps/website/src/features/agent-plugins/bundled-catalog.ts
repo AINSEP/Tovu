@@ -41,7 +41,7 @@ export const SELECTED_AGENT_PLUGIN_PACKAGES: ReadonlyMap<string, string> = new M
   "jev", "site-compliance", "site-import", "wordpress", "ui-ux-design", "slide-design",
   "cloudflare", "netlify", "vercel", "github-pages", "s3-compatible", "fly", "render", "railway",
   "github", "resend", "meilisearch", "google-login", "composio", "supabase", "higgsfield-media",
-  "posthog", "sentry", "opentelemetry", "google-workspace", "charts-recharts",
+  "posthog", "sentry", "opentelemetry", "google-workspace", "charts-recharts", "formspree",
 ].map((pluginId): [string, string] => [pluginId, `${JINI_AGENT_PLUGINS}/${pluginId}`]));
 
 /**

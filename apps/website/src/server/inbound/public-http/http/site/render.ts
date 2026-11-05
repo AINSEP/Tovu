@@ -1,3 +1,4 @@
+import { renderFormCollection, type FormCollectionPlan } from "@jini-ai/cms/forms";
 import type { SiteProduct, SiteRenderContext, MediaAssetRenderMeta } from "./render-context.js";
 import type { PluginExportRender } from "@jini-ai/cms/widgets/html";
 // Every module counts in fresh render workers; omit the rendering re-export wrapper.
@@ -2383,6 +2384,16 @@ const DEFAULT_CONTACT_FORM_SUCCESS_MESSAGE = "Thanks — your message has been s
  *    reveal it, never invent or fetch it — this render function is the only place `successMessage` is
  *    naturally in scope.
  */
+/** Preserve authored HTML only in HTML mode for a native collection plan.
+ * @complexity O(1) time/space; strings are reused, no I/O.
+ * @overallScore 97 — Recommended: HTML sanitization remains the authoring write boundary's responsibility. */
+function collectionHtmlOptions({ props }: { props: JsonObject }): { html?: string; className: string } {
+  return { ...(props.mode === "html" && typeof props.html === "string" ? { html: props.html } : {}), className: FORM_CLASS };
+}
+
+/** Render the resolved collection plan for native external forms or the existing built-in form shell.
+ * @complexity O(fields + HTML bytes) time/space, no I/O.
+ * @overallScore 95 — Low: the legacy built-in Builder shell remains separate for compatibility. */
 function renderWidgetContactForm(props: JsonObject): string {
   const slug = str(props.slug);
   if (!slug) return renderWidgetPlaceholder();
@@ -2391,6 +2402,10 @@ function renderWidgetContactForm(props: JsonObject): string {
   // The slider value readout ships only with forms that have a range field.
   const rangeReadout = arr(props.fields).some(field => typeof field === "object" && field !== null && !Array.isArray(field) && field.type === "range") ? FORM_RANGE_READOUT_SCRIPT : "";
   const fieldDescriptors = arr(props.fields) as unknown as import("@jini-ai/cms/forms").FieldDescriptor[];
+  if (props.collectionPlan) return FORM_BASELINE_STYLE + renderFormCollection({
+    slug, fields: fieldDescriptors, plan: props.collectionPlan as unknown as FormCollectionPlan,
+    hooks: { field: "data-tovu-field", form: "data-tovu-form", success: "data-tovu-form-success", error: "data-tovu-form-error" },
+  }, collectionHtmlOptions({ props })) + rangeReadout;
   // Both modes show the length caps the submit route enforces (owner 2026-10-25, spam protection).
   if (props.mode === "html") return FORM_BASELINE_STYLE + stampFormFieldMaxLengths(renderHtmlForm({
     slug, action: `/forms/${encodeURIComponent(slug)}/submit`,

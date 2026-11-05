@@ -6,6 +6,7 @@ const hasMethods = ({ value, names }: { value: unknown; names: readonly string[]
 
 /** Domain-owned port checks; a plugin never supplies or replaces these validators. */
 export const PROVIDER_CONTRACTS: readonly PluginProviderContract[] = [
+  { contract: "form_collection", validate: ({ provider }) => hasMethods({ value: provider, names: ["plan"] }) ? undefined : "not a FormCollectionProvider" },
   // `metric` is not required: contract v1 providers predate it, and gatedPort routes a missing method to the noop.
   { contract: "observability", validate: ({ provider }) => hasMethods({ value: provider, names: ["trackRequest", "trackDbQuery", "trackOutboundCall", "trackAgentRun", "trackOperation", "reportError"] }) ? undefined : "not an ObservabilityPort" },
   { contract: "product_analytics", validate: ({ provider }) => hasMethods({ value: provider, names: ["capture", "identify"] }) && validAiCapability({ provider }) ? undefined : "not a ProductAnalyticsPort" },

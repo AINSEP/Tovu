@@ -1,5 +1,5 @@
 import type { EventBusPort } from "@jini-ai/cms/core";
-import { createFormDeliverySubscriptions, planFormDeliveries, type FormDefinitionRepoPort, type FormDeliveryJob, type FormDeliveryPlan,
+import { submissionEvidenceDefinition, createFormDeliverySubscriptions, planFormDeliveries, type FormDefinitionRepoPort, type FormDeliveryJob, type FormDeliveryPlan,
   type FormDeliveryPlanPort, type FormDeliveryResult, type FormDeliverySnapshot, type FormSubmissionRepoPort } from "@jini-ai/cms/forms";
 import type { SettingsRepoPort } from "@jini-ai/core/settings";
 import { buildFormDeliveryForm } from "#src/features/forms/index";
@@ -90,5 +90,5 @@ async function readDeliverySnapshot(
     deps.formSubmissionRepo.findById({ workspaceId, id: submissionId }),
   ]);
   if (!definition || !submission || submission.formDefinitionId !== definition.id) return null;
-  return { form: buildFormDeliveryForm({ definition }), submission: { id: submission.id, answers: submission.data, submittedAt: submission.submittedAt } };
+  return { form: buildFormDeliveryForm({ definition: submissionEvidenceDefinition({ definition, evidence: submission.evidence }) }), submission: { id: submission.id, answers: submission.data, submittedAt: submission.submittedAt } };
 }

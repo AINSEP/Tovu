@@ -16,7 +16,7 @@ const waitlist: FormDefinitionRecord = { ...base, id: "f1", slug: "byho-waitlist
 
 test("active forms map to names, required flags, lengths and multi-value groups only", () => {
   const manifest = buildFormDestinationManifest({ definitions: [waitlist, { ...waitlist, id: "f2", slug: "old", status: "disabled" }] });
-  assert.deepEqual(manifest, [{ slug: "byho-waitlist", fields: [
+  assert.deepEqual(manifest.map(({ evidence, ...form }) => form), [{ slug: "byho-waitlist", fields: [
     { name: "email", required: true, maxLength: 254, type: "email" },
     { name: "interests", required: true, multiple: true, type: "checkbox-group", options: ["a"] },
     { name: "consent", required: true, type: "checkbox" },
@@ -38,7 +38,7 @@ test("T9: the static-host manifest includes default text caps and preserves auth
     waitlist.fields[2]!,
   ] }] });
 
-  assert.deepEqual(manifest, [{ slug: "byho-waitlist", fields: [
+  assert.deepEqual(manifest.map(({ evidence, ...form }) => form), [{ slug: "byho-waitlist", fields: [
     { name: "name", required: false, maxLength: 100, type: "text" },
     { name: "email", required: true, maxLength: 254, type: "email" },
     { name: "visitor_note", required: false, maxLength: 2000, type: "textarea" },
@@ -52,7 +52,7 @@ test("T9: the static-host manifest includes default text caps and preserves auth
 test("the delivery form adds each field's label and type to the manifest's names, flags, lengths and groups", () => {
   assert.deepEqual(buildFormDeliveryForm({ definition: waitlist }), { slug: "byho-waitlist", fields: [
     { name: "email", required: true, maxLength: 254, label: "Email", type: "email" },
-    { name: "interests", required: true, multiple: true, label: "Interests", type: "checkbox-group" },
+    { name: "interests", required: true, multiple: true, label: "Interests", type: "checkbox-group", options: [{ value: "a", label: "A" }] },
     { name: "consent", required: true, label: "Consent", type: "checkbox" },
     { name: "visitor_note", required: false, label: "Note", type: "textarea" },
   ] });
@@ -62,10 +62,11 @@ test("the delivery form is built whatever the definition's status is now (the su
   assert.equal(buildFormDeliveryForm({ definition: { ...waitlist, slug: "old", status: "disabled" } }).slug, "old");
 });
 
-test("the delivery form never carries notification recipients or option lists", () => {
+test("the delivery form carries original option labels and never notification recipients", () => {
   const form = JSON.stringify(buildFormDeliveryForm({ definition: waitlist }));
   assert.equal(form.includes("owner@example.com"), false);
-  assert.equal(form.includes("options"), false);
+  assert.equal(form.includes("options"), true);
+  assert.equal(form.includes('"label":"A"'), true);
 });
 
 test('receiver manifest carries validation semantics and identifies unsupported file fields before publish', () => {
@@ -80,4 +81,25 @@ test('receiver manifest carries validation semantics and identifies unsupported 
 test('empty select placeholders are omitted from the receiver allowlist', () => {
   const manifest = buildFormDestinationManifest({ definitions: [{ ...waitlist, fields: [{ id: 'choice', type: 'select', label: 'Choice', required: false, options: [{ value: '', label: 'Choose…' }, { value: 'yes', label: 'Yes' }] }] }] });
   assert.deepEqual(manifest[0]!.fields[0]!.options, ['yes']);
+});
+
+
+test('static manifest carries immutable original labels, consent wording and canonical schema hash', () => {
+  const [form] = buildFormDestinationManifest({ definitions: [waitlist] });
+  assert.equal(form!.evidence.fields[0]!.label, 'Email');
+  assert.deepEqual(form!.evidence.consent, [{ fieldId: 'consent', wording: 'Consent' }]);
+  assert.match(form!.evidence.schemaHash, /^[a-f0-9]{64}$/);
+  const [edited] = buildFormDestinationManifest({ definitions: [{ ...waitlist, fields: waitlist.fields.map(field => ({ ...field, label: field.label + ' changed' })) }] });
+  assert.notEqual(edited!.evidence.schemaHash, form!.evidence.schemaHash);
+  assert.equal(JSON.stringify(form!.evidence).includes('owner@example.com'), false);
+});
+
+test('receiver manifest includes effective number and temporal bounds while external providers stay out', () => {
+  const fields = [{ id: 'count', label: 'Count', type: 'number' as const, required: false, min: 2, max: 8, step: 2 },
+    { id: 'date', label: 'Date', type: 'date' as const, required: true, attributes: { min: '2026-01-01', max: '2026-12-31' } }];
+  const [form] = buildFormDestinationManifest({ definitions: [{ ...waitlist, fields }] });
+  assert.deepEqual(form!.fields[0], { name: 'count', type: 'number', required: false, min: 2, max: 8, step: 2 });
+  assert.equal(form!.fields[1]!.min, '2026-01-01');
+  assert.equal(form!.fields[1]!.max, '2026-12-31');
+  assert.deepEqual(buildFormDestinationManifest({ definitions: [{ ...waitlist, provider: { id: 'formspree', config: { endpoint: 'https://formspree.io/f/abcd' } } }] }), []);
 });

@@ -1,3 +1,4 @@
+import type { FormAuthoring, FormProviderSelection } from "@jini-ai/cms/forms";
 import { toolMetadata } from '../../contracts/core/tool-metadata/forms.js';
 /**
  * @file Forms' half of ADR-049 Decision 4 (SPEC-010): maps `agent-tools.ts`'s five catalog entries
@@ -124,6 +125,7 @@ interface FormDefinitionToolView {
   status: FormDefinitionStatus;
   fields: FieldDescriptor[];
   notify: NotifyConfig;
+  provider?: FormProviderSelection;
 }
 
 /**
@@ -150,6 +152,7 @@ function toFormDefinitionView(record: FormDefinitionRecord): FormDefinitionToolV
     status: record.status,
     fields: record.fields.map((field) => ({ ...field })),
     notify: { enabled: record.notify.enabled, recipients: [...record.notify.recipients] },
+    ...((record as FormDefinitionRecord & FormAuthoring).provider ? { provider: (record as FormDefinitionRecord & FormAuthoring).provider } : {}),
   };
 }
 
@@ -264,11 +267,12 @@ function requireFormsStatus(input: Record<string, unknown>): FormDefinitionStatu
  * @complexity O(1).
  * @overallScore 100
  */
-function requireFormsPatch(input: Record<string, unknown>): { name?: string; fields?: FieldDescriptor[]; notify?: NotifyConfig } {
-  const patch: { name?: string; fields?: FieldDescriptor[]; notify?: NotifyConfig } = {};
+function requireFormsPatch(input: Record<string, unknown>): { name?: string; fields?: FieldDescriptor[]; notify?: NotifyConfig } & FormAuthoring {
+  const patch: { name?: string; fields?: FieldDescriptor[]; notify?: NotifyConfig } & FormAuthoring = {};
   if (typeof input.name === "string") patch.name = input.name;
   if (Array.isArray(input.fields)) patch.fields = input.fields as FieldDescriptor[];
   if (input.notify !== undefined) patch.notify = input.notify as NotifyConfig;
+  if (input.provider !== undefined) patch.provider = input.provider as FormProviderSelection;
   if (Object.keys(patch).length === 0) {
     throw new FormFieldValidationError({ message: "at least one of 'name', 'fields', or 'notify' is required — 'slug' is immutable and is never updated", fieldErrors: [] });
   }
@@ -333,6 +337,7 @@ export function buildFormsRegistrations(routeDeps: FormsToolDeps): ToolRegistrat
               slug: requireString({ input, key: "slug" }),
               fields: Array.isArray(input.fields) ? (input.fields as FieldDescriptor[]) : [],
               notify: input.notify as NotifyConfig | undefined,
+              ...(input.provider !== undefined ? { provider: input.provider as FormProviderSelection } : {}),
             },
           });
           return { definition: toFormDefinitionView(definition) };
@@ -425,7 +430,7 @@ export function buildFormsRegistrations(routeDeps: FormsToolDeps): ToolRegistrat
         // does not change that: the message names only the id the caller already supplied.
         throw new FormSubmissionNotFoundError({ message: `submission '${submissionId}' was not found` });
       }
-      return { submission: toFormSubmissionView(submission) };
+      return { submission: { ...toFormSubmissionView(submission), ...(submission.evidence ? { evidence: submission.evidence } : {}), ...(submission.validation ? { validation: submission.validation } : {}) } };
     },
 
     forms_delivery_status: async (ctx) => {
@@ -568,6 +573,7 @@ async function duplicateFormDefinition(
       // to prevent on the post side.
       fields: source.fields.map((field) => ({ ...field })),
       ...((source as { mode?: string }).mode === "html" ? { mode: "html" as const, html: (source as { html?: string }).html ?? "" } : {}),
+      ...((source as FormDefinitionRecord & FormAuthoring).provider ? { provider: structuredClone((source as FormDefinitionRecord & FormAuthoring).provider!) } : {}),
       notify: { enabled: source.notify.enabled, recipients: [...source.notify.recipients] },
     },
   });

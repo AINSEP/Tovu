@@ -1,5 +1,6 @@
 import { createSharedOAuthOwnerStorage, createSharedOAuthLabels } from "#src/features/api-connections/shared-owner";
 import { createSiteOAuthBindings } from "#src/features/project-keys/site-references";
+import { createFormCollectionRegistry } from "@jini-ai/cms/forms";
 import { scheduleFormAttachmentCleanup } from "@jini-ai/cms/forms";
 import { protectExistingFormFiles } from "#src/features/forms/protect-existing-files";
 import { createFormFilePurgeHooks } from "#src/features/forms/form-file-purge";
@@ -1720,6 +1721,7 @@ async function composeSiteRouteDeps(
   const widgetBindingRepo = new SqliteWidgetRegionBindingRepo(kernel);
   const entryRefsRepo = new SqliteEntryRefsRepo(kernel);
   const formDefinitionRepo = new SqliteFormDefinitionRepo(kernel);
+  let formCollectionProviders = () => createFormCollectionRegistry({});
   const formSubmissionRepo = new SqliteFormSubmissionRepo(kernel);
   // Collections plan R1 — hoisted above `wireCoreResolvers` (was constructed later, inline, only for
   // the `ContentTaxonomyDeps` object below). Both `SqliteContentTypeRepo` instances would read the
@@ -1750,6 +1752,7 @@ async function composeSiteRouteDeps(
     entryList: entryRepo,
     navMenuReadModel: createNavMenuReadModel({ menuRepo, bindingRepo: navLocationBindingRepo }),
     formDefinitionRepo: { findById: formDefinitionRepo.findById.bind(formDefinitionRepo), findBySlug: formDefinitionRepo.findBySlug.bind(formDefinitionRepo) },
+    formCollectionProviders: () => formCollectionProviders(),
     contentTypes: contentTypeRepo,
   });
   const commentsModule = createCommentsModule({
@@ -1946,6 +1949,7 @@ async function composeSiteRouteDeps(
     readSite: () => siteProviderRevisions({ kernel: kernel as unknown as StorageKernel<unknown>, workspaceId }),
     reapply: input => providerPlugins.reapply(input) }));
   const { observability, tracker, aiTraceSink } = providerPlugins;
+  formCollectionProviders = () => providerPlugins.formCollectionProviders?.() ?? createFormCollectionRegistry({});
   // Local logging reads only the current site tracing scope, through the live gated provider ports.
   setServerLogTraceReader({ traceIds: () => observability.activeTraceIds?.() });
   lifecycleTracker = tracker;

@@ -983,3 +983,22 @@ test('site factories receive the export decision as an option, never a saved set
     } finally { await providers.dispose({}); }
   }
 });
+
+test('stateless form collection provider is trusted, selected and retired without site secrets', async () => {
+  const calls: Calls = { inputs: [], disposed: 0 };
+  const plan = { kind: 'post', action: 'https://forms.example.test/submit', external: true, capabilities: { answers: 'Example inbox', validation: 'Example validation', spamProtection: 'Example protection' } };
+  SETTINGS['forms-example'] = [];
+  const { runtime, requested } = fakeRuntime({ installed: ['forms-example'], factories: {
+    'forms-example': { contract: 'form_collection', id: 'example', factory: fakeFactory({ calls, port: { plan: () => plan } }) },
+  } });
+  const providers = await bootProviderPlugins({ runtime, config: configOf({}), serviceName: 'tovu', site: SITE, ...consentAlways }, { warn: quiet });
+  assert.deepEqual(requested, [['forms-example']]);
+  const port = providers.formCollectionProviders?.().get({ id: 'example' })?.provider;
+  assert.deepEqual(port?.plan({ slug: 'contact', config: {} }), plan);
+  assert.equal(calls.inputs.length, 1);
+  runtime.providerContributions.detach({ pluginId: 'forms-example' });
+  assert.deepEqual(port?.plan({ slug: 'contact', config: {} }), { kind: 'unavailable', code: 'provider_unavailable', message: 'This form cannot send answers because its selected form provider is unavailable.' });
+  await providers.dispose({});
+  assert.equal(calls.disposed, 1);
+  delete SETTINGS['forms-example'];
+});

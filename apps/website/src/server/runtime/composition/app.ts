@@ -1,4 +1,5 @@
 import { createFormAttachmentPurgeHooks, scheduleFormAttachmentCleanup } from "@jini-ai/cms/forms";
+import { statfs } from "node:fs/promises";
 import { getExportRunSnapshot } from '../../../features/deployments/export-run.js';
 import { getPublishRunSnapshot } from '../../../features/deployments/static-publish/publish-run.js';
 import { createSiteIdlePark } from "../lifecycle/site-idle-park.js";
@@ -2540,6 +2541,12 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
       clock: routeDeps.clock,
       idGen: routeDeps.idGen,
       rateLimiter: routeDeps.formsRateLimiter,
+      readUploadFreeBytes: async () => {
+        if (await routeDeps.siteBackupSources?.isMediaRemote?.()) return undefined;
+        const stats = await statfs(routeDeps.siteStoragePaths.mediaUploadsDir);
+        return stats.bavail * stats.bsize;
+      },
+      uploadSpaceMessage: "This site has no room for another attachment. Your answers are kept below. Your form has not been sent.",
       files: createFormFileStorage({ media: {
         clock: routeDeps.clock, idGen: routeDeps.idGen, mediaRepo: routeDeps.mediaRepo,
         entryRefsRepo: routeDeps.entryRefsRepo, postRepo: routeDeps.postRepo,
