@@ -824,6 +824,7 @@ export function toResolvedFederatedConnections(
   return configs.map((config) => ({
     config: {
       connectionId: config.serverId,
+      ...(config.provisionedByPluginId ? { provisionedByPluginId: config.provisionedByPluginId } : {}),
       label: config.label,
       allowedToolNames: config.allowedToolNames,
       writeAllowedToolNames: config.writeAllowedToolNames,

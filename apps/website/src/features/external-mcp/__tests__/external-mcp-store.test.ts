@@ -1530,3 +1530,12 @@ test("a save from a caller that predates writeAllowedToolNames degrades to no wr
     writeAllowedToolNames: [],
   });
 });
+
+
+test("federation retains the provisioning plugin for immediate access lowering", async () => {
+  const { deps, sealer, repo } = makeDeps();
+  await saveExternalMcpServer(deps, validInput({ provisionedByPluginId: "mail-plugin" }));
+  const { configs } = await readEnabledExternalMcpConfigs({ repo, sealer }, WORKSPACE);
+  const [connection] = toResolvedFederatedConnections(configs);
+  assert.equal(connection?.config.provisionedByPluginId, "mail-plugin");
+});

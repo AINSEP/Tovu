@@ -1,3 +1,5 @@
+import { lowerPluginToolAccess } from './lower-tool-access.js';
+import { ToolAccessLoweringError } from '../../assistant/external-mcp-roster-change.js';
 import type { Tracker } from "@jini-ai/diagnostics/observability";
 import type { PluginExportCatalogPort, PluginExportCatalogRow } from "../../contracts/headless/plugin-export-catalog.js";
 import { AGENT_PLUGIN_CONTRACT_VERSION, AgentPluginHostIncompatibleError, AgentPluginUpdateError, checkAgentPluginCompatibility } from "@jini-ai/agent-plugins/lifecycle";
@@ -724,6 +726,7 @@ async function applySiteRuntimeDecision(routeDeps: PluginsToolDeps, principalId:
     },
   });
 
+  if (!result.activation.enabled) await lowerPluginToolAccess({ pluginId, providerFaces: routeDeps.providerFaces }, {});
   const record = discovery.find((r) => r.id === pluginId);
   if (!record) throw new ToolInputError({ message: `plugin '${pluginId}' was not found in the current discovery snapshot` });
   if (((priorActivation as PluginActivationRecord | null)?.enabled ?? false) !== result.activation.enabled) routeDeps.tracker?.capture({ name: "plugin_toggled", userId: principalId }, { properties: { pluginId: record.id, pluginKind: "cms", enabled: result.activation.enabled, source: "assistant" } });
@@ -861,6 +864,7 @@ async function runSetEnabled(
  * classification, unchanged.
  */
 const PLUGINS_MODEL_FACING_ERRORS: readonly ModelFacingErrorRule[] = [
+  { error: ToolAccessLoweringError, code: 'TOOL_ACCESS_STOP_FAILED', guidance: 'The OFF decision was saved. Report that stopping affected answers failed; do not claim cleanup succeeded.' },
   {
     error: PluginConflictError,
     code: "PLUGINS_CONFLICT",

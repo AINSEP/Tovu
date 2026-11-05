@@ -9,6 +9,8 @@ export interface PluginPostReadPort {
 
 /** Provider/assistant-face relationships and safe linked-switch error details. */
 export interface PluginProviderFacesPort {
+  /** A provider switch covers itself and its linked assistant faces. Used only by explicit OFF. */
+  affectedPluginIds?(input: { pluginId: string }, options?: Record<string, never>): Promise<readonly string[]>;
   linkedProvider(input: { pluginId: string }, options?: Record<string, never>): Promise<string | undefined>;
   /** Safe preflight refusal, formatted by the same owner as linked-switch errors. */
   describeLinkedFace(input: { pluginId: string; providerPluginId: string }, options?: Record<string, never>): { code: string; message: string; providerPluginId: string };

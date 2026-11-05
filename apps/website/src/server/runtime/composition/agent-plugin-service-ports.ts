@@ -59,6 +59,7 @@ export function composePluginProviderFaces({ workspaceRoot }: { workspaceRoot: (
   const ports = bindProviderFacePorts({ workspaceRoot });
   return {
     linkedProvider: (input, _options = {}) => linkedProviderOf({ ...input, ports }),
+    affectedPluginIds: async ({ pluginId }, _options = {}) => [pluginId, ...[...await ports.links({})].filter(([, provider]) => provider === pluginId).map(([face]) => face)],
     describeLinkedFace: (input, _options = {}) => new AgentPluginLinkedError(input),
     describeLinkedError: ({ error }, _options = {}) => error instanceof AgentPluginLinkedError ? error : undefined,
   };

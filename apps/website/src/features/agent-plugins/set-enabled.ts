@@ -1,3 +1,4 @@
+import { notifyExternalMcpRosterChanged } from '../../assistant/external-mcp-roster-change.js';
 
 /**
  * @file The ONE composition that turns "enable/disable this Agent Plugin" into a durable decision:
@@ -71,11 +72,17 @@ export async function setAgentPluginEnabled(input: SetAgentPluginEnabledInput, o
   const providerPluginId = await linkedProviderOf({ ports: links, pluginId: input.pluginId });
   if (providerPluginId !== undefined) throw new AgentPluginLinkedError({ pluginId: input.pluginId, providerPluginId });
   const conditional = options.unlessOperatorDisabled ? { unlessOperatorDisabled: true } : {};
-  if (options.lifecycle) return options.lifecycle.setAgentPluginEnabled(input, conditional);
+  if (options.lifecycle) {
+    const result = await options.lifecycle.setAgentPluginEnabled(input, conditional);
+    if (!result.enabled) await notifyExternalMcpRosterChanged({ lowered: { pluginIds: [input.pluginId] } });
+    return result;
+  }
   let lifecycle = lifecycles.get(input.agentPluginLayout);
   if (!lifecycle) {
     lifecycle = createTovuAgentPluginLifecycle({ layout: input.agentPluginLayout });
     lifecycles.set(input.agentPluginLayout, lifecycle);
   }
-  return lifecycle.setAgentPluginEnabled(input, conditional);
+  const result = await lifecycle.setAgentPluginEnabled(input, conditional);
+  if (!result.enabled) await notifyExternalMcpRosterChanged({ lowered: { pluginIds: [input.pluginId] } });
+  return result;
 }

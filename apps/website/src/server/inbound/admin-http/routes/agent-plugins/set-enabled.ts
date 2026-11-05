@@ -1,3 +1,4 @@
+import { ToolAccessLoweringError } from '#src/assistant/external-mcp-roster-change';
 import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 import type { Request, Response } from "express";
@@ -192,6 +193,10 @@ async function provisionAgentPluginMcpServersBestEffort(
  * - Anything else: opaque 500, matching every other route in this admin surface.
  */
 function sendSetEnabledError(res: Response, pluginId: string, error: unknown): void {
+  if (error instanceof ToolAccessLoweringError) {
+    res.status(503).json({ error: error.message, code: error.code });
+    return;
+  }
   // Not for this host (enable only), or an interrupted update awaits boot recovery
   // (PLUGIN_UPDATE_PENDING): both conflicts with the installed state, never a 500.
   if (error instanceof AgentPluginHostIncompatibleError || error instanceof AgentPluginUpdateError) {
