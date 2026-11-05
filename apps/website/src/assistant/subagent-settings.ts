@@ -30,10 +30,11 @@ export async function readAssistantCliPermissions(required: {
  * @complexity O(c) for the fixed capability list.
  */
 function parseCliPermissionsSnapshot(required: { value: unknown }): AssistantCliPermissions {
-  const { enabled, capabilities } = required.value as Partial<AssistantCliPermissions>;
+  const { enabled, capabilities, byAgent } = required.value as Partial<AssistantCliPermissions>;
   if (typeof enabled !== "boolean" || !capabilities ||
     !ASSISTANT_CLI_CAPABILITIES.every(({ key }) => typeof capabilities[key] === "boolean")) throw new Error("Invalid CLI permissions");
-  return assistantCliPermissions({ enabled, capabilities });
+  if (byAgent !== undefined) validateAgentPermissions({ byAgent });
+  return assistantCliPermissions({ enabled, capabilities, ...(byAgent ? { byAgent } : {}) });
 }
 
 /** Shared read-failure policy: HTTP readers propagate the error; the daemon logs a safe diagnostic
@@ -68,4 +69,21 @@ export async function readAssistantSubagentsEnabled(required: {
     denyOrRethrow({ error }, optional);
     return false;
   }
+}
+
+/** Reject malformed per-agent overrides before any grant can reach a launch. Fixed keys per agent. */
+function validateAgentPermissions({ byAgent }: { byAgent: unknown }): void {
+  if (!byAgent || typeof byAgent !== "object" || Array.isArray(byAgent)) throw new Error("Invalid CLI permissions");
+  for (const value of Object.values(byAgent)) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Invalid CLI permissions");
+    const entry = value as { enabled?: unknown; capabilities?: unknown };
+    if (entry.enabled !== undefined && typeof entry.enabled !== "boolean") throw new Error("Invalid CLI permissions");
+    validateAgentCapabilities({ capabilities: entry.capabilities });
+  }
+}
+
+function validateAgentCapabilities({ capabilities }: { capabilities: unknown }): void {
+  if (capabilities === undefined) return;
+  if (!capabilities || typeof capabilities !== "object" || Array.isArray(capabilities)) throw new Error("Invalid CLI permissions");
+  if (Object.entries(capabilities).some(([key, value]) => typeof value !== "boolean" || !ASSISTANT_CLI_CAPABILITIES.some(item => item.key === key))) throw new Error("Invalid CLI permissions");
 }

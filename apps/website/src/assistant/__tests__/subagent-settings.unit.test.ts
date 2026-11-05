@@ -112,3 +112,15 @@ test("without a warn port the legacy denial is logged through console.warn", asy
   assert.equal(await readAssistantSubagentsEnabled(cliRequired({ legacy: new Error("down") })), false);
   assert.deepEqual(warn.mock.calls.map(call => call.arguments), [[SAFE_WARNING]]);
 });
+
+test("per-agent choices survive reads and apply only to the selected agent after the host gate", async () => {
+  const { resolveAssistantCliPermissions } = await import("../../contracts/core/assistant-native-fallbacks.js");
+  const saved = { ...assistantCliPermissions({ enabled: true }), byAgent: { antigravity: { capabilities: { userMcp: true } }, claude: { capabilities: { shell: false } } } };
+  const parsed = await readAssistantCliPermissions(cliRequired({ snapshot: userLayer(saved) }));
+  assert.deepEqual(parsed.byAgent, saved.byAgent);
+  const resolve = (agentId: string, isOwner = true) => resolveAssistantCliPermissions({ isOwner, env: {}, settings: parsed, agentId });
+  assert.equal(resolve("antigravity").capabilities.userMcp, true);
+  assert.equal(resolve("claude").capabilities.userMcp, false);
+  assert.equal(resolve("claude").capabilities.shell, false);
+  assert.equal(resolve("antigravity", false).capabilities.userMcp, false);
+});

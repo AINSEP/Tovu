@@ -19,6 +19,8 @@ export function registerAssistantOwnerGrantRoutes<T extends { enabled: boolean }
   writeReason: string; validationError: string;
   read(): Promise<T>; parse(body: Record<string, unknown>): T;
   value(settings: T): JsonValue;
+  prepareWrite?(input: { body: Record<string, unknown>; settings: T; previous: T }): Promise<{ value: JsonValue; revisionSeq: number }>;
+  afterWrite?(input: { settings: T; previous: T; body: Record<string, unknown> }): Promise<void>;
   projectRead?(input: { settings: T; isOwner: boolean }): T;
   canEdit?(input: { isOwner: boolean }): boolean;
 }, optional: { requireAcknowledgment?: boolean; scope?: "user" | "workspace" } = {}): void {
@@ -30,7 +32,7 @@ export function registerAssistantOwnerGrantRoutes<T extends { enabled: boolean }
     const previous = await required.read();
     const needsAcknowledgment = optional.requireAcknowledgment !== false && settings.enabled && !previous.enabled;
     if (needsAcknowledgment && body.riskAcknowledged !== true) rejectSettingsRequest({ status: 400, code: "VALIDATION_ERROR", error: required.validationError });
-    return { settings, needsAcknowledgment };
+    return { settings, previous, needsAcknowledgment };
   }
   mountSettingsJsonRoute({ app, deps: routeDeps, method: "get", path,
     handle: async ({ principal }) => {
@@ -45,7 +47,7 @@ export function registerAssistantOwnerGrantRoutes<T extends { enabled: boolean }
     handle: async ({ request, principal, authorize }) => {
       if (principal.id !== await deps.ownerPrincipalId) rejectSettingsRequest({ status: 403, code: "FORBIDDEN", error: required.writeReason });
       if (required.canEdit && !required.canEdit({ isOwner: true })) rejectSettingsRequest({ status: 403, code: "FORBIDDEN", error: "Not available on hosted sites" });
-      const { settings, needsAcknowledgment } = await parseGrantUpdate({ body: request.body as Record<string, unknown> | null });
+      const { settings, previous, needsAcknowledgment } = await parseGrantUpdate({ body: request.body as Record<string, unknown> | null });
       const scope = optional.scope ?? "workspace";
       await authorize({ permission: scope === "user" ? "settings.user.self.write" : "settings.workspace.write", entityType: "setting-value" });
       const input = { namespace: required.namespace, scope,
@@ -54,7 +56,11 @@ export function registerAssistantOwnerGrantRoutes<T extends { enabled: boolean }
       if (needsAcknowledgment) await set({ deps: toWriteServiceDeps(routeDeps), input: {
         ...input, key: "riskAcknowledgment", value: { riskAcknowledged: true, acknowledgedAt: deps.clock.nowIso(), grant: required.value(settings) },
       } });
-      const result = await set({ deps: toWriteServiceDeps(routeDeps), input: { ...input, key: required.key, value: required.value(settings) } });
+      const body = request.body as Record<string, unknown>;
+      const prepared = await required.prepareWrite?.({ body, settings, previous });
+      const result = await set({ deps: toWriteServiceDeps(routeDeps), input: { ...input, key: required.key, value: prepared?.value ?? required.value(settings) } },
+        prepared ? { expectedRevisionSeq: prepared.revisionSeq } : {});
+      await required.afterWrite?.({ settings, previous, body });
       return { ...(required.projectRead?.({ settings, isOwner: true }) ?? settings), canEdit: true, revisionSeq: result.revisionSeq };
     },
   });

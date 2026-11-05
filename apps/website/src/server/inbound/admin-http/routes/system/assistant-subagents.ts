@@ -1,3 +1,4 @@
+import { readCliPermissionLayer, patchCliPermissionLayer } from "#src/assistant/cli-permission-layer";
 import { fullCliEnvLock, isHostedAssistantRuntime, resolveAssistantCliPermissions } from "#src/contracts/core/assistant-native-fallbacks";
 import { resolveHostSignals } from "#src/server/runtime/composition/host-signals";
 import { resolveAgentPermissionMode } from "#src/contracts/core/agent-permission-mode";
@@ -43,6 +44,17 @@ export function registerAdminAssistantSubagentsRoutes(required: { app: Express; 
       }
       return assistantCliPermissions({ enabled: body.enabled as boolean,
         ...(overrides ? { capabilities: overrides as Partial<Record<AssistantCliCapability, boolean>> } : {}) });
+    },
+    prepareWrite: async ({ body, settings }) => {
+      if (body.agentId !== undefined && (typeof body.agentId !== "string" || !/^[a-z][a-z0-9-]{0,63}$/.test(body.agentId))) {
+        rejectSettingsRequest({ status: 400, code: "VALIDATION_ERROR", error: "Choose a valid agent." });
+      }
+      const layer = await readCliPermissionLayer({ ...required.deps, principalId: await required.deps.ownerPrincipalId });
+      if (body.expectedRevisionSeq !== undefined && body.expectedRevisionSeq !== layer.revisionSeq) {
+        rejectSettingsRequest({ status: 409, code: "REVISION_CONFLICT", error: "Agent permissions changed. Read them again before saving." });
+      }
+      return { value: patchCliPermissionLayer({ raw: layer.raw, defaults: settings,
+        ...(typeof body.agentId === "string" ? { agentId: body.agentId, capabilities: body.capabilities as Partial<Record<AssistantCliCapability, boolean>> } : {}) }), revisionSeq: layer.revisionSeq };
     },
     value: settings => ({ enabled: settings.enabled, capabilities: { ...settings.capabilities } }),
   }, { requireAcknowledgment: false, scope: "user" });
