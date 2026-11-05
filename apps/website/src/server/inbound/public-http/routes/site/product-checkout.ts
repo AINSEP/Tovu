@@ -13,3 +13,15 @@ export function appendProductCheckout(
   if (html.includes("</body>")) return html.replace("</body>", `${markup}</body>`);
   return html + markup;
 }
+
+/** The host's activation answer gates purchase controls; a catalog render never enables money.
+ * @complexity O(html.length) and one existing activation/status read when a price is present. */
+export async function productCheckoutWhenReady(
+  { html, workspaceId, priceId, commerce }: { html: string; workspaceId: string; priceId: string | undefined;
+    commerce: { status(): Promise<{ active: boolean; ready: boolean }> } | undefined },
+  _optional: Record<string, never> = {},
+): Promise<string> {
+  if (!priceId || !commerce) return html;
+  const status = await commerce.status();
+  return status.active && status.ready ? appendProductCheckout({ html, workspaceId, priceId }) : html;
+}

@@ -1,4 +1,4 @@
-import { appendProductCheckout } from "./product-checkout.js";
+import { productCheckoutWhenReady } from "./product-checkout.js";
 import { resolveRenderThemeId } from "../../middleware/render-theme-override.js";
 import { NO_THEME_ID, resolveActiveTheme } from "#src/features/theme/active-theme";
 import { renderSite, type SiteProduct } from "../../http/site/render.js";
@@ -108,10 +108,7 @@ export const registerProductRoutes = (app: import("express").Express, deps: Comm
       // a real page back.
       const theme = resolved === NO_THEME_ID ? null : resolved;
       let html = await renderSite({ theme, route: "product", siteTitle, posts: [], products, product, siteAssistantEnabled });
-      if (product.priceId && deps.commerce) {
-        const commerce = await deps.commerce.status();
-        if (commerce.active && commerce.ready) html = appendProductCheckout({ html, workspaceId: deps.workspaceId, priceId: product.priceId });
-      }
+      html = await productCheckoutWhenReady({ html, workspaceId: deps.workspaceId, priceId: product.priceId, commerce: deps.commerce });
       res.set("Cache-Control", cacheControlFor(req)).type("html").send(markOffSiteLinksOpenInNewTab(html, req.hostname));
     } catch {
       res.status(500).type("html").send("<h1>This product could not be loaded</h1><p>Please try again shortly.</p>");
