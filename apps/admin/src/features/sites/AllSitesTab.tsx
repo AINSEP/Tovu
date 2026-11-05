@@ -229,7 +229,7 @@ function CreatedSiteNotice({ createdName, createdTokens, createdAdminLogin, t }:
       })}
     >
       <strong>{createdName}</strong> {t("was created. Start it to open its admin.")}
-      <span className="field-hint" style={{ display: "block" }}>{createdAdminLogin}</span>
+      <span className="field-hint" style={{ display: "block" }} data-agent-private="">{createdAdminLogin}</span>
       <CreatedTokensLine createdTokens={createdTokens} />
     </p>
   );

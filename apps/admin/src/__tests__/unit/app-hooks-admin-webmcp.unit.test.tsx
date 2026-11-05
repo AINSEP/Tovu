@@ -1,11 +1,13 @@
-import { act, renderHook } from "@/__tests__/fetch-query-render";
+import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { registerAdminWebMcpTool, useAgentPageBridge } from "../../App.hooks";
 import { PUBLISH_CONTENT_CAPABILITY } from "@tovu/publish-content-ui";
-import { PAGE_CAPABILITIES } from "@jini-ai/agentic";
+import { PAGE_CAPABILITIES, type WebMcpToolRegistration } from "@jini-ai/agentic";
 import type { FrontendSessionBridge } from "@jini-ai/chat/react";
 import { setBrowserAgentEnabled } from "../../features/webmcp/browser-agent-settings.hooks";
+import { adminFrontendTabId, subscribeToAdminPageSurfaces } from "../../lib/admin-frontend-session";
+import { navigate } from "../../lib/router";
 
 // Inject the transport factory; no module replacement or network is needed for page registration.
 const createBridge = vi.fn((): FrontendSessionBridge => ({
@@ -199,7 +201,8 @@ describe("registerAdminWebMcpTool", () => {
     act(() => result.current.setContentEl(element));
 
     expect(createBridge).toHaveBeenCalledTimes(1);
-    expect(registerTool).toHaveBeenCalledTimes(2 + PAGE_CAPABILITIES.length);
+    expect(registerTool).toHaveBeenCalledTimes(1 + PAGE_CAPABILITIES.length);
+    expect(registerTool.mock.calls.map(([tool]) => tool.name)).toEqual([PUBLISH_CONTENT_CAPABILITY.id, ...PAGE_CAPABILITIES.map(capability => capability.id)]);
     const [registration, options] = registerTool.mock.calls[0];
     expect(registration.name).toBe(PUBLISH_CONTENT_CAPABILITY.id);
     expect(options.signal.aborted).toBe(false);
@@ -220,7 +223,7 @@ describe("registerAdminWebMcpTool", () => {
     expect(result.current.agentBridge).toBe(bridge);
     expect(bridge.close).not.toHaveBeenCalled();
     act(() => setBrowserAgentEnabled({ enabled: true }));
-    expect(registerTool).toHaveBeenCalledTimes(2 * (2 + PAGE_CAPABILITIES.length));
+    expect(registerTool).toHaveBeenCalledTimes(2 * (1 + PAGE_CAPABILITIES.length));
     expect(createBridge.mock.calls).toHaveLength(callsBeforeToggle);
   });
 
@@ -232,4 +235,118 @@ describe("registerAdminWebMcpTool", () => {
     await expect(registerTool.mock.calls[0][0].execute({})).rejects.toThrow(/disabled/);
     expect(executor).not.toHaveBeenCalled();
   });
+});
+
+it('sends a protected browser call through the tab-bound authenticated stream and publishes its chat card before the result', async () => {
+  const registerTool = vi.fn();
+  Object.defineProperty(document, 'modelContext', { configurable: true, value: { registerTool } });
+  const onSurface = vi.fn();
+  const stop = subscribeToAdminPageSurfaces(onSurface);
+  const card = { channel: 'mcp-ui', payload: { resource: { uri: 'ui://page-confirmation' } } };
+  const encoder = new TextEncoder();
+  let complete!: () => void;
+  const send = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(new ReadableStream({
+    start(controller) {
+      controller.enqueue(encoder.encode(`${JSON.stringify({ type: 'surface', emission: card })}\n`));
+      complete = () => {
+        controller.enqueue(encoder.encode(`${JSON.stringify({ type: 'result', result: { status: 'completed', output: { clicked: 'post-delete-confirm' } } })}\n`));
+        controller.close();
+      };
+    },
+  }), { headers: { 'content-type': 'application/x-ndjson' } }));
+  const { result, unmount } = renderHook(() => useAgentPageBridge({ createBridge }));
+  const content = document.createElement('main');
+  const click = vi.fn();
+  content.innerHTML = '<button data-agent-element="post-delete-confirm">Delete permanently</button>';
+  content.querySelector('button')!.addEventListener('click', click);
+  act(() => result.current.setContentEl(content));
+  const registrations = registerTool.mock.calls.map(([tool]) => tool as WebMcpToolRegistration);
+  const pageClick = registrations.find(tool => tool.name === 'page.click')!;
+  let settled = false;
+  const pending = pageClick.execute({ handle: 'post-delete-confirm' }).then(output => { settled = true; return output; });
+  try {
+    await waitFor(() => expect(onSurface).toHaveBeenCalledExactlyOnceWith(card));
+    expect(settled).toBe(false);
+    expect(click).not.toHaveBeenCalled();
+    expect(send).toHaveBeenCalledTimes(1);
+    const [path, request] = send.mock.calls[0];
+    expect(path).toBe('/api/frontend-sessions/request');
+    expect(request).toMatchObject({ method: 'POST', credentials: 'same-origin', headers: { 'x-frontend-tab-id': adminFrontendTabId, 'content-type': 'application/json' } });
+    expect(JSON.parse(request!.body as string)).toEqual({ capabilityId: 'page.click', input: { handle: 'post-delete-confirm' }, bindToken: 'bind-1' });
+    expect(registrations.some(tool => tool.name === 'admin.respond_page_approval')).toBe(false);
+    complete();
+    expect(await pending).toEqual({ clicked: 'post-delete-confirm' });
+    expect(click).not.toHaveBeenCalled();
+  } finally { stop(); unmount(); }
+});
+
+it.each(['disabled', 'navigation'])("aborts a protected WebMCP request on %s while keeping the assistant bridge", async state => {
+  const registerTool = vi.fn();
+  Object.defineProperty(document, 'modelContext', { configurable: true, value: { registerTool } });
+  let requestSignal: AbortSignal | undefined;
+  vi.spyOn(globalThis, 'fetch').mockImplementation((_path, request) => new Promise((_, reject) => {
+    requestSignal = request!.signal as AbortSignal;
+    requestSignal.addEventListener('abort', () => reject(new Error('Page request cancelled')), { once: true });
+  }));
+  const { result, unmount } = renderHook(() => useAgentPageBridge({ createBridge }));
+  act(() => result.current.setContentEl(document.createElement('main')));
+  const bridge = result.current.agentBridge!;
+  const pageClick = registerTool.mock.calls.map(([tool]) => tool as WebMcpToolRegistration).find(tool => tool.name === 'page.click')!;
+  const pending = pageClick.execute({ handle: 'post-delete-confirm' });
+  const rejected = expect(pending).rejects.toThrow('Page request cancelled');
+  await waitFor(() => expect(requestSignal).toBeDefined());
+  expect(requestSignal!.aborted).toBe(false);
+  act(() => {
+    if (state === 'disabled') setBrowserAgentEnabled({ enabled: false });
+    else navigate('/webmcp-abort-navigation');
+  });
+  await rejected;
+  expect(requestSignal!.aborted).toBe(true);
+  expect(result.current.agentBridge).toBe(bridge);
+  expect(bridge.close).not.toHaveBeenCalled();
+  unmount();
+});
+
+it('activates a parked page service before rebinding a protected WebMCP request', async () => {
+  const registerTool = vi.fn();
+  Object.defineProperty(document, 'modelContext', { configurable: true, value: { registerTool } });
+  const order: string[] = [];
+  let token: string | undefined;
+  const rebind = vi.fn(async () => {
+    order.push('rebind');
+    token = 'private-token-after-activation';
+    return { sessionId: 'cold-tab', bindToken: token };
+  });
+  createBridge.mockReturnValueOnce({
+    ready: Promise.resolve({ sessionId: 'previous-session', bindToken: 'previous-token' }),
+    bindToken: () => token, rebind, close: vi.fn(),
+    bridgeAccess: { subscribe: () => () => {}, respondSuccess: async () => {}, respondError: async () => {} },
+  });
+  const send = vi.spyOn(globalThis, 'fetch').mockImplementation(async path => {
+    if (path === '/api/frontend-sessions/activate') {
+      order.push('activate');
+      return new Response(null, { status: 204 });
+    }
+    order.push('action');
+    return new Response(`${JSON.stringify({ type: 'result', result: { status: 'completed', output: { clicked: 'post-delete-confirm' } } })}\n`,
+      { headers: { 'content-type': 'application/x-ndjson' } });
+  });
+  const { result, unmount } = renderHook(() => useAgentPageBridge({ createBridge }));
+  const content = document.createElement('main');
+  const click = vi.fn();
+  content.innerHTML = '<button data-agent-element="post-delete-confirm">Delete permanently</button>';
+  content.querySelector('button')!.addEventListener('click', click);
+  act(() => result.current.setContentEl(content));
+  try {
+    const pageClick = registerTool.mock.calls.map(([tool]) => tool as WebMcpToolRegistration).find(tool => tool.name === 'page.click')!;
+    expect(await pageClick.execute({ handle: 'post-delete-confirm' })).toEqual({ clicked: 'post-delete-confirm' });
+    expect(order).toEqual(['activate', 'rebind', 'action']);
+    expect(rebind).toHaveBeenCalledTimes(1);
+    expect(send.mock.calls[0]).toEqual(['/api/frontend-sessions/activate', expect.objectContaining({ method: 'POST', credentials: 'same-origin' })]);
+    const [path, request] = send.mock.calls[1];
+    expect(path).toBe('/api/frontend-sessions/request');
+    expect(request).toMatchObject({ method: 'POST', credentials: 'same-origin', headers: { 'x-frontend-tab-id': adminFrontendTabId, 'content-type': 'application/json' } });
+    expect(JSON.parse(request!.body as string)).toEqual({ capabilityId: 'page.click', input: { handle: 'post-delete-confirm' }, bindToken: 'private-token-after-activation' });
+    expect(click).not.toHaveBeenCalled();
+  } finally { unmount(); }
 });

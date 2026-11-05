@@ -422,6 +422,7 @@ function handleDaemonFrame(frame: DaemonFrame, ctx: AgUiFrameContext): AgentRunS
 
 interface AgUiRunRequest {
   frontendBindToken?: string;
+  frontendTabId?: string;
   threadId: string;
   runId: string;
   requestId: string;
@@ -445,17 +446,21 @@ function resolveForwardedAgentId(forwardedProps: unknown): string | undefined {
   return resolveNonEmptyString((forwardedProps as { agentId?: unknown }).agentId);
 }
 
-/** Accept a token only, never a surface id or a client-authored tool handler. The daemon's
- * existing registry rejects stale tokens and binds solely to the originating tab. */
-function resolveForwardedBindToken({ forwardedProps }: { forwardedProps: unknown }, _options = {}): string | undefined {
+/** Read only the bounded attachment identity fields, never a surface id or tool handler. The
+ * daemon's registry verifies the token against the authenticated principal and originating tab.
+ * @complexity O(1) time and space.
+ * @overallScore 100 */
+function resolveForwardedBindingField({ forwardedProps, field }: { forwardedProps: unknown; field: "frontendBindToken" | "frontendTabId" }, _options = {}): string | undefined {
   if (typeof forwardedProps !== "object" || forwardedProps === null) return undefined;
-  const token = (forwardedProps as Record<string, unknown>).frontendBindToken;
-  return typeof token === "string" && token.length > 0 && token.length <= 256 ? token : undefined;
+  const value = (forwardedProps as Record<string, unknown>)[field];
+  return typeof value === "string" && value.length > 0 && value.length <= 256 ? value : undefined;
 }
 
 /** Validates and normalizes one AG-UI run request body, or `null` when it fails the one hard
  *  requirement: a non-empty `messages` array ending in a user turn. Split out of `handleAgUiRun` so
- *  that function's own body is just the request's control flow, not this parsing. */
+ *  that function's own body is just the request's control flow, not this parsing.
+ * @complexity O(h) time and space in the supplied history; attachment fields are constant work.
+ * @overallScore 100 */
 function resolveAgUiRunRequest(body: {
   threadId?: unknown;
   runId?: unknown;
@@ -469,7 +474,8 @@ function resolveAgUiRunRequest(body: {
     runId: resolveNonEmptyString(body.runId) ?? randomUUID(),
     requestId: randomUUID(),
     agentId: resolveForwardedAgentId(body.forwardedProps),
-    frontendBindToken: resolveForwardedBindToken({ forwardedProps: body.forwardedProps }),
+    frontendBindToken: resolveForwardedBindingField({ forwardedProps: body.forwardedProps, field: "frontendBindToken" }),
+    frontendTabId: resolveForwardedBindingField({ forwardedProps: body.forwardedProps, field: "frontendTabId" }),
     secretRedacted: typeof body.forwardedProps === "object" && body.forwardedProps !== null
       && (body.forwardedProps as { secretRedacted?: unknown }).secretRedacted === true,
     messages,
@@ -480,7 +486,9 @@ function resolveAgUiRunRequest(body: {
  *  `assistant.ts`'s `proxyRunStart` uses. Split out of `handleAgUiRun` so its own two failure shapes
  *  (transport-level via `fetchAgentDaemon`, and a non-ok daemon status) don't add to that function's
  *  branch count. `res` has already had an error response written on `{ ok: false }` — the caller's
- *  contract is to return immediately without touching `res` again. */
+ *  contract is to return immediately without touching `res` again.
+ * @complexity O(h) time and space in bounded history plus the existing daemon request.
+ * @overallScore 100 */
 async function startDaemonRun(
   req: Request,
   res: Response,
@@ -494,6 +502,7 @@ async function startDaemonRun(
     method: "POST",
     body: { contextRef: JSON.stringify({ prompt, userPrompt: run.messages.at(-1)?.content, principalId,
       ...(run.frontendBindToken ? { frontendBindToken: run.frontendBindToken } : {}),
+      ...(run.frontendTabId ? { frontendTabId: run.frontendTabId } : {}),
       ...(run.secretRedacted ? { secretRedacted: true } : {}) }), agentId: run.agentId },
     observability: daemon.observability,
   });

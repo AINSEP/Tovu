@@ -1,4 +1,5 @@
 import { onAdminSecretRedacted } from "@/lib/credential-card-guidance";
+import { subscribeToAdminPageSurfaces } from "@/lib/admin-frontend-session";
 import { ConfirmDialog, useConfirmRequest } from "@jini-ai/admin/react";
 import { DockHeader } from "./DockHeader";
 import { DockLeadingAccessory } from "./DockLeadingAccessory";
@@ -484,6 +485,7 @@ export function AssistantDock({
         selection={localCliSelection}
         onSelectionChange={handleSelectionChange}
         initialMessages={failureSurface.initialMessages}
+        subscribeToSurfaces={subscribeToAdminPageSurfaces}
         // `agents`, `conversationId`, `refreshSignal` and `composerHistoryScope` are passed only
         // when they hold a value — see `optionalChatPaneProps`. Recent prompt recall
         // (`composerHistoryScope`) is local to this signed-in admin, including in a new chat.

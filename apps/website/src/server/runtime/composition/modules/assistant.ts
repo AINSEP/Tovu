@@ -633,6 +633,9 @@ export function createAssistantModule(routeDeps: AssistantRouteDeps, byokSurface
       app.post("/api/frontend-sessions/activate", (req, res, next) => {
         activateFrontendDaemon({ req, res }, daemon).catch(next);
       });
+      app.post("/api/frontend-sessions/request", (req, res, next) => {
+        proxyPassthrough(req, res, daemon).catch(next);
+      });
       app.get("/api/frontend-sessions/stream", (req, res, next) => {
         if (parkColdFrontendStream({ res, isReady: routeDeps.assistantDaemonDemand?.isReady ?? isAssistantDaemonReady }, {})) return;
         proxyPassthrough(req, res, { ...daemon, passive: true }).catch(next);

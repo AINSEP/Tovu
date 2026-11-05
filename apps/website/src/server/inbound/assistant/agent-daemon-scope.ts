@@ -77,7 +77,8 @@ import { bridgePreflightEntry } from "./bridge-preflight-entry.js";
 // @jini-ai/agent-runtime owns this seam; @jini-ai/daemon accepts it as an option.
 import type { PromptAugmenter } from "@jini-ai/agent-runtime";
 import { createAgentSelectionResolver, createNativeAgentRuntime, ensureAgentCapabilities } from "@jini-ai/agent-runtime";
-import { createDaemonAuthMiddleware, createDiskAttachmentStore, stageAttachmentClaim, createFrontendControl, registerAgentRoutes, registerAttachmentRoutes, registerComponentCatalogRoutes, registerDelegatedToolRoutes, registerMessageRelayRoutes, registerRunRoutes, registerToolCatalogRoutes } from "@jini-ai/daemon/http";
+import { createDaemonAuthMiddleware, createDiskAttachmentStore, stageAttachmentClaim, createFrontendControl, registerFrontendRequestRoute, registerAgentRoutes, registerAttachmentRoutes, registerComponentCatalogRoutes, registerDelegatedToolRoutes, registerMessageRelayRoutes, registerRunRoutes, registerToolCatalogRoutes } from "@jini-ai/daemon/http";
+import { adminFrontendOwner, adminFrontendRunOwner } from "#src/assistant/admin-frontend-owner";
 import { bearerTokenFromHeader } from "@jini-ai/http-kit";
 import type { AdapterContext } from "@jini-ai/http-kit";
 import type { AttachmentStore, DelegatedToolExecuteRequest, RunMessageRequest, RunStartHandler, StoredAttachment } from "@jini-ai/daemon/http";
@@ -112,6 +113,7 @@ import { getCustomFsRoot } from "../../../features/fs-files/custom-root-store.js
 import { createAgentDaemonCoreDeps, type AgentDaemonCoreOptions, type AgentDaemonResource } from "../../runtime/composition/agent-daemon-core-deps.js";
 import { resolveAgentPermissionMode } from "#src/contracts/core/agent-permission-mode";
 import { applyToolApprovalPolicy } from "#src/assistant/tool-approval-policy";
+import { pageApprovalOptions } from "#src/assistant/page-approval-context";
 import { createAssistantAgentInventory } from "#src/assistant/agents";
 import { agentCarriesOwnMemory, extractSessionRefFromEndEvent, resolveResumeSessionField, shouldClearSessionOnFailedResume, wouldForcedColdStartLoseConversationContext, CONCURRENT_RUN_REFUSAL_MESSAGE, createLiveRunTracker, failRunBeforeStart, STOPPING_RUN_WAIT_MS, waitForStoppingRuns, agentAcceptsHostMintedSessionId, resolveHostMintedSessionId, resolveNewSessionField, createConversationStartLock } from "#src/assistant/agent-session-preset";
 import { readAssistantCliPermissions } from "#src/assistant/subagent-settings";
@@ -340,6 +342,8 @@ const lostFrontendBindings = createLostFrontendBindings();
  */
 const frontendControl = createFrontendControl({
   capabilities: FRONTEND_CONTROL_CAPABILITIES,
+  session: { resolveOwner: async ({ req }) => adminFrontendOwner({ req, workspaceId: routeDeps.workspaceId }) },
+  resolveBindOwner: ({ request }) => adminFrontendRunOwner({ contextRef: request.contextRef, workspaceId: routeDeps.workspaceId }),
   /**
    * Which tab this run may drive. Tovu's own `contextRef` envelope carries it, put there by the
    * admin's `FrontendSessionBridge` (`apps/admin/src/lib/assistant-transport.ts`) and passed
@@ -387,11 +391,11 @@ const frontendControl = createFrontendControl({
 for (const registration of withPageNavigateErrorRewrap(withReadOnlyFrontendCapabilities(frontendControl.toolRegistrations))) {
   // Page clicks carry arbitrary UI effects; apply the same reviewed host policy as WebMCP.
   // Every frontend registration needs a classification, including local chat operations.
-  // Page actions use the originating tab's AdminPageApprovalDialog. Wrapping them in a
-  // second chat surface would ask twice and AG-UI cannot answer that surface.
+  // The server's human chat-card exchange owns page approval for every transport. The browser
+  // bridge has no second dialog gate, so an opaque click asks exactly once, including on AG-UI.
   const bound = lostFrontendBindings.wrap(registration);
-  registry.register(registration.descriptor.id.startsWith("page.") ? bound
-    : applyToolApprovalPolicy({ registration: bound, surfaces: { surfaceExchanges } }));
+  registry.register(applyToolApprovalPolicy({ registration: bound, surfaces: { surfaceExchanges } },
+    pageApprovalOptions({ toolId: registration.descriptor.id, execute: (...args) => toolExecutor.execute(...args) })));
 }
 // Wrapped, not bare: `@jini-ai/daemon`'s executor keeps its audit records in an in-process `Map`
 // and mints them only AFTER authorization resolves, so an unknown tool id or a throwing
@@ -1352,6 +1356,12 @@ registerA2uiActionsRoute(app, { surfaceExchanges });
 // session-authenticated proxy, which attaches the bearer like every other forwarded route. See
 // `src/server/modules/assistant.ts`.
 frontendControl.httpExtension({ app, context: { adapter } });
+// Runless WebMCP uses the same policy/exchange/audit stack as a daemon run. The proxy supplies
+// the authenticated principal; the bind token and tab id constrain the effect to its own screen.
+registerFrontendRequestRoute({ app, path: "/api/frontend-sessions/request", control: frontendControl,
+  executor: toolExecutor, capabilityIds: FRONTEND_CONTROL_CAPABILITIES.filter(entry => entry.id.startsWith("page.")).map(entry => entry.id),
+  resolveOwner: async ({ req }) => adminFrontendOwner({ req, workspaceId: routeDeps.workspaceId }),
+});
 
   // Discovery is scoped by each run's credential; the server refreshes its own plugin/settings
   // state before returning descriptors. The native FTS owner is released with the final run.

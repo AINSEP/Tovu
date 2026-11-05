@@ -1,4 +1,4 @@
-import { applyApprovalPolicy, isNonArrayRecord, type ToolRegistration, type ToolExecutionContext } from '@jini-ai/core';
+import { applyApprovalPolicy, isNonArrayRecord, type ApprovalContextPort, type ToolRegistration, type ToolExecutionContext } from '@jini-ai/core';
 import { requireHumanConfirm, notConfirmedResult } from '../contracts/core/human-confirm.js';
 import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { TOOL_APPROVAL_POLICY, ASSISTANT_EXECUTION_APPROVAL_SETTINGS, type ToolApprovalClass, type ToolApprovalPolicy } from '../contracts/headless/index.js';
@@ -30,8 +30,9 @@ const RULE_CLASSIFIERS: Record<NonNullable<ToolApprovalPolicy['rule']>, (require
 
 export function applyToolApprovalPolicy(
   { registration, surfaces }: { registration: ToolRegistration; surfaces: AssistantSurfaceDeps },
-  { localeFor = async () => 'en', disclose }: {
+  { localeFor = async () => 'en', disclose, context }: {
     localeFor?: (ctx: ToolExecutionContext) => Promise<string>;
+    context?: ApprovalContextPort;
     /** Extra rows for the card, computed from the frozen call before asking (e.g. the account and
      *  the resources an external tool would change). A throw refuses the call before any effect. */
     disclose?: (required: { ctx: ToolExecutionContext }) => Promise<readonly SurfaceDetail[]>;
@@ -67,7 +68,7 @@ export function applyToolApprovalPolicy(
     askHuman: ({ ctx, description }, options) => requireHumanConfirm({ ctx, surfaces, spec: description }, options),
     notConfirmed: ({ reason }) => ({ executed: false, ...notConfirmedResult({ confirmed: false, reason }) }),
     // Permissions and entity/version checks still run inside the original domain handler.
-  });
+  }, { ...(context ? { context } : {}) });
 }
 
 /** A remote declaration can add friction, never grant admission or permissions. MCP has no standard

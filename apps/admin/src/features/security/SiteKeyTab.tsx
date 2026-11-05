@@ -203,7 +203,7 @@ function SiteKeyRevealAction({ controller }: { controller: SiteKeyController }) 
     return <SiteKeyRevealedValue hex={controller.revealedHex} onHide={controller.hideRevealed} t={translate} />;
   }
   return (
-    <div className="site-key-reveal-action">
+    <div className="site-key-reveal-action" {...{ [AGENT_PRIVATE_ATTRIBUTE]: "" }}>
       <button
         type="button"
         className="btn-secondary"
@@ -227,13 +227,13 @@ function SiteKeyRevealAction({ controller }: { controller: SiteKeyController }) 
 function SiteKeyRevealedValue({ hex, onHide, t: translate }: { hex: string; onHide: () => void; t: Translate }) {
   const { copied, copy } = useRevealedKeyCopy(hex);
   return (
-    <div className="site-key-revealed-value">
+    <div className="site-key-revealed-value" {...{ [AGENT_PRIVATE_ATTRIBUTE]: "" }}>
       <code {...{ [AGENT_PRIVATE_ATTRIBUTE]: "" }}>{hex}</code>
       <div className="site-key-revealed-actions">
         <button type="button" className="btn-secondary" onClick={() => void copy()}>
           {copied ? translate("Copied!") : translate("Copy")}
         </button>
-        <button type="button" className="btn-ghost" onClick={onHide} {...agentHandle({ handle: "security-site-key-hide" }, { role: "button", label: "Hide the revealed site key" })}>
+        <button type="button" className="btn-ghost" onClick={onHide}>
           {translate("Hide")}
         </button>
       </div>

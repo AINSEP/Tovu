@@ -1,16 +1,23 @@
-import { resolveApproval } from "@jini-ai/core";
 import { directPageAction } from "../../../../website/src/assistant/assistant-tool-approval-policy.js";
 import {
   PAGE_CAPABILITIES, executePageCapability, toWebMcpTool,
-  type PageDriver, type RequestUserInteraction, type WebMcpToolRegistration,
+  type PageDriver, type WebMcpToolRegistration,
 } from "@jini-ai/agentic";
 import { getAgentModelContext, type AgentModelContextLike } from "@jini-ai/agentic/dom";
-import type { AdminPageApprovalStore } from "./admin-page-approval.store";
 import { getBrowserAgentEnabled } from "./browser-agent-settings.hooks";
 
-/** Thin CMS/admin policy adapter. Projection, schema validation, credential guards and page
- * navigation remain in Jini. WebMCP carries no run/principal: confirmation does not replace
- * server-side permissions or confer ToolExecutor authorization. */
+/** The authenticated host adapter owns confirmation and execution of opaque page effects. */
+export type RequestAdminPageAction = (required: {
+  capabilityId: string; input: Record<string, unknown>; signal: AbortSignal;
+}) => Promise<unknown>;
+
+/** Thin CMS/admin policy adapter. Jini keeps projection, schema validation and direct page guards.
+ * Protected actions use the authenticated ToolExecutor/card exchange; the browser agent never
+ * receives a confirmation-answer capability or a local callback that can execute the action.
+ * @complexity O(n) registrations for n page capabilities; O(input bytes) per captured call.
+ * @overallScore 98
+ * @tradeoffs Low: current browser access is rechecked locally; the host cancels the request when
+ * the registration lifetime ends, and the server owns authorization and once-only execution. */
 export function registerAdminPageWebMcpTools(
   { driver, signal }: { driver: PageDriver; signal: AbortSignal },
   {
@@ -18,14 +25,12 @@ export function registerAdminPageWebMcpTools(
       typeof document === "undefined" ? undefined : (document as unknown as { modelContext?: unknown }).modelContext,
       typeof navigator === "undefined" ? undefined : (navigator as unknown as { modelContext?: unknown }).modelContext,
     ] } }),
-    requestUserInteraction,
-    approvals,
+    requestPageAction,
     isEnabled = () => getBrowserAgentEnabled({}),
     onError = ({ name, error }) => console.warn(`[admin] WebMCP registration failed: ${name}`, error),
   }: {
     modelContext?: AgentModelContextLike;
-    requestUserInteraction?: RequestUserInteraction;
-    approvals?: AdminPageApprovalStore;
+    requestPageAction?: RequestAdminPageAction;
     isEnabled?: () => boolean;
     onError?: (required: { name: string; error: unknown }) => void;
   } = {},
@@ -51,57 +56,20 @@ export function registerAdminPageWebMcpTools(
       capability: { ...definition, requiresConfirmation: false },
       execute: async ({ id, args }) => {
         assertOpen();
-        const frozenArgs = structuredClone(args);
+        const capturedArgs = structuredClone(args);
         const execute = async () => {
           assertOpen();
-          return executePageCapability({ driver, capabilityId: id, input: frozenArgs });
+          return executePageCapability({ driver, capabilityId: id, input: capturedArgs });
         };
-        if (directPageAction({ capabilityId: id, input: frozenArgs })) return execute();
-        if (approvals) return approvals.propose({
-          interaction: { capability: definition, args: structuredClone(frozenArgs) }, signal, execute,
-        });
-        if (!requestUserInteraction) throw new Error("This page action requires an app confirmation channel");
-        const answer = await resolveApproval({ signal, askHuman: async () =>
-          await requestUserInteraction({ capability: definition, args: structuredClone(frozenArgs) })
-            ? { confirmed: true } : { confirmed: false, reason: "declined" },
-        });
+        if (directPageAction({ capabilityId: id, input: capturedArgs })) return execute();
+        if (!requestPageAction) throw new Error("This page action requires an authenticated chat confirmation channel");
+        const result = await requestPageAction({ capabilityId: id, input: capturedArgs, signal });
         assertOpen();
-        if (!answer.confirmed) throw new Error("Page action declined");
-        return execute();
+        return result;
       },
     }, { signal, annotations: { untrustedContentHint: true } });
-    // Reuse Jini's projection validator before recording a proposal. Capture values once: the
-    // tool caller cannot edit a pending destructive action's input. Both transports use core's
-    // decision owner, with current browser access checked again by the private execute port.
-    register(approvals ? { ...registration,
-      description: `${registration.description} Protected actions return approval_required; explicitly answer through admin.respond_page_approval before they run. Ordinary edits run directly.`,
-    } : registration);
+    // Projection validates before the adapter can open a card. Each protected request captures
+    // its input once; human decisions travel only through the server's authenticated callback.
+    register(registration);
   }
-  registerAdminPageApprovalTool({ approvals, signal, assertOpen, register });
-}
-
-function registerAdminPageApprovalTool(
-  { approvals, signal, assertOpen, register }: {
-    approvals: AdminPageApprovalStore | undefined;
-    signal: AbortSignal;
-    assertOpen: () => void;
-    register: (registration: WebMcpToolRegistration) => void;
-  },
-  _optional: Record<string, never> = {},
-): void {
-  if (!approvals) return;
-  register({
-    name: "admin.respond_page_approval",
-    description: "Explicitly approve or decline the exact pending admin page action. Approval executes it once; never approve a destructive action without the user's authorization.",
-    inputSchema: { type: "object", properties: { approvalId: { type: "string" }, approved: { type: "boolean" } }, required: ["approvalId", "approved"], additionalProperties: false },
-    annotations: { readOnlyHint: false },
-    registerOptions: { signal },
-    execute: async (args) => {
-      assertOpen();
-      if (typeof args.approvalId !== "string" || typeof args.approved !== "boolean" || Object.keys(args).some(key => key !== "approvalId" && key !== "approved")) {
-        throw new Error("Expected approvalId (string) and approved (boolean)");
-      }
-      return approvals.respond({ approvalId: args.approvalId, approved: args.approved });
-    },
-  });
 }

@@ -317,7 +317,7 @@ export function CreateSiteOnboarding({ controller, onCancel, useDatabase = useCr
                 sites listing, never from this bundle — see `default-credential-exposure.ts`. */}
             {controller.shownStarterPassword ? (
               <>
-                {controller.t("Starter login:")} <strong>admin</strong> / <strong className="site-admin-starter-password">{controller.shownStarterPassword}</strong>.{" "}
+                {controller.t("Starter login:")} <strong>admin</strong> / <strong className="site-admin-starter-password" data-agent-private="">{controller.shownStarterPassword}</strong>.{" "}
                 {controller.t("Change it under Users before you deploy.")}
               </>
             ) : null}

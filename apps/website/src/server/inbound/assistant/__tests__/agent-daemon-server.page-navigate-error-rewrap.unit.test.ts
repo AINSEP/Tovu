@@ -66,7 +66,7 @@ describe("the toolRegistrations registration loop", () => {
 
   test("every registration is still handed to registry.register — the rewrap must not replace registration itself", () => {
     assert.match(registrationLoopSource, /const bound = lostFrontendBindings\.wrap\(registration\)/);
-    assert.match(registrationLoopSource, /registry\.register\(registration\.descriptor\.id\.startsWith\("page\."\) \? bound/);
+    assert.match(registrationLoopSource, /registry\.register\(applyToolApprovalPolicy\(/);
     assert.match(registrationLoopSource, /applyToolApprovalPolicy\(\{ registration: bound, surfaces: \{ surfaceExchanges \}/);
   });
 
@@ -86,6 +86,7 @@ test("the daemon loop registers every frontend tool and preserves navigation suc
   const { withReadOnlyFrontendCapabilities } = await import("#src/assistant/frontend-control-capabilities");
   const { createLostFrontendBindings } = await import("#src/assistant/lost-frontend-binding");
   const { applyToolApprovalPolicy } = await import("#src/assistant/tool-approval-policy");
+  const { pageApprovalOptions } = await import("#src/assistant/page-approval-context");
   const { createSurfaceExchangeStore } = await import("@jini-ai/daemon/surface-exchanges");
   const { createTimeoutScheduler } = await import("@jini-ai/daemon/scheduler");
   const { createSystemClock, createRandomUuidGenerator } = await import("@jini-ai/core/primitives");
@@ -104,7 +105,7 @@ test("the daemon loop registers every frontend tool and preserves navigation suc
     { descriptor: { id: "chat.send_message" }, policy: { authorize: () => "allow" }, handler: async () => ({ sent: true }) },
     { descriptor: { id: "admin.capture_screenshot" }, policy: { authorize: () => "allow" }, handler: async (ctx) => { throw new Error(`no frontend is bound to run "${ctx.run.id}"`); } },
   ];
-  await evaluateDaemonStatements([loop], { registry, lostFrontendBindings, withPageNavigateErrorRewrap, withReadOnlyFrontendCapabilities, applyToolApprovalPolicy, surfaceExchanges, frontendControl: { toolRegistrations: registrations } });
+  await evaluateDaemonStatements([loop], { registry, lostFrontendBindings, withPageNavigateErrorRewrap, withReadOnlyFrontendCapabilities, applyToolApprovalPolicy, pageApprovalOptions, surfaceExchanges, frontendControl: { toolRegistrations: registrations } });
   assert.deepEqual(registry.list({}).map(({ id }) => id).sort(), ["admin.capture_screenshot", "chat.send_message", "page.navigate"]);
   const executor = createToolExecutor({ registry });
   const request = { principal: { id: "principal" }, run: { id: "bound-run" }, toolId: "page.navigate", input: { page: "posts" } };

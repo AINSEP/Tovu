@@ -1,4 +1,5 @@
 import { activateAssistantDaemon, prepareAssistantPageBinding } from "../../../lib/assistant-daemon-activation";
+import { adminFrontendTabId } from "../../../lib/admin-frontend-session";
 import { partitionChatPackages } from "./chat-package-kind";
 import { resolveComposerDiscoveryOutcome, type ResolveComposerDiscoveryOutcomeDeps } from "./resolve-composer-discovery-outcome";
 import type { SelectedComposerSkill } from "@/features/plugins/selected-skills";
@@ -1881,6 +1882,7 @@ export function useRunContext(
     readScreenContext?: () => AgentScreenContext | undefined;
   },
 ): () => {
+  frontendTabId: string;
   frontendBindToken?: string;
   model?: string;
   reasoning?: string;
@@ -1891,7 +1893,7 @@ export function useRunContext(
 } {
   return useMemo(
     () => () =>
-      resolveRunContext({
+      ({ ...resolveRunContext({
         bindToken: agentBridge?.bindToken(),
         model,
         reasoning,
@@ -1899,7 +1901,7 @@ export function useRunContext(
         selectedSkills,
         conversationId,
         pageContext: readScreenContext(),
-      }),
+      }), frontendTabId: adminFrontendTabId }),
     [agentBridge, model, reasoning, pluginRefIds, selectedSkills, conversationId, readScreenContext],
   );
 }

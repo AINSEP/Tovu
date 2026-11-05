@@ -68,6 +68,8 @@ export function outboundHeaders(req: Request, res: Response): Record<string, str
   // every caller of this function sits behind `requireAdminSession`, so the value is always a
   // server-verified session principal and never anything the browser chose.
   headers[RUN_PRINCIPAL_HEADER] = getAuthedPrincipal(res).id;
+  const frontendTabId = req.get("x-frontend-tab-id");
+  if (frontendTabId) headers["x-frontend-tab-id"] = frontendTabId;
 
   // Reconnect cursor for an SSE stream. The browser's `EventSource` sets this itself on every
   // automatic reconnect; without it the daemon replays the run from event 0.

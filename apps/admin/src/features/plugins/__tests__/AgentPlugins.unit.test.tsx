@@ -1,7 +1,5 @@
 import { createAgUiRunClient } from "@jini-ai/chat/transports/ag-ui";
 import { createFrontendSessionBridge } from "@jini-ai/chat/react";
-import { AdminPageApprovalDialog } from "../../webmcp/AdminPageApprovalDialog";
-import { createAdminPageApprovalStore } from "../../webmcp/admin-page-approval.store";
 import { directPageAction } from "../../../../../website/src/assistant/assistant-tool-approval-policy";
 import type { RunAgentInput } from "@ag-ui/core";
 import { fireEvent, render, screen, waitFor, within } from "@/__tests__/fetch-query-render";
@@ -10,7 +8,7 @@ import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { act } from "@testing-library/react";
-import { PAGE_CAPABILITIES, executePageCapability, type FindElementsResult } from "@jini-ai/agentic";
+import { executePageCapability, type FindElementsResult } from "@jini-ai/agentic";
 import { createDomPageDriver } from "@jini-ai/agentic/dom";
 import { buildAdminAgentPages } from "@/lib/agent-pages";
 import { api } from "@/lib/api";
@@ -681,8 +679,7 @@ describe("assistant admin navigation regression", () => {
         onToggleExpanded: (id: string) => setExpandedIds(new Set([id])),
       });
     }
-    const approvals = createAdminPageApprovalStore({});
-    const view = render(<><AgentPlugins tabId="installed" useAgentPluginsHook={useController} /><AdminPageApprovalDialog locale="en" approvals={approvals} /></>);
+    const view = render(<AgentPlugins tabId="installed" useAgentPluginsHook={useController} />);
     const detailsControl = view.container.querySelector('.agent-plugin-row-summary')!;
     const scroll = vi.fn();
     detailsControl.scrollIntoView = scroll;
@@ -693,9 +690,7 @@ describe("assistant admin navigation regression", () => {
     const invocations: { capabilityId: string; input: unknown }[] = [];
     const bridge = createFrontendSessionBridge({ baseUrl: "", openStream: () => source as unknown as EventSource,
       request: async ({ init }) => { responses.push(JSON.parse(init.body as string)); return new Response(JSON.stringify({ settled: true })); },
-    }, { pageDriver: driver, onInvocation: ({ capabilityId, input }) => invocations.push({ capabilityId, input }), pageApproval: { isDirect: directPageAction,
-      request: ({ capabilityId, input, signal }) => approvals.request({ interaction: { capability: PAGE_CAPABILITIES.find(capability => capability.id === capabilityId)!, args: input }, signal }),
-    } });
+    }, { pageDriver: driver, onInvocation: ({ capabilityId, input }) => invocations.push({ capabilityId, input }) });
     const emit = (frame: unknown) => source.dispatchEvent(new MessageEvent("message", { data: JSON.stringify(frame) }));
     emit({ type: "attached", sessionId: "owner-tab", bindToken: "owner-tab-current" });
     try {
@@ -717,8 +712,8 @@ describe("assistant admin navigation regression", () => {
         expect(found.pages.find(page => page.id === "agent-plugins")?.navigation?.description).toBe("Manage agent plugins: install, view details, turn on/off.");
         const details = found.elements.find(element => element.handle.endsWith("-details"));
         expect(details, "use the handle published by the actual plugin row").toBeDefined();
+        expect(directPageAction({ capabilityId: "page.click", input: { handle: details!.handle } })).toBe(true);
         await act(async () => { emit({ type: "invocation", invocationId: "details", capabilityId: "page.click", input: { handle: details!.handle } }); });
-        expect(approvals.getSnapshot().pending).toBeNull();
         expect(screen.queryByRole("button", { name: "Confirm" })).not.toBeInTheDocument();
         await waitFor(() => expect(responses).toContainEqual(expect.objectContaining({ invocationId: "details", ok: true, output: expect.objectContaining({
           clicked: details!.handle, before: expect.objectContaining({ expanded: false }), after: expect.objectContaining({ expanded: true }), targetChanged: true,

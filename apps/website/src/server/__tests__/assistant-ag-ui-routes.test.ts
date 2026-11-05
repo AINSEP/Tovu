@@ -984,12 +984,31 @@ test("AG-UI carries the originating tab binding and authenticated identity", asy
   const response = await fetch(`${baseUrl}/api/admin/v1/assistant/ag-ui-run`, {
     method: "POST", headers: { "content-type": "application/json", cookie },
     body: JSON.stringify({ messages: [{ role: "user", content: "open it" }], tools: [{ name: "evil", parameters: {} }],
-      forwardedProps: { frontendBindToken: "tab-B-current", principalId: "forged" } }),
+      forwardedProps: { frontendBindToken: "tab-B-current", frontendTabId: "tab-B", principalId: "forged" } }),
   });
   await response.text();
   const call = recorded.find(r => r.method === "POST" && r.url === "/api/runs");
   assert.ok(call);
   const context = JSON.parse(JSON.parse(call.body).contextRef);
   assert.equal(context.frontendBindToken, "tab-B-current");
+  assert.equal(context.frontendTabId, "tab-B");
   assert.equal(context.principalId, expectedPrincipalId);
+});
+
+test("AG-UI omits malformed or oversized originating tab ids", async t => {
+  const { baseUrl, cookie } = await bootAgUi(t);
+  for (const frontendTabId of [null, "", 42, "x".repeat(257)]) {
+    recorded = [];
+    const response = await fetch(`${baseUrl}/api/admin/v1/assistant/ag-ui-run`, {
+      method: "POST", headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({ messages: [{ role: "user", content: "open it" }],
+        forwardedProps: { frontendBindToken: "token", frontendTabId } }),
+    });
+    await response.text();
+    const call = recorded.find(r => r.method === "POST" && r.url === "/api/runs");
+    assert.ok(call);
+    const context = JSON.parse(JSON.parse(call.body).contextRef);
+    assert.equal(context.frontendBindToken, "token");
+    assert.equal(Object.hasOwn(context, "frontendTabId"), false);
+  }
 });
