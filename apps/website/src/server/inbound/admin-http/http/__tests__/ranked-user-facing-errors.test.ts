@@ -63,7 +63,7 @@ test("content.import: unexpected failure retains its concrete message without a 
   const response = importErrorResponse(new Error("private backend"));
   assert.equal(response.status, 500);
   const body = response.body as any;
-  assert.equal(body.error, `The content import could not finish. (error ${body.errorId})`);
+  assert.equal(body.error, `The content import could not finish. Check import history for content already applied before trying again. Copy details and report this problem. (error ${body.errorId})`);
   assert.equal(body.details, undefined);
   assert.equal(JSON.stringify(body).includes("private backend"), false);
 });
