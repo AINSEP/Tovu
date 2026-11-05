@@ -216,15 +216,20 @@ function markFailedApiPair(row: VaultArchiveEntry, consumed: Set<string>): void 
   if (isObject(record) && typeof record.key === "string") consumed.add(record.key);
 }
 
+/** Owner references are site authority, never portable plugin preferences. */
+function ownerReference(row: VaultArchiveEntry): boolean {
+  return row.id.startsWith("plugin-state:tovu-key-references:") || row.id.startsWith("plugin-state:tovu-shared-oauth-binding:");
+}
+
 /** Transport only complete, connected record/token pairs using the live key/codec owners. Plugin
- * settings have no workspace-derived identity. Pending sign-ins and staged tokens never travel.
+ * settings have no workspace-derived identity. Pending sign-ins, shared references and staged tokens never travel.
  * Unsupported durable connections are omitted with a count, never raw identifiers/provider text.
  * @example const rebound = rebindApiConnectionArchive({ entries, workspaceId: recipientWorkspaceId });
  * @complexity O(rows + token bytes) time/space, bounded by the archive's credential cap.
  */
 export function rebindApiConnectionArchive(required: { entries: readonly VaultArchiveEntry[]; workspaceId: string }, _optional: Record<string, never> = {}): { entries: VaultArchiveEntry[]; notices: string[] } {
   const entries = required.entries.filter(row => row.kind !== "api-connection");
-  const api = required.entries.filter(row => row.kind === "api-connection");
+  const api = required.entries.filter(row => row.kind === "api-connection" && !ownerReference(row));
   const rows = new Map(api.map(row => [row.id, row]));
   let omitted = 0;
   const consumed = new Set<string>();
