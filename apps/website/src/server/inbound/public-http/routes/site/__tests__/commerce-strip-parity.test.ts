@@ -12,7 +12,7 @@ import { describe, test } from "node:test";
 import { sql } from "kysely";
 import type { SiteProduct } from "#src/server/inbound/public-http/http/site/render";
 type Product = SiteProduct & { version?: number };
-type StoreApi = { listProducts(): Promise<Product[]> };
+type StoreApi = { listProducts(): Promise<Product[]>; findProduct(required: { idOrSlug: string }): Promise<Product | null> };
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { buildRouteManifest } from "#src/features/site-export/route-manifest";
 import { collectTransferTables } from "#src/features/database-transfer/table-catalog";
@@ -89,7 +89,7 @@ const products: Product[] = [
   { id: "prod-1", slug: "classic-boxy-tee", title: "Classic Boxy Tee", price: 3500, stock: 5, version: 1 },
   { id: "prod-2", slug: "canvas-tote", title: "Canvas Tote", price: 1800, stock: 2, version: 3 },
 ];
-const commerceCatalog: StoreApi = { listProducts: async () => products, };
+const commerceCatalog: StoreApi = { listProducts: async () => products, findProduct: async ({ idOrSlug }) => products.find(product => product.id === idOrSlug) ?? products.find(product => product.slug === idOrSlug) ?? null };
 
 describe("storefront under the production composition", () => {
   async function startServer() {

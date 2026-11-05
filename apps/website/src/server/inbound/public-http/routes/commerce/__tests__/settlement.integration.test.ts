@@ -181,7 +181,8 @@ for (const dialect of ["sqlite", "pglite", "postgres"] as const) {
     for (const page of ["return", "cancel"]) {
       const forged = await f.request(`/commerce/${page}?orderId=${placed.order.id}&paid=true&session_id=forged`);
       assert.equal(forged.status, 200);
-      assert.equal(((await forged.json()) as CommerceOrderView).order.status, "pending");
+      assert.match(forged.headers.get("content-type") ?? "", /text\/html/);
+      assert.match(await forged.text(), /data-order-status="pending"/);
     }
     const unpaid = f.signed({ id: "evt_unpaid", type: "checkout.session.completed", paid: false });
     const tampered = await f.deliver({ ...unpaid, raw: Buffer.concat([unpaid.raw, Buffer.from(" ")]) });

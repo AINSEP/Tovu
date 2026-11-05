@@ -39,3 +39,15 @@ test("invalid or unavailable configured shop origins never produce payment contr
     assert.equal(await productCheckoutWhenReady({ html: "Product", workspaceId: "site", productSlug: "book", currentOrigin: "http://localhost", priceId: "price", commerce: { status: async () => ({ active: true, ready: true }), checkoutOrigin: async () => origin } }), "Product");
   }
 });
+
+test('request readiness reuses the trusted checkout origin without settings or credential rereads', async () => {
+  let reads = 0;
+  const commerce = { status: async () => { reads++; throw new Error('readiness already resolved'); },
+    checkoutOrigin: async () => { reads++; throw new Error('origin already resolved'); } };
+  const html = await productCheckoutWhenReady({ html: 'Product', workspaceId: 'site', productSlug: 'book',
+    currentOrigin: 'https://shop.test', priceId: 'price', commerce }, { readiness: { active: true, ready: true, checkoutOrigin: 'https://shop.test' } } as never);
+  assert.match(html, /Buy now/); assert.equal(reads, 0);
+  const off = await productCheckoutWhenReady({ html: 'Product', workspaceId: 'site', productSlug: 'book',
+    currentOrigin: 'https://shop.test', priceId: 'price', commerce }, { readiness: { active: false, ready: false, checkoutOrigin: 'https://shop.test' } } as never);
+  assert.equal(off, 'Product'); assert.equal(reads, 0);
+});

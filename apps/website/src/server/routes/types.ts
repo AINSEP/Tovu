@@ -1345,7 +1345,10 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
   /** Optional plugin-controlled purchase runtime. Member routes never select a merchant scope. */
   commerce?: import("../runtime/composition/commerce.js").CommerceRuntime;
   /** Bounded public catalog projection; absent while commerce is disabled or unavailable. */
-  commerceCatalog?: { listProducts(required?: Record<string, never>, optional?: Record<string, never>): Promise<SiteProduct[]> };
+  commerceCatalog?: {
+    listProducts(required?: Record<string, never>, optional?: { readiness?: { active: boolean; ready: boolean } }): Promise<SiteProduct[]>;
+    findProduct?(required: { idOrSlug: string }, optional?: { readiness?: { active: boolean; ready: boolean } }): Promise<SiteProduct | null>;
+  };
   workspaceRepo: WorkspaceRepoPort;
   /**
    * Site search (`server/runtime/composition/modules/site-search.ts`): registry, query service and

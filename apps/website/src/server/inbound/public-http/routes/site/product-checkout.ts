@@ -27,18 +27,25 @@ function deployedShop({ origin, productSlug }: { origin: string; productSlug: st
   } catch { return null; }
 }
 
+export interface ProductCheckoutReadiness { active: boolean; ready: boolean; checkoutOrigin?: string | null }
+
+/** A request snapshot owns its origin; older host adapters retain their explicit read fallback. */
+async function checkoutOrigin({ status, commerce }: { status: ProductCheckoutReadiness; commerce: { checkoutOrigin(): Promise<string | null> } }): Promise<string | null> {
+  return status.checkoutOrigin === undefined ? commerce.checkoutOrigin() : status.checkoutOrigin;
+}
 /** The host's activation answer gates purchase controls. Desktop management opens the deployed
- * HTTPS shop; only that shop displays a payment form. @complexity O(html.length), <=2 config reads. */
+ * HTTPS shop; only that shop displays a payment form. Request snapshots avoid repeat readiness reads.
+ * @complexity O(html.length), no I/O with a readiness/origin snapshot, otherwise <=2 config reads. */
 export async function productCheckoutWhenReady(
   { html, workspaceId, priceId, productSlug, currentOrigin, commerce }: { html: string; workspaceId: string; priceId: string | undefined;
     productSlug: string; currentOrigin: string;
-    commerce: { status(): Promise<{ active: boolean; ready: boolean }>; checkoutOrigin(): Promise<string | null> } | undefined },
-  _optional: Record<string, never> = {},
+    commerce: { status(): Promise<ProductCheckoutReadiness>; checkoutOrigin(): Promise<string | null> } | undefined },
+  optional: { readiness?: ProductCheckoutReadiness } = {},
 ): Promise<string> {
   if (!priceId || !commerce) return html;
-  const status = await commerce.status();
+  const status = optional.readiness ?? await commerce.status();
   if (!status.active || !status.ready) return html;
-  const origin = await commerce.checkoutOrigin();
+  const origin = await checkoutOrigin({ status, commerce });
   const shop = origin ? deployedShop({ origin, productSlug }) : null;
   if (!shop) return html;
   if (currentOrigin === origin) return appendProductCheckout({ html, workspaceId, priceId });

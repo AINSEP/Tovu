@@ -104,6 +104,7 @@ test('activated SQL checkout binds original merchant scope, blocks foreign membe
     input: { namespace: 'core.commerce', key: 'configuration', workspaceId: 'workspace', scope: 'workspace', value, callerPrincipalId: 'owner' } });
   await write({ providerId: 'lipay', accountId: 'merchant-original', mode: 'test', publicOrigin: 'https://shop.example:443/' });
   const fake = createLipayFake({ now: clock.nowMs });
+  let credentialReads = 0;
   let creates = 0, returnUrl = '', webhookUrl = '';
   const provider = { ...fake.provider, createIntent: async (...args: Parameters<typeof fake.provider.createIntent>) => {
     creates++; returnUrl = args[0].ctx.returnUrl; webhookUrl = args[0].ctx.webhookUrl; return fake.provider.createIntent(...args);
@@ -111,7 +112,7 @@ test('activated SQL checkout binds original merchant scope, blocks foreign membe
   const ports = { kernel, workspaceId: 'workspace', siteId: 'site', workspaceRoot: directory,
     workerOwner: false, workerDirectory: directory, settingsRepo, settingsReady: Promise.resolve(), clock, idGen,
     providers: { paymentProviders: () => [{ pluginId: 'payments-fake', module: provider }] },
-    providerConfig: { read: async () => ({ settings: { accountId: 'merchant-original' }, secrets: { test_webhookSecret: LIPAY_FAKE_SECRET } }) } as unknown as ProviderConfigSource,
+    providerConfig: { read: async () => { credentialReads++; return { settings: { accountId: 'merchant-original' }, secrets: { test_webhookSecret: LIPAY_FAKE_SECRET } }; } } as unknown as ProviderConfigSource,
     httpClient: { send: async () => { throw new Error('no network'); } },
   };
   runtime = composeCommerce(ports);
@@ -124,7 +125,12 @@ test('activated SQL checkout binds original merchant scope, blocks foreign membe
   const ledger = (await import('@jini-ai/commerce/payments/ledger/sql')).sqlPaymentsLedger({ kernel });
   await ledger.transaction({ fn: tx => tx.enqueueOutbox({ message: { id: 'blocked-first', workspaceId: 'workspace', mode: 'test',
     topic: 'payment.succeeded', aggregateId: 'missing-association', payloadJson: JSON.stringify({ reference: blockedOrder.order.id }), createdAt: 0 } }) });
-  const checkout = await runtime.commerce.createOrder({ memberId: 'buyer', priceId: 'price' });
+  const request = runtime.commerce.forRequest();
+  const readsBeforeRequest = credentialReads;
+  assert.equal(await request.checkoutOrigin(), 'https://shop.example');
+  await request.activate();
+  const checkout = await request.createOrder({ memberId: 'buyer', priceId: 'price' });
+  assert.equal(credentialReads - readsBeforeRequest, 1, 'origin, admission and create share one provider readiness read per request');
   await assert.rejects(runtime.commerce.pay({ memberId: 'foreign-member', orderId: checkout.order.id })); assert.equal(creates, 0);
   const paid = await runtime.commerce.pay({ memberId: 'buyer', orderId: checkout.order.id });
   assert.equal(paid.order.status, 'paid'); assert.equal(paid.payment?.captured.minorUnits, 1200); assert.equal(creates, 1);

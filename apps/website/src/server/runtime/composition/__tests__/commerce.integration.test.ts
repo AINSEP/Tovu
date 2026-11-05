@@ -162,7 +162,16 @@ for (const dialect of ['sqlite', 'pglite'] as const) {
     const paid = await runtime.commerce.pay({ memberId: 'buyer', orderId: created.order.id });
     assert.equal(paid.payment?.status, 'requires_action');
     assert.equal(f.requests.length, 1);
+    await f.write({ ...configuration, accountId: 'acct_same_endpoint_other' });
+    const accountChange = await runtime.commerce.status();
+    assert.equal(accountChange.ready, false);
+    assert.match(accountChange.reason!, /draining under their original account/);
+    await f.write(configuration);
     await f.activation(false);
+    await f.write({} as CommerceConfiguration);
+    await f.reopen(); runtime = f.boot(false);
+    await eventually(async () => { await runtime.commerce.status(); return runtime.commerce.resolveReceiver(); }, receiver => receiver !== null);
+    assert.equal(await runtime.commerce.checkoutOrigin(), configuration.publicOrigin, 'removed settings retain the original late-webhook drain');
     await f.write({ ...configuration, accountId: 'acct_other', mode: 'live', publicOrigin: 'https://other.example.test' });
     await assert.rejects(runtime.commerce.createOrder({ memberId: 'buyer', priceId: 'price' }), { code: 'COMMERCE_UNAVAILABLE' });
     assert.equal((await runtime.commerce.readOrder({ memberId: 'buyer', orderId: created.order.id })).order.status, 'pending');

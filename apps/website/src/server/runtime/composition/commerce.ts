@@ -4,7 +4,7 @@ import { buildRegistrations as buildCommerceStatusTools, buildCommerceCatalogReg
 import { buildCommerceResolutionRegistrations } from '@jini-ai/commerce/payments/tools';
 import { createCommerceWorker } from './commerce-worker.js';
 import { commerceConfigurationKey, readCommerceDrain, selectCommerceDrain } from './commerce-drain.js';
-import { withKernelSessionLock, type StorageKernel } from '@jini-ai/db/kernel';
+import { tableExists, withKernelSessionLock, type StorageKernel } from '@jini-ai/db/kernel';
 import type { Clock, HttpClientPort, IdGenerator } from '@jini-ai/core/primitives';
 import type { SettingsRepoPort } from '@jini-ai/core/settings';
 import { createCommerceServer, CommerceUnavailableError, createOrderPaymentProjector, readOwnedCommerceOrder, type PayOrderDeps } from '@jini-ai/commerce';
@@ -23,6 +23,7 @@ import { readCommerceConfiguration, type CommerceConfiguration } from './commerc
 export type CommerceServer = ReturnType<typeof createCommerceServer>;
 /** The host keeps scope/configuration private; routes supply only the authenticated member and order. */
 export interface CommerceRuntime {
+  forRequest(): Pick<CommerceRuntime, 'status' | 'activate' | 'checkoutOrigin' | 'createOrder' | 'pay' | 'readOrder'>;
   createOrder: CommerceServer['createOrder'];
   pay: CommerceServer['pay'];
   readOrder: CommerceServer['readOrder'];
@@ -131,7 +132,7 @@ export function composeCommerce(required: ComposeCommerceRequired, optional: { w
     const configured = await readCommerceConfiguration(required);
     if (reusable(configured) && binding) { await binding.server.activate(); return binding; }
     const selection = selectCommerceDrain({ configured, previous: binding?.config ?? null,
-      recorded: storageReady ? await readCommerceDrain(required) : null });
+      recorded: storageReady ? await readCommerceDrain(required, { configured }) : null });
     configurationProblem = selection.problem;
     await reportConfiguration(configurationProblem);
     configurationChecked = storageReady;
@@ -170,21 +171,13 @@ export function composeCommerce(required: ComposeCommerceRequired, optional: { w
     } };
     return binding;
   }
-  async function server(): Promise<CommerceServer> {
-    const current = await resolve();
+  async function readyServer(current: Binding | null): Promise<CommerceServer> {
     if (!current) throw new CommerceUnavailableError('The store owner needs to configure a payment account and deployed HTTPS site before checkout can accept payments.');
-    return current.server;
-  }
-  async function checkoutServer(): Promise<CommerceServer> {
-    let current = await resolve();
-    if (!current) return server();
-    await current.server.activate();
-    current = await resolve();
-    if (!current) return server();
     const problem = await current.problem();
     if (problem) throw new CommerceUnavailableError(problem);
     return current.server;
   }
+  async function checkoutServer(): Promise<CommerceServer> { return readyServer(await resolve()); }
   const worker = createCommerceWorker({ owner: required.workerOwner, directory: required.workerDirectory, warn,
     active: isActive, hasPending: async () => {
       if (!storageReady) return false;
@@ -207,10 +200,9 @@ export function composeCommerce(required: ComposeCommerceRequired, optional: { w
     try {
       if (await isActive()) { const current = await resolve(); if (current) await current.server.activate(); }
       else {
-        // One metadata read at boot recovers previously-started work without creating an off catalog.
-        const tables = await required.kernel.run(db => db.introspection.getTables());
-        storageReady = tables.some(table => table.name === 'commerce_payments');
-        catalogReady = tables.some(table => table.name === 'commerce_products');
+        // Probe only these two tables; default-off boot never inventories unrelated CMS metadata.
+        storageReady = await tableExists(required.kernel, 'commerce_payments');
+        catalogReady = await tableExists(required.kernel, 'commerce_products');
         if (storageReady) await migrateCommercePayments({ kernel: required.kernel });
       }
       if (storageReady) { await resolve(); await worker.kick(); }
@@ -218,6 +210,20 @@ export function composeCommerce(required: ComposeCommerceRequired, optional: { w
   }
   const warming = warm();
   const commerce: CommerceRuntime = {
+      // One request keeps origin, admission and action on one merchant binding; no shared cache.
+      forRequest: () => {
+        let selected: Promise<Binding | null> | undefined;
+        let ready: Promise<CommerceServer> | undefined;
+        const current = () => selected ??= resolve();
+        const checkout = () => ready ??= current().then(readyServer);
+        return {
+          status: commerce.status, readOrder: commerce.readOrder,
+          checkoutOrigin: async () => { const value = await current(); return value ? new URL(value.config.publicOrigin).origin : null; },
+          activate: async () => (await checkout()).activate(),
+          createOrder: async input => { const result = await (await checkout()).createOrder(input); void worker.kick(); return result; },
+          pay: async input => { const result = await (await checkout()).pay(input); void worker.kick(); return result; },
+        };
+      },
       createOrder: async input => { const result = await (await checkoutServer()).createOrder(input); void worker.kick(); return result; },
       pay: async input => { const result = await (await checkoutServer()).pay(input); void worker.kick(); return result; },
       readOrder: async input => readOwnedCommerceOrder({ deps: { workspaceId: required.workspaceId, siteId: required.siteId, orders, orderPayments, payments: sharedPayments }, input }),
@@ -233,7 +239,10 @@ export function composeCommerce(required: ComposeCommerceRequired, optional: { w
       checkoutOrigin: async () => { const current = await resolve(); return current ? new URL(current.config.publicOrigin).origin : null; },
       resolveReceiver: () => storageReady && !closed ? binding?.receiver ?? null : null,
       toolRegistrations: ({ authorize }) => [
-        ...buildCommerceStatusTools({ workspaceId: required.workspaceId, authorize, commerce }),
+        ...buildCommerceStatusTools({ workspaceId: required.workspaceId, authorize, commerce,
+          paymentRuntime: { listProviders: () => providers.list().map(({ provider }) => ({ id: provider.id, displayName: provider.displayName,
+            capabilities: { refunds: provider.capabilities.refunds, tokenization: false, recurring: false,
+              confirmation: provider.capabilities.confirmation, currencies: provider.capabilities.currencies, webhooks: true } })) } }),
         ...buildCommerceResolutionRegistrations({ workspaceId: required.workspaceId, authorize, operator, targetFor: async ({ orderId }) => {
           const row = await orderPayments.findByOrder({ workspaceId: required.workspaceId, orderId });
           if (!row?.paymentId || row.workspaceId !== required.workspaceId || row.siteId !== required.siteId) return null;

@@ -1,7 +1,8 @@
 /** Member HTTP boundary only: identity and scope come from the host; Jini owns orders and money. */
 import type { Express, Request, Response } from "express";
 import { CommerceCheckoutValidationError, CommerceOrderNotFoundError, CommercePriceNotFoundError,
-  CommerceProductNotFoundError } from "@jini-ai/commerce";
+  CommerceProductNotFoundError, commerceBuyerStatus, toCommerceBuyerOrder, type CommerceOrderView } from "@jini-ai/commerce";
+import { escapeHtml } from "#src/platform/html/escape";
 import { resolveMemberSession } from "#src/features/members/access-resolver";
 import { MemberLoginError } from "#src/features/member-login/index";
 import { createRateLimiter, OUTBOUND_CALL_PER_IP, resolveClientIp, type RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
@@ -12,6 +13,7 @@ import { resolveProtocol } from "../oauth/public-origin.js";
 
 /** Narrow structural port; no credential, provider or ledger mutation capability crosses HTTP. */
 export interface CommerceHttpPort {
+  forRequest?(): CommerceHttpPort;
   status(): Promise<{ active: boolean; ready: boolean; reason: string | null }>;
   activate(): Promise<{ active: boolean; ready: boolean; reason: string | null }>;
   checkoutOrigin(): Promise<string | null>;
@@ -21,11 +23,12 @@ export interface CommerceHttpPort {
 }
 export type CommerceHttpDeps = Pick<RouteDeps, "workspaceId" | "clock" | "memberRepo" | "memberSessionRepo"> & {
   commerce?: CommerceHttpPort;
+  renderCommercePage?: (required: { req: Request; res: Response; title: string; body: string }) => Promise<string>;
 };
 
 const ORDERS = "/api/commerce/v1/workspaces/:workspaceId/orders";
 const identifier = (value: unknown): value is string => typeof value === "string" && value.length > 0 && value.length <= 256;
-type RequestContext = { req: Request; res: Response; deps: CommerceHttpDeps; limiter: RateLimiter };
+type RequestContext = { req: Request; res: Response; deps: CommerceHttpDeps; limiter: RateLimiter; page?: boolean };
 
 /** Resolve only the member cookie, including revocation; operator cookies cannot purchase. O(1) reads. */
 async function buyer({ req, deps }: Pick<RequestContext, "req" | "deps">): Promise<string | null> {
@@ -44,23 +47,45 @@ async function buyer({ req, deps }: Pick<RequestContext, "req" | "deps">): Promi
   return member.id;
 }
 
+/** A mutation shares one host configuration snapshot; read-only ledger reads need none. O(1). */
+function requestCommerce({ req, deps }: Pick<RequestContext, "req" | "deps">): CommerceHttpPort | undefined {
+  return req.method === "POST" ? (deps.commerce?.forRequest?.() ?? deps.commerce) : deps.commerce;
+}
+
 /** Deny before effects on foreign scope, off/unavailable commerce, failed auth or rate budget. O(1) I/O. */
 async function admit(context: RequestContext): Promise<{ memberId: string; commerce: CommerceHttpPort } | null> {
   const { req, res, deps, limiter } = context;
   res.set("Cache-Control", "no-store");
   if (req.params.workspaceId && req.params.workspaceId !== deps.workspaceId) {
-    res.status(404).json({ error: "This shop was not found.", code: "SHOP_NOT_FOUND" }); return null;
+    await reject(context, 404, "This shop was not found.", "SHOP_NOT_FOUND"); return null;
   }
-  const commerce = deps.commerce;
-  if (!commerce) { unavailable(res); return null; }
+  const commerce = requestCommerce({ req, deps });
+  if (!commerce) { await reject(context, 503, "Checkout is not enabled for this shop.", "COMMERCE_UNAVAILABLE"); return null; }
   const limit = await limiter.check({ key: resolveClientIp(req) });
   if (!limit.allowed) {
-    res.set("Retry-After", String(limit.retryAfterSeconds)).status(429).json({ error: "Too many checkout requests. Please wait a minute and try again.", code: "RATE_LIMIT_EXCEEDED" }); return null;
+    res.set("Retry-After", String(limit.retryAfterSeconds));
+    await reject(context, 429, "Too many checkout requests. Please wait a minute and try again.", "RATE_LIMIT_EXCEEDED"); return null;
   }
   const memberId = await buyer(context);
-  if (!memberId) { res.status(401).json({ error: "Sign in as a shop member to view or pay for your order.", code: "MEMBER_SIGN_IN_REQUIRED" }); return null; }
+  if (!memberId) { await reject(context, 401, "Sign in as a shop member to view or pay for your order.", "MEMBER_SIGN_IN_REQUIRED"); return null; }
   if (req.method === "POST" && !await admitWrite({ req, res, commerce })) return null;
   return { memberId, commerce };
+}
+
+/** A host theme wraps escaped buyer content; minimal hosts still receive a complete HTML page. O(n) body bytes. */
+async function buyerPage({ req, res, deps }: Pick<RequestContext, "req" | "res" | "deps">,
+  { status, title, message, order }: { status: number; title: string; message: string; order?: { id: string; status: string } }): Promise<void> {
+  const orderMarkup = order ? `<p>Order <span>${escapeHtml(order.id)}</span></p>` : "";
+  const state = order ? ` data-order-status="${escapeHtml(order.status)}"` : "";
+  const body = `<section class="wrap commerce-order"${state}><h1>${escapeHtml(title)}</h1><p role="status">${escapeHtml(message)}</p>${orderMarkup}<p><a class="button" href="/products">Back to shop</a></p></section>`;
+  const html = deps.renderCommercePage ? await deps.renderCommercePage({ req, res, title, body })
+    : `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escapeHtml(title)}</title></head><body><main>${body}</main></body></html>`;
+  res.status(status).set("Cache-Control", "no-store").type("html").send(html);
+}
+
+async function reject(context: RequestContext, status: number, error: string, code: string): Promise<void> {
+  if (context.page) { await buyerPage(context, { status, title: "Check your order", message: error }); return; }
+  context.res.status(status).json({ error, code });
 }
 
 /** Only ready checkout accepts mutations, with the existing site origin policy. O(1). */
@@ -142,10 +167,23 @@ export function registerCommerceRoutes({ app, deps }: { app: Express; deps: Comm
       const orderId = req.params.orderId ?? req.query.orderId;
       if (!identifier(orderId)) { res.status(400).json({ error: "Open your saved order link to check its payment status.", code: "ORDER_ID_REQUIRED" }); return; }
       const admitted = await admit({ req, res, deps, limiter }); if (!admitted) return;
-      res.json(await admitted.commerce.readOrder({ memberId: admitted.memberId, orderId }));
+      res.json(toCommerceBuyerOrder({ view: await admitted.commerce.readOrder({ memberId: admitted.memberId, orderId }) as CommerceOrderView }));
     } catch (error) { failure({ res, error }); }
   };
   app.get(`${ORDERS}/:orderId`, read);
-  app.get("/commerce/return", read);
-  app.get("/commerce/cancel", read);
+  const page = async (req: Request, res: Response): Promise<void> => {
+    const context = { req, res, deps, limiter, page: true };
+    try {
+      const orderId = req.query.orderId;
+      if (!identifier(orderId)) { await reject(context, 400, "Open your saved order link to check its payment status.", "ORDER_ID_REQUIRED"); return; }
+      const admitted = await admit(context); if (!admitted) return;
+      const view = toCommerceBuyerOrder({ view: await admitted.commerce.readOrder({ memberId: admitted.memberId, orderId }) as CommerceOrderView });
+      await buyerPage(context, { status: 200, ...commerceBuyerStatus({ view }), order: view.order });
+    } catch (error) {
+      const missing = error instanceof CommerceOrderNotFoundError;
+      await reject(context, missing ? 404 : 503, missing ? "This order is unavailable for your account." : "The shop could not check your order. Retry this same order shortly; its payment status may still be updating.", missing ? "COMMERCE_NOT_FOUND" : "CHECKOUT_RETRY");
+    }
+  };
+  app.get("/commerce/return", page);
+  app.get("/commerce/cancel", page);
 }

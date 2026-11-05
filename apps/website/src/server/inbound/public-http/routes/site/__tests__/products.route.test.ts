@@ -10,7 +10,7 @@ import test from "node:test";
 
 import type { SiteProduct } from "#src/server/inbound/public-http/http/site/render";
 type Product = SiteProduct & { version?: number };
-type StoreApi = { listProducts(): Promise<Product[]> };
+type StoreApi = { listProducts(): Promise<Product[]>; findProduct(required: { idOrSlug: string }): Promise<Product | null> };
 import { InMemoryPresentationSettingsRepo } from "#src/features/presentation/index";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 
@@ -28,6 +28,7 @@ import { createRouteDeps } from "#src/server/runtime/composition/app";
 function fakeStore(required: { products: Product[] }, _optional: Record<string, never> = {}): StoreApi {
   return {
     listProducts: async () => required.products,
+    findProduct: async ({ idOrSlug }) => required.products.find(product => product.id === idOrSlug) ?? required.products.find(product => product.slug === idOrSlug) ?? null,
   };
 }
 
@@ -202,6 +203,7 @@ test("GET /products/:id 500s with a specific product error when an unexpected ex
   const { server, baseUrl } = await startServer({
     commerceCatalog: {
       listProducts: async () => { throw new Error("boom"); },
+      findProduct: async () => { throw new Error("boom"); },
     },
   });
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
@@ -362,4 +364,17 @@ test("GET /products and /products/:id cache only with consent off; the static-ex
 test("the catalog resolver ignores an injected legacy store runtime", async () => {
   const deps = Object.assign(createRouteDeps(), { store: { listProducts: async () => { throw new Error("legacy runtime must not run"); } } });
   assert.deepEqual(await resolveStorefrontProducts(deps), []);
+});
+
+test('detail resolves a product outside the bounded grid with a point lookup', async t => {
+  let lists = 0, lookups = 0;
+  const product = storeProduct({ id: 'product-25', title: 'Beyond the grid', slug: 'beyond-grid' });
+  const { server, baseUrl } = await startServer({ commerceCatalog: {
+    listProducts: async () => { lists++; return []; },
+    findProduct: async ({ idOrSlug }: { idOrSlug: string }) => { lookups++; return idOrSlug === 'beyond-grid' ? product : null; },
+  } } as never);
+  t.after(() => new Promise<void>(resolve => server.close(() => resolve())));
+  const response = await fetch(`${baseUrl}/products/beyond-grid`);
+  assert.equal(response.status, 200); assert.match(await response.text(), /Beyond the grid/);
+  assert.equal(lookups, 1); assert.equal(lists, 0);
 });

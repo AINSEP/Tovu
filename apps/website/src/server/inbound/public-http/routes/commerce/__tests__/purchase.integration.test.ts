@@ -28,10 +28,13 @@ async function fixture(t: test.TestContext) {
       calls.push({ action: "create", input }); return { order: { id: "order-one", status: "pending" } };
     },
     pay: async (input: { memberId: string; orderId: string }) => {
-      calls.push({ action: "pay", input }); return { order: { id: input.orderId, status: "pending" }, payment: { status: "pending" } };
+      calls.push({ action: "pay", input }); return { order: { id: input.orderId, status: "pending" }, payment: { status: "pending", next: { kind: "redirect", url: "https://checkout.example.test/session" } } };
     },
     readOrder: async (input: { memberId: string; orderId: string }) => {
-      calls.push({ action: "read", input }); return { order: { id: input.orderId, status: "pending" }, payment: { status: "pending" } };
+      calls.push({ action: "read", input }); return { order: { id: input.orderId, status: "pending", workspaceId: "shop", memberId: "buyer",
+        totalAmount: { minorUnits: 2400, currency: "JPY" }, provider: "stripe", providerPaymentRef: "private-provider-ref", placedAt: now, version: 1 },
+        payment: { status: "pending", scope: { providerAccountId: "private-account" }, reference: "private-reference", next: { url: "https://checkout.example.test/private-session" },
+          amount: { minorUnits: 2400, currency: "JPY" }, captured: { minorUnits: 0, currency: "JPY" }, refunded: { minorUnits: 0, currency: "JPY" } }, intent: { private: "internal-intent" } };
     },
   };
   const deps: CommerceHttpDeps = { workspaceId: "shop", clock: { nowMs: () => Date.parse(now), nowIso: () => now },
@@ -97,7 +100,11 @@ test("return and cancel pages read owned ledger truth; a forged paid query canno
     const response = await f.request(`/commerce/${page}?orderId=order-one&paid=true&session_id=forged`);
     assert.equal(response.status, 200);
     assert.equal(response.headers.get("cache-control"), "no-store");
-    assert.equal((await response.json()).order.status, "pending");
+    assert.match(response.headers.get("content-type") ?? "", /text\/html/);
+    const html = await response.text();
+    assert.match(html, /data-order-status="pending"/);
+    assert.match(html, /href="\/products"/);
+    assert.doesNotMatch(html, /private-account|private-provider-ref|private-reference|private-session|internal-intent|Payment confirmed/);
   }
   assert.deepEqual(f.calls.map(c => c.action), ["read", "read"]);
 });
@@ -124,4 +131,69 @@ test("purchase requests use a bounded shared rate budget", async t => {
   assert.equal(limited.status, 429);
   assert.ok(Number(limited.headers.get("retry-after")) > 0);
   assert.equal(f.calls.length, 12);
+});
+
+
+test("buyer order JSON excludes payment scope, provider references and continuation URLs", async t => {
+  const f = await fixture(t);
+  const response = await f.request(`${orders}/order-one`);
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), {
+    order: { id: "order-one", status: "pending", totalAmount: { minorUnits: 2400, currency: "JPY" }, placedAt: now, version: 1 },
+    payment: { status: "pending", amount: { minorUnits: 2400, currency: "JPY" }, captured: { minorUnits: 0, currency: "JPY" }, refunded: { minorUnits: 0, currency: "JPY" } },
+  });
+});
+
+test("signed-out buyer return renders HTML with shop link without reading an order", async t => {
+  const f = await fixture(t);
+  const response = await f.request("/commerce/return?orderId=order-one", undefined, "");
+  assert.equal(response.status, 401);
+  assert.equal(response.headers.get("cache-control"), "no-store");
+  assert.match(response.headers.get("content-type") ?? "", /text\/html/);
+  const html = await response.text();
+  assert.match(html, /Sign in/);
+  assert.match(html, /href="\/products"/);
+  assert.deepEqual(f.calls, []);
+});
+
+test("POST pay retains provider continuation for the checkout browser", async t => {
+  const f = await fixture(t);
+  const response = await f.request(`${orders}/order-one/pay`, {});
+  assert.deepEqual((await response.json()).payment.next, { kind: "redirect", url: "https://checkout.example.test/session" });
+});
+
+
+test("buyer pages use the host theme callback and escape the order identifier", async t => {
+  const f = await fixture(t);
+  const original = f.deps.commerce!.readOrder;
+  f.deps.commerce!.readOrder = async input => {
+    const view = await original(input) as { order: { id: string; status: string } };
+    view.order.id = '<script>alert("order")</script>'; view.order.status = "paid";
+    return view;
+  };
+  const rendered: string[] = [];
+  f.deps.renderCommercePage = async ({ title, body }) => {
+    rendered.push(title);
+    return `<!doctype html><html><head><title>${title}</title><style>:root{--theme-accent:blue}</style></head><body>${body}</body></html>`;
+  };
+  const response = await f.request("/commerce/cancel?orderId=order-one&paid=false");
+  const html = await response.text();
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("cache-control"), "no-store");
+  assert.deepEqual(rendered, ["Payment confirmed"]);
+  assert.match(html, /--theme-accent:blue/);
+  assert.match(html, /data-order-status="paid"/);
+  assert.match(html, /&lt;script&gt;/);
+  assert.doesNotMatch(html, /<script>/);
+  assert.deepEqual(f.calls.map(c => c.action), ["read"]);
+});
+
+test("only POST requests use the host request-scoped commerce port", async t => {
+  const f = await fixture(t); let scopes = 0;
+  const base = f.deps.commerce!;
+  base.forRequest = () => { scopes++; return base; };
+  assert.equal((await f.request(`${orders}/order-one/pay`, {})).status, 200);
+  assert.equal((await f.request(`${orders}/order-one`)).status, 200);
+  assert.equal((await f.request("/commerce/return?orderId=order-one")).status, 200);
+  assert.equal(scopes, 1);
 });
