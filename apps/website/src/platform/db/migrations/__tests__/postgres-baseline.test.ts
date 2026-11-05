@@ -54,6 +54,13 @@ describe("0000_legacy_baseline on Postgres (PGlite)", () => {
       CONTENT_MIGRATIONS.filter(step => step.id < "0012_secrets_vault").map(step => ({ id: step.id })));
     const actual = await readSchemaShape(kernel, { exclude: ["tovu_migrations", "post_search_document", ...backups] });
     const expected = withoutNotValid(await readSchemaShape(reference));
+    // The transfer projection carries PK columns, not the constraint name: Postgres supplies
+    // `_pkey` there, whereas immutable step 0039 explicitly named this same composite key.
+    // Normalize only that reference name; compare every actual key/index definition unchanged.
+    for (const kind of ["constraints", "indexes"] as const) {
+      expected.tables.owner_recovery_codes[kind] = expected.tables.owner_recovery_codes[kind].map(definition =>
+        definition.replaceAll("owner_recovery_codes_pkey", "owner_recovery_codes_workspace_id_principal_id_code_hash_pk")).sort();
+    }
     // 0021–0030 add these outside Drizzle; 0035's member_external_identities is in both schemas.
     const migrationOnlyTables = [
       "site_consent_revisions", "site_consent_heads", "mail_send_ledger", "mail_suppression",
