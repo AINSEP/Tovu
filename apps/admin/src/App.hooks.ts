@@ -1,12 +1,14 @@
 import { setAdminDraftIdentity } from "./lib/admin-draft-identity";
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
-import { createFrontendSessionBridge, createFrontendRequestCaller, type FrontendSessionBridge } from "@jini-ai/chat/react";
+import { createFrontendSessionBridge, createFrontendRequestCaller, createFrontendNavigationGuard, type FrontendSessionBridge } from "@jini-ai/chat/react";
+import { createAdminShellNavigation } from "@jini-ai/admin/browser/shell-navigation";
 import { createDomPageDriver } from "@jini-ai/agentic/dom";
 import { toWebMcpTool, type WebMcpRegisterToolOptions, type WebMcpToolRegistration } from "@jini-ai/agentic";
 import { registerAdminPageWebMcpTools } from "./features/webmcp/admin-page-tools";
 import { isDesktopAdmin } from "./features/settings/ai-agent-presentation";
 import { getBrowserAgentEnabled, useBrowserAgentSettings } from "./features/webmcp/browser-agent-settings.hooks";
 import { adminFrontendTabId, publishAdminPageSurface } from "./lib/admin-frontend-session";
+import { prepareAssistantPageBinding } from "./lib/assistant-daemon-activation";
 
 import { buildAdminAgentPages } from "./lib/agent-pages";
 import {
@@ -16,7 +18,7 @@ import {
   type RenderElementToCanvas,
 } from "./lib/agent-screenshot";
 import { publishScreenshotCaptured, subscribeToScreenshotCaptured } from "./lib/agent-screenshot-bus";
-import { installInternalLinkInterceptor, navigate, useRouteLocation } from "./lib/router";
+import { ADMIN_BASE, installInternalLinkInterceptor, navigate, useRouteLocation } from "./lib/router";
 import { WORKSPACE_ID, api, onUnauthenticated, type AdminUser } from "./lib/api";
 import { takeBootToken } from "./lib/boot-token-fragment";
 import { readInitialAdminSession } from "./lib/local-owner-signin";
@@ -1113,12 +1115,18 @@ export function useAgentPageBridge(
   useEffect(() => {
     if (!pageDriver) return undefined;
 
+    const pageNavigation = createFrontendNavigationGuard({});
+    const stopNavigation = createAdminShellNavigation({ location: window.location, window, document }).subscribe({
+      base: ADMIN_BASE, onChange: pageNavigation.noteNavigation,
+    });
     const bridge = createBridge({ baseUrl: "", fetch,
       headers: () => ({ "x-frontend-tab-id": adminFrontendTabId }),
       // EventSource cannot send custom headers; its authenticated stream carries the same tab id.
       openStream: ({ url }) => openStream({ url: `${url}&tabId=${encodeURIComponent(adminFrontendTabId)}` }),
     }, {
       pageDriver,
+      preparePageInput: pageNavigation.preparePageInput,
+      onBeforeResponse: pageNavigation.onBeforeResponse,
       executors,
       onError: logFrontendSessionError,
     });
@@ -1128,6 +1136,7 @@ export function useAgentPageBridge(
     setAgentBridge(bridge);
 
     return () => {
+      stopNavigation();
       bridge.close();
       // A plain `null`, not a `current === bridge ? null : current` updater: React runs this
       // cleanup before the next setup in the same passive-effect flush, so the queue is always
@@ -1151,7 +1160,8 @@ export function useAgentPageBridge(
     }, { headers: () => ({ "x-frontend-tab-id": adminFrontendTabId }) });
     registerAdminPageWebMcpTools({ driver: pageDriver, signal: webMcpController.signal }, {
       requestPageAction: async (request) => {
-        await agentBridge.rebind({ signal: request.signal }, {});
+        if (!agentBridge.bindToken()) await prepareAssistantPageBinding({ bridge: agentBridge, signal: request.signal });
+        else await agentBridge.rebind({ signal: request.signal }, {});
         return requestPageAction(request);
       },
     });

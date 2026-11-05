@@ -12,30 +12,46 @@ import { withReadOnlyFrontendCapabilities } from "#src/assistant/frontend-contro
 import { withPageNavigateErrorRewrap } from "#src/assistant/rewrap-page-navigate-error";
 import { createLostFrontendBindings } from "#src/assistant/lost-frontend-binding";
 import { applyToolApprovalPolicy } from "#src/assistant/tool-approval-policy";
+import { pageApprovalOptions } from "#src/assistant/page-approval-context";
 import { RUN_PRINCIPAL_HEADER } from "#src/assistant/daemon-access";
 import { startTestServer } from "../../../__tests__/helpers/http-test-server.js";
 import { daemonSource, evaluateDaemonStatements } from "./helpers/daemon-source.js";
 
 /** Execute the production registration loop with a harmless, observable frontend effect. */
-async function fixture() {
+async function fixture({ missingRevision = false } = {}) {
   let effects = 0;
+  let revision = 0;
+  let reads = 0;
   let executedInput: unknown;
+  let toolExecutor: ReturnType<typeof createToolExecutor>;
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const registration: ToolRegistration = {
     descriptor: { id: "page.click", inputSchema: { type: "object" } },
     policy: { authorize: () => "allow" },
-    handler: async ctx => { effects++; executedInput = ctx.input; return { clicked: true }; },
+    handler: async ctx => {
+      const { __frontendNavigationRevision, ...input } = ctx.input as Record<string, unknown>;
+      if (input.handle !== "plugins-install-confirm" && __frontendNavigationRevision !== revision) throw new Error("The admin view changed; retry this action on the current view.");
+      effects++; executedInput = input; return { clicked: true };
+    },
+  };
+  const readRegistration: ToolRegistration = {
+    descriptor: { id: "page.find_elements", inputSchema: { type: "object" } },
+    policy: { authorize: () => "allow" },
+    handler: async () => { reads++; return missingRevision ? { elements: [] } : { elements: [], navigationRevision: revision }; },
   };
   const registry = createToolRegistry({});
   const loop = daemonSource.statements.find(statement => ts.isForOfStatement(statement) && statement.expression.getText(daemonSource).includes("frontendControl.toolRegistrations"));
   assert.ok(loop);
   await evaluateDaemonStatements([loop], {
     registry, surfaceExchanges, withReadOnlyFrontendCapabilities, withPageNavigateErrorRewrap,
-    applyToolApprovalPolicy, lostFrontendBindings: createLostFrontendBindings(),
-    frontendControl: { toolRegistrations: [registration] },
+    applyToolApprovalPolicy, pageApprovalOptions,
+    toolExecutor: { execute: (...args: Parameters<typeof toolExecutor.execute>) => toolExecutor.execute(...args) },
+    lostFrontendBindings: createLostFrontendBindings(),
+    frontendControl: { toolRegistrations: [registration, readRegistration] },
   });
-  const toolExecutor = createToolExecutor({ registry });
-  return { surfaceExchanges, toolExecutor, effects: () => effects, executedInput: () => executedInput };
+  toolExecutor = createToolExecutor({ registry });
+  return { surfaceExchanges, toolExecutor, effects: () => effects, executedInput: () => executedInput,
+    reads: () => reads, navigate: () => { revision++; } };
 }
 
 const request = { principal: { id: "owner" }, run: { id: "page-run" }, toolId: "page.click" };
@@ -66,6 +82,7 @@ test("the daemon's actual loop asks one chat card before an opaque click; HTTP h
   } });
   assert.equal(await Promise.race([emitted, pending.then(() => "effect-before-card")]), "card");
   assert.equal(f.effects(), 0);
+  assert.equal(f.reads(), 1, "one gated read captures this card's view before asking");
   input.handle = "mutated-after-proposal";
   const answer = (params: object, principal = "owner") => fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
     method: "POST", headers: { "content-type": "application/json", [RUN_PRINCIPAL_HEADER]: principal },
@@ -96,6 +113,7 @@ test("reviewed direct page clicks run without a card or confirmation channel", a
   assert.equal(result.status, "completed");
   assert.equal(f.effects(), 1);
   assert.equal(f.surfaceExchanges.size(), 0);
+  assert.equal(f.reads(), 0, "reviewed direct actions do not capture navigation context");
 });
 
 for (const decision of ["cancel", "typed-yes", "abort"] as const) {
@@ -128,5 +146,40 @@ test("an opaque daemon click without a human card transport refuses before effec
   const result = await f.toolExecutor.execute({ ...request, input: { handle: "publish-confirm" } });
   assert.equal(result.status, "failed");
   assert.match(result.error ?? "", /NO_CONFIRMATION_CHANNEL/);
+  assert.equal(f.effects(), 0);
+});
+
+test("a navigation away and back while a card is pending invalidates its accepted click", async () => {
+  const f = await fixture();
+  let exchangeId = "";
+  let emit!: () => void;
+  const emitted = new Promise<void>(resolve => { emit = resolve; });
+  const pending = f.toolExecutor.execute({ ...request, input: { handle: "publish-confirm" } }, {
+    emitSurface: async emission => {
+      const html = (emission.payload as { resource: { resource: { text: string } } }).resource.resource.text;
+      exchangeId = html.match(/__exchangeId"\s*:\s*"([^"]+)"/)![1]!;
+      emit();
+    },
+  });
+  await emitted;
+  f.navigate();
+  f.navigate();
+  f.surfaceExchanges.deliver({ exchangeId, principalId: "owner", params: { decision: "confirm" } }, { toolId: "page.click" });
+  const result = await pending;
+  assert.equal(result.status, "failed");
+  assert.match(result.error ?? "", /admin view changed/);
+  assert.equal(f.effects(), 0);
+  assert.equal(f.reads(), 1);
+});
+
+test("a missing browser view revision refuses before a card or click", async () => {
+  const f = await fixture({ missingRevision: true });
+  let cards = 0;
+  const result = await f.toolExecutor.execute({ ...request, input: { handle: "publish-confirm" } }, {
+    emitSurface: async () => { cards++; },
+  });
+  assert.equal(result.status, "failed");
+  assert.match(result.error ?? "", /could not verify the current view/);
+  assert.equal(cards, 0);
   assert.equal(f.effects(), 0);
 });

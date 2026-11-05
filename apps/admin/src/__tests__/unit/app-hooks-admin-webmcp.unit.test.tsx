@@ -306,3 +306,47 @@ it.each(['disabled', 'navigation'])("aborts a protected WebMCP request on %s whi
   expect(bridge.close).not.toHaveBeenCalled();
   unmount();
 });
+
+it('activates a parked page service before rebinding a protected WebMCP request', async () => {
+  const registerTool = vi.fn();
+  Object.defineProperty(document, 'modelContext', { configurable: true, value: { registerTool } });
+  const order: string[] = [];
+  let token: string | undefined;
+  const rebind = vi.fn(async () => {
+    order.push('rebind');
+    token = 'private-token-after-activation';
+    return { sessionId: 'cold-tab', bindToken: token };
+  });
+  createBridge.mockReturnValueOnce({
+    ready: Promise.resolve({ sessionId: 'previous-session', bindToken: 'previous-token' }),
+    bindToken: () => token, rebind, close: vi.fn(),
+    bridgeAccess: { subscribe: () => () => {}, respondSuccess: async () => {}, respondError: async () => {} },
+  });
+  const send = vi.spyOn(globalThis, 'fetch').mockImplementation(async path => {
+    if (path === '/api/frontend-sessions/activate') {
+      order.push('activate');
+      return new Response(null, { status: 204 });
+    }
+    order.push('action');
+    return new Response(`${JSON.stringify({ type: 'result', result: { status: 'completed', output: { clicked: 'post-delete-confirm' } } })}\n`,
+      { headers: { 'content-type': 'application/x-ndjson' } });
+  });
+  const { result, unmount } = renderHook(() => useAgentPageBridge({ createBridge }));
+  const content = document.createElement('main');
+  const click = vi.fn();
+  content.innerHTML = '<button data-agent-element="post-delete-confirm">Delete permanently</button>';
+  content.querySelector('button')!.addEventListener('click', click);
+  act(() => result.current.setContentEl(content));
+  try {
+    const pageClick = registerTool.mock.calls.map(([tool]) => tool as WebMcpToolRegistration).find(tool => tool.name === 'page.click')!;
+    expect(await pageClick.execute({ handle: 'post-delete-confirm' })).toEqual({ clicked: 'post-delete-confirm' });
+    expect(order).toEqual(['activate', 'rebind', 'action']);
+    expect(rebind).toHaveBeenCalledTimes(1);
+    expect(send.mock.calls[0]).toEqual(['/api/frontend-sessions/activate', expect.objectContaining({ method: 'POST', credentials: 'same-origin' })]);
+    const [path, request] = send.mock.calls[1];
+    expect(path).toBe('/api/frontend-sessions/request');
+    expect(request).toMatchObject({ method: 'POST', credentials: 'same-origin', headers: { 'x-frontend-tab-id': adminFrontendTabId, 'content-type': 'application/json' } });
+    expect(JSON.parse(request!.body as string)).toEqual({ capabilityId: 'page.click', input: { handle: 'post-delete-confirm' }, bindToken: 'private-token-after-activation' });
+    expect(click).not.toHaveBeenCalled();
+  } finally { unmount(); }
+});

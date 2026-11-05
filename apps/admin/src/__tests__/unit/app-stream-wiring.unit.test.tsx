@@ -2,6 +2,7 @@ import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { expect, it, vi } from "vitest";
 import { useAdminSession, useAgentPageBridge } from "../../App.hooks";
 import { adminFrontendTabId } from "../../lib/admin-frontend-session";
+import { navigate } from "../../lib/router";
 import type { FrontendSessionBridge, createFrontendSessionBridge } from "@jini-ai/chat/react";
 
 /** sseshare: the app passes identity and the visibility-managed page-stream adapter via DI. */
@@ -88,5 +89,28 @@ it("closes the previous bridge when the content root changes, and clears it when
   act(() => result.current.setContentEl(null));
   expect(made[1].closed).toBe(true);
   expect(result.current.agentBridge).toBeNull();
+  unmount();
+});
+
+it("invalidates pending page clicks on navigation away and back without replacing the live bridge", () => {
+  let callbacks: NonNullable<Parameters<typeof createFrontendSessionBridge>[1]> | undefined;
+  const bridge: FrontendSessionBridge = {
+    ready: Promise.resolve({ sessionId: 'a', bindToken: 'b' }), bindToken: () => 'b',
+    rebind: async () => ({ sessionId: 'a', bindToken: 'b' }), close: () => {},
+    bridgeAccess: { subscribe: () => () => {}, respondSuccess: async () => {}, respondError: async () => {} },
+  };
+  const createBridge: typeof createFrontendSessionBridge = (_required, options) => { callbacks = options; return bridge; };
+  const { result, unmount } = renderHook(() => useAgentPageBridge({ createBridge }));
+  act(() => result.current.setContentEl(document.createElement('main')));
+  const readAction = { invocationId: 'read', capabilityId: 'page.find_elements', input: {} };
+  const before = callbacks!.onBeforeResponse!({ action: readAction, output: { elements: [] } }) as { navigationRevision: number };
+  act(() => navigate('/confirmation-navigation-away'));
+  act(() => navigate('/confirmation-navigation-back'));
+  expect(result.current.agentBridge).toBe(bridge);
+  const action = { invocationId: 'click', capabilityId: 'page.click', input: { handle: 'same-control', __frontendNavigationRevision: before.navigationRevision } };
+  expect(() => callbacks!.preparePageInput!({ action })).toThrow(/page changed/i);
+  const current = callbacks!.onBeforeResponse!({ action: readAction, output: { elements: [] } }) as { navigationRevision: number };
+  expect(current.navigationRevision).toBe(before.navigationRevision + 2);
+  expect(callbacks!.preparePageInput!({ action: { ...action, input: { ...action.input, __frontendNavigationRevision: current.navigationRevision } } })).toEqual({ handle: 'same-control' });
   unmount();
 });

@@ -113,6 +113,7 @@ import { getCustomFsRoot } from "../../../features/fs-files/custom-root-store.js
 import { createAgentDaemonCoreDeps, type AgentDaemonCoreOptions, type AgentDaemonResource } from "../../runtime/composition/agent-daemon-core-deps.js";
 import { resolveAgentPermissionMode } from "#src/contracts/core/agent-permission-mode";
 import { applyToolApprovalPolicy } from "#src/assistant/tool-approval-policy";
+import { pageApprovalOptions } from "#src/assistant/page-approval-context";
 import { createAssistantAgentInventory } from "#src/assistant/agents";
 import { agentCarriesOwnMemory, extractSessionRefFromEndEvent, resolveResumeSessionField, shouldClearSessionOnFailedResume, wouldForcedColdStartLoseConversationContext, CONCURRENT_RUN_REFUSAL_MESSAGE, createLiveRunTracker, failRunBeforeStart, STOPPING_RUN_WAIT_MS, waitForStoppingRuns, agentAcceptsHostMintedSessionId, resolveHostMintedSessionId, resolveNewSessionField, createConversationStartLock } from "#src/assistant/agent-session-preset";
 import { readAssistantCliPermissions } from "#src/assistant/subagent-settings";
@@ -393,7 +394,8 @@ for (const registration of withPageNavigateErrorRewrap(withReadOnlyFrontendCapab
   // The server's human chat-card exchange owns page approval for every transport. The browser
   // bridge has no second dialog gate, so an opaque click asks exactly once, including on AG-UI.
   const bound = lostFrontendBindings.wrap(registration);
-  registry.register(applyToolApprovalPolicy({ registration: bound, surfaces: { surfaceExchanges } }));
+  registry.register(applyToolApprovalPolicy({ registration: bound, surfaces: { surfaceExchanges } },
+    pageApprovalOptions({ toolId: registration.descriptor.id, execute: (...args) => toolExecutor.execute(...args) })));
 }
 // Wrapped, not bare: `@jini-ai/daemon`'s executor keeps its audit records in an in-process `Map`
 // and mints them only AFTER authorization resolves, so an unknown tool id or a throwing
