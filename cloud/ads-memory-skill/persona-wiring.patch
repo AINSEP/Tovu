@@ -1,0 +1,81 @@
+--- a/agents/software-architect/skills.md
++++ b/agents/software-architect/skills.md
+@@ -1,6 +1,6 @@
+ # Software Architect Agent
+-- Version: 2.3.1
+-- Last Updated: 2026-10-07
++- Version: 2.3.2
++- Last Updated: 2026-11-05
+ 
+ ## Base Skills
+ 
+@@ -11,6 +11,7 @@
+ - `<AI_DEV_SHOP_ROOT>/skills/design-patterns/SKILL.md` — pattern selection decision guide, 19+ pattern reference files (TypeScript examples, tradeoffs, failure modes), common pattern combinations; load specific pattern files from references/ as needed
+ - `<AI_DEV_SHOP_ROOT>/skills/coding-foundations/SKILL.md` — tiny shared parent for explicit dependencies, decision/effect separation, mutation-by-exception, stable contracts, fail-fast defaults, and small readable units
+ - `<AI_DEV_SHOP_ROOT>/skills/implementation-guardrails/SKILL.md` — child layer for complexity/scaling defaults, query-shape awareness, and maintainability guardrails that downstream implementers should inherit
++- `<AI_DEV_SHOP_ROOT>/skills/memory-performance-discipline/SKILL.md` — recurring work, retention, lifecycle, and resource-budget checks; load its Electron reference only for desktop work and its evidence reference only when checking a lesson's basis
+ - `<AI_DEV_SHOP_ROOT>/skills/testable-design-patterns/SKILL.md` — child layer with stricter modular/composable/testable-unit rules used to define downstream implementation constraints
+ 
+ ## Conditional Skills
+@@ -81,6 +82,7 @@
+ Use `<AI_DEV_SHOP_ROOT>/skills/design-patterns/SKILL.md` and `references/README.md` as the canonical catalog. Load only the pattern files that are viable for the current system drivers.
+ 
+ ## Output Format
++- Propose bounds and validation using the canonical Cost output contract. See `<AI_DEV_SHOP_ROOT>/skills/memory-performance-discipline/SKILL.md#cost-output`; use its documentation-only N/A line where appropriate.
+ - Research artifact path (if produced), or "No research required — no technology choices in spec"
+ - Constitution Check result: all articles COMPLIES / EXCEPTION / N/A, with justified exceptions listed
+ - ADR file path and metadata
+--- a/agents/programmer/skills.md
++++ b/agents/programmer/skills.md
+@@ -1,6 +1,6 @@
+ # Programmer Agent
+-- Version: 1.7.4
+-- Last Updated: 2026-10-07
++- Version: 1.7.5
++- Last Updated: 2026-11-05
+ 
+ ## Base Skills
+ Base skills are the default standing context for every Programmer task.
+@@ -10,6 +10,7 @@
+ - `<AI_DEV_SHOP_ROOT>/skills/architecture-decisions/SKILL.md` — boundaries and contracts to stay within
+ - `<AI_DEV_SHOP_ROOT>/skills/coding-foundations/SKILL.md` — tiny shared parent for explicit dependencies, decision/effect separation, mutation-by-exception, stable contracts, fail-fast defaults, and small readable units
+ - `<AI_DEV_SHOP_ROOT>/skills/implementation-guardrails/SKILL.md` — child layer for complexity/scaling awareness, selective complexity notes, query-shape awareness, one-source-of-truth rules, and other implementation-style guardrails
++- `<AI_DEV_SHOP_ROOT>/skills/memory-performance-discipline/SKILL.md` — recurring work, retention, lifecycle, and resource-budget checks; load its Electron reference only for desktop work and its evidence reference only when checking a lesson's basis
+ - `<AI_DEV_SHOP_ROOT>/skills/testable-design-patterns/SKILL.md` — child layer on top of coding-foundations with stricter modular/composable/testable-unit constraints
+ - `<AI_DEV_SHOP_ROOT>/harness-engineering/quality/coverage-integrity-policy.md` — canonical anti-metric-gaming rule for coverage scope, production behavior, real seams, and narrow approved exceptions
+ - `<AI_DEV_SHOP_ROOT>/skills/function-quality-assessment/SKILL.md` — shared low-level per-function assessment procedure for severity-graded findings, dispositions, complexity notes, fix-before-handoff behavior, and pass/advisory/block routing. There is no numeric quality score
+@@ -119,6 +120,7 @@
+ 12. Report what was implemented, what remains, and known risks.
+ 
+ ## Output Format
++- Report implemented recurring work and retention using the canonical Cost output contract. See `<AI_DEV_SHOP_ROOT>/skills/memory-performance-discipline/SKILL.md#cost-output`; use its documentation-only N/A line where appropriate.
+ - Files changed and behavior delivered (mapped to spec requirements)
+ - Reuse line(s) when required by implementation-guardrails Output Expectations
+ - Test results summary (pass/fail counts, failing test names if any, and coverage metrics when a local coverage command is available)
+--- a/agents/code-inspection/skills.md
++++ b/agents/code-inspection/skills.md
+@@ -1,6 +1,6 @@
+ # Code Inspection Agent
+-- Version: 1.4.1
+-- Last Updated: 2026-10-07
++- Version: 1.4.2
++- Last Updated: 2026-11-05
+ 
+ ## Skills
+ - `<AI_DEV_SHOP_ROOT>/skills/general-behavior/SKILL.md` — universal cross-cutting dispatcher every agent carries; on any codebase search/understanding need, load its referenced behavior before searching (routes rg vs graph analyzers, rg as fallback)
+@@ -20,6 +20,7 @@
+ - `<AI_DEV_SHOP_ROOT>/skills/coding-foundations/SKILL.md` — tiny shared parent for explicit dependencies, decision/effect separation, mutation-by-exception, stable contracts, fail-fast defaults, and small readable units
+ - `<AI_DEV_SHOP_ROOT>/skills/hexagonal-architecture/SKILL.md` — load for the dependency-injection question in Dimension 4 when the diff touches a unit that reaches for a clock, randomness, config, network, database, filesystem, or a global singleton. Owns the DI guidance; the review question is in `skills/code-inspection/SKILL.md` and must cite this rather than restate it. A DI container is never the standard — explicit parameter injection satisfies it
+ - `<AI_DEV_SHOP_ROOT>/skills/implementation-guardrails/SKILL.md` — child layer for complexity-sensitive paths, query-shape awareness, and other implementation-style guardrails
++- `<AI_DEV_SHOP_ROOT>/skills/memory-performance-discipline/SKILL.md` — recurring work, retention, lifecycle, and resource-budget checks; load its Electron reference only for desktop work and its evidence reference only when checking a lesson's basis
+ - `<AI_DEV_SHOP_ROOT>/skills/testable-design-patterns/SKILL.md` — coverage-friendly design rules and anti-pattern bans; required for Dimension 3 (Test Quality) — identifying coverage-killing structural violations in any module containing decision logic, data transformation, or side effects
+ - `<AI_DEV_SHOP_ROOT>/skills/function-quality-assessment/SKILL.md` — validates severity-graded findings, dispositions, complexity notes, and pass/advisory/block routing for new or materially changed logic-bearing functions. No numeric quality score exists; mechanical findings carry fixed severities that must not be downgraded
+ - `<AI_DEV_SHOP_ROOT>/skills/spec-writing/SKILL.md` — spec anatomy: AC format, invariants, edge cases, scope boundaries; required for Dimension 1 (Spec Alignment) — mapping each AC, invariant, and edge case to its implementation path
+@@ -181,6 +182,7 @@
+ Write findings to `<ADS_MEMORY_ROOT>/reports/code-inspection/CR-<feature-id>-<YYYY-MM-DD>.md`.
+ 
+ Report contents:
++- Verify actual work, bounds, and evidence using the canonical Cost output contract. See `<AI_DEV_SHOP_ROOT>/skills/memory-performance-discipline/SKILL.md#cost-output`; use its documentation-only N/A line where appropriate.
+ - Findings ordered by severity (Required first, then Recommended)
+ - File-level references with line numbers
+ - Required fixes clearly separated from optional improvements
