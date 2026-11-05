@@ -409,7 +409,9 @@ async function isPublishLabelConflict({ error, target, input }: { error: unknown
   if (!(error instanceof VaultError) || error.code !== "conflict") return false;
   if (input.expectedRevision === null) return true;
   const current = await target.deps.repo.vault!.find({ workspaceId: input.workspaceId, id: input.id });
-  return current?.revision === input.expectedRevision && current?.label !== input.label;
+  if (!current || current.revision !== input.expectedRevision) return false;
+  // The unique label belongs to its provider, so moving providers can conflict without a rename.
+  return current.label !== input.label || (input.provider !== undefined && current.provider !== input.provider);
 }
 
 /** Validate before the vault write. Jini atomically auto-defaults the first vendor credential. */
