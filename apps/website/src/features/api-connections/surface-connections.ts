@@ -146,7 +146,10 @@ export function createSurfaceConnections(
     },
     async begin({ connectionId, action }, optional = {}) {
       const { connection, actorId } = await forActor(connectionId);
-      const start = await startApiConnectionSignIn({ host, connection, actorId, intent: ADMIN_SURFACE_ACTION_INTENTS[action], scopeSetIds: optional.scopeSetIds ?? [] }, {
+      const shared = host.sharedOAuth && await host.sharedOAuth.hasBinding(connection);
+      if (shared && ADMIN_SURFACE_ACTION_INTENTS[action] === "switch-account") throw notAvailable();
+      const start = await startApiConnectionSignIn({ host, connection, actorId, intent: ADMIN_SURFACE_ACTION_INTENTS[action], scopeSetIds: optional.scopeSetIds ?? [],
+        ...(shared ? { destination: "shared" as const } : {}) }, {
         ...(optional.startParams === undefined ? {} : { startParams: optional.startParams }),
       });
       const issued = { authorizationUrl: start.authorizationUrl, attemptId: start.attemptId, expiresAt: start.expiresAt };

@@ -2,8 +2,9 @@ import { createHash } from 'node:crypto';
 import type { Clock } from '@jini-ai/core/primitives';
 import { ApiConnectionError, type ApiConnectionClientKind, type ApiConnectionDescriptor, type SharedOAuthConnection } from '@jini-ai/integrations/api-connections';
 import type { OAuthClient } from '@jini-ai/oauth';
+import type { KeyringPort, SecretSealerPort } from '@jini-ai/platform/secrets';
+import type { VaultRepoPort } from '@jini-ai/platform/secrets/credential-sets';
 import type { SecretsVaultService, VaultMeta } from '@jini-ai/platform/secrets/credential-sets';
-import type { ProjectVaultScope } from '../../server/runtime/composition/project-store.js';
 import { apiConnectionVaultScope, createApiConnectionVault, createApiConnectionVaultRecordStore, createApiConnectionVaultTokenStore, PLUGIN_STATE_FORMAT } from './vault-stores.js';
 
 /** Issuing configuration is sealed in the owner store; a consuming site's client cannot replace it. */
@@ -15,8 +16,18 @@ export interface SharedOAuthIssuingContext {
   readonly descriptor: ApiConnectionDescriptor;
 }
 
+export interface SharedOAuthOwnerScope { readonly workspaceId: string; readonly repo: VaultRepoPort; readonly keyring: KeyringPort; readonly sealer: SecretSealerPort }
+
 const contextId = (credentialId: string) => `plugin-state:tovu-shared-oauth:${createHash('sha256').update(credentialId).digest('hex')}`;
 const unavailable = () => new ApiConnectionError({ code: 'connection-not-found', message: 'This saved connection is no longer available. Choose a saved connection again or sign in.' });
+
+/** Refuse an issuing context whose declared identity and sealed client disagree. */
+function assertIssuingContext(context: SharedOAuthIssuingContext): void {
+  if (!context.identity || !context.client || !context.descriptor) throw unavailable();
+  if (context.client.clientId !== context.identity.clientId || context.descriptor.tokenEndpoint !== context.identity.tokenEndpoint) throw unavailable();
+  if (context.identity.authorizationEndpoint !== undefined && context.identity.authorizationEndpoint !== context.descriptor.authorizationEndpoint) throw unavailable();
+  if (context.descriptor.pluginId !== context.identity.pluginId || context.descriptor.connectionId !== context.identity.connectionId) throw unavailable();
+}
 
 /** Opens one sealed issuing context, refusing a copied context or mismatched issuing client.
  * @complexity One selected owner-vault read; no inventory or polling.
@@ -25,16 +36,15 @@ export async function readSharedOAuthContext(required: { vault: SecretsVaultServ
   const found = await required.vault.get({ ...apiConnectionVaultScope({ workspaceId: 'project' }), id: contextId(required.credentialId) });
   if (!found) return null;
   const context = found.payload?.value as unknown as SharedOAuthIssuingContext | undefined;
-  if (!context || context.credentialId !== required.credentialId || !context.identity || !context.client || !context.descriptor) throw unavailable();
-  if (context.client.clientId !== context.identity.clientId || context.descriptor.tokenEndpoint !== context.identity.tokenEndpoint
-    || context.descriptor.pluginId !== context.identity.pluginId || context.descriptor.connectionId !== context.identity.connectionId) throw unavailable();
+  if (!context || context.credentialId !== required.credentialId) throw unavailable();
+  assertIssuingContext(context);
   return context;
 }
 
 /** Reuses owner records, vault sealing and durable token leases. Sites receive only access tokens.
  * @complexity O(1) construction; every operation reads/writes selected rows only.
  */
-export function createSharedOAuthOwnerStorage(required: { scope: ProjectVaultScope; clock: Clock }, _optional = {}) {
+export function createSharedOAuthOwnerStorage(required: { scope: SharedOAuthOwnerScope; clock: Clock }, _optional = {}) {
   const { scope, clock } = required;
   if (scope.workspaceId !== 'project') throw unavailable();
   const vault = createApiConnectionVault({ ...scope, clock });

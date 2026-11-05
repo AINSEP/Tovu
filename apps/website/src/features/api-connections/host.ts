@@ -142,6 +142,11 @@ function notConfigured(connection: DeclaredApiConnection, runtime: ApiConnection
   return setupRefused(`${connection.descriptor.label} is not set up on this ${runtime === "desktop" ? "desktop app" : "site"}: its ${what} is not configured. Ask the operator to configure it, then retry.`);
 }
 
+/** Status projection shared by local records and token-free owner connection metadata. */
+function connectionStatus({ connectionRef, record }: { connectionRef: string; record: Pick<ApiConnectionRecord, "status" | "grantedScopes"> | null }) {
+  return { connectionRef, status: record?.status ?? "disconnected", grantedScopes: record?.grantedScopes ?? [] };
+}
+
 /**
  * Builds the workspace host. Declarations are read fresh per call, so enabling or disabling a
  * plugin takes effect without a restart (Node caches each hooks module per file URL).
@@ -320,8 +325,7 @@ export function createApiConnectionHost(
       if (sharedOAuth) {
         const connection = await declaredFor(target);
         if (connection && await sharedOAuth.hasBinding(connection)) {
-          const shared = await sharedOAuth.getStatus(connection);
-          return shared?.status === "connected" ? shared.account : null;
+          return sharedOAuth.readAccount(connection);
         }
       }
       const record = await readHonestRecord({ key: target.connectionRef });
@@ -339,14 +343,14 @@ export function createApiConnectionHost(
   }
 
   /** Token-free status straight from the record; a connection never created reads as disconnected. @complexity One read. */
-  async function statusOf({ connection }: { readonly connection: DeclaredApiConnection }) {
+  async function statusOf({ connection, local = false }: { readonly connection: DeclaredApiConnection; readonly local?: boolean }) {
     const key = deriveApiConnectionKey({ workspaceId: required.workspaceId, pluginId: connection.pluginId, connectionId: connection.descriptor.connectionId });
-    if (sharedOAuth && await sharedOAuth.hasBinding(connection)) {
+    if (!local && sharedOAuth && await sharedOAuth.hasBinding(connection)) {
       const shared = await sharedOAuth.getStatus(connection);
-      return { connectionRef: key, status: shared?.status ?? "disconnected", grantedScopes: shared?.grantedScopes ?? [] };
+      return connectionStatus({ connectionRef: key, record: shared });
     }
     const record = await readHonestRecord({ key });
-    return { connectionRef: key, status: record?.status ?? "disconnected", grantedScopes: record?.grantedScopes ?? [] } as const;
+    return connectionStatus({ connectionRef: key, record });
   }
 
   const sharedOAuth = optional.shared && required.runtime === "desktop" ? createSharedApiConnections({ ...optional.shared,
@@ -362,12 +366,17 @@ export function createApiConnectionHost(
 
   async function prepareSignIn(input: { connection: DeclaredApiConnection; actorId: string; destination?: "site" | "shared"; redirectUri?: string }) {
     const { connection } = input;
-    if (input.destination !== "shared") return { service: serviceFor(input), workspaceId: required.workspaceId, onCompleted: async () => {} };
+    if (input.destination !== "shared") return { service: serviceFor(input), workspaceId: required.workspaceId, onCompleted: async () => {
+      if (input.destination === "site") await sharedOAuth?.selectLocal(connection);
+    } };
     if (!sharedOAuth) throw notAvailable();
-    const { client, clientKind } = clientFor(connection);
     const credentialId = deriveApiConnectionKey({ workspaceId: "project", pluginId: connection.pluginId, connectionId: connection.descriptor.connectionId });
-    return sharedOAuth.prepare({ ...input, context: { credentialId, client, clientKind, descriptor: connection.descriptor,
-      identity: { pluginId: connection.pluginId, connectionId: connection.descriptor.connectionId, tokenEndpoint: connection.descriptor.tokenEndpoint, authorizationEndpoint: connection.descriptor.authorizationEndpoint, clientId: client.clientId } } });
+    const existing = await optional.shared!.storage.readContext({ credentialId });
+    if (existing) return sharedOAuth.prepare({ ...input, context: existing });
+    const { client, clientKind } = clientFor(connection);
+    const context = { credentialId, client, clientKind, descriptor: connection.descriptor,
+      identity: { pluginId: connection.pluginId, connectionId: connection.descriptor.connectionId, tokenEndpoint: connection.descriptor.tokenEndpoint, authorizationEndpoint: connection.descriptor.authorizationEndpoint, clientId: client.clientId } };
+    return sharedOAuth.prepare({ ...input, context });
   }
 
   const startLoopback = optional.startLoopback ?? startLoopbackAuthorizationReceiver;

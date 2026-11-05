@@ -228,10 +228,13 @@ export async function runApiConnectionConnect(
   const { connection } = required;
   // Chat connects the plugin's base scopes; products add theirs from the plugin's own panel.
   const scopeSetIds: readonly string[] = [];
-  const status = await host.statusOf({ connection });
+  const status = await host.statusOf({ connection, local: required.destination === "site" });
   const { connectionRef } = status;
   const wanted = await host.requestedScopes({ connection, scopeSetIds });
-  if (required.destination !== "shared" && status.status === "connected" && wanted.every((scope) => status.grantedScopes.includes(scope))) return { status: "connected", connectionRef };
+  if (required.destination !== "shared" && status.status === "connected" && wanted.every((scope) => status.grantedScopes.includes(scope))) {
+    if (required.destination === "site") await host.sharedOAuth?.selectLocal(connection);
+    return { status: "connected", connectionRef };
+  }
   const connected = host.runtime === "desktop" ? await connectDesktop(required, scopeSetIds) : await connectHosted(required, scopeSetIds);
   return { status: connected ? "connected" : "waiting-for-sign-in", connectionRef };
 }
