@@ -33,11 +33,11 @@ export const COMMERCE_CATALOG_STATEMENTS = [
     site_id text NOT NULL, provider_id text NOT NULL, provider_account_id text NOT NULL,
     mode text NOT NULL CHECK (mode IN ('test','live')), amount_minor bigint NOT NULL, currency text NOT NULL,
     payment_id text, created_at text NOT NULL, PRIMARY KEY (workspace_id, order_id), UNIQUE(workspace_id, mode, payment_id))`,
-  "CREATE INDEX idx_commerce_products_workspace ON commerce_products (workspace_id, status)",
-  "CREATE INDEX idx_commerce_prices_product ON commerce_prices (workspace_id, product_id)",
-  "CREATE INDEX idx_commerce_images_product ON commerce_product_images (workspace_id, product_id, position)",
-  "CREATE INDEX idx_commerce_orders_member ON commerce_orders (workspace_id, member_id, created_at)",
-  "CREATE INDEX idx_commerce_order_items_order ON commerce_order_items (workspace_id, order_id)",
+  "CREATE INDEX idx_commerce_catalog_products_workspace ON commerce_products (workspace_id, status)",
+  "CREATE INDEX idx_commerce_catalog_prices_product ON commerce_prices (workspace_id, product_id)",
+  "CREATE INDEX idx_commerce_catalog_images_product ON commerce_product_images (workspace_id, product_id, position)",
+  "CREATE INDEX idx_commerce_catalog_orders_member ON commerce_orders (workspace_id, member_id, created_at)",
+  "CREATE INDEX idx_commerce_catalog_order_items_order ON commerce_order_items (workspace_id, order_id)",
 ] as const;
 
 /** Create only the catalog contract when its plugin activates; the runner owns locking/rollback.

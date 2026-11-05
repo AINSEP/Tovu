@@ -9,7 +9,7 @@ import type { CommerceDatabase } from "@jini-ai/commerce/repo";
 import { openMemorySqliteKernel } from "../../kernel/drivers/sqlite.js";
 import { openPgliteKernel } from "../../kernel/drivers/pglite.js";
 import { listTables } from "../../kernel/dialect.js";
-import { COMMERCE_MIGRATIONS, migrateCommerceDatabase } from "../index.js";
+import { COMMERCE_MIGRATIONS, CONTENT_MIGRATIONS, migrateCommerceDatabase } from "../index.js";
 
 const AT = "2026-11-05T19:00:00.000Z";
 const TABLES = ["commerce_order_items", "commerce_order_payments", "commerce_orders", "commerce_price_provider_refs",
@@ -21,10 +21,16 @@ for (const dialect of ["sqlite", "pglite"] as const) {
     t.after(() => kernel.close());
     await kernel.execute(sql`CREATE TABLE p_store__products (id text PRIMARY KEY, name text NOT NULL)`);
     await kernel.execute(sql`INSERT INTO p_store__products VALUES ('historical', 'Do not import')`);
-    await kernel.execute(sql`CREATE TABLE _archive_0011_commerce_products (id text PRIMARY KEY)`);
-    await kernel.execute(sql`INSERT INTO _archive_0011_commerce_products VALUES ('archived')`);
+    await kernel.execute(sql`CREATE TABLE commerce_products (id text PRIMARY KEY)`);
+    await kernel.execute(sql`INSERT INTO commerce_products VALUES ('archived')`);
+    await kernel.execute(sql`ALTER TABLE commerce_products RENAME TO _archive_0011_commerce_products`);
+    // Archive renames retain historical index identities; activation must coexist with them.
+    await kernel.execute(sql`CREATE INDEX idx_commerce_prices_product ON _archive_0011_commerce_products(id)`);
+    await kernel.execute(sql`CREATE INDEX idx_commerce_order_items_order ON _archive_0011_commerce_products(id)`);
     assert.deepEqual((await listTables(kernel)).filter(table => table.startsWith("commerce_")), []);
-    assert.deepEqual((await migrateCommerceDatabase({ kernel })).applied, COMMERCE_MIGRATIONS.map(step => step.id));
+    assert.ok(CONTENT_MIGRATIONS.every(step => !COMMERCE_MIGRATIONS.includes(step)), "ordinary CMS boot must not activate commerce");
+    const activations = await Promise.all([migrateCommerceDatabase({ kernel }), migrateCommerceDatabase({ kernel })]);
+    assert.deepEqual(activations.flatMap(report => report.applied), COMMERCE_MIGRATIONS.map(step => step.id));
     assert.deepEqual((await listTables(kernel)).filter(table => table.startsWith("commerce_")).sort(), TABLES);
     assert.deepEqual(await kernel.query(sql`SELECT * FROM commerce_products`), []);
     assert.deepEqual(await kernel.query(sql`SELECT * FROM p_store__products`), [{ id: "historical", name: "Do not import" }]);
