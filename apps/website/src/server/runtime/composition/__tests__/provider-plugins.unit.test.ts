@@ -89,19 +89,21 @@ const quiet = () => {};
 
 test('removing a shared config retires delivery before shutdown and regrant creates a live client', async () => {
   const delivered: string[] = [];
+  const admitted: string[] = [];
   const signals: AbortSignal[] = [];
   const { runtime } = fakeRuntime({ installed: ['analytics-posthog'], factories: {
     'analytics-posthog': { contract: 'product_analytics', id: 'posthog', factory: (_input, options = {}) => {
       const signal = options.signal as AbortSignal;
       signals.push(signal);
       const queued: string[] = [];
-      return { port: { capture: ({ name }: ProductEvent) => { queued.push(name); }, identify() {} },
+      return { port: { capture: ({ name }: ProductEvent) => { queued.push(name); admitted.push(name); }, identify() {} },
         dispose: () => { if (!signal?.aborted) delivered.push(...queued); } };
     } },
   } });
   const configs = { ...CONFIGS };
   const shared = await bootProviderPlugins({ runtime, config: configOf(configs), serviceName: 'tovu', site: SITE, ...consentAlways }, { warn: quiet });
-  shared.tracker.capture({ name: 'revoked-queue', userId: 'site:fixture' });
+  shared.tracker.capture({ name: 'revoked_queue', userId: 'site:fixture' });
+  assert.equal(admitted.includes('revoked_queue'), true);
   delete configs['analytics-posthog'];
   assert.equal(await shared.reapply({ pluginId: 'analytics-posthog' }), 'now');
   assert.equal(signals[0]?.aborted, true);

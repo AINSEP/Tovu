@@ -305,7 +305,7 @@ export async function bootProviderPlugins(required: BootProviderPluginsRequired,
   const timeoutMs = optional.initializeTimeoutMs ?? 10_000;
   const slots: ProviderSlot[] = (await required.runtime.listProviderPlugins({})).flatMap(({ pluginId, providers }) =>
     providers.filter(declaration => KNOWN_CONTRACTS.has(declaration.contract)).map(declaration => ({ pluginId,
-        contract: declaration.contract as ProviderContract, id: declaration.id, declaration, retirement: new AbortController() })));
+      contract: declaration.contract as ProviderContract, id: declaration.id, declaration, retirement: new AbortController() })));
   const loaded = new Set<string>();
   const host = createPluginProviderHost({ contributions: required.runtime.providerContributions, contracts: PROVIDER_CONTRACTS }, {
     initializeTimeoutMs: timeoutMs,
