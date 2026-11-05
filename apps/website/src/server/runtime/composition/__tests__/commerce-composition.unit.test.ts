@@ -120,6 +120,10 @@ test('activated SQL checkout binds original merchant scope, blocks foreign membe
   const at = new Date(clock.nowMs()).toISOString();
   await commerceProductRepoFor({ kernel }).save({ id: 'product', workspaceId: 'workspace', name: 'Book', slug: 'book', kind: 'one_time', status: 'active', createdAt: at, updatedAt: at, version: 1 });
   await commercePriceRepoFor({ kernel }).save({ id: 'price', workspaceId: 'workspace', productId: 'product', unitAmount: { minorUnits: 1200, currency: 'JPY' }, status: 'active', createdAt: at, version: 1 });
+  const blockedOrder = await runtime.commerce.createOrder({ memberId: 'buyer', priceId: 'price' });
+  const ledger = (await import('@jini-ai/commerce/payments/ledger/sql')).sqlPaymentsLedger({ kernel });
+  await ledger.transaction({ fn: tx => tx.enqueueOutbox({ message: { id: 'blocked-first', workspaceId: 'workspace', mode: 'test',
+    topic: 'payment.succeeded', aggregateId: 'missing-association', payloadJson: JSON.stringify({ reference: blockedOrder.order.id }), createdAt: 0 } }) });
   const checkout = await runtime.commerce.createOrder({ memberId: 'buyer', priceId: 'price' });
   await assert.rejects(runtime.commerce.pay({ memberId: 'foreign-member', orderId: checkout.order.id })); assert.equal(creates, 0);
   const paid = await runtime.commerce.pay({ memberId: 'buyer', orderId: checkout.order.id });
@@ -134,7 +138,13 @@ test('activated SQL checkout binds original merchant scope, blocks foreign membe
   assert.equal(creates, 1);
   // Drain the already-paid outbox, then restart idle/off with no pending work.
   await write({ providerId: 'lipay', accountId: 'merchant-original', mode: 'test', publicOrigin: 'https://shop.example' });
+  // Model a process restart after ledger success, before durable order projection.
+  await kernel.execute(sql`UPDATE commerce_orders SET status='pending',version=1 WHERE id=${checkout.order.id}`);
   await runtime.close(); runtime = composeCommerce({ ...ports, workerOwner: true }); await runtime.close();
+  assert.equal((await runtime.commerce.readOrder({ memberId: 'buyer', orderId: checkout.order.id })).order.status, 'paid',
+    'a blocked first message must not prevent the later valid payment from settling');
+  assert.deepEqual(await ledger.transaction({ fn: tx => tx.listPendingOutbox({ limit: 10 }) }), []);
+
   runtime = composeCommerce({ ...ports, workerOwner: true });
   await eventually(async () => runtime!.commerce.resolveReceiver() !== null);
   await eventually(async () => { try { await access(path.join(directory, 'commerce-worker.lock')); return false; } catch { return true; } });

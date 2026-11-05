@@ -112,8 +112,8 @@ export function composeCommerce(required: ComposeCommerceRequired, optional: { w
   const inbox = createInboxWorker(sharedDeps, { alerts });
   const projector = createOrderPaymentProjector({ deps: settle });
   const relay = createOutboxRelay({ ledger, now: sharedDeps.now, publish: { publish: async ({ message }) => {
-    const outcome = await projector.handle({ message });
-    if (outcome === 'blocked' || outcome === 'not_succeeded') throw new Error('Order projection remains unresolved.');
+    // Domain mismatches have raised their alert; only thrown storage/alert faults redeliver.
+    await projector.handle({ message });
   } } });
   const operator = createPaymentsOperator(sharedDeps, { alerts });
   let lastReconcile = 0;
