@@ -1147,7 +1147,7 @@ export function useAgentPageBridge(
     registerAdminWebMcpTool(executors, webMcpController.signal);
     const requestPageAction = createFrontendRequestCaller({
       path: "/api/frontend-sessions/request", fetch,
-      bindToken: () => agentBridge.bindToken(), onSurface: publishAdminPageSurface,
+      bindToken: () => agentBridge.bindToken(), onSurface: emission => publishAdminPageSurface({ emission }),
     }, { headers: () => ({ "x-frontend-tab-id": adminFrontendTabId }) });
     registerAdminPageWebMcpTools({ driver: pageDriver, signal: webMcpController.signal }, {
       requestPageAction: async (request) => {

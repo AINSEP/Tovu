@@ -1882,6 +1882,7 @@ export function useRunContext(
     readScreenContext?: () => AgentScreenContext | undefined;
   },
 ): () => {
+  frontendTabId: string;
   frontendBindToken?: string;
   model?: string;
   reasoning?: string;

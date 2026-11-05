@@ -56,14 +56,14 @@ export function registerAdminPageWebMcpTools(
       capability: { ...definition, requiresConfirmation: false },
       execute: async ({ id, args }) => {
         assertOpen();
-        const frozenArgs = structuredClone(args);
+        const capturedArgs = structuredClone(args);
         const execute = async () => {
           assertOpen();
-          return executePageCapability({ driver, capabilityId: id, input: frozenArgs });
+          return executePageCapability({ driver, capabilityId: id, input: capturedArgs });
         };
-        if (directPageAction({ capabilityId: id, input: frozenArgs })) return execute();
+        if (directPageAction({ capabilityId: id, input: capturedArgs })) return execute();
         if (!requestPageAction) throw new Error("This page action requires an authenticated chat confirmation channel");
-        const result = await requestPageAction({ capabilityId: id, input: frozenArgs, signal });
+        const result = await requestPageAction({ capabilityId: id, input: capturedArgs, signal });
         assertOpen();
         return result;
       },

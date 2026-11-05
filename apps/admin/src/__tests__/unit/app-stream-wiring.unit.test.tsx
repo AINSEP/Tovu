@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 import { useAdminSession, useAgentPageBridge } from "../../App.hooks";
-import { openTabEventSource } from "../../lib/tab-event-source";
+import { adminFrontendTabId } from "../../lib/admin-frontend-session";
 import type { FrontendSessionBridge, createFrontendSessionBridge } from "@jini-ai/chat/react";
 
 /** sseshare: the app passes identity and the visibility-managed page-stream adapter via DI. */
@@ -32,7 +32,10 @@ it("scopes shared settings to the current principal and disposes on logout", asy
 
 it("uses the tab-stream adapter in the bridge's openStream port", () => {
   let openStream: Parameters<typeof createFrontendSessionBridge>[0]["openStream"] | undefined;
+  let headers: Parameters<typeof createFrontendSessionBridge>[0]["headers"];
   let closed = false;
+  const stream = Object.assign(new EventTarget(), { close() {} }) as unknown as EventSource;
+  const openTabStream = vi.fn(() => stream);
   const bridge: FrontendSessionBridge = {
     ready: Promise.resolve({ sessionId: "a", bindToken: "b" }), bindToken: () => "b",
     rebind: async () => ({ sessionId: "a", bindToken: "b" }),
@@ -41,11 +44,14 @@ it("uses the tab-stream adapter in the bridge's openStream port", () => {
   };
   const createBridge: typeof createFrontendSessionBridge = (required) => {
     openStream = required.openStream;
+    headers = required.headers;
     return bridge;
   };
-  const { result, unmount } = renderHook(() => useAgentPageBridge({ createBridge }));
+  const { result, unmount } = renderHook(() => useAgentPageBridge({ createBridge, openStream: openTabStream }));
   act(() => result.current.setContentEl(document.createElement("main")));
-  expect(openStream).toBe(openTabEventSource);
+  expect(openStream!({ url: "/api/frontend-sessions/stream?capability=page.click" })).toBe(stream);
+  expect(openTabStream).toHaveBeenCalledExactlyOnceWith({ url: `/api/frontend-sessions/stream?capability=page.click&tabId=${encodeURIComponent(adminFrontendTabId)}` });
+  expect(headers!()).toEqual({ "x-frontend-tab-id": adminFrontendTabId });
   unmount();
   expect(closed).toBe(true);
 });

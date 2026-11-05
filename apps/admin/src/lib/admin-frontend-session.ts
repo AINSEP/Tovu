@@ -11,7 +11,7 @@ const SURFACE = 'admin-page-confirmation';
  * @complexity O(listeners) delivery, O(1) retained state; no polling or persistence.
  * @overallScore 100
  */
-export function publishAdminPageSurface(emission: SurfaceEmission): void {
+export function publishAdminPageSurface({ emission }: { emission: SurfaceEmission }, _optional = {}): void {
   requestAssistantDock(true);
   surfaces.dispatchEvent(new CustomEvent(SURFACE, { detail: emission }));
 }

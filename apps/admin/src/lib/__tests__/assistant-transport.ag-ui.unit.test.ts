@@ -358,6 +358,18 @@ describe("startAgUiRun — request shape", () => {
     expect(body.agentId).toBeUndefined();
   });
 
+  test("the current browser attachment carries both its token and tab id", async () => {
+    const stream = streamFromChunks([frame({ type: EventType.RUN_FINISHED, threadId: "t", runId: "r" })]);
+    fetchMock = vi.fn(async () => new Response(stream, { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    await agUiRunClient.startAgUiRun({ input: {
+      history: HISTORY, context: { frontendBindToken: "current-token", frontendTabId: "current-tab" },
+      signal: new AbortController().signal,
+    }, handlers: handlers() }, {});
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(JSON.parse(init.body as string).forwardedProps).toEqual({ frontendBindToken: "current-token", frontendTabId: "current-tab" });
+  });
+
   test("a non-ok response throws in @ag-ui/client's own 'HTTP <status>: <body>' format", async () => {
     fetchMock = vi.fn(async () => new Response("agent daemon rejected the run", { status: 502 }));
     vi.stubGlobal("fetch", fetchMock);
