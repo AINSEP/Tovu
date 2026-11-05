@@ -160,22 +160,30 @@ export function createSharedExternalMcpOAuth(required: {
     await owner.tokensFor({ context }).install({ key: record.key, tokens: { ...tokens, scopes: [...grantedScopes] }, generation: next.generation });
     await assertAttempt(serverId, context.credentialId, next.generation);
   }
+  async function connectionOption(credentialId: string, record: ExternalMcpServerRecord | null) {
+    const context = await owner.readContext({ credentialId }) as SharedMcpContext | null;
+    if (!context?.mcp || context.mcp.url !== record?.url) return null;
+    const connection = await owner.readConnection({ credentialId });
+    return connection?.status === 'connected' ? { credentialId, label: context.descriptor.label } : null;
+  }
+  async function currentSelection(input: { serverId: string }) {
+    const current = await bindingFor(input);
+    if (!current) return null;
+    const connection = await owner.readConnection(current);
+    return { ...current, status: connection?.status ?? 'disconnected', granted: await attachments.isAttached({ siteId, keyId: current.credentialId }) };
+  }
   return {
     async list(input: { serverId: string; actorId: string }) {
       await assertOwner(input.actorId);
       const rows = await shared.inventory?.() ?? [];
       const candidates = rows.filter(row => row.meta.credentialFormat === 'oauth-token-set').slice(0, 50);
-      const current = await bindingFor(input);
       const record = await deps.repo.findByServerId({ workspaceId: deps.workspaceId, serverId: input.serverId });
       const connections: { credentialId: string; label: string }[] = [];
       for (const row of candidates) {
-        const context = await owner.readContext({ credentialId: row.id }) as SharedMcpContext | null;
-        if (!context?.mcp || context.mcp.url !== record?.url) continue;
-        const connection = await owner.readConnection({ credentialId: row.id });
-        if (connection?.status === 'connected') connections.push({ credentialId: row.id, label: context.descriptor.label });
+        const option = await connectionOption(row.id, record);
+        if (option) connections.push(option);
       }
-      const status = current ? (await owner.readConnection(current))?.status ?? 'disconnected' : null;
-      return { available: true, connections, current: current ? { ...current, status: status ?? 'disconnected', granted: await attachments.isAttached({ siteId, keyId: current.credentialId }) } : null };
+      return { available: true, connections, current: await currentSelection(input) };
     },
     hasBinding: async (input: { serverId: string }) => (await bindingFor(input)) !== null,
     async getAccessToken(input: { serverId: string }) {
