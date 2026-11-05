@@ -1,14 +1,9 @@
 import { ensureSettingDefinitions, getEffective, SCOPE_BIT, type EnsureSettingDefinitionsDeps, type SettingsRepoPort } from '@jini-ai/core/settings';
 import { commerceCheckoutOrigin } from './commerce-origin.js';
-import type { PaymentMode } from '@jini-ai/commerce/payments/kernel';
 
 /** Public selection only; provider credentials stay in the existing sealed provider settings. */
-export interface CommerceConfiguration {
-  providerId: string;
-  accountId: string;
-  mode: PaymentMode;
-  publicOrigin: string;
-}
+export type { CommerceConfiguration } from '@jini-ai/commerce/repo';
+import type { CommerceConfiguration } from '@jini-ai/commerce/repo';
 
 /** Register one optional selection in the existing settings ledger; no commerce tables are created.
  * @complexity One bounded settings-definition operation. */

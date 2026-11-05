@@ -1,7 +1,6 @@
 import type { ToolRegistration } from '@jini-ai/core';
 import type { AuthorizeFn } from '@jini-ai/cms/core';
 import { buildRegistrations as buildCommerceStatusTools, buildCommerceCatalogRegistrations } from '@jini-ai/commerce/tools';
-import { sql } from 'kysely';
 import { createCommerceWorker } from './commerce-worker.js';
 import { commerceConfigurationKey, readCommerceDrain, selectCommerceDrain } from './commerce-drain.js';
 import { withKernelSessionLock, type StorageKernel } from '@jini-ai/db/kernel';
@@ -83,6 +82,7 @@ export function composeCommerce(required: ComposeCommerceRequired, optional: { w
   let binding: Binding | undefined;
   let closed = false;
   let storageReady = false;
+  let catalogReady = false;
   let configurationProblem: string | null = null;
   let configurationChecked = false;
   let warnedConfiguration: string | null = null;
@@ -92,7 +92,7 @@ export function composeCommerce(required: ComposeCommerceRequired, optional: { w
     warnedConfiguration = problem; warn(problem);
   }
   const ensureSchema = async () => {
-    schema ??= migrateCommerceDatabase({ kernel: required.kernel }).then(() => migrateCommercePayments({ kernel: required.kernel })).then(() => { storageReady = true; });
+    schema ??= migrateCommerceDatabase({ kernel: required.kernel }).then(() => migrateCommercePayments({ kernel: required.kernel })).then(() => { storageReady = true; catalogReady = true; });
     try { await schema; } catch (error) { schema = undefined; throw error; }
   };
   // Inbox application and durable projection need no currently selected merchant configuration.
@@ -176,15 +176,15 @@ export function composeCommerce(required: ComposeCommerceRequired, optional: { w
   const worker = createCommerceWorker({ owner: required.workerOwner, directory: required.workerDirectory, warn,
     active: isActive, hasPending: async () => {
       if (!storageReady) return false;
-      const rows = await required.kernel.query<{ pending: number }>(sql`SELECT 1 AS pending FROM commerce_payments WHERE workspace_id=${required.workspaceId} AND intent_status NOT IN ('succeeded','failed','canceled') LIMIT 1`);
-      if (rows.length > 0) return true;
+      if (await ledger.transaction({ fn: tx => tx.hasOpenPayment({ workspaceId: required.workspaceId }) })) return true;
       return ledger.transaction({ fn: async tx => (await tx.listDueInbox({ now: Number.MAX_SAFE_INTEGER, limit: 1 })).length > 0
         || (await tx.listPendingOutbox({ limit: 1 })).length > 0 });
     }, run: async () => {
-      await ensureSchema();
+      if (await isActive()) await ensureSchema();
+      else await migrateCommercePayments({ kernel: required.kernel });
       await resolve(); // Refresh original-scope drain selection even when there is no provider I/O.
       await inbox.runOnce({ limit: 25 });
-      const projected = await relay.runOnce({ limit: 25 });
+      const projected = catalogReady ? await relay.runOnce({ limit: 25 }) : { stopped: false };
       if (sharedDeps.now() - lastReconcile >= 60_000) {
         lastReconcile = sharedDeps.now();
         for (const mode of ['test', 'live'] as const) await operator.reconcileUnknown({ olderThanMs: 60_000, limit: 10 }, { scope: { workspaceId: required.workspaceId, mode } });
@@ -198,6 +198,7 @@ export function composeCommerce(required: ComposeCommerceRequired, optional: { w
         // One metadata read at boot recovers previously-started work without creating an off catalog.
         const tables = await required.kernel.run(db => db.introspection.getTables());
         storageReady = tables.some(table => table.name === 'commerce_payments');
+        catalogReady = tables.some(table => table.name === 'commerce_products');
         if (storageReady) await migrateCommercePayments({ kernel: required.kernel });
       }
       if (storageReady) { await resolve(); await worker.kick(); }

@@ -27,7 +27,8 @@ export function registerCommerceHttp({ app, deps }: { app: Express; deps: RouteD
     if (req.path !== "/products" && !req.path.startsWith("/products/")) { next(); return; }
     try {
       const status = await deps.commerce!.status();
-      if (!status.active || !status.ready) {
+      if (!status.active) { next(); return; }
+      if (!status.ready) {
         res.status(404).type("html").send("<h1>This shop is not accepting purchases.</h1>"); return;
       }
       products(req, res, next);
