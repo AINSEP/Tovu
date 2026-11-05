@@ -250,7 +250,7 @@ export function buildExternalMcpSaveFormFields(input: ExternalMcpSaveInput, isUp
     { kind: "string", name: "label", label: "Display name", ...fieldValue(input.label) },
     ...(isStdio ? buildStdioTransportFields(input) : [{ kind: "string" as const, name: "url", label: "URL", required: true, ...fieldValue(input.url), placeholder: "https://…" }]),
     { kind: "string", name: "allowedToolNames", label: "Allowed tools", ...fieldValue(input.allowedToolNames),
-      hint: "Comma-separated — nothing runs unless it is listed here." },
+      hint: "Comma-separated. The assistant can call only these tools." },
     { kind: "string", name: "writeAllowedToolNames", label: "May write", ...fieldValue(input.writeAllowedToolNames),
       hint: "Comma-separated, and must also be listed above under Allowed tools — a name here that isn't is rejected on save. Leave blank to grant no write access." },
     ...(isStdio ? [buildEnvField(isUpdate)] : []),
@@ -282,12 +282,14 @@ export function buildExternalMcpSaveForm(input: {
   if (save.authMode === "none") credentials = "None needed";
   return {
     title: isUpdate ? `Update "${save.id}"` : `Add "${save.id}"`,
-    description: isUpdate
+    description: (isUpdate
       ? "The assistant wants to update this external MCP server's configuration. Review and edit anything before saving."
-      : "The assistant wants to add this external MCP server. Review and edit anything before saving.",
+      : "The assistant wants to add this external MCP server. Review and edit anything before saving.") +
+      " Saved for the whole site: every chat and agent can use it, with approvals.",
     details: [
       { label: "Connection type", value: save.transport === "streamable_http" ? "Hosted server (URL)" : "Local command (stdio)" },
       { label: "Credentials", value: credentials },
+      ...(save.transport === "streamable_http" ? [] : [{ label: "Local access", value: `Saving lets chats start ${save.command ?? "the command below"} on this computer as your OS user.` }]),
     ],
     submitLabel: isUpdate ? "Save changes" : "Add server",
     fields: buildExternalMcpSaveFormFields(save, isUpdate),

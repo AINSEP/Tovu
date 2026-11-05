@@ -13,8 +13,9 @@ async function fixture(t: test.TestContext, agentId: AgentSlug = "antigravity") 
     ctx: { home, platform: "linux" as const, serverName: "jini" } };
   const plan = planAgentInstall({ ...required, slug: agentId });
   if (plan.kind !== "json") throw new Error("Expected JSON installer");
-  async function existing(text: string) { await mkdir(dirname(plan.configPath), { recursive: true }); await writeFile(plan.configPath, text, { mode: 0o640 }); await chmod(plan.configPath, 0o640); }
-  return { required, file: plan.configPath, existing };
+  const configPath = plan.configPath;
+  async function existing(text: string) { await mkdir(dirname(configPath), { recursive: true }); await writeFile(configPath, text, { mode: 0o640 }); await chmod(configPath, 0o640); }
+  return { required, file: configPath, existing };
 }
 for (const agentId of ["antigravity", "cursor"] as const) {
   test(`${agentId}: missing config is installed only after explicit consent`, async t => {

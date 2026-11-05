@@ -23,7 +23,7 @@ export async function readAssistantRunToolPolicy(required: AssistantRunToolPolic
   const def = required.getDef({ id: agentId });
   const policy = resolveNativeToolPolicy({ def: def ?? {}, policy: { nativeToolAccess: effective.enabled, nativeCapabilities: effective.capabilities } });
   const lock = runHostLock({ isOwner, env });
-  return { isOwner, def, settings, effective, policy, nativeCapabilities: effective.capabilities, lock, settingsSource };
+  return { isOwner, def, settings, effective, policy, nativeCapabilities: effective.capabilities, lock, settingsSource: settingsSource as "site" | "default" };
 }
 
 /** Lock reason comes from the same local host inputs used by the launch projection. */

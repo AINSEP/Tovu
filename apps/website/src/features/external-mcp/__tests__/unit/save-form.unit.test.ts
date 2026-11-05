@@ -357,7 +357,7 @@ test("static_env explicitly selects token entry and none omits credential fields
     assert.equal((fields.find(field => field.name === "accessTokenEnvName") as { value: string }).value, "API_TOKEN");
   }
   const form = buildExternalMcpSaveForm({ save: { ...BASE_INPUT, authMode: "none" }, isUpdate: false }, {});
-  assert.deepEqual(form.details, [{ label: "Connection type", value: "Local command (stdio)" }, { label: "Credentials", value: "None needed" }]);
+  assert.deepEqual(form.details, [{ label: "Connection type", value: "Local command (stdio)" }, { label: "Credentials", value: "None needed" }, { label: "Local access", value: "Saving lets chats start the command below on this computer as your OS user." }]);
   assert.deepEqual(form.fields.map(field => field.name), ["id", "label", "command", "args", "allowedToolNames", "writeAllowedToolNames", "env"]);
 });
 
@@ -392,9 +392,20 @@ test("common form fields preserve blank prefills, required flags, order and perm
       { kind: "string", name: "label", label: "Display name", value: "" },
     ]);
     assert.deepEqual(fields.filter(field => ["allowedToolNames", "writeAllowedToolNames"].includes(field.name)), [
-      { kind: "string", name: "allowedToolNames", label: "Allowed tools", value: "", hint: "Comma-separated — nothing runs unless it is listed here." },
+      { kind: "string", name: "allowedToolNames", label: "Allowed tools", value: "", hint: "Comma-separated. The assistant can call only these tools." },
       { kind: "string", name: "writeAllowedToolNames", label: "May write", value: "", hint: "Comma-separated, and must also be listed above under Allowed tools — a name here that isn't is rejected on save. Leave blank to grant no write access." },
     ]);
     if (transport === "streamable_http") assert.deepEqual(fields[2], { kind: "string", name: "url", label: "URL", required: true, value: "", placeholder: "https://…" });
   }
+});
+
+
+test("save cards disclose site-wide access, local OS execution and the tool allowlist", () => {
+  const local = buildExternalMcpSaveForm({ save: { ...BASE_INPUT, command: "node" }, isUpdate: false });
+  assert.match(local.description!, /Saved for the whole site: every chat and agent can use it, with approvals/);
+  assert.ok(local.details?.some(detail => detail.value === "Saving lets chats start node on this computer as your OS user."));
+  assert.equal(local.fields.find(field => field.name === "allowedToolNames")?.hint, "Comma-separated. The assistant can call only these tools.");
+  const hosted = buildExternalMcpSaveForm({ save: { ...BASE_INPUT, transport: "streamable_http" }, isUpdate: true });
+  assert.match(hosted.description!, /Saved for the whole site/);
+  assert.equal(hosted.details?.some(detail => detail.label === "Local access"), false);
 });

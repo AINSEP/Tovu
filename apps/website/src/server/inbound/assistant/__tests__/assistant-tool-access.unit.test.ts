@@ -12,6 +12,7 @@ import { toWriteServiceDeps } from '#src/server/inbound/admin-http/routes/settin
 import { allowAssistantRunTools, readAssistantToolConsentSnapshot } from '../assistant-tool-access.js';
 
 type Input = Parameters<typeof allowAssistantRunTools>[0];
+const DEFAULT_PERMISSIONS = { enabled: true, capabilities: { ...assistantCliPermissions({ enabled: true }).capabilities } };
 
 async function fixture() {
   let id = 0; let permit = true;
@@ -63,8 +64,8 @@ for (const scenario of [
 
 test('a cancelled run and a stale card revision leave permissions untouched', async () => {
   const f = await fixture();
-  const first = await f.seed({ ...assistantCliPermissions({ enabled: true }) });
-  const second = await f.seed({ ...assistantCliPermissions({ enabled: true }), futureSiteField: 'newer' });
+  const first = await f.seed({ ...DEFAULT_PERMISSIONS });
+  const second = await f.seed({ ...DEFAULT_PERMISSIONS, futureSiteField: 'newer' });
   assert.equal(await allowAssistantRunTools({ ...f.base, keys: ['userMcp'], expectedRevisionSeq: first.revisionSeq, isLive: () => true }), false);
   assert.equal(await allowAssistantRunTools({ ...f.base, keys: ['userMcp'], expectedRevisionSeq: second.revisionSeq, isLive: () => false }), false);
   assert.equal((await f.layer()).revisionSeq, second.revisionSeq);
@@ -100,7 +101,7 @@ test('terminal completion in the settings writer authorization cannot enable a d
 test('the real addressed-layer CAS returns stale instead of overwriting a concurrent edit', async () => {
   const f = await fixture(); let authorizations = 0;
   f.afterAuthorize(async () => {
-    if (++authorizations === 2) await f.seed({ ...assistantCliPermissions({ enabled: true }), concurrentField: 'keep-newer' });
+    if (++authorizations === 2) await f.seed({ ...DEFAULT_PERMISSIONS, concurrentField: 'keep-newer' });
   });
   assert.equal(await allowAssistantRunTools({ ...f.base, keys: ['userMcp'], expectedRevisionSeq: 0, isLive: () => true }), false);
   assert.equal((await f.layer()).raw.concurrentField, 'keep-newer');
