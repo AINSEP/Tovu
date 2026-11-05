@@ -55,7 +55,7 @@ test("site-backup routes gate, map errors and run the shared plan/push service",
   authorizeThrows = true;
   const broken = await post("/plan", { owner: "o", repo: "r" });
   assert.equal(broken.status, 500);
-  assertAdminResponse({ actual: await broken.json(), expected: { code: "BACKUP_FAILED", message: "Git backup failed. Try again." } });
+  assertAdminResponse({ actual: await broken.json(), expected: { code: "BACKUP_FAILED", message: "Git backup failed. Try again." } }, { failure: {"message":"Git backup failed. Try again.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"site backup preparation"} });
   authorizeThrows = false;
 
   const running = await (await post("/push", { planId: "running-plan" })).json();

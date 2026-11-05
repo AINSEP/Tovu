@@ -141,7 +141,7 @@ test("a failing filter is 422 PLUGIN_HOOK_FAILED with fixed text, never the plug
 
 test("any other failure is a 500 that names no internals", async (t) => {
   const h = await boot(t, { discover: async () => { throw new Error("EACCES /srv/plugins"); } });
-  assertAdminResponse({ actual: await h.post(DRAFT), expected: { status: 500, body: { error: "internal error", code: "INTERNAL_ERROR" } } });
+  assertAdminResponse({ actual: await h.post(DRAFT), expected: { status: 500, body: { error: "internal error", code: "INTERNAL_ERROR" } } }, { failure: {"message":"The plugin operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"plugin operation"} });
 });
 
 // PLUGIN_PREVIEW_STATUS (2026-10-05): the post editor's Content analysis card asks this, not the
@@ -177,5 +177,5 @@ test("GET for another workspace is 404 and for an unknown plugin is 404 PLUGIN_N
 
 test("GET's other failures are a 500 that names no internals", async (t) => {
   const h = await boot(t, { activation: async () => { throw new Error("SQLITE_CANTOPEN /srv/site.db"); } });
-  assertAdminResponse({ actual: await h.get(), expected: { status: 500, body: { error: "internal error", code: "INTERNAL_ERROR" } } });
+  assertAdminResponse({ actual: await h.get(), expected: { status: 500, body: { error: "internal error", code: "INTERNAL_ERROR" } } }, { failure: {"message":"The plugins could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load plugins"} });
 });

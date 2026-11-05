@@ -38,13 +38,17 @@ function expectedIncident(
 ): Record<string, unknown> {
   assert.match(String(received?.errorId), /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
   const field = typeof row.error === "string" ? "error" : "message";
-  const publicText = row[field];
-  const fallback = "The admin request could not finish. Check whether your change was saved, then copy the error ID and report this problem.";
-  const text = publicText === "internal error" ? failure?.message ?? fallback : publicText;
-  const withAction = failure && (failure.includeAction ?? publicText === "internal error") ? `${text} ${failure.action}` : text;
-  const incident = { ...row, code: row.code ?? "INTERNAL_ERROR", errorId: received!.errorId, [field]: `${withAction} (error ${received!.errorId})` };
+  const text = expectedPublicText({ publicText: row[field] as string, failure });
+  const incident = { ...row, code: row.code ?? "INTERNAL_ERROR", errorId: received!.errorId, [field]: `${text} (error ${received!.errorId})` };
   if (!failure || failure.discloseDetails === false) return incident;
   return { ...incident, details: { ...(row.details as Record<string, unknown> | undefined), failure: expectedFailure({ received: received!, failure }) } };
+}
+
+/** Select public copy only from the caller's literal expectation and explicit action policy. */
+function expectedPublicText({ publicText, failure }: { publicText: string; failure?: ExpectedAdminFailure }): string {
+  const fallback = "The admin request could not finish. Check whether your change was saved, then copy the error ID and report this problem.";
+  const text = publicText === "internal error" ? failure?.message ?? fallback : publicText;
+  return failure && (failure.includeAction ?? publicText === "internal error") ? `${text} ${failure.action}` : text;
 }
 
 function expectedFailure({ received, failure }: { received: Record<string, unknown>; failure: ExpectedAdminFailure }) {

@@ -130,7 +130,7 @@ test("trash between a successful lookup and real Pages store access returns not-
 
 test("an unexpected listing failure is a bare 500", async (t) => {
   const broken = await boot(t, { override: { postRepo: { listHtmlByKind: async () => { throw new Error("disk"); } } as never } });
-  assertAdminResponse({ actual: await broken.send("GET", BASE), expected: { status: 500, json: { error: "internal error" } } }, { failure: {"message":"The email template operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"email template operation"} });
+  assertAdminResponse({ actual: await broken.send("GET", BASE), expected: { status: 500, json: { error: "internal error" } } }, { failure: {"message":"The email templates could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load email templates"} });
 });
 
 test("PATCH renames behind pages.edit_html: the title changes, the HTML does not, a stale version is 409", async (t) => {

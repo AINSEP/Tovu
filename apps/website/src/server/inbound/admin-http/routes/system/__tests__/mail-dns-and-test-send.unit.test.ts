@@ -63,7 +63,7 @@ test('mail-dns verification failure is private and does not persist a DNS verdic
   registerAdminMailDnsRoutes(app, { workspaceId: WS, dns });
   assertAdminResponse({ actual: await callRoute(app, 'post', VERIFY_PATH, {}), expected: {
     statusCode: 500, jsonBody: { error: 'internal error', code: 'INTERNAL_ERROR' },
-  } });
+  } }, { failure: {"message":"The system setting operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"system setting operation"} });
   assert.equal(writes, 1);
 });
 
@@ -77,7 +77,7 @@ test("mail-dns: a missing grant is a 403 naming it; another workspace is a 404; 
   const logged = t.mock.method(console, "error", () => {});
   const broken = express();
   registerAdminMailDnsRoutes(broken, { workspaceId: WS, dns: { ...dnsDeps([]), authorize: async () => { throw new Error("authorizer down"); } } });
-  assertAdminResponse({ actual: await callRoute(broken, "get", DNS_PATH, {}), expected: { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } } });
+  assertAdminResponse({ actual: await callRoute(broken, "get", DNS_PATH, {}), expected: { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } } }, { failure: {"message":"The system setting operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"system setting operation"} });
   assertAdminDiagnostics({ calls: logged.mock.calls.map(call => call.arguments), operation: "[routes/system/mail-dns]", diagnostics: [/authorizer down/] });
 });
 
@@ -152,7 +152,7 @@ test("mail-test-send: another workspace is a 404 and an unexpected fault a fixed
   assert.deepEqual(capture, { statusCode: 404, jsonBody: { error: "workspace was not found" } });
   const logged = t.mock.method(console, "error", () => {});
   const broken = sendDeps({ authorize: async () => { throw new Error("authorizer down"); } });
-  assertAdminResponse({ actual: await callRoute(broken.app, "post", SEND_PATH, { body: {} }), expected: { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } } });
+  assertAdminResponse({ actual: await callRoute(broken.app, "post", SEND_PATH, { body: {} }), expected: { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } } }, { failure: {"message":"The system setting operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"system setting operation"} });
   assertAdminDiagnostics({ calls: logged.mock.calls.map(call => call.arguments), operation: "[routes/system/mail-test-send]", diagnostics: [/authorizer down/] });
 });
 

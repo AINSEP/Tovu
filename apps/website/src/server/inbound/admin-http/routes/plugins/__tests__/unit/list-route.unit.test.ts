@@ -110,13 +110,13 @@ test("a principal without admin.plugins.read gets the standard 403 and no invent
 
 test("a route reached without a signed-in principal answers the opaque 500", async (t) => {
   const h = await boot(t, { principal: "none" });
-  assertAdminResponse({ actual: await h.get(), expected: INTERNAL });
+  assertAdminResponse({ actual: await h.get(), expected: INTERNAL }, { failure: {"message":"The plugins could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load plugins","discloseDetails":false} });
   assert.equal(h.discoveries(), 0);
 });
 
 test("a discovery failure answers the opaque 500 without leaking its message", async (t) => {
   const h = await boot(t, { discover: async () => { throw new Error("/private/install/dir unreadable"); } });
-  assertAdminResponse({ actual: await h.get(), expected: INTERNAL });
+  assertAdminResponse({ actual: await h.get(), expected: INTERNAL }, { failure: {"message":"The plugins could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load plugins"} });
 });
 
 test("installSources is empty when the source policy keeps local installs off", async (t) => {

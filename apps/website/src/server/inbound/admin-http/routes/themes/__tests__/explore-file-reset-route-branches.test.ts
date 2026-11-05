@@ -158,7 +158,7 @@ test("a catalog read failure OTHER than ThemePathError, during a per-file reset,
   });
   const body = (await res.json()) as { error?: string; code?: string };
   assert.equal(res.status, 500, `expected a permission-denied catalog read to 500, got ${res.status}: ${JSON.stringify(body)}`);
-  assertAdminResponse({ actual: body, expected: { error: "internal error" } });
+  assertAdminResponse({ actual: body, expected: { error: "internal error" } }, { failure: {"message":"The theme operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"theme operation"} });
   assert.equal(failures, 1);
   assert.equal(fs.readFileSync(liveTarget, "utf8"), before);
 });
@@ -215,7 +215,7 @@ test("a generated-tree restore failure OTHER than ThemePathError propagates to t
   });
   const body = (await res.json()) as { error?: string; code?: string };
   assert.equal(res.status, 500, `expected a permission-denied generated-tree restore to 500, got ${res.status}: ${JSON.stringify(body)}`);
-  assertAdminResponse({ actual: body, expected: { error: "internal error" } });
+  assertAdminResponse({ actual: body, expected: { error: "internal error" } }, { failure: {"message":"The theme operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"theme operation"} });
   assert.equal(failures, 1);
   assert.equal(fs.readFileSync(target, "utf8"), before);
 });

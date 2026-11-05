@@ -82,13 +82,13 @@ for (const route of routes) {
 
   test(`${label}: readiness rejection preserves the fixed 500 without disclosing its message`, async () => {
     const fixture = harness(route, { ready: Promise.reject(new Error("private readiness diagnostic")) });
-    assertAdminResponse({ actual: await fixture.request(), expected: { statusCode: 500, jsonBody: { error: "The settings request could not finish.", code: "INTERNAL_ERROR" } } });
+    assertAdminResponse({ actual: await fixture.request(), expected: { statusCode: 500, jsonBody: { error: "The settings request could not finish.", code: "INTERNAL_ERROR" } } }, { failure: {"message":"The settings request could not finish.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"setting operation"} });
     assert.deepEqual(fixture.calls, []);
   });
 
   test(`${label}: missing session principal remains a fixed 500`, async () => {
     const fixture = harness(route, { principal: false });
-    assertAdminResponse({ actual: await fixture.request(), expected: { statusCode: 500, jsonBody: { error: "The settings request could not finish.", code: "INTERNAL_ERROR" } } });
+    assertAdminResponse({ actual: await fixture.request(), expected: { statusCode: 500, jsonBody: { error: "The settings request could not finish.", code: "INTERNAL_ERROR" } } }, { failure: {"message":"The settings request could not finish.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"setting operation"} });
     assert.deepEqual(fixture.calls, []);
   });
 

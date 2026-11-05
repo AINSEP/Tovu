@@ -76,7 +76,7 @@ test("chart providers: a runtime that failed to become ready is the fixed 500 en
   for (const path of [BASE, `${BASE}/assets/p/1.0.0/sha256-x/index.js`]) {
     const response = await get(path);
     assert.equal(response.status, 500, path);
-    assertAdminResponse({ actual: await response.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+    assertAdminResponse({ actual: await response.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: {"message":"The chart providers could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load chart providers"} });
   }
 });
 
@@ -99,7 +99,7 @@ test("chart providers: a snapshot port that throws is the fixed 500 envelope, no
   const { get } = await boot(t, deps);
   const response = await get(BASE);
   assert.equal(response.status, 500);
-  assertAdminResponse({ actual: await response.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: await response.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: {"message":"The chart providers could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load chart providers"} });
 });
 
 test("chart providers: with no browser-provider port composed, every asset URL is 404", async (t) => {

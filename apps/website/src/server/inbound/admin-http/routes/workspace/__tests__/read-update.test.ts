@@ -51,7 +51,7 @@ test("name-only and slug-only PATCH preserve the other field in storage and subs
 test("unexpected repository failure maps to generic 500 in list, get and update", async () => {
   const invoke = harness({ findById: async () => { throw new Error("private database details"); } });
   for (const [method, path] of [["get", base], ["get", base + "/:workspaceId"], ["patch", base + "/:workspaceId"]] as const) {
-    assertAdminResponse({ actual: await invoke(method, path, { name: "Renamed" }), expected: { statusCode: 500, jsonBody: { error: "internal error" } } });
+    assertAdminResponse({ actual: await invoke(method, path, { name: "Renamed" }), expected: { statusCode: 500, jsonBody: { error: "internal error" } } }, { failure: method === "patch" ? {"message":"The workspace save could not be completed.","action":"Check whether your changes were saved before repeating the save. Copy details and report this problem.","step":"Save workspace"} : {"message":"The workspace operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"workspace operation"} });
   }
 });
 

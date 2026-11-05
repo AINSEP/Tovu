@@ -804,7 +804,7 @@ test("taxonomy routes: rename-term validates 'newName', reports FORBIDDEN and TE
   });
   assert.equal(errorRes.status, 500);
   // 88f429c25: the shared envelope conceals the cause behind an incident id (whole-body equality).
-  assertAdminResponse({ actual: await errorRes.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The taxonomy operation could not be completed.", action: "Check the result before repeating this operation. Copy details and report this problem.", step: "taxonomy operation" } });
+  assertAdminResponse({ actual: await errorRes.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The taxonomy save could not be completed.", action: "Check whether your changes were saved before repeating the save. Copy details and report this problem.", step: "Save taxonomy" } });
 
   deps.termRepo.update = async () => {
     throw "non-error thrown value";
@@ -815,7 +815,7 @@ test("taxonomy routes: rename-term validates 'newName', reports FORBIDDEN and TE
     body: JSON.stringify({ newName: "Brunch" }),
   });
   assert.equal(nonErrorRes.status, 500);
-  assertAdminResponse({ actual: await nonErrorRes.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The taxonomy operation could not be completed.", action: "Check the result before repeating this operation. Copy details and report this problem.", step: "taxonomy operation" } });
+  assertAdminResponse({ actual: await nonErrorRes.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The taxonomy save could not be completed.", action: "Check whether your changes were saved before repeating the save. Copy details and report this problem.", step: "Save taxonomy" } });
 });
 
 /**

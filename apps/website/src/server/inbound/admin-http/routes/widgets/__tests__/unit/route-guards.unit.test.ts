@@ -216,7 +216,7 @@ test("widgets.diagnose refuses a caller without widgets.read 403, and an index f
   const h = harness();
   t.mock.method(h.entryRepo, "findById", async () => { throw new Error("entries table unavailable"); });
   const failed = await h.invoke("get", `${B}/widgets/tools/diagnose/:widgetInstanceId`, { params });
-  assertAdminResponse({ actual: { statusCode: failed.statusCode, jsonBody: failed.jsonBody }, expected: { statusCode: 500, jsonBody: { error: "internal error" } } });
+  assertAdminResponse({ actual: { statusCode: failed.statusCode, jsonBody: failed.jsonBody }, expected: { statusCode: 500, jsonBody: { error: "internal error" } } }, { failure: {"message":"The widget operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"widget operation"} });
   assert.equal(logged.length, 1);
 });
 
@@ -278,6 +278,6 @@ test("a region whose area entry carries a corrupted payload answers the generic 
   const area = await h.entryRepo.findById({ workspaceId: "ws-1", id: binding!.areaEntryId });
   await h.entryRepo.save({ ...area!, fieldsJson: { notExt: true } });
   const result = await h.invoke("get", `${B}/widgets/regions/:regionKey`, { params: { workspaceId: "ws-1", regionKey: "corrupt" } });
-  assertAdminResponse({ actual: { statusCode: result.statusCode, jsonBody: result.jsonBody }, expected: { statusCode: 500, jsonBody: { error: "internal error" } } });
+  assertAdminResponse({ actual: { statusCode: result.statusCode, jsonBody: result.jsonBody }, expected: { statusCode: 500, jsonBody: { error: "internal error" } } }, { failure: {"message":"The widget operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"widget operation"} });
   assert.equal(logged.length, 1);
 });

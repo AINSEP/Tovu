@@ -82,7 +82,7 @@ for (const route of ROUTES) {
     const { res, capture } = createCapturingResponse();
     res.locals.principal = { id: "owner" };
     await handlerFor(route, reject)({ params: { workspaceId: WS }, query: {} }, res);
-    assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } } });
+    assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } } }, { failure: {"message":"The system setting operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"system setting operation"} });
     assertAdminDiagnostics({ calls: logged.mock.calls.map(c => c.arguments), operation: route.logPrefix, diagnostics: [/authorizer exploded at \/private\/var\/tovu.db/] });
   });
 }

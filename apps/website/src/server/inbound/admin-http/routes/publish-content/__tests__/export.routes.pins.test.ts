@@ -33,7 +33,7 @@ test("GET .../export with no principal (requireAdminSession did not run) is the 
   const server = await startTestServer(routeApp(registerPublishContentExportRoute, routeDeps()), t);
   const response = await fetch(`${server}${BASE}/export`, { headers: { "x-principal": "none" } });
   assert.equal(response.status, 500);
-  assertAdminResponse({ actual: await response.json(), expected: { error: "internal error" } });
+  assertAdminResponse({ actual: await response.json(), expected: { error: "internal error" } }, { failure: {"message":"The publishing information could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load publishing information","discloseDetails":false} });
 });
 
 /** A publishing grant that holds `publish_content.read`, the permission the route-level gate asks for. */

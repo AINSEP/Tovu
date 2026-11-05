@@ -141,7 +141,7 @@ test("copy that fails for a reason OTHER than ThemePathError 500s via the route'
     return;
   }
   assert.equal(res.status, 500, `expected a permission-denied copy to 500, got ${res.status}: ${JSON.stringify(body)}`);
-  assertAdminResponse({ actual: body, expected: { error: "internal error" } });
+  assertAdminResponse({ actual: body, expected: { error: "internal error" } }, { failure: {"message":"The theme operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"theme operation"} });
 });
 
 
@@ -171,7 +171,7 @@ test("copy: an injected filesystem failure returns 500 and leaves no destination
       method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ path: "pages/about.html" }),
     });
     assert.equal(response.status, 500);
-    assertAdminResponse({ actual: await response.json(), expected: { error: "internal error" } });
+    assertAdminResponse({ actual: await response.json(), expected: { error: "internal error" } }, { failure: {"message":"The theme operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"theme operation"} });
     assert.equal(reached, true);
     assert.equal(fs.existsSync(destination), false);
     assert.equal(fs.readFileSync(source, "utf8"), before);

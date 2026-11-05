@@ -101,5 +101,5 @@ test("respondToSettingsError: an unmapped error is a fixed 500 that never echoes
     { matches: (e) => e instanceof FirstError, status: 404, code: "FIRST" },
   ]);
   assert.equal(capture.statusCode, 500);
-  assertAdminResponse({ actual: capture.jsonBody, expected: { error: "The settings request could not finish.", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: capture.jsonBody, expected: { error: "The settings request could not finish.", code: "INTERNAL_ERROR" } }, { failure: {"message":"The settings request could not finish.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"setting operation"} });
 });

@@ -63,7 +63,7 @@ test("respondToRedirectError: falls back to 500 when error does not match any ma
   const err = new Error("unknown database crash");
   respondToRedirectError(res, err, REDIRECT_WRITE_ERROR_MAPPINGS);
   assert.equal(result.status, 500);
-  assertAdminResponse({ actual: result.body, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: result.body, expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: {"message":"The redirect operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"redirect operation"} });
 });
 
 test("respondToRedirectError: handles non-Error thrown objects with custom mappings", () => {

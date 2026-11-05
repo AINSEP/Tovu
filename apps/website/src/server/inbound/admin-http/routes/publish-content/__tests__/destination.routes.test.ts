@@ -323,7 +323,7 @@ test("GET destination: an unexpected failure reading the peer list is a generic 
   };
   const res = await fetch(`${h.url}${BASE}`);
   assert.equal(res.status, 500);
-  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: {"message":"The publishing information could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load publishing information"} });
 });
 
 test("POST connect: when recording the peer fails after the grant was written, the grant is reversed and the failure is a generic 500", async (t) => {
@@ -334,7 +334,7 @@ test("POST connect: when recording the peer fails after the grant was written, t
   };
   const res = await post(`${h.url}${BASE}/connect`, { siteUrl: "https://live.example" });
   assert.equal(res.status, 500);
-  assertAdminResponse({ actual: res.body, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: res.body, expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: {"message":"The publishing operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"publishing operation"} });
   assert.deepEqual(h.provisioningCalls, ["connect remote-workspace", "disconnect"], "the written grant must be compensated");
 });
 

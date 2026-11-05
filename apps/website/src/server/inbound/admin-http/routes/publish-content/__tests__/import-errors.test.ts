@@ -94,13 +94,13 @@ test("a plugin save-hook refusal mid-import is a 500 PLUGIN_HOOK_FAILED naming t
 test("an unrecognised error is a 500 with fixed text; its own message goes only to the server log", (t) => {
   const logged = t.mock.method(console, "error", () => undefined);
   const err = new Error("SQLITE_CANTOPEN: unable to open /srv/tovu/site.db (password=hunter2)");
-  assertAdminResponse({ actual: importErrorResponse(err), expected: { status: 500, body: { error: "The content import could not finish.", code: "INTERNAL_ERROR" } } });
+  assertAdminResponse({ actual: importErrorResponse(err), expected: { status: 500, body: { error: "The content import could not finish. Check import history for content already applied before trying again. Copy details and report this problem.", code: "INTERNAL_ERROR" } } }, { failure: {"message":"The content import could not finish. Check import history for content already applied before trying again. Copy details and report this problem.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"publishing operation"} });
   assertAdminDiagnostics({ calls: logged.mock.calls.map(call => call.arguments), operation: "[routes/publish-content/import-errors]", diagnostics: [/SQLITE_CANTOPEN: unable to open \/srv\/tovu\/site.db/] });
   assert.equal(JSON.stringify(logged.mock.calls).includes("hunter2"), false);
 });
 
 test("a non-Error throw is a 500 with the generic message, logged the same way", (t) => {
   const logged = t.mock.method(console, "error", () => undefined);
-  assertAdminResponse({ actual: importErrorResponse("secret detail"), expected: { status: 500, body: { error: "The content import could not finish.", code: "INTERNAL_ERROR" } } });
+  assertAdminResponse({ actual: importErrorResponse("secret detail"), expected: { status: 500, body: { error: "The content import could not finish. Check import history for content already applied before trying again. Copy details and report this problem.", code: "INTERNAL_ERROR" } } }, { failure: {"message":"The content import could not finish. Check import history for content already applied before trying again. Copy details and report this problem.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"publishing operation"} });
   assertAdminDiagnostics({ calls: logged.mock.calls.map(call => call.arguments), operation: "[routes/publish-content/import-errors]", diagnostics: [/^secret detail$/] });
 });

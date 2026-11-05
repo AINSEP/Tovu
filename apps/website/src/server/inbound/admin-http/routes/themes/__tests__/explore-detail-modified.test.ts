@@ -207,7 +207,7 @@ test("detail listing: a same-size file that cannot be read returns 500", async (
 
   const response = await fetch(`${baseUrl}${BASE("moddy")}`);
   assert.equal(response.status, 500);
-  assertAdminResponse({ actual: await response.json(), expected: { error: "internal error" } });
+  assertAdminResponse({ actual: await response.json(), expected: { error: "internal error" } }, { failure: {"message":"The themes could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load themes"} });
 });
 
 test("copy response: the new copy has no catalog counterpart, so resettable: false, modified: null", async (t) => {
@@ -307,7 +307,7 @@ test("detail comparison returns 500 for injected live and original read errors o
     try {
       const response = await fetch(`${baseUrl}${BASE("moddy")}`);
       assert.equal(response.status, 500, target);
-      assertAdminResponse({ actual: await response.json(), expected: { error: "internal error" } });
+      assertAdminResponse({ actual: await response.json(), expected: { error: "internal error" } }, { failure: {"message":"The themes could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load themes"} });
       assert.deepEqual(reached, [target], "the selected comparison read must cause the failure");
     } finally {
       injected.mock.restore();

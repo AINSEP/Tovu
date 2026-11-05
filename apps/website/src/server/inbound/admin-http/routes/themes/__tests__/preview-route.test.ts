@@ -176,7 +176,7 @@ test("capture lookup errors retain the internal-error response", async (t) => {
   };
   const got = await route({ service })("editorial-rose");
   assert.equal(got.status, 500);
-  assertAdminResponse({ actual: got.json, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: got.json, expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: {"message":"The themes could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load themes"} });
 });
 
 test("a host that wires neither a preview service nor a site binding serves the shipped screenshot", async () => {
