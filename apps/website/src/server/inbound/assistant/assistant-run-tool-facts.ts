@@ -1,7 +1,7 @@
 import { createChatSettingsSnapshot, type ChatSettingsSnapshot } from '@jini-ai/daemon/chat-settings';
 import type { RunPlan } from '@jini-ai/agent-runtime/native-tool-policy';
 import type { ToolDescriptor } from '@jini-ai/core';
-import type { readAssistantRunToolPolicy } from './assistant-tool-access.js';
+import type { readAssistantRunToolPolicy } from './assistant-run-tool-policy.js';
 
 type Snapshot = Awaited<ReturnType<typeof readAssistantRunToolPolicy>>;
 

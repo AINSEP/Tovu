@@ -1,5 +1,5 @@
 import { assistantRunToolFacts } from './assistant-run-tool-facts.js';
-import { readAssistantRunToolPolicy, assistantRunPlan, assistantToolSetupMessage } from './assistant-tool-access.js';
+import { readAssistantRunToolPolicy, assistantRunPlan, assistantToolSetupMessage } from './assistant-run-tool-policy.js';
 import { requestAssistantToolConsent } from './assistant-tool-consent.js';
 import { registerToolAccessLoweringRoute } from './tool-access-lowering-route.js';
 import { createChatSettingsGetRegistration, type ChatSettingsSnapshot } from '@jini-ai/daemon/chat-settings';
@@ -1073,6 +1073,7 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
     if (!access) return;
     const { snapshot, plan } = access;
     const { isOwner, def, policy, nativeCapabilities } = snapshot;
+    warnRunFilesystemLimit({ agentId: sessionBinding.agentId, shell: nativeCapabilities.shell });
     const chatSettings = recordRunToolSnapshot({ snapshot, plan, agentId: sessionBinding.agentId });
     await emitNoToolsNotice({ agentId: sessionBinding.agentId, snapshot, bridged: plan.bridged });
     const nativeToolAccess = Object.values(nativeCapabilities).some(Boolean);
@@ -1147,6 +1148,10 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
       () => assistantNativeToolsContext.run(nativeToolAccess, runWithCapabilities));
   }
 
+  function warnRunFilesystemLimit({ agentId, shell }: { agentId: string; shell: boolean }): void {
+    if (agentId === 'claude' && process.platform === 'win32' && shell) console.warn('[agent-daemon] shell is not folder-limited on this platform');
+  }
+
   async function verifyLaunchToolPolicy({ agentId }: { agentId: string }) {
     const snapshot = await resolveRunNativePolicy({ agentId });
     if (!(await runToolAccessIsLive())) return null;
@@ -1187,6 +1192,10 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
 
   async function runToolAccessIsLive(): Promise<boolean> {
     const current = await runLifecycle.get({ runId: run.id });
+    if (current && pluginAbort.signal.aborted && !isTerminalRunState({ state: current.state })) {
+      await runLifecycle.finish({ runId: run.id, status: 'cancelled', code: null, signal: null, resumable: false });
+      return false;
+    }
     return !disposed && !pluginAbort.signal.aborted && !revokedToolRuns.has(run.id) && !!current && !isTerminalRunState({ state: current.state });
   }
 
@@ -1279,7 +1288,7 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
           args: [...(bridgeInjection.args ?? [])], env: { ...bridgeInjection.env } },
           ctx: { home: (env.HOME ?? env.USERPROFILE ?? homedir()), platform: process.platform, serverName: 'jini' } }, {});
       } catch (error) {
-        await failRunBeforeStart({ lifecycle: runLifecycle, runId: run.id, message: 'The CLI bridge could not be prepared.',
+        await failRunBeforeStart({ lifecycle: runLifecycle, runId: run.id, message: `${def.name}'s connector could not be installed safely in its personal settings. Choose another available agent for this message.`,
           startup: { stage: startupStage, error } }, {}); return false;
       }
     }
@@ -1358,7 +1367,12 @@ registerToolAccessLoweringRoute({ app, lower: change => stopRunsForToolAccessCha
     await lifecycle.waitForTerminal({ runId }, { signal: AbortSignal.timeout(8_000) });
     if (cleanupFailures.has(runId)) throw new Error('CLI cleanup failed');
   },
-  notice: async ({ runId, message }) => { await lifecycle.emit({ runId, input: { event: 'agent', data: { type: 'status', label: 'tool_access_changed', detail: message } } }); },
+  notice: async ({ runId, message }) => {
+    await Promise.all([
+      lifecycle.emit({ runId, input: { event: 'agent', data: { type: 'status', label: 'tool_access_changed', detail: message } } }),
+      lifecycle.emit({ runId, input: { event: 'agent', data: { type: 'text_delta', delta: `\n\n${message}` } } }),
+    ]);
+  },
 }) });
 // Re-resolve each bridge credential after parsing; neither a proxy identity nor a previous
 // caller's snapshot can supply an unscoped catalog. Native async context survives all awaits.

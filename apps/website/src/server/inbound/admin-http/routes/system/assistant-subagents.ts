@@ -61,11 +61,12 @@ export function registerAdminAssistantSubagentsRoutes(required: { app: Express; 
     afterWrite: async ({ previous }) => {
       const next = await readAssistantCliPermissions({ ...required.deps, principalId: await required.deps.ownerPrincipalId, settingsReady: required.deps.settingsUiTabsReady }, { readFailure: "throw" });
       const agentIds = AGENT_DEFS.filter(({ id }) => {
-        const before = resolveAssistantCliPermissions({ isOwner: true, env: {}, settings: previous, agentId: id }).capabilities;
-        const after = resolveAssistantCliPermissions({ isOwner: true, env: {}, settings: next, agentId: id }).capabilities;
-        return ASSISTANT_CLI_CAPABILITIES.some(({ key }) => before[key] && !after[key]);
+        const before = resolveAssistantCliPermissions({ isOwner: true, env: {}, settings: previous, agentId: id });
+        const after = resolveAssistantCliPermissions({ isOwner: true, env: {}, settings: next, agentId: id });
+        return (before.enabled && !after.enabled) || ASSISTANT_CLI_CAPABILITIES.some(({ key }) => before.capabilities[key] && !after.capabilities[key]);
       }).map(({ id }) => id);
       if (agentIds.length) await lowerAssistantToolAccess({ agentIds });
+      return next;
     },
     value: settings => ({ enabled: settings.enabled, capabilities: { ...settings.capabilities } }),
   }, { requireAcknowledgment: false, scope: "user" });

@@ -20,7 +20,7 @@ export function registerAssistantOwnerGrantRoutes<T extends { enabled: boolean }
   read(): Promise<T>; parse(body: Record<string, unknown>): T;
   value(settings: T): JsonValue;
   prepareWrite?(input: { body: Record<string, unknown>; settings: T; previous: T }): Promise<{ value: JsonValue; revisionSeq: number }>;
-  afterWrite?(input: { settings: T; previous: T; body: Record<string, unknown> }): Promise<void>;
+  afterWrite?(input: { settings: T; previous: T; body: Record<string, unknown> }): Promise<T | void>;
   projectRead?(input: { settings: T; isOwner: boolean }): T;
   canEdit?(input: { isOwner: boolean }): boolean;
 }, optional: { requireAcknowledgment?: boolean; scope?: "user" | "workspace" } = {}): void {
@@ -44,8 +44,8 @@ export function registerAssistantOwnerGrantRoutes<T extends { enabled: boolean }
       const prepared = await required.prepareWrite?.({ body, settings, previous });
       const result = await set({ deps: toWriteServiceDeps(routeDeps), input: { ...input, key: required.key, value: prepared?.value ?? required.value(settings) } },
         prepared ? { expectedRevisionSeq: prepared.revisionSeq } : {});
-      await required.afterWrite?.({ settings, previous, body });
-    return result;
+      const savedSettings = await required.afterWrite?.({ settings, previous, body });
+    return { ...result, settings: savedSettings ?? settings };
   }
   mountSettingsJsonRoute({ app, deps: routeDeps, method: "get", path,
     handle: async ({ principal }) => {
@@ -67,7 +67,8 @@ export function registerAssistantOwnerGrantRoutes<T extends { enabled: boolean }
         ...(scope === "user" ? { principalId: principal.id } : {}),
         workspaceId: deps.workspaceId, authWorkspaceId: deps.workspaceId, callerPrincipalId: principal.id };
       const result = await persistGrant({ input, settings, previous, needsAcknowledgment, body: request.body as Record<string, unknown> });
-      return { ...(required.projectRead?.({ settings, isOwner: true }) ?? settings), canEdit: true, revisionSeq: result.revisionSeq };
+      const savedSettings = result.settings;
+      return { ...(required.projectRead?.({ settings: savedSettings, isOwner: true }) ?? savedSettings), canEdit: true, revisionSeq: result.revisionSeq };
     },
   });
 }

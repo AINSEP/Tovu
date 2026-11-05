@@ -242,7 +242,10 @@ test("HTTP read failure stays unknown instead of presenting a false OFF setting"
 
 test("selected-agent updates keep site defaults and sibling agents", async () => {
   const f = await fixture();
-  assert.equal((await f.request("put", settingPath, { body: { enabled: true, agentId: "antigravity", capabilities: { userMcp: true } } })).statusCode, 200);
+  const approved = await f.request("put", settingPath, { body: { enabled: true, agentId: "antigravity", capabilities: { userMcp: true } } });
+  assert.equal(approved.statusCode, 200);
+  assert.equal((approved.jsonBody as { capabilities: { userMcp: boolean } }).capabilities.userMcp, false);
+  assert.deepEqual((approved.jsonBody as { byAgent: unknown }).byAgent, { antigravity: { capabilities: { userMcp: true } } });
   assert.equal((await f.request("put", settingPath, { body: { enabled: true, agentId: "claude", capabilities: { shell: false } } })).statusCode, 200);
   const saved = await readAssistantCliPermissions({ ...f.deps, principalId: "owner", settingsReady: f.deps.settingsUiTabsReady });
   assert.equal(saved.capabilities.userMcp, false);
