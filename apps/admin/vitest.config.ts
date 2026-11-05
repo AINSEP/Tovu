@@ -1,4 +1,5 @@
 import { readFileSync, realpathSync } from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vitest/config";
@@ -45,9 +46,11 @@ export default defineConfig({
        * `src/main.tsx` imports `@jini-ai/ui/remixicon.css?inline`. That package is a `file:` link
        * into the sibling Jini checkout, outside this repo, and Vite refuses `?inline`/`?raw` reads
        * outside `server.fs.allow` ("Denied ID"), so the entry module could not load under test.
-       * Allow exactly this repo plus that one package's real directory.
+       * The reviewed chart-bundle tests also import provider-plugins' built payload directly.
+       * Allow exactly this repo plus those two packages' real directories.
        */
-      allow: [path.resolve(__dirname, "../.."), realpathSync(path.resolve(__dirname, "node_modules/@jini-ai/ui"))],
+      allow: [path.resolve(__dirname, "../.."), realpathSync(path.resolve(__dirname, "node_modules/@jini-ai/ui")),
+        path.dirname(createRequire(import.meta.url).resolve("@jini-ai/provider-plugins/catalog"))],
     },
   },
   resolve: {
