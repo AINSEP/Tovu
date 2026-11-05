@@ -48,7 +48,7 @@ export const PUBLISH_SECTIONS = [
     { "theme-files": "Theme", "active-theme": "Active theme" },
     { "theme-files": "Themes", "active-theme": "Active theme" },
   ),
-  section("forms", "Publish forms", "Sends your forms to the live site. Notification recipients stay local on each site.", { form: "Form" }, { form: "Forms" }),
+  section("forms", "Publish forms", "Sends your forms to the live site.", { form: "Form" }, { form: "Forms" }),
   section(
     "collections",
     "Publish collections",

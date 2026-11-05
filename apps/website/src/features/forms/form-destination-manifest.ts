@@ -19,7 +19,8 @@ export interface FormDestinationManifestForm {
 /**
  * Active definitions only, in their stored order. HTML-mode forms use the same submission view the
  * live endpoint validates against, so the posted names match.
- * @complexity O(definitions * fields).
+ * @complexity O(total schema bytes plus canonical key sorting) time/space; no I/O.
+ * @overallScore 98 — Minor: schema validity belongs to the authored-definition boundary.
  */
 export function buildFormDestinationManifest({ definitions }: { definitions: readonly HtmlFormDefinitionRecord[] }, _optional = {}): FormDestinationManifestForm[] {
   return definitions.filter((definition) => definition.status === "active" && (!definition.provider || definition.provider.id === "builtin")).map((stored) => {
@@ -31,7 +32,8 @@ export function buildFormDestinationManifest({ definitions }: { definitions: rea
 }
 
 /** The live submit path's cap (`field-length-caps.ts`), defaults included, so a static host refuses
- *  the same over-long answers Tovu's own server would. @complexity O(1). */
+ *  the same over-long answers Tovu's own server would.
+ * @complexity O(1) time/space; no I/O. @overallScore 100 */
 function submitCap(field: FormDefinitionRecord["fields"][number]): { maxLength?: number } {
   const maxLength = fieldMaxChars({ field });
   return maxLength === undefined ? {} : { maxLength };
@@ -41,13 +43,15 @@ function submitCap(field: FormDefinitionRecord["fields"][number]): { maxLength?:
  * The form as a push delivery receives it: the manifest's fields plus each field's `label` and
  * `type` and original option labels, so a destination can name its columns and historical choices. Used for the snapshot frozen when a submission is
  * planned, whatever the definition's status is now (the submission was accepted already).
- * @complexity O(fields).
+ * @complexity O(total schema bytes) time/space; no I/O. @overallScore 100
  */
 export function buildFormDeliveryForm({ definition: stored }: { definition: FormDefinitionRecord }, _optional = {}): FormDeliveryForm {
   const definition = htmlSubmissionDefinition({ definition: stored, body: {} });
   return { slug: definition.slug, fields: definition.fields.map((field) => ({ ...manifestField(field), label: field.label, type: field.type, ...(field.options ? { options: structuredClone(field.options) } : {}) })) };
 }
 
+/** Project the existing receiver identity and cardinality wire fields.
+ * @complexity O(1) time/space; no I/O. @overallScore 100 */
 function manifestField(field: FormDefinitionRecord["fields"][number]): FormDestinationManifestForm["fields"][number] {
   return {
     name: field.name ?? field.id,
@@ -58,16 +62,38 @@ function manifestField(field: FormDefinitionRecord["fields"][number]): FormDesti
 }
 
 /** Describe the receiver's supported subset; unsupported rules fail at destination preparation,
- * before a visitor can be told that an invalid answer succeeded. O(options), no I/O. */
+ * before a visitor can be told that an invalid answer succeeded.
+ * @complexity O(options) time/space; no I/O. @overallScore 100 */
 function receiverValidation(field: FormDefinitionRecord["fields"][number]): Partial<FormDestinationManifestForm["fields"][number]> {
-  const pattern = field.pattern ?? field.attributes?.pattern;
   return { type: field.type,
     ...(field.options ? { options: field.options.map(option => option.value).filter(value => value !== '') } : {}),
-    ...(field.minLength !== undefined || field.attributes?.minlength !== undefined ? { minLength: field.minLength ?? Number(field.attributes!.minlength) } : {}),
-    ...(field.checkboxValue !== undefined ? { checkboxValue: field.checkboxValue } : {}),
-    ...(field.min !== undefined || field.attributes?.min !== undefined ? { min: field.min ?? field.attributes!.min! } : {}),
-    ...(field.max !== undefined || field.attributes?.max !== undefined ? { max: field.max ?? field.attributes!.max! } : {}),
-    ...(field.step !== undefined || field.attributes?.step !== undefined ? { step: field.step ?? Number(field.attributes!.step) } : {}),
-    ...(pattern !== undefined ? { validationUnsupported: true as const } : {}),
+    ...receiverTextRules(field), ...receiverBounds(field), ...receiverStep(field),
   };
+}
+
+/** Preserve native descriptor precedence over authored attribute fallbacks.
+ * @complexity O(1) time/space; no I/O. @overallScore 100 */
+function receiverTextRules(field: FormDefinitionRecord["fields"][number]): Partial<FormDestinationManifestForm["fields"][number]> {
+  const pattern = field.pattern ?? field.attributes?.pattern;
+  const minLength = field.minLength ?? field.attributes?.minlength;
+  return {
+    ...(minLength === undefined ? {} : { minLength: Number(minLength) }),
+    ...(field.checkboxValue === undefined ? {} : { checkboxValue: field.checkboxValue }),
+    ...(pattern === undefined ? {} : { validationUnsupported: true as const }),
+  };
+}
+
+/** Preserve numeric and temporal bounds without normalizing their authored spelling.
+ * @complexity O(1) time/space; no I/O. @overallScore 100 */
+function receiverBounds(field: FormDefinitionRecord["fields"][number]): Partial<FormDestinationManifestForm["fields"][number]> {
+  const min = field.min ?? field.attributes?.min;
+  const max = field.max ?? field.attributes?.max;
+  return { ...(min === undefined ? {} : { min }), ...(max === undefined ? {} : { max }) };
+}
+
+/** Convert the supported native numeric step to its manifest representation.
+ * @complexity O(1) time/space; no I/O. @overallScore 100 */
+function receiverStep(field: FormDefinitionRecord["fields"][number]): { step?: number } {
+  const step = field.step ?? field.attributes?.step;
+  return step === undefined ? {} : { step: Number(step) };
 }

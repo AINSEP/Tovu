@@ -2259,3 +2259,15 @@ it("a direct confirm callback waits for an outstanding overwrite replan", async 
   expect(result.current.rows.find(row => row.key === "post:post-edited-there")?.outcome).toBe("forced");
   expect(result.current.primaryDisabled).toBe(false);
 });
+
+
+describe('forms transfer preview', () => {
+  it('shows local-recipient policy in an unscoped mixed-content preview before confirmation', async () => {
+    const report: PublishContentReport = { ...MIXED_REPORT, applyOrder: ['form', ...MIXED_REPORT.applyOrder], rows: [
+      { entityType: 'form', entityId: 'contact', outcome: 'created', writes: true, reason: null }, ...MIXED_REPORT.rows,
+    ] };
+    const port = createFakePublishContentPort({ peers: ONE_PEER, report });
+    await planFrom(port);
+    expect(screen.getByText('Form notification recipients stay local on each site; copying a form does not copy them.').closest('dialog')?.hasAttribute('open')).toBe(true);
+  });
+});

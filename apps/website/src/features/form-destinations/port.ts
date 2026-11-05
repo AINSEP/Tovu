@@ -20,7 +20,9 @@ export interface FormDestinationPortDeps {
 }
 type PortInput = Parameters<FormReceiverPort["prepare"]>[0];
 
-/** @complexity O(1) to build; each call does one forms read, and with forms one registry load and one setting read. */
+/** Build the receiver port; an empty form list retains only a previously saved receiver key.
+ * @complexity O(1) to build; calls read forms and either registry/settings or existing key metadata.
+ * @overallScore 98 — Minor: the existing shared credential API lists metadata to detect a saved key. */
 export function createFormDestinationPort(required: FormDestinationPortDeps, optional: { newSecret?: () => string } = {}): FormReceiverPort {
   return {
     async previewInput(input) {

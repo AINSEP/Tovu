@@ -18,7 +18,9 @@ import { FORMS_TABLES } from "./repo.sqlite.js";
  * form is found through `isSlugTaken` and refused rather than planned as a create that would collide.
  */
 
-/** Owner decision: copying carries form structure; recipients belong to each destination site. */
+/** Copy form structure through the existing publish factory; recipients remain site-local.
+ * @complexity O(schema bytes) time/space per form; existing repo/command I/O only.
+ * @overallScore 98 — Minor: the factory's typed state is trusted until existing command validation. */
 
 export const contributeFormPublish = (): PublishContentContributor =>
   createRepoPublishHandler<HtmlFormDefinitionRecord, PublishContentPorts["form"]>({
@@ -55,9 +57,9 @@ export const contributeFormPublish = (): PublishContentContributor =>
       const name = state.name as string;
       const fields = state.fields as FieldDescriptor[];
       const authoring = { ...(state.mode ? { mode: state.mode as NonNullable<FormAuthoring["mode"]> } : {}),
-        ...(typeof state.html === "string" ? { html: state.html } : {}),
+        ...(state.mode === "html" && typeof state.html === "string" ? { html: state.html } : {}),
         ...(state.provider ? { provider: state.provider as NonNullable<FormAuthoring["provider"]> } : {}) };
-      // A `"local"` notify never arrives; an update then keeps the destination's own.
+      // Recipients stay local even when an older bundle includes a notify value.
       const notify = existing?.notify;
       const { definition } = existing
         ? await updateFormDefinition({ deps: writeDeps, input: { workspaceId, actor, formId: existing.id, patch: { name, fields, notify, ...authoring } } })
@@ -72,7 +74,8 @@ export const contributeFormPublish = (): PublishContentContributor =>
 
 
 /** Canonical defaults make legacy Builder/built-in definitions replace an external destination,
- * rather than accidentally preserving its previous mode/provider through an omitted patch. */
+ * rather than accidentally preserving its previous mode/provider through an omitted patch.
+ * @complexity O(1) time/space; no I/O. @overallScore 100 */
 function publishableForm(row: HtmlFormDefinitionRecord): HtmlFormDefinitionRecord {
   return { ...row, mode: row.mode ?? "builder", html: row.html ?? "", provider: row.provider ?? { id: "builtin", config: {} } };
 }

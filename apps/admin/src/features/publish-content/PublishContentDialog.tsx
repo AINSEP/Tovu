@@ -117,6 +117,7 @@ export function PublishContentDialog({
     >
       <p>{t(view.description)}</p>
       <p>{t("Anything edited on the live site is skipped unless you tick Overwrite on live.")}</p>
+      {view.rows.some(row => row.entityType === "form") && <p>{t("Form notification recipients stay local on each site; copying a form does not copy them.")}</p>}
 
       {view.peers.length > 1 && (
         <label className="field">

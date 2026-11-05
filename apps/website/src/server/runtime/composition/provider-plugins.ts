@@ -232,6 +232,17 @@ function gatedConsentAdapter({ slot }: { slot: ProviderSlot }, _optional = {}): 
   };
 }
 
+/** Form collection follows the same guarded leases as other contracts, in an isolated domain registry.
+ * @complexity O(p) time/space for declared collection providers; no I/O.
+ * @overallScore 97 — Recommended: registry inventory is fixed at boot; leases can retire or reapply. */
+function formRegistryFor({ slots, testProbe }: { slots: readonly ProviderSlot[]; testProbe: ReturnType<typeof createTelemetryTestProbe> }): FormCollectionRegistry {
+  const registry = createFormCollectionRegistry({});
+  for (const slot of slots.filter(slot => slot.contract === "form_collection")) {
+    registry.contribute({ pluginId: slot.pluginId, definition: { id: slot.id, provider: gatedPort({ slot, contract: slot.contract, testProbe }) as FormCollectionProvider } });
+  }
+  return registry;
+}
+
 /** Composes guarded analytics, trace destinations and independent observability without vendor knowledge.
  * @complexity O(p + s) at boot for p analytics providers and s trace sinks; no external I/O. */
 function composePorts({ leases, consent, consentRevision, site, warn, product }: { warn: (message: string) => void; leases: ReadonlyMap<ProviderContract, unknown[]>; consent: ProductAnalyticsConsent; consentRevision: ProductAnalyticsConsentRevision; site: SiteIdentity; product?: ProductTelemetry }) {
@@ -425,10 +436,7 @@ export async function bootProviderPlugins(required: BootProviderPluginsRequired,
   for (const event of initializations) tracker.capture({ name: event.name, userId: event.userId }, { properties: event.properties });
   initializations.length = 0;
   let disposal: Promise<void> | undefined;
-  const formCollectionRegistry = createFormCollectionRegistry({});
-  for (const slot of slots.filter(slot => slot.contract === "form_collection")) {
-    formCollectionRegistry.contribute({ pluginId: slot.pluginId, definition: { id: slot.id, provider: gatedPort({ slot, contract: slot.contract, testProbe }) as FormCollectionProvider } });
-  }
+  const formCollectionRegistry = formRegistryFor({ slots, testProbe });
   return { ...ports, formCollectionProviders: () => formCollectionRegistry,
     telemetryStatus: () => delivery.read({}).map(status => ({ ...status,
       ...(slots.some(slot => slot.contract === 'observability' && `${slot.pluginId}/${slot.id}` === status.providerId) ? { exportEnabled } : {}),
