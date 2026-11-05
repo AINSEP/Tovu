@@ -11,7 +11,7 @@ import { createSharedOAuthConsumer, deriveApiConnectionKey, parseApiConnectionDe
 import { createTokenRefresher, type OAuthTokenSet, type TokenRefreshPort } from '@jini-ai/oauth';
 import { AesGcmSecretSealer } from '@jini-ai/platform/secrets';
 import { InMemoryKeyring } from '@jini-ai/platform/secrets/testing';
-import { InMemoryVaultRepo } from '@jini-ai/platform/secrets/credential-sets';
+import { InMemoryVaultRepo, type VaultRepoPort } from '@jini-ai/platform/secrets/credential-sets';
 import { openProjectStore } from '../../../server/runtime/composition/project-store.js';
 import { createSiteOAuthBindings } from '../../project-keys/site-references.js';
 import { disconnectSharedOAuth, inspectSharedOAuthDisconnect } from '../../project-keys/shared-oauth-disconnect.js';
@@ -36,6 +36,26 @@ function barrier() {
   return { promise, release };
 }
 
+const ioCounts = () => ({ reads: 0, readBytes: 0, writes: 0, writeBytes: 0, scans: 0 });
+type IoCounts = ReturnType<typeof ioCounts>;
+const serializedBytes = (value: unknown) => Buffer.byteLength(JSON.stringify(value) ?? 'null');
+
+/** Count repository operations and serialized boundary payloads, excluding SQLite/WAL pages. */
+function measuredRepo(repo: VaultRepoPort, io: IoCounts): VaultRepoPort {
+  return new Proxy(repo, { get(target, property) {
+    const member: unknown = Reflect.get(target, property);
+    if (typeof member !== 'function') return member;
+    return async (...args: unknown[]) => {
+      const result: unknown = await Reflect.apply(member, target, args);
+      if (['find', 'findOne', 'findDefault', 'list'].includes(String(property))) {
+        io.reads++; io.readBytes += serializedBytes(result);
+        if (property === 'list') io.scans++;
+      } else { io.writes++; io.writeBytes += serializedBytes(args); }
+      return result;
+    };
+  } });
+}
+
 async function ownerFixture(t: TestContext) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'tovu-shared-oauth-'));
   const input = { home: path.join(root, 'home'), sitesHome: path.join(root, 'sites'), appDataDir: path.join(root, 'owner') };
@@ -44,8 +64,9 @@ async function ownerFixture(t: TestContext) {
   let closed = false;
   const close = () => { if (!closed) { second.close({}); first.close({}); closed = true; } };
   t.after(() => { close(); fs.rmSync(root, { recursive: true, force: true }); });
-  const a = createSharedOAuthOwnerStorage({ scope: first.vault, clock });
-  const b = createSharedOAuthOwnerStorage({ scope: second.vault, clock });
+  const ownerIo = [ioCounts(), ioCounts()];
+  const a = createSharedOAuthOwnerStorage({ scope: { ...first.vault, repo: measuredRepo(first.vault.repo, ownerIo[0]!) }, clock });
+  const b = createSharedOAuthOwnerStorage({ scope: { ...second.vault, repo: measuredRepo(second.vault.repo, ownerIo[1]!) }, clock });
   await a.saveContext({ credentialId, context });
   const record: ApiConnectionRecord = { key: credentialId, workspaceId: 'project', pluginId: identity.pluginId,
     connectionId: identity.connectionId, generation: 1, revision: 1, status: 'connected', account: { accountId: 'alice', displayName: 'Alice' },
@@ -54,16 +75,17 @@ async function ownerFixture(t: TestContext) {
   await a.tokensFor({ context }).install({ key: credentialId, generation: 1, tokens: tokenSet('old', true) });
   await first.attachments.attach({ siteId: 'site-a-uuid', siteName: 'A', keyId: credentialId });
   await second.attachments.attach({ siteId: 'site-b-uuid', siteName: 'B', keyId: credentialId });
-  return { root, input, first, second, a, b, close };
+  return { root, input, first, second, a, b, close, ownerIo };
 }
 
 function siteBindings() {
-  const repo = new InMemoryVaultRepo({});
+  const io = ioCounts();
+  const repo = measuredRepo(new InMemoryVaultRepo({}), io);
   const keyring = new InMemoryKeyring({ hkdfSalt: 'shared-consumer-site' });
   const vault = createApiConnectionVault({ workspaceId: 'workspace-local', repo, keyring,
     sealer: new AesGcmSecretSealer({ keyring }), clock });
   const bindings = createSiteOAuthBindings({ vault, repo, workspaceId: 'workspace-local' });
-  return { bindings, vault, repo };
+  return { bindings, vault, repo, io };
 }
 
 test('two SQLite owner handles redeem one rotation after a delayed lease, then site/global revocation survives restart', async t => {
@@ -86,12 +108,17 @@ test('two SQLite owner handles redeem one rotation after a delayed lease, then s
       if (pauseFirstLoad) { pauseFirstLoad = false; staleLoaded.release(); await proceed.promise; }
       return loaded;
     } } });
+  const grantIo = { reads: 0, readBytes: 0 };
   const makeConsumer = (index: number) => {
     const storage = index === 0 ? f.a : f.b;
     const owner = index === 0 ? f.first : f.second;
     const refresher = index === 0 ? firstRefresher : secondRefresher;
     return createSharedOAuthConsumer({ bindings: { read: input => sites[index]!.bindings.read(input) },
-      grants: { isGranted: input => owner.attachments.isAttached({ siteId: input.siteId, keyId: input.credentialId }) },
+      grants: { isGranted: async input => {
+        const granted = await owner.attachments.isAttached({ siteId: input.siteId, keyId: input.credentialId });
+        grantIo.reads++; grantIo.readBytes += serializedBytes(granted);
+        return granted;
+      } },
       connections: { read: storage.readConnection, getAccessToken: async input => {
         assert.equal((await storage.records.read({ key: input.credentialId }))?.generation, input.expectedGeneration);
         assert.equal(input.expectedAccountId, 'alice');
@@ -108,6 +135,13 @@ test('two SQLite owner handles redeem one rotation after a delayed lease, then s
   assert.equal(await delayed, refreshed.accessToken);
   assert.deepEqual(redeemed, [tokenSet('old', true).refreshToken]);
   assert.deepEqual(await secondTokens.load({ key: credentialId }), refreshed);
+
+  for (const counts of [...f.ownerIo, ...sites.map(site => site.io)]) Object.assign(counts, ioCounts());
+  Object.assign(grantIo, { reads: 0, readBytes: 0 });
+  assert.equal(await a.getAccessToken(target), refreshed.accessToken);
+  t.diagnostic(`one unexpired shared acquisition: ${JSON.stringify({ owner: f.ownerIo, sites: sites.map(site => site.io), grants: grantIo })}`);
+  assert.equal(f.ownerIo.reduce((sum, io) => sum + io.writes + io.scans, 0), 0);
+  assert.equal(sites.reduce((sum, site) => sum + site.io.writes + site.io.scans, 0), 0);
 
   for (const site of sites) {
     const rows = await site.repo.list(apiConnectionVaultScope({ workspaceId: 'workspace-local' }));
