@@ -80,9 +80,11 @@ function SavedKey({ entry, bridge, state }: { entry: OwnerStoreEntry; bridge: Ow
 
 /** Shared connections use their fenced lifecycle, never a pasted token or an unused-key delete. */
 function SavedOAuthConnection({ entry, bridge, state }: { entry: OwnerStoreEntry; bridge: OwnerStoreBridge; state: StoreState }) {
+  const statuses: Record<string, string> = { connected: 'Connected', 'reconnect-required': 'Sign in again',
+    'revocation-pending': 'Stopped here; provider revocation pending', disconnected: 'Disconnected' };
   return <article className="shared-keys__row">
     <h3>{entry.label}</h3>
-    <p>Shared connection · {entry.status} · {entry.usedBy?.join(', ') || 'No sites'}</p>
+    <p>Shared connection · {statuses[entry.status ?? ''] ?? 'Status unavailable'} · {entry.usedBy?.join(', ') || 'No sites'}</p>
     <button type="button" className="button button--quiet" disabled={state.busy || !bridge.disconnect}
       onClick={() => void state.run({ action: () => bridge.disconnect({ id: entry.id, expectedRevision: entry.revision }, {}) })}>
       {entry.status === 'revocation-pending' ? 'Retry disconnect everywhere' : 'Disconnect this shared connection from every site on this Mac'}
