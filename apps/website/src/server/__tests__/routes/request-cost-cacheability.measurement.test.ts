@@ -234,7 +234,7 @@ test("A: does the auto-generated ETag actually short-circuit a conditional GET t
 
 test("A: GET /products/:id (detail)", async (t) => {
   const deps: CommerceSiteAdapterDeps = createRouteDeps();
-  deps.store = { listProducts: async () => [{ id: "p1", slug: "test-widget", title: "Test Widget", price: 500, stock: 3, version: 1 }], checkout: async () => ({ ok: true, orderId: "o1", remainingStock: 2, retries: 0 }) };
+  deps.commerceCatalog = { listProducts: async () => [{ id: "p1", slug: "test-widget", title: "Test Widget", price: 500, stock: 3, version: 1 }] };
   const app = express();
   registerProductRoutes(app, deps);
   const baseUrl = await startTestServer(app, t);
