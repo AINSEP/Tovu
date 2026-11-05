@@ -17,7 +17,8 @@ const RETIRED_TABLES = [
   "commerce_order_items", "commerce_product_images", "commerce_webhook_events",
   "commerce_orders", "commerce_prices", "commerce_products",
 ];
-const previous = CONTENT_MIGRATIONS.filter(step => step.id < DROP_EMPTY_CORE_COMMERCE_TABLES_ID);
+// Exercise frozen 0011 directly; the new archive step is covered by archive-legacy-commerce.test.ts.
+const previous = CONTENT_MIGRATIONS.filter(step => step.id < "0011_archive_legacy_commerce");
 const step = CONTENT_MIGRATIONS.find(candidate => candidate.id === DROP_EMPTY_CORE_COMMERCE_TABLES_ID)!;
 
 for (const dialect of ["sqlite", "pglite"] as const) {

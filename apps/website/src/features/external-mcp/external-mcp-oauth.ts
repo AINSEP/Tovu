@@ -2,6 +2,7 @@ import { ToolInputError } from "@jini-ai/core";
 import type { DeviceAuthorizationStore, ExternalMcpOAuthDeps, ExternalMcpOAuthService } from "./contracts.js";
 import { createTovuIssuerBoundDiscoveryPolicy, tovuOAuthMessages, withTovuOAuthCopy } from "../../platform/oauth/endpoint-safety.js";
 import { randomBytes } from "node:crypto";
+import { hostedMcpSignInLink } from '../api-connections/browser-binding.js';
 import { nowIso as readNowIso, type UUID } from "@jini-ai/core/primitives";
 import { formatAad } from "@jini-ai/platform/secrets";
 // Shared OAuth design rationale: Jini/packages/oauth/src/authorization-code.ts.
@@ -764,8 +765,11 @@ function ownerKeyOf(workspaceId: UUID, serverId: string): string {
  * failure is the same `OAUTH_INVALID_STATE`, so a guessed or tampered state is not an oracle.
  * @complexity O(state bytes), bounded by Jini; one site-key seal/open, no pending-store I/O.
  */
-function sealedRedirectState({ deps, serverId }: { deps: ExternalMcpOAuthDeps; serverId: string }, _optional: Record<string, never> = {}) {
-  const aad = formatAad({ kind: "oauth-redirect-state", version: "v1", parts: [JSON.stringify([deps.workspaceId, serverId])] });
+function sealedRedirectState({ deps, serverId, browserBinding }: { deps: ExternalMcpOAuthDeps; serverId: string; browserBinding?: string }, _optional: Record<string, never> = {}) {
+  // The HTTP callback always supplies browser proof. Unbound pre-upgrade links cannot decrypt
+  // there; persisted grants use their existing vault AAD and remain usable across reconnects.
+  const parts = browserBinding === undefined ? [deps.workspaceId, serverId] : [deps.workspaceId, serverId, browserBinding];
+  const aad = formatAad({ kind: "oauth-redirect-state", version: "v1", parts: [JSON.stringify(parts)] });
   return createSealedAuthorizationState({ clock: deps.clock, workspaceId: deps.workspaceId, serverId, codec: {
     async seal({ plaintext }, _options = {}) {
       const sealed = await deps.sealer.seal({ plaintext, key: await deps.keyring.activeKey({}), aad });
@@ -1051,8 +1055,18 @@ export function createExternalMcpOAuthService(required: ExternalMcpOAuthDeps, _o
         );
       }
 
+      // The authenticated GET sets the shared browser-binding cookie before revealing a provider
+      // URL. This also works when the daemon prepared the connection in another process.
+      if (input.delivery === 'hosted') {
+        await setOAuthStatus(deps, record.serverId, 'pending');
+        return {
+          kind: 'redirect_required',
+          authorizationUrl: hostedMcpSignInLink({ callbackUrl: redirectUri, workspaceId: deps.workspaceId, serverId: record.serverId }),
+          expiresAt: new Date(deps.clock.nowMs() + 600_000).toISOString(),
+        };
+      }
       const started = await withTovuOAuthCopy({ call: () => beginAuthorizationCode(
-        { provider, stateless: sealedRedirectState({ deps, serverId: record.serverId }), guard: deps.httpPorts.guard,
+        { provider, stateless: sealedRedirectState({ deps, serverId: record.serverId, browserBinding: input.browserBinding }), guard: deps.httpPorts.guard,
           randomBytesFn: ({ byteLength }) => randomBytes(byteLength),
           options: oauthClientOptions(record, redirectUri),
           ownerKey: ownerKeyOf(deps.workspaceId, record.serverId),
@@ -1076,7 +1090,7 @@ export function createExternalMcpOAuthService(required: ExternalMcpOAuthDeps, _o
       let tokens: OAuthTokenSet;
       try {
         tokens = await withTovuOAuthCopy({ call: () => completeAuthorizationCode(
-          { ...deps.httpPorts, provider, stateless: sealedRedirectState({ deps, serverId: record.serverId }), clock: deps.clock,
+          { ...deps.httpPorts, provider, stateless: sealedRedirectState({ deps, serverId: record.serverId, browserBinding: input.browserBinding }), clock: deps.clock,
             redirectUri: input.redirectUri,
             ownerKey: ownerKeyOf(deps.workspaceId, record.serverId),
             client,

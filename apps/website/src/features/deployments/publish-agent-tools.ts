@@ -790,6 +790,8 @@ async function saveProposedCredential(required: {
   const repo = abortGuardedCredentialRepo({ store: deps.vendorCredentialSetRepo, signal });
   const writeDeps: PublishCredentialWriteDeps = {
     repo,
+    // Only this submitted secret card receives the trusted, grant-checked replacement port.
+    allowSharedKeyReplacement: true,
     loadDeployTargets: deployTargetsLoader(deps),
     sealer: deps.siteAssistantSecretSealer,
     keyring: deps.siteAssistantSecretKeyring,

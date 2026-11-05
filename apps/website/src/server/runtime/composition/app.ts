@@ -1844,8 +1844,10 @@ function subscribeSiteEventHandlersOnce(routeDeps: NewsletterRouteDeps): void {
       outbox: routeDeps.outbox,
       fileCleanup: {
         findBlob: input => routeDeps.assetBlobRepo.findByHash(input),
-        // This is a delayed cold GC job, never a visitor or upload hot path.
-        hasOwners: input => hasFormFileOwners({ kernel: contentKernel(taxonomyDb), ...input }),
+        // This is a delayed cold GC job, never a visitor or upload hot path. Without a
+        // persistent content database we cannot prove orphanhood, so retain the bytes.
+        hasOwners: input => routeDeps.contentKernel
+          ? hasFormFileOwners({ kernel: routeDeps.contentKernel, ...input }) : Promise.resolve(true),
         deleteBytes: input => routeDeps.blobStore.remove(input),
         removeBlob: input => routeDeps.assetBlobRepo.remove(input),
       },

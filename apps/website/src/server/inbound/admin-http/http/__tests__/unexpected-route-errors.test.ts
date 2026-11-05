@@ -64,7 +64,8 @@ test("import expected refusals keep their diagnosis without reporting an inciden
   const response = await dispatchJsonRequest(fixture(new SiteShareRefusal({ code: "NOT_FOUND", message: "Upload expired." }), tracked), "POST", "/api/admin/v1/workspaces/ws/site-imports");
   const body = response.body as Record<string, string>;
   assert.equal(response.status, 404);
-  assert.deepEqual(body, { code: "NOT_FOUND", message: "Upload expired." });
+  // The import boundary now identifies the failed stage while retaining the safe refusal.
+  assert.deepEqual(body, { code: "NOT_FOUND", message: "Archive verification failed: Upload expired." });
   assert.deepEqual(logs, []); assert.deepEqual(tracked, []);
 });
 

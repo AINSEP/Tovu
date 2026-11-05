@@ -41,6 +41,7 @@ import { publishBackstop } from "./0007_publish_backstop.js";
 import { postsPublishAtFeaturedMedia } from "./0008_posts_publish_at_featured_media.js";
 import { postsAuthor } from "./0009_posts_author.js";
 import { membersCredentialsRevokedAt } from "./0010_members_credentials_revoked_at.js";
+import { archiveLegacyCommerce } from "./0011_archive_legacy_commerce.js";
 import { dropEmptyCoreCommerceTables } from "./0011_drop_empty_core_commerce_tables.js";
 import { secretsVault } from "./0012_secrets_vault.js";
 import { unifyVaultCredentials } from "./0013_unify_vault_credentials.js";
@@ -81,6 +82,7 @@ export const CONTENT_MIGRATIONS: readonly MigrationStep[] = [
   postsPublishAtFeaturedMedia({ checksum: pinned("0008_posts_publish_at_featured_media") }),
   postsAuthor({ checksum: pinned("0009_posts_author") }),
   membersCredentialsRevokedAt({ checksum: pinned("0010_members_credentials_revoked_at") }),
+  archiveLegacyCommerce({ checksum: pinned("0011_archive_legacy_commerce") }),
   dropEmptyCoreCommerceTables({ checksum: pinned("0011_drop_empty_core_commerce_tables") }),
   secretsVault({ checksum: pinned("0012_secrets_vault") }),
   unifyVaultCredentials({ checksum: pinned("0013_unify_vault_credentials") }),

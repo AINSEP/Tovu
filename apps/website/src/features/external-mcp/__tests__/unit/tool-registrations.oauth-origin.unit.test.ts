@@ -34,10 +34,10 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
  * 3. Neither present -> the last-resort refusal still fires, naming both things that were tried.
  *
  * Real `createExternalMcpOAuthService`/`beginAuthorizationCode` are used throughout, not a stub of
- * `beginConnect` — the authorization URL's own `redirect_uri` query parameter is asserted directly,
+ * `beginConnect` — the authenticated host link's own origin and connection path are asserted directly,
  * so this proves what this domain's code ACTUALLY sends the OAuth client, not just what it intended
  * to. `fetchFn` is a tripwire that throws if ever called: the `authorization_code` grant's
- * `beginConnect` path never touches the network (it only composes a URL and writes `pending`), so a
+ * hosted `beginConnect` path never touches the network (it only composes a URL and writes `pending`), so a
  * call would mean this test is exercising something other than what it claims to.
  */
 
@@ -131,9 +131,12 @@ async function makeConnectHandler(derivedPublicOrigin: string | undefined): Prom
   return registration.handler;
 }
 
-/** Reads back the `redirect_uri` an authorization URL was built with. */
+/** The model receives a host hop at the trusted origin, without provider state or proof. */
 function redirectUriOf(authorizationUrl: string): string | null {
-  return new URL(authorizationUrl).searchParams.get("redirect_uri");
+  const url = new URL(authorizationUrl);
+  assert.equal(url.pathname, `/api/admin/v1/workspaces/${WORKSPACE}/mcp-servers/${SERVER}/oauth/sign-in`);
+  assert.equal(url.search, '');
+  return `${url.origin}${CALLBACK_PATH_SUFFIX}`;
 }
 
 test("TOVU_PUBLIC_URL unset, a derived origin present: the derived origin is used and the connect is NOT refused", async () => {

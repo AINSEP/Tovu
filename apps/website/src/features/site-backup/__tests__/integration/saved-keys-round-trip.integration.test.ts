@@ -108,7 +108,10 @@ for (const placement of ["inSite", "appData"] as const) {
     assert.equal(exported.hasEncryptedKeys === true, false);
     assert.match(exported.shareId, /^[0-9a-f-]{36}$/);
     assert.equal(exported.downloadUrl, `/api/admin/v1/workspaces/ws/site-shares/${exported.shareId}/download`);
-    assert.match(exported.notices.join(), /posts\.body_json.*post-0/);
+    // Credential-looking user content is preserved with location-only warnings and acknowledgement;
+    // saved keys, secret settings and inherited grants remain excluded by item 25.
+    assert.equal(exported.needsAcknowledgement, true);
+    assert.ok(exported.credentialWarnings.some((warning: { path: string }) => warning.path === 'content.db:posts.body_json'));
     const archive = fs.readFileSync(shares.artifactPath(exported));
     const files = new Map<string, Buffer>();
     for await (const e of reader.entries({ archive })) if (e.kind === "file") {
@@ -116,7 +119,7 @@ for (const placement of ["inSite", "appData"] as const) {
     }
     assert.equal(files.has(SAVED_KEYS_PATH), false);
     assert.equal(Boolean(JSON.parse(files.get("manifest.json")!.toString()).encryptedKeys), false);
-    for (const bytes of files.values()) for (const secret of [bearer, sourceToken, projectToken, settingSecret, "shadowed-project-secret", "unattached-project-secret", "11".repeat(32), ...(password ? [password] : [])]) assert.equal(bytes.includes(Buffer.from(secret)), false);
+    for (const bytes of files.values()) for (const secret of [sourceToken, projectToken, settingSecret, "shadowed-project-secret", "unattached-project-secret", "11".repeat(32)]) assert.equal(bytes.includes(Buffer.from(secret)), false);
     const imports = createSiteImportBackend({ ...h.backendPorts, restoreStagedImport: (input, options) => restoreStagedImport({ ...input, savedKeys }, options) });
     const { uploadId } = await imports.upload({ principalId: "owner", archive });
     const pending = await imports.importBackup({ principalId: "owner", source: { uploadId } });
@@ -125,7 +128,7 @@ for (const placement of ["inSite", "appData"] as const) {
     assert.equal(ready.status, "ready");
     const dir = path.join(h.workspace.home({}), ready.newSiteName!), dbPath = resolveSiteDatabasePaths({ dir }, { workspace: h.workspace }).contentDbPath;
     const imported = openContentDb({ filePath: dbPath }); t.after(() => closeSqliteConnection(imported));
-    assert.equal(imported.$client.serialize().includes(Buffer.from(bearer)), false);
+    assert.equal(imported.$client.prepare("SELECT body_json FROM posts WHERE id='post-0'").get<{ body_json: string }>()!.body_json.includes(bearer), true);
     const ids = imported.$client.prepare<[], { id: string }>("SELECT id FROM secrets_vault ORDER BY id").all().map(row => row.id);
     assert.deepEqual(ids, []);
     const settings = imported.$client.prepare("SELECT value_json FROM setting_values_workspace WHERE setting_id='saved-secret'").all();

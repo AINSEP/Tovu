@@ -7,7 +7,7 @@ import type { KeyringPort, SecretSealerPort } from '../webhooks/index.js';
  */
 export function ownerKeyHandleOnly({ keyring }: { keyring: KeyringPort }, _options = {}): KeyringPort {
   const refuse = async (): Promise<never> => { throw new ToolInputError({ message: 'Owner key derivation is private to Shared Keys. Use the saved credential through its site grant.' }); };
-  return { activeKey: () => keyring.activeKey({}), derive: refuse, deriveSigningSecret: refuse };
+  return { activeKey: () => keyring.activeKey(), derive: refuse, deriveSigningSecret: refuse };
 }
 
 /** Extract only the selected identity from Jini's frozen vault AAD; the full AAD is compared below. */

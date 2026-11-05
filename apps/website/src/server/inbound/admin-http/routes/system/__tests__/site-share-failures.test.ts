@@ -18,6 +18,8 @@ test("an archive failure returns the actual job step and redacted copyable detai
   assert.equal(response.status, 500);
   assert.equal(response.body.errorId, "ERR-1234-5678-9ABC-DEF0");
   const failure = response.body.details.failure;
+  assert.equal(failure.errorId, response.body.errorId);
+  assert.match(response.body.message, new RegExp(response.body.errorId));
   assert.equal(failure.message, "The export stopped while building the ZIP.");
   assert.equal(failure.action, "Copy details and report this problem. Check export history before starting another export.");
   assert.equal(failure.step, "archive");
@@ -118,6 +120,7 @@ test("shared diagnostics remain correlated without a telemetry provider", t => {
   assert.equal(status, 500);
   assert.equal(body.code, "SHARE_FAILED");
   assert.equal(typeof body.errorId, "string");
+  assert.equal(body.details.failure.errorId, body.errorId);
   assert.ok(body.message.includes(body.errorId));
   assert.equal(logs.length, 1);
   assert.ok(JSON.stringify(logs).includes(body.errorId));

@@ -1,0 +1,143 @@
+/**
+ * @file The ask before the app's last window closes: "Quit Tovu and stop N running sites?" (owner
+ * 2026-11-05). Closing that window with sites running otherwise either stops them with no warning
+ * (Windows, Linux) or leaves them running behind a Dock icon (macOS). `main.ts` passes the native
+ * box, the open servers and `app.quit` in, so every rule here runs under plain node with fakes.
+ *
+ * **Why it latches on `before-quit`, not on `quitPhase`.** Every quit route (Cmd+Q, menu Quit, a
+ * signal, Restart to update, this box's own Quit) reaches `before-quit` before any window closes,
+ * so none of them may meet this box. `quitPhase` cannot say so: it stays `"idle"` when there was
+ * nothing to drain, including while a macOS update is staging, and Electron's `quitAndInstall` then
+ * closes the windows BEFORE its own `before-quit`. Holding a close there would abort the update.
+ *
+ * **Why it keeps its own window set.** `BrowserWindow.getAllWindows()` also lists the hidden capture
+ * windows (`desktop-capture.ts`), so "am I the last?" would never be true while one exists.
+ * `isVisible()` cannot filter them: on macOS it answers false for a window another one covers.
+ */
+import type { MessageBoxOptions } from "electron";
+
+import { desktopCopy } from "../../desktop-i18n.ts";
+
+/** The slice of a `BrowserWindow` this ask touches. */
+interface QuitPromptWindow {
+  on(event: "close", listener: (event: { preventDefault(): void }) => void): unknown;
+  on(event: "closed", listener: () => void): unknown;
+}
+
+/** The slice of a `tovu serve` handle counted here: `external` marks one this app only attached to. */
+interface CountedServer {
+  external?: boolean;
+}
+
+/** Everything the ask needs from `main.ts`. */
+interface LastWindowQuitPorts<W> {
+  /** Every server `before-quit`'s drain would call `stop()` on. */
+  openServers: () => readonly CountedServer[];
+  /** `app.getLocale()`, read when the box opens. */
+  locale: () => string;
+  /** `dialog.showMessageBox`, parented so it is a sheet on macOS and modal to the window on Windows. */
+  showMessageBox: (window: W, options: MessageBoxOptions) => Promise<{ response: number }>;
+  /** `app.quit()`: the same graceful drain Cmd+Q runs. */
+  quit: () => void;
+  logError: (message: string) => void;
+}
+
+/** The ask, as `main.ts` uses it. */
+interface LastWindowQuitPrompt<W> {
+  /** Count this window as open and ask before it closes last. Only app windows belong here. */
+  watch(required: { window: W }): void;
+  /** A quit has started: dismiss an open box, and never ask again. Idempotent. */
+  onQuitStarted(): void;
+}
+
+const QUIT_BUTTON = 0;
+const CANCEL_BUTTON = 1;
+
+/**
+ * What a quit does to the open servers: stopping an attached one only ends this app's watch on it
+ * (`shared-sites.ts`'s `attachRunningSite`), so that site keeps running by design.
+ * @returns How many sites stop, and how many keep running. @complexity O(n) open servers.
+ */
+function quitSiteCounts({ servers }: { servers: readonly CountedServer[] }, _optional = {}): { stops: number; keeps: number } {
+  const keeps = servers.filter((server) => server.external).length;
+  return { stops: servers.length - keeps, keeps };
+}
+
+/**
+ * The native box. `stops` and `keeps` are the two {@link quitSiteCounts} numbers.
+ * @returns The box's options, in `locale`. @complexity O(1).
+ */
+function lastWindowQuitDialog({ locale, stops, keeps }: { locale: string; stops: number; keeps: number }, _optional = {}): MessageBoxOptions {
+  const copy = desktopCopy({ locale }).lastWindowQuit;
+  return {
+    type: "question",
+    title: "Tovu",
+    message: (stops === 1 ? copy.quitOne : copy.quitMany).replace("{count}", String(stops)),
+    ...(keeps > 0 ? { detail: (keeps === 1 ? copy.keepsOne : copy.keepsMany).replace("{count}", String(keeps)) } : {}),
+    buttons: [copy.quit, copy.cancel],
+    defaultId: QUIT_BUTTON,
+    cancelId: CANCEL_BUTTON,
+    // Windows would otherwise turn "Quit", which it does not recognise as a common button, into a
+    // large command link above a lone Cancel. Ignored on macOS.
+    noLink: true,
+  };
+}
+
+/**
+ * Binds the ask to its ports. A close is held first and answered later, because `close` can only be
+ * prevented synchronously; Quit then runs the ordinary quit, so nothing here stops a site.
+ * @returns The ask. @complexity O(1) per close, plus O(n) open servers when it asks.
+ */
+function createLastWindowQuitPrompt<W extends QuitPromptWindow>(
+  { ports }: { ports: LastWindowQuitPorts<W> },
+  _optional = {},
+): LastWindowQuitPrompt<W> {
+  const windows = new Set<W>();
+  let quitStarted = false;
+  let openBox: AbortController | null = null;
+
+  function ask({ window, stops, keeps }: { window: W; stops: number; keeps: number }): void {
+    const box = new AbortController();
+    openBox = box;
+    ports.showMessageBox(window, { ...lastWindowQuitDialog({ locale: ports.locale(), stops, keeps }), signal: box.signal })
+      .then(({ response }) => {
+        openBox = null;
+        if (response === QUIT_BUTTON) ports.quit();
+      })
+      .catch((error: unknown) => {
+        openBox = null;
+        ports.logError(`[tovu-desktop] could not ask before quitting: ${(error as Error).message}`);
+      });
+  }
+
+  function onClose({ window, event }: { window: W; event: { preventDefault(): void } }): void {
+    if (quitStarted) return;
+    // While the box is open the answer decides; the close that opened it is already held.
+    if (openBox) {
+      event.preventDefault();
+      return;
+    }
+    if (windows.size > 1) return;
+    const { stops, keeps } = quitSiteCounts({ servers: ports.openServers() });
+    if (stops === 0) return;
+    event.preventDefault();
+    ask({ window, stops, keeps });
+  }
+
+  return {
+    watch({ window }) {
+      windows.add(window);
+      window.on("close", (event) => onClose({ window, event }));
+      // `closed`, not `close`: a page's `beforeunload` can still veto a close that passed here.
+      window.on("closed", () => windows.delete(window));
+    },
+    onQuitStarted() {
+      quitStarted = true;
+      openBox?.abort();
+      openBox = null;
+    },
+  };
+}
+
+export { createLastWindowQuitPrompt, lastWindowQuitDialog, quitSiteCounts };
+export type { LastWindowQuitPorts, LastWindowQuitPrompt, QuitPromptWindow };

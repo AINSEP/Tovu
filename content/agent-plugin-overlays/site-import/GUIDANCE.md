@@ -14,6 +14,10 @@ into the current site. The skill's crawl-and-write flow is for live public websi
 `theme-authoring` is Tovu Theme: call `agent_plugin_tovu_theme` and follow its Part C ("match a
 reference site"). Part C runs `content_read.theme`, `theme_duplicate`, `theme_read_file`,
 `theme_write_file`, `theme_edit_file`, and `theme_set_active` only with the owner's approval.
+Start with `theme_duplicate { sourceThemeId, newName, mode: "structure-only", activate: false }`.
+Tovu Starter supplies structure and functional wiring only. Rebuild CSS from the supplied site's
+design; never inherit Starter styling. A `valid` copy can still be `unstyled`: write fresh CSS,
+compare screenshots and obtain the owner's approval before activation.
 
 **References.** Read the skill's references with `agent_plugin_site_import` and
 `file: "references/<file>"`, and Tovu's exact write shapes with `file: "host/content-mapping.md"`.

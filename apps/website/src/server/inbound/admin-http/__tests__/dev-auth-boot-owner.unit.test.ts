@@ -57,7 +57,9 @@ for (const state of ["missing", "disabled", "member"] as const) {
     const save = t.mock.method(deps.sessionRepo, "save");
     const response = bootResponse({});
     assert.equal(await redeemOwnerBootSession({ deps, res: response.res, token: undefined }, { redeem: () => true }), null);
-    assert.deepEqual(response.capture, { statusCode: 500, jsonBody: { error: "internal error" } });
+    assert.equal(response.capture.statusCode, 500);
+    assert.partialDeepStrictEqual(response.capture.jsonBody, { code: "INTERNAL_ERROR", details: { failure: { message: "Sign-in could not finish.", step: "auth-boot-session" } } });
+    assert.match(JSON.stringify(response.capture.jsonBody), /Try signing in again/);
     assert.equal(save.mock.callCount(), 0);
     assert.deepEqual(response.cookies, []);
   });
@@ -114,7 +116,9 @@ test("boot redemption refuses a minted session that Jini cannot validate before 
   const response = bootResponse({});
   assert.equal(await redeemOwnerBootSession({ deps, res: response.res, token: undefined }, { redeem: () => true }), null);
   assert.equal(save.mock.callCount(), 1);
-  assert.deepEqual(response.capture, { statusCode: 500, jsonBody: { error: "internal error" } });
+  assert.equal(response.capture.statusCode, 500);
+  assert.partialDeepStrictEqual(response.capture.jsonBody, { code: "INTERNAL_ERROR", details: { failure: { message: "Sign-in could not finish.", step: "auth-boot-session" } } });
+  assert.match(JSON.stringify(response.capture.jsonBody), /Try signing in again/);
   assert.deepEqual(response.cookies, []);
 });
 

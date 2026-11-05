@@ -227,6 +227,8 @@ export interface PublishCredentialWriteDeps extends PublishCredentialReadDeps {
   keyring: KeyringPort;
   clock: ClockPort;
   idGen: { newId(): string };
+  /** Set only by the submitted human card; the owner port rechecks its current site grant. */
+  allowSharedKeyReplacement?: boolean;
 }
 
 /** Narrows and validates a caller-supplied `label`. Never throws a raw `TypeError` — every rejection
@@ -380,22 +382,33 @@ async function assertLabelFreeOnSite({ deps, target, workspaceId, vendorId, labe
 }
 
 /** Label conflicts keep the feature's error contract; stale CAS failures stay conflicts.
- * @complexity One vault write; on conflict, O(vendor rows) metadata lookup without opening secrets. */
-async function saveConnection({ deps, target, input, providerId }: { deps: PublishCredentialWriteDeps; target: ScopedCredentialDeps<PublishCredentialWriteDeps>;
+ * @complexity One vault write; a failed update adds one selected row read, never an inventory scan. */
+async function saveConnection({ target, input, providerId }: { target: ScopedCredentialDeps<PublishCredentialWriteDeps>;
   input: Parameters<ReturnType<typeof vault>["put"]>[0]; providerId: PublishProviderId }, _options = {}): Promise<VaultSummary> {
   try { return await vault(target.deps).put(input); }
   catch (error) {
     if (error instanceof ProjectKeyCreateConflictError) throw new PublishCredentialDuplicateLabelError(error.message);
-    // Unattached project rows are hidden from normal reads. Use only deletion metadata to
-    // distinguish a duplicate label from a CAS conflict; never attach or open the existing key.
-    const labelRepo = target.scope === "project" ? deps.repo.project!.repo : target.deps.repo;
+    // Unattached project rows are hidden from normal reads. Compare only this row's revision to
+    // distinguish a duplicate label from a CAS conflict; never enumerate, attach or open other keys.
     // The storage kernel recognizes UNIQUE (workspace_id, vendor_id, label) via SQLite's
     // code/message or Postgres SQLSTATE 23505.
-    const duplicate = isUniqueViolation(error) || error instanceof VaultError && error.code === "conflict" &&
-      (await labelRepo.listByVendor({ workspaceId: input.workspaceId, vendorId: input.provider! })).some(row => row.id !== input.id && row.label === input.label);
+    const duplicate = await isPublishLabelConflict({ error, target, input });
     if (duplicate) throw new PublishCredentialDuplicateLabelError(input.workspaceId === 'project' ? `Your project already has a key named '${input.label}'. Use it here, or pick another name.` : `a '${providerId}' credential labeled '${input.label}' already exists in this workspace`);
     throw error;
   }
+}
+
+/** Distinguish duplicate labels from stale CAS without enumerating hidden owner keys.
+ * @returns Whether this is a duplicate label rather than a stale compare-and-set.
+ * @complexity O(1); a failed update reads one selected metadata row, creates read none.
+ */
+async function isPublishLabelConflict({ error, target, input }: { error: unknown; target: ScopedCredentialDeps<PublishCredentialWriteDeps>;
+  input: Parameters<ReturnType<typeof vault>["put"]>[0] }, _options = {}): Promise<boolean> {
+  if (isUniqueViolation(error)) return true;
+  if (!(error instanceof VaultError) || error.code !== "conflict") return false;
+  if (input.expectedRevision === null) return true;
+  const current = await target.deps.repo.vault!.find({ workspaceId: input.workspaceId, id: input.id });
+  return current?.revision === input.expectedRevision && current?.label !== input.label;
 }
 
 /** Validate before the vault write. Jini atomically auto-defaults the first vendor credential. */
@@ -408,7 +421,7 @@ export async function createPublishCredential(deps: PublishCredentialWriteDeps, 
   // Project-first (`vendor-credentials/project-scope.ts`); "site" = only for this site.
   const target = credentialCreateTarget(deps, input, message => new PublishCredentialValidationError(message));
   await assertLabelFreeOnSite({ deps, target, workspaceId: input.workspaceId, vendorId: validated.spec.vendorId, label, providerId });
-  const summary = await saveConnection({ deps, target, providerId, input: {
+  const summary = await saveConnection({ target, providerId, input: {
     ...credentialScope({ workspaceId: target.workspaceId, kind: "vendor" }), id: deps.idGen.newId(), expectedRevision: null,
     provider: validated.spec.vendorId, label, meta: { credentialType: "vendor", worksFor: validatedWorksFor({ value: input.worksFor === undefined ? registry.get(providerId)?.module.defaultCredentialWorksFor ?? [validated.spec.vendorId] : input.worksFor }), accountLabel: null }, payload: { vendorId: validated.spec.vendorId, ...fields },
     hintToken: fields[validated.spec.tokenField], ...(isDefault === undefined ? {} : { isDefault }),
@@ -469,6 +482,18 @@ function isProviderOnlyMove({ values, spec }: {
     (values[spec.tokenField] === undefined || values[spec.tokenField] === "");
 }
 
+/** Select the trusted owner-card writer without widening the site's read view.
+ * @returns The existing scope for local/legacy stores; otherwise the grant-checked writer.
+ * @throws PublishCredentialValidationError outside a submitted human card.
+ * @complexity O(1); no I/O, inventories or secret material.
+ */
+function sharedReplacementScope({ deps, scoped }: { deps: PublishCredentialWriteDeps; scoped: ScopedCredentialDeps<PublishCredentialWriteDeps> }, _options = {}): ScopedCredentialDeps<PublishCredentialWriteDeps> {
+  const project = deps.repo.project;
+  if (scoped.scope !== "project" || !project?.createRepo) return scoped;
+  if (!deps.allowSharedKeyReplacement || !project.replaceRepo) throw new PublishCredentialValidationError("Change this saved key in Shared Keys, or open its secure key card in the owner session. Details: P25_OWNER_KEY_READ_ONLY.");
+  return { ...scoped, deps: { ...scoped.deps, repo: project.replaceRepo } };
+}
+
 /** Blank secret fields keep their stored value; null explicitly removes an optional secret.
  * Required secrets remain required, and non-secret companion fields still update.
  * @complexity O(fields + sealed payload bytes), at most one existing connection open.
@@ -500,14 +525,15 @@ export async function updatePublishCredential(deps: PublishCredentialWriteDeps, 
   const registry = await deps.loadDeployTargets(input.workspaceId);
   const host = located ? registry.list().find(target => target.descriptor.credential?.vendorId === located.existing.vendorId)?.descriptor.id : undefined;
   if (!located || host === undefined) throw new PublishCredentialNotFoundError(`no publish credential '${input.id}' in this workspace`);
-  const { scoped, existing } = located;
+  const { existing } = located;
+  const scoped = sharedReplacementScope({ deps, scoped: located.scoped });
   const label = input.label !== undefined ? validateLabel(input.label) : existing.label;
   const requestedDefault = optionalBoolean(input.isDefault, "isDefault");
   const row = await scoped.deps.repo.vault!.find({ workspaceId: scoped.workspaceId, id: input.id });
   if (!row) throw new PublishCredentialNotFoundError(`no publish credential '${input.id}' in this workspace`);
   const { providerId, accountLabel, ...changes } = await connectionChanges({ deps: scoped.deps, input, existing, registry, host, row });
   await assertLabelFreeOnSite({ deps, target: scoped, workspaceId: input.workspaceId, vendorId: changes.provider, label, providerId });
-  const summary = await saveConnection({ deps, target: scoped, providerId, input: { ...credentialScope({ workspaceId: scoped.workspaceId, kind: "vendor" }), id: input.id,
+  const summary = await saveConnection({ target: scoped, providerId, input: { ...credentialScope({ workspaceId: scoped.workspaceId, kind: "vendor" }), id: input.id,
     expectedRevision: row.revision, label, ...changes,
     meta: { ...row.meta, worksFor: updatedWorksFor({ value: input.worksFor, row, provider: changes.provider, host }), accountLabel },
     ...(requestedDefault === true ? { isDefault: true } : {}) } });

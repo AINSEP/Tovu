@@ -635,3 +635,15 @@ test("ordinary uploaded media retains its content hash after publishing", async 
   assert.equal((await handler.inspect(record.id))!.hash, entity.contentHash,
     'losing uploaded source metadata must not make the next publish look like a destination edit');
 });
+
+test("ordinary metadata imports retain the destination's complete write-once source", async () => {
+  const prior = makeMediaRecord({ source: { sha256: PHOTO_SHA256, contentType: 'application/octet-stream', provenance: { kind: 'upload' } } });
+  const fixture = await makeFixture({ mediaRows: [prior] });
+  await stageBlobBytes(fixture.blobStore, PHOTO_SHA256, PHOTO_BYTES);
+  const incoming = makeMediaRecord({ title: 'Updated title', source: { sha256: PHOTO_SHA256, contentType: 'image/jpeg', provenance: { kind: 'url', url: 'https://example.com/relabelled.jpg' } } });
+  await handlerFor(fixture.deps).apply({ entity: packedFrom(incoming), expectedVersion: prior.version,
+    principalId: OPERATOR_ID, idempotencyKey: 'ordinary-metadata-source-preserved' });
+  const saved = (await fixture.mediaRepo.findById({ workspaceId: WORKSPACE_ID, id: prior.id }))!;
+  assert.equal(saved.title, 'Updated title');
+  assert.deepEqual(saved.source, prior.source, 'same bytes do not authorize changing provenance or MIME');
+});

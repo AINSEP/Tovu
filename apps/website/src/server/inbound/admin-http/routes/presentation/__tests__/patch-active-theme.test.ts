@@ -17,6 +17,7 @@ import {
 } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminPresentationPatchRoute } from "../patch-active-theme.js";
 import type { ContentRouteDeps } from "../../content/deps.js";
+import { THEME_STYLING_REQUIRED_MESSAGE, UNSTYLED_THEME_MARKER } from "#src/features/theme/active-theme";
 
 /**
  * @file Unit-tier branch coverage for `PATCH .../presentation` (`registerAdminPresentationPatchRoute`).
@@ -90,6 +91,24 @@ async function patch(t: import("node:test").TestContext, app: express.Express, b
   const json = await res.json().catch(() => ({}));
   return { status: res.status, json };
 }
+
+test("presentation patch: structure drafts use the shared readiness message and cannot save until styled", async (t) => {
+  const base = createRouteDeps();
+  const themes = base.themes.map(theme => ({ ...theme }));
+  const draft = themes.find(theme => theme.status === "valid")!;
+  assert.ok(draft);
+  draft.css = `/* ${UNSTYLED_THEME_MARKER} */`;
+  const before = await base.presentationRepo.findByWorkspaceId({ workspaceId: WORKSPACE_ID });
+  const app = buildApp({ themes, presentationRepo: base.presentationRepo });
+  const denied = await patch(t, app, { activeThemeId: draft.manifest.id });
+  assert.equal(denied.status, 400);
+  assert.deepEqual(denied.json, { error: THEME_STYLING_REQUIRED_MESSAGE });
+  assert.deepEqual(await base.presentationRepo.findByWorkspaceId({ workspaceId: WORKSPACE_ID }), before);
+  draft.css = "body { color: black; }";
+  const accepted = await patch(t, app, { activeThemeId: draft.manifest.id });
+  assert.equal(accepted.status, 200);
+  assert.equal(accepted.json.settings.activeThemeId, draft.manifest.id);
+});
 
 test("presentation patch: mismatched workspaceId 404s", async (t) => {
   const app = buildApp();

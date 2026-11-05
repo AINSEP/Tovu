@@ -19,6 +19,7 @@ import {
   type SetActiveThemeToolDeps,
 } from "#src/features/theme/set-active-theme-tool";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
+import { THEME_STYLING_REQUIRED_MESSAGE, UNSTYLED_THEME_MARKER } from "#src/features/theme/active-theme";
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
@@ -99,6 +100,16 @@ function handlerFor(routeDeps: SetActiveThemeToolDeps): ToolHandler {
   assert.ok(registration, "expected a 'theme_set_active' registration");
   return registration.handler;
 }
+
+test("theme_set_active: a marked structure copy refuses without saving, then activates after styling", async () => {
+  const deps = fakeDeps();
+  const draft = deps.themes.find(t => t.manifest.id === "aurora")!;
+  draft.css = `/* ${UNSTYLED_THEME_MARKER} */`;
+  await assert.rejects(() => handlerFor(deps)(ctxFor({ themeId: "aurora" })), { message: THEME_STYLING_REQUIRED_MESSAGE });
+  assert.equal(await resolveActiveThemeId(deps), "basic");
+  draft.css = "body { color: black; }";
+  assert.deepEqual(await handlerFor(deps)(ctxFor({ themeId: "aurora" })), { previousThemeId: "basic", activeThemeId: "aurora" });
+});
 
 test("theme_set_active: wires with a published schema and a cross-checked risk class", () => {
   const routeDeps = fakeDeps();

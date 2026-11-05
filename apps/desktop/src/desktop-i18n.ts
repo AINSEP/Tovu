@@ -9,6 +9,8 @@ export interface DesktopCopy {
   /** The confirm before stopping a site another process serves. `{name}`/`{app}` are filled by the
    *  caller; text between backticks renders as code. */
   stopConfirm: { title: string; devBody: string; otherBody: string; confirm: string; confirming: string };
+  /** The native ask before the last window closes. `{count}` is filled by the caller. */
+  lastWindowQuit: { quitOne: string; quitMany: string; keepsOne: string; keepsMany: string; quit: string; cancel: string };
 }
 const COPY: Record<string, readonly [string, string, string, string, string]> = {
   en: ['Settings', 'Automatically update Tovu', 'Could not save update preference', 'Restart', 'Restarting…'],
@@ -86,6 +88,34 @@ const STOP_CONFIRM_COPY: Record<string, readonly [string, string, string, string
   bn: ['{name} বন্ধ করবেন?', 'এটি `npm run dev` বন্ধ করবে, অ্যাডমিন ডেভেলপমেন্ট সার্ভারসহ।', 'এটি {app}-এ এই সাইট চালানো সার্ভারটি বন্ধ করবে।', 'বন্ধ করুন', 'বন্ধ হচ্ছে…'],
 };
 
+/** [quitOne, quitMany, keepsOne, keepsMany, quit, cancel] — owner 2026-11-05 wrote the English question.
+ *  `quitMany`/`keepsMany` fill any count above 1, so languages whose noun form changes with the
+ *  number (ar, pl, ru, uk) put the count in brackets instead of beside the noun. */
+const LAST_WINDOW_QUIT_COPY: Record<string, readonly [string, string, string, string, string, string]> = {
+  en: ['Quit Tovu and stop 1 running site?', 'Quit Tovu and stop {count} running sites?', '1 site this app didn’t start keeps running.', '{count} sites this app didn’t start keep running.', 'Quit', 'Cancel'],
+  es: ['¿Salir de Tovu y detener 1 sitio en ejecución?', '¿Salir de Tovu y detener {count} sitios en ejecución?', '1 sitio que esta app no inició sigue en ejecución.', '{count} sitios que esta app no inició siguen en ejecución.', 'Salir', 'Cancelar'],
+  de: ['Tovu beenden und 1 laufende Website stoppen?', 'Tovu beenden und {count} laufende Websites stoppen?', '1 Website, die diese App nicht gestartet hat, läuft weiter.', '{count} Websites, die diese App nicht gestartet hat, laufen weiter.', 'Beenden', 'Abbrechen'],
+  it: ['Uscire da Tovu e arrestare 1 sito in esecuzione?', 'Uscire da Tovu e arrestare {count} siti in esecuzione?', '1 sito non avviato da questa app resta in esecuzione.', '{count} siti non avviati da questa app restano in esecuzione.', 'Esci', 'Annulla'],
+  'zh-CN': ['退出 Tovu 并停止 1 个正在运行的网站？', '退出 Tovu 并停止 {count} 个正在运行的网站？', '1 个不是由此应用启动的网站会继续运行。', '{count} 个不是由此应用启动的网站会继续运行。', '退出', '取消'],
+  'zh-TW': ['結束 Tovu 並停止 1 個執行中的網站？', '結束 Tovu 並停止 {count} 個執行中的網站？', '1 個不是由此應用程式啟動的網站會繼續執行。', '{count} 個不是由此應用程式啟動的網站會繼續執行。', '結束', '取消'],
+  ar: ['إنهاء Tovu وإيقاف موقع واحد قيد التشغيل؟', 'إنهاء Tovu وإيقاف المواقع قيد التشغيل ({count})؟', 'سيبقى موقع واحد لم يشغّله هذا التطبيق قيد التشغيل.', 'ستبقى المواقع التي لم يشغّلها هذا التطبيق قيد التشغيل ({count}).', 'إنهاء', 'إلغاء'],
+  fa: ['خروج از Tovu و توقف 1 سایت در حال اجرا؟', 'خروج از Tovu و توقف {count} سایت در حال اجرا؟', '1 سایت که این برنامه آن را راه‌اندازی نکرده در حال اجرا می‌ماند.', '{count} سایت که این برنامه آن‌ها را راه‌اندازی نکرده در حال اجرا می‌مانند.', 'خروج', 'لغو'],
+  ru: ['Выйти из Tovu и остановить 1 работающий сайт?', 'Выйти из Tovu и остановить работающие сайты ({count})?', '1 сайт, запущенный не этим приложением, продолжит работать.', 'Сайты, запущенные не этим приложением, продолжат работать ({count}).', 'Выйти', 'Отмена'],
+  ja: ['Tovu を終了して、実行中のサイト 1 件を停止しますか？', 'Tovu を終了して、実行中のサイト {count} 件を停止しますか？', 'このアプリが起動していないサイト 1 件は実行を続けます。', 'このアプリが起動していないサイト {count} 件は実行を続けます。', '終了', 'キャンセル'],
+  id: ['Keluar dari Tovu dan hentikan 1 situs yang berjalan?', 'Keluar dari Tovu dan hentikan {count} situs yang berjalan?', '1 situs yang tidak dimulai oleh aplikasi ini tetap berjalan.', '{count} situs yang tidak dimulai oleh aplikasi ini tetap berjalan.', 'Keluar', 'Batal'],
+  'pt-BR': ['Sair do Tovu e parar 1 site em execução?', 'Sair do Tovu e parar {count} sites em execução?', '1 site que este app não iniciou continua em execução.', '{count} sites que este app não iniciou continuam em execução.', 'Sair', 'Cancelar'],
+  ko: ['Tovu를 종료하고 실행 중인 사이트 1개를 중지할까요?', 'Tovu를 종료하고 실행 중인 사이트 {count}개를 중지할까요?', '이 앱이 시작하지 않은 사이트 1개는 계속 실행됩니다.', '이 앱이 시작하지 않은 사이트 {count}개는 계속 실행됩니다.', '종료', '취소'],
+  pl: ['Zamknąć Tovu i zatrzymać 1 działającą witrynę?', 'Zamknąć Tovu i zatrzymać działające witryny ({count})?', '1 witryna, której ta aplikacja nie uruchomiła, będzie nadal działać.', 'Witryny, których ta aplikacja nie uruchomiła, będą nadal działać ({count}).', 'Zakończ', 'Anuluj'],
+  hu: ['Kilépsz a Tovuból, és leállítasz 1 futó webhelyet?', 'Kilépsz a Tovuból, és leállítasz {count} futó webhelyet?', '1 webhely, amelyet nem ez az alkalmazás indított, tovább fut.', '{count} webhely, amelyet nem ez az alkalmazás indított, tovább fut.', 'Kilépés', 'Mégse'],
+  fr: ['Quitter Tovu et arrêter 1 site en cours d’exécution ?', 'Quitter Tovu et arrêter {count} sites en cours d’exécution ?', '1 site que cette app n’a pas démarré continue de fonctionner.', '{count} sites que cette app n’a pas démarrés continuent de fonctionner.', 'Quitter', 'Annuler'],
+  uk: ['Вийти з Tovu та зупинити 1 запущений сайт?', 'Вийти з Tovu та зупинити запущені сайти ({count})?', '1 сайт, запущений не цим застосунком, працюватиме далі.', 'Сайти, запущені не цим застосунком, працюватимуть далі ({count}).', 'Вийти', 'Скасувати'],
+  tr: ['Tovu’dan çıkılsın ve çalışan 1 site durdurulsun mu?', 'Tovu’dan çıkılsın ve çalışan {count} site durdurulsun mu?', 'Bu uygulamanın başlatmadığı 1 site çalışmaya devam eder.', 'Bu uygulamanın başlatmadığı {count} site çalışmaya devam eder.', 'Çık', 'İptal'],
+  th: ['ออกจาก Tovu และหยุดเว็บไซต์ที่กำลังทำงาน 1 แห่งไหม', 'ออกจาก Tovu และหยุดเว็บไซต์ที่กำลังทำงาน {count} แห่งไหม', 'เว็บไซต์ 1 แห่งที่แอปนี้ไม่ได้เริ่มจะยังคงทำงานต่อ', 'เว็บไซต์ {count} แห่งที่แอปนี้ไม่ได้เริ่มจะยังคงทำงานต่อ', 'ออก', 'ยกเลิก'],
+  hi: ['Tovu बंद करें और चल रही 1 साइट रोकें?', 'Tovu बंद करें और चल रही {count} साइटें रोकें?', '1 साइट जिसे इस ऐप ने शुरू नहीं किया, चलती रहेगी।', '{count} साइटें जिन्हें इस ऐप ने शुरू नहीं किया, चलती रहेंगी।', 'बंद करें', 'रद्द करें'],
+  ur: ['Tovu بند کریں اور چلتی ہوئی 1 سائٹ روکیں؟', 'Tovu بند کریں اور چلتی ہوئی {count} سائٹس روکیں؟', '1 سائٹ جو اس ایپ نے شروع نہیں کی، چلتی رہے گی۔', '{count} سائٹس جو اس ایپ نے شروع نہیں کیں، چلتی رہیں گی۔', 'بند کریں', 'منسوخ کریں'],
+  bn: ['Tovu থেকে প্রস্থান করে চলমান 1টি সাইট বন্ধ করবেন?', 'Tovu থেকে প্রস্থান করে চলমান {count}টি সাইট বন্ধ করবেন?', 'এই অ্যাপ চালু করেনি এমন 1টি সাইট চলতে থাকবে।', 'এই অ্যাপ চালু করেনি এমন {count}টি সাইট চলতে থাকবে।', 'প্রস্থান', 'বাতিল'],
+};
+
 /**
  * The locale the renderer runs in: the browser's `navigator.language`, or `en` where there is no
  * navigator at all (a non-browser host). Pure given its port; no errors.
@@ -109,6 +139,8 @@ export function desktopCopy({ locale }: { locale: string }, _optionalArgs = {}):
   const [settings, automaticUpdates, saveUpdateError, restart, restarting] = row;
   const [invalid, empty, incomplete, unreadable, add, start] = SITE_ERROR_COPY[key] ?? SITE_ERROR_COPY.en!;
   const [title, devBody, otherBody, confirm, confirming] = STOP_CONFIRM_COPY[key] ?? STOP_CONFIRM_COPY.en!;
+  const [quitOne, quitMany, keepsOne, keepsMany, quit, cancel] = LAST_WINDOW_QUIT_COPY[key] ?? LAST_WINDOW_QUIT_COPY.en!;
   return { settings, automaticUpdates, saveUpdateError, restart, restarting, siteErrors: { invalid, empty, incomplete, unreadable, add, start },
-    stopConfirm: { title, devBody, otherBody, confirm, confirming } };
+    stopConfirm: { title, devBody, otherBody, confirm, confirming },
+    lastWindowQuit: { quitOne, quitMany, keepsOne, keepsMany, quit, cancel } };
 }

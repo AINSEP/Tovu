@@ -132,6 +132,7 @@ export function bootstrapFreshContentDb(
       for (const statement of POSTS_AUTHOR_SQLITE_STATEMENTS) client.exec(statement);
     },
     "0010_members_credentials_revoked_at": () => client.exec(MEMBERS_CREDENTIALS_REVOKED_AT_SQL),
+    "0011_archive_legacy_commerce": () => {}, // Fresh baseline has no commerce rows to preserve.
     "0011_drop_empty_core_commerce_tables": () => {
       // Fresh-only: the frozen chain seeds no commerce rows; upgrades use 0011's count guard.
       for (const table of CORE_COMMERCE_TABLES_IN_DROP_ORDER) client.exec(`DROP TABLE IF EXISTS "${table}"`);

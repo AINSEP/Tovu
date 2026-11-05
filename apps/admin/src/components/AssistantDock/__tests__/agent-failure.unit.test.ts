@@ -141,7 +141,9 @@ describe("agent failure reasons", () => {
     const user: ChatMessage = { id: "user", role: "user", content: "hello" };
     expect(projectAgentFailureMessage({ message: user })).toBe(user);
     expect(projectAgentFailureMessage({ message: { id: "empty", role: "assistant", content: "", runStatus: "failed" } }).events)
-      .toEqual([{ kind: "status", code: "run_terminal", label: GENERIC_AGENT_FAILURE }]);
+      .toEqual([{ kind: "ext", name: AGENT_FAILURE_EVENT, data: {
+        reason: GENERIC_AGENT_FAILURE, details: "The assistant stopped without reporting a cause.",
+      } }]);
   });
 
   it("redacts credentials with default options while preserving ordinary whitespace", () => {

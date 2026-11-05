@@ -39,5 +39,5 @@ export function importErrorResponse(err: unknown, options: AdminFailurePorts = {
   // Same envelope as the posts routes' `sendPluginHookFailedError`, so a client tells a plugin's
   // refusal apart from any other internal error — and the same fixed text, never the plugin's own.
   if (err instanceof PluginHookFailedError) return { status: 500, body: pluginHookFailedBody(err) };
-  return adminFailureResponse({ error: err, tracker: options.tracker }, { operation: "routes/publish-content/import-errors", message: "The content import could not finish." });
+  return adminFailureResponse({ error: err, tracker: options.tracker }, { operation: "routes/publish-content/import-errors", message: "The content import could not finish. Check import history for content already applied before trying again. Copy details and report this problem." });
 }

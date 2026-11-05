@@ -28,6 +28,7 @@ export const MIGRATION_CHECKSUMS: Readonly<Record<string, string>> = {
   "chat/0003_active_run_index": "8655b54d8d75d7b316c83c634bdcbeb7f6c8c06a3c3c63d11cba8879a47b8bd0",
   "chat/0002_durable_run_attempts": "c5737dcb73f4c5711ad44db8531e268551c0b7c94f219dee609539138acd9414",
   "0010_members_credentials_revoked_at": "51b21e04877cf8293e02af18121767ea6b95b7ada284e6d82468f93be607e571",
+  "0011_archive_legacy_commerce": "9285bd7e510617f03e3aca422c32e7094312a65d64481411a1a78af37899a7ac",
   "0011_drop_empty_core_commerce_tables": "047fc0b89a63c6a42a82e63d3e6d5f5065be0359a99e8740779ef794a4b0b9ad",
   "0012_secrets_vault": "8d01ea77b29f63e6dc3a0a41ee22d71f364dbeaad70083572a190382d9c20d16",
   "0013_unify_vault_credentials": "c5f2e8abb16c9cd25b505c7968e882a5ce0c2ff5165a5f16777b1b920bd18ab9",

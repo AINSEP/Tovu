@@ -203,7 +203,13 @@ test('a Source control-page save is visible after reload on this site only; site
   assert.equal(await attachments.isAttached({ siteId: SITE_B, keyId: id }), false);
   const own = createCapturingResponse(); own.res.locals.principal = { id: 'owner' };
   await extractRouteHandler(app, 'post', path)({ params: { workspaceId: SITE_A }, body: { scope: 'site', label: 'Only A', connection: { providerId: 'example-git', token: secret('own') } } }, own.res);
-  assert.equal(own.capture.statusCode, 400);
+  // Item 25 retains independently owned site keys; only shared saves acquire owner grants.
+  assert.equal(own.capture.statusCode, 201);
+  const localId = (own.capture.jsonBody as { credential: { id: string } }).credential.id;
+  assert.equal(await raw.find({ workspaceId: 'project', id: localId }), null);
+  assert.deepEqual(await attachments.usersOf({ keyId: localId }), []);
+  assert.equal((await listSourceControlCredentials(a, { workspaceId: SITE_A })).some(row => row.id === localId), true);
+  assert.deepEqual(await listSourceControlCredentials(b, { workspaceId: SITE_B }), []);
   rejectAttachment = true;
   const failed = createCapturingResponse(); failed.res.locals.principal = { id: 'owner' };
   await extractRouteHandler(app, 'post', path)({ params: { workspaceId: SITE_A }, body: { label: 'Unattached', connection: { providerId: 'example-git', token: secret('orphan') } } }, failed.res);

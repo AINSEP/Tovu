@@ -1,4 +1,13 @@
-import { findStoredTheme, validThemeIds, type DiscoveredTheme } from "./theme.js";
+import { findStoredTheme, type DiscoveredTheme } from "./theme.js";
+
+/** Temporary readiness state, removed when the assistant writes the replacement stylesheet. */
+export const UNSTYLED_THEME_MARKER = "tovu:unstyled-structure-copy";
+/** Shared remediation for every activation adapter. */
+export const THEME_STYLING_REQUIRED_MESSAGE = "This structure copy still needs styling. Ask the assistant to finish its design before activating it.";
+/** A valid, previewable theme whose presentation has not yet been authored. */
+export class ThemeStylingRequiredError extends Error {
+  constructor() { super(THEME_STYLING_REQUIRED_MESSAGE); this.name = "ThemeStylingRequiredError"; }
+}
 
 /**
  * @file "Given a list of discovered themes and a candidate active id, which theme actually
@@ -171,8 +180,10 @@ export function resolveActiveTheme(deps: ActiveThemeResolutionDeps, activeThemeI
 }
 
 /**
- * The ids a write path is permitted to STORE: every valid discovered theme, plus the no-theme
- * sentinel.
+ * The ids a write path is permitted to STORE: valid styled themes, plus the no-theme sentinel.
+ * Marked structure copies remain valid for previews. An optional requested id raises the shared
+ * readiness error before a settings write. O(t + b) for t themes and their in-memory CSS bytes b;
+ * no filesystem reads. Replacing the marked stylesheet makes the draft eligible for review.
  *
  * Moved here from `server/inbound/admin-http/routes/presentation/patch-active-theme.ts` (2026-09-24,
  * F7a) once a second caller needed the identical rule: `theme_set_active`
@@ -197,6 +208,11 @@ export function resolveActiveTheme(deps: ActiveThemeResolutionDeps, activeThemeI
  * explain the addition but not the asymmetry, and the side that breaks is the one with nothing
  * written on it.
  */
-export function writableThemeIds(deps: ActiveThemeResolutionDeps): string[] {
-  return [...validThemeIds(deps.themes), NO_THEME_ID];
+export function writableThemeIds(deps: ActiveThemeResolutionDeps, optional: { requestedThemeId?: string } = {}): string[] {
+  const valid = deps.themes.filter(t => t.status === "valid");
+  const ready = valid.filter(t => !t.css.includes(UNSTYLED_THEME_MARKER));
+  if (optional.requestedThemeId && valid.some(t => t.manifest.id === optional.requestedThemeId) && !ready.some(t => t.manifest.id === optional.requestedThemeId)) {
+    throw new ThemeStylingRequiredError();
+  }
+  return [...ready.map(t => t.manifest.id), NO_THEME_ID];
 }

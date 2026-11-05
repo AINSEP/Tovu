@@ -162,7 +162,7 @@ async function beginSignIn(
 ): Promise<string> {
   let start;
   try {
-    start = await oauth.beginConnect({ serverId, redirectUri: resolveConnectRedirectUri(serverId, derivedPublicOrigin) });
+    start = await oauth.beginConnect({ serverId, redirectUri: resolveConnectRedirectUri(serverId, derivedPublicOrigin), delivery: 'hosted' });
   } catch (err) {
     // Discovery runs before rendering. A failed start must not leave chat promising a missing card.
     if (!oauth.isValidationError({ error: err }) && !(err instanceof OAuthError)) throw err;

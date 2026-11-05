@@ -269,13 +269,17 @@ function basisRefusal(
 
 /**
  * Safety property 3 (write-once source.sha256) — reuses the library's own guard rather than
- * re-deriving it; see this file's header for why. Only its own refusal becomes a result.
+ * re-deriving it; see this file's header for why. Preserve the full source on creation and the
+ * destination source on updates. Only the guard's own refusal becomes a result.
  *
  * @complexity O(1).
  */
 function writeOnceSource({ record, existingById }: { record: MediaRecord; existingById: MediaRecord | null }, _options = {}): { source: MediaRecord["source"] } | ImportRefusal {
   try {
-    return { source: resolveWriteOnceSource({ existing: existingById?.source, requestedSha256: record.source.sha256 }) };
+    const checked = resolveWriteOnceSource({ existing: existingById?.source, requestedSha256: record.source.sha256 });
+    // The guard owns hash immutability; the import must also retain hashed source metadata.
+    // Existing provenance/MIME stays write-once, while a new row keeps the packed source intact.
+    return { source: { ...(existingById?.source ?? record.source), ...checked } };
   } catch (error) {
     if (error instanceof MediaSourceImmutableError) {
       return { status: "blocked", code: "precondition", reason: error.message };

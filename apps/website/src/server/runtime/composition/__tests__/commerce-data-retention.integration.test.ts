@@ -26,21 +26,30 @@ import { TOVU_CORE_EXTENSION_CLAIMS } from "../core-extension-claims.js";
 
 const NOW = "2026-10-07T00:00:00.000Z";
 const PAYLOAD = ' { "event": "retained", "opaque": [3, 2, 1] }\n';
+const ARCHIVE_ID = "0011_archive_legacy_commerce";
+const ARCHIVE_PREFIX = "_archive_0011_";
+
+/** SQLite rewrites identifiers and implicit index names on rename; compare their original shape. */
+const originalName = (name: string) => name.replaceAll(ARCHIVE_PREFIX, "");
 
 /** Compare values and schema, not database-file bytes: unrelated boot services legitimately write
  * their own rows. Payload whitespace, stock, versions, replay keys and journals must stay exact. */
 function snapshot(filePath: string) {
   const db = new Database(filePath, { readonly: true });
   try {
-    const tables = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND (name GLOB 'commerce_*' OR name GLOB 'p_lipay__*' OR name GLOB 'p_store__*') ORDER BY name").all() as { name: string }[];
-    const rows = tables.map(({ name }) => ({ name, rows: db.prepare(`SELECT * FROM "${name.replaceAll('"', '""')}" ORDER BY id`).all() }));
-    const schema = db.prepare("SELECT type, name, tbl_name, sql FROM sqlite_master WHERE tbl_name GLOB 'commerce_*' OR tbl_name GLOB 'p_lipay__*' OR tbl_name GLOB 'p_store__*' ORDER BY type, name").all() as Array<{ type: string; name: string; tbl_name: string; sql: string | null }>;
+    const tables = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND (name GLOB 'commerce_*' OR name GLOB '_archive_0011_commerce_*' OR name GLOB 'p_lipay__*' OR name GLOB 'p_store__*') ORDER BY name").all() as { name: string }[];
+    const archives = tables.map(({ name }) => name).filter(name => name.startsWith(ARCHIVE_PREFIX));
+    const rows = tables.map(({ name }) => ({ name: originalName(name), rows: db.prepare(`SELECT * FROM "${name.replaceAll('"', '""')}" ORDER BY id`).all() }));
+    const objects = db.prepare("SELECT type, name, tbl_name, sql FROM sqlite_master WHERE tbl_name GLOB 'commerce_*' OR tbl_name GLOB '_archive_0011_commerce_*' OR tbl_name GLOB 'p_lipay__*' OR tbl_name GLOB 'p_store__*' ORDER BY type, name").all() as Array<{ type: string; name: string; tbl_name: string; sql: string | null }>;
+    const schema = objects.map(object => ({ ...object, name: originalName(object.name), tbl_name: originalName(object.tbl_name),
+      sql: object.sql === null ? null : originalName(object.sql).replaceAll('"', "") }))
+      .sort((a, b) => a.type.localeCompare(b.type) || a.name.localeCompare(b.name));
     const retirement = db.prepare("SELECT id FROM tovu_migrations WHERE id = ?").all(DROP_EMPTY_CORE_COMMERCE_TABLES_ID);
     const bookkeeping = ["_plugin_identity", "_plugin_migrations", "_plugin_migration_journal"].map(name => {
       const exists = db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?").get(name);
       return { name, rows: exists ? db.prepare(`SELECT * FROM "${name}" WHERE plugin_id IN ('lipay', 'store') ORDER BY rowid`).all() : [] };
     });
-    return { rows, schema, bookkeeping, retirement };
+    return { rows, schema, bookkeeping, retirement, archives };
   } finally { db.close(); }
 }
 
@@ -77,7 +86,7 @@ test("commerce off: a fresh site does not activate payment or store storage", as
 });
 
 for (const populated of [false, true]) {
-  test(`commerce off: plugin storage survives; ${populated ? "populated core refuses boot without changes" : "empty core is removed across two boots"}`, async () => {
+  test(`commerce off: plugin storage survives; ${populated ? "populated core archives across two boots" : "empty core is removed across two boots"}`, async () => {
     const parent = fs.mkdtempSync(path.join(os.tmpdir(), "commerce-retention-"));
     try {
       const dir = path.join(parent, "site");
@@ -89,7 +98,7 @@ for (const populated of [false, true]) {
       for (const suffix of ["", "-wal", "-shm"]) fs.rmSync(`${filePath}${suffix}`, { force: true });
       const db = openSqliteContentConnection(filePath);
       try {
-        await runMigrations(sqliteKernel<unknown>(db), CONTENT_MIGRATIONS.filter(step => step.id < DROP_EMPTY_CORE_COMMERCE_TABLES_ID));
+        await runMigrations(sqliteKernel<unknown>(db), CONTENT_MIGRATIONS.filter(step => step.id < ARCHIVE_ID));
         // Only fixture setup declares the historical modules. Production boot must never invoke
         // them or reconcile them against an empty/off inventory.
         for (const decl of [LIPAY_MANIFEST, STORE_MANIFEST]) {
@@ -125,24 +134,16 @@ for (const populated of [false, true]) {
       assert.deepEqual(before.retirement, []);
       assert.ok(before.rows.every(({ name, rows }) => rows.length === (name.startsWith("commerce_") && !populated ? 0 : 1)));
       const retained = {
-        rows: before.rows.filter(({ name }) => !name.startsWith("commerce_")),
-        schema: before.schema.filter(({ tbl_name }) => !tbl_name.startsWith("commerce_")),
+        rows: before.rows.filter(({ name }) => populated || !name.startsWith("commerce_")),
+        schema: before.schema.filter(({ tbl_name }) => populated || !tbl_name.startsWith("commerce_")),
         bookkeeping: before.bookkeeping,
         retirement: [{ id: DROP_EMPTY_CORE_COMMERCE_TABLES_ID }],
+        archives: populated ? before.rows.filter(({ name }) => name.startsWith("commerce_")).map(({ name }) => `${ARCHIVE_PREFIX}${name}`) : [],
       };
-      assert.equal(retained.rows.length, 5, "all store/payment plugin tables have rows at risk");
+      assert.equal(retained.rows.filter(({ name }) => name.startsWith("p_")).length, 5, "all store/payment plugin tables have rows at risk");
       for (let boot = 0; boot < 2; boot += 1) {
-        if (populated) {
-          await assert.rejects(bootAndClose(filePath), (error: unknown) => {
-            assert.ok(error instanceof Error);
-            for (const { name } of before.rows.filter(({ name }) => name.startsWith("commerce_"))) assert.ok(error.message.includes(`${name}: 1`), error.message);
-            return true;
-          });
-          assert.deepEqual(snapshot(filePath), before, "refused boot preserves all core/plugin rows, schema and bookkeeping without recording 0011");
-        } else {
-          await bootAndClose(filePath);
-          assert.deepEqual(snapshot(filePath), retained, "empty core is removed; plugin rows, schema and declaration bookkeeping remain exact");
-        }
+        await bootAndClose(filePath);
+        assert.deepEqual(snapshot(filePath), retained, "core rows are archived or empty tables removed; plugin data remains exact");
       }
     } finally { fs.rmSync(parent, { recursive: true, force: true }); }
   });

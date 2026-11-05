@@ -141,6 +141,27 @@ async function readRow(repo: InMemoryExternalMcpServerRepo) {
   return row;
 }
 
+test("redirect state requires the starting browser proof, including after service reconstruction", async () => {
+  const h = await makeHarness({ script: [{ json: { access_token: 'synthetic-token', token_type: 'Bearer' } }] });
+  const browserBinding = 'a'.repeat(43);
+  const start = await h.service.beginConnect({ serverId: SERVER, redirectUri: REDIRECT_URI, browserBinding });
+  assert.equal(start.kind, 'redirect_required');
+  if (start.kind !== 'redirect_required') throw new Error('Expected redirect sign-in');
+  const rebuilt = createExternalMcpOAuthService({
+    workspaceId: WORKSPACE, repo: h.repo, sealer: h.sealer, keyring: h.keyring, clock: h.clock,
+    devices: createDeviceAuthorizationStore(), lookupProvider: () => PROVIDER,
+    httpPorts: { guard: createTovuOAuthGuard({}, { allowLoopbackHttp: true }), fetchFn: ({ url }, init) => h.http.fetchFn(url, init) },
+  });
+  const params = { state: new URL(start.authorizationUrl).searchParams.get('state')!, code: 'synthetic-code' };
+  for (const proof of [undefined, '', 'b'.repeat(43)]) {
+    await assert.rejects(rebuilt.completeAuthorizationCallback({ serverId: SERVER, redirectUri: REDIRECT_URI, params, browserBinding: proof }),
+      (error: unknown) => error instanceof OAuthError && error.code === 'OAUTH_INVALID_STATE');
+    assert.equal(h.http.callCount(), 0);
+  }
+  await rebuilt.completeAuthorizationCallback({ serverId: SERVER, redirectUri: REDIRECT_URI, params, browserBinding });
+  assert.equal(h.http.callCount(), 1);
+});
+
 for (const typedEndpoints of [false, true]) {
   test(`beginConnect persists the discovered protected resource (${typedEndpoints ? "typed" : "discovered"} endpoints)`, async () => {
     const resource = "https://mcp.example.com/mcp";

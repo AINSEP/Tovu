@@ -4,7 +4,8 @@ import type { ToolApprovalPolicy } from './approval-policy.js';
 /** custom-credentials registration declarations; shared placement rationale is in ./index.ts. */
 export const toolMetadata = {
   project_keys_list: { search: { keywords: "project keys saved credentials used sites attach" }, approval: { class: "read", confirmation: "direct" } },
-  project_key_use: { search: { keywords: "apply use attach detach project saved key stop using site" }, approval: { class: "edit", confirmation: "plan", input: "human-form" }, mcpUi: { redeemable: true, exchangeOnly: true } },
+  // Revocation has no parked card. A rendered surface must never invoke it as a callback.
+  project_key_use: { search: { keywords: "apply use attach detach project saved key stop using site" }, approval: { class: "edit", confirmation: "direct" } },
   site_restart: {
     title: 'Restart this site',
     summary: 'This restarts the site so its saved provider settings can take effect.',

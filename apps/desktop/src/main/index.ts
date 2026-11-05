@@ -173,6 +173,7 @@ import type { SelftestTracker } from "../selftest-tracker.ts";
 // (site spawn, previews, boot steps and failures), updates/ (updater, Settings menu, notices, telemetry).
 import { promptForSiteDir as promptForSiteFolder } from "./windows/site-folder-prompt.ts";
 import { createAppWindow } from "./windows/app-window.ts";
+import { createLastWindowQuitPrompt } from "./windows/last-window-quit.ts";
 import { openSitesHomeWindow as openSitesHomeWindowWith } from "./windows/sites-home-window.ts";
 import { openSiteWindow as openSiteWindowWith } from "./windows/site-window.ts";
 import { installWebviewGuestPolicy } from "./windows/guest-navigation.ts";
@@ -489,11 +490,26 @@ function resolveCliMode(): CliMode { return resolveCliModeIn({ env: process.env,
 function isUnattendedSiteLaunch(): boolean { return isUnattendedSiteLaunchIn({ env: process.env }); }
 function readSiteName(siteDir: string): string { return readSiteNameIn({ siteDir }); }
 
+/** The ask before the last app window closes with sites running — see `last-window-quit.ts`. */
+const lastWindowQuit = createLastWindowQuitPrompt<BrowserWindow>({ ports: {
+  openServers: () => [...openSites.values()].map((entry) => entry.server),
+  locale: () => app.getLocale(),
+  showMessageBox: (window, options) => dialog.showMessageBox(window, options),
+  quit: () => app.quit(),
+  logError: (message) => console.error(message),
+} });
+
+/** Every app window, as it is created. Capture windows do not come through here. */
+function trackAppWindow(window: BrowserWindow): void {
+  selftestTracker?.add(window);
+  if (!SELFTEST) lastWindowQuit.watch({ window });
+}
+
 /** One sandboxed admin window (own-server site or attach mode) — see `app-window.ts`. */
 function createWindow(url: string, title?: string, partition?: string): BrowserWindow {
   return createAppWindow(
     { url, createBrowserWindow: (options) => new BrowserWindow(options), preloadPath: SPEECH_PRELOAD_PATH, openExternal: (target) => void shell.openExternal(target) },
-    { title, partition, selftest: SELFTEST, trackWindow: (window) => selftestTracker?.add(window) },
+    { title, partition, selftest: SELFTEST, trackWindow: trackAppWindow },
   );
 }
 
@@ -509,7 +525,7 @@ function openSitesHomeWindow(): BrowserWindow | null {
     relayFindResults, registerSpellCheck: ({ webContents }) => registerSpellCheckContextMenu({ webContents, menuBuilder: Menu }),
     showErrorBox: (title, message) => dialog.showErrorBox(title, message), logError: (message) => console.error(message),
     setExitCode: (code) => { process.exitCode = code; }, quit: () => app.quit(),
-  } }, { selftest: SELFTEST, trackWindow: (window) => selftestTracker?.add(window) });
+  } }, { selftest: SELFTEST, trackWindow: trackAppWindow });
 }
 
 /** One main owns the desktop capability, regardless of its window/site count. It is never
@@ -1034,6 +1050,7 @@ app.whenReady().then(bootDesktop).catch(reportBootFailure);
  * window opens on the NEXT launch — is what answers that now (see this file's own header).
  */
 app.on("before-quit", (event) => {
+  lastWindowQuit.onQuitStarted();
   stopSiteLifecycle();
   siteDiscovery.abortAll();
   // Discovery can still be in flight even with no open sites; include its disposal in the same

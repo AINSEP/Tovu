@@ -6,7 +6,7 @@ import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqliteMediaRepo, SqliteAssetBlobRepo, SqliteAssetRenditionRepo, SqliteMediaContentTypeStore } from "#src/platform/db/sqlite/media-repo.sqlite";
-import { InMemoryBlobStore, mediaPublicPath, type MediaRecord } from "../index.js";
+import { InMemoryBlobStore, InMemoryVersionedMediaRepo, mediaPublicPath, replaceMediaFile, type MediaRecord } from "../index.js";
 import { contributeMediaPublish, MediaApplyBlockedError, MediaApplyConflictError } from "../publish-content.js";
 import { planImport } from "#src/features/publish-content/planner";
 import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "#src/features/publish-content/artifact-format";
@@ -18,7 +18,7 @@ const oldBytes = new Uint8Array([1]);
 const bytes = new Uint8Array([0xff, 0xd8, 0xff, 0xd9]);
 const digest = (value: Uint8Array) => createHash("sha256").update(value).digest("hex");
 
-async function fixture(t: TestContext) {
+async function fixture(t: TestContext, { privateSource = false }: { privateSource?: boolean } = {}) {
   const db = openContentDb(":memory:");
   t.after(() => db.$client.close());
   const repo = new SqliteMediaRepo(db);
@@ -27,7 +27,7 @@ async function fixture(t: TestContext) {
   const contentTypeStore = new SqliteMediaContentTypeStore(db);
   const blobStore = new InMemoryBlobStore();
   const prior: MediaRecord = { id: "photo", workspaceId, kind: "media", originalFilename: "first.jpg", createdBy: "creator",
-    title: "Before", slug: "before", alt: "Old alt", caption: "", credit: "", source: { sha256: digest(oldBytes) },
+    title: "Before", slug: "before", alt: "Old alt", caption: "", credit: "", source: { sha256: digest(oldBytes), ...(privateSource ? { private: true } : {}) },
     version: 3, status: "active", createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
     width: 10, height: 20, cssClass: null, htmlAttributes: null };
   await repo.save(prior);
@@ -104,6 +104,31 @@ test("packed overwrite flags cannot authorize replacement and ordinary imports s
   assert.equal((await f.repo.findById({ workspaceId, id: "photo" }))!.source.sha256, f.prior.source.sha256);
 });
 
+test("a locally replaced file packs and overwrites the same media identity on live", async t => {
+  const f = await fixture(t);
+  const localRepo = new InMemoryVersionedMediaRepo([f.prior]);
+  const replaced = await replaceMediaFile({ deps: { workspaceId, ...f.deps.ports.media!,
+    mediaRepo: localRepo, clock: f.deps.clock, idGen: f.deps.idGen }, media: f.prior,
+    bytes, contentType: "image/jpeg", provenance: { kind: "upload" }, principalId: "local-editor" });
+  assert.equal(replaced?.source.sha256, digest(bytes));
+  const local = contributeMediaPublish().build({ ...f.deps, ports: { media: { ...f.deps.ports.media!, repo: localRepo } } });
+  const entities = [];
+  for await (const entity of local.pack()) entities.push(entity);
+  assert.equal(entities.length, 1);
+  const entity = entities[0]!;
+  await assert.rejects(f.handler.apply({ entity, expectedVersion: f.prior.version, principalId: "operator",
+    idempotencyKey: "local-replace-unconfirmed" }), MediaApplyBlockedError);
+  const refusal = await f.handler.precheck(entity);
+  assert.ok(refusal && typeof refusal === "object" && refusal.sourceReplacement);
+  await f.handler.apply({ entity, expectedVersion: f.prior.version, principalId: "operator",
+    idempotencyKey: "local-replace-confirmed", sourceReplacement: refusal.sourceReplacement });
+  const live = (await f.repo.findById({ workspaceId, id: f.prior.id }))!;
+  assert.equal(live.id, replaced!.id);
+  assert.deepEqual(live.source, replaced!.source);
+  assert.equal(live.version, f.prior.version + 1);
+  assert.equal((await f.handler.inspect(live.id))!.hash, entity.contentHash);
+});
+
 test("a live edit during staged-byte I/O refuses replacement without invalidating previews", async t => {
   const f = await fixture(t);
   const get = f.blobStore.get.bind(f.blobStore);
@@ -144,7 +169,12 @@ test("rollback cannot clobber an edit that restores the old source while audit r
   const f = await fixture(t);
   f.changeSets.insert = async () => {
     // A competing rollback may point at the old bytes but contains a newer editorial decision.
-    await f.repo.save({ ...f.prior, title: "Concurrent restoration", version: 5 });
+    // Q/P14 makes ordinary saves source-immutable; the competing restore uses the atomic port.
+    const blob = (await f.assetBlobRepo.findByHash({ workspaceId, sha256: f.prior.source.sha256 }))!;
+    assert.deepEqual(await f.repo.replaceFileIfVersion({ workspaceId, id: f.prior.id, ifVersion: 4,
+      sha256: f.prior.source.sha256, storageKey: blob.storageKey, originalRenditionId: 'concurrent-original',
+      updatedAt: new Date(f.deps.clock.nowMs()).toISOString(), contentType: 'application/octet-stream', provenance: { kind: 'upload' },
+      metadata: { ...f.prior, title: "Concurrent restoration" } }), { applied: true });
     throw new Error("change set unavailable");
   };
   await assert.rejects(f.apply(), /Could not restore media/);
@@ -201,11 +231,13 @@ for (const failure of ["missing", "mismatched"] as const) {
 }
 
 test("private submitted media refuses Overwrite during planning", async t => {
-  const f = await fixture(t);
-  await f.repo.save({ ...f.prior, source: { ...f.prior.source, private: true } });
+  // Privacy is stamped at creation; metadata saves deliberately cannot change source flags.
+  const f = await fixture(t, { privateSource: true });
   const refusal = await f.handler.precheck(f.entity);
   assert.equal(typeof refusal, "string");
   assert.match(refusal as string, /private.*file|submitted.*file/i);
+  await assert.rejects(f.apply(), MediaApplyBlockedError);
+  assert.deepEqual((await f.repo.findById({ workspaceId, id: f.prior.id }))!.source, f.prior.source);
 });
 
 test("file replacement offers explain destination edits since the last sync", async t => {

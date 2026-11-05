@@ -63,6 +63,7 @@ import {
   type LiveModelDiscovery,
   unionModels,
   isMcpUiToolCallPermitted,
+  MCP_UI_TYPED_ANSWER_REFUSAL,
   isTypedSurfaceAnswer,
   MCP_UI_TOOL_CALLS_PATH,
   readA2uiAction,
@@ -457,9 +458,10 @@ async function proxyMcpUiToolCall(req: Request, res: Response, byokSurfaceExchan
   const exchangeId = typeof body.exchangeId === "string" ? body.exchangeId : params[SURFACE_EXCHANGE_ID_PARAM];
   // The same rule the daemon route applies: a federated id (G3's per-call card) may only ANSWER an
   // open card, never be executed.
-  const answersAnExchange = (typeof exchangeId === "string" && exchangeId.length > 0) || isTypedSurfaceAnswer(params);
-  if (!isMcpUiToolCallPermitted(toolName, answersAnExchange)) {
-    res.status(403).json({ error: `'${toolName}' is not an MCP-UI-redeemable tool`, code: "TOOL_NOT_ALLOWLISTED" });
+  const typedAnswer = isTypedSurfaceAnswer(params);
+  const answersAnExchange = (typeof exchangeId === "string" && exchangeId.length > 0) || typedAnswer;
+  if (!isMcpUiToolCallPermitted(toolName, answersAnExchange, { typedAnswer })) {
+    res.status(403).json({ error: typedAnswer ? MCP_UI_TYPED_ANSWER_REFUSAL : `'${toolName}' is not an MCP-UI-redeemable tool`, code: "TOOL_NOT_ALLOWLISTED" });
     return;
   }
   const target = localMcpUiTarget({ exchangeId, params, toolName, res, byokSurfaceExchanges });

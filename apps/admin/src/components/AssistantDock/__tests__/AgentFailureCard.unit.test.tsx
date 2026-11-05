@@ -5,7 +5,7 @@ import { JiniChatProvider, MessageRow, registerExtEventRenderer, type ChatPaneAg
 import type { AgentEvent, ChatMessage, ChatTransport } from "@jini-ai/chat/core";
 import fixture from "./fixtures/gemini-position-9";
 import { AgentFailureCard } from "../AgentFailureCard";
-import { FailureSurfaceContext, useAgentFailureCard, useAgentFailureSurface } from "../AgentFailureCard.hooks";
+import { FailureSurfaceContext, hasAgentFailureNotice, useAgentFailureCard, useAgentFailureSurface } from "../AgentFailureCard.hooks";
 import { AGENT_FAILURE_EVENT, GENERIC_AGENT_FAILURE, type FailureAgent } from "../agent-failure";
 import { ADMIN_LOCALES } from "@tovu/contracts/admin-locales";
 import { SelectedAgentPluginTray } from "../SelectedAgentPluginTray";
@@ -32,7 +32,7 @@ function mount({ agents, events = fixture as AgentEvent[], agentId = "gemini", l
   let surface: ReturnType<typeof useAgentFailureSurface>;
   const onSelectionChange = (selection: ChatPaneAgentSelection) => selections.push(selection);
   const onExecutionModeChange = (mode: "local" | "api") => modes.push(mode);
-  const unregister = registerExtEventRenderer({ name: AGENT_FAILURE_EVENT, renderer: props => <AgentFailureCard {...props} /> });
+  const unregister = registerExtEventRenderer({ name: AGENT_FAILURE_EVENT, renderer: props => <AgentFailureCard {...props} /> }, { terminalNotice: hasAgentFailureNotice });
   function Harness() {
     surface = useAgentFailureSurface({ transport, runtimeAccess, initialMessages, onSelectionChange, onExecutionModeChange }, {});
     return <JiniChatProvider transport={surface.transport} i18n={createChatI18nAdapter(locale)}>

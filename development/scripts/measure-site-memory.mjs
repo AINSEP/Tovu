@@ -17,7 +17,8 @@
  * Natural process.memoryUsage readings every 250 ms and after writes gate server peak RSS/heap
  * (512/256 MiB) and peak growth from the warmed baseline (256/128 MiB). Missing/incomplete turns
  * or overruns exit 1. The original tree/forced-GC measurement follows the turn; it is supplementary.
- * Chatting defaults --idle-minutes to 0 so the real idle daemon cannot park during the fake turn.
+ * Chatting defaults --idle-minutes to 0 so an explicitly demanded daemon cannot park during the
+ * fake turn. The fake workload itself never demands a real daemon.
  *
  * 1. Copies the site into a temp dir. SQLite files go through `sqlite3 .backup`, so a running site's
  *    WAL is folded in and its files are never opened for writing. `.agent-runtime/` (the daemon's
@@ -33,8 +34,9 @@
  * 5. For every process in the server's tree: macOS `footprint`, then over the inspector
  *    `process.memoryUsage()`, the loaded `file:` module count, `HeapProfiler.collectGarbage`, an 8 s
  *    settle, `memoryUsage()` and `footprint` again. No sample is taken unless the server is alive
- *    and the daemon is in the phase's expected state (`--expect-daemon`; default `parked` when the
- *    idle wait outlasts `--idle-minutes`, else `running`). A process whose `footprint` cannot be read
+ *    and the daemon is in the phase's expected state (`--expect-daemon`; default `parked`, meaning
+ *    absent, because cold startup and the fake chat do not demand it). Use explicit `running` for
+ *    a workload that demands a real daemon. A process whose `footprint` cannot be read
  *    makes the result `complete: false` with null totals and exit code 1; it never counts as zero.
  *    Every node child inherits
  *    `NODE_OPTIONS=--inspect=127.0.0.1:0`; its inspector port is found with `lsof`.
@@ -113,13 +115,13 @@ function checkOptions({ options }) {
   return checkSiteOptions({ options });
 }
 
-/** Validate the existing launched-site workload and derive the expected park state. */
+/** Validate the launched-site workload; cold registration and synthetic chat leave the daemon absent. */
 function checkSiteOptions({ options }) {
   if (!options.site || !["compiled", "tsx"].includes(options.mode)) throw new Error("usage: --site <dir> --mode compiled|tsx [--idle-seconds N] [--idle-minutes N] [--expect-daemon running|parked]");
   if (!Number.isFinite(options.idleSeconds) || options.idleSeconds < 0) throw new Error("--idle-seconds must be a number ≥ 0");
   if (options.workload === "chatting") options.idleMinutes ??= 0;
-  // A park phase waits past the idle limit, so the daemon should have exited by the time we sample.
-  options.expectDaemon ??= options.idleMinutes > 0 && options.idleSeconds > options.idleMinutes * 60 ? "parked" : "running";
+  // A park phase waits past the idle limit; cold/synthetic phases never start the daemon at all.
+  options.expectDaemon ??= "parked";
   if (!["running", "parked"].includes(options.expectDaemon)) throw new Error("--expect-daemon must be running or parked");
   return options;
 }

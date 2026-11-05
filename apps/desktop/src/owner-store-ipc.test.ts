@@ -29,7 +29,7 @@ function fixture(options: { run?: Run; pickBackup?: Ports['pickBackup']; confirm
     calls.push(input);
     if (options.run) return options.run(input);
     const apply = input.action === 'import' && (input.fields as { apply: boolean }).apply;
-    const data = { list: { entries: [entry] }, put: { entry }, status: { legacy: 'none', entries: 0, grants: 0 },
+    const data: OwnerStoreData = { list: { entries: [entry] }, put: { entry }, delete: { removed: true }, status: { legacy: 'none', entries: 0, grants: 0 },
       import: apply ? report('imported', true) : report('new') };
     return { version: 1, ok: true, action: input.action, data: data[input.action] } as OwnerStoreReply<typeof input.action>;
   };
@@ -39,7 +39,7 @@ function fixture(options: { run?: Run; pickBackup?: Ports['pickBackup']; confirm
 }
 
 // Before: 'S3 all nine channels reject untrusted, null, child and navigated frames before any effect'.
-test('S3 all four channels reject untrusted, null, child and navigated frames before any effect', () => {
+test('S3 all five channels reject untrusted, null, child and navigated frames before any effect', () => {
   const handlers = new Map<string, (event: { senderFrame: { url: string; parent: unknown } | null }, input: unknown) => Promise<OwnerStoreReply>>();
   let executions = 0;
   registerOwnerStoreIpc({ ipcMain: { handle: (channel, fn) => { handlers.set(channel, fn); } },
@@ -47,7 +47,7 @@ test('S3 all four channels reject untrusted, null, child and navigated frames be
     controller: { execute: async ({ action }) => { executions++; return ownerStoreFailure({ action, code: 'operation-failed' }); } },
   });
   assert.deepEqual([...handlers.keys()], Object.values(OWNER_STORE_CHANNELS));
-  assert.equal(handlers.size, 4);
+  assert.equal(handlers.size, 5);
   for (const handler of handlers.values()) {
     for (const senderFrame of [null, { url: 'https://attacker.test', parent: null }, { url: 'file:///sites-home.html?fake=1', parent: null },
       { url: 'file:///sites-home.html', parent: {} }, { url: 'file:///other.html', parent: null }]) {
@@ -94,6 +94,13 @@ test('project saves and listing forward only the project store and never copy, l
   await f.controller.execute({ action: 'list', input: { store: 'project' } });
   await f.controller.execute({ action: 'list', input: {} });
   assert.deepEqual(f.calls.slice(2), [{ action: 'list', fields: { store: 'project' } }, { action: 'list', fields: {} }]);
+});
+
+test('project deletion forwards the selected id and reviewed revision in one CLI call', async () => {
+  const f = fixture();
+  const result = await f.controller.execute({ action: 'delete', input: { id: entry.id, expectedRevision: entry.revision } });
+  assert.deepEqual(result, reply({ action: 'delete', data: { removed: true } }));
+  assert.deepEqual(f.calls, [{ action: 'delete', fields: { id: entry.id, expectedRevision: entry.revision } }]);
 });
 
 // Before: 'S3 denied writes never sync; a grant-read error after put explicitly preserves the committed write'.

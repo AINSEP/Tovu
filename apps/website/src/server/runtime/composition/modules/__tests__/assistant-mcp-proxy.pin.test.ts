@@ -37,6 +37,20 @@ test("MCP proxy pins validation, explicit/param/typed correlations and authorita
   await denied.text();
   const toolName = "assistant_ask_choice";
   const principalId = await deps.ownerPrincipalId;
+  const secretTool = "credential_save";
+  const secretExchange = store.open({ binding: { toolId: secretTool, principalId }, emit: async () => undefined });
+  try {
+    for (const exchangeId of [undefined, secretExchange.id]) {
+      const response = await post({ toolName: secretTool, exchangeId, params: { token: "synthetic-token", [SURFACE_TYPED_ANSWER_PARAM]: "x" } });
+      assert.equal(response.status, 403);
+      assert.equal((await response.json() as { code: string }).code, "TOOL_NOT_ALLOWLISTED");
+    }
+    assert.equal(forwarded.length, 0);
+    const response = await post({ toolName: secretTool, exchangeId: secretExchange.id, params: { token: "synthetic-token" } });
+    assert.equal(response.status, 202);
+    await response.text();
+    assert.equal((await secretExchange.receive({})).status, "received");
+  } finally { secretExchange.close({}); }
   for (const carrier of ["top", "params", "typed", "empty-top"] as const) {
     const exchange = store.open({ binding: { toolId: toolName, principalId }, emit: async () => undefined });
     try {

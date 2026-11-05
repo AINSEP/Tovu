@@ -16,7 +16,7 @@ export interface AgentPluginMcpPort {
 
 /** Connect-time OAuth discovery and the existing validation error identity, adapted by composition. */
 export interface AgentPluginOAuthPort {
-  beginConnect(input: { serverId: string; redirectUri?: string }, options?: Record<string, never>): Promise<ExternalMcpConnectStart>;
+  beginConnect(input: { serverId: string; redirectUri?: string; delivery?: "hosted" }, options?: Record<string, never>): Promise<ExternalMcpConnectStart>;
   isValidationError(input: { error: unknown }, options?: Record<string, never>): boolean;
 }
 

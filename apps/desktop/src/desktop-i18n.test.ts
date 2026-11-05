@@ -28,6 +28,21 @@ test('the external-Stop confirm is translated in every locale and keeps `npm run
   }
 });
 
+test('the last-window quit ask is translated in every locale and keeps its count', () => {
+  const english = desktopCopy({ locale: 'en' }).lastWindowQuit;
+  assert.equal(english.quitMany, 'Quit Tovu and stop {count} running sites?');
+  for (const locale of ['es', 'de', 'it', 'zh-CN', 'zh-TW', 'ar', 'fa', 'ru', 'ja', 'id', 'pt-BR', 'ko', 'pl', 'hu', 'fr', 'uk', 'tr', 'th', 'hi', 'ur', 'bn']) {
+    const copy = desktopCopy({ locale }).lastWindowQuit;
+    for (const key of Object.keys(english) as (keyof typeof english)[]) {
+      assert.ok(copy[key], `${locale}.lastWindowQuit.${key}`);
+      assert.notEqual(copy[key], english[key], `${locale}.lastWindowQuit.${key}`);
+    }
+    assert.ok(copy.quitMany.includes('{count}'), `${locale} says how many sites stop`);
+    assert.ok(copy.keepsMany.includes('{count}'), `${locale} says how many sites keep running`);
+    assert.ok(copy.quitOne.includes('Tovu'), `${locale} names the app`);
+  }
+});
+
 test('runtimeLocale reads the navigator language and falls back to en without a navigator', () => {
   assert.equal(runtimeLocale({}, { navigator: { language: 'de-DE' } }), 'de-DE');
   assert.equal(runtimeLocale({}, { navigator: null }), 'en');

@@ -23,6 +23,7 @@ import type { ClockDeps, IdentityDeps, RouteDeps } from "../../routes/types.js";
 import { authenticateApiKey, type ApiKeyServiceDeps } from "#src/features/identity/api-key-service";
 import { createRateLimiter, LOGIN_STRICT, resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
 import { createBootSessionTokenStore, redeemBootSessionToken } from "#src/features/identity/boot-session-token";
+import { sendAdminFailure } from "./routes/system/site-share-errors.js";
 import { allowsLocalOwnerSignInRequest, bootLocalOwnerSignIn, type LocalOwnerSignInPolicy } from "../../runtime/boot/local-owner-signin.js";
 import { DEFAULT_OWNER_PASSWORD } from "#src/features/identity/wiring";
 import { callerMayManageUserTrash, principalHoldsBuiltinAdminRole, principalHoldsOwnerWildcard } from "#src/features/identity/delete-user-service";
@@ -475,6 +476,26 @@ async function resolveBootOwner(
   return { principalId, principal };
 }
 
+/** Anonymous auth replies disclose only the operation, recovery action and incident ID.
+ * Wrap the cause so the shared helper's domain-specific refusals cannot disclose backend facts.
+ * Diagnostics retain the cause through the shared redactor; no credentials enter the reply.
+ * @complexity O(diagnostic length) redaction, one log and at most one configured tracker event.
+ */
+function sendAuthFailure(
+  { res, error, operation }: { res: Response; error: unknown; operation: "login" | "logout" | "boot-session" },
+  _options = {},
+): void {
+  const signingOut = operation === "logout";
+  sendAdminFailure({ res, error: new Error("Authentication operation failed", { cause: error }) }, {
+    operation: `auth-${operation}`,
+    message: signingOut ? "Sign-out could not finish." : "Sign-in could not finish.",
+    failure: {
+      step: `auth-${operation}`,
+      action: signingOut ? "Try signing out again. If it still fails, copy details and report this problem." : "Try signing in again. If it still fails, copy details and report this problem.",
+    },
+  });
+}
+
 /** Shared desktop/browser exchange: consume once, verify the real session, then set its cookie.
  * Resolves null after sending the existing rejection body. Repository failures propagate.
  * @complexity O(1): a bounded number of principal/session lookups and one session write.
@@ -489,7 +510,7 @@ export async function redeemOwnerBootSession(
   }
   const owner = await resolveBootOwner({ deps });
   if (!owner) {
-    res.status(500).json({ error: "internal error" });
+    sendAuthFailure({ res, error: new Error("Boot owner is unavailable"), operation: "boot-session" });
     return null;
   }
   const { principalId, principal } = owner;
@@ -502,7 +523,7 @@ export async function redeemOwnerBootSession(
     deps: authServiceDepsFrom(deps), input: { workspaceId: deps.workspaceId, rawToken },
   });
   if (!confirmed?.principal) {
-    res.status(500).json({ error: "internal error" });
+    sendAuthFailure({ res, error: new Error("Boot session confirmation failed"), operation: "boot-session" });
     return null;
   }
   // The ordinary desktop cookie also replaces/clears local bootstrap; revoke what it supersedes.
@@ -598,7 +619,7 @@ export function registerAuthRoutes(app: Express, deps: RouteDeps,
         res.status(401).json({ error: "invalid username or password", code: "UNAUTHENTICATED" });
         return;
       }
-      res.status(500).json({ error: "internal error" });
+      sendAuthFailure({ res, error: err, operation: "login" });
     }
   });
 
@@ -610,8 +631,8 @@ export function registerAuthRoutes(app: Express, deps: RouteDeps,
       await revokeRequestSessions({ deps, req });
       clearSessionCookie(res);
       res.json({ ok: true });
-    } catch {
-      res.status(500).json({ error: "internal error" });
+    } catch (error) {
+      sendAuthFailure({ res, error, operation: "logout" });
     }
   });
 

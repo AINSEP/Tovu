@@ -28,4 +28,31 @@ const AUTH_DICT: Record<string, Record<string, string>> = {
   bn: { "Sign in to your workspace": "আপনার কর্মক্ষেত্রে সাইন ইন করুন", Username: "ব্যবহারকারীর নাম", ...translationEntry("Password", "পাসওয়ার্ড"), "Sign in": "সাইন ইন করুন", "Signing in…": "সাইন ইন হচ্ছে…" },
 };
 
-export const t = createDictionaryTranslator({ featureDictionary: AUTH_DICT }, { commonDictionary: COMMON_I18N });
+/** Login is outside the signed-in shell, so its copy controls need their own locale coverage. */
+const DETAILS_KEYS = ["Show details", "Copy details", "Copied", "Copy failed. Select the details and copy them manually."];
+const DETAILS_COPY: Record<string, string[]> = {
+  es: ["Mostrar detalles", "Copiar detalles", "Copiado", "No se pudo copiar. Selecciona los detalles y cópialos manualmente."],
+  fr: ["Afficher les détails", "Copier les détails", "Copié", "Échec de la copie. Sélectionnez les détails et copiez-les manuellement."],
+  de: ["Details anzeigen", "Details kopieren", "Kopiert", "Kopieren fehlgeschlagen. Wähle die Details aus und kopiere sie manuell."],
+  it: ["Mostra dettagli", "Copia dettagli", "Copiato", "Copia non riuscita. Seleziona i dettagli e copiali manualmente."],
+  "pt-BR": ["Mostrar detalhes", "Copiar detalhes", "Copiado", "Falha ao copiar. Selecione os detalhes e copie-os manualmente."],
+  id: ["Tampilkan detail", "Salin detail", "Disalin", "Gagal menyalin. Pilih detail dan salin secara manual."],
+  pl: ["Pokaż szczegóły", "Kopiuj szczegóły", "Skopiowano", "Kopiowanie nie powiodło się. Zaznacz szczegóły i skopiuj je ręcznie."],
+  tr: ["Ayrıntıları göster", "Ayrıntıları kopyala", "Kopyalandı", "Kopyalama başarısız. Ayrıntıları seçip elle kopyalayın."],
+  hu: ["Részletek megjelenítése", "Részletek másolása", "Másolva", "A másolás sikertelen. Jelölje ki a részleteket, és másolja őket kézzel."],
+  ru: ["Показать подробности", "Скопировать подробности", "Скопировано", "Не удалось скопировать. Выделите подробности и скопируйте их вручную."],
+  uk: ["Показати подробиці", "Копіювати подробиці", "Скопійовано", "Не вдалося скопіювати. Виділіть подробиці та скопіюйте їх вручну."],
+  ar: ["إظهار التفاصيل", "نسخ التفاصيل", "تم النسخ", "تعذّر النسخ. حدّد التفاصيل وانسخها يدويًا."],
+  fa: ["نمایش جزئیات", "کپی جزئیات", "کپی شد", "کپی نشد. جزئیات را انتخاب و دستی کپی کنید."],
+  ur: ["تفصیلات دکھائیں", "تفصیلات کاپی کریں", "کاپی ہو گیا", "کاپی نہیں ہو سکا۔ تفصیلات منتخب کرکے دستی طور پر کاپی کریں۔"],
+  hi: ["विवरण दिखाएँ", "विवरण कॉपी करें", "कॉपी किया गया", "कॉपी नहीं हो सका। विवरण चुनें और मैन्युअल रूप से कॉपी करें।"],
+  bn: ["বিবরণ দেখান", "বিবরণ কপি করুন", "কপি হয়েছে", "কপি করা যায়নি। বিবরণ বেছে নিয়ে হাতে কপি করুন।"],
+  th: ["แสดงรายละเอียด", "คัดลอกรายละเอียด", "คัดลอกแล้ว", "คัดลอกไม่ได้ เลือกรายละเอียดแล้วคัดลอกด้วยตนเอง"],
+  ja: ["詳細を表示", "詳細をコピー", "コピーしました", "コピーできませんでした。詳細を選択して手動でコピーしてください。"],
+  ko: ["세부 정보 표시", "세부 정보 복사", "복사됨", "복사하지 못했습니다. 세부 정보를 선택하여 직접 복사하세요."],
+  "zh-CN": ["显示详情", "复制详情", "已复制", "复制失败。请选择详情并手动复制。"],
+  "zh-TW": ["顯示詳細資料", "複製詳細資料", "已複製", "複製失敗。請選取詳細資料並手動複製。"],
+};
+const dictionary = Object.fromEntries(Object.entries(AUTH_DICT).map(([locale, copy]) => [locale,
+  { ...copy, ...Object.fromEntries(DETAILS_KEYS.map((key, index) => [key, DETAILS_COPY[locale]?.[index] ?? key])) }]));
+export const t = createDictionaryTranslator({ featureDictionary: dictionary }, { commonDictionary: COMMON_I18N });

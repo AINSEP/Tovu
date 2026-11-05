@@ -9,7 +9,8 @@ import { SURFACE_EXCHANGE_ID_PARAM, SURFACE_DISMISSED_PARAM } from "@jini-ai/cor
  *
  * Built on `@jini-ai/ui`'s `buildOutcomeSurface`, not `buildConfirmationSurface`: there is nothing
  * here for a human to confirm by tool call — the sign-in element is a link that
- * opens the plugin's real sign-in page in a new tab (`outcome.ts`'s `openLinkUrl`, wired to the
+ * opens the authenticated host sign-in link, then the plugin's real sign-in page in a new tab
+ * (`outcome.ts`'s `openLinkUrl`, wired to the
  * bridge's `openLink` — an outbound navigation, never a delivery through `mcp-ui-tool-calls-route.ts`).
  * Skip answers the existing surface exchange so the assistant can continue the turn.
  * `state: "partial"` is the honest read of "waiting on the human, not failed, not done yet" —

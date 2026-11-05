@@ -10,6 +10,25 @@ notes are optional context. Tovu chat requires neither an AI Dev Shop checkout n
 `<ADS_MEMORY_ROOT>`. Return the design in chat unless the user asks to save it through an available
 tool.
 
+## Design direction
+
+Before styling, identify the site's purpose and choose a fitting visual direction. We don't ever
+want to use Tovu Starter for CSS. We only use it for the structure. Author fresh typography,
+spacing, colours, responsive rules and components from the chosen direction.
+
+Discover search, fetch and screenshot capabilities with `search_tools` and `describe_tool` first.
+Awwwards first: inspect candidate live sites. Dribbble and Pinterest provide additional image
+inspiration. Combine ideas; reproduce one site's design only when the owner supplied it as the
+reference. Imported sites use their supplied design.
+
+Without web search, fetch Awwwards with `web_fetch_page` and follow returned links to candidates.
+Use a target budget of one listing and two candidates (12,000 content characters per fetch),
+with up to two saved inspiration screenshots. Rendered subresources and image bytes vary by site.
+If access, login or screenshot tools prevent inspection, use accessible references or owner assets.
+With none available, state “external inspiration unverified,” propose an original direction and
+continue the inactive draft. Keep the Starter structure-only rule; use available tools without
+shell commands or installation. This inspiration budget does not replace final screenshot QA.
+
 ## Theme screenshot QA
 
 For theme-from-reference work, the screenshot loop is a release gate. Capture the actual authored

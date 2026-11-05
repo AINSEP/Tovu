@@ -118,6 +118,7 @@ export {
 export {
   resolveActiveTheme,
   writableThemeIds,
+  ThemeStylingRequiredError,
   DEFAULT_THEME_ID,
   DEFAULT_THEME_IDS,
   NO_THEME_ID,

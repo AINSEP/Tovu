@@ -23,7 +23,10 @@ test('retaining a sealed owner row cannot bypass a later site revocation', async
 
 test('a site receives only an active owner key handle and cannot derive owner key bytes', async () => {
   let derivations = 0;
-  const keyring = ownerKeyHandleOnly({ keyring: { activeKey: async () => ({ keyId: 'v1' }),
+  const keyring = ownerKeyHandleOnly({ keyring: { activeKey: async (...args: unknown[]) => {
+    assert.equal(args.length, 0, 'the host keyring uses its existing zero-argument ABI');
+    return { keyId: 'v1' };
+  },
     derive: async () => { derivations++; return new Uint8Array(32); },
     deriveSigningSecret: async () => { derivations++; return new Uint8Array(32); } } });
   assert.deepEqual(await keyring.activeKey({}), { keyId: 'v1' });

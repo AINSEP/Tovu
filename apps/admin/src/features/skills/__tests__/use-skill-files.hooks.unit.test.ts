@@ -2,6 +2,7 @@ import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { describe, expect, it, vi } from "vitest";
 import { useSkillFiles } from "../use-skill-files.hooks";
 import type { SkillFiles } from "../api";
+import { t as translateSkills } from "../skills-i18n";
 
 const listing: SkillFiles = {
   toolId: "skill_example", truncated: false,
@@ -15,6 +16,15 @@ const listing: SkillFiles = {
 const t = (key: string) => key;
 
 describe("useSkillFiles", () => {
+  it("translates loading and non-Error fallbacks and exposes copyable file-read details", async () => {
+    const translate = (key: string) => translateSkills({ locale: "es", key });
+    const read = async (): Promise<SkillFiles> => { throw null; };
+    const { result } = renderHook(() => useSkillFiles({ toolId: "translated", read, t: translate }));
+    expect(result.current.status?.text).toBe("Cargando archivos de la habilidad…");
+    await waitFor(() => expect(result.current.status?.text).toBe("No se pudieron cargar los archivos de la habilidad."));
+    expect(result.current.failure?.copyText).toContain("No se pudieron cargar los archivos de la habilidad.");
+    expect(result.current.failure?.action).toBe(translate("Reload skills before trying the change again."));
+  });
   it("loads files, opens SKILL.md first and permits selecting references", async () => {
     const read = vi.fn().mockResolvedValue(listing);
     const { result } = renderHook(() => useSkillFiles({ toolId: listing.toolId, read, t }));

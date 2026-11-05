@@ -247,6 +247,11 @@ test("SECURITY-CRITICAL: the allowlist is exactly this set — widening it canno
   assert.deepEqual([...MCP_UI_REDEEMABLE_TOOL_IDS].sort(), [...EXPECTED_ALLOWLIST].sort());
 });
 
+test('revoking a saved-key grant opens no exchange and cannot execute from a card callback', () => {
+  assert.equal(isMcpUiToolCallPermitted('project_key_use', true), false);
+  assert.equal(isMcpUiToolCallPermitted('project_key_use', false), false);
+});
+
 test("file-batch callbacks can only answer parked exchanges, never start fresh writes", () => {
   for (const id of ["fs_write_files", "files_copy", "image_transform", "theme_duplicate"]) {
     assert.equal(isMcpUiToolCallAllowed(id), true);

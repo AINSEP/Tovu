@@ -99,6 +99,32 @@ function themeFolders(themesDir: string): string[] {
   return fs.readdirSync(themesDir).filter((name) => !name.startsWith(".")).sort();
 }
 
+test("theme_duplicate: structure-only returns a valid unstyled inactive Starter copy", async (t) => {
+  const deps = fakeDeps();
+  t.after(() => fs.rmSync(deps.themesDir, { recursive: true, force: true }));
+  const starter = path.resolve(import.meta.dirname, "../../../../../content/themes/static/tovu-starter");
+  fs.cpSync(starter, path.join(deps.themesDir, "static/tovu-starter"), { recursive: true });
+  deps.themes.splice(0, deps.themes.length, ...discoverAllBuiltInThemes({ dir: deps.themesDir, source: "built-in" }));
+  const result = await handlerFor(deps)(ctxFor({ sourceThemeId: "tovu-starter", newName: "Fresh", mode: "structure-only", activate: false })) as Record<string, unknown>;
+  assert.equal(result.status, "valid");
+  assert.deepEqual(result.errors, []);
+  assert.equal(result.stylingStatus, "unstyled");
+  assert.equal(result.activated, false);
+  assert.match(String(result.warning), /still needs styling.*finish its design/);
+  assert.equal(await resolveActiveThemeId(deps), "basic");
+});
+
+test("theme_duplicate: structure-only activation conflict and unknown mode refuse before writes", async (t) => {
+  const deps = fakeDeps();
+  t.after(() => fs.rmSync(deps.themesDir, { recursive: true, force: true }));
+  const before = themeFolders(deps.themesDir);
+  for (const input of [{ mode: "structure-only", activate: true }, { mode: "unknown" }]) {
+    await assert.rejects(() => handlerFor(deps)(ctxFor({ sourceThemeId: "basic", newName: "Fresh", ...input })), /mode|still needs styling/i);
+    assert.deepEqual(themeFolders(deps.themesDir), before);
+    assert.equal(await resolveActiveThemeId(deps), "basic");
+  }
+});
+
 test("theme_duplicate: wires with its catalog schema, a mutating risk class, and is not read-only", () => {
   const registrations = buildDuplicateThemeRegistrations(fakeDeps());
 
@@ -106,6 +132,9 @@ test("theme_duplicate: wires with its catalog schema, a mutating risk class, and
   assert.deepEqual(registrations[0]?.descriptor.inputSchema, duplicateThemeAgentToolCatalog[0]?.inputSchema);
   assert.equal(duplicateThemeDerivedRisk.get("theme_duplicate"), "mutates-durable-state");
   assert.equal(registrations[0]?.descriptor.readOnly, false);
+  const schema = registrations[0]!.descriptor.inputSchema as { properties: { mode: { enum: string[]; default: string } } };
+  assert.deepEqual(schema.properties.mode.enum, ["full", "structure-only"]);
+  assert.equal(schema.properties.mode.default, "full");
 });
 
 test("theme_duplicate: the contributor registers under its own 'theme-duplicate' domain key", () => {

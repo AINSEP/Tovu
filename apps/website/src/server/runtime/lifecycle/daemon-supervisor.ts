@@ -374,7 +374,7 @@ export function buildDaemonSpawnEnvOverrides(input: DaemonSpawnEnvInput): NodeJS
  * @complexity O(1).
  */
 export function buildDaemonSpawnArgs(input: { daemonPath: string; workspaceId: string }): string[] {
-  return [input.daemonPath, "--workspace", input.workspaceId];
+  return ["--optimize-for-size", input.daemonPath, "--workspace", input.workspaceId];
 }
 
 /**

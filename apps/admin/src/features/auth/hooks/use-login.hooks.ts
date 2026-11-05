@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { formatUserFacingError, type UserFacingError } from "@jini-ai/core";
+import { ApiError } from "@/lib/api";
 
 import type { AdminUser } from "@/lib/api";
 import { defaultLoginPort } from "./login-dependencies.hooks";
@@ -7,7 +9,7 @@ import type { LoginPort } from "./login-port.hooks";
 /**
  * @file Everything the Login screen does, so `Login.tsx` is only markup.
  *
- * Extracted verbatim — same state, same order, same error string. Naming follows
+ * Keeps submission order and refusal messages; unexpected failures also carry safe copy details. Naming follows
  * `hooks/use-settings-slice.hooks.ts`: `use-<thing>.hooks.ts`. Feature-local because nothing
  * outside `features/auth` needs it.
  *
@@ -33,6 +35,7 @@ export interface LoginController {
   password: string;
   setPassword: (password: string) => void;
   error: string | null;
+  failure?: UserFacingError | null;
   busy: boolean;
   submit: (e: React.FormEvent) => Promise<void>;
 }
@@ -47,23 +50,33 @@ export function useLogin({ onLogin }: LoginHookProps, { port }: LoginDependencie
   const [username, setUsername] = useState("admin");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [failure, setFailure] = useState<UserFacingError | null>(null);
   const [busy, setBusy] = useState(false);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
     setError(null);
+    setFailure(null);
     try {
       const { user } = await port.login({ username, password });
       onLogin(user);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "login failed");
+      setError(err instanceof Error ? err.message : "Sign-in could not finish. Try signing in again.");
+      if (!(err instanceof ApiError && (err.status === 401 || err.status === 429))) {
+        // Anonymous copy never contains a transport exception or backend diagnosis, even redacted.
+        setFailure(formatUserFacingError({ message: "Sign-in could not finish.",
+          action: "Try signing in again. If it still fails, copy details and report this problem.",
+          step: "auth-login", cause: "The sign-in request did not finish. Its error ID identifies the server report." },
+        { errorId: err instanceof ApiError && typeof err.body?.errorId === "string" ? err.body.errorId : undefined,
+          exactSecrets: [password].filter(Boolean) }));
+      }
     } finally {
       setBusy(false);
     }
   }
 
-  return { username, setUsername, password, setPassword, error, busy, submit };
+  return { username, setUsername, password, setPassword, error, failure, busy, submit };
 }
 
 /**

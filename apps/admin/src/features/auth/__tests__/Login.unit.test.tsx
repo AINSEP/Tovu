@@ -4,6 +4,8 @@ import { describe, expect, it, vi } from "vitest";
 
 import { Login } from "../Login";
 import type { LoginController } from "../hooks/use-login.hooks";
+import { formatUserFacingError } from "@jini-ai/core";
+import * as localeHooks from "../../../hooks/use-admin-locale.hooks";
 
 /**
  * @file `Login` — markup only. Every state is driven through the injectable `useLoginHook` prop
@@ -27,6 +29,26 @@ function stubHook(overrides: Partial<LoginController> = {}): () => LoginControll
 }
 
 describe("Login", () => {
+  it("renders translated copy controls with the anonymous-safe incident details", async () => {
+    const locale = vi.spyOn(localeHooks, "useWiredAdminLocale").mockReturnValue("es");
+    const user = userEvent.setup();
+    const writeText = vi.fn(async () => {});
+    const originalClipboard = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    const failure = formatUserFacingError({ message: "Sign-in could not finish.", action: "Try signing in again.", step: "auth-login", cause: "Approved anonymous explanation" }, { errorId: "login-incident" });
+    try {
+      render(<Login onLogin={vi.fn()} useLoginHook={stubHook({ error: "failure", failure })} />);
+      expect(screen.getByRole("alert")).toHaveTextContent("Sign-in could not finish.");
+      await user.click(screen.getByText("Mostrar detalles"));
+      await user.click(screen.getByRole("button", { name: "Copiar detalles" }));
+      expect(writeText).toHaveBeenCalledWith(failure.copyText);
+      expect(await screen.findByRole("status")).toHaveTextContent("Copiado");
+    } finally {
+      locale.mockRestore();
+      if (originalClipboard) Object.defineProperty(navigator, "clipboard", originalClipboard);
+      else Reflect.deleteProperty(navigator, "clipboard");
+    }
+  });
   it("passes the onLogin prop straight through to useLoginHook, unmodified", () => {
     const onLogin = vi.fn();
     const useLoginHook = vi.fn(stubHook());

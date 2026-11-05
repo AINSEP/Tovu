@@ -33,14 +33,16 @@ export function adminFailureResponse(
   { operation = "admin-route", code = "INTERNAL_ERROR", message = "The admin request could not finish. Check whether your change was saved, then copy the error ID and report this problem.", failure: context }: FailureOptions = {},
 ): { status: number; body: { error: string; code: string; errorId: string; details?: { failure: UserFacingError } } } {
   const diagnostic = adminDiagnostic({ error });
-  const errorId = randomUUID();
+  const generatedId = randomUUID();
+  const body = unexpectedAdminBody({ message, code, errorId: generatedId, context });
+  const errorId = body.errorId;
   // Never hand raw backend/provider errors to a log sink: they may contain saved credentials.
   // Diagnostic sinks are independent: either may fail, but neither may suppress the HTTP reply.
   try { console.error(`[${operation}]`, { errorId, diagnostic }); } catch { /* The tracker still gets the incident. */ }
   try { tracker?.error({ error: new Error(diagnostic) }, { context: { operation, attributes: { errorId } } }); } catch { /* The local log still carries the ID. */ }
   // The backup owner supplies this closed, human-safe refusal. Preserve it for every admin route.
   if (error instanceof DatabaseDiskSpaceError) return { status: error.status, body: { code: error.code, errorId, error: error.message } };
-  return { status: 500, body: unexpectedAdminBody({ message, code, errorId, context }) };
+  return { status: 500, body };
 }
 
 /** Only the export pilot opts into its authorized, redacted cause. Other migrated routes retain
@@ -54,7 +56,9 @@ function unexpectedAdminBody({ message, code, errorId, context }: {
   const failure = formatUserFacingError({ message, action: context.action, step: context.step,
     cause: context.cause ?? "The server could not complete this operation. Its error ID identifies the server report." },
   { ...context.metadata, ...TOVU_ERROR_REDACTION_OPTIONS, errorId, time: context.metadata?.time ?? new Date().toISOString() });
-  return { code, errorId, error: `${failure.message} ${failure.action} (error ${errorId})`, details: { failure } };
+  // The shared formatter preserves a cause's existing ERR ID. Use it for both sinks and reply.
+  const correlatedId = failure.errorId ?? errorId;
+  return { code, errorId: correlatedId, error: `${failure.message} ${failure.action} (error ${correlatedId})`, details: { failure } };
 }
 
 /** Send the shared failure envelope using the tracker injected by the HTTP composition root.

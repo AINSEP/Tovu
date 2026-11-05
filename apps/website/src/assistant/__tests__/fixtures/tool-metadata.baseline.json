@@ -315,7 +315,7 @@
     "plugin_source_delete": "plugin source draft delete file permanently remove",
     "plugin_source_seal": "plugin source seal validate integrity install version patch reload code",
     "plugin_source_rollback": "plugin source rollback previous version restore code",
-    "credential_copy_from_project": "copy import reuse keys credentials tokens local project site source overwrite",
+    "credential_copy_from_project": "use saved shared keys reuse credentials local project site grant revoke",
     "site_import_backup": "install import site share url link zip new separate restore",
     "site_import_list": "list past site imports history open imported sites",
     "site_share_create": "share export site zip portable link download drafts",
@@ -1933,8 +1933,8 @@
       "Push my site live on my static host."
     ],
     "credential_copy_from_project": [
-      "Copy keys from another local project.",
-      "Reuse another site's saved API keys in this project."
+      "Use a saved key on this site.",
+      "Choose from Shared Keys without copying a token."
     ],
     "site_import_backup": [
       "Install the site at this link",

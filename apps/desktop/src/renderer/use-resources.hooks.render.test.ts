@@ -102,7 +102,9 @@ test('launch badge recovers from two initial sampler failures within ten seconds
   const f = fixture();
   let at = 0, attempts = 0;
   const monitor = createDesktopResources({ desktopPid: 1, platform: 'darwin', now: () => at,
-    totalMem: () => 8_000_000_000, openSites: () => [], listUsage: async () => {
+    totalMem: () => 8_000_000_000, openSites: () => [],
+    samplePrivateMemory: async () => ({ metric: 'unavailable', readings: [] }),
+    listUsage: async () => {
       if (++attempts <= 2) throw new Error('transient launch failure');
       return [{ pid: 1, ppid: 0, rssBytes: 123_000_000, cpuSeconds: 0, name: 'Tovu' }];
     } });

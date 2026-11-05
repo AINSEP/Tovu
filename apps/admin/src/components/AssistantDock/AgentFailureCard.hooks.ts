@@ -53,6 +53,13 @@ function failureData(value: unknown): AgentFailure | null {
     ...(typeof data.agentId === "string" ? { agentId: data.agentId } : {}) }, {});
 }
 
+/** The same payload check as the card: malformed history must retain Jini's terminal fallback.
+ * @complexity O(last event bytes), pure; earlier events do not control the card's current state.
+ */
+export function hasAgentFailureNotice({ events }: { events: readonly unknown[] }, _optional = {}): boolean {
+  return failureData(events[events.length - 1]) !== null;
+}
+
 export function useAgentFailureCard({ events, runStreaming, runSucceeded }: {
   events: readonly unknown[]; runStreaming: boolean; runSucceeded: boolean;
 }, _optional = {}) {

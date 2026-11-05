@@ -163,7 +163,7 @@ export { createRespawnPolicy } from "./daemon-respawn-policy.js";
 export type { RespawnDecision, RespawnPolicy } from "./daemon-respawn-policy.js";
 export { createLiveModelDiscovery, fetchLiveClaudeModels, unionModels } from "./live-model-cache.js";
 export type { LiveModelDiscovery } from "./live-model-cache.js";
-export { isMcpUiToolCallAllowed, isMcpUiToolCallPermitted } from "./mcp-ui-tool-calls.js";
+export { isMcpUiToolCallAllowed, isMcpUiToolCallPermitted, MCP_UI_TYPED_ANSWER_REFUSAL } from "./mcp-ui-tool-calls.js";
 export { MCP_UI_TOOL_CALLS_PATH, isTypedSurfaceAnswer } from "./mcp-ui-tool-calls-route.js";
 // `UIResource`/`MCP_UI_MIME_TYPE` are the MCP-UI wire-format contract `mcp-ui.ts` declares —
 // `features/post`'s own agent-tools tests build/assert against this exact shape to verify their

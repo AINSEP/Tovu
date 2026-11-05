@@ -1,4 +1,5 @@
 import { OwnerRecoverySignIn } from "./OwnerRecoverySignIn";
+import { ErrorNotice } from "@jini-ai/ui/panel-kit";
 import type { AdminUser } from "../../lib/api";
 import { SecretInput } from "@/components/SecretInput/SecretInput";
 import { useWiredAdminLocale } from "../../hooks/use-admin-locale.hooks";
@@ -22,7 +23,7 @@ export interface LoginProps {
 }
 
 export function Login({ onLogin, useLoginHook = useWiredLogin }: LoginProps) {
-  const { username, setUsername, password, setPassword, error, busy, submit } = useLoginHook({ onLogin });
+  const { username, setUsername, password, setPassword, error, failure, busy, submit } = useLoginHook({ onLogin });
   const locale = useWiredAdminLocale();
   const t = (key: string): string => translateAuth({ locale: locale, key: key });
 
@@ -40,7 +41,7 @@ export function Login({ onLogin, useLoginHook = useWiredLogin }: LoginProps) {
           <label htmlFor="login-password">{t("Password")}</label>
           <SecretInput label={t("Password")} locale={locale} id="login-password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
         </div>
-        {error ? <div className="login-error">{error}</div> : null}
+        {failure ? <ErrorNotice failure={failure} t={t} className="login-error" /> : error ? <div className="login-error">{error}</div> : null}
         <button disabled={busy}>{busy ? t("Signing in…") : t("Sign in")}</button>
       </form>
       <OwnerRecoverySignIn t={t} />

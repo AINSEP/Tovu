@@ -825,14 +825,18 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
   // guarantee independent of `@jini-ai/daemon`'s internal ordering. `refresh()` never rejects (see
   // `custom-instructions.ts`), so this adds no new failure path before `run()` is even reached.
   const releasePreparation = idlePark.hold({}, {});
+  // Static stage names identify the failing preparation boundary without copying the request.
+  let startupStage = 'custom instructions';
   void customInstructionsCache
     .refresh()
     .then(async () => {
       // One generic preparation turns every claimed file into image pixels or a file notice.
       // Runtime wire adapters decide how to carry those pixels; the CMS adapter owns authorization.
+      startupStage = 'attachment preparation';
       const attachmentRunFields = await resolveAttachmentRunFields({ run, attachmentIds, runLifecycle, agentId }, {});
       if (!attachmentRunFields) return;
       pluginAbort.signal.throwIfAborted();
+      startupStage = 'Agent Plugin preparation';
       await siteTools.start({ runId: run.id, principalId: principal.id });
       const pluginPreparation = await prepareSitePlugins({}, {});
       if (pluginPreparation.prefix === null) {
@@ -966,6 +970,7 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
       // slot and both mint — forking the conversation exactly the way the terminal-event-only write
       // did. Deliberately does NOT cover `agentExecutor.run` below: holding the lock across a whole
       // agent run would queue a second tab's turn behind it for minutes with no feedback.
+      startupStage = 'session binding';
       const sessionBinding = await conversationStartLock.run({ conversationId: conversationId, critical: resolveSessionBinding }, {});
       if (sessionBinding === null) return;
       // The browser cannot know whether the daemon still has a native session to resume.
@@ -998,6 +1003,7 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
       if (!(await durableAttemptStillOwnsAnswer())) {
         await failRunBeforeStart({ lifecycle: runLifecycle, runId: run.id, message: "This execution attempt no longer owns the answer." }, {}); return;
       }
+      startupStage = 'CLI launch';
       await launchAgentRun({ sessionBinding, attachmentRunFields }, {});
     })
     // `AgentExecutor.run()` already transitions the run to `'failed'` via `lifecycle.finish()` on
@@ -1007,7 +1013,8 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
     .catch((error: unknown) => {
       console.error(`[agent-daemon] run ${run.id} failed to start`, error);
       // A startup rejection must terminalize its attempt so its slot and credentials release.
-      void failRunBeforeStart({ lifecycle: runLifecycle, runId: run.id, message: "The assistant could not start this execution attempt." }, {});
+      void failRunBeforeStart({ lifecycle: runLifecycle, runId: run.id, message: "The assistant could not start this execution attempt.",
+        startup: { stage: startupStage, error } }, {});
     }).finally(releasePreparation);
 
   /** The server owns pinned guidance and automatic consent, including later tool-triggered
@@ -1035,19 +1042,24 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
   async function launchAgentRun(
     { sessionBinding, attachmentRunFields }: { sessionBinding: RunSessionBinding; attachmentRunFields: AttachmentRunFields }, _optional = {},
   ): Promise<void> {
+    startupStage = 'native tool policy';
     const { isOwner, def, policy, nativeCapabilities } = await resolveRunNativePolicy({ agentId: sessionBinding.agentId }, {});
     const nativeToolAccess = Object.values(nativeCapabilities).some(Boolean);
+    startupStage = 'tool-gap audit subscription';
     await observeRunToolGaps({ isOwner, agentId: sessionBinding.agentId }, {});
     // One launch snapshot supplies every dimension; edits affect only subsequent runs.
     const subagentsEnabled = nativeCapabilities.subagents;
     // Fresh per-person runtime preferences; a failed read falls back to the registered defaults.
+    startupStage = 'runtime preferences';
     const runtimeLaunch = await resolveAssistantRuntimeLaunch({ deps: { settingsRepo: routeDeps.settingsRepo, getEffective: routeDeps.getEffective,
       settingsReady: routeDeps.siteTitleReady, workspaceId: routeDeps.workspaceId }, principalId: principal.id, agentId: sessionBinding.agentId, subagentsEnabled, isOwner }, { getDef: getAgentDef, probeChrome: probeAssistantChrome });
+    startupStage = 'shell environment';
     const parityEnv = nativeCapabilities.loginEnvironment ? await readLoginShellEnvironment({ baseEnv: env,
       excludedPrefixes: ["TOVU_", "JINI_"], excludedKeys: ["DATABASE_URL"], excludedSuffixes: ["_ROOT_KEY"] }, {}) : undefined;
     // Owner 2026-10-27: the folder picked with the composer's folder control is readable, never writable.
     const pickedFolder = getCustomFsRoot(routeDeps.workspaceId, { siteDir: routeDeps.siteBinding.dir });
     const runGuidance = pickedFolder ? { ...runtimeLaunch.guidance, pickedFolder } : runtimeLaunch.guidance;
+    startupStage = 'CLI bridge preparation';
     if (!(await prepareCliLaunch({ def }, {}))) return;
     const executeRun = () => agentExecutor.run({
       runId: run.id,
@@ -1098,6 +1110,7 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
       await runLifecycle.finish({ runId: run.id, status: "cancelled", code: null, signal: null, resumable: false });
       return;
     }
+    startupStage = 'CLI execution';
     await assistantRuntimeGuidanceContext.run(runGuidance,
       () => assistantNativeToolsContext.run(nativeToolAccess, runWithCapabilities));
   }
@@ -1143,7 +1156,8 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
           args: [...(bridgeInjection.args ?? [])], env: { ...bridgeInjection.env } },
           ctx: { home: (env.HOME ?? env.USERPROFILE ?? homedir()), platform: process.platform, serverName: 'jini' } }, {});
       } catch (error) {
-        await failRunBeforeStart({ lifecycle: runLifecycle, runId: run.id, message: (error as Error).message }, {}); return false;
+        await failRunBeforeStart({ lifecycle: runLifecycle, runId: run.id, message: 'The CLI bridge could not be prepared.',
+          startup: { stage: startupStage, error } }, {}); return false;
       }
     }
     if (def?.fullCliAccessNote) await runLifecycle.emit({ runId: run.id, input: {

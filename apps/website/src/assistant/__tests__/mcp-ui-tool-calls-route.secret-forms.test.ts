@@ -42,11 +42,16 @@ test("secret-card POSTs only answer a principal-bound open exchange and never ex
     assert.equal(stale.status, 409, toolId);
     assert.equal(executions, 0, toolId);
     const typed = await post(toolId, { ...params, [SURFACE_TYPED_ANSWER_PARAM]: "fixture answer" });
-    assert.equal(typed.status, 409, toolId);
+    assert.equal(typed.status, 403, toolId);
     assert.equal(executions, 0, toolId);
 
     const exchange = surfaceExchanges.open({ binding: { toolId, principalId: "principal-1" }, emit: async () => undefined });
     try {
+      for (const correlation of [{}, { [SURFACE_EXCHANGE_ID_PARAM]: exchange.id }]) {
+        const bypass = await post(toolId, { ...params, ...correlation, [SURFACE_TYPED_ANSWER_PARAM]: "x" });
+        assert.equal(bypass.status, 403, toolId);
+        assert.equal(executions, 0, toolId);
+      }
       const answer = exchange.receive({});
       const mismatch = await post(toolId, { ...params, [SURFACE_EXCHANGE_ID_PARAM]: exchange.id }, "principal-2");
       assert.equal(mismatch.status, 409, toolId);

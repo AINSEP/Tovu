@@ -4,6 +4,8 @@ import { enableSkill, listSkills, removeSkill, SKILLS_CHANGED_EVENT, type Instal
 import { useSkillInstall } from "./use-skill-install.hooks";
 import { useSkillConfirmation } from "./use-skill-confirmation.hooks";
 import { useSkillsTabs } from "./use-skills-tabs.hooks";
+import type { Translate } from "@jini-ai/ui/panel-kit";
+import { skillFailure } from "./skill-failure";
 
 export const SKILL_FILE_ACCEPT = ".zip,.md,.txt,.json,.yaml,.yml,.csv,.svg,.sh,.py,.js,.ts,.mjs,.png,.jpg,.jpeg,.webp";
 
@@ -43,11 +45,11 @@ function getSkillsAvailability(
 
 /** Keeps the existing API, refresh event and stale-load guard behind a render-only view.
  * The injected port lets action tests exercise retry/refetch ordering without module mocks. */
-export function useSkills({ port = defaultSkillsPort }: { port?: typeof defaultSkillsPort } = {}, _optional = {}) {
+export function useSkills({ port = defaultSkillsPort, t = key => key }: { port?: typeof defaultSkillsPort; t?: Translate } = {}, _optional = {}) {
   const tabs = useSkillsTabs();
   const queryFetch = useCallback(async () => {
     try { return await port.listSkills(); }
-    catch (error) { throw new Error(error instanceof Error ? error.message : "Could not load skills."); }
+    catch (error) { if (error instanceof Error) throw error; throw new Error("Could not load skills."); }
   }, [port]);
   const key = useMemo(() => ["skills", "list"] as const, []);
   const query = useFetchQuery({ key, fetch: queryFetch }, { staleTime: 0 });
@@ -58,7 +60,9 @@ export function useSkills({ port = defaultSkillsPort }: { port?: typeof defaultS
   // already invalidates the list. A second mutation invalidation would restart that fresh read.
   const write = useFetchMutation({ run: ({ input }: { input: () => Promise<unknown> }) => input() });
   const [actionError, setError] = useState<string | null>(null);
+  const [actionCause, setActionCause] = useState<unknown>(null);
   const error = actionError ?? query.error?.message ?? null;
+  const failure = error ? skillFailure({ error: actionError ? actionCause : query.error, message: error, t }) : null;
   const [githubUrl, setGithubUrl] = useState("");
   const [removing, setRemoving] = useState<InstalledSkill | null>(null);
   const [inspecting, setInspecting] = useState<InstalledSkill | null>(null);
@@ -95,7 +99,10 @@ export function useSkills({ port = defaultSkillsPort }: { port?: typeof defaultS
       await loader.load().catch(() => {}); // The query exposes refresh failures separately from accepted writes.
       if (mounted.current) setRemoving(null);
     } catch (e) {
-      if (mounted.current) setError(e instanceof Error ? e.message : "Could not change skill.");
+      if (mounted.current) {
+        setActionCause(e);
+        setError(e instanceof Error ? e.message : "Could not change skill.");
+      }
     } finally {
       if (mounted.current) setBusy(false);
     }
@@ -136,7 +143,7 @@ export function useSkills({ port = defaultSkillsPort }: { port?: typeof defaultS
   }));
   return {
     ...tabs,
-    skills, rows, error, githubUrl, removing, inspecting, busy, install, confirmation,
+    skills, rows, error, failure, githubUrl, removing, inspecting, busy, install, confirmation,
     onCloseFiles: () => setInspecting(null),
     filesInput, folderInput,
     ...getSkillsAvailability({ skills, error, githubUrl, busy, installBusy: install.busy }),

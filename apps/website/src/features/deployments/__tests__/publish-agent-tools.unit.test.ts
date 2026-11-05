@@ -26,6 +26,7 @@ import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
 import { createCustomCredential } from "#src/features/custom-credentials/store";
 import { CustomCredentialVaultRepo } from "#src/features/custom-credentials/vault-repo";
 import { attachedOnlyVault } from "#src/features/project-keys/attached-vault";
+import { projectKeyCreateVault } from "#src/features/project-keys/create-vault";
 import { createProjectKeys } from "#src/features/project-keys/service";
 import { fakeAttachments } from "#src/features/project-keys/__tests__/helpers";
 
@@ -1190,9 +1191,12 @@ test("publish card saves attach to their site and reopening updates the sole att
     module: { create: () => assert.fail("must not publish") } };
   function site(siteId: string) {
     const { deps: base } = fakeDeps();
+    const view = attachedOnlyVault({ vault, attachments, siteId });
     const repo = new VendorCredentialSetVaultRepo({ vault: new InMemoryVaultRepo({}), kind: "vendor", vendor: true }, { project: {
       workspaceId: "project", keyring, sealer,
-      repo: new VendorCredentialSetVaultRepo({ vault: attachedOnlyVault({ vault, attachments, siteId }), kind: "vendor", vendor: true }),
+      repo: new VendorCredentialSetVaultRepo({ vault: view, kind: "vendor", vendor: true }),
+      createRepo: new VendorCredentialSetVaultRepo({ vault: projectKeyCreateVault({ owner: vault, view }), kind: "vendor", vendor: true }),
+      replaceRepo: new VendorCredentialSetVaultRepo({ vault: projectKeyCreateVault({ owner: vault, view }, { allowReplacement: true }), kind: "vendor", vendor: true }),
     } });
     const deps = { ...base, workspaceId: siteId, vendorCredentialSetRepo: repo,
       loadDeployTargets: async () => ({ get: (id: string) => id === "pin-host" ? host : undefined, list: () => [host], refusals: [] }) };

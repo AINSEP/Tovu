@@ -15,7 +15,7 @@ import type { useSkillInstall } from "../use-skill-install.hooks";
 afterEach(cleanup);
 
 function install(overrides: Partial<ReturnType<typeof useSkillInstall>> = {}): ReturnType<typeof useSkillInstall> {
-  return { pending: null, busy: false, error: null, propose: vi.fn(), proposeFiles: vi.fn(), cancel: vi.fn(), confirm: vi.fn(async () => {}), fail: vi.fn(), ...overrides };
+  return { pending: null, busy: false, error: null, cause: null, propose: vi.fn(), proposeFiles: vi.fn(), cancel: vi.fn(), confirm: vi.fn(async () => {}), fail: vi.fn(), ...overrides };
 }
 
 const pending = { githubUrl: "https://github.com/acme/skill" };
@@ -45,7 +45,7 @@ it("keeps English when no locale is given (existing callers and tests)", () => {
 it.each(NON_ENGLISH)("%s translates the dismiss row's text and accessible name", locale => {
   render(<SkillInstallConfirmation install={install({ error: "SKILL.md is missing." })} locale={locale} />);
   const alert = screen.getByRole("alert");
-  const dismiss = alert.querySelector("button")!;
+  const dismiss = alert.querySelector("button[aria-label]")!;
   expect(dismiss.textContent?.trim()).not.toBe("Dismiss");
   expect(dismiss.textContent?.trim().length).toBeGreaterThan(0);
   expect(dismiss.getAttribute("aria-label")).toBe(dismiss.textContent);

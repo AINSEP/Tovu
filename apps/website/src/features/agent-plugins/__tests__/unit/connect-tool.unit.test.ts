@@ -116,7 +116,7 @@ test("agent_plugin_connect: a bundled plugin with one OAuth server shows exactly
 
   const result = await runAgentPluginConnect(deps, surfaces, ctx, "widget-store");
   assert.deepEqual(result, { status: "waiting-for-sign-in" });
-  assert.deepEqual(beginInputs, [{ serverId: "widget", redirectUri: "https://public.example/api/mcp-servers/oauth/callback/widget" }]);
+  assert.deepEqual(beginInputs, [{ serverId: "widget", redirectUri: "https://public.example/api/mcp-servers/oauth/callback/widget", delivery: 'hosted' }]);
   assert.equal(emissions.length, 1, "exactly one card sent while nobody has signed in yet");
 
   const html = htmlOf(emissions[0]!);
@@ -753,7 +753,7 @@ test("agent_plugin_connect: no configured or derived origin leaves the redirect 
     externalMcpOAuth: { ...original, beginConnect: async (input) => { inputs.push(input); return original.beginConnect(input); } },
     resolveInstalledPlugin: async () => ({ servers: { widget: OAUTH_SERVER } }),
   }), freshSurfaces(), fakeCtx([]), "widget-store");
-  assert.deepEqual(inputs, [{ serverId: "widget", redirectUri: undefined }]);
+  assert.deepEqual(inputs, [{ serverId: "widget", redirectUri: undefined, delivery: 'hosted' }]);
 });
 
 test("agent_plugin_connect: an OAuth validation refusal becomes a ToolInputError; any other failure propagates unchanged", async () => {

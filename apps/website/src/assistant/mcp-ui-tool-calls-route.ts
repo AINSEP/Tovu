@@ -6,7 +6,7 @@ import type { Principal } from "@jini-ai/core";
 import type { ToolExecutionResult, ToolExecutor } from "@jini-ai/daemon";
 
 import { RUN_PRINCIPAL_HEADER } from "./daemon-access.js";
-import { isMcpUiToolCallPermitted } from "./mcp-ui-tool-calls.js";
+import { isMcpUiToolCallPermitted, MCP_UI_TYPED_ANSWER_REFUSAL } from "./mcp-ui-tool-calls.js";
 import { tryRestoreSurface } from '@jini-ai/daemon/http';
 import {
   SURFACE_EXCHANGE_ID_PARAM,
@@ -202,8 +202,9 @@ function parseMcpUiToolCallRequest(req: Request, res: Response): ParsedMcpUiTool
   const exchangeId = typeof rawExchangeId === "string" && rawExchangeId.length > 0 ? rawExchangeId : undefined;
   // `isMcpUiToolCallPermitted` also admits a federated id, but ONLY as an answer to an open card
   // (G3) — so the answer shape is decided before the check, and Shape 2 can never run one.
-  if (!isMcpUiToolCallPermitted(toolName, exchangeId !== undefined || isTypedSurfaceAnswer(params))) {
-    res.status(403).json({ error: `'${toolName}' is not an MCP-UI-redeemable tool`, code: "TOOL_NOT_ALLOWLISTED" });
+  const typedAnswer = isTypedSurfaceAnswer(params);
+  if (!isMcpUiToolCallPermitted(toolName, exchangeId !== undefined || typedAnswer, { typedAnswer })) {
+    res.status(403).json({ error: typedAnswer ? MCP_UI_TYPED_ANSWER_REFUSAL : `'${toolName}' is not an MCP-UI-redeemable tool`, code: "TOOL_NOT_ALLOWLISTED" });
     return null;
   }
   return { toolName, params, exchangeId };

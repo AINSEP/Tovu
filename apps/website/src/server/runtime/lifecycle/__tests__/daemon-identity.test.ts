@@ -15,7 +15,7 @@ import { buildDaemonSpawnArgs, isDaemonProcessForWorkspace, restartAssistantDaem
 
 test("buildDaemonSpawnArgs appends a --workspace token naming the daemon's own workspace", () => {
   const args = buildDaemonSpawnArgs({ daemonPath: "/repo/agent-daemon-server.ts", workspaceId: "workspace-7" });
-  assert.deepEqual(args, ["/repo/agent-daemon-server.ts", "--workspace", "workspace-7"]);
+  assert.deepEqual(args, ["--optimize-for-size", "/repo/agent-daemon-server.ts", "--workspace", "workspace-7"]);
 });
 
 test("isDaemonProcessForWorkspace confirms a live process's argv names the expected workspace", () => {

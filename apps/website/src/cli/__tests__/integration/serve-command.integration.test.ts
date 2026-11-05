@@ -750,9 +750,16 @@ test("2026-09-05 dispatch: tovu serve mints TOVU_AGENT_DAEMON_TOKEN before spawn
   try {
     await waitForHttpReady(port, child);
 
-    // The daemon child spawns asynchronously, only after `identityReady`/`settingsReady`/etc.
-    // settle (see `serve.ts`'s own `app.listen()` callback) — poll until it actually answers
-    // rather than assuming it is up the instant the main app is.
+    // Identity/settings readiness still precedes daemon spawn, but registration is now cold.
+    // Demand readiness as the signed-in owner before probing the daemon's own auth gate.
+    const baseUrl = `http://127.0.0.1:${port}`;
+    const cookie = await loginAsOwner(baseUrl);
+    const activation = await fetch(`${baseUrl}/api/frontend-sessions/activate`, {
+      method: "POST", headers: { cookie }, signal: fetchTimeoutSignal(),
+    });
+    assert.equal(activation.status, 204, await activation.text());
+
+    // Keep the direct listener probe bounded instead of assuming HTTP readiness means it is up.
     const factor = loadFactor();
     const deadline = Date.now() + 20_000 * factor;
     let res: Response | undefined;

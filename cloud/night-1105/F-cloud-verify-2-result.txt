@@ -1,0 +1,189 @@
+Programmer(Direct): Job F handoff — cloud verify 2 remediation and cloud verify 3 script
+
+Verification status: PARTIAL. No tests ran. DONE means the addressed code/test was already present in the initial uncommitted diff; FIXED means this turn changed code or a fixture. Neither status means a test passed. LEFT is explicit unresolved work.
+
+Inputs: Programmer persona; AI-Dev-Shop bootstrap; cloud-RESULTS-2.md (read in sections), R-fix-cloud2.md, night-review-5.md, Q-fix-review5-result.md, Q-result.md, cloud-rerun-2.sh, O-rerun.sh, O-forms-rerun.sh, Q-rerun.sh, B-forms-urgent-result.md, all three P25-phase1 lists. Architecture sections 13/14 and project memory read from the owner tree because those files are absent in the integration clone. Those reads did not modify the owner checkout.
+Scope: only authorized clones and requested day artifacts written. No installs, builds, tests, app/desktop servers, Electron, commits, pushes or .git writes. Existing edits in both clones preserved. Source navigation used bounded rg/direct reads because no graph tools are available.
+
+FAILURE TABLE (all 36 reported occurrences; duplicates retain their original section)
+
+| ID | Section | Failure | Status | Root cause / evidence | Disposition |
+|---|---|---|---|---|---|
+| 1 | jini-core | URL secret stops at quote | DONE | packages/core/src/redact.ts:724 | URL collector owns complete unquoted URL values; generic label collector skips them. |
+| 2 | jini-http-kit | unknown thrown value / stderr redaction | DONE | packages/http-kit/src/__tests__/adapter-pins.test.ts:207 | Old test pinned a raw secret; now asserts masked output plus absence of private database path. |
+| 3 | O-jini-cf-forms | stale rate windows pruned in same batch | DONE | packages/agent-plugins/cloudflare/worker/__tests__/forms-receiver.test.mjs:129 | Expected key now includes receiver-secret salt; pruning assertion remains exact. |
+| 4 | Bforms-jini-cf | stale rate windows pruned in same batch | DONE | packages/agent-plugins/cloudflare/worker/__tests__/forms-receiver.test.mjs:129 | Expected key now includes receiver-secret salt; pruning assertion remains exact. |
+| 5 | tovu-website | SECURITY-CRITICAL exact callback allowlist | DONE | apps/website/src/contracts/core/tool-metadata/custom-credentials.ts:8 | Revocation opens no exchange; removed callback permission and added fresh/exchange refusal assertions. |
+| 6 | tovu-website | metadata projected search baseline | DONE | apps/website/src/assistant/__tests__/fixtures/tool-metadata.baseline.json:318 | Reviewed item-25 reference/grant vocabulary replaces retired copy wording. |
+| 7 | tovu-website | baseline callback refusal for project_key_use | DONE | apps/website/src/contracts/core/tool-metadata/custom-credentials.ts:8 | Revocation remains unavailable as a rendered-card callback. |
+| 8 | tovu-website | publish card save / reopen attached non-default | FIXED | apps/website/src/features/deployments/publish-agent-tools.ts:794 | Fixture now models separate create and trusted replacement ports; submitted card opts into grant-checked writer. |
+| 9 | tovu-website | import expected refusal diagnosis | DONE | apps/website/src/server/inbound/admin-http/http/__tests__/unexpected-route-errors.test.ts:68 | Expected safe stage prefix added by reviewed import diagnosis; error code/status and no-incident assertions retained. |
+| 10 | tovu-website | publishing unexpected failure recovery guidance | DONE | apps/website/src/server/inbound/admin-http/routes/publish-content/import-errors.ts:42 | Production fallback now says what failed, how to check partial application and how to report details. |
+| 11 | tovu-website | site-share archive failure error ID | DONE | apps/website/src/server/inbound/admin-http/routes/system/site-share-errors.ts:60 | Formatter-preserved cause ID now matches response, details, tracker and local log. |
+| 12 | tovu-admin | AgentFailureCard absent stderr / duplicate status | DONE | packages/chat/src/react/components/MessageRow.tsx:347 | Generic Jini footer is suppressed only by registered validated terminal explanation; malformed/missing renderer keeps fallback. |
+| 13 | tovu-admin | AgentFailureCard history failure / duplicate status | DONE | packages/chat/src/react/components/MessageRow.tsx:347 | Generic Jini footer is suppressed only by registered validated terminal explanation; malformed/missing renderer keeps fallback. |
+| 14 | tovu-admin | agent failure empty-event projection | DONE | apps/admin/src/components/AssistantDock/__tests__/agent-failure.unit.test.ts:51 | Expected the reviewed agent_failure extension instead of the retired bare status; cause is retained. |
+| 15 | tovu-admin | Access Tokens click keeps pathname / | LEFT | apps/admin/src/features/security/Security.tsx:161 | No static root cause isolated. Current call uses navigate with replace:true and shared adapter uses History API. No speculative edit; script includes Security and both router suites. Tests prohibited locally. |
+| 16 | tovu-admin | Site key click keeps pathname / | LEFT | apps/admin/src/features/security/Security.tsx:161 | No static root cause isolated. Current call uses navigate with replace:true and shared adapter uses History API. No speculative edit; script includes Security and both router suites. Tests prohibited locally. |
+| 17 | O-tovu-website-keys | publish card save / reopen attached non-default | FIXED | apps/website/src/features/deployments/publish-credentials/store.ts:490 | Same failure as tovu-website; trusted writer is selected only for submitted card, with grant recheck at commit. |
+| 18 | O-tovu-website-keys | hidden project duplicate label error | FIXED | apps/website/src/features/deployments/publish-credentials/store.ts:405 | Retains initial bounded conflict fix; split classifier to keep complexity low. Unique/create conflicts map to domain error; stale revision remains original CAS conflict; no inventory. |
+| 19 | O-tovu-website-keys | Deployments site-owned save returns 201 | DONE | apps/website/src/features/deployments/publish-credentials/__tests__/project-scope.unit.test.ts:299 | Reviewed design retains independent local keys; test now asserts 201, local visibility, no owner copy/grant, no site-B visibility. |
+| 20 | O-tovu-website-keys | saved-keys round trip (inSite) / notices.join | DONE | apps/website/src/features/site-backup/__tests__/integration/saved-keys-round-trip.integration.test.ts:113 | Uses credentialWarnings + acknowledgement contract. User content survives; saved source/project/settings secrets and grants remain excluded. |
+| 21 | O-tovu-website-keys | saved-keys round trip (appData) / notices.join | DONE | apps/website/src/features/site-backup/__tests__/integration/saved-keys-round-trip.integration.test.ts:113 | Uses credentialWarnings + acknowledgement contract. User content survives; saved source/project/settings secrets and grants remain excluded. |
+| 22 | O-tovu-website-keys | Source-control site-owned save returns 201 | DONE | apps/website/src/features/source-control/__tests__/project-scope.unit.test.ts:206 | Reviewed design retains local keys; asserts no owner copy, no owner grant and no cross-site visibility. |
+| 23 | O-desktop-ipc | S3 channel count / all channels reject untrusted frames | DONE | apps/desktop/src/owner-store-ipc.test.ts:42 | Includes deletion channel; exact channel set and trust rejection loop retained, plus delete forwarding regression. |
+| 24 | O-desktop-ipc | ESM preload fixed channel order | DONE | apps/desktop/src/preload/preload.mts:87 | Reorders literal object to fixed reviewed contract order; IPC names unchanged. |
+| 25 | Q-tovu-website-media | ordinary uploaded media content hash | DONE | apps/website/src/features/media/import-media-entity.ts:279 | Creation retains complete packed source; updates retain full destination source. Write-once hash guard remains; tests cover metadata/provenance immutability. |
+| 26 | Q-tovu-website-media | rollback cannot clobber concurrent source restoration | DONE | apps/website/src/features/media/__tests__/publish-content.overwrite.test.ts:172 | Competing fixture restoration uses atomic replacement, matching source-immutable ordinary saves; still asserts rollback refuses and newer edit survives. |
+| 27 | Q-tovu-website-media | private submitted media refuses overwrite | DONE | apps/website/src/features/media/__tests__/publish-content.overwrite.test.ts:234 | Fixture creates private row initially; asserts planning/apply refusal and unchanged source. |
+| 28 | Q-tovu-website-media | confirmed replacement version / PLAN_STALE code | DONE | packages/core/src/gated-mutations/gateway.ts:69 | Existing typed stale-plan error now exposes stable machine code; confirmation/hash assertions unchanged and gateway regression strengthened. |
+| 29 | Q-tovu-website-media | confirmed replacement source / PLAN_STALE code | DONE | packages/core/src/gated-mutations/gateway.ts:69 | Existing typed stale-plan error now exposes stable machine code; confirmation/hash assertions unchanged and gateway regression strengthened. |
+| 30 | Q-desktop-renderer | launch badge after two sampler failures | DONE | apps/desktop/src/renderer/use-resources.hooks.render.test.ts:106 | Injected unavailable native memory probe prevents a real macOS top call/timing race. Fake clock and original recovery assertions retained. |
+| 31 | Bforms-website | Postgres racing same-slug creates | LEFT | apps/website/src/platform/db/__tests__/postgres-database.ts:5 | Environment failure: cloud had no /tmp PostgreSQL socket, before the test body. No code workaround/skip. Script requires isolated service with libpq vars and adds preflight; still runs the failing section. |
+| 32 | tsc-root | site-sealer wrong activeKey argument | DONE | apps/website/src/features/project-keys/site-sealer.ts:10 | Zero-argument host ABI restored; regression asserts zero forwarded arguments and no derivation. |
+| 33 | tsc-root | app.ts undefined taxonomyDb | DONE | apps/website/src/server/runtime/composition/app.ts:1849 | Uses injected content kernel; absent database retains bytes. Existing untracked regression covers owned, orphan and absent-kernel branches. |
+| 34 | tsc-root | deps.ts missing clock.nowMs | DONE | apps/website/src/server/runtime/composition/deps.ts:911 | Forwards both clock methods from injected clock; owner-reset tests retained in script. |
+| 35 | tsc-root | project-store inventory VaultRecord shape | DONE | apps/website/src/server/runtime/composition/project-store.ts:262 | Contextual row typing prevents undefined metadata values; test asserts {} for missing subtype. |
+| 36 | tsc-desktop-main | owner-store fixture action generic cannot index delete | DONE | apps/desktop/src/owner-store-ipc.test.ts:32 | Complete typed action map now includes delete payload; additional forwarding test preserves reviewed revision. |
+
+Counts: DONE=30, FIXED=3, LEFT=3.
+
+ADDITIONAL REQUIRED CHECKS
+
+| Check | Status | Evidence / next action |
+|---|---|---|
+| B14-2 package land gate | LEFT | Tovu root/admin manifests and lockfiles still consume cms ^0.6.19; installed 0.6.19 lacks mediaFileReplacementRecord/mediaReplacementMetadata. Jini source exports them but its package is also labelled 0.6.19. A source link is not a published release. Publish a new Jini version, then update manifest floors and real npm lock metadata together. No guessed version/integrity data written. |
+| B13-3 package land gate | LEFT | Same state for agent-plugins ^0.6.19 and classifyBundledPluginFile. Source barrel exports bundled-file-policy; installed lifecycle entry lacks it. Needs real publication and dependency/lock bump. Registry DNS unavailable in this sandbox, and installs/builds/publication were not run. |
+| attachment-binding | FIXED | Old test searched daemon scope for buildListPendingChatAttachmentsTool, now server-owned under ADR-070. It now evaluates the real daemon siteTools.contextFor and uses buildDaemonAttachmentTools plus runWithDaemonCallContext. Actual accepted-message, claiming, delegated principal/read-only, wrong-owner/run, unbound and terminal cleanup assertions preserved. |
+| durable-binding | FIXED | Production guard now reads siteTools.registry. Fixture supplies that same shape; real lifecycle/status, stale/deleted answer fencing and terminal cleanup assertions preserved. |
+| federation-runtime-wiring | LEFT (runtime confirmation) | Not listed as a failure in cloud-RESULTS-2. Current file and daemon-catalog helper match server-owned federation/catalog refresh. No speculative edit; all four tests explicitly included in rerun. Tests prohibited locally, so current green status is unknown. |
+| item 14 local replacement -> live overwrite | DONE code / FIXED regression | import-media-entity.ts calls replaceImportedMedia before writeOnceSource; reviewed source/version are checked and passed through atomic replacement. Added real Jini local replace -> pack -> unconfirmed refusal -> confirmed SQL live replace -> identical content hash regression. |
+| P25 test coverage in rerun | DONE script | All 30 node-list entries and 7 admin-list entries accounted for. Retired adopt-site-keys maps to deps-project-credentials.integration (existing local key must survive boot); retired saved-keys-orchestration maps to site-saved-keys.integration (no owner capture/inherited access). Deduplicated to 28 existing node files and 7 admin files. No boot-adoption behavior reintroduced. |
+
+ROOT CAUSE OF NEW PRODUCTION FIX
+
+The submitted publish-host card uses the normal project grant read view, which is deliberately read-only. Its test also omitted the separate create port. New cards could not save through that fixture, and reopening a granted key could not replace it through the production store. VendorCredentialProjectScope now describes createRepo; the submitted card supplies allowSharedKeyReplacement; sharedReplacementScope selects replaceRepo only for that trusted path. The existing owner port rechecks the current grant inside its transaction, after asynchronous sealing. Ordinary callers remain denied. The same pattern already exists in custom-credentials/store.ts.
+
+The initial hidden-label fix used a selected-row lookup but had a long decision chain. isPublishLabelConflict now holds that classification; saveConnection retains the original error mapping and reasons without an inventory. Why-comments preserved at the call site.
+
+NEW REGRESSIONS (written before the production fix; deliberately NOT executed)
+
+- publish-credentials/project-scope.unit.test.ts: publish replacement requires trusted card port; ordinary caller denied; revocation during sealing must preserve the entire committed owner row.
+- media/publish-content.overwrite.test.ts: real local file replacement, pack, refused unconfirmed import, confirmed live replacement, unchanged identity and same final content hash.
+- publish-agent-tools.unit.test.ts: existing reopen/non-default/attachment regression now uses the production create and grant-checked replacement ports.
+- Two daemon fixtures updated to current server/context ownership, without dropping their security or lifecycle assertions.
+
+FILES EDITED BY JOB F
+
+- apps/website/src/features/deployments/publish-agent-tools.ts
+- apps/website/src/features/deployments/__tests__/publish-agent-tools.unit.test.ts
+- apps/website/src/features/deployments/publish-credentials/store.ts
+- apps/website/src/features/deployments/publish-credentials/__tests__/project-scope.unit.test.ts
+- apps/website/src/features/vendor-credentials/types.ts
+- apps/website/src/features/media/__tests__/publish-content.overwrite.test.ts
+- apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.attachment-binding.unit.test.ts
+- apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.durable-binding.unit.test.ts
+
+FULL TRACKED DIFF FILE LISTS (includes preserved prior work)
+
+Tovu:
+- apps/admin/src/components/AssistantDock/AgentFailureCard.hooks.ts
+- apps/admin/src/components/AssistantDock/__tests__/AgentFailureCard.unit.test.tsx
+- apps/admin/src/components/AssistantDock/__tests__/agent-failure.unit.test.ts
+- apps/admin/src/components/AssistantDock/hooks/use-dock-renderer-registry.hooks.ts
+- apps/desktop/src/owner-store-ipc.test.ts
+- apps/desktop/src/preload/preload.mts
+- apps/desktop/src/renderer/use-resources.hooks.render.test.ts
+- apps/website/src/assistant/__tests__/fixtures/tool-metadata.baseline.json
+- apps/website/src/assistant/__tests__/mcp-ui-tool-calls.test.ts
+- apps/website/src/contracts/core/tool-metadata/custom-credentials.ts
+- apps/website/src/features/deployments/__tests__/publish-agent-tools.unit.test.ts
+- apps/website/src/features/deployments/publish-agent-tools.ts
+- apps/website/src/features/deployments/publish-credentials/__tests__/project-scope.unit.test.ts
+- apps/website/src/features/deployments/publish-credentials/store.ts
+- apps/website/src/features/media/__tests__/publish-content.apply.test.ts
+- apps/website/src/features/media/__tests__/publish-content.overwrite.test.ts
+- apps/website/src/features/media/import-media-entity.ts
+- apps/website/src/features/project-keys/__tests__/site-sealer.unit.test.ts
+- apps/website/src/features/project-keys/site-sealer.ts
+- apps/website/src/features/site-backup/__tests__/integration/saved-keys-round-trip.integration.test.ts
+- apps/website/src/features/source-control/__tests__/project-scope.unit.test.ts
+- apps/website/src/features/vendor-credentials/types.ts
+- apps/website/src/server/inbound/admin-http/http/__tests__/unexpected-route-errors.test.ts
+- apps/website/src/server/inbound/admin-http/routes/publish-content/import-errors.ts
+- apps/website/src/server/inbound/admin-http/routes/system/__tests__/site-share-failures.test.ts
+- apps/website/src/server/inbound/admin-http/routes/system/site-share-errors.ts
+- apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.attachment-binding.unit.test.ts
+- apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.durable-binding.unit.test.ts
+- apps/website/src/server/runtime/composition/__tests__/project-store.unit.test.ts
+- apps/website/src/server/runtime/composition/app.ts
+- apps/website/src/server/runtime/composition/deps.ts
+- apps/website/src/server/runtime/composition/project-store.ts
+Jini:
+- packages/agent-plugins/cloudflare/worker/__tests__/forms-receiver.test.mjs
+- packages/chat/src/react/components/MessageRow.tsx
+- packages/chat/src/react/ext-event-renderer-registry.ts
+- packages/core/src/__tests__/redact.test.ts
+- packages/core/src/gated-mutations/__tests__/gateway.test.ts
+- packages/core/src/gated-mutations/gateway.ts
+- packages/core/src/redact.ts
+- packages/http-kit/src/__tests__/adapter-pins.test.ts
+
+Preserved initial untracked regressions include Tovu form-file-cleanup-wiring.test.ts and Jini MessageRow.terminal-extension.test.tsx; both are explicitly in the cloud script. Other jobs' untracked reports are untouched.
+
+VALIDATION ACTUALLY RUN
+
+- git diff --check in both clones: exit 0.
+- bash -n cloud-rerun-3.sh: exit 0.
+- Static script checks: all 13 failed sections present, 203 test paths/glob patterns resolve, correct node timeout/concurrency and per-consumer vitest flags, unique section names. No test runner invoked. F-test-commands.txt contains 34 exact deferred commands.
+- Jini: npx --no-install tsc --noEmit -p packages/core: exit 0 (F-core-tsc.log).
+- Jini: npx --no-install tsc --noEmit -p packages/chat: exit 0 (F-chat-tsc.log).
+- No Tovu/admin/desktop full typecheck, builds, test suite or coverage run. Tovu changes remain runtime/typecheck unverified.
+
+COST / BOUNDS
+
+- sharedReplacementScope: each submitted card x 0 reads/writes/bytes; it only selects injected ports.
+- A successful shared-card rotation uses the existing owner port: 1 rotation x 1 indexed grant lookup + 1 selected VaultRecord read + 1 selected CAS write, in the existing transaction. Payload = one grant row G bytes plus one credential row S bytes (S follows existing credential validation/sealed envelope); no whole-owner inventory, new polling or retry. No new numeric payload cap or schema is introduced.
+- Conflict diagnosis: 1 failed update x at most 1 selected VaultRecord (S bytes); failed creates x 0 reads. This is preserved from the incoming partial fix, now in its own function. No decrypt or inventory added.
+- Media production path unchanged this turn; new local/live test uses a 4-byte JPEG fixture and existing ports. No runtime I/O added.
+- Daemon changes are test-only; x 0 production reads/writes/polls.
+- Script: 1 invocation x 1 run/section, max 900 s/section, no retry; per-section full logs on disposable cloud disk, with console excerpt capped at 20 lines x 600 chars/failure. PostgreSQL preflight x one SELECT 1. Release preflight x four consumer dependency/lock/installed-version checks and two module imports. No added application background work.
+
+ARCHITECTURE / FUNCTION / DOCUMENTATION CHECK
+
+Static new-edit audit: no new architecture modules, vendor imports, cross-plugin imports, schema changes, generic runtime in Tovu, or new background work. Thin CMS credential wiring reuses Jini vault CAS and existing Tovu grant adapter. Boundary warning remains: unreleased Jini exports still prevent a real npm-artifact land; cloud source-link tests do not resolve that warning.
+
+Assessment units: sharedReplacementScope (pure port selection, O(1)); isPublishLabelConflict (bounded selected-row error classification, O(1) indexed I/O); saveConnection (one write, O(1) selected conflict lookup); saveProposedCredential/updatePublishCredential (existing orchestration; trusted flag/port wiring only, branch count not increased). Disposition: INCONCLUSIVE runtime evidence because tests prohibited. Manual complexity review of new helpers is below 10; no measured lint/coverage claim. Cloud lint includes changed production files and desktop ceiling remains 9.
+
+Coverage seams: ordinary refusal/trusted commit/revocation via real in-memory vault, injected sealer and grant ports; failed-create/hidden-label/stale-CAS tests retained; media uses real replacement/pack and SQL transaction. No coverage suppressions, skipped security tests or relaxed data-safety assertions added. Zero-findings skepticism checked grant revocation after sealing, no-card writes, stale CAS, absent/wrong attachment context, file identity/hash and source write-once protection. Full runtime confidence remains open.
+
+Documentation: VendorCredentialProjectScope.createRepo and PublishCredentialWriteDeps.allowSharedKeyReplacement documented; new helper purpose/return/error/cost comments added. Existing why-comments retained. Test-only bridge/helper changes explain the ADR-070 ownership move. No public API migration beyond additive trusted deps fields.
+
+TEST-CONTRACT ADAPTATIONS IN PRESERVED DIFF
+
+- HTTP-kit stderr now requires redaction rather than raw-secret equality; stronger security assertion.
+- Receiver rate key now pins salted hash; pruning still exact.
+- Metadata baseline uses approved Shared Keys reference wording; project_key_use callbacks restricted, not widened.
+- Empty agent failure projects a cause-bearing extension by reviewed design; Jini terminal fallback is still tested when no valid extension can explain failure.
+- Import refusal test expects safe stage prefix while retaining code/status/no-incident assertions.
+- Site-only credential tests now assert 201 and local isolation, per approved retirement of boot adoption.
+- Export round-trip uses location-only warnings/acknowledgement and retains user content; saved vault/settings/project secrets, owner key bytes and grants are still excluded. It no longer bans the intentional bearer-looking text inside user-authored post content.
+- Owner-store channel map includes deletion and its payload/revision, without weakening rejected-frame checks; preload literal uses reviewed order.
+- Concurrent media restoration uses the atomic replacement port; private media starts private at creation, retaining refusal/unchanged-state checks.
+- Resource sampler is injected to avoid native top timing; original fake-clock recovery assertions remain.
+
+OPEN / NEXT OWNER
+
+Release integrator: publish the changed Jini artifacts and real Tovu dependency/lock bumps for B14-2/B13-3. Both remain LEFT; no release was fabricated. A clarification about an available published version/lock metadata remains unanswered; no dependent release change was assumed. The script checks dependency floors above 0.6.19, actual installed versions, matching lock metadata and required exports BEFORE source linking. It records a failing gate and still runs the rest.
+TestRunner: execute cloud-rerun-3.sh with installed deps and an isolated PostgreSQL service, then diagnose the two Security navigation failures with its focused admin/router suites and verify all three daemon suites. None is claimed green. The cloud report does not list those three daemon files, so their prior run status cannot be inferred from it.
+Owner/runtime follow-ups from Q remain open (affected-site export warnings, admin latency/visual checks, Windows memory metric and isolated pilot landing); this task did not touch the owner sites or live servers.
+
+CORRECTION NOTE
+
+An intermediate update incorrectly suggested the current media guard ran before confirmed replacement. Direct source tracing corrected that: the replacement branch is already before the write-once guard. No production edit was made based on that hypothesis; the added regression documents the checked path. Artifact scripts had one generation-time continuation issue, corrected before handoff and covered by static command/path checks; scripts were never executed.
+
+EXACT DEFERRED COMMANDS
+
+F-test-commands.txt prints every exact deferred test command. The self-contained cloud script contains every file/flag and writes the exact executed argv to ARTIFACT_DIR/commands.sh. It uses node:test --test-timeout=60000 --test-concurrency=2, Jini vitest --maxWorkers=2 --minWorkers=1, admin vitest --maxWorkers=2, and apps/site-chat/tsconfig.json. Do not execute against owner checkouts.
+
+CI=true TOVU_REPO=/home/user/Tovu JINI_REPO=/home/user/Jini bash cloud-rerun-3.sh

@@ -908,7 +908,7 @@ function applyAdminPasswordResetFromEnvIfConfigured(required: {
     // A secret left set after recovery must not re-salt the same credential, revoke sessions,
     // or copy the whole database on every boot. Capture a backup only before an actual write.
     return applyOwnerPasswordReset({ workspaceId, password, ...(username === undefined ? {} : { username }),
-      deps: { auth: identityServiceDepsFrom({ ...identity, clock: { nowIso: () => new Date(clock.nowMs()).toISOString() }, idGen }),
+      deps: { auth: identityServiceDepsFrom({ ...identity, clock: { nowMs: () => clock.nowMs(), nowIso: () => new Date(clock.nowMs()).toISOString() }, idGen }),
         codes: identity.recoveryCodes, seededOwnerPrincipalId: await identity.ownerPrincipalId } }, { beforeReset: required.beforeReset });
   }).then((resolvedUsername) => {
     console.error(`[admin-password-reset] SUCCESS — username='${resolvedUsername}' configured password self-verified at boot. Unset TOVU_ADMIN_RESET_PASSWORD now.`);

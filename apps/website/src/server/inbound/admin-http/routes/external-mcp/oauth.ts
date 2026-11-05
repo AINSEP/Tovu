@@ -1,5 +1,9 @@
 import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Express } from "express";
+import { randomBytes } from 'node:crypto';
+import { generateOAuthState } from '@jini-ai/oauth';
+import { browserBindingCookie, EXTERNAL_MCP_BROWSER_BINDING, EXTERNAL_MCP_SIGN_IN_PATH } from '#src/features/api-connections/browser-binding';
+import { rejectUnlessSessionCredential } from '#src/server/inbound/admin-http/dev-auth';
 
 import { ExternalMcpReauthRequiredError } from "../../../../../features/external-mcp/external-mcp-oauth.js";
 import { ExternalMcpSecretStoreUnconfiguredError, ExternalMcpValidationError } from "../../../../../features/external-mcp/external-mcp-store.js";
@@ -117,6 +121,7 @@ export function registerAdminExternalMcpOAuthConnectRoute(
   deps: ExternalMcpOAuthRouteDeps,
   limiter: RateLimiter,
 ): void {
+  registerExternalMcpBrowserSignInRoute(app, deps, limiter);
   app.post("/api/admin/v1/workspaces/:workspaceId/mcp-servers/:serverId/oauth/connect", async (req, res) => {
     if (!(await withinRateLimit(limiter, req, res))) return;
     try {
@@ -125,8 +130,34 @@ export function registerAdminExternalMcpOAuthConnectRoute(
       const started = await deps.externalMcpOAuth.beginConnect({
         serverId,
         redirectUri: externalMcpOAuthCallbackUrl(req, serverId),
+        delivery: 'hosted',
       });
       res.json({ auth: started });
+    } catch (error) {
+      sendExternalMcpOAuthError(res, error);
+    }
+  });
+}
+
+/** Authenticated, user-opened host hop: one cookie and redirect, never proof in a link.
+ * @complexity O(1) plus the existing bounded connect/discovery work for one connection.
+ */
+function registerExternalMcpBrowserSignInRoute(app: Express, deps: ExternalMcpOAuthRouteDeps, limiter: RateLimiter): void {
+  app.get(EXTERNAL_MCP_SIGN_IN_PATH, async (req, res) => {
+    res.set({ 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' });
+    if (!(await withinRateLimit(limiter, req, res))) return;
+    if (!rejectUnlessSessionCredential(res, { message: 'Open this sign-in link from your signed-in Tovu browser, then try again.', permission: 'admin.integrations.manage' })) return;
+    try {
+      if (!(await guardExternalMcpRequest(deps, req.params.workspaceId, res))) return;
+      const serverId = String(req.params.serverId ?? '');
+      const browserBinding = generateOAuthState({ randomBytesFn: ({ byteLength }) => randomBytes(byteLength) }, { stateBytes: 32 });
+      const start = await deps.externalMcpOAuth.beginConnect({ serverId, redirectUri: externalMcpOAuthCallbackUrl(req, serverId), browserBinding });
+      if (start.kind !== 'redirect_required') {
+        res.status(400).json({ error: 'This connection uses a device code. Close this window and start again from Settings → External MCP.', code: 'MCP_DEVICE_SIGN_IN_REQUIRED' });
+        return;
+      }
+      res.append('Set-Cookie', browserBindingCookie({ browserBinding }, EXTERNAL_MCP_BROWSER_BINDING));
+      res.redirect(302, start.authorizationUrl);
     } catch (error) {
       sendExternalMcpOAuthError(res, error);
     }

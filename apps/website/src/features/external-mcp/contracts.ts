@@ -456,15 +456,20 @@ export interface ExternalMcpOAuthService {
    * @throws {ExternalMcpValidationError} When the server is unknown, is not OAuth-authenticated, or
    *   uses a grant that requires a redirect URI and none was supplied.
    * @throws {OAuthError} Bounded, terminal, never retried — see this file's header.
+   * @param input.delivery - Browser-facing callers use `hosted`: only the authenticated host hop
+   *   reveals the provider URL and sets the browser cookie. Device grants keep their existing shape.
+   * @param input.browserBinding - Host-issued cookie proof when that browser hop mints provider state.
    */
-  beginConnect(input: { serverId: string; redirectUri?: string }): Promise<ExternalMcpConnectStart>;
+  beginConnect(input: { serverId: string; redirectUri?: string; delivery?: "hosted"; browserBinding?: string }): Promise<ExternalMcpConnectStart>;
   /**
    * Finishes an authorization-code handshake from the public callback route.
    *
    * @param input.params - The callback's query parameters, already narrowed to strings. Untrusted.
    * @param input.redirectUri - Canonical callback URI from the host's existing trusted origin policy.
+   * @param input.browserBinding - Public callbacks must supply the validated browser cookie.
+   *   Direct in-process callers retain the legacy unbound contract; HTTP never falls back to it.
    */
-  completeAuthorizationCallback(input: { serverId: string; redirectUri: string; params: AuthorizationCallbackParams }, optionalArgs?: Record<string, never>): Promise<void>;
+  completeAuthorizationCallback(input: { serverId: string; redirectUri: string; params: AuthorizationCallbackParams; browserBinding?: string }, optionalArgs?: Record<string, never>): Promise<void>;
   /**
    * Polls a device authorization exactly once.
    *
