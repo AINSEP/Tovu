@@ -37,3 +37,9 @@ test('actual static admin route families have approved nouns, including director
     for (const match of families) assert.ok(Object.hasOwn(ADMIN_FAILURE_VOCABULARY.nouns, match[1]!), `Missing static route family ${match[1]} in ${path}`);
   }
 });
+
+test('nested publishing destinations are named without disclosing their identifiers', () => {
+  const wording = describeRequestFailure({ method: 'GET', route: '/workspaces/:workspaceId/publish-content/peers/:peerId', vocabulary: ADMIN_FAILURE_VOCABULARY });
+  assert.equal(wording.message, 'The publishing destinations could not be loaded.');
+  assert.equal(wording.step, 'Load publishing destinations');
+});

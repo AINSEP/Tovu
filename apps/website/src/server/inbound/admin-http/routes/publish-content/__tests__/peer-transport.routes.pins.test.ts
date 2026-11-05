@@ -40,7 +40,7 @@ const FAILURE_COPY: Record<string, { message: string; action: string; step: stri
   "push/plan": { message: "Publishing preparation could not be completed.", action: "Check publishing history before preparing another push. Copy details and report this problem.", step: "Prepare publishing push" },
   "push/confirm": { message: "The publishing confirmation could not be completed.", action: "Check publishing history before confirming again. Copy details and report this problem.", step: "Confirm publishing push" },
   "push/execute": { message: "The publishing push result could not be confirmed.", action: "Content may already have changed. Check publishing and import history before repeating the push. Copy details and report this problem.", step: "Execute publishing push" },
-  pull: { message: "The publishing pull could not be completed.", action: "Check the result before repeating this operation. Copy details and report this problem.", step: "publishing pull" },
+  pull: { message: "The publishing destination pull could not be completed.", action: "Check the result before repeating this operation. Copy details and report this problem.", step: "publishing destination pull" },
 };
 
 const TYPED_ERRORS: ReadonlyArray<[Error, number, string]> = [

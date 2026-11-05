@@ -39,6 +39,7 @@ export const ADMIN_FAILURE_VOCABULARY = {
     posts: { singular: 'post', plural: 'posts' },
     presentation: { singular: 'presentation setting', plural: 'presentation settings' },
     'publish-content': { singular: 'publishing', plural: 'publishing information' },
+    peers: { singular: 'publishing destination', plural: 'publishing destinations' },
     recovery: { singular: 'recovery operation', plural: 'recovery information' },
     redirects: { singular: 'redirect', plural: 'redirects' },
     seo: { singular: 'search setting', plural: 'search settings' },

@@ -42,12 +42,12 @@ for (const [error, status, code] of TYPED_ERRORS) {
 
 test("GET .../peers answers an untyped failure with a fixed 500 that never echoes its message", async () => {
   const app = routeApp(registerPublishContentPeerRoutes, routeDeps({ publishContentPeerRepo: new FailingPeerRepo(new Error("SQLITE_BUSY at /secret/path")) }));
-  assertAdminResponse({ actual: await dispatchJsonRequest(app, "GET", PEERS), expected: { status: 500, body: { error: "internal error", code: "INTERNAL_ERROR" } } }, { failure: {"message": "The publishing operation could not be completed.", "action": "Check the result before repeating this operation. Copy details and report this problem.", "step": "publishing operation"} });
+  assertAdminResponse({ actual: await dispatchJsonRequest(app, "GET", PEERS), expected: { status: 500, body: { error: "internal error", code: "INTERNAL_ERROR" } } }, { failure: {"message":"The publishing destinations could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load publishing destinations"} });
 });
 
 test("a typed error this route does not map (credential missing) is still the fixed 500", async () => {
   const app = routeApp(registerPublishContentPeerRoutes, routeDeps({ publishContentPeerRepo: new FailingPeerRepo(new PublishContentPeerCredentialMissingError("peer has no credential")) }));
-  assertAdminResponse({ actual: await dispatchJsonRequest(app, "GET", PEERS), expected: { status: 500, body: { error: "internal error", code: "INTERNAL_ERROR" } } }, { failure: {"message": "The publishing operation could not be completed.", "action": "Check the result before repeating this operation. Copy details and report this problem.", "step": "publishing operation"} });
+  assertAdminResponse({ actual: await dispatchJsonRequest(app, "GET", PEERS), expected: { status: 500, body: { error: "internal error", code: "INTERNAL_ERROR" } } }, { failure: {"message":"The publishing destinations could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load publishing destinations"} });
 });
 
 test("GET .../peers lists the saved peers", async () => {
@@ -62,16 +62,21 @@ test("PATCH .../peers/:peerId answers a store failure through the same mapping",
 
 test("DELETE .../peers/:peerId answers a store failure through the same mapping", async () => {
   const app = routeApp(registerPublishContentPeerRoutes, routeDeps({ publishContentPeerRepo: new FailingPeerRepo(new Error("disk full")) }));
-  assertAdminResponse({ actual: await dispatchJsonRequest(app, "DELETE", `${PEERS}/p`), expected: { status: 500, body: { error: "internal error", code: "INTERNAL_ERROR" } } }, { failure: {"message": "The publishing operation could not be completed.", "action": "Check the result before repeating this operation. Copy details and report this problem.", "step": "publishing operation"} });
+  assertAdminResponse({ actual: await dispatchJsonRequest(app, "DELETE", `${PEERS}/p`), expected: { status: 500, body: { error: "internal error", code: "INTERNAL_ERROR" } } }, { failure: {"message":"The publishing destination removal could not be confirmed.","action":"Check the list before repeating the removal. Copy details and report this problem.","step":"Remove publishing destination"} });
 });
 
 test("a missing principal (requireAdminSession did not run) is the fixed 500 on every peers route", async (t) => {
   const app = routeApp(registerPublishContentPeerRoutes, routeDeps({ publishContentPeerRepo: new InMemoryPublishContentPeerRepo() }));
   const server = await startTestServer(app, t);
-  for (const [method, path] of [["GET", PEERS], ["POST", PEERS], ["PATCH", `${PEERS}/p`], ["DELETE", `${PEERS}/p`]] as const) {
+  for (const [method, path, failure] of [
+    ["GET", PEERS, {"message":"The publishing destinations could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load publishing destinations","discloseDetails":false}],
+    ["POST", PEERS, {"message":"The publishing destination operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"publishing destination operation","discloseDetails":false}],
+    ["PATCH", `${PEERS}/p`, {"message":"The publishing destination save could not be completed.","action":"Check whether your changes were saved before repeating the save. Copy details and report this problem.","step":"Save publishing destination","discloseDetails":false}],
+    ["DELETE", `${PEERS}/p`, {"message":"The publishing destination removal could not be confirmed.","action":"Check the list before repeating the removal. Copy details and report this problem.","step":"Remove publishing destination","discloseDetails":false}],
+  ] as const) {
     const response = await fetch(`${server}${path}`, { method, headers: { "x-principal": "none" } });
     assert.equal(response.status, 500, `${method} ${path}`);
-    assertAdminResponse({ actual: await response.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: {"message": "The publishing operation could not be completed.", "action": "Check the result before repeating this operation. Copy details and report this problem.", "step": "publishing operation"} });
+    assertAdminResponse({ actual: await response.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure });
   }
 });
 
