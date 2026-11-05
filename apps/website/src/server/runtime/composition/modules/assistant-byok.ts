@@ -1,3 +1,5 @@
+import { ToolAccessLoweringError } from '#src/assistant/external-mcp-roster-change';
+import { admittedToolSources, stopRunsForToolAccessChange, type ToolAccessRun, type ToolAccessChange } from '@jini-ai/daemon';
 import { ASSISTANT_CONTENT_EDIT_GUIDANCE } from "#src/contracts/core/assistant-content-guidance";
 import { createAutomaticPluginRuns } from "#src/features/agent-plugins/automatic-agent-plugins";
 import { askAgentPluginChoice } from "#src/assistant/ask-choice-tool";
@@ -466,6 +468,42 @@ async function attachTurnMessagesOrRespond({ attachmentIds, messages, principalI
   return true;
 }
 
+interface LiveByokToolRun extends ToolAccessRun {
+  serverIds: readonly string[]; pluginIds: readonly string[];
+  readonly abort: AbortController; readonly done: Promise<void>; lowered: boolean; readonly res: Response;
+}
+
+/** Retain every source this dynamic BYOK catalog admitted, including sources later withdrawn.
+ * @complexity O(admitted source IDs), memory only; no configuration or network reads. */
+function rememberByokSources(run: LiveByokToolRun, sources: ReturnType<typeof admittedToolSources>): void {
+  run.serverIds = [...new Set([...run.serverIds, ...sources.serverIds])];
+  run.pluginIds = [...new Set([...run.pluginIds, ...sources.pluginIds])];
+}
+
+/** Access revocation is an owner's Stop even when a provider reports its aborted socket as error. */
+function endByokResponse({ res, lowered, reason }: { res: Response; lowered: boolean; reason: string }): void {
+  sse(res, 'end', { reason: lowered ? 'stop' : reason });
+  res.end();
+}
+
+/** Preserve partial answer text and the access-change status emitted through the existing stream. */
+function endFailedByokResponse({ res, error, lowered }: { res: Response; error: unknown; lowered: boolean }): void {
+  if (!lowered) sse(res, 'error', { type: 'error', message: error instanceof Error ? error.message : String(error) });
+  endByokResponse({ res, lowered, reason: 'error' });
+}
+
+/** A provider ignoring Stop must produce a failure rather than leave the OFF request hanging.
+ * Existing handlers receive the aborted turn signal; this deadline never claims they completed.
+ * @complexity O(1), one cleared timer per affected live provider turn. */
+async function awaitByokCleanup(done: Promise<void>): Promise<void> {
+  let timer: NodeJS.Timeout | undefined;
+  try {
+    await Promise.race([done, new Promise<void>((_resolve, reject) => {
+      timer = setTimeout(() => reject(new ToolAccessLoweringError()), 4_000);
+    })]);
+  } finally { if (timer) clearTimeout(timer); }
+}
+
 /** @param optional.attachmentLookup Test seam for the daemon's attachment store (`assistant-tool-exec.ts`).
  * @param optional.federationConnect Existing transport port, forwarded for hermetic federation tests. */
 export function createAssistantByokModule(
@@ -485,6 +523,23 @@ export function createAssistantByokModule(
     derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: DerivedToolContributor<AssistantToolRegistryDeps, AssistantSurfaceDeps> }) => contribution.domain }),
   };
   let serverFederation: ReturnType<typeof createAssistantServerFederation>;
+  const liveToolRuns = new Map<string, LiveByokToolRun>();
+  /** Abort is the provider turn's existing Stop path and closes its signal-bound cards/tools.
+   * No credentials are minted for provider-direct execution. Await the existing turn finally.
+   * @complexity O(live runs), no I/O besides the existing Stop/cleanup paths. */
+  async function lowerLocal(change: ToolAccessChange): Promise<void> {
+    const selected = new Map(liveToolRuns);
+    const current = admittedToolSources({ tools: resolvedToolSurface.registry.list({}) });
+    for (const run of selected.values()) rememberByokSources(run, current);
+    const result = await stopRunsForToolAccessChange({ runs: [...selected.values()], change,
+      revoke: ({ runId }) => { const entry = selected.get(runId)!; entry.lowered = true; entry.abort.abort(); },
+      cancel: async ({ runId }) => { automaticPluginRuns.forget({ runId }); },
+      waitForCleanup: ({ runId }) => awaitByokCleanup(selected.get(runId)!.done),
+      notice: async ({ runId, message }) => { const response = selected.get(runId)!.res; sse(response, 'agent', { type: 'status', label: message }); sse(response, 'agent', { type: 'text_delta', delta: `\n\n${message}` }); },
+    }, {});
+    if (result.failedRunIds.length) throw new ToolAccessLoweringError();
+  }
+
   // `outboundTestOrigins` is set only by the site-import journey harness; absent, this factory is
   // `createDefaultHttpClient` itself (`platform/http/test-origin-allowlist.ts`).
   // The agent daemon's tool RPC runs on this same surface (`assistant-tool-exec.ts`); the daemon-call
@@ -524,7 +579,7 @@ export function createAssistantByokModule(
   automaticPluginRuns = createAutomaticPluginRuns({ deps: routeDeps, askAgentPluginChoice, surfaces: { surfaceExchanges: resolvedToolSurface.surfaceExchanges } });
   // Reuse the server's admission-aware adapters. No daemon federation or second registrar:
   // both catalog demand and execution await this same server surface's lazy startup.
-  serverFederation = createAssistantServerFederation({ toolSurface: resolvedToolSurface }, {});
+  serverFederation = createAssistantServerFederation({ toolSurface: resolvedToolSurface }, { lowerLocal });
   const runStore = routeDeps.chatRunLedger.durable;
   if (runStore) assistantRunFinalizerFor({ ledger: routeDeps.chatRunLedger, tracker: routeDeps.tracker, observability: routeDeps.observability,
     onAttemptEnded: async ({ runId }) => {
@@ -665,98 +720,107 @@ export function createAssistantByokModule(
     // Same reasoning as `site-assistant.ts`'s identical guard: a browser tab closing must stop the
     // upstream provider call and any in-flight tool execution, not run to completion unobserved.
     const abort = new AbortController();
-    res.on("close", () => {
-      if (!res.writableEnded) abort.abort();
-    });
+    let finishCleanup!: () => void;
+    const done = new Promise<void>(resolve => { finishCleanup = resolve; });
+    const liveToolRun = { runId: run.id, agentId: `api:${credential.protocol}`, ...admittedToolSources({ tools: resolvedToolSurface.registry.list({}) }), abort, done, lowered: false, res };
+    liveToolRuns.set(run.id, liveToolRun);
+    try {
+      res.on("close", () => {
+        if (!res.writableEnded) abort.abort();
+      });
 
-    system = await preparePluginGuidance({ req, res, run, principal, messages, abort, system });
+      system = await preparePluginGuidance({ req, res, run, principal, messages, abort, system });
 
-    // Older injected surfaces retain their wrapper contract; production creates one exposure per run.
-    const toolRun = resolvedToolSurface.createRun?.({ principal, run });
+      // Older injected surfaces retain their wrapper contract; production creates one exposure per run.
+      const toolRun = resolvedToolSurface.createRun?.({ principal, run });
 
-    // Starts with the meta-tool set and promotes concrete definitions after describe_tool.
-    // The legacy dispatch below is owned by the same surface: `call.name` is one of
-    // `search_tools`/`describe_tool`/`execute_delegated_tool`, and a real tool id arrives as the
-    // third one's `toolId` argument. The unwrap, the status mapping, and the "model named something
-    // that isn't callable" case all live in `byok-tool-surface.ts` beside the descriptors that
-    // create them, so the two cannot drift apart. Authorization is unmoved by any of this — see
-    // `META_TOOL_DESCRIPTORS`' own doc.
-    //
-    // `emitSurface` is built fresh per call (not once for the whole turn), because it needs THIS
-    // call's own `call.id` as the correlation `toolUseId` a rendered mcp-ui card is tagged with —
-    // `runByokProviderTurn`'s adapters invoke `executeTool` once per model-issued tool call, so a new
-    // closure per invocation costs nothing a turn with real tool calls wasn't already paying.
-    const executeTool = (call: { id: string; name: string; input: unknown }) => {
-      const emitSurface: SurfaceEmitter = async (emission) => {
-        sse(res, "agent", toWireSurfacePayload(emission, call.id));
+      // Starts with the meta-tool set and promotes concrete definitions after describe_tool.
+      // The legacy dispatch below is owned by the same surface: `call.name` is one of
+      // `search_tools`/`describe_tool`/`execute_delegated_tool`, and a real tool id arrives as the
+      // third one's `toolId` argument. The unwrap, the status mapping, and the "model named something
+      // that isn't callable" case all live in `byok-tool-surface.ts` beside the descriptors that
+      // create them, so the two cannot drift apart. Authorization is unmoved by any of this — see
+      // `META_TOOL_DESCRIPTORS`' own doc.
+      //
+      // `emitSurface` is built fresh per call (not once for the whole turn), because it needs THIS
+      // call's own `call.id` as the correlation `toolUseId` a rendered mcp-ui card is tagged with —
+      // `runByokProviderTurn`'s adapters invoke `executeTool` once per model-issued tool call, so a new
+      // closure per invocation costs nothing a turn with real tool calls wasn't already paying.
+      const executeTool = (call: { id: string; name: string; input: unknown }) => {
+        abort.signal.throwIfAborted();
+        rememberByokSources(liveToolRun, admittedToolSources({ tools: resolvedToolSurface.registry.list({}) }));
+        const emitSurface: SurfaceEmitter = async (emission) => {
+          sse(res, "agent", toWireSurfacePayload(emission, call.id));
+        };
+        if (toolRun) return toolRun.executeTool(call, { signal: abort.signal, emitSurface });
+        return resolvedToolSurface.executeMetaTool(principal, run, call, abort.signal, emitSurface);
       };
-      if (toolRun) return toolRun.executeTool(call, { signal: abort.signal, emitSurface });
-      return resolvedToolSurface.executeMetaTool(principal, run, call, abort.signal, emitSurface);
-    };
 
-    // One agent-run span per turn (its own trace root); the turn runs inside it, so its tool calls'
-    // DB and outbound spans nest under the run rather than the long-lived request.
-    return routeDeps.tracker.trace({ name: "assistant.run", run: async (span) => {
-      const aiTrace = startByokTrace({ routeDeps, run, credential, messages });
-      routeDeps.tracker.capture({ name: "assistant_run_started", userId: principal.id }, { properties: { chatSurface: "admin", logicalRunId: run.id, eventId: `assistant-start:${run.id}` } });
-      let reportedError = false;
-      // A failed turn (a provider error event or a throw, not an owner's cancel) is an incident for
-      // the error tracker too: the protocol and run id only, the key blanked even without a known shape.
-      const reportRunFailure = (error: unknown) => routeDeps.tracker.error({ error: error instanceof Error ? error : redactedError({ error }) }, { context: { operation: "assistant.run", attributes: { agent: credential.protocol, runId: run.id }, exactSecrets: [credential.apiKey] } });
-      const stampUsage = createByokUsageTimer({ startedAt: Date.now() });
-      function finishFailedTurn({ error }: { error: unknown }, _optional = {}): void {
-        aiTrace?.observe({ type: "error", message: error instanceof Error ? error.message : String(error) });
-        aiTrace?.finish({ outcome: abort.signal.aborted ? "cancelled" : "failed" });
-        routeDeps.tracker.capture({ name: "assistant_run_finished", userId: principal.id }, { properties: { chatSurface: "admin", logicalRunId: run.id, outcome: abort.signal.aborted ? "cancelled" : "failed", eventId: `assistant-finish:${run.id}` } });
-        span.setOutcome(byokTurnOutcome({ aborted: abort.signal.aborted, reportedError }, { thrown: { error } }));
-        if (!abort.signal.aborted && !reportedError) reportRunFailure(error);
-        sse(res, "error", { type: "error", message: error instanceof Error ? error.message : String(error) });
-        sse(res, "end", { reason: "error" });
-        res.end();
-      }
-      let result: ByokProviderTurnResult;
-      try {
-        result = await runByokProviderTurn({
-          protocol: credential.protocol,
-          apiKey: credential.apiKey,
-          ...(credential.baseUrl ? { baseUrl: credential.baseUrl } : {}),
-          model: credential.model,
-          ...(credential.maxTokens !== undefined ? { maxTokens: credential.maxTokens } : {}),
-          maxToolTurns: BYOK_MAX_TOOL_TURNS,
-          system,
-          messages,
-          // 3 descriptors, not all 131. The full catalog is ~119 KB (~30 k tokens) of `inputSchema`
-          // re-sent on EVERY message; the meta-set is under 1 KB and initially reaches the same tools through
-          // `search_tools` → `describe_tool` → `execute_delegated_tool`. See `META_TOOL_DESCRIPTORS`.
-          tools: toolRun?.getToolSnapshot() ?? resolvedToolSurface.metaTools,
-          getToolSnapshot: toolRun?.getToolSnapshot,
-          onSchemaFallback: ({ toolId, protocol, reason }) => {
-            console.warn("[assistant-byok] tool schema fallback", { toolId, protocol, reason });
-          },
-          executeTool,
-          signal: abort.signal,
-          // `error`-typed events get their OWN SSE event name, not folded into `agent` — mirrors the
-          // daemon path's distinct `source.addEventListener("error", ...)` on the client
-          // (`assistant-transport.ts`), which is what actually calls `handlers.onError` rather than
-          // rendering an unrecognized `ext` event. Everything else rides `agent` unchanged, reusing
-          // `translateRunAgentPayload`'s existing switch on the client with zero new cases.
-          onEvent: (event: ByokTurnEvent) => {
-            aiTrace?.observe(event as unknown as Record<string, unknown>);
-            // Reporting a disconnect's AbortError would mark this active span failed despite its canceled outcome.
-            if (event.type === "error" && !abort.signal.aborted && !reportedError) { reportedError = true; reportRunFailure(new Error(event.message)); }
-            sse(res, event.type === "error" ? "error" : "agent", stampUsage(event));
-          },
-        });
-      } catch (error) {
-        finishFailedTurn({ error });
-        return;
-      }
+      // One agent-run span per turn (its own trace root); the turn runs inside it, so its tool calls'
+      // DB and outbound spans nest under the run rather than the long-lived request.
+      return await routeDeps.tracker.trace({ name: "assistant.run", run: async (span) => {
+        const aiTrace = startByokTrace({ routeDeps, run, credential, messages });
+        routeDeps.tracker.capture({ name: "assistant_run_started", userId: principal.id }, { properties: { chatSurface: "admin", logicalRunId: run.id, eventId: `assistant-start:${run.id}` } });
+        let reportedError = false;
+        // A failed turn (a provider error event or a throw, not an owner's cancel) is an incident for
+        // the error tracker too: the protocol and run id only, the key blanked even without a known shape.
+        const reportRunFailure = (error: unknown) => routeDeps.tracker.error({ error: error instanceof Error ? error : redactedError({ error }) }, { context: { operation: "assistant.run", attributes: { agent: credential.protocol, runId: run.id }, exactSecrets: [credential.apiKey] } });
+        const stampUsage = createByokUsageTimer({ startedAt: Date.now() });
+        function finishFailedTurn({ error }: { error: unknown }, _optional = {}): void {
+          aiTrace?.observe({ type: "error", message: error instanceof Error ? error.message : String(error) });
+          aiTrace?.finish({ outcome: abort.signal.aborted ? "cancelled" : "failed" });
+          routeDeps.tracker.capture({ name: "assistant_run_finished", userId: principal.id }, { properties: { chatSurface: "admin", logicalRunId: run.id, outcome: abort.signal.aborted ? "cancelled" : "failed", eventId: `assistant-finish:${run.id}` } });
+          span.setOutcome(byokTurnOutcome({ aborted: abort.signal.aborted, reportedError }, { thrown: { error } }));
+          if (!abort.signal.aborted && !reportedError) reportRunFailure(error);
+          endFailedByokResponse({ res, error, lowered: liveToolRun.lowered });
+        }
+        let result: ByokProviderTurnResult;
+        try {
+          result = await runByokProviderTurn({
+            protocol: credential.protocol,
+            apiKey: credential.apiKey,
+            ...(credential.baseUrl ? { baseUrl: credential.baseUrl } : {}),
+            model: credential.model,
+            ...(credential.maxTokens !== undefined ? { maxTokens: credential.maxTokens } : {}),
+            maxToolTurns: BYOK_MAX_TOOL_TURNS,
+            system,
+            messages,
+            // 3 descriptors, not all 131. The full catalog is ~119 KB (~30 k tokens) of `inputSchema`
+            // re-sent on EVERY message; the meta-set is under 1 KB and initially reaches the same tools through
+            // `search_tools` → `describe_tool` → `execute_delegated_tool`. See `META_TOOL_DESCRIPTORS`.
+            tools: toolRun?.getToolSnapshot() ?? resolvedToolSurface.metaTools,
+            getToolSnapshot: toolRun?.getToolSnapshot,
+            onSchemaFallback: ({ toolId, protocol, reason }) => {
+              console.warn("[assistant-byok] tool schema fallback", { toolId, protocol, reason });
+            },
+            executeTool,
+            signal: abort.signal,
+            // `error`-typed events get their OWN SSE event name, not folded into `agent` — mirrors the
+            // daemon path's distinct `source.addEventListener("error", ...)` on the client
+            // (`assistant-transport.ts`), which is what actually calls `handlers.onError` rather than
+            // rendering an unrecognized `ext` event. Everything else rides `agent` unchanged, reusing
+            // `translateRunAgentPayload`'s existing switch on the client with zero new cases.
+            onEvent: (event: ByokTurnEvent) => {
+              if (liveToolRun.lowered) return;
+              aiTrace?.observe(event as unknown as Record<string, unknown>);
+              // Reporting a disconnect's AbortError would mark this active span failed despite its canceled outcome.
+              if (event.type === "error" && !abort.signal.aborted && !reportedError) { reportedError = true; reportRunFailure(new Error(event.message)); }
+              sse(res, event.type === "error" ? "error" : "agent", stampUsage(event));
+            },
+          });
+        } catch (error) {
+          finishFailedTurn({ error });
+          return;
+        }
 
-      span.setOutcome(byokTurnOutcome({ aborted: abort.signal.aborted, reportedError }));
-      aiTrace?.finish({ outcome: byokTraceOutcome({ aborted: abort.signal.aborted, reportedError }) });
-      routeDeps.tracker.capture({ name: "assistant_run_finished", userId: principal.id }, { properties: { chatSurface: "admin", logicalRunId: run.id, outcome: byokTraceOutcome({ aborted: abort.signal.aborted, reportedError }), eventId: `assistant-finish:${run.id}` } });
-      sse(res, "end", { reason: result.stopReason ?? "stop" });
-      res.end();
-    } }, { agent: { runId: run.id, agentName: credential.protocol } });
+        span.setOutcome(byokTurnOutcome({ aborted: abort.signal.aborted, reportedError }));
+        aiTrace?.finish({ outcome: byokTraceOutcome({ aborted: abort.signal.aborted, reportedError }) });
+        routeDeps.tracker.capture({ name: "assistant_run_finished", userId: principal.id }, { properties: { chatSurface: "admin", logicalRunId: run.id, outcome: byokTraceOutcome({ aborted: abort.signal.aborted, reportedError }), eventId: `assistant-finish:${run.id}` } });
+        endByokResponse({ res, lowered: liveToolRun.lowered, reason: result.stopReason ?? 'stop' });
+      } }, { agent: { runId: run.id, agentName: credential.protocol } });
+    } catch (error) {
+      if (!liveToolRun.lowered) throw error;
+      return endByokResponse({ res, lowered: true, reason: 'stop' });
+    } finally { liveToolRuns.delete(run.id); finishCleanup(); }
   }
 }

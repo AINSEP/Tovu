@@ -1,6 +1,7 @@
 /** Per-run system guidance from the person's runtime preferences and the runtime's declared support.
  * The launch resolves every input once, so the guidance and the argv come from one snapshot; every
  * builder below is pure and the one async resolver takes its reads and def lookup as ports. */
+import type { ChatSettingsSnapshot } from "@jini-ai/daemon/chat-settings";
 import { agentSupportsChromeIntegration, agentSupportsSubagents, type RuntimeAgentDef, type RuntimeCapabilityMap } from "@jini-ai/agent-runtime";
 import { readAssistantRuntimePreferences, type AssistantRuntimePreferenceDeps, type AssistantRuntimePreferences } from "../../../assistant/runtime-settings.js";
 
@@ -77,6 +78,8 @@ export interface AssistantRuntimeGuidanceInput {
   replyLength: AssistantRuntimePreferences["replyLength"];
   /** The folder the person picked with the composer's folder control (the site's custom fs root). */
   pickedFolder?: string;
+  /** The same detached, redacted launch snapshot returned by chat_settings_get. */
+  chatSettings?: ChatSettingsSnapshot;
 }
 
 /** Owner 2026-10-27: the picked folder is readable (read-only) so the agent can build from its assets;
@@ -100,6 +103,7 @@ export function buildAssistantRuntimeGuidance({ input }: { input: AssistantRunti
     input?.claudeInChrome === true ? CLAUDE_IN_CHROME_GUIDANCE : "",
     buildReplyLengthGuidance({ replyLength: input?.replyLength }),
     input?.pickedFolder ? buildPickedFolderGuidance({ path: input.pickedFolder }) : "",
+    input?.chatSettings ? `Tools provided here — this run's settings: ${JSON.stringify(input.chatSettings)}` : "",
   ].filter(text => text !== "").map(text => `${text} `).join("");
 }
 

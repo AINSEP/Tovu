@@ -14,5 +14,6 @@ export const ASSISTANT_CLI_CAPABILITIES = [
   { key: "loginEnvironment", label: "Your shell environment", description: "Start runs with your login shell's PATH and environment." },
 ] as const;
 export type AssistantCliCapability = typeof ASSISTANT_CLI_CAPABILITIES[number]["key"];
-export interface AssistantCliPermissions { enabled: boolean; capabilities: Record<AssistantCliCapability, boolean> }
+export interface AssistantCliAgentPermissions { enabled?: boolean; capabilities?: Partial<Record<AssistantCliCapability, boolean>> }
+export interface AssistantCliPermissions { enabled: boolean; capabilities: Record<AssistantCliCapability, boolean>; byAgent?: Record<string, AssistantCliAgentPermissions> }
 export const ASSISTANT_SUBAGENTS_WRITE_REASON = "Only the owner can change Full CLI access through Admin AI Assistant settings.";

@@ -1,3 +1,4 @@
+import type { ToolAccessChange } from '@jini-ai/daemon';
 /**
  * @file A keyed, last-wins fan-out for "the external-MCP roster changed" — the seam that lets every
  * process holding a live federated-tool registry (the agent daemon's own, and BYOK's per-request
@@ -11,11 +12,12 @@
  * module, a test that rebuilds the app) must replace its own listener, not accumulate a second one
  * that fires the same reload twice per roster change.
  *
- * `notifyExternalMcpRosterChanged` never rejects and never waits past `waitMs` for a stuck listener:
+ * Ordinary discovery refreshes never reject or wait past `waitMs` for a stuck listener:
  * both call sites that await it (`oauth-callback.ts`) do so to let an operator return to the chat and
  * find a newly authorized connection already usable, not to gate their own response's correctness on
  * every registered runtime's reload succeeding — a listener that never resolves must not turn into a
- * request that never resolves either.
+ * request that never resolves either. Lowering tool access is different: callers await Stop and
+ * cleanup, and a failure or deadline rejects with a safe, actionable error.
  *
  * Architectural role:
  * In-module registry. No I/O of its own; every listener performs its own.
@@ -24,7 +26,13 @@
 /** A registered reaction to a roster change. Return shape varies by runtime (`FederationReloadResult`,
  *  `triggerFederationReload`'s `{ok}` shape, or nothing at all) — `notifyExternalMcpRosterChanged`
  *  only needs to know when each one settles, never what it settled with. */
-export type ExternalMcpRosterChangeListener = () => unknown;
+/** A durable OFF decision stands even when cleanup fails; never report an unconfirmed stop. */
+export class ToolAccessLoweringError extends Error {
+  readonly code = 'TOOL_ACCESS_STOP_FAILED';
+  constructor() { super("Tool access changed, but affected answers could not be confirmed stopped."); }
+}
+
+export type ExternalMcpRosterChangeListener = (lowered?: ToolAccessChange) => unknown;
 
 /** Bounds one `notifyExternalMcpRosterChanged()` call. Matches
  *  `assistant-daemon-client.ts`'s `FEDERATION_RELOAD_FETCH_TIMEOUT_MS` — the same "one on-demand,
@@ -48,9 +56,9 @@ export function onExternalMcpRosterChanged(key: string, listener: ExternalMcpRos
 
 /** Invokes a listener without letting a synchronous throw escape before `Promise.allSettled` ever
  *  sees it — `Array.prototype.map` would otherwise abort the whole fan-out on the first offender. */
-function invokeSafely(listener: ExternalMcpRosterChangeListener): Promise<unknown> {
+function invokeSafely(listener: ExternalMcpRosterChangeListener, lowered?: ToolAccessChange): Promise<unknown> {
   try {
-    return Promise.resolve(listener());
+    return Promise.resolve(listener(lowered));
   } catch (err) {
     return Promise.reject(err);
   }
@@ -59,14 +67,24 @@ function invokeSafely(listener: ExternalMcpRosterChangeListener): Promise<unknow
 /**
  * Fans a roster change out to every registered listener and waits for all of them to settle —
  * `allSettled`, so one throwing or rejecting listener never stops the rest from running — capped at
- * `waitMs` so a listener that never resolves cannot hold a caller open past it either. Never rejects.
+ * `waitMs` so a listener cannot hold a caller open indefinitely. Lowering rejects on failure.
  *
  * @complexity O(1) plus the cost of every registered listener, in parallel, once.
  */
-export async function notifyExternalMcpRosterChanged(options: { readonly waitMs?: number } = {}): Promise<void> {
+export async function notifyExternalMcpRosterChanged(options: { readonly waitMs?: number; readonly lowered?: ToolAccessChange } = {}): Promise<void> {
   const waitMs = options.waitMs ?? DEFAULT_WAIT_MS;
   const listeners = [...listenersByKey.values()];
   if (listeners.length === 0) return;
+
+  // Lowering is a correctness boundary, unlike a best-effort discovery refresh: the serving
+  // listener awaits the authenticated daemon Stop/cleanup control and failures reach the writer.
+  if (options.lowered) {
+    await new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new ToolAccessLoweringError()), waitMs);
+      void Promise.all(listeners.map(listener => invokeSafely(listener, options.lowered))).then(() => { clearTimeout(timer); resolve(); }, () => { clearTimeout(timer); reject(new ToolAccessLoweringError()); });
+    });
+    return;
+  }
 
   await new Promise<void>((resolve) => {
     let timer: NodeJS.Timeout | undefined = setTimeout(() => {
@@ -74,7 +92,7 @@ export async function notifyExternalMcpRosterChanged(options: { readonly waitMs?
       resolve();
     }, waitMs);
 
-    void Promise.allSettled(listeners.map(invokeSafely)).then(() => {
+    void Promise.allSettled(listeners.map(listener => invokeSafely(listener))).then(() => {
       if (timer !== undefined) {
         clearTimeout(timer);
         resolve();

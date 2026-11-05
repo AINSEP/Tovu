@@ -9,7 +9,7 @@ import { assistantCliPermissions } from "#src/assistant/assistant-subagents-poli
 export async function readAssistantCliPermissions(required: {
   settingsRepo: SettingsRepoPort; getEffective: typeof import("@jini-ai/core/settings").getEffective;
   settingsReady: Promise<void>; workspaceId: string; principalId: string;
-}, optional: { readFailure?: "deny" | "throw"; warn?: (message: string) => void } = {}): Promise<AssistantCliPermissions> {
+}, optional: { readFailure?: "deny" | "throw"; warn?: (message: string) => void; onSource?: (source: "site" | "default") => void } = {}): Promise<AssistantCliPermissions> {
   try {
     await required.settingsReady;
     const stored = await required.getEffective({ repo: required.settingsRepo }, {
@@ -17,8 +17,8 @@ export async function readAssistantCliPermissions(required: {
       scopeContext: { workspaceId: required.workspaceId, principalId: required.principalId },
     });
     // The definition default means no owner preference; inherit the legacy Full CLI access grant.
-    if (stored?.value != null && stored.sourceLayer !== "default") return parseCliPermissionsSnapshot({ value: stored.value });
-    return assistantCliPermissions({ enabled: await readAssistantSubagentsEnabled(required, { readFailure: "throw" }) });
+    if (stored?.value != null && stored.sourceLayer !== "default") { optional.onSource?.("site"); return parseCliPermissionsSnapshot({ value: stored.value }); }
+    return assistantCliPermissions({ enabled: await readAssistantSubagentsEnabled(required, { readFailure: "throw", ...(optional.onSource ? { onSource: optional.onSource } : {}) }) });
   } catch (error) {
     denyOrRethrow({ error }, optional);
     return assistantCliPermissions({ enabled: false });
@@ -30,10 +30,11 @@ export async function readAssistantCliPermissions(required: {
  * @complexity O(c) for the fixed capability list.
  */
 function parseCliPermissionsSnapshot(required: { value: unknown }): AssistantCliPermissions {
-  const { enabled, capabilities } = required.value as Partial<AssistantCliPermissions>;
+  const { enabled, capabilities, byAgent } = required.value as Partial<AssistantCliPermissions>;
   if (typeof enabled !== "boolean" || !capabilities ||
     !ASSISTANT_CLI_CAPABILITIES.every(({ key }) => typeof capabilities[key] === "boolean")) throw new Error("Invalid CLI permissions");
-  return assistantCliPermissions({ enabled, capabilities });
+  if (byAgent !== undefined) validateAgentPermissions({ byAgent });
+  return assistantCliPermissions({ enabled, capabilities, ...(byAgent ? { byAgent } : {}) });
 }
 
 /** Shared read-failure policy: HTTP readers propagate the error; the daemon logs a safe diagnostic
@@ -56,16 +57,34 @@ export async function readAssistantSubagentsEnabled(required: {
   getEffective: typeof import("@jini-ai/core/settings").getEffective;
   settingsReady: Promise<void>;
   workspaceId: string;
-}, optional: { readFailure?: "deny" | "throw"; warn?: (message: string) => void } = {}): Promise<boolean> {
+}, optional: { readFailure?: "deny" | "throw"; warn?: (message: string) => void; onSource?: (source: "site" | "default") => void } = {}): Promise<boolean> {
   try {
     await required.settingsReady;
     const setting = await required.getEffective({ repo: required.settingsRepo }, {
       namespace: ASSISTANT_SUBAGENTS_NAMESPACE, key: ASSISTANT_SUBAGENTS_KEY,
       scopeContext: { workspaceId: required.workspaceId },
     });
+    optional.onSource?.(setting && setting.sourceLayer !== "default" ? "site" : "default");
     return setting === null ? true : setting.value === true;
   } catch (error) {
     denyOrRethrow({ error }, optional);
     return false;
   }
+}
+
+/** Reject malformed per-agent overrides before any grant can reach a launch. Fixed keys per agent. */
+function validateAgentPermissions({ byAgent }: { byAgent: unknown }): void {
+  if (!byAgent || typeof byAgent !== "object" || Array.isArray(byAgent)) throw new Error("Invalid CLI permissions");
+  for (const value of Object.values(byAgent)) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Invalid CLI permissions");
+    const entry = value as { enabled?: unknown; capabilities?: unknown };
+    if (entry.enabled !== undefined && typeof entry.enabled !== "boolean") throw new Error("Invalid CLI permissions");
+    validateAgentCapabilities({ capabilities: entry.capabilities });
+  }
+}
+
+function validateAgentCapabilities({ capabilities }: { capabilities: unknown }): void {
+  if (capabilities === undefined) return;
+  if (!capabilities || typeof capabilities !== "object" || Array.isArray(capabilities)) throw new Error("Invalid CLI permissions");
+  if (Object.entries(capabilities).some(([key, value]) => typeof value !== "boolean" || !ASSISTANT_CLI_CAPABILITIES.some(item => item.key === key))) throw new Error("Invalid CLI permissions");
 }

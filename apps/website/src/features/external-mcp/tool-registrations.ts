@@ -1,3 +1,4 @@
+import { ToolAccessLoweringError } from '../../assistant/external-mcp-roster-change.js';
 import { toolMetadata } from '../../contracts/core/tool-metadata/external-mcp.js';
 import { issueCredentialSetup } from "#src/contracts/core/tool-failure-diagnostics";
 import { assertCredentialFreeField } from '../../contracts/core/credential-token.js';
@@ -378,7 +379,8 @@ async function saveSubmittedExternalMcpConfiguration(
   // Same roster-change fan-out `put.ts`/`oauth-callback.ts` fire on their own save/connect success —
   // see `external-mcp-roster-change.ts`'s own header. Fire-and-forget: this chat-surface save
   // already succeeded and is durable regardless of whether any registered runtime reloads cleanly.
-  void notifyExternalMcpRosterChanged();
+  if (server.enabled) void notifyExternalMcpRosterChanged();
+  else await notifyExternalMcpRosterChanged({ lowered: { serverIds: [server.serverId] } });
   const { connection, connectionCode } = await probeSavedExternalMcpConfiguration({
     server, routeDeps, locale,
   });
@@ -461,6 +463,7 @@ function externalMcpSaveHandler({ routeDeps, surfaces }: { routeDeps: ExternalMc
         };
       },
     }, { uriHost: "tovu", frameSize: ["100%", "640px"], safeError: err => {
+      if (err instanceof ToolAccessLoweringError) return err.message;
       if (err instanceof ExternalMcpValidationError) {
         validationField = err.field;
         return translateCredentialMessage({ message: err.message, locale: errorLocale });

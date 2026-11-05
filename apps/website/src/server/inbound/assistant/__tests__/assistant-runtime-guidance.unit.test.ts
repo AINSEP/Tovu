@@ -206,3 +206,10 @@ test("launch: reply length applies independently of runtime capabilities, with i
     assert.equal(launch.guidance.replyLength, replyLength === "invalid" ? "normal" : replyLength);
   }
 });
+
+// One immutable launch snapshot drives both the explicit read and the initial guidance.
+test("run guidance includes the exact bounded chat settings snapshot", () => {
+  const chatSettings = { agent: "claude", capabilities: { userMcp: false }, verdict: "RUN" };
+  const text = buildAssistantRuntimeGuidance({ input: { preferSubagents: false, claudeInChrome: false, replyLength: "normal", chatSettings } as never });
+  assert.equal(text, `Tools provided here — this run's settings: ${JSON.stringify(chatSettings)} `);
+});

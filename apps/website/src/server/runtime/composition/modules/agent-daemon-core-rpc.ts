@@ -3,10 +3,12 @@ import { json, type RequestHandler } from "express";
 import { requireToolExecutionCaller, type ToolExecutionRouteTarget } from "@jini-ai/daemon/http";
 import { DaemonCoreError, daemonCoreRequest, type DaemonCoreRequest, type DaemonAttemptHead } from "#src/assistant/daemon-core-protocol";
 import { currentToolExecToken, TOOL_EXEC_TOKEN_ENV_VAR } from "#src/assistant/daemon-access";
+import { getAgentDef } from "@jini-ai/agent-runtime";
+import { readAssistantToolConsentSnapshot, allowAssistantRunTools } from "#src/server/inbound/assistant/assistant-tool-access";
 import type { RouteDeps } from "#src/server/routes/types";
 
 type CoreDeps = Pick<RouteDeps, "workspaceId" | "ownerPrincipalId" | "siteBinding" | "siteStoragePaths" | "chatRunLedger" |
-  "agentSessions" | "settingsRepo" | "getEffective" | "settingsUiTabsReady" | "siteTitleReady" | "instructionsNamespace" | "tracker" | "aiTraceSink">;
+  "agentSessions" | "settingsRepo" | "getEffective" | "settingsUiTabsReady" | "siteTitleReady" | "instructionsNamespace" | "tracker" | "aiTraceSink" | "authorize" | "clock" | "idGen" | "principalRepo" | "settingsReady">;
 
 /** Reuse the server's real attempt/settings/provider owners, with no second ledger or boot.
  * Private daemon credentials alone can call it; run/CLI credentials cannot. Calls never retry.
@@ -41,11 +43,47 @@ async function dispatch({ deps, request }: { deps: CoreDeps; request: DaemonCore
   const input = request.input as { runId: string };
   const run = await store.find({ runId: input.runId }, {});
   if (run && run.workspaceId !== deps.workspaceId) throw new DaemonCoreError({ reason: "foreign attempt workspace" });
+  return retainedRunOperation({ deps, request, run, store });
+}
+
+/** Site scoping precedes every accepted-attempt operation, including consent. */
+async function retainedRunOperation({ deps, request, run, store }: {
+  deps: CoreDeps; request: DaemonCoreRequest;
+  run: Awaited<ReturnType<NonNullable<CoreDeps["chatRunLedger"]["durable"]>["find"]>>;
+  store: NonNullable<CoreDeps["chatRunLedger"]["durable"]>;
+}): Promise<unknown> {
+  if (request.operation === "cliConsentSnapshot" || request.operation === "cliConsentAllow") return cliConsent({ deps, request, run });
   if (request.operation === "sessionForAttempt") {
     return sessionForAttempt({ deps, run });
   }
   if (request.operation === "find") return attemptHead({ run, principalId: request.input.principalId });
   return durable({ store, request });
+}
+
+/** Resolve the actor from the accepted attempt. Wire callers cannot select a principal or site. */
+async function cliConsent({ deps, request, run }: {
+  deps: CoreDeps;
+  request: Extract<DaemonCoreRequest, { operation: "cliConsentSnapshot" | "cliConsentAllow" }>;
+  run: Awaited<ReturnType<NonNullable<CoreDeps["chatRunLedger"]["durable"]>["find"]>>;
+}): Promise<unknown> {
+  if (!isLiveConsentRun({ deps, run })) throw new DaemonCoreError({ reason: "tool consent requires this site's live accepted answer" });
+  const principalId = run!.principalId!;
+  if (!getAgentDef({ id: request.input.agentId })) throw new DaemonCoreError({ reason: "tool consent names an unknown agent" });
+  const input = { deps, principalId, agentId: request.input.agentId, env: process.env, getDef: getAgentDef };
+  if (request.operation === "cliConsentSnapshot") return readAssistantToolConsentSnapshot(input);
+  return allowAssistantRunTools({ ...input, keys: request.input.keys, expectedRevisionSeq: request.input.expectedRevisionSeq,
+    isLive: async () => {
+      const fresh = await deps.chatRunLedger.durable!.find({ runId: request.input.runId }, {});
+      return isLiveConsentRun({ deps, run: fresh }) && fresh!.principalId === principalId;
+    },
+  });
+}
+
+function isLiveConsentRun({ deps, run }: {
+  deps: CoreDeps; run: Awaited<ReturnType<NonNullable<CoreDeps["chatRunLedger"]["durable"]>["find"]>>;
+}): boolean {
+  if (!run || run.workspaceId !== deps.workspaceId || !run.principalId || run.cancelReason) return false;
+  return ["queued", "running"].includes(run.message.runStatus ?? "");
 }
 
 /** Dispatch only daemon-retained methods. Acceptance, advance and recovery stay server-only.

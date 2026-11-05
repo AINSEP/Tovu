@@ -165,7 +165,7 @@ export function buildExternalMcpFieldSpecs(values: SourceFieldValues, t: Transla
     key: "allowedToolNames",
     label: t("Allowed tools"),
     kind: "text",
-    placeholder: t("comma-separated — nothing runs unless it is listed here"),
+    placeholder: t("Comma-separated. The assistant can call only these tools."),
   });
 
   // Unconditional, same as `allowedToolNames` immediately above: `trust.ts` R2/R3 apply this pair

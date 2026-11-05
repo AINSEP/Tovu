@@ -837,6 +837,7 @@ export function toResolvedFederatedConnections(
     ...(config.target.kind === "streamable_http" && config.target.bearerToken ? { bearerToken: config.target.bearerToken } : {}),
     config: {
       connectionId: config.serverId,
+      ...(config.provisionedByPluginId ? { provisionedByPluginId: config.provisionedByPluginId } : {}),
       label: config.label,
       allowedToolNames: config.allowedToolNames,
       writeAllowedToolNames: config.writeAllowedToolNames,
