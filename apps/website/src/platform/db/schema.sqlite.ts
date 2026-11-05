@@ -1059,6 +1059,27 @@ export const ownerRecoveryCodes = sqliteTable(
   (table) => [primaryKey({ columns: [table.workspaceId, table.principalId, table.codeHash] })]
 );
 
+/** Owner TOTP data is sealed; pending bearer proofs are stored only as digests. */
+export const ownerMfaFactors = sqliteTable("owner_mfa_factors", {
+  workspaceId: text("workspace_id").notNull(),
+  principalId: text("principal_id").notNull(),
+  sealedSecret: text("sealed_secret").notNull(),
+  lastStep: integer("last_step").notNull(),
+}, table => [primaryKey({ columns: [table.workspaceId, table.principalId] })]);
+
+export const ownerMfaPending = sqliteTable("owner_mfa_pending", {
+  workspaceId: text("workspace_id").notNull(),
+  principalId: text("principal_id").notNull(),
+  purpose: text("purpose").notNull(),
+  tokenHash: text("token_hash").notNull(),
+  expiresAt: integer("expires_at").notNull(),
+  attempts: integer("attempts").notNull(),
+  sealedSecret: text("sealed_secret"),
+}, table => [
+  primaryKey({ columns: [table.workspaceId, table.principalId, table.purpose] }),
+  uniqueIndex("idx_owner_mfa_pending_workspace_token").on(table.workspaceId, table.tokenHash),
+]);
+
 export const sessions = sqliteTable(
   "sessions",
   {

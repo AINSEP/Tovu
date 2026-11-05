@@ -51,6 +51,8 @@ export interface ContentDatabase {
   oauth_device_authorizations: OauthDeviceAuthorizationsTable;
   origin_settings: OriginSettingsTable;
   outbox_events: OutboxEventsTable;
+  owner_mfa_factors: OwnerMfaFactorsTable;
+  owner_mfa_pending: OwnerMfaPendingTable;
   owner_recovery_codes: OwnerRecoveryCodesTable;
   plugin_activations: PluginActivationsTable;
   policies: PoliciesTable;
@@ -611,6 +613,23 @@ export interface OutboxEventsTable {
   next_attempt_at: string;
   last_error: string | null;
   created_at: string;
+}
+
+export interface OwnerMfaFactorsTable {
+  workspace_id: string;
+  principal_id: string;
+  sealed_secret: string;
+  last_step: number;
+}
+
+export interface OwnerMfaPendingTable {
+  workspace_id: string;
+  principal_id: string;
+  purpose: string;
+  token_hash: string;
+  expires_at: number;
+  attempts: number;
+  sealed_secret: string | null;
 }
 
 export interface OwnerRecoveryCodesTable {

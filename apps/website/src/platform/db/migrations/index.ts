@@ -1,3 +1,4 @@
+import { ownerMfa } from './0040_owner_mfa.js';
 import { ownerRecoveryCodes } from './0039_owner_recovery_codes.js';
 import { newsletterSendingIndex } from "./0038_newsletter_sending_index.js";
 import { mediaSourceMetadata } from './0037_media_source_metadata.js';
@@ -112,6 +113,7 @@ export const CONTENT_MIGRATIONS: readonly MigrationStep[] = [
   mediaSourceMetadata({ checksum: pinned('0037_media_source_metadata') }),
   newsletterSendingIndex({ checksum: pinned('0038_newsletter_sending_index') }),
   ownerRecoveryCodes({ checksum: pinned('0039_owner_recovery_codes') }),
+  ownerMfa({ checksum: pinned('0040_owner_mfa') }),
 ];
 
 export const CHAT_MIGRATIONS: readonly MigrationStep[] = [
