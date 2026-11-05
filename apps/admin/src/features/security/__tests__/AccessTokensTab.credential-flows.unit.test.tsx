@@ -858,6 +858,7 @@ describe("custom project-key usage", () => {
     expect(screen.getByText((_text, element) => element?.className === "status status-neutral" && element.textContent === badge)).toBeInTheDocument();
     const button = screen.getByRole("button", { name: `${action} — Production` });
     const details = button.closest("details")!;
+    expect(within(details).getByText("Access is revoked within 30 seconds.")).toBeInTheDocument();
     expect(details).not.toHaveAttribute("open");
     fireEvent.click(button);
     expect(setCustomKeyUse).toHaveBeenCalledWith({ row: saved, use });
