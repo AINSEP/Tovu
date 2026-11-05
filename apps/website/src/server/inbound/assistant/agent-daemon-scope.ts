@@ -1,3 +1,9 @@
+import { assistantRunToolFacts } from './assistant-run-tool-facts.js';
+import { readAssistantRunToolPolicy, assistantRunPlan, assistantToolSetupMessage } from './assistant-tool-access.js';
+import { requestAssistantToolConsent } from './assistant-tool-consent.js';
+import { registerToolAccessLoweringRoute } from './tool-access-lowering-route.js';
+import { createChatSettingsGetRegistration, type ChatSettingsSnapshot } from '@jini-ai/daemon/chat-settings';
+import { stopRunsForToolAccessChange, admittedToolSources, type ToolAccessRun } from '@jini-ai/daemon';
 import { publishJobRecoveryMessage } from "@jini-ai/devops/deploy";
 import { createDaemonSiteTools } from "./agent-daemon-site-tools.js";
 import { createAgentDaemonIdlePark } from "./agent-daemon-idle-park.js";
@@ -302,7 +308,14 @@ const idlePark = { ...processActivity,
 
 // Site registrations, attachment tools, plugin guidance and federation have one owner: the
 // server's BYOK composition. Only browser-tab capabilities have executable registrations here.
+const chatSettingsByRunId = new Map<string, ChatSettingsSnapshot>();
+const toolAccessRuns = new Map<string, ToolAccessRun>();
+const revokedToolRuns = new Set<string>();
+const cleanupFailures = new Set<string>();
+const noToolsNotices = new Set<string>();
 const registry = createToolRegistry({});
+registry.register(createChatSettingsGetRegistration({ readSnapshot: ({ runId, principalId }) =>
+  !revokedToolRuns.has(runId) && principalByRunId.get(runId)?.id === principalId ? chatSettingsByRunId.get(runId) : undefined }));
 const siteTools = createDaemonSiteTools({
   baseUrl: env.TOVU_SITE_CALLBACK_ORIGIN ?? env.TOVU_SITE_LISTENER_ORIGIN ?? "",
   token: siteToolToken, localRegistry: registry,
@@ -509,6 +522,7 @@ const agentExecutor = createAgentExecutor({
   resolveAgentLaunch,
   runtimeState: assistantRuntime.state,
   hostEnv: assistantRuntime.hostEnv,
+  onCleanupFailure: ({ runId }) => { cleanupFailures.add(runId); console.error('[agent-daemon] CLI cleanup failed'); },
   codexDisablePlugins: assistantRuntime.codexDisablePlugins,
   piGracefulShutdownMs: assistantRuntime.piGracefulShutdownMs,
   mcpJsonInjection: bridgeInjection,
@@ -549,7 +563,7 @@ const messageAttachmentRefsByRunId = new Map<string, readonly string[]>();
 const durableMessageIdsByRunId = new Map<string, string>();
 /** Per-run bridge credentials. Valid only while `principalByRunId` tracks the run, so they share its
  * lifetime; `revoke` on terminal only keeps the map small. See `run-scoped-credential.ts`. */
-const runCredentials = createRunScopedCredentials({ principalOfLiveRun: ({ runId }) => disposed ? undefined : principalByRunId.get(runId)?.id }, {});
+const runCredentials = createRunScopedCredentials({ principalOfLiveRun: ({ runId }) => disposed || revokedToolRuns.has(runId) ? undefined : principalByRunId.get(runId)?.id }, {});
 
 /**
  * Assigned once, inside `start()`, before `app.listen()` ever binds the port — `onStarted` cannot
@@ -699,11 +713,12 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
   // One agent id for the whole run: the session subscription, attachment preparation and the
   // session binding below must all key by the same agent.
   // Saved selections can outlive an adapter; resolve once before any per-agent state is read.
-  const agentId = resolveAssistantAgentId({ agentId: request.agentId });
+  let agentId = resolveAssistantAgentId({ agentId: request.agentId });
   const pluginAbort = new AbortController();
   const unsubscribePluginCancel = runLifecycle.onCancelRequested({ runId: run.id, listener: () => pluginAbort.abort() });
   const identity = Object.freeze({ siteId, runId: run.id, principal });
   principalByRunId.set(identity.runId, identity.principal);
+  toolAccessRuns.set(run.id, { runId: run.id, agentId, pluginIds: pluginRefIds });
   messageAttachmentRefsByRunId.set(run.id, attachmentIds);
   if (durableMessageId !== undefined) durableMessageIdsByRunId.set(run.id, durableMessageId);
   runOwners.record({ runId: run.id, principalId: principal.id }, {});
@@ -729,6 +744,9 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
     unsubscribePluginCancel();
     siteTools.finish({ runId: run.id });
     principalByRunId.delete(run.id);
+    chatSettingsByRunId.delete(run.id);
+    toolAccessRuns.delete(run.id);
+    revokedToolRuns.delete(run.id);
     messageAttachmentRefsByRunId.delete(run.id);
     durableMessageIdsByRunId.delete(run.id);
     runCredentials.revoke({ runId: run.id }, {});
@@ -739,6 +757,7 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
     const retention = setTimeout(() => {
       ownerRetentionTimers.delete(retention);
       runOwners.forget({ runId: run.id }, {});
+      cleanupFailures.delete(run.id);
     }, RUN_OWNER_RETENTION_MS).unref();
     ownerRetentionTimers.add(retention);
     if (conversationId !== undefined) liveRunTracker.unregister({ conversationId: conversationId, runId: run.id }, {});
@@ -970,6 +989,13 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
       // slot and both mint — forking the conversation exactly the way the terminal-event-only write
       // did. Deliberately does NOT cover `agentExecutor.run` below: holding the lock across a whole
       // agent run would queue a second tab's turn behind it for minutes with no feedback.
+      startupStage = 'tool access consent';
+      const admitted = siteTools.withRun({ runId: run.id, fn: () => admittedToolSources({ tools: visibleRegistry.list({}) }) });
+      toolAccessRuns.set(run.id, { runId: run.id, agentId, ...admitted, pluginIds: [...new Set([...pluginRefIds, ...admitted.pluginIds])] });
+      const selectedAgent = await prepareRunToolAccess({ selectedAgentId: agentId });
+      if (selectedAgent === null) return;
+      agentId = selectedAgent;
+      toolAccessRuns.set(run.id, { ...toolAccessRuns.get(run.id)!, agentId });
       startupStage = 'session binding';
       const sessionBinding = await conversationStartLock.run({ conversationId: conversationId, critical: resolveSessionBinding }, {});
       if (sessionBinding === null) return;
@@ -1043,7 +1069,12 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
     { sessionBinding, attachmentRunFields }: { sessionBinding: RunSessionBinding; attachmentRunFields: AttachmentRunFields }, _optional = {},
   ): Promise<void> {
     startupStage = 'native tool policy';
-    const { isOwner, def, policy, nativeCapabilities } = await resolveRunNativePolicy({ agentId: sessionBinding.agentId }, {});
+    const access = await verifyLaunchToolPolicy({ agentId: sessionBinding.agentId });
+    if (!access) return;
+    const { snapshot, plan } = access;
+    const { isOwner, def, policy, nativeCapabilities } = snapshot;
+    const chatSettings = recordRunToolSnapshot({ snapshot, plan, agentId: sessionBinding.agentId });
+    await emitNoToolsNotice({ agentId: sessionBinding.agentId, snapshot, bridged: plan.bridged });
     const nativeToolAccess = Object.values(nativeCapabilities).some(Boolean);
     startupStage = 'tool-gap audit subscription';
     await observeRunToolGaps({ isOwner, agentId: sessionBinding.agentId }, {});
@@ -1058,9 +1089,10 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
       excludedPrefixes: ["TOVU_", "JINI_"], excludedKeys: ["DATABASE_URL"], excludedSuffixes: ["_ROOT_KEY"] }, {}) : undefined;
     // Owner 2026-10-27: the folder picked with the composer's folder control is readable, never writable.
     const pickedFolder = getCustomFsRoot(routeDeps.workspaceId, { siteDir: routeDeps.siteBinding.dir });
-    const runGuidance = pickedFolder ? { ...runtimeLaunch.guidance, pickedFolder } : runtimeLaunch.guidance;
+    const runGuidance = { ...runtimeLaunch.guidance, chatSettings, ...(pickedFolder ? { pickedFolder } : {}) };
     startupStage = 'CLI bridge preparation';
-    if (!(await prepareCliLaunch({ def }, {}))) return;
+    if (!(await prepareCliLaunch({ def, allowed: nativeCapabilities.userMcp }, {}))) return;
+    if (!(await runToolAccessIsLive())) return;
     const executeRun = () => agentExecutor.run({
       runId: run.id,
       agentId: sessionBinding.agentId,
@@ -1115,23 +1147,114 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
       () => assistantNativeToolsContext.run(nativeToolAccess, runWithCapabilities));
   }
 
-  /** Read one launch's grants, preserving the runtime-owned full-access policy. O(1) settings reads. */
-  async function resolveRunNativePolicy({ agentId }: { agentId: string }, _optional = {}) {
-    const isOwner = principal.id === await routeDeps.ownerPrincipalId;
-    const hostSignals = resolveHostSignals({ env: env });
-    // No settings read at all for non-owners or hosted runs. Failed reads deny the grant.
-    const settings = resolveFullCliAccess({ isOwner, env: env }, { hostSignals })
-      ? await readAssistantCliPermissions({ settingsRepo: routeDeps.settingsRepo, getEffective: routeDeps.getEffective,
-        settingsReady: routeDeps.settingsUiTabsReady, workspaceId: routeDeps.workspaceId, principalId: principal.id }, {})
-      : assistantCliPermissions({ enabled: false });
-    const def = getAgentDef({ id: agentId });
-    const policy = resolveNativeToolPolicy({ def: def ?? {}, policy: {
-      nativeCapabilities: resolveAssistantCliPermissions({ isOwner, env: env, settings }, { hostSignals }).capabilities } });
-    const nativeCapabilities = assistantCliPermissions({ enabled: false, capabilities: policy.nativeCapabilities ?? {} }).capabilities;
-    if (agentId === 'claude' && process.platform === 'win32' && nativeCapabilities.shell) {
-      console.warn('[agent-daemon] shell is not folder-limited on this platform');
+  async function verifyLaunchToolPolicy({ agentId }: { agentId: string }) {
+    const snapshot = await resolveRunNativePolicy({ agentId });
+    if (!(await runToolAccessIsLive())) return null;
+    const plan = assistantRunPlan({ snapshot, installed: !!snapshot.def && !!resolveAgentLaunch({ def: snapshot.def }).launchPath });
+    if (plan.verdict !== 'RUN') {
+      await failRunBeforeStart({ lifecycle: runLifecycle, runId: run.id, message: 'Tool access changed before this answer started. Send your message again to review it.' }, {}); return null;
     }
-    return { isOwner, def, policy, nativeCapabilities };
+    return { snapshot, plan };
+  }
+
+  function recordRunToolSnapshot({ snapshot, plan, agentId }: {
+    snapshot: Awaited<ReturnType<typeof resolveRunNativePolicy>>; plan: Extract<ReturnType<typeof assistantRunPlan>, { verdict: 'RUN' }>; agentId: string;
+  }) {
+    const tools = siteTools.withRun({ runId: run.id, fn: () => visibleRegistry.list({}) });
+    const sources = admittedToolSources({ tools });
+    toolAccessRuns.set(run.id, { runId: run.id, agentId, ...sources, pluginIds: [...new Set([...pluginRefIds, ...sources.pluginIds])] });
+    const facts = assistantRunToolFacts({ agentId, snapshot, plan, tools, ...(model ? { model } : {}), ...(reasoning ? { effort: reasoning } : {}) });
+    chatSettingsByRunId.set(run.id, facts);
+    return facts;
+  }
+
+  async function emitNoToolsNotice({ agentId, snapshot, bridged }: { agentId: string; snapshot: Awaited<ReturnType<typeof resolveRunNativePolicy>>; bridged: boolean }): Promise<void> {
+    const key = `${conversationId ?? run.id}:${agentId}`;
+    if (bridged || noToolsNotices.has(key)) return;
+    noToolsNotices.add(key);
+    const name = snapshot.def?.name ?? agentId;
+    await runLifecycle.emit({ runId: run.id, input: { event: 'agent', data: { type: 'status', label: 'no_tools', detail: `${name} can't use tools provided here. It works with its own.` } } });
+  }
+
+  /** Fresh host-gated selected-agent grants, shared with the owner consent click. */
+  async function resolveRunNativePolicy({ agentId }: { agentId: string }, _optional = {}) {
+    return readAssistantRunToolPolicy({ deps: routeDeps, principalId: principal.id, agentId, env, getDef: getAgentDef });
+  }
+
+  function runToolPolicyInput({ agentId }: { agentId: string }) {
+    return { deps: routeDeps, principalId: principal.id, agentId, env, getDef: getAgentDef };
+  }
+
+  async function runToolAccessIsLive(): Promise<boolean> {
+    const current = await runLifecycle.get({ runId: run.id });
+    return !disposed && !pluginAbort.signal.aborted && !revokedToolRuns.has(run.id) && !!current && !isTerminalRunState({ state: current.state });
+  }
+
+  /** Consent precedes session binding, persistent repair, per-run tokens and CLI spawn. */
+  async function prepareRunToolAccess({ selectedAgentId }: { selectedAgentId: string }): Promise<string | null> {
+    let selected = selectedAgentId;
+    while (await runToolAccessIsLive()) {
+      const decision = await prepareAgentToolChoice({ selected });
+      if (decision === null || decision === true) return decision === true ? selected : null;
+      selected = decision;
+    }
+    return null;
+  }
+
+  async function prepareAgentToolChoice({ selected }: { selected: string }): Promise<string | true | null> {
+    const snapshot = await resolveRunNativePolicy({ agentId: selected });
+    const inventory = await assistantInventory.listAssistantAgents();
+    const detected = inventory.find(agent => agent.id === selected);
+    const plan = assistantRunPlan({ snapshot, installed: !!snapshot.def && !!resolveAgentLaunch({ def: snapshot.def }).launchPath,
+      ...(detected?.authStatus ? { auth: detected.authStatus } : {}) });
+    if (plan.verdict === 'RUN') return true;
+    if (plan.verdict === 'SETUP' || !snapshot.def) {
+      await emitToolSetupFailure({ selected, snapshot, plan }); return null;
+    }
+    const result = await askForRunToolAccess({ snapshot, keys: plan.keys, inventory });
+    if (result.status === 'alternative') return result.agentId;
+    if (result.status === 'allowed') return selected;
+    await runLifecycle.finish({ runId: run.id, status: 'cancelled', code: null, signal: null, resumable: false }); return null;
+  }
+
+  async function emitToolSetupFailure({ selected, snapshot, plan }: {
+    selected: string; snapshot: Awaited<ReturnType<typeof resolveRunNativePolicy>>; plan: ReturnType<typeof assistantRunPlan>;
+  }) {
+    const message = assistantToolSetupMessage({ name: snapshot.def?.name ?? selected, reason: plan.verdict === 'SETUP' ? plan.reason : 'not_installed',
+      ...(snapshot.lock ? { lock: snapshot.lock } : {}), ...('keys' in plan ? { keys: plan.keys } : {}) });
+    await failRunBeforeStart({ lifecycle: runLifecycle, runId: run.id, message }, {});
+  }
+
+  async function askForRunToolAccess({ snapshot, keys, inventory }: {
+    snapshot: Awaited<ReturnType<typeof resolveRunNativePolicy>>; keys: readonly string[];
+    inventory: Awaited<ReturnType<typeof assistantInventory.listAssistantAgents>>;
+  }) {
+    const selected = snapshot.def!;
+    const alternatives = await qualifiedRunAlternatives({ inventory, selectedAgentId: selected.id });
+    const toolUseId = randomUUID();
+    await runLifecycle.emit({ runId: run.id, input: { event: 'agent', data: { type: 'tool_use', id: toolUseId, name: 'settings_set_value', input: {} } } });
+    try {
+      return await requestAssistantToolConsent({ def: selected, keys, surfaces: { surfaceExchanges },
+        ctx: { executionId: toolUseId, principal, run: { id: run.id }, input: {}, signal: pluginAbort.signal },
+        isLive: runToolAccessIsLive,
+        readFresh: () => routeDeps.readToolConsentSnapshot({ runId: run.id, agentId: selected.id }),
+        allowSelected: input => runToolAccessIsLive().then(live => live ? routeDeps.allowRunTools({ runId: run.id, ...input }) : false),
+      }, { alternatives, emitSurface: async emission => { await runLifecycle.emit({ runId: run.id, input: { event: 'agent', data: { ...emission.payload, type: emission.channel, toolUseId } as RunAgentPayload } }); } });
+    } finally {
+      await runLifecycle.emit({ runId: run.id, input: { event: 'agent', data: { type: 'tool_result', toolUseId, content: 'Tool access request reviewed.' } } });
+    }
+  }
+
+  async function qualifiedRunAlternatives({ inventory, selectedAgentId }: {
+    inventory: Awaited<ReturnType<typeof assistantInventory.listAssistantAgents>>; selectedAgentId: string;
+  }) {
+    const alternatives = [];
+    for (const agent of inventory) {
+      if (agent.id === selectedAgentId || !agent.available || agent.authStatus === 'missing') continue;
+      const snapshot = await resolveRunNativePolicy({ agentId: agent.id });
+      if (assistantRunPlan({ snapshot, installed: true }).verdict === 'RUN') alternatives.push({ agentId: agent.id, name: agent.name });
+    }
+    return alternatives;
   }
 
   /** Attach the owner's tool-gap audit to this run; subscription errors abort startup. O(1). */
@@ -1149,10 +1272,10 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
 
   /** Verify/repair CLI bridge registration before emitting its access note. A failed recovery
    * terminalizes the run and returns false; lifecycle emission errors propagate. O(config bytes). */
-  async function prepareCliLaunch({ def }: { def: ReturnType<typeof getAgentDef> }, _optional = {}): Promise<boolean> {
+  async function prepareCliLaunch({ def, allowed }: { def: ReturnType<typeof getAgentDef>; allowed: boolean }, _optional = {}): Promise<boolean> {
     if (def?.externalMcpInjection === 'env-passthrough') {
       try {
-        await ensureJsonAgentInstall({ agentId: def.id, spec: { command: bridgeInjection.command,
+        await ensureJsonAgentInstall({ agentId: def.id, allowed, spec: { command: bridgeInjection.command,
           args: [...(bridgeInjection.args ?? [])], env: { ...bridgeInjection.env } },
           ctx: { home: (env.HOME ?? env.USERPROFILE ?? homedir()), platform: process.platform, serverName: 'jini' } }, {});
       } catch (error) {
@@ -1228,6 +1351,15 @@ app.use(requireAgentDaemonToken({ env: authEnv, runScopedCallers: runCredentials
 // caller reaching them is already past `requireAgentDaemonToken` above, so this is not a new
 // unauthenticated attack surface, only a larger authenticated one.
 app.use(express.json({ limit: "6mb" }));
+registerToolAccessLoweringRoute({ app, lower: change => stopRunsForToolAccessChange({ runs: [...toolAccessRuns.values()], change,
+  revoke: ({ runId }) => { revokedToolRuns.add(runId); runCredentials.revoke({ runId }); },
+  cancel: async ({ runId }) => { await lifecycle.cancel({ runId }); },
+  waitForCleanup: async ({ runId }) => {
+    await lifecycle.waitForTerminal({ runId }, { signal: AbortSignal.timeout(8_000) });
+    if (cleanupFailures.has(runId)) throw new Error('CLI cleanup failed');
+  },
+  notice: async ({ runId, message }) => { await lifecycle.emit({ runId, input: { event: 'agent', data: { type: 'status', label: 'tool_access_changed', detail: message } } }); },
+}) });
 // Re-resolve each bridge credential after parsing; neither a proxy identity nor a previous
 // caller's snapshot can supply an unscoped catalog. Native async context survives all awaits.
 app.use(["/api/tools", "/api/components", DELEGATED_TOOL_CALLS_PATH], (req, res, next) => {
