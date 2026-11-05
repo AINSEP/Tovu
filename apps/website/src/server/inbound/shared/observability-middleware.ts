@@ -83,6 +83,10 @@ export function applyRequestTracking(app: Express, deps: {
     res.locals.requestId = requestId;
     res.locals.adminFailureTracker = deps.tracker;
     const scope: ErrorReportScope = { reported: false };
+    // A tracked operation can report before passing its error to the final admin responder.
+    // Share this request-owned admission flag so that responder logs its reference once without
+    // submitting a new wrapper of the same exception to the tracker again.
+    res.locals.adminFailureReportScope = scope;
     const observeResponse = ({ span, resolve }: { span: TrackerSpan<RequestTrackingOutcome>; resolve: () => void }, _options = {}) => {
       res.once("finish", () => {
         const durationMs = performance.now() - startedAt;

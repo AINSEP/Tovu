@@ -117,3 +117,26 @@ test("admin error middleware preserves headers-sent delegation", () => {
     value => { delegated = value; });
   assert.equal(delegated, error);
 });
+
+test("an uncaught admin error already reported by a tracked operation is not reported twice", async t => {
+  const logged = t.mock.method(console, "error", () => {});
+  const { port, reports } = recording();
+  const tracker = createTracker({ observability: port });
+  const app = express();
+  applyRequestTracking(app, { tracker, env: {} });
+  app.get("/api/admin/v1/pages", (_req, res, next) => {
+    res.locals.principal = { id: "owner" };
+    void tracker.trace({ name: "pages.load", run: async () => { throw new Error("PRIVATE_BACKEND password=SECRET_CANARY"); } }).catch(next);
+  });
+  app.use(captureRouteError);
+  const baseUrl = await startTestServer(app, t);
+  const response = await fetch(`${baseUrl}/api/admin/v1/pages`);
+  assert.equal(response.status, 500);
+  const body = await response.json() as any;
+  assert.equal(body.details.failure.errorId, body.errorId);
+  assert.equal(JSON.stringify(body).includes("SECRET_CANARY"), false);
+  assert.equal(logged.mock.callCount(), 1);
+  assert.equal((logged.mock.calls[0].arguments[1] as any).errorId, body.errorId);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(reports.map(report => report.context.operation), ["pages.load"]);
+});

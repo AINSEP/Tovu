@@ -94,7 +94,7 @@ function httpFailureOptions({ res, options }: { res: FailureResponse; options: F
  * @complexity The shared redaction cost plus O(1) envelope construction.
  */
 export function sendAdminFailure(
-  { res, error, tracker = res.locals?.adminFailureTracker }: { res: FailureResponse; error: unknown; tracker?: Pick<Tracker, "error"> },
+  { res, error, tracker = res.locals?.adminFailureReportScope?.reported ? undefined : res.locals?.adminFailureTracker }: { res: FailureResponse; error: unknown; tracker?: Pick<Tracker, "error"> },
   options: FailureOptions = {},
 ): void {
   const resolved = httpFailureOptions({ res, options });
