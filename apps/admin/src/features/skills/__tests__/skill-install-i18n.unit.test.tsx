@@ -59,7 +59,7 @@ it.each(NON_ENGLISH)("%s translates the install dialog's accessible name and cop
   expect(dialog.getAttribute("aria-label")).not.toBe("Install skill");
   expect(dialog.getAttribute("aria-label")?.trim().length).toBeGreaterThan(0);
   // Spanish and Portuguese correctly use "Cancelar"; reject the untranslated button, not that substring.
-  expect(within(dialog).queryByRole("button", { name: "Cancel", exact: true })).not.toBeInTheDocument();
+  expect(within(dialog).queryByRole("button", { name: "Cancel" })).not.toBeInTheDocument();
   for (const english of ["Install skill?", "Review instructions from sources you trust. Installation runs no code.", "Confirm install"]) {
     expect(dialog.textContent, `${locale}: ${english}`).not.toContain(english);
   }
