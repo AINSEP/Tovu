@@ -146,7 +146,7 @@ export interface BootProviderPluginsOptional {
 }
 
 type ProviderSlot = { pluginId: string; contract: ProviderContract; id: string;
-  declaration: PluginProviderDeclaration; lease?: PluginProviderLease; input?: string; initializationObserved?: boolean };
+  declaration: PluginProviderDeclaration; lease?: PluginProviderLease; retirement?: AbortController; input?: string; initializationObserved?: boolean };
 /** An absent input is already inert; a configured input must also retain a current generation. */
 function unchangedSlot({ slot, signature }: { slot: ProviderSlot; signature: string | undefined }, _optional = {}): boolean {
   if (signature !== slot.input) return false;
@@ -331,6 +331,10 @@ export async function bootProviderPlugins(required: BootProviderPluginsRequired,
       return;
     }
     const old = slot.lease;
+    // Reconfiguration/revocation drops queued exports before SDK shutdown can flush the old key.
+    slot.retirement?.abort();
+    const retirement = new AbortController();
+    slot.retirement = retirement;
     try {
       const lease = input ? await host.initialize({ contract: slot.contract, id: slot.id,
         // Host environment is only a default: a card's saved environment (Sentry) wins, and a blank one
@@ -339,6 +343,7 @@ export async function bootProviderPlugins(required: BootProviderPluginsRequired,
           attribution: attributionFor({ contract: slot.contract, site: required.site }, { release }) } }, {
         factoryOptions: {
           ...exportOptions(slot.contract),
+          signal: retirement.signal,
           reportTelemetry: (report: ProviderTelemetryReport) => delivery.report({ providerId: `${slot.pluginId}/${slot.id}`, report }),
           info: optional.info ?? ((message: string) => console.info(message)),
         },
@@ -391,7 +396,7 @@ export async function bootProviderPlugins(required: BootProviderPluginsRequired,
       return restartBrowser ? 'restart' : 'now';
     } catch (error) {
       for (const slot of selected) initialization({ slot, outcome: 'failure', reasonClass: 'initialization_failed' });
-      const retired = selected.map(slot => { const lease = slot.lease; slot.lease = undefined; slot.input = undefined; return lease; });
+      const retired = selected.map(slot => { slot.retirement?.abort(); const lease = slot.lease; slot.lease = undefined; slot.input = undefined; return lease; });
       await Promise.all(retired.map(lease => lease?.dispose({})));
       // Class only: an SDK's construction error can quote the endpoint or DSN it was given.
       // Names are allowlisted too: custom Error.name values can themselves contain credentials.

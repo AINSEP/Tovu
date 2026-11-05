@@ -87,6 +87,33 @@ const OBS_ATTRIBUTION = attributionFor({ contract: "observability", site: SITE }
 const consentAlways = { consent: () => true, consentRevision: () => 0 };
 const quiet = () => {};
 
+test('removing a shared config retires delivery before shutdown and regrant creates a live client', async () => {
+  const delivered: string[] = [];
+  const signals: AbortSignal[] = [];
+  const { runtime } = fakeRuntime({ installed: ['analytics-posthog'], factories: {
+    'analytics-posthog': { contract: 'product_analytics', id: 'posthog', factory: (_input, options = {}) => {
+      const signal = options.signal as AbortSignal;
+      signals.push(signal);
+      const queued: string[] = [];
+      return { port: { capture: ({ name }: ProductEvent) => { queued.push(name); }, identify() {} },
+        dispose: () => { if (!signal?.aborted) delivered.push(...queued); } };
+    } },
+  } });
+  const configs = { ...CONFIGS };
+  const shared = await bootProviderPlugins({ runtime, config: configOf(configs), serviceName: 'tovu', site: SITE, ...consentAlways }, { warn: quiet });
+  shared.tracker.capture({ name: 'revoked-queue', userId: 'site:fixture' });
+  delete configs['analytics-posthog'];
+  assert.equal(await shared.reapply({ pluginId: 'analytics-posthog' }), 'now');
+  assert.equal(signals[0]?.aborted, true);
+  assert.deepEqual(delivered, []);
+  configs['analytics-posthog'] = CONFIGS['analytics-posthog']!;
+  await shared.reapply({ pluginId: 'analytics-posthog' });
+  assert.equal(signals[1]?.aborted, false);
+  shared.tracker.capture({ name: 'regranted', userId: 'site:fixture' });
+  await shared.dispose({});
+  assert.deepEqual(delivered.filter(name => name !== 'provider_initialized'), ['regranted']);
+});
+
 test('cookie-consent adapter is mounted under base/<pluginId> only while its lease is current', async () => {
   const paths: string[] = [];
   const port = { capture() {}, identify() {}, consentAdapter: ({ path }: { path: string }) => { paths.push(path); return { adapter: { id: 'posthog', kind: 'consent-adapter', category: 'analytics', src: `${path}/a.mjs` } }; } };
