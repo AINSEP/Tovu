@@ -38,7 +38,7 @@ export function buildAssistantToolConsentSpec(required: {
 }
 
 function consentWarning({ def, personal }: { def: ConsentDef; personal: boolean }): string {
-  const inherited = def.externalMcpInjection === 'env-passthrough' || def.externalMcpInjection === 'env-content';
+  const inherited = def.externalMcpInjection === 'env-passthrough' || def.externalMcpInjection === 'opencode-env-content' || def.externalMcpInjection === 'mimo-env-content';
   return [
     personal ? `It also loads MCP servers set up in ${def.name} or this project. Tovu doesn't approve or log those.` : '',
     personal && inherited ? "Those servers can see this chat's run key while it runs." : '',

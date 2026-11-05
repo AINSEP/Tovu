@@ -25,3 +25,48 @@ test('stale cards say so and only the supplied qualified alternatives are offere
   assert.deepEqual(card.alternatives, [{ id: 'agent-0', label: 'Use pi', choice: 'pi' }]);
   assert.doesNotMatch(card.warning!, /run key|outside Tovu/);
 });
+
+test('the real exchange rejects another principal, ignores altered grant fields and cannot be replayed', async t => {
+  const { createSurfaceExchangeStore } = await import('@jini-ai/daemon/surface-exchanges');
+  const { createTimeoutScheduler } = await import('@jini-ai/daemon/scheduler');
+  const { requestAssistantToolConsent } = await import('../assistant-tool-consent.js');
+  const controller = new AbortController(); t.after(() => controller.abort());
+  const store = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: { nowMs: () => Date.now() },
+    idGenerator: { newId: () => 'consent-one' }, defaultChannel: 'mcp-ui' });
+  const writes: unknown[] = [];
+  const pending = requestAssistantToolConsent({ def: { id: 'antigravity', name: 'Antigravity', externalMcpInjection: 'env-passthrough' },
+    keys: ['userMcp'], ctx: { executionId: 'consent-exec', run: { id: 'run-one' }, principal: { id: 'owner' }, input: {}, signal: controller.signal },
+    surfaces: { surfaceExchanges: store }, readFresh: async () => snapshot, isLive: () => !controller.signal.aborted,
+    allowSelected: async input => { writes.push(input); return true; },
+  }, { emitSurface: async () => {} });
+  await new Promise<void>(resolve => setImmediate(resolve));
+  assert.deepEqual(store.deliver({ exchangeId: 'consent-one', principalId: 'different-owner', params: { decision: 'confirm' } },
+    { toolId: 'settings_set_value' }), { ok: false, reason: 'binding-mismatch' });
+  assert.equal(writes.length, 0);
+  assert.deepEqual(store.deliver({ exchangeId: 'consent-one', principalId: 'owner',
+    params: { decision: 'confirm', agentId: 'other-agent', site: 'other-site', keys: ['shell'], expectedRevisionSeq: 999 } },
+  { toolId: 'settings_set_value' }), { ok: true });
+  assert.deepEqual(await pending, { status: 'allowed' });
+  assert.deepEqual(writes, [{ agentId: 'antigravity', keys: ['userMcp'], expectedRevisionSeq: 3 }]);
+  assert.deepEqual(store.deliver({ exchangeId: 'consent-one', principalId: 'owner', params: { decision: 'confirm' } },
+    { toolId: 'settings_set_value' }), { ok: false, reason: 'unknown-or-closed' });
+});
+
+test('ending the originating run closes its pending card and never writes', async t => {
+  const { createSurfaceExchangeStore } = await import('@jini-ai/daemon/surface-exchanges');
+  const { createTimeoutScheduler } = await import('@jini-ai/daemon/scheduler');
+  const { requestAssistantToolConsent } = await import('../assistant-tool-consent.js');
+  const controller = new AbortController(); t.after(() => controller.abort());
+  const store = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: { nowMs: () => Date.now() },
+    idGenerator: { newId: () => 'consent-terminal' }, defaultChannel: 'mcp-ui' });
+  const pending = requestAssistantToolConsent({ def: { id: 'antigravity', name: 'Antigravity' }, keys: ['userMcp'],
+    ctx: { executionId: 'consent-exec', run: { id: 'run-one' }, principal: { id: 'owner' }, input: {}, signal: controller.signal },
+    surfaces: { surfaceExchanges: store }, readFresh: async () => snapshot, isLive: () => !controller.signal.aborted,
+    allowSelected: async () => { throw new Error('must not write'); },
+  }, { emitSurface: async () => {} });
+  await new Promise<void>(resolve => setImmediate(resolve));
+  assert.equal(store.size(), 1);
+  controller.abort();
+  assert.deepEqual(await pending, { status: 'cancelled' });
+  assert.equal(store.size(), 0);
+});
