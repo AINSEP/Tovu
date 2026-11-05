@@ -384,7 +384,7 @@ async function assertLabelFreeOnSite({ deps, target, workspaceId, vendorId, labe
 /** Label conflicts keep the feature's error contract; stale CAS failures stay conflicts.
  * @complexity One vault write; a failed update adds one selected row read, never an inventory scan. */
 async function saveConnection({ target, input, providerId }: { target: ScopedCredentialDeps<PublishCredentialWriteDeps>;
-  input: Parameters<ReturnType<typeof vault>["put"]>[0]; providerId: PublishProviderId }, _options = {}): Promise<VaultSummary> {
+  input: Parameters<ReturnType<typeof vault>["put"]>[0] & { id: string }; providerId: PublishProviderId }, _options = {}): Promise<VaultSummary> {
   try { return await vault(target.deps).put(input); }
   catch (error) {
     if (error instanceof ProjectKeyCreateConflictError) throw new PublishCredentialDuplicateLabelError(error.message);
@@ -403,12 +403,12 @@ async function saveConnection({ target, input, providerId }: { target: ScopedCre
  * @complexity O(1); a failed update reads one selected metadata row, creates read none.
  */
 async function isPublishLabelConflict({ error, target, input }: { error: unknown; target: ScopedCredentialDeps<PublishCredentialWriteDeps>;
-  input: Parameters<ReturnType<typeof vault>["put"]>[0] }, _options = {}): Promise<boolean> {
+  input: Parameters<ReturnType<typeof vault>["put"]>[0] & { id: string } }, _options = {}): Promise<boolean> {
   if (isUniqueViolation(error)) return true;
   if (!(error instanceof VaultError) || error.code !== "conflict") return false;
   if (input.expectedRevision === null) return true;
   const current = await target.deps.repo.vault!.find({ workspaceId: input.workspaceId, id: input.id });
-  return current?.revision === input.expectedRevision && current?.label !== input.label;
+  return current !== null && current.revision === input.expectedRevision && (current.label !== input.label || current.provider !== input.provider);
 }
 
 /** Validate before the vault write. Jini atomically auto-defaults the first vendor credential. */
