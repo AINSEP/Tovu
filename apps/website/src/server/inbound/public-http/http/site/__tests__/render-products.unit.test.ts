@@ -102,3 +102,12 @@ test("buildTemplateRenderData: a product never emits a `description` field, even
   assert.deepEqual(Object.keys(products[0]).sort(), expectedKeys);
   assert.deepEqual(Object.keys(data.product as Record<string, unknown>).sort(), expectedKeys);
 });
+
+test("buildTemplateRenderData: prices honor zero- and three-decimal currencies on list and detail", () => {
+  const data = buildTemplateRenderData(minimalContext({ products: [siteProduct({ price: 2800, compareAtPrice: 3500, currency: "JPY" }), siteProduct({ price: 1234, currency: "KWD" })], product: siteProduct({ price: 9900, currency: "EUR" }) }));
+  const products = data.products as Array<Record<string, unknown>>;
+  assert.equal(products[0].priceFormatted, "¥2,800");
+  assert.equal(products[0].compareAtPriceFormatted, "¥3,500");
+  assert.equal(products[1].priceFormatted, "KWD 1.234");
+  assert.equal((data.product as Record<string, unknown>).priceFormatted, "€99.00");
+});

@@ -15,7 +15,10 @@ export interface SiteProduct {
    *  (id first, then slug), same fallback contract as posts/pages/menus. */
   slug: string;
   title: string;
-  price: number; // cents
+  /** Integer minor units of currency. */
+  price: number;
+  /** Exact catalog price selected for the purchase request. */
+  priceId?: string;
   /**
    * `undefined` for a product source with no inventory tracking (Commerce, as of 2026-08-12 —
    * `features/commerce/storefront.ts`'s own doc names this explicitly rather than fabricating a
@@ -24,11 +27,11 @@ export interface SiteProduct {
    * nil/falsy behavior for the untracked case, not a lie about availability.
    */
   stock?: number;
-  /** Cents. `undefined` = not on sale — degrades to no strikethrough price shown, matching
+  /** Integer minor units. `undefined` = not on sale — degrades to no strikethrough price shown, matching
    * `fashion-modern/templates/products.liquid`'s own documented fallback. */
   compareAtPrice?: number;
   /**
-   * Lowercase ISO-4217 (e.g. `"usd"`) when known. `undefined` for a product source with no
+   * ISO-4217 (e.g. `"USD"`) when known. `undefined` for a product source with no
    * currency concept (the sample store plugin). Safe to pass through as-is: `product.liquid`'s
    * currency badge and `products.liquid` both read it WITHOUT Liquid's `| raw` filter, so
    * `outputEscape: "escape"` (`liquid-worker.ts`) HTML-escapes it same as any other plain field.

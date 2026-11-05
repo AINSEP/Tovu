@@ -1,5 +1,4 @@
 import { resolveRenderThemeId } from "../../middleware/render-theme-override.js";
-import type { StoreApi } from "#src/features/plugins/store/store-plugin";
 import { NO_THEME_ID, resolveActiveTheme } from "#src/features/theme/active-theme";
 import { renderSite, type SiteProduct } from "../../http/site/render.js";
 import { markOffSiteLinksOpenInNewTab } from "../../http/site/external-links.js";
@@ -39,27 +38,16 @@ function cacheControlFor(req: Parameters<typeof isStaticExportRequest>[0]): stri
   return isStaticExportRequest(req) ? CACHE_CONTROL_PRIVATE_STATIC_EXPORT : CACHE_CONTROL_PUBLIC_PAGE;
 }
 
-/**
- * The store plugin owns the rendered catalog. The former optional core-catalog path was unwired
- * in production; removing it preserves the existing plugin experience and leaves the parked
- * catalog library in Jini. An absent or empty store still uses the templates' own "No products
- * available yet" copy. Catalog isolation belongs to the injected store, never a second catalog
- * lookup in this rendering adapter.
- *
- * The parked core mapper deliberately omitted images (ADR-027 media-transform pipeline) and
- * stock (no inventory tracking). Templates must still degrade gracefully when optional product
- * data is absent.
- */
+/** Commerce owns the bounded catalog projection. The host's adapter applies the activation
+ * guard before any catalog reads. The public renderer has no legacy store or payment access. */
 export interface CommerceSiteAdapterDeps extends RouteDeps {
-  store?: StoreApi;
+  commerceCatalog?: { listProducts(required?: Record<string, never>, optional?: Record<string, never>): Promise<SiteProduct[]> };
 }
 
-/** Exported (2026-08-15, static exporter) so `export/route-manifest.ts` enumerates the SAME
- *  product set `/products`/`/products/:id` actually render — one source of truth for the
- *  store-plugin selection below, rather than a second copy that could drift from it.
- *  Returns plugin products unchanged, or an empty list without a store; store errors propagate. */
+/** Shared by live routes and static export: one bounded projection, no per-product price reads.
+ * An absent commerce plugin exposes no products. @complexity O(24) response rows, <=2 DB reads. */
 export async function resolveStorefrontProducts(deps: CommerceSiteAdapterDeps): Promise<SiteProduct[]> {
-  return (await deps.store?.listProducts()) ?? [];
+  return (await deps.commerceCatalog?.listProducts({}, {})) ?? [];
 }
 
 /**
