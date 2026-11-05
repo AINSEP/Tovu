@@ -28,15 +28,15 @@
   "dependencies": {
     "@tovu/contracts": "file:../../packages/contracts",
     "@cfworker/json-schema": "^4.1.1",
-    "@jini-ai/agent-runtime": "^0.6.22",
-    "@jini-ai/chat": "^0.6.22",
-    "@jini-ai/core": "^0.6.22",
-    "@jini-ai/daemon": "^0.6.22",
+    "@jini-ai/agent-runtime": "^0.6.23",
+    "@jini-ai/chat": "^0.6.23",
+    "@jini-ai/core": "^0.6.23",
+    "@jini-ai/daemon": "^0.6.23",
     "@jini-ai/desktop-host": "^0.6.19",
     "@jini-ai/diagnostics": "^0.6.22",
     "@jini-ai/db": "^0.6.19",
-    "@jini-ai/mcp": "^0.6.22",
-    "@jini-ai/platform": "^0.6.22",
+    "@jini-ai/mcp": "^0.6.23",
+    "@jini-ai/platform": "^0.6.23",
     "@jini-ai/sidecar": "^0.6.22",
     "@mcp-ui/client": "7.1.1",
     "@modelcontextprotocol/sdk": "^1.29.0",
@@ -55,10 +55,10 @@
   },
   "devDependencies": {
     "@electron/asar": "^3.4.1",
-    "@jini-ai/agentic": "^0.6.19",
+    "@jini-ai/agentic": "^0.6.23",
     "@jini-ai/devops": "^0.6.22",
     "@jini-ai/protocol": "^0.6.19",
-    "@jini-ai/ui": "^0.6.22",
+    "@jini-ai/ui": "^0.6.23",
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
@@ -82,6 +82,6 @@
     "vite": "^8.2.0"
   },
   "overrides": {
-    "@jini-ai/core": "^0.6.22"
+    "@jini-ai/core": "^0.6.23"
   }
 }
