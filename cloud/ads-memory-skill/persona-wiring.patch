@@ -6,20 +6,20 @@
 -- Last Updated: 2026-10-07
 +- Version: 2.3.2
 +- Last Updated: 2026-11-05
- 
+
  ## Base Skills
- 
+
 @@ -11,6 +11,7 @@
  - `<AI_DEV_SHOP_ROOT>/skills/design-patterns/SKILL.md` — pattern selection decision guide, 19+ pattern reference files (TypeScript examples, tradeoffs, failure modes), common pattern combinations; load specific pattern files from references/ as needed
  - `<AI_DEV_SHOP_ROOT>/skills/coding-foundations/SKILL.md` — tiny shared parent for explicit dependencies, decision/effect separation, mutation-by-exception, stable contracts, fail-fast defaults, and small readable units
  - `<AI_DEV_SHOP_ROOT>/skills/implementation-guardrails/SKILL.md` — child layer for complexity/scaling defaults, query-shape awareness, and maintainability guardrails that downstream implementers should inherit
 +- `<AI_DEV_SHOP_ROOT>/skills/memory-performance-discipline/SKILL.md` — recurring work, retention, lifecycle, and resource-budget checks; load its Electron reference only for desktop work and its evidence reference only when checking a lesson's basis
  - `<AI_DEV_SHOP_ROOT>/skills/testable-design-patterns/SKILL.md` — child layer with stricter modular/composable/testable-unit rules used to define downstream implementation constraints
- 
+
  ## Conditional Skills
 @@ -81,6 +82,7 @@
  Use `<AI_DEV_SHOP_ROOT>/skills/design-patterns/SKILL.md` and `references/README.md` as the canonical catalog. Load only the pattern files that are viable for the current system drivers.
- 
+
  ## Output Format
 +- Propose bounds and validation using the canonical Cost output contract. See `<AI_DEV_SHOP_ROOT>/skills/memory-performance-discipline/SKILL.md#cost-output`; use its documentation-only N/A line where appropriate.
  - Research artifact path (if produced), or "No research required — no technology choices in spec"
@@ -33,7 +33,7 @@
 -- Last Updated: 2026-10-07
 +- Version: 1.7.5
 +- Last Updated: 2026-11-05
- 
+
  ## Base Skills
  Base skills are the default standing context for every Programmer task.
 @@ -10,6 +10,7 @@
@@ -46,7 +46,7 @@
  - `<AI_DEV_SHOP_ROOT>/skills/function-quality-assessment/SKILL.md` — shared low-level per-function assessment procedure for severity-graded findings, dispositions, complexity notes, fix-before-handoff behavior, and pass/advisory/block routing. There is no numeric quality score
 @@ -119,6 +120,7 @@
  12. Report what was implemented, what remains, and known risks.
- 
+
  ## Output Format
 +- Report implemented recurring work and retention using the canonical Cost output contract. See `<AI_DEV_SHOP_ROOT>/skills/memory-performance-discipline/SKILL.md#cost-output`; use its documentation-only N/A line where appropriate.
  - Files changed and behavior delivered (mapped to spec requirements)
@@ -60,7 +60,7 @@
 -- Last Updated: 2026-10-07
 +- Version: 1.4.2
 +- Last Updated: 2026-11-05
- 
+
  ## Skills
  - `<AI_DEV_SHOP_ROOT>/skills/general-behavior/SKILL.md` — universal cross-cutting dispatcher every agent carries; on any codebase search/understanding need, load its referenced behavior before searching (routes rg vs graph analyzers, rg as fallback)
 @@ -20,6 +20,7 @@
@@ -73,7 +73,7 @@
  - `<AI_DEV_SHOP_ROOT>/skills/spec-writing/SKILL.md` — spec anatomy: AC format, invariants, edge cases, scope boundaries; required for Dimension 1 (Spec Alignment) — mapping each AC, invariant, and edge case to its implementation path
 @@ -181,6 +182,7 @@
  Write findings to `<ADS_MEMORY_ROOT>/reports/code-inspection/CR-<feature-id>-<YYYY-MM-DD>.md`.
- 
+
  Report contents:
 +- Verify actual work, bounds, and evidence using the canonical Cost output contract. See `<AI_DEV_SHOP_ROOT>/skills/memory-performance-discipline/SKILL.md#cost-output`; use its documentation-only N/A line where appropriate.
  - Findings ordered by severity (Required first, then Recommended)
