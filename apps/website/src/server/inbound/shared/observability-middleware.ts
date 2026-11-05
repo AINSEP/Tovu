@@ -132,15 +132,26 @@ function reportServerError({ tracker, req, res, scope, routePattern }: {
 
 /**
  * Last error middleware in `createApp()`: remembers non-admin errors for Express's default
- * handler, while admin failures use the shared safe incident lifecycle. Its tracker marks the
+ * handler, while unexpected admin failures use the shared safe incident lifecycle. Expected
+ * client errors retain their existing responder and status. Its tracker marks the
  * request scope reported, so response completion does not report the same incident again.
  * @complexity O(1).
  */
 export const captureRouteError: ErrorRequestHandler = (error, req, res, next) => {
   res.locals.routeError = error;
-  if (!res.headersSent && /^\/api\/admin(?:\/|$)/.test(req.path)) {
+  if (!res.headersSent && /^\/api\/admin(?:\/|$)/.test(req.path) && !isExpectedClientError({ error })) {
     sendAdminFailure({ res, error }, { operation: "admin-route.uncaught" });
     return;
   }
   next(error);
 };
+
+/** Express gives a valid status precedence over statusCode; preserve its existing 4xx responder.
+ * @complexity O(1); reads two error metadata fields without formatting or reporting.
+ */
+function isExpectedClientError({ error }: { error: unknown }): boolean {
+  if (error === null || typeof error !== "object") return false;
+  const { status, statusCode } = error as { status?: unknown; statusCode?: unknown };
+  if (typeof status === "number" && status >= 400 && status < 600) return status < 500;
+  return typeof statusCode === "number" && statusCode >= 400 && statusCode < 500;
+}

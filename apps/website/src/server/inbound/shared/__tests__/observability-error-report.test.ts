@@ -140,3 +140,47 @@ test("an uncaught admin error already reported by a tracked operation is not rep
   await new Promise(resolve => setImmediate(resolve));
   assert.deepEqual(reports.map(report => report.context.operation), ["pages.load"]);
 });
+
+test("admin JSON parser 400s retain the expected error responder without incident reporting", async t => {
+  const logged = t.mock.method(console, "error", () => {});
+  const { port, reports } = recording();
+  const app = express();
+  applyRequestTracking(app, { tracker: createTracker({ observability: port }), env: { TOVU_LOG_REQUESTS: undefined, TOVU_LOG_SLOW_REQUESTS: undefined } });
+  app.use(express.json());
+  let handled = false;
+  app.post("/api/admin/v1/pages", (_req, res) => { handled = true; res.status(204).end(); });
+  app.use(captureRouteError);
+  const delegated: unknown[] = [];
+  app.use((error: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+    delegated.push(error);
+    res.status(error.status).json({ code: "INVALID_JSON", message: "The request body must contain valid JSON." });
+  });
+  const baseUrl = await startTestServer(app, t);
+  const response = await fetch(`${baseUrl}/api/admin/v1/pages`, {
+    method: "POST", headers: { "content-type": "application/json" }, body: '{"title":',
+  });
+  assert.equal(response.status, 400);
+  assert.deepEqual(await response.json(), { code: "INVALID_JSON", message: "The request body must contain valid JSON." });
+  assert.equal(handled, false);
+  assert.equal(delegated.length, 1);
+  assert.equal((delegated[0] as any).type, "entity.parse.failed");
+  assert.equal((delegated[0] as any).status, 400);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(reports, []);
+  assert.equal(logged.mock.callCount(), 0);
+});
+
+test("admin errors with statusCode 413 are delegated unchanged before a response is sent", t => {
+  const logged = t.mock.method(console, "error", () => {});
+  const error = Object.assign(new Error("Request body is too large."), { statusCode: 413 });
+  let delegated: unknown;
+  let responseStatus: number | undefined;
+  const res = { headersSent: false, locals: {}, status: (status: number) => {
+    responseStatus = status;
+    return { json: () => {} };
+  } };
+  captureRouteError(error, { path: "/api/admin/v1/pages" } as any, res as any, value => { delegated = value; });
+  assert.equal(delegated, error);
+  assert.equal(responseStatus, undefined);
+  assert.equal(logged.mock.callCount(), 0);
+});
