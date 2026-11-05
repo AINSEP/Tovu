@@ -176,6 +176,8 @@ import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm"
 import { ensureSiteKeyForSite } from "#src/features/webhooks/site-key-ensure";
 import { InMemoryMediaProviderCredentialRepo } from "#src/features/media/provider-credential-store.memory";
 import {
+  DEFAULT_GC_GRACE_MS,
+  withSha256Lock,
   InMemoryAssetBlobRepo,
   InMemoryAssetRenditionRepo,
   InMemoryBlobStore,
@@ -873,7 +875,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
           renditionRepo: routeDeps.assetRenditionRepo, blobStore: routeDeps.blobStore,
         }, contentTypes: routeDeps.mediaContentTypeStore, resolveCreatedByPrincipal: async () => { throw new Error("Purge never creates files"); } });
         await files.discard({ workspaceId, reference: { mediaId } });
-        await scheduleFormAttachmentCleanup({ outbox, workspaceId, mediaId, sha256: asset.source.sha256, now: clock.nowMs() });
+        await scheduleFormAttachmentCleanup({ outbox, workspaceId, mediaId, sha256: asset.source.sha256, now: clock.nowMs(), graceMs: DEFAULT_GC_GRACE_MS });
       },
     })));
   }
@@ -1843,6 +1845,7 @@ function subscribeSiteEventHandlersOnce(routeDeps: NewsletterRouteDeps): void {
     createFormsModule({
       outbox: routeDeps.outbox,
       fileCleanup: {
+        withHashLock: withSha256Lock,
         findBlob: input => routeDeps.assetBlobRepo.findByHash(input),
         // This is a delayed cold GC job, never a visitor or upload hot path. Without a
         // persistent content database we cannot prove orphanhood, so retain the bytes.
