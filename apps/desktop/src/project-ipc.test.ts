@@ -2414,7 +2414,7 @@ test('B2 restart policy uses raw RSS across footprint and fallback display chang
 });
 
 test('B2 below-cap, missing, stale and replacement PID samples reset sustained RSS', async t => {
-  for (const reset of ['below', 'missing', 'stale', 'pid'] as const) {
+  for (const reset of ['below', 'missing', 'stale', 'pid', 'nan', 'infinite', 'null'] as const) {
     const h = b2LifecycleHarness(t); h.setMinutes(0); let requests = 0;
     h.server().stopIfIdle = async () => { requests++; return false; };
     await h.lifecycle.maintain({ snapshot: h.snapshot(1_500_000_000) }, {}); h.advance(120000);
@@ -2423,6 +2423,9 @@ test('B2 below-cap, missing, stale and replacement PID samples reset sustained R
     if (reset === 'missing') snapshot.sites = [];
     if (reset === 'stale') snapshot.sampledAt -= 30001;
     if (reset === 'pid') { h.server().pid += 1; snapshot.sites = h.snapshot(1_500_000_000).sites; }
+    if (reset === 'nan') snapshot.sites = h.snapshot(Number.NaN).sites;
+    if (reset === 'infinite') snapshot.sites = h.snapshot(Number.POSITIVE_INFINITY).sites;
+    if (reset === 'null') snapshot.sites[0]!.processes = snapshot.sites[0]!.processes.map(row => ({ ...row, rssBytes: null }));
     await h.lifecycle.maintain({ snapshot }, {}); assert.equal(requests, 0, reset);
     await h.lifecycle.maintain({ snapshot: h.snapshot(1_500_000_000) }, {});
     h.advance(119999); await h.lifecycle.maintain({ snapshot: h.snapshot(1_500_000_000) }, {});

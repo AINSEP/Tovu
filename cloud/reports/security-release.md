@@ -1,6 +1,6 @@
 # security-release — Tovu Desktop 0.1.30
 
-Status: complete. Tovu only, on `cloud/security-release`. No tag, publication, deployment, main push or force push performed.
+Status: in progress — desktop gate repairs on cloud/security-release. No tag, publication, deployment or main push performed.
 
 ## Changes
 
@@ -126,3 +126,7 @@ This step's implementation commits, both on `cloud/security-release`:
 - `8d3fe13e6aaecd03f19daa89259d2b67058661b2`
 
 The final response provides the final report-commit SHA; that commit changes documentation only. Earlier integration and checkpoint SHAs remain in the prior report/history.
+
+## Desktop gate repair — in progress
+
+The untruncated main-process baseline found 9 failures across 2,174 tests. Causes include stale shutdown VM dependencies, an outdated staging-path inventory, subprocess timeouts and container-only process/Electron availability. Two requested complexity refactors preserve all thresholds and behavior. The affected source/fixture tests pass 169 checks. All gate configurations, floors and debt inventories remain unchanged. Full gate verification is pending.

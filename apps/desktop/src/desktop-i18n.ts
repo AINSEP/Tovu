@@ -128,13 +128,19 @@ export function runtimeLocale(
   return nav == null ? 'en' : nav.language;
 }
 
-export function desktopCopy({ locale }: { locale: string }, _optionalArgs = {}): DesktopCopy {
+/** Preserve regional matching and Chinese-script fallback for this desktop's copy tables. */
+function desktopLocaleKey({ locale }: { locale: string }): string {
   const normalized = locale.replace(/_/g, '-');
   let key = Object.keys(COPY).find(key => key.toLowerCase() === normalized.toLowerCase());
   if (key === undefined) {
     key = normalized.split('-')[0] ?? 'en';
     if (normalized.toLowerCase().startsWith('zh')) key = /tw|hk|hant/i.test(normalized) ? 'zh-TW' : 'zh-CN';
   }
+  return key;
+}
+
+export function desktopCopy({ locale }: { locale: string }, _optionalArgs = {}): DesktopCopy {
+  const key = desktopLocaleKey({ locale });
   const row = COPY[key] ?? COPY.en!;
   const [settings, automaticUpdates, saveUpdateError, restart, restarting] = row;
   const [invalid, empty, incomplete, unreadable, add, start] = SITE_ERROR_COPY[key] ?? SITE_ERROR_COPY.en!;

@@ -86,7 +86,9 @@ test("before-quit waits on in-flight teardowns, not only on openSites", async ()
   let prevented = 0;
   let finalQuits = 0;
   let lifecycleStops = 0;
+  let quitNotifications = 0;
   vm.runInNewContext(`${beforeQuitHandler()}\n});`, {
+    lastWindowQuit: { onQuitStarted: () => { quitNotifications++; } },
     stopSiteLifecycle: () => { lifecycleStops++; },
     app: {
       on: (_event: string, listener: typeof onQuit) => { onQuit = listener; },
@@ -108,6 +110,7 @@ test("before-quit waits on in-flight teardowns, not only on openSites", async ()
   try {
     await flush();
     assert.equal(prevented, 1);
+    assert.equal(quitNotifications, 1);
     assert.equal(lifecycleStops, 1);
     assert.equal(finalQuits, 0, "app.quit() must await a tracked teardown even with no open windows");
     assert.deepEqual(shutdownOrder, ["product-listeners", "product-memory", "product", "runtime", "mcp", "previews", "agent-service"]);
@@ -148,8 +151,10 @@ test("Quit during a card Stop waits for its tracked teardown after openSites bec
   let finalQuits = 0;
   let prevented = 0;
   let lifecycleStops = 0;
+  let quitNotifications = 0;
   const shutdownOrder: string[] = [];
   vm.runInNewContext(`${beforeQuitHandler()}\n});`, {
+    lastWindowQuit: { onQuitStarted: () => { quitNotifications++; } },
     stopSiteLifecycle: () => { lifecycleStops++; },
     app: {
       on: (_event: string, listener: typeof onQuit) => { onQuit = listener; },
@@ -172,6 +177,7 @@ test("Quit during a card Stop waits for its tracked teardown after openSites bec
     await flush();
     onQuit({ preventDefault: () => { prevented++; } });
     assert.equal(prevented, 2);
+    assert.equal(quitNotifications, 2);
     assert.equal(lifecycleStops, 2);
     assert.equal(finalQuits, 0, "Quit must not outrun the card's pending Stop");
     assert.equal(closedRows, 0, "the recovery row must outlive the child");

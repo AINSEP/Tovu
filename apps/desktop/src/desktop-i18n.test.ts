@@ -13,6 +13,9 @@ test('new desktop copy is translated in all Tovu locales', () => {
   }
   assert.equal(desktopCopy({ locale: 'es-MX' }).restart, 'Reiniciar');
   assert.equal(desktopCopy({ locale: 'zh-Hant' }).restart, '重新啟動');
+  assert.equal(desktopCopy({ locale: 'zh_HK' }).restart, '重新啟動');
+  assert.equal(desktopCopy({ locale: 'zh' }).restart, '重启');
+  assert.equal(desktopCopy({ locale: 'PT_br' }).restart, 'Reiniciar');
   assert.deepEqual(desktopCopy({ locale: 'unknown' }), english);
 });
 

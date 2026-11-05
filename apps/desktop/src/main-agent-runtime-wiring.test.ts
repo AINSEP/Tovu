@@ -53,6 +53,7 @@ test("quit waits for owned runtime disposal even without sites and disposes once
   let mcpCloses = 0;
   let agentShutdowns = 0;
   let lifecycleStops = 0;
+  let quitNotifications = 0;
   let prevented = 0;
   let finalQuits = 0;
   let onQuit!: (event: { preventDefault(): void }) => void;
@@ -60,6 +61,7 @@ test("quit waits for owned runtime disposal even without sites and disposes once
   const quitCompleted = new Promise<void>((resolve) => { finishedQuit = resolve; });
   const event = { preventDefault: () => { prevented++; } };
   const context = vm.createContext({
+    lastWindowQuit: { onQuitStarted: () => { quitNotifications++; } },
     stopSiteLifecycle: () => { lifecycleStops++; },
     siteDiscovery: { abortAll: () => {} },
     quitPhase: "idle", openSites: new Map(),
@@ -86,6 +88,7 @@ test("quit waits for owned runtime disposal even without sites and disposes once
   onQuit(event);
   onQuit(event);
   assert.equal(prevented, 2);
+  assert.equal(quitNotifications, 2, 'each quit attempt revokes pending last-window confirmation');
   assert.equal(disposals, 1);
   assert.equal(lifecycleStops, 2, 'each quit attempt revokes automatic site work before draining');
   assert.deepEqual(shutdownOrder, ["product-listeners", "product-memory", "product", "runtime", "mcp", "previews"]);
@@ -101,6 +104,7 @@ test("quit waits for owned runtime disposal even without sites and disposes once
   assert.equal(finalQuits, 0, "runtime disposal must still finish after product telemetry has drained");
   finishDisposal();
   await quitCompleted;
+  assert.equal(quitNotifications, 3, 'the final quit also notifies the controller');
   assert.equal(finalQuits, 1);
   assert.equal(disposals, 1);
   assert.equal(mcpCloses, 1);

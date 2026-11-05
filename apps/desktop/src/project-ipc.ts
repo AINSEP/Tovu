@@ -209,6 +209,11 @@ function scheduleSiteRetry({ delayMs, run }: { delayMs: number; run: () => void 
   return () => clearTimeout(timer);
 }
 
+/** Invalid samples cannot extend a high-RSS observation. */
+function isHighSiteRss({ rssBytes }: { rssBytes: number | null | undefined }): boolean {
+  return typeof rssBytes === "number" && Number.isFinite(rssBytes) && rssBytes >= 1_500_000_000;
+}
+
 /** Use only the owned root's current OS RSS, independent of the cached footprint display. Totals include grandchildren and cannot enforce this cap.
  * @complexity O(p) for the snapshot's p processes; O(1) retained observation per site.
  */
@@ -217,7 +222,7 @@ function siteRssOverTime({ state, server, snapshot, siteDir, at }: {
 }, _options = {}): boolean {
   const root = currentSiteRss({ snapshot, siteDir, pid: server.pid, at });
   const rssBytes = root?.rawRssBytes ?? root?.rssBytes;
-  if (!root || rssBytes === undefined || !Number.isFinite(rssBytes) || rssBytes < 1_500_000_000) {
+  if (!root || !isHighSiteRss({ rssBytes })) {
     state.rss = undefined;
     return false;
   }

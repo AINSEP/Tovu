@@ -30,7 +30,8 @@ test("package and every release staging path check shell and payload inputs befo
     "node ../../development/scripts/check-no-linked-jini.mjs && cd ../.. && node development/scripts/check-no-linked-jini.mjs");
   const release = fs.readFileSync(path.resolve(DESKTOP_ROOT, "../../.github/workflows/desktop-release.yml"), "utf8");
   const stagingCommands = release.split("\n").filter((line) => line.includes("npm run stage"));
-  assert.equal(stagingCommands.length, 2, "both the desktop matrix and Store build use the guarded stage entry");
+  assert.equal(stagingCommands.length, 3, "the assistant gate, desktop matrix and Store build use the guarded stage entry");
+  assert.match(release, /assistant-gate:[\s\S]*?TOVU_TARGET_ARCH=arm64 npm run stage/);
 });
 
 for (const field of ["dependencies", "optionalDependencies", "peerDependencies"]) {
