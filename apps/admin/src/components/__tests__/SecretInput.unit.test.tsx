@@ -69,11 +69,15 @@ describe("SecretInput", () => {
     expect(screen.getByLabelText("API key")).toHaveAttribute("type", "text");
   });
 
-  it("disables the toggle with the input and passes agent attributes through", () => {
-    render(<SecretInput label="Token" autoComplete="new-password" disabled toggleAttrs={{ "data-agent-element": "token-reveal" }} />);
+  it("disables the toggle with the input and suppresses agent addressing", () => {
+    render(<SecretInput label="Token" aria-label="Token" data-agent-element="token" autoComplete="new-password" disabled toggleAttrs={{ "data-agent-element": "token-reveal", "data-testid": "token-toggle" }} />);
     const toggle = screen.getByRole("button", { name: "Show Token" });
     expect(toggle).toBeDisabled();
-    expect(toggle).toHaveAttribute("data-agent-element", "token-reveal");
+    expect(toggle).not.toHaveAttribute("data-agent-element");
+    expect(toggle).toHaveAttribute("data-testid", "token-toggle");
+    expect(toggle).toHaveAttribute("data-agent-private", "");
+    expect(screen.getByLabelText("Token")).not.toHaveAttribute("data-agent-element");
+    expect(screen.getByLabelText("Token")).toHaveAttribute("data-agent-private", "");
   });
 
   it("renders a non-secret declared field as plain text with no toggle and autocomplete off", () => {
