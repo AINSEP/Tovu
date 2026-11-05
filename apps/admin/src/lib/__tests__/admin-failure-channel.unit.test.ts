@@ -111,3 +111,19 @@ it("preserves the original rejection when a notice subscriber throws", async () 
   expect((error as ApiError).body).toEqual(body);
   expect((error as ApiError).message).toBe(body.error);
 });
+
+it.each([
+  { status: 0, cause: "No server response was received, so no server incident ID is available." },
+  { status: 500, cause: "The server did not provide an incident ID for this response." },
+])("does not claim a server incident reference exists when status $status has no ID", async ({ status, cause }) => {
+  vi.stubGlobal("fetch", vi.fn(async () => {
+    if (status === 0) throw new TypeError("Failed to fetch");
+    return new Response('{"error":"Private backend HOST_SECRET_CANARY"}', { status });
+  }));
+  await authenticatedAdminRequest({ path: "/pages", method: "GET" }).catch(() => undefined);
+  const failure = adminFailureChannel.getSnapshot();
+  expect(failure?.errorId).toBeUndefined();
+  expect(failure?.cause).toBe(cause);
+  expect(failure?.copyText).not.toContain("The error ID identifies the server report.");
+  expect(failure?.copyText).not.toContain("HOST_SECRET_CANARY");
+});

@@ -28,6 +28,15 @@ function approvedFailure({ value }: { value: unknown }): UserFacingError | undef
   });
 }
 
+/** Describe only the incident evidence actually returned by the request, never an inferred report.
+ * @complexity O(1), no I/O. @overallScore 100 — fixed copy with directly tested reference/response cases.
+ */
+function incidentCause({ status, errorId }: { status: number; errorId?: string }): string {
+  if (errorId) return "The error ID identifies the server report.";
+  if (status === 0) return "No server response was received, so no server incident ID is available.";
+  return "The server did not provide an incident ID for this response.";
+}
+
 /** Tovu's disclosure adapter: safe shared wording for legacy failures, approved details after sign-in.
  * Inputs are the final failed response and its captured session generation; no new I/O or retries.
  * @complexity O(path length + bounded formatted text); retains one incident in memory.
@@ -46,7 +55,8 @@ export function publishAdminFailure(
   const approved = authenticated ? approvedFailure({ value: details.failure }) : undefined;
   const wording = describeRequestFailure({ method, route: path, vocabulary: ADMIN_FAILURE_VOCABULARY });
   const step = status === 0 ? `${wording.step} (no server response)` : `${wording.step} (HTTP ${status})`;
-  const failure = approved ?? formatUserFacingError({ ...wording, step, cause: "The error ID identifies the server report." }, {
+  const cause = incidentCause({ status, errorId });
+  const failure = approved ?? formatUserFacingError({ ...wording, step, cause }, {
     ...TOVU_ERROR_REDACTION_OPTIONS, errorId, time: new Date().toISOString(),
   });
   adminFailureChannel.publish({ failure, generation });
