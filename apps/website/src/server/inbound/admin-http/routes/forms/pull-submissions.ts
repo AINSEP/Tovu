@@ -1,4 +1,4 @@
-import { adminFailureResponse, sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Response } from "express";
 
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -28,9 +28,10 @@ async function respondWithPullReport(
   } catch (error) {
     // One host's failure is already a per-destination report; this is a failure before any host
     // was read (the vault, the plugin registry). Log the cause under a reference the reply repeats.
-    const failure = adminFailureResponse({ error, tracker: res.locals.adminFailureTracker }, { operation: "forms-pull" });
-    const reference = failure.body.errorId;
-    res.status(failure.status).json({ ...failure.body, error: `pulling form submissions failed before any host was read; try again, and if it fails again report reference ${reference} (the site's server log has the details)` });
+    sendAdminFailure({ res, error }, { operation: "forms-pull",
+      message: "Form submission retrieval stopped before any published host was read.",
+      failure: { action: "Try pulling submissions again. If it still fails, copy details and report this problem.", step: "forms.submissions.pull" },
+    });
   }
 }
 

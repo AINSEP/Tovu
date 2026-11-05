@@ -1,8 +1,9 @@
 import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
+import { ADMIN_FAILURE_VOCABULARY } from "@tovu/contracts/admin-failure-copy";
 import { randomUUID } from "node:crypto";
 import type { Response } from "express";
 import type { Tracker } from "@jini-ai/diagnostics/observability";
-import { formatErrorForLog, formatUserFacingError, type UserFacingError, type UserFacingErrorOptions } from "@jini-ai/core";
+import { describeRequestFailure, formatErrorForLog, formatUserFacingError, type UserFacingError, type UserFacingErrorOptions } from "@jini-ai/core";
 import { SiteShareRefusal } from "#src/features/site-backup/share-policy";
 import { SiteShareExportFailure, SITE_EXPORT_FAILURE_MESSAGES } from "#src/features/site-backup/share-export-failure";
 import { DatabaseDiskSpaceError } from "@jini-ai/db/sqlite";
@@ -13,11 +14,20 @@ interface FailureOptions {
   message?: string;
   field?: "error" | "message";
   details?: Record<string, unknown>;
-  /** Opt-in disclosure at a migrated call site; other envelopes keep their existing shape. */
+  method?: string;
+  route?: string;
+  /** The HTTP boundary disables details before an authenticated principal is established. */
+  discloseDetails?: boolean;
+  /** Only the export pilot may supply its authorized, redacted cause. */
   failure?: { action: string; step: string; cause?: unknown; metadata?: UserFacingErrorOptions };
 }
 
 export interface AdminFailurePorts { tracker?: Pick<Tracker, "error"> }
+interface FailureResponse {
+  status(code: number): { json(body: unknown): unknown };
+  locals?: Response["locals"];
+  req?: Pick<Response["req"], "method" | "route">;
+}
 
 /** Preserve an exception's stack while redacting before either diagnostic sink receives it. */
 function adminDiagnostic({ error }: { error: unknown }, _options = {}): string {
@@ -30,11 +40,12 @@ function adminDiagnostic({ error }: { error: unknown }, _options = {}): string {
  */
 export function adminFailureResponse(
   { error, tracker }: { error: unknown } & AdminFailurePorts,
-  { operation = "admin-route", code = "INTERNAL_ERROR", message = "The admin request could not finish. Check whether your change was saved, then copy the error ID and report this problem.", failure: context }: FailureOptions = {},
+  options: FailureOptions = {},
 ): { status: number; body: { error: string; code: string; errorId: string; details?: { failure: UserFacingError } } } {
+  const { operation = "admin-route" } = options;
   const diagnostic = adminDiagnostic({ error });
   const generatedId = randomUUID();
-  const body = unexpectedAdminBody({ message, code, errorId: generatedId, context });
+  const body = unexpectedAdminBody({ errorId: generatedId, options });
   const errorId = body.errorId;
   // Never hand raw backend/provider errors to a log sink: they may contain saved credentials.
   // Diagnostic sinks are independent: either may fail, but neither may suppress the HTTP reply.
@@ -45,32 +56,51 @@ export function adminFailureResponse(
   return { status: 500, body };
 }
 
-/** Only the export pilot opts into its authorized, redacted cause. Other migrated routes retain
- * the existing private-diagnostic policy and disclose an approved explanation plus its report ID.
+/** Only the export pilot opts into its authorized, redacted cause. Other routes retain the
+ * private-diagnostic policy and disclose an approved explanation plus its report ID.
  * @complexity Core redaction over one bounded explanation; no I/O beyond the boundary's timestamp.
  */
-function unexpectedAdminBody({ message, code, errorId, context }: {
-  message: string; code: string; errorId: string; context: FailureOptions["failure"];
-}) {
-  if (!context) return { code, errorId, error: `${message} (error ${errorId})` };
+function unexpectedAdminBody({ errorId, options }: { errorId: string; options: FailureOptions }) {
+  const { code = "INTERNAL_ERROR", discloseDetails = true } = options;
+  const { message, context, includeAction } = approvedFailureCopy({ options });
   const failure = formatUserFacingError({ message, action: context.action, step: context.step,
-    cause: context.cause ?? "The server could not complete this operation. Its error ID identifies the server report." },
+    cause: context.cause ?? "The error ID identifies the server report." },
   { ...context.metadata, ...TOVU_ERROR_REDACTION_OPTIONS, errorId, time: context.metadata?.time ?? new Date().toISOString() });
   // The shared formatter preserves a cause's existing ERR ID. Use it for both sinks and reply.
   const correlatedId = failure.errorId ?? errorId;
-  return { code, errorId: correlatedId, error: `${failure.message} ${failure.action} (error ${correlatedId})`, details: { failure } };
+  const explanation = includeAction ? `${failure.message} ${failure.action}` : failure.message;
+  return { code, errorId: correlatedId, error: `${explanation} (error ${correlatedId})`, ...(discloseDetails ? { details: { failure } } : {}) };
+}
+
+/** Anonymous boundaries use only approved vocabulary, even if an override contains private facts.
+ * @complexity O(route tokens) through the pure descriptor; no I/O or retained state.
+ */
+function approvedFailureCopy({ options }: { options: FailureOptions }): { message: string; context: NonNullable<FailureOptions["failure"]>; includeAction: boolean } {
+  const copy = describeRequestFailure({ method: options.method, route: options.route, operation: options.operation, vocabulary: ADMIN_FAILURE_VOCABULARY });
+  if (options.discloseDetails === false) return { message: copy.message, context: copy, includeAction: true };
+  return { message: options.message ?? copy.message, context: options.failure ?? copy, includeAction: !!options.failure || options.message === undefined };
+}
+
+/** Only the registered template is safe: req.path, query and a mounted baseUrl may contain IDs.
+ * @complexity O(1); reads request-owned metadata only.
+ */
+function httpFailureOptions({ res, options }: { res: FailureResponse; options: FailureOptions }): FailureOptions {
+  const discloseDetails = !res.req || !!res.locals?.principal;
+  const route = typeof res.req?.route?.path === "string" ? res.req.route.path : undefined;
+  return { ...options, method: res.req?.method, route, discloseDetails };
 }
 
 /** Send the shared failure envelope using the tracker injected by the HTTP composition root.
  * @complexity The shared redaction cost plus O(1) envelope construction.
  */
 export function sendAdminFailure(
-  { res, error, tracker = res.locals?.adminFailureTracker }: { res: { status(code: number): { json(body: unknown): unknown }; locals?: Response["locals"] }; error: unknown; tracker?: Pick<Tracker, "error"> },
+  { res, error, tracker = res.locals?.adminFailureTracker }: { res: FailureResponse; error: unknown; tracker?: Pick<Tracker, "error"> },
   options: FailureOptions = {},
 ): void {
-  const { status, body } = adminFailureResponse({ error, tracker }, options);
+  const resolved = httpFailureOptions({ res, options });
+  const { status, body } = adminFailureResponse({ error, tracker }, resolved);
   const { error: message, ...identity } = body;
-  res.status(status).json({ ...options.details, ...identity, [options.field ?? "error"]: message });
+  res.status(status).json({ ...(resolved.discloseDetails ? options.details : {}), ...identity, [options.field ?? "error"]: message });
 }
 
 /** Share and password failures must remain diagnosable even when telemetry is disabled.

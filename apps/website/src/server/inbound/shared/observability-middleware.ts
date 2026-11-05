@@ -6,6 +6,7 @@ import type { Tracker, TrackerSpan, RequestTrackingOutcome } from "@jini-ai/diag
 
 import { runWithErrorReportScope, type ErrorReportScope } from "../../../platform/observability/report-error.js";
 import { REQUEST_ID_HEADER, resolveRequestId } from "./request-id.js";
+import { sendAdminFailure } from "../admin-http/routes/system/site-share-errors.js";
 
 /**
  * @file Records inbound HTTP requests through the injected diagnostics observability port
@@ -80,6 +81,7 @@ export function applyRequestTracking(app: Express, deps: {
     const requestId = resolveRequestId({ header: req.headers[REQUEST_ID_HEADER] });
     res.setHeader(REQUEST_ID_HEADER, requestId);
     res.locals.requestId = requestId;
+    res.locals.adminFailureTracker = deps.tracker;
     const scope: ErrorReportScope = { reported: false };
     const observeResponse = ({ span, resolve }: { span: TrackerSpan<RequestTrackingOutcome>; resolve: () => void }, _options = {}) => {
       res.once("finish", () => {
@@ -125,11 +127,16 @@ function reportServerError({ tracker, req, res, scope, routePattern }: {
 }
 
 /**
- * Last error middleware in `createApp()`: remembers the error Express is about to answer with its
- * default handler so the 5xx report above carries the real error, then passes it on unchanged.
+ * Last error middleware in `createApp()`: remembers non-admin errors for Express's default
+ * handler, while admin failures use the shared safe incident lifecycle. Its tracker marks the
+ * request scope reported, so response completion does not report the same incident again.
  * @complexity O(1).
  */
-export const captureRouteError: ErrorRequestHandler = (error, _req, res, next) => {
+export const captureRouteError: ErrorRequestHandler = (error, req, res, next) => {
   res.locals.routeError = error;
+  if (!res.headersSent && /^\/api\/admin(?:\/|$)/.test(req.path)) {
+    sendAdminFailure({ res, error }, { operation: "admin-route.uncaught" });
+    return;
+  }
   next(error);
 };
