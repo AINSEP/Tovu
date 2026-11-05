@@ -82,7 +82,7 @@ test("uncaught admin exceptions use one safe correlated incident, including anon
   t.mock.method(console, "error", () => {});
   const { port, reports } = recording();
   const app = express();
-  applyRequestTracking(app, { tracker: createTracker({ observability: port }), env: {} });
+  applyRequestTracking(app, { tracker: createTracker({ observability: port }), env: { TOVU_LOG_REQUESTS: undefined, TOVU_LOG_SLOW_REQUESTS: undefined } });
   app.get("/api/admin/v1/pages/:id", (_req, res) => {
     res.locals.principal = { id: "owner" };
     throw new Error("PRIVATE_BACKEND password=SECRET_CANARY");
@@ -123,7 +123,7 @@ test("an uncaught admin error already reported by a tracked operation is not rep
   const { port, reports } = recording();
   const tracker = createTracker({ observability: port });
   const app = express();
-  applyRequestTracking(app, { tracker, env: {} });
+  applyRequestTracking(app, { tracker, env: { TOVU_LOG_REQUESTS: undefined, TOVU_LOG_SLOW_REQUESTS: undefined } });
   app.get("/api/admin/v1/pages", (_req, res, next) => {
     res.locals.principal = { id: "owner" };
     void tracker.trace({ name: "pages.load", run: async () => { throw new Error("PRIVATE_BACKEND password=SECRET_CANARY"); } }).catch(next);
