@@ -19,12 +19,23 @@ test("checkout markup fits theme layouts without a main element and fragment ren
 
 test("the host only displays purchase controls for an active, ready commerce plugin and exact price", async () => {
   for (const status of [{ active: false, ready: false }, { active: false, ready: true }, { active: true, ready: false }]) {
-    assert.equal(await productCheckoutWhenReady({ html: "Product", workspaceId: "site", priceId: "price", commerce: { status: async () => status } }), "Product");
+    assert.equal(await productCheckoutWhenReady({ html: "Product", workspaceId: "site", productSlug: "book", currentOrigin: "https://shop.test", priceId: "price", commerce: { checkoutOrigin: async () => "https://shop.test", status: async () => status } }), "Product");
   }
-  const html = await productCheckoutWhenReady({ html: "Product", workspaceId: "site", priceId: "price", commerce: { status: async () => ({ active: true, ready: true }) } });
+  const html = await productCheckoutWhenReady({ html: "Product", workspaceId: "site", productSlug: "book", currentOrigin: "https://shop.test", priceId: "price", commerce: { checkoutOrigin: async () => "https://shop.test", status: async () => ({ active: true, ready: true }) } });
   assert.match(html, /Buy now/);
   let reads = 0;
-  assert.equal(await productCheckoutWhenReady({ html: "Product", workspaceId: "site", priceId: undefined, commerce: { status: async () => { reads++; return { active: true, ready: true }; } } }), "Product");
+  assert.equal(await productCheckoutWhenReady({ html: "Product", workspaceId: "site", productSlug: "book", currentOrigin: "https://shop.test", priceId: undefined, commerce: { checkoutOrigin: async () => "https://shop.test", status: async () => { reads++; return { active: true, ready: true }; } } }), "Product");
   assert.equal(reads, 0);
-  assert.equal(await productCheckoutWhenReady({ html: "Product", workspaceId: "site", priceId: "price", commerce: undefined }, {}), "Product");
+  assert.equal(await productCheckoutWhenReady({ html: "Product", workspaceId: "site", productSlug: "book", currentOrigin: "https://shop.test", priceId: "price", commerce: undefined }, {}), "Product");
+});
+
+test("desktop management links to the deployed shop and never includes a local purchase form", async () => {
+  const html = await productCheckoutWhenReady({ html: "Product", workspaceId: "site", productSlug: "book/one", currentOrigin: "http://localhost:3000", priceId: "price", commerce: { status: async () => ({ active: true, ready: true }), checkoutOrigin: async () => "https://shop.test" } });
+  assert.match(html, /href="https:\/\/shop.test\/products\/book%2Fone"/);
+  assert.match(html, /Open shop to buy/); assert.doesNotMatch(html, /data-commerce-checkout|checkout.js|Buy now/);
+});
+test("invalid or unavailable configured shop origins never produce payment controls or unsafe links", async () => {
+  for (const origin of [null, "http://shop.test", "javascript:alert(1)", "https://user:secret@shop.test", "https://shop.test/path"]) {
+    assert.equal(await productCheckoutWhenReady({ html: "Product", workspaceId: "site", productSlug: "book", currentOrigin: "http://localhost", priceId: "price", commerce: { status: async () => ({ active: true, ready: true }), checkoutOrigin: async () => origin } }), "Product");
+  }
 });

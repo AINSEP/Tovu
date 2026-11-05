@@ -1,3 +1,4 @@
+import { resolveProtocol } from "../oauth/public-origin.js";
 import { productCheckoutWhenReady } from "./product-checkout.js";
 import { resolveRenderThemeId } from "../../middleware/render-theme-override.js";
 import { NO_THEME_ID, resolveActiveTheme } from "#src/features/theme/active-theme";
@@ -108,7 +109,8 @@ export const registerProductRoutes = (app: import("express").Express, deps: Comm
       // a real page back.
       const theme = resolved === NO_THEME_ID ? null : resolved;
       let html = await renderSite({ theme, route: "product", siteTitle, posts: [], products, product, siteAssistantEnabled });
-      html = await productCheckoutWhenReady({ html, workspaceId: deps.workspaceId, priceId: product.priceId, commerce: deps.commerce });
+      html = await productCheckoutWhenReady({ html, workspaceId: deps.workspaceId, priceId: product.priceId,
+        productSlug: product.slug || product.id, currentOrigin: `${resolveProtocol(req)}://${req.get("host")}`, commerce: deps.commerce });
       res.set("Cache-Control", cacheControlFor(req)).type("html").send(markOffSiteLinksOpenInNewTab(html, req.hostname));
     } catch {
       res.status(500).type("html").send("<h1>This product could not be loaded</h1><p>Please try again shortly.</p>");

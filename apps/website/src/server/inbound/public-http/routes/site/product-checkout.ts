@@ -9,19 +9,38 @@ export function appendProductCheckout(
 ): string {
   const orders = `/api/commerce/v1/workspaces/${encodeURIComponent(workspaceId)}/orders`;
   const markup = `<section class="wrap commerce-checkout"><form data-commerce-checkout data-orders-url="${escapeHtml(orders)}" data-price-id="${escapeHtml(priceId)}"><button type="submit" class="button">Buy now</button><p data-checkout-status role="status" aria-live="polite"></p><a data-checkout-order hidden>View order</a></form></section><script src="/commerce/checkout.js" defer></script>`;
+  return appendMarkup({ html, markup });
+}
+
+/** Both checkout controls and the deployed-shop link occupy the same theme-owned main layout. */
+function appendMarkup({ html, markup }: { html: string; markup: string }): string {
   if (html.includes("</main>")) return html.replace("</main>", `${markup}</main>`);
   if (html.includes("</body>")) return html.replace("</body>", `${markup}</body>`);
   return html + markup;
 }
 
-/** The host's activation answer gates purchase controls; a catalog render never enables money.
- * @complexity O(html.length) and one existing activation/status read when a price is present. */
+/** A link sink still checks the configured origin even though commerce validates its configuration. */
+function deployedShop({ origin, productSlug }: { origin: string; productSlug: string }): string | null {
+  try {
+    const url = new URL(origin);
+    return url.protocol === "https:" && url.origin === origin ? `${origin}/products/${encodeURIComponent(productSlug)}` : null;
+  } catch { return null; }
+}
+
+/** The host's activation answer gates purchase controls. Desktop management opens the deployed
+ * HTTPS shop; only that shop displays a payment form. @complexity O(html.length), <=2 config reads. */
 export async function productCheckoutWhenReady(
-  { html, workspaceId, priceId, commerce }: { html: string; workspaceId: string; priceId: string | undefined;
-    commerce: { status(): Promise<{ active: boolean; ready: boolean }> } | undefined },
+  { html, workspaceId, priceId, productSlug, currentOrigin, commerce }: { html: string; workspaceId: string; priceId: string | undefined;
+    productSlug: string; currentOrigin: string;
+    commerce: { status(): Promise<{ active: boolean; ready: boolean }>; checkoutOrigin(): Promise<string | null> } | undefined },
   _optional: Record<string, never> = {},
 ): Promise<string> {
   if (!priceId || !commerce) return html;
   const status = await commerce.status();
-  return status.active && status.ready ? appendProductCheckout({ html, workspaceId, priceId }) : html;
+  if (!status.active || !status.ready) return html;
+  const origin = await commerce.checkoutOrigin();
+  const shop = origin ? deployedShop({ origin, productSlug }) : null;
+  if (!shop) return html;
+  if (currentOrigin === origin) return appendProductCheckout({ html, workspaceId, priceId });
+  return appendMarkup({ html, markup: `<section class="wrap commerce-checkout"><a class="button" href="${escapeHtml(shop)}">Open shop to buy</a></section>` });
 }
