@@ -207,6 +207,16 @@ test('[sqlite] configuration before provider keys recovers when the current leas
   await f.saveProvider(); f.attach();
   assert.equal((await runtime.commerce.activate()).ready, true);
   assert.equal((await runtime.commerce.status()).ready, true);
+  const statusTool = runtime.commerce.toolRegistrations({ authorize: async () => ({ allowed: true, reason: 'fixture-owner' }) })
+    .find(registration => registration.descriptor.id === 'commerce_get_status');
+  assert.ok(statusTool);
+  const status = await statusTool.handler({ executionId: 'status', input: {}, principal: { id: 'fixture-owner' },
+    run: { id: 'fixture-run' }, signal: new AbortController().signal } as never) as {
+      providers: Array<{ id: string }>; paymentRuntime: { status: string }; capabilities: { providerDiscovery: string; webhookReconciliation: string } };
+  assert.deepEqual(status.providers.map(provider => provider.id), ['stripe']);
+  assert.equal(status.paymentRuntime.status, 'available');
+  assert.equal(status.capabilities.providerDiscovery, 'available');
+  assert.equal(status.capabilities.webhookReconciliation, 'available');
 });
 
 test('[sqlite] runtime enabling and configuration changes prepare storefront without a setup tool call', async t => {
