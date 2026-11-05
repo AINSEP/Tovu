@@ -18,6 +18,36 @@ after(closeHost);
 
 const RUNNING = site('a', { status: 'running', port: 4100 });
 
+test('SiteWorkspace: opening a sleeping site wakes once through startSite and uses the returned port', async t => {
+  const view = await renderWorkspaces(t, { openSites: [site('a', { status: 'sleeping', port: 0 })] });
+  assert.deepEqual(view.calls, ['start:a', 'updated:a']);
+  view.rerender({ expanded: true });
+  await settle();
+  assert.deepEqual(view.calls, ['start:a', 'updated:a'], 'no repeated wake while awaiting the updated record');
+  view.rerender({ openSites: [site('a', { status: 'running', port: 4200 })] });
+  await settle();
+  assert.equal(view.container.querySelector('webview')?.getAttribute('src'), 'http://127.0.0.1:4200/admin/');
+});
+
+test('SiteWorkspace: a hidden sleeping tab waits for focus; a failed wake is shown without a retry loop', async t => {
+  let starts = 0;
+  const view = await renderWorkspaces(t, { openSites: [site('a', { status: 'sleeping' })], visibleWorkspaceId: null }, {
+    startSite: async () => { starts++; throw new Error('The server could not start.'); },
+  });
+  assert.equal(view.container.querySelector('.workspace__error'), null);
+  assert.equal(starts, 0);
+  view.rerender({ visibleWorkspaceId: 'a' });
+  await settle();
+  assert.equal(view.container.querySelector('.workspace__error')?.textContent, 'The server could not start.');
+  assert.equal(view.byText('Wake site')?.hasAttribute('disabled'), false);
+  assert.equal(starts, 1);
+  view.rerender({ visibleWorkspaceId: null });
+  view.rerender({ visibleWorkspaceId: 'a' });
+  await settle();
+  assert.equal(view.container.querySelector('.workspace__error')?.textContent, 'The server could not start.');
+  assert.equal(starts, 1);
+});
+
 interface Props {
   openSites?: readonly SiteRecord[];
   inSites?: boolean;

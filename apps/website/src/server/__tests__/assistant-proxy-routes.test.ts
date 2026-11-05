@@ -101,9 +101,14 @@ async function startStandInDaemon(): Promise<{ origin: string; server: Server }>
         res.end('{"settled":true}');
         return;
       }
+      if ((req.url ?? "") === "/api/runs/live-input/messages") {
+        res.writeHead(202, { "content-type": "application/json" });
+        res.end(JSON.stringify({ delivery: "delivered", id: "accepted-publish" }));
+        return;
+      }
       // Stand-in for the daemon's `POST /api/runs/:runId/messages` refusing a mid-run message: the
       // 409 and its `details.delivery` must reach the browser intact, since the chat pane decides
-      // from them whether to stop the run and send the text as the next turn.
+      // from them whether to deliver live or queue the text after the current run.
       if ((req.url ?? "") === "/api/runs/run-1/messages") {
         res.writeHead(409, { "content-type": "application/json" });
         res.end(JSON.stringify({ error: { code: "CONFLICT", message: "not delivered", details: { delivery: "unsupported" } } }));
@@ -447,6 +452,20 @@ test("a message sent mid-run is session-gated and forwarded to the daemon with i
   assert.deepEqual(JSON.parse(recorded[0].body), { text: "also fix the footer" });
 });
 
+test("accepted mid-run input preserves its stable id and never issues a cancel or another run start", async (t) => {
+  const { baseUrl, cookie } = await bootProxy(t);
+  const body = { text: "can you publish this first?" };
+  const response = await fetch(`${baseUrl}/api/runs/live-input/messages`, {
+    method: "POST", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify(body),
+  });
+  assert.equal(response.status, 202);
+  assert.deepEqual(await response.json(), { delivery: "delivered", id: "accepted-publish" });
+  assert.deepEqual(recorded.map(({ method, url }) => ({ method, url })), [
+    { method: "POST", url: "/api/runs/live-input/messages" },
+  ]);
+  assert.deepEqual(JSON.parse(recorded[0].body), body);
+});
+
 test("every proxied request carries the daemon bearer token", async (t) => {
   const { baseUrl, cookie } = await bootProxy(t);
 
@@ -583,7 +602,8 @@ test("a known-failed daemon short-circuits every proxied route to an immediate 5
 
   assert.equal(res.status, 503);
   assert.deepEqual(await res.json(), {
-    error: "the agent daemon is currently unavailable",
+    error: "The assistant could not connect to its service. Retry your message; if it keeps failing, restart the site.",
+    detail: "controlled readiness failure",
     code: "AGENT_DAEMON_KNOWN_FAILED",
     reasonCode: "agent daemon could not bind 127.0.0.1:4319 — address already in use",
   });
@@ -627,7 +647,8 @@ test("a known-failed daemon short-circuits the dedicated attachment-upload proxy
 
   assert.equal(res.status, 503);
   assert.deepEqual(await res.json(), {
-    error: "the agent daemon is currently unavailable",
+    error: "The assistant could not connect to its service. Retry your message; if it keeps failing, restart the site.",
+    detail: "controlled readiness failure",
     code: "AGENT_DAEMON_KNOWN_FAILED",
     reasonCode: "agent daemon could not bind 127.0.0.1:4319 — address already in use",
   });
@@ -718,7 +739,8 @@ test("a known-failed daemon also short-circuits the tool catalog routes to 503, 
 
   assert.equal(res.status, 503);
   assert.deepEqual(await res.json(), {
-    error: "the agent daemon is currently unavailable",
+    error: "The assistant could not connect to its service. Retry your message; if it keeps failing, restart the site.",
+    detail: "controlled readiness failure",
     code: "AGENT_DAEMON_KNOWN_FAILED",
     reasonCode: "agent daemon could not bind 127.0.0.1:4319 — address already in use",
   });

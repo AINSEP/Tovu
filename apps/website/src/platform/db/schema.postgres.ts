@@ -597,6 +597,7 @@ export const newsletterCampaigns = pgTable("newsletter_campaigns", {
   updatedAt: text("updated_at").notNull(),
 }, (t) => [
     index("idx_newsletter_campaigns_workspace").on(t.workspaceId),
+    index("idx_newsletter_campaigns_status").on(t.workspaceId, t.status),
   ]);
 
 export const oauthDeviceAuthorizations = pgTable("oauth_device_authorizations", {

@@ -5,6 +5,7 @@ import { sql } from "kysely";
 import type { StorageKernel } from "../../kernel/port.js";
 import { openPgliteKernel } from "../../kernel/drivers/pglite.js";
 import { openMemorySqliteKernel } from "../../kernel/drivers/sqlite.js";
+import { activeRunIndex } from "../chat/0003_active_run_index.js";
 import { chatBaseline } from "../chat/0000_chat_baseline.js";
 import { sqliteChatTables } from "../chat/0001_sqlite_chat_tables.js";
 import type { MigrationContext } from "../step.js";
@@ -145,3 +146,19 @@ test("SQLite chat migration propagates an incompatible existing table error with
     await kernel.close();
   }
 });
+
+for (const fixture of cases) {
+  test(`${fixture.name} active-run index is added idempotently through the migration step`, async () => {
+    const kernel: StorageKernel<unknown> = fixture.open();
+    try {
+      await fixture.step.up(kernel, migrationContext);
+      const step = activeRunIndex({ checksum: 'new-index' });
+      await step.up(kernel, migrationContext);
+      await step.up(kernel, migrationContext);
+      const rows = fixture.name === 'SQLite'
+        ? await kernel.query(sql`SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'idx_ai_chat_messages_active'`)
+        : await kernel.query(sql`SELECT indexname AS name FROM pg_indexes WHERE schemaname = 'ai_chat' AND indexname = 'idx_ai_chat_messages_active'`);
+      assert.deepEqual(rows, [{ name: 'idx_ai_chat_messages_active' }]);
+    } finally { await kernel.close(); }
+  });
+}

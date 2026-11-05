@@ -152,7 +152,7 @@ export function buildImportThemeFileRegistrations(
   routeDeps: ImportThemeFileToolDeps,
   surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' }) },
 ): ToolRegistration[] {
-  return protectThemeFileTools({ deps: routeDeps, surfaces, catalog: CATALOG_BY_ID, registrations: buildDomainRegistrations({ metadata: toolMetadata,
+  return protectThemeFileTools({ deps: routeDeps, catalog: CATALOG_BY_ID, registrations: buildDomainRegistrations({ metadata: toolMetadata,
     domain: "theme-import-file",
     catalogModule: "features/theme/import-theme-file-tool.ts",
     catalog: CATALOG_BY_ID,

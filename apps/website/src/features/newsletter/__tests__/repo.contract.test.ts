@@ -639,3 +639,17 @@ test("memory confirmation-token lookup requires the subscription and token hash 
   assert.deepEqual(await repo.findById({ workspaceId: "other-workspace", id: "token-1" }), foreign);
   assert.deepEqual(await repo.findUnconsumedBySubscription({ workspaceId: WS, subscriptionId: "sub-1" }), []);
 });
+
+
+for (const [name, makeRepo] of campaignAdapters) {
+  test(`[${name}] sending existence includes campaigns beyond the list page and isolates workspaces`, async () => {
+    const repo = await makeRepo();
+    for (let i = 0; i < 101; i++) await repo.saveCampaignRow(makeContractCampaign({ id: `c-${String(i).padStart(3, '0')}` }));
+    await repo.saveCampaignRow(makeContractCampaign({ id: 'z-sending', status: 'sending' }));
+    assert.equal((await repo.list({ workspaceId: WS })).length, 100);
+    assert.equal(await repo.hasSending!({ workspaceId: WS }, {}), true);
+    assert.equal(await repo.hasSending!({ workspaceId: 'other-workspace' }, {}), false);
+    await repo.saveCampaignRow(makeContractCampaign({ id: 'z-sending', status: 'sent' }));
+    assert.equal(await repo.hasSending!({ workspaceId: WS }, {}), false);
+  });
+}

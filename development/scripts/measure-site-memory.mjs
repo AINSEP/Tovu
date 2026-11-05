@@ -7,7 +7,17 @@
  * baseline's method (`2026-10-26-memory-baseline.md`) so every phase is measured the same way:
  *
  *   node development/scripts/measure-site-memory.mjs --site <dir> --mode compiled|tsx
- *     [--idle-seconds 240] [--idle-minutes N] [--expect-daemon running|parked]
+ *     [--idle-seconds 240] [--idle-minutes N] [--expect-daemon running|parked] [--workload chatting]
+ *
+ * Long-turn before/after budget (run the same command on each revision, one run at a time):
+ *   node development/scripts/measure-site-memory.mjs --site <dir> --mode compiled --workload chatting
+ * After warm-up, the server's inspector runs the real Tovu finalizer and SQLite run ledger against
+ * a lazy deterministic fake daemon: 8192 text deltas plus 64 tool calls/results, 8 MiB of payload,
+ * one replay reconnect and a 15 s quiet tool wait over ~20 minutes. No provider credentials needed.
+ * Natural process.memoryUsage readings every 250 ms and after writes gate server peak RSS/heap
+ * (512/256 MiB) and peak growth from the warmed baseline (256/128 MiB). Missing/incomplete turns
+ * or overruns exit 1. The original tree/forced-GC measurement follows the turn; it is supplementary.
+ * Chatting defaults --idle-minutes to 0 so the real idle daemon cannot park during the fake turn.
  *
  * 1. Copies the site into a temp dir. SQLite files go through `sqlite3 .backup`, so a running site's
  *    WAL is folded in and its files are never opened for writing. `.agent-runtime/` (the daemon's
@@ -98,7 +108,8 @@ export function parseArgs({ argv }, _options = {}) {
 /** Validate parsed options and fill `expectDaemon`'s default. */
 function checkOptions({ options }) {
   if (options.mode === "desktop") return checkDesktopOptions({ options });
-  if (options.attach || options.workload) throw new Error("--attach and --workload require --mode desktop");
+  if (options.attach) throw new Error("--attach requires --mode desktop");
+  if (options.workload && options.workload !== "chatting") throw new Error("site --workload must be chatting");
   return checkSiteOptions({ options });
 }
 
@@ -106,6 +117,7 @@ function checkOptions({ options }) {
 function checkSiteOptions({ options }) {
   if (!options.site || !["compiled", "tsx"].includes(options.mode)) throw new Error("usage: --site <dir> --mode compiled|tsx [--idle-seconds N] [--idle-minutes N] [--expect-daemon running|parked]");
   if (!Number.isFinite(options.idleSeconds) || options.idleSeconds < 0) throw new Error("--idle-seconds must be a number ≥ 0");
+  if (options.workload === "chatting") options.idleMinutes ??= 0;
   // A park phase waits past the idle limit, so the daemon should have exited by the time we sample.
   options.expectDaemon ??= options.idleMinutes > 0 && options.idleSeconds > options.idleMinutes * 60 ? "parked" : "running";
   if (!["running", "parked"].includes(options.expectDaemon)) throw new Error("--expect-daemon must be running or parked");
@@ -421,7 +433,7 @@ function serveEnv({ temp, siteCopy }, { idleMinutes = null } = {}) {
  */
 export function serverLaunchArgs({ entry, mode, siteCopy, port }, { resolveTsx = () => repoRequire.resolve("tsx") } = {}) {
   const loader = mode === "tsx" ? ["--import", pathToFileURL(resolveTsx()).href, "--import", MAPS_OFF] : [];
-  return [...loader, entry, "serve", siteCopy, "--port", String(port)];
+  return ["--optimize-for-size", ...loader, entry, "serve", siteCopy, "--port", String(port)];
 }
 
 /** Spawn `tovu serve`; `ready` resolves once its boot line is printed. The caller owns stopping `child`. */
@@ -478,6 +490,7 @@ async function launch({ temp, options, started }) {
   for (const dir of ["home", "profile"]) fs.mkdirSync(path.join(temp, dir));
   log(options.mode === "compiled" ? "transpiling apps/website/src" : "using tsx");
   const entry = options.mode === "compiled" ? await compileServer({ into: temp }) : path.join(WEBSITE_SRC, "cli/main.ts");
+  started.entry = entry;
   const port = await freePort();
   started.ports.add(port);
   const { child, ready } = startServer({ entry, mode: options.mode, env: serveEnv({ temp, siteCopy }, options), siteCopy, port, logFile: path.join(temp, "serve.log") });
@@ -507,14 +520,166 @@ async function cleanUp({ temp, started }) {
   log(`stopped ${started.pids.size} process(es), checked ports [${[...started.ports].join(",")}], deleted ${temp}`);
 }
 
+/**
+ * Executed INSIDE the measured server via the existing inspector, never in the profiler process.
+ * Only the daemon is fake: the host finalizer and ledger write a disposable real SQLite database.
+ * Helpers stay inside this function so its source can cross the inspector without a new fixture.
+ * @complexity O(frames + checkpoint projection work); O(retained run events) in the finalizer.
+ */
+async function chatTurnInServer({ urls, dbFile }) {
+  const { createAssistantRunFinalizer } = await import(urls.finalizer);
+  const { createChatRunLedger } = await import(urls.ledger);
+  const { openChatDb } = await import(urls.database);
+  const db = openChatDb({ filePath: dbFile });
+  const ledger = createChatRunLedger({ store: db });
+  const runId = "memory-budget-run";
+  const encoder = new TextEncoder();
+  const pause = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+  const encode = (kind, payload) => encoder.encode(`event: ${kind}\ndata: ${JSON.stringify({ runId, kind, payload })}\n\n`);
+  let checkpoints = 0;
+  let writeFailures = 0;
+  let timer;
+  let samples = 0;
+  let peak = { rss: 0, heapUsed: 0 };
+  const sample = () => {
+    const { rss, heapUsed } = process.memoryUsage();
+    peak = { rss: Math.max(peak.rss, rss), heapUsed: Math.max(peak.heapUsed, heapUsed) };
+    samples += 1;
+    return { rss, heapUsed };
+  };
+  function seed(messageId) {
+    db.prepare("INSERT OR IGNORE INTO ai_chats (id, scope_id, owner_kind, owner_id, created_at, updated_at) VALUES ('memory-budget', 'memory-budget', 'user', 'memory-budget', 0, 0)").run();
+    db.prepare("INSERT INTO ai_chat_messages (id, conversation_id, role, content, run_id, run_status, position, created_at) VALUES (?, 'memory-budget', 'assistant', '', ?, 'running', ?, 0)").run(messageId, runId, messageId === "warmup" ? 0 : 1);
+  }
+  /** Real writes, with counters and natural samples; omit recovery only because no attempt is dispatched. */
+  async function run(messageId, daemon) {
+    seed(messageId);
+    const finalizer = createAssistantRunFinalizer({
+      ledger: {
+        ...ledger, durable: undefined,
+        async checkpoint(progress, optional) {
+          try {
+            const written = await ledger.checkpoint(progress, optional);
+            if (written) checkpoints += 1;
+            else writeFailures += 1;
+            sample();
+            return written;
+          } catch (error) { writeFailures += 1; throw error; }
+        },
+      },
+      daemon, reconnectDelayMs: 0,
+    }, {});
+    finalizer.watch({ principalId: "memory-budget", conversationId: "memory-budget", message: {
+      id: messageId, role: "assistant", content: "", runId, runStatus: "running", events: [],
+    } });
+    await finalizer.idle();
+  }
+  /** 64 batches: 128 unique 768-byte deltas, then a 16 KiB tool input and result. */
+  function payloadAt(index) {
+    const batch = Math.floor(index / 130);
+    const offset = index % 130;
+    const id = `tool-${batch}`;
+    if (offset === 128) return { type: "tool_use", id, name: "read_fixture", input: { body: `input-${batch}:`.padEnd(16_384, "i") } };
+    if (offset === 129) return { type: "tool_result", toolUseId: id, content: `result-${batch}:`.padEnd(16_384, "r"), isError: false };
+    return { type: "text_delta", delta: `batch ${batch}, delta ${offset}: `.padEnd(768, String.fromCharCode(97 + batch % 26)) };
+  }
+  let connections = 0;
+  let emitted = 0;
+  let wireBytes = 0;
+  const totalFrames = 64 * 130;
+  const daemon = {
+    runStatus: async () => 200,
+    async openEvents() {
+      const connection = ++connections;
+      let next = 0;
+      return new Response(new ReadableStream({
+        async pull(controller) {
+          if (connection === 1 && next === totalFrames / 2) { controller.close(); return; }
+          if (next === totalFrames) { controller.enqueue(encode("end", { status: "succeeded", code: 0 })); controller.close(); return; }
+          const replay = next < emitted;
+          if (!replay) await pause(1_200_000 / totalFrames);
+          // A quiet tool wait must let the existing trailing checkpoint flush naturally.
+          if (!replay && next === 48 * 130 + 129) await pause(15_000);
+          const frame = encode("agent", payloadAt(next));
+          if (!replay) { emitted += 1; wireBytes += frame.byteLength; }
+          next += 1;
+          controller.enqueue(frame);
+        },
+      }, { highWaterMark: 0 }), { headers: { "content-type": "text/event-stream" } });
+    },
+  };
+  try {
+    await run("warmup", { runStatus: async () => 200, openEvents: async () => new Response(new Blob([
+      encode("agent", { type: "text_delta", delta: "warmup" }), encode("end", { status: "succeeded", code: 0 }),
+    ])) });
+    checkpoints = 0;
+    samples = 0;
+    peak = { rss: 0, heapUsed: 0 };
+    const baseline = sample();
+    const startedAt = Date.now();
+    timer = setInterval(sample, 250);
+    await run("long-turn", daemon);
+    const end = sample();
+    const saved = db.prepare("SELECT run_status AS status, length(content) AS contentBytes, length(events_json) AS eventsBytes FROM ai_chat_messages WHERE id = 'long-turn'").get();
+    const toolResults = db.prepare("SELECT count(*) AS count FROM ai_chat_messages, json_each(events_json) WHERE ai_chat_messages.id = 'long-turn' AND json_extract(json_each.value, '$.kind') = 'tool_result'").get().count;
+    const complete = saved.status === "succeeded" && saved.contentBytes >= 6 * 1024 * 1024 && saved.eventsBytes >= 8 * 1024 * 1024
+      && toolResults === 64 && connections === 2 && emitted === totalFrames && checkpoints > 1 && writeFailures === 0;
+    return { complete, memoryUnit: "bytes", baseline, peak, end, samples, elapsedMs: Date.now() - startedAt, checkpoints, writeFailures,
+      connections, emitted, wireBytes, saved, toolResults, execArgv: process.execArgv, runtime: process.version };
+  } finally {
+    clearInterval(timer);
+    db.close();
+  }
+}
+
+/**
+ * Run the turn on the live server and apply natural RSS/heap peak and growth gates, in MiB.
+ * Import or inspector errors fail the measurement; they must never become a zero reading.
+ * @complexity O(1) profiler memory: only the server's compact summary crosses the inspector.
+ */
+async function measureChatTurn({ started, temp }) {
+  const url = await inspectorUrl({ pid: started.root });
+  if (!url) throw new Error("chat-turn workload requires the server inspector");
+  const cdp = await openCdp({ url });
+  const extension = path.extname(started.entry);
+  const moduleUrl = (relative) => new URL(`../${relative}${extension}`, pathToFileURL(started.entry)).href;
+  const input = { dbFile: path.join(temp, "chat-workload.db"), urls: {
+    finalizer: moduleUrl("server/runtime/composition/modules/assistant-run-finalizer"),
+    ledger: moduleUrl("assistant/persistence/run-ledger"), database: moduleUrl("platform/db/sqlite/chat-db"),
+  } };
+  log("running ~20 minute deterministic chat turn in the server (8 MiB, 64 tools, one reconnect)");
+  const progress = setInterval(() => log("chat-turn measurement is still running"), 30_000);
+  let timeout;
+  try {
+    const result = await Promise.race([
+      cdp.send("Runtime.evaluate", { expression: `(${chatTurnInServer.toString()})(${JSON.stringify(input)})`, awaitPromise: true, returnByValue: true }),
+      new Promise((_, reject) => { timeout = setTimeout(() => reject(new Error("chat-turn workload exceeded 30 minutes")), 1_800_000); }),
+    ]);
+    if (result.exceptionDetails) throw new Error(`chat-turn workload failed: ${result.exceptionDetails.exception?.description ?? result.exceptionDetails.text}`);
+    const turn = result.result.value;
+    const budgetsMiB = { rssPeak: 512, heapPeak: 256, rssGrowth: 256, heapGrowth: 128 };
+    const readingsMiB = { rssPeak: turn.peak.rss / MB, heapPeak: turn.peak.heapUsed / MB,
+      rssGrowth: (turn.peak.rss - turn.baseline.rss) / MB, heapGrowth: (turn.peak.heapUsed - turn.baseline.heapUsed) / MB };
+    return { ...turn, budgetsMiB, readingsMiB, withinBudgets: Object.entries(budgetsMiB).every(([key, limit]) => readingsMiB[key] <= limit) };
+  } finally {
+    clearInterval(progress);
+    clearTimeout(timeout);
+    cdp.close();
+  }
+}
+
 async function measureSite(options) {
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-measure-memory-"));
   const started = { root: null, pids: new Set(), ports: new Set() };
   try {
     const child = await launch({ temp, options, started });
     await sleep(options.idleSeconds * 1000);
+    const chatTurn = options.workload === "chatting" ? await measureChatTurn({ started, temp }) : undefined;
     await recordTree({ started });
     const result = await measureTree({ rootPid: child.pid, expectDaemon: options.expectDaemon });
+    if (chatTurn) return { mode: options.mode, workload: options.workload, idleSeconds: options.idleSeconds, ...result, chatTurn,
+      complete: result.complete && chatTurn.complete, missing: [...result.missing, ...(chatTurn.complete ? [] : ["chat turn did not persist all expected progress"])],
+      withinBudgets: chatTurn.withinBudgets };
     return { mode: options.mode, idleSeconds: options.idleSeconds, idleMinutes: options.idleMinutes, expectDaemon: options.expectDaemon, ...result };
   } catch (error) {
     // The temp dir (and its log) is deleted below, so show the end of the server log now.

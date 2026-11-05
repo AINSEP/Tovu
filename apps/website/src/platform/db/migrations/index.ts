@@ -1,3 +1,4 @@
+import { newsletterSendingIndex } from "./0038_newsletter_sending_index.js";
 import { mediaSourceMetadata } from './0037_media_source_metadata.js';
 import { publishHistoryConfigJsonb } from "./0036_publish_history_config_jsonb.js";
 import { memberExternalIdentities } from "./0035_member_external_identities.js";
@@ -28,6 +29,7 @@ import { coercionJsonAsJson } from "./0003_coercion_json_as_json.js";
 import { dropUnusedDeploymentTables } from "./0004_drop_unused_deployment_tables.js";
 import { chatBaseline } from "./chat/0000_chat_baseline.js";
 import { sqliteChatTables } from "./chat/0001_sqlite_chat_tables.js";
+import { activeRunIndex } from "./chat/0003_active_run_index.js";
 import { durableRunAttempts } from "./chat/0002_durable_run_attempts.js";
 import { siteKeyAttachments } from "./project/0002_site_key_attachments.js";
 import { projectVault } from "./project/0000_project_vault.js";
@@ -105,12 +107,14 @@ export const CONTENT_MIGRATIONS: readonly MigrationStep[] = [
   memberExternalIdentities({ checksum: pinned("0035_member_external_identities") }),
   publishHistoryConfigJsonb({ checksum: pinned("0036_publish_history_config_jsonb") }),
   mediaSourceMetadata({ checksum: pinned('0037_media_source_metadata') }),
+  newsletterSendingIndex({ checksum: pinned('0038_newsletter_sending_index') }),
 ];
 
 export const CHAT_MIGRATIONS: readonly MigrationStep[] = [
   chatBaseline(pinned("chat/0000_chat_baseline")),
   sqliteChatTables(pinned("chat/0001_sqlite_chat_tables")),
   durableRunAttempts({ checksum: pinned("chat/0002_durable_run_attempts") }, {}),
+  activeRunIndex({ checksum: pinned("chat/0003_active_run_index") }, {}),
 ];
 
 /** `project.db`'s own history (files under `project/`, pinned as `project/NNNN_name`). */

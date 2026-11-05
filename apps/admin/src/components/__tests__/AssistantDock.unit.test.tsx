@@ -273,6 +273,16 @@ describe("AssistantDock", () => {
     // dock's renderer before the first transcript render" below.
   });
 
+  it("retains the accepted mid-run input id for receipt reconciliation without starting or cancelling a turn", async () => {
+    mcpUiFetch.mockResolvedValue(new Response(JSON.stringify({ delivery: "delivered", id: "accepted-publish" }), { status: 202 }));
+    render(<AssistantDock useChats={() => fakeChats()} />);
+    const deliver = chatPaneSpy.mock.calls.at(-1)?.[0].deliverMidRunMessage as (input: { runId: string; text: string }) => Promise<unknown>;
+    mcpUiFetch.mockClear();
+    await expect(deliver({ runId: "run-1", text: "can you publish this first?" })).resolves.toEqual({ delivery: "delivered", id: "accepted-publish" });
+    expect(mcpUiFetch).toHaveBeenCalledOnce();
+    expect(mcpUiFetch).toHaveBeenCalledWith("/api/runs/run-1/messages", expect.objectContaining({ method: "POST" }));
+  });
+
   it("applies no type filter to the composer's file picker, so no file type is excluded", () => {
     render(<AssistantDock useChats={() => fakeChats()} />);
 

@@ -256,12 +256,12 @@ async function main(): Promise<void> {
   // Set once `createServingApp` below has started the background loops: stops them and the listener
   // before the store closes, so a drain awaiting a subscriber is not cut off mid-delivery.
   let stopServing: () => Promise<void> = async () => {};
+  let requestStop: ((input: { exitCode: number }) => void) | undefined;
   // Every store closes on shutdown; SQLite close checkpoints and removes its WAL/SHM sidecars.
   const storeOwnsShutdown =
-    siteStore !== undefined &&
     closeStoreOnShutdown(
       { store: siteStore, onShutdown: shutdownAssistantDaemon },
-      { bootWork: () => bootWork, stopServing: () => stopServing() }
+      { bootWork: () => bootWork, registerStop: stop => { requestStop = stop; }, stopServing: () => stopServing() }
     );
 
   // ADR-046 Phase 3 (SPEC-031): the boot-module composition itself now lives in
@@ -284,7 +284,14 @@ async function main(): Promise<void> {
   // `createServingApp`, not bare `createApp`: it also starts the background outbox drainer, after
   // `createApp` has attached every subscriber. The drainer's timer is unref'd, so it never holds this
   // process open.
-  const { app, outboxDrainer, trashSweeper, themeWatcher, formPullTrigger, postGoLiveSweep, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance, bootWork: servingBootWork } = createServingApp(deps);
+  const servingOptions = {
+    stopForIdle: (input: { exitCode: number }) => {
+      if (!requestStop) throw new Error("site shutdown is not ready");
+      const stop = requestStop;
+      setImmediate(() => stop(input));
+    },
+  };
+  const { app, outboxDrainer, trashSweeper, themeWatcher, formPullTrigger, postGoLiveSweep, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance, bootWork: servingBootWork } = createServingApp(deps, servingOptions);
   bootWork.push(...servingBootWork);
   const daemonCallback = await startSiteDaemonListener({
     publicOrigin: pinSiteListenerOrigin({ scheme: devTls.active ? "https" : "http", host: bindHost, port }), handler: app,

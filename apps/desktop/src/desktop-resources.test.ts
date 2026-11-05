@@ -247,3 +247,14 @@ test('a ps that is not the desktop\'s own probe is still counted', async () => {
   const result = await f.monitor.get({ panelOpen: true });
   assert.deepEqual(result.sites[0]!.processes.map((row) => row.name), ['node', 'ps']);
 });
+
+
+test('B2 maintenance and panel reads share one sampler and bypass the collapsed 60 s cache', async () => {
+  const f = fixture();
+  await f.monitor.get({ panelOpen: false }, {});
+  f.advance(30_000);
+  const [maintenance, panel] = await Promise.all([f.monitor.get({ panelOpen: true }, {}), f.monitor.get({ panelOpen: true }, {})]);
+  assert.equal(f.reads(), 2);
+  assert.equal(maintenance.sampledAt, panel.sampledAt);
+  assert.equal(maintenance.pollIntervalMs, 5_000);
+});

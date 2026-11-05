@@ -1,3 +1,4 @@
+import { createConditionalHistoryRead } from "@jini-ai/chat/transports/http";
 import type { ChatMessage } from "@jini-ai/chat/core";
 import { ApiError, authenticatedAdminRequest, type AuthenticatedAdminRequestOptions } from "./api";
 
@@ -80,13 +81,20 @@ export async function deleteConversation(id: string): Promise<void> {
   );
 }
 
-export async function loadMessages(conversationId: string): Promise<ChatMessage[]> {
-  const { messages } = await authenticatedAdminRequest<{ messages: ChatMessage[] }>(
-    { path: `/${encodeURIComponent(conversationId)}/messages`, method: "GET" }, CHAT_REQUEST_OPTIONS,
+// The package retains one parsed snapshot by reference. The host supplies only endpoint wiring;
+// tiny unchanged replies avoid reading or reparsing a multi-MB history body.
+const readHistory = createConditionalHistoryRead({ read: async ({ conversationId }, { version }) => {
+  let nextVersion: string | undefined;
+  const query = version ? '?ifVersion=' + encodeURIComponent(version) : '';
+  const result = await authenticatedAdminRequest<{ messages?: ChatMessage[]; unchanged?: boolean }>(
+    { path: `/${encodeURIComponent(conversationId)}/messages${query}`, method: 'GET' },
+    { ...CHAT_REQUEST_OPTIONS, onOk: response => { nextVersion = response.headers.get('ETag') ?? undefined; } },
   );
-  // Same coercion, same reason as `listConversations` above: this feeds `ChatPane`'s
-  // `initialMessages`, and an `undefined` transcript is not a state any consumer is typed for.
-  return Array.isArray(messages) ? messages : [];
+  return { ...result, version: nextVersion };
+} });
+
+export async function loadMessages(conversationId: string): Promise<ChatMessage[]> {
+  return readHistory({ conversationId });
 }
 
 export async function saveMessage(conversationId: string, message: ChatMessage): Promise<void> {

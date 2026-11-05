@@ -12,7 +12,7 @@ import { createDaemonSupervisor, type DaemonSupervisorRequired } from "@jini-ai/
 import { createRespawnPolicy } from "@jini-ai/sidecar/respawn-policy";
 import { createNodeDaemonProcessAdapter, createNodeIpcChannel, createNodeSupervisorScheduler, createSupervisorRegistry,
   type NodeDaemonProcessOptions, type SupervisorRegistry } from "@jini-ai/sidecar/supervisor/node";
-import { daemonControlRequest, daemonEndpoint, type DaemonSiteRegistration } from "../../website/src/server/runtime/lifecycle/assistant-daemon-connection.ts";
+import { daemonControlRequest, daemonEndpoint, siteIdleStopReply, type DaemonSiteRegistration } from "../../website/src/server/runtime/lifecycle/assistant-daemon-connection.ts";
 import { AGENT_DAEMON_EXIT_CODE } from "../../website/src/assistant/daemon-exit-codes.ts";
 import type { CliMode } from "./startup-env.ts";
 
@@ -45,6 +45,21 @@ function assertSiteDirectory({ directory, siteDir }: { directory: string | undef
   if (path.resolve(directory ?? "") !== path.resolve(siteDir)) throw new Error("site directory mismatch");
 }
 
+/** Only known control failures cross the site IPC boundary; never echo credentials or payloads. */
+function siteControlRefusal({ error }: { error: unknown }, _options = {}): string | undefined {
+  const reasons: Record<string, string> = {
+    "site scope belongs to another server boot": "The assistant service still holds an older copy of this site. Restart the site or the app.",
+    "site scope already belongs to another directory": "The assistant service has this site key assigned to another directory. Restart the app.",
+    "site directory mismatch": "The assistant service received a different site directory. Restart the site.",
+    "site identity is not bound": "The site is still starting. Try your message again in a moment.",
+    "desktop agent service is stopping": "The assistant service is shutting down. Restart the app.",
+    "site scope was withdrawn": "The site stopped while its assistant was starting. Restart the site and send again.",
+    "daemon IPC unavailable": "The assistant service lost its connection. Restart the site or the app.",
+  };
+  if (!(error instanceof Error)) return undefined;
+  return Object.hasOwn(reasons, error.message) ? reasons[error.message] : undefined;
+}
+
 /** The shared daemon's routing key for one launched site server: its directory, canonicalized.
  * Not the workspace id — every local site is `workspace-local`, so keying by it let only the first
  * running site own a scope. Not `.site-meta.json`'s siteId either: a copied site carries the same one.
@@ -73,16 +88,17 @@ export function createDesktopAgentService({ repoRoot, registryPath, cliMode = "c
   const spawnEnv = buildDaemonSpawnEnv({ env, registryPath });
   const entry = path.join(repoRoot, cliMode === "source" ? "apps/website/src/server/inbound/assistant/agent-daemon-server.ts" : "dist/src/server/inbound/assistant/agent-daemon-server.js");
   const args = cliMode === "source" ? [
+    "--optimize-for-size",
     "--import", `${pathToFileURL(path.join(repoRoot, "development/scripts/prune-tsx-cache.mjs")).href}?prune`,
     "--import", pathToFileURL(path.join(repoRoot, "development/scripts/dev-tsx-loader.mjs")).href,
     "--import", pathToFileURL(path.join(repoRoot, "development/scripts/dev-source-maps-off.mjs")).href, entry,
-  ] : [entry];
+  ] : ["--optimize-for-size", entry];
   let channel: ReturnType<typeof createNodeIpcChannel> | undefined;
   let daemonPid: number | undefined;
   let stopWork: Promise<void> = Promise.resolve();
   let stopping = false;
   type ScopedSite = DaemonSiteRegistration & { scopeKey: string };
-  type Site = { config: ScopedSite; token: string; host?: typeof channel; ready?: Promise<{ url: string; pid: number; token: string }> };
+  type Site = { config: ScopedSite; token: string; server?: ChildProcess; host?: typeof channel; ready?: Promise<{ url: string; pid: number; token: string }> };
   const sites = new Map<string, Site>();
   const bindings = new Set<() => void>();
   const notices = new Set<(pid: number) => void>();
@@ -125,10 +141,32 @@ export function createDesktopAgentService({ repoRoot, registryPath, cliMode = "c
   }, { parkedExitCodes: [AGENT_DAEMON_EXIT_CODE.IDLE_PARK] });
 
   /** An equal scope key is not permission to replace another bound server's configuration. */
-  function assertSiteBinding({ site, config }: { site: Site | undefined; config: ScopedSite }): void {
+  function assertSiteBinding({ site, config }: { site: Site | undefined; config: ScopedSite }, { allowDifferentBoot = false } = {}): void {
     if (!site) return;
     if (path.resolve(site.config.env.TOVU_SITE_DIR ?? "") !== path.resolve(config.env.TOVU_SITE_DIR ?? "")) throw new Error("site scope already belongs to another directory");
-    if (site.config.token !== config.token) throw new Error("site scope belongs to another server boot");
+    if (!allowDifferentBoot && site.config.token !== config.token) throw new Error("site scope belongs to another server boot");
+  }
+  /** Node exit facts, rather than IPC connectivity or a sent signal, establish boot death. */
+  function hasServerExited({ server }: { server: ChildProcess }, _options = {}): boolean {
+    return server.exitCode != null || server.signalCode != null;
+  }
+  /** Do not create a scope for a boot that exited while earlier withdrawals were draining. */
+  function assertDemandAllowed({ server }: { server?: ChildProcess }, _options = {}): void {
+    if (stopping) throw new Error("desktop agent service is stopping");
+    if (server && hasServerExited({ server })) throw new Error("site scope was withdrawn");
+  }
+  /** Recover a missed exit only for the same directory and a child confirmed dead. Disconnect and
+   * a requested kill do not prove death. Await remote disposal before sending a replacement config.
+   * @complexity O(n) in directory length; one bounded IPC withdrawal.
+   */
+  async function withdrawStaleBinding({ config }: { config: ScopedSite }, _options = {}): Promise<void> {
+    const site = sites.get(config.scopeKey);
+    if (!site?.server || site.config.token === config.token) return;
+    assertSiteBinding({ site, config }, { allowDifferentBoot: true });
+    const server = site.server;
+    if (hasServerExited({ server })) {
+      await withdraw({ scopeKey: config.scopeKey }, { server });
+    }
   }
   /** Rotate a site's callback capability when its daemon channel changes.
    * @complexity O(1) time and space.
@@ -137,13 +175,15 @@ export function createDesktopAgentService({ repoRoot, registryPath, cliMode = "c
     if (site.host !== channel) { site.host = channel; site.token = randomUUID(); delete site.ready; }
   }
   /** Sites are keyed by `scopeKey`; `siteId` travels unchanged as the scope's workspace id. */
-  async function demand(config: ScopedSite, _optional = {}) {
-    if (stopping) throw new Error("desktop agent service is stopping");
+  async function demand(config: ScopedSite, { server }: { server?: ChildProcess } = {}) {
+    assertDemandAllowed({ server });
+    await withdrawStaleBinding({ config });
     await withdrawals.get(config.scopeKey);
+    assertDemandAllowed({ server });
     let site = sites.get(config.scopeKey);
     assertSiteBinding({ site, config });
     if (!site) {
-      site = { config: { ...config, env: { ...config.env } }, token: randomUUID() };
+      site = { config: { ...config, env: { ...config.env } }, token: randomUUID(), server };
       sites.set(config.scopeKey, site);
     }
     await supervisor.ensureReady({}, {});
@@ -163,9 +203,13 @@ export function createDesktopAgentService({ repoRoot, registryPath, cliMode = "c
     return site.ready;
   }
 
-  async function withdraw({ scopeKey }: { scopeKey: string }, _optional = {}): Promise<void> {
+  /** Remove only the requesting boot's scope; a late exit must never evict a replacement.
+   * @complexity O(1) local work and one bounded daemon request.
+   */
+  async function withdraw({ scopeKey }: { scopeKey: string }, { server }: { server?: ChildProcess } = {}): Promise<void> {
     const site = sites.get(scopeKey);
     if (!site) return;
+    if (server && site.server !== server) return;
     sites.delete(scopeKey);
     if (!channel || !supervisor.isReady()) return;
     const work = channel.request({ payload: { operation: "withdraw", siteId: site.config.siteId, scopeKey } }, {}).then(() => {});
@@ -180,25 +224,51 @@ export function createDesktopAgentService({ repoRoot, registryPath, cliMode = "c
     const scopeKey = siteScopeKey({ siteDir });
     let workspaceId: string | undefined;
     let closed = false;
-    const control = createNodeIpcChannel({ peer: child }, { handle: async payload => {
+    async function handleControl(payload: unknown) {
       if (closed) throw new Error("site server disconnected");
       const request = daemonControlRequest.parse(payload);
       if (request.operation === "parking") { supervisor.markParking({ pid: request.pid }, {}); return {}; }
-      if (request.operation === "ready" || request.operation === "unavailable") throw new Error("unexpected site control");
+      if (request.operation === "ready" || request.operation === "unavailable" || request.operation === "stopIfIdle") throw new Error("unexpected site control");
       if (!workspaceId || request.siteId !== workspaceId) throw new Error("site identity is not bound");
-      if (request.operation === "withdraw") { await withdraw({ scopeKey }); return {}; }
+      if (request.operation === "withdraw") { await withdraw({ scopeKey }, { server: child }); return {}; }
       assertSiteDirectory({ directory: request.env.TOVU_SITE_DIR, siteDir });
-      return demand({ ...request, scopeKey }, {});
+      return demand({ ...request, scopeKey }, { server: child });
+    }
+    const control = createNodeIpcChannel({ peer: child }, { handle: async payload => {
+      try { return await handleControl(payload); }
+      catch (error) {
+        const refusalReason = siteControlRefusal({ error });
+        if (!refusalReason) throw error;
+        // Only the explicit public reason crosses Jini's refusal transport; the control call fails.
+        throw Object.assign(new Error(refusalReason), { refusalReason });
+      }
     } });
     const notify = (pid: number) => { void control.request({ payload: { operation: "unavailable", pid } }, {}).catch(() => {}); };
     notices.add(notify);
     function dispose(): void {
       if (closed) return;
       closed = true; control.dispose({}); bindings.delete(dispose); notices.delete(notify);
-      if (workspaceId) void withdraw({ scopeKey }).catch(() => console.warn("[desktop-agent-service] scope withdrawal failed"));
     }
-    bindings.add(dispose); child.once("exit", dispose); child.once("disconnect", dispose);
-    return { setIdentity({ siteId }: { siteId: string }, _options = {}) { workspaceId = siteId; }, dispose };
+    // The main process owns exit cleanup for stops AND crashes. The site supervisor intentionally
+    // suppresses deliberate-stop notices, and a dying server may never deliver its own withdrawal.
+    child.once("exit", () => {
+      dispose();
+      void withdraw({ scopeKey }, { server: child }).catch(error => console.warn(`[desktop-agent-service] scope withdrawal failed: ${String(error)}`));
+    });
+    bindings.add(dispose); child.once("disconnect", dispose);
+    return { setIdentity({ siteId }: { siteId: string }, _options = {}) { workspaceId = siteId; }, dispose,
+      /** Ask on this boot's existing channel. A timeout, refusal or disposed channel is busy.
+       * This never withdraws: only the P0 child-exit path has proof the scope can be removed.
+       * @complexity O(1), one bounded IPC request.
+       */
+      async stopIfIdle(_required = {}, _options = {}): Promise<boolean> {
+        if (closed) return false;
+        try {
+          const reply = await control.request({ payload: { operation: "stopIfIdle" } }, {});
+          return siteIdleStopReply.parse(reply).idle;
+        } catch { return false; }
+      },
+    };
   }
   return { demand, withdraw, bindServer,
     async shutdown(_required: Record<string, never>, _optional = {}): Promise<void> {

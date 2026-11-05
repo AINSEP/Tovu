@@ -28,7 +28,7 @@ import {
   type NodeIpcPeer,
   splitNodeStartupSecrets,
 } from "@jini-ai/sidecar/supervisor/node";
-import { daemonConnection, daemonControlRequest, delegatedAssistantDaemonConnection, resetAssistantDaemonConnectionForTests, setAssistantDaemonConnection } from "./assistant-daemon-connection.js";
+import { daemonConnection, siteIdleStopReply, daemonControlRequest, delegatedAssistantDaemonConnection, resetAssistantDaemonConnectionForTests, setAssistantDaemonConnection } from "./assistant-daemon-connection.js";
 import { createDaemonSupervisor as createSidecarSupervisor } from "@jini-ai/sidecar/supervisor";
 import type { DaemonSupervisorRequired, DaemonSupervisorState, SpawnedDaemonProcess as SidecarDaemonProcess, SupervisorScheduler } from "@jini-ai/sidecar/supervisor";
 import path from "node:path";
@@ -469,6 +469,21 @@ export function createRealDaemonProcessPorts(input: DaemonSpawnEnvInput, optiona
 // Boot registers without spawning; restart and demand callers share the readiness-gated lifecycle.
 let singleton: DaemonSupervisor | undefined;
 let delegated: { ready(): Promise<void>; isReady(): boolean; parking(pid: number): void; stop(): Promise<void> } | undefined;
+let idleStopHook: (() => Promise<{ idle: boolean }>) | undefined;
+
+/** Serving composition alone registers idle authority. No hook (exports/local-only boots) is busy.
+ * @complexity O(1); retains one process-owned callback, cleared by the lifecycle test reset.
+ */
+export function registerSiteIdleStopHook({ stopIfIdle }: { stopIfIdle: () => Promise<{ idle: boolean }> }, _options = {}): void {
+  idleStopHook = stopIfIdle;
+}
+
+/** The serving hook is an adapter boundary: rejection and invalid replies must never stop a site. */
+async function stopSiteIfIdle(): Promise<{ idle: boolean }> {
+  try { return siteIdleStopReply.parse(await idleStopHook?.()); }
+  catch { return { idle: false }; }
+}
+
 let prepareStart: (() => Promise<void>) | undefined;
 // The package owns termination; this host only retains its completion for site-store teardown.
 let daemonStopWork: Promise<void> = Promise.resolve();
@@ -490,6 +505,7 @@ let shutdownRequested = false;
  */
 export function resetAssistantDaemonSingletonForTests(): void {
   singleton = undefined;
+  idleStopHook = undefined;
   prepareStart = undefined;
   shutdownRequested = false;
   daemonStopWork = Promise.resolve();
@@ -542,6 +558,7 @@ function registerDelegatedDaemon({ input, parent }: {
   let ready = false;
   const channel = createNodeIpcChannel({ peer: parent }, { handle: async payload => {
     const notice = daemonControlRequest.parse(payload);
+    if (notice.operation === "stopIfIdle") return stopSiteIfIdle();
     if (notice.operation !== "unavailable") throw new Error("unexpected desktop notice");
     if (delegatedAssistantDaemonConnection({}, {})?.pid === notice.pid) ready = false;
     return {};
@@ -679,7 +696,7 @@ export function shutdownAssistantDaemon(): Promise<void> {
   // Set unconditionally, BEFORE the `singleton?.shutdown()` no-op-when-absent check below — see
   // `shutdownRequested`'s own doc for why this must latch even when no supervisor exists yet.
   shutdownRequested = true;
-  if (delegated) return delegated.stop().catch(() => console.warn("[daemon-supervisor] desktop scope withdrawal unavailable"));
+  if (delegated) return delegated.stop().catch(error => console.warn(`[daemon-supervisor] desktop scope withdrawal unavailable: ${error instanceof Error ? error.message : String(error)}`));
   singleton?.shutdown();
   return daemonStopWork;
 }

@@ -48,10 +48,11 @@ export function createInMemoryChatHistory(): { chatHistory: ChatStoreFactory; ch
   // One kernel per connection (memoized), so building a ledger per use costs nothing and keeps the
   // database lazy.
   const chatRunLedger: ChatRunLedger = {
+    hasActiveRuns: async () => db ? createChatRunLedger({ store: db }).hasActiveRuns({}, {}) : false,
     get durable() { return createChatRunLedger({ store: open() }).durable; },
     unlessSettled: (run, write) => createChatRunLedger({ store: open() }).unlessSettled(run, write),
     settle: (settlement) => createChatRunLedger({ store: open() }).settle(settlement),
-    checkpoint: (progress) => createChatRunLedger({ store: open() }).checkpoint(progress),
+    checkpoint: (progress, optional) => createChatRunLedger({ store: open() }).checkpoint(progress, optional),
     // A database nobody has opened yet holds no stuck rows, so boot-time reconcile does not open it.
     reconcileInterrupted: async (required, optional) => (db ? createChatRunLedger({ store: db }).reconcileInterrupted(required, optional) : 0),
   };

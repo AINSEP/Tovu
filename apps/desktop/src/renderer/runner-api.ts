@@ -42,6 +42,11 @@ export interface RunnerInventoryBridge {
   /** Settings "Loaded sites": how many tabs keep a running guest. Optional for an older
    *  preload, which leaves the renderer on its default of 1 (`use-live-views.hooks.ts`). */
   getMaximumLiveSiteViews?: () => Promise<number>;
+  /** Unused site-server timeout; zero means Off. Optional for older preloads. */
+  getIdleSiteSleepMinutes?: () => Promise<import('../contracts/site-view-preference.js').IdleSiteSleepMinutes>;
+  setIdleSiteSleepMinutes?: (minutes: import('../contracts/site-view-preference.js').IdleSiteSleepMinutes) => Promise<import('../contracts/site-view-preference.js').IdleSiteSleepMinutes>;
+  /** Complete open-tab list, including hidden tabs whose guest has been released. */
+  reportOpenSiteTabs?: (input: { siteIds: readonly string[] }, options?: {}) => Promise<void>;
   /** The gear menu's Loaded sites stepper saves here; main clamps to 1–5, answers with the saved
    *  value and pushes it through `onMaximumLiveSiteViewsChanged`. Absent → no stepper row. */
   setMaximumLiveSiteViews?: (maximum: number) => Promise<number>;

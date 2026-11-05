@@ -991,7 +991,7 @@ export function buildThemesRegistrations(
     return handler(ctx, options);
   }]));
 
-  return protectThemeFileTools({ deps: routeDeps, surfaces, catalog: CATALOG_BY_ID, registrations: buildDomainRegistrations({ metadata: toolMetadata,
+  return protectThemeFileTools({ deps: routeDeps, catalog: CATALOG_BY_ID, registrations: buildDomainRegistrations({ metadata: toolMetadata,
     domain: "themes",
     catalogModule: "features/theme/agent-tools.ts",
     catalog: CATALOG_BY_ID,

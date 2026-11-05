@@ -74,6 +74,7 @@ test("a durable launch racing park wakes and keeps the same attempt identity", a
 test("a durable mutation reset never replays the launch", async () => {
   let sends = 0;
   const client = createHttpRunDaemonClient({ observability }, {
+    currentUrl: () => "http://127.0.0.1:4200",
     ensureReady: async () => {}, fetch: async () => { sends++; throw new TypeError("reset", { cause: { code: "ECONNRESET" } }); },
   });
   await assert.rejects(client.launch!({ run: { runId: "attempt-1", principalId: "owner" } as never, request: { contextRef: "ctx" } }, {}), /reset/);

@@ -28,6 +28,75 @@ import { createSiteSupervisor } from "./site-supervisor.ts";
 import type { SupervisedServer } from "./site-supervisor.ts";
 import { readRegistry, writeRegistry, isLiveServeRow, instanceFilePath } from "./site-process-registry.ts";
 import { fileURLToPath } from "node:url";
+import { EventEmitter } from "node:events";
+import { createSitePresence } from "./project-ipc.ts";
+import { SITE_PRESENCE_CHANNEL } from "./contracts/project.ts";
+import { IDLE_SITE_SLEEP_CHANNELS } from "./contracts/site-view-preference.ts";
+
+test('presence replaces each sender list and releases only that sender on destroy or renderer loss', () => {
+  class Sender extends EventEmitter { isDestroyed() { return false; } }
+  const first = new Sender(), second = new Sender();
+  const presence = createSitePresence({ allowed: (sender) => sender !== untrusted,
+    trackedIds: () => new Set(['a', 'b', 'unloaded']) });
+  const untrusted = new Sender();
+  presence.replace({ sender: first, siteIds: ['a', 'unloaded'] });
+  presence.replace({ sender: second, siteIds: ['a'] });
+  presence.replace({ sender: first, siteIds: ['b'] });
+  assert.equal(presence.has({ siteId: 'unloaded' }), false, 'replacement removes closed tabs');
+  assert.equal(presence.has({ siteId: 'a' }), true, 'another sender still has a');
+  assert.equal(first.listenerCount('destroyed'), 1, 'updates do not accumulate hooks');
+  assert.throws(() => presence.replace({ sender: first, siteIds: ['unknown'] }), /INVALID/);
+  assert.throws(() => presence.replace({ sender: first, siteIds: 'b' }), /INVALID/);
+  assert.throws(() => presence.replace({ sender: untrusted, siteIds: ['a'] }), /UNTRUSTED/);
+  assert.equal(presence.has({ siteId: 'b' }), true, 'invalid updates preserve the last list');
+  first.emit('destroyed');
+  assert.equal(presence.has({ siteId: 'b' }), false);
+  assert.equal(presence.has({ siteId: 'a' }), true);
+  assert.equal(first.listenerCount('render-process-gone'), 0);
+  second.emit('render-process-gone');
+  assert.equal(presence.has({ siteId: 'a' }), false);
+  assert.equal(second.listenerCount('destroyed'), 0);
+  presence.replace({ sender: second, siteIds: ['unloaded'] });
+  assert.equal(presence.has({ siteId: 'unloaded' }), true, 'unloaded open tabs count');
+  presence.dispose();
+  assert.equal(presence.has({ siteId: 'unloaded' }), false);
+  assert.equal(second.listenerCount('destroyed'), 0);
+});
+
+test('registered presence trusts only the shell, counts own windows, and uses the profile preferences file', (t) => {
+  class Sender extends EventEmitter {
+    constructor(url: string) { super(); this.url = url; }
+    url: string;
+    getURL() { return this.url; }
+    isDestroyed() { return false; }
+  }
+  const deps = baseDeps();
+  t.after(() => fs.rmSync(path.dirname(deps.projectsPath), { recursive: true, force: true }));
+  trackSite(deps.projectsPath, '/sites/a');
+  const registered = new Map<string, Parameters<ProjectIpcDeps['ipcMain']['handle']>[1]>();
+  const presence = registerSiteIpcHandlers({ ...deps, ipcMain: {
+    handle: (channel, handler) => { registered.set(channel, handler); },
+    removeHandler: channel => { registered.delete(channel); },
+  } } as ProjectIpcDeps);
+  const shell = new Sender(new URL('../dist/renderer/index.html', import.meta.url).href);
+  const guest = new Sender('http://127.0.0.1:4100/admin/');
+  const report = registered.get(SITE_PRESENCE_CHANNEL)!;
+  assert.throws(() => report({ sender: guest }, { siteIds: ['/sites/a'] }), /UNTRUSTED/);
+  report({ sender: shell }, { siteIds: ['/sites/a'] });
+  assert.equal(presence.has({ siteId: '/sites/a' }), true);
+  shell.emit('render-process-gone');
+  assert.equal(presence.has({ siteId: '/sites/a' }), false);
+  deps.openSites.set('/sites/a', { server: {}, window: {} });
+  assert.equal(presence.has({ siteId: '/sites/a' }), true);
+  deps.openSites.delete('/sites/a');
+  assert.equal(presence.has({ siteId: '/sites/a' }), false);
+  assert.equal(registered.get(IDLE_SITE_SLEEP_CHANNELS.write)!({ sender: shell }, 30), 30);
+  assert.equal(registered.get(IDLE_SITE_SLEEP_CHANNELS.read)!({ sender: shell }), 30);
+  assert.equal(JSON.parse(fs.readFileSync(path.join(path.dirname(deps.statePath), 'desktop-preferences.json'), 'utf8')).idleSiteSleepMinutes, 30);
+  presence.dispose();
+  assert.equal(registered.has(SITE_PRESENCE_CHANNEL), false);
+  assert.equal(registered.has(IDLE_SITE_SLEEP_CHANNELS.read), false);
+});
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -93,6 +162,8 @@ function baseDeps<O extends Partial<ProjectIpcDeps>>(
   O {
   const dir = tempDir();
   return {
+    isPresenceShell: (sender: { isDestroyed(): boolean; getURL(): string }) =>
+      !sender.isDestroyed() && sender.getURL() === new URL('../dist/renderer/index.html', import.meta.url).href,
     projectsPath: sitesFilePath(dir),
     registryPath: path.join(dir, "site-processes"),
     repoRoot: "/repo",
@@ -1029,7 +1100,7 @@ test("registerSiteIpcHandlers registers exactly the real channels declared in SI
 
   registerSiteIpcHandlers(deps as ProjectIpcDeps); // only start/stop are invoked below
 
-  assert.deepEqual([...registered.keys()].sort(), Object.values(SITE_IPC_CHANNELS).sort());
+  assert.deepEqual([...registered.keys()].sort(), [...Object.values(SITE_IPC_CHANNELS), SITE_PRESENCE_CHANNEL, ...Object.values(IDLE_SITE_SLEEP_CHANNELS)].sort());
   const running = await registered.get(CONTRACT_SITE_IPC_CHANNELS.start)({}, siteDir);
   assert.equal(starts, 1);
   assert.equal(stops, 0);
@@ -2178,4 +2249,256 @@ test("a list whose names changed on disk is still returned when the name cache c
   const records = handleList(deps);
   assert.equal(first(records).displayName, "Renamed in Finder");
   assert.equal(warn.mock.calls.at(-1)?.arguments[0], "tovu desktop: could not remember website names");
+});
+
+// Plan B lifecycle: no Electron, launched processes or elapsed-time sleeps.
+import type { ResourcesSnapshot } from './contracts/resources.ts';
+
+/** Drive the existing registration owner with a real serializer and fake clock/children. */
+function b2LifecycleHarness(t: { after(fn: () => void): void }) {
+  let now = 1_000_000, minutes = 10, nextPid = 100, boots = 0;
+  let bootError: Error | undefined;
+  const timers: { delayMs: number; run: () => void; cancelled: boolean }[] = [];
+  const registered = new Map<string, (...args: any[]) => any>();
+  const siteDir = '/sites/b2';
+  type Child = ReturnType<typeof child>;
+  let lifecycle: ReturnType<typeof registerSiteIpcHandlers>;
+  const openSites = createSiteSupervisor<{ server: Child; window?: {} }>({
+    onUnexpectedExit: (dir, exit, entry) => lifecycle.onServerExit({ siteDir: dir, exit, server: entry.server }, {}),
+  });
+  function child() {
+    const listeners: ((exit: { code: number | null; signal: string | null }) => void)[] = [];
+    let exited = false;
+    const server = {
+      pid: nextPid++, port: 4000 + nextPid, external: false,
+      outputTail: () => 'safe redacted output [REDACTED]',
+      onExit: (fn: typeof listeners[number]) => { listeners.push(fn); },
+      stop: async () => { server.die(0); },
+      stopIfIdle: async (): Promise<boolean> => false,
+      die(code = 1) { if (exited) return; exited = true; for (const fn of listeners) fn({ code, signal: null }); },
+    };
+    return server;
+  }
+  const deps = baseDeps({ openSites, transitions: createSiteTransitions(), serializer: createKeyedSerializer(),
+    openSiteServer: async () => { if (openSites.has(siteDir)) return; boots++; if (bootError) throw bootError; openSites.set(siteDir, { server: child() }); },
+    ipcMain: { handle: (channel, handler) => { registered.set(channel, handler); }, removeHandler: channel => { registered.delete(channel); } },
+  });
+  trackSite(deps.projectsPath, siteDir, SITE_ORIGIN.adopted);
+  lifecycle = registerSiteIpcHandlers(deps as unknown as ProjectIpcDeps, {
+    now: () => now, sleepMinutes: () => minutes,
+    schedule: ({ delayMs, run }) => { const task = { delayMs, run, cancelled: false }; timers.push(task); return () => { task.cancelled = true; }; },
+  });
+  t.after(() => { lifecycle.dispose(); fs.rmSync(path.dirname(deps.projectsPath), { recursive: true, force: true }); });
+  openSites.set(siteDir, { server: child() });
+  const invoke = (channel: string) => registered.get(channel)!({}, siteDir);
+  const record = () => registered.get(SITE_IPC_CHANNELS.list)!({}).find((row: { id: string }) => row.id === siteDir);
+  const drain = async () => {
+    await deps.serializer.run(siteDir, async () => {});
+    // Flush promise continuations (including tracked boot completion), without a clock delay.
+    await new Promise<void>(resolve => setImmediate(resolve));
+  };
+  const pending = () => timers.filter(task => !task.cancelled);
+  const snapshot = (rss = 0, pid = openSites.get(siteDir)?.server.pid ?? 100): ResourcesSnapshot => {
+    const metrics = { rssBytes: rss, cpuPercent: null, memoryWarning: false, cpuWarning: false };
+    return { status: 'available', sampledAt: now, pollIntervalMs: 5000, totalMemoryBytes: 8e9, approximate: true,
+      total: metrics, app: { ...metrics, siteId: null, processes: [] },
+      sites: [{ ...metrics, siteId: siteDir, processes: [{ pid, ppid: 1, name: 'node', role: 'site-server', rssBytes: rss, cpuPercent: null, cpuWarning: false }] }] };
+  };
+  return { lifecycle, deps, openSites, siteDir, invoke, record, pending, snapshot, drain,
+    report: (sender: { getURL(): string; isDestroyed(): boolean }) => registered.get(SITE_PRESENCE_CHANNEL)!({ sender }, { siteIds: [siteDir] }),
+    server: () => openSites.get(siteDir)!.server, boots: () => boots,
+    setMinutes: (value: number) => { minutes = value; }, advance: (ms: number) => { now += ms; },
+    failBoot: (error?: Error) => { bootError = error; },
+    next: async () => { const task = pending()[0]!; assert.ok(task, 'expected a retry'); task.cancelled = true; now += task.delayMs; task.run(); await drain(); },
+  };
+}
+
+test('B2 crash plus failed boots use 1/5/30 seconds, then show a pasteable plain error', async t => {
+  const h = b2LifecycleHarness(t);
+  h.server().die(1); h.failBoot(new Error('last boot failed'));
+  for (const delay of [1000, 5000, 30000]) {
+    assert.equal(h.pending()[0]?.delayMs, delay);
+    assert.equal(h.record().status, 'starting');
+    await h.next();
+  }
+  assert.equal(h.boots(), 3); assert.equal(h.pending().length, 0);
+  assert.equal(h.record().status, 'error');
+  assert.match(h.record().statusDetail, /three automatic restarts.*five minutes/i);
+  assert.match(h.record().statusDetail, /last boot failed/);
+});
+
+test('B2 readiness preserves failures; manual Start resets and a quiet window expires', async t => {
+  const h = b2LifecycleHarness(t);
+  h.server().die(0); await h.next(); h.server().die(2);
+  assert.equal(h.pending()[0]?.delayMs, 5000, 'unsolicited zero counts; readiness does not reset');
+  await h.invoke(SITE_IPC_CHANNELS.start);
+  assert.equal(h.pending().length, 0);
+  h.server().die(3); assert.equal(h.pending()[0]?.delayMs, 1000, 'manual Start resets');
+  await h.next(); h.advance(300001); h.server().die(4);
+  assert.equal(h.pending()[0]?.delayMs, 1000, 'failures older than the rolling window expire');
+});
+
+test('B2 failed manual boot is counted and a final exit retains redacted output', async t => {
+  const h = b2LifecycleHarness(t);
+  await h.invoke(SITE_IPC_CHANNELS.stop); h.failBoot(new Error('initial boot failed'));
+  await assert.rejects(h.invoke(SITE_IPC_CHANNELS.start), /initial boot failed/);
+  assert.equal(h.pending()[0]?.delayMs, 1000);
+  h.failBoot(); await h.next();
+  for (let i = 0; i < 2; i++) { h.server().die(7); await h.next(); }
+  h.server().die(9);
+  assert.equal(h.record().status, 'error'); assert.equal(h.pending().length, 0);
+  assert.match(h.record().statusDetail, /9/); assert.match(h.record().statusDetail, /safe redacted output \[REDACTED\]/);
+});
+
+test('B2 Stop, delete and quit cancel pending retries, including a callback already queued', async t => {
+  for (const action of ['stop', 'delete', 'quit'] as const) {
+    const h = b2LifecycleHarness(t); h.server().die(1);
+    const stale = h.pending()[0]!;
+    if (action === 'quit') h.lifecycle.dispose(); else await h.invoke(SITE_IPC_CHANNELS[action]);
+    assert.equal(h.pending().length, 0); stale.run(); await h.drain();
+    assert.equal(h.boots(), 0, `${action} must defeat a stale timer callback`);
+  }
+});
+
+test('B2 sleep is confirmed only by exit; wake starts once with a fresh port and no crash retry', async t => {
+  const h = b2LifecycleHarness(t), before = h.server().port;
+  h.server().die(89);
+  assert.equal(h.record().status, 'sleeping'); assert.equal(h.pending().length, 0);
+  await Promise.all([h.invoke(SITE_IPC_CHANNELS.start), h.invoke(SITE_IPC_CHANNELS.start)]);
+  assert.equal(h.boots(), 1); assert.equal(h.record().status, 'running'); assert.notEqual(h.record().port, before);
+});
+
+test('B2 idle threshold honours Off, own windows, complete tab presence, and busy failures', async t => {
+  const h = b2LifecycleHarness(t); let requests = 0;
+  h.server().stopIfIdle = async () => { requests++; assert.equal(h.record().status, 'running', 'busy probes must not show Stopping'); return false; };
+  await h.lifecycle.maintain({ snapshot: h.snapshot() }, {}); h.advance(599999);
+  await h.lifecycle.maintain({ snapshot: h.snapshot() }, {}); assert.equal(requests, 0);
+  h.advance(1); await h.lifecycle.maintain({ snapshot: h.snapshot() }, {}); assert.equal(requests, 1);
+  h.server().stopIfIdle = async () => { requests++; throw new Error('channel disposed'); };
+  await h.lifecycle.maintain({ snapshot: h.snapshot() }, {});
+  assert.equal(h.record().status, 'running'); assert.equal(h.boots(), 0);
+  h.setMinutes(0); h.advance(600000); await h.lifecycle.maintain({ snapshot: h.snapshot() }, {}); assert.equal(requests, 2);
+  h.setMinutes(10); h.openSites.get(h.siteDir)!.window = {};
+  await h.lifecycle.maintain({ snapshot: h.snapshot() }, {}); assert.equal(requests, 2);
+  delete h.openSites.get(h.siteDir)!.window;
+  class Shell extends EventEmitter { isDestroyed() { return false; } getURL() { return new URL('../dist/renderer/index.html', import.meta.url).href; } }
+  const sender = new Shell(); h.lifecycle.replace({ sender, siteIds: [h.siteDir] }); h.advance(600000);
+  await h.lifecycle.maintain({ snapshot: h.snapshot() }, {}); assert.equal(requests, 2);
+  sender.emit('render-process-gone'); await h.lifecycle.maintain({ snapshot: h.snapshot() }, {});
+  h.advance(600000); await h.lifecycle.maintain({ snapshot: h.snapshot() }, {}); assert.equal(requests, 3);
+  h.server().external = true; h.advance(600000); await h.lifecycle.maintain({ snapshot: h.snapshot() }, {}); assert.equal(requests, 3);
+});
+
+test('B2 sustained root RSS restarts at 120 seconds only after an accepted stop and exit', async t => {
+  const h = b2LifecycleHarness(t); h.setMinutes(0); let requests = 0;
+  h.server().stopIfIdle = async () => { requests++; return false; };
+  await h.lifecycle.maintain({ snapshot: h.snapshot(1_500_000_000) }, {});
+  h.advance(119999); await h.lifecycle.maintain({ snapshot: h.snapshot(1_500_000_000) }, {});
+  assert.equal(requests, 0); h.advance(1);
+  await h.lifecycle.maintain({ snapshot: h.snapshot(1_500_000_000) }, {});
+  assert.equal(requests, 1); assert.equal(h.boots(), 0, 'busy never replaces the server');
+  const old = h.server(); old.stopIfIdle = async () => { requests++; old.die(89); return true; };
+  await h.lifecycle.maintain({ snapshot: h.snapshot(1_500_000_000) }, {}); await h.drain();
+  assert.equal(h.boots(), 1); assert.equal(h.record().status, 'running'); assert.equal(h.pending().length, 0);
+});
+
+test('B2 below-cap, missing, stale and replacement PID samples reset sustained RSS', async t => {
+  for (const reset of ['below', 'missing', 'stale', 'pid'] as const) {
+    const h = b2LifecycleHarness(t); h.setMinutes(0); let requests = 0;
+    h.server().stopIfIdle = async () => { requests++; return false; };
+    await h.lifecycle.maintain({ snapshot: h.snapshot(1_500_000_000) }, {}); h.advance(120000);
+    const snapshot = h.snapshot(1_500_000_000);
+    if (reset === 'below') snapshot.sites = h.snapshot(1_499_999_999).sites;
+    if (reset === 'missing') snapshot.sites = [];
+    if (reset === 'stale') snapshot.sampledAt -= 30001;
+    if (reset === 'pid') { h.server().pid += 1; snapshot.sites = h.snapshot(1_500_000_000).sites; }
+    await h.lifecycle.maintain({ snapshot }, {}); assert.equal(requests, 0, reset);
+    await h.lifecycle.maintain({ snapshot: h.snapshot(1_500_000_000) }, {});
+    h.advance(119999); await h.lifecycle.maintain({ snapshot: h.snapshot(1_500_000_000) }, {});
+    assert.equal(requests, 0, `${reset} must start a new observation`);
+  }
+});
+
+test('B2 Start racing idle shutdown waits for confirmed exit through the site serializer', async t => {
+  const h = b2LifecycleHarness(t), old = h.server();
+  let entered!: () => void, release!: () => void;
+  const requested = new Promise<void>(resolve => { entered = resolve; });
+  const exiting = new Promise<void>(resolve => { release = resolve; });
+  old.stopIfIdle = async () => { entered(); await exiting; old.die(89); return true; };
+  await h.lifecycle.maintain({ snapshot: h.snapshot() }, {}); h.advance(600000);
+  const sleeping = h.lifecycle.maintain({ snapshot: h.snapshot() }, {}); await requested;
+  const waking = h.invoke(SITE_IPC_CHANNELS.start); assert.equal(h.boots(), 0);
+  release(); await Promise.all([sleeping, waking]); await h.drain();
+  assert.equal(h.boots(), 1); assert.equal(h.record().status, 'running'); assert.equal(h.pending().length, 0);
+});
+
+
+test('B2 Quit tracks a pending automatic boot and stops a child adopted after cancellation', async t => {
+  const { createShutdownTracker } = await import('@jini-ai/desktop-host/shutdown');
+  const pending = createShutdownTracker({});
+  const siteDir = '/sites/quit-during-retry';
+  let entered!: () => void, release!: () => void, run!: () => void, stops = 0;
+  const started = new Promise<void>(resolve => { entered = resolve; });
+  const boot = new Promise<void>(resolve => { release = resolve; });
+  const deps = baseDeps({ serializer: createKeyedSerializer(), pendingTeardowns: pending,
+    ipcMain: { handle() {} },
+    openSiteServer: async () => {
+      entered(); await boot;
+      deps.openSites.set(siteDir, { server: { pid: 333, port: 4333, stop: async () => { stops++; } } });
+    },
+  });
+  trackSite(deps.projectsPath, siteDir, SITE_ORIGIN.adopted);
+  const lifecycle = registerSiteIpcHandlers(deps as unknown as ProjectIpcDeps, {
+    now: () => 100, schedule: input => { run = input.run; return () => {}; },
+  });
+  t.after(() => { lifecycle.dispose(); fs.rmSync(path.dirname(deps.projectsPath), { recursive: true, force: true }); });
+  lifecycle.onServerExit({ siteDir, exit: { code: 1, signal: null }, server: { pid: 1 } });
+  run(); await started;
+  assert.equal(pending.size, 1);
+  lifecycle.dispose(); release(); await pending.drain();
+  assert.equal(stops, 1);
+  assert.equal(deps.openSites.has(siteDir), false);
+});
+
+
+test('presence never boots a sleeping site; only renderer Start owns wake-up', async t => {
+  const h = b2LifecycleHarness(t);
+  class Shell extends EventEmitter { isDestroyed() { return false; } getURL() { return new URL('../dist/renderer/index.html', import.meta.url).href; } }
+  const sender = new Shell();
+  h.server().die(89);
+  h.report(sender); h.report(sender);
+  await h.drain();
+  assert.equal(h.boots(), 0);
+  await h.invoke(SITE_IPC_CHANNELS.start);
+  assert.equal(h.boots(), 1);
+});
+
+test('B2 manual Start revokes an old timer callback without consuming the new policy window', async t => {
+  const h = b2LifecycleHarness(t);
+  h.server().die(1);
+  const stale = h.pending()[0]!;
+  await h.invoke(SITE_IPC_CHANNELS.start);
+  h.server().die(2);
+  stale.run(); await h.drain();
+  assert.equal(h.boots(), 1);
+  assert.equal(h.pending().length, 1);
+  assert.equal(h.pending()[0]!.delayMs, 1000);
+});
+
+
+test('site registration accepts frozen deps and passes its runtime to record builders', t => {
+  const registered = new Map<string, (...args: any[]) => any>();
+  const deps = Object.freeze(baseDeps({
+    ipcMain: { handle: (channel, handler) => { registered.set(channel, handler); }, removeHandler: channel => { registered.delete(channel); } },
+  }));
+  const siteDir = '/sites/frozen-deps';
+  trackSite(deps.projectsPath, siteDir, SITE_ORIGIN.adopted);
+  const lifecycle = registerSiteIpcHandlers(deps as unknown as ProjectIpcDeps, {
+    now: () => 1_000, schedule: () => () => {},
+  });
+  t.after(() => { lifecycle.dispose(); fs.rmSync(path.dirname(deps.projectsPath), { recursive: true, force: true }); });
+  lifecycle.onBootFailure({ siteDir, error: new Error('boot failed') });
+  const records = registered.get(SITE_IPC_CHANNELS.list)!({});
+  assert.equal(records.find((row: { id: string }) => row.id === siteDir)?.status, 'starting');
+  assert.equal(Object.hasOwn(deps, 'siteRuntime'), false, 'registration state belongs to the registration, not its caller');
 });

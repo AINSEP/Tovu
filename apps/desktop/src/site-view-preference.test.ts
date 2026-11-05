@@ -5,6 +5,53 @@ import path from 'node:path';
 import test from 'node:test';
 import { readMaximumLiveSiteViews, writeMaximumLiveSiteViews, maximumLiveSiteViewsMenu, refreshMaximumLiveSiteViewsMenu, registerSiteViewPreferenceIpc } from './site-view-preference.ts';
 import { LIVE_SITE_VIEWS, SITE_VIEW_PREFERENCE_CHANNELS, clampLiveSiteViews } from './contracts/site-view-preference.ts';
+import { readIdleSiteSleepMinutes, writeIdleSiteSleepMinutes, registerIdleSiteSleepIpc } from './site-view-preference.ts';
+import { IDLE_SITE_SLEEP_CHANNELS } from './contracts/site-view-preference.ts';
+
+test('idle sites sleep after ten minutes by default; Off/5/10/30 persist beside Loaded sites', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'site-sleep-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const preferencePath = path.join(dir, 'preferences.json');
+  assert.equal(readIdleSiteSleepMinutes({ preferencePath }), 10);
+  fs.writeFileSync(preferencePath, JSON.stringify({ maximumLiveSiteViews: 3 }));
+  for (const idleSiteSleepMinutes of [0, 5, 10, 30] as const) {
+    assert.equal(writeIdleSiteSleepMinutes({ preferencePath, idleSiteSleepMinutes }), idleSiteSleepMinutes);
+    assert.equal(readIdleSiteSleepMinutes({ preferencePath }), idleSiteSleepMinutes);
+    assert.deepEqual(JSON.parse(fs.readFileSync(preferencePath, 'utf8')), { maximumLiveSiteViews: 3, idleSiteSleepMinutes });
+  }
+  for (const invalid of [-1, 1, 15, '10', null, undefined, NaN]) {
+    const before = fs.readFileSync(preferencePath, 'utf8');
+    assert.throws(() => writeIdleSiteSleepMinutes({ preferencePath, idleSiteSleepMinutes: invalid as number }), /INVALID/);
+    assert.equal(fs.readFileSync(preferencePath, 'utf8'), before);
+    fs.writeFileSync(preferencePath, JSON.stringify({ idleSiteSleepMinutes: invalid }));
+    assert.equal(readIdleSiteSleepMinutes({ preferencePath }, { warn: () => {} }), 10);
+  }
+  fs.writeFileSync(preferencePath, '{damaged');
+  assert.equal(readIdleSiteSleepMinutes({ preferencePath }, { warn: () => {} }), 10);
+  assert.throws(() => writeIdleSiteSleepMinutes({ preferencePath, idleSiteSleepMinutes: 5 }), /UNREADABLE/);
+  assert.equal(fs.readFileSync(preferencePath, 'utf8'), '{damaged');
+});
+
+test('sleep IPC validates shell and choices, and failed saves preserve the previous choice', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'site-sleep-ipc-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const preferencePath = path.join(dir, 'preferences.json');
+  const handlers = new Map<string, (event: { sender: string }, value?: unknown) => number>();
+  const off = registerIdleSiteSleepIpc({ preferencePath, allowed: (sender: string) => sender === 'shell', ipcMain: {
+    handle: (channel, handler) => { handlers.set(channel, handler); },
+    removeHandler: channel => { handlers.delete(channel); },
+  } });
+  const read = handlers.get(IDLE_SITE_SLEEP_CHANNELS.read)!;
+  const write = handlers.get(IDLE_SITE_SLEEP_CHANNELS.write)!;
+  assert.equal(read({ sender: 'shell' }), 10);
+  assert.throws(() => read({ sender: 'guest' }), /UNTRUSTED/);
+  assert.throws(() => write({ sender: 'guest' }, 5), /UNTRUSTED/);
+  assert.equal(write({ sender: 'shell' }, 5), 5);
+  assert.throws(() => write({ sender: 'shell' }, 15), /INVALID/);
+  assert.equal(read({ sender: 'shell' }), 5);
+  off();
+  assert.equal(handlers.size, 0);
+});
 
 test('one loaded site by default; a saved choice persists without overwriting other preferences', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'site-views-'));

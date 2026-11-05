@@ -17,6 +17,8 @@ import { SITE_VIEW_PREFERENCE_CHANNELS as VIEWS } from "../contracts/site-view-p
 import { OWNER_STORE_CHANNELS } from "../contracts/owner-store.ts";
 import { RUNNER_AGENT_INVENTORY_CHANNELS as INVENTORY } from "../contracts/runtime-inventory.ts";
 import { SITE_IPC_CHANNELS as SITE, SITE_THEME_PREVIEW_CHANNELS as THEME } from "../contracts/project.ts";
+import { SITE_PRESENCE_CHANNEL } from "../contracts/project.ts";
+import { IDLE_SITE_SLEEP_CHANNELS as SLEEP } from "../contracts/site-view-preference.ts";
 import { WORKSPACE_CHAT_CHANNELS as CHAT } from "../contracts/workspace-chat.ts";
 import { RUNNER_WORKING_DIRECTORY_CHANNELS as WORKDIR } from "../contracts/working-directory.ts";
 import { FIND_IN_PAGE_CHANNELS as FIND, FIND_RESULT_CHANNEL } from "../contracts/find-in-page.ts";
@@ -138,6 +140,9 @@ async function assertEveryRunnerMethod({ exposed, invokes, listeners, frameCalls
   const input = { marker: "renderer-input" };
   const cases: [method: string, args: unknown[], expected: unknown[]][] = [
     ["getAppVersion", [], [RUNNER_APP_VERSION_CHANNEL]],
+    ["getIdleSiteSleepMinutes", [], [SLEEP.read]],
+    ["setIdleSiteSleepMinutes", [5], [SLEEP.write, 5]],
+    ["reportOpenSiteTabs", [{ siteIds: ['a', 'b'] }], [SITE_PRESENCE_CHANNEL, { siteIds: ['a', 'b'] }]],
     ["getResources", [{ panelOpen: true }, {}], [RUNNER_RESOURCES_GET_CHANNEL, { panelOpen: true }]],
     ["checkForUpdates", [], [RUNNER_APP_CHECK_FOR_UPDATES_CHANNEL]],
     ["getMaximumLiveSiteViews", [], [VIEWS.read]],

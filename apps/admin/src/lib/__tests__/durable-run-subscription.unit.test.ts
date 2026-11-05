@@ -274,3 +274,17 @@ test("a missing durable row releases the host's page-stream activity and complet
   expect(ended).toBe(1); expect(done).toEqual([[]]);
   stop(); expect(ended).toBe(2);
 });
+
+
+test('routine polls send the prior ETag and skip JSON parsing on unchanged replies', async () => {
+  const reads: RequestInit[] = [];
+  const unchanged = new Response(null, { status: 304 });
+  const parse = vi.spyOn(unchanged, 'json');
+  const message = { id: 'answer', role: 'assistant', content: 'saved' };
+  const replies = [Response.json({ message }, { headers: { ETag: '"boot:12:1"' } }), unchanged];
+  const ports = browserDurableSubscriptionPorts({}, { request: async (_url, init) => { reads.push(init!); return replies.shift()!; } });
+  expect(await ports.read({ runId: 'run', messageId: 'answer' }, { recover: false })).toEqual(message);
+  expect(await ports.read({ runId: 'run', messageId: 'answer' }, { recover: false })).toBeNull();
+  expect(reads[1]?.headers).toEqual({ 'If-None-Match': '"boot:12:1"' });
+  expect(parse).not.toHaveBeenCalled();
+});

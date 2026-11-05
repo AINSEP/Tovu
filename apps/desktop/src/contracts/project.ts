@@ -10,6 +10,7 @@ export type SiteLifecycleStatus =
   | 'running'
   | 'stopping'
   | 'stopped'
+  | 'sleeping'
   | 'failed'
   | 'blocked';
 
@@ -281,6 +282,9 @@ export const SITE_IPC_CHANNELS = {
    */
   tokenSignInPlugins: 'runner:sites:token-sign-in-plugins',
 } as const;
+
+/** Replace this shell sender's complete open-tab list, including hidden and unloaded tabs. */
+export const SITE_PRESENCE_CHANNEL = 'runner:sites:presence';
 
 /** One step through a project tab's own history. */
 export type SiteHistoryCommand = 'back' | 'forward';

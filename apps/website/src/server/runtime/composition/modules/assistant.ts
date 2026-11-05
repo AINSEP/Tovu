@@ -77,7 +77,7 @@ import type { ServerModuleHandle } from "./types.js";
 import { randomUUID } from "node:crypto";
 import { createRunAcceptance } from "#src/assistant/durable-runs/accept";
 import { assistantRunFinalizerFor, createHttpRunDaemonClient } from "./assistant-run-finalizer.js";
-import type { DurableRun, DurableRunHead } from "#src/assistant/durable-runs/ports";
+import type { DurableRun, DurableRunHead, DurableRunPoll } from "#src/assistant/durable-runs/ports";
 import { RunSlotBusyError } from "#src/assistant/persistence/durable-run-store";
 
 /** The API composition uses the real lifecycle; route tests inject discovery-free demand ports. */
@@ -209,12 +209,36 @@ async function ownedDurableRun({ req, res, deps }: { req: Request; res: Response
   if (!store) return null;
   const principalId = getAuthedPrincipal(res).id;
   const messageId = req.method === "GET" ? req.query.messageId : (req.body as { messageId?: unknown } | undefined)?.messageId;
-  const run = typeof messageId === "string" ? await store.load({ messageId }, {}) : await store.find({ runId: req.params.runId!, principalId }, {});
+  const run = typeof messageId === "string" ? await (store.head ?? store.load)({ messageId }, {}) : await store.find({ runId: req.params.runId!, principalId }, {});
   return run?.principalId === principalId && run.workspaceId === deps.workspaceId ? run : null;
+}
+
+/** Write raw JSON from the store without reserializing its event tree. An unchanged owned
+ * projection is an empty 304, so cancelled/quiet polls do not churn multi-MB bodies.
+ */
+function sendDurableCheckpoint({ res, result }: { res: Response; result: DurableRunPoll }, _options = {}): void {
+  res.setHeader('ETag', '"' + result.cursor + '"');
+  res.setHeader('Cache-Control', 'private, no-store');
+  if (result.messageJson === undefined) { res.status(304).end(); return; }
+  res.type('json');
+  res.write('{"conversationId":' + JSON.stringify(result.conversationId) + ',"message":');
+  res.write(result.messageJson);
+  res.end('}');
 }
 
 /** Routine polls read the owned saved projection; only recovery signals invoke the finalizer. */
 async function readDurableCheckpoint({ req, res, deps }: { req: Request; res: Response; deps: AssistantRouteDeps }, _optional = {}): Promise<void> {
+  const store = deps.chatRunLedger.durable;
+  const messageId = req.query.messageId;
+  if (store?.poll && typeof messageId === 'string') {
+    const etag = req.get('If-None-Match');
+    const cursor = etag?.match(/^"([a-zA-Z0-9%:-]{1,256})"$/)?.[1];
+    const result = await store.poll({ messageId, principalId: getAuthedPrincipal(res).id, workspaceId: deps.workspaceId },
+      cursor === undefined ? {} : { cursor });
+    if (!result) { res.status(404).json({ error: 'not found' }); return; }
+    sendDurableCheckpoint({ res, result });
+    return;
+  }
   const run = await ownedDurableRun({ req, res, deps }, {});
   if (!run) { res.status(404).json({ error: "not found" }); return; }
   res.json({ message: run.message, conversationId: run.conversationId });
@@ -225,7 +249,8 @@ async function recoverDurableRun({ req, res, deps }: { req: Request; res: Respon
   if (!run) { res.status(404).json({ error: "not found" }); return; }
   const finalizer = assistantRunFinalizerFor({ ledger: deps.chatRunLedger, tracker: deps.tracker, observability: deps.observability }, {});
   await finalizer.recover({ messageId: run.messageId, trigger: "browser" }, {});
-  const current = await deps.chatRunLedger.durable!.load({ messageId: run.messageId }, {});
+  const store = deps.chatRunLedger.durable!;
+  const current = await (store.head ?? store.load)({ messageId: run.messageId }, {});
   if (!current) { res.status(404).json({ error: "not found" }); return; }
   res.json({ message: current.message, conversationId: current.conversationId });
 }
@@ -545,7 +570,7 @@ export function createAssistantModule(routeDeps: AssistantRouteDeps, byokSurface
       app.post("/api/runs/:runId/cancel", (req, res, next) => cancelDurableRun({ req, res, deps: routeDeps, daemon }, {}).catch(next));
       // A message the operator sent mid-run, for the live agent (`@jini-ai/daemon`'s run-messages
       // route). Passed through untouched: the daemon's 202 / 409 `details.delivery` tells the chat
-      // pane whether to stop the run and send the text as the next turn. A durable run's id is the
+      // pane whether to deliver live or queue the text after the current run. A durable run's id is the
       // daemon's own (`launch` hands it over), so no ledger lookup is needed.
       app.post("/api/runs/:runId/messages", (req, res, next) => proxyPassthrough(req, res, daemon).catch(next));
 

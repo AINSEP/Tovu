@@ -358,7 +358,16 @@ async function serveBootedSite(input: RunServeCommandInput, target: string, owne
   // `createApp` has attached every subscriber), Trash auto-purge sweeper, theme watcher, the
   // automatic form pull, the post go-live sweep, the webhook delivery loop, the due-bindings DNS
   // sweep and the site-search maintenance loop. All stop in `shutdown` below.
-  const { app, outboxDrainer, trashSweeper, themeWatcher, formPullTrigger, postGoLiveSweep, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance, bootWork } = (optional.createServingApp ?? createServingApp)(deps);
+  let requestStop: ((input: { exitCode: number }) => void) | undefined;
+  const servingOptions = {
+    stopForIdle: (input: { exitCode: number }) => {
+      if (!requestStop) throw new Error("site shutdown is not ready");
+      // Reply on the inherited channel before its normal daemon-first teardown withdraws it.
+      const stop = requestStop;
+      setImmediate(() => stop(input));
+    },
+  };
+  const { app, outboxDrainer, trashSweeper, themeWatcher, formPullTrigger, postGoLiveSweep, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance, bootWork } = (optional.createServingApp ?? createServingApp)(deps, servingOptions);
   owned.workers.push(outboxDrainer, { stop: () => trashSweeper.stop({}) }, themeWatcher, formPullTrigger, postGoLiveSweep, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance);
   owned.bootWork.push(...bootWork);
 
@@ -467,6 +476,7 @@ async function serveBootedSite(input: RunServeCommandInput, target: string, owne
         store: { storage: bootResult.storage, close: () => closeSiteDirBoot(bootResult, owned.composedStore) },
         onShutdown: shutdownAssistantDaemon,
       }, {
+        registerStop: stop => { requestStop = stop; },
         bootWork: () => owned.bootWork,
         stopServing: () => stopServingWithinGrace({ server, workers: [
           { stop: () => daemonCallback.close() }, { stop: stopOutbox }, { stop: stopTrash }, themeWatcher, formPullTrigger, postGoLiveSweep, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance,

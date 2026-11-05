@@ -93,6 +93,8 @@ export type CampaignOutcomeCounter = "delivered" | "failed";
 
 /** C-001 — `newsletter_campaigns`/`newsletter_campaign_revisions` (the bespoke Drizzle pair). */
 export interface NewsletterCampaignRepoPort {
+  /** Bounded idle-safety probe; missing capability means busy, never a paginated-list fallback. */
+  hasSending?(required: { workspaceId: UUID }, optional?: {}): Promise<boolean>;
   findById(required: { workspaceId: UUID; id: UUID }): Promise<CampaignRecord | null>;
   list(required: { workspaceId: UUID; afterId?: UUID; limit?: number }): Promise<CampaignRecord[]>;
   /**

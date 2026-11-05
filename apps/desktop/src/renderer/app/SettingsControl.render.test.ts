@@ -112,3 +112,46 @@ test('SettingsControl: Check for updates… reads Checking… until main answers
   await settle();
   assert.equal(view.menu(), null);
 });
+
+test('SettingsControl: sleep choices sit beside Loaded sites, load the saved value and retain it after a failed save', async t => {
+  const writes: number[] = [];
+  const view = renderSettings(t, { bridge: {
+    getMaximumLiveSiteViews: async () => 1, setMaximumLiveSiteViews: async value => value,
+    getIdleSiteSleepMinutes: async () => 30,
+    setIdleSiteSleepMinutes: async value => { writes.push(value); if (value === 5) throw new Error('disk full'); return value; },
+  } });
+  await settle();
+  await view.click(view.gear());
+  const rows = view.all('.settings__row');
+  assert.match(rows.at(-2)?.textContent ?? '', /Loaded sites/);
+  assert.match(rows.at(-1)?.textContent ?? '', /Sleep idle sites after/);
+  const group = view.container.querySelector('[aria-label="Sleep idle sites after"]')!;
+  const choices = [...group.querySelectorAll<HTMLButtonElement>('button')];
+  assert.deepEqual(choices.map(choice => choice.textContent), ['Off', '5', '10', '30']);
+  assert.equal(choices[3]?.getAttribute('aria-checked'), 'true');
+  await view.click(choices[0]);
+  await settle();
+  assert.equal(choices[0]?.getAttribute('aria-checked'), 'true');
+  await view.click(choices[1]);
+  await settle();
+  assert.equal(choices[0]?.getAttribute('aria-checked'), 'true');
+  assert.match(view.container.querySelector('[role="alert"]')?.textContent ?? '', /could not be saved/);
+  assert.deepEqual(writes, [0, 5]);
+  assert.ok(view.menu(), 'saving keeps Settings open');
+});
+
+test('SettingsControl: sleep defaults to ten and a late startup read cannot replace a saved choice', async t => {
+  let finish!: (value: 30) => void;
+  const view = renderSettings(t, { bridge: {
+    getIdleSiteSleepMinutes: () => new Promise<30>(resolve => { finish = resolve; }),
+    setIdleSiteSleepMinutes: async value => value,
+  } });
+  await view.click(view.gear());
+  assert.equal(view.byLabel('10 min')?.getAttribute('aria-checked'), 'true');
+  await view.click(view.byLabel('5 min'));
+  await act(async () => { finish(30); });
+  assert.equal(view.byLabel('5 min')?.getAttribute('aria-checked'), 'true');
+  await view.click(view.gear());
+  await view.click(view.gear());
+  assert.equal(view.byLabel('5 min')?.getAttribute('aria-checked'), 'true');
+});

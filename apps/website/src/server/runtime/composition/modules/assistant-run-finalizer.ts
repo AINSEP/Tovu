@@ -32,7 +32,7 @@ import type { Tracker } from "@jini-ai/diagnostics/observability";
  * daemon cannot finalize its own death. The daemon saves early session locators and mutation
  * barriers through the same guarded persistence ports; projection recovery remains API-owned.
  */
-import type { ChatMessage } from "@jini-ai/chat/core";
+import { checkpointIntervalMs as scaledCheckpointIntervalMs, checkpointProgress, type ChatMessage } from "@jini-ai/chat/core";
 import { randomUUID } from "node:crypto";
 import { createDurableRecovery } from "#src/assistant/durable-runs/recover";
 import type { DurableRecovery, DurableRun, RecoveryTrigger } from "#src/assistant/durable-runs/ports";
@@ -95,17 +95,10 @@ export interface AssistantRunFinalizerOptions {
   readonly statusTimeoutMs?: number;
   /** Jini's timer port; tests advance recovery deadlines without real sleeps or module mocks. */
   readonly scheduler?: SupervisorScheduler;
-  /** Least time between two in-flight checkpoints of one run. Default 1000 ms; tests pass 0. */
+  /** Override the size-based interval between in-flight checkpoints; tests pass 0. */
   readonly checkpointIntervalMs?: number;
-  /**
-   * Saved-payload size above which checkpoints back off to `largeCheckpointIntervalMs`, measured
-   * as string characters in the saved events (a lower bound of their serialized size). Each
-   * checkpoint rewrites the whole projection, so a many-MB turn at the 1 s cadence churns ~100 MB/s
-   * (memory cause 3). Default 5_000_000.
-   */
-  readonly largeCheckpointBytes?: number;
-  /** Least time between checkpoints once the saved payload exceeds `largeCheckpointBytes`. Default 5000 ms. */
-  readonly largeCheckpointIntervalMs?: number;
+  // Each checkpoint rewrites the projection. Multi-MB turns at 1 s churn ~100 MB/s
+  // (memory cause 3); the shared pure size policy owns the 1/3/10 s cadence.
   /**
    * Records each watched run as one agent run (`RouteDeps.observability`). This is the API-side
    * point that learns every daemon run's terminal outcome, so it is where that signal belongs; the
@@ -143,7 +136,7 @@ function daemonHeaders(principalId: string, token: string | undefined): Record<s
 /** The real daemon, over loopback HTTP — the same URL, token and principal header the proxy uses.
  *  Each request is one outbound span through `observability` (host/port and status, never the run id
  *  or token); the events request's span ends at the response headers, not with the stream.
- *  Successful status probes pin the owning endpoint/capability until the watch calls `release`.
+ *  Successful status probes pin the owning endpoint/capability until its process dies or the watch calls `release`.
  *  @complexity O(1) per request beyond transport; O(w) retained addresses for w active run/principal watches. */
 export function createHttpRunDaemonClient(
   { observability }: { observability: ObservabilityPort },
@@ -162,19 +155,30 @@ export function createHttpRunDaemonClient(
   const send = trackFetch({ fetch: (url: string, init?: RequestInit) => (optional.fetch ?? fetch)(url, init), observability });
   const initialToken = assistantDaemonToken({}, {});
   const previous = optional.previousDaemon?.().then((record) => ({ record }), (error: unknown) => ({ error }));
-  type Address = { url: string; token: string | undefined };
+  type Address = { url: string; token: string | undefined; pid?: number };
   const current = (): Address => ({ url: (optional.currentUrl ?? getAgentDaemonUrl)(), token: assistantDaemonToken({}, {}) });
   async function origin(): Promise<Address> {
     const result = await previous;
     if (result && "error" in result) throw result.error;
     const record = result?.record ?? previousAssistantDaemonConnection({}, {});
-    if (record && (optional.isAlive ?? isProcessAlive)({ pid: record.pid })) return { url: record.url, token: record.token ?? initialToken };
+    if (record && (optional.isAlive ?? isProcessAlive)({ pid: record.pid })) return { url: record.url, token: record.token ?? initialToken, pid: record.pid };
     return current();
   }
   // Retain endpoint AND capability per run; a fallback for one principal must not redirect
   // another run to a replacement scope or pair its old URL with the replacement credential.
   const replayOrigins = new Map<string, Address>();
   const replayKey = ({ runId, principalId }: RunDaemonRequest, _optional = {}) => JSON.stringify([principalId, runId]);
+  /** Keep a live owner's URL/capability together, but never reuse a known-dead owner's port.
+   * A prior daemon can outlive the API boot, so a new current URL alone is no reason to switch.
+   * @complexity O(1) lookup and process probe; no new daemon is started.
+   */
+  async function replayOrigin(required: RunDaemonRequest, _options = {}): Promise<Address> {
+    const key = replayKey(required);
+    const address = replayOrigins.get(key);
+    if (address && (address.pid === undefined || (optional.isAlive ?? isProcessAlive)({ pid: address.pid }))) return address;
+    replayOrigins.delete(key);
+    return origin();
+  }
   /** A timed-out probe can resolve after watch cleanup. Never let it retain a retired capability.
    * @complexity O(1) time/space per still-live probe; the owning watch releases its map entry. */
   function retainLiveOrigin(
@@ -214,7 +218,7 @@ export function createHttpRunDaemonClient(
       await response.body?.cancel();
     },
     async cancel(required, _options) {
-      const address = replayOrigins.get(replayKey(required)) ?? await origin();
+      const address = await replayOrigin(required);
       const response = await send(`${address.url}/api/runs/${encodeURIComponent(required.runId)}/cancel`, {
         method: "POST", headers: { ...daemonHeaders(required.principalId, address.token), "Content-Type": "application/json" },
         body: JSON.stringify({ reason: "recovery-fence" }), signal: AbortSignal.timeout(5_000),
@@ -222,12 +226,12 @@ export function createHttpRunDaemonClient(
       await response.body?.cancel();
     },
     openEvents: async (required, { signal } = {}) => {
-      const address = replayOrigins.get(replayKey(required)) ?? await origin();
+      const address = await replayOrigin(required);
       return send(`${address.url}/api/runs/${encodeURIComponent(required.runId)}/events`, { headers: daemonHeaders(required.principalId, address.token), signal });
     },
     async runStatus(required, requestOptions = {}) {
       try {
-        const address = replayOrigins.get(replayKey(required)) ?? await origin();
+        const address = await replayOrigin(required);
         const status = await statusAt({ ...required, ...address }, requestOptions);
         if (status !== null && status !== 404) {
           retainLiveOrigin({ run: required, address, status }, requestOptions);
@@ -250,8 +254,12 @@ export function createHttpRunDaemonClient(
   };
 }
 
+type CheckpointState = NonNullable<Parameters<ChatRunLedger["checkpoint"]>[1]>["previous"];
+
 /** One run being watched: the events received on the current connection, and whether it failed. */
 interface Watch {
+  /** Last exact persisted projection. Owned by this watch; no ledger cache/release lifecycle. */
+  checkpointState?: CheckpointState;
   readonly daemon: RunDaemonClient;
   readonly abortStream: AbortController;
   resolutionDeadline: number;
@@ -266,13 +274,18 @@ interface Watch {
   /** Split-echo-line memory for the current connection; reset with `events` on every replay. */
   frameCarry?: RunFrameCarry;
   failed: boolean;
-  /** Event count, start time and approximate payload size of the latest checkpoint attempt
-   *  (writes are best effort). The size picks the interval before the next one. */
-  checkpointedEvents: number;
+  /** Saved payload size and start time of the latest checkpoint attempt (writes are best
+   *  effort). The saved size picks the interval before the next one. */
   checkpointedAt: number;
   checkpointedBytes: number;
+  /** Meaningful saved progress: status chatter and replayed tool identities do not qualify. */
+  checkpointedTextCharacters: number;
+  checkpointedExtensionEvents: number;
+  checkpointedTools: Set<string>;
   /** Only one best-effort progress write at a time; later frames are coalesced into the next one. */
   checkpointPending: boolean;
+  /** Failed writes cannot be retried by new frames before the backed-off deadline. */
+  checkpointRetryAt?: number;
   /** Stops progress scheduling as soon as the terminal outcome is known, before its durable write. */
   terminal: boolean;
   /** The trailing checkpoint armed when the interval skipped one (see `checkpoint`). */
@@ -281,9 +294,7 @@ interface Watch {
 
 function recoverySettings({ options }: { options: AssistantRunFinalizerOptions }, _optional = {}) {
   return { reconnectDelayMs: options.reconnectDelayMs ?? 2_000, maxReconnects: Math.max(0, options.maxReconnects ?? 30),
-    resolutionTimeoutMs: options.resolutionTimeoutMs ?? 120_000, statusTimeoutMs: options.statusTimeoutMs ?? 5_000,
-    checkpointIntervalMs: options.checkpointIntervalMs ?? 1_000, largeCheckpointBytes: options.largeCheckpointBytes ?? 5_000_000,
-    largeCheckpointIntervalMs: options.largeCheckpointIntervalMs ?? 5_000 };
+    resolutionTimeoutMs: options.resolutionTimeoutMs ?? 120_000, statusTimeoutMs: options.statusTimeoutMs ?? 5_000 };
 }
 
 /**
@@ -297,6 +308,48 @@ function approximateJsonBytes(value: unknown): number {
   let total = 0;
   for (const item of Array.isArray(value) ? value : Object.values(value)) total += approximateJsonBytes(item);
   return total;
+}
+
+/** Preserve injected host/test overrides while the shared pure policy owns the default cadence.
+ * @complexity O(1) time and space. */
+function checkpointDelay({ bytes, options }: { bytes: number; options: AssistantRunFinalizerOptions }, _options = {}): number {
+  return options.checkpointIntervalMs ?? scaledCheckpointIntervalMs({ bytes });
+}
+
+/** Compare live progress with a successful or attempted checkpoint, including replayed tool ids.
+ * @returns Whether unsaved meaningful progress needs a write or trailing timer; no side effects.
+ * @complexity O(tool identities) time and space for the comparison. */
+function checkpointGrew(
+  { previous, progress }: { previous: ReturnType<typeof checkpointProgress>; progress: ReturnType<typeof checkpointProgress> },
+  _options = {},
+): boolean {
+  return progress.textCharacters > previous.textCharacters ||
+    progress.extensionEvents > previous.extensionEvents ||
+    [...progress.tools].some((key) => !previous.tools.has(key));
+}
+
+/** Compare with the last successful save, so replay prefixes and unchanged rows need no retry.
+ * @complexity O(tool identities) comparison; does not serialize or mutate progress. */
+function hasUnsavedCheckpointGrowth({ watch, progress }: { watch: Watch; progress: ReturnType<typeof checkpointProgress> }, _options = {}): boolean {
+  return checkpointGrew({ progress, previous: {
+    textCharacters: watch.checkpointedTextCharacters,
+    extensionEvents: watch.checkpointedExtensionEvents,
+    tools: watch.checkpointedTools,
+  } });
+}
+
+function clearTrailing({ watch }: { watch: Watch }, _options = {}): void {
+  clearTimeout(watch.trailing);
+  watch.trailing = undefined;
+}
+
+/** Close progress scheduling before aborting I/O or awaiting storage. A late checkpoint completion
+ * must not resurrect a watch that settled, was canceled, or failed to persist.
+ * @complexity O(1) time and space; idempotent timer cancellation and stream abort. */
+function stopWatch({ watch }: { watch: Watch }, _options = {}): void {
+  watch.terminal = true;
+  clearTrailing({ watch });
+  watch.abortStream.abort();
 }
 
 function watchable({ message }: { message: ChatMessage }, _optional = {}): boolean {
@@ -315,7 +368,7 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
   const tracker = options.tracker ?? createNoopTracker({});
   const daemon = options.daemon ?? createHttpRunDaemonClient({ observability });
   const now = options.now ?? Date.now;
-  const { reconnectDelayMs, maxReconnects, resolutionTimeoutMs, statusTimeoutMs, checkpointIntervalMs, largeCheckpointBytes, largeCheckpointIntervalMs } = recoverySettings({ options });
+  const { reconnectDelayMs, maxReconnects, resolutionTimeoutMs, statusTimeoutMs } = recoverySettings({ options });
   const scheduler = options.scheduler ?? createNodeSupervisorScheduler({});
   const active = new Map<string, { watch: Watch; done: Promise<void> }>();
   const recoveryStore = options.ledger.durable;
@@ -373,10 +426,7 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
 
   /** Stop progress scheduling and await the ledger's atomic terminal write; persistence errors propagate. */
   async function settle(watch: Watch, status: RunSettlement["status"], events: AgentEvent[]): Promise<void> {
-    watch.terminal = true;
-    watch.abortStream.abort();
-    clearTimeout(watch.trailing);
-    watch.trailing = undefined;
+    stopWatch({ watch });
     await options.ledger.settle({
       conversationId: watch.conversationId,
       messageId: watch.messageId,
@@ -390,10 +440,8 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
 
   async function recoverWatch(watch: Watch, trigger: RecoveryTrigger): Promise<void> {
     const events = interruptionEvents(watch);
+    stopWatch({ watch });
     await options.ledger.checkpoint({ ...watch, content: runContentFromEvents(events), events: runEventsForSave(events) });
-    watch.terminal = true;
-    watch.abortStream.abort();
-    clearTimeout(watch.trailing);
     if (!recovery) {
       // Only a fresh status 404 selects "stream". Reconnect/deadline exhaustion is uncertain;
       // without durable recovery's budget and session quarantine, retain this run's saved row.
@@ -415,6 +463,28 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
       ? watch.events : watch.retainedEvents;
   }
 
+  /** One cancelable timer owns skipped frames and failed-write retries. Its callback reuses the
+   * terminal, pending-write and unsaved-growth guards, including callbacks queued before cleanup.
+   * @complexity O(1) time and space; replaces at most one timer per watch. */
+  function scheduleCheckpoint({ watch, delayMs }: { watch: Watch; delayMs: number }, _options = {}): void {
+    clearTrailing({ watch });
+    watch.trailing = setTimeout(() => {
+      watch.trailing = undefined;
+      void checkpoint(watch);
+    }, delayMs);
+    watch.trailing.unref();
+  }
+
+  /** Failed storage writes retry during quiet tool/approval waits, at most once per interval and
+   * never faster than once per second. False (fenced/unchanged) results do not retry.
+   * @complexity O(events + tool identities) growth comparison; one timer per watch. */
+  function retryCheckpoint({ watch, interval }: { watch: Watch; interval: number }, _options = {}): void {
+    if (watch.terminal || !hasUnsavedCheckpointGrowth({ watch, progress: checkpointProgress({ events: watch.events }) })) return;
+    const delayMs = Math.max(interval, 1_000);
+    watch.checkpointRetryAt = now() + delayMs;
+    scheduleCheckpoint({ watch, delayMs });
+  }
+
   /**
    * Saves what the run has produced so far, when it has grown since the last save and the interval
    * has passed. Only growth counts: a reconnect replays from event 0, and a checkpoint of the
@@ -428,45 +498,63 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
    * slow progress write holds an already-buffered `end` behind it, leaving a finished turn running
    * for startup repair to misclassify. Later progress is coalesced when the pending write finishes.
    * Terminal settlement uses the ledger's terminal guard to reject any late checkpoint.
-   * Once the last saved payload exceeded `largeCheckpointBytes`, the interval is
-   * `largeCheckpointIntervalMs` instead: each write rewrites the whole projection.
+   * The last saved payload selects the shared size-based interval (or an injected host override):
+   * a merge fallback still rewrites the projection, so large turns need fewer checkpoints.
    * @complexity O(saved events) per write, with one pending write and one trailing timer per run.
    */
   async function checkpoint(watch: Watch): Promise<void> {
     if (watch.terminal || watch.checkpointPending) return;
-    if (watch.events.length <= watch.checkpointedEvents) return;
-    const interval = watch.checkpointedBytes > largeCheckpointBytes ? largeCheckpointIntervalMs : checkpointIntervalMs;
-    const wait = interval - (now() - watch.checkpointedAt);
+    const interval = checkpointDelay({ bytes: watch.checkpointedBytes, options });
+    const wait = Math.max(watch.checkpointedAt + interval, watch.checkpointRetryAt ?? Number.NEGATIVE_INFINITY) - now();
+    // An armed timer will consume the latest frames; avoid rescanning them on every delta.
+    if (wait > 0 && watch.trailing) return;
+    const progress = checkpointProgress({ events: watch.events });
+    // Completion rechecks for coalesced frames. Do not arm a timer for an unchanged projection:
+    // only unsaved growth should start the trailing deadline that protects a quiet run.
+    if (!hasUnsavedCheckpointGrowth({ watch, progress })) return;
     if (wait > 0) {
-      if (!watch.trailing) {
-        watch.trailing = setTimeout(() => {
-          watch.trailing = undefined;
-          void checkpoint(watch);
-        }, wait);
-        watch.trailing.unref();
-      }
+      scheduleCheckpoint({ watch, delayMs: wait });
       return;
     }
-    clearTimeout(watch.trailing);
-    watch.trailing = undefined;
-    watch.checkpointedEvents = watch.events.length;
-    watch.checkpointedAt = now();
-    watch.checkpointPending = true;
+    const content = runContentFromEvents(watch.events);
     const events = runEventsForSave(watch.events);
-    watch.checkpointedBytes = approximateJsonBytes(events);
+    clearTrailing({ watch });
+    watch.checkpointedAt = now();
+    watch.checkpointRetryAt = undefined;
+    watch.checkpointPending = true;
     // Best effort: a failed checkpoint only loses what a restart would keep; the stream goes on.
     await options.ledger
       .checkpoint({
         conversationId: watch.conversationId,
         messageId: watch.messageId,
         runId: watch.runId,
-        content: runContentFromEvents(watch.events),
+        content,
         events,
+      }, {
+        expected: watch.checkpointState?.length,
+        previous: watch.checkpointState,
+        onPersisted: (state) => { watch.checkpointState = state; },
       })
-      .catch((error: unknown) => console.error(`[assistant-run-finalizer] checkpoint of run ${watch.runId} failed`, error))
+      .then((written) => {
+        if (!written) return;
+        watch.checkpointedTextCharacters = progress.textCharacters;
+        watch.checkpointedExtensionEvents = progress.extensionEvents;
+        for (const key of progress.tools) watch.checkpointedTools.add(key);
+        watch.checkpointedBytes = approximateJsonBytes(events);
+      })
+      .catch((error: unknown) => {
+        console.error(`[assistant-run-finalizer] checkpoint of run ${watch.runId} failed`, error);
+        retryCheckpoint({ watch, interval });
+      })
       .finally(() => {
         watch.checkpointPending = false;
-        void checkpoint(watch);
+        // A false result (including a fenced row) or failure leaves the saved baseline behind.
+        // Retrying that same attempt here spins at interval 0, or rearms forever at other intervals.
+        // Only newer coalesced progress schedules from completion. Rejections alone also arm the
+        // backed-off retry above, so quiet runs are protected without resurrecting the spin.
+        if (!watch.terminal && checkpointGrew({ previous: progress, progress: checkpointProgress({ events: watch.events }) })) {
+          void checkpoint(watch);
+        }
       });
   }
 
@@ -532,7 +620,7 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
         // transcript spinning forever. The final fresh probe always gives a live daemon priority.
         return { kind: "unresolved" };
       }
-      if (!await retainLiveWatch(watch)) { watch.terminal = true; watch.abortStream.abort(); return { kind: "unresolved" }; }
+      if (!await retainLiveWatch(watch)) { stopWatch({ watch }); return { kind: "unresolved" }; }
       watch.resolutionDeadline = now() + resolutionTimeoutMs;
     }
   }
@@ -544,8 +632,7 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
   async function prepareReconnect({ watch, status, attempt }: { watch: Watch; status: number | null; attempt: number }, _options: Record<string, never> = {}): Promise<number | undefined> {
     if (status !== 200) return attempt;
     if (!await retainLiveWatch(watch)) {
-      watch.terminal = true;
-      watch.abortStream.abort();
+      stopWatch({ watch });
       return undefined;
     }
     watch.resolutionDeadline = now() + resolutionTimeoutMs;
@@ -630,6 +717,7 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
   function makeWatch({ principalId, conversationId, message, runId, daemon, attemptBase, now, resolutionTimeoutMs }: {
     principalId: string; conversationId: string; message: ChatMessage; runId: string; daemon: RunDaemonClient; attemptBase: AgentEvent[]; now: number; resolutionTimeoutMs: number;
   }, _options = {}): Watch {
+    const progress = checkpointProgress({ events: message.events ?? [] });
     return {
         daemon,
         abortStream: new AbortController(),
@@ -642,9 +730,11 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
         events: [...(message.events ?? [])],
         retainedEvents: [...(message.events ?? [])],
         failed: false,
-        checkpointedEvents: message.events?.length ?? 0,
         checkpointedAt: Number.NEGATIVE_INFINITY,
-        checkpointedBytes: 0,
+        checkpointedBytes: approximateJsonBytes(message.events ?? []),
+        checkpointedTextCharacters: progress.textCharacters,
+        checkpointedExtensionEvents: progress.extensionEvents,
+        checkpointedTools: progress.tools,
         checkpointPending: false,
         terminal: false,
     };
@@ -662,8 +752,7 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
         }
       } }, { agent: { runId, conversationId } })
         .finally(async () => {
-          watch.abortStream.abort();
-          clearTimeout(watch.trailing);
+          stopWatch({ watch });
           newAttempts.delete(runId);
           try {
             // Preserve a successor's pin on the same client, but release an old client's

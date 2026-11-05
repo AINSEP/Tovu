@@ -11,6 +11,7 @@ export const STATUS_LABEL: Record<SiteLifecycleStatus, string> = {
   running: 'Running',
   stopping: 'Stopping',
   stopped: 'Stopped',
+  sleeping: 'Sleeping',
   failed: 'Failed',
   blocked: 'Provider support required',
 };

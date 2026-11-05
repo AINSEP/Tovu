@@ -279,3 +279,26 @@ test("a real PGlite owner: SIGINT releases the socket file and the owner lock be
     fs.rmSync(siteDir, { recursive: true, force: true });
   }
 });
+
+
+test("idle stop preserves daemon/store ordering and the requested exit code", async () => {
+  const proc = new FakeProcess();
+  const order: string[] = [];
+  let stop!: (input: { exitCode: number }) => void;
+  closeStoreOnShutdown({
+    store: fakeStore("sqlite", async () => { order.push("store"); }),
+    onShutdown: () => { order.push("daemon"); },
+  }, { proc, registerStop: registered => { stop = registered; }, stopServing: async () => { order.push("listener"); } });
+  const exited = proc.exited();
+  stop({ exitCode: 89 });
+  await exited;
+  assert.deepEqual(order, ["daemon", "listener", "store"]);
+  assert.deepEqual(proc.exits, [89]);
+});
+
+
+test('a memory boot without an owned store installs no shutdown handlers', () => {
+  const proc = new FakeProcess();
+  assert.equal(closeStoreOnShutdown({ store: undefined, onShutdown: () => assert.fail('no store owner') }, { proc }), false);
+  assert.deepEqual(proc.eventNames(), []);
+});

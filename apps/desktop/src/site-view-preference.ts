@@ -1,6 +1,62 @@
 /** Tovu's live-guest preference. Jini owns the lock and atomic JSON persistence. */
 import { readJsonFile, withFileLock, writeJsonFileAtomic } from './durable-json-file.ts';
 import { LIVE_SITE_VIEWS, SITE_VIEW_PREFERENCE_CHANNELS, clampLiveSiteViews } from './contracts/site-view-preference.ts';
+import { IDLE_SITE_SLEEP, IDLE_SITE_SLEEP_CHANNELS, idleSiteSleepChoice, type IdleSiteSleepMinutes } from './contracts/site-view-preference.ts';
+
+/** Read the site-server timeout in minutes; missing or invalid settings use ten minutes.
+ * @complexity O(file bytes) time and space. Does not modify unreadable preferences.
+ */
+export function readIdleSiteSleepMinutes({ preferencePath }: { preferencePath: string }, { warn = console.warn }: { warn?: (message: string) => void } = {}): IdleSiteSleepMinutes {
+  const read = readJsonFile(preferencePath);
+  if (read.state === 'missing') return IDLE_SITE_SLEEP.fallback;
+  const value = read.state === 'ok' ? objectSettings(read.value).idleSiteSleepMinutes : undefined;
+  const saved = idleSiteSleepChoice({ value });
+  if (saved !== undefined) return saved;
+  if (read.state === 'unreadable' || value !== undefined) warn('tovu desktop: invalid idleSiteSleepMinutes; using 10');
+  return IDLE_SITE_SLEEP.fallback;
+}
+
+/** Save before answering, under the existing preferences lock. Reject invalid choices and leave
+ * unreadable bytes untouched. Other preferences, including Loaded sites, survive each save.
+ * @complexity O(file bytes) time and space, one atomic write.
+ */
+export function writeIdleSiteSleepMinutes({ preferencePath, idleSiteSleepMinutes }: { preferencePath: string; idleSiteSleepMinutes: number }, _options = {}): IdleSiteSleepMinutes {
+  const saved = idleSiteSleepChoice({ value: idleSiteSleepMinutes });
+  if (saved === undefined) throw new Error('INVALID_IDLE_SITE_SLEEP_MINUTES');
+  withFileLock(preferencePath, () => {
+    if (readJsonFile(preferencePath).state === 'unreadable') throw new Error('DESKTOP_PREFERENCES_UNREADABLE');
+    writeJsonFileAtomic(preferencePath, { ...settingsAt(preferencePath), idleSiteSleepMinutes: saved });
+  });
+  return saved;
+}
+
+/** Shell-only sleep preference endpoints. Failed writes reject without changing the saved value.
+ * @returns Teardown for both handlers. O(1) registration; storage costs belong to read/write above.
+ */
+export function registerIdleSiteSleepIpc<Sender>({ ipcMain, allowed, preferencePath }: {
+  ipcMain: {
+    handle: (channel: string, handler: (event: { sender: Sender }, value?: unknown) => number) => void;
+    removeHandler?: (channel: string) => void;
+  };
+  allowed: (sender: Sender) => boolean;
+  preferencePath: string;
+}, _options = {}): () => void {
+  const trusted = (sender: Sender) => { if (!allowed(sender)) throw new Error('UNTRUSTED_SITE_VIEW_PREFERENCE_SENDER'); };
+  ipcMain.handle(IDLE_SITE_SLEEP_CHANNELS.read, ({ sender }) => {
+    trusted(sender);
+    return readIdleSiteSleepMinutes({ preferencePath });
+  });
+  ipcMain.handle(IDLE_SITE_SLEEP_CHANNELS.write, ({ sender }, value) => {
+    trusted(sender);
+    const saved = idleSiteSleepChoice({ value });
+    if (saved === undefined) throw new Error('INVALID_IDLE_SITE_SLEEP_MINUTES');
+    return writeIdleSiteSleepMinutes({ preferencePath, idleSiteSleepMinutes: saved });
+  });
+  return () => {
+    ipcMain.removeHandler?.(IDLE_SITE_SLEEP_CHANNELS.read);
+    ipcMain.removeHandler?.(IDLE_SITE_SLEEP_CHANNELS.write);
+  };
+}
 
 function settingsAt(preferencePath: string): Record<string, unknown> {
   const read = readJsonFile(preferencePath);

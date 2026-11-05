@@ -1,3 +1,8 @@
+import { getExportRunSnapshot } from '../../../features/deployments/export-run.js';
+import { getPublishRunSnapshot } from '../../../features/deployments/static-publish/publish-run.js';
+import { createSiteIdlePark } from "../lifecycle/site-idle-park.js";
+import { registerSiteIdleStopHook } from "../lifecycle/daemon-supervisor.js";
+import { assistantRunFinalizerFor } from "./modules/assistant-run-finalizer.js";
 import { createVisitorPageTargets } from './visitor-page-targets.js';
 import { registerWarmSiteRetirement } from '../lifecycle/warm-site-retirement.js';
 import { notifyExternalMcpRosterChanged } from "../../../assistant/external-mcp-roster-change.js";
@@ -1837,6 +1842,8 @@ function subscribeSiteEventHandlersOnce(routeDeps: NewsletterRouteDeps): void {
 
 /** Optional {@link createApp} hooks. */
 export interface CreateAppOptions {
+  /** Serving process only. Uses the same listener/daemon/store stop as signals, with a sleep code. */
+  stopForIdle?: (input: { exitCode: number }) => void;
   /** Only createServingApp activates process-owned federation listeners and capability recovery. */
   activateAssistantFederation?: true;
   /** Hermetic integration seam; production uses the module's single default surface. */
@@ -1944,15 +1951,31 @@ function registerAdminSpa({ app, routeDeps }: { app: Express; routeDeps: RouteDe
   });
 }
 
+/** Install intake before every route only when the serving process supplies its graceful stop.
+ * Share the routes' finalizer by ledger identity: creating another watch owner could park mid-chat.
+ * @complexity O(1) wiring; each idle probe uses up to two bounded existence reads.
+ */
+function registerSiteIdlePark({ app, routeDeps, hasBackgroundWork }: { app: express.Express; routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps; hasBackgroundWork: () => Promise<boolean> }, options: CreateAppOptions = {}): void {
+  if (!options.stopForIdle) return;
+  const finalizer = assistantRunFinalizerFor({ ledger: routeDeps.chatRunLedger,
+    tracker: routeDeps.tracker, observability: routeDeps.observability });
+  const park = createSiteIdlePark({ hasBackgroundWork, hasActiveRuns: () => routeDeps.chatRunLedger.hasActiveRuns({}, {}),
+    activeCount: () => finalizer.activeCount(), stop: options.stopForIdle });
+  app.use(park.middleware);
+  registerSiteIdleStopHook({ stopIfIdle: park.stopIfIdle });
+}
+
 export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps = createRouteDeps(), options: CreateAppOptions = {}) {
   const app = express();
-  registerWarmSiteRetirement({ app, siteDir: routeDeps.siteBinding.dir, jobs: async () => {
-    // Read the lifecycle owners now: a completed job must not pin a warm child forever.
+  // Read the lifecycle owners now: a completed job must not pin a warm child forever.
+  const hasBackgroundWork = async (): Promise<boolean> => {
+    if (getExportRunSnapshot().status === 'running' || getPublishRunSnapshot().status === 'running') return true;
     if (routeDeps.siteShareBackend && routeDeps.siteShareBackend.hasWork?.({}) !== false) return true;
     await routeDeps.newsletterReady;
-    return (await routeDeps.newsletterCampaignRepo.list({ workspaceId: routeDeps.workspaceId }))
-      .some(campaign => campaign.status === 'sending');
-  } });
+    return await routeDeps.newsletterCampaignRepo.hasSending?.({ workspaceId: routeDeps.workspaceId }, {}) ?? true;
+  };
+  registerSiteIdlePark({ app, routeDeps, hasBackgroundWork }, options);
+  registerWarmSiteRetirement({ app, siteDir: routeDeps.siteBinding.dir, hasBackgroundWork });
   // All admin error mappers share this request-scoped diagnostic port, including narrow route deps.
   app.use("/api/admin", (_req, res, next) => { res.locals.adminFailureTracker = routeDeps.tracker; next(); });
   const internalRouter = express.Router();
@@ -2262,6 +2285,7 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // Through the handle, not a direct import, for the same zero-new-edge reason as `toolSurface` above.
   byokAssistantModule.registerToolExecRoutes({ router: internalRouter });
 
+  // Export/inspection apps keep federation cold; only serving composition binds process listeners.
   if (options.activateAssistantFederation) byokAssistantModule.activateServerFederation({ router: internalRouter }, {});
 
   // `TOVU_ADMIN_ASSISTANT=off` — a real disable: the four admin-assistant route modules below are

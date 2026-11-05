@@ -34,3 +34,26 @@ test('SiteGrid: the running address is in the status title, never in the card co
     assert.equal(card.querySelector('.card__port'), null);
   }
 });
+
+test('SiteGrid: Sleeping keeps the neutral card state and a Start control', async t => {
+  const card = await renderCard(t, site('a', { status: 'sleeping', port: 0 }));
+  assert.ok(card.classList.contains('is-sleeping'));
+  assert.equal(card.querySelector('.state')?.textContent?.trim(), 'Sleeping');
+  assert.equal(card.querySelector('.state')?.getAttribute('title'), 'Sleeping.');
+  assert.ok(card.querySelector('[aria-label="Start Site a"]'));
+});
+
+test('SiteGrid: a sleeping card starts through the existing power action before opening', async t => {
+  const calls: string[] = [];
+  installBridge({ t, bridge: {
+    getSitePreview: async () => null,
+    startSite: async id => { calls.push(`start:${id}`); return site(id, { status: 'running', port: 4200 }); },
+  } });
+  const view = mount({ t, element: createElement(SiteGrid, {
+    projects: [site('a', { status: 'sleeping' })], onOpen: id => calls.push(`open:${id}`), onDelete: async () => {},
+    onSiteUpdated: record => calls.push(`updated:${record.port}`),
+  }) });
+  await settle();
+  await view.click(view.byLabel('Start Site a'));
+  assert.deepEqual(calls, ['start:a', 'updated:4200', 'open:a']);
+});

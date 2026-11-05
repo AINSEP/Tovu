@@ -77,10 +77,13 @@ test("the content history through the current head applies on real Postgres", as
     "0027_search_index", "0028_search_index_retired", "0029_mail_activity_indexes",
     "0030_mail_suppression_admin", "0031_mail_activity_retention", "0032_member_signup_email",
     "0033_mail_activity_message", "0034_member_auth", "0035_member_external_identities",
-    "0036_publish_history_config_jsonb", "0037_media_source_metadata",
+    "0036_publish_history_config_jsonb", "0037_media_source_metadata", "0038_newsletter_sending_index",
   ];
   assert.deepEqual(report.applied, head);
   assert.deepEqual(CONTENT_MIGRATIONS.map(step => step.id), head);
+  const [busyIndex] = await baseline.query<{ indexdef: string }>(sql`SELECT indexdef FROM pg_indexes
+    WHERE schemaname = current_schema() AND indexname = 'idx_newsletter_campaigns_status'`);
+  assert.match(busyIndex!.indexdef, /ON .*newsletter_campaigns USING btree \(workspace_id, status\)/);
   const [{ n }] = await baseline.query<{ n: number }>(
     sql`SELECT count(*)::int AS n FROM information_schema.tables WHERE table_schema = current_schema() AND table_type = 'BASE TABLE' AND left(table_name, 14) <> '_vault_backup_'`
   );
@@ -91,7 +94,7 @@ test("the content history through the current head applies on real Postgres", as
     "search_index_watermarks", "search_index_targets", "search_index_retired",
   ];
   assert.equal(n, collectCoreTables().length + nonCoreTables.length, "declared content tables plus search document, ledger and TS-only tables; 0035's member_external_identities is already core");
-  assert.equal(n, 93, "93 tables through 0037_media_source_metadata: an accidental drop or addition must change this pin");
+  assert.equal(n, 93, "93 tables through 0038_newsletter_sending_index: an accidental drop or addition must change this pin");
   assert.deepEqual(await baseline.query(sql`SELECT udt_name FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'publish_history' AND column_name = 'config_fields_json'`), [{ udt_name: "jsonb" }]);
   const [{ cfg }] = await baseline.query<{ cfg: number }>(sql`SELECT count(*)::int AS cfg FROM pg_ts_config WHERE cfgname = 'tovu_search'`);
   assert.equal(cfg, 1);
@@ -100,7 +103,11 @@ test("the content history through the current head applies on real Postgres", as
 
 test("the chat history lands in ai_chat with its own ledger there; public gets no chat table", async () => {
   const report = await migrateChatDatabase(baseline);
-  assert.deepEqual(report.applied, ["0000_chat_baseline", "0001_sqlite_chat_tables", "0002_durable_run_attempts"]);
+  assert.deepEqual(report.applied, ["0000_chat_baseline", "0001_sqlite_chat_tables", "0002_durable_run_attempts", "0003_active_run_index"]);
+  const [busyIndex] = await baseline.query<{ indexdef: string }>(sql`SELECT indexdef FROM pg_indexes
+    WHERE schemaname = 'ai_chat' AND indexname = 'idx_ai_chat_messages_active'`);
+  assert.match(busyIndex!.indexdef, /ON ai_chat.ai_chat_messages USING btree \(role, run_status, id\) WHERE/);
+  assert.match(busyIndex!.indexdef, /'queued'.*'running'/);
   const rows = await baseline.query<{ schema: string; name: string }>(
     sql`SELECT table_schema AS schema, table_name AS name FROM information_schema.tables
         WHERE table_name IN ('ai_chats', 'ai_chat_messages', 'assistant_agent_sessions', 'assistant_conversation_tool_approvals', 'assistant_run_attempts', 'tovu_chat_migrations')

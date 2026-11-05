@@ -119,3 +119,16 @@ test("deskfx2 SHOULD-1: desktop main explicitly enables catalog recovery", () =>
 });
 
 
+
+
+test("B2 sleep skips crash telemetry/warnings after preserving exit cleanup", () => {
+  const callback = source.slice(source.indexOf('onUnexpectedExit: (siteDir, exit, entry)'), source.indexOf('const productState ='));
+  for (const effect of ['recordSiteClosed(', 'sitePreviewScheduler.cancel(', 'siteThemePreviews.stop(']) {
+    assert.ok(callback.indexOf(effect) < callback.indexOf('if (exit.code === SITE_SLEEP_EXIT_CODE) return;'));
+  }
+  assert.ok(callback.indexOf('if (exit.code === SITE_SLEEP_EXIT_CODE) return;') < callback.indexOf('reportDesktopServerExit('));
+  assert.ok(callback.indexOf('if (exit.code === SITE_SLEEP_EXIT_CODE) return;') < callback.indexOf('exited on its own'));
+  assert.match(source, /desktopResources.get\(\{ panelOpen: true \}, \{\}\)/);
+  assert.match(source, /setInterval\([\s\S]*?30_000\)/);
+  assert.match(source, /clearInterval\(siteMaintenanceTimer\)/);
+});

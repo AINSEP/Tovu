@@ -204,7 +204,7 @@ test("every wired themes registration publishes its catalog entry's inputSchema 
     const catalogDescriptor = { id, description: catalogEntry(id).description, inputSchema: catalogEntry(id).inputSchema };
     const [batchable] = resolveBatchableTools({ registrations: [{ ...registration, descriptor: { ...registration.descriptor, ...catalogDescriptor } }] });
     const expected = batchable
-      ? registration.descriptor.metadata?.approval?.confirmation === 'plan'
+      ? batchable.mode === 'plan'
         ? withBatchInput({ registration: { ...registration, descriptor: catalogDescriptor }, tool: batchable }, { mode: 'plan' }).descriptor
         : batchDescriptorFor({ descriptor: catalogDescriptor, tool: batchable })
       : catalogDescriptor;

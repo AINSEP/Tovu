@@ -17,6 +17,9 @@ import { assistantDaemonToken } from "../../lifecycle/assistant-daemon-connectio
  * path. See `runtime/lifecycle/agent-daemon-port.ts`'s own header for the full resolution contract.
  */
 import http from "node:http";
+import { redactSecrets } from "@jini-ai/core";
+import { maskLocalPaths } from "@jini-ai/diagnostics";
+import { ipcRefusalReason } from "@jini-ai/sidecar/supervisor/node";
 import { Readable } from "node:stream";
 
 import type { Request, Response } from "express";
@@ -114,8 +117,10 @@ let daemonUnreachableSince: number | null = null;
 
 /** Availability stays honest while known-failed. Something listening at an old port is not
  * proof of health: an orphan from a previous boot could otherwise answer as this site's daemon.
- * This passive check never starts recovery; actual demand awaits the shared readiness gate. */
-export function respondIfDaemonKnownFailed(res: Response): boolean {
+ * This passive check never starts recovery; actual demand awaits the shared readiness gate.
+ * A current readiness refusal supplies its public reason while preserving the latched failure code.
+ */
+export function respondIfDaemonKnownFailed(res: Response, { reason, detail }: { reason?: string; detail?: string | undefined } = {}): boolean {
   if (!isAssistantDaemonKnownFailed()) return false;
 
   // "unavailable", not "failed to start" — true for BOTH latch causes (never started this boot, or
@@ -124,9 +129,10 @@ export function respondIfDaemonKnownFailed(res: Response): boolean {
   // apart instead of guessing from "unavailable" alone; `null` is defensive only — this branch is
   // unreachable unless something is latched.
   res.status(503).json({
-    error: "the agent daemon is currently unavailable",
+    error: reason ?? "the agent daemon is currently unavailable",
     code: "AGENT_DAEMON_KNOWN_FAILED",
     reasonCode: getAssistantDaemonFailureReasonCode(),
+    ...(detail ? { detail } : {}),
   });
   return true;
 }
@@ -336,16 +342,23 @@ export async function fetchAgentDaemonEventStream(
   }
 }
 
-/** Await demand before selecting the origin or consuming request bytes. Startup failures are 503s. */
+/** Await demand before selecting the origin or consuming request bytes. Startup failures are 503s
+ * carrying the same refusal reason to the server log and the chat response.
+ */
 export async function awaitDaemonForResponse(
   { res }: { res: Response }, { ensureReady = ensureAssistantDaemonReady }: DaemonCallOptions = {},
 ): Promise<boolean> {
   try { await ensureReady({}, {}); return true; }
   catch (error) {
     // One line per refused request names why (cold-start timeout, disabled site, shutdown).
-    console.error(`[assistant] the agent daemon is not ready: ${String(error)}`);
-    if (respondIfDaemonKnownFailed(res)) return false;
-    res.status(503).json({ error: "the agent daemon is currently unavailable", code: "AGENT_DAEMON_UNAVAILABLE" });
+    const explicit = ipcRefusalReason({ value: error });
+    const reason = explicit !== undefined
+      ? redactSecrets({ input: explicit }) : "The assistant could not connect to its service. Retry your message; if it keeps failing, restart the site.";
+    const detail = explicit !== undefined ? undefined : maskLocalPaths({ text: redactSecrets({ input: error instanceof Error ? error.message : String(error) },
+      { exactSecrets: [assistantDaemonToken({}, {})].filter((value): value is string => Boolean(value)) }) }).slice(0, 2048);
+    console.error(`[assistant] the agent daemon is not ready: ${reason}${detail ? ` Details: ${detail}` : ''}`);
+    if (respondIfDaemonKnownFailed(res, { reason, detail })) return false;
+    res.status(503).json({ error: reason, code: "AGENT_DAEMON_UNAVAILABLE", ...(detail ? { detail } : {}) });
     return false;
   }
 }

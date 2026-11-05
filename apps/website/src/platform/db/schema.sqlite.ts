@@ -941,7 +941,8 @@ export const newsletterCampaigns = sqliteTable(
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
   },
-  (table) => [index("idx_newsletter_campaigns_workspace").on(table.workspaceId)]
+  (table) => [index("idx_newsletter_campaigns_workspace").on(table.workspaceId),
+    index("idx_newsletter_campaigns_status").on(table.workspaceId, table.status)]
 );
 
 /** INV-01: a campaign row must never exist without a same-tx revision row (`campaign-write-service.ts`). */

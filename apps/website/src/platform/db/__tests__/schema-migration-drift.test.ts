@@ -42,7 +42,10 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { openSqliteContentConnection, migrateSqliteContentFile } from "../sqlite/content-db.js";
+import { openContentDb, openSqliteContentConnection, migrateSqliteContentFile } from "../sqlite/content-db.js";
+import { openChatDb, openSiteChatDb } from "../sqlite/chat-db.js";
+import { sqliteKernel, type NativeSqliteDatabase } from "../kernel/drivers/sqlite.js";
+import { migrateContentDatabase } from "../migrations/index.js";
 import { getTableConfig } from "drizzle-orm/sqlite-core";
 
 import { collectCoreTables, DERIVED_OBJECTS } from "../migration/manifest.js";
@@ -238,6 +241,51 @@ const OUTAGE_REMINDER =
   "with no migration behind it breaks EVERY query against that table the moment schema.sqlite.ts is saved — not when " +
   "the new field is first read. On 2026-09-02 one such column (posts.member_access_json) 500'd the entire " +
   "public site in 3ms. Add the column with a TS migration step in platform/db/migrations (ADR-066; the drizzle chain is frozen).";
+
+/** Explicit index pins supplement column drift: both boot paths could otherwise omit an index.
+ * Query plans also pin the reason for these indexes: LIMIT 1 must not scan payload rows when idle.
+ */
+function assertBusyIndex({ sqlite, name, table, columns, partial, query, args }: {
+  sqlite: NativeSqliteDatabase; name: string; table: string; columns: string[];
+  partial: number; query: string; args: string[];
+}): void {
+  const info = sqlite.prepare("SELECT name FROM pragma_index_info(?) ORDER BY seqno").all(name) as Array<{ name: string }>;
+  assert.deepEqual(info.map(column => column.name), columns, name);
+  const index = sqlite.prepare("SELECT partial FROM pragma_index_list(?) WHERE name = ?").get(table, name) as { partial: number };
+  assert.equal(index?.partial, partial, name);
+  const plan = sqlite.prepare(`EXPLAIN QUERY PLAN ${query}`).all(...args) as Array<{ detail: string }>;
+  assert.ok(plan.some(row => row.detail.includes(`USING COVERING INDEX ${name}`)), JSON.stringify(plan));
+}
+
+test("0038 newsletter busy index matches on fresh and migrated content databases and covers the probe", async () => {
+  const fresh = openContentDb(":memory:");
+  const migrated = openSqliteContentConnection(":memory:");
+  try {
+    await migrateContentDatabase(sqliteKernel<unknown>(migrated));
+    for (const db of [fresh, migrated]) assertBusyIndex({ sqlite: db.$client,
+      name: "idx_newsletter_campaigns_status", table: "newsletter_campaigns",
+      columns: ["workspace_id", "status"], partial: 0,
+      query: "SELECT workspace_id FROM newsletter_campaigns WHERE workspace_id = ? AND status = ? LIMIT 1",
+      args: ["ws", "sending"],
+    });
+  } finally { fresh.$client.close(); migrated.$client.close(); }
+});
+
+test("0003 active-run index matches on fresh and migrated chat databases and covers the probe", async () => {
+  const fresh = openChatDb(":memory:");
+  const migrated = await openSiteChatDb(":memory:");
+  try {
+    for (const sqlite of [fresh, migrated]) {
+      assertBusyIndex({ sqlite, name: "idx_ai_chat_messages_active", table: "ai_chat_messages",
+        columns: ["role", "run_status", "id"], partial: 1,
+        query: "SELECT id FROM ai_chat_messages WHERE role = ? AND run_status IN ('queued', 'running') LIMIT 1",
+        args: ["assistant"],
+      });
+      const index = sqlite.prepare("SELECT sql FROM sqlite_schema WHERE name = 'idx_ai_chat_messages_active'").get() as { sql: string };
+      assert.match(index.sql, /WHERE run_status IN \('queued', 'running'\)/);
+    }
+  } finally { fresh.close(); migrated.close(); }
+});
 
 // ---------------------------------------------------------------------------
 // End-to-end gates against the real schema and the real migrations

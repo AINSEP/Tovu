@@ -5,8 +5,6 @@ import { readLiveDaemonRegistryRecord } from '@jini-ai/sidecar';
 import { delegatedAssistantDaemonConnection } from './assistant-daemon-connection.js';
 import { isAssistantDaemonReady } from './daemon-supervisor.js';
 import { createDevServerRetirement as createWarmSiteRetirement } from '@jini-ai/devops/local-dev';
-import { getExportRunSnapshot } from '../../../features/deployments/export-run.js';
-import { getPublishRunSnapshot } from '../../../features/deployments/static-publish/publish-run.js';
 export { createWarmSiteRetirement };
 
 /** A registered assistant may have work beyond an HTTP response; protect it until its process
@@ -28,9 +26,8 @@ async function assistantMayHaveWork({ siteDir }: { siteDir: string }): Promise<b
  * is read from its existing status owners, never inferred from HTTP 202. O(1) local status reads
  * plus the injected domain-job probe, bounded by the retirement owner's timeout.
  */
-export function registerWarmSiteRetirement({ app, siteDir, jobs = async () => false }: { app: Express; siteDir: string; jobs?: () => Promise<boolean> },
-  { env = process.env, hasWork = async () => getExportRunSnapshot().status === 'running'
-    || getPublishRunSnapshot().status === 'running' || await assistantMayHaveWork({ siteDir }) || await jobs() }:
+export function registerWarmSiteRetirement({ app, siteDir, hasBackgroundWork = async () => false }: { app: Express; siteDir: string; hasBackgroundWork?: () => Promise<boolean> },
+  { env = process.env, hasWork = async () => await hasBackgroundWork() || await assistantMayHaveWork({ siteDir }) }:
   { env?: NodeJS.ProcessEnv; hasWork?: () => Promise<boolean> } = {}): void {
   const token = env.TOVU_DEV_RETIRE_TOKEN;
   if (!token || env.TOVU_DEV_WARM_SITES !== '1') return;
@@ -43,7 +40,7 @@ export function registerWarmSiteRetirement({ app, siteDir, jobs = async () => fa
       void guard.retire().then(idle => { res.sendStatus(idle ? 204 : 409); });
       return;
     }
-    if (!guard.accepting()) { res.status(503).json({ error: 'This idle dev site is stopping. Reopen it from Sites.' }); return; }
+    if (!guard.accepting()) { res.status(503).json({ error: 'This idle site is stopping. Try again in a moment.' }); return; }
     if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) { next(); return; }
     const release = guard.begin();
     res.once('finish', () => release({}));

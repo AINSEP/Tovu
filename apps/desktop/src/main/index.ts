@@ -1,3 +1,4 @@
+import { SITE_SLEEP_EXIT_CODE } from "../../../website/src/assistant/daemon-exit-codes.ts";
 import { migrateNestedSitesHome } from "../nested-sites-migration.ts";
 import { createSitesWorkspace, rememberSharedSiteOpen, attachRunningSite } from "../shared-sites.ts";
 /**
@@ -150,7 +151,7 @@ import { readPreviewVersion, readPreviewDataUrl, writePreview, deletePreview, sw
 import { createSiteThemePreviewSubscriptions, openSiteThemePreviewStream } from "../site-theme-preview.ts";
 import { registerSiteThemePreviewIpc } from "../site-theme-preview-ipc.ts";
 import { createSitePreviewScheduler } from "../site-preview-scheduler.ts";
-import { registerSiteIpcHandlers, rescanSites } from "../project-ipc.ts";
+import { registerSiteIpcHandlers, rescanSites, type ProjectSiteLifecycle } from "../project-ipc.ts";
 import { createSiteFolders } from "../site-folders.ts";
 import { discoverDesktopSites, startDesktopSiteDiscovery } from "../site-discovery.ts";
 import { addSitePointer } from "../add-site-pointer.ts";
@@ -355,6 +356,10 @@ function settleLegacyOwnerStoreOnStart(): void {
 }
 
 
+let siteLifecycle: ProjectSiteLifecycle | undefined;
+let siteMaintenanceTimer: ReturnType<typeof setInterval> | undefined;
+const recoveringSiteWindows = new Map<string, BrowserWindow>();
+
 /**
  * `siteDir -> { server, window }` for every site this process currently has open. Replaces the
  * single-site `tovuServer` variable the shell used before multi-site.
@@ -368,7 +373,6 @@ function settleLegacyOwnerStoreOnStart(): void {
  */
 const openSites = createSiteSupervisor<OpenSite>({
   onUnexpectedExit: (siteDir, exit, entry) => {
-    reportDesktopServerExit({ tracker: productState.product.tracker, code: exit.code, signal: exit.signal });
     sitePreviewScheduler.cancel({ siteDir }, {});
     siteThemePreviews.stop({ siteDir }, {});
     // The row exists to let the NEXT launch reap a child this process left running. This one is
@@ -376,7 +380,12 @@ const openSites = createSiteSupervisor<OpenSite>({
     // Narrowed by pid: this instance's own file can also hold a still-draining earlier child's row
     // for this same site (D-07).
     recordSiteClosed(registryDirPath(app.getPath("userData")), siteDir, { pid: entry.server.pid });
-    console.warn(`tovu desktop: ${siteDir}'s server exited on its own (code ${exit.code ?? "none"}, signal ${exit.signal ?? "none"}). Its tab will show as stopped; Start will spawn a fresh one.`);
+    if (quitPhase !== "idle") return;
+    if (entry.window) recoveringSiteWindows.set(siteDir, entry.window);
+    siteLifecycle?.onServerExit({ siteDir, exit, server: entry.server }, {});
+    if (exit.code === SITE_SLEEP_EXIT_CODE) return;
+    reportDesktopServerExit({ tracker: productState.product.tracker, code: exit.code, signal: exit.signal });
+    console.warn(`tovu desktop: ${siteDir}'s server exited on its own (code ${exit.code ?? "none"}, signal ${exit.signal ?? "none"}). Automatic restart follows this site's retry limit.`);
   },
 });
 
@@ -571,6 +580,7 @@ const sitePreviewScheduler = createSitePreviewScheduler<ReturnType<typeof setTim
 
 /** Open (or focus) one own-server site's window — see `site-window.ts`. Run through `serializer.run(siteDir, …)`. */
 async function openSiteWindow(siteDir: string, ctx: SiteOpenCtx, options: SiteOpenOptions = {}): Promise<BrowserWindow> {
+  siteLifecycle?.manualStart({ siteDir }, {});
   return openSiteWindowWith({ siteDir, ctx, ports: {
     openSites,
     startSiteBackend: ({ siteDir: dir, ctx: openCtx }, openOptions) => siteBackend.startSiteBackend({ siteDir: dir, ctx: openCtx }, openOptions),
@@ -580,8 +590,14 @@ async function openSiteWindow(siteDir: string, ctx: SiteOpenCtx, options: SiteOp
     siteThemePreviews, sitePreviewScheduler,
     endSiteSession: ({ partition, adminUrl }) => endSiteSession({ net, session: session.fromPartition(partition), adminUrl }),
     trackTeardown: ({ promise }) => pendingTeardowns.track({ promise }),
+    cancelRestart: ({ siteDir: dir }) => { siteLifecycle?.cancel({ siteDir: dir }); recoveringSiteWindows.delete(dir); },
     platform: process.platform, quitPhase: () => quitPhase, logError: (message) => console.error(message),
-  } }, options);
+  } }, options).catch(error => {
+    // A failed first window boot has no window to repoint. Keep it stopped for an explicit retry;
+    // background retries are safe only when an existing window can adopt their replacement.
+    if (recoveringSiteWindows.has(siteDir)) siteLifecycle?.onBootFailure({ siteDir, error });
+    throw error;
+  });
 }
 
 /**
@@ -687,6 +703,7 @@ function reconcileOrphansOnBoot(): Promise<void> {
 
 /** Boot mode 2 — own server — see `own-server-boot.ts`. */
 async function bootOwnServerMode(): Promise<void> {
+  registerProjectLifecycle(buildProjectDeps(sitesHomeCtx()));
   const ctx: SiteOpenCtx = { cliMode: resolveCliMode(), statePath: stateFilePath(app.getPath("userData")), registryPath: registryDirPath(app.getPath("userData")) };
   await bootOwnServerModeIn({ ctx, ports: { sitesConfigWarning: () => sharedSites.config({}).warning, warn: (message) => console.warn(message),
     refreshAppMenu, resolveStartupSiteDirs, selftest: SELFTEST,
@@ -810,10 +827,26 @@ type SitesHomeCtx = ReturnType<typeof sitesHomeCtx>;
 /** `project-ipc.ts`'s deps bag — built once, see `runSitesHomeBoot`. */
 function buildProjectDeps(sitesCtx: SitesHomeCtx) {
   return {
+    // Use the same canonical shell page as preview and settings authorization.
+    isPresenceShell: (sender: { isDestroyed(): boolean; getURL(): string }) =>
+      !sender.isDestroyed() && sender.getURL() === pathToFileURL(SITES_RENDERER_PATH).href,
     ipcMain,
     dialog,
     shell,
     openSites,
+    onRestartStopped: ({ siteDir, detail }: { siteDir: string; detail: string }) => {
+      if (recoveringSiteWindows.has(siteDir)) dialog.showErrorBox("This site couldn’t stay running", detail);
+    },
+    onServerRestarted: async ({ siteDir }: { siteDir: string }) => {
+      const window = recoveringSiteWindows.get(siteDir);
+      recoveringSiteWindows.delete(siteDir);
+      const entry = openSites.get(siteDir);
+      if (!window || window.isDestroyed() || !entry) return;
+      entry.window = window;
+      await window.loadURL(entry.server.adminUrl).catch(() => {
+        console.warn("tovu desktop: the site restarted, but its window could not load. Reopen the site.");
+      });
+    },
     // The other half of what a card reads as a site's status: `openSites` says whether its
     // server is alive, this says whether a start or a stop is in flight on it. Without it here
     // the Stop button the card just showed would report `running` for the whole drain.
@@ -902,6 +935,28 @@ function singleWindowPorts(openWindow: () => void): SingleWindowPorts {
     windowCount: () => BrowserWindow.getAllWindows().length, quitPhase: () => quitPhase };
 }
 
+/** A single fleet tick shares Resources' cache and in-flight read with the UI. Child authority,
+ * never RSS or tab presence alone, decides whether an eligible site may stop.
+ */
+function registerProjectLifecycle(projectDeps: ReturnType<typeof buildProjectDeps>): void {
+  siteLifecycle ??= registerSiteIpcHandlers(projectDeps);
+  if (siteMaintenanceTimer) return;
+  siteMaintenanceTimer = setInterval(() => {
+    void desktopResources.get({ panelOpen: true }, {})
+      .then(snapshot => siteLifecycle?.maintain({ snapshot }, {}))
+      .catch(() => console.warn("tovu desktop: site maintenance deferred; resource state is unavailable."));
+  }, 30_000);
+  siteMaintenanceTimer.unref();
+}
+
+/** Revoke automatic work synchronously before Quit snapshots live children and pending boots. */
+function stopSiteLifecycle(): void {
+  clearInterval(siteMaintenanceTimer);
+  siteMaintenanceTimer = undefined;
+  siteLifecycle?.dispose();
+  recoveringSiteWindows.clear();
+}
+
 /** Boot mode 1 — sites home — see `boot-sequence.ts`'s `runSitesHomeBoot` for the step order. */
 function bootSitesHomeMode(): void {
   const sitesCtx = sitesHomeCtx();
@@ -909,7 +964,7 @@ function bootSitesHomeMode(): void {
     settleDevFallbackRows: () => settleDevFallbackRows({ projectsPath: sitesCtx.projectsPath, devFallbackDir: DEV_FALLBACK_SITE_DIR,
       classifySiteDir: classifySiteDirSafely, migrateLegacyDismissals, seedDevFallbackSite, retireDevFallbackSite }),
     buildProjectDeps: () => buildProjectDeps(sitesCtx),
-    registerSiteIpcHandlers: (projectDeps) => registerSiteIpcHandlers(projectDeps),
+    registerSiteIpcHandlers: (projectDeps) => registerProjectLifecycle(projectDeps),
     startSiteDiscovery: startSitesHomeDiscovery,
     registerAppVersionIpc: () => registerAppVersionIpc({ ipcMain, app }, { repoRoot: REPO_ROOT }),
     registerResourcesIpc: () => registerResourcesIpc({ ipcMain,
@@ -979,6 +1034,7 @@ app.whenReady().then(bootDesktop).catch(reportBootFailure);
  * window opens on the NEXT launch — is what answers that now (see this file's own header).
  */
 app.on("before-quit", (event) => {
+  stopSiteLifecycle();
   siteDiscovery.abortAll();
   // Discovery can still be in flight even with no open sites; include its disposal in the same
   // awaited drain. Repeated quit attempts must not start another disposal while that drain runs.

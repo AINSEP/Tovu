@@ -57,3 +57,15 @@ test('useProjectTabs: reopening a tab without a page keeps the admin page it was
   act(() => hook.current().openProjectTab('a'));
   assert.deepEqual([hook.current().adminPages, hook.current().activeTab], [{ a: 'import' }, 'a'], 'reopening without a page keeps where the tab was sent');
 });
+
+test('useProjectTabs reports complete open lists initially and after changes, including hidden tabs', (t) => {
+  const reports: string[][] = [];
+  const getBridge = () => ({ reportOpenSiteTabs: async ({ siteIds }: { siteIds: readonly string[] }) => { reports.push([...siteIds]); } });
+  const hook = renderHook(t, () => useProjectTabs({}, { getBridge }));
+  act(() => hook.current().openProjectTab('a'));
+  act(() => hook.current().openProjectTab('b'));
+  act(() => hook.current().setActiveTab(null));
+  act(() => hook.current().openProjectTab('a'));
+  act(() => hook.current().closeProjectTab('a'));
+  assert.deepEqual(reports, [[], ['a'], ['a', 'b'], ['b']]);
+});
