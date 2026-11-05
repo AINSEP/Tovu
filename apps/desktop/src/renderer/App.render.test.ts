@@ -44,9 +44,9 @@ test('App: the header chip and running card display the same resource snapshot',
     }),
   });
   const chip = app.container.querySelector('.topnav__tools .resources-chip');
-  assert.equal(chip?.textContent, '~250MB');
-  assert.equal(chip?.getAttribute('data-tooltip'), 'Memory used by Tovu and running sites: ~250 MB');
-  assert.equal(app.container.querySelector('article.card .card__resources')?.textContent, '~250MB');
+  assert.equal(chip?.textContent, '~0.3 GB');
+  assert.equal(chip?.getAttribute('data-tooltip'), 'Memory used by Tovu and running sites: ~0.3 GB');
+  assert.equal(app.container.querySelector('article.card .card__resources')?.textContent, '~0.3 GB');
 });
 
 test('App: a stopped site\'s tab offers Start and shows the boot wait with the button disabled', async (t) => {
