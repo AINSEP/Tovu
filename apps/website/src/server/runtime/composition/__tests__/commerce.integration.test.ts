@@ -169,12 +169,14 @@ for (const dialect of ['sqlite', 'pglite'] as const) {
     await f.reopen();
     runtime = f.boot(false);
     await eventually(async () => { await runtime.commerce.status(); return runtime.commerce.resolveReceiver(); }, receiver => receiver !== null);
-    assert.equal(await runtime.commerce.checkoutOrigin(), configuration.publicOrigin, 'unfinished work retains its original deployed origin');
+    assert.equal(await runtime.commerce.checkoutOrigin(), 'https://other.example.test', 'abandoned requires_action sessions do not block merchant changes');
     const receiver = runtime.commerce.resolveReceiver()!;
     const wrongMode = await receiver.resolveEndpoint({ path: { siteId: 'site', providerId: 'stripe', endpointId: 'live' } });
-    assert.equal(wrongMode.ok, false);
+    assert.equal(wrongMode.ok, true, 'the configured mode remains an accepted webhook endpoint');
+    if (wrongMode.ok) assert.equal(wrongMode.endpoint.scope.providerAccountId, 'acct_other');
     const endpoint = await receiver.resolveEndpoint({ path: { siteId: 'site', providerId: 'stripe', endpointId: 'test' } });
     assert.ok(endpoint.ok);
+    if (endpoint.ok) assert.equal(endpoint.endpoint.scope.providerAccountId, configuration.accountId, 'open payments preserve their own webhook account');
     assert.deepEqual(await receiver.receive({ endpoint: endpoint.endpoint, ...f.sign() }), { status: 200, body: { received: 1, duplicates: 0, ignored: false } });
     assert.equal((await runtime.commerce.readOrder({ memberId: 'buyer', orderId: created.order.id })).order.status, 'pending', 'non-owner composition does not run settlement');
     await f.stop();
@@ -187,3 +189,25 @@ for (const dialect of ['sqlite', 'pglite'] as const) {
     assert.ok(f.warnings.every(message => !message.includes('sk_test_') && !message.includes(webhookSecret)));
   });
 }
+
+test('[sqlite] configuration before provider keys recovers when the current lease attaches', async t => {
+  const f = await fixture(t, 'sqlite');
+  await f.write(configuration); await f.activation(true); f.detach();
+  const runtime = f.boot(false);
+  assert.equal((await runtime.commerce.status()).ready, false);
+  await f.saveProvider(); f.attach();
+  assert.equal((await runtime.commerce.activate()).ready, true);
+  assert.equal((await runtime.commerce.status()).ready, true);
+});
+
+test('[sqlite] runtime enabling and configuration changes prepare storefront without a setup tool call', async t => {
+  const f = await fixture(t, 'sqlite');
+  await f.write(configuration); await f.saveProvider();
+  const runtime = f.boot(false);
+  assert.equal((await runtime.commerce.status()).active, false);
+  await f.activation(true);
+  assert.equal((await runtime.commerce.status()).ready, true);
+  await f.write({ ...configuration, publicOrigin: 'https://changed.example.test' });
+  assert.equal((await runtime.commerce.status()).ready, true);
+  assert.equal(await runtime.commerce.checkoutOrigin(), 'https://changed.example.test');
+});
