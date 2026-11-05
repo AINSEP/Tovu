@@ -13,7 +13,7 @@ type GuestSession = { fetch(input: string, init?: RequestInit): Promise<Response
 type GuestContents = { getType(): string; getURL(): string; session: GuestSession };
 type SiteContext = { origin: string; session: GuestSession; runId?: string };
 type ExecutionState = typeof globalThis & { __assistantGateSites?: SiteContext[] };
-type Evidence = { childPid?: number; sessionId?: string; reason?: string };
+type Evidence = { childPid?: number; sessionId?: string; reason?: string; errorFrame?: unknown };
 const NO_KEY_REASON = 'Release gate: no model key was provided. Supply a model key to generate a reply.';
 
 /** One bounded, read-only query per fixture, at most two small rows; never changes the default ID. */
@@ -85,7 +85,7 @@ async function acceptRuns({ app, count }: { app: ElectronApplication; count: num
 /** Read one SSE subscription per run (90s / 256 KiB cap). Parsing stays in the packaged main
  * process: it cannot dynamic-import the checkout's harness helpers. No run/history polling.
  */
-async function executionEvidence({ app }: { app: ElectronApplication }, _optional = {}): Promise<Evidence[]> {
+export async function executionEvidence({ app }: { app: ElectronApplication }, _optional = {}): Promise<Evidence[]> {
   return app.evaluate(async () => {
     type Frame = { kind?: string; payload?: { type?: string; childPid?: number; sessionId?: string; message?: string; error?: { code?: string } } };
     // These small helpers must travel inside evaluate: the packaged main process has no harness imports.
@@ -103,6 +103,8 @@ async function executionEvidence({ app }: { app: ElectronApplication }, _optiona
       const event = parseFrame(frame);
       if (!event?.payload) return;
       recordStatus(event.payload, evidence);
+      // Preserve the daemon's actual failure without treating it as successful CLI evidence.
+      if (event.kind === 'error') evidence.errorFrame = event;
       if (event.kind === 'error' && event.payload.error?.code === 'RELEASE_GATE_NO_MODEL_KEY') evidence.reason = event.payload.message;
       if (event.kind === 'end') throw new Error(`Run ended before CLI scope evidence: ${JSON.stringify(evidence)}`);
     }
