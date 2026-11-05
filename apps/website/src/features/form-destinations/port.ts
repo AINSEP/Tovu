@@ -1,4 +1,4 @@
-import { resolveCustomCredentialByLabel, type CustomCredentialWriteDeps } from "#src/features/custom-credentials/index";
+import { resolveCustomCredentialByLabel, listCustomCredentials, type CustomCredentialWriteDeps } from "#src/features/custom-credentials/index";
 
 import { formReceiverKey } from "./key-store.js";
 import { assertSubmitUrl } from "./rewrite-actions.js";
@@ -25,14 +25,20 @@ export function createFormDestinationPort(required: FormDestinationPortDeps, opt
   return {
     async previewInput(input) {
       const forms = await required.listForms({ workspaceId: input.workspaceId });
-      if (forms.length === 0) return {};
+      if (forms.length === 0) {
+        const saved = await listCustomCredentials(required.credentials, { workspaceId: input.workspaceId });
+        return saved.some(item => item.label === `Form submissions key: ${input.hostingTargetId}`) ? { hosting: { forms } } : {};
+      }
       return previewFor({ deps: required, input, forms, selection: await selectFor({ deps: required, input }) });
     },
     async prepare(input) {
       const forms = await required.listForms({ workspaceId: input.workspaceId });
-      // No active forms: a host still receives `{ forms: [] }` and no key is minted, as before
-      // destinations were their own category.
-      if (forms.length === 0) return { hosting: { forms } };
+      // A provider switch can leave pending answers in the old co-hosted receiver. Retain its
+      // existing key without creating a key or provisioning a new receiver for form-less sites.
+      if (forms.length === 0) {
+        const saved = await resolveCustomCredentialByLabel(required.credentials, { workspaceId: input.workspaceId, label: `Form submissions key: ${input.hostingTargetId}` });
+        return { hosting: { forms, ...(saved ? { secret: saved.connection.token } : {}) } };
+      }
       return planFor({ deps: required, input, forms, selection: await selectFor({ deps: required, input }) }, optional);
     },
   };

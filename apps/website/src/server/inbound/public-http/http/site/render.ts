@@ -1,3 +1,4 @@
+import { renderFormCollection, type FormCollectionPlan } from "@jini-ai/cms/forms";
 import type { SiteProduct, SiteRenderContext, MediaAssetRenderMeta } from "./render-context.js";
 import type { PluginExportRender } from "@jini-ai/cms/widgets/html";
 // Every module counts in fresh render workers; omit the rendering re-export wrapper.
@@ -2391,6 +2392,10 @@ function renderWidgetContactForm(props: JsonObject): string {
   // The slider value readout ships only with forms that have a range field.
   const rangeReadout = arr(props.fields).some(field => typeof field === "object" && field !== null && !Array.isArray(field) && field.type === "range") ? FORM_RANGE_READOUT_SCRIPT : "";
   const fieldDescriptors = arr(props.fields) as unknown as import("@jini-ai/cms/forms").FieldDescriptor[];
+  if (props.collectionPlan) return FORM_BASELINE_STYLE + renderFormCollection({
+    slug, fields: fieldDescriptors, plan: props.collectionPlan as unknown as FormCollectionPlan,
+    hooks: { field: "data-tovu-field", form: "data-tovu-form", success: "data-tovu-form-success", error: "data-tovu-form-error" },
+  }, { ...(props.mode === "html" && typeof props.html === "string" ? { html: props.html } : {}), className: FORM_CLASS }) + rangeReadout;
   // Both modes show the length caps the submit route enforces (owner 2026-10-25, spam protection).
   if (props.mode === "html") return FORM_BASELINE_STYLE + stampFormFieldMaxLengths(renderHtmlForm({
     slug, action: `/forms/${encodeURIComponent(slug)}/submit`,

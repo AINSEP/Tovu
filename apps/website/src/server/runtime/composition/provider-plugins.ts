@@ -1,3 +1,4 @@
+import { createFormCollectionRegistry, type FormCollectionProvider, type FormCollectionRegistry } from "@jini-ai/cms/forms";
 import { createTracker, createTrackerWarning, createTelemetryTestProbe } from "@jini-ai/diagnostics/observability/node";
 import type { ConsentPluginContribution } from '#src/contracts/headless/index';
 import { createHash } from 'node:crypto';
@@ -36,7 +37,7 @@ export { PROVIDER_CONTRACTS } from "./provider-contracts.js";
  * generation, which disposes its resources; its port then goes inert (`gatedPort`) until it is reapplied.
  */
 
-export type ProviderContract = "observability" | "product_analytics" | "ai_trace";
+export type ProviderContract = "observability" | "product_analytics" | "ai_trace" | "form_collection";
 
 /** Which site sends every signal (owner 2026-10-25): sites of one project can share one backend. */
 export interface SiteIdentity {
@@ -88,6 +89,8 @@ export function legacyProviderCredentialCheck(
  */
 export function providerInputOf({ declaration, saved }: { declaration: PluginProviderDeclaration; saved: ProviderPluginConfig | null }, _optional = {}): Readonly<Record<string, string>> | undefined {
   const fields = declaration.settings ?? [];
+  // Collection plans are stateless; public per-form config stays in the form definition.
+  if (declaration.contract === "form_collection" && fields.length === 0) return {};
   if (!saved || fields.length === 0) return undefined;
   const defaults = Object.fromEntries(fields.filter((field) => !field.secret && field.default).map((field) => [field.name, field.default!]));
   const values: Record<string, string | undefined> = { ...defaults, ...Object.fromEntries(Object.entries(saved.settings).filter(([, value]) => value.trim() !== "")), ...saved.secrets };
@@ -105,6 +108,7 @@ export interface ProviderPluginRuntime {
 }
 
 export interface ProviderPluginPorts {
+  readonly formCollectionProviders?: () => FormCollectionRegistry;
   readonly browserAnalytics?: (required: { surface: 'site' | 'admin' }) => readonly BrowserAnalyticsContribution[];
   /** Cookie-consent adapters of the attached analytics plugins, each mounted under `base/<pluginId>`. */
   readonly consentAdapters?: (required: { base: string }) => readonly ConsentPluginContribution[];
@@ -166,10 +170,11 @@ function browserNeedsRestart({ slot, saved }: { slot: ProviderSlot; saved: Provi
     });
   } catch { return true; }
 }
-const KNOWN_CONTRACTS = new Set<string>(["observability", "product_analytics", "ai_trace"]);
+const KNOWN_CONTRACTS = new Set<string>(["observability", "product_analytics", "ai_trace", "form_collection"]);
 
 /** Each contract's inert behavior, used once a lease is retired. */
 const NOOP_PORTS: Readonly<Record<ProviderContract, () => object>> = {
+  form_collection: () => ({ plan: () => ({ kind: "unavailable", code: "provider_unavailable", message: "This form cannot send answers because its selected form provider is unavailable." }) }),
   observability: () => createNoopObservabilityPort({}),
   product_analytics: () => createNoopProductAnalytics({}),
   ai_trace: (): AiTraceSink => ({ record() {}, flush: async () => {}, shutdown: async () => {} }),
@@ -420,7 +425,11 @@ export async function bootProviderPlugins(required: BootProviderPluginsRequired,
   for (const event of initializations) tracker.capture({ name: event.name, userId: event.userId }, { properties: event.properties });
   initializations.length = 0;
   let disposal: Promise<void> | undefined;
-  return { ...ports,
+  const formCollectionRegistry = createFormCollectionRegistry({});
+  for (const slot of slots.filter(slot => slot.contract === "form_collection")) {
+    formCollectionRegistry.contribute({ pluginId: slot.pluginId, definition: { id: slot.id, provider: gatedPort({ slot, contract: slot.contract, testProbe }) as FormCollectionProvider } });
+  }
+  return { ...ports, formCollectionProviders: () => formCollectionRegistry,
     telemetryStatus: () => delivery.read({}).map(status => ({ ...status,
       ...(slots.some(slot => slot.contract === 'observability' && `${slot.pluginId}/${slot.id}` === status.providerId) ? { exportEnabled } : {}),
     })),

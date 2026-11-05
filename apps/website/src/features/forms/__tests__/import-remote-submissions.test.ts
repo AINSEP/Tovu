@@ -216,3 +216,18 @@ test('late imports never revive an IP whose original submission is already 90 da
   await importRemoteFormSubmissions({ deps: s.deps, workspaceId: 'w', destinationKey: 'd', items: [row('old', { email: 'a@b.co' }, { submittedAt: '2026-01-01T00:00:00.000Z' })] });
   assert.equal(s.rows[0]!.sourceIp, null);
 });
+
+test('delayed imports retain published labels and consent rather than relabel against the current form', async () => {
+  const s=setup({definitions:[{...waitlist,fields:[{id:'email',label:'Renamed email',type:'email',required:true}]}]});
+  const evidence={version:1 as const,fields:[{id:'email',label:'Original email',type:'email' as const,required:true},{id:'accept',label:'Original consent wording',type:'checkbox' as const,required:true}],consent:[{fieldId:'accept',wording:'Original consent wording'}],schemaHash:'a'.repeat(64),capturedAt:'2026-10-19T10:00:00.000Z',source:'cloudflare' as const};
+  const result=await importRemoteFormSubmissions({deps:s.deps,workspaceId:'w',destinationKey:'d',items:[row('historical',{email:'a@b.co',accept:true},{evidence})]});
+  assert.equal(result.invalid.length,0);
+  assert.deepEqual(s.rows[0]!.evidence,evidence);
+  assert.equal(s.rows[0]!.data.accept,true);
+});
+
+test('malformed remote evidence is not acknowledged and leaves no receipt or submission', async () => {
+  const s=setup();
+  await assert.rejects(importRemoteFormSubmissions({deps:s.deps,workspaceId:'w',destinationKey:'d',items:[row('bad-evidence',{email:'a@b.co'},{evidence:{version:1} as never})]}),/evidence/i);
+  assert.equal(s.rows.length,0); assert.equal(s.receipts.size,0);
+});

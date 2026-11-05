@@ -2546,6 +2546,7 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
         const stats = await statfs(routeDeps.siteStoragePaths.mediaUploadsDir);
         return stats.bavail * stats.bsize;
       },
+      uploadSpaceMessage: "This site has no room for another attachment. Your answers are kept below. Your form has not been sent.",
       files: createFormFileStorage({ media: {
         clock: routeDeps.clock, idGen: routeDeps.idGen, mediaRepo: routeDeps.mediaRepo,
         entryRefsRepo: routeDeps.entryRefsRepo, postRepo: routeDeps.postRepo,

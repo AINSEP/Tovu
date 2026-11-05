@@ -199,6 +199,14 @@ const NO_INPUT_SCHEMA = {
  * exactly what `routes/admin/forms/{list,get}-submissions.ts` check, since submissions are visitor
  * data with their own permission tier, not form-configuration state.
  */
+const FORM_PROVIDER_SCHEMA = {
+  type: "object", additionalProperties: false, required: ["id", "config"],
+  properties: {
+    id: { type: "string", enum: ["builtin", "formspree"], description: "Collection provider. Existing definitions and history stay local when switching." },
+    config: { type: "object", additionalProperties: false, properties: { endpoint: { type: "string", description: "Public native Formspree endpoint https://formspree.io/f/<form-id>; no secrets." } } },
+  },
+} as const;
+
 export const formsAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "forms_list_definitions",
@@ -227,13 +235,14 @@ export const formsAgentToolCatalog: AgentToolDefinition[] = [
         },
         fields: FIELDS_SCHEMA,
         notify: NOTIFY_SCHEMA,
+        provider: FORM_PROVIDER_SCHEMA,
       },
     },
   },
   {
     name: "forms_update_definition",
     description:
-      "Updates an existing form definition's name, field list, or notification recipients. The slug is immutable and is ignored if supplied. Existing field ids cannot be dropped — omitting one is rejected, not treated as a deletion.",
+      "Updates an existing form definition's name, field list, notification recipients, or public collection provider. Formspree sends answers directly to Formspree with their validation/spam protection; republish all affected static pages and Cloudflare manifests after switching. The slug is immutable and is ignored if supplied. Existing field ids cannot be dropped — omitting one is rejected, not treated as a deletion.",
     sideEffects: "mutates-durable-state",
     authorization: { permission: FORMS_MANAGE_PERMISSION },
     inputSchema: {
@@ -245,6 +254,7 @@ export const formsAgentToolCatalog: AgentToolDefinition[] = [
         name: { type: "string", minLength: 1, maxLength: MAX_NAME_LENGTH, description: "New form name. Omit to leave unchanged." },
         fields: FIELDS_SCHEMA,
         notify: NOTIFY_SCHEMA,
+        provider: FORM_PROVIDER_SCHEMA,
       },
     },
   },

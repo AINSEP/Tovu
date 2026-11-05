@@ -39,7 +39,7 @@ test("form round trip: created on an empty destination, then unchanged, keyed by
   assert.deepEqual(destinationPack.map((e) => e.contentHash), entities.map((e) => e.contentHash));
   const landed = await destRepo.findBySlug({ workspaceId: WORKSPACE_ID, slug: "contact" });
   assert.equal(landed?.status, "disabled");
-  assert.deepEqual(landed?.notify, { enabled: true, recipients: ["owner@example.com"] });
+  assert.deepEqual(landed?.notify, { enabled: false, recipients: [] });
   assert.notEqual(landed?.id, "src-form-1", "the destination mints its own id; slug is the address");
 });
 
@@ -66,7 +66,7 @@ test("form: a slug held only by a trashed destination form is refused at prechec
 test("form: submissions never pack, and packed state carries no instance-local fields", async () => {
   const { source } = await sites([form()]);
   const [entity] = await packAll(source);
-  assert.deepEqual(Object.keys(entity!.state).sort(), ["fields", "name", "notify", "slug", "status"]);
+  assert.deepEqual(Object.keys(entity!.state).sort(), ["fields", "html", "mode", "name", "provider", "slug", "status"]);
 });
 
 test("form: a changed source form updates the destination row in place (forced past the no-baseline conflict)", async () => {
@@ -86,4 +86,49 @@ test("form: a changed source form updates the destination row in place (forced p
   assert.equal(after?.status, "active");
   assert.equal(after?.fields.length, 2);
   assert.deepEqual((await plan(await packAll(source), dest)).rows.map((r) => r.outcome), ["unchanged"]);
+});
+
+test('HTML form transfers markup and hashes HTML-only changes while recipients stay local', async () => {
+  const html = '<label>Email<input name="email" type="email" required></label><p>I agree to the stated consent.</p>';
+  const authored = { ...form(), mode: 'html' as const, html };
+  const { source, dest, sourceRepo, destRepo } = await sites([authored]);
+  const [packed] = await packAll(source);
+  assert.equal(packed!.state.mode, 'html');
+  assert.equal(packed!.state.html, html);
+  assert.equal('notify' in packed!.state, false);
+  await roundTrip(source, dest);
+  const landed = await destRepo.findBySlug({ workspaceId: WORKSPACE_ID, slug: 'contact' });
+  assert.equal((landed as typeof authored).html, html);
+  assert.deepEqual(landed!.notify.recipients, []);
+  await sourceRepo.update({ ...authored, html: html + '<p>New consent wording.</p>' });
+  const [changed] = await packAll(source);
+  assert.notEqual(changed!.contentHash, packed!.contentHash);
+});
+
+test('a form update keeps destination notification recipients and recipients do not affect transfer hashes', async () => {
+  const { source, dest, sourceRepo, destRepo } = await sites([form()]);
+  await destRepo.create(form({ id: 'dest', notify: { enabled: true, recipients: ['destination@example.com'] } }));
+  const [before] = await packAll(source);
+  await sourceRepo.update(form({ notify: { enabled: true, recipients: ['other-source@example.com'] } }));
+  const entities = await packAll(source);
+  assert.equal(entities[0]!.contentHash, before!.contentHash);
+  await sourceRepo.update(form({ name: 'Updated source' }));
+  const changed = await packAll(source);
+  await applyReport(await plan(changed, dest, ['form:contact']), changed, dest);
+  assert.deepEqual((await destRepo.findBySlug({ workspaceId: WORKSPACE_ID, slug: 'contact' }))!.notify.recipients, ['destination@example.com']);
+});
+
+test('a legacy Builder source replaces HTML and external collection at the destination', async () => {
+  const { source, dest, destRepo } = await sites([form({ name: 'Legacy Builder' })]);
+  const destination = { ...form({ id: 'destination' }), mode: 'html' as const,
+    html: '<input type="email" name="email" required>', provider: { id: 'formspree', config: { endpoint: 'https://formspree.io/f/abcd' } } };
+  await destRepo.create(destination);
+  const entities = await packAll(source);
+  await applyReport(await plan(entities, dest, ['form:contact']), entities, dest);
+  const landed = await destRepo.findBySlug({ workspaceId: WORKSPACE_ID, slug: 'contact' }) as typeof destination;
+  assert.equal(landed.mode, 'builder');
+  assert.equal(landed.html ?? '', '');
+  assert.deepEqual(landed.provider, { id: 'builtin', config: {} });
+  const [after] = await packAll(dest);
+  assert.equal(after!.contentHash, entities[0]!.contentHash);
 });

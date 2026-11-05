@@ -1,6 +1,6 @@
 import type { FormAnalyticsProvenance } from "./analytics-provenance.js";
 import type { Clock, IdGenerator } from "@jini-ai/core/primitives";
-import { retainedSubmissionIp, validateSubmissionPayload, type FieldError, type FormAnswer, type FormDefinitionRecord, type FormDefinitionRepoPort, type FormOutboxPort, type FormSubmissionRepoPort } from "@jini-ai/cms/forms";
+import { readSubmissionEvidence, submissionEvidenceDefinition, retainedSubmissionIp, validateSubmissionPayload, type FieldError, type FormAnswer, type FormDefinitionRecord, type FormDefinitionRepoPort, type FormOutboxPort, type FormSubmissionRepoPort } from "@jini-ai/cms/forms";
 import type { FormPullRefusal } from "@jini-ai/cms/forms";
 import { htmlSubmissionDefinition } from "@jini-ai/cms/forms/html";
 import { FORM_LONG_TEXT_MAX_CHARS, capSubmissionFieldLengths, fieldMaxChars } from "./field-length-caps.js";
@@ -19,6 +19,7 @@ import { FORM_LONG_TEXT_MAX_CHARS, capSubmissionFieldLengths, fieldMaxChars } fr
 /** One stored remote submission, before validation. Structurally the deploy target's row shape. */
 export interface RemoteSubmissionInput {
   readonly id: string;
+  readonly evidence?: unknown;
   readonly formSlug: string;
   readonly answers: Readonly<Record<string, unknown>>;
   readonly submittedAt: string;
@@ -131,7 +132,9 @@ async function importOne(
 ): Promise<{ kind: "duplicate" } | { kind: "imported"; submissionId: string; fieldErrors?: FieldError[] }> {
   const { deps, workspaceId, destinationKey, item } = required;
   // The live submit path's view (`forms/index.ts` definitionView): HTML-mode names plus the text caps.
-  const htmlView = htmlSubmissionDefinition({ definition: required.definition, body: { ...item.answers } });
+  const evidence = readSubmissionEvidence({ value: item.evidence });
+  const originalDefinition = submissionEvidenceDefinition({ definition: required.definition, evidence });
+  const htmlView = htmlSubmissionDefinition({ definition: originalDefinition, body: { ...item.answers } });
   const definition = capSubmissionFieldLengths({ definition: htmlView, body: { ...item.answers } });
   const validation = validateSubmissionPayload({ definition, body: { ...item.answers } });
   const data = validation.valid ? validation.data : declaredAnswers({ definition: htmlView, answers: item.answers });
@@ -140,7 +143,7 @@ async function importOne(
   const submissionId = deps.idGen.newId();
   const write = async (): Promise<boolean> => {
     if (!await deps.receipts.claim({ workspaceId, destinationKey, remoteId: item.id, submissionId, importedAt: now })) return false;
-    await deps.submissionRepo.create({ id: submissionId, workspaceId, formDefinitionId: definition.id, data, sourceIp: retainedSubmissionIp({ sourceIp: item.ip, submittedAt: submittedAt({ value: item.submittedAt, now }), now: deps.clock.nowMs() }), submittedAt: submittedAt({ value: item.submittedAt, now }), ...(validation.valid ? {} : { validation: { status: "invalid" as const, fieldErrors: validation.fieldErrors } }) });
+    await deps.submissionRepo.create({ id: submissionId, workspaceId, formDefinitionId: definition.id, data, ...(evidence ? { evidence } : {}), sourceIp: retainedSubmissionIp({ sourceIp: item.ip, submittedAt: submittedAt({ value: item.submittedAt, now }), now: deps.clock.nowMs() }), submittedAt: submittedAt({ value: item.submittedAt, now }), ...(validation.valid ? {} : { validation: { status: "invalid" as const, fieldErrors: validation.fieldErrors } }) });
     // An invalid row is kept for review only: notifications and webhooks fire for accepted submissions.
     if (validation.valid) await deps.outbox.enqueue({ id: deps.idGen.newId(), name: "form.submission.received", occurredAt: now, workspaceId, aggregateId: submissionId,
       payload: { workspaceId, formDefinitionId: definition.id, submissionId, deliveryMode: "remote_import", ...(analyticsProvenance ? { analyticsProvenance } : {}) } });

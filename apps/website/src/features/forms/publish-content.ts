@@ -1,11 +1,12 @@
 import { executeCommand } from "#src/contracts/core/commands/index";
 import { trashedAtDestination } from "#src/features/publish-content/precheck-reasons";
-import { createRepoPublishHandler, gatewayDeps, type FieldDisposition } from "#src/features/publish-content/repo-handler";
+import { createRepoPublishHandler, gatewayDeps } from "#src/features/publish-content/repo-handler";
 import type { PublishContentContributor, PublishContentPorts } from "#src/features/publish-content/type-registry";
 
 import { FormDefinitionNotFoundError, FormFieldValidationError, FormSlugConflictError } from "@jini-ai/cms/forms";
-import type { FieldDescriptor, FormDefinitionRecord, FormDefinitionStatus, NotifyConfig } from "@jini-ai/cms/forms";
+import type { FieldDescriptor, FormDefinitionStatus } from "@jini-ai/cms/forms";
 import { createFormDefinition, setFormDefinitionStatus, updateFormDefinition } from "#src/features/forms/index";
+import type { HtmlFormDefinitionRecord, FormAuthoring } from "@jini-ai/cms/forms";
 import { FORMS_TABLES } from "./repo.sqlite.js";
 
 /**
@@ -17,25 +18,29 @@ import { FORMS_TABLES } from "./repo.sqlite.js";
  * form is found through `isSlugTaken` and refused rather than planned as a create that would collide.
  */
 
-/** `notify` is an open owner question (plan OQ2): flip this one line to `"local"` to stop sending the
- *  source's notification recipients to the destination. */
-const NOTIFY: FieldDisposition = "transferred";
+/** Owner decision: copying carries form structure; recipients belong to each destination site. */
 
 export const contributeFormPublish = (): PublishContentContributor =>
-  createRepoPublishHandler<FormDefinitionRecord, PublishContentPorts["form"]>({
+  createRepoPublishHandler<HtmlFormDefinitionRecord, PublishContentPorts["form"]>({
     entityType: "form",
     coversTables: [FORMS_TABLES.definitions],
     permission: "admin.forms.manage",
     ports: (deps) => deps.ports.form,
-    list: (p, workspaceId) => p.repo.list({ workspaceId }),
-    find: (p, workspaceId, slug) => p.repo.findBySlug({ workspaceId, slug }),
+    list: async (p, workspaceId) => (await p.repo.list({ workspaceId })).map(publishableForm),
+    find: async (p, workspaceId, slug) => {
+      const row = await p.repo.findBySlug({ workspaceId, slug });
+      return row ? publishableForm(row) : null;
+    },
     idOf: (row) => row.slug,
     fields: {
       name: "transferred",
       slug: "transferred",
       fields: "transferred",
       status: "transferred",
-      notify: NOTIFY,
+      notify: "local",
+      mode: "transferred",
+      html: "transferred",
+      provider: "transferred",
       id: "local",
       workspaceId: "local",
       createdAt: "local",
@@ -49,11 +54,14 @@ export const contributeFormPublish = (): PublishContentContributor =>
       const actor = { id: principalId, kind: "user" as const };
       const name = state.name as string;
       const fields = state.fields as FieldDescriptor[];
+      const authoring = { ...(state.mode ? { mode: state.mode as NonNullable<FormAuthoring["mode"]> } : {}),
+        ...(typeof state.html === "string" ? { html: state.html } : {}),
+        ...(state.provider ? { provider: state.provider as NonNullable<FormAuthoring["provider"]> } : {}) };
       // A `"local"` notify never arrives; an update then keeps the destination's own.
-      const notify = (state.notify ?? undefined) as NotifyConfig | undefined;
+      const notify = existing?.notify;
       const { definition } = existing
-        ? await updateFormDefinition({ deps: writeDeps, input: { workspaceId, actor, formId: existing.id, patch: { name, fields, notify } } })
-        : await createFormDefinition({ deps: writeDeps, input: { workspaceId, actor, name, slug: id, fields, notify } });
+        ? await updateFormDefinition({ deps: writeDeps, input: { workspaceId, actor, formId: existing.id, patch: { name, fields, notify, ...authoring } } })
+        : await createFormDefinition({ deps: writeDeps, input: { workspaceId, actor, name, slug: id, fields, notify, ...authoring } });
       const status = state.status as FormDefinitionStatus;
       if (definition.status !== status) {
         await setFormDefinitionStatus({ deps: writeDeps, input: { workspaceId, actor, formId: definition.id, status } });
@@ -61,3 +69,10 @@ export const contributeFormPublish = (): PublishContentContributor =>
     },
     errors: { blocked: [FormFieldValidationError, FormSlugConflictError], conflict: [FormDefinitionNotFoundError] },
   });
+
+
+/** Canonical defaults make legacy Builder/built-in definitions replace an external destination,
+ * rather than accidentally preserving its previous mode/provider through an omitted patch. */
+function publishableForm(row: HtmlFormDefinitionRecord): HtmlFormDefinitionRecord {
+  return { ...row, mode: row.mode ?? "builder", html: row.html ?? "", provider: row.provider ?? { id: "builtin", config: {} } };
+}
