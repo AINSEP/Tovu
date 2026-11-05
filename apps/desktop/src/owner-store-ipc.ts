@@ -4,7 +4,7 @@
 import { createKeyedSerializer } from './keyed-serializer.ts';
 import { ownerStoreFailure } from './owner-store-cli.ts';
 import { OWNER_STORE_CHANNELS, type LegacyImportReport, type LegacyImportSource, type OwnerStoreAction,
-  type OwnerStoreCliFields, type OwnerStoreReply, type SharedOAuthDisconnectReport } from './contracts/owner-store.ts';
+  type OwnerStoreCliFields, type OwnerStoreReply } from './contracts/owner-store.ts';
 
 type OwnerStoreRun = <A extends OwnerStoreAction>(input: {
   action: A; fields: OwnerStoreCliFields[A];
@@ -15,7 +15,6 @@ interface OwnerStorePorts {
   pickBackup: () => Promise<string | null>;
   /** Native confirmation listing the dry run; true imports. */
   confirmImport: (input: { report: LegacyImportReport }) => Promise<boolean>;
-  confirmDisconnect?: (input: { report: SharedOAuthDisconnectReport }) => Promise<boolean>;
 }
 interface OwnerStoreEvent { senderFrame: { url: string; parent: unknown } | null }
 type Serialize = <T>(work: () => Promise<T>) => Promise<T>;
@@ -32,7 +31,6 @@ const INVALID_REQUEST = 'Invalid shared-key request.';
 function requestInput({ action, input }: { action: OwnerStoreAction; input: unknown }, _options = {}): Record<string, unknown> {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error(INVALID_REQUEST);
   const fields: Record<OwnerStoreAction, readonly string[]> = { status: [], list: ['store'], put: ['entry', 'store'], delete: ['id', 'expectedRevision'],
-    disconnect: ['id', 'expectedRevision'],
     import: ['source', 'passphrase'] };
   if (Object.keys(input).some(field => !fields[action].includes(field))) throw new Error(INVALID_REQUEST);
   if ('store' in input && input.store !== 'project') throw new Error(INVALID_REQUEST);
@@ -84,23 +82,6 @@ function withoutSourceDigest(reply: OwnerStoreReply<'import'>): OwnerStoreReply<
   return { ...reply, data };
 }
 
-/** Main confirms the selected connection's current sites; renderers cannot supply apply/digest. */
-async function disconnectRequest({ request, ports, serialize }: {
-  request: Record<string, unknown>; ports: OwnerStorePorts; serialize: Serialize;
-}): Promise<OwnerStoreReply<'disconnect'>> {
-  const id = requiredString({ value: request.id });
-  const expectedRevision = request.expectedRevision;
-  if (typeof expectedRevision !== 'number' || !Number.isSafeInteger(expectedRevision) || expectedRevision < 1) throw new Error(INVALID_REQUEST);
-  const fields = { id, expectedRevision };
-  const reviewed = await serialize(() => ports.run({ action: 'disconnect', fields: { ...fields, apply: false } }));
-  if (!reviewed.ok) return reviewed;
-  if (!ports.confirmDisconnect || !await ports.confirmDisconnect({ report: reviewed.data })) return ownerStoreFailure({ action: 'disconnect', code: 'cancelled' });
-  const result = await serialize(() => ports.run({ action: 'disconnect', fields: { ...fields, apply: true, expectedDigest: reviewed.data.sourceDigest } }));
-  if (!result.ok) return result;
-  const { sourceDigest: _mainOnly, ...data } = result.data;
-  return { ...result, data };
-}
-
 /** Fixed-action dispatch; vault payload/revision validation stays with the CLI's existing owner.
  * @complexity O(request bytes) plus delegated work. Unknown actions fail before a spawn.
  */
@@ -116,7 +97,6 @@ async function executeRequest({ action, input, ports, serialize }: {
     put: () => serialize(() => ports.run({ action: 'put', fields: { store: 'project', entry: request.entry as OwnerStoreCliFields['put']['entry'] } })),
     delete: () => serialize(() => ports.run({ action: 'delete', fields: { id: requiredString({ value: request.id }), expectedRevision: request.expectedRevision as number } })),
     import: async () => withoutSourceDigest(await importRequest({ request, ports, serialize })),
-    disconnect: () => disconnectRequest({ request, ports, serialize }),
   };
   return handlers[action]();
 }
@@ -164,13 +144,6 @@ export function importConfirmation({ report }: { report: LegacyImportReport }, _
   }
   lines.push('', 'No site is changed, no default key changes, and the source is never modified.');
   return { message: `Import ${fresh.length} key${fresh.length === 1 ? '' : 's'} into your project?`, detail: lines.join('\n') };
-}
-
-/** Confirm the shared connection only; independent local sign-ins remain separate. */
-export function disconnectConfirmation({ report }: { report: SharedOAuthDisconnectReport }, _options = {}): { message: string; detail: string } {
-  const sites = report.sites.length ? report.sites.map(site => `• ${site}`).join('\n') : 'No sites currently use this shared connection.';
-  return { message: 'Disconnect this shared connection from every site on this Mac?',
-    detail: `${report.label}\n\n${sites}\n\nFuture use stops immediately. Requests already sent may finish. Independent local connections remain connected. Provider revocation is reported separately.` };
 }
 
 /** Desktop start: delete a legacy owner store only when a read-only check finds it empty (0 entries

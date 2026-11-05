@@ -4,7 +4,6 @@
 export const OWNER_STORE_CHANNELS = {
   status: 'runner:owner-store:status', list: 'runner:owner-store:list',
   put: 'runner:owner-store:put', delete: 'runner:owner-store:delete', import: 'runner:owner-store:import',
-  disconnect: 'runner:owner-store:disconnect',
 } as const;
 export type OwnerStoreAction = keyof typeof OWNER_STORE_CHANNELS;
 export type OwnerStoreKind = 'vendor' | 'site-assistant' | 'media-provider' | 'publish-peer' | 'source-control' | 'database-destination' | 'custom' | 'api-connection';
@@ -13,11 +12,6 @@ export type OwnerStoreKind = 'vendor' | 'site-assistant' | 'media-provider' | 'p
 export interface OwnerStoreEntry {
   id: string; kind: OwnerStoreKind; label: string; provider: string | null;
   revision: number; configured: boolean; isDefault: boolean; worksFor: string[];
-  sharedOAuth?: boolean; usedBy?: string[]; status?: string;
-}
-export interface SharedOAuthDisconnectReport {
-  id: string; label: string; sites: string[]; revision: number; sourceDigest?: string;
-  applied: boolean; status: string; remoteRevocation: 'confirmed' | 'pending' | 'not-needed';
 }
 export interface OwnerStorePutEntry {
   id?: string; kind?: OwnerStoreKind; label: string; provider: string | null;
@@ -49,7 +43,6 @@ export type LegacyOwnerState = 'none' | 'empty' | 'available' | 'settled';
 export interface OwnerStoreCliFields {
   status: {}; list: { store?: 'project' }; put: { entry: OwnerStorePutEntry; store?: 'project' };
   delete: { id: string; expectedRevision: number };
-  disconnect: { id: string; expectedRevision: number; apply: boolean; expectedDigest?: string };
   import: { source: LegacyImportSource; apply: boolean; filePath?: string; passphrase?: string; expectedDigest?: string };
 }
 export interface OwnerStoreData {
@@ -57,7 +50,6 @@ export interface OwnerStoreData {
   list: { entries: OwnerStoreEntry[] };
   put: { entry: OwnerStoreEntry };
   delete: { removed: boolean };
-  disconnect: SharedOAuthDisconnectReport;
   import: LegacyImportReport;
 }
 export interface OwnerStoreError { code: string; message: string }
@@ -69,7 +61,6 @@ export type OwnerStoreReply<A extends OwnerStoreAction = OwnerStoreAction> =
 export interface OwnerStoreInput {
   status: {}; list: OwnerStoreCliFields['list']; put: OwnerStoreCliFields['put'];
   delete: OwnerStoreCliFields['delete'];
-  disconnect: { id: string; expectedRevision: number };
   import: { source: LegacyImportSource; passphrase?: string };
 }
 /** Exposed as window.tovuOwnerStore. Example: await bridge.list({}, {}). */
