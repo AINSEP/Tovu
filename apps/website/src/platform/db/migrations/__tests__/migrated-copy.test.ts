@@ -5,7 +5,8 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { sql } from "kysely";
-import { openSqliteFileKernel } from "../../kernel/drivers/sqlite.js";
+import { closeSqliteConnection, openSqliteFileKernel } from "../../kernel/drivers/sqlite.js";
+import { openSiteContentDb } from "#src/server/runtime/composition/open-site-content-db";
 import { CONTENT_MIGRATIONS, migrateContentDatabase } from "../index.js";
 import { runMigrations } from "../runner.js";
 import { UnknownAppliedMigrationError } from "../step.js";
@@ -34,10 +35,11 @@ test("a copied current DB rejects an old history without losing data and reopens
     assert.deepEqual(await copy.query(sql`SELECT * FROM fixture_content`),
       [{ id: "draft", body: "keep this disposable content" }]);
   } finally { await copy.close(); }
-  const reopened = openSqliteFileKernel<unknown>(copyPath);
+  const reopened = await openSiteContentDb(copyPath);
   try {
-    assert.deepEqual((await migrateContentDatabase(reopened)).applied, []);
-    assert.deepEqual(await reopened.query(sql`SELECT * FROM fixture_content`),
+    assert.deepEqual(reopened.$client.prepare("SELECT * FROM fixture_content").all(),
       [{ id: "draft", body: "keep this disposable content" }]);
-  } finally { await reopened.close(); }
+    assert.deepEqual(reopened.$client.prepare("SELECT id, value FROM database_write_watermark").all(), [{ id: 1, value: 0 }]);
+    assert.equal(reopened.$client.prepare("SELECT id FROM tovu_migrations").all().length, 41);
+  } finally { closeSqliteConnection(reopened); }
 });
