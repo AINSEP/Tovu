@@ -737,7 +737,7 @@ test("taxonomy routes: create-taxonomy validates 'name'/'hierarchical', reports 
   });
   assert.equal(errorRes.status, 500);
   // 88f429c25: the shared envelope conceals the cause behind an incident id (whole-body equality).
-  assertAdminResponse({ actual: await errorRes.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: await errorRes.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The taxonomy operation could not be completed.", action: "Check the result before repeating this operation. Copy details and report this problem.", step: "taxonomy operation" } });
 
   deps.taxonomyRepo.insert = async () => {
     throw "non-error thrown value";
@@ -748,7 +748,7 @@ test("taxonomy routes: create-taxonomy validates 'name'/'hierarchical', reports 
     body: JSON.stringify({ name: "category", hierarchical: true }),
   });
   assert.equal(nonErrorRes.status, 500);
-  assertAdminResponse({ actual: await nonErrorRes.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: await nonErrorRes.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The taxonomy operation could not be completed.", action: "Check the result before repeating this operation. Copy details and report this problem.", step: "taxonomy operation" } });
 });
 
 test("taxonomy routes: rename-term validates 'newName', reports FORBIDDEN and TERM_NOT_FOUND, and maps unexpected repo failures (Error and non-Error) to 500", async (t) => {
@@ -804,7 +804,7 @@ test("taxonomy routes: rename-term validates 'newName', reports FORBIDDEN and TE
   });
   assert.equal(errorRes.status, 500);
   // 88f429c25: the shared envelope conceals the cause behind an incident id (whole-body equality).
-  assertAdminResponse({ actual: await errorRes.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: await errorRes.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The taxonomy operation could not be completed.", action: "Check the result before repeating this operation. Copy details and report this problem.", step: "taxonomy operation" } });
 
   deps.termRepo.update = async () => {
     throw "non-error thrown value";
@@ -815,7 +815,7 @@ test("taxonomy routes: rename-term validates 'newName', reports FORBIDDEN and TE
     body: JSON.stringify({ newName: "Brunch" }),
   });
   assert.equal(nonErrorRes.status, 500);
-  assertAdminResponse({ actual: await nonErrorRes.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: await nonErrorRes.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The taxonomy operation could not be completed.", action: "Check the result before repeating this operation. Copy details and report this problem.", step: "taxonomy operation" } });
 });
 
 /**

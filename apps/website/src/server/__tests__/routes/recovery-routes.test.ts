@@ -140,7 +140,7 @@ test("recovery routes: disclosure 500s with the concealed incident envelope (no 
     body: JSON.stringify({ restorePointId: "rp-1" }),
   });
   assert.equal(res.status, 500);
-  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The recovery operation operation could not be completed.", action: "Check the result before repeating this operation. Copy details and report this problem.", step: "recovery operation operation" } });
 });
 
 test("recovery routes: disclosure 500s with a generic message when a non-Error is thrown", async (t) => {
@@ -162,7 +162,7 @@ test("recovery routes: disclosure 500s with a generic message when a non-Error i
     body: JSON.stringify({ restorePointId: "rp-1" }),
   });
   assert.equal(res.status, 500);
-  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The recovery operation operation could not be completed.", action: "Check the result before repeating this operation. Copy details and report this problem.", step: "recovery operation operation" } });
 });
 
 test("recovery routes: disclosure renders real counts once the watermark baseline is usable", async (t) => {
@@ -285,7 +285,7 @@ test("recovery routes: deep-link surfaces a thrown error as 500 INTERNAL_ERROR b
   });
   assert.equal(res.status, 500);
   const body = (await res.json()) as { error: string; code: string };
-  assertAdminResponse({ actual: body, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: body, expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The recovery operation operation could not be completed.", action: "Check the result before repeating this operation. Copy details and report this problem.", step: "recovery operation operation" } });
 });
 
 test("recovery routes: deep-link surfaces a non-Error thrown value as 500 INTERNAL_ERROR with a generic message (the `err instanceof Error ? ... : \"internal error\"` ternary's false branch)", async (t) => {
@@ -306,7 +306,7 @@ test("recovery routes: deep-link surfaces a non-Error thrown value as 500 INTERN
   });
   assert.equal(res.status, 500);
   const body = (await res.json()) as { error: string; code: string };
-  assertAdminResponse({ actual: body, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: body, expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The recovery operation operation could not be completed.", action: "Check the result before repeating this operation. Copy details and report this problem.", step: "recovery operation operation" } });
 });
 
 /**
@@ -449,7 +449,7 @@ test("recovery restore-points list and status surface a thrown error as 500 INTE
     };
     const errorRes = await fetch(`${baseUrl}${path}`, { headers: { cookie } });
     assert.equal(errorRes.status, 500, path);
-    assertAdminResponse({ actual: await errorRes.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { message: path });
+    assertAdminResponse({ actual: await errorRes.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { message: path , failure: { message: "The recovery information could not be loaded.", action: "Try loading them again. If it still fails, copy details and report this problem.", step: "Load recovery information" } });
 
     deps.authorize = async () => {
       // eslint-disable-next-line @typescript-eslint/only-throw-error
@@ -457,6 +457,6 @@ test("recovery restore-points list and status surface a thrown error as 500 INTE
     };
     const nonErrorRes = await fetch(`${baseUrl}${path}`, { headers: { cookie } });
     assert.equal(nonErrorRes.status, 500, path);
-    assertAdminResponse({ actual: await nonErrorRes.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { message: path });
+    assertAdminResponse({ actual: await nonErrorRes.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { message: path , failure: { message: "The recovery information could not be loaded.", action: "Try loading them again. If it still fails, copy details and report this problem.", step: "Load recovery information" } });
   }
 });

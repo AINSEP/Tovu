@@ -460,7 +460,7 @@ test("moderate: an unexpected write-service failure is a 500 INTERNAL_ERROR on t
       body: JSON.stringify({ expectedVersion: 1 }),
     });
     assert.equal(res.status, 500, path);
-    assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { message: path });
+    assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { message: path , failure: {"message":"The comment operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"comment operation"} });
   }
   assert.deepEqual(
     consoleError.mock.calls.map((call) => call.arguments[0]),

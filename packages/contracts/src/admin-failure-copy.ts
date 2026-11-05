@@ -1,6 +1,15 @@
 /** CMS vocabulary shared by the HTTP boundary and admin transport. Only approved static words render. */
 export const ADMIN_FAILURE_VOCABULARY = {
   nouns: {
+    'chart-providers': { singular: 'chart provider', plural: 'chart providers' },
+    'mcp-servers': { singular: 'tool connection', plural: 'tool connections' },
+    'policies': { singular: 'policy', plural: 'policies' },
+    'project-keys': { singular: 'project key', plural: 'project keys' },
+    'roles': { singular: 'role', plural: 'roles' },
+    'site-backups': { singular: 'site backup', plural: 'site backups' },
+    'site-imports': { singular: 'site import', plural: 'site imports' },
+    'site-shares': { singular: 'site share', plural: 'site shares' },
+    'telemetry': { singular: 'diagnostic report', plural: 'diagnostic reports' },
     'agent-plugins': { singular: 'agent plugin', plural: 'agent plugins' },
     analytics: { singular: 'analytics report', plural: 'analytics reports' },
     'api-keys': { singular: 'API key', plural: 'API keys' },

@@ -798,7 +798,7 @@ test("update menu tree: sendUpdateMenuTreeError's default 500 branch, forced via
   await handler({ params: { workspaceId: deps.workspaceId, menuId: "whatever" }, body: { items: [] } }, res);
 
   // Shared admin failure envelope: a correlatable id, never the repository's cause.
-  assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } } });
+  assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } } }, { failure: { message: "The menu operation could not be completed.", action: "Check the result before repeating this operation. Copy details and report this problem.", step: "menu operation" } });
   assert.doesNotMatch(JSON.stringify(capture), /boom: repo exploded/);
 });
 
@@ -874,7 +874,7 @@ test("update-tree logs the original error with or without a stack and returns an
       await handler({ params: { workspaceId: deps.workspaceId, menuId: "whatever" }, body: { items: [] } }, res);
 
       // 88f429c25 moved the route onto the shared incident envelope: an opaque text plus an id.
-      assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } } });
+      assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } } }, { failure: { message: "The menu operation could not be completed.", action: "Check the result before repeating this operation. Copy details and report this problem.", step: "menu operation" } });
       assert.doesNotMatch(JSON.stringify(capture), /boom: repo exploded/);
       errorIds.push((capture.jsonBody as { errorId: string }).errorId);
     }
@@ -959,7 +959,7 @@ test("update-tree: a thrown non-Error value is logged via String() and still ans
     const { res, capture } = createCapturingResponse();
     res.locals.principal = ownerPrincipal;
     await handler({ params: { workspaceId: deps.workspaceId, menuId: "whatever" }, body: { items: [] } }, res);
-    assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } } });
+    assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } } }, { failure: { message: "The menu operation could not be completed.", action: "Check the result before repeating this operation. Copy details and report this problem.", step: "menu operation" } });
     assert.doesNotMatch(JSON.stringify(capture), /bare string/);
   } finally {
     console.error = realError;

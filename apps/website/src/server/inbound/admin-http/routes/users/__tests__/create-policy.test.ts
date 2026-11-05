@@ -174,7 +174,7 @@ test("CREATE_POLICY route: 500 internal error when unexpected error is thrown", 
   });
   assert.equal(res.status, 500);
   const body = (await res.json()) as { error: string };
-  assertAdminResponse({ actual: body, expected: { error: "internal error" } });
+  assertAdminResponse({ actual: body, expected: { error: "internal error" } }, { failure: {"message":"The policy operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"policy operation"} });
 });
 
 test("CREATE_POLICY route: direct invoke with empty/null rawBody", async () => {

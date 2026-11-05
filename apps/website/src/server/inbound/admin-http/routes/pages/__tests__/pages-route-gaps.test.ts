@@ -176,7 +176,7 @@ test("pages list: a permission lookup that throws is an opaque 500, not a hung r
   const baseUrl = await startTestServer(app, t);
   const res = await fetch(`${baseUrl}${PAGES}`);
   assert.equal(res.status, 500);
-  assertAdminResponse({ actual: await res.json(), expected: { error: "Pages could not be loaded.", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: await res.json(), expected: { error: "Pages could not be loaded.", code: "INTERNAL_ERROR" } }, { failure: {"message":"Pages could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load pages"} });
 });
 
 test("pages get-by-id / update / delete: `req.params.pageId ?? \"\"` fallback resolves no page and is the ENTRY_NOT_FOUND 404", async () => {
@@ -227,7 +227,7 @@ test("pages create: a change-set persistence failure is reported as an opaque 50
     body: JSON.stringify({ title: "Never Recorded" }),
   });
   assert.equal(res.status, 500);
-  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error" } });
+  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error" } }, { failure: {"message":"The page operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"page operation"} });
 });
 
 test("pages create: a denied content.write is 403 FORBIDDEN carrying the permission and reason, and no page is stored", async (t) => {
@@ -344,7 +344,7 @@ test("pages update: a change-set record failure after the edit applied is rolled
     body: JSON.stringify({ title: "Should Be Rolled Back", slug: "rolled-back-slug", bodyJson: VALID_BODY_JSON, status: "published" }),
   });
   assert.equal(res.status, 500);
-  assertAdminResponse({ actual: await res.json(), expected: { error: "The page could not be saved.", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: await res.json(), expected: { error: "The page could not be saved.", code: "INTERNAL_ERROR" } }, { failure: {"message":"The page could not be saved.","action":"Check whether your changes were saved before repeating the save. Copy details and report this problem.","step":"Save page"} });
 
   const restored = await deps.postRepo.findById({ workspaceId: WS, id: page.id });
   assert.ok(restored);

@@ -122,7 +122,7 @@ test("entries routes: create surfaces an authorize() failure as a 500 (INTERNAL_
   assert.equal(res.status, 500);
   const body = (await res.json()) as { error: string; code: string };
   // 88f429c25: the shared envelope conceals the cause behind an incident id (whole-body equality).
-  assertAdminResponse({ actual: body, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: body, expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The entry operation could not be completed.", action: "Check the result before repeating this operation. Copy details and report this problem.", step: "entry operation" } });
 });
 
 test("entries routes: create requires type, slug, and title", async (t) => {
@@ -577,7 +577,7 @@ test("entries routes: update surfaces an authorize() Error as 500 (INTERNAL_ERRO
   assert.equal(res.status, 500);
   const body = (await res.json()) as { error: string; code: string };
   // 88f429c25: the shared envelope conceals the cause behind an incident id (whole-body equality).
-  assertAdminResponse({ actual: body, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: body, expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The entry save could not be completed.", action: "Check whether your changes were saved before repeating the save. Copy details and report this problem.", step: "Save entry" } });
 });
 
 test("entries routes: update surfaces a non-Error throw as 500 (INTERNAL_ERROR) with a generic message", async (t) => {
@@ -599,7 +599,7 @@ test("entries routes: update surfaces a non-Error throw as 500 (INTERNAL_ERROR) 
   assert.equal(res.status, 500);
   const body = (await res.json()) as { error: string; code: string };
   // 88f429c25: the shared envelope conceals the cause behind an incident id (whole-body equality).
-  assertAdminResponse({ actual: body, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: body, expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The entry save could not be completed.", action: "Check whether your changes were saved before repeating the save. Copy details and report this problem.", step: "Save entry" } });
 });
 
 test("entries routes: lifecycle denied 403 FORBIDDEN without admin.collections.manage", async (t) => {
@@ -777,7 +777,7 @@ test("entries routes: lifecycle surfaces an authorize() Error as 500 (INTERNAL_E
   assert.equal(res.status, 500);
   const body = (await res.json()) as { error: string; code: string };
   // 88f429c25: the shared envelope conceals the cause behind an incident id (whole-body equality).
-  assertAdminResponse({ actual: body, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: body, expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The entry operation could not be completed.", action: "Check the result before repeating this operation. Copy details and report this problem.", step: "entry operation" } });
 });
 
 test("entries routes: lifecycle surfaces a non-Error throw as 500 (INTERNAL_ERROR) with a generic message", async (t) => {
@@ -799,7 +799,7 @@ test("entries routes: lifecycle surfaces a non-Error throw as 500 (INTERNAL_ERRO
   assert.equal(res.status, 500);
   const body = (await res.json()) as { error: string; code: string };
   // 88f429c25: the shared envelope conceals the cause behind an incident id (whole-body equality).
-  assertAdminResponse({ actual: body, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: body, expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The entry operation could not be completed.", action: "Check the result before repeating this operation. Copy details and report this problem.", step: "entry operation" } });
 });
 
 test("entries routes: list denied 403 FORBIDDEN without admin.collections.read", async (t) => {
@@ -858,7 +858,7 @@ test("entries routes: list surfaces an authorize() Error as 500 (INTERNAL_ERROR)
   assert.equal(res.status, 500);
   const body = (await res.json()) as { error: string; code: string };
   // 88f429c25: the shared envelope conceals the cause behind an incident id (whole-body equality).
-  assertAdminResponse({ actual: body, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: body, expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The entries could not be loaded.", action: "Try loading them again. If it still fails, copy details and report this problem.", step: "Load entries" } });
 });
 
 test("entries routes: list surfaces a non-Error throw as 500 (INTERNAL_ERROR) with a generic message", async (t) => {
@@ -874,7 +874,7 @@ test("entries routes: list surfaces a non-Error throw as 500 (INTERNAL_ERROR) wi
   assert.equal(res.status, 500);
   const body = (await res.json()) as { error: string; code: string };
   // 88f429c25: the shared envelope conceals the cause behind an incident id (whole-body equality).
-  assertAdminResponse({ actual: body, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: body, expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The entries could not be loaded.", action: "Try loading them again. If it still fails, copy details and report this problem.", step: "Load entries" } });
 });
 
 // --- Publish/unpublish idempotency (2026-09-03 owner ruling on SPEC-020-state.spec.md vs

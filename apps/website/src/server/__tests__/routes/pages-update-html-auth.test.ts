@@ -469,7 +469,7 @@ test("PUT /pages/:id/html maps an unrecognised store failure to an opaque 500", 
   const { baseUrl } = await harness(t, { allow: true, writeError: new Error("disk full") });
   const response = await putHtml(baseUrl, { html: "<p>edit</p>" });
   assert.equal(response.status, 500);
-  assertAdminResponse({ actual: await response.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: await response.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The page save could not be completed.", action: "Check whether your changes were saved before repeating the save. Copy details and report this problem.", step: "Save page" } });
 });
 
 test("PUT /pages/:id/html whose page vanishes between the write and the re-read is a 404, never a reported success", async (t) => {

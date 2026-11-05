@@ -165,7 +165,7 @@ for (const failure of [new Error("ledger unavailable"), "private ledger failure"
     assert.equal(response.status, 500);
     // The shared admin failure envelope conceals the cause (Error or not) behind a correlatable id.
     const body = await response.json();
-    assertAdminResponse({ actual: body, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+    assertAdminResponse({ actual: body, expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The database information could not be loaded.", action: "Try loading them again. If it still fails, copy details and report this problem.", step: "Load database information" } });
     assert.doesNotMatch(JSON.stringify(body), /ledger (unavailable|failure)/);
     assert.equal(read.mock.callCount(), 1);
   });

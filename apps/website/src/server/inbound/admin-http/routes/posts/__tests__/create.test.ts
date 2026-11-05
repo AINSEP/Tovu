@@ -78,7 +78,7 @@ test("create post: an unexpected repository failure is a generic 500 that leaks 
   };
   const res = await create({ title: "Boom" });
   assert.equal(res.status, 500);
-  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error" } });
+  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error" } }, { failure: {"message":"The post operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"post operation"} });
 });
 
 test("create post: a body without a title creates an \"Untitled\" draft (the route's `?? \"\"` default, then createPost's own), not a 400", async (t) => {

@@ -330,7 +330,7 @@ test("DELETE page: a change-set record failure AFTER the mutation applied is rol
     assert.equal(response.status, 500);
     // Shared admin failure envelope: a correlatable id, never the change-set store's cause.
     const failureBody = await response.json();
-    assertAdminResponse({ actual: failureBody, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+    assertAdminResponse({ actual: failureBody, expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The page removal could not be confirmed.", action: "Check the list before repeating the removal. Copy details and report this problem.", step: "Remove page" } });
     assert.doesNotMatch(JSON.stringify(failureBody), /simulated change-set persistence failure/);
   } finally {
     deps.changeSets.insert = originalInsert;
@@ -475,7 +475,7 @@ test("DELETE post: when the row was invisible to captureInverse but present for 
   assert.equal(res.status, 500);
   // Shared admin failure envelope: a correlatable id, never the change-set store's cause.
   const failureBody = await res.json();
-  assertAdminResponse({ actual: failureBody, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: failureBody, expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The post removal could not be confirmed.", action: "Check the list before repeating the removal. Copy details and report this problem.", step: "Remove post" } });
   assert.doesNotMatch(JSON.stringify(failureBody), /change-set store unavailable/);
   assert.equal(restoreAttempted, false, "with no captured prior row, rollback must not fabricate a restore");
   const stored = await realFindById({ workspaceId: WS, id: post.id });

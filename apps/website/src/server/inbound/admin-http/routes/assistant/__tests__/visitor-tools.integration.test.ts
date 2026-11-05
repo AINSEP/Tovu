@@ -79,7 +79,7 @@ test("permission, malformed/forged input and absent service fail closed with sta
   for (const method of ["get", "put"] as const) assert.deepEqual(await request(method, { toolId: "site", expectedRevisionSeq: 0, mode: "off" }), {
     statusCode: 403, jsonBody: { error: "visitor-tools.manage is required", code: "FORBIDDEN" },
   });
-  assertAdminResponse({ actual: await requests({ workspaceId: ws })("get"), expected: { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } } });
+  assertAdminResponse({ actual: await requests({ workspaceId: ws })("get"), expected: { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } } }, { failure: {"message":"The assistant task operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"assistant task operation"} });
   assert.equal(await f.repo.maxRevisionSeq(), before);
   assert.equal((await f.read())?.tools.plugin_catalog, undefined);
 });

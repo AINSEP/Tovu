@@ -126,7 +126,7 @@ test("get-settings: unexpected error returns 500 (INTERNAL_ERROR)", async (t) =>
   const app = buildApp({ settingsRepo });
   const { status, json } = await get(t, app);
   assert.equal(status, 500);
-  assertAdminResponse({ actual: json, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: json, expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: {"message":"The settings could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load settings"} });
   assert.ok(settingsRepo.calls > 0, "the 500 must come from the injected settings failure");
 });
 

@@ -47,7 +47,7 @@ test('media trash: an unknown stored size and public URL are reported as null', 
 test('media trash: an unexpected repository failure is a private 500', async (t) => {
   const { app, deps } = mediaApp(registerAdminMediaTrashRoute);
   t.mock.method(deps.mediaRepo, 'findById', async () => { throw new Error('private store failure'); });
-  assertAdminResponse({ actual: await dispatchJsonRequest(app, 'POST', `${BASE}/media/asset-1/trash`), expected: { status: 500, body: INTERNAL } });
+  assertAdminResponse({ actual: await dispatchJsonRequest(app, 'POST', `${BASE}/media/asset-1/trash`), expected: { status: 500, body: INTERNAL } }, { failure: {"message":"The trash item operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"trash item operation"} });
 });
 
 test('media trash: a hand-built request with no params falls back to an empty workspace id and 404s', async () => {

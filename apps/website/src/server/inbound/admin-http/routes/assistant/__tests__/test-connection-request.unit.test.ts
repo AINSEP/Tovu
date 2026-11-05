@@ -75,5 +75,5 @@ test("test-connection answers an unexpected failure with a private 500, never th
   res.locals.principal = { id: "principal-test" };
   await run({ params: { workspaceId: "workspace-test" }, body: {} }, res);
   assert.equal(capture.statusCode, 500);
-  assertAdminResponse({ actual: capture.jsonBody, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: capture.jsonBody, expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: {"message":"The assistant task operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"assistant task operation"} });
 });

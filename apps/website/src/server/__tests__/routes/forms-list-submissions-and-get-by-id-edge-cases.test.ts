@@ -73,7 +73,7 @@ test("forms get-by-id: 500s (generic, message swallowed) when the repo explodes"
 
   const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/forms/whatever`, { headers: { cookie } });
   assert.equal(res.status, 500);
-  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The forms could not be loaded.", action: "Try loading them again. If it still fails, copy details and report this problem.", step: "Load forms" } });
 });
 
 test("forms get-by-id: a direct handler invocation with undefined workspaceId/formId params never matches the site and is a 404 (unreachable through real routing)", async (t) => {
@@ -194,7 +194,7 @@ test("forms list-submissions: 500s (generic, message swallowed) when the repo ex
     headers: { cookie },
   });
   assert.equal(res.status, 500);
-  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The form submissions could not be loaded.", action: "Try loading them again. If it still fails, copy details and report this problem.", step: "Load form submissions" } });
 });
 
 test("forms list-submissions: undefined workspaceId/formId params fall back via direct handler invocation (unreachable through real routing)", async (t) => {

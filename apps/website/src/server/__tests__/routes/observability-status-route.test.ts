@@ -98,7 +98,7 @@ test("observability-status: an authorization failure answers a generic 500", asy
   const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
   const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/system/observability-status`, { headers: { cookie } });
   assert.equal(res.status, 500);
-  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The system information could not be loaded.", action: "Try loading them again. If it still fails, copy details and report this problem.", step: "Load system information" } });
 });
 
 test("telemetry test: owner invokes the fixed action once and submitted text is ignored", async (t) => {

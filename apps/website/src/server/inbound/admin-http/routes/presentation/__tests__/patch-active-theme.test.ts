@@ -217,7 +217,7 @@ test("presentation patch: an unexpected repo failure 500s", async (t) => {
   });
   const { status, json } = await patch(t, app, { activeThemeId: "tovu-theme" });
   assert.equal(status, 500);
-  assertAdminResponse({ actual: json, expected: { error: "internal error" } });
+  assertAdminResponse({ actual: json, expected: { error: "internal error" } }, { failure: {"message":"The presentation setting operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"presentation setting operation"} });
 });
 
 test("presentation patch: workspaceId param can never actually be undefined through this app's real composition (a matched `:param` segment is always a populated string) -- its `?? \"\"` fallback is reached by calling the real handler directly, the same type-bypass technique put-entry.test.ts's own equivalent test uses", async (t) => {

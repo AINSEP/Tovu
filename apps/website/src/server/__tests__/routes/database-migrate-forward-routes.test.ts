@@ -363,7 +363,7 @@ for (const fault of [new Error("plan read failed"), "private plan failure"]) {
     const response = await fetch(`${baseUrl}/api/admin/v1/database/migrate-forward/plan`, { method: "POST", headers: { cookie } });
     assert.equal(response.status, 500);
     // 88f429c25: Error and non-Error faults alike answer the concealed incident envelope.
-    assertAdminResponse({ actual: await response.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+    assertAdminResponse({ actual: await response.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The database preparation could not be completed.", action: "Check the result before repeating this operation. Copy details and report this problem.", step: "database preparation" } });
     assert.equal(read.mock.callCount(), 1);
     assert.deepEqual(await deps.restorePointsRepo.list(), []);
   });
@@ -441,7 +441,7 @@ for (const failure of [new Error("token store unavailable"), "private token fail
     });
     assert.equal(confirmed.status, 500);
     // 88f429c25: Error and non-Error failures alike answer the concealed incident envelope.
-    assertAdminResponse({ actual: await confirmed.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+    assertAdminResponse({ actual: await confirmed.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The database confirmation could not be completed.", action: "Check the result before repeating this operation. Copy details and report this problem.", step: "database confirmation" } });
     assert.equal(save.mock.callCount(), 1);
     assert.equal(await deps.gatedMutations.gatewayDeps.tokens.count(), 0);
     assert.deepEqual(await deps.restorePointsRepo.list(), []);
@@ -490,5 +490,5 @@ test("database migrate-forward execute: a non-Error throw is a 500 with the gene
     body: JSON.stringify({ confirmationToken: "token" }),
   });
   assert.equal(res.status, 500);
-  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The database execution could not be completed.", action: "Check the result before repeating this operation. Copy details and report this problem.", step: "database execution" } });
 });

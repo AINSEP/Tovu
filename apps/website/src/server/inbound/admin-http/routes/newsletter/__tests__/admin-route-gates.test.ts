@@ -139,7 +139,7 @@ for (const route of ROUTES) {
     const app = buildApp(route, { newsletterReady: notReady });
     const { status, json } = await call(t, app, route, WORKSPACE_ID);
     assert.equal(status, 500);
-    assertAdminResponse({ actual: json, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+    assertAdminResponse({ actual: json, expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: {"message":"The newsletter operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"newsletter operation"} });
   });
 
   test(`${route.name}: a hand-built request with no workspaceId param falls back to "" and is 404`, async () => {

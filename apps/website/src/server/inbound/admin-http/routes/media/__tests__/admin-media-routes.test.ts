@@ -411,7 +411,7 @@ test("update: an unexpected repo failure surfaces as the generic 500 (sendPostUp
       body: JSON.stringify({ caption: "will not persist" }),
     });
     assert.equal(res.status, 500);
-    assertAdminResponse({ actual: await res.json(), expected: { error: "internal error" } });
+    assertAdminResponse({ actual: await res.json(), expected: { error: "internal error" } }, { failure: {"message":"The media item save could not be completed.","action":"Check whether your changes were saved before repeating the save. Copy details and report this problem.","step":"Save media item"} });
   } finally {
     deps.mediaRepo.save = originalSave;
   }
@@ -577,7 +577,7 @@ test("admin media routes: delete returns 404 for wrong workspace id and non-exis
       headers: { cookie: ownerCookie },
     });
     assert.equal(errorRes.status, 500);
-    assertAdminResponse({ actual: await errorRes.json(), expected: { error: "internal error" } });
+    assertAdminResponse({ actual: await errorRes.json(), expected: { error: "internal error" } }, { failure: {"message":"The media item removal could not be confirmed.","action":"Check the list before repeating the removal. Copy details and report this problem.","step":"Remove media item"} });
   } finally {
     deps.mediaRepo.findById = originalFind;
   }
@@ -707,6 +707,6 @@ test('hard purge refuses indexed references even with force permission, and look
   t.mock.method(deps.entryRefsRepo, 'findByTarget', async () => { throw new Error('private reference store failure'); });
   const failed = await remove();
   assert.equal(failed.status, 500);
-  assertAdminResponse({ actual: await failed.json(), expected: { error: 'internal error' } });
+  assertAdminResponse({ actual: await failed.json(), expected: { error: 'internal error' } }, { failure: {"message":"The media item removal could not be confirmed.","action":"Check the list before repeating the removal. Copy details and report this problem.","step":"Remove media item"} });
   assert.ok(await deps.mediaRepo.findById(input));
 });

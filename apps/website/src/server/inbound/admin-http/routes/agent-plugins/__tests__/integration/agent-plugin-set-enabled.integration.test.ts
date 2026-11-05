@@ -639,7 +639,7 @@ for (const failure of [new Error("private activation failure"), "private activat
       const { baseUrl, cookie } = await bootAuthenticated(app, t);
       const response = await patch(baseUrl, cookie, "site-compliance", { enabled: false });
       assert.equal(response.status, 500);
-      assertAdminResponse({ actual: await response.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+      assertAdminResponse({ actual: await response.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: {"message":"The agent plugin operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"agent plugin operation"} });
       assert.equal(writes, 1);
     });
   });

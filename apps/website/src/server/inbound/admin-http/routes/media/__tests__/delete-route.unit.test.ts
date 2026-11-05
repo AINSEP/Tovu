@@ -49,7 +49,7 @@ test('media delete: an unknown asset is 404 with the domain message', async () =
 test('media delete: an unexpected repository failure is a private 500', async (t) => {
   const { app, deps } = mediaApp(register);
   t.mock.method(deps.mediaRepo, 'findById', async () => { throw new Error('private store failure'); });
-  assertAdminResponse({ actual: await dispatchJsonRequest(app, 'DELETE', `${BASE}/media/asset-1`), expected: { status: 500, body: INTERNAL } });
+  assertAdminResponse({ actual: await dispatchJsonRequest(app, 'DELETE', `${BASE}/media/asset-1`), expected: { status: 500, body: INTERNAL } }, { failure: {"message":"The media item removal could not be confirmed.","action":"Check the list before repeating the removal. Copy details and report this problem.","step":"Remove media item"} });
 });
 
 test('media delete: a hand-built request with no params falls back to an empty workspace id and 404s', async () => {

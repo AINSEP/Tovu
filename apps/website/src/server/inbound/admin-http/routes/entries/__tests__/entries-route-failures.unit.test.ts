@@ -9,8 +9,8 @@ import { registerAdminEntryUpdateRoute } from '../update.js';
 import { allowed, fixture, testRouteFailureMatrix, type RouteFailureCase } from '#src/server/__tests__/helpers/admin-route-failures';
 
 const routes: RouteFailureCase[] = [
-  { name: 'entries lifecycle', register: registerAdminEntryLifecycleRoute, method: 'POST', path: '/api/admin/v1/entries/e/lifecycle', body: { op: 'publish', expectedVersion: 1 }, coded: true },
-  { name: 'entries update', register: registerAdminEntryUpdateRoute, method: 'PUT', path: '/api/admin/v1/entries/e', body: { expectedVersion: 1 }, coded: true },
+  { name: 'entries lifecycle', register: registerAdminEntryLifecycleRoute, method: 'POST', path: '/api/admin/v1/entries/e/lifecycle', body: { op: 'publish', expectedVersion: 1 }, coded: true , failure: {"message":"The entry operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"entry operation"} },
+  { name: 'entries update', register: registerAdminEntryUpdateRoute, method: 'PUT', path: '/api/admin/v1/entries/e', body: { expectedVersion: 1 }, coded: true , failure: {"message":"The entry save could not be completed.","action":"Check whether your changes were saved before repeating the save. Copy details and report this problem.","step":"Save entry"} },
 ];
 
 testRouteFailureMatrix(routes);
@@ -60,5 +60,5 @@ test('entries POST: a non-Error throw is a 500 with the generic message', async 
   assertAdminResponse({ actual: await dispatchJsonRequest(app, 'POST', '/api/admin/v1/entries', { type: 'recipe', slug: 'eggs', title: 'Eggs' }), expected: {
     status: 500,
     body: { error: 'internal error', code: 'INTERNAL_ERROR' },
-  } });
+  } }, { failure: {"message":"The entry operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"entry operation"} });
 });

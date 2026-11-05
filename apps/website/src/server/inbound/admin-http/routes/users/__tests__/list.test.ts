@@ -197,7 +197,7 @@ test("LIST_USERS route: 500 internal error when an unexpected error is thrown", 
   const res = await fetch(`${baseUrl}${URL_BASE}`);
   assert.equal(res.status, 500);
   const body = (await res.json()) as { error: string };
-  assertAdminResponse({ actual: body, expected: { error: "internal error" } });
+  assertAdminResponse({ actual: body, expected: { error: "internal error" } }, { failure: {"message":"The users could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load users"} });
 });
 
 test("LIST_USERS route: a trashed (disabled + indexed) user is dropped from the list — OWNER DECISION 2026-09-24", async (t) => {

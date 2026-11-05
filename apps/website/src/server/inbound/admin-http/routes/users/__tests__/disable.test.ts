@@ -329,7 +329,7 @@ test("DISABLE_PRINCIPAL route: 500 internal error when an unexpected error is th
   const res = await fetch(`${baseUrl}${urlFor("any-id")}`, { method: "POST" });
   assert.equal(res.status, 500);
   const body = (await res.json()) as { error: string };
-  assertAdminResponse({ actual: body, expected: { error: "internal error" } });
+  assertAdminResponse({ actual: body, expected: { error: "internal error" } }, { failure: {"message":"The user operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"user operation"} });
 });
 
 test("DISABLE_PRINCIPAL route: an IdentityValidationError from the transaction maps to 400 VALIDATION_ERROR", async (t) => {

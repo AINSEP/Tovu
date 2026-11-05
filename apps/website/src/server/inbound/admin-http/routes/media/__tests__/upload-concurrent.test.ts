@@ -66,5 +66,5 @@ test("upload: an unexpected persistence error remains a redacted 500", async () 
   const base = createRouteDeps();
   base.mediaRepo.save = async () => { throw new Error("private database details"); };
   const action = uploadAction({ deps: { ...base, authorize: async () => ({ allowed: true, reason: "matched" }) } });
-  assertAdminResponse({ actual: await action(), expected: { status: 500, body: { error: "The media upload or change could not finish.", code: "INTERNAL_ERROR" } } });
+  assertAdminResponse({ actual: await action(), expected: { status: 500, body: { error: "The media upload or change could not finish.", code: "INTERNAL_ERROR" } } }, { failure: {"message":"The media upload or change could not finish.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"media item operation","includeAction":false} });
 });

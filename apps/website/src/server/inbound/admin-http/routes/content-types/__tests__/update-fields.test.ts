@@ -69,7 +69,7 @@ test("update-fields HTTP characterization", async (t) => {
       // Mapped 4xx keep their exact message; an unmapped 500 is the shared, concealed incident envelope.
       assertAdminResponse({ actual: await send({ body: { expectedVersion: 3, fields } }), expected: {
         status, body: { error: status === 500 ? "internal error" : error.message, code },
-      } });
+      } }, { failure: {"message":"The content type save could not be completed.","action":"Check whether your changes were saved before repeating the save. Copy details and report this problem.","step":"Save content type"} });
     });
   }
 
@@ -122,7 +122,7 @@ test("update-fields HTTP characterization", async (t) => {
       write = async () => { throw fault; };
       assertAdminResponse({ actual: await send({ body: { expectedVersion: 3, fields } }), expected: {
         status: 500, body: { error: "internal error", code: "INTERNAL_ERROR" },
-      } });
+      } }, { failure: {"message":"The content type save could not be completed.","action":"Check whether your changes were saved before repeating the save. Copy details and report this problem.","step":"Save content type"} });
     });
   }
 });

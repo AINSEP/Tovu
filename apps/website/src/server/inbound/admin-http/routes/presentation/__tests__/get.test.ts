@@ -133,7 +133,7 @@ test("presentation get: an unexpected repo failure 500s", async (t) => {
   });
   const { status, json } = await get(t, app);
   assert.equal(status, 500);
-  assertAdminResponse({ actual: json, expected: { error: "internal error" } });
+  assertAdminResponse({ actual: json, expected: { error: "internal error" } }, { failure: {"message":"The presentation settings could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load presentation settings"} });
 });
 
 test("presentation get: workspaceId param can never actually be undefined through this app's real composition (a matched `:param` segment is always a populated string) -- its `?? \"\"` fallback is reached by calling the real handler directly, the same type-bypass technique put-entry.test.ts's own equivalent test uses", async (t) => {

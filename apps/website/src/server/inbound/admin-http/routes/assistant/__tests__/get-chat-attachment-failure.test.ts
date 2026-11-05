@@ -26,5 +26,5 @@ test("chat attachment handler redacts unexpected read errors while passing the a
     deps: { uploadDirectory: "/test-owned/uploads" },
     input: { ref: "attachment:11111111-2222-3333-4444-555555555555", ownerId: "uploader-7" },
   }]);
-  assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: "internal error" } } });
+  assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: "internal error" } } }, { failure: {"message":"The assistant task operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"assistant task operation"} });
 });

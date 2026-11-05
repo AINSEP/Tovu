@@ -179,7 +179,7 @@ test("detect-agents redacts an authorization failure as a generic 500 without pr
   await handler(true, { authorize: async () => { throw new Error("policy store at /private/policies.db is down"); } })(
     { params: { workspaceId: "workspace-test" } }, res);
   assert.equal(calls, 0);
-  assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } } });
+  assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } } }, { failure: {"message":"The assistant task operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"assistant task operation"} });
 });
 
 test("an injected detector seeds its first snapshot from the composition inventory's runtime, not process.env", async (t) => {

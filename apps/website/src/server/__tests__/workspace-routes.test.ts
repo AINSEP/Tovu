@@ -344,6 +344,6 @@ test("AC-06e: sendDeleteWorkspaceError maps WorkspaceLastRemainingError to 409 L
   sendDeleteWorkspaceError(generic.res, new Error("db exploded: connection string postgres://user:pw@host"));
   assert.equal(generic.capture.statusCode, 500);
   // The untyped branch must stay opaque — a repo error can carry connection strings.
-  assertAdminResponse({ actual: generic.capture.jsonBody, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: generic.capture.jsonBody, expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The workspace removal could not be confirmed.", action: "Check the list before repeating the removal. Copy details and report this problem.", step: "Remove workspace" } });
   assert.doesNotMatch(JSON.stringify(generic.capture.jsonBody), /db exploded|postgres:\/\//);
 });

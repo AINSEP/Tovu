@@ -172,7 +172,7 @@ test("AGENT_PLUGIN_FILES: layout I/O failure returns a fixed error without discl
   const fault = t.mock.method(deps.agentPluginLayout, "forWorkspace", () => { throw new Error("private /secret/plugins"); });
   const response = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE}/agent-plugins/${PLUGIN_ID}/files`, { headers: { cookie } });
   assert.equal(response.status, 500);
-  assertAdminResponse({ actual: await response.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: await response.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: {"message":"The agent plugins could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load agent plugins"} });
   assert.equal(fault.mock.callCount(), 1);
 });
 

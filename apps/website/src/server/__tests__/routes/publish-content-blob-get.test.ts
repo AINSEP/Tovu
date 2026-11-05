@@ -313,7 +313,7 @@ test("GET .../blobs/:sha refuses (413) to ship a stored blob larger than the tra
   assert.equal(failed.status, 500);
   // Shared admin failure envelope: a correlatable id, never the object store's cause.
   const failedBody: unknown = await failed.json();
-  assertAdminResponse({ actual: failedBody, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: failedBody, expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The publishing information could not be loaded.", action: "Try loading them again. If it still fails, copy details and report this problem.", step: "Load publishing information" } });
   assert.doesNotMatch(JSON.stringify(failedBody), /object store unreachable|private-bucket/);
 });
 

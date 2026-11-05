@@ -80,7 +80,7 @@ test("themes list conceals a presentation repository failure", async () => {
   }, `${ROOT}/themes`);
   assert.equal(read, true);
   // Shared admin failure envelope: a correlatable id, never the repository's cause.
-  assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } } });
+  assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } } }, { failure: { message: "The theme operation could not be completed.", action: "Check the result before repeating this operation. Copy details and report this problem.", step: "theme operation" } });
   assert.doesNotMatch(JSON.stringify(capture), /private database path/);
 });
 
@@ -229,6 +229,6 @@ test("policy permission listing refuses an absent parent and conceals repository
     throw new Error("private connection string");
   } } }, `${ROOT}/policies/:policyId/permissions`, { policyId: "absent-b07" });
   // Shared admin failure envelope: a correlatable id, never the repository's cause.
-  assertAdminResponse({ actual: failed, expected: { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } } });
+  assertAdminResponse({ actual: failed, expected: { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } } }, { failure: { message: "The user operation could not be completed.", action: "Check the result before repeating this operation. Copy details and report this problem.", step: "user operation" } });
   assert.doesNotMatch(JSON.stringify(failed), /private connection string/);
 });
