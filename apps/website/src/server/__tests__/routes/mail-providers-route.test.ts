@@ -1,5 +1,6 @@
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
+import { SettingsRevisionConflictError } from "@jini-ai/core/settings";
 import test from "node:test";
 
 import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
@@ -191,4 +192,14 @@ test("credential races and vault failures keep typed safe envelopes and leave co
     assert.equal(response.status, status); assert.deepEqual(body, { error: code, code }); assert.doesNotMatch(JSON.stringify(body), /secret-/);
     assert.deepEqual(await r.deps.customCredentialSetRepo.listByWorkspace({ workspaceId: r.deps.workspaceId }), before); assert.deepEqual(r.calls, { selects: [], invalidations: 0 });
   }
+});
+
+
+test("mail provider selection conflicts map to 409 with a caller-safe reason", async t => {
+  const r = await rig(t);
+  r.deps.mailProviderControl!.select = async () => { throw new SettingsRevisionConflictError({ expectedRevisionSeq: 1, actualRevisionSeq: 2 }); };
+  const response = await r.send("POST", "mail-providers/fakemail/activate");
+  assert.equal(response.status, 409);
+  assert.deepEqual(await response.json(), { code: "MAIL_PROVIDER_CHANGED", error: "The mail provider selection changed while this card was open. Nothing was changed by this call. Read the current mail providers and request a fresh approval." });
+  assert.deepEqual(r.calls, { selects: [], invalidations: 0 });
 });
