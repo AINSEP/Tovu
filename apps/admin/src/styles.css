@@ -1360,7 +1360,7 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 .boot-screen { display: grid; place-items: center; height: 100vh; font-size: 1.1rem; color: var(--muted); }
 
 /* Login */
-.login-screen { display: grid; place-items: center; height: 100vh; background: var(--surface-2); }
+.login-screen { display: grid; place-items: center; align-content: center; gap: var(--space-4); min-height: 100vh; box-sizing: border-box; background: var(--surface-2); }
 .login-card { background: var(--surface); padding: 2.5rem; border: 1px solid var(--border); border-radius: var(--r-lg); width: 22rem; display: flex; flex-direction: column; gap: 0.9rem; box-shadow: var(--shadow-md); }
 .login-card h1 { margin: 0; font-family: var(--font-display); font-size: 1.8rem; letter-spacing: -0.01em; }
 .login-card p { margin: 0; color: var(--muted); }
@@ -6643,15 +6643,16 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
    in the page body instead of per-screen patches. Raised to 44px (2026-10-14): at 40 this floor
    out-ranked the 44px touch targets (Media's action buttons) it was meant to back up. Modal
    dialogs render in <body>, outside `.admin-content`, so `.jini-dialog` is named too: their
-   fields and Cancel/Save buttons measured 35-37px. Not on `[role="switch"]`: the pill switches
-   draw their own fixed-size track.
+   fields and Cancel/Save buttons measured 35-37px. The sign-in screen and the shell's own confirm
+   dialogs (Log out) sit outside it too and measured the same (2026-11-05). Not on `[role="switch"]`:
+   the pill switches draw their own fixed-size track.
    ------------------------------------------------------------------------ */
 @media (max-width: 640px) {
-  :is(.admin-content, .jini-dialog) :is(button, select, summary, [role="button"], a.btn-primary, a.btn-secondary, a.btn-ghost):not([role="switch"]) {
+  :is(.admin-content, .jini-dialog, .confirm-dialog, .login-screen) :is(button, select, summary, [role="button"], a.btn-primary, a.btn-secondary, a.btn-ghost):not([role="switch"]) {
     min-height: 44px;
   }
-  :is(.admin-content, .jini-dialog) :is(button, [role="button"]):not([role="switch"]) { min-width: 44px; }
-  :is(.admin-content, .jini-dialog) :is(input[type="checkbox"], input[type="radio"]) { width: 20px; height: 20px; }
+  :is(.admin-content, .jini-dialog, .confirm-dialog, .login-screen) :is(button, [role="button"]):not([role="switch"]) { min-width: 44px; }
+  :is(.admin-content, .jini-dialog, .confirm-dialog, .login-screen) :is(input[type="checkbox"], input[type="radio"]) { width: 20px; height: 20px; }
 
   /* The chrome outside `.admin-content` the floor above cannot reach, plus the 15px text link and the
      18px radio labels inside it (measured at 390px, 2026-11-05). The link and the label grow their hit
@@ -6662,6 +6663,8 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
   .admin-content a.link-button { display: inline-block; padding-block: 15px; margin-block: -15px; }
   .site-db-option-name { position: relative; }
   .site-db-option-name::after { content: ""; position: absolute; inset: -13px 0 -13px -32px; }
+  /* The pair's resting spot above assumes 32px buttons; at this floor it keeps them centred on the FAB. */
+  .admin-main-col { --jini-scroll-jump-bottom: calc(var(--admin-chat-fab-inset, 20px) + (var(--admin-chat-fab-size, 56px) - 44px) / 2 + env(safe-area-inset-bottom, 0px)); }
 
   /* OB-1 (also Settings Privacy): a touch-synthesized hover must not leave an inactive tab
      looking pressed. The active underline and keyboard focus outline still convey state. */
@@ -6686,7 +6689,7 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
   /* Mobile sweep 2026-10-07 (P-3 follow-up), measured at a real 375px viewport. Text inputs were
      37px against the floor buttons and selects already get; one floor for every field, the same
      44px so a field and the button beside it stay one height. */
-  :is(.admin-content, .jini-dialog) input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"], [type="hidden"]) {
+  :is(.admin-content, .jini-dialog, .confirm-dialog, .login-screen) input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"], [type="hidden"]) {
     min-height: 44px;
   }
   /* Standalone links that sit beside 44px buttons (a panel head's "All posts"/"Change", a

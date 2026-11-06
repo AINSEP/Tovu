@@ -11,7 +11,7 @@ import { describe, expect, it } from "vitest";
  */
 
 const stylesCss = readFileSync(resolve(process.cwd(), "src/styles.css"), "utf8");
-const SCOPE = ":is(.admin-content, .jini-dialog)";
+const SCOPE = ":is(.admin-content, .jini-dialog, .confirm-dialog, .login-screen)";
 
 /** Declarations of `selector` inside `@media (max-width: 640px)`, last one winning. */
 function phoneDeclarations(selector: string): Record<string, string> {
@@ -43,6 +43,24 @@ describe("phone touch targets are 44px", () => {
   // Regression: the ring was `inset: -10px -4px`, which from the 36x20 / 34x20 padding boxes left
   // both switches 40px tall (measured 38x22 visible track at 375px on Add-ons). The AI Assistant
   // visitor switch (also a 36x20 padding box) had no ring at all until it joined the same list.
+  // Grid rows split the screen's height, so the sign-in card and the password recovery card sat a
+  // third of a screen apart (seen at 390px, 2026-11-05).
+  it("keeps the sign-in cards together in the middle of the screen", () => {
+    let rule = "";
+    parse(stylesCss).walkRules(".login-screen", (found) => { rule = found.toString(); });
+    expect(rule).toContain("align-content: center");
+    // Centred at a fixed height, a taller open recovery card would be cut off above the screen.
+    expect(rule).toContain("min-height: 100vh");
+  });
+
+  // The pair rests beside the assistant button, centred on it. The desktop offset assumes 32px
+  // buttons, so at the phone's 44px they sat 6px high (measured at 390px, 2026-11-05).
+  it("keeps the 44px scroll jump pair centred on the assistant button", () => {
+    expect(phoneDeclarations(".admin-main-col")["--jini-scroll-jump-bottom"]).toBe(
+      "calc(var(--admin-chat-fab-inset, 20px) + (var(--admin-chat-fab-size, 56px) - 44px) / 2 + env(safe-area-inset-bottom, 0px))",
+    );
+  });
+
   it("rings the pill switches with an invisible hit area at least 44px each way", () => {
     const ring = phoneDeclarations(':is(.agent-plugin-switch, .theme-explore-switch, .assistant-toggle--switch input[role="switch"])::before');
     expect(ring).toEqual({ content: '""', position: "absolute", inset: "-12px -5px" });
