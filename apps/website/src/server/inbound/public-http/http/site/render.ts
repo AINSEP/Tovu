@@ -2388,8 +2388,12 @@ const DEFAULT_CONTACT_FORM_SUCCESS_MESSAGE = "Thanks — your message has been s
 /** Preserve authored HTML only in HTML mode for a native collection plan.
  * @complexity O(1) time/space; strings are reused, no I/O.
  * @overallScore 97 — Recommended: HTML sanitization remains the authoring write boundary's responsibility. */
+function formSchemaOptions({ props }: { props: JsonObject }): { schemaHash?: string } {
+  return typeof props.schemaHash === "string" ? { schemaHash: props.schemaHash } : {};
+}
+
 function collectionHtmlOptions({ props }: { props: JsonObject }): { html?: string; className: string; schemaHash?: string } {
-  return { ...(typeof props.schemaHash === "string" ? { schemaHash: props.schemaHash } : {}), ...(props.mode === "html" && typeof props.html === "string" ? { html: props.html } : {}), className: FORM_CLASS };
+  return { ...formSchemaOptions({ props }), ...(props.mode === "html" && typeof props.html === "string" ? { html: props.html } : {}), className: FORM_CLASS };
 }
 
 /** Render the resolved collection plan for native external forms or the existing built-in form shell.
@@ -2414,7 +2418,7 @@ function renderWidgetContactForm(props: JsonObject): string {
     fields: fieldDescriptors,
   }, {
     ...(typeof props.html === "string" ? { html: props.html } : {}),
-    ...(typeof props.schemaHash === "string" ? { schemaHash: props.schemaHash } : {}),
+    ...formSchemaOptions({ props }),
     successMessage: str(props.successMessage) || DEFAULT_CONTACT_FORM_SUCCESS_MESSAGE,
     className: FORM_CLASS,
   }), fieldDescriptors) + rangeReadout;
@@ -2430,7 +2434,7 @@ function renderWidgetContactForm(props: JsonObject): string {
     successSlot +
     `<form class="widget ${FORM_CLASS} widget-contact-form" toolname="form_${escapeHtml(slug.replace(/[^A-Za-z0-9_.-]/g, '_').slice(0, 123))}" tooldescription="${escapedSlug}" method="post"${fieldDescriptors.some(field => field && String(field.type) === "file") ? ' enctype="multipart/form-data"' : ""} action="/forms/${escapedSlug}/submit" data-form-slug="${escapedSlug}" ${legacyAttrs}>` +
     errorSlot +
-    fields + renderFormSchemaHash({ schemaHash: typeof props.schemaHash === "string" ? props.schemaHash : undefined }) +
+    fields + renderFormSchemaHash(formSchemaOptions({ props })) +
     `<div hidden aria-hidden="true"><input type="text" name="_hp" tabindex="-1" autocomplete="off"></div>` +
     `</form>` +
     rangeReadout
