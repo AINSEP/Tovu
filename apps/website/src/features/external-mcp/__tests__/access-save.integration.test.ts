@@ -15,7 +15,7 @@ const key = { workspaceId: 'access-save-site', serverId: 'source' };
 const turn = () => new Promise<void>(resolve => setImmediate(resolve));
 function source(): ExternalMcpServerRecord {
   return { ...key, label: 'Source', provisionedByPluginId: null, transport: 'streamable_http', authMode: 'none', enabled: false,
-    command: null, url: 'https://example.test/mcp', args: null, allowedToolNames: '["read"]', writeAllowedToolNames: '[]',
+    command: null, url: 'https://example.test/mcp?token=synthetic-test-secret', args: null, allowedToolNames: '["read"]', writeAllowedToolNames: '[]',
     writeGrantsUpdatedByPrincipalId: null, writeGrantsUpdatedAt: null, envNames: null, sealedEnv: null,
     oauthProviderId: null, oauthGrant: null, oauthClientId: null, oauthEndpointsJson: null, oauthScopesJson: null,
     oauthStatus: null, oauthExpiresAt: null, oauthTokenEnvName: null, oauthRefreshLeaseUntil: null,
@@ -26,7 +26,7 @@ async function fixture() {
   const original = source(); await repo.upsert(original);
   const controller = new AbortController();
   let permission = true;
-  const surfaces = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: { uuid: () => 'access-exchange' }, defaultChannel: 'mcp-ui' }),
+  const surfaces = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: { newId: () => 'access-exchange' }, defaultChannel: 'mcp-ui' }),
     assertAccessApprover: async () => {} };
   const deps = { workspaceId: key.workspaceId, clock: { nowMs: () => Date.parse(now) }, externalMcpServerRepo: repo,
     authorize: async () => ({ allowed: permission, reason: permission ? 'matched' : 'revoked' }) } as unknown as ExternalMcpToolDeps;
@@ -46,6 +46,8 @@ test('existing MCP access uses one fixed card and only the approved proposal is 
   assert.deepEqual(await f.repo.findByServerId(key), f.original);
   const html = JSON.stringify(f.emissions[0]);
   assert.match(html, /read/); assert.match(html, /write/);
+  assert.match(html, /Source/); assert.match(html, /https:\/\/example\.test\/mcp/);
+  assert.doesNotMatch(html, /synthetic-test-secret/);
   assert.doesNotMatch(html, /name=\\?"(?:allowedToolNames|writeAllowedToolNames)\\?"/);
   assert.deepEqual(f.answer({ decision: 'confirm' }, 'other-person'), { ok: false, reason: 'binding-mismatch' });
   (f.ctx.input as Record<string, unknown>).allowedToolNames = 'unreviewed';

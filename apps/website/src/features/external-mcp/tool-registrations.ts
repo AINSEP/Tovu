@@ -8,7 +8,7 @@ import { resolveOperatorLocale } from '../settings/index.js';
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireNoInput, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import type { UUID } from "@jini-ai/core/primitives";
-import { ToolInputError } from "@jini-ai/core";
+import { ToolInputError, redactSecrets } from "@jini-ai/core";
 import { approvalToolHandler } from "../../contracts/core/human-confirm.js";
 
 import {
@@ -29,7 +29,7 @@ import type { ToolContributor } from "@jini-ai/core";
 // logic; nothing here re-implements it.
 import { applyExternalMcpAccess, externalMcpAccessSnapshot, parseAllowedToolNames, parseWriteAllowedToolNames, readExternalMcpToolGrants, ExternalMcpValidationError, listExternalMcpServerViews, readEnabledExternalMcpConfigs, saveExternalMcpServer } from "./external-mcp-store.js";
 import { notifyExternalMcpRosterChanged } from "../../assistant/mcp-services.js";
-import { type SaveExternalMcpOAuthInput, type SaveExternalMcpServerInput } from "./contracts.js";
+import { type ExternalMcpServerRecord, type SaveExternalMcpOAuthInput, type SaveExternalMcpServerInput } from "./contracts.js";
 import type { ExternalMcpToolDeps } from "./deps.js";
 import { externalMcpAgentToolCatalog, EXTERNAL_MCP_MANAGE_PERMISSION } from "./agent-tools.js";
 import { buildExternalMcpSaveForm, mergeExternalMcpSavePrefill, EXTERNAL_MCP_SAVE_TOOL_ID, type ExternalMcpSaveInput } from "./save-form.js";
@@ -444,6 +444,15 @@ async function authorizeMcpAccess({ routeDeps, principalId, id }: { routeDeps: E
   { entityType: EXTERNAL_MCP_ENTITY_TYPE, entityId: id });
 }
 
+/** Redact existing credential-bearing endpoint/command shapes before placing them on a card.
+ * The unredacted admission fingerprint stays private to the conditional writer.
+ * @complexity O(t) source-label/target bytes; no I/O.
+ */
+function externalMcpAccessSubject({ record, id }: { record: ExternalMcpServerRecord; id: string }) {
+  return { label: redactSecrets({ input: record.label ?? id }, { redactPii: false }),
+    target: redactSecrets({ input: record.url ?? `${record.command ?? ""} ${record.args ?? ""}` }, { redactPii: false }) };
+}
+
 /** Fixed access proposal through the same human-only exchange as other privilege changes.
  * Preparation reads one source; the accepted effect conditionally updates only its access columns.
  * @complexity O(a+w) bounded lists; two permission checks, one preview and one conditional update.
@@ -467,11 +476,11 @@ function externalMcpAccessHandler({ routeDeps, surfaces }: { routeDeps: External
         writeAllowedToolNames: write === undefined ? previous.writeAllowedToolNames : parseWriteAllowedToolNames(write) };
       const allowedSet = new Set(access.allowedToolNames);
       if (access.writeAllowedToolNames.some(name => !allowedSet.has(name))) throw new ToolInputError({ message: 'Every tool allowed to write must also appear in allowedToolNames. Nothing was changed.' });
-      return { id, expected: externalMcpAccessSnapshot({ record }), previous, access };
+      return { id, ...externalMcpAccessSubject({ record, id }), expected: externalMcpAccessSnapshot({ record }), previous, access };
     },
     describe: ({ ctx, prepared }) => ({ toolId: EXTERNAL_MCP_SAVE_TOOL_ID, errorCode: 'EXTERNAL_MCP',
       title: 'Change this connection’s access?', description: 'Only the listed source and tool grants change. Stored credentials stay in place.',
-      details: [], confirmLabel: 'Approve access', access: { resources: [{ id: prepared.id, label: prepared.id,
+      details: [{ label: 'Source target', value: prepared.target }], confirmLabel: 'Approve access', access: { resources: [{ id: prepared.id, label: prepared.label,
         scope: { personId: ctx.principal.id, siteId: routeDeps.workspaceId }, revision: prepared.expected.admissionRevision,
         previous: prepared.previous, proposed: prepared.access }] } }),
     run: async ({ ctx, prepared }) => {

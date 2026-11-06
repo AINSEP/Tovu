@@ -255,6 +255,14 @@ export function buildExternalMcpSaveFormFields(input: ExternalMcpSaveInput, isUp
   ];
 }
 
+/** Fixed grant disclosures share the credential form without becoming editable fields.
+ * @complexity O(a+w) in the bounded proposed tool-name strings; no effects.
+ */
+function fixedAccessDetails(save: ExternalMcpSaveInput) {
+  return [{ label: "Allowed tools", value: save.allowedToolNames || "None" },
+    { label: "May write", value: save.writeAllowedToolNames || "None" }];
+}
+
 /**
  * Builds `external_mcp_save`'s confirmation form.
  *
@@ -285,8 +293,7 @@ export function buildExternalMcpSaveForm(input: {
     details: [
       { label: "Connection type", value: save.transport === "streamable_http" ? "Hosted server (URL)" : "Local command (stdio)" },
       { label: "Credentials", value: credentials },
-      { label: "Allowed tools", value: save.allowedToolNames || "None" },
-      { label: "May write", value: save.writeAllowedToolNames || "None" },
+      ...fixedAccessDetails(save),
       ...(save.transport === "streamable_http" ? [] : [{ label: "Local access", value: `Saving lets chats start ${save.command ?? "the command below"} on this computer as your OS user.` }]),
     ],
     submitLabel: isUpdate ? "Save changes" : "Add server",

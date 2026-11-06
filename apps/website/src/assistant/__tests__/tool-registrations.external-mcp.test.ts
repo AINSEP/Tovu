@@ -373,13 +373,14 @@ test("workflow: save a new streamable_http server via the confirmation form, the
 // `assertWriteAllowlistSubset` — `external-mcp-store.ts`) already fully supports this field; only this
 // domain's agent-tool wiring never carried it through the form.
 
-test("workflow: a write grant submitted on the confirmation form survives the round trip and is visible in a fresh list", async () => {
+test("workflow: a write grant fixed in the proposal survives the credential form and is visible in a fresh list", async () => {
   const { deps } = fakeDeps();
   const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const registrations = new Map(buildExternalMcpRegistrations(deps, { surfaceExchanges: exchanges }).map((r) => [r.descriptor.id, r]));
   const saveTool = registrations.get("external_mcp_save")!;
 
-  const { pending, exchangeId } = await raiseSaveForm(saveTool, { id: "higgsfield", transport: "streamable_http", authMode: "none" });
+  const { pending, exchangeId } = await raiseSaveForm(saveTool, { id: "higgsfield", transport: "streamable_http", authMode: "none",
+    allowedToolNames: "generate_image, reveal_generation, models_explore", writeAllowedToolNames: "generate_image, reveal_generation" });
   exchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: {
       id: "higgsfield",
       transport: "streamable_http", authMode: "none",
@@ -393,7 +394,7 @@ test("workflow: a write grant submitted on the confirmation form survives the ro
   assert.deepEqual(
     [...result.server.writeAllowedToolNames].sort(),
     ["generate_image", "reveal_generation"],
-    "the write grant submitted on the form must be persisted, not silently dropped",
+    "the fixed proposed write grant must be persisted, not silently dropped",
   );
 
   const listed = (await call(registrations.get("external_mcp_list")!, { input: {} })) as {
@@ -428,7 +429,8 @@ test("an invalid write grant (a tool not in allowedToolNames) is reported as { s
   const registrations = new Map(buildExternalMcpRegistrations(deps, { surfaceExchanges: exchanges }).map((r) => [r.descriptor.id, r]));
   const saveTool = registrations.get("external_mcp_save")!;
 
-  const { pending, exchangeId } = await raiseSaveForm(saveTool, { id: "bad-write-grant", transport: "streamable_http" });
+  const { pending, exchangeId } = await raiseSaveForm(saveTool, { id: "bad-write-grant", transport: "streamable_http", authMode: "none",
+    allowedToolNames: "generate_image", writeAllowedToolNames: "delete_everything" });
   exchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: {
       id: "bad-write-grant",
       transport: "streamable_http",
