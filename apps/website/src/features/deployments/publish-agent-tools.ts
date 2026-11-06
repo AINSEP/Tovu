@@ -616,27 +616,6 @@ function mapPublishOutcomeToToolResult(
   detailRows: readonly DetailRow[],
   projectName: string
 ): { result: unknown; outcome: SurfaceEmission } {
-  if (outcome.ok === "partial") {
-    return {
-      result: {
-        published: true,
-        reachable: false,
-        target: outcome.targetId,
-        url: outcome.url,
-        status: outcome.status,
-        ...(outcome.providerMetadata ? { providerMetadata: outcome.providerMetadata } : {}),
-        message: outcome.message,
-        ...(outcome.deploymentId !== undefined ? { deploymentId: outcome.deploymentId } : {}),
-        ...(outcome.basePath !== undefined ? { basePath: outcome.basePath } : {}),
-      },
-      outcome: {
-        channel: "mcp-ui",
-        payload: {
-          resource: buildPublishOutcomeResource({ exchangeId: exchange.id, config, detailRows, projectName, state: "partial", message: outcome.message, url: outcome.url }),
-        },
-      },
-    };
-  }
   if (!outcome.ok) {
     return {
       result: { published: false, cancelled: false, code: outcome.code, message: outcome.message, ...(outcome.credentialSetup ? { credentialSetup: outcome.credentialSetup } : {}) },
@@ -646,27 +625,32 @@ function mapPublishOutcomeToToolResult(
       },
     };
   }
+  const published = {
+    published: true, target: outcome.targetId, url: outcome.url, status: outcome.status,
+    ...(outcome.providerMetadata ? { providerMetadata: outcome.providerMetadata } : {}),
+    ...(outcome.deploymentId !== undefined ? { deploymentId: outcome.deploymentId } : {}),
+    ...(outcome.basePath !== undefined ? { basePath: outcome.basePath } : {}),
+    ...(outcome.consentWarning ? { consentWarning: outcome.consentWarning } : {}),
+  };
+  if (outcome.ok === "partial") {
+    return {
+      result: { ...published, reachable: false, message: outcome.message },
+      outcome: {
+        channel: "mcp-ui",
+        payload: {
+          resource: buildPublishOutcomeResource({ exchangeId: exchange.id, config, detailRows, projectName, state: "partial", message: [outcome.message, outcome.consentWarning].filter(Boolean).join(" "), url: outcome.url }),
+        },
+      },
+    };
+  }
   return {
-    result: {
-      published: true,
-      reachable: true,
-      target: outcome.targetId,
-      url: outcome.url,
-      status: outcome.status,
-      ...(outcome.providerMetadata ? { providerMetadata: outcome.providerMetadata } : {}),
-      ...(outcome.deploymentId !== undefined ? { deploymentId: outcome.deploymentId } : {}),
-      ...(outcome.basePath !== undefined ? { basePath: outcome.basePath } : {}),
-    },
+    result: { ...published, reachable: true },
     outcome: {
       channel: "mcp-ui",
       payload: {
         resource: buildPublishOutcomeResource({
-          exchangeId: exchange.id,
-          config,
-          detailRows,
-          projectName,
-          state: "success",
-          message: `Published live at ${outcome.url}.`,
+          exchangeId: exchange.id, config, detailRows, projectName, state: "success",
+          message: [`Published live at ${outcome.url}.`, outcome.consentWarning].filter(Boolean).join(" "),
           url: outcome.url,
         }),
       },

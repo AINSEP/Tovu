@@ -12,6 +12,10 @@ or the operator's terminal. If a compiled build needs that environment, hand it 
 
 **Load design first.** Before designing a theme or writing page layouts, call `agent_plugin_ui_ux_design({"skill":"ui-ux-design"})` and follow its guidance, including the reference files and companion skills it directs you to load.
 
+## Cookie preferences in static documents
+
+Every full static theme page carries `<script src="/_consent/load.js" defer data-jini-consent-loader></script>` in its head. Keep this tag in new and converted pages: it loads the shared cookie preferences client and its published context, including the Cookie settings link. Static export copies the same loader with browser-local choices. Declare optional scripts through the theme JSON `scripts` entries and their `consent` field; do not add optional raw script tags.
+
 ## Motion by default
 
 Every new theme, converted site and reference match gets light kUInetic motion by default.

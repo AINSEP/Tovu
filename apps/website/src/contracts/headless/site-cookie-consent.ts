@@ -2,11 +2,13 @@ import type { ConsentState, DeclaredScript, RawContribution, RegionResolver } fr
 
 /** The one switch's payload: present = this engine serves the site. */
 export interface SiteCookieConsentDeps {
-  /** Published construction snapshot only; missing/pending/failed policy keeps embeds inert. */
+  /** The last good published mode; without any successful policy read embeds stay inert. */
   embedConsentOff?: () => boolean;
   /** Refresh the construction-time published snapshot after an owner publication. */
   refresh?: () => Promise<void>;
   exportAssets?: () => Promise<readonly string[]>;
+  /** Warn when a static copy was rendered before any policy loaded successfully. */
+  exportWarning?: () => string | undefined;
   /** This site's region readers (configured ingress plugin + legacy header); empty = strict. */
   regionResolvers: () => Promise<readonly RegionResolver[]>;
   /** Data-only modules from active plugins; the browser mounts them through the shared registry. */

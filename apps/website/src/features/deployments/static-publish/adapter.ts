@@ -544,7 +544,13 @@ async function publishStaticSiteSteps(deps: StaticPublishDeps, input: StaticPubl
   const publishInput: DeployPublishInput = { files: filesForReceiver({ files, submitUrl: forms.submitUrl }), projectName: input.projectName };
   const outcome = await publishAndMapOutcome(targetResult.target, publishInput, input, plan.basePath, forms.hosting, deps.publicPageSecurityHeaders);
   await saveReceiverKey({ outcome, save: forms.save });
-  return finishPublishOutcome({ outcome, credential: credentialResult.credential, target: plan.target });
+  const reported = publishConsentWarning({ outcome, warning: exportResult.report.consentWarning });
+  return finishPublishOutcome({ outcome: reported, credential: credentialResult.credential, target: plan.target });
+}
+
+/** Keep a successful publication's export warning in the result without changing its status. */
+function publishConsentWarning({ outcome, warning }: { outcome: StaticPublishOutcome; warning: string | undefined }): StaticPublishOutcome {
+  return outcome.ok !== false && warning ? { ...outcome, consentWarning: warning } : outcome;
 }
 
 /**

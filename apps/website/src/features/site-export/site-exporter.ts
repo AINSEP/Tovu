@@ -20,6 +20,8 @@ export { ExportOutputNotEmptyError } from "@jini-ai/devops/static-export";
 export type { ExportedRoute, FailedRoute, ExportedAsset, FailedAsset } from "@jini-ai/devops/static-export";
 import type { ExportReport as BaseExportReport } from "@jini-ai/devops/static-export";
 export interface ExportReport extends BaseExportReport {
+  /** Static pages were rendered before cookie preferences became available. */
+  consentWarning?: string;
   /** Public registry evidence used for this copy; absent when identity/discovery falls back. */
   publicOrigin?: string;
   /** Configured page multiplier and measured HTML byte multiplier; assets are crawled/deduplicated. */
@@ -599,9 +601,17 @@ export async function exportSite({ routeDeps, outputDir, clean, basePath, includ
       ...listingRoutes({ hrefs: extractListingPageHrefs({ html }), kind: "listing-page" }),
     ],
   }, { ...(clean !== undefined ? { clean } : {}), ...(outputBasePath !== undefined ? { basePath: outputBasePath } : {}) });
+  return finishExportReport({ report, outputDir, publicOrigin, publicUrl, basePath, themeCount, consentWarning: routeDeps.cookieConsent?.exportWarning?.() });
+}
+
+/** Return publication diagnostics after the exporter has closed its fresh app session. */
+function finishExportReport({ report, outputDir, publicOrigin, publicUrl, basePath, themeCount, consentWarning }: {
+  report: BaseExportReport; outputDir: string; publicOrigin: string | undefined; publicUrl: string | undefined;
+  basePath: string | undefined; themeCount: number; consentWarning: string | undefined;
+}): ExportReport {
   // Jini's reference scan diagnoses retained broken links; it does not remove them. A dropped
   // reference must be backed by an actual removal. Download-only removals are recorded by static-copy.
-  const result = { ...report, outputDir, droppedReferences: [], ...(publicOrigin ? { publicOrigin } : {}),
+  const result = { ...report, ...(consentWarning ? { consentWarning } : {}), outputDir, droppedReferences: [], ...(publicOrigin ? { publicOrigin } : {}),
     ...ignoredBasePathNotice({ publicUrl, basePath, warning: report.basePathRewriteWarning }) };
   if (themeCount === 1) return result;
   const themePreview = themePreviewExportSize({ report, themeCount });

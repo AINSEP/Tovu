@@ -175,3 +175,15 @@ test('an actual published bare Page with unavailable body format never claims a 
   assert.equal(result.runtimeSlot, false);
   assert.deepEqual(result.problems?.map(problem => typeof problem === 'string' ? problem : problem.code), ['PUBLISHED_PAGE_FORMAT_UNAVAILABLE']);
 });
+
+test('an authored loading tag provides the static theme runtime slot', async () => {
+  const ports = portsFor({ themes: [{ status: 'valid', manifest: { id: 'tagged', tier: 'static' }, pages: { index: '<html><head><script src="/_consent/load.js" defer data-jini-consent-loader></script></head><body>Page</body></html>' } }], resolveActiveThemeId: async () => 'tagged' });
+  assert.equal((await ports.declarationEvidence!({ path: '/' })).runtimeSlot, true);
+});
+
+test('comments, inert templates and wrong loader URLs do not claim a static runtime slot', async () => {
+  for (const html of ['<!-- data-jini-consent-loader -->', '<template><script src="/_consent/load.js" data-jini-consent-loader></script></template>', '<script src="/different.js" data-jini-consent-loader></script>']) {
+    const ports = portsFor({ themes: [{ status: 'valid', manifest: { id: 'invalid-slot', tier: 'static' }, pages: { index: html } }], resolveActiveThemeId: async () => 'invalid-slot' });
+    assert.equal((await ports.declarationEvidence!({ path: '/' })).runtimeSlot, false);
+  }
+});

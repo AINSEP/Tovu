@@ -8,7 +8,7 @@ import { InMemorySettingsRepo, set } from '@jini-ai/core/settings';
 import { ensureSiteConsentDefinitions, SITE_CONSENT_NAMESPACE } from '#src/features/consent/settings';
 import { SITE_CONSENT_DEFAULTS } from '#src/features/consent/config';
 import type { RouteDeps } from '#src/server/routes/types';
-import { dispatchJsonRequest } from '#src/server/__tests__/helpers/in-process-http';
+import { dispatchJsonRequest, dispatchHttpRequest } from '#src/server/__tests__/helpers/in-process-http';
 
 async function fixture(enabled: boolean, scriptDeclarations?: import('#src/contracts/headless/index').SiteCookieConsentDeps['scriptDeclarations']) {
   let reads = 0;
@@ -73,6 +73,7 @@ test('enabled document slots include a native withdrawal link and both browser a
     const assets = await response.json() as { head: string; body: string };
     assert.match(assets.head, /client-test\.min\.js/);
     assert.match(assets.head, /extensions\.min\.js/);
+    assert.equal((assets.head.match(/<style/g) ?? []).length, 1, 'settings style belongs to banner CSS');
     assert.match(assets.body, /href="#privacy-choices" data-consent-open>Cookie settings/);
     assert.deepEqual(f.counts(), { reads: 0, regionReads: 0, draftReads: 0 });
   } finally { await f.close(); }
@@ -139,7 +140,7 @@ test('embed delivery accessor uses the published snapshot with no page-time poli
   }
 });
 
-test('embed delivery preserves the last resolved mode while refreshing and becomes inert on failure', async () => {
+test('embed delivery preserves the last good mode while refreshing and after failure', async () => {
   let fail = false;
   let release: (() => void) | undefined;
   const consent: import('#src/contracts/headless/index').SiteCookieConsentDeps = { regionResolvers: async () => [] };
@@ -159,7 +160,7 @@ test('embed delivery preserves the last resolved mode while refreshing and becom
   const refresh = consent.refresh!();
   assert.equal(consent.embedConsentOff?.(), true);
   await assert.rejects(refresh, /fixture unavailable/);
-  assert.equal(consent.embedConsentOff?.(), false);
+  assert.equal(consent.embedConsentOff?.(), true);
 });
 
 test('a refresh during document rendering keeps off-mode embeds active when the final assets omit the banner', async () => {
@@ -296,6 +297,9 @@ test('off snapshots refresh settings and plugin declarations on the existing min
   assert.match(pluginsChanged.head, /replacement.js/);
   assert.doesNotMatch(pluginsChanged.head, /ordinary.js/);
   f.set({ enabled: true, now: 120_000 });
+  const stale = (await dispatchJsonRequest(f.app, 'GET', '/assets')).body as { body: string };
+  assert.equal(stale.body, '', 'the request serves the last good snapshot while refreshing');
+  await new Promise<void>(resolve => setImmediate(resolve));
   const enabled = (await dispatchJsonRequest(f.app, 'GET', '/assets')).body as { body: string };
   assert.match(enabled.body, /id="jini-consent"/);
   assert.equal(f.counts().reads, 3);
@@ -346,5 +350,108 @@ test('an owner settings write before first publication refreshes an off construc
     namespace: SITE_CONSENT_NAMESPACE, key: 'enabled', value: true, scope: 'workspace', workspaceId: deps.workspaceId, callerPrincipalId: 'owner',
   } });
   now = 60_000;
+  assert.equal(((await dispatchJsonRequest(app, 'GET', '/assets')).body as { body: string }).body, '', 'the request serves the last good snapshot while refreshing');
+  await new Promise<void>(resolve => setImmediate(resolve));
   assert.match(((await dispatchJsonRequest(app, 'GET', '/assets')).body as { body: string }).body, /id="jini-consent"/);
+});
+
+
+test('slow initial readiness does not discard a late successful policy', { timeout: 2000 }, async () => {
+  let release!: () => void;
+  const consent: import('#src/contracts/headless/index').SiteCookieConsentDeps = { regionResolvers: async () => [] };
+  const deps = { cookieConsent: consent, workspaceId: 'late-policy', clock: { nowMs: Date.now },
+    siteConsentReady: new Promise<void>(resolve => { release = resolve; }), siteBinding: { dir: '/tmp/late-policy' },
+    consentStore: { readPublished: async () => ({ id: 'late', config: { ...SITE_CONSENT_DEFAULTS, enabled: true, privacyPolicyUrl: '/privacy' } }) },
+  } as unknown as RouteDeps;
+  const app = express();
+  applySiteCookieConsent({ app, deps, consent }, { client: { src: '/_consent/fixture.js', body: Buffer.from('') } });
+  const request = { header: () => '1' } as unknown as import('express').Request;
+  assert.equal((await siteConsentDocumentAssets({ deps, request, scripts: [] })).body, '');
+  assert.match(consent.exportWarning!()!, /no cookie banner/);
+  release();
+  await new Promise<void>(resolve => setImmediate(resolve));
+  assert.match((await siteConsentDocumentAssets({ deps, request, scripts: [] })).body, /id="jini-consent"/);
+});
+
+test('refresh serves last good assets immediately while a newer policy is pending', { timeout: 2000 }, async () => {
+  const f = await fixture(true);
+  let release!: () => void;
+  f.deps.consentStore!.readPublished = async () => { await new Promise<void>(resolve => { release = resolve; }); return null; };
+  try {
+    const refreshing = f.deps.cookieConsent!.refresh!();
+    await new Promise<void>(resolve => setImmediate(resolve));
+    const assets = await siteConsentDocumentAssets({ deps: f.deps, request: { header: () => undefined } as unknown as import('express').Request, scripts: [] });
+    assert.match(assets.body, /id="jini-consent"/);
+    release();
+    await refreshing.catch(() => {});
+  } finally { await f.close(); }
+});
+
+
+test('missing browser bundles warn without stopping route mounting', async t => {
+  const fs = await import('node:fs');
+  const { syncBuiltinESMExports } = await import('node:module');
+  const original = fs.default.readFileSync;
+  const read = t.mock.method(fs.default, 'readFileSync', ((file: unknown, ...args: unknown[]) => {
+    if (String(file).endsWith('extensions.min.js') || String(file).endsWith('client.min.js')) throw new Error('fixture missing bundle');
+    return (original as (...values: unknown[]) => unknown)(file, ...args);
+  }) as typeof original);
+  const warnings = t.mock.method(console, 'warn', () => {});
+  syncBuiltinESMExports();
+  t.after(() => { read.mock.restore(); syncBuiltinESMExports(); });
+  const consent = { regionResolvers: async () => [] };
+  const deps = { cookieConsent: consent, workspaceId: 'missing-bundles', clock: { nowMs: Date.now }, siteBinding: { dir: '/tmp/missing-bundles' }, siteConsentReady: new Promise<void>(() => {}) } as unknown as RouteDeps;
+  const app = express();
+  assert.doesNotThrow(() => applySiteCookieConsent({ app, deps, consent }));
+  assert.equal((await dispatchHttpRequest({ app, method: 'GET', url: '/_consent/extensions.min.js' })).status, 404);
+  assert.equal(warnings.mock.calls.length, 2);
+});
+
+test('a declaration failure does not release a still-running policy read for another refresh', { timeout: 3000 }, async () => {
+  let now = 0, reads = 0;
+  let release!: () => void;
+  const consent: import('#src/contracts/headless/index').SiteCookieConsentDeps = { regionResolvers: async () => [], scriptDeclarations: async () => { throw new Error('fixture declaration failure'); } };
+  const deps = { cookieConsent: consent, workspaceId: 'pending-policy-declarations', siteConsentReady: Promise.resolve(), clock: { nowMs: () => now }, siteBinding: { dir: '/tmp/pending-policy-declarations' },
+    consentStore: { readPublished: async () => { reads++; await new Promise<void>(resolve => { release = resolve; }); return { id: 'late', config: { ...SITE_CONSENT_DEFAULTS, enabled: false, privacyPolicyUrl: '/privacy' } }; } },
+  } as unknown as RouteDeps;
+  const app = express();
+  applySiteCookieConsent({ app, deps, consent }, { client: { src: '/_consent/fixture.js', body: Buffer.from('') } });
+  await new Promise<void>(resolve => setImmediate(resolve));
+  now = 60_000;
+  await dispatchJsonRequest(app, 'GET', '/_consent/context');
+  assert.equal(reads, 1);
+  release();
+  await new Promise<void>(resolve => setImmediate(resolve));
+  assert.equal(consent.embedConsentOff?.(), true);
+});
+
+test('a fresh export app does not retain the previous app unavailable-policy warning', async () => {
+  let ready!: () => void;
+  const consent: import('#src/contracts/headless/index').SiteCookieConsentDeps = { regionResolvers: async () => [] };
+  const deps = { cookieConsent: consent, workspaceId: 'export-warning-reset', siteConsentReady: new Promise<void>(resolve => { ready = resolve; }), clock: { nowMs: Date.now }, siteBinding: { dir: '/tmp/export-warning-reset' },
+    consentStore: { readPublished: async () => ({ id: 'published', config: { ...SITE_CONSENT_DEFAULTS, enabled: true, privacyPolicyUrl: '/privacy' } }) },
+  } as unknown as RouteDeps;
+  const client = { src: '/_consent/fixture.js', body: Buffer.from('') };
+  applySiteCookieConsent({ app: express(), deps, consent }, { client });
+  await siteConsentDocumentAssets({ deps, request: { header: () => '1' } as unknown as import('express').Request, scripts: [] });
+  assert.match(consent.exportWarning!()!, /no cookie banner/);
+  ready();
+  applySiteCookieConsent({ app: express(), deps, consent }, { client });
+  await consent.refresh!();
+  assert.equal(consent.exportWarning!(), undefined);
+});
+
+test('the authored loader keeps declared optional scripts in client configuration until approval', async () => {
+  const f = await fixture(true, async () => ({ scripts: [{ src: '/stats.js', consent: ['analytics'] }], problems: [] }));
+  try {
+    const response = await fetch(`${f.url}/_consent/load.js`);
+    assert.equal(response.status, 200);
+    const { JSDOM } = await import('jsdom');
+    const dom = new JSDOM('<html><head></head><body>Static document</body></html>', { url: f.url, runScripts: 'outside-only' });
+    try {
+      dom.window.eval(await response.text());
+      assert.equal(dom.window.document.querySelector('script[src="/stats.js"]'), null);
+      assert.deepEqual(JSON.parse(dom.window.document.getElementById('jini-consent-config')!.textContent!).scripts, [{ src: '/stats.js', consent: ['analytics'] }]);
+    } finally { dom.window.close(); }
+  } finally { await f.close(); }
 });

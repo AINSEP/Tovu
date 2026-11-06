@@ -18,7 +18,7 @@ test('export copies JSON-declared local scripts and mounted consent assets once,
     handlebarsTemplates: {}, pages: {}, partials: {}, css: '' };
   const local = `/theme-assets/${theme.manifest.id}/scripts/declared.js`;
   theme.manifest.scripts = [{ src: local, consent: ['analytics'] }, { src: local }, { src: 'https://example.com/external.js' }];
-  const consent = { regionResolvers: async () => [] as const, exportAssets: undefined as (() => Promise<readonly string[]>) | undefined };
+  const consent = { regionResolvers: async () => [] as const, exportAssets: undefined as (() => Promise<readonly string[]>) | undefined, exportWarning: () => 'Cookie preferences could not be loaded. This copy has no cookie banner.' };
   const requests: string[] = [];
   let assetReads = 0;
   const createSiteApp: ExportSiteRouteDeps['createSiteApp'] = () => {
@@ -40,6 +40,7 @@ test('export copies JSON-declared local scripts and mounted consent assets once,
   } as unknown as ExportSiteRouteDeps;
   const report = await exportSite({ routeDeps: deps, outputDir });
   assert.deepEqual(report.assets.failed, []);
+  assert.equal(report.consentWarning, 'Cookie preferences could not be loaded. This copy has no cookie banner.');
   assert.equal(readFileSync(path.join(outputDir, local.slice(1)), 'utf8'), 'window.declared = true;');
   assert.equal(readFileSync(path.join(outputDir, '_consent/runtime.js'), 'utf8'), 'window.declared = true;');
   assert.equal(requests.filter(url => url === local).length, 1);
