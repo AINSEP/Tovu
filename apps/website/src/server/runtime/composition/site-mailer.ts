@@ -68,13 +68,19 @@ export function createSiteMailer(required: SiteMailerRequired, options: { durabl
   const workspaceId = resolve.workspaceId;
   const ready = async () => { await required.settingsReady; };
   /** Clear only this plugin's selected lanes through the settings owner; failures propagate.
-   * @complexity O(p) provider ids, two lane checks and at most one settings write. */
-  const clearPluginSelectionSnapshot = async ({ providerIds, principalId }: { providerIds: ReadonlySet<string>; principalId: string }): Promise<void> => {
+   * Re-read live ownership too: a conflict retry cannot clear a newly enabled plugin's same id.
+   * @complexity O(a + p) active adapters and provider ids, two lane checks and at most one settings write. */
+  const clearPluginSelectionSnapshot = async ({ providerIds, principalId, pluginId }: { providerIds: ReadonlySet<string>; principalId: string; pluginId: string }): Promise<void> => {
     await ready();
+    const catalog = await loadMailProviderCatalog(resolve);
+    const owned = new Set([...providerIds].filter(id => {
+      const provider = catalog.registry.get({ id });
+      return !provider || provider.pluginId === pluginId;
+    }));
     const { setting, revisionSeq } = await readMailProviderSelection({ settingsRepo: settings.repo, workspaceId });
     const value = {
-      transactional: providerIds.has(setting.transactional ?? "") ? null : setting.transactional,
-      bulk: providerIds.has(setting.bulk ?? "") ? null : setting.bulk,
+      transactional: owned.has(setting.transactional ?? "") ? null : setting.transactional,
+      bulk: owned.has(setting.bulk ?? "") ? null : setting.bulk,
     };
     if (value.transactional === setting.transactional && value.bulk === setting.bulk) return;
     // A provider chosen after this snapshot belongs to the newer writer, even in the other lane.
@@ -82,8 +88,8 @@ export function createSiteMailer(required: SiteMailerRequired, options: { durabl
   };
   /** Re-read after contention so a newer unrelated lane is never overwritten. Three guarded
    * attempts bound work; failed ownership stays available to a subsequent disable retry.
-   * @complexity O(p) ownership checks and at most three snapshot/write attempts. */
-  const clearPluginSelection = async (input: { providerIds: ReadonlySet<string>; principalId: string }): Promise<void> => {
+   * @complexity At most three catalog/snapshot/write attempts; O(a + p) ownership checks each. */
+  const clearPluginSelection = async (input: { providerIds: ReadonlySet<string>; principalId: string; pluginId: string }): Promise<void> => {
     for (let attempt = 0; attempt < 3; attempt++) {
       try { await clearPluginSelectionSnapshot(input); return; }
       catch (error) { if (!(error instanceof SettingsRevisionConflictError) || attempt === 2) throw error; }
@@ -117,7 +123,7 @@ export function createSiteMailer(required: SiteMailerRequired, options: { durabl
     try {
       if (!written.enabled && providerIds.size > 0) {
         pendingPluginSelections.set(input.pluginId, providerIds);
-        await clearPluginSelection({ providerIds, principalId: input.actor });
+        await clearPluginSelection({ providerIds, principalId: input.actor, pluginId: input.pluginId });
       }
       pendingPluginSelections.delete(input.pluginId);
     } finally { resolved.invalidate(); }

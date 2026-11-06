@@ -308,7 +308,7 @@ test("disable cleanup preserves a concurrent provider selection without overwrit
   assert.deepEqual(await readMailProviderSetting({ settingsRepo, workspaceId: WS }), { transactional: "new_provider", bulk: "new_provider" });
 });
 
-test("disable retries selective cleanup after a conflict and preserves the other writer's lane", async () => {
+for (const takeover of [false, true]) test(`disable retries selective cleanup and preserves ${takeover ? "a new owner of the same provider id" : "the other writer's lane"}`, async () => {
   const { required, release, settingsRepo } = await rig(); release(); await required.settingsReady;
   const deps = { ...required.settings.deps, repo: settingsRepo, authorize: required.settings.authorize };
   await writeMailProviderSetting({ deps, workspaceId: WS, callerPrincipalId: "owner", value: { transactional: "first_adapter", bulk: "other_adapter" } });
@@ -323,6 +323,7 @@ test("disable retries selective cleanup after a conflict and preserves the other
   required.settings.authorize = async () => {
     if (!changed) {
       changed = true;
+      if (takeover) required.resolve.loadMailAdapters = async () => ({ refusals: [], list: () => mailAdapters().filter(adapter => adapter.pluginId === 'other-package').map(adapter => ({ ...adapter, descriptor: { ...adapter.descriptor, id: 'first_adapter' } })) });
       await writeMailProviderSetting({ deps, workspaceId: WS, callerPrincipalId: "owner", value: { transactional: "first_adapter", bulk: "new_provider" } });
     }
     return { allowed: true, reason: "test" };
@@ -330,7 +331,7 @@ test("disable retries selective cleanup after a conflict and preserves the other
   assert.deepEqual(await site.setAgentPluginEnabled(PLUGIN_TOGGLE), { pluginId: "mail-package", enabled: false, warnings: [] });
   assert.equal(active, false);
   assert.equal(changed, true);
-  assert.deepEqual(await readMailProviderSetting({ settingsRepo, workspaceId: WS }), { transactional: null, bulk: "new_provider" });
+  assert.deepEqual(await readMailProviderSetting({ settingsRepo, workspaceId: WS }), { transactional: takeover ? "first_adapter" : null, bulk: "new_provider" });
 });
 
 test("a disable retry clears missing owned adapters and preserves a newer live provider with the same id", async () => {
