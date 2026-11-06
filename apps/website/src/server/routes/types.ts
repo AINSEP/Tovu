@@ -190,6 +190,10 @@ export interface ClockDeps {
 export interface IdentityDeps {
   /** Scoped recovery hashes share the identity SQL transaction; absent on ephemeral hosts. */
   recoveryCodes?: import("@jini-ai/user-management/server").RecoveryCodeStore;
+  /** Durable owner factors and pending proofs; absent on ephemeral hosts. */
+  mfaStore?: import("@jini-ai/user-management/server").MfaStore;
+  /** Public credential material only; private keys remain with authenticators. */
+  passkeyStore?: import("@jini-ai/user-management/server").PasskeyStore;
   /** The same transaction/session token ports the identity root binds; callers cannot omit them. */
   transactions: import("@jini-ai/user-management").IdentityRepos["transactions"];
   tokens: import("@jini-ai/user-management").SessionTokenPort;
@@ -445,6 +449,8 @@ export interface CredentialsDeps {
    * env var.
    */
   derivedPublicOrigin?: string;
+  /** Trusted configured external origin for passkeys; never derived from request headers. */
+  passkeyOrigin?: string;
   /**
    * 2026-08-15 — the `source_control_credential_sets` repo backing the admin Source Control page's
    * connect/replace form (`routes/admin/system/source-control-credentials.ts`). Real

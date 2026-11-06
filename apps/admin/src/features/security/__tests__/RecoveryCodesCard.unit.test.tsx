@@ -72,3 +72,16 @@ it('does not read recovery status again when only the page language changes', as
   expect(screen.getByText('translated:Recovery codes')).toBeTruthy();
   expect(p.status).toHaveBeenCalledTimes(1);
 });
+
+it('includes the enrolled owner authenticator proof when rotating the recovery kit', async () => {
+  const p = port();
+  render(<RecoveryCodesCard port={p} />);
+  await screen.findByText('Generate recovery codes');
+  fireEvent.change(screen.getByLabelText('Current owner password'), { target: { value: 'owner-password' } });
+  fireEvent.change(screen.getByLabelText('Authenticator code (if enabled)'), { target: { value: '123456' } });
+  fireEvent.click(screen.getByText('Generate recovery codes'));
+  await screen.findByText('Download codes');
+  expect(p.issue).toHaveBeenCalledExactlyOnceWith({ password: 'owner-password', code: '123456' });
+  expect(screen.queryByDisplayValue('owner-password')).toBeNull();
+  expect(screen.queryByDisplayValue('123456')).toBeNull();
+});

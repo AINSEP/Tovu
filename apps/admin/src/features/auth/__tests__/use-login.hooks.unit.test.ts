@@ -149,3 +149,32 @@ it.each([401, 429])("keeps the existing %s refusal message without replacing it 
   expect(result.current.error).toBe("existing safe refusal");
   expect(result.current.failure).toBeNull();
 });
+
+it('holds login at pending MFA, clears the password and completes only after the factor', async () => {
+  const onLogin = vi.fn();
+  const completeMfa = vi.fn().mockResolvedValue({ user: { id: 'owner', username: 'Owner' } });
+  const port: LoginPort = { login: async () => ({ mfaRequired: true, pendingToken: 'proof' }), completeMfa };
+  const { result } = renderHook(() => useLogin({ onLogin }, { port }));
+  act(() => result.current.setPassword('password-canary'));
+  await act(async () => result.current.submit(fakeSubmitEvent()));
+  expect(onLogin).not.toHaveBeenCalled();
+  expect(result.current.password).toBe('');
+  expect(result.current.mfa).toBeDefined();
+  act(() => result.current.mfa!.setCode('123456'));
+  await act(async () => result.current.submit(fakeSubmitEvent()));
+  expect(completeMfa).toHaveBeenCalledExactlyOnceWith({ pendingToken: 'proof', code: '123456' });
+  expect(onLogin).toHaveBeenCalledExactlyOnceWith({ id: 'owner', username: 'Owner' });
+  expect(result.current.mfa).toBeUndefined();
+});
+
+it('cancels a pending MFA proof without completing it or retaining the code', async () => {
+  const onLogin = vi.fn(), completeMfa = vi.fn();
+  const port: LoginPort = { login: async () => ({ mfaRequired: true, pendingToken: 'proof' }), completeMfa };
+  const { result } = renderHook(() => useLogin({ onLogin }, { port }));
+  await act(async () => result.current.submit(fakeSubmitEvent()));
+  act(() => { result.current.mfa!.setCode('123456'); });
+  act(() => { result.current.mfa!.cancel(); });
+  expect(result.current.mfa).toBeUndefined();
+  expect(onLogin).not.toHaveBeenCalled();
+  expect(completeMfa).not.toHaveBeenCalled();
+});

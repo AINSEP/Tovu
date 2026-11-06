@@ -2831,11 +2831,14 @@ export function describeApiError(e: unknown, fallback: string): string {
 
 export const api = {
   login: ({ username, password }: { username: string; password: string }, _options: Record<string, never> = {}) =>
-    request<{ user: AdminUser }>("/auth/login", {
+    request<{ user: AdminUser } | { mfaRequired: true; pendingToken: string }>("/auth/login", {
       method: "POST",
       body: JSON.stringify({ username, password }),
       // Signing in twice is harmless, so a login sent while the dev server restarts waits and retries.
     }, undefined, { retryWrites: true }),
+  completeMfa: (input: { pendingToken: string; code: string }) => requestOnce<{ user: AdminUser }>({
+    path: "/auth/mfa/login", init: { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input), cache: "no-store" },
+  }),
   logout: () => request<{ ok: boolean }>("/auth/logout", { method: "POST" }),
   /**
    * Exchanges a single-use loopback boot token (the zip launcher's `#boot=<token>` sign-in link,

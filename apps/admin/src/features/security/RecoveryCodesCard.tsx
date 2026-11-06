@@ -29,7 +29,7 @@ export function RecoveryCodesCard({ port = ownerRecoveryPort, t = identityTransl
   if (!status.isOwner || !status.available) return null;
   return <section className="card">
     <h3>{t('Recovery codes')}</h3>
-    <p>{t('Save ten single-use codes somewhere private. Using one resets your owner password, signs out all sessions and invalidates every code in the set.')}</p>
+    <p>{t('Save ten single-use codes somewhere private. Using one resets your owner password, removes authenticators and passkeys, signs out all sessions and invalidates every code in the set.')}</p>
     <RecoveryKit port={port} t={t} />
     {status.desktopOwnerReset ? <DesktopOwnerReset port={port} t={t} /> : null}
   </section>;
@@ -39,18 +39,19 @@ export function RecoveryCodesCard({ port = ownerRecoveryPort, t = identityTransl
  * @complexity O(1), one rotation per submit and at most ten codes in memory.
  */
 function RecoveryKit({ port, t }: { port: OwnerRecoveryPort; t: Translate }) {
-  const [password, setPassword] = useState(''), [codes, setCodes] = useState<string[]>([]);
+  const [password, setPassword] = useState(''), [code, setCode] = useState(''), [codes, setCodes] = useState<string[]>([]);
   const [busy, setBusy] = useState(false), [error, setError] = useState<UserFacingError | null>(null);
   async function submit(event: FormEvent) {
     event.preventDefault(); setBusy(true); setError(null); setCodes([]);
-    try { setCodes((await port.issue({ password })).codes); }
-    catch (error) { setError(ownerRecoveryFailure({ error, message: 'Recovery codes could not be generated.', action: 'Follow the server explanation before generating another set. Ask the host operator for help if it continues.', step: 'owner-recovery-issue', t, secrets: [password] })); }
-    finally { setPassword(''); setBusy(false); }
+    try { setCodes((await port.issue({ password, ...(code ? { code } : {}) })).codes); }
+    catch (error) { setError(ownerRecoveryFailure({ error, message: 'Recovery codes could not be generated.', action: 'Follow the server explanation before generating another set. Ask the host operator for help if it continues.', step: 'owner-recovery-issue', t, secrets: [password, code] })); }
+    finally { setPassword(''); setCode(''); setBusy(false); }
   }
   return <div>
     <form onSubmit={submit}>
       <label htmlFor="recovery-current-password">{t('Current owner password')}</label>
       <SecretInput id="recovery-current-password" label={t('Current owner password')} autoComplete="current-password" value={password} onChange={event => setPassword(event.target.value)} {...{ [AGENT_PRIVATE_ATTRIBUTE]: '' }} />
+      <label>{t('Authenticator code (if enabled)')}<input autoComplete="one-time-code" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} data-agent-private="" value={code} onChange={event => setCode(event.target.value)} /></label>
       <button className="btn-primary" disabled={busy || !password}>{t('Generate recovery codes')}</button>
       <p>{t('Generating a new set invalidates all previous codes. Codes are shown only now.')}</p>
     </form>

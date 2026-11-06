@@ -12,6 +12,7 @@ function bootResponse({ cookie = "" }: { cookie?: string }, _options = {}) {
   const { res, capture } = createCapturingResponse();
   const cookies: Array<{ name: string; value: string; options: unknown }> = [];
   const cleared: string[] = [];
+  res.setHeader = () => res;
   res.req = { headers: { cookie }, socket: { localPort: 303 } } as Request;
   res.cookie = (name: string, value: string, options?: unknown) => {
     cookies.push({ name, value, options });
@@ -151,3 +152,24 @@ for (const cookieName of ["tovu_session", "tovu_session_local_303"]) {
     assert.equal((await currentCredential(deps, newRequest, { localOwnerSignIn: { enabled: true } }))?.principal.id, principal?.id);
   });
 }
+
+test("an enrolled owner boot proof returns pending MFA without a session or cookie", async (t) => {
+  const deps = createRouteDeps();
+  await deps.identityReady;
+  const principalId = await deps.ownerPrincipalId;
+  let pending: unknown;
+  deps.mfaStore = {
+    factor: async scope => ({ ...scope, sealedSecret: 'sealed', lastStep: 0 }),
+    savePending: async proof => { pending = proof; },
+  } as import('@jini-ai/user-management/server').MfaStore;
+  const save = t.mock.method(deps.sessionRepo, 'save');
+  const response = bootResponse({});
+  assert.equal(await redeemOwnerBootSession({ deps, res: response.res, token: 'launch-proof' }, { redeem: () => true }), null);
+  assert.deepEqual(response.cookies, []);
+  assert.equal(save.mock.callCount(), 0);
+  assert.partialDeepStrictEqual(response.capture.jsonBody, { mfaRequired: true });
+  const body = response.capture.jsonBody as { pendingToken: string };
+  assert.equal(typeof body.pendingToken, 'string');
+  assert.partialDeepStrictEqual(pending, { workspaceId: deps.workspaceId, principalId, purpose: 'login', attempts: 0 });
+  assert.ok(!JSON.stringify(pending).includes(body.pendingToken));
+});

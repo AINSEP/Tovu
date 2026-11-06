@@ -53,6 +53,7 @@ export interface ContentDatabase {
   outbox_events: OutboxEventsTable;
   owner_mfa_factors: OwnerMfaFactorsTable;
   owner_mfa_pending: OwnerMfaPendingTable;
+  owner_passkeys: OwnerPasskeysTable;
   owner_recovery_codes: OwnerRecoveryCodesTable;
   plugin_activations: PluginActivationsTable;
   policies: PoliciesTable;
@@ -630,6 +631,15 @@ export interface OwnerMfaPendingTable {
   expires_at: number;
   attempts: number;
   sealed_secret: string | null;
+}
+
+export interface OwnerPasskeysTable {
+  workspace_id: string;
+  principal_id: string;
+  credential_id: string;
+  public_key: string;
+  counter: number;
+  rp_id: string;
 }
 
 export interface OwnerRecoveryCodesTable {

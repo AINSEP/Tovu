@@ -1326,6 +1326,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     }),
     externalMcpOAuthDevices,
     derivedPublicOrigin,
+    passkeyOrigin: process.env.TOVU_PUBLIC_URL,
     // Same three plugin seams as `deps.ts`, over an in-memory vault. Handler modules load on the
     // first surface bootstrap rather than at this hermetic root's construction (no boot disk read).
     ...composeAgentPluginConnections({

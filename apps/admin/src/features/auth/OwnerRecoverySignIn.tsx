@@ -20,12 +20,12 @@ export function OwnerRecoverySignIn({ recover = ownerRecoveryPort.recover, t = i
     setBusy(true); setMessage(''); setFailure(null);
     try {
       await recover({ code: code.trim(), password });
-      setMessage(t('Owner password reset. Sign in with your new password. All sessions and recovery codes were invalidated.'));
+      setMessage(t('Owner password reset. Sign in with your new password. Authenticators, passkeys, sessions and recovery codes were invalidated.'));
     } catch (error) { setFailure(ownerRecoveryFailure({ error, message: 'The owner account could not be recovered.', action: 'Follow the server explanation. Ask the host operator for help if recovery is unavailable.', step: 'owner-recovery-redeem', t, secrets: [code.trim(), password] })); }
     finally { setCode(''); setPassword(''); setConfirmation(''); setBusy(false); }
   }
   return <details className="login-card"><summary>{t('Lost your owner password?')}</summary>
-    <p>{t('Use a saved recovery code. Without one, ask the host operator to run tovu reset-owner for this site. On desktop, reopen the site to restore your owner session, then use Recovery codes on the Secrets page.')}</p>
+    <p>{t('Use a saved recovery code to reset your password and remove authenticators and passkeys. Without a code, ask the host operator to recover this site.')}</p>
     <form onSubmit={submit}>
       <label htmlFor="owner-recovery-code">{t('Recovery code')}</label>
       <SecretInput id="owner-recovery-code" label={t('Recovery code')} autoComplete="off" maxLength={64} value={code} onChange={event => setCode(event.target.value)} {...{ [AGENT_PRIVATE_ATTRIBUTE]: '' }} />

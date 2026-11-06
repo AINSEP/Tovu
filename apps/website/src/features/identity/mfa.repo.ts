@@ -34,7 +34,7 @@ export function createMfaStore(
       const row = await kernel.run(db => db.selectFrom('owner_mfa_pending').selectAll()
         .where('workspace_id', '=', input.workspaceId).where('token_hash', '=', input.tokenHash).executeTakeFirst());
       if (!row) return null;
-      return { workspaceId: row.workspace_id, principalId: row.principal_id, purpose: row.purpose as 'login' | 'enroll',
+      return { workspaceId: row.workspace_id, principalId: row.principal_id, purpose: row.purpose as import('@jini-ai/user-management/server').MfaPending['purpose'],
         tokenHash: row.token_hash, expiresAt: Number(row.expires_at), attempts: Number(row.attempts),
         ...(row.sealed_secret === null ? {} : { sealedSecret: row.sealed_secret }) };
     } }),
@@ -47,6 +47,8 @@ export function createMfaStore(
     }) }),
     clear: scope => transactions.run({ workspaceId: scope.workspaceId, execute: async () => {
       await clearPending(scope);
+      await kernel.run(db => db.deleteFrom('owner_passkeys').where('workspace_id', '=', scope.workspaceId)
+        .where('principal_id', '=', scope.principalId).execute());
       await kernel.run(db => db.deleteFrom('owner_mfa_factors').where('workspace_id', '=', scope.workspaceId)
         .where('principal_id', '=', scope.principalId).execute());
     } }),
