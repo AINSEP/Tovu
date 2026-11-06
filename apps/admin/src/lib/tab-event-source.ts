@@ -4,6 +4,13 @@ import { adminStreamActivity, type StreamActivity } from "./stream-activity";
 
 type Source = Pick<EventSource, "addEventListener" | "close" | "readyState">;
 
+/** Message-bearing frames retain their cursor and origin; lifecycle events remain plain events. */
+function forwardedTabEvent({ kind, message }: { kind: "message" | "error" | "open" | "parked"; message: MessageEvent<string> }): Event {
+  return kind === "message" || kind === "parked"
+    ? new MessageEvent(kind, { data: message.data, lastEventId: message.lastEventId, origin: message.origin })
+    : new Event(kind);
+}
+
 /**
  * Preserve the bridge's EventSource contract across idle close/reopen, including native errors.
  * Visibility pauses emit `suspended` to clear the token while retaining the visibility owner.
@@ -48,9 +55,7 @@ export function openTabEventSource(
       current.addEventListener(kind, (event) => {
         if (source !== current || disposed) return;
         const message = event as MessageEvent<string>;
-        const forwarded = kind === "message" || kind === "parked"
-          ? new MessageEvent(kind, { data: message.data, lastEventId: message.lastEventId, origin: message.origin })
-          : new Event(kind);
+        const forwarded = forwardedTabEvent({ kind, message });
         managed.dispatchEvent(forwarded);
         if (kind === "message") managed.onmessage?.call(managed, forwarded as MessageEvent);
         else if (kind === "error") managed.onerror?.call(managed, forwarded);

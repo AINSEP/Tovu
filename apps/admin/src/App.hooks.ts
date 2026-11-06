@@ -425,6 +425,13 @@ export function useSiteSectionAvailability(
   // Identity belongs in the query key: logout/401 must not paint the previous user's answer,
   // and an ordinary remount in this session should reuse the already authorized snapshot.
   const snapshot = useSitesSnapshot({ port: api }, { enabled: !!user && !desktop, principalId: user?.id });
+  return siteSectionAvailability({ desktop, user, snapshot });
+}
+
+/** Project visibility without changing the query's identity or fail-closed boundary. */
+function siteSectionAvailability({ desktop, user, snapshot }: {
+  desktop: boolean; user: AdminUser | null; snapshot: ReturnType<typeof useSitesSnapshot>;
+}): SiteSectionAvailability {
   if (desktop) return "unavailable";
   if (!user) return "unknown";
   if (snapshot.error) return "unavailable";

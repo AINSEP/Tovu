@@ -186,7 +186,7 @@ test("the daemon-mounted search and describe handlers append audit rows", async 
   assert.ok(searchEvent);
   assert.ok(describeEvent);
   assert.equal(searchEvent.workspaceId, "ws-daemon-catalog");
-  // The audited inner query overfetches 13 opt-in deletes plus 2 forbidden IDs before filtering.
-  assert.deepEqual(JSON.parse(String(searchEvent.detail)), { queryLength: 15, limit: 18, resultIds: ["forms_create_definition"], resultCount: 1 });
+  // The daemon queries the site's already principal-scoped catalog, retaining the requested limit.
+  assert.deepEqual(JSON.parse(String(searchEvent.detail)), { queryLength: 15, limit: 3, resultIds: ["forms_create_definition"], resultCount: 1 });
   assert.deepEqual(JSON.parse(String(describeEvent.detail)), { id: "forms_create_definition", found: true });
 });

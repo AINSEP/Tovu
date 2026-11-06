@@ -9,6 +9,8 @@ import assert from "node:assert/strict";
 import test, { after } from "node:test";
 
 import { childProcessCoverageEnv } from "#src/contracts/core/__tests__/helpers/child-process-coverage-env";
+import { ensureToolExecToken } from "#src/assistant/daemon-access";
+import { bootSite } from "#src/server/__tests__/helpers/unrun-site-boot";
 
 const require = createRequire(import.meta.url);
 
@@ -70,13 +72,20 @@ for (const stopOnEnd of [false, true]) {
 test(stopOnEnd
   ? "the real agent daemon closes gracefully on the sidecar's stdin EOF"
   : "the agent daemon boots and listens — no import cycle on its entry path", async (t) => {
+  // ADR-070: even a memory-mode daemon binds to the serving site's real attempt authority.
+  const site = await bootSite(t, "sqlite");
+  const siteRpcToken = ensureToolExecToken({}, {});
   const port = await reserveFreePort();
 
   const child = spawn(process.execPath, ["--import", TSX_LOADER, DAEMON_ENTRY], {
     env: {
       ...childProcessCoverageEnv(WORKER_COVERAGE_DIR),
       JINI_AGENT_DAEMON_PORT: String(port),
-      TOVU_WORKSPACE: "workspace-local",
+      TOVU_WORKSPACE: site.deps.workspaceId,
+      TOVU_SITE_DIR: site.siteDir,
+      TOVU_SITE_PROCESS_CWD: site.siteDir,
+      TOVU_SITE_CALLBACK_ORIGIN: site.baseUrl,
+      TOVU_TOOL_EXEC_TOKEN: siteRpcToken,
       // Never touch the developer's real content.db.
       TOVU_DB: "memory",
       // Readiness below consumes this line; npm start may otherwise suppress it in inherited env.

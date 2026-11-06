@@ -36,12 +36,11 @@ for (const ok of [true, false]) {
   }
 }
 
-// Characterization pin (before the api-connection account-unchanged reason): each existing reason
-// keeps its exact copy, and a failure without a reason renders the exchange_failed copy.
+// Each existing reason keeps its exact recovery copy; a failure without a reason uses exchange_failed.
 const EXISTING_FAILURE_COPY = {
   rate_limited: "Too many attempts too quickly. Wait a moment, then try connecting again from Tovu.",
   no_state: "This page wasn’t reached from a connection Tovu started, so there’s nothing to finish here. Close this window and start again from Tovu.",
-  state_expired: "This connection attempt is no longer valid — it may have expired, already been used, or been started from another window. Close this window and try again from Tovu.",
+  state_expired: "This connection attempt is no longer valid — it may have expired, already been used, or been started from another window. Close this window and try again from Tovu in the same browser, with cookies enabled. Details: OAUTH_INVALID_STATE.",
   provider_denied: "The request was declined on the provider’s side. Approve the request on their consent screen, then try again from Tovu.",
   exchange_failed: "Something went wrong finishing the connection. Close this window and try again from Tovu.",
   server_unknown: "This connection could not be found. Close this window and check Settings → External MCP.",

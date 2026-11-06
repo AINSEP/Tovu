@@ -22,8 +22,8 @@ import { applyReport, makeSite, packAll, plan, registerOnly, roundTrip, WORKSPAC
 
 /**
  * @file The factory-built types whose own tests run on in-memory repos (`form`, `content-type`,
- * `widget`, `widget-area`), round-tripped here on real SQLite on both sides: every value must read
- * back from the destination exactly as the source packed it, or the second plan is a permanent
+ * `widget`, `widget-area`), round-tripped here on real SQLite on both sides: every transferred value
+ * must read back exactly as the source packed it, or the second plan is a permanent
  * false `changed`/`conflict`. (`taxonomy`, `term` and `collection-entry` already test on SQLite.)
  */
 
@@ -119,7 +119,13 @@ test("form, content-type, widget and widget-area round-trip to `unchanged` on SQ
     { id: "email", label: "Email", type: "email", required: true },
     { id: "msg", label: "Message", type: "textarea", required: false, maxLength: 500 },
   ]);
-  assert.deepEqual(form?.notify, { enabled: true, recipients: ["owner@example.com"] });
+  assert.deepEqual(form?.notify, { enabled: false, recipients: [] });
+  const packedForm = entities.find(entity => entity.entityType === "form");
+  assert.ok(packedForm);
+  assert.equal("notify" in packedForm.state, false, "notification recipients must stay site-local");
+  assert.ok(form);
+  const destinationNotify = { enabled: true, recipients: ["destination@example.com"] };
+  await dst.repos.forms.update({ ...form, notify: destinationNotify, version: form.version + 1 });
 
   // Exercise writes into populated SQL destinations, including a deprecated collection becoming active.
   const sourceForm = await src.repos.forms.findBySlug({ workspaceId: WORKSPACE_ID, slug: "contact" });
@@ -151,7 +157,7 @@ test("form, content-type, widget and widget-area round-trip to `unchanged` on SQ
   assert.equal(updatedForm?.name, "Write to us");
   assert.equal(updatedForm?.status, "disabled");
   assert.deepEqual(updatedForm?.fields, [{ id: "email", label: "Your email", type: "email", required: true }, { id: "msg", label: "Details", type: "textarea", required: false, maxLength: 1000 }]);
-  assert.deepEqual(updatedForm?.notify, { enabled: true, recipients: ["editor@example.com", "support@example.com"] });
+  assert.deepEqual(updatedForm?.notify, destinationNotify, "publishing source edits must preserve destination recipients");
   const collection = await dst.repos.contentTypes.findByKey({ workspaceId: WORKSPACE_ID, key: "recipe" });
   assert.equal(collection?.label, "Dishes");
   assert.equal(collection?.status, "active");

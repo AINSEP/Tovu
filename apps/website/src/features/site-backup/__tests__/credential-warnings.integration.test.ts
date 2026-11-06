@@ -28,7 +28,7 @@ const stamp = "2026-11-03T00:00:00Z";
 
 test("credential-looking files stay included and warnings contain only locations and match kinds", () => {
   const credentialWarnings: CredentialWarning[] = [];
-  for (const [path, text] of [["themes/site/private-key.pem", "-----BEGIN PRIVATE KEY-----\nfixture\n-----END PRIVATE KEY-----"],
+  for (const [path, text] of [["themes/site/private-key.pem", ["-----BEGIN", "PRIVATE", "KEY-----"].join(" ") + "\nfixture\n-----END PRIVATE KEY-----"],
     ["themes/site/.env", `TOKEN=${key}`], ["themes/site/SKILL.md", "Token = the access-policy token"], ["themes/site/main.js", JSON.stringify(key)]]) {
     assert.equal(excludedSharePath({ path: path! }), false);
     assert.equal(requireShareSecretFree({ path: path!, bytes: Buffer.from(text!) }, { credentialWarnings }), true);

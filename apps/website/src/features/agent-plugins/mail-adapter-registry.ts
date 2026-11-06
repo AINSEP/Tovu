@@ -25,7 +25,8 @@ import { defineExecutablePluginContribution, type LoadPluginContributions, loadP
  * schemaVersion 2 (email provider contract v1, 2026-10-21) adds `credentialKeys` and `feedback`, and
  * its module is a provider module (`id`, `capabilities`, optional `feedback` parser and domain
  * methods) whose `module.id` must equal the descriptor's `id`. `credentialLabel` stays optional
- * there; absent, it is {@link defaultCredentialLabel}. v1 files keep loading unchanged. 2026-10-22: v2
+ * there; absent, it is {@link defaultCredentialLabel}. v1 keeps its create-only module format; both
+ * versions use the keyed registry's provider ID grammar. 2026-10-22: v2
  * may also carry `setup` (field labels/types/defaults/help links, `./mail-provider-setup.ts`).
  * {@link contributeMailProviders} offers every loaded adapter to Jini's keyed mail-provider registry
  * so its refusals (bad id, duplicate, capability claims without code) surface with the loader's.
@@ -44,8 +45,6 @@ import { defineExecutablePluginContribution, type LoadPluginContributions, loadP
 /** The file a plugin ships at its root to contribute mail adapters. */
 export const MAIL_ADAPTERS_FILENAME = "tovu-mail-adapters.json";
 
-const ADAPTER_ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-const MAX_ID_LENGTH = 64;
 const MAX_LABEL_LENGTH = 100;
 
 export interface MailAdapterDescriptor {
@@ -191,7 +190,8 @@ function parseAdapterDescriptors({ adapters, version }: { adapters: unknown[]; v
 function parseDescriptor(entry: unknown, at: string): MailAdapterDescriptor | string {
   if (!isPlainObject(entry)) return `${at} must be an object`;
   const { id, label, module, credentialLabel } = entry;
-  if (typeof id !== "string" || id.length > MAX_ID_LENGTH || !ADAPTER_ID_PATTERN.test(id)) return `${at}.id must be a lowercase hyphenated id`;
+  // IDs pass unchanged into the keyed registry; accepting a different grammar loads unusable adapters.
+  if (typeof id !== "string" || !PROVIDER_ID_PATTERN.test(id)) return `${at}.id must match ${PROVIDER_ID_PATTERN.source}`;
   if (!isLabel(label)) return `${at}.label must be a non-empty string`;
   if (typeof module !== "string" || !module.endsWith(".mjs") || path.posix.isAbsolute(module)) return `${at}.module must be a relative path ending in .mjs`;
   if (!isLabel(credentialLabel)) return `${at}.credentialLabel must be a non-empty string`;

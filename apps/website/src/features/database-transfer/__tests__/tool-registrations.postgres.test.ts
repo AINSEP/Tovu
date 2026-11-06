@@ -37,6 +37,8 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 const FIXTURE_DB = `tovu_transfer_tools_${process.pid}`;
 const PASSWORD = "PW-SENTINEL-4f1c";
 const CONNECTION = connectionFor(FIXTURE_DB, PASSWORD);
+// Match the fixture's explicit CI socket/port overrides without changing production redaction.
+const DESTINATION = { host: process.env.PGHOST ?? "localhost", port: process.env.PGPORT ?? "5432", database: FIXTURE_DB, user: process.env.PGUSER ?? "la" };
 const WORKSPACE_ID = "ws-transfer";
 const OWNER = "principal-owner";
 
@@ -152,7 +154,7 @@ test("first copy runs headlessly; replacement waits for Copy; the password never
   await typeDestination(h, { address: CONNECTION });
   const plan = await call(h.planTool, {}, async () => assert.fail("the plan must never raise a card"));
   assert.equal(plan.planned, true, JSON.stringify(plan));
-  assert.deepEqual(plan.destination, { host: "localhost", port: "5432", database: FIXTURE_DB, user: process.env.PGUSER ?? "la" });
+  assert.deepEqual(plan.destination, DESTINATION);
   assert.equal(plan.replaces, null);
   assert.equal(plan.area, "tovu", "the first site in a database gets the default private schema");
   assert.equal(plan.rowCount, 2, "menus + the database_write_watermark row; identity_users is left out");
@@ -216,7 +218,7 @@ test("the private form saves a reachable destination, and neither the form, its 
   await sql(FIXTURE_DB, "DROP SCHEMA IF EXISTS tovu CASCADE");
   const h = harness(t);
   const { result, form, outcome } = await typeDestination(h, { address: CONNECTION });
-  assert.deepEqual(result, { saved: true, destination: { host: "localhost", port: "5432", database: FIXTURE_DB, user: process.env.PGUSER ?? "la" }, replaces: null,
+  assert.deepEqual(result, { saved: true, destination: DESTINATION, replaces: null,
     tokenHint: null, connection: "connected" });
   assert.match(form, /<input class="mcpui-input" type="password" id="mcpui-field-address" name="address"/, "the address field is masked");
   assert.match(outcome, /Destination saved/);
@@ -252,7 +254,7 @@ test("database_transfer_status reports the saved destination, this process's las
   assert.equal((await call(h.runTool, { planId: plan.planId })).copied, true);
 
   const status = await call(h.statusTool, {});
-  assert.deepEqual(status.destination, { host: "localhost", port: "5432", database: FIXTURE_DB, user: process.env.PGUSER ?? "la" });
+  assert.deepEqual(status.destination, DESTINATION);
   assert.deepEqual(status.lastRun, { copied: true, snapshotAt: plan.snapshotAt, tableCount: plan.tableCount, rowCount: 2 });
   assert.deepEqual(status.copyOnDestination, { site: "fixture-site", snapshotAt: plan.snapshotAt });
   assert.doesNotMatch(JSON.stringify(status), new RegExp(PASSWORD));

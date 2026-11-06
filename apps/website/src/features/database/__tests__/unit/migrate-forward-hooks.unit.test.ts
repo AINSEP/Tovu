@@ -115,4 +115,5 @@ test("row 2: getCapabilities() is read fresh inside executeMutation(), not reuse
   assert.deepEqual(initialPlan.details, { costClass: "cheap", siteId: "ws-1" });
   assert.deepEqual(changedPlan.details, { costClass: "expensive", siteId: "ws-1" });
   assert.notEqual(initialPlan.planHash, changedPlan.planHash, "a changed cost class must invalidate the confirmed plan");
+  assert.deepEqual(capabilitiesCalls, ["call-1", "call-2", "call-3"]);
 });

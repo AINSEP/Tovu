@@ -361,7 +361,8 @@
     "page.find_elements": "read this screen read admin UI page controls inspect current state show me discover buttons find elements open bring up go to navigate",
     "page.click": "click activate open bring up show me inspect published handle admin UI",
     "page.navigate": "open bring up show me go to navigate navigation admin UI screen panel page editor take me",
-    "site_export_static": "export static site html css javascript assets zip download"
+    "site_export_static": "export static site html css javascript assets zip download",
+    "forms_list_providers": "forms collection provider providers settings external embedded public answers validation"
   },
   "queries": {
     "library_save_attachment": [
@@ -1334,6 +1335,7 @@
     ],
     "newsletter_create_campaign": [
       "Can you draft a new email newsletter?",
+      "Draft an announcement newsletter about a menu, product, or event update.",
       "How do I start a new campaign — will it send automatically?",
       "I want to create a newsletter draft I can edit later.",
       "Can you set up a new campaign in draft status?",
@@ -2062,6 +2064,10 @@
     "site_export_static": [
       "Export static site",
       "Download my site as HTML pages"
+    ],
+    "forms_list_providers": [
+      "Which form providers can I use?",
+      "What public settings does this form provider need?"
     ]
   },
   "approvals": {
@@ -3686,6 +3692,26 @@
     "site_export_static": {
       "class": "edit",
       "confirmation": "direct"
+    },
+    "forms_list_providers": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "commerce_get_status": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "commerce_create_product": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "commerce_create_price": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "commerce_resolve_unknown": {
+      "class": "publish",
+      "confirmation": "plan"
     }
   },
   "policyConfirmationIds": [
@@ -3748,7 +3774,8 @@
     "fs_write_files",
     "image_transform",
     "files_copy",
-    "theme_duplicate"
+    "theme_duplicate",
+    "commerce_resolve_unknown"
   ],
   "secretForms": {
     "credential_save": {
@@ -3848,7 +3875,8 @@
     "fs_write_files",
     "image_transform",
     "files_copy",
-    "theme_duplicate"
+    "theme_duplicate",
+    "commerce_resolve_unknown"
   ],
   "exchangeOnlyIds": [
     "members_delete",
@@ -3915,7 +3943,8 @@
     "fs_write_files",
     "image_transform",
     "files_copy",
-    "theme_duplicate"
+    "theme_duplicate",
+    "commerce_resolve_unknown"
   ],
   "chatPermanentDeletes": {
     "defaultEnabled": false,

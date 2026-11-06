@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { test } from "node:test";
 import { sql } from "kysely";
+import { connectionFor } from "#src/features/database-transfer/__tests__/pg-test-db";
 import {
   commerceOrderPaymentRepoFor, commerceOrderRepoFor, commercePriceProviderRefRepoFor,
   commercePriceRepoFor, commerceProductRepoFor,
@@ -21,11 +22,8 @@ const TABLES = ["commerce_order_items", "commerce_order_payments", "commerce_ord
 async function kernelFor(t: import("node:test").TestContext, dialect: "sqlite" | "pglite" | "postgres") {
   if (dialect === "sqlite") return openMemorySqliteKernel<unknown>();
   if (dialect === "pglite") return openPgliteKernel<unknown>();
-  const connection = new URL(process.env.COMMERCE_PG_URL ?? `postgresql://${encodeURIComponent(process.env.PGUSER ?? "la")}@/postgres`);
-  if (!process.env.COMMERCE_PG_URL) {
-    connection.searchParams.set("host", process.env.PGHOST ?? "/tmp");
-    if (process.env.PGPORT) connection.searchParams.set("port", process.env.PGPORT);
-  }
+  const connection = new URL(process.env.COMMERCE_PG_URL ?? connectionFor("postgres"));
+  if (!process.env.COMMERCE_PG_URL) connection.searchParams.set("host", process.env.PGHOST ?? "/tmp");
   const admin = openPostgresKernel<unknown>({ connectionString: connection.href });
   const schema = `commerce_catalog_${randomUUID().replaceAll("-", "")}`;
   await admin.execute(sql`CREATE SCHEMA ${sql.id(schema)}`);

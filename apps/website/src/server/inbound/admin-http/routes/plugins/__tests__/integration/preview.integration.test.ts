@@ -23,6 +23,8 @@ const DOC = {
 
 test("PLUGIN_PREVIEW: the built-in Content Analyzer analyzes a draft in a worker once enabled, and not before", async (t) => {
   const deps = createRouteDeps();
+  // Production bootstrap finishes boot attachment before accepting plugin activation requests.
+  await deps.pluginRuntimeReady;
   const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
   const base = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/plugins`;
   const preview = () =>

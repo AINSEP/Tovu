@@ -121,11 +121,12 @@ function EditorTab({ tab, page, port, translation, delays }: { tab: Exclude<Cons
   const preview = useConsentPreview({ port, config: tab === "rules" ? null : page.value, t: translation.t }, consentDelayOptions({ delayMs: delays?.previewMs }));
   const fit = useConsentPreviewScale();
   const value = page.value!;
-  const fields = { value, onChange: page.onChange, problems: page.problems, dictionary: translation.dictionary, disabled: page.saveState === "conflict", limits: page.editor?.textLimits };
+  const { textLimits, regionModes, bannerModes, placements } = page.editor ?? {};
+  const fields = { value, onChange: page.onChange, problems: page.problems, dictionary: translation.dictionary, disabled: page.saveState === "conflict", limits: textLimits };
   if (tab === "rules") {
     return (
       <div className="consent-editor">
-        <div className="card"><ConsentRulesFields {...fields} regionModes={page.editor?.regionModes} /></div>
+        <div className="card"><ConsentRulesFields {...fields} regionModes={regionModes} /></div>
         <section className="card consent-card" aria-label={translation.t("Fixed rules")}>
           <h2 className="card-title">{translation.t("Fixed rules")}</h2>
           <ul className="consent-fixed-rules">
@@ -140,7 +141,7 @@ function EditorTab({ tab, page, port, translation, delays }: { tab: Exclude<Cons
   return (
     <div className="consent-editor consent-editor-with-preview">
       <div className="card">
-        {tab === "banner" ? <ConsentBannerFields {...fields} bannerModes={page.editor?.bannerModes} /> : <ConsentLookFields {...fields} placements={page.editor?.placements} />}
+        {tab === "banner" ? <ConsentBannerFields {...fields} bannerModes={bannerModes} /> : <ConsentLookFields {...fields} placements={placements} />}
         {tab === "look" && <ResetStyle page={page} t={translation.t} disabled={fields.disabled} />}
       </div>
       <ConsentPreviewPane page={page} preview={preview} fit={fit} translation={translation} />

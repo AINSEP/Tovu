@@ -88,6 +88,18 @@ const FILE_ICON_GLYPH: Readonly<Record<PackageFileIconKind, string>> = {
   file: "file-line",
 };
 
+/** Folder state and file type determine only the decorative tree glyphs. */
+function PackageTreeIcon({ folder, expanded, name }: { folder: boolean; expanded: boolean; name: string }) {
+  if (folder) return <>
+    <RemixIcon name={expanded ? "arrow-down-s-line" : "arrow-right-s-line"} size={16} className="agent-plugin-source-tree-twistie" />
+    <RemixIcon name={expanded ? "folder-open-line" : "folder-line"} className="agent-plugin-source-tree-icon is-folder" />
+  </>;
+  return <>
+    <span className="agent-plugin-source-tree-twistie" aria-hidden />
+    <RemixIcon name={FILE_ICON_GLYPH[packageFileIconKind(name)]} className={`agent-plugin-source-tree-icon is-${packageFileIconKind(name)}`} />
+  </>;
+}
+
 /**
  * The file list as a WAI-ARIA tree, one flat row per visible node (`aria-level` carries the
  * nesting), so the selected row's highlight spans the pane's full width the way VS Code's does.
@@ -142,20 +154,7 @@ function PackageFileTree({
             {...handle}
           >
             <span className="agent-plugin-source-tree-indent" style={{ width: `calc(${row.depth} * var(--tree-indent))` }} aria-hidden />
-            {folder ? (
-              <>
-                <RemixIcon name={expanded ? "arrow-down-s-line" : "arrow-right-s-line"} size={16} className="agent-plugin-source-tree-twistie" />
-                <RemixIcon name={expanded ? "folder-open-line" : "folder-line"} className="agent-plugin-source-tree-icon is-folder" />
-              </>
-            ) : (
-              <>
-                <span className="agent-plugin-source-tree-twistie" aria-hidden />
-                <RemixIcon
-                  name={FILE_ICON_GLYPH[packageFileIconKind(node.name)]}
-                  className={`agent-plugin-source-tree-icon is-${packageFileIconKind(node.name)}`}
-                />
-              </>
-            )}
+            <PackageTreeIcon folder={folder} expanded={expanded} name={node.name} />
             <span className="agent-plugin-source-tree-label">{node.name}</span>
           </div>
         );

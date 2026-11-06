@@ -139,6 +139,9 @@ test('--root limits the denominator to the named directories', () => {
     },
   }, { roots: ['packages/'] });
   assert.deepEqual(report.files.map(row => row.file), ['packages/a/src/run.ts']);
+  assert.deepEqual(JSON.parse(written.get('/out/coverage-all-files.json')!).files.map((row: { file: string }) => row.file), ['packages/a/src/run.ts']);
+  assert.ok(written.get('/out/coverage-all-files.md')?.includes('packages/a/src/run.ts'));
+  assert.ok(!written.get('/out/coverage-all-files.md')?.includes('AI-Dev-Shop/tool.ts'));
 });
 
 test('a malformed LCOV record is skipped with a warning instead of failing the report', () => {

@@ -129,7 +129,7 @@ function exportRowNotices({ share, gate, t }: { share: SiteShare; gate: Credenti
  * line stays once the checkbox has gone, so Revoke and "I understand" never move the rows below. A plain
  * function, not a component: DataTable draws a row for any element, and an export with nothing to say gets none.
  */
-function exportCredentialDetail({ share, index, controller, t }: { share: SiteShare; index: number; controller: SiteExportController; t: Translate }, _options = {}) {
+function exportCredentialDetail({ share, index, controller, t }: { share: SiteShare; index: number; controller: SiteExportController; t: Translate }, _options?: Record<string, never>) {
   const gate = controller.credentialGate(share);
   const warnings = exportCredentialWarnings({ share, gate });
   const notices = exportRowNotices({ share, gate, t });

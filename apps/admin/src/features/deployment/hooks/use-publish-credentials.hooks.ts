@@ -322,7 +322,7 @@ export function usePublishCredentials(
         ? await port.updateCredential(existing.id, { connection })
         : await port.createCredential({ label: PUBLISH_CREDENTIAL_ROW_LABEL, connection });
       // The response's summary predates the server's own `healAccountLabel` write in the same request.
-      const result = verification?.accountLabel !== undefined ? { ...saved, accountLabel: verification.accountLabel } : saved;
+      const result = verifiedCredentialSummary({ saved, verification });
       setCredentials((prev) => {
         const base = prev ?? [];
         return existing ? base.map((current) => (current.id === result.id ? result : current)) : [...base, result];
@@ -447,4 +447,11 @@ export function useWiredPublishCredentials(targets: readonly AdminPublishTargetD
   const locale = useAdminLocale();
   const t = (key: string): string => defaultT({ locale: locale, key: key });
   return usePublishCredentials(defaultPublishCredentialsPort, t, locale, targets);
+}
+
+/** Verification may heal the saved account label without erasing an absent finding. */
+function verifiedCredentialSummary({ saved, verification }: {
+  saved: AdminPublishCredentialSummary; verification: AdminPublishCredentialVerification | undefined;
+}): AdminPublishCredentialSummary {
+  return verification?.accountLabel !== undefined ? { ...saved, accountLabel: verification.accountLabel } : saved;
 }

@@ -326,6 +326,36 @@ function SourceControlRowSummary({
   );
 }
 
+/** Optional token guidance stays hidden behind its disclosure until requested. */
+function SourceControlScopeGuidance({ info, providerId, t }: { info: SourceControlCredentialRowState["info"]; providerId: string; t: Translate }) {
+  return <>
+          {info.scopeGuidanceKey !== "" || info.tokenPageUrl !== "" ? (
+            <details className="source-control-scope-guidance">
+              <summary className="source-control-scope-guidance-summary">
+                {t("Which token do I need?")}
+                <DisclosureChevronIcon size={10} />
+              </summary>
+              <p className="field-hint">
+                {info.scopeGuidanceKey !== "" ? <>{t(info.scopeGuidanceKey)} </> : null}
+                {info.tokenPageUrl !== "" ? (
+                  <a
+                    href={info.tokenPageUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    {...agentHandle({ handle: `source-control-credentials-token-page-${providerId}` }, {
+                      role: "link",
+                      label: `Open ${info.label}'s own page for creating a personal access token`,
+                    })}
+                  >
+                    {t("Create a token")}
+                  </a>
+                ) : null}
+              </p>
+            </details>
+          ) : null}
+  </>;
+}
+
 /**
  * A row's fields — token input, the host's other declared fields, and the Save action. Shared between
  * both {@link SourceControlProviderRow} states, same split `PublishCredentialFields` uses in
@@ -382,30 +412,7 @@ function SourceControlCredentialFields({
               ? translate("Leave blank to keep the current token.")
               : translate("Stored encrypted on the server. Once saved, Tovu never displays it again.")}
           </p>
-          {info.scopeGuidanceKey !== "" || info.tokenPageUrl !== "" ? (
-            <details className="source-control-scope-guidance">
-              <summary className="source-control-scope-guidance-summary">
-                {translate("Which token do I need?")}
-                <DisclosureChevronIcon size={10} />
-              </summary>
-              <p className="field-hint">
-                {info.scopeGuidanceKey !== "" ? <>{translate(info.scopeGuidanceKey)} </> : null}
-                {info.tokenPageUrl !== "" ? (
-                  <a
-                    href={info.tokenPageUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    {...agentHandle({ handle: `source-control-credentials-token-page-${row.providerId}` }, {
-                      role: "link",
-                      label: `Open ${info.label}'s own page for creating a personal access token`,
-                    })}
-                  >
-                    {translate("Create a token")}
-                  </a>
-                ) : null}
-              </p>
-            </details>
-          ) : null}
+          <SourceControlScopeGuidance info={info} providerId={row.providerId} t={translate} />
         </div>
 
         {info.fields.map((field) => (

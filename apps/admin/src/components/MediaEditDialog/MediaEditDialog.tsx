@@ -96,28 +96,9 @@ export function MediaEditDialog({ initial, onSave, onCancel, showAlt = true, use
 
         {/* Same live, as-you-type hint `EditMediaPanel`'s asset-level field shows — never gates
             Save, see `MediaEditDialog.hooks.tsx`'s own header for why. */}
-        {renderHtmlAttributes ? (
-          <div className="field" role="group" aria-labelledby={htmlAttributesId}>
-            <span className="field-label" id={htmlAttributesId}>
-              {t("HTML attributes (optional)")}
-            </span>
-            {renderHtmlAttributes({ value: htmlAttributes, onChange: setHtmlAttributes })}
-            {htmlAttributesError ? <p className="field-error">{htmlAttributesError}</p> : null}
-          </div>
-        ) : (
-          <div className="field">
-            <label className="field-label" htmlFor={htmlAttributesId}>
-              {t("HTML attributes (optional)")}
-            </label>
-            <input
-              id={htmlAttributesId}
-              value={htmlAttributes}
-              onChange={(e) => setHtmlAttributes(e.target.value)}
-              aria-invalid={htmlAttributesError ? true : undefined}
-            />
-            {htmlAttributesError ? <p className="field-error">{htmlAttributesError}</p> : null}
-          </div>
-        )}
+        <HtmlAttributesField htmlAttributesId={htmlAttributesId} htmlAttributes={htmlAttributes}
+          setHtmlAttributes={setHtmlAttributes} htmlAttributesError={htmlAttributesError}
+          renderHtmlAttributes={renderHtmlAttributes} t={t} />
 
         {children}
 
@@ -132,5 +113,35 @@ export function MediaEditDialog({ initial, onSave, onCancel, showAlt = true, use
           </span>
         </div>
     </Dialog>
+  );
+}
+
+/** Both editor variants present the same validation feedback and field identity. */
+function HtmlAttributesField({ htmlAttributesId, htmlAttributes, setHtmlAttributes, htmlAttributesError, renderHtmlAttributes, t }:
+  Pick<ReturnType<typeof useWiredMediaEditDialog>, "htmlAttributes" | "setHtmlAttributes" | "htmlAttributesError" | "t"> &
+  Pick<MediaEditDialogProps, "renderHtmlAttributes"> & { htmlAttributesId: string }) {
+  return (
+    renderHtmlAttributes ? (
+      <div className="field" role="group" aria-labelledby={htmlAttributesId}>
+        <span className="field-label" id={htmlAttributesId}>
+          {t("HTML attributes (optional)")}
+        </span>
+        {renderHtmlAttributes({ value: htmlAttributes, onChange: setHtmlAttributes })}
+        {htmlAttributesError ? <p className="field-error">{htmlAttributesError}</p> : null}
+      </div>
+    ) : (
+      <div className="field">
+        <label className="field-label" htmlFor={htmlAttributesId}>
+          {t("HTML attributes (optional)")}
+        </label>
+        <input
+          id={htmlAttributesId}
+          value={htmlAttributes}
+          onChange={(e) => setHtmlAttributes(e.target.value)}
+          aria-invalid={htmlAttributesError ? true : undefined}
+        />
+        {htmlAttributesError ? <p className="field-error">{htmlAttributesError}</p> : null}
+      </div>
+    )
   );
 }

@@ -71,6 +71,14 @@ const LATER_TABLES: Record<string, { before: string | null; classes: Record<stri
   member_external_identities: { before: "member_revisions", classes: { id: "plain-text", workspace_id: "plain-text",
     member_id: "plain-text", provider_id: "plain-text", issuer: "plain-text", subject: "plain-text",
     linked_at: "utc-timestamp-text", unlinked_at: "utc-timestamp-text" } },
+  // 0039–0041: owner login material is classified, but exclusions.ts forbids transferring it.
+  owner_recovery_codes: { before: null, classes: { workspace_id: "plain-text", principal_id: "plain-text", code_hash: "plain-text" } },
+  owner_mfa_factors: { before: null, classes: { workspace_id: "plain-text", principal_id: "plain-text",
+    sealed_secret: "plain-text", last_step: "plain-integer" } },
+  owner_mfa_pending: { before: null, classes: { token_hash: "plain-text", workspace_id: "plain-text", principal_id: "plain-text",
+    purpose: "plain-text", sealed_secret: "plain-text", expires_at: "plain-integer", attempts: "plain-integer" } },
+  owner_passkeys: { before: null, classes: { workspace_id: "plain-text", credential_id: "plain-text", principal_id: "plain-text",
+    public_key: "plain-text", counter: "plain-integer", rp_id: "plain-text" } },
 };
 
 // Classified but never copied (`member_magic_tokens` is a login table in `database-transfer/exclusions.ts`),

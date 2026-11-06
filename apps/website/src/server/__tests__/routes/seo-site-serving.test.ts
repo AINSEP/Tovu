@@ -127,7 +127,7 @@ test("GET /llms.txt is reachable through the real running app, unauthenticated, 
   assert.match(res.headers.get("content-type") ?? "", /text\/markdown/);
 
   const body = await res.text();
-  assert.match(body, /^# Tovu\n/, "llmstxt.org requires an H1 as the very first line");
+  assert.match(body, /^# Local Tovu Workspace\n/, "llmstxt.org starts with the fresh workspace site title as its H1");
   assert.match(body, /^## Pages$/m);
   // Normalize only the transport address so descriptions must still be nonempty.
   const normalized = body.replaceAll(baseUrl, "REQUEST_ORIGIN");

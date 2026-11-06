@@ -391,6 +391,6 @@ test('owner picker inventory excludes unrelated API connections before offering 
     const provider = (await store.vault.repo.find({ workspaceId: 'project', id: 'plugin-state:example:provider.config' }))!;
     await store.vault.repo.put({ record: { ...provider, id: 'record:private-connection', label: 'Private connection', revision: 1 }, expectedRevision: null });
     assert.deepEqual((await store.inventory!({})).map(row => row.id), ['plugin-state:example:provider.config']);
-    assert.deepEqual((await store.inventory!({}))[0]!.meta, {}, 'metadata without a credential subtype contains no undefined values');
+    assert.deepEqual((await store.inventory!({}))[0]!.meta, { credentialFormat: 'agent-plugin-state' }, 'owner picker retains the credential format without undefined subtype metadata');
   } finally { store.close({}); }
 });

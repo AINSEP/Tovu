@@ -32,7 +32,8 @@ test('usage HTTP route enforces workspace and media.read before any asset lookup
   const mediaRepo = new MediaRepo();
   const app = { get: (_path: string, fn: typeof handler) => { handler = fn; } } as unknown as Parameters<typeof registerAdminMediaWhereUsedRoute>[0]['app'];
   registerAdminMediaWhereUsedRoute({ app, deps: { workspaceId: 'ws', mediaRepo, entryRefsRepo: new InMemoryEntryRefsRepo(), postRepo: new InMemoryPostRepo(), authorize: async () => ({ allowed, reason: allowed ? 'matched' : 'insufficient_permission' }) } });
-  const res = { locals: { principal: { id: 'owner', kind: 'user' } }, status: (code: number) => { status = code; return res; }, json: (value: unknown) => { body = value; return res; } };
+  const res = { req: { method: 'GET', route: { path: '/api/admin/v1/workspaces/:workspaceId/media/:mediaId/where-used' } },
+    locals: { principal: { id: 'owner', kind: 'user' } }, status: (code: number) => { status = code; return res; }, json: (value: unknown) => { body = value; return res; } };
   await handler({ params: { workspaceId: 'other', mediaId: 'm' } }, res);
   assert.equal(status, 404); assert.equal(reads, 0);
   await handler({ params: { workspaceId: 'ws', mediaId: 'm' } }, res);
@@ -45,8 +46,10 @@ test('usage HTTP route enforces workspace and media.read before any asset lookup
   assert.deepEqual(body, { mediaId: 'm', whereUsed: { count: 0, references: [] } });
   mediaRepo.findById = async () => { throw new Error('read failure'); };
   await handler({ params: { workspaceId: 'ws', mediaId: 'm' } }, res);
-  // Shared admin failure envelope (88f429c25): exact text with an incident id, no cause.
-  assert.equal(status, 500); assertAdminResponse({ actual: body, expected: { error: 'internal error', code: 'INTERNAL_ERROR' } });
+  // Shared admin failure envelope: exact route-owned copy and incident details, with a private cause.
+  assert.equal(status, 500); assertAdminResponse({ actual: body, expected: { error: 'internal error', code: 'INTERNAL_ERROR' } }, {
+    failure: { message: 'The media could not be loaded.', action: 'Try loading them again. If it still fails, copy details and report this problem.', step: 'Load media' },
+  });
 });
 
 // Exercise the purge adapter, not a second copy of the scanner or deletion ladder.

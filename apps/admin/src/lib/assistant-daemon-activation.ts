@@ -16,11 +16,16 @@ export async function activateAssistantDaemon(
   });
   if (!response.ok) {
     const body = await response.json().catch(() => undefined) as { error?: unknown; code?: unknown; detail?: unknown } | undefined;
-    const reason = typeof body?.error === "string" && body.error.trim() ? body.error
-      : `The assistant service returned HTTP ${response.status}. Restart the site or the app.`;
-    const details = [body?.code, body?.detail].filter((value): value is string => typeof value === 'string' && value.length > 0);
-    throw new Error(details.length ? `${reason}\nDetails: HTTP ${response.status}; ${details.join('; ')}` : reason);
+    throw new Error(activationRefusalMessage({ status: response.status, body }));
   }
+}
+
+/** Format only the server's public refusal fields; empty/malformed payloads retain HTTP recovery guidance. */
+function activationRefusalMessage({ status, body }: { status: number; body: { error?: unknown; code?: unknown; detail?: unknown } | undefined }): string {
+  const reason = typeof body?.error === "string" && body.error.trim() ? body.error
+    : `The assistant service returned HTTP ${status}. Restart the site or the app.`;
+  const details = [body?.code, body?.detail].filter((value): value is string => typeof value === 'string' && value.length > 0);
+  return details.length ? `${reason}\nDetails: HTTP ${status}; ${details.join('; ')}` : reason;
 }
 
 /** Wake through the authenticated API, then ensure a current page attachment.

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { SECRET_PATTERNS } from '@jini-ai/diagnostics/redaction/secrets-only';
+import { SECRET_PATTERNS, redactSecretShapes } from '@jini-ai/diagnostics/redaction/secrets-only';
 
 // F4.4/F5.2: valid length and alphabet isolate each lookaround guard; positive controls prove
 // these negative checks cannot pass merely because the vendor expression matches nothing.
@@ -54,12 +54,22 @@ test('Slack recognizes each supported token subtype and rejects an unsupported s
   assert.equal(entry.pattern.exec('xoxz-' + '7'.repeat(12)), null);
 });
 
-test('PEM recognizes untyped, RSA, EC and encrypted private headers while ignoring public keys', () => {
+// The shared kernel consumes complete or truncated bodies; matching only a header leaks key material.
+test('PEM recognizes whole untyped, RSA, EC and encrypted private blocks while ignoring public keys', () => {
   const entry = SECRET_PATTERNS.find((entry) => entry.name === 'PEM private key block');
   assert.ok(entry);
   for (const keyType of ['', 'RSA ', 'EC ', 'ENCRYPTED ']) {
     const header = '-----BEGIN ' + keyType + 'PRIVATE' + ' KEY-----';
-    assert.equal(entry.pattern.exec('before\n' + header + '\nafter')?.[0], header);
+    const footer = '-----END ' + keyType + 'PRIVATE' + ' KEY-----';
+    const block = header + '\nYm9keQ==\n' + footer;
+    assert.equal(entry.pattern.exec('before\n' + block + '\nafter')?.[0], block);
+    const truncated = header + '\nYm9keQ==';
+    assert.equal(entry.pattern.exec('before\n' + truncated)?.[0], truncated);
+    for (const secret of [block, truncated]) {
+      const redacted = redactSecretShapes({ text: secret, policy: {} }).text;
+      assert.equal(redacted, '[REDACTED:private_key]');
+      assert.equal(redacted.includes('Ym9keQ=='), false, 'no private body may survive redaction');
+    }
   }
   assert.equal(entry.pattern.exec('-----BEGIN ' + 'PUBLIC' + ' KEY-----'), null);
 });

@@ -10,7 +10,7 @@ export function useAssistantSubagentsSettings(required: { port: AssistantSubagen
   const state = useAssistantOwnerGrantSettings({ ...required, namespace: SUBAGENTS_NAMESPACE, key: settingsKey });
   // A stale cached ON value cannot establish the current grant after a failed refresh.
   const localAgent = required.mode === "local-cli" && required.agentId !== null;
-  const granted = state.settings?.capabilities?.subagents ?? state.settings?.enabled;
+  const granted = subagentsGranted(state.settings);
   const tooltipKey = !state.loadError && localAgent && granted ? "This chat can use subagents" : null;
   return { ...state, tooltipKey };
 }
@@ -106,4 +106,9 @@ export function useWiredAdminSubagents(required: { t?: (key: string) => string }
 }
 export function useWiredAssistantSubagentsSettings(required: { mode: string; agentId: string | null }, _optional = {}) {
   return useAssistantSubagentsSettings({ ...required, port: assistantSubagentsPort });
+}
+
+/** Explicit per-capability grants override the legacy master flag, including explicit false. */
+function subagentsGranted(settings: AssistantSubagentsSettings | null) {
+  return settings?.capabilities?.subagents ?? settings?.enabled;
 }

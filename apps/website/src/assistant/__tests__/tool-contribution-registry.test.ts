@@ -175,6 +175,8 @@ test("installFirstPartyToolContributors installs exactly the converted domains â
     // registered first in `installFirstPartyToolContributors`. Each its own domain key.
     "content-stats",
     "analytics",
+    // Commerce readiness and setup share the server's explicitly installed contributor.
+    "commerce",
     "system-mail",
     "system-mail-providers",
     "system-mail-delivery",
