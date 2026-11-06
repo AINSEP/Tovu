@@ -68,11 +68,13 @@ test('a newly provisioned source cannot receive an approval issued for a differe
   const preview = await previewAgentPluginEnableAccess({ workspaceId: 'ws', pluginId: 'images', servers: initial, repo: f.repo });
   await f.repo.upsert({ ...await f.row(), id: 'fresh-record', serverId: 'fresh', url: 'https://second.example.test/mcp', allowedToolNames: '[]' });
   const changed: Readonly<Record<string, McpServerConfig>> = { fresh: { ...initial.fresh!, url: 'https://second.example.test/mcp' } as McpServerConfig };
+  let activations = 0;
   const apply = createApplyConnectDefaults({ ...f, workspaceId: 'ws', agentPluginLayout: resolveAgentPluginLayout({ siteDir: '/unused' }),
-    resolveServers: async () => changed, isPluginOffByOperator: async () => false, enablePlugin: async () => true,
+    resolveServers: async () => changed, isPluginOffByOperator: async () => false, enablePlugin: async () => { activations++; return true; },
     notifyRosterChanged: async () => {},
   }, { approvedEnable: { principalId: 'owner', accessKey: preview.key } });
   await assert.rejects(apply('fresh'), /changed after approval/);
+  assert.equal(activations, 0);
   assert.equal((await f.repo.findByServerId({ workspaceId: 'ws', serverId: 'fresh' }))?.enabled, false);
 });
 

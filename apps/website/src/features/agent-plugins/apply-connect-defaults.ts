@@ -120,6 +120,8 @@ export function createApplyConnectDefaults(deps: ApplyConnectDefaultsDeps, optio
     const prepared = await readConnectGrant({ deps, serverId, resolveServers, approvedEnable: options.approvedEnable !== undefined });
     if (!prepared) return;
     const { row, pluginId, grant } = prepared;
+    const approved = approvedSource({ key: options.approvedEnable?.accessKey, connectionId: serverId });
+    assertApprovedSource({ approved, grant, current: storedAgentPluginGrants({ row }), url: row.url, expected: externalMcpAccessSnapshot({ record: row }) });
     // A sign-in is not an "on" switch: an operator's explicit plugin-off stays off, exactly as on
     // the saved-token path (`switch-on-saved-token.ts`). The sign-in itself still completes.
     if (await isOff(pluginId)) return;
@@ -128,8 +130,6 @@ export function createApplyConnectDefaults(deps: ApplyConnectDefaultsDeps, optio
     // write is the step that makes a retry a no-op, so it goes last. The check above is only a cheap
     // early exit: an operator's "off" landing after it is caught again under the activations lock.
     if (await enablePlugin({ workspaceId: deps.workspaceId, pluginId, actor: CONNECT_DEFAULTS_ACTOR }) === false) return;
-    const approved = approvedSource({ key: options.approvedEnable?.accessKey, connectionId: serverId });
-    assertApprovedSource({ approved, grant, current: storedAgentPluginGrants({ row }), url: row.url });
     const expected = approved?.expected ?? externalMcpAccessSnapshot({ record: row });
     // Direct repo write, the same reason `federate-mcp.ts`'s adoption gives: every other field
     // (url, auth, the token this sign-in just stored) must stay exactly as it is.
@@ -159,11 +159,12 @@ function approvedSource({ key, connectionId }: { key: string | undefined; connec
 
 /** New sources must still have the empty access displayed before provisioning.
  * Existing sources additionally use the approved atomic repository snapshot. */
-function assertApprovedSource({ approved, grant, current, url }: {
-  approved: ReturnType<typeof approvedSource>; grant: ReturnType<typeof storedAgentPluginGrants>; current: ReturnType<typeof storedAgentPluginGrants>; url: string | null;
+function assertApprovedSource({ approved, grant, current, url, expected }: {
+  approved: ReturnType<typeof approvedSource>; grant: ReturnType<typeof storedAgentPluginGrants>; current: ReturnType<typeof storedAgentPluginGrants>; url: string | null; expected: ExternalMcpAccessSnapshot;
 }, _options = {}): void {
   if (!approved) return;
   const sameGrant = JSON.stringify(approved.grant) === JSON.stringify(grant);
   const sameNewSource = approved.expected !== null || JSON.stringify(approved.current) === JSON.stringify(current);
-  if (!sameGrant || !sameNewSource || approved.url !== url) throw new ToolInputError({ message: 'The plugin declaration or access changed after approval. Request the access change again. Nothing was granted.' });
+  const sameExistingSource = approved.expected === null || JSON.stringify(approved.expected) === JSON.stringify(expected);
+  if (!sameGrant || !sameNewSource || !sameExistingSource || approved.url !== url) throw new ToolInputError({ message: 'The plugin declaration or access changed after approval. Request the access change again. Nothing was granted.' });
 }
