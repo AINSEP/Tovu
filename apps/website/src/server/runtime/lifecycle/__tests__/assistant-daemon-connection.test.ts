@@ -105,7 +105,7 @@ test("desktop refusal reaches the server log and chat response without losing it
       activate: (input, options) => activateAssistantDaemon(input, { ...options,
         request: async () => globalThis.Response.json(body, { status }),
       }),
-    }), { message: reason }, "the chat binding must display the server's actual reason");
+    }), { message: `${reason}\nDetails: HTTP 503; AGENT_DAEMON_UNAVAILABLE` }, "the chat binding retains the server reason and its HTTP/code diagnostic");
     await shutdownAssistantDaemon();
     assert.deepEqual(warning.mock.calls.map(call => call.arguments[0]), [
       `[daemon-supervisor] desktop scope withdrawal unavailable: ${reason}`,

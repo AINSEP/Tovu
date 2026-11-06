@@ -41,8 +41,10 @@ it("shows static-export scope notes and omission notices while downloading", asy
   const notices = ["Left out custom/example.txt."];
   const notes = ["Static copy only."];
   const downloadShare = vi.fn();
+  let created: SiteShare | undefined;
   const port = createFakeSiteTransferPort({ staticExportOptions: async () => options,
-    createStaticShare: async () => ({ ...share, notices, notes }), downloadShare });
+    createStaticShare: async () => { created = { ...share, notices, notes }; return created; },
+    listShares: async () => ({ shares: created ? [created] : [] }), downloadShare });
   render(<FetchQueryProvider><SiteExportTab t={t} useExport={() => useSiteExport({ port, t })} /></FetchQueryProvider>);
   const button = screen.getByRole("button", { name: "Export static site" });
   await waitFor(() => expect(button).not.toBeDisabled());

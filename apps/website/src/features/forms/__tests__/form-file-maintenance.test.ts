@@ -89,16 +89,21 @@ test('cleanup failure leaves a proven orphan private and reports it for a later 
 });
 
 
+type RetainedOwner = 'form' | 'menu' | 'bundle' | 'defaults' | 'post';
+function retainMediaForOwner(f: Awaited<ReturnType<typeof fixture>>, owner: RetainedOwner) {
+  if (owner === 'form') f.db.$client.prepare(`INSERT INTO form_definitions (id,workspace_id,name,slug,fields_json,notify_json,status,created_at,updated_at,deleted_at,version) VALUES ('f','w','F','f',?,'{}','active',?,?,?,1)`).run(JSON.stringify({ format: 'html', html: '<img src="/m/photo/full/">' }),at,at,at);
+  if (owner === 'post') f.db.$client.prepare(`INSERT INTO posts (id,workspace_id,title,slug,status,updated_at,version,body_format,body_html) VALUES ('post','w','P','p','draft',?,1,'html',?)`).run(at,'<img src="/m/photo/full/">');
+  if (owner === 'menu') f.db.$client.prepare(`INSERT INTO menus (id,workspace_id,slug,title,status,doc_json,locations_json,updated_at,version) VALUES ('menu','w','menu','Menu','draft',?,'[]',?,1)`).run(JSON.stringify({ href: '/m/photo/full/' }),at);
+  if (owner === 'bundle') f.db.$client.prepare(`INSERT INTO publish_content_bundles (id,workspace_id,source_principal_id,hash_version,entities_json,blob_manifest_json,size_bytes,received_at,expires_at) VALUES ('bundle','w','owner',1,'[]',?,1,?,?)`).run(JSON.stringify([{ sha256: 'hash' }]),at,at);
+  if (owner === 'defaults') f.db.$client.prepare(`INSERT INTO setting_definitions (setting_id,workspace_id,namespace,key,owner_kind,schema_json,default_json,scopes,status,created_at,updated_at) VALUES ('definition','w','test','image','core','{}',?,1,'active',?,?)`).run(JSON.stringify({ assetId: 'm' }),at,at);
+}
+
 test('HTML forms in Trash, menu content and staged publish bundles retain matching media', async () => {
   for (const owner of ['form', 'menu', 'bundle', 'defaults', 'post'] as const) {
     const f = await fixture();
     try {
       await f.prove();
-      if (owner === 'form') f.db.$client.prepare(`INSERT INTO form_definitions (id,workspace_id,name,slug,fields_json,notify_json,status,created_at,updated_at,deleted_at,version) VALUES ('f','w','F','f',?,'{}','active',?,?,?,1)`).run(JSON.stringify({ format: 'html', html: '<img src="/m/photo/full/">' }),at,at,at);
-      if (owner === 'post') f.db.$client.prepare(`INSERT INTO posts (id,workspace_id,title,slug,status,updated_at,version,body_format,body_html) VALUES ('post','w','P','p','draft',?,1,'html',?)`).run(at,'<img src="/m/photo/full/">');
-      if (owner === 'menu') f.db.$client.prepare(`INSERT INTO menus (id,workspace_id,slug,title,status,doc_json,locations_json,updated_at,version) VALUES ('menu','w','menu','Menu','draft',?,'[]',?,1)`).run(JSON.stringify({ href: '/m/photo/full/' }),at);
-      if (owner === 'bundle') f.db.$client.prepare(`INSERT INTO publish_content_bundles (id,workspace_id,source_principal_id,hash_version,entities_json,blob_manifest_json,size_bytes,received_at,expires_at) VALUES ('bundle','w','owner',1,'[]',?,1,?,?)`).run(JSON.stringify([{ sha256: 'hash' }]),at,at);
-      if (owner === 'defaults') f.db.$client.prepare(`INSERT INTO setting_definitions (setting_id,workspace_id,namespace,key,owner_kind,schema_json,default_json,scopes,status,created_at,updated_at) VALUES ('definition','w','test','image','core','{}',?,1,'active',?,?)`).run(JSON.stringify({ assetId: 'm' }),at,at);
+      retainMediaForOwner(f, owner);
       const result = await runFormFileMaintenance(f, { apply: true });
       assert.equal(result.results[0]!.reason, 'owned', owner);
       assert.equal((await f.media.mediaRepo.findById({ workspaceId: 'w', id: 'm' }))!.source.private, undefined, owner);

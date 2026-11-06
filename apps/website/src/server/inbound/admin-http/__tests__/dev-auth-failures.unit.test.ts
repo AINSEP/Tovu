@@ -54,24 +54,29 @@ for (const fault of ["identity", "session", "logout"] as const) {
 test("boot owner and verification refusals disclose equivalent explanations and no backend facts", async t => {
   const deps = createRouteDeps();
   await deps.identityReady;
-  t.mock.method(console, "error", () => {});
+  const logs = t.mock.method(console, "error", () => {});
   const principal = deps.principalRepo.findById.bind(deps.principalRepo);
   let missingOwner = true;
   t.mock.method(deps.principalRepo, "findById", async (input: Parameters<typeof principal>[0]) => missingOwner ? null : principal(input));
   t.mock.method(deps.sessionRepo, "findByTokenHash", async () => null);
-  const bodies: Array<{ error: string; errorId: string; details: { failure: Record<string, string> } }> = [];
+  const bodies: Array<{ error: string; errorId: string; code: string }> = [];
   for (const missing of [true, false]) {
     missingOwner = missing;
     const { res, capture } = createCapturingResponse();
-    res.req = { headers: {}, socket: { localPort: 408 } } as Request;
+    res.req = { method: "POST", route: { path: "/api/admin/v1/auth/boot-session" }, headers: {}, socket: { localPort: 408 } } as Request;
     res.cookie = () => { assert.fail("refused boot must not set cookies"); };
     assert.equal(await redeemOwnerBootSession({ deps, res, token: "BOOT_SECRET_CANARY" }, { redeem: () => true }), null);
     assert.equal(capture.statusCode, 500);
     bodies.push(capture.jsonBody as typeof bodies[number]);
   }
-  for (const field of ["message", "action", "step", "cause"]) {
-    assert.equal(bodies[0].details.failure[field], bodies[1].details.failure[field]);
+  // Boot redemption is anonymous: the boundary intentionally omits the authenticated detail envelope.
+  for (const [index, body] of bodies.entries()) {
+    assert.deepEqual(Object.keys(body).sort(), ["code", "error", "errorId"]);
+    assert.equal(body.code, "INTERNAL_ERROR");
+    assert.equal(body.error, `The sign-in operation could not be completed. Check the result before repeating this operation. Copy details and report this problem. (error ${body.errorId})`);
+    assert.equal((logs.mock.calls[index]!.arguments[1] as { errorId: string }).errorId, body.errorId);
   }
-  assert.match(bodies[0].details.failure.message, /Sign-in could not finish/);
+  assert.equal(logs.mock.callCount(), 2);
+  assert.equal(bodies[0]!.error.replace(bodies[0]!.errorId, "ID"), bodies[1]!.error.replace(bodies[1]!.errorId, "ID"));
   assert.doesNotMatch(JSON.stringify(bodies), /BOOT_SECRET_CANARY|principal|mint|validat|owner_482/);
 });

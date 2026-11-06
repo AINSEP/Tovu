@@ -1041,18 +1041,14 @@ function sealerThatCannotOpen(inner: SecretSealerPort): SecretSealerPort {
   };
 }
 
-/** Opens `healthyOpens` times and then stops — a site key that goes away BETWEEN a boot-time read
- *  and the write that follows it, which is how a live session discovers the problem rather than a
- *  process that was broken from the start. */
-function sealerThatStopsOpeningAfter(inner: SecretSealerPort, healthyOpens: number): SecretSealerPort {
-  let opens = 0;
+/** Keep reads healthy until the scripted provider has rejected the refresh. Lease reloads may
+ * add reads before the request; the fixture models a lost key at the observable rejection. */
+function sealerThatLosesKeyAfterRefresh(base: Awaited<ReturnType<typeof makeHarness>>): SecretSealerPort {
   return {
-    seal: (input) => inner.seal(input),
-    open: async (input, optional) => {
-      opens += 1;
-      if (opens > healthyOpens) throw new Error("Unsupported state or unable to authenticate data");
-      return inner.open(input, optional);
-    },
+    seal: input => base.sealer.seal(input),
+    open: (input, optional) => base.http.callCount() >= 2
+      ? Promise.reject(new Error("Unsupported state or unable to authenticate data"))
+      : base.sealer.open(input, optional),
   };
 }
 
@@ -1260,13 +1256,12 @@ test("markNeedsReauth records the durable state even when the blob became unopen
   });
   await connect(base.service);
   base.clock.advance(60 * 60 * 1000);
-  // Two healthy opens — the refresher's own read of the token, then `resolveClient` reading the
-  // client secret for the refresh request — and the THIRD, the clear that follows the provider's
-  // rejection, finds the key gone. Losing the state write here is the worst of the three cases:
-  // `needs_reauth` is what stops every later tool call from re-probing a grant already refused.
-  const service = serviceWithBrokenDependency(base, { sealer: sealerThatStopsOpeningAfter(base.sealer, 2) });
+  // The key disappears only after the provider rejects the refresh, regardless of lease reloads.
+  // `needs_reauth` must stop later calls from probing a grant already known to be dead.
+  const service = serviceWithBrokenDependency(base, { sealer: sealerThatLosesKeyAfterRefresh(base) });
 
-  await assert.rejects(() => service.tokenResolver.resolveAccessToken({ serverId: SERVER }));
+  await assert.rejects(() => service.tokenResolver.resolveAccessToken({ serverId: SERVER }), ExternalMcpReauthRequiredError);
+  assert.equal(base.http.callCount(), 2, "the provider really rejected the refresh before the key disappeared");
 
   const row = await readRow(base.repo);
   assert.equal(row.oauthStatus, "needs_reauth", "the durable state must be recorded even when the dead token cannot be read back");

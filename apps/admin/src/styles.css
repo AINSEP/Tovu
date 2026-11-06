@@ -6243,8 +6243,6 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
   content: ""; width: 0.5rem; height: 0.5rem; border-radius: 50%;
   background: currentColor; flex-shrink: 0;
 }
-.site-card-serving .site-card-head { background: var(--ok-bg); border-bottom-color: transparent; }
-.site-card-head:has(.status-warning) { background: var(--warning-bg); border-bottom-color: transparent; }
 
 .site-card-flag {
   display: inline-flex; align-items: center; gap: var(--space-1);
@@ -6278,13 +6276,11 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
 .site-card:hover { transform: none; box-shadow: var(--jini-panel-shadow); }
 .site-card-name { margin-top: 0; }
 .site-card-body { gap: var(--space-1); padding: var(--space-4) var(--space-5); }
-.site-card-meta { font-size: var(--text-sm); color: var(--muted); }
 .site-card-actions {
   margin-top: auto; padding-top: var(--space-4);
   display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-start; gap: var(--space-2);
 }
 .site-card-actions > :is(button, a) { height: 37px; padding: 0 0.9rem; display: inline-flex; align-items: center; }
-.site-card-head:has(.status-error) { background: var(--danger-bg); border-bottom-color: transparent; }
 .site-card-select {
   display: inline-flex; align-items: center; gap: var(--space-2); margin-top: var(--space-2);
   font-size: var(--text-sm); color: var(--muted); cursor: pointer;
