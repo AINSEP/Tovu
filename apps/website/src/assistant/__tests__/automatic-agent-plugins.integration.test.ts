@@ -572,7 +572,9 @@ for (const action of ['use', 'auto'] as const) test(`pending plugin ${action} ca
     input: { namespace: 'core.interface', key: 'chatAgentPlugins', scope: 'user', workspaceId: f.workspaceId, principalId: 'alice', callerPrincipalId: 'alice', authWorkspaceId: f.workspaceId, value } });
   await writeMode('ask');
   let cards = 0;
+  const notices: unknown[] = [];
   await assert.rejects(f.runs.start({ runId: 'stale-personal-choice', context: { ...f.context, emitSurface: async emission => {
+    if (emission.channel === 'status') notices.push(emission.payload.label);
     if (emission.channel !== 'mcp-ui') return;
     cards++;
     const html = (emission.payload.resource as { resource: { text: string } }).resource.text;
@@ -584,6 +586,7 @@ for (const action of ['use', 'auto'] as const) test(`pending plugin ${action} ca
   const mode = await getEffective({ repo: f.settingsRepo }, { namespace: 'core.interface', key: 'chatAgentPlugins', scopeContext: { workspaceId: f.workspaceId, principalId: 'alice' } });
   assert.equal(mode?.value, 'off');
   assert.equal(cards, 1);
+  assert.deepEqual(notices, ['Your Agent Plugins preference changed while this card was open. Nothing was changed by this answer. Start a new request using your current preference.']);
   assert.equal(f.published.length, 0);
   f.runs.forget({ runId: 'stale-personal-choice' });
 });
