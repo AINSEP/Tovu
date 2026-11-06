@@ -35,11 +35,11 @@ const clock = { nowMs: () => Date.parse("2026-08-05T00:00:00.000Z"), nowIso: () 
  *  to match. */
 const TTL_MS = 5 * 60_000;
 
-function makeDeps({ nowMs = Date.now }: { nowMs?: () => number } = {}, _options = {}) {
+function makeDeps({ nowMs = Date.now, discover = fetchLiveClaudeModels }: { nowMs?: () => number; discover?: typeof fetchLiveClaudeModels } = {}, _options = {}) {
   const repo = new InMemoryAdminExecutionCredentialRepo();
   const keyring = new InMemoryKeyring();
   const sealer = new AesGcmSecretSealer(keyring);
-  const discovery = createLiveModelDiscovery({ repo, sealer, clock: { nowMs }, discover: fetchLiveClaudeModels });
+  const discovery = createLiveModelDiscovery({ repo, sealer, clock: { nowMs }, discover });
   return { discovery, deps: { repo, keyring, sealer, clock } };
 }
 
@@ -88,30 +88,18 @@ function stubFetchSpy(): { callCount: () => number; restore: () => void } {
   };
 }
 
-/** Replaces `globalThis.fetch` with a spy that records the request URL and fails fast with a
- *  network-shaped error — used only to prove WHICH host a call was aimed at, never to let it
- *  actually reach one. */
-function stubFetchCapture(): { urls: () => string[]; restore: () => void } {
-  const original = globalThis.fetch;
-  const urls: string[] = [];
-  globalThis.fetch = ((input: RequestInfo | URL) => {
-    urls.push(typeof input === "string" ? input : input.toString());
-    return Promise.reject(new Error("stubbed — no real network call"));
-  }) as typeof fetch;
-  return {
-    urls: () => urls,
-    restore: () => {
-      globalThis.fetch = original;
-    },
-  };
-}
-
 // ---------------------------------------------------------------------------
 // getLiveClaudeModels — the "never a gate" credential branch
 // ---------------------------------------------------------------------------
 
+// Capture the selected host through discovery so DNS validation cannot prevent observing it.
+// This proves which host the call targets without reaching that host or bypassing its SSRF guard.
 test("an anthropic credential with no stored baseUrl defaults the live call to the real Anthropic API host", async () => {
-  const { deps, discovery } = makeDeps();
+  const urls: string[] = [];
+  const { deps, discovery } = makeDeps({ discover: async ({ baseUrl }) => {
+    urls.push(baseUrl);
+    return null;
+  } });
   await setExecutionCredential(deps, {
     workspaceId: WORKSPACE,
     principalId: ADMIN_A,
@@ -119,16 +107,10 @@ test("an anthropic credential with no stored baseUrl defaults the live call to t
     protocol: "anthropic",
     // baseUrl deliberately omitted — resolves to null, not a locally-servable URL.
   });
-  const fetchSpy = stubFetchCapture();
-
-  try {
-    const result = await discovery.getLiveClaudeModels({ workspaceId: WORKSPACE, principalId: ADMIN_A });
-    assert.equal(result, null, "the stubbed rejection must still resolve to null, not throw");
-    assert.equal(fetchSpy.urls().length, 1);
-    assert.match(fetchSpy.urls()[0] ?? "", /^https:\/\/api\.anthropic\.com/, "an omitted baseUrl must default to the real Anthropic host");
-  } finally {
-    fetchSpy.restore();
-  }
+  const result = await discovery.getLiveClaudeModels({ workspaceId: WORKSPACE, principalId: ADMIN_A });
+  assert.equal(result, null, "unavailable discovery must still resolve to null, not throw");
+  assert.equal(urls.length, 1);
+  assert.match(urls[0] ?? "", /^https:\/\/api\.anthropic\.com/, "an omitted baseUrl must default to the real Anthropic host");
 });
 
 test("no stored credential resolves to null and makes zero network calls", async () => {

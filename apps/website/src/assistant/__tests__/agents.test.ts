@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test, { after, before } from "node:test";
 import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { delimiter, join } from "node:path";
 
 import { AGENT_DEFS, resolveAgentLaunch, runtimeSupportsExternalTools, runtimeSupportsSubagents, runtimeSupportsChromeIntegration } from "@jini-ai/agent-runtime";
 
@@ -14,18 +14,19 @@ import type { SecretSealerPort } from "../../features/webhooks/index.js";
 // No test here may spawn a real CLI's model listing: every test runs against a prober that reports
 // "nothing live" unless it installs its own.
 let fixtureDir: string;
-const originalClaudeBin = process.env.CLAUDE_BIN;
+const originalPath = process.env.PATH;
 before(() => {
   fixtureDir = mkdtempSync(join(tmpdir(), "tovu-agent-probe-"));
   const executable = join(fixtureDir, "claude");
   writeFileSync(executable, "#!/bin/sh\nexit 0\n", { mode: 0o755 });
-  process.env.CLAUDE_BIN = executable;
+  // Ambient *_BIN variables are not configured overrides; model an installed CLI on PATH.
+  process.env.PATH = [fixtureDir, originalPath].filter(Boolean).join(delimiter);
   setAgentModelProberForTesting(async ({ def }) => ({ models: def.fallbackModels, source: "fallback" }));
 });
 after(() => {
   setAgentModelProberForTesting(null);
-  if (originalClaudeBin === undefined) delete process.env.CLAUDE_BIN;
-  else process.env.CLAUDE_BIN = originalClaudeBin;
+  if (originalPath === undefined) delete process.env.PATH;
+  else process.env.PATH = originalPath;
   rmSync(fixtureDir, { recursive: true, force: true });
 });
 
