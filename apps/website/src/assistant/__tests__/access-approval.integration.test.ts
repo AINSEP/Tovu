@@ -7,7 +7,7 @@ import type { SurfaceEmission, ToolExecutionContext } from '@jini-ai/core';
 import { approvalToolHandler } from '../../contracts/core/human-confirm.js';
 
 const turn = () => new Promise<void>(resolve => setImmediate(resolve));
-function fixture() {
+function fixture({ approver = true, scopePerson = 'person' } = {}) {
   const controller = new AbortController();
   const store = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: { newId: () => 'access-card' }, defaultChannel: 'mcp-ui' }, { idleTtlMs: 1000 });
   const ctx: ToolExecutionContext = { executionId: 'e', principal: { id: 'person' }, run: { id: 'r' }, input: { confirm: true }, signal: controller.signal };
@@ -17,10 +17,10 @@ function fixture() {
     reads++;
     if (principalId !== 'person' || !active) throw new Error('person is no longer active');
   } };
-  const handler = approvalToolHandler({ surfaces,
+  const handler = approvalToolHandler({ surfaces: approver ? surfaces : { surfaceExchanges: store },
     prepare: async () => ({}),
     describe: () => ({ toolId: 'settings_set_value', errorCode: 'ACCESS', title: 'Change access?', confirmLabel: 'Allow', details: [],
-      access: { resources: [{ id: 'tools', label: 'Tool access', scope: { personId: 'person', siteId: 'site' }, previous: [], proposed: ['read'], revision: 'v1' }] },
+      access: { resources: [{ id: 'tools', label: 'Tool access', scope: { personId: scopePerson, siteId: 'site' }, previous: [], proposed: ['read'], revision: 'v1' }] },
     }),
     run: async () => { effects++; return { changed: true }; },
   }, { ask: () => false, rememberKey: () => 'old-grant', remembered: {
@@ -58,4 +58,22 @@ for (const decision of ['cancel', 'abort'] as const) test(`${decision} never wri
   if (decision === 'abort') h.controller.abort(); else h.answer('cancel');
   const result = await pending as { executed: boolean };
   assert.equal(result.executed, false); assert.equal(h.state().effects, 0);
+});
+
+test('an access card cannot address another person or omit the live approver check', async t => {
+  for (const options of [{ approver: false }, { scopePerson: 'another-person' }]) {
+    const h = fixture(options); t.after(() => h.controller.abort());
+    await assert.rejects(h.invoke(), /verify the person|belongs to another person/);
+    assert.equal(h.emissions.length, 0); assert.equal(h.state().effects, 0);
+  }
+});
+
+test('expiry closes the access card without writes', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  const h = fixture(); t.after(() => h.controller.abort());
+  const pending = h.invoke(); await turn(); t.mock.timers.tick(1001);
+  const result = await pending as { executed: boolean; reason: string };
+  assert.equal(result.executed, false); assert.equal(result.reason, 'expired');
+  assert.equal(h.state().effects, 0);
+  assert.deepEqual(h.answer('confirm'), { ok: false, reason: 'unknown-or-closed' });
 });
