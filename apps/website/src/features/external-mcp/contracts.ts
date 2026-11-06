@@ -99,12 +99,14 @@ export interface ExternalMcpServerRecord {
   updatedAt: ISODateTime;
 }
 
-/** Exact source identity and prior grants approved by one human card; no credential bytes. */
+/** Exact source identity and prior access decision captured before an access-only update; no credential bytes. */
 export interface ExternalMcpAccessSnapshot {
   readonly admissionRevision: string;
   readonly enabled: boolean;
   readonly allowedToolNames: string | null;
   readonly writeAllowedToolNames: string | null;
+  readonly writeGrantsUpdatedByPrincipalId: string | null;
+  readonly writeGrantsUpdatedAt: ISODateTime | null;
   readonly provisionedByPluginId: string | null;
 }
 

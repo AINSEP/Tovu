@@ -184,13 +184,14 @@ export function externalMcpAdmissionRevision(
     .digest("hex");
 }
 
-/** Capture the source identity and exact previous grants, excluding token-refresh metadata.
+/** Capture the source identity, exact previous grants and their decision, excluding token-refresh metadata.
  * @returns A detached approval snapshot containing no credential bytes.
  * @complexity O(a+w) in the bounded grant lists; no I/O.
  */
 export function externalMcpAccessSnapshot({ record }: { record: ExternalMcpServerRecord }, _options = {}): ExternalMcpAccessSnapshot {
   return { admissionRevision: externalMcpAdmissionRevision(record), enabled: record.enabled,
     allowedToolNames: record.allowedToolNames, writeAllowedToolNames: record.writeAllowedToolNames,
+    writeGrantsUpdatedByPrincipalId: record.writeGrantsUpdatedByPrincipalId, writeGrantsUpdatedAt: record.writeGrantsUpdatedAt,
     provisionedByPluginId: record.provisionedByPluginId };
 }
 

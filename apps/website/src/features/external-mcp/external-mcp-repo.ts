@@ -179,7 +179,7 @@ export class SqlExternalMcpServerRepo implements ExternalMcpServerRepoPort {
   }
 
   /** Serialize with credential writers, validate the approved source, then replace access only.
-   * The conditional UPDATE also compares prior grants; no credential/vault column is written.
+   * The conditional UPDATE also compares prior grants and their decision; no credential/vault column is written.
    * @complexity One indexed hydrated read and conditional UPDATE, O(a+w) bounded grant bytes.
    */
   async updateAccessIfCurrent(input: ExternalMcpAccessUpdate, _options = {}): Promise<boolean> {
@@ -196,6 +196,8 @@ export class SqlExternalMcpServerRepo implements ExternalMcpServerRepoPort {
         .where("enabled", "=", expected.enabled)
         .where("allowed_tool_names", expected.allowedToolNames === null ? "is" : "=", expected.allowedToolNames)
         .where("write_allowed_tool_names", expected.writeAllowedToolNames === null ? "is" : "=", expected.writeAllowedToolNames)
+        .where("write_grants_updated_by_principal_id", expected.writeGrantsUpdatedByPrincipalId === null ? "is" : "=", expected.writeGrantsUpdatedByPrincipalId)
+        .where("write_grants_updated_at", expected.writeGrantsUpdatedAt === null ? "is" : "=", expected.writeGrantsUpdatedAt)
         .where("provisioned_by_plugin_id", expected.provisionedByPluginId === null ? "is" : "=", expected.provisionedByPluginId)
         .executeTakeFirst());
       return Number(result.numUpdatedRows) === 1;
