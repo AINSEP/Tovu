@@ -1,4 +1,4 @@
-import { createFormAttachmentPurgeHooks, scheduleFormAttachmentCleanup } from "@jini-ai/cms/forms";
+import { createFormAttachmentPurgeHooks } from "@jini-ai/cms/forms";
 import { statfs } from "node:fs/promises";
 import { registerCommerceHttp, registerCommerceWebhooks } from "./commerce-http.js";
 import { getExportRunSnapshot } from '../../../features/deployments/export-run.js';
@@ -23,7 +23,7 @@ import { createCommentTargetLookup } from '#src/features/comments/comment-target
 import { applyThemePreviewSwitcher } from "../../inbound/public-http/middleware/theme-preview-switcher.js";
 import { ensurePreviewSwitcherSetting, preparePreviewSwitcherWrite } from "#src/features/theme/preview-switcher";
 import { contentKernel } from '#src/platform/db/content-kernel';
-import { hasFormFileOwners } from '#src/features/forms/form-file-purge';
+import { createFormMediaCleanup, hasFormFileOwners, hasFormFileStorageKeyOwners, withFormFileStorageKeyLock } from '#src/features/forms/form-file-purge';
 import { createSiteConsentStore } from '#src/features/consent/revisions.repo';
 import { bindSiteConsentService } from './site-consent.js';
 import { registerAdminConsentRoutes } from '../../inbound/admin-http/routes/consent/routes.js';
@@ -875,9 +875,9 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
         const files = createFormFileStorage({ media: {
           mediaRepo, clock, idGen, entryRefsRepo, postRepo, blobRepo: routeDeps.assetBlobRepo,
           renditionRepo: routeDeps.assetRenditionRepo, blobStore: routeDeps.blobStore,
+          ...createFormMediaCleanup({ kernel: routeDeps.contentKernel, outbox, clock, graceMs: DEFAULT_GC_GRACE_MS }),
         }, contentTypes: routeDeps.mediaContentTypeStore, resolveCreatedByPrincipal: async () => { throw new Error("Purge never creates files"); } });
         await files.discard({ workspaceId, reference: { mediaId } });
-        await scheduleFormAttachmentCleanup({ outbox, workspaceId, mediaId, sha256: asset.source.sha256, now: clock.nowMs(), graceMs: DEFAULT_GC_GRACE_MS });
       },
     })));
   }
@@ -1849,6 +1849,9 @@ function subscribeSiteEventHandlersOnce(routeDeps: NewsletterRouteDeps): void {
       outbox: routeDeps.outbox,
       fileCleanup: {
         withHashLock: withSha256Lock,
+        withStorageKeyLock: withFormFileStorageKeyLock,
+        hasStorageKeyOwners: input => routeDeps.contentKernel
+          ? hasFormFileStorageKeyOwners({ kernel: routeDeps.contentKernel, ...input }) : Promise.resolve(true),
         findBlob: input => routeDeps.assetBlobRepo.findByHash(input),
         // This is a delayed cold GC job, never a visitor or upload hot path. Without a
         // persistent content database we cannot prove orphanhood, so retain the bytes.
@@ -2558,6 +2561,7 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
         clock: routeDeps.clock, idGen: routeDeps.idGen, mediaRepo: routeDeps.mediaRepo,
         entryRefsRepo: routeDeps.entryRefsRepo, postRepo: routeDeps.postRepo,
         blobRepo: routeDeps.assetBlobRepo, renditionRepo: routeDeps.assetRenditionRepo, blobStore: routeDeps.blobStore,
+        ...createFormMediaCleanup({ kernel: routeDeps.contentKernel, outbox: routeDeps.outbox, clock: routeDeps.clock, graceMs: DEFAULT_GC_GRACE_MS }),
       }, contentTypes: routeDeps.mediaContentTypeStore,
         resolveCreatedByPrincipal: async ({ workspaceId }) => {
           // Uploads have no signed-in operator. Await identity's existing seed and attribute the

@@ -1,4 +1,5 @@
-import { createFormAttachmentPurgeHooks, type FormAttachmentRemoval } from '@jini-ai/cms/forms';
+import { createFormAttachmentPurgeHooks, scheduleFormAttachmentCleanup, FormDeliveryError, type FormAttachmentRemoval, type FormOutboxPort } from '@jini-ai/cms/forms';
+import { computeBlobStorageKey, withSha256Lock, type MediaRowCleanupDeps } from '@jini-ai/cms/media';
 import type { TrashFollowUpHooks } from '@jini-ai/cms/trash';
 import type { ContentKernel } from '#src/platform/db/content-kernel';
 
@@ -31,4 +32,51 @@ export function createFormFilePurgeHooks(
 export async function hasFormFileOwners({ kernel, workspaceId, sha256 }: { kernel: ContentKernel; workspaceId: string; sha256: string }, _optional = {}): Promise<boolean> {
   const row = await kernel.run(db => db.selectFrom('media').select('id').where('workspace_id', '=', workspaceId).where('source_sha256', '=', sha256).limit(1).executeTakeFirst());
   return row !== undefined;
+}
+
+/** Bind the media owner's pre-delete journal to this site's existing outbox and transaction.
+ * Memory-only hosts omit kernel; persistent hosts join their outer Trash/submission transaction.
+ * @returns Cleanup dependencies shared by purge, compensation and explicit maintenance.
+ * @complexity One small outbox write per removed asset; no file reads or recurring work. */
+export function createFormMediaCleanup(
+  { kernel, outbox, clock, graceMs }: { kernel?: ContentKernel | undefined; outbox: FormOutboxPort; clock: { nowMs(): number }; graceMs: number },
+  _optional = {},
+): Pick<MediaRowCleanupDeps, 'cleanupJournal' | 'cleanupTransaction'> {
+  return {
+    cleanupTransaction: ({ work }) => kernel ? kernel.transaction(work) : work(),
+    cleanupJournal: input => scheduleFormAttachmentCleanup({ ...input, outbox, now: clock.nowMs(), graceMs }),
+  };
+}
+
+/** Exact-key ownership also covers shared rendition objects and other workspaces. Exclude only
+ * this cleanup job's own tombstoned source row: counting it would retain every original forever.
+ * @returns Whether any retained rendition or different/live blob still names these exact bytes.
+ * @complexity Two metadata EXISTS probes per cold cleanup key; no object downloads or polling. */
+export async function hasFormFileStorageKeyOwners(
+  { kernel, workspaceId, sha256, storageKey }: { kernel: ContentKernel; workspaceId: string; sha256: string; storageKey: string },
+  _optional = {},
+): Promise<boolean> {
+  return kernel.run(async db => {
+    const rendition = await db.selectFrom('asset_renditions').select('id').where('storage_key', '=', storageKey).limit(1).executeTakeFirst();
+    if (rendition) return true;
+    const blob = await db.selectFrom('asset_blobs').select('sha256').where('storage_key', '=', storageKey)
+      .where(eb => eb.or([eb('workspace_id', '!=', workspaceId), eb('sha256', '!=', sha256), eb('status', '!=', 'tombstoned')]))
+      .limit(1).executeTakeFirst();
+    return blob !== undefined;
+  });
+}
+
+/** Lock exact byte identities in the writer's hash namespace. Unknown storage layouts retain
+ * their durable cleanup job rather than guessing an object identity.
+ * @throws A retryable cleanup error when a key is not this host's canonical blob key.
+ * @complexity O(key length) validation plus one shared in-process hash lock. */
+export async function withFormFileStorageKeyLock(
+  { workspaceId, storageKey, criticalSection }: { workspaceId: string; storageKey: string; criticalSection: () => Promise<void> },
+  _optional = {},
+): Promise<void> {
+  const sha256 = storageKey.split('/').at(-1) ?? '';
+  if (!/^[a-f0-9]{64}$/.test(sha256) || computeBlobStorageKey({ workspaceId, sha256 }) !== storageKey) {
+    throw new FormDeliveryError({ code: 'delivery-failed', retryable: true });
+  }
+  await withSha256Lock({ key: sha256, criticalSection });
 }

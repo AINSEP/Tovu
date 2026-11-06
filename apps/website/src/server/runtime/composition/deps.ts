@@ -3,9 +3,8 @@ import { createSiteOAuthBindings } from "#src/features/project-keys/site-referen
 import { createFormCollectionRegistry } from "@jini-ai/cms/forms";
 import { composeCommerce } from "./commerce.js";
 import { ensureCommerceSetting } from "./commerce-settings.js";
-import { scheduleFormAttachmentCleanup } from "@jini-ai/cms/forms";
 import { protectExistingFormFiles } from "#src/features/forms/protect-existing-files";
-import { createFormFilePurgeHooks } from "#src/features/forms/form-file-purge";
+import { createFormFilePurgeHooks, createFormMediaCleanup } from "#src/features/forms/form-file-purge";
 import { trashMedia as trashFormMedia, purgeMedia as purgeFormMedia } from "#src/features/media/index";
 import { formsMailOutboxReady } from "#src/features/forms/mail-outbox-readiness";
 import { TOVU_ERROR_REDACTION_OPTIONS } from '@tovu/contracts/secret-redaction';
@@ -1496,6 +1495,13 @@ async function composeSiteRouteDeps(
         // then remove deleted rows so shared blobs observe earlier deletions in this same purge.
         const snapshotMedia = new Proxy(mediaRepo, { get(target, key) {
           if (key === "list") return async () => assets;
+          // Tombstoning runs inside purgeMedia, so its snapshot must lose the removed owner
+          // before that check rather than only after purgeMedia returns.
+          if (key === "remove") return async (input: { workspaceId: string; id: string }) => {
+            await target.remove(input);
+            const index = assets.findIndex(row => row.id === input.id);
+            if (index >= 0) assets.splice(index, 1);
+          };
           const value = Reflect.get(target, key);
           return typeof value === "function" ? value.bind(target) : value;
         } });
@@ -1510,10 +1516,8 @@ async function composeSiteRouteDeps(
           // Never let a forged legacy reference purge an unrelated editorial asset.
           if (!asset.source.private && !asset.originalFilename?.startsWith(`${submissionId}-`)) throw new Error(`Form attachment ${mediaId} has no matching upload owner. Check this submission's files before purging it.`);
           await trashFormMedia({ deps: { mediaRepo, clock }, input: { workspaceId: ws, id: mediaId } });
-          await purgeFormMedia({ deps: { mediaRepo: snapshotMedia, blobRepo: assetBlobRepo, renditionRepo: assetRenditionRepo, blobStore, clock, entryRefsRepo, postRepo: snapshotPosts }, input: { workspaceId: ws, id: mediaId } });
-          const index = assets.findIndex(row => row.id === mediaId);
-          if (index >= 0) assets.splice(index, 1);
-          await scheduleFormAttachmentCleanup({ outbox, workspaceId: ws, mediaId, sha256: asset.source.sha256, now: clock.nowMs(), graceMs: DEFAULT_GC_GRACE_MS });
+          await purgeFormMedia({ deps: { mediaRepo: snapshotMedia, blobRepo: assetBlobRepo, renditionRepo: assetRenditionRepo, blobStore, clock, entryRefsRepo, postRepo: snapshotPosts,
+            ...createFormMediaCleanup({ kernel, outbox, clock, graceMs: DEFAULT_GC_GRACE_MS }) }, input: { workspaceId: ws, id: mediaId } });
         };
       },
       scrub: ({ workspaceId: ws, entityId }) => formDeliveryRepo.scrubPurged({ workspaceId: ws, purged: entityType === "form" ? { formId: entityId } : { submissionId: entityId } }),
