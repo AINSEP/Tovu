@@ -8,6 +8,7 @@ const tokens = await import("#src/features/agent-plugins/import-access-token");
 const renames = await import("#src/features/agent-plugins/apply-tool-renames");
 const faces = await import("#src/features/agent-plugins/provider-plugin-link");
 const catalog = await import("#src/features/agent-plugins/bundled-catalog");
+const grants = await import("#src/features/agent-plugins/grant-signed-in-defaults");
 const calls: string[] = [];
 let report: SeedBundledAgentPluginsResult = { sourceRoot: "bundled", outcomes: [], retirements: [] };
 // Boot-warning inputs (plugins plan v2 §3.4): mutated per case, read by bootstrap at call time.
@@ -31,9 +32,17 @@ mock.module("#src/features/agent-plugins/apply-tool-renames", { namedExports: { 
 mock.module("#src/features/agent-plugins/provider-plugin-link", { namedExports: { ...faces,
   syncProviderFaces: async () => { calls.push("faces"); },
 } });
+mock.module("#src/features/agent-plugins/grant-signed-in-defaults", { namedExports: { ...grants,
+  grantDeclaredToolsAtBoot: async (input: Parameters<typeof grants.grantDeclaredToolsAtBoot>[0]) => {
+    assert.equal(input.applyAccess, bundledDeps.mcp.applyAccess);
+    assert.equal(input.workspaceId, bundledDeps.workspaceId);
+    assert.equal(input.agentPluginLayout, bundledDeps.agentPluginLayout);
+    calls.push("grants");
+  },
+} });
 const { buildBootModules, bundledAgentPluginBootWarnings } = await import("../bootstrap.js");
 // Only the bundled prepare step runs; its collaborators are replaced above.
-const bundledDeps = { workspaceId: "test-workspace", agentPluginLayout: { forWorkspace: (_workspaceId: string) => ({ root: "/workspace" }) } };
+const bundledDeps = { mcp: { applyAccess: async () => { assert.fail("boot reporting must not grant real connection access"); } }, workspaceId: "test-workspace", agentPluginLayout: { forWorkspace: (_workspaceId: string) => ({ root: "/workspace" }) } };
 const deps = bundledDeps as NewsletterRouteDeps;
 
 function resetWarningInputs(): void {
@@ -68,12 +77,12 @@ test("TW2: bundled preparation reports failures and retirements in order before 
     "info:[bundled-agent-plugins] retired 'old' (moved into 'new'; successor: not-needed)",
     "info:[bundled-agent-plugins] retired 'disabled' (moved into 'new'; successor: left-disabled-by-operator)",
     "warn:[bundled-agent-plugins] 'disabled' was enabled but its successor 'new' is turned off by an operator and was left off — turn it on in Agent Plugins to keep that capability",
-    "faces", "tokens", "renames",
+    "faces", "tokens", "renames", "grants",
   ]);
   calls.length = 0;
   report = { sourceRoot: "bundled", outcomes: [], retirements: [] };
   await bundled.prepare();
-  assert.deepEqual(calls, ["seed", "faces", "tokens", "renames"]);
+  assert.deepEqual(calls, ["seed", "faces", "tokens", "renames", "grants"]);
 });
 
 const SEEDED_NOTHING = "warn:[bundled-agent-plugins] this build selects 2 plugin packages (jev, site-import) but no bundled plugin was found in bundled; rebuild Tovu (in development: npm run agent-plugins:compose, then restart)";
@@ -87,7 +96,7 @@ test("D0a: boot warns, never refuses, when the bundled folder seeded nothing alt
   const bundled = buildBootModules(deps, { useMemory: true, defaultContentDbPath: () => ":memory:" }).find(module => module.name === "bundled-agent-plugins");
   assert.ok(bundled);
   await bundled.prepare();
-  assert.deepEqual(calls, ["seed", SEEDED_NOTHING, "faces", "tokens", "renames"]);
+  assert.deepEqual(calls, ["seed", SEEDED_NOTHING, "faces", "tokens", "renames", "grants"]);
 });
 
 test("D0a: an enabled plugin with neither a bundled source nor an installed package is named once; present ones are not", async (t) => {
@@ -107,7 +116,7 @@ test("D0a: an enabled plugin with neither a bundled source nor an installed pack
     "seed",
     "warn:[bundled-agent-plugins] 'broken' could not be seeded: bad package",
     "warn:[bundled-agent-plugins] 'gone' is turned on, but this build does not ship it and it is not installed; add its package to the build, or turn it off in Agent Plugins",
-    "faces", "tokens", "renames",
+    "faces", "tokens", "renames", "grants",
   ]);
 });
 
@@ -125,7 +134,7 @@ test("D0a: an unreadable activations file costs only the enabled-plugin check; t
     "seed",
     "warn:[bundled-agent-plugins] could not compare enabled plugins with this build: activations.json is unreadable",
     SEEDED_NOTHING,
-    "faces", "tokens", "renames",
+    "faces", "tokens", "renames", "grants",
   ]);
 });
 

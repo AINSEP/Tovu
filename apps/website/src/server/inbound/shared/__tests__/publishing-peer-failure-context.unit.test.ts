@@ -8,13 +8,17 @@ const BASE = "/api/admin/v1/workspaces/ws/publish-content/peers";
 const CANARY = "SECRET_CANARY_PEER_CONTEXT";
 const cases = [
   { method: "GET", path: BASE, message: "The publishing destinations could not be loaded.",
-    action: "Try loading them again. If it still fails, copy details and report this problem.", step: "Load publishing destinations" },
+    action: "Try loading them again. If it still fails, copy details and report this problem.",
+    anonymousAction: "Try loading them again. If it still fails, Report this error ID.", step: "Load publishing destinations" },
   { method: "POST", path: BASE, message: "The publishing destination operation could not be completed.",
-    action: "Check the result before repeating this operation. Copy details and report this problem.", step: "publishing destination operation" },
+    action: "Check the result before repeating this operation. Copy details and report this problem.",
+    anonymousAction: "Check the result before repeating this operation. Report this error ID.", step: "publishing destination operation" },
   { method: "PATCH", path: `${BASE}/PRIVATE_PEER`, message: "The publishing destination save could not be completed.",
-    action: "Check whether your changes were saved before repeating the save. Copy details and report this problem.", step: "Save publishing destination" },
+    action: "Check whether your changes were saved before repeating the save. Copy details and report this problem.",
+    anonymousAction: "Check whether your changes were saved before repeating the save. Report this error ID.", step: "Save publishing destination" },
   { method: "DELETE", path: `${BASE}/PRIVATE_PEER`, message: "The publishing destination removal could not be confirmed.",
-    action: "Check the list before repeating the removal. Copy details and report this problem.", step: "Remove publishing destination" },
+    action: "Check the list before repeating the removal. Copy details and report this problem.",
+    anonymousAction: "Check the list before repeating the removal. Report this error ID.", step: "Remove publishing destination" },
 ];
 
 for (const row of cases) {
@@ -39,7 +43,8 @@ for (const row of cases) {
       const failureBody = await response.json() as any;
       assert.equal(failureBody.code, "INTERNAL_ERROR");
       assert.match(failureBody.errorId, /^[0-9a-f-]{36}$/);
-      assert.equal(failureBody.error, `${row.message} ${row.action} (error ${failureBody.errorId})`);
+      const action = authenticated ? row.action : row.anonymousAction;
+      assert.equal(failureBody.error, `${row.message} ${action} (error ${failureBody.errorId})`);
       if (authenticated) {
         const failure = failureBody.details.failure;
         assert.equal(failure.message, row.message);
