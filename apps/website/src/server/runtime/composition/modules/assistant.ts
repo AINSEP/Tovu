@@ -71,7 +71,7 @@ import {
   SURFACE_EXCHANGE_ID_PARAM,
   type SurfaceExchangeStore,
 } from "#src/assistant/index";
-import { getAuthedPrincipal, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
+import { getAuthedPrincipal, rejectUnlessSessionCredential, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
 import { registerAdminChatAttachmentReadRoute } from "#src/server/inbound/admin-http/routes/assistant/get-chat-attachment";
 import type { RouteDeps } from "#src/server/routes/types";
 
@@ -443,7 +443,23 @@ function localMcpUiTarget({ exchangeId, params, toolName, res, byokSurfaceExchan
   return typedTarget ?? exchangeId;
 }
 
+/** Admit answers only from an active person's browser session, before either exchange store sees them.
+ * Session authentication alone can resolve a nonhuman principal, so both facts are required.
+ * @returns False after sending the refusal; no delivery or daemon call occurs.
+ * @complexity O(1), using the identity freshly resolved by requireAdminSession. */
+function admitHumanSurfaceAnswer({ res }: { res: Response }, _optional = {}): boolean {
+  if (!rejectUnlessSessionCredential(res, {
+    message: "Answer this dialog from your signed-in browser session. Nothing was changed.",
+    permission: "assistant.confirm",
+  })) return false;
+  const principal = getAuthedPrincipal(res);
+  if (principal.kind === "user" && principal.status === "active") return true;
+  res.status(403).json({ error: "An active, signed-in person must answer this dialog. Nothing was changed.", code: "FORBIDDEN" });
+  return false;
+}
+
 async function proxyMcpUiToolCall(req: Request, res: Response, byokSurfaceExchanges: SurfaceExchangeStore, daemon: DaemonCallOptions): Promise<void> {
+  if (!admitHumanSurfaceAnswer({ res })) return;
   const body = (req.body ?? {}) as { toolName?: unknown; params?: unknown; exchangeId?: unknown; restore?: unknown };
   const toolName = body.toolName;
   if (typeof toolName !== "string" || toolName.length === 0) {
