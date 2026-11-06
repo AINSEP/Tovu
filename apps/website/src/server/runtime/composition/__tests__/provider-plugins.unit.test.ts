@@ -396,7 +396,7 @@ const HOSTILE = [undefined, null, [], {}, 0, Number.NaN, "", "  ", true, "port",
 for (const contract of PROVIDER_CONTRACTS) {
   test(`${contract.contract} validator refuses hostile values and accepts a full port`, () => {
     for (const value of HOSTILE) assert.equal(typeof contract.validate({ provider: value }), "string", `refused ${String(value)}`);
-    const full = contract.contract === "payments" ? createLipayFake({ now: () => 1000 }).provider : contract.contract === "observability" ? createNoopObservabilityPort({}) : contract.contract === "product_analytics" ? { capture() {}, identify() {} } : { record() {} };
+    const full = contract.contract === "form_collection" ? { plan() {} } : contract.contract === "payments" ? createLipayFake({ now: () => 1000 }).provider : contract.contract === "observability" ? createNoopObservabilityPort({}) : contract.contract === "product_analytics" ? { capture() {}, identify() {} } : { record() {} };
     assert.equal(contract.validate({ provider: full }), undefined);
   });
 }
