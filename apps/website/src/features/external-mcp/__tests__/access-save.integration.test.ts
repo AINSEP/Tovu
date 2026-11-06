@@ -3,7 +3,7 @@ import test from 'node:test';
 import { createSurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
 import { createSystemClock } from '@jini-ai/core/primitives';
-import type { SurfaceEmission, ToolExecutionContext } from '@jini-ai/core';
+import { ToolInputError, type SurfaceEmission, type ToolExecutionContext } from '@jini-ai/core';
 import { buildExternalMcpRegistrations } from '../tool-registrations.js';
 import { InMemoryExternalMcpServerRepo } from '../external-mcp-store.memory.js';
 import { buildExternalMcpSaveForm } from '../save-form.js';
@@ -30,7 +30,7 @@ async function fixture({ knownNames = ['read', 'write'], configuration = false }
   let approver = true;
   let checks = 0;
   const surfaces = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: { newId: () => 'access-exchange' }, defaultChannel: 'mcp-ui' }),
-    assertAccessApprover: async () => { checks += 1; if (!approver) throw new Error('Signed-in access approver revoked'); } };
+    assertAccessApprover: async () => { checks += 1; if (!approver) throw new ToolInputError({ message: 'Signed-in access approver revoked' }); } };
   const deps = { workspaceId: key.workspaceId, clock: { nowMs: () => Date.parse(now) }, externalMcpServerRepo: repo,
     externalMcpKnownToolNames: ({ admissionRevision }: { admissionRevision: string }) => admissionRevision === externalMcpAccessSnapshot({ record: original }).admissionRevision ? knownNames : null,
     authorize: async () => ({ allowed: permission, reason: permission ? 'matched' : 'revoked' }) } as unknown as ExternalMcpToolDeps;
@@ -171,4 +171,23 @@ test('a disabled source without a catalog points to its usable connection settin
     return true;
   });
   assert.equal(f.emissions.length, 0);
+});
+
+for (const phase of ['prepare', 'save'] as const) test(`approver read failures are not described as permission loss during ${phase}`, async t => {
+  const f = await fixture({ configuration: true }); t.after(() => f.controller.abort());
+  const failure = new Error('synthetic approver repository failure');
+  const failRead = async () => { throw failure; };
+  if (phase === 'prepare') f.surfaces.assertAccessApprover = failRead;
+  const pending = f.invoke();
+  if (phase === 'prepare') await assert.rejects(pending, error => error === failure);
+  else {
+    await turn();
+    assert.equal(f.emissions.length, 1);
+    f.surfaces.assertAccessApprover = failRead;
+    f.answer({ url: f.original.url, label: 'Updated source' });
+    const result = await pending as { saved: boolean; message?: string };
+    assert.equal(result.saved, false);
+    assert.doesNotMatch(result.message ?? '', /permission|approval|signed-in|no longer current/i);
+  }
+  assert.deepEqual(await f.repo.findByServerId(key), f.original);
 });

@@ -21,7 +21,7 @@ import { createInMemoryEventLog, createRunLifecycle, createToolExecutor } from "
 import { delegatedToolExecuteRoute } from "@jini-ai/daemon/http";
 
 import { executeCommand, InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
-import { createFormCollectionRegistry, InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "@jini-ai/cms/forms";
+import { createFormCollectionRegistry, InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo, type HtmlFormDefinitionRecord } from "@jini-ai/cms/forms";
 import { buildFormsRegistrations, type FormsToolDeps } from "../tool-registrations.js";
 
 const WORKSPACE_ID = "ws-forms-errors";
@@ -249,5 +249,5 @@ test('form tools reject invalid provider settings without creating or replacing 
   assert.ok(!updated.ok);
   assert.equal(updated.error.code, 'BAD_REQUEST');
   assert.match(updated.error.message, /Enter the public form link/);
-  assert.deepEqual((await deps.formDefinitionRepo.findById({ workspaceId: WORKSPACE_ID, id: saved.id }))?.provider, provider);
+  assert.deepEqual((await deps.formDefinitionRepo.findById({ workspaceId: WORKSPACE_ID, id: saved.id }) as HtmlFormDefinitionRecord)?.provider, provider);
 });

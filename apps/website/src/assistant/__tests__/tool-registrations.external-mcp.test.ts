@@ -413,6 +413,11 @@ test("workflow: a write grant fixed in the proposal survives the credential form
     "the fixed proposed write grant must be persisted, not silently dropped",
   );
 
+  const saved = await deps.externalMcpServerRepo.findByServerId({ workspaceId: WORKSPACE_ID, serverId: "higgsfield" });
+  assert.ok(saved);
+  assert.deepEqual(JSON.parse(saved.allowedToolNames!), ["generate_image", "reveal_generation", "models_explore"]);
+  assert.deepEqual(JSON.parse(saved.writeAllowedToolNames!), ["generate_image", "reveal_generation"]);
+
   const listed = (await call(registrations.get("external_mcp_list")!, { input: {} })) as {
     servers: Array<{ serverId: string; writeAllowedToolNames: string[] }>;
   };
@@ -958,4 +963,40 @@ test("external_mcp_save: an already aborted run emits no card and saves nothing"
   assert.deepEqual(emitted, []);
   assert.deepEqual(await repo.listByWorkspaceId(WORKSPACE_ID), []);
   assert.equal(exchanges.size(), 0);
+});
+
+for (const transport of ['streamable_http', 'stdio'] as const) test(`credential updates retain saved grants for ${transport}`, async () => {
+  const { deps, repo } = fakeDeps();
+  const identity = { workspaceId: WORKSPACE_ID, serverId: 'credential-update' };
+  await saveExternalMcpServer({ repo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock }, {
+    ...identity, principalId: PRINCIPAL_ID, transport, authMode: 'static_env', enabled: true,
+    url: 'https://example.test/mcp', command: transport === 'stdio' ? 'node' : '', args: '',
+    allowedToolNames: 'read, write', writeAllowedToolNames: 'write',
+    ...(transport === 'stdio' ? { env: 'API_TOKEN=synthetic-initial' } : { accessToken: 'synthetic-initial' }),
+  });
+  const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' });
+  const saveTool = buildExternalMcpRegistrations(deps, { assertAccessApprover: async () => {}, surfaceExchanges: exchanges }).find(r => r.descriptor.id === 'external_mcp_save')!;
+  const { pending, exchangeId } = await raiseSaveForm(saveTool, { id: identity.serverId, transport, authMode: 'static_env' });
+  exchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: {
+    url: 'https://example.test/mcp', command: transport === 'stdio' ? 'node' : '', args: '',
+    ...(transport === 'stdio' ? { env: 'API_TOKEN=synthetic-rotated' } : { accessToken: 'synthetic-rotated' }),
+  } }, { toolId: 'external_mcp_save' });
+  assert.equal((await pending as { saved: boolean }).saved, true);
+  const saved = await repo.findByServerId(identity);
+  assert.deepEqual(JSON.parse(saved!.allowedToolNames!), ['read', 'write']);
+  assert.deepEqual(JSON.parse(saved!.writeAllowedToolNames!), ['write']);
+  const resolved = await readEnabledExternalMcpConfigs({ repo, sealer: deps.siteAssistantSecretSealer }, WORKSPACE_ID);
+  const target = resolved.configs.find(config => config.serverId === identity.serverId)!.target;
+  if (target.kind === 'stdio') assert.equal(target.env.API_TOKEN, 'synthetic-rotated');
+  else assert.equal(target.headers?.authorization, 'Bearer synthetic-rotated');
+});
+
+test('an invalid new connection leaves no saved row', async () => {
+  const { deps, repo } = fakeDeps();
+  const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' });
+  const saveTool = buildExternalMcpRegistrations(deps, { assertAccessApprover: async () => {}, surfaceExchanges: exchanges }).find(r => r.descriptor.id === 'external_mcp_save')!;
+  const { pending, exchangeId } = await raiseSaveForm(saveTool, { id: 'invalid-new', transport: 'streamable_http', authMode: 'none' });
+  exchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: { url: 'not a URL' } }, { toolId: 'external_mcp_save' });
+  assert.equal((await pending as { saved: boolean }).saved, false);
+  assert.equal(await repo.findByServerId({ workspaceId: WORKSPACE_ID, serverId: 'invalid-new' }), null);
 });

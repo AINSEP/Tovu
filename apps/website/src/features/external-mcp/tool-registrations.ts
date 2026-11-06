@@ -27,7 +27,7 @@ import type { ToolContributor } from "@jini-ai/core";
 // tool-catalog-manifest.ts` may), and `npm run check:boundaries` confirms this import adds no new
 // violation. `external-mcp-store.ts`/`external-mcp-oauth.ts` own this domain's actual read/write
 // logic; nothing here re-implements it.
-import { applyExternalMcpAccess, externalMcpAdmissionRevision, externalMcpAccessSnapshot, parseArgs, parseAllowedToolNames, parseWriteAllowedToolNames, readExternalMcpToolGrants, ExternalMcpValidationError, listExternalMcpServerViews, readEnabledExternalMcpConfigs, saveExternalMcpServer } from "./external-mcp-store.js";
+import { applyExternalMcpAccess, externalMcpAccessSnapshot, parseArgs, parseAllowedToolNames, parseWriteAllowedToolNames, readExternalMcpToolGrants, ExternalMcpValidationError, listExternalMcpServerViews, readEnabledExternalMcpConfigs, saveExternalMcpServer } from "./external-mcp-store.js";
 import { notifyExternalMcpRosterChanged } from "../../assistant/mcp-services.js";
 import { type ExternalMcpAccessSnapshot, type ExternalMcpServerRecord, type SaveExternalMcpOAuthInput, type SaveExternalMcpServerInput } from "./contracts.js";
 import type { ExternalMcpToolDeps } from "./deps.js";
@@ -483,12 +483,8 @@ async function requireMcpSaveApprover({ routeDeps, surfaces, principalId, id }: 
   routeDeps: ExternalMcpToolDeps; surfaces: ChatDeleteSurfaceDeps; principalId: string; id: string;
 }): Promise<void> {
   await authorizeMcpAccess({ routeDeps, principalId, id });
-  try {
-    if (!surfaces.assertAccessApprover) throw new Error('missing approver');
-    await surfaces.assertAccessApprover({ toolId: EXTERNAL_MCP_SAVE_TOOL_ID, principalId });
-  } catch {
-    throw new ToolInputError({ message: 'Your permission to approve this connection is no longer current. Reopen the chat in your signed-in admin session. Nothing was saved.' });
-  }
+  if (!surfaces.assertAccessApprover) throw new ToolInputError({ message: 'This chat cannot verify the person approving the connection. Reopen the chat in your signed-in admin session. Nothing was saved.' });
+  await surfaces.assertAccessApprover({ toolId: EXTERNAL_MCP_SAVE_TOOL_ID, principalId });
 }
 
 /** Check fixed grants against the proposed source identity, including a human-edited target.
@@ -502,16 +498,10 @@ function requireKnownMcpSave({ routeDeps, record, input }: {
     return;
   }
   const candidate = mcpSaveTarget({ record, input });
-  const identityChanged = externalMcpAdmissionRevision(candidate) !== externalMcpAdmissionRevision(record) ||
-    [input.env, input.accessToken, input.oauth?.clientSecret].some(Boolean);
-  const previous = identityChanged ? { enabled: false, allowedToolNames: [], writeAllowedToolNames: [] }
+  const targetChanged = candidate.url !== record.url || candidate.command !== record.command;
+  const previous = targetChanged ? { enabled: false, allowedToolNames: [], writeAllowedToolNames: [] }
     : { enabled: record.enabled, ...readExternalMcpToolGrants(record, { strict: true }) };
-  if (identityChanged && access.allowedToolNames.length > 0) throw new ExternalMcpValidationError('The connection details changed, so its previous tool listing cannot approve this access. Save the connection with no allowed tools, then choose its tools in Settings → External MCP after it connects. Nothing was saved.', 'allowedToolNames');
-  try { requireKnownMcpAccess({ routeDeps, record: candidate, previous, access }); }
-  catch (error) {
-    if (!(error instanceof ToolInputError)) throw error;
-    throw new ExternalMcpValidationError('This connection has no verified tool listing for the proposed access. Review its allowed tools in Settings → External MCP after it connects. Nothing was saved.', 'allowedToolNames');
-  }
+  requireKnownMcpAccess({ routeDeps, record: targetChanged ? candidate : record, previous, access });
 }
 
 /** Re-read the identity and access reviewed by the person before the configuration writer.
