@@ -138,13 +138,14 @@ async function seedDefinition(deps: RegistryDepsWithoutLimiter): Promise<{ id: s
 // 1. The catalog is complete and honest about what Forms can do
 // ---------------------------------------------------------------------------
 
-test("exactly the three write-service.ts operations plus the two submission reads and the definition list are wired — no invented delete, publish, or archive", () => {
+test("exactly the Forms definition, provider and submission operations are wired — no invented delete, publish, or archive", () => {
   const { deps } = fakeRouteDeps();
   assert.deepEqual([...formsRegistrations(deps).keys()].sort(), [
     "content_read.form_definition",
     "forms_create_definition",
     "forms_delivery_status",
     "forms_get_submission",
+    "forms_list_providers",
     "forms_list_submissions",
     "forms_pull_submissions",
     "forms_set_definition_status",
@@ -340,14 +341,15 @@ const TOOL_INPUTS: Record<string, (seededId: string) => Record<string, unknown>>
   // same observable shape the loop below asserts: one `requireToolPermission` call carrying
   // `admin.forms.manage` + `entityType: "form_definition"`, awaited before the repo is touched.
   "content_read.form_definition": () => ({}),
+  forms_list_providers: () => ({}),
   forms_create_definition: () => ({ name: "Contact", slug: "contact-2", fields: VALID_FIELDS }),
   forms_update_definition: (id) => ({ formId: id, name: "Renamed" }),
   forms_set_definition_status: (id) => ({ formId: id, status: "disabled" }),
 };
 
 test("every SELF-ENFORCING Forms tool has a known input fixture — a newly wired one must be added here, not silently skipped", () => {
-  // Scoped to the three definition tools: they self-enforce inside write-service.ts's
-  // executeCommand, so the shared loop below can assert a single 3-key authorize() call shape.
+  // Definition writes self-enforce inside write-service.ts's executeCommand; definition/provider
+  // discovery uses the same permission and entity type before any reads. The loop checks both.
   // forms_list_submissions/forms_get_submission are NOT self-enforcing (no domain service layer to
   // inherit a gate from — see tool-registrations.ts's file header) and carry an extra `entityType`
   // in their authorize() call, so they get their own dedicated block further down instead, mirroring
