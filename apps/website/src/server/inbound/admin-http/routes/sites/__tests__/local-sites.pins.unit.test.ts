@@ -58,7 +58,7 @@ test("lifecycle gates retain workspace, capability, binding, authorization and h
 
 test("lifecycle catches principal/auth failures and sanitizes typed and opaque effect errors", async (t) => {
   const missingPrincipal = await fixture({ t }, { principal: false });
-  assertAdminResponse({ actual: await missingPrincipal.request(), expected: { status: 500, body: { code: "INTERNAL_ERROR", error: "internal error" } } }, { failure: {"message":"The site operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"site operation","discloseDetails":false} });
+  assertAdminResponse({ actual: await missingPrincipal.request(), expected: { status: 500, body: { code: "INTERNAL_ERROR", error: "internal error" } } }, { failure: {"message":"The site operation could not be completed.","action":"Check the result before repeating this operation. Report this error ID.","step":"site operation","discloseDetails":false} });
   assert.deepEqual(missingPrincipal.calls, []);
   const failures: [unknown, number, string][] = [
     [new Error("private connection details"), 500, "INTERNAL_ERROR"], ["opaque", 500, "INTERNAL_ERROR"],
