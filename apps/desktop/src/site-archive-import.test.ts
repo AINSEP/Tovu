@@ -5,7 +5,7 @@ import path from "node:path";
 import { PassThrough } from "node:stream";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { importSiteArchive } from "./site-archive-import.ts";
+import { importSiteArchive, stopRunningImports } from "./site-archive-import.ts";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 
@@ -95,4 +95,38 @@ test("a child that cannot start rejects with the spawn error", async () => {
   const { child, promise } = run({ file: "/a.zip" });
   child.fail(new Error("spawn ENOENT"));
   await assert.rejects(promise, { message: "spawn ENOENT" });
+});
+
+test("quitting stops a running import with SIGTERM, waits for it to exit, and the import fails in plain words", async () => {
+  const { child, promise } = run({ file: "/a/b.tovu.zip" });
+  const settled = promise.then(() => "resolved", (error: Error) => error.message);
+  const stopped = stopRunningImports();
+  assert.deepEqual(child.killed, ["SIGTERM"]);
+  let done = false;
+  void stopped.then(() => { done = true; });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(done, false, "must wait for the child to finish removing its partial site");
+  child.exit(1);
+  await stopped;
+  assert.match(String(await settled), /stopped|quit/i);
+});
+
+test("stopping when nothing is importing resolves at once, and a finished import is no longer tracked", async () => {
+  await stopRunningImports();
+  const { child, promise } = run({ file: "/a/b.tovu.zip" });
+  child.stdout.write(`${JSON.stringify({ dir: "/d", name: "d", siteId: "i" })}\n`);
+  child.exit(0);
+  await promise;
+  await stopRunningImports();
+  assert.deepEqual(child.killed, []);
+});
+
+test("a child that ignores SIGTERM is killed after the grace period", async () => {
+  const { child, promise } = run({ file: "/a/b.tovu.zip" });
+  void promise.catch(() => undefined);
+  const stopped = stopRunningImports({}, { graceMs: 5 });
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  assert.deepEqual(child.killed, ["SIGTERM", "SIGKILL"]);
+  child.exit(null);
+  await stopped;
 });

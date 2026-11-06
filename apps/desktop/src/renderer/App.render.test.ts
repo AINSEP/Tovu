@@ -400,10 +400,12 @@ test('App: an old address error does not hide the error of the folder just tried
   assert.match(app.container.querySelector('.onboarding__error')?.textContent ?? '', /That folder is not a Tovu site\./);
 });
 
-test('App: a chosen .tovu.zip opens the new site and shows the toast with the importer\'s notices', async (t) => {
+test('App: a chosen .tovu.zip opens the new site, starts it by itself, and shows the toast with the importer\'s notices', async (t) => {
   const asked: unknown[] = [];
+  const started: string[] = [];
   const app = await renderApp(t, {
     importSiteArchive: async (source: unknown) => { asked.push(source); return { ...site('new', { displayName: 'Portable' }), warnings: ['Plugin kept switched off.'] }; },
+    startSite: async (id: string) => { started.push(id); return site(id, { displayName: 'Portable', status: 'running', port: 4100 }); },
   } as never);
   await app.click(app.byText('Import'));
   await app.click(app.byText('Choose file…'));
@@ -411,6 +413,7 @@ test('App: a chosen .tovu.zip opens the new site and shows the toast with the im
   assert.ok(app.all('[role="tab"]').some((tab) => tab.getAttribute('aria-selected') === 'true' && /Portable/.test(tab.textContent ?? '')), 'the new site opens in its own tab');
   assert.match(app.text(), /New website created: Portable/);
   assert.match(app.text(), /Plugin kept switched off\./);
+  assert.deepEqual(started, ['new'], 'the import starts the site; the person never presses Start site');
 });
 
 test('App: a refused archive says why in plain words, makes no tab and stays on the page', async (t) => {

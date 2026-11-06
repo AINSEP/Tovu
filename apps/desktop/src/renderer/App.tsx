@@ -21,6 +21,7 @@ import { chromeVisibility } from './expanded-mode.js';
 import { mergeAddedSite, useAddSite } from './use-add-site.hooks.js';
 import { useSiteToast } from './use-site-toast.hooks.js';
 import { SiteToast } from './SiteToast.js';
+import { useStartImported } from './use-start-imported.hooks.js';
 import { useImportWebsite } from './use-import-website.hooks.js';
 import { useFindInPage } from './use-find-in-page.hooks.js';
 import { useZoom } from './use-zoom.hooks.js';
@@ -131,13 +132,14 @@ export function App({
   const siteToast = useSiteToast({ lastCreated });
   // The Import page's sources. All end the same way: the new site's tab opens and the page closes.
   const openImported = (id: string, adminPage?: SiteAdminPage) => { openProjectTab(id, { adminPage }); stopImporting(); };
+  const startImported = useStartImported({ applyRecord: applySiteRecord, showToast: siteToast.showToast });
   const { adding, addError, addDetails, addNotice, addSite, addDroppedFolder, clearAddError } = useAddSite({ setProjects }, {
-    onAdded: (added) => { siteToast.announceAdded(added); openImported(added.id); },
+    onAdded: (added) => { siteToast.announceAdded(added); openImported(added.id); startImported(added); },
   });
   const liveImport = useImportWebsite({
     createSite: ({ displayName }) => handleCreate({ displayName, database: { kind: 'sqlite' } }),
     openSite: ({ id, adminPage }) => openImported(id, adminPage),
-    onArchiveImported: (site) => { setProjects((current) => mergeAddedSite(current, site)); siteToast.announceImported(site); openImported(site.id); },
+    onArchiveImported: (site) => { setProjects((current) => mergeAddedSite(current, site)); siteToast.announceImported(site); openImported(site.id); startImported(site); },
   });
 
   const { expanded, toggleExpanded } = useExpanded(showSiteTab);

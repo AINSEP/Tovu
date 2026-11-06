@@ -30,10 +30,15 @@ const BAD_ADDRESS: ImportFailure = {
   details: '',
 };
 
-/** A rejection as the page shows it: the importer's sentence, or the plain one if it names a path. */
+/** The importer's check-failed sentence for a file whose contents no longer match what was exported. */
+const CHANGED_FILE = /size or SHA-256 mismatch/i;
+const DAMAGED_FILE = "That file looks damaged or changed since it was exported. No website was created. Export it again and import the fresh copy.";
+
+/** A rejection as the page shows it: the importer's sentence (plain words for a changed file), or the plain one if it names a path. The importer's own text stays in the details. */
 function importFailure({ error, fallback }: { error: unknown; fallback: string }): ImportFailure {
   const message = humanSiteError({ error, fallback });
-  return { message: HAS_PATH.test(message) ? fallback : message, details: copyableDetails({ error }) };
+  const shown = CHANGED_FILE.test(message) ? DAMAGED_FILE : message;
+  return { message: HAS_PATH.test(shown) ? fallback : shown, details: copyableDetails({ error }) };
 }
 
 /**

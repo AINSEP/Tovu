@@ -43,5 +43,5 @@ export function useSiteToast(
     if (!site.alreadyTracked) setToast({ message: `Website added: ${site.displayName}` });
   }, []);
 
-  return { toast, dismiss, announceImported, announceAdded };
+  return { toast, dismiss, announceImported, announceAdded, showToast: setToast };
 }

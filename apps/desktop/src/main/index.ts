@@ -155,7 +155,7 @@ import { registerSiteIpcHandlers, rescanSites, type ProjectSiteLifecycle } from 
 import { createSiteFolders } from "../site-folders.ts";
 import { discoverDesktopSites, startDesktopSiteDiscovery } from "../site-discovery.ts";
 import { addSitePointer } from "../add-site-pointer.ts";
-import { importSiteArchive } from "../site-archive-import.ts";
+import { importSiteArchive, stopRunningImports } from "../site-archive-import.ts";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { resolveDesktopRoots } from "../packaged-paths.ts";
 import { readWindowBounds, writeWindowBounds } from "../window-bounds-store.ts";
@@ -1075,6 +1075,8 @@ app.on("before-quit", (event) => {
     pendingTeardowns.track({ promise: productState.product.dispose() });
     pendingTeardowns.track({ promise: desktopAgentRuntime.dispose({}) });
     pendingTeardowns.track({ promise: desktopMcpHttp.close({}) });
+    // An import in progress would otherwise finish creating its site after the app is gone.
+    pendingTeardowns.track({ promise: stopRunningImports() });
   }
   // `pendingTeardowns` as well as `openSites` (D-09). A window's `closed` handler removes its entry
   // from `openSites` synchronously and only THEN starts stopping the child, so closing the last

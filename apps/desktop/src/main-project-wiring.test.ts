@@ -132,3 +132,8 @@ test("B2 sleep skips crash telemetry/warnings after preserving exit cleanup", ()
   assert.match(source, /setInterval\([\s\S]*?30_000\)/);
   assert.match(source, /clearInterval\(siteMaintenanceTimer\)/);
 });
+
+test("quitting stops a running archive import inside the awaited quit drain", () => {
+  const quit = source.slice(source.indexOf('app.on("before-quit"'));
+  assert.match(quit, /pendingTeardowns\.track\(\{ promise: stopRunningImports\(\) \}\)/);
+});

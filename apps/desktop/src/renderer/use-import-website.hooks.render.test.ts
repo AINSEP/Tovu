@@ -75,3 +75,16 @@ test('useCopyDetails: shows Copied only when the clipboard took the text', async
   await settle();
   assert.equal(refused.current().copied, false);
 });
+
+test('useImportWebsite: a changed .tovu.zip says it looks damaged and offers a fresh export, with the importer\'s own words in the details', async (t) => {
+  const hook = renderHook(t, () => useImportWebsite(
+    { createSite: async () => undefined, openSite: () => {}, onArchiveImported: () => {} },
+    { getBridge: () => ({ importSiteArchive: async () => { throw new Error("Error invoking remote method 'runner:sites:import-archive': Error: ZIP size or SHA-256 mismatch."); } }) as never },
+  ));
+  await act(async () => { await hook.current().importArchive({ file: '/Users/jo/x.tovu.zip' }); });
+  const failure = hook.current().failure;
+  assert.match(failure?.message ?? '', /damaged or changed/);
+  assert.match(failure?.message ?? '', /Export it again/);
+  assert.doesNotMatch(failure?.message ?? '', /SHA-256/);
+  assert.match(failure?.details ?? '', /ZIP size or SHA-256 mismatch\./);
+});

@@ -39,6 +39,8 @@ export async function runImportLocalCommand(
     backend?: SiteImportBackend;
     mintOwnerPassword?: () => string;
     writeStdout?: (text: string) => void;
+    /** Aborts the import; the backend then removes its stage and any half-made site, as for any failure. */
+    signal?: AbortSignal;
   } = {},
 ): Promise<ImportLocalResult> {
   const text = await readPromptFromFlags({ flags: { "prompt-file": "-" } }, { maxBytes: 16 * 1024, readStdin: optional.readRequest });
@@ -48,14 +50,26 @@ export async function runImportLocalCommand(
     // The desktop opens the new site's tab itself, which starts it.
     startSite: async () => ({ adminUrl: null, status: "stopped" }),
   });
+  const signal = optional.signal ?? terminationSignal();
   const done = await inPlainWords(async () => {
     const source = await resolveSource({ request, backend });
-    const staged = await backend.importBackup({ principalId: LOCAL_PRINCIPAL, source, ...(request.displayName ? { displayName: request.displayName } : {}) });
-    return backend.completeOwner({ principalId: LOCAL_PRINCIPAL, importId: staged.importId, adminPassword: (optional.mintOwnerPassword ?? mintOwnerPassword)() });
+    const staged = await backend.importBackup({ principalId: LOCAL_PRINCIPAL, source, ...(request.displayName ? { displayName: request.displayName } : {}) }, { signal });
+    return backend.completeOwner({ principalId: LOCAL_PRINCIPAL, importId: staged.importId, adminPassword: (optional.mintOwnerPassword ?? mintOwnerPassword)() }, { signal });
   });
   const result = localResult({ view: done, home: workspace.home({}) });
   (optional.writeStdout ?? ((line: string) => process.stdout.write(line)))(`${JSON.stringify(result)}\n`);
   return result;
+}
+
+/**
+ * Aborts when the desktop app quits and asks this process to stop. The backend's own failure path
+ * then discards the stage and the half-made site, so quitting leaves nothing behind. Without this
+ * handler SIGTERM would end the process mid-write and leave that partial site on disk.
+ */
+function terminationSignal(): AbortSignal {
+  const stop = new AbortController();
+  process.once("SIGTERM", () => stop.abort(new ValidationError("The import was stopped. No website was created.")));
+  return stop.signal;
 }
 
 /**

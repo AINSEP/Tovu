@@ -26,6 +26,31 @@ interface ImportChild {
 }
 type ImportSpawn = (command: string, args: string[], options: { env: NodeJS.ProcessEnv; stdio: ["pipe", "pipe", "pipe"] }) => ImportChild;
 
+/** Imports running right now, so quitting can stop them. Each settles after its child has exited. */
+const running = new Map<ImportChild, Promise<void>>();
+/** How long a child gets to remove its partial site after SIGTERM before it is killed. */
+const STOP_GRACE_MS = 5_000;
+
+const stopRequests = new WeakMap<ImportChild, () => void>();
+const QUIT_MESSAGE = "The import was stopped because Tovu was closing. No website was created. Open Tovu and import again.";
+
+/**
+ * Quitting: asks every running import to stop (the child removes the partial site the way any
+ * failed import does), waits for each to exit, and kills one that has not after the grace period.
+ * @complexity O(running imports), at most one per app.
+ */
+export async function stopRunningImports(
+  _required: Record<string, never> = {},
+  { graceMs = STOP_GRACE_MS }: { graceMs?: number } = {},
+): Promise<void> {
+  await Promise.all([...running].map(async ([child, exited]) => {
+    stopRequests.get(child)?.();
+    child.kill("SIGTERM");
+    const timer = setTimeout(() => child.kill("SIGKILL"), graceMs);
+    try { await exited; } finally { clearTimeout(timer); }
+  }));
+}
+
 const keepTail = ({ text }: { text: string }) => (text.length > MAX_OUTPUT_CHARS ? text.slice(-MAX_OUTPUT_CHARS) : text);
 
 /**
@@ -48,15 +73,20 @@ export function importSiteArchive(
   child.stdin?.on("error", () => { /* A child that exits early reports through its exit code below. */ });
   child.stdin?.end(JSON.stringify(source));
   return new Promise((resolve, reject) => {
-    let stdout = "", stderr = "", timedOut = false;
+    let stdout = "", stderr = "", timedOut = false, quitting = false;
+    let exited!: () => void;
+    running.set(child, new Promise<void>((done) => { exited = done; }).then(() => { running.delete(child); }));
+    stopRequests.set(child, () => { quitting = true; });
     const timer = setTimeout(() => { timedOut = true; child.kill("SIGTERM"); }, timeoutMs);
     child.stdout.setEncoding("utf8");
     child.stderr.setEncoding("utf8");
     child.stdout.on("data", (chunk: string) => { stdout = keepTail({ text: stdout + chunk }); });
     child.stderr.on("data", (chunk: string) => { stderr = keepTail({ text: stderr + chunk }); });
-    child.once("error", (error) => { clearTimeout(timer); reject(error); });
+    child.once("error", (error) => { clearTimeout(timer); exited(); reject(error); });
     child.once("exit", (code) => {
       clearTimeout(timer);
+      exited();
+      if (quitting) { reject(new Error(QUIT_MESSAGE)); return; }
       // A throw here would escape the event emitter and leave this promise pending forever.
       if (code === 0) { try { resolve(parseResult({ stdout })); } catch (error) { reject(error); } return; }
       reject(new Error(failureMessage({ stderr, code, timedOut })));

@@ -4,6 +4,9 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { importFixture, OWNER_PASSWORD } from "../../../features/site-backup/__tests__/import.fixture.js";
+import { leaveSavedKeysOut } from "../../../features/site-backup/saved-keys.js";
+import type { SiteImportBackend } from "../../../features/site-backup/import-backend.js";
+import { composeSiteImportBackend } from "../../../server/runtime/composition/site-import-backend.js";
 import { runImportLocalCommand } from "../../commands/import-local.js";
 
 const stagedLeftovers = (root: string) => {
@@ -90,5 +93,19 @@ test("a loopback https share link is refused by the guarded client, and nothing 
   const h = await importFixture(t);
   await assert.rejects(runImportLocalCommand({}, { workspace: h.workspace, readRequest: async () => JSON.stringify({ url: "https://127.0.0.1:9/a.tovu.zip" }), writeStdout: () => {} }));
   assert.deepEqual(h.workspace.registry({}).list({}), []);
+  assert.deepEqual(stagedLeftovers(h.root), []);
+});
+
+test("stopping the import (the app quitting) after the archive is staged creates no site and keeps no staged copy", async t => {
+  const h = await importFixture(t);
+  const file = path.join(h.root, "portable.tovu.zip");
+  fs.writeFileSync(file, h.archive);
+  const stop = new AbortController();
+  const real = composeSiteImportBackend({ workspaceId: "local", workspace: h.workspace, savedKeys: { restore: leaveSavedKeysOut }, startSite: async () => ({ adminUrl: null, status: "stopped" }) });
+  // The app quits right after verification, before the site is made.
+  const backend: SiteImportBackend = { ...real, importBackup: async (required, options) => { const view = await real.importBackup(required, options); stop.abort(); return view; } };
+  await assert.rejects(runImportLocalCommand({}, { workspace: h.workspace, backend, signal: stop.signal, readRequest: async () => JSON.stringify({ file }), writeStdout: () => {} }));
+  assert.deepEqual(h.workspace.registry({}).list({}), []);
+  assert.deepEqual(fs.readdirSync(path.join(h.root, "sites")).filter(name => !name.startsWith(".")), []);
   assert.deepEqual(stagedLeftovers(h.root), []);
 });
