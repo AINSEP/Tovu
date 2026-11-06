@@ -1361,8 +1361,8 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 .boot-screen { display: grid; place-items: center; height: 100vh; font-size: 1.1rem; color: var(--muted); }
 
 /* Login */
-.login-screen { display: grid; place-items: center; align-content: center; gap: var(--space-4); min-height: 100vh; box-sizing: border-box; background: var(--surface-2); }
-.login-card { background: var(--surface); padding: 2.5rem; border: 1px solid var(--border); border-radius: var(--r-lg); width: 22rem; display: flex; flex-direction: column; gap: 0.9rem; box-shadow: var(--shadow-md); }
+.login-screen { display: grid; place-items: center; align-content: center; gap: var(--space-4); min-height: 100vh; box-sizing: border-box; padding: var(--space-3); background: var(--surface-2); }
+.login-card { background: var(--surface); padding: 2.5rem; border: 1px solid var(--border); border-radius: var(--r-lg); width: min(22rem, 100%); box-sizing: border-box; display: flex; flex-direction: column; gap: 0.9rem; box-shadow: var(--shadow-md); }
 .login-card h1 { margin: 0; font-family: var(--font-display); font-size: 1.8rem; letter-spacing: -0.01em; }
 .login-card p { margin: 0; color: var(--muted); }
 /* Unified onto `.field-label`'s metrics (uppercase/letterspaced/muted/11px) — was its own
