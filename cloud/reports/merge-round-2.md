@@ -15,7 +15,7 @@ Software Architect, Programmer and TDD instructions loaded from the plans branch
 | cloud/forms-left | 64aae82d7683805c29dbb07aeb08e06f96d3bbdb | Merged: report says complete; real merge commit. |
 | cloud/consent-declare | 4ac832ba984c4ea7f9f9b161d3acf4b2f6ce6f79 | Merged: report says complete; real merge commit. |
 | cloud/forms-privacy | acf22f88dbb16d844ceef057227e7c05d07b313f | Merged after refreshed report declared implementation complete; no textual conflicts. |
-| cloud/one-card | 7bdedf61594642f9461074e686c4ad1191c2e88b | Merged: bounded implementation reported complete with open items; no textual conflicts. |
+| cloud/one-card | 7bdedf61594642f9461074e686c4ad1191c2e88b | Merged: bounded implementation reported complete with documented open items; no textual conflicts. |
 
 No textual merge conflicts. All branch reports retained. No conflict-targeted tests apply so far; full suites are not run.
 
@@ -75,3 +75,7 @@ forms-privacy became implementation-complete during verification and was merged 
 one-card now reports its bounded implementation and focused verification complete. The report preserves deliberate exclusions, two large-card migrations, uncached source limitations, unpublished package adoption and reproduced baseline findings. Tovu merged it cleanly; Jini will merge it after the active seven-branch check completes. The final verification will cover all eight requested branches.
 
 Seven-branch clean no-dist recursive build and all four Tovu typechecks passed. The final-clean catalog regeneration matches the committed catalog exactly. Existing source/packed guards passed on the first six branches; the seven-branch packed guard and Jini typecheck are completing.
+
+## All eight branches integrated
+
+All eight requested branch pairs are now merged in the specified order, each after its report declared the bounded implementation complete. None were left out. forms-privacy and one-card were initially not ready, then completed during this job. Every merge was textual-conflict-free; no conflict tests or application-code corrections were needed. The final eight-branch source is building in both the working checkout and a third independent clone with no existing dist. All required builds, typechecks and plugin guards passed for the seven-branch checkpoint before one-card was merged. Final eight-branch checks are in progress.
