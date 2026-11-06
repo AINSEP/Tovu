@@ -58,6 +58,8 @@ interface LastWindowQuitPorts<W> {
 interface LastWindowQuitPrompt<W> {
   /** Count this window as open and ask before it closes last. Only app windows belong here. */
   watch(required: { window: W }): void;
+  /** How many app windows are open. Capture windows are not counted, so a Dock click can reopen the app while one exists. */
+  openCount(): number;
   /** A quit has started: dismiss an open box, and never ask again. Idempotent. */
   onQuitStarted(): void;
 }
@@ -152,6 +154,7 @@ function createLastWindowQuitPrompt<W extends QuitPromptWindow>(
   }
 
   return {
+    openCount: () => windows.size,
     watch({ window }) {
       windows.add(window);
       window.on("close", (event) => onClose({ window, event }));

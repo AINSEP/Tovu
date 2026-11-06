@@ -513,6 +513,11 @@ function trackAppWindow(window: BrowserWindow): void {
   if (!SELFTEST) lastWindowQuit.watch({ window });
 }
 
+/** App windows for the Dock-click check. `getAllWindows()` also lists hidden capture windows, which would stop a click reopening the app. The self-test does not watch windows, so it keeps the plain count. */
+function appWindowCount(): number {
+  return SELFTEST ? BrowserWindow.getAllWindows().length : lastWindowQuit.openCount();
+}
+
 /** One sandboxed admin window (own-server site or attach mode) — see `app-window.ts`. */
 function createWindow(url: string, title?: string, partition?: string): BrowserWindow {
   return createAppWindow(
@@ -735,7 +740,7 @@ async function bootOwnServerMode(): Promise<void> {
     runSerialized: (siteDir, work) => serializer.run(siteDir, work),
     openSiteWindow: ({ siteDir, ctx: openCtx }, options) => openSiteWindow(siteDir, openCtx, options),
     onActivate: (listener) => { app.on("activate", listener); },
-    windowCount: () => BrowserWindow.getAllWindows().length, quitPhase: () => quitPhase,
+    windowCount: appWindowCount, quitPhase: () => quitPhase,
     openSiteDirs: () => [...openSites.values()].map((entry) => entry.siteDir), promptAndOpenNewSite,
     reportOpenFailure: (error) => dialog.showErrorBox("Tovu could not open that site", error.message) } });
 }
@@ -956,7 +961,7 @@ function startSitesHomeDiscovery(projectDeps: ProjectDeps): void {
 function singleWindowPorts(openWindow: () => void): SingleWindowPorts {
   return { selftest: SELFTEST, installSelftestTracker: ({ expectedCount }) => { selftestTracker = buildSelftestTracker(expectedCount); },
     openWindow, onActivate: (listener) => { app.on("activate", listener); },
-    windowCount: () => BrowserWindow.getAllWindows().length, quitPhase: () => quitPhase };
+    windowCount: appWindowCount, quitPhase: () => quitPhase };
 }
 
 /** A single fleet tick shares Resources' cache and in-flight read with the UI. Child authority,

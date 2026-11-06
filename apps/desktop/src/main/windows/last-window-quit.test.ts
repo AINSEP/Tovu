@@ -278,3 +278,13 @@ test("main wires the ask to both app window kinds, never a capture window, and t
   const beforeQuit = source.slice(source.indexOf('\napp.on("before-quit", '));
   assert.match(beforeQuit.slice(0, beforeQuit.indexOf("stopSiteLifecycle")), /lastWindowQuit\.onQuitStarted\(\);/, "first, before anything can close a window");
 });
+
+test("openCount counts app windows only, so a hidden capture window cannot keep a Dock click from reopening", () => {
+  const h = harness();
+  const window = fakeWindow();
+  assert.equal(h.prompt.openCount(), 0);
+  h.prompt.watch({ window });
+  assert.equal(h.prompt.openCount(), 1);
+  window.emitClosed();
+  assert.equal(h.prompt.openCount(), 0);
+});
