@@ -161,7 +161,8 @@ test("AC-03/EC-10 (deep, real resource-exhaustion failure): a file-size-limited 
     assert.equal(reported.name, "InternalError");
     assert.match(reported.message, /disk I\/O error|disk.*full|file.*too.*large|SQLITE_FULL|EFBIG|ENOSPC/i);
     const evidence = JSON.parse(fs.readFileSync(evidencePath, "utf8"));
-    assert.deepEqual(evidence.config, { name: "Deep Failure", domain: null, port: null });
+    assert.deepEqual(evidence.config, { name: "Deep Failure", domain: null, port: null,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone });
     assert.equal(evidence.dbHeader, "SQLite format 3\u0000", "a real SQLite database was created before the failure");
 
     assert.equal(fs.existsSync(path.join(target, ".site-meta.json")), false, "INV-02: the commit marker must never exist after any mid-flight failure");
