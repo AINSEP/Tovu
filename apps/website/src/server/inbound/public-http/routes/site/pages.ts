@@ -2939,7 +2939,7 @@ async function serveStaticThemeIndex({ req, res, deps, theme, staticMenus, extra
 export async function serveVirtualPage({ req, res, deps, post }: {
   req: Request; res: Response; deps: RouteDeps; post: PostRecord;
 }): Promise<void> {
-  deps = { ...deps, seoDeps: seoForRequest({ req, deps: deps.seoDeps }) };
+  deps = withListingBatch(deps, req);
   const [activeThemeId, siteAssistantEnabled] = await Promise.all([
     resolveRenderThemeId(res, deps),
     resolveSiteAssistantWidgetForRequest({ request: req, deps }),

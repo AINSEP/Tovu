@@ -13,6 +13,7 @@ import { MEMBER_SESSION_COOKIE } from "../../members/complete-sign-in.js";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import { loadTheme } from "#src/features/theme/index";
 import { createSeoPostPort } from "#src/features/seo/index";
+import { SITE_CONSENT_DEFAULTS } from "#src/features/consent/config";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import type { RouteDeps } from "#src/server/routes/types";
 import { MEMBER_PAGES, memberPagePost, registerMemberPageRoutes } from "../member-pages.js";
@@ -25,6 +26,7 @@ import { MEMBER_PAGES, memberPagePost, registerMemberPageRoutes } from "../membe
  */
 
 const starter = loadTheme({ themeDir: path.resolve("content/themes/static/tovu-starter"), id: "tovu-starter", source: "built-in" });
+const managed = loadTheme({ themeDir: path.resolve("content/themes/templated/storefront"), id: "storefront", source: "built-in" });
 const marketing = loadTheme({ themeDir: path.resolve("content/themes/static/tovu-theme"), id: "tovu-theme", source: "built-in" });
 
 const memberToken = "member-page-session";
@@ -45,6 +47,7 @@ async function startServer(overrides: Partial<ReturnType<typeof createRouteDeps>
   const deps = { ...createRouteDeps(), ...overrides };
   deps.seoDeps = { ...deps.seoDeps, postRepo: createSeoPostPort({ postRepo: deps.postRepo }, {}) };
   const server = createServer(createApp(deps));
+  await deps.cookieConsent?.refresh?.();
   server.listen(0);
   await once(server, "listening");
   return { server, baseUrl: `http://127.0.0.1:${(server.address() as AddressInfo).port}` };
@@ -96,6 +99,42 @@ for (const theme of [starter, marketing]) {
       assert.match(html, /<\/footer>[\s\S]*<script data-tovu-member-auth>/, `${route}: wrapped in the theme's own chrome`);
     }
   });
+}
+
+/** Published settings exercise the real construction hook, independently of author drafts. */
+function consentOverrides(enabled: boolean): Partial<RouteDeps> {
+  return {
+    cookieConsent: { regionResolvers: async () => [] }, siteConsentReady: Promise.resolve(),
+    consentStore: { readPublished: async () => ({ id: "member-page-policy", actorId: "fixture", createdAt: "2026-11-06",
+      config: { ...SITE_CONSENT_DEFAULTS, enabled, privacyPolicyUrl: "/privacy" } }) } as RouteDeps["consentStore"],
+  };
+}
+
+for (const { theme, enabled } of [
+  { theme: starter, enabled: true }, { theme: starter, enabled: false },
+  { theme: managed, enabled: true }, { theme: managed, enabled: false },
+]) {
+    test(`member pages in ${theme.manifest.tier} theme construct consent assets when enabled=${enabled}`, async (t) => {
+      assert.equal(theme.status, "valid", JSON.stringify(theme.errors));
+      const { server, baseUrl } = await startServer({ ...authenticatedDeps(), ...consentOverrides(enabled),
+        themes: [theme], postRepo: new InMemoryPostRepo([]) });
+      t.after(() => closeServer(server));
+      for (const route of ["/signin", "/forgot-password", "/reset-password", "/account"]) {
+        const response = await fetch(`${baseUrl}${route}`, { headers: route === "/account" ? { cookie: memberCookie } : {} });
+        assert.equal(response.status, 200, route);
+        const html = await response.text();
+        if (enabled) assert.match(html, theme.manifest.tier === "static" ? /data-jini-consent-loader/ : /id="jini-consent"/, route);
+        else assert.doesNotMatch(html, /data-jini-consent-loader|id="jini-consent"|\/_consent\//, route);
+      }
+      if (!enabled) {
+        for (const route of ["/", "/missing-page"]) {
+          const html = await (await fetch(`${baseUrl}${route}`)).text();
+          assert.doesNotMatch(html, /data-jini-consent-loader|id="jini-consent"/, route);
+        }
+      }
+      const context = await (await fetch(`${baseUrl}/_consent/context`)).json() as { enabled: boolean };
+      assert.equal(context.enabled, enabled, "page construction and public context share the same switch");
+    });
 }
 
 test("signed-out GET /account redirects to sign-in with a fixed local return path, before rendering", async (t) => {

@@ -33,7 +33,7 @@ async function fixture(enabled: boolean, scriptDeclarations?: import('#src/contr
   await once(server, 'listening');
   const address = server.address() as { port: number };
   reads = regionReads = 0;
-  return { deps, page, url: `http://127.0.0.1:${address.port}`, counts: () => ({ reads, regionReads, draftReads }), close: () => new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve())) };
+  return { app, deps, page, url: `http://127.0.0.1:${address.port}`, counts: () => ({ reads, regionReads, draftReads }), close: () => new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve())) };
 }
 
 test('consent middleware leaves page bytes and shared-cache response untouched', async () => {
@@ -524,5 +524,27 @@ test('a failed active-theme read returns plain words from the loader without lea
     const body = await response.text();
     assert.match(body, /Cookie preferences could not be loaded/);
     assert.doesNotMatch(body, /private-theme-path/);
+  } finally { await f.close(); }
+});
+
+
+test('an older authored consent loader remains harmless when consent is disabled', async () => {
+  const f = await fixture(false);
+  const page = '<html><head><script src="/_consent/load.js" defer data-jini-consent-loader></script></head><body>Older theme</body></html>';
+  f.app.get('/older-theme', (_req, res) => res.type('html').send(page));
+  try {
+    assert.equal(await (await fetch(`${f.url}/older-theme`)).text(), page, 'authored documents are not rewritten');
+    const context = await (await fetch(`${f.url}/_consent/context`)).json() as { enabled: boolean };
+    assert.equal(context.enabled, false);
+    const response = await fetch(`${f.url}/_consent/load.js`);
+    assert.equal(response.status, 200);
+    const { JSDOM } = await import('jsdom');
+    const dom = new JSDOM(page, { url: f.url, runScripts: 'outside-only' });
+    try {
+      dom.window.eval(await response.text());
+      assert.equal(dom.window.document.getElementById('jini-consent'), null);
+      assert.equal(dom.window.document.getElementById('jini-consent-config'), null);
+      assert.equal(dom.window.document.querySelectorAll('script').length, 1, 'the old tag loads no consent runtime');
+    } finally { dom.window.close(); }
   } finally { await f.close(); }
 });
