@@ -11,7 +11,6 @@ import { assistantDaemonToken, delegatedAssistantDaemonConnection, type Assistan
  * and native approval memory keyed to the daemon's conversation.
  */
 import { registerAgentDaemonCoreRoutes } from "./agent-daemon-core-rpc.js";
-import { readFile } from "node:fs/promises";
 import { basename, dirname } from "node:path";
 import { openFsFileForRead } from "#src/features/fs-files/fs-files";
 import { json, type Response } from "express";
@@ -258,19 +257,19 @@ export function buildDaemonAttachmentTools(
   { getLookup = defaultDaemonAttachmentLookup }: { getLookup?: () => AttachmentLookup | undefined } = {},
 ): ToolRegistration[] {
   const getStore = (): AttachmentLookup | undefined => (readDaemonCallContext() ? getLookup() : undefined);
+  // The daemon checked the issued path's run and integrity. Reuse the bounded stream reader
+  // for both Library and media so growth after stat cannot trigger an unbounded allocation.
+  const readAttachmentFile = (path: string): Promise<Uint8Array> =>
+    openFsFileForRead({ rootPath: dirname(path), relativePath: basename(path), maxBytes: MAX_DOCUMENT_BYTES });
   const tools: ToolRegistration[] = [
     buildLibrarySaveAttachmentTool({
       deps, getStore, getMessageAttachmentRefs: messageAttachmentRefs, archiveReader: createDocumentArchiveReader({}),
-      readFile: async (path) => {
-        // The daemon checked the issued path's run and integrity. Reuse the bounded stream reader
-        // so a file growing after stat cannot trigger an unbounded allocation; unsaved files stay temporary.
-        return openFsFileForRead({ rootPath: dirname(path), relativePath: basename(path), maxBytes: MAX_DOCUMENT_BYTES });
-      },
+      readFile: readAttachmentFile,
     }),
     buildListPendingChatAttachmentsTool({ getStore, getMessageAttachmentRefs: messageAttachmentRefs }),
   ];
   const mediaUpload = registrations.find((registration) => registration.descriptor.id === "media_upload_asset");
-  if (mediaUpload) tools.push(buildPromoteChatAttachmentTool({ getStore, mediaUploadHandler: mediaUpload.handler, readFile }));
+  if (mediaUpload) tools.push(buildPromoteChatAttachmentTool({ getStore, mediaUploadHandler: mediaUpload.handler, readFile: readAttachmentFile }));
   return tools;
 }
 
