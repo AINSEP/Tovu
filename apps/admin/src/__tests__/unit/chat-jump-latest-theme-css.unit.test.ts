@@ -35,4 +35,10 @@ describe("dock Jump to latest placement", () => {
     expect(jump).toContain("bottom: calc(var(--jini-chat-controls-height, 240px) + 14px - 16px);");
     expect(jump).toContain("z-index: 5;");
   });
+
+  it("leaves the right edge at phone width while a message is queued, so it never covers Cancel", () => {
+    // Cancel sits at the bubble's right edge, right where the button floats (seen at 390 px).
+    const phone = /@media \(max-width: 640px\) \{\s*\.admin-chat-dock \.jini-chat-pane:has\(\.jini-chat-pane__queued\) \.jini-message-list__jump \{\s*left: 26px;\s*right: auto;\s*\}\s*\}/;
+    expect(assistantStyles).toMatch(phone);
+  });
 });

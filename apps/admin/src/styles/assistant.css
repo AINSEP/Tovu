@@ -180,6 +180,14 @@
   padding-right: 0;
   z-index: 5;
 }
+/* A queued message's Cancel sits at the bubble's right edge, right where the button floats, and at
+   phone width that covered it. The left edge is free while a message waits. */
+@media (max-width: 640px) {
+  .admin-chat-dock .jini-chat-pane:has(.jini-chat-pane__queued) .jini-message-list__jump {
+    left: 26px;
+    right: auto;
+  }
+}
 /* Owner 2026-10-22: the centred "Jump to latest" pill covered what they were reading. It is an
    icon-only round button at the right edge instead; the label text stays in the DOM (font-size 0)
    so it is still the button's accessible name. */
