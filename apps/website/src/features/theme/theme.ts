@@ -1,3 +1,5 @@
+import { validateScripts } from '@jini-ai/cookie-consent/policy';
+import type { DeclaredScript } from '@jini-ai/cookie-consent';
 import { DEFAULT_THEME_SLOTS, type ThemeSlotDescriptor } from "../../contracts/core/theme-slots.js";
 import { type TemplateNode, type ThemeManifest, type ThemeBuildInfo, type ThemeTier } from "./render-contract.js";
 export type { TemplateNode, ThemeManifest, ThemeBuildInfo, ThemeTier } from "./render-contract.js";
@@ -562,6 +564,7 @@ function parseRawManifestFields(raw: Readonly<JsonObject>, id: string): ThemeMan
     description: parseOptionalString(raw.description),
     fonts: parseOptionalStringArray(raw.fonts),
     fontStylesheets: parseOptionalStringArray(raw.fontStylesheets),
+    scripts: resolveThemeScripts({ manifest: { id: resolvedId, scripts: validateScripts({ scripts: raw.scripts }).scripts } }),
     regions: parseOptionalStringArray(raw.regions),
     // Publisher-authored flags must never disable template lint: the allowlist is the boundary
     // between authored templates and the worker. Liquid and Handlebars both enforce it;
@@ -652,7 +655,7 @@ function parseThemeManifest(themeDir: string, id: string): { manifest: ThemeMani
     const raw = readJson(join(themeDir, "theme.json"));
     if (!isObject(raw)) throw new Error("theme.json is not an object");
     const manifest = parseRawManifestFields(raw, id);
-    return { manifest, errors: validateManifestCrossFields(manifest, id) };
+    return { manifest, errors: [...validateManifestCrossFields(manifest, id), ...validateScripts({ scripts: raw.scripts }).problems] };
   } catch (err) {
     return { manifest: emptyThemeManifest(id), errors: [`theme.json: ${(err as Error).message}`] };
   }
@@ -1161,3 +1164,17 @@ export function findStoredTheme(required: { themes: DiscoveredTheme[]; id: strin
 }
 
 export { resolveTemplateId, resolveLiquidTemplateId, resolveHandlebarsTemplateId } from "./render-contract.js";
+
+
+/** Resolve authored ./ and ../ asset declarations against the theme's public asset directory.
+ * Absolute site and HTTP(S) URLs remain explicit. O(script count + URL bytes); no page/body reads. */
+export function resolveThemeScripts({ manifest }: { manifest: Pick<ThemeManifest, 'id' | 'scripts'> }, _optional = {}): DeclaredScript[] {
+  const prefix = `/theme-assets/${encodeURIComponent(manifest.id)}/`;
+  return (manifest.scripts ?? []).map(script => {
+    if (!script.src.startsWith('.')) return script;
+    const relative = script.src.replace(/^(?:\.\.?\/)+/, '');
+    const url = new URL(prefix + relative, 'https://theme.invalid');
+    if (!url.pathname.startsWith(prefix)) throw new Error('Theme script must stay inside its asset directory.');
+    return { ...script, src: url.pathname + url.search + url.hash };
+  });
+}

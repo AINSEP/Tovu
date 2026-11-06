@@ -1,17 +1,21 @@
 /** @file Shared site consent use cases for HTTP and assistant adapters. */
-import type { ConsentConfig } from '@jini-ai/cms/consent';
-import type { ConsentReceiptStorageHealth } from '@jini-ai/cms/consent/node';
+import type { ConsentConfig } from '@jini-ai/cookie-consent';
+import type { ConsentReceiptStorageHealth } from '@jini-ai/cookie-consent/node';
 import { adaptLegacyAuthorize, requireToolPermission } from '@jini-ai/cms/core';
 import { ToolInputError } from '@jini-ai/core';
 import type { AuthorizeFn } from '#src/contracts/core/commands/index';
 import type { SiteConsentState, SiteConsentStore } from './revisions.js';
 import { SiteConsentConflict } from './revisions.js';
 import { consentConfigProblems, parseConsentConfig, type ConsentProblem } from './validation.js';
-import { CONSENT_CATEGORIES, CONSENT_MAX_AGE_MS, CONSENT_MAX_CSS_LENGTH, CONSENT_CSS_SELECTORS } from '@jini-ai/cms/consent';
+import { CATEGORIES as CONSENT_CATEGORIES } from '@jini-ai/cookie-consent';
+import { DEFAULT_MAX_AGE_MS as CONSENT_MAX_AGE_MS } from '@jini-ai/cookie-consent/policy';
+import { CONSENT_MAX_CSS_LENGTH } from '@jini-ai/cookie-consent/render';
 import { SITE_CONSENT_BANNER_MODES, SITE_CONSENT_DEFAULT_CSS, SITE_CONSENT_DEFAULTS, SITE_CONSENT_PLACEMENTS, SITE_CONSENT_TEXT_LIMITS, withSiteConsentDefaultCss } from './config.js';
 import { consentPagePath } from './request.js';
-import { consentDryRun, type ConsentDryRunGate } from './readiness.js';
+import { consentDeclarationReadiness, type ConsentDeclarationEvidence } from './readiness.js';
 import { renderSiteConsentPreview } from './cookie-consent.js';
+
+const CONSENT_CSS_SELECTORS = ['#jini-consent', '.jini-consent', '.jini-consent-reopen'];
 
 export interface ConsentServicePorts {
   workspaceId: string;
@@ -28,11 +32,21 @@ export interface ConsentServicePorts {
   renderPage(required: { path: string }, optional?: Record<string, never>): Promise<{ html: string; ok: boolean; truncated: boolean }>;
   /** Inspect the live receipt backend without saving a visitor choice; errors block readiness. */
   receiptStorage(required: Record<string, never>, optional?: Record<string, never>): Promise<ConsentReceiptStorageHealth>;
-  /** The engine consent gate used by dry runs; omitted means the real `gateConsentHtml`. */
-  consentGate?: ConsentDryRunGate;
-  /** Set when `@jini-ai/cookie-consent` serves the site: banner modes are editable, a bad CSS rule is
-   * dropped alone instead of blocking, and static exports carry the banner. P4 coexistence keeps this opt-in until the legacy engine is retired. */
-  cookieConsent?: boolean;
+  /** Admin-only evidence from the active source declarations and document construction capability. */
+  declarationEvidence?(required: { path: string }, optional?: object): Promise<ConsentDeclarationEvidence>;
+  /** Refresh construction-time publication after the durable store has committed. */
+  published?(): Promise<void>;
+}
+
+/** Missing declaration collection is failed evidence, never an empty protected source list. */
+async function declarationDiagnostics({ ports, path, html }: { ports: ConsentServicePorts; path: string; html: string }) {
+  if (!ports.declarationEvidence) return {
+    declarations: [], warnings: [], truncated: false,
+    categories: CONSENT_CATEGORIES.map(id => ({ id, required: id === 'necessary', editable: false })),
+    problems: [{ code: 'DECLARATIONS_UNAVAILABLE', message: 'Script declarations could not be collected. Readiness cannot be established.' }],
+  };
+  const evidence = await ports.declarationEvidence({ path });
+  return consentDeclarationReadiness({ html, ...evidence });
 }
 
 /** Unsaved input takes precedence over the draft, then the effective published/legacy policy.
@@ -41,7 +55,7 @@ function sampleConsentConfig({ state, proposed }: { state: SiteConsentState & { 
   return withSiteConsentDefaultCss({ config: parseConsentConfig({ value: proposed === undefined ? state.draft?.config ?? state.effective : proposed }) });
 }
 
-/** Readiness and preview require the same complete bounded page evidence. */
+/** Readiness requires complete bounded page evidence; banner preview is independent. */
 function isCompleteConsentPage({ page }: { page: { ok: boolean; truncated: boolean } }, _options = {}): boolean {
   return page.ok && !page.truncated;
 }
@@ -84,13 +98,13 @@ export function createSiteConsentService({ ports }: { ports: ConsentServicePorts
     return { ...state, draft, effective: withSiteConsentDefaultCss({ config: parseConsentConfig({ value: state.published?.config ?? legacy }) }), categoriesEditable: false,
       editor: { defaults: { ...SITE_CONSENT_DEFAULTS, customCss: SITE_CONSENT_DEFAULT_CSS }, placements: [...SITE_CONSENT_PLACEMENTS], textLimits: { ...SITE_CONSENT_TEXT_LIMITS },
         maxCssLength: CONSENT_MAX_CSS_LENGTH, cssSelectors: [...CONSENT_CSS_SELECTORS],
-        regionModes: ['opt-in', 'auto'], ...(ports.cookieConsent ? { bannerModes: [...SITE_CONSENT_BANNER_MODES] } : {}),
+        regionModes: ['opt-in', 'auto'], bannerModes: [...SITE_CONSENT_BANNER_MODES],
         categories: CONSENT_CATEGORIES.map(id => ({ id, required: id === 'necessary', editable: false })),
         rules: { gpc: 'always-enforced', preferenceMaxAgeMs: CONSENT_MAX_AGE_MS, staticReceipts: false } } };
   };
   /** Engine validation plus this site's privacy-page linkage; no HTTP fetch to external policies. */
   const problems = async ({ config }: { config: ConsentConfig }, _optional = {}): Promise<ConsentProblem[]> => {
-    const found = consentConfigProblems({ config, trustedRegion: ports.trustedRegion }, { cssBlocks: !ports.cookieConsent });
+    const found = consentConfigProblems({ config, trustedRegion: ports.trustedRegion }, { cssBlocks: false });
     if (config.enabled && config.privacyPolicyUrl && !found.some(problem => problem.field === 'privacyPolicyUrl') && !await ports.privacyPageExists({ url: config.privacyPolicyUrl })) found.push({ code: 'PRIVACY_PAGE_MISSING', field: 'privacyPolicyUrl', message: 'Publish the linked privacy page before enabling consent.' });
     return found;
   };
@@ -107,34 +121,30 @@ export function createSiteConsentService({ ports }: { ports: ConsentServicePorts
     if (!receipts.writable || receipts.count === null) blockingProblems.push({ code: 'RECEIPT_STORAGE_UNAVAILABLE', message: 'Consent receipt storage is unavailable or not writable. Visitor choices cannot be saved reliably.' });
     // `config` came through parseConsentConfig, which refuses a config without a string placement,
     // so no default placement is needed here.
-    const metadata = { receipts, enabled: state.effective.enabled, placement: config.placement, regionMode: config.regionMode, delivery: 'live', staticSupported: false, sampledPaths: [path], sampleOnly: true, blockingProblems };
+    const metadata = { receipts, enabled: state.effective.enabled, placement: config.placement, regionMode: config.regionMode, delivery: 'live', staticSupported: true, sampledPaths: [path], sampleOnly: true, blockingProblems };
     try {
       const page = await ports.renderPage({ path });
       if (!isCompleteConsentPage({ page })) blockingProblems.push({ code: 'PAGE_UNAVAILABLE', message: 'The rendered page is unavailable or exceeds the 1 MB audit limit.' });
-      const dryRun = consentDryRun({ html: page.html, config }, { gate: ports.consentGate });
+      const dryRun = await declarationDiagnostics({ ports, path, html: page.html });
       blockingProblems.push(...dryRun.problems);
-      return { ...metadata, ready: blockingProblems.length === 0, categories: dryRun.categories, detected: dryRun.items, truncated: dryRun.truncated || page.truncated,
+      return { ...metadata, ready: blockingProblems.length === 0, categories: dryRun.categories, declarations: dryRun.declarations, warnings: dryRun.warnings, truncated: dryRun.truncated || page.truncated,
         limitations: ['One server-rendered page sample; dynamic requests, server cookies and legal compliance require separate review.'] };
     } catch {
       blockingProblems.push({ code: 'RENDER_FAILED', message: 'The page could not be rendered safely. Readiness cannot be established.' });
-      return { ...metadata, ready: false, categories: CONSENT_CATEGORIES.map(id => ({ id, required: id === 'necessary', editable: false })), detected: [], truncated: false, limitations: ['Rendered evidence unavailable.'] };
+      return { ...metadata, ready: false, categories: CONSENT_CATEGORIES.map(id => ({ id, required: id === 'necessary', editable: false })), declarations: [], warnings: [], truncated: false, limitations: ['Rendered evidence unavailable.'] };
     }
   };
-  /** Render the real gated page into an inert iframe document for the separate admin UI.
-   * Returned HTML must only be used in a sandbox without scripts, forms or same-origin access.
-   * The cookie-consent renderer also returns dropped-style warnings, separate from blockers. */
+  /** A separate scriptless banner preview; no page content is parsed or represented as protected. */
   const preview = async ({ principalId, path = '/', config: proposed }: { principalId: string; path?: string; config?: unknown }, _optional = {}) => {
     const state = await read({ principalId });
     const config = sampleConsentConfig({ state, proposed });
-    path = consentPagePath({ path });
-    const page = await ports.renderPage({ path });
-    if (!isCompleteConsentPage({ page })) throw new ToolInputError({ message: 'Preview requires one complete rendered page of at most 1 MB.' });
-    const result = consentDryRun({ html: page.html, config }, { gate: ports.consentGate });
-    if (result.gatedHtml === null) throw new ToolInputError({ message: 'The consent engine could not safely render the preview.' });
-    const diagnostics = ports.cookieConsent ? { warnings: renderSiteConsentPreview({ config, policy: config.policyVersion }).problems.map(problem => ({ ...problem, field: 'appearance' })) } : {};
-    return { html: result.gatedHtml, blockingProblems: [...await problems({ config }), ...result.problems], ...diagnostics, sandbox: '', revisionId: state.draft?.id ?? state.published?.id ?? null };
+    consentPagePath({ path });
+    const rendered = renderSiteConsentPreview({ config, policy: config.policyVersion });
+    const html = `<!doctype html><html ${rendered.htmlAttrs}><head><meta charset="utf-8">${rendered.head}</head><body>${rendered.body}</body></html>`;
+    const diagnostics = { warnings: rendered.problems.map(problem => ({ ...problem, field: 'appearance' })) };
+    return { html, blockingProblems: await problems({ config }), ...diagnostics, sandbox: '', revisionId: state.draft?.id ?? state.published?.id ?? null };
   };
-  /** Append an immutable draft; the legacy engine blocks invalid CSS, cookie-consent drops it. */
+  /** Append an immutable draft; invalid CSS rules are diagnosed and dropped by the preview compiler. */
   const saveDraft = async ({ principalId, config: value, expectedDraftId }: { principalId: string; config: unknown; expectedDraftId: string | null }, _optional = {}) => {
     const store = await authorize({ principalId, write: true });
     const config = parseConsentConfig({ value });
@@ -152,17 +162,16 @@ export function createSiteConsentService({ ports }: { ports: ConsentServicePorts
     const blockingProblems = await problems({ config });
     if (blockingProblems.length) throw new ToolInputError({ message: blockingProblems.map(problem => problem.message).join(' ') });
     await store.publish({ draftId, expectedPublishedId });
+    await ports.published?.();
     return { published: true, revisionId: draftId };
   };
   const staticDeploymentRefusal = async ({ config }: { config: ConsentConfig }, _options = {}) => {
     const blockingProblems = await problems({ config });
     // The cookie-consent banner works on a static host (choices kept in the browser, labelled so).
-    if (ports.cookieConsent) return blockingProblems.length ? deploymentRefusal({ problems: blockingProblems }) : null;
-    blockingProblems.push({ code: 'STATIC_RECEIPTS_UNAVAILABLE', message: 'Static delivery cannot save consent receipts. Keep the banner on a live server, or explicitly publish with the banner disabled.' });
-    return deploymentRefusal({ problems: blockingProblems });
+    return blockingProblems.length ? deploymentRefusal({ problems: blockingProblems }) : null;
   };
-  /** Static publication has no receipt backend. A choice offers existing settings APIs, never a bypass.
-   * Unknown configuration is blocking; OFF must be explicitly readable before exporting. */
+  /** Static publication uses browser-local evidence, with the same policy and privacy checks.
+   * Unknown configuration remains blocking; explicit OFF remains a readable rollback. */
   const deploymentCheck = async ({ principalId, permission }: { principalId: string; permission: 'system.publish' | 'deployments.publish' }, _optional = {}) => {
     await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: ports.authorize }), principalId, workspaceId: ports.workspaceId, permission }, { entityType: 'site-publish' });
     try {
@@ -170,7 +179,7 @@ export function createSiteConsentService({ ports }: { ports: ConsentServicePorts
       if (!ports.store) throw new Error('Consent store unavailable');
       const state = await ports.store.read({});
       // Default-only consent (no owner choice, nothing published) exports without the banner, as the
-      // export crawl skips it (site-consent.ts isDefaultOnlyConsent); the default is off live too (2026-11-02).
+      // construction slot is empty for that default; the default is off live too (2026-11-02).
       if (!state.published && await ports.defaultOnly({})) return null;
       const effective = state.published?.config ?? await ports.readLegacy({});
       // Explicit OFF remains a rollback even when saved legacy copy exceeds today's editor limits.
@@ -190,7 +199,7 @@ export type SiteConsentService = ReturnType<typeof createSiteConsentService>;
 export function deploymentRefusal({ problems }: { problems: ConsentProblem[] }, _options = {}) {
   return { code: 'CONSENT_REVIEW_REQUIRED', error: 'Review cookie consent before publishing this site.', blockingProblems: problems,
     choices: [
-      { id: 'fix-now', label: 'Fix now', href: '/consent?tab=overview', action: 'Review readiness and use live hosting while consent is enabled.' },
+      { id: 'fix-now', label: 'Fix now', href: '/consent?tab=overview', action: 'Review declarations, the privacy policy and readiness before publishing again.' },
       { id: 'publish-without-banner', label: 'Publish without banner', href: '/consent?tab=rules&intent=publish-without-banner', action: 'Explicitly save enabled:false through PUT consent/settings, POST consent/publish with current revision ids, then retry deployment.', warning: 'This disables the banner and optional-content enforcement on the live site too. Optional scripts may run without a visitor choice.' },
     ] };
 }

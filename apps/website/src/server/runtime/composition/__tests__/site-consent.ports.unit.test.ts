@@ -17,7 +17,7 @@ function tempDir(t: test.TestContext): string {
 }
 
 function portsFor(deps: Record<string, unknown>) {
-  return siteConsentPorts({ deps: { workspaceId: "ws-1", observability: createNoopObservabilityPort({}), ...deps } as never });
+  return siteConsentPorts({ deps: { workspaceId: "ws-1", postRepo: { findBySlug: async () => null }, observability: createNoopObservabilityPort({}), ...deps } as never });
 }
 
 test("readiness uses the required consent gate; region trust follows the configured header", () => {
@@ -29,6 +29,8 @@ test("readiness uses the required consent gate; region trust follows the configu
   assert.equal(ports.trustedRegion, false);
   assert.equal(portsFor({ siteConsentReady, consentTrustedRegionHeader: "x-region" }).trustedRegion, true);
   assert.equal(ports.workspaceId, "ws-1");
+  assert.equal("cookieConsent" in ports, false);
+  assert.equal("cookieConsent" in portsFor({ cookieConsent: {} }), false);
 });
 
 test("receipt storage reports the site's receipt directory health, creating it on first check", async (t) => {
@@ -108,4 +110,68 @@ test('privacy defaults wait for the dependency literal, then bind title, owner, 
   assert.ok(users.every(input => JSON.stringify(input) === JSON.stringify({ workspaceId: 'site-a', principalId: 'owner' })));
   assert.equal((await siteConsentPorts({ deps }).readLegacy({})).privacyPolicyUrl, '/privacy');
   await ensureSiteConsentPrivacy({ deps: Promise.resolve(deps) }); assert.equal(html.length, 1);
+});
+
+test('declaration evidence merges active theme and plugin declarations and preserves refusal diagnostics', async () => {
+  const scripts = [{ src: '/theme-assets/site/stats.js', consent: ['analytics'] }];
+  const ports = portsFor({ themes: [{ status: 'valid', manifest: { id: 'site', tier: 'static', scripts } }],
+    resolveActiveThemeId: async () => 'site',
+    cookieConsent: { scriptDeclarations: async () => ({ scripts: [{ src: '/plugin-menu.js' }], problems: ['Plugin declaration was refused.'] }) } });
+  assert.deepEqual(await ports.declarationEvidence!({ path: '/' }), {
+    scripts: [...scripts, { src: '/plugin-menu.js' }], runtimeSlot: false, problems: ['Plugin declaration was refused.'],
+  });
+});
+
+test('theme-off declarations use the managed shell and publication refresh is forwarded', async () => {
+  let refreshed = 0;
+  const ports = portsFor({ themes: [], resolveActiveThemeId: async () => 'none',
+    cookieConsent: { refresh: async () => { refreshed++; } } });
+  assert.deepEqual(await ports.declarationEvidence!({ path: '/' }), { scripts: [], problems: [], runtimeSlot: true });
+  await ports.published!();
+  assert.equal(refreshed, 1);
+});
+
+test('a full-document published bare Page reports a missing runtime slot with theme off; a fragment remains supported', async () => {
+  const { consentDeclarationReadiness } = await import('#src/features/consent/readiness');
+  let reads = 0;
+  let bodyHtml = '<!doctype html><html><body><iframe src="/frame"></iframe></body></html>';
+  let themeId = 'none';
+  const ports = portsFor({ themes: [{ status: 'valid', manifest: { id: 'static-theme', tier: 'static' } }], resolveActiveThemeId: async () => themeId,
+    postRepo: { findBySlug: async ({ workspaceId, slug }: { workspaceId: string; slug: string }) => {
+      reads++;
+      assert.equal(workspaceId, 'ws-1'); assert.equal(slug, 'full-page');
+      return { id: 'page-1', workspaceId, slug, kind: 'page', status: 'published', templateChoice: '', bodyFormat: 'html', bodyHtml };
+    } },
+  });
+  const full = await ports.declarationEvidence!({ path: '/full-page?view=public' });
+  assert.equal(full.runtimeSlot, false);
+  assert.ok(consentDeclarationReadiness({ html: bodyHtml, ...full }).warnings.some(warning => warning.code === 'MISSING_RUNTIME_SLOT'));
+  bodyHtml = '<iframe src="/frame"></iframe>';
+  assert.equal((await ports.declarationEvidence!({ path: '/full-page' })).runtimeSlot, true);
+  themeId = 'static-theme';
+  assert.equal((await ports.declarationEvidence!({ path: '/full-page' })).runtimeSlot, true, 'bare fragment construction does not depend on theme slots');
+  bodyHtml = '<html><body>Authored full document</body></html>';
+  assert.equal((await ports.declarationEvidence!({ path: '/full-page' })).runtimeSlot, false);
+  assert.equal(reads, 4, 'one published row lookup per admin evidence request');
+});
+
+test('generated routes keep theme eligibility; unavailable entry storage is explicit failed evidence', async () => {
+  const generated = portsFor({ themes: [], resolveActiveThemeId: async () => 'none', postRepo: { findBySlug: async () => null } });
+  assert.deepEqual(await generated.declarationEvidence!({ path: '/' }), { scripts: [], problems: [], runtimeSlot: true });
+  const failed = portsFor({ themes: [], resolveActiveThemeId: async () => 'none', postRepo: { findBySlug: async () => { throw new Error('private repository path'); } } });
+  const result = await failed.declarationEvidence!({ path: '/' });
+  assert.equal(result.runtimeSlot, false);
+  assert.deepEqual(result.problems?.map(problem => typeof problem === 'string' ? problem : problem.code), ['PUBLISHED_ENTRY_UNAVAILABLE']);
+  assert.ok(!JSON.stringify(result).includes('private repository path'));
+  const unavailable = portsFor({ themes: [], resolveActiveThemeId: async () => 'none', postRepo: undefined });
+  assert.equal((await unavailable.declarationEvidence!({ path: '/' })).runtimeSlot, false);
+});
+
+test('an actual published bare Page with unavailable body format never claims a runtime slot', async () => {
+  const ports = portsFor({ themes: [], resolveActiveThemeId: async () => 'none',
+    postRepo: { findBySlug: async () => ({ kind: 'page', status: 'published', templateChoice: '', bodyFormat: 'html', bodyHtml: null }) },
+  });
+  const result = await ports.declarationEvidence!({ path: '/page' });
+  assert.equal(result.runtimeSlot, false);
+  assert.deepEqual(result.problems?.map(problem => typeof problem === 'string' ? problem : problem.code), ['PUBLISHED_PAGE_FORMAT_UNAVAILABLE']);
 });

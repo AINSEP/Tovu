@@ -209,3 +209,18 @@ test("renderBareEntryDocument: doc-format widgets and ref images receive the cal
   assert.ok(html.includes('<img src="/m/asset-1/public.v3/image.jpg" alt="Photo" width="800" height="600" class="rounded" loading="lazy">'));
   assert.doesNotMatch(html, /widget-placeholder|media-placeholder/);
 });
+
+test('managed bare fragments construct generic asset slots without changing their authored body', () => {
+  const body = '<p data-byte-probe="unchanged">€ &amp; stored text</p>';
+  const html = renderBareEntryDocument({ post: htmlPage({ bodyHtml: body }), siteTitle: 'Assets', documentAssets: {
+    head: '<script type="application/json" id="asset-data">{}</script>', body: '<a data-consent-open>Cookie settings</a>',
+  } });
+  assert.ok(html.includes(body));
+  assert.ok(html.indexOf('id="asset-data"') > 0 && html.indexOf('id="asset-data"') < html.indexOf('</head>'));
+  assert.ok(html.includes(body + '<a data-consent-open>Cookie settings</a></body>'));
+});
+
+test('authored full documents stay byte-identical even when a host supplies generic assets', () => {
+  const body = '<!doctype html><html><head><title>Owner</title></head><body>Unchanged</body></html>';
+  assert.equal(renderBareEntryDocument({ post: htmlPage({ bodyHtml: body }), siteTitle: 'Assets', documentAssets: { head: '<meta name="host">', body: '<a data-consent-open>Settings</a>' } }), body);
+});

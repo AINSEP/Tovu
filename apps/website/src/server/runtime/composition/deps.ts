@@ -33,9 +33,7 @@ import { createCommentTargetLookup } from '#src/features/comments/comment-target
 import { ensurePreviewSwitcherSetting, preparePreviewSwitcherWrite } from "#src/features/theme/preview-switcher";
 import { createSiteConsentStore } from '#src/features/consent/revisions.repo';
 import { bindSiteConsentService, ensureSiteConsentPrivacy } from './site-consent.js';
-import { createSiteConsentPorts } from '../../inbound/public-http/middleware/site-consent.js';
-import { bindCookieConsentAnalyticsGate, selectCookieConsent } from './site-cookie-consent.js';
-import { readRequestAnalyticsProof, allowsAnalyticsProof } from '@jini-ai/cms/consent/express';
+import { bindCookieConsentAnalyticsGate, createSiteCookieConsentDeps } from './site-cookie-consent.js';
 import { findExclusionReason } from '@jini-ai/analytics';
 import { resolveClientIp } from '#src/contracts/core/rate-limit/rate-limit';
 import { registerContentAnalytics } from './content-events.js';
@@ -3007,17 +3005,16 @@ function flushLifecycleEvents(
 }
 
 function compositionConsentOptions(
-  { workspaceId, loadContributions }: Parameters<typeof selectCookieConsent>[0],
+  { workspaceId, loadContributions }: Parameters<typeof createSiteCookieConsentDeps>[0],
   { env }: { env: NodeJS.ProcessEnv },
 ) {
   return {
     consentTrustedRegionHeader: env.TOVU_CONSENT_REGION_HEADER?.trim() || undefined,
-    cookieConsent: selectCookieConsent({ workspaceId, loadContributions }),
+    cookieConsent: createSiteCookieConsentDeps({ workspaceId, loadContributions }),
   };
 }
 
 function configureVisitorConsentAnalytics({ routeDeps, workspaceId }: { routeDeps: RouteDeps; workspaceId: string }, _optional = {}): void {
-  const visitorConsentPorts = createSiteConsentPorts({ deps: routeDeps }, { trustedRegionHeader: routeDeps.consentTrustedRegionHeader });
   // Site analytics off, or this visitor excluded (DNT/GPC/IP/host rules), means no visitor capture.
   const analyticsExcluded = async (request: import('express').Request) => {
     const config = await routeDeps.analyticsConfig.get({ workspaceId });
@@ -3025,14 +3022,7 @@ function configureVisitorConsentAnalytics({ routeDeps, workspaceId }: { routeDep
       dnt: request.get('dnt') === '1', gpc: request.get('sec-gpc') === '1' };
     return !config.enabled || Boolean(findExclusionReason({ beacon, ip: resolveClientIp(request), config }));
   };
-  routeDeps.visitorAnalyticsProof = async ({ request }) => {
-    try {
-      if (await analyticsExcluded(request)) return undefined;
-      return readRequestAnalyticsProof({ ports: visitorConsentPorts, request });
-    } catch { return undefined; }
-  };
-  routeDeps.visitorAnalyticsDeliveryAllowed = ({ proof }) => allowsAnalyticsProof({ ports: visitorConsentPorts, proof });
-  if (routeDeps.cookieConsent) bindCookieConsentAnalyticsGate({ deps: routeDeps }, { isExcluded: ({ request }) => analyticsExcluded(request) });
+  bindCookieConsentAnalyticsGate({ deps: routeDeps }, { isExcluded: ({ request }) => analyticsExcluded(request) });
 }
 
 /**

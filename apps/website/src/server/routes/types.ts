@@ -874,8 +874,7 @@ export interface SettingsDeps {
   consentStore?: import('#src/features/consent/revisions').SiteConsentStore;
   siteConsent?: import('#src/features/consent/service').SiteConsentService;
   consentTrustedRegionHeader?: string;
-  /** THE consent-engine switch (TOVU_CONSENT_ENGINE=cookie-consent): present = `@jini-ai/cookie-consent`
-   * serves public pages, absent = the old cms engine. P4 cleanup removes the old engine and this switch. */
+  /** Declared-script consent bindings; absent only in minimal hosts/test compositions. */
   cookieConsent?: import('#src/contracts/headless/index').SiteCookieConsentDeps;
   /** Cookie-consent adapters of the analytics plugins attached to this site (none when no plugin is). */
   consentAdapters?: (required: { base: string }) => readonly import('#src/contracts/headless/index').ConsentPluginContribution[];
@@ -1348,6 +1347,8 @@ export interface TrashDeps {
  * putting them in a sub-interface creates a circular type TypeScript rejects.
  */
 export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps & ContentTaxonomyDeps & CommentsDeps & MembersDeps & DatabaseRecoveryDeps & WebhooksDeps & FormsDeps & PostDeps & PresentationDeps & SettingsDeps & ChangeSetDeps & EventBusDeps & AnalyticsDeps & NavigationDeps & DatabaseOpsDeps & RedirectsDeps & WidgetsDeps & PluginRuntimeDeps & ObservabilityDeps & PublishTrustRevocationDeps & TrashDeps & {
+  documentAssets?: (required: { scripts: readonly import('@jini-ai/cookie-consent').DeclaredScript[] }) => Promise<import('@jini-ai/cms/presentation').DocumentAssets>;
+  declaredScripts?: import('@jini-ai/cookie-consent').DeclaredScript[];
   /** Optional plugin-controlled purchase runtime. Member routes never select a merchant scope. */
   commerce?: import("../runtime/composition/commerce.js").CommerceRuntime;
   /** Bounded public catalog projection; absent while commerce is disabled or unavailable. */

@@ -4,13 +4,17 @@ import { getEffective, set } from '@jini-ai/core/settings';
 import { ensureSitePrivacyDefaults } from '#src/features/consent/ensure-privacy-defaults';
 import { SITE_CONSENT_NAMESPACE } from '#src/features/consent/config';
 import { resolveSiteTitle } from '#src/features/settings/site-title';
-import { readConsentReceiptStorage } from '@jini-ai/cms/consent/node';
+import { readConsentReceiptStorage } from '@jini-ai/cookie-consent/node';
 import { createSiteConsentService } from '#src/features/consent/service';
 import { readSiteConsentAuthoringSettings, resolveSiteConsentActivation } from '#src/features/consent/settings';
 import { fetchPublishedPage, resolveSameOriginPath } from '#src/features/site-inspection/published-page';
 import type { RouteDeps } from '#src/server/routes/types';
 import { CONSENT_RECEIPTS_DIR_NAME, createPrivacyPageCheck } from '../../inbound/public-http/middleware/site-consent.js';
-import { cookieConsentPreviewGate } from '../../inbound/public-http/middleware/site-cookie-consent.js';
+import { findPublishedPostBySlug } from '#src/features/post/post';
+import { isBarePageChoice } from '#src/features/theme/static-render';
+import { isFullHtmlDocument } from '../../inbound/public-http/http/site/bare-page.js';
+import type { ConsentProblem } from '#src/features/consent/validation';
+import { NO_THEME_ID, resolveActiveTheme } from '#src/features/theme/active-theme';
 
 /** Reuse the existing local-render owner (bounded reads, timeout, finally-close, no external URL).
  * @example bindSiteConsentService({ deps })
@@ -27,7 +31,15 @@ export function siteConsentPorts({ deps }: { deps: RouteDeps }, _options = {}): 
     workspaceId: deps.workspaceId, authorize: deps.authorize, store: deps.consentStore,
     ready: deps.siteConsentReady, clock: deps.clock, ids: deps.idGen,
     trustedRegion: Boolean(deps.consentTrustedRegionHeader),
-    ...(deps.cookieConsent ? { cookieConsent: true, consentGate: cookieConsentPreviewGate } : {}),
+    published: async () => { await deps.cookieConsent?.refresh?.(); },
+    declarationEvidence: async ({ path }) => {
+      const theme = resolveActiveTheme(deps, await deps.resolveActiveThemeId());
+      const plugins = await deps.cookieConsent?.scriptDeclarations?.() ?? { scripts: [], problems: [] };
+      const page = await publishedPageSlot({ deps, path });
+      const active = theme && theme !== NO_THEME_ID ? theme : null;
+      return { scripts: [...(active?.manifest.scripts ?? []), ...plugins.scripts], problems: [...plugins.problems, ...page.problems],
+        runtimeSlot: page.slot ?? active?.manifest.tier !== 'static' };
+    },
     readLegacy: async () => readSiteConsentAuthoringSettings({ settingsRepo: deps.settingsRepo, workspaceId: deps.workspaceId }),
     defaultOnly: async () => (await resolveSiteConsentActivation({ settingsRepo: deps.settingsRepo, workspaceId: deps.workspaceId })).source === 'default',
     privacyPageExists: createPrivacyPageCheck({ deps }),
@@ -41,6 +53,24 @@ export function siteConsentPorts({ deps }: { deps: RouteDeps }, _options = {}): 
       return { html: page.body ?? '', ok: page.ok, truncated: page.truncated };
     },
   };
+}
+
+/** Admin inspection only: one published-row lookup; stored full documents keep their authored bytes.
+ * Unavailable repository/format evidence is explicit; a generated route may have no backing entry. */
+async function publishedPageSlot({ deps, path }: { deps: RouteDeps; path: string }): Promise<{ slot: boolean | null; problems: ConsentProblem[] }> {
+  const unavailable = () => ({ slot: false, problems: [{ code: 'PUBLISHED_ENTRY_UNAVAILABLE', message: 'The published entry for this page could not be verified. Runtime loading eligibility is unavailable.' }] });
+  if (!deps.postRepo) return unavailable();
+  const local = resolveSameOriginPath(path, 'http://127.0.0.1');
+  const pathname = new URL(local, 'http://127.0.0.1').pathname;
+  const slug = pathname === '/' ? '/' : decodeURIComponent(pathname.slice(1).replace(/\/$/, ''));
+  let post;
+  try { post = await findPublishedPostBySlug({ deps: { repo: deps.postRepo }, input: { workspaceId: deps.workspaceId, slug } }); }
+  catch { return unavailable(); }
+  if (!post) return { slot: null, problems: [] };
+  if (!isBarePageChoice(post)) return { slot: null, problems: [] };
+  if (post.bodyFormat === 'doc') return { slot: true, problems: [] };
+  if (post.bodyFormat !== 'html' || typeof post.bodyHtml !== 'string') return { slot: false, problems: [{ code: 'PUBLISHED_PAGE_FORMAT_UNAVAILABLE', message: 'The published bare page format could not be verified. Runtime loading eligibility is unavailable.' }] };
+  return { slot: !isFullHtmlDocument(post.bodyHtml), problems: [] };
 }
 
 /** Bind the CMS-only default-content step to the existing settings/content/identity owners.

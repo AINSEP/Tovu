@@ -1,3 +1,6 @@
+import type { DocumentAssets } from '@jini-ai/cms/presentation';
+import type { DeclaredScript } from '@jini-ai/cookie-consent';
+import { renderScriptAssets } from '@jini-ai/cookie-consent/render';
 import { renderFormCollection, type FormCollectionPlan } from "@jini-ai/cms/forms";
 import { formatMoney } from "@jini-ai/commerce/money";
 import type { SiteProduct, SiteRenderContext, MediaAssetRenderMeta } from "./render-context.js";
@@ -3272,6 +3275,7 @@ function removeThemeOwnTitleElement(html: string): string {
  * hardcoded `<title>` is suppressed rather than emitting two competing tags.
  */
 export function pageShell(required: {
+  documentAssets?: DocumentAssets;
   title: string;
   /** `null` when the operator turned the theme off — see {@link RenderSiteRequired.theme}. */
   theme: DiscoveredTheme | null;
@@ -3285,6 +3289,7 @@ export function pageShell(required: {
   siteAssistantEnabled?: SiteChatSelection;
 }, _optional: Record<string, never> = {}): string {
   const { theme, extraHead } = required;
+  const assets = required.documentAssets ?? { head: '', body: '' };
   const foldHasTitle = extraHead?.includes("<title>") ?? false;
   const titleTag = foldHasTitle ? "" : `<title>${escapeHtml(required.title)}</title>`;
   const siteAssistant = siteAssistantMarkup(required.siteAssistantEnabled ?? false);
@@ -3293,9 +3298,7 @@ export function pageShell(required: {
   // synthesised `:root { }` or a `<link>` to no font family would be markup an operator has to work
   // around. `data-theme` in particular is omitted ENTIRELY rather than emitted empty — `[data-theme]`
   // matches `data-theme=""`, so an empty attribute is a selector someone hits by accident.
-  const themeFontLink = theme ? renderThemeFontLinks({ manifest: theme.manifest }) : "";
-  const themeStyle = theme ? `${tokensToCss(theme.tokens)}${theme.css}` : "";
-  const themeAttr = theme ? ` data-theme="${escapeHtml(theme.manifest.id)}"` : "";
+  const { themeFontLink, themeStyle, themeAttr } = shellThemeAssets({ theme });
   const document = `<!doctype html>
 <html lang="en">
 <head>
@@ -3306,10 +3309,12 @@ ${extraHead ?? ""}
 ${themeFontLink}
 <style>${BASE_STYLE}${themeStyle}</style>
 ${siteAssistant.head}
+${assets.head}
 </head>
 <body>
 <div class="site"${themeAttr}>${required.body}</div>
 ${siteAssistant.body}
+${assets.body}
 </body>
 </html>`;
   // Review fix 3a: the same once-per-page default style `finishStaticTierDocument`'s
@@ -3332,6 +3337,9 @@ ${siteAssistant.body}
  *  {@link renderSite}'s own complexity, no change to the accepted call shape (an inline object type
  *  and a structurally-identical named interface are the same type to every existing caller). */
 export interface RenderSiteRequired {
+  renderAssets?: (required: { scripts: readonly DeclaredScript[] }) => Promise<DocumentAssets>;
+  transformBody?: (required: { html: string }) => Promise<string>;
+  scripts?: readonly DeclaredScript[];
   /**
    * The resolved active theme, or `null` when the operator has deliberately turned the theme off
    * (state 3 of the optional-theme feature). `null` is NOT "the theme is broken" — that case still
@@ -3595,7 +3603,7 @@ export async function renderSite(required: RenderSiteRequired): Promise<string> 
   if (theme === null) {
     const title = resolvePageTitle(route, required.post, required.siteTitle);
     const body = fallbackSiteBody(ctx, route);
-    return pageShell({ title, theme, body, extraHead: required.extraHead, siteAssistantEnabled: required.siteAssistantEnabled });
+    return finishManagedDocument({ required, title, body });
   }
 
   const staticHomePage = renderStaticTierHomePage(
@@ -3617,5 +3625,18 @@ export async function renderSite(required: RenderSiteRequired): Promise<string> 
   }
 
   const title = resolvePageTitle(route, required.post, required.siteTitle);
-  return pageShell({ title, theme, body, extraHead: required.extraHead, siteAssistantEnabled: required.siteAssistantEnabled });
+  return finishManagedDocument({ required, title, body });
+}
+
+/** Resolve body contributions before the document slots, so optional comment assets join declarations. */
+async function finishManagedDocument({ required, title, body }: { required: RenderSiteRequired; title: string; body: string }): Promise<string> {
+  const transformed = required.transformBody ? await required.transformBody({ html: body }) : body;
+  const scripts = [...required.theme?.manifest.scripts ?? [], ...required.scripts ?? []];
+  const documentAssets = required.renderAssets ? await required.renderAssets({ scripts }) : { head: renderScriptAssets({ scripts }), body: '' };
+  return pageShell({ title, theme: required.theme, body: transformed, extraHead: required.extraHead, siteAssistantEnabled: required.siteAssistantEnabled, documentAssets });
+}
+
+function shellThemeAssets({ theme }: { theme: DiscoveredTheme | null }) {
+  if (!theme) return { themeFontLink: '', themeStyle: '', themeAttr: '' };
+  return { themeFontLink: renderThemeFontLinks({ manifest: theme.manifest }), themeStyle: `${tokensToCss(theme.tokens)}${theme.css}`, themeAttr: ` data-theme="${escapeHtml(theme.manifest.id)}"` };
 }

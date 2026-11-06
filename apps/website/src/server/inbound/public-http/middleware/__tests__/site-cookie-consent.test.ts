@@ -11,11 +11,11 @@ import express from 'express';
 import { JSDOM } from 'jsdom';
 import { CONSENT_COOKIE, type RegionResolver } from '@jini-ai/cookie-consent';
 import { consentFixture } from '#src/features/consent/__tests__/fixture';
-import type { SiteConsentSource } from '#src/features/consent/cookie-consent';
-import { createRouteDeps } from '#src/server/runtime/composition/app';
+import { renderSiteConsentPreview, type SiteConsentSource } from '#src/features/consent/cookie-consent';
+import type { RouteDeps } from '#src/server/routes/types';
 import { startTestServer } from '#src/server/__tests__/helpers/http-test-server';
 import { bindCookieConsentAnalyticsGate } from '#src/server/runtime/composition/site-cookie-consent';
-import { applySiteCookieConsent, cookieConsentPreviewGate, readSiteVisitorConsent, type ConsentPluginHttp } from '../site-cookie-consent.js';
+import { applySiteCookieConsent, siteConsentDocumentAssets, readSiteVisitorConsent, type ConsentPluginHttp } from '../site-cookie-consent.js';
 import { CONSENT_RECEIPTS_DIR_NAME, CONSENT_SAVE_PROFILE } from '../site-consent.js';
 
 const CLIENT = { src: '/_consent/client-0123456789ab.min.js', body: Buffer.from('/* injected consent client */') };
@@ -30,7 +30,7 @@ async function publicFixture({ t }: { t: TestContext }, { config = {}, resolvers
   await f.service.publish({ principalId: 'owner', draftId: saved.revision.id, expectedPublishedId: null });
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'tovu-cookie-consent-'));
   t.after(() => fs.rm(directory, { recursive: true, force: true }));
-  const deps = createRouteDeps();
+  const deps = { workspaceId: 'ws', siteBinding: { dir: directory } } as unknown as RouteDeps;
   deps.consentStore = f.store;
   deps.siteConsentReady = Promise.resolve();
   deps.siteBinding = { ...deps.siteBinding, dir: directory };
@@ -42,8 +42,13 @@ async function publicFixture({ t }: { t: TestContext }, { config = {}, resolvers
     http: { path: `${base}/fixture`, handle: async input => { calls.push(input); return { status: 200, body: 'plugin response', contentType: 'text/plain', cacheControl: 'public, max-age=60' }; } },
   }];
   const app = express();
-  applySiteCookieConsent({ app, deps, consent: { regionResolvers: async () => resolvers } }, { client: CLIENT });
-  app.get(['/', '/about', '/index.html'], (_req, res) => res.type('html').send(PAGE));
+  deps.cookieConsent = { regionResolvers: async () => resolvers };
+  applySiteCookieConsent({ app, deps, consent: deps.cookieConsent }, { client: CLIENT });
+  await deps.cookieConsent.refresh?.();
+  app.get(['/', '/about', '/index.html'], async (req, res) => {
+    const documentAssets = await siteConsentDocumentAssets({ deps, request: req, scripts: [] });
+    res.type('html').send(`<!doctype html><html><head><title>Site</title>${documentAssets.head}</head><body><main>Site</main><footer>Footer</footer>${documentAssets.body}</body></html>`);
+  });
   app.get('/stream', (_req, res) => { res.type('html'); res.write(PAGE.slice(0, 65)); res.write(PAGE.slice(65, 105)); res.end(PAGE.slice(105)); });
   // Plain Uint8Array chunks (not Buffers), as a piped web stream writes them.
   app.get('/bytes', (_req, res) => { res.type('html'); res.write(new Uint8Array(Buffer.from(PAGE.slice(0, 65)))); res.end(new Uint8Array(Buffer.from(PAGE.slice(65)))); });
@@ -82,9 +87,9 @@ test('client asset serves injected bytes at its immutable URL without page cooki
   assert.equal(response.headers.get('set-cookie'), null);
 });
 
-test('ordinary and streamed public HTML get one banner, config, client and footer link', async t => {
+test('managed document construction emits one banner, config, client and settings link', async t => {
   const f = await publicFixture({ t });
-  for (const page of ['/', '/about', '/index.html', '/stream']) {
+  for (const page of ['/', '/about', '/index.html']) {
     const response = await fetch(f.base + page);
     assert.equal(response.status, 200);
     const dom = new JSDOM(await response.text());
@@ -93,7 +98,7 @@ test('ordinary and streamed public HTML get one banner, config, client and foote
       assert.equal(document.querySelectorAll('#jini-consent').length, 1);
       assert.equal(document.head.querySelectorAll('#jini-consent-config').length, 1);
       assert.equal(document.head.querySelectorAll(`script[src="${CLIENT.src}"]`).length, 1);
-      assert.equal(document.querySelectorAll('footer a[data-consent-open]').length, 1);
+      assert.equal(document.querySelectorAll('a.tovu-consent-settings[data-consent-open]').length, 1);
       const config = JSON.parse(document.querySelector('#jini-consent-config')!.textContent!);
       assert.equal(config.policy, f.policy);
       assert.deepEqual(config.evidence, { mode: 'durable', endpoint: '/_consent' });
@@ -104,7 +109,7 @@ test('ordinary and streamed public HTML get one banner, config, client and foote
   assert.deepEqual(f.calls, [], 'rendering the page must not call a plugin');
 });
 
-test('only live new-engine pages expire the old HttpOnly cookie without adopting its consent', async t => {
+test('only live context requests expire the old HttpOnly cookie without adopting its consent', async t => {
   const f = await publicFixture({ t });
   const legacy = 'jini_consent=old_receipt_0123456789';
   const current = consentCookie({ policy: f.policy, now: f.deps.clock.nowMs() });
@@ -112,7 +117,10 @@ test('only live new-engine pages expire the old HttpOnly cookie without adopting
   assert.equal((await stateFor(legacy)).status, 'pending');
   assert.equal((await stateFor(legacy)).allowed.analytics, false);
   assert.equal((await stateFor(current.replace(CONSENT_COOKIE, 'jini_consent'))).status, 'pending', 'even new-format data under the old name is not consent');
-  const response = await fetch(f.base, { headers: { cookie: legacy } });
+  const page = await fetch(f.base, { headers: { cookie: legacy } });
+  assert.equal(page.headers.get('set-cookie'), null, 'page serving never writes consent cookies');
+  await page.text();
+  const response = await fetch(f.base + '/_consent/context', { headers: { cookie: legacy } });
   assert.match(response.headers.get('set-cookie') ?? '', /jini_consent=; Path=\/; Expires=Thu, 01 Jan 1970.*HttpOnly/);
   await response.text();
   const chosen = await stateFor(`${legacy}; ${current}`);
@@ -212,7 +220,7 @@ for (const scenario of [
   { hint: 'strict' as const, cookie: '', expected: null },
 ]) test(`region ${scenario.hint} changes cookie only as needed (incoming ${scenario.cookie || 'absent'})`, async t => {
   const f = await publicFixture({ t }, { resolvers: [{ id: 'fixture', kind: 'region-resolver', resolve: async () => scenario.hint }] });
-  const response = await fetch(f.base, { headers: { cookie: scenario.cookie } });
+  const response = await fetch(f.base + '/_consent/context', { headers: { cookie: scenario.cookie } });
   const setCookie = response.headers.get('set-cookie');
   if (scenario.expected) assert.match(setCookie!, scenario.expected);
   else assert.equal(setCookie, null);
@@ -244,20 +252,24 @@ test('static export uses local evidence, omits plugins and never resolves or set
 });
 
 for (const config of [{ bannerMode: 'off' as const }, { enabled: false }]) {
-  test(`banner disabled by ${Object.keys(config)[0]} boots anonymous analytics without UI or region cookies`, async t => {
+  test(`banner disabled by ${Object.keys(config)[0]} emits no browser runtime or page consent reads`, async t => {
     let regions = 0;
     const f = await publicFixture({ t }, { config, resolvers: [{ id: 'us', kind: 'region-resolver', resolve: () => { regions++; return 'us' as const; } }] });
+    let pageReads = 0;
+    const store = f.deps.consentStore!;
+    f.deps.consentStore = { ...store, readPublished: async () => { pageReads++; return store.readPublished({}); } };
     const response = await fetch(f.base);
     assert.equal(response.headers.get('set-cookie'), null);
     const dom = new JSDOM(await response.text());
     try {
       const doc = dom.window.document;
-      assert.equal(JSON.parse(doc.querySelector('#jini-consent-config')!.textContent!).banner, 'off');
-      assert.ok(doc.querySelector(`script[src="${CLIENT.src}"]`));
+      assert.equal(doc.querySelector('#jini-consent-config'), null);
+      assert.equal(doc.querySelector('script[src^="/_consent/"]'), null);
       assert.equal(doc.querySelector('#jini-consent'), null);
       assert.equal(doc.querySelector('[data-consent-open]'), null);
     } finally { dom.window.close(); }
     assert.equal(regions, 0, 'off must not resolve a visitor region');
+    assert.equal(pageReads, 0, 'disabled pages consume the construction snapshot without consent reads');
     const state = await readSiteVisitorConsent({ deps: f.deps, req: { get: () => undefined } as unknown as import('express').Request });
     assert.equal(state.allowed.analytics, false, 'public permissions must not authorize full analytics');
     assert.equal(state.analyticsLevel, 'anonymous');
@@ -286,25 +298,26 @@ test('admin, API and theme previews receive no banner or region cookie', async t
   assert.equal(regionReads, 0);
 });
 
-test('HTML written as plain Uint8Array chunks keeps its bytes and gets one banner', async t => {
+test('raw streamed and Uint8Array HTML retain their exact page bytes without consent insertion', async t => {
   const f = await publicFixture({ t });
-  const dom = new JSDOM(await (await fetch(f.base + '/bytes')).text());
-  try {
-    assert.equal(dom.window.document.querySelector('main')?.textContent, 'Site');
-    assert.equal(dom.window.document.querySelectorAll('#jini-consent').length, 1);
-  } finally { dom.window.close(); }
+  for (const route of ['/stream', '/bytes']) {
+    const response = await fetch(f.base + route);
+    assert.equal(response.status, 200);
+    assert.equal(await response.text(), PAGE);
+    assert.equal(response.headers.get('set-cookie'), null);
+  }
 });
 
-test('the admin preview keeps the footer settings link that live pages get', t => {
+test('admin banner preview is standalone, scriptless and uses the same initial region', t => {
   const f = consentFixture({ t });
-  const html = cookieConsentPreviewGate({ html: PAGE, config: { ...f.config, bannerMode: 'jini' } as Parameters<typeof cookieConsentPreviewGate>[0]['config'],
-    record: null, regionMode: 'opt-in', gpc: false, endpoint: '/api/site-consent' });
-  const dom = new JSDOM(html);
+  const rendered = renderSiteConsentPreview({ config: f.config, policy: f.config.policyVersion }, { region: 'opt-in' });
+  const dom = new JSDOM(`<!doctype html><html ${rendered.htmlAttrs}><head>${rendered.head}</head><body>${rendered.body}</body></html>`);
   try {
     const document = dom.window.document;
-    assert.equal(document.querySelectorAll('footer a[data-consent-open]').length, 1);
     assert.equal(document.documentElement.getAttribute('data-consent-region'), 'opt-in');
     assert.equal(document.querySelectorAll('#jini-consent[data-preview]').length, 1);
+    assert.equal(document.querySelectorAll('script[src]').length, 0);
+    assert.equal(document.querySelector('main'), null, 'sampled page content is never gated or represented as protected');
   } finally { dom.window.close(); }
 });
 

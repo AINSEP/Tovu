@@ -84,7 +84,7 @@ export const registerProductRoutes = (app: import("express").Express, deps: Comm
       // 500 above), while the sentinel means the operator turned styling off on purpose and expects
       // a real page back.
       const theme = resolved === NO_THEME_ID ? null : resolved;
-      const html = await renderSite({ theme, route: "products", siteTitle, posts: [], products, siteAssistantEnabled });
+      const html = await renderSite({ renderAssets: res.locals.siteConsentAssets, theme, route: "products", siteTitle, posts: [], products, siteAssistantEnabled });
       res.set("Cache-Control", cacheControlFor(req)).type("html").send(markOffSiteLinksOpenInNewTab(html, req.hostname));
     } catch {
       res.status(500).type("html").send("<h1>The product catalog could not be loaded</h1><p>Please try again shortly.</p>");
@@ -115,7 +115,7 @@ export const registerProductRoutes = (app: import("express").Express, deps: Comm
       // 500 above), while the sentinel means the operator turned styling off on purpose and expects
       // a real page back.
       const theme = resolved === NO_THEME_ID ? null : resolved;
-      let html = await renderSite({ theme, route: "product", siteTitle, posts: [], products: [product], product, siteAssistantEnabled });
+      let html = await renderSite({ renderAssets: res.locals.siteConsentAssets, theme, route: "product", siteTitle, posts: [], products: [product], product, siteAssistantEnabled });
       html = await productCheckoutWhenReady({ html, workspaceId: deps.workspaceId, priceId: product.priceId,
         productSlug: product.slug || product.id, currentOrigin: `${resolveProtocol(req)}://${req.get("host")}`, commerce: deps.commerce }, { readiness: res.locals?.commerceStatus });
       res.set("Cache-Control", cacheControlFor(req)).type("html").send(markOffSiteLinksOpenInNewTab(html, req.hostname));

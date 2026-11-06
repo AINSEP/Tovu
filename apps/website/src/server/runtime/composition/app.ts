@@ -289,7 +289,6 @@ import { applyTrustProxy } from "../../inbound/shared/trust-proxy.js";
 import { applySiteServingGate } from "../../inbound/public-http/middleware/site-serving-gate.js";
 import { applyPublicPageSecurityHeaders } from "../../inbound/public-http/middleware/public-page-security-headers.js";
 import { applyPublishedWebMcp } from '../../inbound/public-http/middleware/published-webmcp.js';
-import { applySiteConsent } from '../../inbound/public-http/middleware/site-consent.js';
 import { applySiteCookieConsent } from '../../inbound/public-http/middleware/site-cookie-consent.js';
 import { applyAdminBrowserAnalytics } from './browser-analytics.js';
 import { applyBrowserAnalyticsHttp } from './browser-analytics-http.js';
@@ -1959,14 +1958,9 @@ function applyPublicMiddleware(
     allowsVisitorPublication: async ({ path }) => process.env.TOVU_VISITOR_TOOLS_POLICY !== 'off'
       && await isPublicAssistantEnabled({ settingsRepo: routeDeps.settingsRepo, getEffective: routeDeps.getEffective }, { workspaceId: routeDeps.workspaceId })
       && (await visitorPageTargets.list({})).some(page => page.path === path) });
-  // Visitor cookie consent (`site-consent.ts`): after WebMCP so its injected script is gated too,
-  // before every public renderer. The region header is trusted only when the operator names it,
-  // and only behind an edge that strips visitor-supplied copies.
-  // THE consent-engine switch (`deps.cookieConsent`, see composition/site-cookie-consent.ts). The audit
-  // app renders the bare page, which the admin preview then shows with the banner. P4 cleanup removes the legacy fallback.
-  if (options.consentAudit) { /* no consent on the audit render */ }
-  else if (routeDeps.cookieConsent) applySiteCookieConsent({ app, deps: routeDeps, consent: routeDeps.cookieConsent });
-  else applySiteConsent({ app, deps: routeDeps }, { trustedRegionHeader: routeDeps.consentTrustedRegionHeader });
+  // Consent contributes assets during document construction. Audit renders omit that runtime;
+  // admin readiness reports unmanaged content without transforming the sampled page.
+  if (!options.consentAudit && routeDeps.cookieConsent) applySiteCookieConsent({ app, deps: routeDeps, consent: routeDeps.cookieConsent });
 
   applyBrowserAnalyticsHttp({ app, deps: routeDeps });
 

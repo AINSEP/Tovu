@@ -8,7 +8,8 @@ import express, { type Express } from 'express';
 import { CONSENT_COOKIE } from '@jini-ai/cookie-consent';
 import { consentFixture } from '#src/features/consent/__tests__/fixture';
 import type { RouteDeps } from '#src/server/routes/types';
-import { applySiteCookieConsent, captureHtml } from '../site-cookie-consent.js';
+import { applySiteCookieConsent } from '../site-cookie-consent.js';
+import { captureHtmlResponse } from '@jini-ai/http-kit/html-response';
 
 /** Same native transport as helpers/in-process-http, but retain headers/bytes and inject the peer.
  * Its JSON-only dispatcher cannot observe HEAD or the collector's empty 429 response. */
@@ -46,7 +47,7 @@ test('T40: end-only HTML over 4 MiB and empty HEAD responses pass through with t
   const app = express();
   let transforms = 0;
   app.use((_req, res, next) => {
-    captureHtml({ res, transform: async ({ html }) => { transforms++; return html + '<!-- banner -->'; } });
+    captureHtmlResponse({ response: res, transform: async ({ body }) => { transforms++; return Buffer.concat([body, Buffer.from('<!-- contribution -->')]); } }, { maxBytes: 4 * 1024 * 1024 });
     next();
   });
   const oversized = Buffer.alloc(4 * 1024 * 1024 + 1, 'x');

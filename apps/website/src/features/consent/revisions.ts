@@ -1,5 +1,5 @@
 /** @file Site policy snapshots; Jini owns enforcement, Tovu owns site publication state. */
-import type { ConsentConfig } from '@jini-ai/cms/consent';
+import type { ConsentConfig } from '@jini-ai/cookie-consent';
 
 export interface SiteConsentRevision {
   id: string;
@@ -13,6 +13,8 @@ export interface SiteConsentState {
 }
 /** All operations are workspace bound at composition. Conflicting heads must refuse atomically. */
 export interface SiteConsentStore {
+  /** Public readers fetch only the publication; drafts stay in the authoring path. */
+  readPublished(required: Record<string, never>, optional?: Record<string, never>): Promise<SiteConsentRevision | null>;
   read(required: Record<string, never>, optional?: Record<string, never>): Promise<SiteConsentState>;
   saveDraft(required: { revision: SiteConsentRevision; expectedDraftId: string | null }, optional?: Record<string, never>): Promise<void>;
   publish(required: { draftId: string; expectedPublishedId: string | null }, optional?: Record<string, never>): Promise<void>;

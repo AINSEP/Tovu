@@ -21,8 +21,15 @@ export function createSiteConsentStore({ kernel, workspaceId }: { kernel: Pick<S
     const [head] = await kernel.query<{ draft_id: string | null; published_id: string | null }>(sql`SELECT draft_id, published_id FROM site_consent_heads WHERE workspace_id = ${workspaceId}`);
     return { draft: await revision({ id: head?.draft_id ?? null }), published: await revision({ id: head?.published_id ?? null }) };
   };
+  /** Public context needs no authoring data: one head and at most one bounded publication row.
+   * Immutable rows keep this pointer safe across concurrent publication. */
+  const readPublished = async (_input = {}, _optional = {}): Promise<SiteConsentRevision | null> => {
+    const [head] = await kernel.query<{ published_id: string | null }>(sql`SELECT published_id FROM site_consent_heads WHERE workspace_id = ${workspaceId}`);
+    return revision({ id: head?.published_id ?? null });
+  };
   return {
     read,
+    readPublished,
     saveDraft: async ({ revision: next, expectedDraftId }, _optional = {}) => kernel.transaction(async () => {
       await kernel.lockKey(`site-consent:${workspaceId}`);
       const state = await read();

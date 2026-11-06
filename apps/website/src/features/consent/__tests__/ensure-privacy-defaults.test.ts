@@ -166,7 +166,7 @@ test('ensuring an unpublished policy retains PRIVACY_PAGE_MISSING and cannot pub
     authorize: async () => ({ allowed: true, reason: 'test owner' }), trustedRegion: false,
     readLegacy: async () => config,
     defaultOnly: async () => false,
-    store: { read: async () => ({ draft, published: null }),
+    store: { read: async () => ({ draft, published: null }), readPublished: async () => null,
       saveDraft: async ({ revision }) => { draft = revision; },
       publish: async () => assert.fail('missing privacy Page must block publication') },
     privacyPageExists: createPrivacyPageCheck({ deps: { postRepo: f.repo, workspaceId: 'site-a' } }),

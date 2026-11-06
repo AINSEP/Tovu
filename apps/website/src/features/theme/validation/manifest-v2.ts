@@ -1,3 +1,4 @@
+import { validateScripts } from '@jini-ai/cookie-consent/policy';
 import type { JsonValue } from "@jini-ai/core/primitives";
 
 import { isSourceDirGeneratedConflict } from "../theme-files.js";
@@ -23,12 +24,12 @@ import type { ThemeValidationIssue } from "./profiles.js";
  * (`engine` as an object, `tokens` as a nested object, `authors`/`license`/`attributions`) nothing
  * else validates yet.
  *
- * Deliberately LIGHT on shape for `scripts`, `assets`, and `ai`: their target shape is not concretely
- * pinned down enough to enforce strictly without inventing scope beyond what the design doc settled
- * (the doc itself marks `ai` "NOT YET IMPLEMENTED anywhere", §12), so none of the three gets a
+ * Declared `scripts` use the shared consent declaration validator. `assets` and `ai` remain LIGHT
+ * on shape: their target shape is not concretely pinned down enough to enforce strictly without inventing scope beyond what the design doc settled
+ * (the doc itself marks `ai` "NOT YET IMPLEMENTED anywhere", §12), so neither gets a
  * dedicated `isObject`/field-shape check here — only whatever generic JSON-object closure the
- * top-level schema already implies. They are NOT light on the unimplemented-field policy, though: all
- * three (plus dead `pages`) are unread by the loader (§15's field table; verified below) and get the
+ * top-level schema already implies. They are NOT light on the unimplemented-field policy, though:
+ * both (plus dead `pages`) are unread by the loader (§15's field table; verified below) and get the
  * same `v2-*-unimplemented` treatment as `partials`/`renderer`/`tokens`/`engine`, via the generic sweep
  * described next. Tightening their SHAPE checking is future work once an actual implementation settles
  * it; tightening whether declaring them is safe is this fix.
@@ -75,7 +76,7 @@ import type { ThemeValidationIssue } from "./profiles.js";
  * `theme-authoring-guide-v2.md` §17's worked examples listing it alongside them — `loadTheme()` does
  * not parse it into `ThemeManifest` at all (confirmed dead: no read anywhere in `src/`, verified by
  * repo-wide grep, not by trusting this file's own prior claim that it was "carried the same way" as
- * the three real fields). It gets the generic `v2-pages-unimplemented` sweep finding like `scripts`/
+ * the three real fields). It gets the generic `v2-pages-unimplemented` sweep finding like
  * `assets`/`ai` above.
  */
 
@@ -144,6 +145,7 @@ const V2_FIELDS_READ_BY_LOADER: ReadonlySet<string> = new Set([
   "defaultMode",
   "slots",
   "publishedPages",
+  "scripts",
 ]);
 
 /**
@@ -392,7 +394,7 @@ function checkRenderer(): ThemeValidationIssue[] {
  * Self-maintaining unimplemented-field sweep (2026-08-19 re-audit of architecture audit finding 3):
  * every OTHER top-level v2 key actually present in this manifest that the loader does not read
  * (`V2_FIELDS_READ_BY_LOADER`) and that isn't reserved metadata (`V2_RESERVED_METADATA_FIELDS`) gets a
- * generic `v2-<field>-unimplemented` finding automatically. This is what currently fires for `scripts`,
+ * generic `v2-<field>-unimplemented` finding automatically. This is what currently fires for
  * `assets`, `ai`, and dead `pages` — none of which had ANY finding before this fix, despite this file's
  * own prior header claiming otherwise for the first three. Because this loop is driven by set
  * membership rather than a hand-maintained list of `err()` calls, a field added to `V2_TOP_LEVEL_KEYS`
@@ -434,6 +436,7 @@ export function validateManifestV2(
   const flaggedUnimplemented = new Set<string>();
 
   issues.push(...checkUnknownTopLevelFields(raw));
+  issues.push(...validateScripts({ scripts: raw.scripts }).problems.map(message => ({ ruleId: 'v2-scripts', message: `theme.json: ${message}` })));
 
   issues.push(...checkApiVersion(raw.apiVersion));
   issues.push(...checkId(raw.id));

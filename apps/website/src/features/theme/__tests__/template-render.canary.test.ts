@@ -311,23 +311,16 @@ test("canary: real Post and Page records render their selected templates through
 });
 
 
-test('every rendered bundled theme page retains a host withdrawal link with and without footer partials', async () => {
-  const { gateConsentHtml } = await import('@jini-ai/cms/consent/html');
-  const { withSiteConsentSettingsLink } = await import('#src/features/consent/settings-link');
-  const { SITE_CONSENT_DEFAULTS } = await import('#src/features/consent/config');
-  const { JSDOM } = await import('jsdom');
+test('full-document bundled theme pages report a missing runtime slot until explicitly reviewed', async () => {
+  const { consentDeclarationReadiness } = await import('#src/features/consent/readiness');
   const theme = tovuTheme();
   for (const partials of [theme.partials, {}]) {
     for (const pageId of Object.keys(theme.pages)) {
-      const rendered = renderStaticPage({ theme: { ...theme, partials }, pageId });
-      assert.ok(rendered, pageId);
-      const gated = gateConsentHtml({ html: rendered, config: { ...SITE_CONSENT_DEFAULTS, enabled: true, reopen: 'link' }, record: null, regionMode: 'opt-in', gpc: false, endpoint: '/api/site-consent' });
-      const dom = new JSDOM(withSiteConsentSettingsLink({ html: gated }));
-      try {
-        const doc = dom.window.document;
-        assert.equal(doc.querySelector('a[data-jini-consent-open]')?.textContent, 'Cookie settings', pageId);
-        if (doc.querySelector('footer')) assert.ok(doc.querySelector('footer a[data-jini-consent-open]'), pageId);
-      } finally { dom.window.close(); }
+      const html = renderStaticPage({ theme: { ...theme, partials }, pageId });
+      assert.ok(html, pageId);
+      const result = consentDeclarationReadiness({ html, scripts: [], runtimeSlot: false });
+      assert.ok(result.warnings.some(warning => warning.code === 'MISSING_RUNTIME_SLOT'), pageId);
+      assert.equal('gatedHtml' in result, false, 'readiness never returns a converted document');
     }
   }
 });

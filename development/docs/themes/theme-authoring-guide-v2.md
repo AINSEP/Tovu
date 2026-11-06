@@ -212,7 +212,7 @@ run" rather than either fully `[REAL]` or fully `[TARGET]`.
     "footer": { "source": "render/partials/footer.html", "variants": { "minimal": "render/partials/footer-minimal.html" } }
   },
   "regions": ["header", "footer"],             // [REAL, shape verified — theme.ts:130-140, see §9. NOT an object, a flat string[].]
-  "scripts": { "entries": [{ "id": "main", "path": "scripts/main.js", "kind": "author" }] },  // [TARGET]
+  "scripts": [{ "src": "./scripts/menu.js" }, { "src": "./scripts/stats.js", "consent": ["analytics"] }],  // [REAL — declared assets]
   "assets": { "previewGallery": [{ "src": "assets/previews/home.webp", "caption": "Home, dark" }] },  // [TARGET]
   "ai": { "dir": "ai" },                       // [TARGET, NOT YET IMPLEMENTED — see §12]
   "build": {                                   // [REAL — theme.ts:60-99, §6]
@@ -819,3 +819,21 @@ in its README. Static themes use their existing footer partials; the marketing t
 its early cloak stylesheet/helper in that same library folder.
 
 Visitor page tools: Publish only public regions and reviewed controls; Tovu projects validated annotations into page-tool handles. Unmarked controls are unavailable; forms require visitor confirmation. Use `data-visitor-scope` on a public theme region and `data-toolname`/`data-tooldescription` with a reviewed `data-tool-action` (`read`, `menu`, `tab`, `accordion`, `carousel`, `media`, `fill`, `select`, `submit`, `navigate`). Keep authored `data-agent-element` forbidden: Tovu projects it from the server manifest. Desktop and mobile instances require distinct identities. Never mark member/personalized regions or chat/confirmation chrome.
+
+## Declared scripts and visitor consent
+
+The implemented `scripts` field is an array of `{src, consent?}` declarations:
+
+```json
+{"scripts":[
+  {"src":"./scripts/menu.js"},
+  {"src":"./scripts/stats.js","consent":["analytics"]},
+  {"src":"https://example.com/pixel.js","consent":["analytics","marketing"]}
+]}
+```
+
+Omitted `consent` runs automatically, including external URLs. Several categories require all effective permissions. Relative theme paths resolve under `/theme-assets/<theme-id>/`; root-relative URLs remain site URLs. Never use `requires` for this field.
+
+Managed document renderers supply the asset slots while constructing HTML. Full-document themes without those slots are reported as a gap in consent readiness; adding a declaration alone does not add a runtime to such documents. Review existing pages/themes explicitly before moving them. An existing raw script still runs: remove or replace it through an author edit after review, never by an automatic converter. Stored HTML is never rewritten for consent. No security-header policy is implied by these declarations.
+
+Static export copies declared local assets explicitly and uses browser-local evidence. Re-export after policy/declaration changes; live collectors are excluded.

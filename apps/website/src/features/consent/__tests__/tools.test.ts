@@ -120,7 +120,7 @@ for (const enabled of [true, false]) test(`the publish approval card warns about
   const confirm = f.answer('consent_publish_settings');
   await f.call('consent_publish_settings', { draftId: saved.revision.id, expectedPublishedId: null }, { emitSurface: async (surface: unknown) => { surfaces.push(surface); await confirm.emitSurface?.(surface as never); } });
   const card = JSON.stringify(surfaces);
-  const warning = enabled ? 'Visitors will be asked again for this policy revision.' : 'The banner and optional-content enforcement will be disabled. Optional scripts may run without a visitor choice.';
+  const warning = enabled ? 'Visitors will be asked again for this policy revision.' : 'The banner and declared-script consent will be disabled. Optional scripts may run without a visitor choice.';
   assert.ok(card.includes(warning), card);
   assert.equal((await f.store.read({})).published?.config.enabled, enabled);
 });
@@ -156,7 +156,7 @@ for (const toolId of ['consent_update_settings', 'consent_publish_settings']) te
   assert.equal((await f.store.read({})).published?.config.title, previous.title, 'cancel keeps the published configuration');
 });
 
-for (const toolId of ['consent_update_settings', 'consent_publish_settings']) test(`${toolId} warns about unsafe-eval on the human confirmation card`, async t => {
+for (const toolId of ['consent_update_settings', 'consent_publish_settings']) test(`${toolId} preserves the retired flag without claiming page-wide script protection`, async t => {
   const f = tools({ t });
   const config = { ...f.config, allowUnsafeEval: true };
   const draft = toolId === 'consent_publish_settings' ? await f.service.saveDraft({ principalId: 'admin', config, expectedDraftId: null }) : null;
@@ -167,8 +167,8 @@ for (const toolId of ['consent_update_settings', 'consent_publish_settings']) te
     shown += JSON.stringify(surface);
     await answer.emitSurface!(surface);
   } });
-  assert.match(shown, /unsafe-eval/);
-  assert.match(shown, /weakens script protection/);
-  assert.match(shown, /Optional scripts still wait for consent/);
+  assert.doesNotMatch(shown, /weakens script protection/);
+  assert.doesNotMatch(shown, /Optional scripts still wait for consent/);
+  assert.match(shown, /Save|Publish/);
   assert.equal((await f.store.read({}))[draft ? 'published' : 'draft']?.config.allowUnsafeEval, true);
 });

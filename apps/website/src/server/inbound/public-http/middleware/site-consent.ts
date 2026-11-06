@@ -1,40 +1,16 @@
+/** Public consent policy and host bindings. No HTML processing or response rewriting. */
+import type { Request } from 'express';
+import type { ConsentConfig } from '@jini-ai/cookie-consent';
+import type { RateLimitProfile } from '#src/contracts/core/rate-limit/rate-limit';
 import { parseConsentConfig, consentConfigProblems } from '#src/features/consent/validation';
-import { withSiteConsentSettingsLink } from "#src/features/consent/settings-link";
-import { injectBrowserAnalytics } from '@jini-ai/analytics/product';
-import { randomBytes } from "node:crypto";
-import * as fs from "node:fs/promises";
-import path from "node:path";
-import express, { type Express, type Request } from "express";
-import { isPublicPage, registerConsentHttp, type ConsentHttpPorts } from "@jini-ai/cms/consent/express";
-import type { ConsentConfig } from "@jini-ai/cms/consent";
-import { consentRateLimitKey, createConsentFileRecords, createNodeConsentFiles, type ConsentAtomicWriter } from "@jini-ai/cms/consent/node";
-import { createNodeAtomicFilesystem, writeJsonFileAtomic } from "@jini-ai/platform/fs";
-
-import { createRateLimiter, type RateLimitProfile } from "#src/contracts/core/rate-limit/rate-limit";
-import { withSiteConsentDefaultCss } from "#src/features/consent/config";
-import { createSiteConsentRequestPorts } from "#src/features/consent/host";
-import { createSiteConsentConfig, resolveSiteConsentActivation } from "#src/features/consent/settings";
-import { findPublishedPostBySlug } from "#src/features/post/post";
-import type { RouteDeps } from "#src/server/routes/types";
-import { isStaticExportRequest } from "../routes/site/pages.js";
-import { resolvePublicOrigin, resolveProtocol } from "../routes/oauth/public-origin.js";
-
-/**
- * @file Mounts Jini's consent lifecycle (`@jini-ai/cms/consent/express`) on public site HTML.
- *
- * Order (see `createApp`): after the serving gate, security headers and published WebMCP, before
- * every public renderer. WebMCP patches `res.send`; consent captures the lower `write`/`end`, so the
- * WebMCP script is injected first and then gated like any other functional inline script.
- *
- * Receipts are immutable JSON files under `<siteDir>/consent-receipts` (phase 1). The folder is
- * deliberately not on `layout.ts`'s portable allowlist: proofs belong to the site that collected
- * them and never travel with a duplicate or share. A durable database adapter comes later.
- */
-
-/** Top-level, non-portable site folder holding one immutable proof file per visitor choice. */
-export const CONSENT_RECEIPTS_DIR_NAME = "consent-receipts";
-
-/** Twenty choices per ten minutes per address (/64 for IPv6), with a small burst for retries. */
+import { withSiteConsentDefaultCss } from '#src/features/consent/config';
+import { createSiteConsentConfig } from '#src/features/consent/settings';
+import { findPublishedPostBySlug } from '#src/features/post/post';
+import type { RouteDeps } from '#src/server/routes/types';
+import { resolvePublicOrigin, resolveProtocol } from '../routes/oauth/public-origin.js';
+/** Receipt evidence is non-portable and stays outside the public site assets. */
+export const CONSENT_RECEIPTS_DIR_NAME = 'consent-receipts';
+/** Twenty choices per ten minutes per address, with a small burst for retries. */
 export const CONSENT_SAVE_PROFILE: RateLimitProfile = { windowSeconds: 600, max: 20, burst: 5 };
 
 /** Keep a public configured origin pinned; a loopback one yields to the request's own loopback origin.
@@ -55,12 +31,6 @@ export function resolveSiteConsentOrigin({ request }: { request: Request }, _opt
   } catch { return configured.origin; }
 }
 
-/** Bind the engine's atomic-writer port to the site-dir writer (which owns flush/rename/mode). */
-const atomicWrite: ConsentAtomicWriter = async ({ filePath, data }, { createParent, mode, refuseSymlink }) => {
-  if (createParent) await fs.mkdir(path.dirname(filePath), { recursive: true, mode: 0o700 });
-  writeJsonFileAtomic({ filePath, data, fs: createNodeAtomicFilesystem({}, {}) }, { mode, refuseSymlink });
-};
-
 /** A local single-segment link (/privacy) must name a published page; https links are trusted.
  * @complexity O(1), one indexed slug lookup. */
 export function createPrivacyPageCheck({ deps }: { deps: Pick<RouteDeps, "postRepo" | "workspaceId"> }, _optional = {}) {
@@ -72,156 +42,22 @@ export function createPrivacyPageCheck({ deps }: { deps: Pick<RouteDeps, "postRe
   };
 }
 
-/** Consent read/save failures are logged by operation and message only: no cookie, body or receipt. */
-function reportConsentError({ operation }: { operation: "read" | "save"; error: unknown }, _options = {}): void {
-  console.error(`[consent] ${operation} failed`);
-}
-
-/** The site's live consent policy: the published revision, else the legacy settings. Shared by both
- * consent engines so they can never disagree about what visitors were asked.
+/** The site's live consent policy: the published revision, else the legacy settings. Publication is the only source for public context and server analytics.
  * @param optional.cssBlocks false for the cookie-consent engine, which drops a bad CSS rule alone.
  * @throws when the published revision fails validation (callers fail closed).
  * @complexity O(1): one store read, plus one settings read before the first publication. */
-export async function readSiteConsentPolicy({ deps }: { deps: RouteDeps }, { trustedRegion = false, cssBlocks = true }: { trustedRegion?: boolean; cssBlocks?: boolean } = {}): Promise<ConsentConfig> {
+export async function readSiteConsentPolicy({ deps }: { deps: RouteDeps }, { trustedRegion = false, cssBlocks = false }: { trustedRegion?: boolean; cssBlocks?: boolean } = {}): Promise<ConsentConfig> {
   await deps.siteConsentReady;
-  const state = await deps.consentStore?.read({});
+  const revision = await deps.consentStore?.readPublished({});
   // An empty owner Custom CSS gets Tovu's default banner style (owner, 2026-10-22).
-  if (!state?.published) {
+  if (!revision) {
     const legacy = await createSiteConsentConfig({ settingsRepo: deps.settingsRepo, workspaceId: deps.workspaceId }).get({});
     return withSiteConsentDefaultCss({ config: { ...legacy, regionMode: legacy.regionMode === 'opt-out' ? 'auto' : legacy.regionMode } });
   }
-  const published = parseConsentConfig({ value: state.published.config });
+  const published = parseConsentConfig({ value: revision.config });
   // An old global opt-out must never hide Reject for EU/UK/unknown visitors.
   const config = withSiteConsentDefaultCss({ config: { ...published, regionMode: published.regionMode === 'opt-out' ? 'auto' : published.regionMode } });
   if (consentConfigProblems({ config, trustedRegion }, { cssBlocks }).length) throw new Error('Published consent policy is invalid.');
   // Receipts name an immutable configuration; changing a published revision requires a new choice.
-  return { ...config, reopen: "link", policyVersion: `${config.policyVersion}:${state.published.id}` };
-}
-
-/** Every host effect the engine needs, built from this site's composition. @complexity O(1). */
-export function createSiteConsentPorts({ deps }: { deps: RouteDeps }, { trustedRegionHeader }: { trustedRegionHeader?: string } = {}): ConsentHttpPorts {
-  const request = createSiteConsentRequestPorts({
-    ...(trustedRegionHeader ? { trustedRegionHeader } : {}),
-    origin: ({ request: req }) => resolveSiteConsentOrigin({ request: req as Request }),
-    rateLimiter: createRateLimiter({ profile: CONSENT_SAVE_PROFILE, clock: deps.clock }),
-    rateLimitKey: consentRateLimitKey,
-  });
-  return {
-    config: { get: () => readSiteConsentPolicy({ deps }, { trustedRegion: Boolean(trustedRegionHeader) }) },
-    records: createConsentFileRecords({ directory: path.join(deps.siteBinding.dir, CONSENT_RECEIPTS_DIR_NAME), files: createNodeConsentFiles({ atomicWrite }) }),
-    clock: deps.clock,
-    // Receipt IDs must be unpredictable; the site's id generator is time-ordered, so it is not used.
-    ids: { newId: () => randomBytes(24).toString("base64url") },
-    ...request,
-    reportError: reportConsentError,
-  };
-}
-
-/** True when consent follows only the product default (off since 2026-11-02): no owner choice, nothing published.
- * Exports omit that consent until a browser-side banner supports static sites; live serving follows the
- * same default (off), so neither shows a banner the owner never chose.
- * @complexity O(1), one store read and one settings read. */
-async function isDefaultOnlyConsent({ deps }: { deps: RouteDeps }, _options = {}): Promise<boolean> {
-  await deps.siteConsentReady;
-  if ((await deps.consentStore?.read({}))?.published) return false;
-  return (await resolveSiteConsentActivation({ settingsRepo: deps.settingsRepo, workspaceId: deps.workspaceId })).source === "default";
-}
-
-/** Theme preview renders: the Explore iframe and the Themes card captures of it. */
-const THEME_PREVIEW_PATH = /^\/(?:theme-preview|theme-explore)(?:\/|$)/;
-
-/** A theme preview shows the design, so the banner is hidden there; optional scripts stay gated.
- * Owner 11-02: Themes card thumbnails captured the banner over the design. Path-based, like the
- * cookie-consent engine's preview exclusion, so the capture needs no consent knowledge.
- * @complexity O(html length), one search for the engine's banner root. */
-export function hidePreviewConsentBanner({ html, path }: { html: string; path: string }, _options = {}): string {
-  return THEME_PREVIEW_PATH.test(path) ? html.replace('<section id="jini-consent" ', '<section hidden id="jini-consent" ') : html;
-}
-
-function readHtmlChunk({ chunk, type }: { chunk: unknown; type: string }, _optional = {}): string | undefined {
-  if ((typeof chunk === 'string' || Buffer.isBuffer(chunk)) && (!type || type.includes('text/html'))) {
-    return Buffer.isBuffer(chunk) ? chunk.toString('utf8') : chunk;
-  }
-  return undefined;
-}
-
-/**
- * The delivered page's final HTML: the settings link, the preview banner hiding, and — on a live
- * public page whose consent runtime was delivered — the browser analytics contributions.
- * @param required.themeOverridden `res.locals.tovuRenderThemeIdOverride` is set (a theme preview render).
- * @complexity O(html length).
- */
-function rewriteDeliveredHtml(
-  { html, request, deps, themeOverridden }: { html: string; request: Request; deps: RouteDeps; themeOverridden: boolean },
-  _optional = {},
-): string {
-  const linked = hidePreviewConsentBanner({ html: withSiteConsentSettingsLink({ html }), path: request.path });
-  // Only the delivered consent runtime can release a live-site contribution. Preview,
-  // administrative HTML and exports do not inherit the crawling operator's choice.
-  const publicPage = !/^\/(?:admin|api)(?:\/|$)/.test(request.path) && !THEME_PREVIEW_PATH.test(request.path);
-  if (!publicPage || isStaticExportRequest(request) || themeOverridden || !html.includes('data-jini-consent-runtime')) return linked;
-  return injectBrowserAnalytics({ html: linked, contributions: deps.browserAnalytics?.({ surface: 'site' }) ?? [], surface: 'site', delivery: 'live' });
-}
-
-/**
- * Register consent for this app. The exporter's crawl (`x-tovu-static-export`) gets the engine's
- * static delivery: explicitly enabled consent returns gated HTML with 200, the banner and a reopen
- * link. A static host cannot store receipts, so optional scripts stay inert in templates rather
- * than shipping trackers ungated. Default-only consent skips the engine for exports; a failed
- * check falls through to the engine's gated delivery.
- * @complexity O(1) at registration; per page see `registerConsentHttp`.
- */
-export function applySiteConsent({ app, deps }: { app: Express; deps: RouteDeps }, { trustedRegionHeader }: { trustedRegionHeader?: string } = {}): void {
-  // A sub-app so `next("router")` can skip every consent route and the HTML gate at once.
-  const consentApp = express();
-  const ports = createSiteConsentPorts({ deps }, trustedRegionHeader ? { trustedRegionHeader } : {});
-  consentApp.use(async (req, _res, next) => {
-    if (isStaticExportRequest(req)) {
-      isDefaultOnlyConsent({ deps }).then(skip => (skip ? next("router") : next()), () => next());
-      return;
-    }
-    // Pages only: assets (/x.css, /x.png) keep their 304s and skip the policy read.
-    if (isPublicPage({ request: req }) && !/\.(?!html?$)[a-z0-9]+$/i.test(req.path)) {
-      let enabled = true;
-      try { enabled = (await ports.config.get({})).enabled; }
-      catch { /* A failed policy read must not permit reuse of ungated HTML. */ }
-      if (enabled) {
-        // Renderers validate pre-consent bytes; a 304 would bypass the engine's HTML rewrite.
-        delete req.headers["if-none-match"];
-        delete req.headers["if-modified-since"];
-      }
-    }
-    next();
-  });
-  consentApp.use((req, res, next) => {
-    const end = res.end;
-    // Jini captures this native end and calls it with the complete gated body, even for pipes.
-    // Inspect that output rather than rereading config: lastGood remains Jini's sole authority.
-    res.end = function (this: typeof res, chunk?: unknown, encoding?: BufferEncoding | (() => void), callback?: () => void) {
-      const type = String(res.getHeader('content-type') ?? '');
-      const html = readHtmlChunk({ chunk, type });
-      if (html !== undefined) {
-        const linked = rewriteDeliveredHtml({ html, request: req, deps, themeOverridden: Boolean(res.locals.tovuRenderThemeIdOverride) });
-        if (linked !== html) {
-          chunk = Buffer.from(linked);
-          res.removeHeader('Content-Length');
-          res.removeHeader('ETag');
-        }
-      }
-      return Reflect.apply(end, this, [chunk, encoding, callback]);
-    } as typeof res.end;
-    next();
-  });
-  registerConsentHttp({ app: consentApp, ports }, {
-    // Jini runs unlabelled inline/local scripts by default, including form readouts and assets
-    // of previewed themes. No active-theme scan/cache is needed: edits and theme switches use
-    // the delivered HTML directly. Optional features declare their consent category instead.
-    // Site chat and analytics talk to this same origin; no third-party collector is reviewed yet.
-    categoryOrigins: { functional: [], analytics: [] },
-    // Anonymous counts are allowed after rejection, through the same-origin consent-gated relay.
-    // Remote SDK/collector origins would let unlabelled author scripts bypass the bridge.
-    resourceOrigins: [],
-    delivery: ({ request: req }) => (isStaticExportRequest(req) ? "static" : "live"),
-  });
-  app.use(consentApp);
+  return { ...config, reopen: "link", policyVersion: `${config.policyVersion}:${revision.id}` };
 }

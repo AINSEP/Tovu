@@ -1,11 +1,10 @@
 import type { Translate } from "@jini-ai/ui/panel-kit";
 import { adminHref } from "@/lib/router";
-import { consentProblemTab, pausedByCategory } from "./rules";
+import { consentProblemTab } from "./rules";
 import type { ConsentReadiness } from "./settings.hooks";
 
 /**
- * @file Overview: is the banner live, what blocks publishing, and what the banner will pause on
- * the home page. Readiness checks the draft as if it were on, so blockers show before Publish.
+ * @file Overview: is the banner live, what blocks publishing, and which scripts are declared and which sampled content remains unmanaged. Readiness checks the draft as if it were on, so blockers show before Publish.
  */
 
 export interface ConsentOverviewTabProps {
@@ -16,8 +15,6 @@ export interface ConsentOverviewTabProps {
   t: Translate;
 }
 
-const CATEGORY_LABELS: Readonly<Record<string, string>> = { necessary: "Necessary", functional: "Functional", analytics: "Analytics", marketing: "Marketing" };
-
 function StatusCard({ liveEnabled, hasUnpublished, t }: Pick<ConsentOverviewTabProps, "liveEnabled" | "hasUnpublished" | "t">) {
   return (
     <section className="card consent-card" aria-labelledby="consent-status-title">
@@ -25,7 +22,7 @@ function StatusCard({ liveEnabled, hasUnpublished, t }: Pick<ConsentOverviewTabP
         <h2 id="consent-status-title" className="card-title">{t("Banner")}</h2>
         <span className={`status ${liveEnabled ? "status-ok" : "status-neutral"}`}>{liveEnabled ? t("On") : t("Off")}</span>
       </div>
-      <p className="card-lead">{liveEnabled ? t("Visitors choose before optional cookies run.") : t("Visitors see no banner. Optional scripts run as usual.")}</p>
+      <p className="card-lead">{liveEnabled ? t("Declared optional scripts wait for the required consent. Review unmanaged content separately.") : t("Visitors see no banner. Optional scripts run as usual.")}</p>
       {hasUnpublished && <p className="consent-note">{t("You have changes that are not live yet.")}</p>}
     </section>
   );
@@ -56,21 +53,27 @@ function BlockersCard({ readiness, readinessError, t }: Pick<ConsentOverviewTabP
   );
 }
 
-function PausedCard({ readiness, t }: Pick<ConsentOverviewTabProps, "readiness" | "t">) {
+function DeclarationsCard({ readiness, t }: Pick<ConsentOverviewTabProps, "readiness" | "t">) {
   if (!readiness) return null;
-  const counts = pausedByCategory({ detected: readiness.detected });
   return (
-    <section className="card consent-card" aria-labelledby="consent-paused-title">
-      <h2 id="consent-paused-title" className="card-title">{t("Waits for consent")}</h2>
-      <p className="card-lead">{counts.length ? t("On the home page, these wait for a visitor's choice:") : t("Nothing on the home page waits for consent.")}</p>
-      {counts.length > 0 && (
-        <ul className="consent-paused-list">
-          {counts.map(({ category, count }) => (
-            <li key={category}><span>{t(CATEGORY_LABELS[category] ?? category)}</span><strong>{count}</strong></li>
-          ))}
-        </ul>
-      )}
+    <section className="card consent-card" aria-labelledby="consent-declarations-title">
+      <h2 id="consent-declarations-title" className="card-title">{t("Declared scripts")}</h2>
+      <p className="card-lead">{t("Declarations describe managed loading. They do not protect unmanaged page content.")}</p>
+      {readiness.declarations.length === 0 && <p>{t("No script declarations were found in this sample.")}</p>}
+      <ul>{readiness.declarations.map((script, index) => <li key={`${script.src}:${index}`}><code>{script.src}</code> — {script.consent?.length ? script.consent.join(", ") : t("Automatic")}</li>)}</ul>
       {readiness.truncated && <p className="consent-note">{t("Only the first 200 items were checked.")}</p>}
+    </section>
+  );
+}
+
+function GapsCard({ readiness, t }: Pick<ConsentOverviewTabProps, "readiness" | "t">) {
+  if (!readiness) return null;
+  return (
+    <section className="card consent-card" aria-labelledby="consent-gaps-title">
+      <h2 id="consent-gaps-title" className="card-title">{t("Unmanaged content")}</h2>
+      <p className="card-lead">{t("Review these gaps before moving an existing site. Stored pages are never converted automatically.")}</p>
+      {readiness.warnings.length === 0 && <p>{t("No unmanaged content was found in this sample. Dynamic content still needs review.")}</p>}
+      <ul>{readiness.warnings.map((warning, index) => <li key={`${warning.code}:${index}`}>{warning.message}{warning.source && <> <code>{warning.source}</code></>}</li>)}</ul>
     </section>
   );
 }
@@ -80,7 +83,8 @@ export function ConsentOverviewTab(props: ConsentOverviewTabProps) {
     <div className="consent-overview">
       <StatusCard liveEnabled={props.liveEnabled} hasUnpublished={props.hasUnpublished} t={props.t} />
       <BlockersCard readiness={props.readiness} readinessError={props.readinessError} t={props.t} />
-      <PausedCard readiness={props.readiness} t={props.t} />
+      <DeclarationsCard readiness={props.readiness} t={props.t} />
+      <GapsCard readiness={props.readiness} t={props.t} />
     </div>
   );
 }
