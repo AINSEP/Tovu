@@ -1,4 +1,5 @@
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
+import { EventEmitter, once } from "node:events";
 import { createVisitorConfirmations, VISITOR_CONFIRMATION_WAIT_MS, type ToolConfirmationDirective } from "../visitor-confirmations.js";
 
 /** Real Jini exchanges with only time, IDs and scheduling replaced. No sleeping or processes. */
@@ -14,11 +15,16 @@ export function confirmationFixture() {
     } } }, { idleTtlMs: VISITOR_CONFIRMATION_WAIT_MS, maxLifetimeMs: VISITOR_CONFIRMATION_WAIT_MS });
   const confirmations = createVisitorConfirmations({ exchanges, nowMs: clock.nowMs });
   const directives: ToolConfirmationDirective[] = [];
+  const emitted = new EventEmitter();
   const abort = new AbortController();
   const request = { binding: { runId: "run", executionId: "execution", ip: "ip" },
-    title: "Allow search?", summary: "Search published posts.", emit: (directive: ToolConfirmationDirective) => { directives.push(directive); },
+    title: "Allow search?", summary: "Search published posts.", emit: (directive: ToolConfirmationDirective) => { directives.push(directive); emitted.emit("directive"); },
     validate: async () => true, signal: abort.signal };
   return { clock, exchanges, confirmations, directives, abort, request, jobs,
+    /** Observe actual prompt delivery; exchanges may do asynchronous work before emitting. */
+    async waitForDirectives(count = 1) {
+      while (directives.length < count) await once(emitted, "directive");
+    },
     advance(ms: number) {
       now += ms;
       for (const [id, job] of [...jobs]) if (job.at <= now && jobs.delete(id)) job.callback();
