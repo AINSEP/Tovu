@@ -1,4 +1,4 @@
-import type { ConsentState, RawContribution, RegionResolver } from '@jini-ai/cookie-consent';
+import type { ConsentState, DeclaredScript, RawContribution, RegionResolver } from '@jini-ai/cookie-consent';
 
 /** The one switch's payload: present = this engine serves the site. */
 export interface SiteCookieConsentDeps {
@@ -9,6 +9,8 @@ export interface SiteCookieConsentDeps {
   regionResolvers: () => Promise<readonly RegionResolver[]>;
   /** Data-only modules from active plugins; the browser mounts them through the shared registry. */
   browserPlugins?: () => Promise<readonly RawContribution[]>;
+  /** Active plugin declarations and explicit refusal diagnostics, shared with admin readiness. */
+  scriptDeclarations?: () => Promise<{ scripts: readonly DeclaredScript[]; problems: readonly string[] }>;
 }
 /** A same-origin plugin handler (the PostHog adapter's SDK, adapter module and collector). */
 export interface ConsentPluginHttp {

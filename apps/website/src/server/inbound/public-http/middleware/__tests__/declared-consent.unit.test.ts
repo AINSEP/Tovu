@@ -61,3 +61,15 @@ test('one no-store context request reads publication only and resolves region on
     assert.deepEqual(f.counts(), { reads: 1, regionReads: 1, draftReads: 0 });
   } finally { await f.close(); }
 });
+
+test('enabled document slots include a native withdrawal link and both browser assets', async () => {
+  const f = await fixture(true);
+  try {
+    const response = await fetch(`${f.url}/assets`);
+    const assets = await response.json() as { head: string; body: string };
+    assert.match(assets.head, /client-test\.min\.js/);
+    assert.match(assets.head, /extensions\.min\.js/);
+    assert.match(assets.body, /href="#privacy-choices" data-consent-open>Cookie settings/);
+    assert.deepEqual(f.counts(), { reads: 0, regionReads: 0, draftReads: 0 });
+  } finally { await f.close(); }
+});

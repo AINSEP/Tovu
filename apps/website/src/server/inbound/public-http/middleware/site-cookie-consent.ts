@@ -29,7 +29,6 @@ import { createNodeAtomicFilesystem, writeJsonFileAtomic } from '@jini-ai/platfo
 import { createRateLimiter, resolveClientIp } from '#src/contracts/core/rate-limit/rate-limit';
 import type { SiteCookieConsentDeps, ConsentPluginHttp, ConsentPluginContribution } from '#src/contracts/headless/index';
 import { renderSiteConsentPreview, siteBannerMode, toSiteCookieConsent, type SiteConsentSource } from '#src/features/consent/cookie-consent';
-import type { ConsentDryRunGate } from '#src/features/consent/readiness';
 import { withSiteConsentSettingsLink } from '#src/features/consent/settings-link';
 import type { RouteDeps } from '#src/server/routes/types';
 import { insertBeforeUncommentedTag } from '../http/site/render.js';
@@ -97,7 +96,7 @@ export const cookieConsentPreviewGate = (({ html, config, regionMode }: { html: 
   // hide the footer link that live pages get.
   const withBanner = insertBanner({ html, rendered });
   return rendered.htmlAttrs ? withBanner.replace(/<html\b/i, `<html ${rendered.htmlAttrs}`) : withBanner;
-}) as unknown as ConsentDryRunGate;
+});
 
 /** Any body chunk Node accepts (string, Buffer, Uint8Array) as bytes. */
 const toBuffer = ({ chunk, encoding }: { chunk: string | Uint8Array; encoding: unknown }, _optional = {}): Buffer => {
@@ -284,32 +283,37 @@ export async function readSiteAnalyticsProof({ deps, req }: { deps: RouteDeps; r
 
 /** One published construction snapshot per mounted site, refreshed by publication. No per-page reads. */
 const documentPolicies = new WeakMap<SiteCookieConsentDeps, Promise<ConsentConfig>>();
+const documentScripts = new WeakMap<SiteCookieConsentDeps, Promise<{ scripts: readonly DeclaredScript[]; problems: readonly string[] }>>();
 const documentClients = new WeakMap<SiteCookieConsentDeps, { body: Buffer; src: string }>();
 const EXTENSION_SRC = '/_consent/extensions.min.js';
 
 /** Document construction consumes data, never a completed response body. */
-export async function siteConsentDocumentAssets({ deps, request, scripts }: { deps: Pick<RouteDeps, 'cookieConsent'>; request: Request; scripts: readonly DeclaredScript[] }, _optional = {}): Promise<DocumentAssets> {
+export async function siteConsentDocumentAssets({ deps, request, scripts }: { deps: Pick<RouteDeps, 'cookieConsent' | 'consentAdapters'>; request: Request; scripts: readonly DeclaredScript[] }, _optional = {}): Promise<DocumentAssets> {
   const consent = deps.cookieConsent;
   const policy = consent && documentPolicies.get(consent);
   if (!policy) return { head: renderScriptAssets({ scripts }), body: '' };
   const config = await policy.catch(() => null);
   if (!config) return { head: '', body: '' };
-  if (siteBannerMode({ config }) === 'off') return { head: renderScriptAssets({ scripts }), body: '' };
+  const declared = await documentScripts.get(consent);
+  const allScripts = [...scripts, ...declared?.scripts ?? []];
+  if (siteBannerMode({ config }) === 'off') return { head: renderScriptAssets({ scripts: allScripts }), body: '' };
   const live = !isStaticExportRequest(request);
-  const plugins = live ? [...siteConsentPlugins({ deps: deps as RouteDeps }).map(item => item.adapter), ...await consent.browserPlugins?.() ?? []] : [];
+  const plugins = await documentPlugins({ deps, live });
   const { banner, options } = toSiteCookieConsent({ config, policy: config.policyVersion }, { plugins });
-  const rendered = renderBanner({ ...banner, client: { ...banner.client, scripts, ...(live ? { context: `${CONSENT_ENDPOINT}/context` } : {}) } }, {
+  const rendered = renderBanner({ ...banner, client: { ...banner.client, scripts: allScripts, ...(live ? { context: `${CONSENT_ENDPOINT}/context` } : {}) } }, {
     ...options, clientSrc: documentClients.get(consent)!.src, extensionSrc: EXTENSION_SRC,
     evidence: live ? { mode: 'durable', endpoint: CONSENT_ENDPOINT } : { mode: 'local' },
   });
-  return { head: rendered.head, body: rendered.body };
+  return { head: rendered.head, body: rendered.body + '<a class="tovu-consent-settings" href="#privacy-choices" data-consent-open>Cookie settings</a>' };
 }
 
 /** JSON declaration URLs are invisible to an HTML crawler. No live collectors enter an export. */
 export async function siteConsentExportAssets({ deps }: { deps: Pick<RouteDeps, 'cookieConsent'> }, _optional = {}): Promise<readonly string[]> {
   const policy = deps.cookieConsent && documentPolicies.get(deps.cookieConsent);
   if (!policy || siteBannerMode({ config: await policy }) === 'off') return [];
-  return [documentClients.get(deps.cookieConsent!)!.src, EXTENSION_SRC];
+  const declared = await documentScripts.get(deps.cookieConsent!);
+  const local = declared?.scripts.filter(script => script.src.startsWith('/')).map(script => script.src) ?? [];
+  return [documentClients.get(deps.cookieConsent!)!.src, EXTENSION_SRC, ...local];
 }
 
 /** Public context reads publication only, once, and keeps visitor-dependent state out of HTML caches. */
@@ -318,8 +322,10 @@ function mountContext({ app, deps, consent }: { app: Express; deps: RouteDeps; c
     res.set('Cache-Control', 'private, no-store');
     try {
       const config = await readSiteConsentPolicy({ deps }, { cssBlocks: false });
+      documentPolicies.set(consent, Promise.resolve(config));
       const enabled = siteBannerMode({ config }) !== 'off';
       if (enabled) {
+        documentScripts.set(consent, consent.scriptDeclarations?.() ?? Promise.resolve({ scripts: [], problems: [] }));
         const hint = await resolveRegion({ resolvers: await consent.regionResolvers(), request: { header: name => req.get(name) ?? null, ip: req.ip ?? null } });
         setRegionCookie({ req, res, hint });
         clearLegacyCookie({ req, res });
@@ -334,7 +340,9 @@ export function applySiteCookieConsent({ app, deps, consent }: { app: Express; d
   const refresh = async () => {
     const pending = readSiteConsentPolicy({ deps }, { cssBlocks: false });
     documentPolicies.set(consent, pending);
-    await pending;
+    const declarations = consent.scriptDeclarations?.() ?? Promise.resolve({ scripts: [], problems: [] });
+    documentScripts.set(consent, declarations);
+    await Promise.all([pending, declarations]);
   };
   consent.refresh = refresh;
   consent.exportAssets = () => siteConsentExportAssets({ deps });
@@ -353,4 +361,9 @@ export function applySiteCookieConsent({ app, deps, consent }: { app: Express; d
   mountContext({ app, deps, consent });
   mountReceipts({ app, deps });
   mountPluginHttp({ app, deps });
+}
+
+async function documentPlugins({ deps, live }: { deps: Pick<RouteDeps, 'cookieConsent' | 'consentAdapters'>; live: boolean }): Promise<readonly RawContribution[]> {
+  if (!live) return [];
+  return [...deps.consentAdapters?.({ base: PLUGIN_BASE }).map(item => item.adapter) ?? [], ...await deps.cookieConsent?.browserPlugins?.() ?? []];
 }

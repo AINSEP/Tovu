@@ -3,7 +3,7 @@
 import type { Request } from 'express';
 import type { RawContribution, RegionResolver } from '@jini-ai/cookie-consent';
 import type { LoadPluginContributions } from '#src/features/agent-plugins/lifecycle';
-import { loadSiteConsentBridges, loadSiteRegionResolvers } from '#src/features/consent/region-plugins';
+import { loadSiteConsentBridges, loadSiteConsentScripts, loadSiteRegionResolvers } from '#src/features/consent/region-plugins';
 import type { RouteDeps } from '#src/server/routes/types';
 import { readSiteAnalyticsProof, siteReceiptAllowsAnalytics, type SiteCookieConsentDeps } from '../../inbound/public-http/middleware/site-cookie-consent.js';
 
@@ -27,7 +27,13 @@ export function selectCookieConsent(
   const legacyHeader = env.TOVU_CONSENT_REGION_HEADER?.trim() || undefined;
   let cached: { at: number; value: Promise<readonly RegionResolver[]> } | undefined;
   let bridges: { at: number; value: Promise<readonly RawContribution[]> } | undefined;
+  let scripts: { at: number; value: ReturnType<typeof loadSiteConsentScripts> } | undefined;
   return {
+    scriptDeclarations: () => {
+      if (scripts && nowMs() - scripts.at < REGION_TTL_MS) return scripts.value;
+      scripts = { at: nowMs(), value: loadSiteConsentScripts({ workspaceId, loadContributions }) };
+      return scripts.value;
+    },
     browserPlugins: () => {
       if (bridges && nowMs() - bridges.at < REGION_TTL_MS) return bridges.value;
       bridges = { at: nowMs(), value: loadSiteConsentBridges({ workspaceId, loadContributions }) };

@@ -3284,6 +3284,7 @@ export function pageShell(required: {
   siteAssistantEnabled?: SiteChatSelection;
 }, _optional: Record<string, never> = {}): string {
   const { theme, extraHead } = required;
+  const assets = required.documentAssets ?? { head: '', body: '' };
   const foldHasTitle = extraHead?.includes("<title>") ?? false;
   const titleTag = foldHasTitle ? "" : `<title>${escapeHtml(required.title)}</title>`;
   const siteAssistant = siteAssistantMarkup(required.siteAssistantEnabled ?? false);
@@ -3303,12 +3304,12 @@ ${extraHead ?? ""}
 ${themeFontLink}
 <style>${BASE_STYLE}${themeStyle}</style>
 ${siteAssistant.head}
-${required.documentAssets?.head ?? ""}
+${assets.head}
 </head>
 <body>
 <div class="site"${themeAttr}>${required.body}</div>
 ${siteAssistant.body}
-${required.documentAssets?.body ?? ""}
+${assets.body}
 </body>
 </html>`;
   // Review fix 3a: the same once-per-page default style `finishStaticTierDocument`'s
