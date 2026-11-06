@@ -74,6 +74,8 @@ test("rebuilding the site app on the same RouteDeps (export, published-page fetc
     "entry.published": 1,
     "entry.unpublished": 1,
     "entry.updated": 1,
+    "form.attachment.cleanup": 1,
+    "form.notification.deliver": 1,
     "form.submission.received": 3,
     "newsletter.send.batch.claimed": 1,
     "seo.sitemap_invalidated": 1,
@@ -94,7 +96,7 @@ test("one form submission event sends one notify email after the site app was re
   const sentTo: string[] = [];
   deps.mailer.send = async (message) => {
     sentTo.push(message.to.email);
-    return { ok: true, providerMessageId: `sent-${sentTo.length}` } as never;
+    return { ok: true, providerMessageId: `sent-${sentTo.length}` };
   };
   createApp(deps);
   deps.createSiteApp();
@@ -128,8 +130,13 @@ test("one form submission event sends one notify email after the site app was re
     payload: { workspaceId: deps.workspaceId, formDefinitionId: "form-1", submissionId: "submission-1" },
   });
 
-  await processOutbox({ outbox: deps.outbox, bus: deps.bus, clock: deps.clock });
+  const worker = { outbox: deps.outbox, bus: deps.bus, clock: deps.clock };
+  assert.equal(await processOutbox(worker), 1, "the source event plans a durable recipient job");
+  assert.deepEqual(sentTo, [], "source delivery does not send inline");
+  assert.equal(await processOutbox(worker), 1, "one recipient job is delivered after the rebuild");
 
+  assert.deepEqual(sentTo, ["owner@example.com"]);
+  assert.equal(await processOutbox(worker), 0, "neither app build leaves duplicate notification work");
   assert.deepEqual(sentTo, ["owner@example.com"]);
 });
 
