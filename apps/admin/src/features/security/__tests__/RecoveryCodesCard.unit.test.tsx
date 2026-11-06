@@ -11,6 +11,23 @@ const port = (owner = true): OwnerRecoveryPort => ({
 });
 
 describe('owner recovery card', () => {
+  it('uses the current password for proof and new-password for the desktop reset, even when revealed', async () => {
+    render(<RecoveryCodesCard port={port()} />);
+    const proof = await screen.findByLabelText('Current owner password');
+    expect(proof).toHaveAttribute('autocomplete', 'current-password');
+    fireEvent.click(screen.getByRole('button', { name: 'Show Current owner password' }));
+    expect(proof).toHaveAttribute('type', 'text');
+    expect(proof).toHaveAttribute('autocomplete', 'current-password');
+    fireEvent.click(screen.getByText('Reset owner password'));
+    for (const label of ['New owner password', 'Confirm new owner password']) {
+      const input = screen.getByLabelText(label);
+      expect(input).toHaveAttribute('autocomplete', 'new-password');
+      fireEvent.click(screen.getByRole('button', { name: `Show ${label}` }));
+      expect(input).toHaveAttribute('type', 'text');
+      expect(input).toHaveAttribute('autocomplete', 'new-password');
+    }
+  });
+
   it('hides recovery actions from staff', async () => {
     render(<RecoveryCodesCard port={port(false)} />);
     await waitFor(() => expect(screen.queryByText('Loading owner recovery…')).toBeNull());

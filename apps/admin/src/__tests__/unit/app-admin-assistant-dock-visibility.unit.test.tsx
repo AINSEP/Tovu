@@ -156,6 +156,8 @@ it("keeps the assistant dock mounted, outside the expanded post-preview's contai
   window.history.replaceState(null, "", "/admin/posts/p1");
   const { container } = render(<App />);
   await waitFor(() => expect(container.querySelector("main")).not.toBeNull());
+  // The post screen is lazy now; wait for its real module before checking preview containment.
+  await vi.dynamicImportSettled();
   await waitFor(() => expect(screen.getByRole("tab", { name: "Preview" })).toBeInTheDocument());
 
   fireEvent.click(screen.getByRole("tab", { name: "Preview" }));

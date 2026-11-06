@@ -26,7 +26,8 @@ import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper
  *    explicit `autoComplete`.
  * 2. A field whose `type` can be `password` never uses the literal `"off"`: Chrome ignores `off` on
  *    credential fields by design. Set/change-password and secret fields use `new-password`.
- * 3. The login form is the one real sign-in: `username` + `current-password`.
+ * 3. Existing-password proof uses `current-password`: the login form and the owner's recovery-kit
+ *    reauthentication field. New passwords and recovery codes must not receive a saved login.
  *
  * HTML-string builders are covered on the Jini side: `packages/ui/src/features/mcp-ui/__tests__/
  * surfaces/form.test.ts` ("credential autofill guard") checks that every `type="password"` input a
@@ -44,6 +45,7 @@ const NAMING_ATTRS = new Set(["id", "name", "aria-label", "placeholder"]);
 interface InputFinding {
   file: string;
   line: number;
+  id: string | null;
   passwordType: boolean;
   credentialNamed: boolean;
   autoComplete: string | null;
@@ -95,6 +97,14 @@ function stringValues(node: ts.Node | undefined): string[] | null {
   return null;
 }
 
+/** A proof-field exception requires one fixed id, never a conditional choice of field identity. */
+function literalInputId(node: ts.JsxSelfClosingElement | ts.JsxOpeningElement, source: ts.SourceFile): string | null {
+  const attribute = node.attributes.properties.find((prop): prop is ts.JsxAttribute =>
+    ts.isJsxAttribute(prop) && prop.name.getText(source) === "id");
+  const values = stringValues(attribute?.initializer);
+  return values?.length === 1 ? values[0]! : null;
+}
+
 /** Every `<input>`/`<Input>` in `source` that is credential-shaped. Pure, so testable on fixtures. */
 function findCredentialInputs(file: string, source: string): InputFinding[] {
   const sf = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
@@ -132,7 +142,7 @@ function findCredentialInputs(file: string, source: string): InputFinding[] {
         if (values.length) autoComplete = values.join(" ");
       }
       if (passwordType || credentialNamed) {
-        out.push({ file, line: sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1, passwordType, credentialNamed, autoComplete });
+        out.push({ file, line: sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1, id: literalInputId(node, sf), passwordType, credentialNamed, autoComplete });
       }
     }
     ts.forEachChild(node, visit);
@@ -145,13 +155,17 @@ function violations(findings: InputFinding[]): string[] {
   const hits: string[] = [];
   for (const f of findings) {
     const where = `${f.file}:${f.line}`;
+    // This exact field proves the existing owner password before issuing recovery codes; the
+    // other password fields in the same component choose a NEW password and stay new-password.
+    const currentPassword = f.file === "features/auth/Login.tsx" ||
+      (f.file === "features/security/RecoveryCodesCard.tsx" && f.id === "recovery-current-password");
     if (f.autoComplete === null) hits.push(`${where}: credential input has no autoComplete`);
     else if (f.passwordType && f.autoComplete === "off") hits.push(`${where}: password input uses "off" (Chrome ignores it)`);
     else if (!f.autoComplete.trim() || f.autoComplete.includes("<expression>")) hits.push(`${where}: credential input has unresolved or empty autoComplete`);
-    else if (f.credentialNamed && f.file !== "features/auth/Login.tsx" && f.autoComplete.split(" ").includes("current-password")) {
+    else if (f.credentialNamed && !currentPassword && f.autoComplete.split(" ").includes("current-password")) {
       hits.push(`${where}: secret input uses sign-in autoComplete`);
     }
-    else if (f.passwordType && f.autoComplete.split(" ").some((value) => value !== (f.file === "features/auth/Login.tsx" ? "current-password" : "new-password"))) {
+    else if (f.passwordType && f.autoComplete.split(" ").some((value) => value !== (currentPassword ? "current-password" : "new-password"))) {
       hits.push(`${where}: password input has an inappropriate autoComplete`);
     }
   }
@@ -175,6 +189,18 @@ const JINI_UI_SRC = path.resolve(SRC, "../node_modules/@jini-ai/ui/src");
 const HAS_JINI_UI_SRC = existsSync(JINI_UI_SRC);
 
 describe("findCredentialInputs: the detector", () => {
+  it("recognizes only the recovery kit's existing-password proof, without exempting its other fields", () => {
+    const file = "features/security/RecoveryCodesCard.tsx";
+    const proof = '<SecretInput id="recovery-current-password" autoComplete="current-password" />';
+    expect(violations(findCredentialInputs(file, proof))).toEqual([]);
+    expect(violations(findCredentialInputs("other.tsx", proof))).toHaveLength(1);
+    expect(violations(findCredentialInputs(file, proof.replace('id="recovery-current-password"', 'id="desktop-owner-password"')))).toHaveLength(1);
+    expect(violations(findCredentialInputs(file, proof.replace('id="recovery-current-password"', 'id={proof ? "recovery-current-password" : "desktop-owner-password"}')))).toHaveLength(1);
+    for (const attribute of ['autoComplete="off"', 'autoComplete={undefined}', '']) {
+      expect(violations(findCredentialInputs(file, proof.replace('autoComplete="current-password"', attribute)))).toHaveLength(1);
+    }
+  });
+
   it.each(['{undefined}', '""', '{autoComplete}', '{reveal ? "off" : "new-password"}', '"current-password"'])(
     "rejects unproven or inappropriate password autoComplete=%s", (value) => {
       expect(violations(findCredentialInputs("secret.tsx", `<input type="password" autoComplete=${value} />`))).toHaveLength(1);

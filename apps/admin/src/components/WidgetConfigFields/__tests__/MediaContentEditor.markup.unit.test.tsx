@@ -78,10 +78,16 @@ describe("agent handles", () => {
     expect(agentElements()).toEqual(expect.arrayContaining(["w-insert-media", "w-html"]));
   });
 
-  it("emits no agent markup without a base", () => {
+  it("omits host handles without a base while shared help and dialog controls keep their default handles", () => {
     const { vm } = fakeController({ showColumns: true, picker: "items" });
     renderEditor(vm);
-    expect(agentElements()).toEqual([]);
+    const aspectHelp = screen.getByRole("button", { name: "e.g. 1, 4/3, 16/9" });
+    const attributesHelp = screen.getByRole("button", { name: "data-*, aria-*, class, id, style. Unsafe ones are dropped." });
+    const close = screen.getByRole("button", { name: "Close" });
+    // Shared controls intentionally gained automatic handles; no other host control gets one.
+    expect(Array.from(document.querySelectorAll("[data-agent-element]"))).toEqual([aspectHelp, attributesHelp, close]);
+    for (const help of [aspectHelp, attributesHelp]) expect(help.getAttribute("data-agent-element")).toMatch(/^ui-[a-z0-9-]+$/);
+    expect(close.getAttribute("data-agent-element")).toMatch(/^kit-[a-z0-9-]+-dialog-close$/);
   });
 });
 

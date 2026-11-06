@@ -4,6 +4,13 @@ import { SITE_TRANSFER_DICT } from "../site-transfer-i18n";
 
 // Author Checklist / F4.1: literal language expectations; no expected values derived from t.
 describe("Sites assembled dictionary", () => {
+  it("labels ascending site-name sorting in the operator's language", () => {
+    expect(t({ locale: "de", key: "A-Z" })).toBe("Name (A–Z)");
+    expect(t({ locale: "ja", key: "A-Z" })).toBe("名前順 (A–Z)");
+    expect(t({ locale: "ar", key: "A-Z" })).toBe("الاسم (A–Z)");
+    expect(t({ locale: "en", key: "A-Z" })).toBe("A-Z");
+  });
+
   it("retains base copy and merges detail and token copy into the same locale", () => {
     // Mutation: remove either Object.assign loop; the relevant lookup falls back to English.
     expect(t({ locale: "de", key: "Make default" })).toBe("Als Standard festlegen");
