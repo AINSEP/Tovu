@@ -54,7 +54,9 @@ test("buildDeploymentDescriptor: each boot-blocking env secret is one the real b
   // and a refused boot. `TOVU_SITE_KEY` is resolved through `siteKeySources`, not a direct read.
   const gate = readFileSync(path.join(process.cwd(), "apps/website/src/server/runtime/boot/boot-readiness-gate.ts"), "utf8");
   const direct = buildDeploymentDescriptor().secrets.filter((s) => s.requirement === "boot-blocking" && s.name !== "TOVU_SITE_KEY");
-  assert.deepEqual(direct.filter((s) => !gate.includes(`process.env.${s.name}`)).map((s) => s.name), []);
+  // Launch credentials are consumed from process.env; the gate must read its private startup snapshot.
+  assert.ok(gate.includes("const env = startupSecretEnvironment({ env: process.env });"));
+  assert.deepEqual(direct.filter((s) => !new RegExp(`(?<![\\w.])env\\.${s.name}(?!\\w)`).test(gate)).map((s) => s.name), []);
 });
 
 test("buildDeploymentDescriptor: called twice returns the same values (no hidden mutable state)", () => {

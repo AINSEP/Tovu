@@ -1,6 +1,8 @@
+// The shipped bundle includes hosting packages supplied by the selected Jini plugin subpaths.
+import "#src/features/agent-plugins/__tests__/fixtures/composed-bundle-env";
+import { bundledAgentPluginsDir } from "#src/platform/site-dir/index";
 import assert from "node:assert/strict";
 import test from "node:test";
-import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildDeployOpsRegistrations } from "../tool-registrations.js";
 import { waitForDeployOps } from "../run-ops.js";
@@ -179,7 +181,7 @@ test("hermetic catalog discovers platform enums from all bundled packages", asyn
   const catalog = getDeployOpsAgentToolCatalog();
   const status = catalog.find(tool => tool.name === "deployment_ops_status")!;
   // Which vendors ship is the plugins' business; core proves the default reader is the bundled tree's.
-  const bundled = readBundledDeployOpsDescriptors({ sourceRoot: path.resolve("content/agent-plugins") }).map(d => d.id);
+  const bundled = readBundledDeployOpsDescriptors({ sourceRoot: bundledAgentPluginsDir() }).map(d => d.id);
   assert.ok(bundled.length > 0);
   assert.deepEqual((status.inputSchema.properties as { platform: { enum: string[] } }).platform.enum, bundled);
 });
@@ -198,8 +200,7 @@ test("an unreadable bundled plugin tree yields a catalog with no platforms inste
   const { getDeployOpsAgentToolCatalog } = await import("../agent-tools.js");
   const roots: string[] = [];
   const catalog = getDeployOpsAgentToolCatalog(undefined, { readBundledDescriptors: ({ sourceRoot }) => { roots.push(sourceRoot); throw new Error("EACCES"); } });
-  assert.equal(roots.length, 1);
-  assert.match(roots[0] ?? "", /content[\\/]agent-plugins$/);
+  assert.deepEqual(roots, [bundledAgentPluginsDir()]);
   const status = catalog.find(tool => tool.name === "deployment_ops_status")!;
   assert.deepEqual((status.inputSchema.properties as { platform: { enum: string[] } }).platform.enum, []);
   assert.match(status.description, /Platforms: none available; enable a hosting plugin under Agent Plugins\./);
