@@ -1,4 +1,6 @@
 import { AsyncLocalStorage } from "node:async_hooks";
+import { installOwnedJsonAgent, type McpLaunchSpec } from "@jini-ai/mcp";
+import os from "node:os";
 import { readLoginShellEnvironment } from "@jini-ai/platform/child-environment";
 /**
  * @file The desktop app's ONE chat agent: a co-located Jini daemon living in Electron's main process.
@@ -30,7 +32,7 @@ import type { Server } from "node:http";
 import express, { type NextFunction, type Request, type Response } from "express";
 import type { Principal, ToolDescriptor, ToolRegistration, ToolRegistry } from "@jini-ai/core";
 import type { NativeAgentRuntime } from "@jini-ai/agent-runtime";
-import { createAgentExecutor, createInMemoryEventLog, createRunLifecycle, createToolExecutor, type AgentExecutor, type RunLifecycle } from "@jini-ai/daemon";
+import { createAgentExecutor, createInMemoryEventLog, createRunLifecycle, createToolExecutor, type AgentExecutor, type AgentExecutorRunInput, type RunLifecycle } from "@jini-ai/daemon";
 import { registerDelegatedToolRoutes, registerToolCatalogRoutes, type ToolCatalogQuery } from "@jini-ai/daemon/http";
 import { createNodeCredentialCrypto, createRunScopedCredentials, type RunScopedCredentials } from "@jini-ai/daemon/run-credentials";
 import type { TurnAddressee } from "./desktop-agent-tools.ts";
@@ -65,6 +67,9 @@ interface DesktopTurnOptions {
   reasoning?: string;
   addressee?: TurnAddressee | null;
   attachmentPaths?: readonly string[];
+  /** Host-prepared pixels and validated read-only folders use Jini's existing delivery contract. */
+  imageContents?: AgentExecutorRunInput["imageContents"];
+  readOnlyExtraDirs?: readonly string[];
 }
 
 interface DesktopAgentRuntime {
@@ -89,6 +94,7 @@ interface DesktopAgentRuntimeRequired {
 
 interface DesktopAgentRuntimeOptions {
   readLoginShellEnvironment?: typeof readLoginShellEnvironment;
+  installOwnedJsonAgent?: typeof installOwnedJsonAgent;
   readFullCliAccess?: (required: { addressee: TurnAddressee | null }, optional?: {}) => Promise<boolean | AssistantCliPermissions>;
   toolGapStore?: Pick<ConversationStore, "appendToolGap" | "listToolGaps">;
   /** Test seam: a fake executor so no real CLI is spawned. */
@@ -228,6 +234,28 @@ function defaultMcpServeScript(): string {
   return path.join(path.dirname(entry), "bin", "serve.js");
 }
 
+/** Forward trusted desktop attachments on the existing Jini contract, preserving separate folder grants. */
+function desktopAttachmentOptions(options: DesktopTurnOptions): Pick<AgentExecutorRunInput, "imagePaths" | "imageContents" | "readOnlyExtraDirs" | "extraAllowedDirs"> {
+  const attachments = options.attachmentPaths ?? [];
+  return {
+    ...(options.imageContents === undefined ? {} : { imageContents: options.imageContents }),
+    ...(options.readOnlyExtraDirs === undefined ? {} : { readOnlyExtraDirs: options.readOnlyExtraDirs }),
+    ...(attachments.length === 0 ? {} : { imagePaths: attachments, extraAllowedDirs: [...new Set(attachments.map(file => path.dirname(file)))] }),
+  };
+}
+
+/** One static bridge launch spec for execution and registration; never contains run credentials. */
+function desktopBridgeLaunch(optional: Pick<DesktopAgentRuntimeOptions, "mcpServeScript">): McpLaunchSpec {
+  return { command: process.execPath, args: [optional.mcpServeScript ?? defaultMcpServeScript()], env: { ELECTRON_RUN_AS_NODE: "1" } };
+}
+
+/** Personal registry setup stays in Jini's existing installer and requires the same MCP grant. */
+async function prepareDesktopConnector({ agentId, runtime, allowed }: { agentId: string; runtime: NativeAgentRuntime; allowed: boolean }, optional: DesktopAgentRuntimeOptions): Promise<void> {
+  if (runtime.getAgentDef({ id: agentId })?.externalMcpInjection !== "env-passthrough") return;
+  await (optional.installOwnedJsonAgent ?? installOwnedJsonAgent)({ agentId, allowed, spec: desktopBridgeLaunch(optional),
+    ctx: { home: runtime.hostEnv.HOME ?? runtime.hostEnv.USERPROFILE ?? os.homedir(), platform: process.platform, serverName: "jini" } });
+}
+
 /**
  * The production executor: Jini's own, with the `jini-mcp` bridge injected per run. Inside Electron
  * `execPath` is the app binary, which boots a GUI unless `ELECTRON_RUN_AS_NODE` is set — and Jini's
@@ -252,9 +280,7 @@ function defaultAgentExecutor(
     piGracefulShutdownMs: runtime.piGracefulShutdownMs,
     mcpJsonInjection: {
       toolApprovalOwner: "host",
-      command: process.execPath,
-      args: [optional.mcpServeScript ?? defaultMcpServeScript()],
-      env: { ELECTRON_RUN_AS_NODE: "1" },
+      ...desktopBridgeLaunch(optional),
       daemonUrl: ports.daemonUrl,
       credential: ({ runId }) => ports.credentials.mint({ runId }),
     },
@@ -357,13 +383,13 @@ async function createDesktopAgentRuntime(
     const addressee = options.addressee ?? null;
     const hostSignals = resolveDesktopHostSignals({ env: required.agentRuntime.hostEnv });
     const { nativeCapabilities, nativeToolAccess, parityEnv } = await resolveDesktopTurnAccess({ addressee, hostEnv: required.agentRuntime.hostEnv, hostSignals }, optional);
+    await prepareDesktopConnector({ agentId: input.agentId, runtime: required.agentRuntime, allowed: nativeCapabilities.userMcp }, optional);
     const { run } = await lifecycle.start({ contextRef: DESKTOP_CHAT_CONTEXT_REF }, { agentId: input.agentId });
     liveRuns.set(run.id, { addressee });
     void lifecycle.waitForTerminal({ runId: run.id }).finally(() => {
       liveRuns.delete(run.id);
       credentials.revoke({ runId: run.id });
     });
-    const attachments = options.attachmentPaths ?? [];
     const gaps = createToolGapCollector({
       sink: { append: async (_event, detail = {}) => {
         if (detail.detail) gapStore.appendToolGap({ entry: JSON.parse(detail.detail) as ToolGapEntry }, {});
@@ -386,7 +412,7 @@ async function createDesktopAgentRuntime(
         disallowedTools: resolveAssistantDisallowedTools({ nativeToolAccess }, {}),
         ...(options.model === undefined ? {} : { model: options.model }),
         ...(options.reasoning === undefined ? {} : { reasoning: options.reasoning }),
-        ...(attachments.length === 0 ? {} : { imagePaths: attachments, extraAllowedDirs: [...new Set(attachments.map((file) => path.dirname(file)))] }),
+        ...desktopAttachmentOptions(options),
       },
     )).catch(async (error: unknown) => {
       // `AgentExecutor.run()` terminalizes the run itself on every failure it knows about; this only

@@ -39,7 +39,7 @@ function detectedTestAgentOutcome(
  * — the Local CLI counterpart of `test-connection.ts`, backing
  * `ExecutionPort.testAgent` (the per-agent Test button on an agent card).
  *
- * Implemented as a fresh `detectAgents()` run filtered to the requested id
+ * Implemented as a fresh `detectAgents()` run scoped to the requested id
  * rather than a new probing mechanism. That run already spawns each CLI's
  * `--version` and its declared auth probe (`probeAgentAuthStatus`), which is
  * exactly the question the button asks: is this CLI present, and is it signed
@@ -90,7 +90,7 @@ export const registerAdminAssistantTestAgentRoute: AssistantExecutionRouteRegist
         return;
       }
 
-      const agents = await (deps.detectAgents ?? deps.assistantAgentInventory?.runtime.detectAgents ?? detectAgents)({}, { force: true });
+      const agents = await (deps.detectAgents ?? deps.assistantAgentInventory?.runtime.detectAgents ?? detectAgents)({ agentIds: [agentId] }, { force: true });
       res.json(detectedTestAgentOutcome({ agents, agentId, model }));
     } catch (error) {
       sendAdminFailure({ res, error }, { operation: "routes/assistant/test-agent", code: "INTERNAL_ERROR" });
