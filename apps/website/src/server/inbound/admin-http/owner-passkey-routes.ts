@@ -1,3 +1,4 @@
+import { sendAdminFailure } from './routes/system/site-share-errors.js';
 import type { Express, Request, Response } from 'express';
 import { IdentityValidationError, OwnerRequiredError } from '@jini-ai/user-management';
 import { beginOwnerPasskeyEnrollment, confirmOwnerPasskeyEnrollment, beginOwnerPasskeyLogin, completeOwnerPasskeyLogin,
@@ -36,9 +37,15 @@ async function passkeyDeps(admission: Admission, req: Request): Promise<OwnerPas
 /** Admission failures reveal no credentials; protocol proofs are never logged. O(1). */
 function failure(res: Response, error: unknown): void {
   const expected = error instanceof IdentityValidationError || error instanceof OwnerRequiredError;
-  res.status(error instanceof OwnerRequiredError ? 403 : expected ? 400 : 503).json({
-    error: expected ? error.message : 'The passkey action could not finish. Try a new attempt, or sign in with your authenticator app or recovery code.',
-    code: expected ? 'PASSKEY_REFUSED' : 'PASSKEY_UNAVAILABLE', details: { operation: 'owner-passkey' },
+  if (!expected) {
+    sendAdminFailure({ res, error }, { operation: 'owner-passkey', code: 'PASSKEY_UNAVAILABLE',
+      message: 'Passkey action could not finish.', failure: { step: 'owner-passkey',
+        action: 'Try a new attempt, or use your authenticator app or recovery code to sign in. Copy the error ID if it continues.' } });
+    return;
+  }
+  res.status(error instanceof OwnerRequiredError ? 403 : 400).json({
+    error: error.message,
+    code: 'PASSKEY_REFUSED', details: { operation: 'owner-passkey' },
   });
 }
 

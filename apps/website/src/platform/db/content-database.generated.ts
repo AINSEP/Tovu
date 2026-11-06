@@ -51,9 +51,9 @@ export interface ContentDatabase {
   oauth_device_authorizations: OauthDeviceAuthorizationsTable;
   origin_settings: OriginSettingsTable;
   outbox_events: OutboxEventsTable;
-  owner_passkeys: OwnerPasskeysTable;
   owner_mfa_factors: OwnerMfaFactorsTable;
   owner_mfa_pending: OwnerMfaPendingTable;
+  owner_passkeys: OwnerPasskeysTable;
   owner_recovery_codes: OwnerRecoveryCodesTable;
   plugin_activations: PluginActivationsTable;
   policies: PoliciesTable;
@@ -633,6 +633,15 @@ export interface OwnerMfaPendingTable {
   sealed_secret: string | null;
 }
 
+export interface OwnerPasskeysTable {
+  workspace_id: string;
+  principal_id: string;
+  credential_id: string;
+  public_key: string;
+  counter: number;
+  rp_id: string;
+}
+
 export interface OwnerRecoveryCodesTable {
   workspace_id: string;
   principal_id: string;
@@ -1094,13 +1103,4 @@ export interface WorkspacesTable {
   name: string;
   slug: string;
   created_at: string;
-}
-
-export interface OwnerPasskeysTable {
-  workspace_id: string;
-  principal_id: string;
-  credential_id: string;
-  public_key: string;
-  counter: number;
-  rp_id: string;
 }

@@ -1,3 +1,4 @@
+import { sendAdminFailure } from './routes/system/site-share-errors.js';
 import type { Express, Request, Response } from 'express';
 import { IdentityValidationError, OwnerRequiredError } from '@jini-ai/user-management';
 import { beginOwnerEnrollment, confirmOwnerEnrollment, removeOwnerFactor } from '@jini-ai/user-management/server';
@@ -16,12 +17,18 @@ type Action = 'enroll' | 'confirm' | 'remove';
  */
 function failure(res: Response, error: unknown): void {
   const expected = error instanceof IdentityValidationError || error instanceof OwnerRequiredError;
+  if (!expected) {
+    sendAdminFailure({ res, error }, { operation: 'owner-authenticator', code: 'MFA_UNAVAILABLE',
+      message: 'Authenticator action could not finish.', failure: { step: 'owner-authenticator',
+        action: 'Try a new attempt, or use your authenticator app or recovery code to sign in. Copy the error ID if it continues.' } });
+    return;
+  }
   let status = 503;
   if (expected) status = 400;
   if (error instanceof OwnerRequiredError) status = 403;
   res.status(status).json({
-    error: expected ? error.message : 'Authenticator settings could not be saved. Try again, then copy the problem details if it continues.',
-    code: expected ? 'MFA_REFUSED' : 'MFA_UNAVAILABLE', details: { operation: 'owner-authenticator' },
+    error: error.message,
+    code: 'MFA_REFUSED', details: { operation: 'owner-authenticator' },
   });
 }
 

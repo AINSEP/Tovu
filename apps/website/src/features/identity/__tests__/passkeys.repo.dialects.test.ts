@@ -1,3 +1,4 @@
+import type { StorageKernel } from '#src/platform/db/kernel/port';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { sql } from 'kysely';
@@ -44,8 +45,8 @@ for (const adapter of eachDialect({ tables: ['owner_passkeys', 'owner_mfa_pendin
     const step = CONTENT_MIGRATIONS.find(s => s.id === '0041_owner_passkeys');
     assert.ok(step);
     const options = { ledgerTable: 'passkey_upgrade_test' };
-    assert.deepEqual((await runMigrations(kernel, [step], options)).applied, [step.id]);
-    assert.deepEqual((await runMigrations(kernel, [step], options)).applied, []);
+    assert.deepEqual((await runMigrations(kernel as unknown as StorageKernel<unknown>, [step], options)).applied, [step.id]);
+    assert.deepEqual((await runMigrations(kernel as unknown as StorageKernel<unknown>, [step], options)).applied, []);
     assert.deepEqual(await kernel.query(sql`SELECT sealed_secret FROM owner_mfa_factors WHERE workspace_id = 'upgrade'`), [{ sealed_secret: 'sealed' }]);
     await kernel.execute(sql`INSERT INTO owner_passkeys VALUES ('a', 'owner', 'key', 'public', 0, 'localhost')`);
     await assert.rejects(kernel.execute(sql`INSERT INTO owner_passkeys VALUES ('a', 'other', 'key', 'public', 0, 'localhost')`));

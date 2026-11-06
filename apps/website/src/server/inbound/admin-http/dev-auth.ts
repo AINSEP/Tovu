@@ -574,6 +574,16 @@ function signalAdminSignIn({ deps, principalId, port }: { deps: SessionAuthDeps;
     .catch(() => console.warn("[admin-auth] post-sign-in form pull check failed; sign-in is unaffected"));
 }
 
+/** Shared request metadata for every ordinary owner session. O(1), no I/O. */
+function sessionRequestOptions({ req }: { req: Request }) {
+  return { ip: req.ip, userAgent: req.get("user-agent") ?? undefined, sessionTtlMs: SESSION_TTL_MS };
+}
+
+/** MFA proofs are strings; objects/numbers never become bearer tokens by coercion. O(1). */
+function mfaBodyText({ req, key }: { req: Request; key: string }): string {
+  return typeof req.body?.[key] === "string" ? req.body[key] as string : "";
+}
+
 /** Registers login/logout/me and the loopback boot exchange before the admin session gate.
  * `onAdminSignIn` hears every owner/admin sign-in: password login and both boot-session exchanges. */
 export function registerAuthRoutes(app: Express, deps: RouteDeps,
@@ -627,7 +637,7 @@ export function registerAuthRoutes(app: Express, deps: RouteDeps,
 
       const result = deps.mfaStore
         ? await beginOwnerLogin({ deps: await ownerMfaDepsFrom({ deps }), input: { workspaceId: deps.workspaceId, username, password } },
-          { ip: req.ip, userAgent: req.get("user-agent") ?? undefined, sessionTtlMs: SESSION_TTL_MS })
+          sessionRequestOptions({ req }))
         : await login({
         deps: authServiceDepsFrom(deps),
         input: {
@@ -635,11 +645,7 @@ export function registerAuthRoutes(app: Express, deps: RouteDeps,
           username,
           password,
         },
-      }, {
-        ip: req.ip,
-        userAgent: req.get("user-agent") ?? undefined,
-        sessionTtlMs: SESSION_TTL_MS,
-      });
+      }, sessionRequestOptions({ req }));
 
       res.setHeader("Cache-Control", "no-store");
       if ("mfaRequired" in result) { res.json(result); return; }
@@ -669,9 +675,9 @@ export function registerAuthRoutes(app: Express, deps: RouteDeps,
         return;
       }
       const result = await completeOwnerLogin({ deps: await ownerMfaDepsFrom({ deps }),
-        input: { workspaceId: deps.workspaceId, pendingToken: typeof req.body?.pendingToken === "string" ? req.body.pendingToken : "",
-          code: typeof req.body?.code === "string" ? req.body.code : "" } },
-      { ip: req.ip, userAgent: req.get("user-agent") ?? undefined, sessionTtlMs: SESSION_TTL_MS });
+        input: { workspaceId: deps.workspaceId, pendingToken: mfaBodyText({ req, key: "pendingToken" }),
+          code: mfaBodyText({ req, key: "code" }) } },
+      sessionRequestOptions({ req }));
       await revokeRequestSessions({ deps, req });
       setSessionCookie(res, result.rawToken, result.session.expiresAt);
       const user = await deps.userRepo.findByPrincipalId({ workspaceId: deps.workspaceId, principalId: result.principal.id });
