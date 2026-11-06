@@ -234,3 +234,21 @@ test("registerMemberPageRoutes: an unknown path 404s and a render failure answer
   assert.equal(broken.sent.body, "<h1>Site error</h1>");
   assert.equal(errors.length, 1);
 });
+
+
+test('static pages with consent off load theme and plugin declarations without the consent runtime', async (t) => {
+  const theme = { ...starter, manifest: { ...starter.manifest, scripts: [{ src: '/theme-menu.js' }] } };
+  const consent = consentOverrides(false);
+  consent.cookieConsent!.scriptDeclarations = async () => ({ scripts: [{ src: '/plugin-menu.js' }], problems: [] });
+  const { server, baseUrl } = await startServer({ ...authenticatedDeps(), ...consent,
+    themes: [theme], postRepo: new InMemoryPostRepo([]) });
+  t.after(() => closeServer(server));
+  for (const route of ['/', '/signin', '/missing-page']) {
+    const response = await fetch(`${baseUrl}${route}`);
+    assert.equal(response.status, route === '/missing-page' ? 404 : 200, route);
+    const html = await response.text();
+    assert.match(html, /data-jini-declared-script src="\/theme-menu\.js"/, route);
+    assert.match(html, /data-jini-declared-script src="\/plugin-menu\.js"/, route);
+    assert.doesNotMatch(html, /data-jini-consent-loader|id="jini-consent"|\/_consent\//, route);
+  }
+});

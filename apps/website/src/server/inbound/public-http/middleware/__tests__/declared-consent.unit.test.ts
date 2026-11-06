@@ -548,3 +548,36 @@ test('an older authored consent loader remains harmless when consent is disabled
     } finally { dom.window.close(); }
   } finally { await f.close(); }
 });
+
+
+test('static documents with consent off deliver declared scripts directly and export their local assets', async () => {
+  const f = await fixture(false, async () => ({ scripts: [
+    { src: '/plugin-menu.js' }, { src: '/plugin-optional.js', consent: ['analytics'] },
+    { src: 'https://example.com/plugin.js' },
+  ], problems: [] }));
+  f.app.get('/static-assets', async (req, res) => res.json(await siteConsentDocumentAssets({
+    deps: f.deps, request: req, static: true,
+    scripts: [{ src: '/theme-menu.js' }, { src: '/theme-optional.js', consent: ['functional'] }],
+  })));
+  try {
+    const assets = await (await fetch(`${f.url}/static-assets`)).json() as { head: string; body: string };
+    const { JSDOM } = await import('jsdom');
+    const dom = new JSDOM(`<html><head>${assets.head}</head><body>${assets.body}</body></html>`);
+    try {
+      assert.deepEqual([...dom.window.document.querySelectorAll('script')].map(script => script.getAttribute('src')),
+        ['/theme-menu.js', '/theme-optional.js', '/plugin-menu.js', '/plugin-optional.js', 'https://example.com/plugin.js']);
+      assert.equal(assets.body, '');
+      assert.doesNotMatch(assets.head, /_consent|jini-consent/);
+      assert.deepEqual(await f.deps.cookieConsent!.exportAssets!(), ['/plugin-menu.js', '/plugin-optional.js']);
+    } finally { dom.window.close(); }
+  } finally { await f.close(); }
+});
+
+test('a static document with consent off and no declared scripts adds nothing', async () => {
+  const f = await fixture(false);
+  f.app.get('/static-assets', async (req, res) => res.json(await siteConsentDocumentAssets({ deps: f.deps, request: req, static: true, scripts: [] })));
+  try {
+    assert.deepEqual(await (await fetch(`${f.url}/static-assets`)).json(), { head: '', body: '' });
+    assert.deepEqual(await f.deps.cookieConsent!.exportAssets!(), []);
+  } finally { await f.close(); }
+});

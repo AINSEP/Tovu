@@ -246,18 +246,14 @@ async function briefPendingRead({ state }: { state: DocumentState }): Promise<vo
 export async function siteConsentDocumentAssets({ deps, request, scripts, static: staticDocument }: { deps: Pick<RouteDeps, 'cookieConsent' | 'consentAdapters'>; request: Request; scripts: readonly DeclaredScript[]; static?: true }, _optional = {}): Promise<DocumentAssets> {
   const consent = deps.cookieConsent;
   const config = await documentPolicy({ consent });
-  if (staticDocument) return staticDocumentAssets({ config, request });
+  if (staticDocument && (!config || request.res?.locals.tovuRenderThemeIdOverride)) return { head: '', body: '' };
   const allScripts = [...scripts, ...await documentDeclarations({ consent })];
   if (request.res?.locals.tovuRenderThemeIdOverride) return { head: renderScriptAssets({ scripts: allScripts.filter(script => script.consent === undefined) }), body: '' };
   if (!config || !consent) return { head: renderScriptAssets({ scripts: allScripts.filter(script => script.consent === undefined) }), body: '' };
   if (siteBannerMode({ config }) === 'off') return { head: renderScriptAssets({ scripts: allScripts }), body: '' };
+  // Static pages use the loader only for consent; ordinary declarations need no consent runtime.
+  if (staticDocument) return { head: `<script src="${CONSENT_LOADER_SRC}" defer data-jini-consent-loader></script>`, body: '' };
   return renderDocumentConsent({ deps, request, consent, config, scripts: allScripts });
-}
-
-/** Static documents receive only the loader, using the same cached publication as managed shells. */
-function staticDocumentAssets({ config, request }: { config: ConsentConfig | null; request: Request }): DocumentAssets {
-  if (!config || siteBannerMode({ config }) === 'off' || request.res?.locals.tovuRenderThemeIdOverride) return { head: '', body: '' };
-  return { head: `<script src="${CONSENT_LOADER_SRC}" defer data-jini-consent-loader></script>`, body: '' };
 }
 
 /** Render the shared banner and client assets once a usable snapshot has been selected. */

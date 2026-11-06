@@ -901,7 +901,7 @@ export async function finishStaticTierDocument(
       featuredImage,
       postAuthor,
     }) ?? "",
-    (await deps.documentAssets?.({ scripts: [], static: true }))?.head
+    (await deps.documentAssets?.({ scripts: theme.manifest.scripts ?? [], static: true }))?.head
   );
 }
 
@@ -1587,7 +1587,7 @@ export async function renderViaTemplate(
         htmlOverride: buildMissingTemplateHtml(theme.manifest.apiVersion),
         menus: staticMenus,
       }) ?? "",
-      (await deps.documentAssets?.({ scripts: [], static: true }))?.head
+      (await deps.documentAssets?.({ scripts: theme.manifest.scripts ?? [], static: true }))?.head
     );
   }
   const { pageId, html: rawTemplate } = resolution;
