@@ -1,3 +1,4 @@
+import { startupSecretEnvironment } from '#src/server/runtime/boot/startup-secrets';
 import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { homedir } from "node:os";
 import { siteKeySources } from "#src/features/webhooks/index";
@@ -104,7 +105,7 @@ function siteKeyEnvVarStatus(siteKey: SiteKeyStatus): DeploymentEnvVarStatus {
 }
 
 function envVarStatus(name: (typeof REQUIRED_ENV_VAR_NAMES)[number], siteKey: SiteKeyStatus): DeploymentEnvVarStatus {
-  return name === "TOVU_SITE_KEY" ? siteKeyEnvVarStatus(siteKey) : { name, set: Boolean(process.env[name]) };
+  return name === "TOVU_SITE_KEY" ? siteKeyEnvVarStatus(siteKey) : { name, set: Boolean(startupSecretEnvironment({ env: process.env })[name]) };
 }
 
 /**

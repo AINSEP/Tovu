@@ -31,7 +31,7 @@ export function getMediaAccessEvidenceCache({ postRepo, entryRepo }: { postRepo:
 
 /** A content write drops derived access settings before the next conditional request.
  * Clearing also detaches pending scans: their completion never re-inserts old evidence.
- * @complexity O(c) for the owner's caches, each bounded to 256 workspace indexes; no storage I/O. */
+ * @complexity O(c) for the owner's caches, each holding its site's workspace index; no storage I/O. */
 export function invalidateMediaAccessEvidence({ owner }: { owner: object }, _optional = {}): void {
   postCaches.get(owner)?.clear();
   for (const cache of widgetCaches.get(owner) ?? []) cache.clear();

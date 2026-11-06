@@ -2556,7 +2556,7 @@
     },
     "deployment_execute_static_publish": {
       "class": "publish",
-      "confirmation": "policy"
+      "confirmation": "plan"
     },
     "deployment_generate_bucket_hosting_setup": {
       "class": "read",
