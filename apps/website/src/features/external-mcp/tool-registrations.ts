@@ -453,6 +453,26 @@ function externalMcpAccessSubject({ record, id }: { record: ExternalMcpServerRec
     target: redactSecrets({ input: record.url ?? `${record.command ?? ""} ${record.args ?? ""}` }, { redactPii: false }) };
 }
 
+/** New permissions must name tools actually advertised by this exact admitted endpoint.
+ * Existing grants may still be removed or disabled without starting optional remote discovery.
+ * @throws ToolInputError before a card/write if any new name is absent from the identity-bound cache.
+ * @complexity O(a+w+t) in bounded proposed/current lists and the existing cached tool names; no I/O.
+ */
+function requireKnownMcpAccess({ routeDeps, record, previous, access }: {
+  routeDeps: ExternalMcpToolDeps; record: ExternalMcpServerRecord;
+  previous: { enabled: boolean; allowedToolNames: readonly string[]; writeAllowedToolNames: readonly string[] };
+  access: { enabled: boolean; allowedToolNames: readonly string[]; writeAllowedToolNames: readonly string[] };
+}): void {
+  const enabling = !previous.enabled && access.enabled;
+  const newNames = enabling ? [...access.allowedToolNames, ...access.writeAllowedToolNames]
+    : [...access.allowedToolNames.filter(name => !previous.allowedToolNames.includes(name)),
+      ...access.writeAllowedToolNames.filter(name => !previous.writeAllowedToolNames.includes(name))];
+  if (newNames.length === 0) return;
+  const known = routeDeps.externalMcpKnownToolNames?.({ serverId: record.serverId, admissionRevision: externalMcpAccessSnapshot({ record }).admissionRevision });
+  const names = new Set(known ?? []);
+  if (!newNames.every(name => names.has(name))) throw new ToolInputError({ message: `The '${record.serverId}' connection has no verified tool listing for this proposed access. Request its live connection tool listing with external_mcp_get_admissions or external_mcp_probe_connection, then request access again using only known tools. Nothing was changed.` });
+}
+
 /** Fixed access proposal through the same human-only exchange as other privilege changes.
  * Preparation reads one source; the accepted effect conditionally updates only its access columns.
  * @complexity O(a+w) bounded lists; two permission checks, one preview and one conditional update.
@@ -476,6 +496,7 @@ function externalMcpAccessHandler({ routeDeps, surfaces }: { routeDeps: External
         writeAllowedToolNames: write === undefined ? previous.writeAllowedToolNames : parseWriteAllowedToolNames(write) };
       const allowedSet = new Set(access.allowedToolNames);
       if (access.writeAllowedToolNames.some(name => !allowedSet.has(name))) throw new ToolInputError({ message: 'Every tool allowed to write must also appear in allowedToolNames. Nothing was changed.' });
+      requireKnownMcpAccess({ routeDeps, record, previous, access });
       return { id, ...externalMcpAccessSubject({ record, id }), expected: externalMcpAccessSnapshot({ record }), previous, access };
     },
     describe: ({ ctx, prepared }) => ({ toolId: EXTERNAL_MCP_SAVE_TOOL_ID, errorCode: 'EXTERNAL_MCP',
@@ -695,6 +716,6 @@ export function buildExternalMcpRegistrations(routeDeps: ExternalMcpToolDeps, su
  * `server/runtime/composition/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not
  * by importing this module. See this file's header for what was unreachable before this existed.
  */
-export function contributeExternalMcpTools({ probe }: { probe?: (deps: ExternalMcpToolDeps, serverId: string) => Promise<{ ok: boolean; body: Readonly<Record<string, unknown>> }> } = {}, _optional = {}): ToolContributor<ExternalMcpToolDeps, AssistantSurfaceDeps> {
-  return { domain: "external-mcp", build: (deps, surfaces) => buildExternalMcpRegistrations({ ...deps, ...(probe ? { externalMcpProbe: ({ serverId }: { serverId: string }) => probe(deps, serverId) } : {}) }, surfaces), risk: externalMcpDerivedRisk };
+export function contributeExternalMcpTools({ probe, knownToolNames }: { probe?: (deps: ExternalMcpToolDeps, serverId: string) => Promise<{ ok: boolean; body: Readonly<Record<string, unknown>> }>; knownToolNames?: ExternalMcpToolDeps["externalMcpKnownToolNames"] } = {}, _optional = {}): ToolContributor<ExternalMcpToolDeps, AssistantSurfaceDeps> {
+  return { domain: "external-mcp", build: (deps, surfaces) => buildExternalMcpRegistrations({ ...deps, ...(knownToolNames ? { externalMcpKnownToolNames: knownToolNames } : {}), ...(probe ? { externalMcpProbe: ({ serverId }: { serverId: string }) => probe(deps, serverId) } : {}) }, surfaces), risk: externalMcpDerivedRisk };
 }

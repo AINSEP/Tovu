@@ -21,7 +21,7 @@ function source(): ExternalMcpServerRecord {
     oauthStatus: null, oauthExpiresAt: null, oauthTokenEnvName: null, oauthRefreshLeaseUntil: null,
     sealedOAuth: null, aadVersion: 1, oauthAadVersion: 1, createdAt: now, updatedAt: now };
 }
-async function fixture() {
+async function fixture({ knownNames = ['read', 'write'] }: { knownNames?: readonly string[] | null } = {}) {
   const repo = new InMemoryExternalMcpServerRepo();
   const original = source(); await repo.upsert(original);
   const controller = new AbortController();
@@ -29,6 +29,7 @@ async function fixture() {
   const surfaces = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: { newId: () => 'access-exchange' }, defaultChannel: 'mcp-ui' }),
     assertAccessApprover: async () => {} };
   const deps = { workspaceId: key.workspaceId, clock: { nowMs: () => Date.parse(now) }, externalMcpServerRepo: repo,
+    externalMcpKnownToolNames: () => knownNames,
     authorize: async () => ({ allowed: permission, reason: permission ? 'matched' : 'revoked' }) } as unknown as ExternalMcpToolDeps;
   const handler = buildExternalMcpRegistrations(deps, surfaces).find(entry => entry.descriptor.id === 'external_mcp_save')!.handler;
   const emissions: SurfaceEmission[] = [];
@@ -69,6 +70,35 @@ for (const decision of ['cancel', 'abort', 'stale', 'revoked'] as const) test(`$
   if (decision === 'stale' || decision === 'revoked') await assert.rejects(pending, /changed|authorized|revoked/i);
   else { const result = await pending as { saved: boolean }; assert.equal(result.saved, false); }
   assert.deepEqual(await f.repo.findByServerId(key), expected);
+});
+
+
+for (const knownNames of [null, ['read']] as const) test(`${knownNames === null ? 'missing' : 'incomplete'} frozen catalog refuses new names before a card or write`, async t => {
+  const f = await fixture({ knownNames }); t.after(() => f.controller.abort());
+  const pending = f.invoke(); void pending.catch(() => {}); await turn();
+  if (f.emissions.length > 0) f.controller.abort();
+  await assert.rejects(pending, /known|catalog|list|discover/i);
+  assert.equal(f.emissions.length, 0);
+  assert.deepEqual(await f.repo.findByServerId(key), f.original);
+});
+
+test('enabling saved unknown names is widening and requires a verified catalog', async t => {
+  const f = await fixture({ knownNames: null }); t.after(() => f.controller.abort());
+  Object.assign(f.ctx.input as Record<string, unknown>, { enabled: true, allowedToolNames: 'read', writeAllowedToolNames: '' });
+  const pending = f.invoke(); void pending.catch(() => {}); await turn();
+  if (f.emissions.length > 0) f.controller.abort();
+  await assert.rejects(pending, /known|catalog|list|discover/i);
+  assert.equal(f.emissions.length, 0);
+  assert.deepEqual(await f.repo.findByServerId(key), f.original);
+});
+
+test('grant removals and disabling remain available without a cached catalog', async t => {
+  const f = await fixture({ knownNames: null }); t.after(() => f.controller.abort());
+  Object.assign(f.ctx.input as Record<string, unknown>, { enabled: false, allowedToolNames: '', writeAllowedToolNames: '' });
+  const pending = f.invoke(); await turn();
+  assert.equal(f.emissions.length, 1); f.answer({ decision: 'confirm' });
+  assert.equal((await pending as { saved: boolean }).saved, true);
+  assert.deepEqual((await f.repo.findByServerId(key))!.allowedToolNames, '[]');
 });
 
 test('credential setup discloses fixed grant lists without editable access fields', () => {
