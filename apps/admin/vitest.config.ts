@@ -122,6 +122,11 @@ export default defineConfig({
     },
     coverage: {
       provider: "v8",
+      // Unloaded runtime files remain in the denominator; only tests and declarations are outside it.
+      include: ["src/**/*.{ts,tsx}"],
+      exclude: ["**/*.{test,spec}.{ts,tsx}", "**/__tests__/**", "**/*.d.ts"],
+      // AI Dev Shop test-design's unit-suite floor, applied equally to every measured axis.
+      thresholds: { statements: 98, branches: 98, functions: 98, lines: 98 },
       reporter: ["text", "lcov"],
       reportsDirectory: "./coverage",
       // Vitest defaults this to `false` — a coverage run with even one failing test then produces

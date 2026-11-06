@@ -2711,13 +2711,14 @@ export async function requestRidingOutRestart<T>(
  */
 async function request<T>(path: string, init?: RequestInit, onOk?: (res: Response) => void, options: AuthenticatedAdminRequestOptions = {}): Promise<T> {
   const generation = adminFailureChannel.getGeneration();
+  const method = init?.method ?? "GET";
   try {
-    return await requestRidingOutRestart({ send: () => requestOnce<T>({ path, init, onOk }, options), method: init?.method }, options);
+    return await requestRidingOutRestart({ send: () => requestOnce<T>({ path, init, onOk }, options), method }, options);
   } catch (error) {
     // Only the final unexpected failure is shared; callers keep their original error and body.
     try {
       if (error instanceof ApiError && (error.status === 0 || error.status >= 500)) {
-        publishAdminFailure({ body: error.body, path, method: init?.method, status: error.status, generation });
+        publishAdminFailure({ body: error.body, path, method, status: error.status, generation });
       }
     } catch { /* Notice effects must never replace the original request rejection. */ }
     throw error;

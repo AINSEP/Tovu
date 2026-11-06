@@ -127,3 +127,18 @@ it.each([
   expect(failure?.copyText).not.toContain("The error ID identifies the server report.");
   expect(failure?.copyText).not.toContain("HOST_SECRET_CANARY");
 });
+
+it("describes an implicit GET failure as a read without exposing legacy error text", async () => {
+  vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({
+    error: "PRIVATE_BACKEND SECRET_CANARY", code: "INTERNAL_ERROR", errorId: "incident-default-get",
+  }), { status: 500 })));
+  const error = await api.listPages().catch(error => error) as ApiError;
+  expect(error).toBeInstanceOf(ApiError);
+  expect(adminFailureChannel.getSnapshot()).toMatchObject({
+    message: "The pages could not be loaded.",
+    action: "Try loading them again. If it still fails, copy details and report this problem.",
+    step: "Load pages (HTTP 500)",
+    errorId: "incident-default-get",
+  });
+  expect(adminFailureChannel.getSnapshot()?.copyText).not.toMatch(/PRIVATE_BACKEND|SECRET_CANARY/);
+});
