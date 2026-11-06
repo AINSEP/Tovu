@@ -56,7 +56,7 @@ test('the key dropdown opens on a plain prompt, never on a dash', async () => {
   await f.tool.handler(f.ctx, { emitSurface: async emission => {
     const html = JSON.stringify(emission);
     assert.doesNotMatch(html, /disabled>—</);
-    assert.match(html, /disabled>Choose a saved key or enter a new one</);
+    assert.match(html, /disabled>Choose a key</, 'short enough not to clip in the chat frame at phone width');
     f.deliver({ [SURFACE_DISMISSED_PARAM]: true });
   } });
 });
