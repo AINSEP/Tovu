@@ -40,6 +40,10 @@
   .site-transfer-link { max-width: 28ch; }
 }
 .site-transfer-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+/* Export table actions stay together; phone cards retain their normal wrapping layout. */
+@container admin-content (min-width: 620.02px) {
+  .site-transfer-actions--export { flex-wrap: nowrap; }
+}
 .site-transfer-actions > .btn-secondary,
 .site-transfer-actions > .btn-danger,
 .site-transfer-actions > .btn-primary { display: inline-flex; align-items: center; gap: var(--space-2); white-space: nowrap; }
@@ -62,7 +66,8 @@
 
 /* Credential warnings (owner, 2026-11-03): on their own full-width row under the export or import,
    never a modal. The file list scrolls, so a large site cannot make the table thousands of px tall. */
-.site-transfer-detail { display: flex; align-items: center; flex-wrap: wrap; column-gap: var(--space-4); row-gap: var(--space-1); font-size: var(--text-sm); }
+/* Detail rows must not contribute intrinsic column widths when their file list opens. */
+.site-transfer-detail { contain: inline-size; display: flex; align-items: center; flex-wrap: wrap; column-gap: var(--space-4); row-gap: var(--space-1); font-size: var(--text-sm); }
 .site-transfer-detail-message { flex-basis: 100%; margin: 0; color: var(--fg); }
 .site-transfer-detail .field-error { flex-basis: 100%; margin: 0; }
 .site-transfer-acknowledge { display: inline-flex; align-items: center; gap: var(--space-2); color: var(--fg); font-weight: 600; }

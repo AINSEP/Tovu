@@ -5,7 +5,7 @@ import { DataTable } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/agentic";
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
 import { ErrorNotice, formatTimestamp, type Translate } from "@jini-ai/ui/panel-kit";
-import { siteShareNotices, type SiteShare } from "./hooks/site-transfer-dependencies.hooks";
+import { siteShareNotices, type SiteShare, type CredentialWarning } from "./hooks/site-transfer-dependencies.hooks";
 import { useWiredSiteExport, type SiteExportController } from "./hooks/use-site-transfer.hooks";
 import { formatTransferBytes, shareStatusView, shortLink } from "./site-transfer-rules";
 
@@ -131,7 +131,7 @@ function exportRowNotices({ share, gate, t }: { share: SiteShare; gate: Credenti
  */
 function exportCredentialDetail({ share, index, controller, t }: { share: SiteShare; index: number; controller: SiteExportController; t: Translate }, _options = {}) {
   const gate = controller.credentialGate(share);
-  const warnings = gate?.warnings ?? share.credentialWarnings ?? [];
+  const warnings = exportCredentialWarnings({ share, gate });
   const notices = exportRowNotices({ share, gate, t });
   if (!gate && !warnings.length && !notices.length) return null;
   return (
@@ -142,6 +142,11 @@ function exportCredentialDetail({ share, index, controller, t }: { share: SiteSh
       <CredentialWarningList warnings={warnings} t={t} />
     </div>
   );
+}
+
+/** Preserve a live gate's complete warning snapshot, including an intentionally empty list. */
+function exportCredentialWarnings({ share, gate }: { share: SiteShare; gate: CredentialGate | null }, _options = {}): readonly CredentialWarning[] {
+  return gate?.warnings ?? share.credentialWarnings ?? [];
 }
 
 function ExportAcknowledge({ share, gate, index, controller, t }: { share: SiteShare; gate: CredentialGate; index: number; controller: SiteExportController; t: Translate }) {
@@ -193,7 +198,7 @@ function ShareActions({ share, index, controller, t }: { share: SiteShare; index
   // Handing the archive out waits for "I understand"; Revoke and the password reveal do not.
   const gated = controller.credentialGate(share) !== null;
   return (
-    <div className="site-transfer-actions">
+    <div className="site-transfer-actions site-transfer-actions--export">
       <ExportPasswordRevealAction share={share} controller={controller} t={t} />
       {share.url ? (
         <button
