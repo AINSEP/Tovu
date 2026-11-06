@@ -105,8 +105,13 @@ for (const theme of [starter, marketing]) {
 function consentOverrides(enabled: boolean): Partial<RouteDeps> {
   return {
     cookieConsent: { regionResolvers: async () => [] }, siteConsentReady: Promise.resolve(),
-    consentStore: { readPublished: async () => ({ id: "member-page-policy", actorId: "fixture", createdAt: "2026-11-06",
-      config: { ...SITE_CONSENT_DEFAULTS, enabled, privacyPolicyUrl: "/privacy" } }) } as RouteDeps["consentStore"],
+    consentStore: {
+      readPublished: async () => ({ id: "member-page-policy", actorId: "fixture", createdAt: "2026-11-06",
+        config: { ...SITE_CONSENT_DEFAULTS, enabled, privacyPolicyUrl: "/privacy" } }),
+      read: async () => assert.fail("Public pages must not read consent drafts"),
+      saveDraft: async () => assert.fail("Public pages must not save consent drafts"),
+      publish: async () => assert.fail("Public pages must not publish consent policies"),
+    },
   };
 }
 
