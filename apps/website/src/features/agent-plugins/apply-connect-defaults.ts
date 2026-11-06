@@ -109,13 +109,14 @@ async function readConnectGrant({ deps, serverId, resolveServers, approvedEnable
  * failing the sign-in.
  * @complexity O(s) in the plugin's declared server count, plus one row write and one activation write.
  */
-export function createApplyConnectDefaults(deps: ApplyConnectDefaultsDeps, options: { readonly approvedEnable?: { readonly principalId: string; readonly accessKey?: string } } = {}): (serverId: string) => Promise<void> {
+export function createApplyConnectDefaults(deps: ApplyConnectDefaultsDeps, options: { readonly approvedEnable?: { readonly principalId: string; readonly accessKey: string } } = {}): (serverId: string) => Promise<void> {
   const resolveServers = deps.resolveServers ?? ((input: { workspaceId: string; pluginId: string }) => resolveAgentPluginMcpServers({ ...input, agentPluginLayout: deps.agentPluginLayout }));
   const enablePlugin =
     deps.enablePlugin ?? ((input: { workspaceId: string; pluginId: string }) => switchPluginOnUnlessOperatorOff({ ...input, agentPluginLayout: deps.agentPluginLayout }));
   const isOff = deps.isPluginOffByOperator ?? ((pluginId: string) => isPluginOffByOperator({ workspaceId: deps.workspaceId, agentPluginLayout: deps.agentPluginLayout, pluginId }));
 
   return async (serverId) => {
+    assertApprovedSnapshot(options.approvedEnable);
     const prepared = await readConnectGrant({ deps, serverId, resolveServers, approvedEnable: options.approvedEnable !== undefined });
     if (!prepared) return;
     const { row, pluginId, grant } = prepared;
@@ -139,6 +140,11 @@ export function createApplyConnectDefaults(deps: ApplyConnectDefaultsDeps, optio
   };
 }
 
+/** Approval-bearing callers cannot fall back to an unbound sign-in grant. */
+function assertApprovedSnapshot(approved: { readonly accessKey: string } | undefined): void {
+  if (approved && !approved.accessKey) throw new ToolInputError({ message: 'The approved access snapshot is missing. Request the access change again. Nothing was granted.' });
+}
+
 /** Only the detached host-produced snapshot authorizes a chat-triggered widening.
  * The effect compares its admission and previous grants atomically in the repository. */
 function approvedSource({ key, connectionId }: { key: string | undefined; connectionId: string }, _options = {}): {
@@ -154,7 +160,7 @@ function approvedSource({ key, connectionId }: { key: string | undefined; connec
 /** New sources must still have the empty access displayed before provisioning.
  * Existing sources additionally use the approved atomic repository snapshot. */
 function assertApprovedSource({ approved, grant, current, url }: {
-  approved: ReturnType<typeof approvedSource>; grant: ReturnType<typeof storedAgentPluginGrants>; current: ReturnType<typeof storedAgentPluginGrants>; url: string;
+  approved: ReturnType<typeof approvedSource>; grant: ReturnType<typeof storedAgentPluginGrants>; current: ReturnType<typeof storedAgentPluginGrants>; url: string | null;
 }, _options = {}): void {
   if (!approved) return;
   const sameGrant = JSON.stringify(approved.grant) === JSON.stringify(grant);

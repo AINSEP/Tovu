@@ -60,7 +60,7 @@ interface GrantDeclaredToolsOptions {
   /** Servers whose provisioning just failed (their row could not even be read or written): nothing to grant. */
   readonly skipServerKeys?: readonly string[];
   /** The enable card already named these sources and grants; sign-in can happen afterwards. */
-  readonly approvedEnable?: { readonly principalId: string; readonly accessKey?: string };
+  readonly approvedEnable?: { readonly principalId: string; readonly accessKey: string };
 }
 
 /** Bind the existing sign-in grant to its explicit approval occasion; test ports retain precedence.

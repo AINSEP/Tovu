@@ -31,7 +31,7 @@ test('the owner card predicts the same exact access that the existing grant owne
   const apply = createApplyConnectDefaults({ ...f, workspaceId: 'ws', agentPluginLayout: resolveAgentPluginLayout({ siteDir: '/unused' }),
     resolveServers: async () => servers, isPluginOffByOperator: async () => false, enablePlugin: async () => true,
     notifyRosterChanged: async () => { reloads++; },
-  }, { approvedEnable: { principalId: 'owner' } });
+  }, { approvedEnable: { principalId: 'owner', accessKey: preview.key } });
   await apply('media');
   const row = await f.row();
   assert.equal(row.enabled, true);
@@ -40,6 +40,20 @@ test('the owner card predicts the same exact access that the existing grant owne
   assert.equal(row.writeGrantsUpdatedByPrincipalId, 'owner');
   assert.equal(reloads, 1);
   assert.equal((await previewAgentPluginEnableAccess({ workspaceId: 'ws', pluginId: 'images', servers, repo: f.repo })).details.length, 0);
+});
+
+test('an approved enable missing its access snapshot refuses before activation or grant writes', async () => {
+  const f = await fixture();
+  let activations = 0; let writes = 0;
+  const originalUpdate = f.repo.updateAccessIfCurrent.bind(f.repo);
+  f.repo.updateAccessIfCurrent = async input => { writes++; return originalUpdate(input); };
+  const apply = createApplyConnectDefaults({ ...f, workspaceId: 'ws', agentPluginLayout: resolveAgentPluginLayout({ siteDir: '/unused' }),
+    resolveServers: async () => servers, isPluginOffByOperator: async () => false, enablePlugin: async () => { activations++; return true; },
+    notifyRosterChanged: async () => {},
+  }, { approvedEnable: { principalId: 'owner' } } as never);
+  await assert.rejects(apply('media'), /approved access snapshot/);
+  assert.equal(activations, 0); assert.equal(writes, 0);
+  assert.equal((await f.row()).enabled, false);
 });
 
 test('a changed endpoint refuses before disclosing or granting a different source', async () => {
