@@ -176,3 +176,28 @@ test('embed delivery follows resolved policy while unrelated script declarations
   release!();
   assert.deepEqual(page, { status: 200, body: { consentOff: true } });
 });
+
+test('repeated mounts share the latest policy and an older refresh cannot change embed delivery', async () => {
+  let reads = 0;
+  let releaseFirst: (() => void) | undefined;
+  const consent: import('#src/contracts/headless/index').SiteCookieConsentDeps = { regionResolvers: async () => [] };
+  const deps = { cookieConsent: consent, workspaceId: 'remounted-policy', siteConsentReady: Promise.resolve(), siteBinding: { dir: '/tmp/remounted-policy' }, clock: { nowMs: Date.now },
+    consentStore: { readPublished: async () => {
+      const first = ++reads === 1;
+      if (first) await new Promise<void>(resolve => { releaseFirst = resolve; });
+      return { id: first ? 'old' : 'latest', actorId: 'fixture', createdAt: '2026-11-05', config: { ...SITE_CONSENT_DEFAULTS, enabled: first, privacyPolicyUrl: '/privacy' } };
+    } },
+  } as unknown as RouteDeps;
+  const firstApp = express();
+  const client = { src: '/_consent/fixture.js', body: Buffer.from('') };
+  applySiteCookieConsent({ app: firstApp, deps, consent }, { client });
+  await new Promise<void>(resolve => setImmediate(resolve));
+  applySiteCookieConsent({ app: express(), deps, consent }, { client });
+  await new Promise<void>(resolve => setImmediate(resolve));
+  assert.equal(consent.embedConsentOff?.(), true);
+  releaseFirst!();
+  await new Promise<void>(resolve => setImmediate(resolve));
+  firstApp.get('/embed-policy', (_req, res) => res.json({ consentOff: consent.embedConsentOff?.() }));
+  assert.deepEqual(await dispatchJsonRequest(firstApp, 'GET', '/embed-policy'), { status: 200, body: { consentOff: true } });
+  assert.equal(reads, 2);
+});
