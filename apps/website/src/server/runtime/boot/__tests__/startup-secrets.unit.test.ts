@@ -33,7 +33,7 @@ test('the site authenticates with its startup daemon token without exporting sec
     for (const key of Object.keys(privateLaunch)) assert.equal(key in process.env, false, `${key} must be consumed`);
     assert.equal(ensureAgentDaemonToken({}, {}), 'startup-daemon-secret');
     assert.equal(resolveOwnerCredentials({ env: startupSecretEnvironment({ env: process.env }) }).password, privateLaunch.TOVU_ADMIN_PASSWORD);
-    const overview = buildDeploymentOverviewSnapshot({ defaultOwnerPasswordUnsafe: false, storagePaths: { contentDbPath: 'fixture.db', mediaUploadsDir: 'uploads' }, siteKey: { active: false, source: 'none' } });
+    const overview = buildDeploymentOverviewSnapshot({ defaultOwnerPasswordUnsafe: false, storagePaths: { contentDbPath: 'fixture.db', mediaUploadsDir: 'uploads' }, siteKey: { active: false, source: 'none', keyFilePath: 'fixture.key' } });
     assert.equal(overview.envVars.find(row => row.name === 'TOVU_ADMIN_PASSWORD')?.set, true, 'the overview sees the consumed startup password without revealing it');
     assert.equal(JSON.stringify(overview).includes(privateLaunch.TOVU_ADMIN_PASSWORD), false);
     assert.equal(desktopMcpRuntime.owned, true);

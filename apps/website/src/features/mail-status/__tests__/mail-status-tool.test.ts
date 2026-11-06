@@ -1,3 +1,4 @@
+import type { ChatDeleteSurfaceDeps } from '#src/contracts/core/chat-delete-grant';
 import assert from "node:assert/strict";
 import test from "node:test";
 import { isReadOnlyTool, type ToolExecutionContext } from "@jini-ai/core";
@@ -85,7 +86,8 @@ function controls(overrides: Partial<MailStatusToolDeps> = {}, grants: string[] 
     mailSenderIdentity: { resolve: async () => ({ email: "news@example.com", name: "Site" }) },
     ...overrides,
   };
-  const registrations = buildMailStatusRegistrations(deps, { surfaceExchanges: x.store, assertAccessApprover: async () => {} });
+  const surfaces: ChatDeleteSurfaceDeps = { surfaceExchanges: x.store, assertAccessApprover: async () => {} };
+  const registrations = buildMailStatusRegistrations(deps, surfaces);
   const call = (name: string, input: unknown = {}, options: ToolExecutionOptions = {}) =>
     registrations.find((r) => r.descriptor.id === name)!.handler({ ...ctx, input }, options);
   return { ...x, deps, call, selected, sent, revoke: (name: string) => allowed.delete(name), registrations };
@@ -181,8 +183,9 @@ test("mail_send_test without a composed sender resolver falls back to the mailer
 test("mail_set_provider discloses fixed scoped lanes and verifies the human before and after approval", async () => {
   const f = controls();
   const checks: string[] = [];
-  const registrations = buildMailStatusRegistrations(f.deps, { surfaceExchanges: f.store,
-    assertAccessApprover: async ({ principalId }) => { checks.push(principalId); } });
+  const surfaces: ChatDeleteSurfaceDeps = { surfaceExchanges: f.store,
+    assertAccessApprover: async ({ principalId }) => { checks.push(principalId); } };
+  const registrations = buildMailStatusRegistrations(f.deps, surfaces);
   const registration = registrations.find(r => r.descriptor.id === "mail_set_provider")!;
   await registration.handler({ ...ctx, input: { providerId: "smtp" } }, { emitSurface: async emission => {
     assert.deepEqual(checks, ["owner"]);
