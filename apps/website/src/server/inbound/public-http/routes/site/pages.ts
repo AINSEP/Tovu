@@ -888,7 +888,7 @@ export async function finishStaticTierDocument(
   // only one hand-authored directly into a theme file.
   const collectionLists = await resolveCollectionListsForRender(deps, assembled, currentPath);
 
-  return (
+  return injectExtraHeadIntoStaticPage(
     renderStaticPage({
       theme,
       pageId,
@@ -900,7 +900,8 @@ export async function finishStaticTierDocument(
       collectionLists,
       featuredImage,
       postAuthor,
-    }) ?? ""
+    }) ?? "",
+    (await deps.documentAssets?.({ scripts: [], static: true }))?.head
   );
 }
 
@@ -1579,13 +1580,14 @@ export async function renderViaTemplate(
     // dead code by construction, not merely untested — proper fix is narrowing `renderStaticPage`'s
     // own return type via an overload keyed on a required `htmlOverride`, which lives outside this
     // file (static-render.ts) and is out of this pass's scope.
-    return (
+    return injectExtraHeadIntoStaticPage(
       renderStaticPage({
         theme,
         pageId: "template-missing",
         htmlOverride: buildMissingTemplateHtml(theme.manifest.apiVersion),
         menus: staticMenus,
-      }) ?? ""
+      }) ?? "",
+      (await deps.documentAssets?.({ scripts: [], static: true }))?.head
     );
   }
   const { pageId, html: rawTemplate } = resolution;
@@ -2739,7 +2741,7 @@ function withListingBatch<T extends RouteDeps>(deps: T, req: Request): T & Pick<
   const pluginExportRender = pluginExportSession({ deps, req });
   const declaredScripts: import('@jini-ai/cookie-consent').DeclaredScript[] = [];
   const renderAssets = req.res?.locals?.siteConsentAssets as RouteDeps['documentAssets'];
-  const documentAssets: RouteDeps['documentAssets'] = renderAssets ? ({ scripts }) => renderAssets({ scripts: [...scripts, ...declaredScripts] }) : undefined;
+  const documentAssets: RouteDeps['documentAssets'] = renderAssets ? ({ scripts, ...options }) => renderAssets({ scripts: [...scripts, ...declaredScripts], ...options }) : undefined;
   const commentsCursor = typeof req.query?.commentCursor === 'string' ? req.query.commentCursor : undefined;
   // A static export/static-publish has no `/api/site/comments` to post to, and a snapshot would keep a
   // comment public after it is trashed: like the assistant bubble, it ships an empty comments surface.

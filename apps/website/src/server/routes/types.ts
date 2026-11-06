@@ -1349,7 +1349,7 @@ export interface TrashDeps {
  * putting them in a sub-interface creates a circular type TypeScript rejects.
  */
 export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps & ContentTaxonomyDeps & CommentsDeps & MembersDeps & DatabaseRecoveryDeps & WebhooksDeps & FormsDeps & PostDeps & PresentationDeps & SettingsDeps & ChangeSetDeps & EventBusDeps & AnalyticsDeps & NavigationDeps & DatabaseOpsDeps & RedirectsDeps & WidgetsDeps & PluginRuntimeDeps & ObservabilityDeps & PublishTrustRevocationDeps & TrashDeps & {
-  documentAssets?: (required: { scripts: readonly import('@jini-ai/cookie-consent').DeclaredScript[] }) => Promise<import('@jini-ai/cms/presentation').DocumentAssets>;
+  documentAssets?: (required: { scripts: readonly import('@jini-ai/cookie-consent').DeclaredScript[]; static?: true }) => Promise<import('@jini-ai/cms/presentation').DocumentAssets>;
   declaredScripts?: import('@jini-ai/cookie-consent').DeclaredScript[];
   /** Optional plugin-controlled purchase runtime. Member routes never select a merchant scope. */
   commerce?: import("../runtime/composition/commerce.js").CommerceRuntime;

@@ -243,14 +243,21 @@ async function briefPendingRead({ state }: { state: DocumentState }): Promise<vo
 }
 
 /** Document construction consumes data, never a completed response body. */
-export async function siteConsentDocumentAssets({ deps, request, scripts }: { deps: Pick<RouteDeps, 'cookieConsent' | 'consentAdapters'>; request: Request; scripts: readonly DeclaredScript[] }, _optional = {}): Promise<DocumentAssets> {
+export async function siteConsentDocumentAssets({ deps, request, scripts, static: staticDocument }: { deps: Pick<RouteDeps, 'cookieConsent' | 'consentAdapters'>; request: Request; scripts: readonly DeclaredScript[]; static?: true }, _optional = {}): Promise<DocumentAssets> {
   const consent = deps.cookieConsent;
   const config = await documentPolicy({ consent });
+  if (staticDocument) return staticDocumentAssets({ config, request });
   const allScripts = [...scripts, ...await documentDeclarations({ consent })];
   if (request.res?.locals.tovuRenderThemeIdOverride) return { head: renderScriptAssets({ scripts: allScripts.filter(script => script.consent === undefined) }), body: '' };
   if (!config || !consent) return { head: renderScriptAssets({ scripts: allScripts.filter(script => script.consent === undefined) }), body: '' };
   if (siteBannerMode({ config }) === 'off') return { head: renderScriptAssets({ scripts: allScripts }), body: '' };
   return renderDocumentConsent({ deps, request, consent, config, scripts: allScripts });
+}
+
+/** Static documents receive only the loader, using the same cached publication as managed shells. */
+function staticDocumentAssets({ config, request }: { config: ConsentConfig | null; request: Request }): DocumentAssets {
+  if (!config || siteBannerMode({ config }) === 'off' || request.res?.locals.tovuRenderThemeIdOverride) return { head: '', body: '' };
+  return { head: `<script src="${CONSENT_LOADER_SRC}" defer data-jini-consent-loader></script>`, body: '' };
 }
 
 /** Render the shared banner and client assets once a usable snapshot has been selected. */
@@ -299,6 +306,7 @@ function mountContext({ app, consent }: { app: Express; consent: SiteCookieConse
  * are inspected or changed; the browser installs only this server-owned contribution. */
 function mountStaticThemeLoader({ app, deps }: { app: Express; deps: RouteDeps }): void {
   app.get(CONSENT_LOADER_SRC, async (req, res) => {
+    try {
     const theme = deps.resolveActiveThemeId ? resolveActiveTheme(deps, await deps.resolveActiveThemeId()) : null;
     const scripts = theme && theme !== NO_THEME_ID ? theme.manifest.scripts ?? [] : [];
     const assets = await siteConsentDocumentAssets({ deps, request: req, scripts });
@@ -306,6 +314,13 @@ function mountStaticThemeLoader({ app, deps }: { app: Express; deps: RouteDeps }
     res.type('text/javascript').set('Cache-Control', 'public, max-age=60').set('Vary', 'X-Tovu-Static-Export').send(`(()=>{
       if(document.getElementById('jini-consent-config'))return;
       const template=document.createElement('template');template.innerHTML=${markup};
+      ${isStaticExportRequest(req) ? String.raw`// Only this server-owned contribution is rebased, never the authored document.
+      const base=document.currentScript?new URL('..',document.currentScript.src).pathname.replace(/\/$/,''):'';
+      const prefix=value=>typeof value==='string'&&/^\/(?!\/)/.test(value)?base+value:value;
+      for(const node of template.content.querySelectorAll('[src],[href]')){
+        for(const attr of ['src','href'])if(node.hasAttribute(attr))node.setAttribute(attr,prefix(node.getAttribute(attr)));}
+      const config=template.content.querySelector('#jini-consent-config');
+      if(config)config.textContent=JSON.stringify(JSON.parse(config.textContent),(key,value)=>key==='src'?prefix(value):value);` : ''}
       const scripts=[];
       for(const node of [...template.content.childNodes]){
         if(node.nodeName==='SCRIPT'&&node.getAttribute('src'))scripts.push(node);
@@ -315,6 +330,10 @@ function mountStaticThemeLoader({ app, deps }: { app: Express; deps: RouteDeps }
         for(const attr of node.attributes)script.setAttribute(attr.name,attr.value);
         script.async=false;document.body.append(script);}
     })();`);
+    } catch {
+      console.error('[consent] static loader unavailable');
+      res.status(503).type('text/javascript').set('Cache-Control', 'no-store').send('/* Cookie preferences could not be loaded. Wait a minute, then reload to try again. */');
+    }
   });
 }
 
@@ -366,7 +385,7 @@ export function applySiteCookieConsent({ app, deps, consent }: { app: Express; d
   app.use(async (req, res, next) => {
     // Resolve the cached publication before widget rendering; consent-off pages have no activation runtime.
     await documentPolicy({ consent });
-    res.locals.siteConsentAssets = (required: { scripts: readonly DeclaredScript[] }) => siteConsentDocumentAssets({ deps, request: req, scripts: required.scripts });
+    res.locals.siteConsentAssets = (required: { scripts: readonly DeclaredScript[]; static?: true }) => siteConsentDocumentAssets({ deps, request: req, ...required });
     next();
   });
   if (client) app.get(client.src, (_req, res) => { res.type('text/javascript').set('Cache-Control', 'public, max-age=31536000, immutable').send(client.body); });
