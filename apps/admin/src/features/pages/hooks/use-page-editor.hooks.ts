@@ -613,7 +613,15 @@ function applySaveFailure(
     setters.setSaveConflict(conflict);
     return;
   }
-  setters.setError(e instanceof Error ? e.message : t(locale, "failed to save page"));
+  setters.setError(e instanceof Error ? e.message : refusalMessage({ base: t(locale, "failed to save page"), e }));
+}
+
+/** The fallback sentence plus the real content of a thrown non-Error, so the person (and whoever they paste it to) sees why. With nothing thrown there is nothing to add. @complexity O(size of e), capped at 300 characters. */
+function refusalMessage({ base, e }: { base: string; e: unknown }): string {
+  if (e === undefined || e === null) return base;
+  let text: string;
+  try { text = typeof e === "string" ? e : JSON.stringify(e) ?? String(e); } catch { text = String(e); }
+  return `${base}: ${text.length > 300 ? `${text.slice(0, 300)}…` : text}`;
 }
 
 export interface PageEditorDependencies {

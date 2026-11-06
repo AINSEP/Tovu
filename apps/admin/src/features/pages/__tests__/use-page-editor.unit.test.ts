@@ -2536,19 +2536,32 @@ describe("page editor recovery and failure outcomes", () => {
     unmount();
   });
 
-  it("shows translated fallback text for a non-Error save refusal and retains the working copy", async () => {
+  it("shows translated fallback text plus the real details for a non-Error save refusal and retains the working copy", async () => {
     const deps = editorDeps();
     deps.port.updatePost = async () => { throw "offline"; };
     const { result } = renderHook(() => usePageEditor("landing", deps));
     await waitFor(() => expect(result.current.page).not.toBeNull());
     act(() => result.current.setHtml("<p>unsaved</p>"));
     await act(async () => { await result.current.save(); });
-    expect(result.current.error).toBe("en:failed to save page");
+    expect(result.current.error).toBe("en:failed to save page: offline");
     expect(result.current.html).toBe("<p>unsaved</p>");
     expect(result.current.dirty).toBe(true);
     expect(result.current.saving).toBe(false);
     expect(deps.port.current.bodyHtml).toBe("<p>hello</p>");
     expect(deps.port.updatePageHtmlCalls).toEqual([]);
+  });
+
+  it("shows an object refusal's contents, and adds nothing when none was thrown", async () => {
+    const deps = editorDeps();
+    deps.port.updatePost = async () => { throw { code: "E_QUOTA", reason: "disk full" }; };
+    const { result } = renderHook(() => usePageEditor("landing", deps));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+    act(() => result.current.setHtml("<p>unsaved</p>"));
+    await act(async () => { await result.current.save(); });
+    expect(result.current.error).toBe('en:failed to save page: {"code":"E_QUOTA","reason":"disk full"}');
+    deps.port.updatePost = async () => { throw undefined; };
+    await act(async () => { await result.current.save(); });
+    expect(result.current.error).toBe("en:failed to save page");
   });
 
   it.each([new Error("delete refused"), "offline"])("a delete failure closes confirmation and leaves the page and route intact: %s", async failure => {
