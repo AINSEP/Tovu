@@ -1,3 +1,4 @@
+import type { SiteCookieConsentDeps } from '../../contracts/headless/site-cookie-consent.js';
 import type { RequestListener } from "node:http";
 import { resolveConfiguredOrigin } from "@jini-ai/http-kit/verified-origin";
 import path from "node:path";
@@ -19,6 +20,8 @@ export { ExportOutputNotEmptyError } from "@jini-ai/devops/static-export";
 export type { ExportedRoute, FailedRoute, ExportedAsset, FailedAsset } from "@jini-ai/devops/static-export";
 import type { ExportReport as BaseExportReport } from "@jini-ai/devops/static-export";
 export interface ExportReport extends BaseExportReport {
+  /** Static pages were rendered before cookie preferences became available. */
+  consentWarning?: string;
   /** Public registry evidence used for this copy; absent when identity/discovery falls back. */
   publicOrigin?: string;
   /** Configured page multiplier and measured HTML byte multiplier; assets are crawled/deduplicated. */
@@ -486,6 +489,8 @@ export interface ExportSiteRouteDeps extends RouteManifestDeps, ExportMediaUrlDe
   readonly clock: { nowIso(): string };
   readonly settingsRepo?: SettingsRepoPort;
   readonly siteTitleReady?: Promise<void>;
+  /** Mounted consent runtime assets are supplied by composition, without importing the server. */
+  readonly cookieConsent?: SiteCookieConsentDeps;
   readonly createSiteApp: (optional?: { themeId?: string }) => RequestListener;
   /** Traces each loopback render/asset fetch as one outbound span (method, host/port, status —
    *  never the route path). `RouteDeps.observability`; the no-op port in hermetic roots. */
@@ -578,7 +583,8 @@ export async function exportSite({ routeDeps, outputDir, clean, basePath, includ
       pagesDir: resolveThemeLayout(theme.apiVersion as 2 | undefined).pagesDir,
       assetUrlPrefix: `/theme-assets/${theme.id}/`,
     }) },
-    assetUrlPrefixes: ["/theme-assets/", "/agent-icons/", "/m/", "/api/agent-plugin-exports/v1/"],
+    assetUrlPrefixes: ["/theme-assets/", "/agent-icons/", "/m/", "/api/agent-plugin-exports/v1/", "/_consent/"],
+    assetUrls: async () => [...declaredThemeAssets({ routeDeps, activeThemeId: manifest.activeTheme?.id }), ...(await routeDeps.cookieConsent?.exportAssets?.() ?? [])],
     requestHeaders: { "x-tovu-static-export": "1" },
     security: { transformHtml: ({ html }) => withSecurityMeta(exportHtml({ html, publicOrigin: publicBaseUrl })) },
     errorPage: { outputFile: "404.html", acceptStatus: ({ status }) => status >= 400 && status < 500,
@@ -595,12 +601,29 @@ export async function exportSite({ routeDeps, outputDir, clean, basePath, includ
       ...listingRoutes({ hrefs: extractListingPageHrefs({ html }), kind: "listing-page" }),
     ],
   }, { ...(clean !== undefined ? { clean } : {}), ...(outputBasePath !== undefined ? { basePath: outputBasePath } : {}) });
+  return finishExportReport({ report, outputDir, publicOrigin, publicUrl, basePath, themeCount, consentWarning: routeDeps.cookieConsent?.exportWarning?.() });
+}
+
+/** Return publication diagnostics after the exporter has closed its fresh app session. */
+function finishExportReport({ report, outputDir, publicOrigin, publicUrl, basePath, themeCount, consentWarning }: {
+  report: BaseExportReport; outputDir: string; publicOrigin: string | undefined; publicUrl: string | undefined;
+  basePath: string | undefined; themeCount: number; consentWarning: string | undefined;
+}): ExportReport {
   // Jini's reference scan diagnoses retained broken links; it does not remove them. A dropped
   // reference must be backed by an actual removal. Download-only removals are recorded by static-copy.
-  const result = { ...report, outputDir, droppedReferences: [], ...(publicOrigin ? { publicOrigin } : {}),
+  const result = { ...report, ...(consentWarning ? { consentWarning } : {}), outputDir, droppedReferences: [], ...(publicOrigin ? { publicOrigin } : {}),
     ...ignoredBasePathNotice({ publicUrl, basePath, warning: report.basePathRewriteWarning }) };
   if (themeCount === 1) return result;
   const themePreview = themePreviewExportSize({ report, themeCount });
   console.info(`[export] Theme previews: ${themeCount} themes, ${themePreview.additionalPages} additional pages, ${themePreview.sizeMultiplier.toFixed(2)}x export bytes (${themePreview.htmlSizeMultiplier.toFixed(2)}x HTML); shared assets are deduplicated.`);
   return { ...result, themePreview };
+}
+
+
+/** The active theme's JSON declarations are invisible to HTML reference crawling.
+ * Local declared URLs share the export runner's normal deduplication/fetch path; remote URLs stay remote.
+ * O(themes + declarations), one in-memory pass and no extra policy or content reads. */
+function declaredThemeAssets({ routeDeps, activeThemeId }: { routeDeps: Pick<RouteManifestDeps, 'themes'>; activeThemeId: string | undefined }, _optional = {}): string[] {
+  const theme = routeDeps.themes.find(item => item.manifest.id === activeThemeId);
+  return (theme?.manifest.scripts ?? []).map(script => script.src).filter(src => src.startsWith('/') && !src.startsWith('//'));
 }

@@ -37,6 +37,7 @@ export const EXTERNAL_MCP_SAVE_TOOL_ID = "external_mcp_save";
 export interface ExternalMcpSaveInput {
   id: string;
   label?: string;
+  enabled?: boolean;
   transport: string;
   command?: string;
   args?: string;
@@ -76,6 +77,7 @@ export function mergeExternalMcpSavePrefill(
   const prefill: ExternalMcpSaveInput = {
     id: input.id,
     label: existing.label,
+    enabled: existing.enabled,
     transport: input.transport,
     command: existing.command,
     args: existing.args.join(" "),
@@ -249,14 +251,19 @@ export function buildExternalMcpSaveFormFields(input: ExternalMcpSaveInput, isUp
     ...(isUpdate ? [] : [{ kind: "string" as const, name: "id", label: "ID", required: true, value: input.id, hint: "Lowercase letters, digits and dashes." }]),
     { kind: "string", name: "label", label: "Display name", ...fieldValue(input.label) },
     ...(isStdio ? buildStdioTransportFields(input) : [{ kind: "string" as const, name: "url", label: "URL", required: true, ...fieldValue(input.url), placeholder: "https://…" }]),
-    { kind: "string", name: "allowedToolNames", label: "Allowed tools", ...fieldValue(input.allowedToolNames),
-      hint: "Comma-separated. The assistant can call only these tools." },
-    { kind: "string", name: "writeAllowedToolNames", label: "May write", ...fieldValue(input.writeAllowedToolNames),
-      hint: "Comma-separated, and must also be listed above under Allowed tools — a name here that isn't is rejected on save. Leave blank to grant no write access." },
     ...(isStdio ? [buildEnvField(isUpdate)] : []),
     ...(input.authMode === "static_env" || input.authMode === undefined ? buildStaticTokenFields(input, isUpdate, isStdio) : []),
     ...(isOAuth ? buildOAuthFields(input, isUpdate, isStdio) : []),
   ];
+}
+
+/** Fixed grant disclosures share the credential form without becoming editable fields.
+ * @complexity O(a+w) in the bounded proposed tool-name strings; no effects.
+ */
+function fixedAccessDetails(save: ExternalMcpSaveInput) {
+  return [{ label: "Allowed tools", value: save.allowedToolNames || "None" },
+    { label: "May write", value: save.writeAllowedToolNames || "None" },
+    ...(save.enabled === false ? [{ label: "Connection access", value: "Disabled" }] : [])];
 }
 
 /**
@@ -289,6 +296,7 @@ export function buildExternalMcpSaveForm(input: {
     details: [
       { label: "Connection type", value: save.transport === "streamable_http" ? "Hosted server (URL)" : "Local command (stdio)" },
       { label: "Credentials", value: credentials },
+      ...fixedAccessDetails(save),
       ...(save.transport === "streamable_http" ? [] : [{ label: "Local access", value: `Saving lets chats start ${save.command ?? "the command below"} on this computer as your OS user.` }]),
     ],
     submitLabel: isUpdate ? "Save changes" : "Add server",

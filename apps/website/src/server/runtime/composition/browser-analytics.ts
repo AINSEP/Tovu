@@ -1,6 +1,6 @@
 /** @file Browser analytics composition: the plugin contributes code; existing consent owns release. */
 import type { Express } from 'express';
-import { captureConsentHtml } from '@jini-ai/cms/consent/express';
+import { captureHtmlResponse } from '@jini-ai/http-kit/html-response';
 import { getEffective } from '@jini-ai/core/settings';
 import { injectBrowserAnalytics } from '@jini-ai/analytics/product';
 import { TELEMETRY_CONSENT } from './telemetry-consent.js';
@@ -19,7 +19,7 @@ export function applyAdminBrowserAnalytics({ app, deps }: { app: Express; deps: 
   });
   app.use(['/admin', '/admin/*'], (_req, res, next) => {
     if (!deps.browserAnalytics) { next(); return; }
-    captureConsentHtml({ response: res, transform: async ({ body }) => {
+    captureHtmlResponse({ response: res, transform: async ({ body }) => {
       if (res.statusCode >= 400 || res.getHeader('Content-Encoding')) return body;
       let allowed = false;
       try { allowed = (await getEffective({ repo: deps.settingsRepo }, { ...TELEMETRY_CONSENT, scopeContext: { workspaceId: deps.workspaceId } }))?.value === true; }
@@ -29,7 +29,7 @@ export function applyAdminBrowserAnalytics({ app, deps }: { app: Express; deps: 
       res.setHeader('Cache-Control', 'private, no-store');
       res.removeHeader('Content-Length'); res.removeHeader('ETag');
       return Buffer.from(html);
-    } }, { reportError: () => {}, overflow: async () => null });
+    } });
     next();
   });
 }

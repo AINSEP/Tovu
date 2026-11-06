@@ -1,3 +1,4 @@
+import { invalidateMediaAccessEvidence } from '../media/access-evidence.js';
 import { type Kysely, type SelectQueryBuilder, sql } from "kysely";
 
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
@@ -121,6 +122,8 @@ export class SqlEntryRepo implements EntryRepoPort, EntryListPort, EntryDisplayL
     } catch (error) {
       if (isUniqueViolation(error)) throw trashedSlugConflict(record.slug);
       throw error;
+    } finally {
+      invalidateMediaAccessEvidence({ owner: this });
     }
   }
 
@@ -212,7 +215,8 @@ export class SqlEntryRepo implements EntryRepoPort, EntryListPort, EntryDisplayL
   /** Callback repo calls join ONE transaction; nested calls join the outer one (the widget adoption
    *  runs an entry update and its Trash move as one). */
   async transaction<T>({ fn }: { fn: () => Promise<T> }): Promise<T> {
-    return this.kernel.transaction(fn);
+    try { return await this.kernel.transaction(fn); }
+    finally { invalidateMediaAccessEvidence({ owner: this }); }
   }
 
   /**

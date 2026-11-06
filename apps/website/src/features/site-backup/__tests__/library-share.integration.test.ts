@@ -320,7 +320,7 @@ for (const variant of ["oversize", "wrong-signature", "secret-sentinel", "destin
     : variant === "secret-sentinel" ? Buffer.from("Document secret: ghp_" + "x".repeat(36)) : Buffer.from("Valid private text");
   const doc = addDocument(h, "guarded", bytes);
   const errors = {
-    oversize: /10 MiB/, "wrong-signature": /PDF signature/, "secret-sentinel": /credential-shaped/,
+    oversize: /50 MiB/, "wrong-signature": /PDF signature/, "secret-sentinel": /credential-shaped/,
     // v2 carries no rendition bytes, so the forged rendition's recipient key fails its hash before any destination move.
     "destination-collision": /Referenced media is missing or failed its hash/, "forged-cross-owner": /database/i,
   };
@@ -339,11 +339,15 @@ for (const variant of ["oversize", "wrong-signature", "secret-sentinel", "destin
   if (variant === "secret-sentinel") {
     const pending = await h.backend.importBackup({ principalId: "recipient", source: { uploadId: upload.uploadId } });
     assert.equal(pending.status, "needs-owner");
-    assert.ok(pending.warnings?.some(warning => warning.includes("media/")));
+    // The portable-content contract retains these bytes and reports safe locations separately.
+    assert.deepEqual(pending.credentialWarnings, [{ path: "media/guarded.md", kind: "provider key shape" }]);
     assert.equal(JSON.stringify(pending).includes("ghp_"), false);
     const stage = h.registry.stagePath(pending);
     const inventory = JSON.parse(fs.readFileSync(path.join(stage, ".inventory.json"), "utf8")) as string[];
-    for (const file of inventory) assert.equal(fs.readFileSync(path.join(stage, file)).includes(bytes), false);
+    const retained = inventory.filter(file => fs.readFileSync(path.join(stage, file)).includes(bytes));
+    assert.equal(retained.length, 1);
+    assert.match(retained[0]!, /^uploads\//);
+    assert.deepEqual(fs.readFileSync(path.join(stage, retained[0]!)), bytes);
     return;
   }
   await assert.rejects(h.backend.importBackup({ principalId: "recipient", source: { uploadId: upload.uploadId } }), errors[variant]);

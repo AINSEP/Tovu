@@ -16,32 +16,35 @@ export function registerCommerceWebhooks({ app, deps }: { app: Express; deps: Ro
   registerPaymentsWebhookRoute({ app, deps: { resolveReceiver: () => deps.commerce?.resolveReceiver() ?? null } }, { prefix: "/api" });
 }
 
-/** Off commerce has no public storefront. Existing started orders remain readable during drain.
+/** Off commerce has no public storefront; payment webhooks keep their separate drain route.
  * @complexity O(1) wiring and one activation/readiness check per storefront request.
  */
 export function registerCommerceHttp({ app, deps }: { app: Express; deps: RouteDeps }, _optional = {}): void {
   if (!deps.commerce) return;
-  registerCommerceRoutes({ app, deps: { ...deps, renderCommercePage: async ({ res, title, body }) => {
+  const storefront = express();
+  registerCommerceRoutes({ app: storefront, deps: { ...deps, renderCommercePage: async ({ res, title, body }) => {
     const [themeId, siteTitle] = await Promise.all([resolveRenderThemeId(res, deps), resolveSiteTitleForRender(deps)]);
     const resolved = resolveActiveTheme(deps, themeId);
     // Payment status remains readable even when no theme is installed.
     return pageShell({ title: `${title} | ${siteTitle}`, theme: resolved === NO_THEME_ID ? null : resolved, body });
   } } });
-  app.get("/commerce/checkout.js", (_req, res) => {
+  storefront.get("/commerce/checkout.js", (_req, res) => {
     res.set("Cache-Control", "public, max-age=300").type("text/javascript").send(COMMERCE_CHECKOUT_SCRIPT);
   });
-  const products = express();
-  registerProductRoutes(products, deps);
+  registerProductRoutes(storefront, deps);
   app.use(async (req, res, next) => {
-    if (req.path !== "/products" && !req.path.startsWith("/products/")) { next(); return; }
+    // Order APIs keep their own member and write admission, including reads during drain.
+    if (req.path.startsWith("/api/commerce/v1/")) { storefront(req, res, next); return; }
+    const productPath = req.path === "/products" || req.path.startsWith("/products/");
+    if (!productPath && !["/commerce/return", "/commerce/cancel", "/commerce/checkout.js"].includes(req.path)) { next(); return; }
     try {
-      const status = await deps.commerce!.status();
+      const status = await deps.commerce!.storefrontStatus();
       if (!status.active) { next(); return; }
-      if (!status.ready) {
+      if (productPath && !status.ready) {
         res.status(404).type("html").send("<h1>This shop is not accepting purchases.</h1>"); return;
       }
       res.locals.commerceStatus = status;
-      products(req, res, next);
+      storefront(req, res, next);
     } catch {
       res.status(503).type("html").send("<h1>The shop catalog is temporarily unavailable.</h1><p>Please try again shortly.</p>");
     }

@@ -1,11 +1,11 @@
+import { publicPageSecurityHeaders } from "#src/features/theme/public-page-security-headers";
 import { createSharedOAuthOwnerStorage, createSharedOAuthLabels } from "#src/features/api-connections/shared-owner";
 import { createSiteOAuthBindings } from "#src/features/project-keys/site-references";
 import { createFormCollectionRegistry } from "@jini-ai/cms/forms";
 import { composeCommerce } from "./commerce.js";
 import { ensureCommerceSetting } from "./commerce-settings.js";
-import { scheduleFormAttachmentCleanup } from "@jini-ai/cms/forms";
 import { protectExistingFormFiles } from "#src/features/forms/protect-existing-files";
-import { createFormFilePurgeHooks } from "#src/features/forms/form-file-purge";
+import { createFormFilePurgeHooks, createFormMediaCleanup } from "#src/features/forms/form-file-purge";
 import { trashMedia as trashFormMedia, purgeMedia as purgeFormMedia } from "#src/features/media/index";
 import { formsMailOutboxReady } from "#src/features/forms/mail-outbox-readiness";
 import { TOVU_ERROR_REDACTION_OPTIONS } from '@tovu/contracts/secret-redaction';
@@ -34,9 +34,7 @@ import { createCommentTargetLookup } from '#src/features/comments/comment-target
 import { ensurePreviewSwitcherSetting, preparePreviewSwitcherWrite } from "#src/features/theme/preview-switcher";
 import { createSiteConsentStore } from '#src/features/consent/revisions.repo';
 import { bindSiteConsentService, ensureSiteConsentPrivacy } from './site-consent.js';
-import { createSiteConsentPorts } from '../../inbound/public-http/middleware/site-consent.js';
-import { bindCookieConsentAnalyticsGate, selectCookieConsent } from './site-cookie-consent.js';
-import { readRequestAnalyticsProof, allowsAnalyticsProof } from '@jini-ai/cms/consent/express';
+import { bindCookieConsentAnalyticsGate, createSiteCookieConsentDeps } from './site-cookie-consent.js';
 import { findExclusionReason } from '@jini-ai/analytics';
 import { resolveClientIp } from '#src/contracts/core/rate-limit/rate-limit';
 import { registerContentAnalytics } from './content-events.js';
@@ -746,8 +744,8 @@ function createSiteDisplayNameSource(dbPath: string, siteDir?: string): SiteDisp
 
 /** Resolve the served site's key candidates and retain its root for vault contribution discovery.
  * @complexity O(1), one site-metadata read; never reads or creates key material. */
-function compositionSiteKeySources({ dbPath, runtimeMode, siteDir }: {
-  dbPath: string; runtimeMode: ReturnType<typeof resolveRuntimeMode>; siteDir: string | undefined;
+function compositionSiteKeySources({ dbPath, runtimeMode, siteBinding }: {
+  dbPath: string; runtimeMode: ReturnType<typeof resolveRuntimeMode>; siteBinding: CreateSiteRouteDepsOverrides["siteBinding"] | undefined;
 }, _options = {}) {
   // site-key plan §A3a: both site-key-backed keyrings below need this site's own ordered source
   // list (per-site file first in local mode, mirroring `ensureSiteKey`'s own writer-side ordering —
@@ -757,7 +755,7 @@ function compositionSiteKeySources({ dbPath, runtimeMode, siteDir }: {
   // resolves no `siteKeyId` and therefore no per-site candidate. The database may now be outside
   // that root; its parent must never establish the key's identity.
   // Site keys/config/themes remain at the site root when SQLite is stored elsewhere.
-  const siteDirForKeyring = dbPath !== ":memory:" ? resolveSiteDirForDatabase({ dbPath, siteDir }) : undefined;
+  const siteDirForKeyring = dbPath !== ":memory:" ? resolveSiteDirForDatabase({ dbPath, siteDir: siteBinding?.dir }) : undefined;
   const siteKeyIdForKeyring = siteDirForKeyring ? resolveSiteKeyId({ siteDir: siteDirForKeyring }) : undefined;
   const sources = siteKeySources({
     mode: runtimeMode,
@@ -1496,6 +1494,13 @@ async function composeSiteRouteDeps(
         // then remove deleted rows so shared blobs observe earlier deletions in this same purge.
         const snapshotMedia = new Proxy(mediaRepo, { get(target, key) {
           if (key === "list") return async () => assets;
+          // Tombstoning runs inside purgeMedia, so its snapshot must lose the removed owner
+          // before that check rather than only after purgeMedia returns.
+          if (key === "remove") return async (input: { workspaceId: string; id: string }) => {
+            await target.remove(input);
+            const index = assets.findIndex(row => row.id === input.id);
+            if (index >= 0) assets.splice(index, 1);
+          };
           const value = Reflect.get(target, key);
           return typeof value === "function" ? value.bind(target) : value;
         } });
@@ -1504,16 +1509,15 @@ async function composeSiteRouteDeps(
           const value = Reflect.get(target, key);
           return typeof value === "function" ? value.bind(target) : value;
         } });
-        return async ({ workspaceId: ws, mediaId, submissionId }) => {
+        return async ({ workspaceId: ws, mediaId }) => {
           const asset = await mediaRepo.findById({ workspaceId: ws, id: mediaId });
           if (!asset) return;
-          // Never let a forged legacy reference purge an unrelated editorial asset.
-          if (!asset.source.private && !asset.originalFilename?.startsWith(`${submissionId}-`)) throw new Error(`Form attachment ${mediaId} has no matching upload owner. Check this submission's files before purging it.`);
+          // A filename is visitor-influenced display data, never proof of attachment ownership.
+          // Legacy public references stay intact when their ownership cannot be established.
+          if (!asset.source.private) throw new Error(`Form attachment ${mediaId} has no proven form upload owner. The submission and file were kept.`);
           await trashFormMedia({ deps: { mediaRepo, clock }, input: { workspaceId: ws, id: mediaId } });
-          await purgeFormMedia({ deps: { mediaRepo: snapshotMedia, blobRepo: assetBlobRepo, renditionRepo: assetRenditionRepo, blobStore, clock, entryRefsRepo, postRepo: snapshotPosts }, input: { workspaceId: ws, id: mediaId } });
-          const index = assets.findIndex(row => row.id === mediaId);
-          if (index >= 0) assets.splice(index, 1);
-          await scheduleFormAttachmentCleanup({ outbox, workspaceId: ws, mediaId, sha256: asset.source.sha256, now: clock.nowMs(), graceMs: DEFAULT_GC_GRACE_MS });
+          await purgeFormMedia({ deps: { mediaRepo: snapshotMedia, blobRepo: assetBlobRepo, renditionRepo: assetRenditionRepo, blobStore, clock, entryRefsRepo, postRepo: snapshotPosts,
+            ...createFormMediaCleanup({ kernel, outbox, clock, graceMs: DEFAULT_GC_GRACE_MS }) }, input: { workspaceId: ws, id: mediaId } });
         };
       },
       scrub: ({ workspaceId: ws, entityId }) => formDeliveryRepo.scrubPurged({ workspaceId: ws, purged: entityType === "form" ? { formId: entityId } : { submissionId: entityId } }),
@@ -1757,6 +1761,7 @@ async function composeSiteRouteDeps(
     navMenuReadModel: createNavMenuReadModel({ menuRepo, bindingRepo: navLocationBindingRepo }),
     formDefinitionRepo: { findById: formDefinitionRepo.findById.bind(formDefinitionRepo), findBySlug: formDefinitionRepo.findBySlug.bind(formDefinitionRepo) },
     formCollectionProviders: () => formCollectionProviders(),
+    formEmbedConsentOff: () => routeDeps.cookieConsent?.embedConsentOff?.() === true,
     contentTypes: contentTypeRepo,
   });
   const commentsModule = createCommentsModule({
@@ -1792,7 +1797,7 @@ async function composeSiteRouteDeps(
   // returns, only when it is first read.
   const runtimeMode = resolveRuntimeMode();
 
-  const { siteDirForKeyring, sources: siteKeySourcesList } = compositionSiteKeySources({ dbPath, runtimeMode, siteDir: overrides.siteBinding?.dir });
+  const { siteDirForKeyring, sources: siteKeySourcesList } = compositionSiteKeySources({ dbPath, runtimeMode, siteBinding: overrides.siteBinding });
 
   // SPEC-011 (Newsletter) Stage 5 wiring — hoisted for the same reason `server/app.ts`'s identical
   // hoisting comment explains: `newsletterSubscriberDirectory` must read the SAME member rows the
@@ -1923,10 +1928,16 @@ async function composeSiteRouteDeps(
   // third `EnvOrFileKeyring` instance).
   // Local rows retain their original ownership; only shared owner rows require site grants.
   // The owner store is opened before this reader (owner 2026-10-25).
-  const customProject = credentialProject(projectVault, vault => new CustomCredentialVaultRepo({ vault }));
-  const customCredentialSetRepo = new SqliteCustomCredentialSetRepo(kernel, customProject.project && projectStore
-    ? { project: { ...customProject.project, inventoryRepo: new CustomCredentialVaultRepo({ vault: projectStore.vault.repo }) } }
-    : customProject);
+  const customCredentialSetRepo = compositionCustomCredentials();
+
+  /** Bind site credentials to the optional project inventory without changing local ownership.
+   * @complexity O(1) adapter construction; no repository reads. */
+  function compositionCustomCredentials() {
+    const customProject = credentialProject(projectVault, vault => new CustomCredentialVaultRepo({ vault }));
+    return new SqliteCustomCredentialSetRepo(kernel, customProject.project && projectStore
+      ? { project: { ...customProject.project, inventoryRepo: new CustomCredentialVaultRepo({ vault: projectStore.vault.repo }) } }
+      : customProject);
+  }
   const providerPlugins = await providerPluginBoot({ overrides })({
     processRole: overrides.storeRole === 'client' ? 'daemon' : 'server',
     runtime: pluginRuntime,
@@ -1942,13 +1953,19 @@ async function composeSiteRouteDeps(
     await pluginRuntime.dispose({});
   });
   let bindSharedApiOAuth: ((input: { keyId: string; use: boolean }) => Promise<void>) | undefined;
-  const projectKeys = projectStore ? createProjectKeys({ vault: projectStore.vault.repo, attachments: projectStore.attachments,
-    describeOAuth: createSharedOAuthLabels({ scope: projectStore.vault, clock }),
-    siteId: projectSiteId, siteName: resolvedSiteBinding.name, providerUsage: input => providerConfigSource.usage(input), reapply: input => providerPlugins.reapply(input),
-    transaction: input => projectStore.transaction(input), inventory: projectStore.inventory ? () => projectStore.inventory!({}) : undefined, references: projectKeyReferences, bindOAuth: input => {
-      if (!bindSharedApiOAuth) throw new Error("Shared connections are not available yet. Reopen this saved connection and try again.");
-      return bindSharedApiOAuth(input);
-    } }) : undefined;
+  const projectKeys = compositionProjectKeys();
+
+  /** Build the shared-key service only for an attached project; binding remains late-bound.
+   * @complexity O(1) service construction; I/O occurs only through later service operations. */
+  function compositionProjectKeys() {
+    return projectStore ? createProjectKeys({ vault: projectStore.vault.repo, attachments: projectStore.attachments,
+      describeOAuth: createSharedOAuthLabels({ scope: projectStore.vault, clock }),
+      siteId: projectSiteId, siteName: resolvedSiteBinding.name, providerUsage: input => providerConfigSource.usage(input), reapply: input => providerPlugins.reapply(input),
+      transaction: input => projectStore.transaction(input), inventory: projectStore.inventory ? () => projectStore.inventory!({}) : undefined, references: projectKeyReferences, bindOAuth: input => {
+        if (!bindSharedApiOAuth) throw new Error("Shared connections are not available yet. Reopen this saved connection and try again.");
+        return bindSharedApiOAuth(input);
+      } }) : undefined;
+  }
   onStoreClose(watchProviderRevisions({ read: () => projectStore?.providerRevisions({ siteId: projectSiteId }) ?? Promise.resolve([]),
     readSite: () => siteProviderRevisions({ kernel: kernel as unknown as StorageKernel<unknown>, workspaceId }),
     reapply: input => providerPlugins.reapply(input) }));
@@ -2341,11 +2358,7 @@ async function composeSiteRouteDeps(
       keyring: siteAssistantSecretKeyring,
       clock,
       devices: externalMcpOAuthDevices,
-      ...(projectStore && projectSiteId ? { shared: { owner: createSharedOAuthOwnerStorage({ scope: projectStore.vault, clock }),
-        bindings: createSiteOAuthBindings({ workspaceId, repo: siteReferenceRepo,
-          vault: createApiConnectionVault({ repo: siteReferenceRepo, keyring: siteAssistantSecretKeyring, sealer: siteAssistantSecretSealer, clock, workspaceId }) }),
-        attachments: projectStore.attachments, transaction: projectStore.transaction, siteId: projectSiteId, siteName: resolvedSiteBinding.name,
-        ownerPrincipalId: identity.ownerPrincipalId, inventory: projectStore.inventory ? () => projectStore.inventory!({}) : undefined } } : {}),
+      ...compositionSharedOAuth(),
       onConnected: createApplyConnectDefaults({ agentPluginLayout, workspaceId, repo: externalMcpServerRepo, clock, notifyRosterChanged: notifyExternalMcpRosterChanged }),
     }),
     externalMcpOAuthDevices,
@@ -2360,6 +2373,7 @@ async function composeSiteRouteDeps(
     siteTitleReady,
     siteConsentReady,
     consentStore: createSiteConsentStore({ kernel, workspaceId }),
+    publicPageSecurityHeaders: () => publicPageSecurityHeaders({ formCollectionProviders: () => formCollectionProviders() }),
     ...compositionConsentOptions({ workspaceId, loadContributions: agentPluginLifecycle.loadPluginContributions }, { env: process.env }),
     mailFeedbackRoute: createSiteMailFeedbackRoute({ db: kernel, workspaceId, credentials: { repo: customCredentialSetRepo, sealer: siteAssistantSecretSealer },
       loadAdapters: () => loadMailAdapterRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions }) }),
@@ -2554,6 +2568,7 @@ async function composeSiteRouteDeps(
     // ship one). `formsRateLimiter` is one process-lifetime counter store, matching
     // `server/app.ts`'s hermetic-test composition's identical construction.
     formDefinitionRepo,
+    formCollectionProviders: () => formCollectionProviders(),
     formSubmissionRepo,
     formSubmissionAttempts: formSubmissionAttemptsFor({ submissionRepo: formSubmissionRepo }),
     removeFormSubmission: removeEntityWithoutBlocker({ remove: bindRemoveEntity({
@@ -2644,7 +2659,10 @@ async function composeSiteRouteDeps(
     // composition and the load/setup/attach sequence.
     pluginActivationRepo,
     discoverPlugins: pluginRuntime.discoverPlugins,
-    onPluginEnabled: pluginRuntime.onPluginEnabled,
+    onPluginEnabled: async pluginId => {
+      await pluginRuntime.onPluginEnabled(pluginId);
+      await providerPlugins.reapply({ pluginId });
+    },
     onPluginDisabled: pluginRuntime.onPluginDisabled,
     listPluginConflicts: pluginRuntime.listPluginConflicts,
     removePlugin,
@@ -2855,12 +2873,28 @@ async function composeSiteRouteDeps(
     isPluginActive: async ({ pluginId }) => (await agentPluginLifecycle.resolveAgentPluginActivation({ workspaceRoot: agentPluginLayout.root, pluginId })).verdict === "active",
   }), { storage: kernel, settingsReady: siteTitleReady });
 
-  const commerceBinding = composeCommerce({ kernel: kernel as unknown as StorageKernel<unknown>,
-    workspaceId, siteId: projectSiteId || workspaceId, workspaceRoot: agentPluginLayout.forWorkspace(workspaceId).root,
-    workerOwner: (overrides.storeRole ?? 'owner') === 'owner', workerDirectory: dbPath === ':memory:' ? resolvedSiteBinding.dir : dirname(dbPath),
-    settingsRepo, settingsReady: siteTitleReady, providerConfig: providerConfigSource, providers: providerPlugins,
-    httpClient: { send: ({ request }, options) => createDefaultHttpClient(SINGLE_HOP_HTTPS_EGRESS_POLICY, { observability }).send(request, options) }, clock, idGen,
-  });
+  /** Bind OAuth to the optional project transaction owner; no service exists without a site id.
+   * @complexity O(1) service construction; no network or storage calls. */
+  function compositionSharedOAuth() {
+    return projectStore && projectSiteId ? { shared: { owner: createSharedOAuthOwnerStorage({ scope: projectStore.vault, clock }),
+        bindings: createSiteOAuthBindings({ workspaceId, repo: siteReferenceRepo,
+          vault: createApiConnectionVault({ repo: siteReferenceRepo, keyring: siteAssistantSecretKeyring, sealer: siteAssistantSecretSealer, clock, workspaceId }) }),
+        attachments: projectStore.attachments, transaction: projectStore.transaction, siteId: projectSiteId, siteName: resolvedSiteBinding.name,
+        ownerPrincipalId: identity.ownerPrincipalId, inventory: projectStore.inventory ? () => projectStore.inventory!({}) : undefined } } : {};
+  }
+
+  const commerceBinding = compositionCommerce();
+
+  /** Assemble the commerce runtime with this process's existing site and worker ownership.
+   * @complexity O(1) composition; the commerce service owns subsequent bounded work. */
+  function compositionCommerce() {
+    return composeCommerce({ kernel: kernel as unknown as StorageKernel<unknown>,
+      workspaceId, siteId: projectSiteId || workspaceId, workspaceRoot: agentPluginLayout.forWorkspace(workspaceId).root,
+      workerOwner: (overrides.storeRole ?? 'owner') === 'owner', workerDirectory: dbPath === ':memory:' ? resolvedSiteBinding.dir : dirname(dbPath),
+      settingsRepo, settingsReady: siteTitleReady, providerConfig: providerConfigSource, providers: providerPlugins,
+      httpClient: { send: ({ request }, options) => createDefaultHttpClient(SINGLE_HOP_HTTPS_EGRESS_POLICY, { observability }).send(request, options) }, clock, idGen,
+    });
+  }
   routeDeps.commerce = commerceBinding.commerce;
   routeDeps.commerceCatalog = commerceBinding.commerceCatalog;
   onStoreClose(() => commerceBinding.close());
@@ -3002,17 +3036,16 @@ function flushLifecycleEvents(
 }
 
 function compositionConsentOptions(
-  { workspaceId, loadContributions }: Parameters<typeof selectCookieConsent>[0],
+  { workspaceId, loadContributions }: Parameters<typeof createSiteCookieConsentDeps>[0],
   { env }: { env: NodeJS.ProcessEnv },
 ) {
   return {
     consentTrustedRegionHeader: env.TOVU_CONSENT_REGION_HEADER?.trim() || undefined,
-    cookieConsent: selectCookieConsent({ workspaceId, loadContributions }),
+    cookieConsent: createSiteCookieConsentDeps({ workspaceId, loadContributions }),
   };
 }
 
 function configureVisitorConsentAnalytics({ routeDeps, workspaceId }: { routeDeps: RouteDeps; workspaceId: string }, _optional = {}): void {
-  const visitorConsentPorts = createSiteConsentPorts({ deps: routeDeps }, { trustedRegionHeader: routeDeps.consentTrustedRegionHeader });
   // Site analytics off, or this visitor excluded (DNT/GPC/IP/host rules), means no visitor capture.
   const analyticsExcluded = async (request: import('express').Request) => {
     const config = await routeDeps.analyticsConfig.get({ workspaceId });
@@ -3020,14 +3053,7 @@ function configureVisitorConsentAnalytics({ routeDeps, workspaceId }: { routeDep
       dnt: request.get('dnt') === '1', gpc: request.get('sec-gpc') === '1' };
     return !config.enabled || Boolean(findExclusionReason({ beacon, ip: resolveClientIp(request), config }));
   };
-  routeDeps.visitorAnalyticsProof = async ({ request }) => {
-    try {
-      if (await analyticsExcluded(request)) return undefined;
-      return readRequestAnalyticsProof({ ports: visitorConsentPorts, request });
-    } catch { return undefined; }
-  };
-  routeDeps.visitorAnalyticsDeliveryAllowed = ({ proof }) => allowsAnalyticsProof({ ports: visitorConsentPorts, proof });
-  if (routeDeps.cookieConsent) bindCookieConsentAnalyticsGate({ deps: routeDeps }, { isExcluded: ({ request }) => analyticsExcluded(request) });
+  bindCookieConsentAnalyticsGate({ deps: routeDeps }, { isExcluded: ({ request }) => analyticsExcluded(request) });
 }
 
 /**

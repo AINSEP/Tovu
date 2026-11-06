@@ -47,7 +47,9 @@ export interface ConsentReadiness {
   ready: boolean;
   enabled: boolean;
   blockingProblems: ConsentFieldProblem[];
-  detected: ConsentDetectedItem[];
+  declarations: { src: string; consent?: readonly string[] }[];
+  /** Gaps are warnings, separate from declaration/configuration/storage blockers. */
+  warnings: (ConsentFieldProblem & { source?: string | null; tag?: string; attributes?: string[] })[];
   truncated: boolean;
   limitations: string[];
 }

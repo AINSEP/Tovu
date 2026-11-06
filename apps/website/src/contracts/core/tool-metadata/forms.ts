@@ -3,6 +3,13 @@ import type { ToolApprovalPolicy } from './approval-policy.js';
 
 /** forms registration declarations; shared placement rationale is in ./index.ts. */
 export const toolMetadata = {
+  "forms_list_providers": {
+    search: {
+      keywords: "forms collection provider providers settings external embedded public answers validation",
+      queries: ["Which form providers can I use?", "What public settings does this form provider need?"],
+    },
+    approval: { class: 'read', confirmation: 'direct' },
+  },
   "forms_delivery_status": {
     search: {
       keywords: "form submission delivery deliveries destination destinations sheet spreadsheet sent reached status retry retrying failed attempts",

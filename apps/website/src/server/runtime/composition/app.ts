@@ -1,4 +1,4 @@
-import { createFormAttachmentPurgeHooks, scheduleFormAttachmentCleanup } from "@jini-ai/cms/forms";
+import { createFormAttachmentPurgeHooks } from "@jini-ai/cms/forms";
 import { statfs } from "node:fs/promises";
 import { registerCommerceHttp, registerCommerceWebhooks } from "./commerce-http.js";
 import { getExportRunSnapshot } from '../../../features/deployments/export-run.js';
@@ -23,7 +23,7 @@ import { createCommentTargetLookup } from '#src/features/comments/comment-target
 import { applyThemePreviewSwitcher } from "../../inbound/public-http/middleware/theme-preview-switcher.js";
 import { ensurePreviewSwitcherSetting, preparePreviewSwitcherWrite } from "#src/features/theme/preview-switcher";
 import { contentKernel } from '#src/platform/db/content-kernel';
-import { hasFormFileOwners } from '#src/features/forms/form-file-purge';
+import { createFormMediaCleanup, hasFormFileOwners, hasFormFileStorageKeyOwners, withFormFileStorageKeyLock } from '#src/features/forms/form-file-purge';
 import { createSiteConsentStore } from '#src/features/consent/revisions.repo';
 import { bindSiteConsentService } from './site-consent.js';
 import { registerAdminConsentRoutes } from '../../inbound/admin-http/routes/consent/routes.js';
@@ -289,7 +289,6 @@ import { applyTrustProxy } from "../../inbound/shared/trust-proxy.js";
 import { applySiteServingGate } from "../../inbound/public-http/middleware/site-serving-gate.js";
 import { applyPublicPageSecurityHeaders } from "../../inbound/public-http/middleware/public-page-security-headers.js";
 import { applyPublishedWebMcp } from '../../inbound/public-http/middleware/published-webmcp.js';
-import { applySiteConsent } from '../../inbound/public-http/middleware/site-consent.js';
 import { applySiteCookieConsent } from '../../inbound/public-http/middleware/site-cookie-consent.js';
 import { applyAdminBrowserAnalytics } from './browser-analytics.js';
 import { applyBrowserAnalyticsHttp } from './browser-analytics-http.js';
@@ -452,6 +451,15 @@ function createLazyProxy<T extends object>(factory: () => T): T {
   });
 }
 
+/** Preserve optional plugin-runtime overrides without turning absent values into explicit options.
+ * @complexity O(1), no I/O. */
+function inMemoryPluginRuntimeOptions({ options }: { options: CreateRouteDepsOptions }, _optional = {}) {
+  return {
+    ...(options.installDir === undefined ? {} : { installDir: options.installDir }),
+    ...(options.pluginFailureThreshold === undefined ? {} : { failureThreshold: options.pluginFailureThreshold }),
+  };
+}
+
 /** In-memory route deps seeded from `./seed`. Default for tests/dev. */
 export function createRouteDeps(options: CreateRouteDepsOptions = {}): NewsletterRouteDeps & ByokToolSurfaceDeps {
   // TOVU_DB=memory can still serve public routes; anonymous audit traffic shares this bounded sink.
@@ -485,10 +493,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     declaredContentTypes: deferDeclaredContentTypePorts({
       build: () => createDeclaredContentTypePorts({ repo: contentTypeRepo, clock, ids: idGen, outbox }),
     }),
-    ...(options.installDir === undefined ? {} : { installDir: options.installDir }),
-    ...(options.pluginFailureThreshold === undefined
-      ? {}
-      : { failureThreshold: options.pluginFailureThreshold }),
+    ...inMemoryPluginRuntimeOptions({ options }),
   });
   // Composition root: the in-memory root keeps the same env-driven owner login as `deps.ts`.
   const identity = createInMemoryIdentityRouteDeps({ workspaceId: seededWorkspace.id, clock, idGen, permissionGrants: createAppPermissionGrants({}), ownerCredentials: resolveOwnerCredentials({ env: process.env }) });
@@ -875,9 +880,9 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
         const files = createFormFileStorage({ media: {
           mediaRepo, clock, idGen, entryRefsRepo, postRepo, blobRepo: routeDeps.assetBlobRepo,
           renditionRepo: routeDeps.assetRenditionRepo, blobStore: routeDeps.blobStore,
+          ...createFormMediaCleanup({ kernel: routeDeps.contentKernel, outbox, clock, graceMs: DEFAULT_GC_GRACE_MS }),
         }, contentTypes: routeDeps.mediaContentTypeStore, resolveCreatedByPrincipal: async () => { throw new Error("Purge never creates files"); } });
         await files.discard({ workspaceId, reference: { mediaId } });
-        await scheduleFormAttachmentCleanup({ outbox, workspaceId, mediaId, sha256: asset.source.sha256, now: clock.nowMs(), graceMs: DEFAULT_GC_GRACE_MS });
       },
     })));
   }
@@ -1849,6 +1854,8 @@ function subscribeSiteEventHandlersOnce(routeDeps: NewsletterRouteDeps): void {
       outbox: routeDeps.outbox,
       fileCleanup: {
         withHashLock: withSha256Lock,
+        withStorageKeyLock: withFormFileStorageKeyLock,
+        hasStorageKeyOwners: input => hasFormFileStorageKeyOwners({ kernel: routeDeps.contentKernel, ...input }),
         findBlob: input => routeDeps.assetBlobRepo.findByHash(input),
         // This is a delayed cold GC job, never a visitor or upload hot path. Without a
         // persistent content database we cannot prove orphanhood, so retain the bytes.
@@ -1948,7 +1955,7 @@ function applyPublicMiddleware(
   applySiteServingGate(app, { siteStatusRepo: routeDeps.siteStatusRepo, workspaceId: routeDeps.workspaceId });
   // nosniff + Referrer-Policy + a report-only CSP on every non-admin response, set before any
   // public route runs. See `public-page-security-headers.ts`.
-  applyPublicPageSecurityHeaders(app);
+  applyPublicPageSecurityHeaders(app, { readHeaders: routeDeps.publicPageSecurityHeaders });
   // Redirect page aliases before consent/preview middleware can render or set a visitor cookie.
   applyCanonicalSiteHostRedirect({ app, originRegistry: routeDeps.originRegistry, workspaceId: routeDeps.workspaceId, runtimeMode: routeDeps.seoDeps.runtimeMode });
   if (options.themeIdOverride === undefined) applyThemePreviewSwitcher({ app, deps: routeDeps });
@@ -1957,14 +1964,9 @@ function applyPublicMiddleware(
     allowsVisitorPublication: async ({ path }) => process.env.TOVU_VISITOR_TOOLS_POLICY !== 'off'
       && await isPublicAssistantEnabled({ settingsRepo: routeDeps.settingsRepo, getEffective: routeDeps.getEffective }, { workspaceId: routeDeps.workspaceId })
       && (await visitorPageTargets.list({})).some(page => page.path === path) });
-  // Visitor cookie consent (`site-consent.ts`): after WebMCP so its injected script is gated too,
-  // before every public renderer. The region header is trusted only when the operator names it,
-  // and only behind an edge that strips visitor-supplied copies.
-  // THE consent-engine switch (`deps.cookieConsent`, see composition/site-cookie-consent.ts). The audit
-  // app renders the bare page, which the admin preview then shows with the banner. P4 cleanup removes the legacy fallback.
-  if (options.consentAudit) { /* no consent on the audit render */ }
-  else if (routeDeps.cookieConsent) applySiteCookieConsent({ app, deps: routeDeps, consent: routeDeps.cookieConsent });
-  else applySiteConsent({ app, deps: routeDeps }, { trustedRegionHeader: routeDeps.consentTrustedRegionHeader });
+  // Consent contributes assets during document construction. Audit renders omit that runtime;
+  // admin readiness reports unmanaged content without transforming the sampled page.
+  if (!options.consentAudit && routeDeps.cookieConsent) applySiteCookieConsent({ app, deps: routeDeps, consent: routeDeps.cookieConsent });
 
   applyBrowserAnalyticsHttp({ app, deps: routeDeps });
 
@@ -1987,6 +1989,14 @@ function registerAdminSpa({ app, routeDeps }: { app: Express; routeDeps: RouteDe
   applyAdminBrowserAnalytics({ app, deps: routeDeps });
   registerAdminStatic(app, {
     distDir: process.env.TOVU_ADMIN_DIST ?? resolveAppDistDir("admin"),
+  });
+}
+
+/** Mount the public browser bundle at the configured built-output location.
+ * @complexity O(1) route registration. */
+function registerSiteChatBundle({ app }: { app: Express }, _optional = {}): void {
+  registerSiteChatStatic(app, {
+    distDir: process.env.TOVU_SITE_CHAT_DIST ?? resolveAppDistDir("site-chat"),
   });
 }
 
@@ -2437,9 +2447,7 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // ADR-054 Task 2/3 — the built public site-chat bundle (apps/site-chat/dist) at /site-chat.
   // Distinct static mount from the admin SPA above: a single self-mounting script, not an app with
   // client-side routing, so `site-chat-static.ts` has no `index.html` SPA fallback to serve.
-  registerSiteChatStatic(app, {
-    distDir: process.env.TOVU_SITE_CHAT_DIST ?? resolveAppDistDir("site-chat"),
-  });
+  registerSiteChatBundle({ app });
   registerSiteChatComparisonRoutes({ app, deps: routeDeps });
 
   // SPIKE — `static`-tier theme preview builds at /theme-preview/<theme-id>/<dark|light>/...; see
@@ -2558,6 +2566,7 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
         clock: routeDeps.clock, idGen: routeDeps.idGen, mediaRepo: routeDeps.mediaRepo,
         entryRefsRepo: routeDeps.entryRefsRepo, postRepo: routeDeps.postRepo,
         blobRepo: routeDeps.assetBlobRepo, renditionRepo: routeDeps.assetRenditionRepo, blobStore: routeDeps.blobStore,
+        ...createFormMediaCleanup({ kernel: routeDeps.contentKernel, outbox: routeDeps.outbox, clock: routeDeps.clock, graceMs: DEFAULT_GC_GRACE_MS }),
       }, contentTypes: routeDeps.mediaContentTypeStore,
         resolveCreatedByPrincipal: async ({ workspaceId }) => {
           // Uploads have no signed-in operator. Await identity's existing seed and attribute the

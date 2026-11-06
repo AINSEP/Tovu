@@ -68,6 +68,8 @@ async function cliConsent({ deps, request, run }: {
 }): Promise<unknown> {
   if (!isLiveConsentRun({ deps, run })) throw new DaemonCoreError({ reason: "tool consent requires this site's live accepted answer" });
   const principalId = run!.principalId!;
+  const person = await deps.principalRepo.findById({ workspaceId: deps.workspaceId, id: principalId });
+  if (person?.kind !== 'user' || person.status !== 'active') throw new DaemonCoreError({ reason: "tool consent requires an active person" });
   if (!getAgentDef({ id: request.input.agentId })) throw new DaemonCoreError({ reason: "tool consent names an unknown agent" });
   const input = { deps, principalId, agentId: request.input.agentId, env: process.env, getDef: getAgentDef };
   if (request.operation === "cliConsentSnapshot") return readAssistantToolConsentSnapshot(input);

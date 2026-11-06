@@ -2,7 +2,30 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { chromium } from "playwright";
 
-import { injectFormSubmissionResultIntoHtml, renderWidgetIr } from "../render.js";
+import { injectFormSubmissionResultIntoHtml, renderHtmlPageBody, renderWidgetRegion, renderWidgetIr } from "../render.js";
+import type { SiteRenderContext } from "../render.js";
+
+test("repeated Builder forms across embeds and regions keep every ID and association within its occurrence", () => {
+  for (const collectionPlan of [undefined, { kind: "post", external: true, action: "https://forms.example.test/submit" }]) {
+    const ir = { componentId: "contact-form", props: { slug: "contact", fields: [
+      { id: "email", label: "Email", type: "email", helpText: "Your email", required: true },
+    ], ...(collectionPlan ? { collectionPlan } : {}) } };
+    const resolved = new Map([["form", new Map([["contact", ir]])]]);
+    const embeds = renderHtmlPageBody('<div data-embed-config=\'{"type":"form","id":"contact"}\'></div>'.repeat(2), resolved);
+    const ctx = { widgetRegions: { footer: [ir, ir], sidebar: [ir] } } as unknown as SiteRenderContext;
+    const html = embeds + renderWidgetRegion({ ctx, regionKey: "footer" }) + renderWidgetRegion({ ctx, regionKey: "sidebar" });
+    const forms = [...html.matchAll(/<form\b[^>]*>([\s\S]*?)<\/form>/g)].map(match => match[1]!);
+    assert.equal(forms.length, 5);
+    const ids = forms.flatMap(form => [...form.matchAll(/ id="([^"]+)"/g)].map(match => match[1]!));
+    assert.equal(new Set(ids).size, ids.length, "no duplicate IDs across placements of the same form");
+    for (const form of forms) {
+      const localIds = new Set([...form.matchAll(/ id="([^"]+)"/g)].map(match => match[1]!));
+      for (const match of form.matchAll(/(?:for|aria-describedby)="([^"]+)"/g)) {
+        for (const reference of match[1]!.split(" ")) assert.ok(localIds.has(reference), reference);
+      }
+    }
+  }
+});
 
 function formHtml(): string {
   return renderWidgetIr({ componentId: "contact-form", props: {
@@ -64,7 +87,7 @@ test("checkbox fields render inline before their label with only the emitted sty
   const browser = await chromium.launch({ headless: true });
   try {
     const page = await browser.newPage({ viewport: { width: 1200, height: 900 } });
-    for (const [name, markup, labelSelector] of [["builder", builder, "label[for=widget-contact-updates]"], ["html", html, "label:has(input[type=checkbox])"]] as const) {
+    for (const [name, markup, labelSelector] of [["builder", builder, "label[for]:has-text('Send me updates')"], ["html", html, "label:has(input[type=checkbox])"]] as const) {
       await page.setContent(`<body style="width:600px">${markup}</body>`);
       const box = await page.locator('form input[type="checkbox"]').boundingBox();
       const label = await page.locator(labelSelector).boundingBox();

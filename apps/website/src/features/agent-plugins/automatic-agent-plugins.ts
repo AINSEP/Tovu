@@ -25,7 +25,7 @@ export type AskAgentPluginChoice = (required: {
 /** Root-added tool contract; both roots register it before constructing tool search. */
 export const agentPluginGuidanceCatalog = [{
   name: 'load_agent_plugin',
-  description: 'Load guidance when asked to use or apply an Agent Plugin by pluginId before acting in its domain. For viewing its admin screen, use page.navigate with the entity target, then discover and click its details handle. Returns full guidance; optional skill selects a declared skill and file reads a supporting file relative to that skill folder (default SKILL.md). Requested files can be read even after guidance is loaded. Only active, trusted plugins allowed for this chat can load. Find ids with search_agent_plugin_local.',
+  description: 'Load guidance when asked to use or apply an Agent Plugin by pluginId before acting in its domain. For viewing its admin screen, use page.navigate with the entity target, then discover and click its details handle. Returns full guidance; optional skill selects a declared skill and file reads a supporting file relative to that skill folder (default SKILL.md). Requested files can be read even after guidance is loaded. Trusted off plugins can be read for setup guidance, clearly marked off; their tools remain unavailable. Chat exclusions still apply. Find ids with search_agent_plugin_local.',
   sideEffects: 'none', authorization: { permission: 'admin.assistant.use' },
   inputSchema: { type: 'object', additionalProperties: false, required: ['pluginId'], properties: { pluginId: { type: 'string', minLength: 1 }, skill: { type: 'string', minLength: 1 }, file: { type: 'string', minLength: 1 } } },
 }] satisfies AgentToolDefinition[];
@@ -107,7 +107,7 @@ export function createAutomaticPluginRuns({ deps, surfaces, askAgentPluginChoice
         return candidates;
       },
       rank: (input) => rankInstalledAgentPlugins(input.query.slice(0, 16000), input.candidates, input.limit, { automatic: true }),
-      resolve: ({ pluginId, ...request }) => resolveAgentPluginGuidance({ pluginRefIds: [pluginId], workspaceLayout: deps.agentPluginLayout.forWorkspace(deps.workspaceId) }, { deliveryMode: 'inject', ...request }),
+      resolve: ({ pluginId, ...request }) => resolveAgentPluginGuidance({ pluginRefIds: [pluginId], workspaceLayout: deps.agentPluginLayout.forWorkspace(deps.workspaceId) }, { deliveryMode: 'inject', allowInactiveGuidance: true, ...request }),
       ask: async ({ matches }) => {
         entry.pending = true;
         try {
@@ -158,7 +158,7 @@ export function createAutomaticPluginRuns({ deps, surfaces, askAgentPluginChoice
       const id = JSON.stringify(pluginId);
       const notes = {
         loaded: '',
-        'installed-but-inactive': `Installed but inactive. Request activation through plugins_set_enabled({family:"agent-plugin",pluginId:${id},enabled:true}) using its existing approval flow, then retry load_agent_plugin({pluginId:${id}}).`,
+        'installed-but-inactive': `Read-only guidance from an installed, off plugin. Its tools remain unavailable. If tools are needed, offer plugins_set_enabled({family:"agent-plugin",pluginId:${id},enabled:true}) through the existing approval flow.`,
         excluded: 'This plugin is excluded from this chat. No guidance was loaded.',
         untrusted: 'This plugin failed the installed-package trust check. No guidance was loaded.',
         missing: 'This plugin was not found in this workspace’s installed catalog. No guidance was loaded.',

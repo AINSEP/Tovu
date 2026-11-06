@@ -1,3 +1,6 @@
+import type { DocumentAssets } from '@jini-ai/cms/presentation';
+import type { DeclaredScript } from '@jini-ai/cookie-consent';
+import { renderScriptAssets } from '@jini-ai/cookie-consent/render';
 import { renderFormCollection, type FormCollectionPlan } from "@jini-ai/cms/forms";
 import { formatMoney } from "@jini-ai/commerce/money";
 import type { SiteProduct, SiteRenderContext, MediaAssetRenderMeta } from "./render-context.js";
@@ -6,12 +9,13 @@ import type { PluginExportRender } from "@jini-ai/cms/widgets/html";
 import { renderThemeFontLinks } from "#src/features/theme/font-links";
 import { renderMediaRawHtml } from "#src/features/widgets/media-html";
 import { existsSync } from "node:fs";
+import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { createSiteChatAssetReadiness, renderLazySiteChatMarkup, type SiteChatSelection } from "./site-chat-markup.js";
 // The leaf, not the site-dir barrel: this file runs inside the 64 MB theme render workers, and the
 // barrel's site-registry/repair/new-site members load the database (`worker-import-graph.test.ts`).
 import { resolveAppDistDir } from "#src/platform/site-dir/product-root";
-import { renderHtmlForm, renderHtmlFormBody } from "@jini-ai/cms/forms/html-render";
+import { renderHtmlForm, renderHtmlFormBody, renderFormSchemaHash } from "@jini-ai/cms/forms/html-render";
 import type { JsonObject, JsonValue } from "@jini-ai/core/primitives";
 import type { PublicPostRecord as PostRecord } from "#src/features/post/contracts";
 import { MAX_SLUG_LENGTH, SLUG_FORMAT_PATTERN } from "#src/features/post/rendering";
@@ -2388,6 +2392,11 @@ const DEFAULT_CONTACT_FORM_SUCCESS_MESSAGE = "Thanks — your message has been s
 /** Preserve authored HTML only in HTML mode for a native collection plan.
  * @complexity O(1) time/space; strings are reused, no I/O.
  * @overallScore 97 — Recommended: HTML sanitization remains the authoring write boundary's responsibility. */
+
+function formSchemaOptions({ props }: { props: JsonObject }): { schemaHash?: string } {
+  return typeof props.schemaHash === "string" ? { schemaHash: props.schemaHash } : {};
+}
+
 function collectionHtmlOptions({ props }: { props: JsonObject }): { html?: string; className: string } {
   return { ...(props.mode === "html" && typeof props.html === "string" ? { html: props.html } : {}), className: FORM_CLASS };
 }
@@ -2398,6 +2407,9 @@ function collectionHtmlOptions({ props }: { props: JsonObject }): { html?: strin
 function renderWidgetContactForm(props: JsonObject): string {
   const slug = str(props.slug);
   if (!slug) return renderWidgetPlaceholder();
+  // Allocate at the occurrence boundary: the same resolved IR can appear in several embeds or
+  // regions, even repeatedly in one region. No answer data or process-wide counter is retained.
+  const idPrefix = `widget-contact-${randomUUID()}`;
   // HTML mode is Builder's look plus author refinements, not "unstyled": the same baseline and
   // `tovu-form` hook let the active theme's form rules apply, and author CSS still wins over both.
   // The slider value readout ships only with forms that have a range field.
@@ -2406,7 +2418,7 @@ function renderWidgetContactForm(props: JsonObject): string {
   if (props.collectionPlan) return FORM_BASELINE_STYLE + renderFormCollection({
     slug, fields: fieldDescriptors, plan: props.collectionPlan as unknown as FormCollectionPlan,
     hooks: { field: "data-tovu-field", form: "data-tovu-form", success: "data-tovu-form-success", error: "data-tovu-form-error" },
-  }, collectionHtmlOptions({ props })) + rangeReadout;
+  }, { ...collectionHtmlOptions({ props }), idPrefix, consentOff: props.collectionConsentOff === true }) + rangeReadout;
   // Both modes show the length caps the submit route enforces (owner 2026-10-25, spam protection).
   if (props.mode === "html") return FORM_BASELINE_STYLE + stampFormFieldMaxLengths(renderHtmlForm({
     slug, action: `/forms/${encodeURIComponent(slug)}/submit`,
@@ -2414,11 +2426,13 @@ function renderWidgetContactForm(props: JsonObject): string {
     fields: fieldDescriptors,
   }, {
     ...(typeof props.html === "string" ? { html: props.html } : {}),
+    ...formSchemaOptions({ props }),
+    idPrefix,
     successMessage: str(props.successMessage) || DEFAULT_CONTACT_FORM_SUCCESS_MESSAGE,
     className: FORM_CLASS,
   }), fieldDescriptors) + rangeReadout;
   const escapedSlug = escapeHtml(slug);
-  const fieldOptions = { submitLabel: "Send", idPrefix: "widget-contact", fieldClass: "widget-form-field", errorClass: "widget-form-field-error" };
+  const fieldOptions = { submitLabel: "Send", idPrefix, fieldClass: "widget-form-field", errorClass: "widget-form-field-error" };
   const fields = stampFormFieldMaxLengths(renderHtmlFormBody({ fields: fieldDescriptors, hooks: { field: "data-tovu-field" } }, fieldOptions), fieldDescriptors);
   const successMessage = escapeHtml(str(props.successMessage) || DEFAULT_CONTACT_FORM_SUCCESS_MESSAGE);
   const legacyAttrs = `data-contact-form-slug="${escapedSlug}"`;
@@ -2429,7 +2443,7 @@ function renderWidgetContactForm(props: JsonObject): string {
     successSlot +
     `<form class="widget ${FORM_CLASS} widget-contact-form" toolname="form_${escapeHtml(slug.replace(/[^A-Za-z0-9_.-]/g, '_').slice(0, 123))}" tooldescription="${escapedSlug}" method="post"${fieldDescriptors.some(field => field && String(field.type) === "file") ? ' enctype="multipart/form-data"' : ""} action="/forms/${escapedSlug}/submit" data-form-slug="${escapedSlug}" ${legacyAttrs}>` +
     errorSlot +
-    fields +
+    fields + renderFormSchemaHash(formSchemaOptions({ props })) +
     `<div hidden aria-hidden="true"><input type="text" name="_hp" tabindex="-1" autocomplete="off"></div>` +
     `</form>` +
     rangeReadout
@@ -3267,6 +3281,7 @@ function removeThemeOwnTitleElement(html: string): string {
  * hardcoded `<title>` is suppressed rather than emitting two competing tags.
  */
 export function pageShell(required: {
+  documentAssets?: DocumentAssets;
   title: string;
   /** `null` when the operator turned the theme off — see {@link RenderSiteRequired.theme}. */
   theme: DiscoveredTheme | null;
@@ -3280,6 +3295,7 @@ export function pageShell(required: {
   siteAssistantEnabled?: SiteChatSelection;
 }, _optional: Record<string, never> = {}): string {
   const { theme, extraHead } = required;
+  const assets = required.documentAssets ?? { head: '', body: '' };
   const foldHasTitle = extraHead?.includes("<title>") ?? false;
   const titleTag = foldHasTitle ? "" : `<title>${escapeHtml(required.title)}</title>`;
   const siteAssistant = siteAssistantMarkup(required.siteAssistantEnabled ?? false);
@@ -3288,9 +3304,7 @@ export function pageShell(required: {
   // synthesised `:root { }` or a `<link>` to no font family would be markup an operator has to work
   // around. `data-theme` in particular is omitted ENTIRELY rather than emitted empty — `[data-theme]`
   // matches `data-theme=""`, so an empty attribute is a selector someone hits by accident.
-  const themeFontLink = theme ? renderThemeFontLinks({ manifest: theme.manifest }) : "";
-  const themeStyle = theme ? `${tokensToCss(theme.tokens)}${theme.css}` : "";
-  const themeAttr = theme ? ` data-theme="${escapeHtml(theme.manifest.id)}"` : "";
+  const { themeFontLink, themeStyle, themeAttr } = shellThemeAssets({ theme });
   const document = `<!doctype html>
 <html lang="en">
 <head>
@@ -3301,10 +3315,12 @@ ${extraHead ?? ""}
 ${themeFontLink}
 <style>${BASE_STYLE}${themeStyle}</style>
 ${siteAssistant.head}
+${assets.head}
 </head>
 <body>
 <div class="site"${themeAttr}>${required.body}</div>
 ${siteAssistant.body}
+${assets.body}
 </body>
 </html>`;
   // Review fix 3a: the same once-per-page default style `finishStaticTierDocument`'s
@@ -3327,6 +3343,9 @@ ${siteAssistant.body}
  *  {@link renderSite}'s own complexity, no change to the accepted call shape (an inline object type
  *  and a structurally-identical named interface are the same type to every existing caller). */
 export interface RenderSiteRequired {
+  renderAssets?: (required: { scripts: readonly DeclaredScript[] }) => Promise<DocumentAssets>;
+  transformBody?: (required: { html: string }) => Promise<string>;
+  scripts?: readonly DeclaredScript[];
   /**
    * The resolved active theme, or `null` when the operator has deliberately turned the theme off
    * (state 3 of the optional-theme feature). `null` is NOT "the theme is broken" — that case still
@@ -3590,7 +3609,7 @@ export async function renderSite(required: RenderSiteRequired): Promise<string> 
   if (theme === null) {
     const title = resolvePageTitle(route, required.post, required.siteTitle);
     const body = fallbackSiteBody(ctx, route);
-    return pageShell({ title, theme, body, extraHead: required.extraHead, siteAssistantEnabled: required.siteAssistantEnabled });
+    return finishManagedDocument({ required, title, body });
   }
 
   const staticHomePage = renderStaticTierHomePage(
@@ -3612,5 +3631,18 @@ export async function renderSite(required: RenderSiteRequired): Promise<string> 
   }
 
   const title = resolvePageTitle(route, required.post, required.siteTitle);
-  return pageShell({ title, theme, body, extraHead: required.extraHead, siteAssistantEnabled: required.siteAssistantEnabled });
+  return finishManagedDocument({ required, title, body });
+}
+
+/** Resolve body contributions before the document slots, so optional comment assets join declarations. */
+async function finishManagedDocument({ required, title, body }: { required: RenderSiteRequired; title: string; body: string }): Promise<string> {
+  const transformed = required.transformBody ? await required.transformBody({ html: body }) : body;
+  const scripts = [...required.theme?.manifest.scripts ?? [], ...required.scripts ?? []];
+  const documentAssets = required.renderAssets ? await required.renderAssets({ scripts }) : { head: renderScriptAssets({ scripts: scripts.filter(script => script.consent === undefined) }), body: '' };
+  return pageShell({ title, theme: required.theme, body: transformed, extraHead: required.extraHead, siteAssistantEnabled: required.siteAssistantEnabled, documentAssets });
+}
+
+function shellThemeAssets({ theme }: { theme: DiscoveredTheme | null }) {
+  if (!theme) return { themeFontLink: '', themeStyle: '', themeAttr: '' };
+  return { themeFontLink: renderThemeFontLinks({ manifest: theme.manifest }), themeStyle: `${tokensToCss(theme.tokens)}${theme.css}`, themeAttr: ` data-theme="${escapeHtml(theme.manifest.id)}"` };
 }

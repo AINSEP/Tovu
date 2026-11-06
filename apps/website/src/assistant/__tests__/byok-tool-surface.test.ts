@@ -1558,3 +1558,55 @@ test("T2 real surface and shared provider mapper complete discovery and typed ex
   assert.deepEqual(result, { stopReason: "stop", toolTurns: 3 });
   assert.equal(executions, 1);
 });
+
+for (const outcome of ['confirm', 'cancel', 'revoked', 'inactive', 'abort'] as const) {
+  test(`BYOK protected access ${outcome} uses one bound card and preserves the real setting writer`, async () => {
+    const now = '2026-11-05T00:00:00.000Z';
+    const settingId = `byok-access-${outcome}`;
+    const settingsRepo = new InMemorySettingsRepo({ definitions: [{
+      settingId, version: 1, workspaceId: null, namespace: 'core.privacy', key: 'cloudAnalytics', ownerKind: 'core', ownerId: null,
+      schema: { type: 'boolean' }, defaultValue: false, scopes: 6, secret: false, status: 'active',
+      aliasOfNamespace: null, aliasOfKey: null, coercionTag: null, createdAt: now, updatedAt: now,
+    }] });
+    let allowed = true, active = true;
+    const deps = { ...fakeRouteDeps(), settingsRepo, settingsReady: Promise.resolve(),
+      ownerPrincipalId: Promise.resolve(PRINCIPAL.id),
+      principalRepo: { findById: async () => ({ workspaceId: 'ws-meta-tool', id: PRINCIPAL.id, kind: 'user', status: active ? 'active' : 'disabled', displayName: 'Access tester', createdAt: now }) },
+      authorize: async () => ({ allowed, reason: allowed ? 'matched' : 'permission revoked' }),
+    } as unknown as ByokToolSurfaceDeps;
+    const s = createByokToolSurface(deps, { installExtensions: false, contributions });
+    const turn = s.createRun({ principal: PRINCIPAL, run: RUN });
+    const described = await turn.executeTool(call('describe_tool', { id: 'settings_set_value' }));
+    assert.notEqual(described.isError, true, textOf(described));
+    const controller = new AbortController();
+    let cards = 0;
+    try {
+      const result = await turn.executeTool(call('settings_set_value', { namespace: 'core.privacy', key: 'cloudAnalytics', value: true }), {
+        signal: controller.signal,
+        emitSurface: async emission => {
+          cards++;
+          assert.equal(await settingsRepo.getWorkspaceValue({ workspaceId: 'ws-meta-tool', settingId }), null);
+          const { resource } = emission.payload as { resource: UIResource };
+          const exchangeId = resource.resource.uri.split('/').at(-1)!;
+          const html = resource.resource.text;
+          assert.match(html, /cloudAnalytics/); assert.match(html, /principal-meta-tool/);
+          assert.deepEqual(s.surfaceExchanges.deliver({ exchangeId, principalId: 'someone-else', params: { decision: 'confirm' } }, { toolId: 'settings_set_value' }), { ok: false, reason: 'binding-mismatch' });
+          assert.deepEqual(s.surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL.id, params: { decision: 'confirm' } }, { toolId: 'plugins_set_enabled' }), { ok: false, reason: 'binding-mismatch' });
+          if (outcome === 'abort') { controller.abort(); return; }
+          if (outcome === 'revoked') allowed = false;
+          if (outcome === 'inactive') active = false;
+          assert.deepEqual(s.surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL.id, params: { decision: outcome === 'cancel' ? 'cancel' : 'confirm', value: 'forged' } }, { toolId: 'settings_set_value' }), { ok: true });
+        },
+      });
+      assert.equal(cards, 1);
+      const stored = await settingsRepo.getWorkspaceValue({ workspaceId: 'ws-meta-tool', settingId });
+      if (outcome === 'confirm') {
+        assert.notEqual(result.isError, true, textOf(result)); assert.equal(stored?.valueJson, true);
+        assert.equal((await settingsRepo.listRevisions({ settingId })).length, 1);
+      } else {
+        assert.equal(stored, null); assert.equal((await settingsRepo.listRevisions({ settingId })).length, 0);
+      }
+      assert.equal(s.surfaceExchanges.size(), 0);
+    } finally { controller.abort(); }
+  });
+}

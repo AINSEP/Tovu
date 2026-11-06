@@ -1,51 +1,45 @@
-/**
- * @file Public delivery for `@jini-ai/cookie-consent` (the replacement for `site-consent.ts`'s
- * per-request engine). Nothing here rewrites the owner's page: the same banner markup is added to
- * every public HTML page (live and static export alike), the browser client decides what runs, and
- * the server only stores receipts, sets the region cookie and gates its own analytics with
- * `readConsent`. Mounted instead of `applySiteConsent` when `deps.cookieConsent` is set (the one
- * switch; P4 deletes the old engine).
- *
- * Routes (all same-origin):
- * - `GET  /_consent/client-<hash>.min.js` the browser client, immutable (the hash is its content).
- * - `POST /_consent`                       durable receipts (`handleReceipt` + file records).
- * - `*    /_consent/p/<id>/…`              assets and collectors of active plugins' adapters.
- */
+import type { DocumentAssets } from '@jini-ai/cms/presentation';
+import type { DeclaredScript } from '@jini-ai/cookie-consent';
+import { renderScriptAssets } from '@jini-ai/cookie-consent/render';
+import type { ConsentConfig } from '@jini-ai/cookie-consent';
+/** Public declared-script assets, published context, receipts and plugin admission.
+ * Documents receive asset contributions during construction; public responses are never scanned. */
 import { createHash, randomBytes } from 'node:crypto';
 import * as fs from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import express, { type Express, type Request, type Response } from 'express';
-import { CONSENT_COOKIE, OPTIONAL, REGION_COOKIE, type BannerMode, type ConsentState, type Optional, type RawContribution, type RegionResolver } from '@jini-ai/cookie-consent';
+import { CONSENT_COOKIE, OPTIONAL, REGION_COOKIE, type ConsentState, type Optional, type RawContribution, type RegionResolver } from '@jini-ai/cookie-consent';
 import { DEFAULT_MAX_AGE_MS, parseStored } from '@jini-ai/cookie-consent/policy';
-import { renderBanner, type RenderedBanner } from '@jini-ai/cookie-consent/render';
+import { renderBanner } from '@jini-ai/cookie-consent/render';
 import { handleReceipt, readConsent, resolveRegion, type ConsentRecord } from '@jini-ai/cookie-consent/server';
 import { consentRateLimitKey, createConsentFileRecords, createNodeConsentFiles } from '@jini-ai/cookie-consent/node';
 import { createNodeAtomicFilesystem, writeJsonFileAtomic } from '@jini-ai/platform/fs';
 import { createRateLimiter, resolveClientIp } from '#src/contracts/core/rate-limit/rate-limit';
 import type { SiteCookieConsentDeps, ConsentPluginHttp, ConsentPluginContribution } from '#src/contracts/headless/index';
-import { renderSiteConsentPreview, siteBannerMode, toSiteCookieConsent, type SiteConsentSource } from '#src/features/consent/cookie-consent';
-import type { ConsentDryRunGate } from '#src/features/consent/readiness';
-import { withSiteConsentSettingsLink } from '#src/features/consent/settings-link';
+import { NO_THEME_ID, resolveActiveTheme } from '#src/features/theme/active-theme';
+import { siteBannerMode, toSiteCookieConsent } from '#src/features/consent/cookie-consent';
 import type { RouteDeps } from '#src/server/routes/types';
-import { insertBeforeUncommentedTag } from '../http/site/render.js';
 import { isStaticExportRequest } from '../routes/site/pages.js';
 import { CONSENT_RECEIPTS_DIR_NAME, CONSENT_SAVE_PROFILE, readSiteConsentPolicy, resolveSiteConsentOrigin } from './site-consent.js';
 
 export type { SiteCookieConsentDeps, ConsentPluginHttp, ConsentPluginContribution } from '#src/contracts/headless/index';
-type SiteRenderedBanner = RenderedBanner & { mode?: BannerMode };
 
 export const CONSENT_ENDPOINT = '/_consent';
 const PLUGIN_BASE = `${CONSENT_ENDPOINT}/p`;
-const MAX_HTML_BYTES = 4 * 1024 * 1024;
 /** A dot segment or an encoded separator never reaches a plugin handler, whatever the plugin does with paths. */
 const UNSAFE_PLUGIN_PATH = /(?:^|\/)\.\.?(?:\/|$)|%2e|%2f|%5c|\\/i;
 
 /** Read the client bundle once; the hash makes its URL immutable (and lets static exports copy it). */
 function loadClient(_required = {}, { resolve = createRequire(import.meta.url).resolve }: { resolve?: (id: string) => string } = {}) {
-  const body = fs.readFileSync(resolve('@jini-ai/cookie-consent/client.min.js'));
-  const hash = createHash('sha256').update(body).digest('hex').slice(0, 12);
-  return { body, src: `${CONSENT_ENDPOINT}/client-${hash}.min.js` };
+  try {
+    const body = fs.readFileSync(resolve('@jini-ai/cookie-consent/client.min.js'));
+    const hash = createHash('sha256').update(body).digest('hex').slice(0, 12);
+    return { body, src: `${CONSENT_ENDPOINT}/client-${hash}.min.js` };
+  } catch {
+    console.warn('[consent] The cookie preferences client could not be loaded. Its browser route is disabled.');
+    return undefined;
+  }
 }
 
 /** Express → web Request on the site's PUBLIC origin, so handleReceipt's origin check is meaningful. */
@@ -62,89 +56,6 @@ function toWebRequest({ req, body }: { req: Request; body: Buffer }, _optional =
  * A plugin that throws or is not configured contributes nothing. @complexity O(plugins). */
 export function siteConsentPlugins({ deps }: { deps: RouteDeps }, _optional = {}): readonly ConsentPluginContribution[] {
   return deps.consentAdapters?.({ base: PLUGIN_BASE }) ?? [];
-}
-
-/** One page's banner. Exports get local evidence and no plugins (no server to store or collect).
- * @complexity O(copy + CSS length). */
-export async function renderSiteBanner({ deps, request, clientSrc }: { deps: RouteDeps; request: Request; clientSrc: string }, _optional = {}): Promise<SiteRenderedBanner> {
-  const config = await readSiteConsentPolicy({ deps }, { cssBlocks: false });
-  const live = !isStaticExportRequest(request);
-  const plugins = live ? siteConsentPlugins({ deps }).map(item => item.adapter) : [];
-  const { banner, options } = toSiteCookieConsent({ config, policy: config.policyVersion }, { plugins });
-  return { ...renderBanner(banner, { ...options, clientSrc, evidence: live ? { mode: 'durable', endpoint: CONSENT_ENDPOINT } : { mode: 'local' } }), mode: banner.mode };
-}
-
-/** Insert head/body before the first `</head>` / `</body>` that is real markup (not inside a comment),
- * then Tovu's footer "Cookie settings" link. A page without them gets nothing. @complexity O(HTML bytes). */
-export function insertBanner({ html, rendered }: { html: string; rendered: SiteRenderedBanner }, _optional = {}): string {
-  if (!rendered.head && !rendered.body) return html;
-  const withHead = insertBeforeUncommentedTag(html, /<\/head>/gi, rendered.head);
-  const withBody = insertBeforeUncommentedTag(withHead, /<\/body>/gi, rendered.body);
-  return rendered.mode === 'off' ? withBody : withSiteConsentSettingsLink({ html: withBody }, { engine: 'cookie-consent' });
-}
-
-/** The admin preview/readiness gate for this engine: the rendered page with the scriptless preview
- * banner for the sampled region, its `<html>` attributes standing in for what the client sets.
- * Same signature as the old engine's gate, so the consent service needs no second code path.
- * @complexity O(HTML bytes + CSS length). */
-export const cookieConsentPreviewGate = (({ html, config, regionMode }: { html: string; config: SiteConsentSource; regionMode: string }) => {
-  const rendered = renderSiteConsentPreview({ config, policy: config.policyVersion }, { region: regionMode === 'opt-out' ? 'opt-out' : 'opt-in' });
-  // Attributes last: they include data-consent-open, which would read as the theme's own opener and
-  // hide the footer link that live pages get.
-  const withBanner = insertBanner({ html, rendered });
-  return rendered.htmlAttrs ? withBanner.replace(/<html\b/i, `<html ${rendered.htmlAttrs}`) : withBanner;
-}) as unknown as ConsentDryRunGate;
-
-/** Any body chunk Node accepts (string, Buffer, Uint8Array) as bytes. */
-const toBuffer = ({ chunk, encoding }: { chunk: string | Uint8Array; encoding: unknown }, _optional = {}): Buffer => {
-  if (typeof chunk !== 'string') return Buffer.from(chunk);
-  return Buffer.from(chunk, typeof encoding === 'string' ? encoding as BufferEncoding : 'utf8');
-};
-
-/** Buffer one HTML response and hand the full body to `transform` at `end`. A response that is not
- * HTML, already flushed, or over the cap goes out untouched (the page then has no banner: nothing
- * optional runs without the client). @complexity O(body bytes). */
-export function captureHtml({ res, transform }: { res: Response; transform: (required: { html: string }) => Promise<string> }, { maxBytes = MAX_HTML_BYTES }: { maxBytes?: number } = {}): void {
-  const { write, end } = res;
-  const chunks: Buffer[] = [];
-  let size = 0;
-  const isHtml = () => String(res.getHeader('content-type') ?? '').includes('text/html') && !res.getHeader('content-encoding') && !res.headersSent;
-  // `res.send` ends with one chunk and never calls `write`, so the cap is checked here too. An empty
-  // body (HEAD) has nothing to transform, and its Content-Length/ETag describe the GET body.
-  const untouched = (body: Buffer) => {
-    if (!isHtml() || body.length === 0 || body.length > maxBytes) return true;
-    return res.statusCode >= 400 || res.statusCode === 204 || res.statusCode === 304;
-  };
-  const passThrough = () => { res.write = write; res.end = end; const held = Buffer.concat(chunks); chunks.length = 0; if (held.length) Reflect.apply(write, res, [held]); };
-  res.write = function (this: Response, chunk: unknown, encoding?: unknown, callback?: unknown) {
-    const buffer = toBuffer({ chunk: chunk as string | Uint8Array, encoding });
-    if (!isHtml() || size + buffer.length > maxBytes) { passThrough(); return Reflect.apply(write, this, [chunk, encoding, callback]); }
-    chunks.push(buffer); size += buffer.length;
-    const done = typeof encoding === 'function' ? encoding : callback;
-    if (typeof done === 'function') queueMicrotask(() => (done as () => void)());
-    return true;
-  } as Response['write'];
-  res.end = function (this: Response, chunk?: unknown, encoding?: unknown, callback?: unknown) {
-    res.write = write; res.end = end;
-    if (typeof chunk === 'string' || chunk instanceof Uint8Array) chunks.push(toBuffer({ chunk, encoding }));
-    const done = [chunk, encoding, callback].find(item => typeof item === 'function') as (() => void) | undefined;
-    const original = Buffer.concat(chunks);
-    if (untouched(original)) { Reflect.apply(end, this, [original, done]); return this; }
-    transform({ html: original.toString('utf8') }).then(html => {
-      res.removeHeader('Content-Length'); res.removeHeader('ETag');
-      Reflect.apply(end, this, [Buffer.from(html), done]);
-    }, () => Reflect.apply(end, this, [original, done]));
-    return this;
-  } as Response['end'];
-}
-
-/** Set or clear `jini_region` from this site's trusted readers, only when it changes. Pages only, so
- * assets keep their caching. A throw, timeout or no reader = strict (cookie cleared). @complexity O(resolvers). */
-async function applyRegionCookie({ req, res, resolvers, deps }: { req: Request; res: Response; resolvers: readonly RegionResolver[]; deps: RouteDeps }, _optional = {}): Promise<void> {
-  // Anonymous delivery neither geolocates a visitor nor writes the cross-page region cookie.
-  if (siteBannerMode({ config: await readSiteConsentPolicy({ deps }, { cssBlocks: false }) }) === 'off') return;
-  const hint = await resolveRegion({ resolvers, request: { header: name => req.get(name) ?? null, ip: req.ip ?? null } });
-  setRegionCookie({ req, res, hint });
 }
 
 /** Region persistence is only reached for an enabled consent banner, never anonymous analytics. */
@@ -175,7 +86,7 @@ function mountReceipts({ app, deps }: { app: Express; deps: RouteDeps }, _option
   const store = siteReceiptStore({ deps });
   app.post(CONSENT_ENDPOINT, express.raw({ type: () => true, limit: '4kb' }), async (req, res) => {
     try {
-      const config = await readSiteConsentPolicy({ deps }, { cssBlocks: false });
+      const config = await readSiteConsentPolicy({ deps });
       const response = await handleReceipt({ request: toWebRequest({ req, body: Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0) }), ports: {
         store, policy: () => config.policyVersion, now: () => deps.clock.nowMs(),
         // Receipt ids must be unguessable; the site's time-ordered id generator is not.
@@ -239,9 +150,14 @@ async function collectorDecision(
  * unconfirmed grant is not allowed). A failed policy read allows nothing. @complexity O(cookie header). */
 export async function readSiteVisitorConsent({ deps, req }: { deps: RouteDeps; req: Request }, _optional = {}) {
   try {
-    const config = await readSiteConsentPolicy({ deps }, { cssBlocks: false });
+    const snapshot = await documentPolicy({ consent: deps.cookieConsent });
+    if (unavailableDocumentPolicy({ consent: deps.cookieConsent, config: snapshot })) return readConsent({ cookieHeader: '', policy: '', regionMode: 'opt-in' });
+    if (snapshot && siteBannerMode({ config: snapshot }) === 'off') return readConsent({ cookieHeader: '', policy: snapshot.policyVersion, regionMode: 'opt-in' }, {
+      ...requestPrivacy({ deps, req }), anonymous: true,
+    });
+    const config = snapshot ?? await readSiteConsentPolicy({ deps });
     return readConsent({ cookieHeader: req.get('cookie'), policy: config.policyVersion, regionMode: config.regionMode === 'opt-in' ? 'opt-in' : 'auto' }, {
-      secGpc: req.get('sec-gpc') ?? null, dnt: req.get('dnt') ?? null, nowMs: deps.clock.nowMs(), anonymous: siteBannerMode({ config }) === 'off',
+      ...requestPrivacy({ deps, req }), anonymous: siteBannerMode({ config }) === 'off',
     });
   } catch {
     return readConsent({ cookieHeader: '', policy: '', regionMode: 'opt-in' });
@@ -250,14 +166,17 @@ export async function readSiteVisitorConsent({ deps, req }: { deps: RouteDeps; r
 
 /** The published policy id visitors are asked under now. @complexity O(1) reads. */
 async function readSiteConsentPolicyVersion({ deps }: { deps: RouteDeps }, _optional = {}): Promise<string> {
-  return (await readSiteConsentPolicy({ deps }, { cssBlocks: false })).policyVersion;
+  return (await readSiteConsentPolicy({ deps })).policyVersion;
 }
 
 /** Detached delivery recheck, the old engine's rule: the receipt is still active (a later choice retires
  * it), names the current policy, grants analytics without GPC and is within the choice lifetime. A forged
  * or withdrawn receipt id never delivers. @complexity O(1): one policy read and one receipt read. */
 export async function siteReceiptAllowsAnalytics({ deps, proof }: { deps: RouteDeps; proof: { receiptId: string; policyVersion: string } }, _optional = {}): Promise<boolean> {
-  const policy = await readSiteConsentPolicyVersion({ deps });
+  const snapshot = await documentPolicy({ consent: deps.cookieConsent });
+  if (unavailableDocumentPolicy({ consent: deps.cookieConsent, config: snapshot })) return false;
+  if (snapshot && siteBannerMode({ config: snapshot }) === 'off') return false;
+  const policy = snapshot?.policyVersion ?? await readSiteConsentPolicyVersion({ deps });
   if (proof.policyVersion !== policy) return false;
   const record = (await siteReceiptStore({ deps }).read?.({ id: proof.receiptId }) ?? null) as Partial<ConsentRecord> | null;
   return activeAnalyticsRecord({ record, policy, nowMs: deps.clock.nowMs() });
@@ -272,42 +191,175 @@ function activeAnalyticsRecord({ record, policy, nowMs }: { record: Partial<Cons
  * analytics is allowed and a server receipt exists. @complexity O(cookie header). */
 export async function readSiteAnalyticsProof({ deps, req }: { deps: RouteDeps; req: Request }, _optional = {}): Promise<{ receiptId: string; policyVersion: string } | undefined> {
   const state = await readSiteVisitorConsent({ deps, req });
+  if (state.analyticsLevel !== 'full') return undefined;
   const raw = req.get('cookie')?.match(new RegExp(`(?:^|;\\s*)${CONSENT_COOKIE}=([^;]*)`))?.[1];
   let receiptId: string | undefined;
   try { receiptId = parseStored({ raw: raw === undefined ? null : decodeURIComponent(raw) })?.r; } catch { receiptId = undefined; }
-  return state.analyticsLevel === 'full' && receiptId ? { receiptId, policyVersion: state.policy } : undefined;
+  return receiptId ? { receiptId, policyVersion: state.policy } : undefined;
 }
 
-/** Register the cookie-consent routes and the page slot on the public app. @complexity O(1) setup;
- * per page one policy read, one region resolution and one O(HTML) insertion. */
-export function applySiteCookieConsent({ app, deps, consent }: { app: Express; deps: RouteDeps; consent: SiteCookieConsentDeps }, { client = loadClient() }: { client?: { body: Buffer; src: string } } = {}): void {
-  app.get(client.src, (_req, res) => { res.type('text/javascript').set('Cache-Control', 'public, max-age=31536000, immutable').send(client.body); });
-  mountReceipts({ app, deps });
-  mountPluginHttp({ app, deps });
-  app.use(async (req, res, next) => {
-    const page = (req.method === 'GET' || req.method === 'HEAD') && !/\.(?!html?$)[a-z0-9]+$/i.test(req.path) && !/^\/(?:admin|api|_consent|theme-preview|theme-explore)(?:\/|$)/.test(req.path);
-    if (!page || res.locals.tovuRenderThemeIdOverride) { next(); return; }
-    // The banner follows the published policy, which a page's own ETag doesn't cover: no 304 for pages.
-    delete req.headers['if-none-match'];
-    delete req.headers['if-modified-since'];
-    if (!isStaticExportRequest(req)) {
-      clearLegacyCookie({ req, res });
-      try { await applyRegionCookie({ req, res, deps, resolvers: await consent.regionResolvers() }); }
-      catch { console.error('[consent] region check failed'); }
-    }
-    captureHtml({ res, transform: async ({ html }) => {
-      try {
-        const rendered = await renderSiteBanner({ deps, request: req, clientSrc: client.src });
-        if (rendered.mode !== 'off' && !isStaticExportRequest(req)) {
-          // Apply after the renderer's headers: consent/region state must never enter a shared page cache.
-          res.set('Cache-Control', 'private, no-store');
-          res.vary('Cookie');
-          res.vary('Sec-GPC');
-        }
-        return insertBanner({ html, rendered });
+/** One published construction snapshot per mounted site, refreshed by publication. No per-page reads. */
+type DocumentState = {
+  policy?: ConsentConfig;
+  exportWarning?: string;
+  pending?: Promise<void>;
+  scripts: Promise<{ scripts: readonly DeclaredScript[]; problems: readonly string[] }>;
+  client?: { body: Buffer; src: string };
+  nextReadAt: number;
+  now: () => number;
+  refresh?: () => Promise<void>;
+};
+const documentStates = new WeakMap<SiteCookieConsentDeps, DocumentState>();
+const EXTENSION_SRC = '/_consent/extensions.min.js';
+export const CONSENT_LOADER_SRC = '/_consent/load.js';
+
+/** A mounted site's failed snapshot must not fall back to another immediate store read. */
+function unavailableDocumentPolicy({ consent, config }: { consent?: SiteCookieConsentDeps; config: ConsentConfig | null }): boolean {
+  return Boolean(consent && documentStates.has(consent) && !config);
+}
+
+/** The declaration owner is independent of policy availability, so ordinary scripts can still run. */
+async function documentDeclarations({ consent }: { consent?: SiteCookieConsentDeps }): Promise<readonly DeclaredScript[]> {
+  if (!consent) return [];
+  return (await documentStates.get(consent)?.scripts)?.scripts ?? [];
+}
+
+/** One read per minute per mounted site, including a retry after an unavailable publication. */
+async function documentPolicy({ consent }: { consent?: SiteCookieConsentDeps }): Promise<ConsentConfig | null> {
+  const state = consent && documentStates.get(consent);
+  if (!state) return null;
+  if (state.now() >= state.nextReadAt) void state.refresh?.().catch(() => undefined);
+  if (state.policy) return state.policy;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try { await Promise.race([state.pending?.catch(() => undefined), new Promise(resolve => { timer = setTimeout(resolve, 250); })]); }
+  finally { clearTimeout(timer); }
+  return state.policy ?? null;
+}
+
+/** Document construction consumes data, never a completed response body. */
+export async function siteConsentDocumentAssets({ deps, request, scripts }: { deps: Pick<RouteDeps, 'cookieConsent' | 'consentAdapters'>; request: Request; scripts: readonly DeclaredScript[] }, _optional = {}): Promise<DocumentAssets> {
+  const consent = deps.cookieConsent;
+  const config = await documentPolicy({ consent });
+  const allScripts = [...scripts, ...await documentDeclarations({ consent })];
+  if (consent && !config && isStaticExportRequest(request)) documentStates.get(consent)!.exportWarning = 'Cookie preferences could not be loaded. This published copy has no cookie banner.';
+  if (request.res?.locals.tovuRenderThemeIdOverride) return { head: renderScriptAssets({ scripts: allScripts.filter(script => script.consent === undefined) }), body: '' };
+  if (!config || !consent) return { head: renderScriptAssets({ scripts: allScripts.filter(script => script.consent === undefined) }), body: '' };
+  if (siteBannerMode({ config }) === 'off') return { head: renderScriptAssets({ scripts: allScripts }), body: '' };
+  return renderDocumentConsent({ deps, request, consent, config, scripts: allScripts });
+}
+
+/** Render the shared banner and client assets once a usable snapshot has been selected. */
+async function renderDocumentConsent({ deps, request, consent, config, scripts }: {
+  deps: Pick<RouteDeps, 'cookieConsent' | 'consentAdapters'>; request: Request; consent: SiteCookieConsentDeps;
+  config: ConsentConfig; scripts: readonly DeclaredScript[];
+}): Promise<DocumentAssets> {
+  const live = !isStaticExportRequest(request);
+  const plugins = await documentPlugins({ deps, live });
+  const { banner, options } = toSiteCookieConsent({ config, policy: config.policyVersion }, { plugins });
+  const rendered = renderBanner({ ...banner, client: { ...banner.client, scripts, ...(live ? { context: `${CONSENT_ENDPOINT}/context` } : {}) } }, {
+    ...options, clientSrc: documentStates.get(consent)?.client?.src, extensionSrc: EXTENSION_SRC,
+    evidence: live ? { mode: 'durable', endpoint: CONSENT_ENDPOINT } : { mode: 'local' },
+  });
+  return { head: rendered.head, body: rendered.body + '<a class="jini-consent-settings" href="#privacy-choices" data-consent-open>Cookie settings</a>' };
+}
+
+/** JSON declaration URLs are invisible to an HTML crawler. No live collectors enter an export. */
+export async function siteConsentExportAssets({ deps }: { deps: Pick<RouteDeps, 'cookieConsent'> }, _optional = {}): Promise<readonly string[]> {
+  const config = await documentPolicy({ consent: deps.cookieConsent });
+  const declared = await documentDeclarations({ consent: deps.cookieConsent });
+  const local = declared.filter(script => script.src.startsWith('/') && (config || script.consent === undefined)).map(script => script.src);
+  if (!config || siteBannerMode({ config }) === 'off') return local;
+  return [...(documentStates.get(deps.cookieConsent!)?.client ? [documentStates.get(deps.cookieConsent!)!.client!.src] : []), EXTENSION_SRC, ...local];
+}
+
+/** Public context shares the site's publication retry window and keeps visitor state out of HTML caches. */
+function mountContext({ app, consent }: { app: Express; consent: SiteCookieConsentDeps }, _optional = {}): void {
+  app.get(`${CONSENT_ENDPOINT}/context`, async (req, res) => {
+    res.set('Cache-Control', 'private, no-store');
+    try {
+      const config = await documentPolicy({ consent });
+      if (!config) throw new Error('Cookie preferences are not available.');
+      const enabled = siteBannerMode({ config }) !== 'off';
+      if (enabled) {
+        const hint = await resolveRegion({ resolvers: await consent.regionResolvers(), request: { header: name => req.get(name) ?? null, ip: req.ip ?? null } });
+        setRegionCookie({ req, res, hint });
+        clearLegacyCookie({ req, res });
       }
-      catch { console.error('[consent] banner render failed'); return html; }
-    } });
+      res.json({ enabled, policy: config.policyVersion, regionMode: config.regionMode === 'opt-in' ? 'opt-in' : 'auto' });
+    } catch { console.error('[consent] public context unavailable'); res.status(503).json({ error: 'Cookie preferences could not be loaded. Wait a minute, then reload to try again.' }); }
+  });
+}
+
+/** Authored static documents load the same construction assets as managed shells. No page bytes
+ * are inspected or changed; the browser installs only this server-owned contribution. */
+function mountStaticThemeLoader({ app, deps }: { app: Express; deps: RouteDeps }): void {
+  app.get(CONSENT_LOADER_SRC, async (req, res) => {
+    const theme = deps.resolveActiveThemeId ? resolveActiveTheme(deps, await deps.resolveActiveThemeId()) : null;
+    const scripts = theme && theme !== NO_THEME_ID ? theme.manifest.scripts ?? [] : [];
+    const assets = await siteConsentDocumentAssets({ deps, request: req, scripts });
+    const markup = JSON.stringify(assets.head + assets.body);
+    res.type('text/javascript').set('Cache-Control', 'public, max-age=60').set('Vary', 'X-Tovu-Static-Export').send(`(()=>{
+      if(document.getElementById('jini-consent-config'))return;
+      const template=document.createElement('template');template.innerHTML=${markup};
+      const scripts=[];
+      for(const node of [...template.content.childNodes]){
+        if(node.nodeName==='SCRIPT'&&node.getAttribute('src'))scripts.push(node);
+        else document.body.append(node);
+      }
+      for(const node of scripts){const script=document.createElement('script');
+        for(const attr of node.attributes)script.setAttribute(attr.name,attr.value);
+        script.async=false;document.body.append(script);}
+    })();`);
+  });
+}
+
+/** Routes and a construction-time snapshot only; no page-response capture or cookie work. */
+export function applySiteCookieConsent({ app, deps, consent }: { app: Express; deps: RouteDeps; consent: SiteCookieConsentDeps }, { client = loadClient() }: { client?: { body: Buffer; src: string } } = {}): void {
+  const state: DocumentState = { client, scripts: Promise.resolve({ scripts: [], problems: [] }), nextReadAt: Infinity, now: () => deps.clock.nowMs() };
+  documentStates.set(consent, state);
+  const refresh = (): Promise<void> => {
+    if (state.pending) return state.pending;
+    state.nextReadAt = state.now() + 60_000;
+    const policy = readSiteConsentPolicy({ deps }).then(config => { state.policy = config; }, error => {
+      console.warn('[consent] Cookie preferences could not refresh. The last loaded preferences remain in use; a later request will try again.');
+      throw error;
+    });
+    state.scripts = consent.scriptDeclarations?.() ?? Promise.resolve({ scripts: [], problems: [] });
+    state.pending = Promise.allSettled([policy, state.scripts]).then(results => {
+      const failure = results.find((result): result is PromiseRejectedResult => result.status === 'rejected');
+      if (failure) throw failure.reason;
+    }).finally(() => { state.pending = undefined; });
+    return state.pending;
+  };
+  consent.refresh = refresh;
+  state.refresh = refresh;
+  consent.embedConsentOff = () => { const config = documentStates.get(consent)?.policy; return Boolean(config && siteBannerMode({ config }) === 'off'); };
+  consent.exportAssets = () => siteConsentExportAssets({ deps });
+  consent.exportWarning = () => state.exportWarning;
+  app.use(async (req, res, next) => {
+    // Resolve the cached publication before widget rendering; consent-off pages have no activation runtime.
+    await documentPolicy({ consent });
+    res.locals.siteConsentAssets = (required: { scripts: readonly DeclaredScript[] }) => siteConsentDocumentAssets({ deps, request: req, scripts: required.scripts });
     next();
   });
+  void refresh().catch(() => undefined);
+  if (client) app.get(client.src, (_req, res) => { res.type('text/javascript').set('Cache-Control', 'public, max-age=31536000, immutable').send(client.body); });
+  const resolve = createRequire(import.meta.url).resolve;
+  try {
+    const extension = fs.readFileSync(path.join(path.dirname(resolve('@jini-ai/cookie-consent/client.min.js')), 'extensions.min.js'));
+    app.get(EXTENSION_SRC, (_req, res) => { res.type('text/javascript').set('Cache-Control', 'public, max-age=60').send(extension); });
+  } catch { console.warn('[consent] The cookie preferences extensions could not be loaded. Their browser route is disabled.'); }
+  mountStaticThemeLoader({ app, deps });
+  mountContext({ app, consent });
+  mountReceipts({ app, deps });
+  mountPluginHttp({ app, deps });
+}
+
+async function documentPlugins({ deps, live }: { deps: Pick<RouteDeps, 'cookieConsent' | 'consentAdapters'>; live: boolean }): Promise<readonly RawContribution[]> {
+  if (!live) return [];
+  return [...deps.consentAdapters?.({ base: PLUGIN_BASE }).map(item => item.adapter) ?? [], ...await deps.cookieConsent?.browserPlugins?.() ?? []];
+}
+
+function requestPrivacy({ deps, req }: { deps: RouteDeps; req: Request }) {
+  return { secGpc: req.get('sec-gpc') ?? null, dnt: req.get('dnt') ?? null, nowMs: deps.clock.nowMs() };
 }

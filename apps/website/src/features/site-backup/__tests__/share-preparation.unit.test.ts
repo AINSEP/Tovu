@@ -119,7 +119,7 @@ for (const size of [-1, 1.5]) {
 for (const size of [0, MAX_DOCUMENT_BYTES + 1]) {
   test(`a Library document blob of ${size} bytes is refused`, async t => {
     const h = harness(t, withMedia([{ storageKey: "doc" }], [{ storageKey: "doc", sha256: "0".repeat(64), originalFilename: "a.pdf" }]), { sizeOf: async () => size, get: async () => assert.fail("must not fetch") });
-    await assert.rejects(prepareShareContent(h.ports), { code: "INVALID_DOCUMENT", message: "Library document blobs must be non-empty and at most 10 MiB; nothing was shared." });
+    await assert.rejects(prepareShareContent(h.ports), { code: "INVALID_DOCUMENT", message: "Library document blobs must be non-empty and at most 50 MiB; nothing was shared." });
   });
 }
 test("an empty blob that is not a document is shared", async t => {

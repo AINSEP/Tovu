@@ -2,9 +2,14 @@ import type { PluginCredentialCard } from "../../contracts/core/plugin-credentia
 import type { AgentPluginMcpPort, AgentPluginOAuthPort, AgentPluginApiConnectionsPort, PluginCredentialsPort } from "./service-ports.js";
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { type AgentToolSideEffect, type DerivedRiskByToolId, type AgentToolDefinition } from "@jini-ai/core";
+import { createSystemClock } from "@jini-ai/core/primitives";
+import { approvalToolHandler, notConfirmedResult } from "../../contracts/core/human-confirm.js";
+import { previewAgentPluginEnableAccess } from "./enable-access.js";
+import { recordAgentPluginAccessDeclined } from "./apply-connect-defaults.js";
+import { applyExternalMcpAccess } from "../external-mcp/external-mcp-store.js";
 import type { UUID } from "@jini-ai/core/primitives";
 import { requireToolPermission, type AuthorizeFn } from "@jini-ai/cms/core";
-import { ToolInputError, type ToolExecutionOptions, type ToolExecutionContext } from "@jini-ai/core";
+import { ToolInputError, redactSecrets, type ToolExecutionOptions, type ToolExecutionContext } from "@jini-ai/core";
 
 import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { resolveExternalMcpOAuthStatus } from "../../contracts/core/external-mcp-auth.js";
@@ -200,7 +205,7 @@ export interface AgentPluginConnectToolDeps {
   readonly agentPluginLayout: AgentPluginLayout;
   readonly workspaceId: UUID;
   readonly authorize: AuthorizeFn;
-  readonly mcp: Pick<AgentPluginMcpPort, "repo" | "saveServer">;
+  readonly mcp: Pick<AgentPluginMcpPort, "repo" | "saveServer"> & Partial<Pick<AgentPluginMcpPort, "notifyRosterChanged">>;
   readonly externalMcpOAuth?: AgentPluginOAuthPort;
   readonly derivedPublicOrigin?: string;
   /** Injectable for tests; a real composition root omits both and gets the production cadence. */
@@ -295,9 +300,6 @@ async function resolvePendingOAuthServers(
 
 /** The injected adapter calls the existing token-card lifecycle without a runtime import cycle. */
 export type AgentPluginConnectOptions = ToolExecutionOptions & {
-  /** The sign-in's own `onConnected` (`apply-connect-defaults.ts`), re-run on rows that are already
-   *  signed in. Absent: an already signed-in plugin is reported connected and nothing is granted. */
-  readonly onConnected?: (serverId: string) => Promise<void>;
   readonly saveToken?: (
     input: { readonly ctx: ToolExecutionContext; readonly pluginId: string },
     optional?: ToolExecutionOptions,
@@ -309,6 +311,8 @@ export type AgentPluginConnectOptions = ToolExecutionOptions & {
 
 export interface AgentPluginConnectResult {
   readonly status: "connected" | "waiting-for-sign-in" | "not-connected";
+  readonly cancelled?: boolean;
+  readonly note?: string;
   readonly connectionRef?: string;
   readonly reason?: string;
   readonly message?: string;
@@ -321,7 +325,9 @@ function hasReusablePluginCredential(
   { row, pluginId, url }: { row: ExternalMcpServerRecord | null; pluginId: string; url: string },
   _optional = {},
 ): boolean {
-  return row !== null && row.provisionedByPluginId === pluginId && row.url === url && hasStoredAgentPluginCredential(row);
+  if (!row) return false;
+  const reusableOwner = row.provisionedByPluginId === null || row.provisionedByPluginId === pluginId;
+  return reusableOwner && row.url === url && hasStoredAgentPluginCredential(row);
 }
 
 /** Connect a token-only declaration through the existing card, or retain the API-connection path.
@@ -345,7 +351,12 @@ async function connectWithoutOAuth(
   ctx.signal.throwIfAborted();
   const row = await routeDeps.mcp.repo.findByServerId({ workspaceId: routeDeps.workspaceId, serverId });
   ctx.signal.throwIfAborted();
-  if (hasReusablePluginCredential({ row, pluginId, url: config.url })) return { status: "connected" };
+  if (hasReusablePluginCredential({ row, pluginId, url: config.url })) {
+    const approved = await approveSignedInAccess({ routeDeps, surfaces, ctx, pluginId, servers: { [serverKey]: config } }, optional);
+    if (!approved.approved) return approved.result;
+    await provisionAgentPluginMcpServers(routeDeps.mcp, { workspaceId: routeDeps.workspaceId, pluginId, servers: { [serverKey]: config }, principalId: ctx.principal.id });
+    return { status: 'connected' };
+  }
   if (!saveToken) throw new ToolInputError({ message: `agent_plugin_connect: use the plugin's secure key card with credential_save; no token-card adapter is wired here.` });
   const result = await saveToken({ ctx, pluginId }, optional);
   if (result.saved) return { status: "connected", next: result.next };
@@ -380,6 +391,7 @@ export async function runAgentPluginConnect(
   },
   optional: AgentPluginConnectOptions = {},
 ): Promise<AgentPluginConnectResult> {
+  ctx = { ...ctx, principal: { ...ctx.principal }, run: { ...ctx.run }, input: structuredClone(ctx.input) };
   await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: AGENT_PLUGIN_CONNECT_PERMISSION }, { entityType: "agent-plugin", entityId: pluginId });
 
   await assertPluginCanConnect({ routeDeps, pluginId });
@@ -399,6 +411,12 @@ export async function runAgentPluginConnect(
   }
   const externalMcpOAuth = routeDeps.externalMcpOAuth;
 
+  // A retained session may need new access, but declining that card must not provision other
+  // sources or adopt an operator's independently configured credential-bearing connection.
+  const signedIn = await retainedOAuthServers({ routeDeps, servers: plugin.servers, oauthServerKeys });
+  const access = await approveSignedInAccess({ routeDeps, surfaces, ctx, pluginId, servers: signedIn }, optional);
+  if (!access.approved) return access.result;
+
   const provisioned = await provisionAgentPluginMcpServers(
     routeDeps.mcp,
     { workspaceId: routeDeps.workspaceId, pluginId, servers: plugin.servers, principalId: ctx.principal.id },
@@ -411,8 +429,6 @@ export async function runAgentPluginConnect(
     throw new ToolInputError({ message: `agent_plugin_connect: '${pluginId}''s '${refusal.serverKey}' connection could not be set up in this Tovu version.` });
   }
   const pending = await resolvePendingOAuthServers(routeDeps, pluginId, oauthServerKeys);
-  const pendingKeys = new Set(pending.map(server => server.serverKey));
-  await grantDefaultsToSignedInServers(oauthServerKeys.filter(key => !pendingKeys.has(key)), optional);
   const [server] = pending;
   // Every declared OAuth server is already connected: no sign-in to start.
   if (!server) return { status: "connected" };
@@ -421,32 +437,96 @@ export async function runAgentPluginConnect(
   }
 
   const credentialCard = await findPluginOAuthCard(routeDeps, pluginId);
-  return waitAtMcpSignInCard({ routeDeps, surfaces, ctx, pluginId, server, externalMcpOAuth, credentialCard }, optional);
+  return connectAndReviewMcp({ routeDeps, surfaces, ctx, pluginId, server, externalMcpOAuth, credentialCard, servers: plugin.servers }, optional);
 }
 
-/**
- * For declared OAuth servers already signed in, re-runs the sign-in's own `onConnected` on each,
- * so a site that signed in before its plugin declared default tools (Higgsfield Media, 2026-11-02:
- * a connected row with no allowlist and no may-write grant) gets them now, with no second sign-in and
- * no trip to Settings. `onConnected` writes only to a still-empty row this plugin provisioned and
- * the operator has not turned off, so a row the operator edited, or a second call, is left alone.
- * A failure is logged, never thrown: the connection itself is real.
- * @complexity O(s) in the plugin's OAuth servers, each one `onConnected` call.
- */
-async function grantDefaultsToSignedInServers(
-  oauthServerKeys: readonly string[],
-  { onConnected }: Pick<AgentPluginConnectOptions, "onConnected"> = {},
-): Promise<void> {
-  if (!onConnected) return;
-  for (const serverKey of oauthServerKeys) {
-    // resolvePendingOAuthServers already refused a key with no usable connection id.
-    const connectionId = deriveAgentPluginConnectionId(serverKey) ?? serverKey;
-    try {
-      await onConnected(connectionId);
-    } catch (error) {
-      console.warn(`[agent-plugins] agent_plugin_connect: granting '${connectionId}' its declared tools failed — ${error instanceof Error ? error.message : String(error)}`);
-    }
+/** Complete sign-in before reviewing defaults still missing from a prior access choice.
+ * @complexity The existing bounded sign-in wait, then two source previews and conditional writes. */
+async function connectAndReviewMcp(
+  input: Parameters<typeof waitAtMcpSignInCard>[0] & { servers: Readonly<Record<string, McpServerConfig>> },
+  optional: ToolExecutionOptions = {},
+): Promise<AgentPluginConnectResult> {
+  const result = await waitAtMcpSignInCard(input, optional);
+  if (result.status !== 'connected') return result;
+  const { routeDeps, surfaces, ctx, pluginId, server, servers } = input;
+  const reviewed = await approveSignedInAccess({ routeDeps, surfaces, ctx, pluginId,
+    servers: { [server.serverKey]: servers[server.serverKey]! } }, optional);
+  if (reviewed.approved) return result;
+  const reviewEnd = reviewed.result.reason === 'expired' ? 'expired' : 'ended with the run';
+  const lifecycle = reviewed.result.reason
+    ? ` The access review ${reviewEnd}. Do not retry or reopen it automatically. Wait for a new explicit request.` : '';
+  return { ...reviewed.result, note: `Your sign-in was saved. No additional tool access was granted.${lifecycle}` };
+}
+
+/** Inspect retained sign-ins before any provisioning; the access preview checks source ownership. */
+async function retainedOAuthServers({ routeDeps, servers, oauthServerKeys }: {
+  routeDeps: AgentPluginConnectToolDeps; servers: Readonly<Record<string, McpServerConfig>>; oauthServerKeys: readonly string[];
+}, _optional = {}): Promise<Readonly<Record<string, McpServerConfig>>> {
+  const retained: Record<string, McpServerConfig> = {};
+  for (const key of oauthServerKeys) {
+    const connectionId = deriveAgentPluginConnectionId(key);
+    const row = connectionId ? await routeDeps.mcp.repo.findByServerId({ workspaceId: routeDeps.workspaceId, serverId: connectionId }) : null;
+    if (row && hasStoredAgentPluginCredential(row)) retained[key] = servers[key]!;
   }
+  return retained;
+}
+
+/** A retained credential proves sign-in, never consent to new tool or write grants.
+ * The common card fixes the exact sources; the existing grant writer applies those snapshots.
+ * @complexity Two previews over the signed-in sources plus one conditional write per changed row. */
+async function approveSignedInAccess({ routeDeps, surfaces, ctx, pluginId, servers }: {
+  routeDeps: AgentPluginConnectToolDeps; surfaces: AssistantSurfaceDeps; ctx: ToolExecutionContext;
+  pluginId: string; servers: Readonly<Record<string, McpServerConfig>>;
+}, optional: ToolExecutionOptions = {}): Promise<{ approved: true } | { approved: false; result: AgentPluginConnectResult }> {
+  const preview = () => previewAgentPluginEnableAccess({ workspaceId: routeDeps.workspaceId, pluginId, servers, repo: routeDeps.mcp.repo });
+  const handler = approvalToolHandler({ surfaces,
+    prepare: preview,
+    describe: ({ ctx: bound, prepared }) => ({ toolId: AGENT_PLUGIN_CONNECT_TOOL_ID, errorCode: 'AGENT_PLUGIN', title: `Allow access for ${pluginId}?`,
+      ...(prepared.resources.length ? { access: { resources: prepared.resources.map(resource => ({ ...resource, scope: { personId: bound.principal.id, siteId: routeDeps.workspaceId } })) } } : {}),
+      details: [], description: 'Your existing sign-in is reused. Only the listed access is turned on.', confirmLabel: 'Allow access' }),
+    run: async ({ ctx: bound, prepared }) => {
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: bound.principal.id, permission: AGENT_PLUGIN_CONNECT_PERMISSION }, { entityType: 'agent-plugin', entityId: pluginId });
+      await assertPluginCanConnect({ routeDeps, pluginId });
+      const current = await currentSignedInAccess({ routeDeps, pluginId, servers });
+      if (current.preview.key !== prepared.key) throw new ToolInputError({ message: 'The plugin access changed while this card was open. Request the access change again. Nothing was granted.' });
+      const granted: string[] = [];
+      try {
+        for (const source of prepared.snapshots) {
+          if (!source.grant || !source.expected) continue;
+          if (bound.signal.aborted) throw new ToolInputError({ message: 'The run ended. Other connections were not changed.' });
+          await applyExternalMcpAccess({ repo: routeDeps.mcp.repo, clock: createSystemClock(),
+            workspaceId: routeDeps.workspaceId, serverId: source.connectionId, expected: source.expected,
+            access: { enabled: source.grant.enabled, allowedToolNames: source.grant.allow, writeAllowedToolNames: source.grant.write }, principalId: bound.principal.id });
+          granted.push(source.connectionId);
+        }
+        await routeDeps.mcp.notifyRosterChanged?.({}, {});
+      } catch (error) {
+        if (granted.length === 0) throw error;
+        const detail = redactSecrets({ input: String(error) }).replace('Nothing was changed by this approval.', 'That connection was left unchanged.');
+        throw new ToolInputError({ message: `Access was saved for ${granted.join(', ')}. The remaining access update did not finish. ${detail} Ask to connect the plugin again to finish.` });
+      }
+      return { approved: true };
+    },
+  }, { ask: ({ prepared }) => prepared.resources.length > 0, declined: async ({ reason, prepared }) => {
+    if (reason === 'declined' && prepared) await recordAgentPluginAccessDeclined({ repo: routeDeps.mcp.repo,
+      clock: createSystemClock(), workspaceId: routeDeps.workspaceId, accessKey: prepared.key });
+    return { approved: false, result: { status: 'not-connected', ...notConfirmedResult({ confirmed: false, reason }) } };
+  } });
+  return await handler(ctx, optional) as { approved: true } | { approved: false; result: AgentPluginConnectResult };
+}
+
+/** Re-resolve the installed declarations: a closed-over manifest is not a fresh approval check. */
+async function currentSignedInAccess({ routeDeps, pluginId, servers }: {
+  routeDeps: AgentPluginConnectToolDeps; pluginId: string; servers: Readonly<Record<string, McpServerConfig>>;
+}, _optional = {}) {
+  const installed = await (routeDeps.resolveInstalledPlugin?.(pluginId) ?? defaultResolveInstalledAgentPlugin({ workspaceId: routeDeps.workspaceId, pluginId, agentPluginLayout: routeDeps.agentPluginLayout }));
+  const current: Record<string, McpServerConfig> = {};
+  for (const key of Object.keys(servers)) {
+    const config = installed?.servers[key];
+    if (!config) throw new ToolInputError({ message: `The '${pluginId}' connection declaration changed after approval. Request the access change again. Nothing was granted.` });
+    current[key] = config;
+  }
+  return { servers: current, preview: await previewAgentPluginEnableAccess({ workspaceId: routeDeps.workspaceId, pluginId, servers: current, repo: routeDeps.mcp.repo }) };
 }
 
 /** Show one MCP sign-in and always release its surface exchange after the bounded wait. */

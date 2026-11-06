@@ -58,7 +58,7 @@ export async function reportedBlobSize(required: { blobStore: ShareBlobStore; st
   const size = await required.blobStore.sizeOf({ storageKey: required.storageKey });
   if (size === null) throw new SiteShareRefusal({ code: "MISSING_MEDIA", message: `Share media '${required.storageKey}' is missing from the blob store.` });
   if (!Number.isSafeInteger(size) || size < 0) throw new SiteShareRefusal({ code: "UNBOUNDED_MEDIA", message: "Media storage returned an invalid byte count; nothing was shared." });
-  if (required.document && (size === 0 || size > MAX_DOCUMENT_BYTES)) throw new SiteShareRefusal({ code: "INVALID_DOCUMENT", message: "Library document blobs must be non-empty and at most 10 MiB; nothing was shared." });
+  if (required.document && (size === 0 || size > MAX_DOCUMENT_BYTES)) throw new SiteShareRefusal({ code: "INVALID_DOCUMENT", message: "Library document blobs must be non-empty and at most 50 MiB; nothing was shared." });
   checkShareLimits({ files: [{ path: "media/blob", bytes: size }] });
   return size;
 }

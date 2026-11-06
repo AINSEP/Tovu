@@ -60,12 +60,12 @@ test('generated text rejects ambiguous input, paths, other formats, empty bodies
   assert.deepEqual(await h.deps.mediaRepo.list({ workspaceId: h.deps.workspaceId }), []);
 });
 
-test('generated text enforces the 10 MiB UTF-8 byte cap at the boundary', async () => {
+test('generated text enforces the 50 MiB UTF-8 byte cap at the boundary', async () => {
   const h = harness();
   const content = '🌍'.repeat(MAX_DOCUMENT_BYTES / 4);
   const result = await h.save({ name: 'boundary.txt', content }) as { document: { byteSize: number } };
   assert.equal(result.document.byteSize, MAX_DOCUMENT_BYTES);
-  await assert.rejects(h.save({ name: 'too-big.md', content: content + 'x' }), /10 MiB/);
+  await assert.rejects(h.save({ name: 'too-big.md', content: content + 'x' }), /50 MiB/);
   assert.equal((await h.deps.mediaRepo.list({ workspaceId: h.deps.workspaceId })).length, 1);
 });
 

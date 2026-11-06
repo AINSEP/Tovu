@@ -218,6 +218,8 @@ export type ResolvedPublishCredential = DeployTargetCredential;
 
 export interface StaticPublishDeps {
   readonly credentialSource: PublishCredentialSource;
+  /** Current public policy supplied by the host; publishing carries it to the target as data. */
+  readonly publicPageSecurityHeaders?: () => import("#src/contracts/core/public-page-security-headers").SecurityHeaderSet;
   /** This workspace's plugin-contributed deploy targets (`deploy-targets/registry.ts`): the only
    *  place a target id, its config fields and its host behavior come from. */
   readonly loadDeployTargets: (workspaceId: string) => Promise<DeployTargetRegistry>;
@@ -434,6 +436,16 @@ function buildSuccessPublishOutcome(targetId: StaticPublishTargetId, result: Dep
   };
 }
 
+/** Public header data and existing publish metadata share one provider call; no extra I/O. */
+function publishOptions({ input, formDestination, readHeaders }: {
+  input: StaticPublishInput; formDestination: FormDestinationPublishInput | undefined;
+  readHeaders: () => import("#src/contracts/core/public-page-security-headers").SecurityHeaderSet;
+}) {
+  return { responseHeaders: readHeaders(),
+    ...(input.onProgress ? { onProgress: input.onProgress } : {}),
+    metadata: { ...input.config, ...(input.domainApproval ? { domainApproval: input.domainApproval } : {}), ...(formDestination ? { formDestination } : {}) } };
+}
+
 /**
  * Calls `jiniTarget.publish()` and maps its result to a {@link StaticPublishOutcome}, translating a
  * rejected `publish()` call into {@link publishStaticSite}'s own `{ok:false, code:"PROVIDER_ERROR"}`
@@ -450,15 +462,14 @@ async function publishAndMapOutcome(
   publishInput: DeployPublishInput,
   input: StaticPublishInput,
   basePath: string | undefined,
-  formDestination?: FormDestinationPublishInput
+  formDestination?: FormDestinationPublishInput,
+  readHeaders: () => import("#src/contracts/core/public-page-security-headers").SecurityHeaderSet = () => publicPageSecurityHeaders({})
 ): Promise<StaticPublishOutcome> {
   try {
     // Older plugins may not report progress. Once provider work starts, creation is unknown
     // until that plugin reports evidence or returns a deployment ID.
     input.onProgress?.({ phase: "uploading", deploymentCreated: "unknown" });
-    const result = await jiniTarget.publish(publishInput, { responseHeaders: publicPageSecurityHeaders({}),
-      ...(input.onProgress ? { onProgress: input.onProgress } : {}),
-      metadata: { ...input.config, ...(input.domainApproval ? { domainApproval: input.domainApproval } : {}), ...(formDestination ? { formDestination } : {}) } });
+    const result = await jiniTarget.publish(publishInput, publishOptions({ input, formDestination, readHeaders }));
     if (result.status === "failed") return { ok: false, code: "PROVIDER_ERROR", message: result.statusMessage ?? `Publishing to ${input.config.target} failed. Check the provider dashboard before publishing again. Deployment ID: ${result.deploymentId ?? "unknown"}.` };
     if (result.status !== "ready") {
       return buildPartialPublishOutcome(input.config.target, result, basePath);
@@ -531,9 +542,15 @@ async function publishStaticSiteSteps(deps: StaticPublishDeps, input: StaticPubl
   const forms = await prepareFormDestination({ deps, input });
   if (!forms.ok) return forms.outcome;
   const publishInput: DeployPublishInput = { files: filesForReceiver({ files, submitUrl: forms.submitUrl }), projectName: input.projectName };
-  const outcome = await publishAndMapOutcome(targetResult.target, publishInput, input, plan.basePath, forms.hosting);
+  const outcome = await publishAndMapOutcome(targetResult.target, publishInput, input, plan.basePath, forms.hosting, deps.publicPageSecurityHeaders);
   await saveReceiverKey({ outcome, save: forms.save });
-  return finishPublishOutcome({ outcome, credential: credentialResult.credential, target: plan.target });
+  const reported = publishConsentWarning({ outcome, warning: exportResult.report.consentWarning });
+  return finishPublishOutcome({ outcome: reported, credential: credentialResult.credential, target: plan.target });
+}
+
+/** Keep a successful publication's export warning in the result without changing its status. */
+function publishConsentWarning({ outcome, warning }: { outcome: StaticPublishOutcome; warning: string | undefined }): StaticPublishOutcome {
+  return outcome.ok !== false && warning ? { ...outcome, consentWarning: warning } : outcome;
 }
 
 /**

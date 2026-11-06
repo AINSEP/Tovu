@@ -11,7 +11,6 @@ import { deliverHostPluginGuidance, isHostPluginFileRequest, type HostPluginOver
 
 // Jini owns activation lifecycle; this host binding owns its effects.
 import { agentPluginActivations } from "./activation-effects.js";
-import { createApplyConnectDefaults } from "./apply-connect-defaults.js";
 const { filterActiveAgentPlugins, isAgentPluginActive, readAgentPluginActivations, resolveAgentPluginActivation } = agentPluginActivations;
 import { buildDomainRegistrations, indexCatalogById, optionalNumber, optionalString, requireInputRecord, requireString, ToolInputError, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration, type AgentToolDefinition } from "@jini-ai/core";
 
@@ -1020,9 +1019,7 @@ export function buildAgentPluginConnectRegistrations(routeDeps: AgentPluginAcces
       const pluginId = requireString({ input: input, key: "pluginId" });
       return runAgentPluginConnect({ routeDeps, surfaces, ctx, pluginId }, {
         ...optional,
-        // Connecting a plugin that is already signed in grants its declared default tools, exactly as
-        // the sign-in itself does (`apply-connect-defaults.ts`), so an owner never edits External MCP by hand.
-        onConnected: routeDeps.onConnected ?? createApplyConnectDefaults({ agentPluginLayout: routeDeps.agentPluginLayout, workspaceId: routeDeps.workspaceId, repo: routeDeps.mcp.repo, clock: routeDeps.clock, notifyRosterChanged: routeDeps.notifyRosterChanged }),
+        // Retained sign-ins use the common fixed access card; the OAuth callback retains its own defaults.
         saveToken: ({ ctx, pluginId }, execution = {}) => saveAgentPluginToken({
           routeDeps, surfaces, ctx: { ...ctx, input: { pluginId } },
         }, execution),

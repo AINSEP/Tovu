@@ -1,6 +1,6 @@
 import type { DomainEvent, OutboxRecord } from "@jini-ai/cms/core";
 import {
-  type FormDeliveryJob, type FormDeliveryPlan, type FormDeliveryPlanPort,
+  type FormDeliveryQueuedJob, type FormDeliveryPlan, type FormDeliveryPlanPort,
   type FormPullClaim, type FormPullLeasePort, type FormPullRefusal, formDeliveryStatusFromOutbox,
 } from "@jini-ai/cms/forms";
 import { DELIVERY_STATUS_MAX_LIMIT, type FormDeliveryStatusRow } from "#src/contracts/headless/index";
@@ -22,7 +22,8 @@ const JOB_SUBMISSION_ID = "j.submission_id";
  *
  * Status is never stored here. It is projected from each child job's `outbox_events` row by the
  * Jini `formDeliveryStatusFromOutbox`, so the outbox worker stays the only state machine. The
- * frozen job payload (answers included) lives only in `outbox_events`; `form_delivery_jobs` holds
+ * job payload lives only in `outbox_events` (legacy payloads include answers; new jobs reference
+ * the source row); `form_delivery_jobs` holds
  * just the ids a status read prints, so status reads never load answers.
  */
 
@@ -51,9 +52,10 @@ function statusQuery(db: Kysely<ContentDatabase>, workspaceId: string) {
 /** The job's outbox columns once its submission is purged: answers blanked, and an unfinished job
  * failed so the worker never claims it again. `failed` is terminal for the outbox worker. */
 function purgedJobColumns(row: { event_json: string; status: string }) {
-  const event = JSON.parse(row.event_json) as DomainEvent<FormDeliveryJob>;
-  const { snapshot } = event.payload;
-  const payload = { ...event.payload, snapshot: { ...snapshot, submission: { ...snapshot.submission, answers: {} } } };
+  const event = JSON.parse(row.event_json) as DomainEvent<FormDeliveryQueuedJob>;
+  const payload = "snapshot" in event.payload
+    ? { ...event.payload, snapshot: { ...event.payload.snapshot, submission: { ...event.payload.snapshot.submission, answers: {} } } }
+    : event.payload;
   const scrubbed = { event_json: JSON.stringify({ ...event, payload }) };
   return row.status === "pending" || row.status === "processing" ? { ...scrubbed, status: "failed", last_error: PURGED_JOB_ERROR } : scrubbed;
 }
@@ -115,7 +117,7 @@ export class SqlFormDeliveryRepo implements FormDeliveryPlanPort {
     const jobs = await this.required.kernel.run(db => db.selectFrom("form_delivery_jobs as j")
       .innerJoin("outbox_events as o", "o.id", "j.job_id").select("o.event_json")
       .where(JOB_WORKSPACE_ID, "=", workspaceId).where(JOB_SUBMISSION_ID, "=", submissionId).orderBy("j.job_id").execute());
-    return { workspaceId, submissionId, formId: row.form_id, jobs: jobs.map(job => JSON.parse(job.event_json) as DomainEvent<FormDeliveryJob>) };
+    return { workspaceId, submissionId, formId: row.form_id, jobs: jobs.map(job => JSON.parse(job.event_json) as DomainEvent<FormDeliveryQueuedJob>) };
   }
 
   private async store(required: { requested: { workspaceId: string; submissionId: string }; plan: FormDeliveryPlan }): Promise<void> {

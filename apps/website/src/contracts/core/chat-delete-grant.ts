@@ -4,6 +4,8 @@ import { PERMANENT_DELETE_TOOLS } from "../headless/index.js";
 /** Host port carried alongside the existing authenticated human exchange. */
 export type ChatDeleteSurfaceDeps = AssistantSurfaceDeps & {
   assertChatDeleteAllowed?: (required: { toolId: string; principalId?: string }, optional?: Record<string, never>) => Promise<void>;
+  /** Re-read the human identity before displaying and after accepting a fresh access card. */
+  assertAccessApprover?: (required: { toolId: string; principalId: string }, optional?: Record<string, never>) => Promise<void>;
 };
 /** Construct the same refusal for raw and assembled execution without another destination map.
  * @returns A safe ToolInputError containing only the tool id and canonical admin path.

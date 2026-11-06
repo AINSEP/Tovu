@@ -8,7 +8,7 @@ import type { ApiConnectionConnectStatus } from "../api-connections/connect.js";
 
 /** Roster persistence and safe classification; sealing/keyring dependencies stay in composition. */
 export interface AgentPluginMcpPort {
-  readonly repo: Pick<ExternalMcpServerRepoPort, "findByServerId" | "upsert" | "deleteByServerId">;
+  readonly repo: Pick<ExternalMcpServerRepoPort, "findByServerId" | "upsert" | "deleteByServerId" | "updateAccessIfCurrent">;
   saveServer(input: SaveExternalMcpServerInput, options?: Record<string, never>): Promise<ExternalMcpServerView>;
   classifyError(input: { error: unknown }, options?: Record<string, never>): "validation" | "unconfigured" | "other";
   notifyRosterChanged(input: Record<string, never>, options?: Record<string, never>): Promise<void>;

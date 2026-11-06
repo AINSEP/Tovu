@@ -11,7 +11,7 @@ export async function renderHumanApproval(
     clock: { nowMs: () => expiresAtMs - 100_000 }, idGenerator: { newId: () => exchangeId }, defaultChannel: 'mcp-ui',
   }, { idleTtlMs: 100_000, maxLifetimeMs: 100_000 });
   let resource: UIResource | undefined;
-  await requireHumanConfirm({ surfaces: { surfaceExchanges }, spec,
+  await requireHumanConfirm({ surfaces: { surfaceExchanges, assertAccessApprover: async () => {} }, spec,
     ctx: { principal: { id: 'owner' }, run: { id: 'run' }, executionId: 'execution', input: {}, signal: new AbortController().signal },
   }, { emitSurface: async emission => {
     resource = (emission.payload as { resource: UIResource }).resource;

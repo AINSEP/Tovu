@@ -51,7 +51,7 @@ async function submitCard({ transport = 'streamable_http', token, code = 'MCP_AU
     assert.equal((await repo.listByWorkspaceId(workspaceId)).length, 1, 'probe runs only after save');
     return { ok: code === 'connected', body: { code } };
   } };
-  const registration = buildExternalMcpRegistrations(deps, { surfaceExchanges: exchanges }).find(entry => entry.descriptor.id === 'external_mcp_save')!;
+  const registration = buildExternalMcpRegistrations(deps, { assertAccessApprover: async () => {}, surfaceExchanges: exchanges }).find(entry => entry.descriptor.id === 'external_mcp_save')!;
   const pending = registration.handler({ executionId: 'fixture', principal: { id: 'owner' }, run: { id: 'run' }, input: { id: 'fixture', transport, authMode: 'static_env', ...(transport === 'stdio' ? { command: 'node' } : { url: 'https://example.test/mcp' }) }, signal: new AbortController().signal }, { emitSurface: async emission => { emissions.push(emission); } });
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(emissions.length, 1);

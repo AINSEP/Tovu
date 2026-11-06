@@ -351,6 +351,7 @@ export function installFirstPartyToolContributors(
     observability,
     createHttpClient = createDefaultHttpClient,
     readAdmissions = () => readServerAdmissions({}, {}),
+    readExternalMcpToolNames,
     chatAttachmentsDir,
     mediaVideoPorts = createMediaVideoToolPorts({}, { uploadDirectory: chatAttachmentsDir }),
     readInstallAttachment = createPluginInstallAttachmentReader({}, { uploadDirectory: chatAttachmentsDir }),
@@ -360,6 +361,7 @@ export function installFirstPartyToolContributors(
     createHttpClient?: typeof createDefaultHttpClient;
     /** Server-owned reader; omitted until composition binds the surface, diagnostics fail closed. */
     readAdmissions?: ExternalMcpOperations["admissions"];
+    readExternalMcpToolNames?: import("#src/features/external-mcp/deps").ExternalMcpToolDeps["externalMcpKnownToolNames"];
     /** The booted site's `RouteDeps.siteStoragePaths.chatAttachmentsDir`, which the two default
      *  attachment readers below read from. Both production callers pass it; omitted (hermetic
      *  tests), those readers refuse every ref instead of resolving a directory from env. */
@@ -445,7 +447,7 @@ export function installFirstPartyToolContributors(
     listExpectedHosts: () => listSavedHostingHosts(routeDeps),
   }) }) });
   contributions.contributors.register({ contribution: contributeEntriesTools() });
-  contributions.contributors.register({ contribution: contributeExternalMcpTools({ probe: probeExternalMcpServer }) });
+  contributions.contributors.register({ contribution: contributeExternalMcpTools({ probe: probeExternalMcpServer, knownToolNames: readExternalMcpToolNames }) });
   contributions.contributors.register({ contribution: contributeExternalMcpOperationsTools({ probe: probeExternalMcpServer, admissions: readAdmissions }) });
   contributions.contributors.register({ contribution: contributeFsFilesTools() });
   contributions.contributors.register({ contribution: contributeFilesCopyTools() });

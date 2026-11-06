@@ -20,13 +20,14 @@ import type { DeployTargetInspection, DeployTargetRegistry, LoadedDeployTarget }
 
 /** Real approval exchange + gateway, with typed registry/export/provider ports; no live account. */
 async function setup(options: { tokenState?: 'expired' | 'redeemed' | 'foreign' | 'fault'; publish?: 'ready' | 'link-delayed' | 'throws'; inventory?: 'unknown' | 'silent';
-  anonymous?: boolean; exportGate?: Promise<void>; onSettled?: () => void } = {}) {
+  headers?: Readonly<Record<string, string>>; anonymous?: boolean; exportGate?: Promise<void>; onSettled?: () => void } = {}) {
   const base = createRouteDeps();
   const root = await mkdtemp(path.join(tmpdir(), 'domain-publish-test-'));
   const historyStore = new InMemoryPublishHistoryStore();
   let changed = false;
   let exports = 0;
   let publishes = 0;
+  let publishedHeaders: unknown;
   const authorize = async () => ({ allowed: true, reason: 'test' });
   const tokenOwner = new InMemoryTokenStore();
   const tokens: TokenStorePort = {
@@ -53,6 +54,7 @@ async function setup(options: { tokenState?: 'expired' | 'redeemed' | 'foreign' 
       } as NonNullable<DeployTargetInspection['domains']> }),
       create: () => ({ id: 'fixture', checkReachability: async () => ({ reachable: true }), publish: async input => {
         publishes++;
+        publishedHeaders = input.responseHeaders;
         const approval = input.metadata?.domainApproval as StaticPublishInput['domainApproval'];
         assert.ok(approval);
         assert.equal(await approval.authorize({ fingerprint: 'reviewed', accountId: 'acct' }), true);
@@ -65,6 +67,7 @@ async function setup(options: { tokenState?: 'expired' | 'redeemed' | 'foreign' 
   const registry: DeployTargetRegistry = { list: () => [target], get: id => id === 'fixture' ? target : undefined, refusals: [] };
   const deps: StaticPublishToolDeps = { ...base, authorize, credentialSource, loadDeployTargets: async () => registry,
     publishOutputRootDir: root, publishHistoryStore: historyStore,
+    ...(options.headers ? { publicPageSecurityHeaders: () => options.headers! } : {}),
     gatedMutations: { gatewayDeps: buildGatewayDeps({ clock: base.clock, idGen: base.idGen, authorize, tokens }) },
     exportSiteBound: async ({ outputDir }) => { await options.exportGate; exports++; return { outputDir, routes: { succeeded: [{ path: '/', kind: 'home', outputFile: 'index.html', data: 'site' }], failed: [] }, assets: { succeeded: [], failed: [] }, skippedManifestEntries: [], unreferencedThemeFiles: [], droppedReferences: [] }; },
   };
@@ -79,7 +82,7 @@ async function setup(options: { tokenState?: 'expired' | 'redeemed' | 'foreign' 
     return { published: true, reachable: result.ok === true, target: result.targetId, url: result.url, status: result.status,
       ...(result.ok === 'partial' ? { message: result.message } : {}), providerMetadata: result.providerMetadata };
   };
-  return { start: handler, handler: followJob, ctx, surfaceExchanges, deps, credentialSource, historyStore, counts: () => ({ exports, publishes }), change: () => { changed = true; }, cleanup: () => rm(root, { recursive: true, force: true }) };
+  return { publishedHeaders: () => publishedHeaders, start: handler, handler: followJob, ctx, surfaceExchanges, deps, credentialSource, historyStore, counts: () => ({ exports, publishes }), change: () => { changed = true; }, cleanup: () => rm(root, { recursive: true, force: true }) };
 }
 
 function exchangeId(surface: SurfaceEmission): string {
@@ -238,5 +241,16 @@ test('an approved domain publish reports settlement once without depending on st
     await settled;
     assert.equal(count, 1);
     assert.equal(getPublishJobSnapshot({ workspaceId: f.deps.workspaceId, jobId: accepted.jobId })?.status, 'completed');
+  } finally { await f.cleanup(); }
+});
+
+
+test('approved domain publish carries the site security headers to hosting', async () => {
+  const headers = { 'Content-Security-Policy-Report-Only': "frame-src 'self' https://docs.google.com" };
+  const f = await setup({ headers });
+  try {
+    const result = await f.handler(f.ctx, confirmAs(f)) as { published: boolean };
+    assert.equal(result.published, true);
+    assert.deepEqual(f.publishedHeaders(), headers);
   } finally { await f.cleanup(); }
 });

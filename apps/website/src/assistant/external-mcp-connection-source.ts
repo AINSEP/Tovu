@@ -131,6 +131,7 @@ async function withoutLegacyDesktop({ deps, isPluginEnabled }: { deps: StoredExt
     },
     findByServerId: input => deps.repo.findByServerId(input),
     upsert: record => deps.repo.upsert(record),
+    updateAccessIfCurrent: input => deps.repo.updateAccessIfCurrent(input),
     deleteByServerId: input => deps.repo.deleteByServerId(input),
     tryClaimOAuthRefreshLease: input => deps.repo.tryClaimOAuthRefreshLease(input),
     releaseOAuthRefreshLease: input => deps.repo.releaseOAuthRefreshLease(input),

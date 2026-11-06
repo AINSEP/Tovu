@@ -95,6 +95,7 @@ export const registerAdminFormsUpdateRoute: FormsRouteRegistrar = (app, deps) =>
       const writeDeps = {
         executeCommand: deps.executeCommand,
         repo: deps.formDefinitionRepo,
+        formCollectionProviders: deps.formCollectionProviders,
         clock: deps.clock,
         idGen: deps.idGen,
         changeSets: deps.changeSets,

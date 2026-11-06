@@ -95,11 +95,9 @@ test("T1: export discovery projects contracts and ready snippets without host pa
   assert.doesNotMatch(JSON.stringify([...rows]), /not-exposed|packageRoot|button.html/);
 });
 
-test("T1: canonical consent stamp reaches the existing consent gate around the complete embed", async () => {
-  const { gateConsentHtml } = await import("@jini-ai/cms/consent/html");
+test("T1: canonical consent stamp stays metadata while script-free plugin content remains visible", async () => {
   const rendered = await render(marker());
-  const html = gateConsentHtml({ html: `<!doctype html><html><head></head><body>${rendered.html}</body></html>`,
-    config: { enabled: true, regionMode: "auto", policyVersion: "1", privacyPolicyUrl: "/privacy", title: "Cookies", message: "Choose", acceptLabel: "Accept", rejectLabel: "Reject", preferencesLabel: "Preferences" },
-    record: null, regionMode: "opt-in", gpc: false, endpoint: "/api/site-consent" });
-  assert.match(html, /<template data-jini-consent-resource data-category="functional"><div[^>]*data-plugin="tovu\/demo"/);
+  assert.match(rendered.html, /data-plugin="tovu\/demo"/);
+  assert.match(rendered.html, /data-consent-category="functional"/);
+  assert.doesNotMatch(rendered.html, /<template data-jini-consent-resource/);
 });

@@ -71,7 +71,7 @@ import {
   SURFACE_EXCHANGE_ID_PARAM,
   type SurfaceExchangeStore,
 } from "#src/assistant/index";
-import { getAuthedPrincipal, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
+import { getAuthedPrincipal, rejectUnlessSessionCredential, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
 import { registerAdminChatAttachmentReadRoute } from "#src/server/inbound/admin-http/routes/assistant/get-chat-attachment";
 import type { RouteDeps } from "#src/server/routes/types";
 
@@ -443,8 +443,29 @@ function localMcpUiTarget({ exchangeId, params, toolName, res, byokSurfaceExchan
   return typedTarget ?? exchangeId;
 }
 
-async function proxyMcpUiToolCall(req: Request, res: Response, byokSurfaceExchanges: SurfaceExchangeStore, daemon: DaemonCallOptions): Promise<void> {
-  const body = (req.body ?? {}) as { toolName?: unknown; params?: unknown; exchangeId?: unknown; restore?: unknown };
+/** Admit answers only from an active person's browser session, before either exchange store sees them.
+ * Session authentication alone can resolve a nonhuman principal, so both facts are required.
+ * @returns False after sending the refusal; no delivery or daemon call occurs.
+ * @complexity O(1), using the identity freshly resolved by requireAdminSession. */
+function admitHumanSurfaceAnswer({ res }: { res: Response }, _optional = {}): boolean {
+  if (!rejectUnlessSessionCredential(res, {
+    message: "Answer this dialog from your signed-in browser session. Nothing was changed.",
+    permission: "assistant.confirm",
+  })) return false;
+  const principal = getAuthedPrincipal(res);
+  if (principal.kind === "user" && principal.status === "active") return true;
+  res.status(403).json({ error: "An active, signed-in person must answer this dialog. Nothing was changed.", code: "FORBIDDEN" });
+  return false;
+}
+
+/** Validate the callback envelope before looking up an exchange or forwarding to the daemon.
+ * @returns The admitted fields, or undefined after sending the validation refusal.
+ * @complexity O(1); tool metadata membership is a set lookup. */
+function readAllowedMcpUiCallback({ body, res }: {
+  body: { toolName?: unknown; params?: unknown; exchangeId?: unknown }; res: Response;
+}, _optional = {}): {
+  toolName: string; params: Record<string, unknown>; exchangeId: unknown;
+} | undefined {
   const toolName = body.toolName;
   if (typeof toolName !== "string" || toolName.length === 0) {
     res.status(400).json({ error: "'toolName' must be a non-empty string", code: "VALIDATION_ERROR" });
@@ -464,6 +485,14 @@ async function proxyMcpUiToolCall(req: Request, res: Response, byokSurfaceExchan
     res.status(403).json({ error: typedAnswer ? MCP_UI_TYPED_ANSWER_REFUSAL : `'${toolName}' is not an MCP-UI-redeemable tool`, code: "TOOL_NOT_ALLOWLISTED" });
     return;
   }
+  return { toolName, params, exchangeId };
+}
+
+async function proxyMcpUiToolCall(req: Request, res: Response, byokSurfaceExchanges: SurfaceExchangeStore, daemon: DaemonCallOptions): Promise<void> {
+  if (!admitHumanSurfaceAnswer({ res })) return;
+  const callback = readAllowedMcpUiCallback({ body: req.body ?? {}, res });
+  if (!callback) return;
+  const { toolName, params, exchangeId } = callback;
   const target = localMcpUiTarget({ exchangeId, params, toolName, res, byokSurfaceExchanges });
   const restoreOnly = (req.body as { restore?: unknown } | undefined)?.restore === true;
   if (!restoreOnly && tryLocalMcpUiDelivery(res, byokSurfaceExchanges, target, params, toolName)) return;

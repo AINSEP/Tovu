@@ -179,7 +179,11 @@ test('search_tools indexes a site plugin keyword and provides capability', async
 
 
 // Shared plugins published by Jini carry Jini's publisher id; every other bundled plugin is Tovu's.
-const JINI_PUBLISHED_IDENTITIES: ReadonlyMap<string, string> = new Map([['ui-ux-design', 'jini/ui-ux-design'], ['charts-recharts', 'jini/charts-recharts-agent'], ['slide-design', 'jini/slide-design']]);
+const JINI_PUBLISHED_IDENTITIES: ReadonlyMap<string, string> = new Map([
+  ['ui-ux-design', 'jini/ui-ux-design'], ['charts-recharts', 'jini/charts-recharts-agent'], ['slide-design', 'jini/slide-design'],
+  ['commerce', 'jini/commerce'], ['stripe', 'jini/stripe'], ['software-engineering', 'jini/software-engineering'],
+  ['formspree', 'jini/formspree-agent'], ['google-forms', 'jini/google-forms-agent'],
+]);
 
 test('every bundled agent and site package declares a distinct publisher identity and discovery terms', async (t) => {
   // The shipped bundle: Tovu's content/agent-plugins plus each selected @jini-ai/agent-plugins/<id>.
@@ -325,7 +329,7 @@ test('MCP provisioning logs each server and reason while preserving activation s
   assert.equal(warnings[1], "Plugin 'github': MCP provisioning could not run — manifest unavailable");
 });
 
-test('bug 2026-11-04: a chat enable of a plugin whose account is already signed in turns its connection on with exactly the declared tools', async t => {
+for (const separatelyConfigured of [false, true]) test(`a signed-in connection receives the reviewed plugin defaults: operator source ${separatelyConfigured}`, async t => {
   const ctx = await fixture(t);
   const allow = ['generate_image', 'models_explore', 'job_status'];
   const write = ['generate_image'];
@@ -343,15 +347,21 @@ test('bug 2026-11-04: a chat enable of a plugin whose account is already signed 
     await saveExternalMcpServer({ repo: ctx.deps.mcp.repo as InMemoryExternalMcpServerRepo, sealer: new AesGcmSecretSealer(keyring), keyring, clock: ctx.deps.clock }, {
       workspaceId: ctx.deps.workspaceId, serverId: 'media', label: 'media-fixture · media', transport: 'streamable_http', authMode: 'oauth', enabled: false,
       command: '', url: 'https://mcp.media.example/mcp', args: '', allowedToolNames: '', writeAllowedToolNames: '', oauth: { grant: 'authorization_code' },
-      principalId: 'operator', provisionedByPluginId: 'media-fixture' });
+      principalId: 'operator', provisionedByPluginId: separatelyConfigured ? undefined : 'media-fixture' });
     const signedOut = await ctx.deps.mcp.repo.findByServerId({ workspaceId: ctx.deps.workspaceId, serverId: 'media' });
+    assert.equal(signedOut?.provisionedByPluginId, separatelyConfigured ? null : 'media-fixture');
     await ctx.deps.mcp.repo.upsert({ ...signedOut!, oauthStatus: 'connected' });
     await agentPluginActivations.setAgentPluginActivation({ workspaceRoot, pluginId: 'media-fixture', enabled: true, actor: 'operator' });
 
-    await ctx.host.getHostCapability({ capability: 'agent-plugin-lifecycle' })!.provisionMcp({ pluginId: 'media-fixture', principalId: 'operator' });
+    const agentPlugins = ctx.host.getHostCapability({ capability: 'agent-plugin-lifecycle' })!;
+    const preview = await agentPlugins.previewEnableAccess!({ pluginId: 'media-fixture' });
+    await agentPlugins.provisionMcp({ pluginId: 'media-fixture', principalId: 'operator' },
+      separatelyConfigured ? { approvedEnable: true, approvedEnableKey: preview.key } : {});
 
     const row = await ctx.deps.mcp.repo.findByServerId({ workspaceId: ctx.deps.workspaceId, serverId: 'media' });
     assert.deepEqual([row?.enabled, JSON.parse(row?.allowedToolNames ?? '[]'), JSON.parse(row?.writeAllowedToolNames ?? '[]')], [true, allow, write]);
+    assert.equal(row?.provisionedByPluginId, 'media-fixture');
+    if (separatelyConfigured) assert.equal(row?.writeGrantsUpdatedByPrincipalId, 'operator');
     assert.deepEqual(ctx.warnings, []);
   } finally {
     // The installer freezes the package tree read-only, so the fixture's plain `rm` cannot remove it.
@@ -449,11 +459,24 @@ test('an approved enable reports the failed server and redacted reason to the ow
     provisionMcpServers: async () => ({ provisioned: [], alreadyProvisioned: [], adopted: [], skipped: [],
       failed: [{ serverKey: 'repository', reason: `provider refused credential ${token}` }] }),
   });
-  await assert.rejects(host.getHostCapability({ capability: 'agent-plugin-lifecycle' })!.provisionMcp({ pluginId: 'github', principalId: 'owner' }, { approvedEnable: true }), error => {
+  const agentPlugins = host.getHostCapability({ capability: 'agent-plugin-lifecycle' })!;
+  const preview = await agentPlugins.previewEnableAccess!({ pluginId: 'github' });
+  await assert.rejects(agentPlugins.provisionMcp({ pluginId: 'github', principalId: 'owner' }, { approvedEnable: true, approvedEnableKey: preview.key }), error => {
     assert.ok(error instanceof Error);
     assert.match(error.message, /repository.*provider refused/);
     assert.match(error.message, /plugins_set_enabled/);
     assert.equal(error.message.includes(token), false);
     return true;
   });
+});
+
+test('an approved enable missing its snapshot cannot provision connections', async t => {
+  const ctx = await fixture(t);
+  let provisions = 0;
+  const host = createTovuPluginHost({ deps: ctx.deps }, {
+    warn: () => {}, resolveMcpServers: async () => ({}),
+    provisionMcpServers: async () => { provisions++; return { provisioned: [], alreadyProvisioned: [], adopted: [], skipped: [], failed: [] }; },
+  });
+  await assert.rejects(host.getHostCapability({ capability: 'agent-plugin-lifecycle' })!.provisionMcp({ pluginId: 'github', principalId: 'owner' }, { approvedEnable: true }), /approved access snapshot is missing/);
+  assert.equal(provisions, 0);
 });

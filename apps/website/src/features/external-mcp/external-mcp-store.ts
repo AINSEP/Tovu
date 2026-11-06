@@ -42,7 +42,7 @@ import { resolveExternalMcpOAuthStatus } from "../../contracts/core/external-mcp
  * environment. Both combinations are real, so neither field can be derived from the other.
  */
 import { SUPPORTED_EXTERNAL_MCP_TRANSPORTS, EXTERNAL_MCP_OAUTH_GRANTS } from "./contracts.js";
-import type { ExternalMcpTransport, ExternalMcpOAuthGrant, ExternalMcpServerRecord, ExternalMcpServerTarget, ExternalMcpServerConfig, ExternalMcpServerView, ExternalMcpStoreDeps, ExternalMcpOAuthTokenResolverPort, SaveExternalMcpOAuthInput, SaveExternalMcpServerInput, ExternalMcpSealedOAuthPayload, SealedExternalMcpOAuth } from "./contracts.js";
+import type { ExternalMcpTransport, ExternalMcpOAuthGrant, ExternalMcpAccessSnapshot, ExternalMcpServerRepoPort, ExternalMcpServerRecord, ExternalMcpServerTarget, ExternalMcpServerConfig, ExternalMcpServerView, ExternalMcpStoreDeps, ExternalMcpOAuthTokenResolverPort, SaveExternalMcpOAuthInput, SaveExternalMcpServerInput, ExternalMcpSealedOAuthPayload, SealedExternalMcpOAuth } from "./contracts.js";
 import { CredentialInputError, assertCredentialFreeField, normalizeCredentialToken, assertCredentialToken, CREDENTIAL_MESSAGES, CREDENTIAL_TOKEN_LIMIT, credentialTokenHint, type CredentialTokenHint } from "../../contracts/core/credential-token.js";
 import { createHash } from "node:crypto";
 
@@ -182,6 +182,38 @@ export function externalMcpAdmissionRevision(
       ]),
     )
     .digest("hex");
+}
+
+/** Capture the source identity, exact previous grants and their decision, excluding token-refresh metadata.
+ * @returns A detached approval snapshot containing no credential bytes.
+ * @complexity O(a+w) in the bounded grant lists; no I/O.
+ */
+export function externalMcpAccessSnapshot({ record }: { record: ExternalMcpServerRecord }, _options = {}): ExternalMcpAccessSnapshot {
+  return { admissionRevision: externalMcpAdmissionRevision(record), enabled: record.enabled,
+    allowedToolNames: record.allowedToolNames, writeAllowedToolNames: record.writeAllowedToolNames,
+    writeGrantsUpdatedByPrincipalId: record.writeGrantsUpdatedByPrincipalId, writeGrantsUpdatedAt: record.writeGrantsUpdatedAt,
+    provisionedByPluginId: record.provisionedByPluginId };
+}
+
+/** Validate exact approved access, then conditionally replace only the access columns.
+ * @throws ExternalMcpValidationError for invalid names/subsets; ToolInputError if the source changed.
+ * @complexity O(a+w) in at most 64 tool names per list, one conditional repository operation.
+ */
+export async function applyExternalMcpAccess(
+  { repo, clock, workspaceId, serverId, expected, access, principalId }: {
+    repo: Pick<ExternalMcpServerRepoPort, 'updateAccessIfCurrent'>; clock: ExternalMcpStoreDeps['clock'];
+    workspaceId: UUID; serverId: string; expected: ExternalMcpAccessSnapshot;
+    access: { enabled: boolean; allowedToolNames: readonly string[]; writeAllowedToolNames: readonly string[] };
+    principalId: string;
+  }, _options = {},
+): Promise<void> {
+  const allowedToolNames = validateExternalMcpToolNames({ names: access.allowedToolNames, field: 'allowedToolNames' });
+  const writeAllowedToolNames = validateExternalMcpToolNames({ names: access.writeAllowedToolNames, field: 'writeAllowedToolNames' });
+  assertWriteAllowlistSubset(writeAllowedToolNames, allowedToolNames);
+  const applied = await repo.updateAccessIfCurrent({ workspaceId, serverId, expected,
+    access: { enabled: access.enabled, allowedToolNames: JSON.stringify(allowedToolNames), writeAllowedToolNames: JSON.stringify(writeAllowedToolNames) },
+    principalId, nowIso: nowIso({ clock }) });
+  if (!applied) throw new ToolInputError({ message: `The '${serverId}' connection or its access changed while awaiting approval. Nothing was changed by this approval. Request its access change again to review the current proposal.` });
 }
 
 /** Parses a row's two grant lists the same way {@link resolveExternalMcpConfig} does — shared so

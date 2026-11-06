@@ -1,9 +1,11 @@
+import { isDeepStrictEqual } from "node:util";
 import { InMemoryVaultRepo, type VaultRecord } from "@jini-ai/platform/secrets/credential-sets";
 import type { SealedSecret } from "../webhooks/index.js";
 import { externalMcpVaultEnvelope, externalMcpVaultRecord, persistExternalMcpVaultEnvelope, deleteExternalMcpVaultEnvelope } from "./external-mcp-vault.js";
 import type { ISODateTime, UUID } from "@jini-ai/core/primitives";
 
-import type { ExternalMcpServerRecord, ExternalMcpServerRepoPort } from "./contracts.js";
+import { externalMcpAccessSnapshot } from "./external-mcp-store.js";
+import type { ExternalMcpAccessUpdate, ExternalMcpServerRecord, ExternalMcpServerRepoPort } from "./contracts.js";
 
 /**
  * @file In-memory `ExternalMcpServerRepoPort` — the ADR-006 rule-of-two "first adapter", and the
@@ -99,6 +101,21 @@ export class InMemoryExternalMcpServerRepo implements ExternalMcpServerRepoPort 
       };
       this.vaults.set(key, repo);
       this.rows.set(key, saved);
+    });
+  }
+
+  /** The existing write queue makes snapshot comparison and access replacement indivisible.
+   * No vault operation runs, so concurrent OAuth refresh payloads remain exactly as stored.
+   * @complexity O(a+w) bounded grant bytes, O(1) row lookup and replacement.
+   */
+  async updateAccessIfCurrent(input: ExternalMcpAccessUpdate, _options = {}): Promise<boolean> {
+    return this.write(async () => {
+      const key = keyOf(input.workspaceId, input.serverId);
+      const row = this.rows.get(key);
+      if (!row || !isDeepStrictEqual(externalMcpAccessSnapshot({ record: row }), input.expected)) return false;
+      this.rows.set(key, { ...row, ...input.access, writeGrantsUpdatedByPrincipalId: input.principalId,
+        writeGrantsUpdatedAt: input.nowIso, updatedAt: input.nowIso });
+      return true;
     });
   }
 

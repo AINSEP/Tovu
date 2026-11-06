@@ -1252,7 +1252,13 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
   }) {
     const selected = snapshot.def!;
     const alternatives = await qualifiedRunAlternatives({ inventory, selectedAgentId: selected.id, snapshot });
-    return withRunToolAccessCard({ ask: ({ ctx, emitSurface }) => requestAssistantToolConsent({ def: selected, keys, surfaces: { surfaceExchanges }, ctx,
+    const assertAccessApprover = async ({ principalId }: { principalId: string }) => {
+      if (principalId !== principal.id || !(await runToolAccessIsLive())) throw new Error('Tool access requires the person in this live chat.');
+      const fresh = await routeDeps.readToolConsentSnapshot({ runId: run.id, agentId: selected.id });
+      if (!fresh.allowed) throw new Error('Tool access requires the active owner of this site.');
+    };
+    return withRunToolAccessCard({ ask: ({ ctx, emitSurface }) => requestAssistantToolConsent({ def: selected, keys, workspaceId: routeDeps.workspaceId,
+      surfaces: { surfaceExchanges, assertAccessApprover }, ctx,
       isLive: runToolAccessIsLive,
       readFresh: () => routeDeps.readToolConsentSnapshot({ runId: run.id, agentId: selected.id }),
       allowSelected: input => runToolAccessIsLive().then(live => live ? routeDeps.allowRunTools({ runId: run.id, ...input }) : false),

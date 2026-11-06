@@ -1,3 +1,4 @@
+import { invalidateMediaAccessEvidence } from '../media/access-evidence.js';
 import type { TrashableEntryRecord } from "./contracts.js";
 export type { TrashableEntryRecord } from "./contracts.js";
 import { EntrySlugConflictError, InMemoryEntryRepo, VersionConflictError } from "./index.js";
@@ -99,6 +100,7 @@ export class TrashAwareInMemoryEntryRepo implements EntryRepoPort, EntryListPort
       throw new EntrySlugConflictError({ message: `an entry with slug '${row.slug}' is in the Trash — restore it, or delete it permanently from the Trash, to reuse the slug` });
     }
     await this.inner.save(row, options);
+    invalidateMediaAccessEvidence({ owner: this });
   }
 
   async appendRevision(revision: EntryRevisionInput): Promise<void> {
@@ -106,7 +108,8 @@ export class TrashAwareInMemoryEntryRepo implements EntryRepoPort, EntryListPort
   }
 
   async transaction<T>({ fn }: { fn: () => Promise<T> }): Promise<T> {
-    return this.inner.transaction({ fn });
+    try { return await this.inner.transaction({ fn }); }
+    finally { invalidateMediaAccessEvidence({ owner: this }); }
   }
 
   /** `limit` applies after trashed rows are dropped, as the SQLite `LIMIT` does.
@@ -159,6 +162,7 @@ export class TrashAwareInMemoryEntryRepo implements EntryRepoPort, EntryListPort
   async saveAny(record: TrashableEntryRecord): Promise<void> {
     const { deletedAt, ...row } = record;
     await this.inner.save(row);
+    invalidateMediaAccessEvidence({ owner: this });
     if (deletedAt === null) this.deletedAt.delete(row.id);
     else this.deletedAt.set(row.id, deletedAt);
   }
@@ -169,6 +173,7 @@ export class TrashAwareInMemoryEntryRepo implements EntryRepoPort, EntryListPort
     if (!(await this.inner.findById(required))) return;
     await this.inner.hardDelete(required);
     this.deletedAt.delete(required.id);
+    invalidateMediaAccessEvidence({ owner: this });
   }
 
   /**

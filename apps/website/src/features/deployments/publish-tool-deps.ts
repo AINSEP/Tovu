@@ -32,6 +32,7 @@ export interface StaticPublishToolDeps extends OperatorLocaleDeps {
   /** Existing shared gateway; required when publishing with infrastructure changes. */
   readonly gatedMutations?: { readonly gatewayDeps: GatewayDeps };
   readonly hostKit?: StaticPublishDeps["hostKit"];
+  readonly publicPageSecurityHeaders?: StaticPublishDeps["publicPageSecurityHeaders"];
   /** `RouteDeps.formDestination`: the site's forms and receiver key, for a host that receives submissions. */
   readonly formDestination?: StaticPublishDeps["formDestination"];
   readonly ownerPrincipalId?: Promise<string>;

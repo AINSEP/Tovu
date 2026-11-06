@@ -2291,3 +2291,20 @@ test('static publish returns a job before export finishes, survives call abort, 
     assert.doesNotMatch(otherCall, /dpl_new/);
   } finally { release(); }
 });
+
+for (const status of ['ready', 'link-delayed'] as const) test(`public publish status retains the cookie preferences warning for ${status}`, async () => {
+  const { deps } = fakeDeps({
+    credentialSource: { async resolve() { return { ok: true, token: 'fixture-token' }; }, async isConfigured() { return { configured: true }; } },
+    buildTarget: () => ({ id: 'fixture', async publish() { return { targetId: 'fixture', url: 'https://example.test/published', status }; }, async checkReachability() { return { reachable: status === 'ready' }; } }),
+  });
+  const consentWarning = 'Cookie preferences could not be loaded. This published copy has no cookie banner.';
+  const exportSite = deps.exportSiteBound;
+  deps.exportSiteBound = async input => ({ ...await exportSite(input), consentWarning });
+  const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' });
+  const execute = tool(buildRegistrations(deps, exchanges), 'deployment_execute_static_publish');
+  const { pending, emitted } = await beginCall(execute, { target: 'vercel', projectName: 'fixture-warning' });
+  const result = await pending as { published: boolean; consentWarning?: string };
+  assert.equal(result.published, true);
+  assert.equal(result.consentWarning, consentWarning);
+  assert.ok(emitted.some(surface => surfaceHtmlAndUri(surface).html.includes(consentWarning)));
+});

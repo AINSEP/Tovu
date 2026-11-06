@@ -13,6 +13,7 @@ type Deps = Parameters<typeof registerAgentDaemonCoreRoutes>[0]['deps'];
 
 async function fixture(t: import('node:test').TestContext) {
   let id = 0;
+  let actor = { kind: 'user', status: 'active' };
   const settingsRepo = new InMemorySettingsRepo();
   const clock = { nowMs: () => 1_791_504_000_000, nowIso: () => '2026-10-09T00:00:00.000Z' };
   const idGen = { newId: () => `rpc-consent-${++id}` };
@@ -22,7 +23,7 @@ async function fixture(t: import('node:test').TestContext) {
     cancelReason: null as string | null, message: { runStatus: 'queued' }, request: { agentId: 'antigravity', contextRef: '{}' } };
   const deps = { workspaceId: 'site-one', settingsRepo, getEffective, ownerPrincipalId: Promise.resolve('owner'),
     settingsReady: Promise.resolve(), settingsUiTabsReady: Promise.resolve(), siteTitleReady: Promise.resolve(), clock, idGen,
-    authorize: async () => ({ allowed: true, reason: 'fixture' }), principalRepo: { findById: async () => null },
+    authorize: async () => ({ allowed: true, reason: 'fixture' }), principalRepo: { findById: async ({ id, workspaceId }: { id: string; workspaceId: string }) => ({ id, workspaceId, ...actor }) },
     chatRunLedger: { durable: { find: async ({ runId }: { runId: string }) => runId === run.runId ? run : null } },
   } as unknown as Deps;
   const token = ensureToolExecToken({}, {});
@@ -32,7 +33,7 @@ async function fixture(t: import('node:test').TestContext) {
   const client = createDaemonCoreClient({ baseUrl, token });
   const target = { runId: run.runId, agentId: 'antigravity' };
   const layer = () => readCliPermissionLayer({ settingsRepo, workspaceId: deps.workspaceId, principalId: 'owner' });
-  return { run, client, target, layer, baseUrl, token, settingsRepo };
+  return { run, client, target, layer, baseUrl, token, settingsRepo, setActor: (value: typeof actor) => { actor = value; } };
 }
 
 test('memory daemon consent reads and writes only the authenticated site owner ledger', async t => {
@@ -91,5 +92,25 @@ test('consent RPC authenticates before JSON and rejects caller-supplied identiti
       body: JSON.stringify({ operation: 'cliConsentAllow', input: { ...f.target, keys: ['userMcp'], expectedRevisionSeq: 0, [key]: 'other' } }) });
     assert.equal(response.status, 400);
   }
+  assert.equal((await f.layer()).revisionSeq, 0);
+});
+
+for (const actor of [
+  { kind: 'agent', status: 'active' },
+  { kind: 'api_key', status: 'active' },
+  { kind: 'system', status: 'active' },
+  { kind: 'user', status: 'disabled' },
+]) test(`tool consent refuses an ${actor.status} ${actor.kind} before snapshot or grant`, async t => {
+  const f = await fixture(t); f.setActor(actor);
+  await assert.rejects(f.client.readToolConsentSnapshot(f.target), /RPC refused/);
+  await assert.rejects(f.client.allowRunTools({ ...f.target, keys: ['userMcp'], expectedRevisionSeq: 0 }), /RPC refused/);
+  assert.equal((await f.layer()).revisionSeq, 0);
+});
+
+test('deactivation after the consent snapshot prevents the private RPC grant', async t => {
+  const f = await fixture(t);
+  assert.equal((await f.client.readToolConsentSnapshot(f.target)).allowed, true);
+  f.setActor({ kind: 'user', status: 'disabled' });
+  await assert.rejects(f.client.allowRunTools({ ...f.target, keys: ['userMcp'], expectedRevisionSeq: 0 }), /RPC refused/);
   assert.equal((await f.layer()).revisionSeq, 0);
 });

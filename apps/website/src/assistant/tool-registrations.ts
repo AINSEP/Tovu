@@ -444,7 +444,14 @@ export function buildAssistantToolRegistrations(
     const policy = await readChatPermanentDeletesPolicy({ ...routeDeps, principalId, settingsReady: routeDeps.settingsUiTabsReady });
     if (!isChatToolAllowed({ toolId, policy })) throw chatDeleteRefusal({ toolId });
   };
-  const guardedSurfaces: ChatDeleteSurfaceDeps = { ...surfaces, assertChatDeleteAllowed };
+  // One indexed identity read per check; domain writers retain their resource-specific authority checks.
+  const assertAccessApprover = async ({ toolId, principalId }: { toolId: string; principalId: string }) => {
+    const principal = await routeDeps.principalRepo.findById({ workspaceId: routeDeps.workspaceId, id: principalId });
+    if (!principal || principal.kind !== "user" || principal.status !== "active") {
+      throw new ToolInputError({ message: `${toolId}: an active, signed-in person must approve this access change. Nothing was changed.` });
+    }
+  };
+  const guardedSurfaces: ChatDeleteSurfaceDeps = { ...surfaces, assertChatDeleteAllowed, assertAccessApprover };
   const policy = options.permanentDeletePolicy ?? DEFAULT_PERMANENT_DELETES_POLICY;
   const { registrations, ownerByToolId } = collectDomainRegistrations({ routeDeps: enrichedRouteDeps,
     surfaces: guardedSurfaces, contributions: options.contributions, policy });

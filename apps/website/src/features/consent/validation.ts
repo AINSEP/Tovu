@@ -1,6 +1,6 @@
 /** @file Site copy bounds plus Jini's policy-link and appearance validators. */
-import { compileConsentCss, type ConsentConfig } from '@jini-ai/cms/consent';
-import { consentPolicyHref } from '@jini-ai/cms/consent/html';
+import type { ConsentConfig } from '@jini-ai/cookie-consent';
+import { compileConsentCss, safeHref } from '@jini-ai/cookie-consent/render';
 import { ToolInputError } from '@jini-ai/core';
 import { SITE_CONSENT_BANNER_MODES, SITE_CONSENT_DEFAULTS, SITE_CONSENT_PLACEMENTS, SITE_CONSENT_REGION_MODES, SITE_CONSENT_TEXT_LIMITS, type SiteConsentSettings } from './config.js';
 
@@ -54,8 +54,8 @@ function validateConsentAppearanceShape({ raw }: { raw: Record<string, unknown> 
  * preview, so it never blocks publishing. */
 export function consentConfigProblems({ config }: { config: ConsentConfig; trustedRegion: boolean }, { cssBlocks = true }: { cssBlocks?: boolean } = {}): ConsentProblem[] {
   const problems: ConsentProblem[] = cssBlocks ? compileConsentCss({ css: config.customCss, tokens: config.appearance }).problems.map(problem => ({ ...problem, field: 'appearance' })) : [];
-  if (config.enabled && !consentPolicyHref({ url: config.privacyPolicyUrl })) problems.push({ code: 'PRIVACY_LINK_REQUIRED', field: 'privacyPolicyUrl', message: 'Link a published privacy page or a credential-free HTTPS privacy policy.' });
-  if (Boolean(config.secondaryLinkLabel) !== Boolean(config.secondaryLinkUrl) || (config.secondaryLinkUrl && !consentPolicyHref({ url: config.secondaryLinkUrl }))) problems.push({ code: 'SECONDARY_LINK_INVALID', field: 'secondaryLinkUrl', message: 'Supply both a secondary link label and a local or HTTPS link.' });
+  if (config.enabled && !safeHref(config.privacyPolicyUrl)) problems.push({ code: 'PRIVACY_LINK_REQUIRED', field: 'privacyPolicyUrl', message: 'Link a published privacy page or a credential-free HTTPS privacy policy.' });
+  if (Boolean(config.secondaryLinkLabel) !== Boolean(config.secondaryLinkUrl) || (config.secondaryLinkUrl && !safeHref(config.secondaryLinkUrl))) problems.push({ code: 'SECONDARY_LINK_INVALID', field: 'secondaryLinkUrl', message: 'Supply both a secondary link label and a local or HTTPS link.' });
   if (config.regionMode === 'opt-out') problems.push({ code: 'GLOBAL_OPT_OUT_REFUSED', field: 'regionMode', message: 'Use automatic region mode for US opt-out. EU, UK and unknown regions must keep Reject.' });
   return problems;
 }

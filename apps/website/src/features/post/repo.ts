@@ -1,3 +1,4 @@
+import { invalidateMediaAccessEvidence } from '../media/access-evidence.js';
 import { randomUUID } from "node:crypto";
 
 import { sql } from "kysely";
@@ -157,6 +158,7 @@ export class SqlPostRepo implements PostRepoPort, GoLiveCandidatesPort {
       );
       await this.search.upsert(this.kernel, toPostSearchDocument(record));
     });
+    invalidateMediaAccessEvidence({ owner: this });
   }
 
   /**
@@ -170,7 +172,7 @@ export class SqlPostRepo implements PostRepoPort, GoLiveCandidatesPort {
    */
   async saveIfVersion(required: { record: PostRecord; ifVersion: number }): Promise<{ applied: boolean }> {
     const row = toRow(required.record);
-    return this.kernel.transaction(async () => {
+    const result = await this.kernel.transaction(async () => {
       const updated = await this.kernel.run((db) =>
         db
           .updateTable("posts")
@@ -185,6 +187,8 @@ export class SqlPostRepo implements PostRepoPort, GoLiveCandidatesPort {
       await this.search.upsert(this.kernel, toPostSearchDocument(required.record));
       return { applied: true };
     });
+    if (result.applied) invalidateMediaAccessEvidence({ owner: this });
+    return result;
   }
 
   /**
@@ -207,6 +211,7 @@ export class SqlPostRepo implements PostRepoPort, GoLiveCandidatesPort {
         .where("id", "=", required.id)
         .execute()
     );
+    invalidateMediaAccessEvidence({ owner: this });
   }
 
   /**
@@ -239,6 +244,7 @@ export class SqlPostRepo implements PostRepoPort, GoLiveCandidatesPort {
       // when the scoped delete above actually removed the row it projects.
       if (removed.length > 0) await this.search.remove(this.kernel, required.id);
     });
+    invalidateMediaAccessEvidence({ owner: this });
   }
 
   /** See `PostRepoPort.readAutosave`'s own doc. `autosave_json` is the only column read — never
@@ -341,7 +347,8 @@ export class SqlPostRepo implements PostRepoPort, GoLiveCandidatesPort {
   /** See `PostRepoPort.transaction`'s own doc: repo calls made inside `fn` join ONE transaction
    *  (the post write, then `appendRevision`). Nested calls join the outer one. */
   async transaction<T>(fn: () => Promise<T>): Promise<T> {
-    return this.kernel.transaction(fn);
+    try { return await this.kernel.transaction(fn); }
+    finally { invalidateMediaAccessEvidence({ owner: this }); }
   }
 }
 

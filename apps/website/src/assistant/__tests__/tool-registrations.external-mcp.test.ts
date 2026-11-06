@@ -13,7 +13,7 @@ import { ForbiddenError } from "@jini-ai/cms/core";
 import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
 import { InMemoryExternalMcpServerRepo } from "../../features/external-mcp/external-mcp-store.memory.js";
-import { ExternalMcpValidationError, openExternalMcpOAuthPayload, readEnabledExternalMcpConfigs, saveExternalMcpServer } from "../../features/external-mcp/external-mcp-store.js";
+import { ExternalMcpValidationError, externalMcpAdmissionRevision, openExternalMcpOAuthPayload, readEnabledExternalMcpConfigs, saveExternalMcpServer } from "../../features/external-mcp/external-mcp-store.js";
 import { type ExternalMcpServerRecord } from "../../features/external-mcp/contracts.js";
 import type { ExternalMcpOAuthService } from "../../features/external-mcp/contracts.js";
 import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
@@ -81,8 +81,23 @@ function fakeDeps(options: { allow?: boolean; externalMcpOAuth?: ExternalMcpOAut
   return { deps, authorizeCalls, repo, sealer };
 }
 
+/** Grant workflows start from a connected source whose exact advertised tools are known. */
+async function connectedGrantSource({ deps, serverId, url, names }: {
+  deps: ExternalMcpToolDeps; serverId: string; url: string; names: readonly string[];
+}): Promise<ExternalMcpServerRecord> {
+  await saveExternalMcpServer({ repo: deps.externalMcpServerRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock }, {
+    workspaceId: WORKSPACE_ID, principalId: PRINCIPAL_ID, serverId, transport: 'streamable_http', authMode: 'none', enabled: true,
+    url, command: '', args: '', allowedToolNames: '', writeAllowedToolNames: '',
+  });
+  const record = await deps.externalMcpServerRepo.findByServerId({ workspaceId: WORKSPACE_ID, serverId });
+  assert.ok(record);
+  const revision = externalMcpAdmissionRevision(record);
+  deps.externalMcpKnownToolNames = input => input.serverId === serverId && input.admissionRevision === revision ? names : null;
+  return record;
+}
+
 function externalMcpRegistrations(deps: ExternalMcpToolDeps): Map<string, ToolRegistration> {
-  return new Map(buildExternalMcpRegistrations(deps, { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) }).map((r) => [r.descriptor.id, r]));
+  return new Map(buildExternalMcpRegistrations(deps, { assertAccessApprover: async () => {}, surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) }).map((r) => [r.descriptor.id, r]));
 }
 
 /** Same registrations, but built through the REAL production assembly path
@@ -255,7 +270,7 @@ test("external_mcp_save: authorize() runs BEFORE any form is raised — a denied
   const { deps, repo } = fakeDeps({ allow: false });
   const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const emitted: unknown[] = [];
-  const saveTool = tool(new Map(buildExternalMcpRegistrations(deps, { surfaceExchanges: exchanges }).map((r) => [r.descriptor.id, r])), "external_mcp_save");
+  const saveTool = tool(new Map(buildExternalMcpRegistrations(deps, { assertAccessApprover: async () => {}, surfaceExchanges: exchanges }).map((r) => [r.descriptor.id, r])), "external_mcp_save");
   const opened = t.mock.method(exchanges, "open");
   await assert.rejects(() => call(saveTool, {
     input: { id: "higgsfield", transport: "stdio", command: "node" },
@@ -335,7 +350,7 @@ test("external_mcp_list: reflects what is actually stored, never a credential va
 test("with no emitSurface, external_mcp_save is refused outright — no exchange is ever opened, nothing saved", async () => {
   const { deps } = fakeDeps();
   const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-  const saveTool = new Map(buildExternalMcpRegistrations(deps, { surfaceExchanges: exchanges }).map((r) => [r.descriptor.id, r])).get(
+  const saveTool = new Map(buildExternalMcpRegistrations(deps, { assertAccessApprover: async () => {}, surfaceExchanges: exchanges }).map((r) => [r.descriptor.id, r])).get(
     "external_mcp_save",
   )!;
   await assert.rejects(() => call(saveTool, { input: { id: "higgsfield", transport: "streamable_http" } }));
@@ -345,7 +360,7 @@ test("with no emitSurface, external_mcp_save is refused outright — no exchange
 test("workflow: save a new streamable_http server via the confirmation form, then see it in a fresh list", async () => {
   const { deps } = fakeDeps();
   const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-  const registrations = new Map(buildExternalMcpRegistrations(deps, { surfaceExchanges: exchanges }).map((r) => [r.descriptor.id, r]));
+  const registrations = new Map(buildExternalMcpRegistrations(deps, { assertAccessApprover: async () => {}, surfaceExchanges: exchanges }).map((r) => [r.descriptor.id, r]));
   const saveTool = registrations.get("external_mcp_save")!;
 
   const { pending, exchangeId } = await raiseSaveForm(saveTool, { id: "Higgsfield", transport: "streamable_http", authMode: "none", label: "Higgsfield" });
@@ -373,13 +388,15 @@ test("workflow: save a new streamable_http server via the confirmation form, the
 // `assertWriteAllowlistSubset` — `external-mcp-store.ts`) already fully supports this field; only this
 // domain's agent-tool wiring never carried it through the form.
 
-test("workflow: a write grant submitted on the confirmation form survives the round trip and is visible in a fresh list", async () => {
+test("workflow: a write grant fixed in the proposal survives the credential form and is visible in a fresh list", async () => {
   const { deps } = fakeDeps();
+  await connectedGrantSource({ deps, serverId: 'higgsfield', url: 'https://higgsfield.example/mcp', names: ['generate_image', 'reveal_generation', 'models_explore'] });
   const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-  const registrations = new Map(buildExternalMcpRegistrations(deps, { surfaceExchanges: exchanges }).map((r) => [r.descriptor.id, r]));
+  const registrations = new Map(buildExternalMcpRegistrations(deps, { assertAccessApprover: async () => {}, surfaceExchanges: exchanges }).map((r) => [r.descriptor.id, r]));
   const saveTool = registrations.get("external_mcp_save")!;
 
-  const { pending, exchangeId } = await raiseSaveForm(saveTool, { id: "higgsfield", transport: "streamable_http", authMode: "none" });
+  const { pending, exchangeId } = await raiseSaveForm(saveTool, { id: "higgsfield", transport: "streamable_http", authMode: "none",
+    allowedToolNames: "generate_image, reveal_generation, models_explore", writeAllowedToolNames: "generate_image, reveal_generation" });
   exchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: {
       id: "higgsfield",
       transport: "streamable_http", authMode: "none",
@@ -393,8 +410,13 @@ test("workflow: a write grant submitted on the confirmation form survives the ro
   assert.deepEqual(
     [...result.server.writeAllowedToolNames].sort(),
     ["generate_image", "reveal_generation"],
-    "the write grant submitted on the form must be persisted, not silently dropped",
+    "the fixed proposed write grant must be persisted, not silently dropped",
   );
+
+  const saved = await deps.externalMcpServerRepo.findByServerId({ workspaceId: WORKSPACE_ID, serverId: "higgsfield" });
+  assert.ok(saved);
+  assert.deepEqual(JSON.parse(saved.allowedToolNames!), ["generate_image", "reveal_generation", "models_explore"]);
+  assert.deepEqual(JSON.parse(saved.writeAllowedToolNames!), ["generate_image", "reveal_generation"]);
 
   const listed = (await call(registrations.get("external_mcp_list")!, { input: {} })) as {
     servers: Array<{ serverId: string; writeAllowedToolNames: string[] }>;
@@ -411,7 +433,7 @@ test("workflow: a write grant submitted on the confirmation form survives the ro
 test("workflow: omitting writeAllowedToolNames on the form still saves with no write grants (the safe default, not a silent drop of an EXISTING grant)", async () => {
   const { deps } = fakeDeps();
   const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-  const registrations = new Map(buildExternalMcpRegistrations(deps, { surfaceExchanges: exchanges }).map((r) => [r.descriptor.id, r]));
+  const registrations = new Map(buildExternalMcpRegistrations(deps, { assertAccessApprover: async () => {}, surfaceExchanges: exchanges }).map((r) => [r.descriptor.id, r]));
   const saveTool = registrations.get("external_mcp_save")!;
 
   const { pending, exchangeId } = await raiseSaveForm(saveTool, { id: "no-write-grant", transport: "streamable_http", authMode: "none" });
@@ -424,11 +446,13 @@ test("workflow: omitting writeAllowedToolNames on the form still saves with no w
 
 test("an invalid write grant (a tool not in allowedToolNames) is reported as { saved: false, reason: 'invalid', field: 'writeAllowedToolNames' }, not thrown, and nothing is saved", async () => {
   const { deps } = fakeDeps();
+  const original = await connectedGrantSource({ deps, serverId: 'bad-write-grant', url: 'https://example.test/mcp', names: ['generate_image', 'delete_everything'] });
   const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-  const registrations = new Map(buildExternalMcpRegistrations(deps, { surfaceExchanges: exchanges }).map((r) => [r.descriptor.id, r]));
+  const registrations = new Map(buildExternalMcpRegistrations(deps, { assertAccessApprover: async () => {}, surfaceExchanges: exchanges }).map((r) => [r.descriptor.id, r]));
   const saveTool = registrations.get("external_mcp_save")!;
 
-  const { pending, exchangeId } = await raiseSaveForm(saveTool, { id: "bad-write-grant", transport: "streamable_http" });
+  const { pending, exchangeId } = await raiseSaveForm(saveTool, { id: "bad-write-grant", transport: "streamable_http", authMode: "none",
+    allowedToolNames: "generate_image", writeAllowedToolNames: "delete_everything" });
   exchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: {
       id: "bad-write-grant",
       transport: "streamable_http",
@@ -443,13 +467,14 @@ test("an invalid write grant (a tool not in allowedToolNames) is reported as { s
   assert.equal(result.field, "writeAllowedToolNames");
 
   const listed = (await call(registrations.get("external_mcp_list")!, { input: {} })) as { servers: unknown[] };
-  assert.equal(listed.servers.length, 0, "the rejected save must not have created a row");
+  assert.equal(listed.servers.length, 1, "the rejected save must not create an additional row");
+  assert.deepEqual(await deps.externalMcpServerRepo.findByServerId({ workspaceId: WORKSPACE_ID, serverId: 'bad-write-grant' }), original, 'the rejected save must preserve the complete existing connection');
 });
 
 test("cancelling the form saves nothing", async () => {
   const { deps } = fakeDeps();
   const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-  const registrations = new Map(buildExternalMcpRegistrations(deps, { surfaceExchanges: exchanges }).map((r) => [r.descriptor.id, r]));
+  const registrations = new Map(buildExternalMcpRegistrations(deps, { assertAccessApprover: async () => {}, surfaceExchanges: exchanges }).map((r) => [r.descriptor.id, r]));
   const saveTool = registrations.get("external_mcp_save")!;
 
   const { pending, exchangeId } = await raiseSaveForm(saveTool, { id: "cancelled-one", transport: "streamable_http" });
@@ -463,7 +488,7 @@ test("cancelling the form saves nothing", async () => {
 test("an invalid submission (a stdio server with no command) is reported as { saved: false, reason: 'invalid' }, not thrown", async () => {
   const { deps } = fakeDeps();
   const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-  const registrations = new Map(buildExternalMcpRegistrations(deps, { surfaceExchanges: exchanges }).map((r) => [r.descriptor.id, r]));
+  const registrations = new Map(buildExternalMcpRegistrations(deps, { assertAccessApprover: async () => {}, surfaceExchanges: exchanges }).map((r) => [r.descriptor.id, r]));
   const saveTool = registrations.get("external_mcp_save")!;
 
   const { pending, exchangeId } = await raiseSaveForm(saveTool, { id: "broken", transport: "stdio" });
@@ -716,7 +741,7 @@ test("external_mcp_oauth_poll_device: delegates to the wired OAuth service", asy
 test("external_mcp_save: re-saving with a blank env field keeps the previously stored env, not wipes it", async () => {
   const { deps, repo, sealer } = fakeDeps();
   const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-  const registrations = new Map(buildExternalMcpRegistrations(deps, { surfaceExchanges: exchanges }).map((r) => [r.descriptor.id, r]));
+  const registrations = new Map(buildExternalMcpRegistrations(deps, { assertAccessApprover: async () => {}, surfaceExchanges: exchanges }).map((r) => [r.descriptor.id, r]));
   const saveTool = registrations.get("external_mcp_save")!;
 
   const first = await raiseSaveForm(saveTool, { id: "envkeep", transport: "stdio" });
@@ -741,7 +766,7 @@ test("external_mcp_save: re-saving with a blank env field keeps the previously s
 test("external_mcp_save: re-saving with a blank OAuth client secret field keeps the previously stored secret, not wipes it", async () => {
   const { deps, repo, sealer } = fakeDeps();
   const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-  const registrations = new Map(buildExternalMcpRegistrations(deps, { surfaceExchanges: exchanges }).map((r) => [r.descriptor.id, r]));
+  const registrations = new Map(buildExternalMcpRegistrations(deps, { assertAccessApprover: async () => {}, surfaceExchanges: exchanges }).map((r) => [r.descriptor.id, r]));
   const saveTool = registrations.get("external_mcp_save")!;
 
   const first = await raiseSaveForm(saveTool, { id: "oauthkeep", transport: "streamable_http", authMode: "oauth" });
@@ -781,7 +806,7 @@ test("external_mcp_save: re-saving with a blank OAuth client secret field keeps 
 test("external_mcp_save: aborting the run while the form is open closes the exchange, returns abandoned, and saves nothing", async () => {
   const { deps } = fakeDeps();
   const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-  const registrations = new Map(buildExternalMcpRegistrations(deps, { surfaceExchanges: exchanges }).map((r) => [r.descriptor.id, r]));
+  const registrations = new Map(buildExternalMcpRegistrations(deps, { assertAccessApprover: async () => {}, surfaceExchanges: exchanges }).map((r) => [r.descriptor.id, r]));
   const run = new AbortController();
   const emitted: unknown[] = [];
   const pending = invokeFixtureHandler(registrations.get("external_mcp_save")!, {
@@ -843,7 +868,7 @@ function invokeFixtureHandler(
 test("external_mcp_save: a forged create ID cannot move the credential to another destination", async () => {
   const { deps, repo } = fakeDeps();
   const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-  const saveTool = buildExternalMcpRegistrations(deps, { surfaceExchanges: exchanges }).find(r => r.descriptor.id === "external_mcp_save")!;
+  const saveTool = buildExternalMcpRegistrations(deps, { assertAccessApprover: async () => {}, surfaceExchanges: exchanges }).find(r => r.descriptor.id === "external_mcp_save")!;
   const { pending, exchangeId, emitted } = await raiseSaveForm(saveTool, { id: "bound", transport: "streamable_http", authMode: "static_env" });
   const secret = "phase9-destination-canary";
   exchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: {
@@ -863,7 +888,7 @@ test("external_mcp_save: update identity and auth stay bound despite forged hidd
     command: "", args: "", allowedToolNames: "read", writeAllowedToolNames: "", url: "https://bound.example/mcp", accessToken: secret, principalId: PRINCIPAL_ID,
   });
   const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-  const saveTool = buildExternalMcpRegistrations(deps, { surfaceExchanges: exchanges }).find(r => r.descriptor.id === "external_mcp_save")!;
+  const saveTool = buildExternalMcpRegistrations(deps, { assertAccessApprover: async () => {}, surfaceExchanges: exchanges }).find(r => r.descriptor.id === "external_mcp_save")!;
   const { pending, exchangeId, emitted } = await raiseSaveForm(saveTool, { id: "bound", transport: "streamable_http" });
   assert.equal(JSON.stringify(emitted).includes(secret), false, "stored credentials must never prefill the form");
   exchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: {
@@ -892,7 +917,7 @@ class RejectingCardWriteRepo extends InMemoryExternalMcpServerRepo {
 test("external_mcp_save: concurrent validation and driver failures keep separate safe projections", async () => {
   const { deps, repo } = fakeDeps({ repo: new RejectingCardWriteRepo() });
   const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-  const saveTool = buildExternalMcpRegistrations(deps, { surfaceExchanges: exchanges }).find(r => r.descriptor.id === "external_mcp_save")!;
+  const saveTool = buildExternalMcpRegistrations(deps, { assertAccessApprover: async () => {}, surfaceExchanges: exchanges }).find(r => r.descriptor.id === "external_mcp_save")!;
   const invalid = await raiseSaveForm(saveTool, { id: "invalid", transport: "streamable_http", authMode: "static_env" });
   const failed = await raiseSaveForm(saveTool, { id: "failed", transport: "streamable_http", authMode: "static_env" });
   for (const [id, card] of [["invalid", invalid], ["failed", failed]] as const) {
@@ -913,7 +938,7 @@ test("external_mcp_save: concurrent validation and driver failures keep separate
 test("external_mcp_save: secret-bearing model input never opens a form or writes", async () => {
   const { deps, repo } = fakeDeps();
   const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-  const saveTool = buildExternalMcpRegistrations(deps, { surfaceExchanges: exchanges }).find(r => r.descriptor.id === "external_mcp_save")!;
+  const saveTool = buildExternalMcpRegistrations(deps, { assertAccessApprover: async () => {}, surfaceExchanges: exchanges }).find(r => r.descriptor.id === "external_mcp_save")!;
   const emitted: unknown[] = [];
   await assert.rejects(call(saveTool, { input: { id: "bound", transport: "streamable_http", accessToken: "phase9-model-canary" }, emitSurface: async surface => { emitted.push(surface); } }),
     (error: unknown) => error instanceof ToolInputError && error.message === "external_mcp_save: credentials belong in the human form, never in this tool input. Nothing was saved.");
@@ -925,7 +950,7 @@ test("external_mcp_save: secret-bearing model input never opens a form or writes
 test("external_mcp_save: an already aborted run emits no card and saves nothing", async () => {
   const { deps, repo } = fakeDeps();
   const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-  const saveTool = buildExternalMcpRegistrations(deps, { surfaceExchanges: exchanges }).find(r => r.descriptor.id === "external_mcp_save")!;
+  const saveTool = buildExternalMcpRegistrations(deps, { assertAccessApprover: async () => {}, surfaceExchanges: exchanges }).find(r => r.descriptor.id === "external_mcp_save")!;
   const controller = new AbortController();
   controller.abort();
   const emitted: unknown[] = [];
@@ -938,4 +963,40 @@ test("external_mcp_save: an already aborted run emits no card and saves nothing"
   assert.deepEqual(emitted, []);
   assert.deepEqual(await repo.listByWorkspaceId(WORKSPACE_ID), []);
   assert.equal(exchanges.size(), 0);
+});
+
+for (const transport of ['streamable_http', 'stdio'] as const) test(`credential updates retain saved grants for ${transport}`, async () => {
+  const { deps, repo } = fakeDeps();
+  const identity = { workspaceId: WORKSPACE_ID, serverId: 'credential-update' };
+  await saveExternalMcpServer({ repo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock }, {
+    ...identity, principalId: PRINCIPAL_ID, transport, authMode: 'static_env', enabled: true,
+    url: 'https://example.test/mcp', command: transport === 'stdio' ? 'node' : '', args: '',
+    allowedToolNames: 'read, write', writeAllowedToolNames: 'write',
+    ...(transport === 'stdio' ? { env: 'API_TOKEN=synthetic-initial' } : { accessToken: 'synthetic-initial' }),
+  });
+  const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' });
+  const saveTool = buildExternalMcpRegistrations(deps, { assertAccessApprover: async () => {}, surfaceExchanges: exchanges }).find(r => r.descriptor.id === 'external_mcp_save')!;
+  const { pending, exchangeId } = await raiseSaveForm(saveTool, { id: identity.serverId, transport, authMode: 'static_env' });
+  exchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: {
+    url: 'https://example.test/mcp', command: transport === 'stdio' ? 'node' : '', args: '',
+    ...(transport === 'stdio' ? { env: 'API_TOKEN=synthetic-rotated' } : { accessToken: 'synthetic-rotated' }),
+  } }, { toolId: 'external_mcp_save' });
+  assert.equal((await pending as { saved: boolean }).saved, true);
+  const saved = await repo.findByServerId(identity);
+  assert.deepEqual(JSON.parse(saved!.allowedToolNames!), ['read', 'write']);
+  assert.deepEqual(JSON.parse(saved!.writeAllowedToolNames!), ['write']);
+  const resolved = await readEnabledExternalMcpConfigs({ repo, sealer: deps.siteAssistantSecretSealer }, WORKSPACE_ID);
+  const target = resolved.configs.find(config => config.serverId === identity.serverId)!.target;
+  if (target.kind === 'stdio') assert.equal(target.env.API_TOKEN, 'synthetic-rotated');
+  else assert.equal(target.headers?.authorization, 'Bearer synthetic-rotated');
+});
+
+test('an invalid new connection leaves no saved row', async () => {
+  const { deps, repo } = fakeDeps();
+  const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' });
+  const saveTool = buildExternalMcpRegistrations(deps, { assertAccessApprover: async () => {}, surfaceExchanges: exchanges }).find(r => r.descriptor.id === 'external_mcp_save')!;
+  const { pending, exchangeId } = await raiseSaveForm(saveTool, { id: 'invalid-new', transport: 'streamable_http', authMode: 'none' });
+  exchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: { url: 'not a URL' } }, { toolId: 'external_mcp_save' });
+  assert.equal((await pending as { saved: boolean }).saved, false);
+  assert.equal(await repo.findByServerId({ workspaceId: WORKSPACE_ID, serverId: 'invalid-new' }), null);
 });

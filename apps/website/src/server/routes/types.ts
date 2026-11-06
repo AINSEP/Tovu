@@ -755,6 +755,8 @@ export interface WebhooksDeps {
  * structural to avoid a back-edge into the composition root.
  */
 export interface FormsDeps {
+  /** Current app-scoped collection providers, shared by admin and assistant discovery. */
+  formCollectionProviders?: () => import("@jini-ai/cms/forms").FormCollectionRegistry;
   executeCommand: typeof import("@jini-ai/cms/core").executeCommand;
   formDefinitionRepo: FormDefinitionRepoPort;
   formSubmissionRepo: FormSubmissionRepoPort;
@@ -874,8 +876,7 @@ export interface SettingsDeps {
   consentStore?: import('#src/features/consent/revisions').SiteConsentStore;
   siteConsent?: import('#src/features/consent/service').SiteConsentService;
   consentTrustedRegionHeader?: string;
-  /** THE consent-engine switch (TOVU_CONSENT_ENGINE=cookie-consent): present = `@jini-ai/cookie-consent`
-   * serves public pages, absent = the old cms engine. P4 cleanup removes the old engine and this switch. */
+  /** Declared-script consent bindings; absent only in minimal hosts/test compositions. */
   cookieConsent?: import('#src/contracts/headless/index').SiteCookieConsentDeps;
   /** Cookie-consent adapters of the analytics plugins attached to this site (none when no plugin is). */
   consentAdapters?: (required: { base: string }) => readonly import('#src/contracts/headless/index').ConsentPluginContribution[];
@@ -1348,6 +1349,8 @@ export interface TrashDeps {
  * putting them in a sub-interface creates a circular type TypeScript rejects.
  */
 export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps & ContentTaxonomyDeps & CommentsDeps & MembersDeps & DatabaseRecoveryDeps & WebhooksDeps & FormsDeps & PostDeps & PresentationDeps & SettingsDeps & ChangeSetDeps & EventBusDeps & AnalyticsDeps & NavigationDeps & DatabaseOpsDeps & RedirectsDeps & WidgetsDeps & PluginRuntimeDeps & ObservabilityDeps & PublishTrustRevocationDeps & TrashDeps & {
+  documentAssets?: (required: { scripts: readonly import('@jini-ai/cookie-consent').DeclaredScript[] }) => Promise<import('@jini-ai/cms/presentation').DocumentAssets>;
+  declaredScripts?: import('@jini-ai/cookie-consent').DeclaredScript[];
   /** Optional plugin-controlled purchase runtime. Member routes never select a merchant scope. */
   commerce?: import("../runtime/composition/commerce.js").CommerceRuntime;
   /** Bounded public catalog projection; absent while commerce is disabled or unavailable. */
@@ -1653,6 +1656,8 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * exports into — never re-reads `process.env` itself.
    */
   publishOutputRootDir: string;
+  /** Current public security headers, including app-scoped collection frame declarations. */
+  publicPageSecurityHeaders?: () => import("#src/contracts/core/public-page-security-headers").SecurityHeaderSet;
   /**
    * This workspace's plugin-contributed deploy targets (`deploy-targets/registry.ts`): the one place
    * the publish route and the static-publish agent tools learn which targets exist and which config

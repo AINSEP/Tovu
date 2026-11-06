@@ -21,7 +21,7 @@ import { createInMemoryEventLog, createRunLifecycle, createToolExecutor } from "
 import { delegatedToolExecuteRoute } from "@jini-ai/daemon/http";
 
 import { executeCommand, InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
-import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "@jini-ai/cms/forms";
+import { createFormCollectionRegistry, InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo, type HtmlFormDefinitionRecord } from "@jini-ai/cms/forms";
 import { buildFormsRegistrations, type FormsToolDeps } from "../tool-registrations.js";
 
 const WORKSPACE_ID = "ws-forms-errors";
@@ -221,4 +221,33 @@ test("submission get refuses a mismatched form, while correct get and paginated 
   const second = await call(harness, "forms_list_submissions", { formId: "form-a", limit: 1, cursor: "sub-a-new" });
   assert.ok(second.ok, JSON.stringify(second));
   assert.deepEqual(second.value.result.output, { submissions: [{ id: "sub-a-old", formDefinitionId: "form-a", data: { message: "older A" }, sourceIp: "192.0.2.1", submittedAt: NOW }], nextCursor: null });
+});
+
+
+test('form tools reject invalid provider settings without creating or replacing a definition', async () => {
+  const providers = createFormCollectionRegistry({});
+  providers.contribute({ pluginId: 'fixture', definition: { id: 'remote', provider: {
+    plan: ({ config }) => config.url === 'https://forms.example.test/accepted'
+      ? { kind: 'embed', url: config.url, title: 'Remote', capabilities: { answers: 'Remote', validation: 'Remote', spamProtection: 'Remote' } }
+      : { kind: 'unavailable', code: 'invalid_configuration', message: 'Enter the public form link supplied by your form provider.' },
+  } } });
+  const deps = { ...makeRouteDeps(), formCollectionProviders: () => providers };
+  const harness = await buildHarness(deps);
+  const input = { name: 'Contact', slug: 'contact', fields: [{ id: 'message', type: 'text', label: 'Message', required: false }] };
+  const invalid = { id: 'remote', config: { url: 'invalid' } };
+  const refused = await call(harness, 'forms_create_definition', { ...input, provider: invalid });
+  assert.ok(!refused.ok);
+  assert.equal(refused.error.code, 'BAD_REQUEST');
+  assert.match(refused.error.message, /Enter the public form link/);
+  assert.deepEqual(await deps.formDefinitionRepo.list({ workspaceId: WORKSPACE_ID }), []);
+  const provider = { id: 'remote', config: { url: 'https://forms.example.test/accepted' } };
+  const created = await call(harness, 'forms_create_definition', { ...input, provider });
+  assert.equal(created.ok, true);
+  const [saved] = await deps.formDefinitionRepo.list({ workspaceId: WORKSPACE_ID });
+  assert.ok(saved);
+  const updated = await call(harness, 'forms_update_definition', { formId: saved.id, provider: invalid });
+  assert.ok(!updated.ok);
+  assert.equal(updated.error.code, 'BAD_REQUEST');
+  assert.match(updated.error.message, /Enter the public form link/);
+  assert.deepEqual((await deps.formDefinitionRepo.findById({ workspaceId: WORKSPACE_ID, id: saved.id }) as HtmlFormDefinitionRecord)?.provider, provider);
 });

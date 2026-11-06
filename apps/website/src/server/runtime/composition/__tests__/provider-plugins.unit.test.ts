@@ -1,3 +1,4 @@
+import { describeFormCollectionProviders } from '@jini-ai/cms/forms';
 import { createLipayFake } from "@jini-ai/commerce/payments/testkit";
 import assert from "node:assert/strict";
 import { createHash } from 'node:crypto';
@@ -987,17 +988,23 @@ test('site factories receive the export decision as an option, never a saved set
 
 test('stateless form collection provider is trusted, selected and retired without site secrets', async () => {
   const calls: Calls = { inputs: [], disposed: 0 };
+  const description = { label: 'Example', fields: [], answers: 'Example inbox', validation: 'Example validation', frameOrigins: [] };
   const plan = { kind: 'post', action: 'https://forms.example.test/submit', external: true, capabilities: { answers: 'Example inbox', validation: 'Example validation', spamProtection: 'Example protection' } };
   SETTINGS['forms-example'] = [];
   const { runtime, requested } = fakeRuntime({ installed: ['forms-example'], factories: {
-    'forms-example': { contract: 'form_collection', id: 'example', factory: fakeFactory({ calls, port: { plan: () => plan } }) },
+    'forms-example': { contract: 'form_collection', id: 'example', factory: fakeFactory({ calls, port: { plan: () => plan, describe: () => description } }) },
   } });
   const providers = await bootProviderPlugins({ runtime, config: configOf({}), serviceName: 'tovu', site: SITE, ...consentAlways }, { warn: quiet });
   assert.deepEqual(requested, [['forms-example']]);
   const port = providers.formCollectionProviders?.().get({ id: 'example' })?.provider;
   assert.deepEqual(port?.plan({ slug: 'contact', config: {} }), plan);
+  assert.deepEqual(port?.describe?.(), description);
   assert.equal(calls.inputs.length, 1);
   runtime.providerContributions.detach({ pluginId: 'forms-example' });
+  assert.equal(port?.describe?.(), undefined, 'retired leases do not expose stale settings');
+  const unavailable = describeFormCollectionProviders({ providers: providers.formCollectionProviders!() }).find(provider => provider.id === 'example');
+  assert.equal(unavailable?.label, 'Example');
+  assert.match(unavailable?.message ?? '', /plugin.*(disabled|unavailable).*enable/i);
   assert.deepEqual(port?.plan({ slug: 'contact', config: {} }), { kind: 'unavailable', code: 'provider_unavailable', message: 'This form cannot send answers because its selected form provider is unavailable.' });
   await providers.dispose({});
   assert.equal(calls.disposed, 1);
@@ -1020,4 +1027,78 @@ test('payment providers use the shared host and disappear on detach', async () =
     runtime.providerContributions.detach({ pluginId: 'payments-example' });
     assert.deepEqual(providers.paymentProviders({}), []);
   } finally { await providers.dispose({}); }
+});
+
+
+test('enabling a form provider after boot updates the same live host', async () => {
+  const installed: string[] = [];
+  const calls: Calls = { inputs: [], disposed: 0 };
+  SETTINGS['forms-late'] = [];
+  const { runtime, requested } = fakeRuntime({ installed, factories: {
+    'forms-late': { contract: 'form_collection', id: 'late', factory: fakeFactory({ calls, port: {
+      describe: () => ({ label: 'Late forms', fields: [], answers: 'Remote inbox', validation: 'Remote checks', frameOrigins: [] }),
+      plan: () => ({ kind: 'unavailable', code: 'invalid_configuration', message: 'Choose a public form.' }),
+    } }) },
+  } });
+  const providers = await bootProviderPlugins({ runtime, config: configOf({}), serviceName: 'tovu', site: SITE, ...consentAlways }, { warn: quiet });
+  try {
+    assert.equal(providers.formCollectionProviders!().has({ id: 'late' }), false);
+    installed.push('forms-late');
+    const load = runtime.loadProviderPlugins.bind(runtime);
+    let refuse = true;
+    runtime.loadProviderPlugins = input => refuse ? Promise.resolve([]) : load(input);
+    assert.equal((await providers.reapply({ pluginId: 'forms-late' }) as { appliesAt: string }).appliesAt, 'failed');
+    assert.equal(providers.formCollectionProviders!().has({ id: 'late' }), false, 'refused admission must not publish a selectable provider');
+    refuse = false;
+    assert.equal(await providers.reapply({ pluginId: 'forms-late' }), 'now');
+    assert.equal(providers.formCollectionProviders!().has({ id: 'late' }), true);
+    assert.equal(describeFormCollectionProviders({ providers: providers.formCollectionProviders!() }).find(item => item.id === 'late')?.available, true);
+    assert.equal(await providers.reapply({ pluginId: 'forms-late' }), 'now');
+    assert.equal(calls.inputs.length, 1, 'repeated refresh must not initialize a second provider');
+    assert.deepEqual(requested, [['forms-late']]);
+  } finally { await providers.dispose({}); delete SETTINGS['forms-late']; }
+});
+
+test('malformed provider metadata cannot replace a readable fallback label', async () => {
+  const calls: Calls = { inputs: [], disposed: 0 };
+  SETTINGS['forms-malformed'] = [];
+  const { runtime } = fakeRuntime({ installed: ['forms-malformed'], factories: {
+    'forms-malformed': { contract: 'form_collection', id: 'malformed', factory: fakeFactory({ calls, port: {
+      describe: () => ({ label: 77, fields: [], answers: '', validation: '', frameOrigins: [] }),
+      plan: () => ({ kind: 'unavailable', code: 'invalid_configuration', message: 'Choose a public form.' }),
+    } }) },
+  } });
+  const providers = await bootProviderPlugins({ runtime, config: configOf({}), serviceName: 'tovu', site: SITE, ...consentAlways }, { warn: quiet });
+  try {
+    const description = describeFormCollectionProviders({ providers: providers.formCollectionProviders!() }).find(item => item.id === 'malformed');
+    assert.equal(description?.label, 'malformed');
+    assert.equal(description?.available, false);
+  } finally { await providers.dispose({}); delete SETTINGS['forms-malformed']; }
+});
+
+
+test('form provider stays listed after its first initialization fails and recovers on reapply', async () => {
+  let ready = false;
+  SETTINGS['forms-recover'] = [];
+  const { runtime } = fakeRuntime({ installed: ['forms-recover'], factories: {
+    'forms-recover': { contract: 'form_collection', id: 'recover', factory: () => {
+      if (!ready) throw new Error('temporary initialization failure');
+      return { port: {
+        describe: () => ({ label: 'Recovered forms', fields: [], answers: 'Remote inbox', validation: 'Remote checks', frameOrigins: [] }),
+        plan: () => ({ kind: 'post', action: 'https://forms.example.test/submit', external: true, capabilities: { answers: 'Remote', validation: 'Remote', spamProtection: 'Remote' } }),
+      }, dispose() {} };
+    } },
+  } });
+  const providers = await bootProviderPlugins({ runtime, config: configOf({}), serviceName: 'tovu', site: SITE, ...consentAlways }, { warn: quiet });
+  try {
+    const before = describeFormCollectionProviders({ providers: providers.formCollectionProviders!() }).find(item => item.id === 'recover');
+    assert.equal(before?.label, 'recover');
+    assert.equal(before?.available, false);
+    assert.match(before?.message ?? '', /unavailable/i);
+    ready = true;
+    assert.equal(await providers.reapply({ pluginId: 'forms-recover' }), 'now');
+    const after = describeFormCollectionProviders({ providers: providers.formCollectionProviders!() }).find(item => item.id === 'recover');
+    assert.equal(after?.label, 'Recovered forms');
+    assert.equal(after?.available, true);
+  } finally { await providers.dispose({}); delete SETTINGS['forms-recover']; }
 });

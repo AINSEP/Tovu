@@ -6,6 +6,7 @@ import { createCommerceServer, type CheckoutDeps, type PayOrderDeps } from "@jin
 import { buildRegistrations, buildCommerceCatalogRegistrations } from "@jini-ai/commerce/tools";
 import type { AssistantToolRegistryDeps } from "#src/assistant/tool-registrations";
 import { installFirstPartyToolContributors } from "../tool-catalog-manifest.js";
+import { toolApprovalPolicyFor } from "#src/assistant/assistant-tool-approval-policy";
 
 function commerceContributor() {
   const contributions = {
@@ -39,6 +40,11 @@ test("a composed disabled runtime offers readiness but refuses setup before sche
   ] };
   const registrations = commerceContributor().build({ authorize, commerce } as never, {} as never);
   assert.deepEqual(registrations.map(registration => registration.descriptor.id), ["commerce_get_status", "commerce_create_product", "commerce_create_price"]);
+  assert.deepEqual(registrations.map(registration => toolApprovalPolicyFor({ registration })), [
+    { class: "read", confirmation: "direct" },
+    { class: "edit", confirmation: "direct" },
+    { class: "edit", confirmation: "direct" },
+  ]);
   const status = await registrations[0]!.handler({ ...context, input: {} });
   assert.equal((status as { checkout: { ready: boolean } }).checkout.ready, false);
   await assert.rejects(() => registrations[1]!.handler({ ...context, input: { name: "Notebook", slug: "notebook" } }), /Commerce is disabled/);

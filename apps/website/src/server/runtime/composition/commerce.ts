@@ -30,6 +30,7 @@ export interface CommerceRuntime {
   readOrder: CommerceServer['readOrder'];
   activate: CommerceServer['activate'];
   toolRegistrations(required: { authorize: AuthorizeFn; askHuman: CommerceResolutionToolsRequired['askHuman'] }): ToolRegistration[];
+  storefrontStatus: CommerceRuntime['status'];
   status(): Promise<{ active: boolean; ready: boolean; reason: string | null; webhookUrl?: string | null; checkoutOrigin?: string | null; needsAttention?: string[] }>;
   checkoutOrigin(): Promise<string | null>;
   resolveReceiver(): WebhookReceiver | null;
@@ -259,6 +260,16 @@ export function composeCommerce(required: ComposeCommerceRequired, optional: { w
     } });
     return [...result].slice(0, 10);
   }
+  /** Current checkout admission and merchant binding, without operator attention scans. O(1) reads. */
+  async function readStatus(): ReturnType<CommerceRuntime['status']> { try { const current = await resolve();
+        if (!current) return { active: await isActive(), ready: false, reason: 'Commerce has no configured payment account and deployed HTTPS site.' };
+        const status = await current.server.status();
+        const problem = status.active ? poolProblem ?? await current.problem() : null;
+        const webhookUrl = `${new URL(current.config.publicOrigin).origin}/api/payments/webhooks/${encodeURIComponent(required.siteId)}/${current.config.providerId}/${current.config.mode}`;
+        const checkoutOrigin = new URL(current.config.publicOrigin).origin;
+        return problem ? { ...status, ready: false, reason: problem, webhookUrl, checkoutOrigin } : { ...status, webhookUrl, checkoutOrigin }; }
+        catch { return { active: false, ready: false, reason: 'Commerce configuration could not be read; checkout is unavailable while the site remains online.' }; }
+  }
   const warming = warm();
   const commerce: CommerceRuntime = {
       // One request keeps origin, admission and action on one merchant binding; no shared cache.
@@ -279,15 +290,10 @@ export function composeCommerce(required: ComposeCommerceRequired, optional: { w
       pay: async input => { const result = await (await checkoutServer()).pay(input); void worker.kick(); return result; },
       readOrder: async input => readOwnedCommerceOrder({ deps: { workspaceId: required.workspaceId, siteId: required.siteId, orders, orderPayments, payments: sharedPayments }, input }),
       activate: async () => { const status = await (await checkoutServer()).activate(); if (status.ready) { void worker.kick(); } return status; },
-      status: async () => { try { const current = await resolve();
-        const attention = await needsAttention();
-        if (!current) return { active: await isActive(), ready: false, reason: 'Commerce has no configured payment account and deployed HTTPS site.', needsAttention: attention };
-        const status = await current.server.status();
-        const problem = status.active ? poolProblem ?? await current.problem() : null;
-        const webhookUrl = `${new URL(current.config.publicOrigin).origin}/api/payments/webhooks/${encodeURIComponent(required.siteId)}/${current.config.providerId}/${current.config.mode}`;
-        const checkoutOrigin = new URL(current.config.publicOrigin).origin;
-        return problem ? { ...status, ready: false, reason: problem, webhookUrl, checkoutOrigin, needsAttention: attention } : { ...status, webhookUrl, checkoutOrigin, needsAttention: attention }; }
+      status: async () => { try { return { ...await readStatus(), needsAttention: await needsAttention() }; }
         catch { return { active: false, ready: false, reason: 'Commerce configuration could not be read; checkout is unavailable while the site remains online.' }; } },
+      // Disabled storefront admission reads only plugin activation; operator status keeps drain details.
+      storefrontStatus: async () => await isActive() ? readStatus() : { active: false, ready: false, reason: null },
       checkoutOrigin: async () => { const current = await resolve(); return current ? new URL(current.config.publicOrigin).origin : null; },
       resolveReceiver: () => storageReady && !closed ? binding?.receiver ?? null : null,
       toolRegistrations: ({ authorize, askHuman }) => [
