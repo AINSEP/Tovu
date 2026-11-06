@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import express from 'express';
 import { once } from 'node:events';
+import { applyRenderThemeOverride } from '../render-theme-override.js';
 import { applySiteCookieConsent, siteConsentDocumentAssets, readSiteVisitorConsent, readSiteAnalyticsProof, siteReceiptAllowsAnalytics } from '../site-cookie-consent.js';
 import { SITE_CONSENT_DEFAULTS } from '#src/features/consent/config';
 import type { RouteDeps } from '#src/server/routes/types';
@@ -200,4 +201,79 @@ test('repeated mounts share the latest policy and an older refresh cannot change
   firstApp.get('/embed-policy', (_req, res) => res.json({ consentOff: consent.embedConsentOff?.() }));
   assert.deepEqual(await dispatchJsonRequest(firstApp, 'GET', '/embed-policy'), { status: 200, body: { consentOff: true } });
   assert.equal(reads, 2);
+});
+
+
+/** Mutable publication and declarations exercise the real mounted construction hook. */
+async function changingFixture({ preview = false, failAtBoot = false } = {}) {
+  let now = 0, reads = 0, declarations = 0, failing = failAtBoot, enabled = false;
+  let scripts: import('@jini-ai/cookie-consent').DeclaredScript[] = [{ src: '/ordinary.js' }, { src: '/optional.js', consent: ['analytics'] }];
+  const consent = { regionResolvers: async () => [], scriptDeclarations: async () => { declarations++; return { scripts, problems: [] }; } };
+  const deps = { cookieConsent: consent, workspaceId: 'refresh-policy', siteConsentReady: Promise.resolve(), siteBinding: { dir: '/tmp/refresh-policy' }, clock: { nowMs: () => now },
+    consentStore: { readPublished: async () => { reads++; if (failing) throw new Error('fixture unavailable'); return { id: 'published', config: { ...SITE_CONSENT_DEFAULTS, enabled, privacyPolicyUrl: '/privacy' } }; } },
+    consentAdapters: () => [{ adapter: { id: 'tracking', kind: 'consent-adapter', category: 'analytics', src: '/tracking.mjs' } }],
+  } as unknown as RouteDeps;
+  const app = express();
+  if (preview) applyRenderThemeOverride(app, { themeId: 'preview-theme' });
+  applySiteCookieConsent({ app, deps, consent }, { client: { src: '/_consent/fixture.js', body: Buffer.from('') } });
+  app.get('/assets', async (_req, res) => res.json(await res.locals.siteConsentAssets({ scripts: [] })));
+  await new Promise<void>(resolve => setImmediate(resolve));
+  return { deps, app, counts: () => ({ reads, declarations }), set: (change: { now?: number; failing?: boolean; enabled?: boolean; scripts?: typeof scripts }) => {
+    now = change.now ?? now; failing = change.failing ?? failing; enabled = change.enabled ?? enabled; scripts = change.scripts ?? scripts;
+  } };
+}
+
+test('a failed construction policy retries after one minute and keeps ordinary declarations', async () => {
+  const f = await changingFixture({ failAtBoot: true });
+  const first = await dispatchJsonRequest(f.app, 'GET', '/assets');
+  assert.equal(first.status, 200);
+  assert.match((first.body as { head: string }).head, /ordinary.js/);
+  assert.doesNotMatch((first.body as { head: string }).head, /optional.js/);
+  assert.deepEqual(await f.deps.cookieConsent!.exportAssets!(), ['/ordinary.js']);
+  assert.equal(await siteReceiptAllowsAnalytics({ deps: f.deps, proof: { receiptId: 'unread', policyVersion: 'unread' } }), false);
+  assert.equal(f.counts().reads, 1);
+  f.set({ failing: false, enabled: true, now: 59_999 });
+  await dispatchJsonRequest(f.app, 'GET', '/assets');
+  assert.equal(f.counts().reads, 1);
+  f.set({ now: 60_000 });
+  const recovered = await dispatchJsonRequest(f.app, 'GET', '/assets');
+  assert.match((recovered.body as { body: string }).body, /id="jini-consent"/);
+  assert.equal(f.counts().reads, 2);
+});
+
+test('off snapshots refresh settings and plugin declarations on the existing minute boundary', async () => {
+  const f = await changingFixture();
+  f.set({ scripts: [{ src: '/replacement.js' }] });
+  assert.match(((await dispatchJsonRequest(f.app, 'GET', '/assets')).body as { head: string }).head, /ordinary.js/);
+  f.set({ now: 60_000 });
+  const pluginsChanged = (await dispatchJsonRequest(f.app, 'GET', '/assets')).body as { head: string };
+  assert.match(pluginsChanged.head, /replacement.js/);
+  assert.doesNotMatch(pluginsChanged.head, /ordinary.js/);
+  f.set({ enabled: true, now: 120_000 });
+  const enabled = (await dispatchJsonRequest(f.app, 'GET', '/assets')).body as { body: string };
+  assert.match(enabled.body, /id="jini-consent"/);
+  assert.equal(f.counts().reads, 3);
+});
+
+test('the real theme override hook withholds the banner and analytics adapters', async () => {
+  const f = await changingFixture({ preview: true });
+  f.set({ enabled: true });
+  await f.deps.cookieConsent!.refresh!();
+  const rendered = (await dispatchJsonRequest(f.app, 'GET', '/assets')).body as { head: string; body: string };
+  assert.match(rendered.head, /ordinary.js/);
+  assert.doesNotMatch(rendered.head + rendered.body, /jini-consent|tracking.mjs|optional.js/);
+});
+
+test('a stalled policy read cannot hold the page response open', { timeout: 1000 }, async () => {
+  const consent = { regionResolvers: async () => [] };
+  const deps = { cookieConsent: consent, workspaceId: 'stalled-policy', clock: { nowMs: Date.now },
+    siteConsentReady: new Promise<void>(() => {}), siteBinding: { dir: '/tmp/stalled-policy' },
+  } as unknown as RouteDeps;
+  const app = express();
+  applySiteCookieConsent({ app, deps, consent }, { client: { src: '/_consent/fixture.js', body: Buffer.from('') } });
+  app.get('/assets', async (_req, res) => res.json(await res.locals.siteConsentAssets({ scripts: [{ src: '/ordinary.js' }, { src: '/optional.js', consent: ['analytics'] }] })));
+  const page = await dispatchJsonRequest(app, 'GET', '/assets');
+  assert.equal(page.status, 200);
+  assert.match((page.body as { head: string }).head, /ordinary.js/);
+  assert.doesNotMatch((page.body as { head: string }).head, /optional.js/);
 });

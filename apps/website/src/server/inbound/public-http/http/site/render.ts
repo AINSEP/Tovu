@@ -2392,12 +2392,9 @@ const DEFAULT_CONTACT_FORM_SUCCESS_MESSAGE = "Thanks — your message has been s
 /** Preserve authored HTML only in HTML mode for a native collection plan.
  * @complexity O(1) time/space; strings are reused, no I/O.
  * @overallScore 97 — Recommended: HTML sanitization remains the authoring write boundary's responsibility. */
-function formSchemaOptions({ props }: { props: JsonObject }): { schemaHash?: string } {
-  return typeof props.schemaHash === "string" ? { schemaHash: props.schemaHash } : {};
-}
 
-function collectionHtmlOptions({ props }: { props: JsonObject }): { html?: string; className: string; schemaHash?: string } {
-  return { ...formSchemaOptions({ props }), ...(props.mode === "html" && typeof props.html === "string" ? { html: props.html } : {}), className: FORM_CLASS };
+function collectionHtmlOptions({ props }: { props: JsonObject }): { html?: string; className: string } {
+  return { ...(props.mode === "html" && typeof props.html === "string" ? { html: props.html } : {}), className: FORM_CLASS };
 }
 
 /** Render the resolved collection plan for native external forms or the existing built-in form shell.
@@ -2425,7 +2422,7 @@ function renderWidgetContactForm(props: JsonObject): string {
     fields: fieldDescriptors,
   }, {
     ...(typeof props.html === "string" ? { html: props.html } : {}),
-    ...formSchemaOptions({ props }),
+    ...(typeof props.schemaHash === "string" ? { schemaHash: props.schemaHash } : {}),
     idPrefix,
     successMessage: str(props.successMessage) || DEFAULT_CONTACT_FORM_SUCCESS_MESSAGE,
     className: FORM_CLASS,
@@ -3637,7 +3634,7 @@ export async function renderSite(required: RenderSiteRequired): Promise<string> 
 async function finishManagedDocument({ required, title, body }: { required: RenderSiteRequired; title: string; body: string }): Promise<string> {
   const transformed = required.transformBody ? await required.transformBody({ html: body }) : body;
   const scripts = [...required.theme?.manifest.scripts ?? [], ...required.scripts ?? []];
-  const documentAssets = required.renderAssets ? await required.renderAssets({ scripts }) : { head: renderScriptAssets({ scripts }), body: '' };
+  const documentAssets = required.renderAssets ? await required.renderAssets({ scripts }) : { head: renderScriptAssets({ scripts: scripts.filter(script => script.consent === undefined) }), body: '' };
   return pageShell({ title, theme: required.theme, body: transformed, extraHead: required.extraHead, siteAssistantEnabled: required.siteAssistantEnabled, documentAssets });
 }
 

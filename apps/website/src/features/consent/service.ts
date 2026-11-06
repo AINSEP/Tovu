@@ -162,7 +162,8 @@ export function createSiteConsentService({ ports }: { ports: ConsentServicePorts
     const blockingProblems = await problems({ config });
     if (blockingProblems.length) throw new ToolInputError({ message: blockingProblems.map(problem => problem.message).join(' ') });
     await store.publish({ draftId, expectedPublishedId });
-    await ports.published?.();
+    try { await ports.published?.(); }
+    catch { console.warn('[consent] Cookie preferences were published, but the public preview could not refresh. A later request will try again.'); }
     return { published: true, revisionId: draftId };
   };
   const staticDeploymentRefusal = async ({ config }: { config: ConsentConfig }, _options = {}) => {

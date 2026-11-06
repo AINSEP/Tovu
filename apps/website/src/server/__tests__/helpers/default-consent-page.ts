@@ -11,8 +11,8 @@ function one({ document, selector }: { document: Document; selector: string }, _
 }
 
 /** Consent markup a page carries only when the banner is on. */
-const CONSENT_SELECTORS = ["#jini-consent", "#jini-consent-config", "style[data-jini-consent-style]", "script[data-jini-consent-runtime]",
-  "[data-tovu-consent-settings]", "template[data-jini-consent-script]", "template[data-jini-consent-resource]"];
+const CONSENT_SELECTORS = ["#jini-consent", "#jini-consent-config", "style[data-jini-consent-style]", 'script[src^="/_consent/"]',
+  "a.tovu-consent-settings[data-consent-open]"];
 
 /** Assert what a site that never chose serves: no consent markup at all, because the banner is off
  * by default (owner, 2026-11-02). Returns the same shape as {@link assertConsentBannerPage} so page

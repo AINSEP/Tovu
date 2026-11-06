@@ -19,6 +19,15 @@ test('managed document constructs contribution slots after body asset collection
 test('ordinary declared assets use normal script delivery without a consent runtime', async () => {
   const html = await renderSite({ theme: null, route: 'home', siteTitle: 'Assets', posts: [], scripts: [{ src: '/menu.js' }, { src: 'https://example.com/pixel.js', consent: ['analytics'] }] });
   assert.ok(html.includes('<script data-jini-declared-script src="/menu.js" defer></script>'));
-  assert.ok(html.includes('<script data-jini-declared-script src="https://example.com/pixel.js" defer></script>'));
+  assert.ok(!html.includes('<script data-jini-declared-script src="https://example.com/pixel.js" defer></script>'));
   assert.ok(!html.includes('/_consent'));
+});
+
+
+test('without the consent construction hook only declarations without consent run', async () => {
+  const html = await renderSite({ theme: null, route: 'home', siteTitle: 'Assets', posts: [], scripts: [
+    { src: '/plain.js' }, { src: '/declared.js', consent: ['analytics'] }, { src: '/necessary.js', consent: ['necessary'] },
+  ] });
+  assert.match(html, /src="\/plain.js"/);
+  assert.doesNotMatch(html, /src="\/(?:declared|necessary).js"/);
 });

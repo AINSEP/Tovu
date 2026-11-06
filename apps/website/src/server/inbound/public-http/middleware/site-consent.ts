@@ -43,10 +43,10 @@ export function createPrivacyPageCheck({ deps }: { deps: Pick<RouteDeps, "postRe
 }
 
 /** The site's live consent policy: the published revision, else the legacy settings. Publication is the only source for public context and server analytics.
- * @param optional.cssBlocks false for the cookie-consent engine, which drops a bad CSS rule alone.
+ * The cookie-consent engine drops a bad CSS rule alone.
  * @throws when the published revision fails validation (callers fail closed).
  * @complexity O(1): one store read, plus one settings read before the first publication. */
-export async function readSiteConsentPolicy({ deps }: { deps: RouteDeps }, { trustedRegion = false, cssBlocks = false }: { trustedRegion?: boolean; cssBlocks?: boolean } = {}): Promise<ConsentConfig> {
+export async function readSiteConsentPolicy({ deps }: { deps: RouteDeps }, _optional = {}): Promise<ConsentConfig> {
   await deps.siteConsentReady;
   const revision = await deps.consentStore?.readPublished({});
   // An empty owner Custom CSS gets Tovu's default banner style (owner, 2026-10-22).
@@ -57,7 +57,7 @@ export async function readSiteConsentPolicy({ deps }: { deps: RouteDeps }, { tru
   const published = parseConsentConfig({ value: revision.config });
   // An old global opt-out must never hide Reject for EU/UK/unknown visitors.
   const config = withSiteConsentDefaultCss({ config: { ...published, regionMode: published.regionMode === 'opt-out' ? 'auto' : published.regionMode } });
-  if (consentConfigProblems({ config, trustedRegion }, { cssBlocks }).length) throw new Error('Published consent policy is invalid.');
+  if (consentConfigProblems({ config, trustedRegion: false }, { cssBlocks: false }).length) throw new Error('Published consent policy is invalid.');
   // Receipts name an immutable configuration; changing a published revision requires a new choice.
   return { ...config, reopen: "link", policyVersion: `${config.policyVersion}:${revision.id}` };
 }

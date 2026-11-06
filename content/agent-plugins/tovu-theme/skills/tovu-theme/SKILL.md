@@ -101,9 +101,7 @@ path name if a doc and what you see on disk seem to disagree.
 
 # Shared rules (every job)
 
-If a theme uses Alpine's standard build or `new Function` / `eval(`, resolve consent CSP compatibility in this order: first self-host CDN Alpine in the theme (CDN Alpine stays blocked pre-consent even with unsafe-eval enabled); then offer `@alpinejs/csp` for simple expressions; only then offer Cookie Consent → Rules → "Allow dynamic code (unsafe-eval)". Warn that it weakens script protection across the site while optional scripts still wait for consent. Never enable it from detection alone; use the existing draft confirmation and Publish flow.
-
-Analytics, tracking, or marketing scripts you add must carry `data-consent-category="analytics"` or `data-consent-category="marketing"`, including first-party and inline scripts.
+Theme and plugin scripts use the JSON `scripts` declaration. Put `consent: ["analytics"]` or `consent: ["marketing"]` on scripts that need those categories; multiple categories must all be allowed. A script without a `consent` field runs normally. For example: `{"src":"/analytics.js","consent":["analytics"]}`. Do not use HTML category attributes or change page HTML to gate scripts.
 
 The theme preview / demo bar (`.tovu-theme-preview-host`, "Theme preview" with one button per theme) is host-owned: Tovu pins it to the top, centres it and pads the page. Never restyle, re-position, re-centre, re-home or rebuild it, never inject styles into its shadow root, and never override `--tovu-theme-preview-height` / `--tovu-theme-preview-base-padding` or `body` `padding-top` for it. A theme may read `--tovu-theme-preview-height` to offset its own sticky or pinned blocks. If the bar shows a gap or sits left-aligned, that is a Tovu bug: report it, do not patch it in the theme.
 

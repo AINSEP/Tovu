@@ -362,3 +362,14 @@ test('missing declaration collection is an explicit readiness blocker, never a g
   assert.deepEqual(result.declarations, []);
   assert.deepEqual(result.warnings, []);
 });
+
+
+test('a public refresh failure does not undo a successful publication', async t => {
+  const f = consentFixture({ t });
+  const warnings = t.mock.method(console, 'warn', () => undefined);
+  f.ports.published = async () => { throw new Error('refresh unavailable'); };
+  const saved = await f.service.saveDraft({ principalId: 'owner', config: f.config, expectedDraftId: null });
+  assert.deepEqual(await f.service.publish({ principalId: 'owner', draftId: saved.revision.id, expectedPublishedId: null }), { published: true, revisionId: saved.revision.id });
+  assert.equal((await f.store.readPublished({}))!.id, saved.revision.id);
+  assert.match(String(warnings.mock.calls[0]?.arguments[0]), /published.*refresh/i);
+});
