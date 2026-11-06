@@ -458,9 +458,14 @@ function admitHumanSurfaceAnswer({ res }: { res: Response }, _optional = {}): bo
   return false;
 }
 
-async function proxyMcpUiToolCall(req: Request, res: Response, byokSurfaceExchanges: SurfaceExchangeStore, daemon: DaemonCallOptions): Promise<void> {
-  if (!admitHumanSurfaceAnswer({ res })) return;
-  const body = (req.body ?? {}) as { toolName?: unknown; params?: unknown; exchangeId?: unknown; restore?: unknown };
+/** Validate the callback envelope before looking up an exchange or forwarding to the daemon.
+ * @returns The admitted fields, or undefined after sending the validation refusal.
+ * @complexity O(1); tool metadata membership is a set lookup. */
+function readAllowedMcpUiCallback({ body, res }: {
+  body: { toolName?: unknown; params?: unknown; exchangeId?: unknown }; res: Response;
+}, _optional = {}): {
+  toolName: string; params: Record<string, unknown>; exchangeId: unknown;
+} | undefined {
   const toolName = body.toolName;
   if (typeof toolName !== "string" || toolName.length === 0) {
     res.status(400).json({ error: "'toolName' must be a non-empty string", code: "VALIDATION_ERROR" });
@@ -480,6 +485,14 @@ async function proxyMcpUiToolCall(req: Request, res: Response, byokSurfaceExchan
     res.status(403).json({ error: typedAnswer ? MCP_UI_TYPED_ANSWER_REFUSAL : `'${toolName}' is not an MCP-UI-redeemable tool`, code: "TOOL_NOT_ALLOWLISTED" });
     return;
   }
+  return { toolName, params, exchangeId };
+}
+
+async function proxyMcpUiToolCall(req: Request, res: Response, byokSurfaceExchanges: SurfaceExchangeStore, daemon: DaemonCallOptions): Promise<void> {
+  if (!admitHumanSurfaceAnswer({ res })) return;
+  const callback = readAllowedMcpUiCallback({ body: req.body ?? {}, res });
+  if (!callback) return;
+  const { toolName, params, exchangeId } = callback;
   const target = localMcpUiTarget({ exchangeId, params, toolName, res, byokSurfaceExchanges });
   const restoreOnly = (req.body as { restore?: unknown } | undefined)?.restore === true;
   if (!restoreOnly && tryLocalMcpUiDelivery(res, byokSurfaceExchanges, target, params, toolName)) return;
