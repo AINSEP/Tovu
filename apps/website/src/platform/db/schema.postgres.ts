@@ -1226,3 +1226,15 @@ export const workspaces = pgTable("workspaces", {
   slug: text("slug").notNull().unique(),
   createdAt: text("created_at").notNull(),
 });
+
+export const ownerPasskeys = pgTable("owner_passkeys", {
+  workspaceId: text("workspace_id").notNull(),
+  principalId: text("principal_id").notNull(),
+  credentialId: text("credential_id").notNull(),
+  publicKey: text("public_key").notNull(),
+  counter: bigint("counter", { mode: "number" }).notNull(),
+  rpId: text("rp_id").notNull(),
+}, (t) => [
+  primaryKey({ columns: [t.workspaceId, t.credentialId], name: "owner_passkeys_workspace_credential_pk" }),
+  index("idx_owner_passkeys_scope").on(t.workspaceId, t.principalId),
+]);

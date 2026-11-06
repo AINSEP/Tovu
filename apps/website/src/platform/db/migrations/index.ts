@@ -1,3 +1,4 @@
+import { ownerPasskeys } from './0041_owner_passkeys.js';
 import { ownerMfa } from './0040_owner_mfa.js';
 import { ownerRecoveryCodes } from './0039_owner_recovery_codes.js';
 import { newsletterSendingIndex } from "./0038_newsletter_sending_index.js";
@@ -114,6 +115,7 @@ export const CONTENT_MIGRATIONS: readonly MigrationStep[] = [
   newsletterSendingIndex({ checksum: pinned('0038_newsletter_sending_index') }),
   ownerRecoveryCodes({ checksum: pinned('0039_owner_recovery_codes') }),
   ownerMfa({ checksum: pinned('0040_owner_mfa') }),
+  ownerPasskeys({ checksum: pinned('0041_owner_passkeys') }),
 ];
 
 export const CHAT_MIGRATIONS: readonly MigrationStep[] = [
