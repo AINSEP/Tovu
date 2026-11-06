@@ -281,6 +281,14 @@ export function validWebsiteAddress(address: string): boolean {
   }
 }
 
+/** The desktop app's Import page opens a new site's tab with the address already in the URL
+ * (`?liveImport=`); the owner then only presses "Import with the assistant". Same-origin page, read once. */
+function prefilledLiveAddress(): string {
+  if (typeof window === "undefined") return "";
+  const address = new URLSearchParams(window.location.search).get("liveImport") ?? "";
+  return validWebsiteAddress(address) ? address : "";
+}
+
 /** The drafted request the "From a live website" option hands to the assistant. */
 export function liveImportPrompt(address: string): string {
   return `Import the live website at ${address.trim()} into this site with the site-import agent plugin.`;
@@ -367,7 +375,7 @@ export function useSiteImport({ port, t }: { port: SiteTransferPort; t: Translat
   const [savedKeysPassword, setSavedKeysPassword] = useState("");
   const [settingOwner, setSettingOwner] = useState(false);
   const [ownerError, setOwnerError] = useState<string | null>(null);
-  const [liveAddress, setLiveAddress] = useState("");
+  const [liveAddress, setLiveAddress] = useState(prefilledLiveAddress);
   // A 503 on the list means import is off on this host: say why once, above the form, not as a list error.
   const unavailable = unavailableReason(list.error);
 

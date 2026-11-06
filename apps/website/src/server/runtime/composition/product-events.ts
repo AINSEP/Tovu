@@ -32,8 +32,8 @@ type Rules = Readonly<Record<string, readonly string[] | 'boolean' | 'number'>>;
  */
 export const PRODUCT_EVENTS: Readonly<Record<string, Rules>> = Object.freeze(Object.fromEntries(Object.entries({
   app_started: { launchMode: ['fresh', 'update'] },
-  desktop_screen_viewed: { screen: ['home', 'projects', 'templates', 'marketplace', 'tasks', 'generation', 'activity', 'updates', 'deploy', 'diagnostics', 'api-keys', 'settings', 'account', 'appearance', 'create_website'] },
-  desktop_action: { action: ['create_website', 'add_existing_website', 'open_admin', 'open_preview', 'start_site', 'stop_site', 'open_settings', 'check_updates', 'open_chat'] },
+  desktop_screen_viewed: { screen: ['home', 'projects', 'templates', 'marketplace', 'tasks', 'generation', 'activity', 'updates', 'deploy', 'diagnostics', 'api-keys', 'settings', 'account', 'appearance', 'create_website', 'import_website'] },
+  desktop_action: { action: ['create_website', 'add_existing_website', 'import_website', 'open_admin', 'open_preview', 'start_site', 'stop_site', 'open_settings', 'check_updates', 'open_chat'] },
   admin_pageview: {},
   assistant_run_started: { chatSurface },
   assistant_run_finished: { chatSurface, outcome: runOutcome },

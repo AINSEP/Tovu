@@ -56,7 +56,7 @@ test('T18: a poll started before creation cannot erase the new site and its toke
   await settle();
   assert.deepEqual(hook.current().projects.map(project => project.id), ['a']);
   act(() => tick()); // The snapshot taken before creation is still in flight.
-  let creating!: Promise<void>;
+  let creating!: Promise<unknown>;
   act(() => { creating = hook.current().handleCreate(INPUT); });
   await act(async () => { pendingCreate.resolve(CREATED); await creating; });
   assert.equal(hook.current().lastCreated, CREATED, 'the successful create exposes its token outcome');

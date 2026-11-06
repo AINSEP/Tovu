@@ -6,11 +6,11 @@ import { createdTokensNote } from '../use-create-site-plugin-tokens.hooks.js';
 export function MainContent({
   activeId,
   isCreating,
+  isImporting,
   lastCreated,
   projectsLoading,
   loadError,
   rescanError,
-  addError,
   projects,
   activeLabel,
   activeDescription,
@@ -21,11 +21,11 @@ export function MainContent({
 }: {
   activeId: RunnerSectionId;
   isCreating: boolean;
+  isImporting: boolean;
   lastCreated: CreatedSiteRecord | null;
   projectsLoading: boolean;
   loadError: string | null;
   rescanError: string | null;
-  addError: string | null;
   projects: readonly SiteRecord[];
   activeLabel: string;
   activeDescription: string;
@@ -42,7 +42,8 @@ export function MainContent({
   // grid below would show through beneath the (visible) form host, and `MainHeader` still needs
   // `isCreating` to swap its title, so the flag stays threaded through even though this component
   // no longer acts on it beyond staying out of the way.
-  if (isCreating) {
+  // The Import page is the same kind of sibling layer (`App` mounts it), so the grid stays out of its way.
+  if (isCreating || isImporting) {
     return null;
   }
   return (
@@ -71,7 +72,6 @@ export function MainContent({
         projectsLoading={projectsLoading}
         loadError={loadError}
         rescanError={rescanError}
-        addError={addError}
         projects={projects}
         onOpen={onOpenProject}
         onDelete={onDeleteProject}
@@ -85,7 +85,6 @@ function ProjectsBody({
   projectsLoading,
   loadError,
   rescanError,
-  addError,
   projects,
   onOpen,
   onDelete,
@@ -101,16 +100,6 @@ function ProjectsBody({
    * more of them.
    */
   rescanError: string | null;
-  /**
-   * A refused "Add Tovu Website", shown for the same reason `rescanError` is and never folded into
-   * `loadError`: the grid on screen is still entirely real and openable, so replacing it with an
-   * error would hide working websites in order to report that ONE folder was not one.
-   *
-   * Main's own sentence, verbatim — it names the fix ("use Create website to make a new site in an
-   * empty folder", "if your site lives in a subfolder, point at that subfolder instead"). See
-   * `use-add-site.hooks.ts` on why paraphrasing it here would be a regression.
-   */
-  addError: string | null;
   projects: readonly SiteRecord[];
   onOpen: (id: string) => void;
   onDelete: (id: string) => Promise<void>;
@@ -133,7 +122,6 @@ function ProjectsBody({
   return (
     <>
       {rescanError && <p className="empty__body">{rescanError}</p>}
-      {addError && <p className="projects-feedback" role="status">{addError}</p>}
       {projects.length === 0 ? <NoWebsitesYet /> : <SiteGrid projects={projects} onOpen={onOpen} onDelete={onDelete} onRenamed={onSiteUpdated} onSiteUpdated={onSiteUpdated} />}
     </>
   );
@@ -146,7 +134,7 @@ function ProjectsBody({
  * also deleted the only thing an operator with no websites used to see — without this, a first
  * launch renders an empty page with no explanation and no visible way forward.
  *
- * It names the three header buttons rather than duplicating them as controls. A fourth button here
+ * It names the header buttons rather than duplicating them as controls. A fourth button here
  * would be the same mistake the dashed tile was: a second control firing an action the header
  * already owns, which is how the two got out of step in the first place.
  */
@@ -154,8 +142,8 @@ function NoWebsitesYet() {
   return (
     <div className="empty">
       <p className="empty__body">
-        No websites yet. Use <strong>Create website</strong> to start a new one, <strong>Add Tovu Website</strong> to
-        point at a site you already have, or <strong>Rescan</strong> to look for sites on this computer.
+        No websites yet. Use <strong>Create website</strong> to start a new one, <strong>Import</strong> to bring in a
+        site you already have, or <strong>Rescan</strong> to look for sites on this computer.
       </p>
     </div>
   );

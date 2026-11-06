@@ -17,6 +17,7 @@ export function MainArea({
   showSitesHome,
   activeId,
   isCreating,
+  isImporting,
   active,
   lastCreated,
   projectsLoading,
@@ -29,10 +30,7 @@ export function MainArea({
   onRescan,
   rescanning,
   rescanError,
-  onAddSite,
-  adding,
-  addError,
-  onImportSite,
+  onImport,
   useFolders,
 }: {
   appearanceOpen: boolean;
@@ -40,6 +38,7 @@ export function MainArea({
   showSitesHome: boolean;
   activeId: RunnerSectionId;
   isCreating: boolean;
+  isImporting: boolean;
   active: RunnerSection | undefined;
   lastCreated: CreatedSiteRecord | null;
   projectsLoading: boolean;
@@ -53,11 +52,8 @@ export function MainArea({
   onRescan: () => Promise<void>;
   rescanning: boolean;
   rescanError: string | null;
-  onAddSite: () => Promise<void>;
-  adding: boolean;
-  addError: string | null;
-  /** Absent when there is no site to import into, which hides the button. */
-  onImportSite?: () => void;
+  /** Opens the Import page. */
+  onImport: () => void;
   /** The header's `SitesFolders` settings hook — see `App`'s own `sitesSettings`. */
   useFolders?: typeof useSiteFolders;
 }) {
@@ -70,23 +66,22 @@ export function MainArea({
       <MainHeader
         activeId={activeId}
         isCreating={isCreating}
+        isImporting={isImporting}
         activeLabel={active?.label ?? 'Runner'}
         onCreateWebsite={onCreateWebsite}
         onRescan={onRescan}
         rescanning={rescanning}
-        onAddSite={onAddSite}
-        adding={adding}
-        onImportSite={onImportSite}
+        onImport={onImport}
         useFolders={useFolders}
       />
       <MainContent
         activeId={activeId}
         isCreating={isCreating}
+        isImporting={isImporting}
         lastCreated={lastCreated}
         projectsLoading={projectsLoading}
         loadError={loadError}
         rescanError={rescanError}
-        addError={addError}
         projects={projects}
         activeLabel={active?.label ?? ''}
         activeDescription={active?.agentDescription ?? ''}

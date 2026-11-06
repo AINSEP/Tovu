@@ -65,14 +65,18 @@ test('App: a stopped site\'s tab offers Start and shows the boot wait with the b
   assert.equal(app.container.querySelector('.workspace__idle button')?.hasAttribute('disabled'), true, 'one start at a time');
 });
 
-test('App: an empty Projects screen explains the three header actions, and the header buttons reach the bridge', async (t) => {
+test('App: an empty Projects screen explains the header actions, and the header buttons reach the bridge', async (t) => {
   const app = await renderApp(t);
   assert.match(app.text(), /No websites yet\. Use Create website/);
   assert.equal(app.container.querySelector('.topnav__version')?.textContent, '1.2.3');
-  assert.equal(app.byLabel('Import site'), null, 'no site, nothing to import into');
+  assert.ok(app.byText('Import'), 'Import is there with no site at all');
   await app.click(app.byLabel('Rescan'));
-  await app.click(app.byText('Add Tovu Website'));
+  await app.click(app.byText('Import'));
+  assert.equal(app.container.querySelector('.main__title')?.textContent, 'Import a website');
+  await app.click(app.byText('Choose folder…'));
   assert.deepEqual(app.calls, ['rescan', 'add']);
+  assert.ok(app.all('[role="tab"]').some((tab) => tab.getAttribute('aria-selected') === 'true' && tab.textContent !== 'Websites'), 'the added site opens in its own tab');
+  await app.click(app.byLabel('Websites'));
   await app.click(app.all('button').find((b) => b.textContent?.includes('Create website')));
   assert.equal(app.container.querySelector('.main__title')?.textContent, 'Create a website');
   assert.equal(app.container.querySelector('.create-website-host')?.getAttribute('aria-hidden'), 'false');
@@ -94,10 +98,12 @@ test('App: loading, a failed list, a failed rescan and a refused add each read a
     addSite: () => Promise.reject(new Error('That folder is not a Tovu site.')),
   });
   await refused.click(refused.byLabel('Rescan'));
-  await refused.click(refused.byText('Add Tovu Website'));
   assert.match(refused.text(), /scan root unreadable/);
-  assert.equal(refused.container.querySelector('.projects-feedback')?.textContent?.length !== 0, true);
-  assert.ok(refused.container.querySelector('.site-grid, .sitegrid, [class*="grid"]'), 'the grid stays on screen under both errors');
+  await refused.click(refused.byText('Import'));
+  await refused.click(refused.byText('Choose folder…'));
+  assert.match(refused.container.querySelector('.onboarding__error')?.textContent ?? '', /That folder is not a Tovu site\./);
+  assert.ok(refused.byText('Copy details'), 'the details can be copied');
+  assert.equal(refused.container.querySelector('.main__title')?.textContent, 'Import a website', 'the person stays on the page');
 });
 
 test('App: the nav badges running sites, inert links do nothing, and an agent navigate shows the unbuilt section', async (t) => {
@@ -113,10 +119,6 @@ test('App: the nav badges running sites, inert links do nothing, and an agent na
   assert.match(app.text(), /isn’t built yet/);
   assert.equal(app.byLabel('Rescan'), null, 'the Projects tools belong to Projects only');
   await app.click(app.byLabel('Websites'));
-  await app.click(app.byLabel('Import site'));
-  assert.ok(app.all('[role="tab"]').some((tab) => tab.textContent?.includes('Site a') && tab.getAttribute('aria-selected') === 'true'),
-    'Import site opens the running site\'s own tab');
-  assert.match(app.container.querySelector('webview')?.getAttribute('src') ?? '', /\/admin\/.*import/, 'on its Import page');
 });
 
 test('App: closing a running site\'s tab asks; Keep running leaves it running, Stop stops it, and a stopped site just closes', async (t) => {
@@ -349,7 +351,8 @@ test('App: Find opens its bar, Enter and Shift+Enter step through matches, and E
 test('App: re-adding a tracked site opens its tab with the notice, and an overflowing strip shows scroll arrows', async (t) => {
   const tracked = site('a');
   const app = await renderApp(t, { listSites: async () => [tracked, site('b')], addSite: async () => ({ ...tracked, alreadyTracked: true }) });
-  await app.click(app.byText('Add Tovu Website'));
+  await app.click(app.byText('Import'));
+  await app.click(app.byText('Choose folder…'));
   assert.match(app.container.querySelector('main > .projects-feedback')?.textContent ?? '', /Site a is already in your list\./);
   const strip = app.container.querySelector<HTMLElement>('[role="tablist"]')!;
   const scrolled: number[] = [];
@@ -362,4 +365,16 @@ test('App: re-adding a tracked site opens its tab with the notice, and an overfl
   await app.click(app.byLabel('Scroll tabs right'));
   assert.deepEqual(scrolled, [-200, 200]);
   app.key(strip, { key: 'ArrowRight' });
+});
+
+test('App: Import never opens or starts a site, whether sites exist or not', async (t) => {
+  const starts: string[] = [];
+  const app = await renderApp(t, {
+    listSites: async () => [site('a', { status: 'running', port: 4100 }), site('b')],
+    startSite: async (id: string) => { starts.push(id); return site(id, { status: 'running', port: 4101 }); },
+  });
+  await app.click(app.byText('Import'));
+  assert.equal(app.all('[role="tab"]').length, 1, 'only the Websites tab; no site tab was opened');
+  assert.equal(app.container.querySelector('webview'), null, 'no site guest was loaded');
+  assert.deepEqual(starts, [], 'no site was started');
 });
