@@ -245,7 +245,7 @@ function gatedConsentAdapter({ slot }: { slot: ProviderSlot }, _optional = {}): 
 function formRegistryFor({ slots, testProbe }: { slots: readonly ProviderSlot[]; testProbe: ReturnType<typeof createTelemetryTestProbe> }): FormCollectionRegistry {
   const registry = createFormCollectionRegistry({});
   for (const slot of slots.filter(slot => slot.contract === "form_collection")) {
-    registry.contribute({ pluginId: slot.pluginId, definition: { id: slot.id, provider: gatedPort({ slot, contract: slot.contract, testProbe }) as FormCollectionProvider } });
+    registry.contribute({ pluginId: slot.pluginId, definition: { id: slot.id, provider: gatedPort({ slot, contract: "form_collection", testProbe }) as FormCollectionProvider } });
   }
   return registry;
 }
