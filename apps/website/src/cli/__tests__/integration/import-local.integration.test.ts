@@ -29,7 +29,7 @@ test("a .tovu.zip becomes a new registered site with no server and leaves no sta
   assert.ok(result.warnings.some(warning => /kept off|switched off|quarantine|plugin/i.test(warning)), JSON.stringify(result.warnings));
 });
 
-test("the default owner password is a strong one nobody chose, and never reaches stdout", async t => {
+test("with no injected password the command still finishes, and its output carries no password", async t => {
   const h = await importFixture(t);
   const file = path.join(h.root, "portable.tovu.zip");
   fs.writeFileSync(file, h.archive);
@@ -43,7 +43,9 @@ test("a damaged archive makes no site, keeps no staged copy, and says so", async
   const h = await importFixture(t);
   const file = path.join(h.root, "broken.tovu.zip");
   fs.writeFileSync(file, Buffer.from("this is not a zip"));
-  await assert.rejects(runImportLocalCommand({}, { workspace: h.workspace, readRequest: async () => JSON.stringify({ file }), writeStdout: () => {} }));
+  // Said in plain words for a person, with no library jargon from the zip reader.
+  await assert.rejects(runImportLocalCommand({}, { workspace: h.workspace, readRequest: async () => JSON.stringify({ file }), writeStdout: () => {} }),
+    { name: "ValidationError", message: "That file is not a usable .tovu.zip. It is damaged, cut short, or not a zip file. No website was created." });
   assert.deepEqual(h.workspace.registry({}).list({}), []);
   assert.deepEqual(fs.readdirSync(path.join(h.root, "sites")).filter(name => !name.startsWith(".")), []);
   assert.deepEqual(stagedLeftovers(h.root), []);

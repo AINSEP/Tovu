@@ -12,6 +12,8 @@ import { composeSiteImportBackend } from "#src/server/runtime/composition/site-i
 const LOCAL_PRINCIPAL = "local-operator";
 const LOCAL_WORKSPACE = "local";
 
+const NOT_A_ZIP = "That file is not a usable .tovu.zip. It is damaged, cut short, or not a zip file. No website was created.";
+
 export interface ImportLocalResult { dir: string; name: string; siteId: string; warnings: readonly string[] }
 interface ImportLocalRequest { file?: string; url?: string; displayName?: string }
 
@@ -104,6 +106,8 @@ async function inPlainWords<T>(run: () => Promise<T>): Promise<T> {
   try { return await run(); }
   catch (error) {
     if (error instanceof SiteShareRefusal) throw new ValidationError(error.message);
+    // The zip reader's own sentence for a file that is not a zip; the person gets words they can act on.
+    if (error instanceof Error && /end of central directory|not a zip file/i.test(error.message)) throw new ValidationError(NOT_A_ZIP);
     throw error;
   }
 }

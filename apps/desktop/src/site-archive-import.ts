@@ -57,7 +57,8 @@ export function importSiteArchive(
     child.once("error", (error) => { clearTimeout(timer); reject(error); });
     child.once("exit", (code) => {
       clearTimeout(timer);
-      if (code === 0) { resolve(parseResult({ stdout })); return; }
+      // A throw here would escape the event emitter and leave this promise pending forever.
+      if (code === 0) { try { resolve(parseResult({ stdout })); } catch (error) { reject(error); } return; }
       reject(new Error(failureMessage({ stderr, code, timedOut })));
     });
   });
