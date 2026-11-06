@@ -1,5 +1,5 @@
-import { applyApprovalPolicy, isNonArrayRecord, type ApprovalContextPort, type ToolRegistration, type ToolExecutionContext } from '@jini-ai/core';
-import { requireHumanConfirm, notConfirmedResult } from '../contracts/core/human-confirm.js';
+import { applyApprovalPolicy, isNonArrayRecord, type ApprovalContextPort, type ToolRegistration, type ToolExecutionContext, type ToolExecutionOptions } from '@jini-ai/core';
+import { requireHumanConfirm, notConfirmedResult, type HumanConfirmSpec, type HumanConfirmOutcome } from '../contracts/core/human-confirm.js';
 import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { TOOL_APPROVAL_POLICY, ASSISTANT_EXECUTION_APPROVAL_SETTINGS, type ToolApprovalClass, type ToolApprovalPolicy } from '../contracts/headless/index.js';
 import { approvalClassAsks, directPageAction, toolApprovalPolicyFor } from './assistant-tool-approval-policy.js';
@@ -27,6 +27,14 @@ const RULE_CLASSIFIERS: Record<NonNullable<ToolApprovalPolicy['rule']>, (require
   'page-control': ({ toolId, input }, _options = {}) => directPageAction({ capabilityId: toolId, input }) ? 'edit' : 'delete',
   'http-method': ({ args }, _options = {}) => typeof args.method === 'string' && args.method.toUpperCase() === 'DELETE' ? 'delete' : 'edit',
 };
+
+/** Bind the host confirmation transport once for native policy and domain-owned approval plans.
+ * The shared owner retains principal binding, admission rechecks and fail-closed missing-channel behavior.
+ * @complexity O(1) binding; confirmation work is owned by requireHumanConfirm. */
+export function createToolHumanConfirmer({ surfaces }: { surfaces: AssistantSurfaceDeps }, _optional = {}) {
+  return ({ ctx, description }: { ctx: ToolExecutionContext; description: HumanConfirmSpec }, options: ToolExecutionOptions = {}): Promise<HumanConfirmOutcome> =>
+    requireHumanConfirm({ ctx, surfaces, spec: description }, options);
+}
 
 export function applyToolApprovalPolicy(
   { registration, surfaces }: { registration: ToolRegistration; surfaces: AssistantSurfaceDeps },
@@ -65,7 +73,7 @@ export function applyToolApprovalPolicy(
       confirmLabel: presentation.confirmLabel, cancelLabel: approvalText({ locale, key: 'Cancel' }),
       };
     },
-    askHuman: ({ ctx, description }, options) => requireHumanConfirm({ ctx, surfaces, spec: description }, options),
+    askHuman: createToolHumanConfirmer({ surfaces }),
     notConfirmed: ({ reason }) => ({ executed: false, ...notConfirmedResult({ confirmed: false, reason }) }),
     // Permissions and entity/version checks still run inside the original domain handler.
   }, { ...(context ? { context } : {}) });

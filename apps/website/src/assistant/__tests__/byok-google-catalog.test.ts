@@ -159,7 +159,7 @@ test("EVERY wired tool's outbound Gemini schema is structurally valid — the wh
 
   // Required first-party inventory, independent of the installer's returned list.
   assert.deepEqual(contributions.contributors.list({}).map(({ domain }) => domain).sort(), [
-    "agent-plugin-connect", "agent-plugin-search", "agent-plugins-install", "analytics", "assistant-history", "change-sets", "comments", "consent",
+    "agent-plugin-connect", "agent-plugin-search", "agent-plugins-install", "analytics", "assistant-history", "change-sets", "comments", "commerce", "consent",
     "content-duplication", "content-stats", "content-types", "credential-copy", "credential-save", "custom-credentials",
     "database", "database-transfer", "deploy-ops", "deployments", "domain-dns", "email-templates", "entries",
     "external-mcp", "external-mcp-operations", "files-copy", "forms", "fs-files", "identity",

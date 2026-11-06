@@ -17,6 +17,7 @@ import { toolGapsDerivedRisk } from '../tool-gaps-tool.js';
 import { CROSS_SITE_READ_DOMAINS, CROSS_SITE_EXCLUDED, CROSS_SITE_EXCLUDED_TOOLS, CrossSiteUnavailable } from '#src/server/runtime/composition/peer-site-reads';
 import { peerFixture } from '#src/server/runtime/composition/__tests__/peer-site-reads.fixture';
 import { sitesReadAgentToolCatalog } from '#src/features/sites/agent-tools';
+import { createFormCollectionRegistry } from '@jini-ai/cms/forms';
 
 type Schema = { type?: string; properties?: Record<string, Schema>; required?: string[]; enum?: unknown[]; const?: unknown;
   minimum?: number; minLength?: number; minItems?: number; items?: Schema; format?: string; anyOf?: Schema[]; oneOf?: Schema[] };
@@ -149,4 +150,22 @@ test('reviewed baseline pins registry guidance and scoped schema; hermetic roots
     const original = originalById.get(tool.descriptor.id)!;
     assert.deepEqual(tool.descriptor.inputSchema, original.descriptor.inputSchema, tool.descriptor.id);
   }
+});
+
+
+test('form provider inventory stays available on the active site without opening a peer', async t => {
+  const f = await peerFixture(t);
+  const providers = createFormCollectionRegistry({});
+  providers.contribute({ pluginId: 'active_provider', definition: { id: 'active_provider', provider: {
+    describe: () => ({ label: 'Active provider', fields: [], answers: 'Active inbox', validation: 'Remote validation', frameOrigins: [] }),
+    plan: () => ({ kind: 'unavailable' as const, code: 'provider_unavailable' as const, message: 'Fixture only' }),
+  } } });
+  f.deps.formCollectionProviders = () => providers;
+  const before = f.contentHandles.length;
+  const result = await f.call('forms_list_providers', {}) as { providers: { id: string }[] };
+  assert.ok(result.providers.some(provider => provider.id === 'active_provider'));
+  assert.equal(f.contentHandles.length, before);
+  assert.equal(f.audits.length, 0);
+  await assert.rejects(f.call('forms_list_providers', { site: 'B' }), { message: "forms_list_providers can't read another site yet." });
+  assert.equal(f.contentHandles.length, before);
 });
