@@ -1237,7 +1237,7 @@ export type TemplateRenderDeps = Pick<
   // C5 (collections plan, 2026-09-23) — `resolveCollectionListsForRender`'s content-type lookup for
   // a `{"type":"collection"}` marker's `typeKey`, threaded through `finishStaticTierDocument`.
   | "contentTypeRepo"
-> & Partial<Pick<RouteDeps, "taxonomyRepo" | "termRepo" | "commentsProviders" | "commentsCursor" | "pluginExports" | "pluginExportRender">> & {
+> & Partial<Pick<RouteDeps, "taxonomyRepo" | "termRepo" | "commentsProviders" | "commentsCursor" | "documentAssets" | "declaredScripts" | "pluginExports" | "pluginExportRender">> & {
   /** A see-more batch request (`<page>/_more/<key>/<after>`): that one listing renders from `after`. */
   readonly listingBatch?: ListingBatchRequest;
   /** A numbered listing page request (`<page>/page/<n>`, Bug C): `paged` post-previews render page `n`. */
@@ -2185,6 +2185,10 @@ export async function renderGenericPostPage(
     resolveAssignedTermsForRender(deps, post),
   ]);
   const html = await renderSite({
+    renderAssets: deps.documentAssets,
+    transformBody: ({ html }) => renderCommentsMarkers({ html, providers: deps.commentsProviders, siteId: deps.workspaceId,
+      entry: { id: post.id, slug: post.slug, title: post.title, status: post.status, canonicalUrl: postPublicPath({ slug: post.slug }) },
+    }, { cursor: deps.commentsCursor, scripts: ({ scripts }) => deps.declaredScripts?.push(...scripts) }),
     theme,
     route: "post",
     siteTitle,
@@ -2199,9 +2203,7 @@ export async function renderGenericPostPage(
     extraHead,
     siteAssistantEnabled,
   });
-  return renderCommentsMarkers({ html, providers: deps.commentsProviders, siteId: deps.workspaceId,
-    entry: { id: post.id, slug: post.slug, title: post.title, status: post.status, canonicalUrl: postPublicPath({ slug: post.slug }) },
-  }, { cursor: deps.commentsCursor });
+  return html;
 }
 
 /**
@@ -2735,12 +2737,15 @@ function withListingBatch<T extends RouteDeps>(deps: T, req: Request): T & Pick<
   const listingBatch = listingBatchRequests.get(req);
   const listingPage = listingPageRequests.get(req)?.page;
   const pluginExportRender = pluginExportSession({ deps, req });
+  const declaredScripts: import('@jini-ai/cookie-consent').DeclaredScript[] = [];
+  const renderAssets = req.res?.locals?.siteConsentAssets as RouteDeps['documentAssets'];
+  const documentAssets: RouteDeps['documentAssets'] = renderAssets ? ({ scripts }) => renderAssets({ scripts: [...scripts, ...declaredScripts] }) : undefined;
   const commentsCursor = typeof req.query?.commentCursor === 'string' ? req.query.commentCursor : undefined;
   // A static export/static-publish has no `/api/site/comments` to post to, and a snapshot would keep a
   // comment public after it is trashed: like the assistant bubble, it ships an empty comments surface.
   // (`req.header` is absent only on the route tests' direct handler calls.)
-  if (typeof req.header === 'function' && isStaticExportRequest(req)) return { ...deps, pluginExportRender, listingBatch, listingPage, commentsCursor, commentsProviders: undefined };
-  return { ...deps, pluginExportRender, listingBatch, listingPage, commentsCursor };
+  if (typeof req.header === 'function' && isStaticExportRequest(req)) return { ...deps, pluginExportRender, listingBatch, listingPage, commentsCursor, declaredScripts, documentAssets, commentsProviders: undefined };
+  return { ...deps, pluginExportRender, listingBatch, listingPage, commentsCursor, declaredScripts, documentAssets };
 }
 
 /** A batch request whose page has no such listing: restore the batch URL and fall through to the 404.
@@ -2844,6 +2849,7 @@ async function serveHomePage({ req, res, deps }: { req: Request; res: Response; 
   }
 
   const html = await renderSite({
+    renderAssets: deps.documentAssets,
     theme,
     route: "home",
     siteTitle,

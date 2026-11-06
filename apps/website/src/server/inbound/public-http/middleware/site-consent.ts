@@ -84,18 +84,18 @@ function reportConsentError({ operation }: { operation: "read" | "save"; error: 
  * @complexity O(1): one store read, plus one settings read before the first publication. */
 export async function readSiteConsentPolicy({ deps }: { deps: RouteDeps }, { trustedRegion = false, cssBlocks = true }: { trustedRegion?: boolean; cssBlocks?: boolean } = {}): Promise<ConsentConfig> {
   await deps.siteConsentReady;
-  const state = await deps.consentStore?.read({});
+  const revision = await deps.consentStore?.readPublished({});
   // An empty owner Custom CSS gets Tovu's default banner style (owner, 2026-10-22).
-  if (!state?.published) {
+  if (!revision) {
     const legacy = await createSiteConsentConfig({ settingsRepo: deps.settingsRepo, workspaceId: deps.workspaceId }).get({});
     return withSiteConsentDefaultCss({ config: { ...legacy, regionMode: legacy.regionMode === 'opt-out' ? 'auto' : legacy.regionMode } });
   }
-  const published = parseConsentConfig({ value: state.published.config });
+  const published = parseConsentConfig({ value: revision.config });
   // An old global opt-out must never hide Reject for EU/UK/unknown visitors.
   const config = withSiteConsentDefaultCss({ config: { ...published, regionMode: published.regionMode === 'opt-out' ? 'auto' : published.regionMode } });
   if (consentConfigProblems({ config, trustedRegion }, { cssBlocks }).length) throw new Error('Published consent policy is invalid.');
   // Receipts name an immutable configuration; changing a published revision requires a new choice.
-  return { ...config, reopen: "link", policyVersion: `${config.policyVersion}:${state.published.id}` };
+  return { ...config, reopen: "link", policyVersion: `${config.policyVersion}:${revision.id}` };
 }
 
 /** Every host effect the engine needs, built from this site's composition. @complexity O(1). */

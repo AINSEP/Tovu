@@ -170,7 +170,7 @@ test('live conditional requests cannot reuse ungated HTML unless consent is off'
   const published = state.published;
   const disabledStore = { ...f.store, read: async () => ({ ...state, published: {
     ...published, config: { ...published.config, enabled: false },
-  } }) };
+  } }), readPublished: async () => ({ ...published, config: { ...published.config, enabled: false } }) };
   f.deps.consentStore = disabledStore;
   const app = express(); applySiteConsent({ app, deps: f.deps });
   const original = '<html><head></head><body><script data-consent-category="analytics">window.optional=1</script></body></html>';
@@ -191,7 +191,7 @@ test('live conditional requests cannot reuse ungated HTML unless consent is off'
   ];
   for (const policy of ['off', 'on', 'unavailable'] as const) {
     f.deps.consentStore = policy === 'off' ? disabledStore : policy === 'on' ? f.store : {
-      ...f.store, read: async () => { throw new Error('policy unavailable'); },
+      ...f.store, read: async () => { throw new Error('policy unavailable'); }, readPublished: async () => { throw new Error('policy unavailable'); },
     };
     for (const method of ['GET', 'HEAD']) {
       for (const headers of validators) {
@@ -239,7 +239,7 @@ test('admin and API requests retain both conditional headers while public pages 
 
 test('bootstrap or policy-store failure never returns ungated active HTML', async t => {
   const f = await publicFixture({ t });
-  const failing = { ...f.store, read: async () => { throw new Error('sensitive persisted location'); } };
+  const failing = { ...f.store, read: async () => { throw new Error('sensitive persisted location'); }, readPublished: async () => { throw new Error('sensitive persisted location'); } };
   f.deps.consentStore = failing;
   const app = express(); applySiteConsent({ app, deps: f.deps });
   app.get('/', (_req, res) => res.type('html').send('<html><body><script data-consent-category="analytics">window.leaked=1</script></body></html>'));
@@ -263,7 +263,7 @@ test('cached OFF cannot bypass consent after publishing ON when the next policy 
   assert.equal(await (await fetch(base)).text(), original);
   const on = await f.service.saveDraft({ principalId: 'owner', config: { ...f.config, regionMode: 'auto' }, expectedDraftId: off.revision.id });
   await f.service.publish({ principalId: 'owner', draftId: on.revision.id, expectedPublishedId: off.revision.id });
-  deps.consentStore = { ...f.store, read: async () => { throw new Error('sensitive policy storage path'); } };
+  deps.consentStore = { ...f.store, read: async () => { throw new Error('sensitive policy storage path'); }, readPublished: async () => { throw new Error('sensitive policy storage path'); } };
   const response = await fetch(base);
   const html = await response.text();
   assert.equal(response.status, 200);
@@ -358,7 +358,7 @@ test('defaults show no banner live or exported (owner 2026-11-02); owner or publ
   const siteConsentReady = new Promise<void>(resolve => { release = resolve; });
   let published: { id: string; config: unknown } | null = null;
   const deps = { workspaceId: 'site-a', settingsRepo, clock, siteConsentReady,
-    siteBinding: { dir: '/unused-consent-test' }, consentStore: { read: async () => published ? { published } : null } } as never;
+    siteBinding: { dir: '/unused-consent-test' }, consentStore: { read: async () => published ? { published } : null, readPublished: async () => published } } as never;
   const ports = createSiteConsentPorts({ deps });
   let settled = false;
   const config = ports.config.get({}).then(value => { settled = true; return value; });
@@ -396,7 +396,7 @@ test('consent readiness rejection propagates before any policy read', async () =
   const failure = new Error('privacy creation failed');
   const siteConsentReady = Promise.reject(failure);
   const deps = { siteConsentReady, siteBinding: { dir: '/unused-consent-test' }, clock: { nowMs: () => 0 },
-    consentStore: { read: async () => assert.fail('must wait for defaults') } } as never;
+    consentStore: { read: async () => assert.fail('must wait for defaults'), readPublished: async () => assert.fail('must wait for defaults') } } as never;
   await assert.rejects(createSiteConsentPorts({ deps }).config.get({}), error => error === failure);
 });
 
@@ -406,7 +406,7 @@ test('a published policy with an empty Custom CSS is served with the default sty
   assert.ok(state?.published);
   const published = state.published;
   const serve = async (customCss: string) => {
-    f.deps.consentStore = { ...f.store, read: async () => ({ ...state, published: { ...published, config: { ...published.config, customCss } } }) };
+    f.deps.consentStore = { ...f.store, read: async () => ({ ...state, published: { ...published, config: { ...published.config, customCss } } }), readPublished: async () => ({ ...published, config: { ...published.config, customCss } }) };
     return (await createSiteConsentPorts({ deps: f.deps }).config.get({})).customCss;
   };
   assert.equal(await serve(''), SITE_CONSENT_DEFAULT_CSS);
@@ -427,7 +427,7 @@ for (const scenario of [
   const state = await f.store.read({});
   assert.ok(state?.published);
   const published = state.published;
-  f.deps.consentStore = { ...f.store, read: async () => ({ ...state, published: { ...published, config: { ...published.config, regionMode: 'auto' } } }) };
+  f.deps.consentStore = { ...f.store, read: async () => ({ ...state, published: { ...published, config: { ...published.config, regionMode: 'auto' } } }), readPublished: async () => ({ ...published, config: { ...published.config, regionMode: 'auto' } }) };
   assert.equal((await createSiteConsentPorts({ deps: f.deps }).config.get({})).regionMode, 'auto');
   const trusted = await createSiteConsentPorts({ deps: f.deps }, { trustedRegionHeader: 'x-region' }).config.get({});
   assert.equal(trusted.regionMode, 'auto');
@@ -494,7 +494,7 @@ test('cached published unsafe-eval and the host link survive a later configurati
   app.get('/', (_req, res) => res.type('html').send('<html><head></head><body>Page</body></html>'));
   const base = await startTestServer(app, t);
   for (const failRead of [false, true]) {
-    if (failRead) deps.consentStore = { ...f.store, read: async () => { throw new Error('temporary storage failure'); } };
+    if (failRead) deps.consentStore = { ...f.store, read: async () => { throw new Error('temporary storage failure'); }, readPublished: async () => { throw new Error('temporary storage failure'); } };
     const response = await fetch(base);
     assert.equal(response.status, 200);
     const dom = new JSDOM(await response.text());

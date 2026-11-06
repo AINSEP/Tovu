@@ -731,18 +731,18 @@ test("v2-strict: a manifest using only IMPLEMENTED fields (flat 'slots', no part
 // (see `manifest-v2.ts`'s `V2_FIELDS_READ_BY_LOADER`/`V2_RESERVED_METADATA_FIELDS`).
 // ---------------------------------------------------------------------------
 
-test("v2-strict: declaring 'scripts' (unimplemented -- no loader field reads it, theme.ts:661-684) warns under author, errors under install", () => {
-  const dir = tmpDir("tovu-validate-v2-scripts-unimplemented-");
+test("v2-strict: malformed script declarations fail both author and install profiles", () => {
+  const dir = tmpDir("tovu-validate-v2-scripts-");
   writeMinimalV2Static(dir, { scripts: { entries: ["scripts/analytics.js"] } });
 
   const authorResult = validateThemePackage({ themeDir: dir, id: "my-theme", profile: "author" });
-  assert.ok(findWarning(authorResult, "v2-scripts-unimplemented"), JSON.stringify(authorResult.warnings));
-  assert.equal(findError(authorResult, "v2-scripts-unimplemented"), undefined);
-  assert.equal(authorResult.valid, true, "an unimplemented-but-syntactically-present field alone must not fail author");
+  assert.ok(findError(authorResult, "v2-scripts"), JSON.stringify(authorResult.errors));
+  assert.equal(findWarning(authorResult, "v2-scripts-unimplemented"), undefined);
+  assert.equal(authorResult.valid, false, "a malformed implemented declaration must fail author validation");
 
   const installResult = validateThemePackage({ themeDir: dir, id: "my-theme", profile: "install" });
-  assert.ok(findError(installResult, "v2-scripts-unimplemented"), JSON.stringify(installResult.errors));
-  assert.equal(installResult.valid, false, "install must refuse a package declaring a field the loader will silently ignore");
+  assert.ok(findError(installResult, "v2-scripts"), JSON.stringify(installResult.errors));
+  assert.equal(installResult.valid, false, "install must refuse malformed declarations");
 });
 
 test("v2-strict: declaring 'assets' (unimplemented -- no loader field reads it, theme.ts:661-684) warns under author, errors under install", () => {

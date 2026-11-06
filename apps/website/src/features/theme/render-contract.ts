@@ -1,3 +1,4 @@
+import type { DeclaredScript } from '@jini-ai/cookie-consent';
 import type { ThemeSlotDescriptor } from "../../contracts/core/theme-slots.js";
 import type { JsonValue } from "@jini-ai/core/primitives";
 import type { ThemeTemplateFor } from "./template-applicability.js";
@@ -78,6 +79,8 @@ export interface ThemeBuildInfo {
 
 /** `theme.json` — static theme identity. */
 export interface ThemeManifest {
+  /** Ordered data declarations; optional scripts wait for all declared consent categories. */
+  scripts?: readonly DeclaredScript[];
   id: string;
   name: string;
   version: string;

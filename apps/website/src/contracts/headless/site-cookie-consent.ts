@@ -2,6 +2,9 @@ import type { ConsentState, RawContribution, RegionResolver } from '@jini-ai/coo
 
 /** The one switch's payload: present = this engine serves the site. */
 export interface SiteCookieConsentDeps {
+  /** Refresh the construction-time published snapshot after an owner publication. */
+  refresh?: () => Promise<void>;
+  exportAssets?: () => Promise<readonly string[]>;
   /** This site's region readers (configured ingress plugin + legacy header); empty = strict. */
   regionResolvers: () => Promise<readonly RegionResolver[]>;
   /** Data-only modules from active plugins; the browser mounts them through the shared registry. */
