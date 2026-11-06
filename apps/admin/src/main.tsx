@@ -1,6 +1,6 @@
 import React from "react";
 import { KitProvider } from "@jini-ai/ui-kit/react";
-import { tovuKit } from "./integrations/jini-admin/kit";
+import { tovuAgentAttrs, tovuKit } from "./integrations/jini-admin/kit";
 import ReactDOM from "react-dom/client";
 import { App } from "./App";
 import { useAdminSession } from "./App.hooks";
@@ -72,7 +72,7 @@ ReactDOM.createRoot(document.getElementById("root")!, reactRootErrorOptions({ te
     {/* Server-state cache for every section that reads through `fetch-query`.
         Sections not yet migrated are unaffected — they still call `api.*`
         directly, and the two styles coexist without interfering. */}
-    <KitProvider kit={tovuKit}>
+    <KitProvider kit={tovuKit} agent={tovuAgentAttrs}>
     <FetchQueryProvider>
       {/* Outside `App` so it also shows on the login and boot screens while the API restarts. */}
       <ServerRestartingBanner />

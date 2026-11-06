@@ -60,7 +60,7 @@ function GitBackupFormFields({ controller, connections, t }: GitBackupCardProps 
         {connections.length > 1 ? (
           <div className="field">
             <label className="field-label" htmlFor="git-backup-connection">{t("Connection")}</label>
-            <select id="git-backup-connection" value={form.connection} onChange={(event) => controller.setField("connection", event.target.value)} {...agentHandle({ handle: "import-export-git-backup-connection" }, { role: "select", label: "Git backup connection" })}>
+            <select id="git-backup-connection" value={form.connection} onChange={(event) => controller.setField("connection", event.target.value)} {...agentHandle({ handle: "import-export-git-backup-connection" }, { role: "field", label: "Git backup connection" })}>
               {connections.map((label) => <option key={label} value={label}>{label}</option>)}
             </select>
           </div>

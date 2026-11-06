@@ -13,6 +13,8 @@ import type { FrontendSessionBridge } from "@jini-ai/chat/react";
 import { matchRoute, resolveAgentPageId, type AdminRoute } from "@jini-ai/admin/core";
 import { ConfirmDialog, ConfirmDialogDefaultsProvider, Sidebar, useSidebar } from "@jini-ai/admin/react";
 import { Toast } from "@jini-ai/ui";
+import { KitProvider } from "@jini-ai/ui-kit/react";
+import { tovuAgentAttrs, tovuKit } from "./integrations/jini-admin/kit";
 import { useRouteLocation } from "./lib/router";
 import { useDesktopViewRelease } from "./hooks/use-desktop-view-release.hooks";
 import { resolveAddonsRoute } from "./lib/addons-routes";
@@ -810,7 +812,10 @@ function AdminShell(props: AppProps & { session: ReturnType<typeof useAdminSessi
               (owner, 2026-10-23: "we aren't doing anything with email right now"); re-mount it here
               with fetchStatus={api.getMailStatus} when email work resumes (development/todos.md). */}
           <main id="main-content" className="admin-content" ref={setContentEl} tabIndex={-1} data-agent-page={agentPageId(route)}>
-            {content}
+            {/* Keep page overlays in the same allowed root and page identity as their triggers. */}
+            <KitProvider kit={tovuKit} agent={tovuAgentAttrs} overlayContainer={contentEl}>
+              {content}
+            </KitProvider>
           </main>
           {/* One ↑/↓ pair for every long admin page (owner, 2026-10-21); `styles.css` places it
               beside the assistant FAB. */}

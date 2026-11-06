@@ -41,7 +41,7 @@ describe("GitBackupCard", () => {
     const { container } = render(<Harness port={port} />);
     await screen.findByLabelText("Connection");
     const driver = createDomPageDriver({ root: container, pages: {} });
-    await act(async () => { await driver.selectOption({ handle: "import-export-git-backup-connection", value: "Other" }); });
+    await act(async () => { await driver.selectOption({ handle: "import-export-git-backup-connection", option: "Other" }); });
     for (const [part, text] of [["owner", "fixture-owner"], ["repo", "fixture-repo"], ["branch", "fixture-branch"]]) {
       await act(async () => { await driver.fill({ handle: `import-export-git-backup-${part}`, text: text! }); });
     }

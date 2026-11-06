@@ -1,12 +1,41 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { createElement } from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { act, fireEvent, render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 import { Button, Dialog, KitProvider, Menu } from '@jini-ai/ui-kit/react';
-import { tovuKit } from '../kit';
+import { tovuAgentAttrs, tovuKit } from '../kit';
+import { createDomPageDriver } from '@jini-ai/agentic/dom';
 
 describe('Tovu kit classes', () => {
+  it('keeps menu portals in the active page root while chat send remains outside', async () => {
+    const root = document.createElement('main');
+    root.setAttribute('data-agent-page', 'fixture-page');
+    document.body.append(root);
+    const select = vi.fn();
+    const send = document.createElement('button');
+    const sent = vi.fn();
+    send.setAttribute('data-agent-element', 'fixture-chat-send');
+    send.addEventListener('click', sent);
+    document.body.append(send);
+    try {
+      render(createElement(KitProvider, { kit: tovuKit, agent: tovuAgentAttrs, overlayContainer: root, children:
+        createElement(Menu, { agentHandle: 'fixture-menu', label: 'Fixture actions', items: [
+          { id: 'choose', label: 'Choose fixture', onPress: select },
+        ] }) }), { container: root });
+      const driver = createDomPageDriver({ root, pages: {} });
+      await act(async () => { await driver.click({ handle: 'fixture-menu' }); });
+      const option = screen.getByRole('menuitem', { name: 'Choose fixture' });
+      expect(root).toContainElement(option);
+      const handle = option.getAttribute('data-agent-element')!;
+      expect((await driver.findElements({}, { query: handle }))[0]).toMatchObject({ handle, page: 'fixture-page' });
+      await act(async () => { await driver.click({ handle }); });
+      expect(select).toHaveBeenCalledOnce();
+      await expect(driver.click({ handle: 'fixture-chat-send' })).rejects.toThrow(/no element/);
+      expect(sent).not.toHaveBeenCalled();
+    } finally { root.remove(); send.remove(); }
+  });
+
   // The bridge no longer maps variants onto Tovu `btn-*` classes: Jini emits prefixed
   // `jini-btn-*` classes and jini-media.css styles them (owner decision 2026-10-03).
   it.each([
