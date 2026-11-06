@@ -98,7 +98,6 @@ function DesktopOwnerReset({ port, t }: { port: OwnerRecoveryPort; t: Translate 
       <SecretInput id="desktop-owner-password" label={t('New owner password')} autoComplete="new-password" value={password} onChange={event => setPassword(event.target.value)} {...{ [AGENT_PRIVATE_ATTRIBUTE]: '' }} />
       <label htmlFor="desktop-owner-confirm">{t('Confirm new owner password')}</label>
       <SecretInput id="desktop-owner-confirm" label={t('Confirm new owner password')} autoComplete="new-password" value={confirmation} onChange={event => setConfirmation(event.target.value)} {...{ [AGENT_PRIVATE_ATTRIBUTE]: '' }} />
-      <label>{t('Authenticator code (if enabled)')}<input autoComplete="one-time-code" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} data-agent-private="" value={code} onChange={event => setCode(event.target.value)} /></label>
       <button className="btn-primary" disabled={busy || !password}>{t('Reset password and sign out sessions')}</button>
     </form>
     {failure ? <ErrorNotice failure={failure} t={t} /> : null}
