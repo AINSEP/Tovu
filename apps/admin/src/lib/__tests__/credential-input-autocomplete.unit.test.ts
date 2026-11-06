@@ -151,23 +151,39 @@ function findCredentialInputs(file: string, source: string): InputFinding[] {
   return out;
 }
 
+/** Validate the presence and resolution of the token before applying field-specific policy.
+ * @complexity O(a) time and space, where a is the autocomplete attribute length. */
+function autocompleteProblem(finding: InputFinding): string | null {
+  if (finding.autoComplete === null) return "credential input has no autoComplete";
+  if (finding.passwordType && finding.autoComplete === "off") return "password input uses \"off\" (Chrome ignores it)";
+  if (!finding.autoComplete.trim() || finding.autoComplete.includes("<expression>")) return "credential input has unresolved or empty autoComplete";
+  return null;
+}
+
+/** Existing-password proof fields use current-password; other password fields use new-password.
+ * @complexity O(a) time and space, where a is the resolved autocomplete attribute length. */
+function passwordPolicyProblem({ finding, autoComplete }: { finding: InputFinding; autoComplete: string }): string | null {
+  // This exact field proves the existing owner password before issuing recovery codes; the
+  // other password fields in the same component choose a NEW password and stay new-password.
+  const currentPassword = finding.file === "features/auth/Login.tsx" ||
+    (finding.file === "features/security/RecoveryCodesCard.tsx" && finding.id === "recovery-current-password");
+  if (finding.credentialNamed && !currentPassword && autoComplete.split(" ").includes("current-password")) {
+    return "secret input uses sign-in autoComplete";
+  }
+  if (finding.passwordType && autoComplete.split(" ").some(value => value !== (currentPassword ? "current-password" : "new-password"))) {
+    return "password input has an inappropriate autoComplete";
+  }
+  return null;
+}
+
+/** Preserve one first diagnostic per field and its source location.
+ * @complexity O(total token and source-location text) time and space across all findings. */
 function violations(findings: InputFinding[]): string[] {
   const hits: string[] = [];
-  for (const f of findings) {
-    const where = `${f.file}:${f.line}`;
-    // This exact field proves the existing owner password before issuing recovery codes; the
-    // other password fields in the same component choose a NEW password and stay new-password.
-    const currentPassword = f.file === "features/auth/Login.tsx" ||
-      (f.file === "features/security/RecoveryCodesCard.tsx" && f.id === "recovery-current-password");
-    if (f.autoComplete === null) hits.push(`${where}: credential input has no autoComplete`);
-    else if (f.passwordType && f.autoComplete === "off") hits.push(`${where}: password input uses "off" (Chrome ignores it)`);
-    else if (!f.autoComplete.trim() || f.autoComplete.includes("<expression>")) hits.push(`${where}: credential input has unresolved or empty autoComplete`);
-    else if (f.credentialNamed && !currentPassword && f.autoComplete.split(" ").includes("current-password")) {
-      hits.push(`${where}: secret input uses sign-in autoComplete`);
-    }
-    else if (f.passwordType && f.autoComplete.split(" ").some((value) => value !== (currentPassword ? "current-password" : "new-password"))) {
-      hits.push(`${where}: password input has an inappropriate autoComplete`);
-    }
+  for (const finding of findings) {
+    const problem = autocompleteProblem(finding) ?? (finding.autoComplete === null ? null :
+      passwordPolicyProblem({ finding, autoComplete: finding.autoComplete }));
+    if (problem) hits.push(`${finding.file}:${finding.line}: ${problem}`);
   }
   return hits;
 }
