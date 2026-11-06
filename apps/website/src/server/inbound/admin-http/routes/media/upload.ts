@@ -103,7 +103,7 @@ function decodeUploadPayload(
   // Refuse document base64 inflation before allocation, then let the shared ingress owner
   // check actual bytes. Authorization precedes decoding, archive work, and storage I/O.
   if (kind === "document" && dataBase64.length > 4 * Math.ceil(MAX_DOCUMENT_BYTES / 3)) {
-    throw new MediaValidationError({ message: "document exceeds the 10 MiB limit" });
+    throw new MediaValidationError({ message: "document exceeds the 50 MiB limit" });
   }
   // `decodeStrictBase64`, not `Buffer.from(x, "base64")`: the latter never throws (it skips
   // characters outside the alphabet instead of refusing them), so a bare try/catch around it can

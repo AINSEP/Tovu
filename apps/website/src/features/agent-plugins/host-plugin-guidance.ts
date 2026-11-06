@@ -212,6 +212,7 @@ export async function deliverHostPluginGuidance(
 /** A run-reference request, as `lifecycle.ts`'s `resolveHostPluginRefs` receives it. */
 export interface HostPluginRefOptions {
   readonly deliveryMode?: AgentPluginDeliveryMode;
+  readonly allowInactiveGuidance?: boolean;
   readonly skill?: string;
   readonly file?: string;
 }

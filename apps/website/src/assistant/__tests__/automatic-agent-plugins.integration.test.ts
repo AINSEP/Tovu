@@ -334,7 +334,7 @@ test('load_agent_plugin uses the real resolver and publishes the loaded chip thr
   f.runs.forget({ runId: 'explicit' });
 });
 
-test('inactive Higgsfield returns the exact activation and retry calls without activating it', async t => {
+test('inactive plugin returns setup guidance and the activation call while tools remain off', async t => {
   const f = await fixture(t, { pluginId: 'higgsfield-media' });
   await setAgentPluginEnabled({ agentPluginLayout: f.layout, workspaceId: f.workspaceId, pluginId: f.pluginId, enabled: false, actor: 'fixture' });
   await f.runs.start({ runId: 'inactive', context: f.context });
@@ -346,9 +346,11 @@ test('inactive Higgsfield returns the exact activation and retry calls without a
   assert.equal(result.status, 'completed');
   const output = result.output as { status: string; guidance: string; note: string };
   assert.equal(output.status, 'installed-but-inactive');
-  assert.equal(output.guidance, '');
+  assert.match(output.guidance, /Use holographic layout discipline/);
+  assert.match(output.guidance, /off/);
+  assert.match(output.guidance, /tools are unavailable/);
   assert.ok(output.note.includes('plugins_set_enabled({family:"agent-plugin",pluginId:"higgsfield-media",enabled:true})'));
-  assert.ok(output.note.includes('load_agent_plugin({pluginId:"higgsfield-media"})'));
+  assert.match(output.note, /Read-only guidance/);
   assert.doesNotMatch(output.note, /agent_plugin_higgsfield_media/);
   assert.equal(f.published.length, 0);
   const stillInactive = await executor.execute(input);
@@ -374,7 +376,7 @@ test('the first theme write loads installed tovu-theme after a note-only preflig
   f.runs.forget({ runId: 'theme' });
 });
 
-test('the loader cannot use another principal’s run, an excluded plugin, or a revoked activation', async t => {
+test('the loader refuses another principal and exclusions, and reads revoked plugins only as off guidance', async t => {
   const f = await fixture(t);
   const registry = createToolRegistry({});
   registry.register(f.runs.loadRegistration);
@@ -393,7 +395,10 @@ test('the loader cannot use another principal’s run, an excluded plugin, or a 
   await writeFile(path.join(f.workspace.root, 'activations.json'), JSON.stringify({ schemaVersion: 1, plugins: { [f.pluginId]: { enabled: false, origin: 'operator-installed', updatedAt: '2026-10-18T00:00:00.000Z', updatedBy: 'fixture' } } }));
   const revoked = await executor.execute({ principal: f.context.principal, run: { id: 'owner' }, toolId: 'load_agent_plugin', input: { pluginId: f.pluginId } });
   assert.equal(revoked.status, 'completed');
-  assert.doesNotMatch(JSON.stringify(revoked.output), /Use holographic layout discipline/);
+  const offGuidance = revoked.output as { status: string; guidance: string; note: string };
+  assert.equal(offGuidance.status, 'installed-but-inactive');
+  assert.match(offGuidance.guidance, /Use holographic layout discipline/);
+  assert.match(offGuidance.note, /tools remain unavailable/);
   assert.equal(f.published.length, 0);
   for (const runId of ['owner', 'excluded']) f.runs.forget({ runId });
 });

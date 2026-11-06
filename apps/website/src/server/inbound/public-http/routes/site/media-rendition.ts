@@ -45,19 +45,12 @@ const TRANSFORM_SPEC_PATTERN = /^(.+)\.v(\d+)$/;
  *  independently would have drifted the same way. */
 const PRIVATE_NO_STORE = "private, no-store";
 
-/** Long-lived caching requires an UNGATED id URL with the CURRENT source hash prefix in `v`.
- *  Replacement preserves ids, so identity alone cannot promise immutable bytes. Never reachable
- *  from a gated outcome — see {@link renditionCacheControl}'s `access.gated` note. */
-const IMMUTABLE_PUBLIC = "public, max-age=31536000, immutable";
-const REVALIDATING_PUBLIC = "public, max-age=60, must-revalidate";
-
-/** The header an UNGATED 200 gets instead, when the request spelled the asset by its (editable)
- *  `slug` — current or retired (readable-slugs plan, S2b). A slug can be renamed; its URL can
- *  point at DIFFERENT bytes through replacement or permanent delete and name reuse.
- *  This 1-hour TTL caps old cached bytes after either operation; validators permit revalidation.
- *  Ids are never reassigned, but replacement changes their bytes too: bare/stale-version id URLs
- *  therefore use {@link REVALIDATING_PUBLIC}; only current-version ids get {@link IMMUTABLE_PUBLIC}. */
-const SLUG_KEYED_PUBLIC = "public, max-age=3600";
+/** Replacement preserves ids and authored URLs, including their old source-hash query.
+ *  Current and retired slugs can also resolve to changed bytes after replacement or name reuse.
+ *  These routes always resolve the live source rather than a historical content snapshot, so
+ *  even a matching `v` cannot promise immutable bytes. Require validation before every reuse;
+ *  the existing ETag lets an unchanged asset return 304. Never used for a gated outcome. */
+const REVALIDATING_PUBLIC = "public, no-cache";
 
 /**
  * The ONE writer for every 404 either public media route emits.
@@ -322,8 +315,8 @@ async function loadSavedWidgetConfigs(
 }
 
 /** {@link resolveAssetAliases}'s result: the full alias set to gate on, plus the resolved record
- *  itself (or `null` for an unknown identifier) — {@link sendMediaRenditionResult} needs the record
- *  too, to tell an id-keyed request from a slug-keyed one for the cache-header split (S2b). */
+ *  itself (or `null` for an unknown identifier). The rendition writer also uses the record for
+ *  its source guard and validator without another lookup. */
 interface AssetAliasResolution {
   readonly aliases: ReadonlySet<string>;
   readonly media: MediaRecord | null;
@@ -569,7 +562,7 @@ async function sendMediaRenditionResult(
     }
     res
       .status(200)
-      .set(CACHE_CONTROL_HEADER, renditionCacheControl({ access, assetId, contentVersion: req.query.v }))
+      .set(CACHE_CONTROL_HEADER, renditionCacheControl({ access }))
       .set("Content-Type", result.contentType)
       .send(Buffer.from(result.bytes));
   } catch (err) {
@@ -578,18 +571,16 @@ async function sendMediaRenditionResult(
 }
 
 /** The `Cache-Control` for an ALLOWED 200 rendition. @complexity O(1). */
-function renditionCacheControl({ access, assetId, contentVersion }: { access: { gated: boolean; record: MediaRecord | null }; assetId: string; contentVersion: unknown }, _optional: Record<string, never> = {}): string {
+function renditionCacheControl({ access }: { access: { gated: boolean } }, _optional: Record<string, never> = {}): string {
   // `access.gated`: a gated asset's ALLOW outcome is per-viewer (it depended on this
-  // request's session cookie), so it must never be handed either of the two ungated,
+  // request's session cookie), so it must never be handed the ungated,
   // shared/CDN-facing headers below — the next, possibly unentitled, visitor to hit a
   // public/shared cache would be served this same cached response.
   //
-  // An id is stable identity, not stable bytes after replacement. A matching content version
-  // makes new HTML cacheable for a year; old HTML's bare ids and stale versions revalidate.
-  // Editable/reusable slugs (including retired aliases) retain their existing one-hour bound.
+  // Ids, matching versions and editable/reusable slugs all serve the live source. Header
+  // selection adds no reads; revalidation does revisit the existing access scan and byte read.
   if (access.gated) return PRIVATE_NO_STORE;
-  if (access.record?.id !== assetId) return SLUG_KEYED_PUBLIC;
-  return contentVersion === access.record.source.sha256.slice(0, 12) ? IMMUTABLE_PUBLIC : REVALIDATING_PUBLIC;
+  return REVALIDATING_PUBLIC;
 }
 
 /** Maps a failure while resolving/generating a rendition to its HTTP response. @complexity O(1). */
