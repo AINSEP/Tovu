@@ -26,6 +26,7 @@ test('closing the settings dropdown leaves the sites dialog and its placement dr
     settingsControlHandlers: () => ({ toggleOpen() {}, chooseTheme() {}, openAppearancePage() {} }),
     GearIcon: () => null, ThemeControl: () => null, MenuIcon: () => null,
     useLoadedSites: () => ({ maximumLiveSiteViews: 1 }), LoadedSitesRow: () => null,
+    useIdleSiteSleep: () => ({ available: false }), IdleSiteSleepRow: () => null,
     useMenuKeyboard: () => ({ menuRef: {}, triggerRef: {}, onMenuKeyDown() {} }),
     useUpdateCheck: () => ({ available: false, checking: false, async checkForUpdates() {} }),
     SitesFoldersDialog: ({ settings: state }: any) => state.open ? createElement('div', { role: 'dialog', 'data-placement': state.databases }) : null,

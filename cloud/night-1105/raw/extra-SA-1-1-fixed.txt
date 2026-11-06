@@ -1,0 +1,211 @@
+✔ a throwing helper teardown no longer skips a later helper's server close (4.833328ms)
+✔ several teardown failures are all reported (0.502097ms)
+▶ a real test context runs queued steps in one hook when the subtest ends
+  ✔ helper user (1.282754ms)
+✔ a real test context runs queued steps in one hook when the subtest ends (1.698511ms)
+✔ the vitest compat matchers fail wrong assertions and pass right ones (11.112437ms)
+✔ compat mocks retain exact arguments, resolve configured values and clear calls (3.055036ms)
+✔ compat timers fire at the deadline and globals restore to their original value (19.450361ms)
+✔ caught forbidden fetch still fails after every cleanup; broken cleanup=false (587.883386ms)
+✔ caught forbidden fetch still fails after every cleanup; broken cleanup=true (1015.214044ms)
+✔ compat value and error matchers accept the right value and reject the wrong one (1.942078ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ boot redemption rejects an invalid token before reading the boot owner or minting (515.335933ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[auth-boot-session] {
+  errorId: '0134fe52-ab9f-4d05-bc50-10aa64e96f4f',
+  diagnostic: 'Error: Authentication operation failed\n' +
+    '    at sendAuthFailure (/workspace/Tovu/apps/website/src/server/inbound/admin-http/dev-auth.ts:489:34)\n' +
+    '    at redeemOwnerBootSession (/workspace/Tovu/apps/website/src/server/inbound/admin-http/dev-auth.ts:513:5)\n' +
+    '    at async TestContext.<anonymous> (/workspace/Tovu/apps/website/src/server/inbound/admin-http/__tests__/dev-auth-boot-owner.unit.test.ts:59:18)\n' +
+    '    at async Test.run (node:internal/test_runner/test:1409:7)\n' +
+    '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n' +
+    '{"cause":{"stack":"Error: Boot owner is unavailable\\n    at redeemOwnerBootSession (/workspace/Tovu/apps/website/src/server/inbound/admin-http/dev-auth.ts:513:35)\\n    at async TestContext.<anonymous> (/workspace/Tovu/apps/website/src/server/inbound/admin-http/__tests__/dev-auth-boot-owner.unit.test.ts:59:18)\\n    at async Test.run (node:internal/test_runner/test:1409:7)\\n    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)","message":"Boot owner is unavailable"}}'
+}
+✔ boot redemption rejects a missing owner before minting a session (370.454669ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[auth-boot-session] {
+  errorId: '29751c06-5a2e-4e28-8eb3-0bda11c780bb',
+  diagnostic: 'Error: Authentication operation failed\n' +
+    '    at sendAuthFailure (/workspace/Tovu/apps/website/src/server/inbound/admin-http/dev-auth.ts:489:34)\n' +
+    '    at redeemOwnerBootSession (/workspace/Tovu/apps/website/src/server/inbound/admin-http/dev-auth.ts:513:5)\n' +
+    '    at async TestContext.<anonymous> (/workspace/Tovu/apps/website/src/server/inbound/admin-http/__tests__/dev-auth-boot-owner.unit.test.ts:59:18)\n' +
+    '    at async Test.run (node:internal/test_runner/test:1409:7)\n' +
+    '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n' +
+    '{"cause":{"stack":"Error: Boot owner is unavailable\\n    at redeemOwnerBootSession (/workspace/Tovu/apps/website/src/server/inbound/admin-http/dev-auth.ts:513:35)\\n    at async TestContext.<anonymous> (/workspace/Tovu/apps/website/src/server/inbound/admin-http/__tests__/dev-auth-boot-owner.unit.test.ts:59:18)\\n    at async Test.run (node:internal/test_runner/test:1409:7)\\n    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)","message":"Boot owner is unavailable"}}'
+}
+✔ boot redemption rejects a disabled owner before minting a session (598.122941ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[auth-boot-session] {
+  errorId: 'b752b399-f091-4bff-90f4-5ac1a2f26280',
+  diagnostic: 'Error: Authentication operation failed\n' +
+    '    at sendAuthFailure (/workspace/Tovu/apps/website/src/server/inbound/admin-http/dev-auth.ts:489:34)\n' +
+    '    at redeemOwnerBootSession (/workspace/Tovu/apps/website/src/server/inbound/admin-http/dev-auth.ts:513:5)\n' +
+    '    at async TestContext.<anonymous> (/workspace/Tovu/apps/website/src/server/inbound/admin-http/__tests__/dev-auth-boot-owner.unit.test.ts:59:18)\n' +
+    '    at async Test.run (node:internal/test_runner/test:1409:7)\n' +
+    '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n' +
+    '{"cause":{"stack":"Error: Boot owner is unavailable\\n    at redeemOwnerBootSession (/workspace/Tovu/apps/website/src/server/inbound/admin-http/dev-auth.ts:513:35)\\n    at async TestContext.<anonymous> (/workspace/Tovu/apps/website/src/server/inbound/admin-http/__tests__/dev-auth-boot-owner.unit.test.ts:59:18)\\n    at async Test.run (node:internal/test_runner/test:1409:7)\\n    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)","message":"Boot owner is unavailable"}}'
+}
+✔ boot redemption rejects a member owner before minting a session (259.28783ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ boot redemption consumes proof before awaiting identity readiness and owner lookup (457.177892ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ boot redemption propagates identityReady failure without minting or cookies (685.434917ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ boot redemption propagates ownerPrincipalId failure without minting or cookies (763.917523ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ boot redemption propagates repository failure without minting or cookies (687.426166ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[auth-boot-session] {
+  errorId: '99a64683-3df5-4383-ad3a-666784a443b5',
+  diagnostic: 'Error: Authentication operation failed\n' +
+    '    at sendAuthFailure (/workspace/Tovu/apps/website/src/server/inbound/admin-http/dev-auth.ts:489:34)\n' +
+    '    at redeemOwnerBootSession (/workspace/Tovu/apps/website/src/server/inbound/admin-http/dev-auth.ts:526:5)\n' +
+    '    at async TestContext.<anonymous> (/workspace/Tovu/apps/website/src/server/inbound/admin-http/__tests__/dev-auth-boot-owner.unit.test.ts:117:16)\n' +
+    '    at async Test.run (node:internal/test_runner/test:1409:7)\n' +
+    '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n' +
+    '{"cause":{"stack":"Error: Boot session confirmation failed\\n    at redeemOwnerBootSession (/workspace/Tovu/apps/website/src/server/inbound/admin-http/dev-auth.ts:526:35)\\n    at async TestContext.<anonymous> (/workspace/Tovu/apps/website/src/server/inbound/admin-http/__tests__/dev-auth-boot-owner.unit.test.ts:117:16)\\n    at async Test.run (node:internal/test_runner/test:1409:7)\\n    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)","message":"Boot session confirmation failed"}}'
+}
+✔ boot redemption refuses a minted session that Jini cannot validate before setting a cookie (658.285152ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ boot redemption with tovu_session preserves its existing superseded-session policy (782.833239ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ boot redemption with tovu_session_local_303 preserves its existing superseded-session policy (707.580724ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ identity failure gives an anonymous-safe explanation and correlated report (816.749418ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ session failure gives an anonymous-safe explanation and correlated report (1196.413971ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ logout failure gives an anonymous-safe explanation and correlated report (692.998309ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ boot owner and verification refusals disclose equivalent explanations and no backend facts (564.333093ms)
+✔ getAuthedPrincipal throws the wiring error when absent and returns the attached record unchanged (2.070582ms)
+✔ getAuthedCredentialKind throws the wiring error when absent and returns the attached api_key kind (0.227513ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ requests without a key resolve to null and receive the exact 401 without calling next (575.235478ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ GET /auth/me directly returns the exact 401 for an unauthenticated request (618.284498ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ GET /auth/me/password-status directly returns the exact 401 for an unauthenticated request (611.198973ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ malformed authorization schemes never authenticate and invalid bearer keys fail closed (445.344232ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ password login without a User-Agent still creates a usable session without invented client metadata (343.511259ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ a request a publishing token already authenticated skips the session lookup and continues (218.996914ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ a credential lookup that fails is forwarded to Express's error handling instead of answering 401 (258.572683ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ a local owner cookie on a listener without a TCP port (a unix socket) is keyed to port 0 (413.80067ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ a login body without username or password fields is the same uniform 401 as a wrong password (307.889051ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ login attempts beyond the per-client minute budget are refused with 429 and Retry-After before any password check (824.271081ms)
+ℹ tests 37
+ℹ suites 0
+ℹ pass 37
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 29715.076541

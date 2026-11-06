@@ -1,5 +1,5 @@
 import type { EventBusPort } from "@jini-ai/cms/core";
-import { createFormDeliverySubscriptions, planFormDeliveries, type FormDefinitionRepoPort, type FormDeliveryJob, type FormDeliveryPlan,
+import { submissionEvidenceDefinition, createFormDeliverySubscriptions, planFormDeliveries, type FormDefinitionRepoPort, type FormDeliveryJob, type FormDeliveryPlan,
   type FormDeliveryPlanPort, type FormDeliveryResult, type FormDeliverySnapshot, type FormSubmissionRepoPort } from "@jini-ai/cms/forms";
 import type { SettingsRepoPort } from "@jini-ai/core/settings";
 import { buildFormDeliveryForm } from "#src/features/forms/index";
@@ -8,8 +8,9 @@ import { readFormDeliveryBindings } from "#src/features/settings/index";
 /**
  * @file Binds Jini's durable form delivery (`@jini-ai/cms/forms`: plan once per submission, one
  * outbox child job per selected binding) to this site: bindings come from the
- * `core.forms/deliveryBindings` setting, the frozen snapshot from the forms repos, and each
- * attempt goes to `deliver` (the form-destinations deliverer). Nothing subscribes until `start`,
+ * `core.forms/deliveryBindings` setting, frozen form metadata from the forms repos, and each
+ * referenced attempt reads its scoped submission before `deliver` (the form-destinations
+ * deliverer). Nothing subscribes until `start`,
  * which the integrations module calls once per bus.
  */
 
@@ -41,7 +42,8 @@ class DeliverySourceGoneError extends Error {
  * line, instead of Jini's planner throwing: a throw fails the whole event, so the bus would re-run
  * its other subscribers (the notification email, the webhook) on every retry, for nothing.
  * @param optional.warn where that line goes (default `console.warn`).
- * @complexity O(1) to build; planning is O(bindings × formIds) per submission.
+ * @complexity O(1) to build; planning is O(bindings × formIds) per submission; each referenced
+ *   attempt adds one indexed submission read, with no answer copy in the outbox.
  */
 export function composeFormDelivery(
   required: FormDeliveryCompositionDeps,
@@ -60,6 +62,11 @@ export function composeFormDelivery(
     bus: required.bus,
     plan: (input) => planFormDeliveries({ deps: planner, ...input }),
     deliver: required.deliver,
+    readSubmission: async ({ workspaceId, submissionId, formId }) => {
+      const submission = await required.formSubmissionRepo.findById({ workspaceId, id: submissionId });
+      if (!submission || submission.formDefinitionId !== formId) return null;
+      return { id: submission.id, answers: submission.data, submittedAt: submission.submittedAt };
+    },
   });
 }
 
@@ -90,5 +97,5 @@ async function readDeliverySnapshot(
     deps.formSubmissionRepo.findById({ workspaceId, id: submissionId }),
   ]);
   if (!definition || !submission || submission.formDefinitionId !== definition.id) return null;
-  return { form: buildFormDeliveryForm({ definition }), submission: { id: submission.id, answers: submission.data, submittedAt: submission.submittedAt } };
+  return { form: buildFormDeliveryForm({ definition: submissionEvidenceDefinition({ definition, evidence: submission.evidence }) }), submission: { id: submission.id, answers: submission.data, submittedAt: submission.submittedAt } };
 }

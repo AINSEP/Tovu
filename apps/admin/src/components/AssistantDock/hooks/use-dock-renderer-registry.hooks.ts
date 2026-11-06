@@ -11,6 +11,7 @@ import {
 } from "@jini-ai/chat/react";
 import { createA2uiActionPoster } from "../../../lib/a2ui-action-poster";
 import { AgentFailureCard } from "../AgentFailureCard";
+import { hasAgentFailureNotice } from "../AgentFailureCard.hooks";
 import { AGENT_FAILURE_EVENT } from "../agent-failure";
 import { OverflowAwareMcpUiSurfaceCard } from "../OverflowAwareMcpUiSurfaceCard";
 import { RoutedA2uiSurfaceCard } from "../RoutedA2uiSurfaceCard";
@@ -148,7 +149,7 @@ function registerDockRenderers({ registry }: { registry: ExtEventRendererRegistr
     // watchdog) — see `SlowRunNoticeCard.tsx`'s own doc for the full "why `ext` instead of the
     // existing (unrendered) `'status'` kind" reasoning.
     registry.register({ name: "slow_running", renderer: (props) => createElement(SlowRunNoticeCard, props) }),
-    registry.register({ name: AGENT_FAILURE_EVENT, renderer: (props) => createElement(AgentFailureCard, props) }),
+    registry.register({ name: AGENT_FAILURE_EVENT, renderer: (props) => createElement(AgentFailureCard, props) }, { terminalNotice: hasAgentFailureNotice }),
     // What the operator sent mid-run, drawn as their own transcript row where the agent
     // got it. Jini's `registerMidRunUserMessageRenderer` only targets the global registry, so this
     // repeats its two lines (component + slot key) against the owned one.

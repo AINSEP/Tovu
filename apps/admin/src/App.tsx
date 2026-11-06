@@ -1,5 +1,4 @@
 import { useAdminThemeBoundary } from "./admin-themes/use-admin-theme.hooks";
-import { AdminPageApprovalDialog } from "./features/webmcp/AdminPageApprovalDialog";
 import { useCmsSidebarLabelTooltips } from "./hooks/use-cms-sidebar-label-tooltips.hooks";
 import { SitesSidebarNav } from "./components/SitesSidebarNav";
 import { useAdminDocumentLocale } from "./hooks/use-admin-document-locale.hooks";
@@ -14,6 +13,8 @@ import type { FrontendSessionBridge } from "@jini-ai/chat/react";
 import { matchRoute, resolveAgentPageId, type AdminRoute } from "@jini-ai/admin/core";
 import { ConfirmDialog, ConfirmDialogDefaultsProvider, Sidebar, useSidebar } from "@jini-ai/admin/react";
 import { Toast } from "@jini-ai/ui";
+import { KitProvider } from "@jini-ai/ui-kit/react";
+import { tovuAgentAttrs, tovuKit } from "./integrations/jini-admin/kit";
 import { useRouteLocation } from "./lib/router";
 import { useDesktopViewRelease } from "./hooks/use-desktop-view-release.hooks";
 import { resolveAddonsRoute } from "./lib/addons-routes";
@@ -64,10 +65,10 @@ import {
 } from "./App.hooks";
 
 /**
- * A resolved route, plus Tovu's legacy sections and Add-ons migration metadata — see `parseRoute`.
+ * A resolved route, plus Tovu's legacy sections and URL migration metadata — see `parseRoute`.
  */
 interface Route extends AdminRoute {
-  /** Replacement URL for a retired Add-ons route; resolved in one migration adapter. */
+  /** Replacement URL for a retired Tovu route, executed before mounting its screen. */
   redirectPath?: string;
   /**
    * Set only by the legacy `/section/:id` branch when `id` does not match a registered panel.
@@ -97,9 +98,9 @@ const NO_PERMISSIONS: readonly string[] = [];
 /**
  * Parses a *route path* (base already stripped by `router.ts`) into a `Route`.
  *
- * Delegates to `@jini-ai/admin/core`'s `matchRoute` against `panels.tsx`'s `ADMIN_PANELS` for
- * Tovu's Add-ons URLs first pass through `resolveAddonsRoute`; Jini still matches their stable
- * panel IDs. Another Tovu-specific shape the generic matcher was never given a branch for is:
+ * Delegates to `@jini-ai/admin/core`'s `matchRoute` against `panels.tsx`'s `ADMIN_PANELS`.
+ * Tovu's `/assistant` alias and Add-ons URLs are canonicalized first; Jini still matches their
+ * stable panel IDs. Another Tovu-specific shape the generic matcher was never given a branch for is:
  * legacy `/section/:id` URLs, which — unlike a modern bare `/settings` segment — accept an
  * *arbitrary* id. `matchRoute` matches over an array (`panels.find(p => p.id === segment)`), so
  * the historic `Object.hasOwn` hazard this file used to guard against (`/admin/constructor` etc.
@@ -109,12 +110,23 @@ const NO_PERMISSIONS: readonly string[] = [];
  * `section/` is still accepted as a leading segment. Not for new URLs — nothing generates it any
  * more — but `router.ts`'s legacy-hash redirect strips it, and this is the second line of defence
  * for a stored URL that reaches the parser without going through that redirect.
+ *
+ * @returns The canonical panel/query plus a replacement URL for a retired Tovu path; no I/O.
+ * @complexity O(n + p·r·s) time and O(n + s) space: n URL characters, p registered panels,
+ * r patterns per panel, s path segments. Legacy/alias rewrites add only a bounded parsing pass.
  */
 export function parseRoute(routePath: string): Route {
   // Everything before the first `?` (the query is `matchRoute`'s to read). A replace rather than
   // `split("?")[0]`, whose `?? ""` fallback for an index that always exists could never fire.
   const rawPath = routePath.split("?", 1)[0]!;
   const parts = rawPath.split("/").filter(Boolean);
+
+  // Stored assistant links must reach the registered page without mounting Dashboard first.
+  // Keep the original query bytes; serializing URLSearchParams would change encodings/order.
+  if (rawPath === "/assistant" || rawPath === "/assistant/") {
+    const redirectPath = `/ai-assistant${routePath.slice(rawPath.length)}`;
+    return { ...parseRoute(redirectPath), redirectPath };
+  }
 
   if (parts[0] === "section" && parts[1]) {
     const id = parts[1];
@@ -624,7 +636,8 @@ function AdminShell(props: AppProps & { session: ReturnType<typeof useAdminSessi
 
   const { setContentEl, contentEl, agentBridge } = useAgentBridge();
   // Phone card layout for every `.list-table` needs each cell's column name (mobile catalog P-4).
-  useListTableCellLabels(contentEl ?? null);
+  const contentNode = contentEl ?? null;
+  useListTableCellLabels(contentNode);
   // The `admin.capture_screenshot` consent announcement — see `useScreenshotAnnouncement`'s own doc
   // (`App.hooks.tsx`) and `agent-screenshot-bus.ts`'s module doc for the privacy decision behind it.
   const { announced: screenshotAnnounced, dismiss: dismissScreenshotAnnouncement } = useScreenshotAnnouncement();
@@ -762,7 +775,6 @@ function AdminShell(props: AppProps & { session: ReturnType<typeof useAdminSessi
           </Sidebar.Footer>
         </Sidebar>
         <LogoutConfirmDialog logoutConfirm={logoutConfirm} locale={navLocale} />
-        <AdminPageApprovalDialog locale={navLocale} />
         {/* Mobile-only backdrop behind the open drawer (`styles.css` hides `.cms-nav`'s off-canvas
             behavior above 900px, so this has nothing to sit behind there either — conditionally
             rendered rather than CSS-hidden since it would otherwise sit invisibly over the whole
@@ -771,21 +783,7 @@ function AdminShell(props: AppProps & { session: ReturnType<typeof useAdminSessi
         <div className="admin-main-col">
           {/* Hidden above the tablet breakpoint (desktop keeps the always-visible sidebar) — see
               `.admin-topbar` in styles.css. */}
-          <div className="admin-topbar">
-            <button
-              type="button"
-              className="admin-topbar-toggle"
-              aria-expanded={sidebarOpen}
-              aria-controls="admin-sidebar"
-              aria-label={tApp({ locale: navLocale, key: sidebarOpen ? "Close navigation" : "Open navigation" })}
-              onClick={() => setSidebarOpen((current) => !current)}
-            >
-              <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
-                <path d="M2.5 5h13M2.5 9h13M2.5 13h13" strokeLinecap="round" />
-              </svg>
-            </button>
-            <span className="admin-topbar-title">Tovu</span>
-          </div>
+          <AdminTopbar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} navLocale={navLocale} />
           {/* `data-agent-page` is how the page driver reports where it is: `page.find_elements` tags
               every handle with its nearest `[data-agent-page]` ancestor, and `page.navigate` reads it
               back to say which page it left and which it landed on. `agentPageId`, not
@@ -801,12 +799,15 @@ function AdminShell(props: AppProps & { session: ReturnType<typeof useAdminSessi
               (owner, 2026-10-23: "we aren't doing anything with email right now"); re-mount it here
               with fetchStatus={api.getMailStatus} when email work resumes (development/todos.md). */}
           <main id="main-content" className="admin-content" ref={setContentEl} tabIndex={-1} data-agent-page={agentPageId(route)}>
-            {content}
+            {/* Keep page overlays in the same allowed root and page identity as their triggers. */}
+            <KitProvider kit={tovuKit} agent={tovuAgentAttrs} overlayContainer={contentEl}>
+              {content}
+            </KitProvider>
           </main>
           {/* One ↑/↓ pair for every long admin page (owner, 2026-10-21); `styles.css` places it
               beside the assistant FAB. */}
           <ScrollJumpButtons
-            container={contentEl ?? null}
+            container={contentNode}
             labels={{ toTop: tApp({ locale: navLocale, key: "Scroll to top" }), toBottom: tApp({ locale: navLocale, key: "Scroll to bottom" }) }}
           />
         </div>
@@ -861,5 +862,28 @@ function AdminShell(props: AppProps & { session: ReturnType<typeof useAdminSessi
     </ConfirmDialogDefaultsProvider>
     </ChartRegistryProvider>
     </AdminModulesProvider>
+  );
+}
+
+/** Mobile shell chrome follows the same drawer state as the sidebar and backdrop. */
+function AdminTopbar({ sidebarOpen, setSidebarOpen, navLocale }: {
+  sidebarOpen: boolean; setSidebarOpen: (value: boolean | ((current: boolean) => boolean)) => void; navLocale: string;
+}) {
+  return (
+    <div className="admin-topbar">
+      <button
+        type="button"
+        className="admin-topbar-toggle"
+        aria-expanded={sidebarOpen}
+        aria-controls="admin-sidebar"
+        aria-label={tApp({ locale: navLocale, key: sidebarOpen ? "Close navigation" : "Open navigation" })}
+        onClick={() => setSidebarOpen((current) => !current)}
+      >
+        <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+          <path d="M2.5 5h13M2.5 9h13M2.5 13h13" strokeLinecap="round" />
+        </svg>
+      </button>
+      <span className="admin-topbar-title">Tovu</span>
+    </div>
   );
 }

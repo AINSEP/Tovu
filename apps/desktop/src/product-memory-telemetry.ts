@@ -14,14 +14,14 @@ function processKind({ row, desktopPid, rendererPids }: { row: ResourceProcess; 
   return rendererPids.has(row.pid) ? 'renderer' : 'other';
 }
 
-/** Project monitor rows without any native resampling; main heap is available in this process.
+/** Project current OS RSS without resampling; footprint/committed display changes never enter the RSS series.
  * @returns Local-only identities for growth tracking. @complexity O(p) monitor processes.
  */
 export function projectMemoryProcesses({ snapshot, desktopPid, rendererPids, heapUsedBytes }: {
   snapshot: ResourcesSnapshot; desktopPid: number; rendererPids: ReadonlySet<number>; heapUsedBytes: number;
 }, _options = {}): ProcessMemoryReading[] {
   return [snapshot.app, ...snapshot.sites].flatMap(group => group.processes).map(row => ({
-    id: row.pid, kind: processKind({ row, desktopPid, rendererPids }), rssBytes: row.rssBytes,
+    id: row.pid, kind: processKind({ row, desktopPid, rendererPids }), rssBytes: row.rawRssBytes ?? row.rssBytes,
     ...(row.pid === desktopPid ? { heapUsedBytes } : {}),
   }));
 }

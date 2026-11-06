@@ -183,7 +183,7 @@ test("put-entry: an unexpected repo failure 500s", async (t) => {
     body: JSON.stringify({ title: "x" }),
   });
   assert.equal(res.status, 500);
-  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: {"message":"The search setting operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"search setting operation"} });
   assert.equal(reached, true, "the conditional write must be the failing operation");
   assertAdminResponse({ actual: await base.postRepo.findById({ workspaceId: WORKSPACE_ID, id: ENTRY_ID }), expected: before });
 });

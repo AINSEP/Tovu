@@ -178,5 +178,5 @@ test("DELETE_ROLE route: 500 internal error when an unexpected error is thrown",
   const res = await fetch(`${baseUrl}${urlFor("any-id")}`, { method: "DELETE" });
   assert.equal(res.status, 500);
   const body = (await res.json()) as { error: string };
-  assertAdminResponse({ actual: body, expected: { error: "internal error" } });
+  assertAdminResponse({ actual: body, expected: { error: "internal error" } }, { failure: {"message":"The role removal could not be confirmed.","action":"Check the list before repeating the removal. Copy details and report this problem.","step":"Remove role"} });
 });

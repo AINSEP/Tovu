@@ -146,6 +146,10 @@ async function findSavedApiKey({ deps, providerId }: { deps: SourceControlToolDe
  * An explicit but ambiguous inventory must not silently choose a different store.
  * @complexity Source-control selection/inventory and, only with no rows, one custom-key inventory. */
 async function findConfiguredCredential({ deps, providerId }: { deps: SourceControlToolDeps; providerId: string }, _options = {}) {
+  if (deps.sourceControlCredentialSetRepo.canonical?.supports({ providerId })) {
+    const saved = await findSavedApiKey({ deps, providerId });
+    return saved ? { providerId, credentialSource: "saved-api-key" } : null;
+  }
   const explicit = await findDefaultSourceControlCredential({ repo: deps.sourceControlCredentialSetRepo }, { workspaceId: deps.workspaceId, providerId });
   if (explicit) return { providerId, credentialSource: "source-control" };
   const identities = await listSourceControlCredentials({ repo: deps.sourceControlCredentialSetRepo }, { workspaceId: deps.workspaceId });
@@ -394,7 +398,7 @@ export function buildSourceControlRegistrations(deps: SourceControlToolDeps, sur
 
       const providers = await Promise.all(reportedProviderIds(registry, saved.map((credential) => credential.providerId)).map(async (providerId) => {
         const savedCredentials = saved
-          .filter((credential) => credential.providerId === providerId)
+          .filter((credential) => credential.providerId === providerId && !deps.sourceControlCredentialSetRepo.canonical?.supports({ providerId }))
           .map((credential) => ({ id: credential.id, label: credential.label, isDefault: credential.isDefault, createdAt: credential.createdAt, updatedAt: credential.updatedAt }));
         let hasSavedApiKey = false;
         if (savedCredentials.length === 0) hasSavedApiKey = (await findSavedApiKey({ deps, providerId })) !== null;

@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { useLogin } from "../hooks/use-login.hooks";
 import { createFakeLoginPort } from "../hooks/login-dependencies.hooks";
 import type { LoginPort } from "../hooks/login-port.hooks";
+import { ApiError } from "@/lib/api";
 
 /**
  * @file `useLogin` — the Login screen's submit lifecycle, extracted verbatim from `Login.tsx`.
@@ -95,13 +96,13 @@ describe("useLogin — submit", () => {
     expect(onLogin).not.toHaveBeenCalled();
   });
 
-  it("falls back to the exact string 'login failed' when the rejection is not an Error", async () => {
+  it("explains how to retry when the rejection is not an Error", async () => {
     const port: LoginPort = { login: () => Promise.reject("network exploded") };
     const { result } = renderHook(() => useLogin({ onLogin: vi.fn() }, { port }));
 
     await act(async () => result.current.submit(fakeSubmitEvent()));
 
-    expect(result.current.error).toBe("login failed");
+    expect(result.current.error).toBe("Sign-in could not finish. Try signing in again.");
   });
 
   it("clears a previous error at the start of a new submit attempt", async () => {
@@ -128,4 +129,52 @@ describe("useLogin — submit", () => {
     await waitFor(() => expect(result.current.error).toBeNull());
     expect(result.current.busy).toBe(false);
   });
+});
+
+it("copies the server incident ID without copying a password or private backend facts", async () => {
+  const port: LoginPort = { login: async () => { throw new ApiError("private identity table; LOGIN_PASSWORD_CANARY", 500, "INTERNAL_ERROR", { errorId: "auth-incident-123" }); } };
+  const { result } = renderHook(() => useLogin({ onLogin: vi.fn() }, { port }));
+  act(() => result.current.setPassword("LOGIN_PASSWORD_CANARY"));
+  await act(async () => result.current.submit(fakeSubmitEvent()));
+  expect(result.current.failure?.errorId).toBe("auth-incident-123");
+  expect(result.current.failure?.copyText).toContain("auth-incident-123");
+  expect(result.current.failure?.copyText).not.toMatch(/LOGIN_PASSWORD_CANARY|private identity/);
+  expect(result.current.failure?.action).toMatch(/Try signing in again/);
+});
+
+it.each([401, 429])("keeps the existing %s refusal message without replacing it with a server incident", async status => {
+  const port: LoginPort = { login: async () => { throw new ApiError("existing safe refusal", status); } };
+  const { result } = renderHook(() => useLogin({ onLogin: vi.fn() }, { port }));
+  await act(async () => result.current.submit(fakeSubmitEvent()));
+  expect(result.current.error).toBe("existing safe refusal");
+  expect(result.current.failure).toBeNull();
+});
+
+it('holds login at pending MFA, clears the password and completes only after the factor', async () => {
+  const onLogin = vi.fn();
+  const completeMfa = vi.fn().mockResolvedValue({ user: { id: 'owner', username: 'Owner' } });
+  const port: LoginPort = { login: async () => ({ mfaRequired: true, pendingToken: 'proof' }), completeMfa };
+  const { result } = renderHook(() => useLogin({ onLogin }, { port }));
+  act(() => result.current.setPassword('password-canary'));
+  await act(async () => result.current.submit(fakeSubmitEvent()));
+  expect(onLogin).not.toHaveBeenCalled();
+  expect(result.current.password).toBe('');
+  expect(result.current.mfa).toBeDefined();
+  act(() => result.current.mfa!.setCode('123456'));
+  await act(async () => result.current.submit(fakeSubmitEvent()));
+  expect(completeMfa).toHaveBeenCalledExactlyOnceWith({ pendingToken: 'proof', code: '123456' });
+  expect(onLogin).toHaveBeenCalledExactlyOnceWith({ id: 'owner', username: 'Owner' });
+  expect(result.current.mfa).toBeUndefined();
+});
+
+it('cancels a pending MFA proof without completing it or retaining the code', async () => {
+  const onLogin = vi.fn(), completeMfa = vi.fn();
+  const port: LoginPort = { login: async () => ({ mfaRequired: true, pendingToken: 'proof' }), completeMfa };
+  const { result } = renderHook(() => useLogin({ onLogin }, { port }));
+  await act(async () => result.current.submit(fakeSubmitEvent()));
+  act(() => { result.current.mfa!.setCode('123456'); });
+  act(() => { result.current.mfa!.cancel(); });
+  expect(result.current.mfa).toBeUndefined();
+  expect(onLogin).not.toHaveBeenCalled();
+  expect(completeMfa).not.toHaveBeenCalled();
 });

@@ -29,7 +29,7 @@ test('custom root: an unexpected persistence failure is a private internal error
   t.after(() => rmSync(join(blocked, '..'), { recursive: true, force: true }));
   writeFileSync(blocked, 'a file cannot be a site directory');
   const { app } = fixture(registerAdminFsFilesCustomRootRoutes, { siteBinding: { dir: blocked }, storeOptional: undefined });
-  assertAdminResponse({ actual: await dispatchJsonRequest(app, 'PUT', `${BASE}/fs-files/custom-root`, { path: tmpdir() }), expected: { status: 500, body: INTERNAL_CODE } });
+  assertAdminResponse({ actual: await dispatchJsonRequest(app, 'PUT', `${BASE}/fs-files/custom-root`, { path: tmpdir() }), expected: { status: 500, body: INTERNAL_CODE } }, { failure: {"message":"The file save could not be completed.","action":"Check whether your changes were saved before repeating the save. Copy details and report this problem.","step":"Save file"} });
 });
 
 for (const body of [undefined, {}, { path: '' }, { path: 42 }]) {

@@ -5,6 +5,8 @@ import type {
   SiteFolders,
   CreateSiteInput,
   CreatedSiteRecord,
+  ImportArchiveInput,
+  ImportedSiteRecord,
   TokenSignInPlugin,
   OpenSiteSurfaceInput,
   RenameSiteInput,
@@ -71,6 +73,10 @@ export interface RunnerInventoryBridge {
    *  operator-facing reason that names the fix. Surface that message verbatim; see
    *  `use-add-site.hooks.ts`. */
   addSite: () => Promise<(SiteRecord & { alreadyTracked?: boolean }) | null>;
+  /** The same verb for a dropped folder. Optional for an older preload. */
+  addDroppedSite?: (input: { folder: string }) => Promise<(SiteRecord & { alreadyTracked?: boolean }) | null>;
+  /** .tovu.zip or share link to a new site; `null` when the dialog was cancelled. Optional for an older preload. */
+  importSiteArchive?: (input: ImportArchiveInput) => Promise<ImportedSiteRecord | null>;
   /** Read-only new-site destination, with the user home for display shortening. */
   planNewDir?: (input: { name: string }) => Promise<{ path: string; homeDir: string }>;
   createSite: (input: CreateSiteInput) => Promise<CreatedSiteRecord | null>;
@@ -88,6 +94,8 @@ export interface RunnerInventoryBridge {
    *  folder — a new id, since a record's id is its folder. Rejects with an operator-facing reason;
    *  surface it verbatim. See `SITE_IPC_CHANNELS.locate`. */
   locateSite: (id: string) => Promise<SiteRecord>;
+  /** Keep this site awake after its tab closes until Stop, manual Start, deletion or app exit. */
+  keepSiteRunning?: (input: { id: string }, options?: {}) => Promise<void>;
   startSite: (id: string) => Promise<SiteRecord>;
   stopSite: (id: string) => Promise<SiteRecord>;
   /** Irreversible. Resolves with nothing — the project it names no longer exists. */

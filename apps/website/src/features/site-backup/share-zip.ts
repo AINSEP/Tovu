@@ -12,9 +12,10 @@ import type { StaticExportTheme } from "./static-export-selection.js";
 import { staticDownloadLayout } from "./static-download-layout.js";
 import { SAVED_KEYS_PATH } from "./saved-keys-port.js";
 import type { CredentialWarning } from "./credential-warnings.js";
+import { createBundledExportFilePolicy, type BundledExportFilePolicy } from "./bundled-export-file-policy.js";
 
 type ShareZipEntry = { readonly path: string; readonly content: Buffer };
-type ShareZipProgressOptions = { signal?: AbortSignal; progress?: SiteBackupPushProgress; notices?: string[]; credentialWarnings?: CredentialWarning[]; bundledImportPluginIds?: ReadonlySet<string> };
+type ShareZipProgressOptions = { signal?: AbortSignal; progress?: SiteBackupPushProgress; notices?: string[]; credentialWarnings?: CredentialWarning[]; bundledImportPluginIds?: ReadonlySet<string>; bundledFilePolicy?: BundledExportFilePolicy };
 /** The picked Files handed to Jini's encoder and the manifest inventory, in the same order. */
 interface CollectedShareEntries { readonly plugins: NonNullable<SiteSharePlanContent["plugins"]>; readonly files: File[]; readonly inventory: { path: string; bytes: number; sha256: string }[]; readonly credentialWarnings: CredentialWarning[] }
 
@@ -32,12 +33,12 @@ export function claimArchivePaths(required: { entries: readonly { path: string }
 }
 
 /** Abort-checks and secret-scans one entry, then records its picked File, inventory row and progress. O(entry bytes). */
-function addEntry(required: { entry: ShareZipEntry; collected: CollectedShareEntries }, optional: ShareZipProgressOptions = {}): void {
+function addEntry(required: { entry: ShareZipEntry; collected: CollectedShareEntries }, optional: ShareZipProgressOptions & { skipCredentialScan?: boolean } = {}): void {
   const { entry, collected } = required;
   optional.signal?.throwIfAborted();
   // SQLite is rebuilt by the projection owner; ciphertext is authenticated by Job 2 on restore.
   const structured = entry.path === SITE_BACKUP_DATABASE_PATH || entry.path === SAVED_KEYS_PATH;
-  if (!structured) requireShareSecretFree({ path: archiveSecretScanPath({ path: entry.path, plugins: collected.plugins }), bytes: entry.content }, { shownPath: entry.path, credentialWarnings: collected.credentialWarnings });
+  if (!structured && !optional.skipCredentialScan) requireShareSecretFree({ path: archiveSecretScanPath({ path: entry.path, plugins: collected.plugins }), bytes: entry.content }, { shownPath: entry.path, credentialWarnings: collected.credentialWarnings });
   // Node File accepts Buffer directly; the DOM type omits potentially shared-backed views.
   // This assertion preserves the bytes without allocating a second Uint8Array.
   const picked = new File([entry.content as ConstructorParameters<typeof File>[0][number]], entry.path.split("/").at(-1)!);
@@ -49,13 +50,23 @@ function addEntry(required: { entry: ShareZipEntry; collected: CollectedShareEnt
   if (optional.progress) { optional.progress.filesDone++; optional.progress.bytesDone += entry.content.length; }
 }
 
+/** Compare the exact backup bytes being encoded, without changing static exports or execution trust.
+ * @complexity O(entry bytes); one installed-file read. All bytes count toward progress/inventory.
+ */
+async function addBackupEntry(required: { entry: ShareZipEntry; collected: CollectedShareEntries }, optional: ShareZipProgressOptions): Promise<void> {
+  optional.signal?.throwIfAborted();
+  const disposition = await optional.bundledFilePolicy?.({ path: required.entry.path, bytes: required.entry.content });
+  optional.signal?.throwIfAborted();
+  addEntry(required, { ...optional, skipCredentialScan: disposition === 'skip' });
+}
+
 /** Reads each planned disk file in order and adds it; refuses PLAN_STALE when one changed since the plan. */
 async function addDiskFiles(required: { files: readonly PlannedDiskFile[]; collected: CollectedShareEntries }, optional: ShareZipProgressOptions = {}): Promise<void> {
   for (const file of required.files) {
     const loaded = await readPlannedFile(file);
     if (!loaded.ok) throw new SiteShareRefusal({ code: "PLAN_STALE", message: loaded.message });
     const archivePath = runtimeToArchivePath({ path: file.path });
-    if (archivePath !== null) addEntry({ entry: { path: archivePath, content: loaded.bytes }, collected: required.collected }, optional);
+    if (archivePath !== null) await addBackupEntry({ entry: { path: archivePath, content: loaded.bytes }, collected: required.collected }, optional);
   }
 }
 
@@ -101,8 +112,9 @@ async function buildShareZipContent(required: { plan: SiteSharePlanContent; zip:
   claimArchivePaths({ entries: paths });
   if (optional.progress) Object.assign(optional.progress, { filesTotal: paths.length, bytesTotal: sizes.reduce((sum, file) => sum + file.bytes, 0) });
   const collected: CollectedShareEntries = { files: [], inventory: [], plugins: plan.plugins ?? [], credentialWarnings: optional.credentialWarnings ?? [] };
-  for (const entry of memory) addEntry({ entry, collected }, optional);
-  await addDiskFiles({ files: plan.files, collected }, optional);
+  const entryOptions = { ...optional, bundledFilePolicy: optional.bundledFilePolicy ?? createBundledExportFilePolicy({}) };
+  for (const entry of memory) await addBackupEntry({ entry, collected }, entryOptions);
+  await addDiskFiles({ files: plan.files, collected }, entryOptions);
   collected.files.push(buildManifestFile({ plan, inventory: collected.inventory }));
   optional.signal?.throwIfAborted();
   return encodeShareZip({ files: collected.files, zip: required.zip });

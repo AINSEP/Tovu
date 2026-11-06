@@ -138,7 +138,7 @@ test("unreadable activation refuses a bundled executable contribution before its
   await withWorkspace(async workspaceRoot => {
     const marker = "__trustedPluginAuditExecuted";
     await installBundled(workspaceRoot, "blocked-mail", true, {
-      [MAIL_ADAPTERS_FILENAME]: JSON.stringify({ schemaVersion: 1, adapters: [{ id: "blocked-mail", label: "Blocked Mail", module: "adapter.mjs", credentialLabel: "Key" }] }),
+      [MAIL_ADAPTERS_FILENAME]: JSON.stringify({ schemaVersion: 1, adapters: [{ id: "blocked_mail", label: "Blocked Mail", module: "adapter.mjs", credentialLabel: "Key" }] }),
       "adapter.mjs": `globalThis[${JSON.stringify(marker)}] = true; export default { create() { return {}; } };`,
     });
     await writeFile(path.join(workspaceRoot, "activations.json"), "{broken-json");

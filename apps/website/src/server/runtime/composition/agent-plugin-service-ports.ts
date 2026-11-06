@@ -1,11 +1,11 @@
 import { runApiConnectionConnect } from '#src/features/api-connections/connect';
 import type { ApiConnectionHost } from '#src/features/api-connections/host';
 /** Bind plugin consumers to the existing service owners; secret custody stays in composition. */
-import type { SetValueRequired } from '@jini-ai/core/settings';
+import { resolveDefinitionRaw, type SetValueRequired } from '@jini-ai/core/settings';
 import { getEffective, set } from '#src/features/settings/index';
 import type { Clock } from '@jini-ai/core/primitives';
 import type { HttpClientPort } from '#src/platform/http/ports';
-import { saveExternalMcpServer, ExternalMcpValidationError, ExternalMcpSecretStoreUnconfiguredError } from '#src/features/external-mcp/external-mcp-store';
+import { applyExternalMcpAccess, saveExternalMcpServer, ExternalMcpValidationError, ExternalMcpSecretStoreUnconfiguredError } from '#src/features/external-mcp/external-mcp-store';
 import type { ExternalMcpOAuthService, ExternalMcpStoreDeps } from '#src/features/external-mcp/contracts';
 import { notifyExternalMcpRosterChanged } from '#src/assistant/external-mcp-roster-change';
 import { findPluginCredentialCard, loadPluginCredentialCardsSafely, type LoadPluginCredentialCards } from '#src/features/custom-credentials/plugin-credential-card';
@@ -21,12 +21,13 @@ import type { PluginProviderFacesPort } from '#src/features/plugin-runtime/servi
 export function composeAgentPluginMcp(required: ExternalMcpStoreDeps, _options = {}): AgentPluginMcpPort {
   return {
     repo: required.repo,
+    applyAccess: (input, _options = {}) => applyExternalMcpAccess({ ...input, repo: required.repo, clock: required.clock }),
     saveServer: (input, _options = {}) => saveExternalMcpServer(required, input),
     classifyError: ({ error }, _options = {}) => {
       if (error instanceof ExternalMcpValidationError) return 'validation';
       return error instanceof ExternalMcpSecretStoreUnconfiguredError ? 'unconfigured' : 'other';
     },
-    notifyRosterChanged: (_input, _options = {}) => notifyExternalMcpRosterChanged(),
+    notifyRosterChanged: (input, _options = {}) => notifyExternalMcpRosterChanged(input),
   };
 }
 
@@ -48,8 +49,16 @@ export function composeAgentPluginPreferences({ settings, read = getEffective, w
       const effective = await read({ repo: settings.repo }, { namespace: ADMIN_INTERFACE_NAMESPACE, key: CHAT_AGENT_PLUGINS_KEY, scopeContext: { workspaceId, principalId } });
       return effective?.value === 'ask' || effective?.value === 'off' ? effective.value : 'auto';
     },
-    saveAuto: async ({ workspaceId, principalId }, _options = {}) => {
-      await write({ deps: { ...settings, clock: { nowMs: () => Date.parse(settings.clock.nowIso()) } }, input: { namespace: ADMIN_INTERFACE_NAMESPACE, key: CHAT_AGENT_PLUGINS_KEY, value: 'auto', scope: 'user', workspaceId, principalId, callerPrincipalId: principalId, authWorkspaceId: workspaceId } });
+    snapshot: async ({ workspaceId, principalId }, _options = {}) => {
+      const definition = await resolveDefinitionRaw({ repo: settings.repo }, { namespace: ADMIN_INTERFACE_NAMESPACE, key: CHAT_AGENT_PLUGINS_KEY, workspaceId });
+      // Read the addressed revision first: a personal change during the effective read must
+      // invalidate the later write, never attach the new revision to an old approval snapshot.
+      const layer = definition ? await settings.repo.getUserValue({ workspaceId, principalId, settingId: definition.settingId }) : null;
+      const effective = await read({ repo: settings.repo }, { namespace: ADMIN_INTERFACE_NAMESPACE, key: CHAT_AGENT_PLUGINS_KEY, scopeContext: { workspaceId, principalId } });
+      return { mode: effective?.value === 'ask' || effective?.value === 'off' ? effective.value : 'auto', revisionSeq: layer?.seq ?? 0 };
+    },
+    saveAuto: async ({ workspaceId, principalId, expectedRevisionSeq }, _options = {}) => {
+      await write({ deps: { ...settings, clock: { nowMs: () => Date.parse(settings.clock.nowIso()) } }, input: { namespace: ADMIN_INTERFACE_NAMESPACE, key: CHAT_AGENT_PLUGINS_KEY, value: 'auto', scope: 'user', workspaceId, principalId, callerPrincipalId: principalId, authWorkspaceId: workspaceId } }, { expectedRevisionSeq });
     },
   };
 }
@@ -59,6 +68,7 @@ export function composePluginProviderFaces({ workspaceRoot }: { workspaceRoot: (
   const ports = bindProviderFacePorts({ workspaceRoot });
   return {
     linkedProvider: (input, _options = {}) => linkedProviderOf({ ...input, ports }),
+    affectedPluginIds: async ({ pluginId }, _options = {}) => [pluginId, ...[...await ports.links({})].filter(([, provider]) => provider === pluginId).map(([face]) => face)],
     describeLinkedFace: (input, _options = {}) => new AgentPluginLinkedError(input),
     describeLinkedError: ({ error }, _options = {}) => error instanceof AgentPluginLinkedError ? error : undefined,
   };
@@ -78,6 +88,7 @@ export function composeAgentPluginConnectServices(required: {
       isValidationError: ({ error }, _options = {}) => error instanceof ExternalMcpValidationError,
     },
     apiConnections: apiConnections && {
+      sharingAvailable: apiConnections.host.sharingAvailable,
       listConnections: (input, _options = {}) => apiConnections.host.listConnections(input),
       connect: (input, _options = {}) => runApiConnectionConnect({ ...input, deps: { host: apiConnections.host } }),
     },

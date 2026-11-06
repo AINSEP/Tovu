@@ -217,12 +217,13 @@ export const pluginAgentToolCatalog: AgentToolDefinition[] = [
       "say which with the required 'family' argument: 'agent-plugin' for an Agent Plugin found by search_agent_plugin_local (e.g. the " +
       "image/video plugin), 'site-runtime' for a .tovu-plugin site plugin listed by content_read.plugin. Use this when the " +
       "user asks to enable, disable, turn on, turn off, activate or deactivate a plugin, or when a plugin you need is installed but not " +
-      "active. Site plugins sealed here with plugin_source_seal enable directly; other plugins open a confirmation dialog and wait for approval. " +
+      "active. Every enable opens the owner's approval card, including site plugins sealed here with plugin_source_seal. " +
+      "For Agent Plugins the same card lists the external MCP sources, declared tools and may-write grants to turn on; discovery reloads after approval. " +
       "Disabling is not confirmed. Author site-local behavior with plugin_source_create/open → write/edit → seal → enable (family 'site-runtime'). " +
       "Site plugins support content filters, content types and fields, plus sdk.routes.add (http.route.register + contributes.routes, mounted under /api/p/<plugin-id>), sdk.tools.add (tools.register + contributes.tools, ids p_<normalized-plugin-id>__<name>), and sdk.widgets.add (render.contribute + contributes.widgets, public SSR partials). Refuses to enable a site-runtime plugin whose discovery status is 'invalid' " +
       "or 'incompatible'; enabling one with a data module runs live schema DDL (ADR-023) — reversible in the sense that disabling flips the " +
       "activation flag back, but not a pure no-op toggle. Installing and uninstalling are SEPARATE tools, deliberately: this one only flips " +
-      "an already-installed plugin's switch and never adds or deletes anything.",
+      "an already-installed plugin's switch and its listed access; it never installs or removes plugin packages.",
     sideEffects: "mutates-durable-state",
     authorization: { permission: "admin.plugins.enable" },
     inputSchema: SET_ENABLED_SCHEMA,
@@ -248,3 +249,51 @@ export const pluginAgentToolCatalog: AgentToolDefinition[] = [
     inputSchema: UNINSTALL_SCHEMA,
   },
 ];
+
+/**
+ * @file The dialog `plugins_set_enabled` raises before it turns a plugin ON, for either plugin
+ * family.
+ *
+ * ---------------------------------------------------------------------------
+ * Why enabling is confirmed at all, when it is "just a flag"
+ * ---------------------------------------------------------------------------
+ * Enabling changes what the ASSISTANT can do next, which makes it a privilege escalation the model
+ * would otherwise be granting itself:
+ *
+ * - An Agent Plugin's `SKILL.md` is injected into a run's prompt (`resolve-agent-plugin-refs.ts`),
+ *   and its `agent_plugin_<id>` tool is registered for the model to call
+ *   (`agent-plugins/tool-registrations.ts`). A disabled plugin gets neither; enabling grants both.
+ * - A `.tovu-plugin` runtime plugin's enable hook can run ADR-023 schema DDL against the LIVE
+ *   database (`server/runtime/composition/plugin-runtime.ts`'s `onPluginEnabled`), and its
+ *   capability tools become registrable (`capability-tool-registrations.ts`).
+ *
+ * `plugin-runtime/agent-tools.ts`'s own catalog header left this question open in so many words —
+ * "whether that is sufficient, or this needs the stronger actor-class/confirmation gating ... is
+ * flagged as open in the audit and not decided here". This answers it: enabling, in either family,
+ * asks a human first. DISABLING does not, and that asymmetry is deliberate rather than an
+ * oversight — disabling only ever REMOVES capability, so there is no escalation to consent to, and
+ * a confirmation dialog in front of the off switch is a dialog people learn to click through.
+ *
+ * ---------------------------------------------------------------------------
+ * The mechanism is the held-open exchange, not a token
+ * ---------------------------------------------------------------------------
+ * Same shape as `features/post/delete-confirmation-ui.ts` (ADR-055 Decision 2), for the same
+ * reasons — see that file's header for the full chain. The model's one call PARKS; the only way to
+ * resolve it is a browser POST to `mcp-ui-tool-calls-route.ts`, a channel the model cannot reach.
+ * The `exchangeId` interpolated below is a correlation handle, not a secret, and still belongs in
+ * this surface and nowhere else: a copy in the tool's `modelText` or an error message would
+ * misleadingly suggest a second, independent path back to the parked call, and there is none.
+ *
+ * `plugins_set_enabled` must therefore also be on `assistant/mcp-ui-tool-calls.ts`'s
+ * `MCP_UI_REDEEMABLE_TOOL_IDS` — without it the human's click is refused at the endpoint and the
+ * call parks until it expires. That is asserted, not assumed
+ * (`tool-registrations.plugins-set-enabled-families.test.ts`).
+ */
+
+
+/** Which plugin system a `plugins_set_enabled` call is about. Explicit, never inferred — the two
+ * systems share the word "plugin" and nothing else, and guessing between them has already produced
+ * real work in the wrong directory. The catalog owns this contract; approval presentation consumes it. */
+export type PluginFamily = 'site-runtime' | 'agent-plugin';
+/** The tool id the common access card asks the Host to call back. Single source of truth for both halves. */
+export const PLUGINS_SET_ENABLED_TOOL_ID = 'plugins_set_enabled';

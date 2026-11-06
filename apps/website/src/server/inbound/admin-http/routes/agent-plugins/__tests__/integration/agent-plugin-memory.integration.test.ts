@@ -78,7 +78,7 @@ test('admin memory round-trips a user note, refuses learned writes/traversal, an
     const fault = t.mock.method(deps.agentPluginLayout, 'forWorkspace', () => { throw new Error('private /secret/plugins'); });
     const failed = await fetch(`${prefix}/memory`, { headers: { cookie } });
     assert.equal(failed.status, 500);
-    assertAdminResponse({ actual: await failed.json(), expected: { error: 'internal error', code: 'INTERNAL_ERROR' } });
+    assertAdminResponse({ actual: await failed.json(), expected: { error: 'internal error', code: 'INTERNAL_ERROR' } }, { failure: {"message":"The agent plugins could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load agent plugins"} });
     assert.equal(fault.mock.callCount(), 1);
   } finally {
     if (previous === undefined) delete process.env.TOVU_AGENT_PLUGINS_DIR; else process.env.TOVU_AGENT_PLUGINS_DIR = previous;

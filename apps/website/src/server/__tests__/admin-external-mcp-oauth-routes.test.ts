@@ -77,7 +77,7 @@ function scriptedFetch(script: readonly ScriptStep[], options: { rejectReplayedC
   return { fetchFn, requests };
 }
 
-async function buildTestApp(options: { script?: readonly ScriptStep[]; grant?: string; rejectReplayedCodes?: boolean } = {}) {
+async function buildTestApp(options: { script?: readonly ScriptStep[]; grant?: string; rejectReplayedCodes?: boolean; sharedOAuth?: Partial<import("../../features/external-mcp/contracts.js").ExternalMcpOAuthService> } = {}) {
   const base = createRouteDeps();
   const http = scriptedFetch(options.script ?? [], options);
   const oauthDeps: Parameters<typeof createExternalMcpOAuthService>[0] = {
@@ -91,7 +91,7 @@ async function buildTestApp(options: { script?: readonly ScriptStep[]; grant?: s
       fetchFn: ({ url }, init) => (http.fetchFn)(url, init) },
     lookupProvider: () => PROVIDER,
   };
-  const deps: RouteDeps = { ...base, externalMcpOAuth: createExternalMcpOAuthService(oauthDeps) };
+  const deps: RouteDeps = { ...base, externalMcpOAuth: { ...createExternalMcpOAuthService(oauthDeps), ...options.sharedOAuth } };
 
   await saveExternalMcpServer(
     {
@@ -138,6 +138,52 @@ function req(baseUrl: string, path: string, cookie: string, init: RequestInit = 
   });
 }
 
+async function openHostedSignIn(authorizationUrl: string, cookie: string) {
+  const response = await fetch(authorizationUrl, { headers: { cookie }, redirect: 'manual' });
+  assert.equal(response.status, 302);
+  const bindingCookie = response.headers.get('set-cookie')?.split(';')[0] ?? '';
+  assert.match(bindingCookie, /^__Secure-tovu_mcp_binding=[A-Za-z0-9_-]{43}$/);
+  assert.match(response.headers.get('set-cookie') ?? '', /HttpOnly; Secure; SameSite=Lax/);
+  assert.equal(response.headers.get('cache-control'), 'no-store');
+  return { authorization: new URL(response.headers.get('location')!), bindingCookie };
+}
+
+test("a forwarded provider URL cannot finish MCP sign-in in another browser; reconnect still works", async t => {
+  const { app, deps, http } = await buildTestApp({ script: [{ json: { access_token: 'at-wire', token_type: 'Bearer' } }] });
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const old = await deps.externalMcpOAuth!.beginConnect({ serverId: SERVER_ID, redirectUri: `${baseUrl}${EXTERNAL_MCP_OAUTH_CALLBACK_PATH}/${SERVER_ID}` });
+  assert.equal(old.kind, 'redirect_required');
+  if (old.kind !== 'redirect_required') throw new Error('Expected redirect sign-in');
+  const unbound = await fetch(`${baseUrl}${EXTERNAL_MCP_OAUTH_CALLBACK_PATH}/${SERVER_ID}?state=${encodeURIComponent(new URL(old.authorizationUrl).searchParams.get('state')!)}&code=old`,
+    { headers: { cookie: `__Secure-tovu_mcp_binding=${'z'.repeat(43)}` } });
+  assert.equal(unbound.status, 400);
+  await unbound.text();
+  assert.equal(http.requests.length, 0, 'an old unbound link must not exchange with an arbitrary cookie');
+  for (const attempt of ['connect', 'reconnect']) {
+    const response = await req(baseUrl, `${BASE}/oauth/connect`, cookie, { method: 'POST', body: '{}' });
+    const { auth } = await response.json() as { auth: { authorizationUrl: string } };
+    const hostLink = new URL(auth.authorizationUrl);
+    assert.equal(hostLink.origin, baseUrl);
+    assert.equal(hostLink.searchParams.has('state'), false);
+    const foreign = await fetch(hostLink, { redirect: 'manual' });
+    assert.equal(foreign.status, 401);
+    const { authorization, bindingCookie } = await openHostedSignIn(auth.authorizationUrl, cookie);
+    const callback = `${baseUrl}${EXTERNAL_MCP_OAUTH_CALLBACK_PATH}/${SERVER_ID}?state=${encodeURIComponent(authorization.searchParams.get('state')!)}&code=${attempt}`;
+    for (const browserCookie of ['', `__Secure-tovu_mcp_binding=${'z'.repeat(43)}`]) {
+      const rejected = await fetch(callback, { headers: { cookie: browserCookie } });
+      assert.equal(rejected.status, 400);
+      assert.match(await rejected.text(), /same browser/);
+      assert.equal(http.requests.length, attempt === 'connect' ? 0 : 1);
+    }
+    const completed = await fetch(callback, { headers: { cookie: bindingCookie } });
+    assert.equal(completed.status, 200);
+    assert.match(completed.headers.get('set-cookie') ?? '', /Max-Age=0/);
+    assert.equal(completed.headers.get('cache-control'), 'no-store');
+    await completed.text();
+  }
+  assert.equal(http.requests.length, 2);
+});
+
 test("the admin OAuth routes require a session", async (t) => {
   const { app } = await buildTestApp();
   const baseUrl = await startTestServer(app, t);
@@ -166,7 +212,7 @@ test("connect returns a redirect URL carrying PKCE, and no secret", async (t) =>
 
   assert.equal(response.status, 200);
   assert.equal(body.auth.kind, "redirect_required");
-  const url = new URL(body.auth.authorizationUrl);
+  const { authorization: url } = await openHostedSignIn(body.auth.authorizationUrl, cookie);
   assert.equal(url.searchParams.get("code_challenge_method"), "S256");
   assert.ok(url.searchParams.get("code_challenge"));
   const state = url.searchParams.get("state") ?? "";
@@ -175,7 +221,7 @@ test("connect returns a redirect URL carrying PKCE, and no secret", async (t) =>
   const again = await req(baseUrl, `${BASE}/oauth/connect`, cookie, { method: "POST", body: "{}" });
   assert.equal(again.status, 200);
   const second = await again.json() as { auth: { authorizationUrl: string } };
-  const secondUrl = new URL(second.auth.authorizationUrl);
+  const { authorization: secondUrl } = await openHostedSignIn(second.auth.authorizationUrl, cookie);
   assert.notEqual(secondUrl.searchParams.get("state"), url.searchParams.get("state"));
   assert.notEqual(secondUrl.searchParams.get("code_challenge"), url.searchParams.get("code_challenge"));
   assert.equal(url.searchParams.get("code_verifier"), null, "the verifier must never reach the browser");
@@ -196,10 +242,12 @@ test("a full handshake connects, and no response anywhere carries a token or the
 
   const connect = await req(baseUrl, `${BASE}/oauth/connect`, cookie, { method: "POST", body: "{}" });
   const { auth } = (await connect.json()) as { auth: { authorizationUrl: string } };
-  const state = new URL(auth.authorizationUrl).searchParams.get("state") ?? "";
+  const { authorization, bindingCookie } = await openHostedSignIn(auth.authorizationUrl, cookie);
+  const state = authorization.searchParams.get("state") ?? "";
 
   const callback = await fetch(
     `${baseUrl}${EXTERNAL_MCP_OAUTH_CALLBACK_PATH}/${SERVER_ID}?state=${encodeURIComponent(state)}&code=auth-code`,
+    { headers: { cookie: bindingCookie } },
   );
   const html = await callback.text();
   assert.equal(callback.status, 200);
@@ -209,7 +257,6 @@ test("a full handshake connects, and no response anywhere carries a token or the
   assert.equal(exchange.url, PROVIDER.tokenEndpoint);
   assert.equal(exchange.init?.method, "POST");
   const form = new URLSearchParams(String(exchange.init?.body));
-  const authorization = new URL(auth.authorizationUrl);
   assert.equal(form.get("grant_type"), "authorization_code");
   assert.equal(form.get("code"), "auth-code");
   assert.equal(form.get("redirect_uri"), authorization.searchParams.get("redirect_uri"));
@@ -234,20 +281,21 @@ test("sealed-state callback rejects tampering, expiry and oversize before provid
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const connect = await req(baseUrl, `${BASE}/oauth/connect`, cookie, { method: "POST", body: "{}" });
   const { auth } = await connect.json() as { auth: { authorizationUrl: string } };
-  const state = new URL(auth.authorizationUrl).searchParams.get("state")!;
+  const { authorization, bindingCookie } = await openHostedSignIn(auth.authorizationUrl, cookie);
+  const state = authorization.searchParams.get("state")!;
   const envelope = JSON.parse(Buffer.from(state, "base64url").toString("utf8"));
   const bytes = Buffer.from(envelope.ciphertext, "base64");
   bytes[0] = bytes[0]! ^ 1;
   envelope.ciphertext = bytes.toString("base64");
   for (const invalid of [Buffer.from(JSON.stringify(envelope)).toString("base64url"), "x".repeat(MAX_AUTHORIZATION_STATE_LENGTH + 1)]) {
-    const response = await fetch(`${baseUrl}${EXTERNAL_MCP_OAUTH_CALLBACK_PATH}/${SERVER_ID}?state=${encodeURIComponent(invalid)}&code=c`);
+    const response = await fetch(`${baseUrl}${EXTERNAL_MCP_OAUTH_CALLBACK_PATH}/${SERVER_ID}?state=${encodeURIComponent(invalid)}&code=c`, { headers: { cookie: bindingCookie } });
     assert.equal(response.status, 400);
     assert.match(await response.text(), /state_expired/);
   }
   const nowMs = deps.clock.nowMs.bind(deps.clock);
   deps.clock.nowMs = () => nowMs() + 600_000;
   t.after(() => { deps.clock.nowMs = nowMs; });
-  const expired = await fetch(`${baseUrl}${EXTERNAL_MCP_OAUTH_CALLBACK_PATH}/${SERVER_ID}?state=${encodeURIComponent(state)}&code=c`);
+  const expired = await fetch(`${baseUrl}${EXTERNAL_MCP_OAUTH_CALLBACK_PATH}/${SERVER_ID}?state=${encodeURIComponent(state)}&code=c`, { headers: { cookie: bindingCookie } });
   assert.equal(expired.status, 400);
   assert.match(await expired.text(), /state_expired/);
   assert.equal(http.requests.length, 0);
@@ -259,14 +307,15 @@ test("callback checks its exact URI and a replayed code is refused by the provid
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const connect = await req(baseUrl, `${BASE}/oauth/connect`, cookie, { method: "POST", body: "{}" });
   const { auth } = await connect.json() as { auth: { authorizationUrl: string } };
-  const state = new URL(auth.authorizationUrl).searchParams.get("state")!;
+  const { authorization, bindingCookie } = await openHostedSignIn(auth.authorizationUrl, cookie);
+  const state = authorization.searchParams.get("state")!;
   const path = `${EXTERNAL_MCP_OAUTH_CALLBACK_PATH}/${SERVER_ID}?state=${encodeURIComponent(state)}&code=c`;
-  const wrongUri = await fetch(`${baseUrl}${path}`, { headers: { "x-forwarded-proto": "https" } });
+  const wrongUri = await fetch(`${baseUrl}${path}`, { headers: { cookie: bindingCookie, "x-forwarded-proto": "https" } });
   assert.equal(wrongUri.status, 400);
   assert.match(await wrongUri.text(), /state_expired/);
   assert.equal(http.requests.length, 0);
-  assert.equal((await fetch(`${baseUrl}${path}`)).status, 200);
-  const replay = await fetch(`${baseUrl}${path}`);
+  assert.equal((await fetch(`${baseUrl}${path}`, { headers: { cookie: bindingCookie } })).status, 200);
+  const replay = await fetch(`${baseUrl}${path}`, { headers: { cookie: bindingCookie } });
   assert.equal(replay.status, 400);
   assert.match(await replay.text(), /exchange_failed/);
   assert.equal(http.requests.length, 2);
@@ -280,8 +329,9 @@ test("callback refuses state issued for another server before contacting the pro
   await deps.externalMcpServerRepo.upsert({ ...row, serverId: "other-server", sealedOAuth: null });
   const connect = await req(baseUrl, `${BASE}/oauth/connect`, cookie, { method: "POST", body: "{}" });
   const { auth } = await connect.json() as { auth: { authorizationUrl: string } };
-  const state = new URL(auth.authorizationUrl).searchParams.get("state")!;
-  const response = await fetch(`${baseUrl}${EXTERNAL_MCP_OAUTH_CALLBACK_PATH}/other-server?state=${encodeURIComponent(state)}&code=c`);
+  const { authorization, bindingCookie } = await openHostedSignIn(auth.authorizationUrl, cookie);
+  const state = authorization.searchParams.get("state")!;
+  const response = await fetch(`${baseUrl}${EXTERNAL_MCP_OAUTH_CALLBACK_PATH}/other-server?state=${encodeURIComponent(state)}&code=c`, { headers: { cookie: bindingCookie } });
   assert.equal(response.status, 400);
   assert.match(await response.text(), /state_expired/);
   assert.equal(http.requests.length, 0);
@@ -412,8 +462,9 @@ test("a declined authorization callback renders failure and performs no exchange
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const connect = await req(baseUrl, `${BASE}/oauth/connect`, cookie, { method: "POST", body: "{}" });
   const body = await connect.json() as { auth: { authorizationUrl: string } };
-  const state = new URL(body.auth.authorizationUrl).searchParams.get("state")!;
-  const callback = await fetch(`${baseUrl}${EXTERNAL_MCP_OAUTH_CALLBACK_PATH}/${SERVER_ID}?state=${encodeURIComponent(state)}&error=access_denied`);
+  const { authorization, bindingCookie } = await openHostedSignIn(body.auth.authorizationUrl, cookie);
+  const state = authorization.searchParams.get("state")!;
+  const callback = await fetch(`${baseUrl}${EXTERNAL_MCP_OAUTH_CALLBACK_PATH}/${SERVER_ID}?state=${encodeURIComponent(state)}&error=access_denied`, { headers: { cookie: bindingCookie } });
   assert.equal(callback.status, 400);
   assert.match(await callback.text(), /Couldn’t finish connecting/);
   assert.deepEqual(http.requests, []);
@@ -476,8 +527,9 @@ test("disconnect clears the authorization but keeps the server row", async (t) =
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const connect = await req(baseUrl, `${BASE}/oauth/connect`, cookie, { method: "POST", body: "{}" });
   const { auth } = (await connect.json()) as { auth: { authorizationUrl: string } };
-  const state = new URL(auth.authorizationUrl).searchParams.get("state") ?? "";
-  const callback = await fetch(`${baseUrl}${EXTERNAL_MCP_OAUTH_CALLBACK_PATH}/${SERVER_ID}?state=${encodeURIComponent(state)}&code=c`);
+  const { authorization, bindingCookie } = await openHostedSignIn(auth.authorizationUrl, cookie);
+  const state = authorization.searchParams.get("state") ?? "";
+  const callback = await fetch(`${baseUrl}${EXTERNAL_MCP_OAUTH_CALLBACK_PATH}/${SERVER_ID}?state=${encodeURIComponent(state)}&code=c`, { headers: { cookie: bindingCookie } });
   assert.equal(callback.status, 200);
   const before = await (await req(baseUrl, `/api/admin/v1/workspaces/${WORKSPACE_ID}/mcp-servers`, cookie)).text();
   assert.ok(before.includes('"status":"connected"'));
@@ -491,4 +543,38 @@ test("disconnect clears the authorization but keeps the server row", async (t) =
   assert.ok(list.includes(`"serverId":"${SERVER_ID}"`), "the row survives — only the authorization is dropped");
   assert.ok(list.includes('"status":"disconnected"'));
   assert.ok(list.includes('"hasStoredToken":false'));
+});
+
+
+test("saved MCP routes expose metadata and accept only an existing credential id from a session", async t => {
+  const used: unknown[] = [];
+  const local: unknown[] = [];
+  const { app } = await buildTestApp({ sharedOAuth: {
+    listSharedConnections: async () => ({ available: true, connections: [{ credentialId: 'opaque-owner-id', label: 'Saved fixture' }], current: null }),
+    useSharedConnection: async input => { used.push(input); },
+    useLocalConnection: async input => { local.push(input); },
+  } });
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const unauthenticated = await fetch(`${baseUrl}${BASE}/oauth/shared`);
+  assert.equal(unauthenticated.status, 401);
+  await unauthenticated.text();
+  const list = await req(baseUrl, `${BASE}/oauth/shared`, cookie);
+  assert.equal(list.status, 200);
+  assert.deepEqual(await list.json(), { available: true, connections: [{ credentialId: 'opaque-owner-id', label: 'Saved fixture' }], current: null });
+  for (const body of [{ credentialId: 'opaque-owner-id', accessToken: 'attacker-token' }, { credentialId: 7 }, { credentialId: '' }]) {
+    const rejected = await req(baseUrl, `${BASE}/oauth/shared`, cookie, { method: 'POST', body: JSON.stringify(body) });
+    assert.equal(rejected.status, 400);
+    await rejected.text();
+  }
+  assert.equal(used.length, 0);
+  const selected = await req(baseUrl, `${BASE}/oauth/shared`, cookie, { method: 'POST', body: JSON.stringify({ credentialId: 'opaque-owner-id' }) });
+  assert.equal(selected.status, 200);
+  assert.deepEqual(await selected.json(), { connected: true });
+  assert.equal(used.length, 1);
+  assert.deepEqual(Object.keys(used[0] as object).sort(), ['actorId', 'credentialId', 'serverId']);
+  assert.equal((used[0] as { serverId: string }).serverId, SERVER_ID);
+  const switched = await req(baseUrl, `${BASE}/oauth/shared`, cookie, { method: 'DELETE' });
+  assert.equal(switched.status, 200);
+  assert.deepEqual(await switched.json(), { selected: 'local' });
+  assert.equal(local.length, 1);
 });

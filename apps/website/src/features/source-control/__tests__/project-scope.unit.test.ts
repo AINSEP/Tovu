@@ -74,23 +74,17 @@ test("a git host token saves to the project store and a second site of the proje
   assert.equal((await describeCredential(b, { workspaceId: SITE_B, id: saved.id }))?.scope, "project");
 });
 
-test("a site's own token wins over the project's; same host and label shadows the project row in the list", async () => {
-  const project = projectHalf();
-  await save(site(project), SITE_A, "default", secret("shared"));
-  const b = site(project);
-  const own = await save(b, SITE_B, "default", secret("own"), { scope: "site" });
-  assert.equal(own.scope, "site");
-  assert.equal((await resolveDefaultForSourceControl(b, { workspaceId: SITE_B, providerId: "example-git" }))?.connection.token, secret("own"));
-  assert.deepEqual((await listSourceControlCredentials(b, { workspaceId: SITE_B })).map(row => [row.id, row.scope]), [[own.id, "site"]]);
+test("local source-control keys take precedence with an owner store configured", async () => {
+  const project = projectHalf(), a = site(project);
+  await save(a, SITE_A, "default", secret("owner"));
+  await save(a, SITE_A, "own", secret("own"), { scope: "site" });
+  assert.equal((await resolveDefaultForSourceControl(a, { workspaceId: SITE_A, providerId: "example-git" }))?.connection.token, secret("own"));
 });
 
-test("a project save whose host and label the site already uses is refused; a bad scope is refused", async () => {
-  const project = projectHalf();
-  const a = site(project);
-  await save(a, SITE_A, "default", secret("own"), { scope: "site" });
-  await assert.rejects(() => save(a, SITE_A, "default", secret("again")), SourceControlCredentialDuplicateLabelError);
-  await assert.rejects(() => save(a, SITE_A, "other", secret("x"), { scope: "everywhere" }), SourceControlCredentialValidationError);
-  assert.equal((await project.repo.listByWorkspace({ workspaceId: "project" })).length, 0);
+test("invalid source-control scopes are refused before any write", async () => {
+  const project = projectHalf(), a = site(project);
+  await assert.rejects(save(a, SITE_A, "default", secret("own"), { scope: "everywhere" }), SourceControlCredentialValidationError);
+  assert.deepEqual(await project.repo.listByWorkspace({ workspaceId: "project" }), []);
 });
 
 test("update and delete change a project row where it lives", async () => {
@@ -108,46 +102,24 @@ test("update and delete change a project row where it lives", async () => {
   assert.equal(await project.repo.findById({ workspaceId: "project", id: saved.id }), null);
 });
 
-test('T27: renaming a project credential refuses a label already claimed by this site', async () => {
-  const project = projectHalf();
-  const a = site(project);
-  const shared = await save(a, SITE_A, 'shared', secret('project'));
-  const own = await save(a, SITE_A, 'main', secret('site'), { scope: 'site' });
-
-  await assert.rejects(() => updateSourceControlCredential({ deps: a, input: {
-    workspaceId: SITE_A, id: shared.id, label: 'main',
-  } }), SourceControlCredentialDuplicateLabelError);
+test('shared owner metadata remains unchanged after a refused site-copy save', async () => {
+  const project = projectHalf(), a = site(project);
+  const shared = await save(a, SITE_A, 'shared', secret('owner'));
+  await save(a, SITE_A, 'main', secret('site'), { scope: 'site' });
   assert.equal((await describeCredential(a, { workspaceId: SITE_A, id: shared.id }))?.label, 'shared');
-  assert.deepEqual((await listSourceControlCredentials(a, { workspaceId: SITE_A })).map(row => row.id), [own.id, shared.id]);
 });
 
-test('T35: ambiguous site credentials never fall back to a shadowed project default', async () => {
-  const project = projectHalf();
-  const shared = await save(site(project), SITE_A, 'main', secret('project'));
+test('local source-control keys remain independently owned after shared revocation', async () => {
+  const project = projectHalf(), old = site();
+  await save(old, SITE_A, 'default', secret('old'));
+  const shared = await save(site(project), SITE_A, 'default', secret('owner'));
   const attachments = fakeAttachments();
-  await attachments.attach({ siteId: SITE_A, keyId: shared.id, siteName: 'A' });
-  const a = site({ ...project, repo: new InMemorySourceControlCredentialSetRepo({
-    vault: attachedOnlyVault({ vault: project.repo.vault!, siteId: SITE_A, attachments }),
-  }) });
-  const own = await createSourceControlCredential({ deps: a, input: {
-    workspaceId: SITE_A, scope: 'site', label: 'main', isDefault: false,
-    connection: { providerId: 'example-git', token: secret('site') },
-  } });
-  const other = await createSourceControlCredential({ deps: a, input: {
-    workspaceId: SITE_A, scope: 'site', label: 'other', isDefault: false,
-    connection: { providerId: 'example-git', token: secret('other') },
-  } });
-  assert.equal(shared.isDefault, true);
-  const visible = await listSourceControlCredentials(a, { workspaceId: SITE_A });
-  assert.deepEqual(new Set(visible.map(row => row.id)), new Set([own.id, other.id]));
-  assert.deepEqual(visible.map(row => row.isDefault), [false, false]);
-
+  const a = { ...old, repo: new InMemorySourceControlCredentialSetRepo({ vault: old.repo.vault! }, { project: { ...project, repo: new InMemorySourceControlCredentialSetRepo({ vault: attachedOnlyVault({ vault: project.repo.vault!, siteId: SITE_A, attachments }) }) } }) };
+  await attachments.attach({ siteId: SITE_A, siteName: 'A', keyId: shared.id });
   const input = { workspaceId: SITE_A, providerId: 'example-git' };
-  const metadata = await findDefaultSourceControlCredential(a, input);
-  const opened = await resolveDefaultForSourceControl(a, input);
-  assert.deepEqual({ metadata: metadata?.id ?? null, opened: opened?.id ?? null }, {
-    metadata: null, opened: null,
-  });
+  assert.equal((await resolveDefaultForSourceControl(a, input))?.connection.token, secret('old'));
+  await attachments.detach({ siteId: SITE_A, keyId: shared.id });
+  assert.equal((await resolveDefaultForSourceControl(a, input))?.connection.token, secret('old'));
 });
 
 test("no project store (Fly): tokens stay in the site vault and summaries carry no scope", async () => {
@@ -163,7 +135,7 @@ test("no project store (Fly): tokens stay in the site vault and summaries carry 
 test("git-host defaults, descriptions and lists only expose attached project rows", async () => {
   const project = projectHalf(); const attachments = fakeAttachments();
   const raw = project.repo.vault!;
-  const a = site({ ...project, repo: new InMemorySourceControlCredentialSetRepo({ vault: attachedOnlyVault({ vault: raw, siteId: SITE_A, attachments }) }) });
+  const a = site({ ...project, createRepo: project.repo, repo: new InMemorySourceControlCredentialSetRepo({ vault: attachedOnlyVault({ vault: raw, siteId: SITE_A, attachments }) }) });
   const saved = await save(a, SITE_A, "attached-only", secret("git"));
   const input = { workspaceId: SITE_A, providerId: "example-git" };
   assert.equal(await findDefaultSourceControlCredential(a, input), null);
@@ -182,7 +154,7 @@ test('a sole attached nondefault opens through the vault; multiple attached nond
   const second = await save(writer, SITE_A, 'attached', secret('second'));
   const third = await save(writer, SITE_A, 'another', secret('third'));
   const raw = project.repo.vault!;
-  const a = site({ ...project, repo: new InMemorySourceControlCredentialSetRepo({ vault: attachedOnlyVault({ vault: raw, siteId: SITE_A, attachments }) }) });
+  const a = site({ ...project, createRepo: project.repo, repo: new InMemorySourceControlCredentialSetRepo({ vault: attachedOnlyVault({ vault: raw, siteId: SITE_A, attachments }) }) });
   const input = { workspaceId: SITE_A, providerId: 'example-git' };
   await attachments.attach({ siteId: SITE_A, siteName: 'A', keyId: second.id });
   assert.deepEqual(await resolveDefaultForSourceControl(a, input), { id: second.id, label: 'attached', connection: { providerId: 'example-git', token: secret('second') } });
@@ -192,8 +164,8 @@ test('a sole attached nondefault opens through the vault; multiple attached nond
   assert.equal(await resolveDefaultForSourceControl(a, input), null);
   await attachments.attach({ siteId: SITE_A, siteName: 'A', keyId: first.id });
   assert.equal((await resolveDefaultForSourceControl(a, input))?.id, first.id);
-  await save(a, SITE_A, 'site-override', secret('own'), { scope: 'site' });
-  assert.equal((await resolveDefaultForSourceControl(a, input))?.connection.token, secret('own'));
+  const local = await save(a, SITE_A, 'site-override', secret('own'), { scope: 'site' });
+  assert.equal((await resolveDefaultForSourceControl(a, input))?.id, local.id);
 });
 
 
@@ -201,7 +173,7 @@ test('a Source control-page save is visible after reload on this site only; site
   const project = projectHalf();
   const attachments = fakeAttachments();
   const raw = project.repo.vault!;
-  const forSite = (siteId: string) => site({ ...project, repo: new InMemorySourceControlCredentialSetRepo({ vault: attachedOnlyVault({ vault: raw, siteId, attachments }) }) });
+  const forSite = (siteId: string) => site({ ...project, createRepo: project.repo, repo: new InMemorySourceControlCredentialSetRepo({ vault: attachedOnlyVault({ vault: raw, siteId, attachments }) }) });
   const a = forSite(SITE_A), b = forSite(SITE_B);
   const keys = createProjectKeys({ vault: raw, attachments, siteId: SITE_A, siteName: 'A', transaction: async ({ run }) => run(),
     providerUsage: async () => ({ store: 'project', usedByThisSite: false, usedBy: [] }), reapply: async () => 'now' });
@@ -231,10 +203,13 @@ test('a Source control-page save is visible after reload on this site only; site
   assert.equal(await attachments.isAttached({ siteId: SITE_B, keyId: id }), false);
   const own = createCapturingResponse(); own.res.locals.principal = { id: 'owner' };
   await extractRouteHandler(app, 'post', path)({ params: { workspaceId: SITE_A }, body: { scope: 'site', label: 'Only A', connection: { providerId: 'example-git', token: secret('own') } } }, own.res);
+  // Item 25 retains independently owned site keys; only shared saves acquire owner grants.
   assert.equal(own.capture.statusCode, 201);
-  const ownId = (own.capture.jsonBody as { credential: { id: string } }).credential.id;
-  assert.equal(await attachments.isAttached({ siteId: SITE_A, keyId: ownId }), false);
-  assert.equal((await a.repo.vault!.find({ workspaceId: SITE_A, id: ownId }))?.isDefault, true, 'site-only first keys retain automatic defaults');
+  const localId = (own.capture.jsonBody as { credential: { id: string } }).credential.id;
+  assert.equal(await raw.find({ workspaceId: 'project', id: localId }), null);
+  assert.deepEqual(await attachments.usersOf({ keyId: localId }), []);
+  assert.equal((await listSourceControlCredentials(a, { workspaceId: SITE_A })).some(row => row.id === localId), true);
+  assert.deepEqual(await listSourceControlCredentials(b, { workspaceId: SITE_B }), []);
   rejectAttachment = true;
   const failed = createCapturingResponse(); failed.res.locals.principal = { id: 'owner' };
   await extractRouteHandler(app, 'post', path)({ params: { workspaceId: SITE_A }, body: { label: 'Unattached', connection: { providerId: 'example-git', token: secret('orphan') } } }, failed.res);
@@ -242,4 +217,17 @@ test('a Source control-page save is visible after reload on this site only; site
   const orphan = (await raw.list({ workspaceId: 'project', kind: 'source-control', ownerKey: 'tovu', principalId: null })).find(row => row.label === 'Unattached')!;
   assert.equal(orphan.isDefault, false);
   assert.deepEqual(await attachments.usersOf({ keyId: orphan.id }), []);
+});
+
+
+test('a create-only owner conflict stays a source-control duplicate with safe guidance', async () => {
+  const project = projectHalf();
+  await save(site(project), SITE_A, 'existing', secret('first'));
+  const { projectKeyCreateVault } = await import('#src/features/project-keys/create-vault');
+  const raw = project.repo.vault!;
+  const view = attachedOnlyVault({ vault: raw, attachments: fakeAttachments(), siteId: SITE_B });
+  const b = site({ ...project, repo: new InMemorySourceControlCredentialSetRepo({ vault: view }),
+    createRepo: new InMemorySourceControlCredentialSetRepo({ vault: projectKeyCreateVault({ owner: raw, view }) }) });
+  await assert.rejects(save(b, SITE_B, 'existing', secret('second')), error =>
+    error instanceof SourceControlCredentialDuplicateLabelError && error.message.includes('Use a saved key'));
 });

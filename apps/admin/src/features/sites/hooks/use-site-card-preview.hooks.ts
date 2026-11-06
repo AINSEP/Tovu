@@ -13,8 +13,6 @@ import { adminSitePreviewUrl, type AdminSiteListEntry, type AdminSitesSnapshot }
 export interface SiteCardPreviewView {
   /** The image to show, or `null` for the placeholder (no capture yet, or an older server). */
   src: string | null;
-  /** The placeholder's glyph: the folder name's first character — data, never translated copy. */
-  initial: string;
 }
 
 /**
@@ -26,10 +24,7 @@ export function resolveSiteCardPreview(
   { urlFor = adminSitePreviewUrl }: { urlFor?: typeof adminSitePreviewUrl } = {},
 ): SiteCardPreviewView {
   const version = snapshot.previewVersions?.[site.name];
-  return {
-    src: version === undefined ? null : urlFor({ name: site.name, version }),
-    initial: site.name.charAt(0).toUpperCase(),
-  };
+  return { src: version === undefined ? null : urlFor({ name: site.name, version }) };
 }
 
 /**
@@ -45,5 +40,5 @@ export function useSiteCardPreview(
   const view = resolveSiteCardPreview(required, optional);
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
   const onError = useCallback(() => setFailedSrc(view.src), [view.src]);
-  return { src: view.src === failedSrc ? null : view.src, initial: view.initial, onError };
+  return { src: view.src === failedSrc ? null : view.src, onError };
 }

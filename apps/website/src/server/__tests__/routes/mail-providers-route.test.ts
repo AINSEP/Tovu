@@ -1,13 +1,15 @@
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
+import { SettingsRevisionConflictError } from "@jini-ai/core/settings";
 import test from "node:test";
 
 import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
-import { bootAuthenticated } from "../helpers/http-test-server.js";
+import { bootAuthenticated, loginAsBarePrincipal } from "../helpers/http-test-server.js";
 import { describeCredentialByLabel, resolveCustomCredentialByLabel } from "#src/features/custom-credentials/index";
 import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
 import { CustomCredentialVaultRepo } from "#src/features/custom-credentials/vault-repo";
 import { attachedOnlyVault } from "#src/features/project-keys/attached-vault";
+import { projectKeyCreateVault } from "#src/features/project-keys/create-vault";
 import { fakeAttachments } from "#src/features/project-keys/__tests__/helpers";
 import { createProjectKeys } from "#src/features/project-keys/service";
 import type { MailProviderConfiguration, MailProviderConfigurationReport, MailProviderControl } from "#src/platform/mail/mail-status";
@@ -124,12 +126,16 @@ test("refusals map to statuses and leave everything unchanged", async (t) => {
 test("mail card saves attach the project key immediately and re-saving rotates that same key", async t => {
   const base = createRouteDeps(), vault = new InMemoryVaultRepo({}), attachments = fakeAttachments();
   const siteId = base.workspaceId;
-  const project = { workspaceId: "project", repo: new CustomCredentialVaultRepo({ vault: attachedOnlyVault({ vault, attachments, siteId }) }),
+  // Production keeps reads behind site grants and gives owner secret forms separate write ports.
+  const view = attachedOnlyVault({ vault, attachments, siteId });
+  const project = { workspaceId: "project", repo: new CustomCredentialVaultRepo({ vault: view }),
+    createRepo: new CustomCredentialVaultRepo({ vault: projectKeyCreateVault({ owner: vault, view }) }),
+    replaceRepo: new CustomCredentialVaultRepo({ vault: projectKeyCreateVault({ owner: vault, view }, { allowReplacement: true }) }),
     sealer: base.siteAssistantSecretSealer, keyring: base.siteAssistantSecretKeyring };
   const repo = new CustomCredentialVaultRepo({ vault: new InMemoryVaultRepo({}) }, { project });
   const projectKeys = createProjectKeys({ vault, attachments, siteId, siteName: "A", transaction: async ({ run }) => run(),
     providerUsage: async () => { throw new Error("mail keys are custom credentials"); }, reapply: async () => "now" });
-  const r = await rig(t, { deps: { ...base, customCredentialSetRepo: repo, projectKeys } });
+  const r = await rig(t, { deps: { ...base, customCredentialSetRepo: repo, projectKeys }, grants: ["custom-credentials.write"] });
   const first = await r.send("PUT", "mail-providers/fakemail/credential", { token: "first-mail-token", username: "sender" });
   assert.equal(first.status, 200);
   const provider = (await first.json() as { provider: MailProviderConfiguration }).provider;
@@ -148,6 +154,11 @@ test("mail card saves attach the project key immediately and re-saving rotates t
   assert.deepEqual(await repo.listByWorkspace({ workspaceId: siteId }), []);
   assert.equal(await attachments.isAttached({ siteId: "site-b", keyId: id }), false);
   assert.deepEqual(r.calls, { selects: [], invalidations: 2 });
+  const otherCookie = await loginAsBarePrincipal(r.deps, r.url("mail-providers").split("/api/")[0]!);
+  const refused = await fetch(r.url("mail-providers/fakemail/credential"), { method: "PUT", headers: { cookie: otherCookie, "content-type": "application/json" }, body: JSON.stringify({ token: "non-owner-mail-token" }) });
+  assert.equal(refused.status, 400, "a non-owner session cannot replace the shared owner key");
+  assert.match((await refused.json() as { error: string }).error, /VALIDATION/);
+  assert.equal((await read())?.connection.token, "second-mail-token");
 });
 
 test("a non-object body reads as empty; an unexpected fault is a 500 without detail", async (t) => {
@@ -158,7 +169,7 @@ test("a non-object body reads as empty; an unexpected fault is a 500 without det
   const broken = await rig(t);
   (broken.deps.mailProviderControl as MailProviderControl).describe = async () => { throw new Error("catalog exploded"); };
   const res = await broken.send("GET", "mail-providers");
-  assertAdminResponse({ actual: [res.status, await res.json()], expected: [500, { error: "internal error", code: "INTERNAL_ERROR" }] });
+  assertAdminResponse({ actual: [res.status, await res.json()], expected: [500, { error: "internal error", code: "INTERNAL_ERROR" }] }, { failure: { message: "The system information could not be loaded.", action: "Try loading them again. If it still fails, copy details and report this problem.", step: "Load system information" } });
   assert.equal(logged.mock.callCount(), 1);
 });
 
@@ -191,4 +202,14 @@ test("credential races and vault failures keep typed safe envelopes and leave co
     assert.equal(response.status, status); assert.deepEqual(body, { error: code, code }); assert.doesNotMatch(JSON.stringify(body), /secret-/);
     assert.deepEqual(await r.deps.customCredentialSetRepo.listByWorkspace({ workspaceId: r.deps.workspaceId }), before); assert.deepEqual(r.calls, { selects: [], invalidations: 0 });
   }
+});
+
+
+test("mail provider selection conflicts map to 409 with a caller-safe reason", async t => {
+  const r = await rig(t);
+  r.deps.mailProviderControl!.select = async () => { throw new SettingsRevisionConflictError({ expectedRevisionSeq: 1, actualRevisionSeq: 2 }); };
+  const response = await r.send("POST", "mail-providers/fakemail/activate");
+  assert.equal(response.status, 409);
+  assert.deepEqual(await response.json(), { code: "MAIL_PROVIDER_CHANGED", error: "The mail provider selection changed while this card was open. Nothing was changed by this call. Read the current mail providers and request a fresh approval." });
+  assert.deepEqual(r.calls, { selects: [], invalidations: 0 });
 });

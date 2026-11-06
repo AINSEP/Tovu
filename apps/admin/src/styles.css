@@ -1,4 +1,5 @@
 @import '@jini-ai/ui/admin-widgets.css';
+@import '@jini-ai/ui/site-card.css';
 /* Keep Tovu's link colour and text size when widgets are imported directly from Jini. */
 @import './styles/see-more.css';
 
@@ -1360,8 +1361,8 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 .boot-screen { display: grid; place-items: center; height: 100vh; font-size: 1.1rem; color: var(--muted); }
 
 /* Login */
-.login-screen { display: grid; place-items: center; height: 100vh; background: var(--surface-2); }
-.login-card { background: var(--surface); padding: 2.5rem; border: 1px solid var(--border); border-radius: var(--r-lg); width: 22rem; display: flex; flex-direction: column; gap: 0.9rem; box-shadow: var(--shadow-md); }
+.login-screen { display: grid; place-items: center; align-content: center; gap: var(--space-4); min-height: 100vh; box-sizing: border-box; padding: var(--space-3); background: var(--surface-2); }
+.login-card { background: var(--surface); padding: 2.5rem; border: 1px solid var(--border); border-radius: var(--r-lg); width: min(22rem, 100%); box-sizing: border-box; display: flex; flex-direction: column; gap: 0.9rem; box-shadow: var(--shadow-md); }
 .login-card h1 { margin: 0; font-family: var(--font-display); font-size: 1.8rem; letter-spacing: -0.01em; }
 .login-card p { margin: 0; color: var(--muted); }
 /* Unified onto `.field-label`'s metrics (uppercase/letterspaced/muted/11px) — was its own
@@ -1898,6 +1899,11 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 }
 .sortable-column-header:hover, .sortable-column-header:focus-visible { color: var(--fg); opacity: 1; }
 .list-table tbody tr:last-child td { border-bottom: none; }
+/* DataTable's `rowDetail`: the record and its full-width line read as one row. */
+.list-table tbody tr:has(+ .list-table-detail) td { border-bottom: none; }
+.list-table .list-table-detail > td { padding-block-start: 0; }
+.list-table tbody tr:has(+ .list-table-detail:hover),
+.list-table tbody tr:hover + .list-table-detail { background: var(--surface-2); }
 .list-table tbody tr:hover { background: var(--surface-2); }
 /* Row actions default to a quiet/secondary treatment instead of inheriting the bare `button`
    rule's filled-primary orange. A table of N rows each carrying a row action (`/admin/users`:
@@ -6237,8 +6243,6 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
   content: ""; width: 0.5rem; height: 0.5rem; border-radius: 50%;
   background: currentColor; flex-shrink: 0;
 }
-.site-card-serving .site-card-head { background: var(--ok-bg); border-bottom-color: transparent; }
-.site-card-head:has(.status-warning) { background: var(--warning-bg); border-bottom-color: transparent; }
 
 .site-card-flag {
   display: inline-flex; align-items: center; gap: var(--space-1);
@@ -6272,16 +6276,11 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
 .site-card:hover { transform: none; box-shadow: var(--jini-panel-shadow); }
 .site-card-name { margin-top: 0; }
 .site-card-body { gap: var(--space-1); padding: var(--space-4) var(--space-5); }
-.site-card-meta { font-size: var(--text-sm); color: var(--muted); }
 .site-card-actions {
   margin-top: auto; padding-top: var(--space-4);
   display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-start; gap: var(--space-2);
 }
 .site-card-actions > :is(button, a) { height: 37px; padding: 0 0.9rem; display: inline-flex; align-items: center; }
-.site-card-open { gap: 0.35em; text-decoration: none; }
-.site-card-menu { margin-left: auto; display: inline-flex; }
-.site-card-menu .row-menu-trigger { width: 37px; height: 37px; border-color: var(--border); border-radius: var(--r-sm); }
-.site-card-head:has(.status-error) { background: var(--danger-bg); border-bottom-color: transparent; }
 .site-card-select {
   display: inline-flex; align-items: center; gap: var(--space-2); margin-top: var(--space-2);
   font-size: var(--text-sm); color: var(--muted); cursor: pointer;
@@ -6293,21 +6292,15 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
   .site-card { min-height: 0; }
 }
 
-/* Sites — card preview (2026-10-08, owner: "the desktop app shows a picture of each site").
- * A fixed 16:10 band on top of every card — the capture's own 1280×800 shape — so cards keep equal
- * heights whether or not a capture exists yet. `object-fit: cover` anchored top-left: a site's
- * header and hero are what identify it. The placeholder is a quiet surface with the folder's
- * initial, never a broken-image glyph (`useSiteCardPreview` swaps a failed load for it). */
-.site-card-preview {
-  position: relative; aspect-ratio: 16 / 10; flex: none; overflow: hidden;
-  background: var(--surface-2); border-bottom: 1px solid var(--border);
-}
-.site-card-preview img {
-  display: block; width: 100%; height: 100%; object-fit: cover; object-position: top left;
-}
-.site-card-preview-placeholder {
-  position: absolute; inset: 0; display: grid; place-items: center;
-  font-family: var(--font-mono); font-size: var(--text-xl); font-weight: 700; color: var(--faint);
+/* Sites — the shared card's controls (2026-11-06). The card's layout is Jini's `site-card.css`; what
+ * is left here is sizing this app's own buttons and `RowMenu` to it: compact for a pointer like the
+ * desktop card's, 44 px for a finger. */
+.jini-site-card__menu .row-menu-trigger { width: 26px; height: 26px; border-color: var(--border); border-radius: var(--r-sm); }
+.jini-site-card__actions > :is(button, a) { height: 32px; padding: 0 0.75rem; display: inline-flex; align-items: center; font-size: var(--text-sm); }
+.jini-site-card .site-card-open { margin-left: auto; gap: 0.35em; text-decoration: none; }
+@media (pointer: coarse), (max-width: 480px) {
+  .jini-site-card__menu .row-menu-trigger { width: 44px; height: 44px; }
+  .jini-site-card__actions > :is(button, a) { height: 44px; }
 }
 
 /* ------------------------------------------------------------------------
@@ -6574,6 +6567,10 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
 
   table.list-table > tbody > tr { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 12px 14px; border-bottom: 1px solid var(--border); }
   table.list-table > tbody > tr:last-child { border-bottom: none; }
+  /* A record and its `rowDetail` line are one card. */
+  table.list-table > tbody > tr:has(+ .list-table-detail) { border-bottom: none; padding-bottom: 6px; }
+  table.list-table > tbody > tr.list-table-detail { padding-block: 0 4px; }
+  table.list-table > tbody > tr.list-table-detail > td:first-child { flex: 0 0 100%; font-weight: inherit; color: inherit; }
   /* Forces the meta cells onto their own line(s) under the title + actions. A flex item via its
      own `order`: it lands after the actions slot (also order 1, earlier in source). */
   table.list-table > tbody > tr::after { content: ""; order: 1; flex: 0 0 100%; height: 0; }
@@ -6584,7 +6581,7 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
   table.list-table > tbody > tr > td:first-child:has(input[type="checkbox"]) + td {
     order: 0; flex: 1 1 0; font-weight: 600; color: var(--fg);
   }
-  table.list-table > tbody > tr > td:first-child:has(input[type="checkbox"]) { flex: 0 0 auto; }
+  table.list-table > tbody > tr:not(.list-table-detail) > td:first-child:has(input[type="checkbox"]) { flex: 0 0 auto; }
   table.list-table > tbody > tr > td:last-child:not(:first-child):has(button, a, select) {
     order: 1; margin-left: auto; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px;
   }
@@ -6634,15 +6631,28 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
    in the page body instead of per-screen patches. Raised to 44px (2026-10-14): at 40 this floor
    out-ranked the 44px touch targets (Media's action buttons) it was meant to back up. Modal
    dialogs render in <body>, outside `.admin-content`, so `.jini-dialog` is named too: their
-   fields and Cancel/Save buttons measured 35-37px. Not on `[role="switch"]`: the pill switches
-   draw their own fixed-size track.
+   fields and Cancel/Save buttons measured 35-37px. The sign-in screen and the shell's own confirm
+   dialogs (Log out) sit outside it too and measured the same (2026-11-05). Not on `[role="switch"]`:
+   the pill switches draw their own fixed-size track.
    ------------------------------------------------------------------------ */
 @media (max-width: 640px) {
-  :is(.admin-content, .jini-dialog) :is(button, select, summary, [role="button"], a.btn-primary, a.btn-secondary, a.btn-ghost):not([role="switch"]) {
+  :is(.admin-content, .jini-dialog, .confirm-dialog, .login-screen) :is(button, select, summary, [role="button"], a.btn-primary, a.btn-secondary, a.btn-ghost):not([role="switch"]) {
     min-height: 44px;
   }
-  :is(.admin-content, .jini-dialog) :is(button, [role="button"]):not([role="switch"]) { min-width: 44px; }
-  :is(.admin-content, .jini-dialog) :is(input[type="checkbox"], input[type="radio"]) { width: 20px; height: 20px; }
+  :is(.admin-content, .jini-dialog, .confirm-dialog, .login-screen) :is(button, [role="button"]):not([role="switch"]) { min-width: 44px; }
+  :is(.admin-content, .jini-dialog, .confirm-dialog, .login-screen) :is(input[type="checkbox"], input[type="radio"]) { width: 20px; height: 20px; }
+
+  /* The chrome outside `.admin-content` the floor above cannot reach, plus the 15px text link and the
+     18px radio labels inside it (measured at 390px, 2026-11-05). The link and the label grow their hit
+     area, not their look: padding a matching negative margin cancels, and an invisible overlay that
+     also covers the radio beside the label. */
+  .admin-topbar-toggle, .cms-nav-close { width: 44px; height: 44px; }
+  .cms-item, .cms-logout { min-height: 44px; }
+  .admin-content a.link-button { display: inline-block; padding-block: 15px; margin-block: -15px; }
+  .site-db-option-name { position: relative; }
+  .site-db-option-name::after { content: ""; position: absolute; inset: -13px 0 -13px -32px; }
+  /* The pair's resting spot above assumes 32px buttons; at this floor it keeps them centred on the FAB. */
+  .admin-main-col { --jini-scroll-jump-bottom: calc(var(--admin-chat-fab-inset, 20px) + (var(--admin-chat-fab-size, 56px) - 44px) / 2 + env(safe-area-inset-bottom, 0px)); }
 
   /* OB-1 (also Settings Privacy): a touch-synthesized hover must not leave an inactive tab
      looking pressed. The active underline and keyboard focus outline still convey state. */
@@ -6667,7 +6677,7 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
   /* Mobile sweep 2026-10-07 (P-3 follow-up), measured at a real 375px viewport. Text inputs were
      37px against the floor buttons and selects already get; one floor for every field, the same
      44px so a field and the button beside it stay one height. */
-  :is(.admin-content, .jini-dialog) input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"], [type="hidden"]) {
+  :is(.admin-content, .jini-dialog, .confirm-dialog, .login-screen) input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"], [type="hidden"]) {
     min-height: 44px;
   }
   /* Standalone links that sit beside 44px buttons (a panel head's "All posts"/"Change", a

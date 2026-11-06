@@ -47,6 +47,18 @@ function plan(
   });
 }
 
+/** Queued payloads from the old writer remain supported and must still be scrubbed on purge. */
+async function legacyPlan(ctx: { repo: SqlFormDeliveryRepo; kernel: ContentKernel }, workspaceId: string, bindingIds: readonly string[]) {
+  const result = await plan(ctx, workspaceId, bindingIds);
+  for (const job of result.jobs) {
+    if (!("submissionRef" in job.payload)) throw new Error("expected reference job from current planner");
+    const { binding, form, idempotencyKey } = job.payload;
+    const event = { ...job, payload: { binding, idempotencyKey, snapshot: { form,
+      submission: { id: "s1", answers: { email: "a@example.com" }, submittedAt: T0 } } } };
+    await ctx.kernel.run(db => db.updateTable("outbox_events").set({ event_json: JSON.stringify(event) }).where("id", "=", job.id).execute());
+  }
+}
+
 describeEachDialect(
   "form delivery repo security",
   {
@@ -54,6 +66,32 @@ describeEachDialect(
     make: (kernel: ContentKernel) => ({ kernel, repo: new SqlFormDeliveryRepo({ kernel }), leases: new SqlFormPullLeaseRepo({ kernel }), outbox: new SqlOutboxAdapter(kernel) }),
   },
   (make) => {
+    test("reference jobs store no answers, replay unchanged and stop after purge", async () => {
+      const ctx = make();
+      const first = await plan(ctx, "wa", ["b1", "b2"]);
+      await plan(ctx, "wb", ["b3"]);
+      const rows = () => ctx.kernel.run(db => db.selectFrom("outbox_events").select(["id", "event_json", "status", "last_error"]).orderBy("id").execute());
+      const before = await rows();
+      assert.ok(!JSON.stringify(before).includes("a@example.com"));
+      assert.ok(!JSON.stringify(before).includes("answers"));
+      assert.deepEqual(await ctx.repo.once({ workspaceId: "wa", submissionId: "s1", build: async () => { throw new Error("must reuse"); } }), first);
+      await ctx.repo.scrubPurged({ workspaceId: "wa", purged: { submissionId: "s1" } });
+      const after = await rows();
+      assert.deepEqual(after.filter(row => row.id.startsWith("wa")).map(row => [row.status, row.last_error]), [["failed", "delivery-failed"], ["failed", "delivery-failed"]]);
+      assert.deepEqual(after.map(row => row.event_json), before.map(row => row.event_json));
+      assert.deepEqual(after.find(row => row.id.startsWith("wb")), before.find(row => row.id.startsWith("wb")));
+    });
+
+    test("notification summary isolates workspace and submission and returns counts only", async () => {
+      const ctx = make();
+      for (const [id, workspaceId] of [['forms:notify:s1:a@example.com', 'wa'], ['forms:notify:s10:a@example.com', 'wa'], ['forms:notify:s1:b@example.com', 'wb']]) {
+        await ctx.outbox.enqueue({ id, name: 'form.notification.deliver', workspaceId, aggregateId: 's1', occurredAt: T0, payload: { private: 'never exposed' } });
+      }
+      await ctx.kernel.run(db => db.updateTable('outbox_events').set({ status: 'failed', last_error: 'provider echoed secret' }).where('id', '=', 'forms:notify:s1:a@example.com').execute());
+      assert.deepEqual(await ctx.repo.notificationSummary({ workspaceId: 'wa', submissionId: 's1' }), { failed: 1, pending: 0 });
+      assert.deepEqual(await ctx.repo.notificationSummary({ workspaceId: 'wb', submissionId: 's1' }), { failed: 0, pending: 1 });
+    });
+
     test("a plan for workspace B never returns or reuses workspace A's plan for the same submission id", async () => {
       const ctx = make();
       const a = await plan(ctx, "wa", ["b1"]);
@@ -71,8 +109,8 @@ describeEachDialect(
 
     test("a purged submission's jobs lose their answers and the unfinished ones fail, in its own workspace only", async () => {
       const ctx = make();
-      await plan(ctx, "wa", ["b1", "b2"]);
-      await plan(ctx, "wb", ["b3"]);
+      await legacyPlan(ctx, "wa", ["b1", "b2"]);
+      await legacyPlan(ctx, "wb", ["b3"]);
       await ctx.outbox.markDelivered({ id: "wa-job-1" });
       await ctx.repo.scrubPurged({ workspaceId: "wa", purged: { submissionId: "s1" } });
       assert.deepEqual(await jobRows(ctx, "wa"), [["wa-job-1", "delivered", null, {}], ["wa-job-2", "failed", "delivery-failed", {}]]);
@@ -83,7 +121,7 @@ describeEachDialect(
     // when the purge failed the job set it back to pending, and the retry sent the blanked answers.
     test("a purge during an in-flight attempt is final: the attempt's retryable failure neither revives the job nor resends it", async () => {
       const ctx = make();
-      await plan(ctx, "wa", ["b1"]);
+      await legacyPlan(ctx, "wa", ["b1"]);
       const [inFlight] = await ctx.outbox.claimPending({ batchSize: 10, nowIso: at(1) });
       await ctx.repo.scrubPurged({ workspaceId: "wa", purged: { submissionId: "s1" } });
       await ctx.outbox.markFailed({ id: inFlight.id, error: "rate-limited", nextAttemptAt: at(60_000), nextStatus: "pending" });
@@ -93,7 +131,7 @@ describeEachDialect(
 
     test("a purge during an in-flight attempt is final: the attempt's success does not mark the purged job delivered", async () => {
       const ctx = make();
-      await plan(ctx, "wa", ["b1"]);
+      await legacyPlan(ctx, "wa", ["b1"]);
       const [inFlight] = await ctx.outbox.claimPending({ batchSize: 10, nowIso: at(1) });
       await ctx.repo.scrubPurged({ workspaceId: "wa", purged: { submissionId: "s1" } });
       await ctx.outbox.markDelivered({ id: inFlight.id });
@@ -102,8 +140,8 @@ describeEachDialect(
 
     test("a purged form scrubs the jobs of every submission planned for it", async () => {
       const ctx = make();
-      await plan(ctx, "wa", ["b1"]);
-      await plan(ctx, "wb", ["b3"]);
+      await legacyPlan(ctx, "wa", ["b1"]);
+      await legacyPlan(ctx, "wb", ["b3"]);
       await ctx.repo.scrubPurged({ workspaceId: "wb", purged: { formId: "form-wb" } });
       assert.deepEqual(await jobRows(ctx, "wb"), [["wb-job-1", "failed", "delivery-failed", {}]]);
       assert.deepEqual(await jobRows(ctx, "wa"), [["wa-job-1", "pending", null, { email: "a@example.com" }]]);

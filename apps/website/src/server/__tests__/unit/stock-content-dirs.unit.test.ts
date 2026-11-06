@@ -8,8 +8,6 @@ import path from "node:path";
 import test from "node:test";
 import ts from "typescript";
 
-import { builtInThemesDir, bundledAgentPluginsDir } from "../../runtime/composition/site-paths.js";
-
 /**
  * @file Regression coverage for the 2026-08-27 `src/` -> `content/` stock-data move.
  *
@@ -50,25 +48,34 @@ const DEPS_DIR = path.join(REPO_ROOT, "apps", "website", "src", "server");
 const SITE_DIR_DIR = path.join(REPO_ROOT, "apps", "website", "src", "platform", "site-dir");
 
 /**
- * Both env overrides must be unset for these assertions to describe the package-relative default
- * rather than whatever a developer exported. Asserted rather than deleted: silently mutating the
- * process env would make a real misconfiguration look like a pass.
+ * Exercise the real source exports without the runner's composed-bundle override. Only the child
+ * receives a default environment; the parent keeps its required bundle for all other tests.
  */
-function assertNoStockDirOverride(): void {
-  assert.equal(
-    process.env.TOVU_STOCK_THEMES_DIR,
-    undefined,
-    "TOVU_STOCK_THEMES_DIR is set; this test asserts the package-relative DEFAULT",
-  );
-  assert.equal(
-    process.env.TOVU_BUNDLED_AGENT_PLUGINS_DIR,
-    undefined,
-    "TOVU_BUNDLED_AGENT_PLUGINS_DIR is set; this test asserts the package-relative DEFAULT",
-  );
+function sourceStockDefaults(): [string, string] {
+  const before = [process.env.TOVU_STOCK_THEMES_DIR, process.env.TOVU_BUNDLED_AGENT_PLUGINS_DIR];
+  const env = { ...process.env };
+  if (env.TSX_TSCONFIG_PATH) env.TSX_TSCONFIG_PATH = path.resolve(REPO_ROOT, env.TSX_TSCONFIG_PATH);
+  delete env.TOVU_STOCK_THEMES_DIR;
+  delete env.TOVU_BUNDLED_AGENT_PLUGINS_DIR;
+  const moduleUrl = pathToFileURL(path.join(REPO_ROOT, "apps/website/src/server/runtime/composition/site-paths.ts")).href;
+  const script = `
+    import assert from "node:assert/strict";
+    assert.equal(process.env.TOVU_STOCK_THEMES_DIR, undefined);
+    assert.equal(process.env.TOVU_BUNDLED_AGENT_PLUGINS_DIR, undefined);
+    const { builtInThemesDir, bundledAgentPluginsDir } = await import(${JSON.stringify(moduleUrl)});
+    console.log(JSON.stringify([builtInThemesDir(), bundledAgentPluginsDir()]));
+  `;
+  const result = spawnSync(process.execPath, [
+    "--import", import.meta.resolve("tsx"), "--input-type=module", "--eval", script,
+  ], { cwd: tmpdir(), env, encoding: "utf8", timeout: 30_000 });
+  assert.deepEqual([process.env.TOVU_STOCK_THEMES_DIR, process.env.TOVU_BUNDLED_AGENT_PLUGINS_DIR], before,
+    "default-resolution probes must preserve the runner's composed bundle environment");
+  assert.equal(result.status, 0, result.stderr);
+  return JSON.parse(result.stdout.trim());
 }
 
 test("stock themes resolve to content/themes via the product-root walk-up, landing on the real repo root's content/", () => {
-  assertNoStockDirOverride();
+  const [themesDir] = sourceStockDefaults();
 
   // Not a fixed `../` count: `builtInThemesDir()` walks up via `resolveProductRoot()` precisely
   // because a fixed offset from `DEPS_DIR` cannot be correct in both the source tree
@@ -76,25 +83,25 @@ test("stock themes resolve to content/themes via the product-root walk-up, landi
   // two levels above `dist/content/`) at once -- see `product-root.ts`'s own header. What both trees
   // DO share is the absolute destination, so that -- not the relative offset -- is what this asserts.
   assert.equal(
-    path.relative(DEPS_DIR, builtInThemesDir()),
+    path.relative(DEPS_DIR, themesDir),
     path.join("..", "..", "..", "..", "content", "themes"),
     "builtInThemesDir() must land on <repo-root>/content/themes from this source tree's DEPS_DIR",
   );
-  assert.equal(builtInThemesDir(), path.join(REPO_ROOT, "content", "themes"));
-  assert.ok(existsSync(builtInThemesDir()), `${builtInThemesDir()} does not exist`);
-  assert.ok(existsSync(path.join(builtInThemesDir(), "static", "tovu-theme", "theme.json")));
+  assert.equal(themesDir, path.join(REPO_ROOT, "content", "themes"));
+  assert.ok(existsSync(themesDir), `${themesDir} does not exist`);
+  assert.ok(existsSync(path.join(themesDir, "static", "tovu-theme", "theme.json")));
 });
 
 test("bundled agent plugins resolve to content/agent-plugins via the product-root walk-up", () => {
-  assertNoStockDirOverride();
+  const [, pluginsDir] = sourceStockDefaults();
 
   assert.equal(
-    path.relative(DEPS_DIR, bundledAgentPluginsDir()),
+    path.relative(DEPS_DIR, pluginsDir),
     path.join("..", "..", "..", "..", "content", "agent-plugins"),
   );
-  assert.equal(bundledAgentPluginsDir(), path.join(REPO_ROOT, "content", "agent-plugins"));
+  assert.equal(pluginsDir, path.join(REPO_ROOT, "content", "agent-plugins"));
   // how-tovu-works stays Tovu content; site-compliance ships from @jini-ai/agent-plugins since D-W1.
-  assert.ok(existsSync(path.join(bundledAgentPluginsDir(), "how-tovu-works")));
+  assert.ok(existsSync(path.join(pluginsDir, "how-tovu-works")));
 });
 
 test("stock resolvers work from a dist/src module layout independently of cwd", (t) => {

@@ -95,6 +95,7 @@ test("plugin_toggled identifies the plugin family and direction without settings
   registerAuthRoutes(app, baseDeps);
   app.use("/api/admin", requireAdminSession(baseDeps));
   registerPluginSetEnabledRoute(app, {
+    notifyRosterChanged: baseDeps.notifyRosterChanged,
     workspaceId: baseDeps.workspaceId, authorize: baseDeps.authorize, clock: baseDeps.clock, idGen: baseDeps.idGen,
     changeSets: baseDeps.changeSets, outbox: baseDeps.outbox, pluginActivationRepo: new InMemoryPluginActivationRepo(),
     discoverPlugins: async () => [{ id: "word-count", name: "Word Count", version: "1.0.0", source: "built-in", tier: "tier-3", status: "valid", errors: [] }],

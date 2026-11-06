@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, renderHook } from '@testing-library/react';
+import { render, renderHook, screen } from '@testing-library/react';
 import { ConsentBannerFields, ConsentLookFields, ConsentPreviewFrame, ConsentRulesFields } from '@jini-ai/admin/consent/react';
 import { CONSENT_DICT, translate } from '../consent-dictionary';
 import { useConsentTranslate } from '../consent-i18n';
@@ -26,8 +26,17 @@ describe('CONSENT_DICT', () => {
     }
   });
 
-  it.each(EXPECTED_LOCALES)('translates the dynamic-code help trigger in %s', locale => {
-    expect(translate({ locale, key: 'About dynamic code' })).not.toBe('About dynamic code');
+  // The unsafe-eval control and help were retired; saved legacy values must not restore either.
+  it.each(EXPECTED_LOCALES)('translates active rules and keeps retired dynamic-code controls absent in %s', locale => {
+    const onChange = vi.fn();
+    const label = translate({ locale, key: 'Enable cookie consent on this site' });
+    render(<ConsentRulesFields value={{ ...CONSENT_CONFIG, allowUnsafeEval: true }} onChange={onChange} dictionary={CONSENT_DICT[locale]} />);
+    expect(label).not.toBe('Enable cookie consent on this site');
+    expect(screen.getByRole('switch', { name: label })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getAllByRole('switch')).toHaveLength(1);
+    expect(screen.queryByRole('switch', { name: 'Allow dynamic code (unsafe-eval)' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'About dynamic code' })).toBeNull();
+    expect(onChange).not.toHaveBeenCalled();
   });
 
   it('translates every label, legend, option, hint and button the Jini sections render', () => {

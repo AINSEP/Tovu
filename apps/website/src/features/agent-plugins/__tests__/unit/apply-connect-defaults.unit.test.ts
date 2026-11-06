@@ -10,7 +10,7 @@ import path from "node:path";
 
 import { createDeviceAuthorizationStore, createExternalMcpOAuthService } from "../../../external-mcp/external-mcp-oauth.js";
 import { InMemoryExternalMcpServerRepo } from "../../../external-mcp/external-mcp-store.memory.js";
-import { saveExternalMcpServer } from "../../../external-mcp/external-mcp-store.js";
+import { applyExternalMcpAccess, saveExternalMcpServer } from "../../../external-mcp/external-mcp-store.js";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { type OAuthProviderDescriptor } from "#src/platform/oauth/index";
@@ -92,8 +92,9 @@ async function makeHarness(row: { allowedToolNames?: string; provisionedByPlugin
   const onConnected = createApplyConnectDefaults(testSiteLayoutContext({
     workspaceId: WORKSPACE,
     repo,
+    applyAccess: input => applyExternalMcpAccess({ ...input, repo, clock }),
     clock,
-    ...(row.agentPluginLayout ? { agentPluginLayout: row.agentPluginLayout } : {}),
+    get agentPluginLayout() { return row.agentPluginLayout ?? testSiteLayoutContext({}).agentPluginLayout; },
     ...(row.isPluginOffByOperator ? { isPluginOffByOperator: row.isPluginOffByOperator } : {}),
     ...(row.productionBindings ? {} : {
       resolveServers: async (input: { pluginId: string }) => (input.pluginId === PLUGIN ? DECLARED : {}),

@@ -28,6 +28,11 @@ export const EXCLUDED_CORE_TABLES: Readonly<Record<string, TransferExclusionReas
   members: "login",
   member_sessions: "login",
   member_magic_tokens: "login",
+  // Owner MFA enrollment, pending proofs, recovery codes and passkeys belong to the login state.
+  owner_mfa_factors: "login",
+  owner_mfa_pending: "login",
+  owner_recovery_codes: "login",
+  owner_passkeys: "login",
   secrets_vault: "saved-key",
   admin_execution_credentials: "saved-key",
   custom_credential_sets: "saved-key",

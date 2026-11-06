@@ -1,0 +1,18 @@
+✔ the daemon has no independent federation, installed-extension or consent controller (2.886041ms)
+✔ onStarted reads the site's federation refusal prefix afresh for each run (152.370427ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[reload-test] mcp-federation: 'probe' registered 1 federated tool(s): mcp__probe__lookup
+✔ the server executor diagnoses a refusal introduced after construction (371.33523ms)
+✔ a real federation reload makes native and newly admitted tools searchable and describable through existing daemon routes (40.123142ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6840.649543

@@ -98,12 +98,5 @@
   .sites-settings-footer > button { min-height: 40px; }
 }
 
-/* Site cards — name row (2026-10-09, owner): the full-width status strip became a small pill at the
- * right end of the name's row, "Default" became a star beside the name, and "Running in …" moved
- * into the pill's tooltip. The global `.status`/`.status-ok`/`.status-neutral` pill tones apply. */
-.site-card-title-row { align-self: stretch; display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
-.site-card-title-row .site-card-name { min-width: 0; overflow-wrap: anywhere; word-break: normal; }
+/* Site cards (2026-10-09, owner): "Default" became a star beside the name. */
 .site-card-default { flex: none; display: inline-flex; color: var(--warning); cursor: help; }
-.site-card-pill { margin-left: auto; flex: none; display: inline-flex; align-items: center; gap: 5px; }
-.site-card-pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
-.site-card-pill[title] { cursor: help; }

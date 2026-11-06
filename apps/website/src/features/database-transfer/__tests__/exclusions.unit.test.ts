@@ -62,6 +62,7 @@ test("partial exclusion counts skip settings tables absent from an older snapsho
 test("the copy excludes every agreed login, saved-key, confirmation and running-lock table", () => {
   assert.deepEqual(Object.keys(EXCLUDED_CORE_TABLES).sort(), [
     "identity_users", "sessions", "api_keys", "members", "member_sessions", "member_magic_tokens",
+    "owner_mfa_factors", "owner_mfa_pending", "owner_recovery_codes", "owner_passkeys",
     "admin_execution_credentials", "custom_credential_sets", "database_transfer_destinations",
     "external_mcp_servers", "external_mcp_tool_approvals", "media_provider_credentials",
     "oauth_device_authorizations", "oauth_pending_authorizations", "publish_content_peers",
@@ -82,6 +83,31 @@ test("a snapshot with member password hashes leaves the whole credential table b
   const plan = planSnapshotTables({ source, catalog: createCoreTableCatalog({}) });
   assert.equal(plan.tables.some(table => table.name === "members"), false);
   assert.deepEqual(plan.leftOut, [{ table: "members", reason: "logins (password hashes, sessions and sign-in links) are not copied" }]);
+});
+
+test("a snapshot leaves owner MFA, recovery codes and passkey login records behind", t => {
+  const db = new Database(":memory:");
+  t.after(() => db.close());
+  db.exec(`
+    CREATE TABLE owner_mfa_factors (sealed_secret TEXT);
+    CREATE TABLE owner_mfa_pending (token_hash TEXT, sealed_secret TEXT);
+    CREATE TABLE owner_recovery_codes (code_hash TEXT);
+    CREATE TABLE owner_passkeys (credential_id TEXT, public_key TEXT);
+    INSERT INTO owner_mfa_factors VALUES ('MFA_SECRET_CANARY');
+    INSERT INTO owner_mfa_pending VALUES ('PENDING_TOKEN_CANARY', 'PENDING_SECRET_CANARY');
+    INSERT INTO owner_recovery_codes VALUES ('RECOVERY_HASH_CANARY');
+    INSERT INTO owner_passkeys VALUES ('PASSKEY_ID_CANARY', 'PASSKEY_PUBLIC_KEY_CANARY');
+  `);
+  const source = openSqliteSnapshotSource({ bytes: db.serialize(), open: data => openSqliteSnapshot({ data }) });
+  t.after(() => source.close());
+  const names = ["owner_mfa_factors", "owner_mfa_pending", "owner_passkeys", "owner_recovery_codes"];
+  for (const name of names) assert.equal(source.countRows(name), 1, `${name} contains a login record`);
+
+  const plan = planSnapshotTables({ source, catalog: createCoreTableCatalog({}) });
+  assert.deepEqual(plan.tables.filter(table => names.includes(table.name)), []);
+  assert.deepEqual(plan.leftOut, names.map(table => ({ table,
+    reason: "logins (password hashes, sessions and sign-in links) are not copied",
+  })));
 });
 
 test("a copy carries form delivery plans and job index rows with their outbox rows, never the receiver pull lease", () => {

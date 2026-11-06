@@ -7,11 +7,12 @@ import { plan, confirm, execute, PlanStaleError, ForbiddenError, type GatedMutat
 import { TokenExpiredError, TokenAlreadyRedeemedError } from '#src/contracts/core/gated-mutations/token';
 import { planHashOf, resolveActorClassIdentity } from '#src/contracts/core/gated-mutations/composition';
 import type { StaticPublishToolDeps } from '../publish-tool-deps.js';
-import type { StaticPublishConfig, StaticPublishOutcome, PublishCredentialSource } from './types.js';
+import type { StaticPublishConfig, PublishCredentialSource } from './types.js';
 import { inspectStaticPublish, type StaticPublishInspection } from './inspection.js';
-import { getPublishRunSnapshot, runPublishAndAwait } from './publish-run.js';
+import { getPublishRunSnapshot, startPublishRun, type PublishRunSnapshot } from './publish-run.js';
 import { domainPublishRows } from './domain-publish-rows.js';
 import type { PublishHistoryStore } from './publish-history.js';
+import { checkToolPublishConsent } from './publish-consent.js';
 
 interface DomainPublishDetails extends StaticPublishInspection {
   readonly workspaceId: string;
@@ -31,6 +32,7 @@ export function domainPublishTool(required: {
   config: StaticPublishConfig;
   projectName: string;
   credentialId?: string;
+  onSettled?: () => void;
 }, _options = {}): ToolHandler {
   const { deps, surfaces, config, projectName } = required;
   const gateway = deps.gatedMutations?.gatewayDeps;
@@ -38,7 +40,7 @@ export function domainPublishTool(required: {
   return humanConfirmedToolHandler(surfaces, {
     flag: 'published',
     prepare: async ctx => {
-      const hooks = makeHooks({ ...required, gateway, actorId: ctx.principal.id, signal: ctx.signal });
+      const hooks = makeHooks({ ...required, gateway, actorId: ctx.principal.id, signal: ctx.signal, requestId: ctx.executionId });
       const planned = await plan({ deps: gateway, principalId: ctx.principal.id, principalKind: 'agent', hooks });
       const details = planned.details as DomainPublishDetails;
       return { hooks, planned, details };
@@ -50,19 +52,23 @@ export function domainPublishTool(required: {
       danger: true, confirmLabel: 'Publish and apply these changes',
     }),
     run: async (ctx, { hooks, planned }, confirmer) => {
+      const consent = await checkToolPublishConsent({ deps, principalId: ctx.principal.id });
+      if (consent) {
+        deps.tracker?.capture({ name: 'site_publish_blocked', userId: ctx.principal.id }, { properties: { target: config.target, reasonClass: 'consent', source: 'assistant' } });
+        return { published: false, cancelled: false, ...consent };
+      }
       const token = await confirm({ deps: gateway, principalId: confirmer.id, principalKind: confirmer.kind, hooks, planId: planned.planId, planHash: planned.planHash });
       const result = await executeDomainPublish({ gateway, principalId: ctx.principal.id, hooks, confirmationToken: token.confirmationToken });
-      if (!result.ok) return { published: false, ...result };
-      return { published: true, reachable: result.ok === true, target: result.targetId, url: result.url, status: result.status,
-        ...(result.ok === 'partial' ? { message: result.message } : {}), deploymentId: result.deploymentId, providerMetadata: result.providerMetadata };
+      return { accepted: true, published: false, jobId: result.jobId, status: result.status, progress: result.progress,
+        message: 'Publish started after domain approval. Call deployment_get_static_publish_status with this jobId in 5 seconds for progress and the final result. Do not publish again while it is running.' };
     },
   });
 }
 
 /** Preserve typed gateway refusals through the tool transport's caller-safe error channel. */
 async function executeDomainPublish(required: {
-  gateway: GatewayDeps; principalId: string; hooks: GatedMutationHooks<DomainPublishDetails, StaticPublishOutcome>; confirmationToken: string;
-}, _options = {}): Promise<StaticPublishOutcome> {
+  gateway: GatewayDeps; principalId: string; hooks: GatedMutationHooks<DomainPublishDetails, PublishRunSnapshot>; confirmationToken: string;
+}, _options = {}): Promise<PublishRunSnapshot> {
   try { return await execute({ deps: required.gateway, principalId: required.principalId, principalKind: 'agent', hooks: required.hooks, confirmationToken: required.confirmationToken }); }
   catch (error) {
     if (error instanceof PlanStaleError) throw new ToolInputError({ message: 'DOMAIN_PLAN_STALE: Infrastructure or the connection changed after review. Preview and confirm the current state; no publish or domain changes were started.' });
@@ -76,8 +82,8 @@ async function executeDomainPublish(required: {
 function makeHooks(required: {
   deps: StaticPublishToolDeps; gateway: GatewayDeps; surfaces: AssistantSurfaceDeps;
   credentialSource: PublishCredentialSource; historyStore: PublishHistoryStore;
-  config: StaticPublishConfig; projectName: string; credentialId?: string; actorId: string; signal: AbortSignal;
-}, _options = {}): GatedMutationHooks<DomainPublishDetails, StaticPublishOutcome> {
+  config: StaticPublishConfig; projectName: string; credentialId?: string; onSettled?: () => void; actorId: string; signal: AbortSignal; requestId: string;
+}, _options = {}): GatedMutationHooks<DomainPublishDetails, PublishRunSnapshot> {
   const { deps, credentialSource, historyStore, config, projectName, actorId, signal } = required;
   const expiresAt = Date.parse(nowIso({ clock: deps.clock })) + 600_000;
   return {
@@ -94,15 +100,16 @@ function makeHooks(required: {
       signal.throwIfAborted();
       if (getPublishRunSnapshot().status === 'running') throw new ToolInputError({ message: 'ALREADY_RUNNING: A publish is running. Wait for it to finish, then preview again.' });
       const domainPlan = details.inspection!.domains!;
-      return runPublishAndAwait({ credentialSource, loadDeployTargets: deps.loadDeployTargets, tracker: deps.tracker, observability: deps.observability, hostKit: deps.hostKit, formDestination: deps.formDestination }, {
-        productEvent: { userId: actorId, source: "assistant" }, workspaceId: deps.workspaceId, publishOutputRootDir: deps.publishOutputRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound,
+      return startPublishRun({ credentialSource, loadDeployTargets: deps.loadDeployTargets, tracker: deps.tracker, observability: deps.observability, hostKit: deps.hostKit, formDestination: deps.formDestination, publicPageSecurityHeaders: deps.publicPageSecurityHeaders }, {
+        requestId: required.requestId, productEvent: { userId: actorId, source: "assistant" }, workspaceId: deps.workspaceId, publishOutputRootDir: deps.publishOutputRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound,
         config, projectName, ...(details.credentialId ? { credentialId: details.credentialId } : {}),
         domainApproval: { plan: domainPlan, credentialBinding: details.credentialBinding!, authorize: async ({ fingerprint }) => {
-          signal.throwIfAborted();
+          // The approved background job outlives the initiating call. Recheck permission and
+          // approval expiry here; cancelling that call after enqueue does not revoke this job.
           await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: actorId, permission: 'deployments.publish' });
           return fingerprint === domainPlan.fingerprint && Date.parse(nowIso({ clock: deps.clock })) <= expiresAt;
         } },
-      }, { nowIso: () => nowIso({ clock: deps.clock }) }, historyStore);
+      }, { nowIso: () => nowIso({ clock: deps.clock }) }, historyStore, { triggeredBy: "agent_tool", ...(required.onSettled ? { onSettled: required.onSettled } : {}) });
     },
   };
 }

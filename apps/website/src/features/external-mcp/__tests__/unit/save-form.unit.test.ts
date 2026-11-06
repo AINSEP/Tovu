@@ -6,6 +6,7 @@ import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/prim
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 import type { ExternalMcpServerView } from "../../contracts.js";
+import { parseArgs } from "../../external-mcp-store.js";
 
 import { buildExternalMcpSaveForm, buildExternalMcpSaveFormFields, mergeExternalMcpSavePrefill, type ExternalMcpSaveInput } from "../../save-form.js";
 
@@ -168,16 +169,16 @@ function fieldNames(input: ExternalMcpSaveInput, isUpdate: boolean): string[] {
   return buildExternalMcpSaveFormFields(input, isUpdate).map((f) => f.name);
 }
 
-test("stdio, create: id, label, command, args, allowedToolNames, writeAllowedToolNames, env and static token fields — in that order, no oauth fields", () => {
-  assert.deepEqual(fieldNames({ id: "srv-1", transport: "stdio" }, false), ["id", "label", "command", "args", "allowedToolNames", "writeAllowedToolNames", "env", "accessToken", "accessTokenEnvName"]);
+test("stdio, create: id, label, command, args, env and static token fields — in that order, no oauth fields", () => {
+  assert.deepEqual(fieldNames({ id: "srv-1", transport: "stdio" }, false), ["id", "label", "command", "args", "env", "accessToken", "accessTokenEnvName"]);
 });
 
 test("stdio, update: id field is omitted", () => {
-  assert.deepEqual(fieldNames({ id: "srv-1", transport: "stdio" }, true), ["label", "command", "args", "allowedToolNames", "writeAllowedToolNames", "env", "accessToken", "accessTokenEnvName"]);
+  assert.deepEqual(fieldNames({ id: "srv-1", transport: "stdio" }, true), ["label", "command", "args", "env", "accessToken", "accessTokenEnvName"]);
 });
 
 test("streamable_http transport: url field instead of command/args, and no env field", () => {
-  assert.deepEqual(fieldNames({ id: "srv-1", transport: "streamable_http" }, false), ["id", "label", "url", "allowedToolNames", "writeAllowedToolNames", "accessToken"]);
+  assert.deepEqual(fieldNames({ id: "srv-1", transport: "streamable_http" }, false), ["id", "label", "url", "accessToken"]);
 });
 
 test("oauth + stdio: oauth core fields, then the stdio-only token-env field, then the endpoint fields", () => {
@@ -186,8 +187,6 @@ test("oauth + stdio: oauth core fields, then the stdio-only token-env field, the
     "label",
     "command",
     "args",
-    "allowedToolNames",
-    "writeAllowedToolNames",
     "env",
     "oauthProviderId",
     "oauthGrant",
@@ -204,7 +203,7 @@ test("oauth + stdio: oauth core fields, then the stdio-only token-env field, the
 test("oauth + streamable_http: no oauthTokenEnvName field (stdio-only)", () => {
   const names = fieldNames({ id: "srv-1", transport: "streamable_http", authMode: "oauth" }, false);
   assert.ok(!names.includes("oauthTokenEnvName"));
-  assert.deepEqual(names, ["id", "label", "url", "allowedToolNames", "writeAllowedToolNames", "oauthProviderId", "oauthGrant", "oauthClientId", "oauthClientSecret", "oauthScopes", "oauthAuthorizationEndpoint", "oauthTokenEndpoint", "oauthDeviceAuthorizationEndpoint"]);
+  assert.deepEqual(names, ["id", "label", "url", "oauthProviderId", "oauthGrant", "oauthClientId", "oauthClientSecret", "oauthScopes", "oauthAuthorizationEndpoint", "oauthTokenEndpoint", "oauthDeviceAuthorizationEndpoint"]);
 });
 
 test("a provided value pre-fills the field; an omitted value leaves no `value` key at all", () => {
@@ -215,15 +214,12 @@ test("a provided value pre-fills the field; an omitted value leaves no `value` k
   assert.equal("value" in command, false);
 });
 
-test("writeAllowedToolNames: a provided value pre-fills the field; an omitted value leaves no `value` key", () => {
-  const withValue = buildExternalMcpSaveFormFields({ id: "srv-1", transport: "stdio", writeAllowedToolNames: "tool_a" }, false).find(
-    (f) => f.name === "writeAllowedToolNames",
-  ) as { value?: string };
-  const withoutValue = buildExternalMcpSaveFormFields({ id: "srv-1", transport: "stdio" }, false).find((f) => f.name === "writeAllowedToolNames") as {
-    value?: string;
-  };
-  assert.equal(withValue.value, "tool_a");
-  assert.equal("value" in withoutValue, false);
+test("writeAllowedToolNames: the proposed value is disclosed read-only; omission grants no write access", () => {
+  const withValue = buildExternalMcpSaveForm({ save: { id: "srv-1", transport: "stdio", writeAllowedToolNames: "tool_a" }, isUpdate: false });
+  const withoutValue = buildExternalMcpSaveForm({ save: { id: "srv-1", transport: "stdio" }, isUpdate: false });
+  assert.equal(withValue.details?.find(detail => detail.label === "May write")?.value, "tool_a");
+  assert.equal(withoutValue.details?.find(detail => detail.label === "May write")?.value, "None");
+  assert.equal(withValue.fields.some(field => field.name === "writeAllowedToolNames"), false);
 });
 
 test("env field's hint differs between create and update", () => {
@@ -335,7 +331,7 @@ test("a stdio connection still gets the hints that tell it to supply its own end
 
 test("explicit prefill values, including empty strings, win over every stored value", () => {
   const input: ExternalMcpSaveInput = {
-    id: "srv-1", transport: "streamable_http", label: "", command: "node", args: "",
+    id: "srv-1", transport: "streamable_http", enabled: false, label: "", command: "node", args: "",
     url: "https://new.example/mcp", allowedToolNames: "", writeAllowedToolNames: "",
     authMode: "oauth", accessTokenEnvName: "NEW_TOKEN", oauthProviderId: "new-provider",
     oauthGrant: "authorization_code", oauthClientId: "new-client", oauthScopes: "",
@@ -357,8 +353,8 @@ test("static_env explicitly selects token entry and none omits credential fields
     assert.equal((fields.find(field => field.name === "accessTokenEnvName") as { value: string }).value, "API_TOKEN");
   }
   const form = buildExternalMcpSaveForm({ save: { ...BASE_INPUT, authMode: "none" }, isUpdate: false }, {});
-  assert.deepEqual(form.details, [{ label: "Connection type", value: "Local command (stdio)" }, { label: "Credentials", value: "None needed" }]);
-  assert.deepEqual(form.fields.map(field => field.name), ["id", "label", "command", "args", "allowedToolNames", "writeAllowedToolNames", "env"]);
+  assert.deepEqual(form.details, [{ label: "Connection type", value: "Local command (stdio)" }, { label: "Credentials", value: "None needed" }, { label: "Allowed tools", value: "None" }, { label: "May write", value: "None" }, { label: "Local access", value: "Saving lets chats start the command below on this computer as your OS user." }]);
+  assert.deepEqual(form.fields.map(field => field.name), ["id", "label", "command", "args", "env"]);
 });
 
 // L155 pins: the merge's complete field contract, including explicit blank clears.
@@ -377,7 +373,7 @@ for (const override of [undefined, "", "replacement"]) test(`prefill applies ${S
   const input: ExternalMcpSaveInput = { ...BASE_INPUT, ...overrides };
   const before = structuredClone(existing);
   assert.deepEqual(mergeExternalMcpSavePrefill(input, existing), {
-    id: BASE_INPUT.id, transport: BASE_INPUT.transport,
+    id: BASE_INPUT.id, transport: BASE_INPUT.transport, enabled: true,
     ...Object.fromEntries(Object.entries(fallback).map(([key, value]) => [key, override ?? value])),
   });
   assert.deepEqual(existing, before);
@@ -391,10 +387,38 @@ test("common form fields preserve blank prefills, required flags, order and perm
       { kind: "string", name: "id", label: "ID", required: true, value: "server", hint: "Lowercase letters, digits and dashes." },
       { kind: "string", name: "label", label: "Display name", value: "" },
     ]);
-    assert.deepEqual(fields.filter(field => ["allowedToolNames", "writeAllowedToolNames"].includes(field.name)), [
-      { kind: "string", name: "allowedToolNames", label: "Allowed tools", value: "", hint: "Comma-separated — nothing runs unless it is listed here." },
-      { kind: "string", name: "writeAllowedToolNames", label: "May write", value: "", hint: "Comma-separated, and must also be listed above under Allowed tools — a name here that isn't is rejected on save. Leave blank to grant no write access." },
+    assert.deepEqual(fields.filter(field => ["allowedToolNames", "writeAllowedToolNames"].includes(field.name)), []);
+    const form = buildExternalMcpSaveForm({ save: { id: "server", transport, allowedToolNames: "read", writeAllowedToolNames: "" }, isUpdate: false });
+    assert.deepEqual(form.details?.filter(detail => ["Allowed tools", "May write"].includes(detail.label)), [
+      { label: "Allowed tools", value: "read" }, { label: "May write", value: "None" },
     ]);
     if (transport === "streamable_http") assert.deepEqual(fields[2], { kind: "string", name: "url", label: "URL", required: true, value: "", placeholder: "https://…" });
   }
+});
+
+
+test("save cards disclose site-wide access, local OS execution and the tool allowlist", () => {
+  const local = buildExternalMcpSaveForm({ save: { ...BASE_INPUT, command: "node", allowedToolNames: "read" }, isUpdate: false });
+  assert.match(local.description!, /Saved for the whole site: every chat and agent can use it, with approvals/);
+  assert.ok(local.details?.some(detail => detail.value === "Saving lets chats start node on this computer as your OS user."));
+  assert.deepEqual(local.details?.find(detail => detail.label === "Allowed tools"), { label: "Allowed tools", value: "read" });
+  assert.equal(local.fields.some(field => field.name === "allowedToolNames"), false);
+  const hosted = buildExternalMcpSaveForm({ save: { ...BASE_INPUT, transport: "streamable_http" }, isUpdate: true });
+  assert.match(hosted.description!, /Saved for the whole site/);
+  assert.equal(hosted.details?.some(detail => detail.label === "Local access"), false);
+});
+
+test("save prefill preserves disabled state and an explicit toggle wins", () => {
+  const existing = existingView({ enabled: false });
+  assert.equal(mergeExternalMcpSavePrefill(BASE_INPUT, existing).enabled, false);
+  assert.equal(mergeExternalMcpSavePrefill({ ...BASE_INPUT, enabled: true }, existing).enabled, true);
+});
+
+
+test("unchanged argument prefills preserve empty arguments alongside literal equals and Windows paths", () => {
+  const args = ["", "--name=x", "C:\\Users\\John Smith\\server", ""];
+  const before = existingView({ args });
+  const prefill = mergeExternalMcpSavePrefill(BASE_INPUT, before);
+  assert.deepEqual(parseArgs(prefill.args!), args);
+  assert.deepEqual(before.args, args, "prefill does not mutate the stored view");
 });

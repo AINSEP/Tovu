@@ -158,7 +158,7 @@ test("create-list: unexpected error maps to 500", async (t) => {
     { name: "List", slug: "slug" }
   );
   assert.equal(status, 500);
-  assertAdminResponse({ actual: json, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: json, expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: {"message":"The newsletter operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"newsletter operation"} });
 });
 
 test("create-list: undefined workspaceId fallback via direct handler invocation", async () => {

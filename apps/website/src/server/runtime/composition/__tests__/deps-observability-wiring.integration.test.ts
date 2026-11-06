@@ -23,8 +23,22 @@ import { createSiteRouteDeps, type CreateSiteRouteDepsOverrides } from "#src/ser
 
 async function siteDeps(t: TestContext, overrides: Partial<CreateSiteRouteDepsOverrides> = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-deps-otel-"));
-  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
-  const deps = await createSiteRouteDeps(path.join(dir, "content.db"), overrides);
+  const siteBinding = { dir, name: "observability-fixture", dirOverridden: true, switcherCompatible: false };
+  let close = async () => {};
+  let ready: Promise<unknown> | undefined;
+  t.after(async () => {
+    try { await ready; }
+    finally {
+      try { await close(); }
+      finally { fs.rmSync(dir, { recursive: true, force: true }); }
+    }
+  });
+  const deps = await createSiteRouteDeps(path.join(dir, "content.db"), {
+    ...overrides, siteBinding, onStoreOpened: store => { close = () => store.close(); },
+  });
+  ready = deps.pluginRuntimeReady;
+  assert.equal(deps.siteBinding.dir, dir, "all boot writes stay inside the disposable site");
+  assert.equal(fs.readFileSync(path.join(dir, ".form-files-protected-v1"), "utf8"), "complete\n");
   await deps.identityReady;
   return deps;
 }
@@ -47,6 +61,7 @@ test("a configured provider selection: content and chat kernels are decorated wi
   let disposed = 0;
   const diagnostics: Error[] = [];
   const deps = await siteDeps(t, { bootProviderPlugins: async () => ({ observability: port, tracker: createTracker({ observability: port }),
+    paymentProviders: () => [],
     telemetryStatus: () => [], sendTelemetryTest: async ({ error }) => { diagnostics.push(error); return { providers: [] }; },
     aiTraceSink: undefined, reapply: async () => "now", appliesAt: () => "now", dispose: async () => { disposed += 1; } }) });
 

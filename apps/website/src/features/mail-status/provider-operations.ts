@@ -1,3 +1,4 @@
+import { SettingsRevisionConflictError } from "@jini-ai/core/settings";
 import { createCustomCredential, describeCredential, updateCustomCredential, type CustomCredentialSummary, type CustomCredentialWriteDeps } from "#src/features/custom-credentials/index";
 import type { ProjectKeysPort } from "#src/features/project-keys/service";
 import type { MailProviderConfiguration, MailProviderConfigurationReport, MailProviderControl } from "#src/platform/mail/index";
@@ -17,7 +18,7 @@ import type { MailProviderConfiguration, MailProviderConfigurationReport, MailPr
 /** Custom-credential category mail keys are filed under (mirrors `mail-provider-catalog.ts`). */
 const MAIL_CREDENTIAL_CATEGORY = "ops";
 
-export type MailProviderOperationCode = "MAIL_PROVIDER_CONTROL_UNAVAILABLE" | "MAIL_PROVIDER_NOT_FOUND" | "MAIL_PROVIDER_KEYLESS" | "MAIL_PROVIDER_REFUSED" | "MAIL_PROVIDER_INPUT";
+export type MailProviderOperationCode = "MAIL_PROVIDER_CONTROL_UNAVAILABLE" | "MAIL_PROVIDER_NOT_FOUND" | "MAIL_PROVIDER_KEYLESS" | "MAIL_PROVIDER_REFUSED" | "MAIL_PROVIDER_INPUT" | "MAIL_PROVIDER_CHANGED";
 
 /** A refusal with a caller-safe message; nothing was changed when one is thrown. */
 export class MailProviderOperationError extends Error {
@@ -132,17 +133,24 @@ async function rotate(required: { credentials: CustomCredentialWriteDeps; worksp
 /**
  * Switches BOTH lanes to `providerId`. Re-checks availability first (the key may have been deleted
  * while an approval card sat open); a refused check or a failed write changes nothing.
- * @throws {MailProviderOperationError} No control, or the provider cannot send now.
- * @complexity One check (credential decrypt), one setting write.
+ * The approved revision reaches the existing transactional settings guard; other callers retain
+ * their existing unconditional selection behavior.
+ * @throws {MailProviderOperationError} No control, the provider cannot send now, or selection drift.
+ * @complexity One check (credential decrypt), one setting write and its optional addressed-row check.
  */
 export async function activateMailProvider(
-  required: { control: MailProviderControl | undefined; providerId: string; principalId: string },
+  required: { control: MailProviderControl | undefined; providerId: string; principalId: string; expectedRevisionSeq?: number },
   _optional: Record<string, never> = {}
 ): Promise<{ set: true; providerId: string; label: string }> {
   const { control, providerId } = required;
   if (!control) throw new MailProviderOperationError({ code: "MAIL_PROVIDER_CONTROL_UNAVAILABLE", message: "Mail provider selection is unavailable on this server. Nothing was changed." });
   const check = await checkMailProvider({ control, providerId });
-  await control.select({ id: providerId, principalId: required.principalId });
+  try {
+    await control.select({ id: providerId, principalId: required.principalId, ...(required.expectedRevisionSeq === undefined ? {} : { expectedRevisionSeq: required.expectedRevisionSeq }) });
+  } catch (error) {
+    if (error instanceof SettingsRevisionConflictError) throw new MailProviderOperationError({ code: "MAIL_PROVIDER_CHANGED", message: "The mail provider selection changed while this card was open. Nothing was changed by this call. Read the current mail providers and request a fresh approval." });
+    throw error;
+  }
   control.invalidate?.();
   return { set: true, providerId, label: check.label };
 }

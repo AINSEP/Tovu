@@ -315,7 +315,7 @@ test("PUT that fails for a reason OTHER than ThemePathError 500s via sendThemeFi
     });
     assert.equal(reached, true, "the real atomic writer must reach the failed rename");
     assert.equal(res.status, 500);
-    assertAdminResponse({ actual: await res.json(), expected: { error: "internal error" } });
+    assertAdminResponse({ actual: await res.json(), expected: { error: "internal error" } }, { failure: {"message":"The theme save could not be completed.","action":"Check whether your changes were saved before repeating the save. Copy details and report this problem.","step":"Save theme"} });
     assert.equal(fs.readFileSync(target, "utf8"), original);
     assert.deepEqual(fs.readdirSync(path.dirname(target)).filter((name) => name.startsWith(".logo.svg.")), []);
   } finally {

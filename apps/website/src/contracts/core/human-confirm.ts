@@ -18,9 +18,10 @@
  */
 import { requireChatDeleteGrant, type ChatDeleteSurfaceDeps } from "./chat-delete-grant.js";
 import { nativeToolMetadata } from './tool-metadata/index.js';
-import { createApprovalHandler, createBatchApprovalHandler, type ApprovalSteps, type HumanConfirmer, type RememberedApprovalPort } from "@jini-ai/core";
+import { createApprovalHandler, createBatchApprovalHandler, type ApprovalSteps, type AccessApprovalDescription, type HumanConfirmer, type RememberedApprovalPort } from "@jini-ai/core";
 import { ToolInputError, type ToolExecutionContext, type ToolExecutionOptions, type ToolHandler } from "@jini-ai/core";
-import { buildConfirmationSurface, type SurfaceDetail, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
+import { accessApprovalDetails, buildConfirmationSurface, toolApprovalPresentation, type SurfaceDetail, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
+import { approvalText } from './approval-i18n.js';
 
 import {
   askOnce,
@@ -32,6 +33,8 @@ import {
 export interface HumanConfirmSpec {
   /** The calling tool's own id — the click is routed back to it, so it must be allowlisted. */
   readonly toolId: string;
+  /** Fixed access changes, rendered through the common card and always approved afresh. */
+  readonly access?: AccessApprovalDescription;
   /** Prefix for the refusal code when no human can be asked, e.g. `"WEBHOOKS"`. */
   readonly errorCode: string;
   readonly title: string;
@@ -50,6 +53,24 @@ export interface HumanConfirmSpec {
    * forged answer can never widen what the person was offered.
    */
   readonly alternatives?: readonly HumanConfirmAlternative[];
+}
+
+/** Shared operator-language presentation for policy approvals and domain-owned tool plans. */
+export function toolApprovalConfirmation({ descriptor, input, locale, details = [], danger = false }: {
+  descriptor: Parameters<typeof toolApprovalPresentation>[0]['descriptor']; input: unknown; locale: string;
+  details?: readonly SurfaceDetail[]; danger?: boolean;
+}, _options = {}): HumanConfirmSpec {
+  const toolId = descriptor.id;
+  const presentation = toolApprovalPresentation({ descriptor }, { text: ({ key }) => approvalText({ locale, key }) });
+  return {
+    toolId, errorCode: 'TOOL_APPROVAL', title: presentation.title,
+    ...(presentation.summary ? { description: presentation.summary } : {}), details, danger,
+    detailDisclosure: { label: approvalText({ locale, key: 'Details' }), details: [
+      { label: approvalText({ locale, key: 'Input' }), value: input ?? {}, labels: presentation.labels,
+        description: `${approvalText({ locale, key: 'Technical name' })}: ${toolId}` },
+    ] },
+    confirmLabel: presentation.confirmLabel, cancelLabel: approvalText({ locale, key: 'Cancel' }),
+  };
 }
 
 /** One extra affirmative button — see {@link HumanConfirmSpec.alternatives}. */
@@ -84,6 +105,7 @@ export async function requireHumanConfirm(
   { emitSurface }: ToolExecutionOptions = {},
 ): Promise<HumanConfirmOutcome> {
   await requireChatDeleteGrant({ surfaces, toolId: spec.toolId, principalId: ctx.principal.id });
+  await requireAccessApprover({ surfaces, principalId: ctx.principal.id, toolId: spec.toolId, access: spec.access });
   if (!emitSurface) {
     throw new ToolInputError({ message: `${spec.errorCode}_NO_CONFIRMATION_CHANNEL: ${spec.toolId}: this execution context has no interactive ` +
         "confirmation channel (no emitSurface), so a human cannot approve this action here. Nothing was changed." });
@@ -104,6 +126,7 @@ export async function requireHumanConfirm(
     const answer = await askOnce({ exchange, emission: { channel: "mcp-ui", payload: { resource } } });
     const outcome = classifyConfirmationAnswer({ answer });
     if (!outcome.confirmed || answer.status !== "received") return outcome;
+    await requireAccessApprover({ surfaces, principalId: ctx.principal.id, toolId: spec.toolId, access: spec.access });
     // A revoke while the human reads the card takes effect before the domain effect resumes.
     await requireChatDeleteGrant({ surfaces, toolId: spec.toolId, principalId: ctx.principal.id });
     const choice = answer.params[HUMAN_CONFIRM_CHOICE_PARAM];
@@ -112,6 +135,17 @@ export async function requireHumanConfirm(
   } finally {
     ctx.signal.removeEventListener("abort", closeOnAbort);
   }
+}
+
+/** Re-read the active person before disclosure and before resuming the domain writer.
+ * Domain writers retain their own current permission and revision checks. */
+export async function requireAccessApprover({ surfaces, principalId, toolId, access }: {
+  surfaces: ChatDeleteSurfaceDeps; principalId: string; toolId: string; access: AccessApprovalDescription | undefined;
+}, _optional = {}): Promise<void> {
+  if (!access) return;
+  if (access.resources.some(resource => resource.scope.personId !== principalId)) throw new ToolInputError({ message: `${toolId}: this access proposal belongs to another person. Nothing was changed. Request access for your own signed-in session.` });
+  if (!surfaces.assertAccessApprover) throw new ToolInputError({ message: `${toolId}: this chat cannot verify the person approving access. Nothing was changed. Reopen the chat in your signed-in admin session.` });
+  await surfaces.assertAccessApprover({ toolId, principalId });
 }
 
 /**
@@ -193,7 +227,12 @@ export function approvalToolHandler<TPrepared>(
 ): ToolHandler {
   const steps: ApprovalSteps<TPrepared, HumanConfirmSpec> = {
     prepare,
-    describe: async ({ ctx, prepared }) => ({ ask: ask({ prepared }), description: await describe({ ctx, prepared }), rememberKey: rememberKey?.({ prepared }) }),
+    describe: async ({ ctx, prepared }) => {
+      const description = await describe({ ctx, prepared });
+      return description.access
+        ? { kind: 'access', ask: true, description, access: description.access }
+        : { ask: ask({ prepared }), description, rememberKey: rememberKey?.({ prepared }) };
+    },
     askHuman: ({ ctx, description }, options) => requireHumanConfirm({ ctx, surfaces, spec: description }, options),
     run,
     notConfirmed: declined ?? (({ reason }) => ({ [flag]: false, ...notConfirmedResult({ confirmed: false, reason }) })),
@@ -244,7 +283,7 @@ function renderHumanConfirmation(
     // Redemption acknowledges receipt; the held-open tool still owns execution and its outcome.
     text: { done: "Response received." },
     ...(description ? { description } : {}),
-    details: spec.details,
+    details: confirmationDetails({ spec }),
     ...(spec.detailDisclosure ? { detailDisclosure: spec.detailDisclosure } : {}),
     ...(spec.warning ? { warning: spec.warning } : {}),
     danger: spec.danger ?? false,
@@ -259,4 +298,9 @@ function renderHumanConfirmation(
     // exchange has stopped waiting on.
     expiresAtMs: exchange.expiresAtMs(),
   });
+}
+
+/** Keep access rows fixed while preserving the domain's existing warnings and context. */
+function confirmationDetails({ spec }: { spec: HumanConfirmSpec }, _optional = {}): readonly SurfaceDetail[] {
+  return spec.access ? [...accessApprovalDetails({ access: spec.access }), ...spec.details] : spec.details;
 }

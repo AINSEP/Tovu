@@ -888,7 +888,7 @@ export async function finishStaticTierDocument(
   // only one hand-authored directly into a theme file.
   const collectionLists = await resolveCollectionListsForRender(deps, assembled, currentPath);
 
-  return (
+  return injectExtraHeadIntoStaticPage(
     renderStaticPage({
       theme,
       pageId,
@@ -900,8 +900,14 @@ export async function finishStaticTierDocument(
       collectionLists,
       featuredImage,
       postAuthor,
-    }) ?? ""
+    }) ?? "",
+    (await deps.documentAssets?.({ scripts: staticThemeScripts({ theme }), static: true }))?.head
   );
+}
+
+/** Static pages and diagnostic templates share the theme's declared-script defaults. */
+function staticThemeScripts({ theme }: { theme: DiscoveredTheme }): readonly import('@jini-ai/cookie-consent').DeclaredScript[] {
+  return theme.manifest.scripts ?? [];
 }
 
 /**
@@ -1237,7 +1243,7 @@ export type TemplateRenderDeps = Pick<
   // C5 (collections plan, 2026-09-23) — `resolveCollectionListsForRender`'s content-type lookup for
   // a `{"type":"collection"}` marker's `typeKey`, threaded through `finishStaticTierDocument`.
   | "contentTypeRepo"
-> & Partial<Pick<RouteDeps, "taxonomyRepo" | "termRepo" | "commentsProviders" | "commentsCursor" | "pluginExports" | "pluginExportRender">> & {
+> & Partial<Pick<RouteDeps, "taxonomyRepo" | "termRepo" | "commentsProviders" | "commentsCursor" | "documentAssets" | "declaredScripts" | "pluginExports" | "pluginExportRender">> & {
   /** A see-more batch request (`<page>/_more/<key>/<after>`): that one listing renders from `after`. */
   readonly listingBatch?: ListingBatchRequest;
   /** A numbered listing page request (`<page>/page/<n>`, Bug C): `paged` post-previews render page `n`. */
@@ -1579,13 +1585,14 @@ export async function renderViaTemplate(
     // dead code by construction, not merely untested — proper fix is narrowing `renderStaticPage`'s
     // own return type via an overload keyed on a required `htmlOverride`, which lives outside this
     // file (static-render.ts) and is out of this pass's scope.
-    return (
+    return injectExtraHeadIntoStaticPage(
       renderStaticPage({
         theme,
         pageId: "template-missing",
         htmlOverride: buildMissingTemplateHtml(theme.manifest.apiVersion),
         menus: staticMenus,
-      }) ?? ""
+      }) ?? "",
+      (await deps.documentAssets?.({ scripts: staticThemeScripts({ theme }), static: true }))?.head
     );
   }
   const { pageId, html: rawTemplate } = resolution;
@@ -2071,6 +2078,7 @@ async function renderBarePage(deps: RouteDeps, post: PostRecord): Promise<string
     buildExtraHead(deps, "post", siteTitle, post),
   ]);
   return renderBareEntryDocument({
+    documentAssets: await deps.documentAssets?.({ scripts: [] }),
     post,
     siteTitle,
     extraHead,
@@ -2184,7 +2192,11 @@ export async function renderGenericPostPage(
     // lands (`render.ts`'s `renderPostBody`, shared by the declarative/templated/handlebars tiers).
     resolveAssignedTermsForRender(deps, post),
   ]);
-  const html = await renderSite({
+  return renderSite({
+    renderAssets: deps.documentAssets,
+    transformBody: ({ html }) => renderCommentsMarkers({ html, providers: deps.commentsProviders, siteId: deps.workspaceId,
+      entry: { id: post.id, slug: post.slug, title: post.title, status: post.status, canonicalUrl: postPublicPath({ slug: post.slug }) },
+    }, { cursor: deps.commentsCursor, scripts: ({ scripts }) => deps.declaredScripts?.push(...scripts) }),
     theme,
     route: "post",
     siteTitle,
@@ -2199,9 +2211,6 @@ export async function renderGenericPostPage(
     extraHead,
     siteAssistantEnabled,
   });
-  return renderCommentsMarkers({ html, providers: deps.commentsProviders, siteId: deps.workspaceId,
-    entry: { id: post.id, slug: post.slug, title: post.title, status: post.status, canonicalUrl: postPublicPath({ slug: post.slug }) },
-  }, { cursor: deps.commentsCursor });
 }
 
 /**
@@ -2735,12 +2744,15 @@ function withListingBatch<T extends RouteDeps>(deps: T, req: Request): T & Pick<
   const listingBatch = listingBatchRequests.get(req);
   const listingPage = listingPageRequests.get(req)?.page;
   const pluginExportRender = pluginExportSession({ deps, req });
+  const declaredScripts: import('@jini-ai/cookie-consent').DeclaredScript[] = [];
+  const renderAssets = req.res?.locals?.siteConsentAssets as RouteDeps['documentAssets'];
+  const documentAssets: RouteDeps['documentAssets'] = renderAssets ? ({ scripts, ...options }) => renderAssets({ scripts: [...scripts, ...declaredScripts], ...options }) : undefined;
   const commentsCursor = typeof req.query?.commentCursor === 'string' ? req.query.commentCursor : undefined;
   // A static export/static-publish has no `/api/site/comments` to post to, and a snapshot would keep a
   // comment public after it is trashed: like the assistant bubble, it ships an empty comments surface.
   // (`req.header` is absent only on the route tests' direct handler calls.)
-  if (typeof req.header === 'function' && isStaticExportRequest(req)) return { ...deps, pluginExportRender, listingBatch, listingPage, commentsCursor, commentsProviders: undefined };
-  return { ...deps, pluginExportRender, listingBatch, listingPage, commentsCursor };
+  if (typeof req.header === 'function' && isStaticExportRequest(req)) return { ...deps, pluginExportRender, listingBatch, listingPage, commentsCursor, declaredScripts, documentAssets, commentsProviders: undefined };
+  return { ...deps, pluginExportRender, listingBatch, listingPage, commentsCursor, declaredScripts, documentAssets };
 }
 
 /** A batch request whose page has no such listing: restore the batch URL and fall through to the 404.
@@ -2844,6 +2856,7 @@ async function serveHomePage({ req, res, deps }: { req: Request; res: Response; 
   }
 
   const html = await renderSite({
+    renderAssets: deps.documentAssets,
     theme,
     route: "home",
     siteTitle,
@@ -2931,7 +2944,7 @@ async function serveStaticThemeIndex({ req, res, deps, theme, staticMenus, extra
 export async function serveVirtualPage({ req, res, deps, post }: {
   req: Request; res: Response; deps: RouteDeps; post: PostRecord;
 }): Promise<void> {
-  deps = { ...deps, seoDeps: seoForRequest({ req, deps: deps.seoDeps }) };
+  deps = withListingBatch(deps, req);
   const [activeThemeId, siteAssistantEnabled] = await Promise.all([
     resolveRenderThemeId(res, deps),
     resolveSiteAssistantWidgetForRequest({ request: req, deps }),

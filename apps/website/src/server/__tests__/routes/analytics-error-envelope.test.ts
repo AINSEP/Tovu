@@ -8,6 +8,7 @@ import { createTracker } from "@jini-ai/diagnostics/observability/node";
 
 import { registerAdminAnalyticsRecentHitsRoute, type AdminAnalyticsRecentHitsDeps } from "../../inbound/admin-http/routes/analytics/recent-hits.js";
 import { applyRequestTracking } from "../../inbound/shared/observability-middleware.js";
+import { assertAnalyticsFailure } from "../helpers/assert-analytics-failure.js";
 
 /** Exercise the real HTTP/Express stack without opening a sandbox-forbidden listener. */
 async function request(app: express.Express, requestId: string | undefined) {
@@ -45,14 +46,14 @@ for (const failure of ["authorize", "sink"] as const) {
       const secret = "ghp_" + "x".repeat(36);
       const fail = async () => { throw new Error(`private ${failure} failure ${secret}`); };
       const logs: unknown[][] = [];
-      const reports: Array<{ error: Error }> = [];
+      const reports: Array<{ error: Error; options: unknown }> = [];
       t.mock.method(console, "error", (...args: unknown[]) => { logs.push(args); });
 
       const app = express();
       applyRequestTracking(app, { tracker: createTracker({}), env: { TOVU_LOG_REQUESTS: undefined, TOVU_LOG_SLOW_REQUESTS: undefined } });
       app.use((_req, res, next) => {
         res.locals.principal = { id: "owner" };
-        res.locals.adminFailureTracker = { error: (report: { error: Error }) => { reports.push(report); } };
+        res.locals.adminFailureTracker = { error: (report: { error: Error }, options: unknown) => { reports.push({ ...report, options }); } };
         next();
       });
       const deps: AdminAnalyticsRecentHitsDeps = {
@@ -72,15 +73,16 @@ for (const failure of ["authorize", "sink"] as const) {
       const correlation = response.requestId;
       assert.ok(correlation);
       if (requestId) assert.equal(correlation, requestId);
-      assert.deepEqual(response.body, {
-        error: { code: "INTERNAL_ERROR", message: "internal error", requestId: correlation },
-      });
+      const errorId = assertAnalyticsFailure({ body: response.body, requestId: correlation });
       assert.equal(logs.length, 1);
       assert.equal(reports.length, 1);
+      assert.equal((logs[0]![1] as { errorId: string }).errorId, errorId);
+      assert.deepEqual(reports[0]!.options, { context: { operation: "analytics/recent-hits", attributes: { errorId } } });
       assert.match(JSON.stringify(logs), new RegExp(`private ${failure} failure`));
       assert.match(reports[0]!.error.message, new RegExp(`private ${failure} failure`));
       assert.equal(JSON.stringify(logs).includes(secret), false);
       assert.equal(reports[0]!.error.message.includes(secret), false);
+      assert.doesNotMatch(JSON.stringify(response.body), new RegExp(`private|${secret}`));
     });
   }
 }

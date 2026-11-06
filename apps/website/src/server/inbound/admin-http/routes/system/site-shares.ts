@@ -1,4 +1,4 @@
-import { createSiteSharePasswordHandler, requireSavedKeysOwnerSession } from "./site-share-password.js";
+import { createSiteSharePasswordHandler } from "./site-share-password.js";
 import { sendSiteShareFailure } from "./site-share-errors.js";
 import express, { type Express, type Request, type Response } from "express";
 import type { RouteDeps } from "#src/server/routes/types";
@@ -10,19 +10,13 @@ import { SHARE_LIMITS, SiteShareRefusal } from "#src/features/site-backup/share-
 import { SHARE_TOKEN, SHARE_FILE } from "#src/features/site-backup/share-registry";
 import { SHARE_DOWNLOAD_HEADERS, receiveSiteShareArtifact } from "#src/features/site-backup/share-service";
 
-function readShareInput({ body }: { body: unknown }, _options = {}): { jobId?: string; includeSavedKeys?: boolean } {
-  const raw = shareInputRecord({ body });
-  const jobId = shareInputJob({ value: raw.jobId });
-  const includeSavedKeys = raw.includeSavedKeys;
-  if (includeSavedKeys !== undefined && typeof includeSavedKeys !== "boolean") throw new SiteShareRefusal({ code: "INVALID_INPUT", message: "includeSavedKeys must be a boolean." });
-  if (jobId !== undefined && includeSavedKeys !== undefined) throw new SiteShareRefusal({ code: "INVALID_INPUT", message: "Poll with jobId only." });
-  return { ...(jobId ? { jobId } : {}), ...(includeSavedKeys !== undefined ? { includeSavedKeys } : {}) };
-}
-
-function shareInputRecord(required: { body: unknown }, _options = {}): Record<string, unknown> {
-  const raw = required.body ?? {};
-  if (typeof raw !== "object" || raw === null || Array.isArray(raw) || Object.keys(raw).some(key => !["jobId", "includeSavedKeys"].includes(key))) throw new SiteShareRefusal({ code: "INVALID_INPUT", message: "Accept only jobId when polling, or includeSavedKeys for a new export." });
-  return raw as Record<string, unknown>;
+function readShareInput({ body }: { body: unknown }, _options = {}): { jobId?: string } {
+  const raw = body ?? {};
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw) || Object.keys(raw).some(key => key !== "jobId")) {
+    throw new SiteShareRefusal({ code: "INVALID_INPUT", message: "Exports no longer include saved keys. Start an export with {}, or poll with jobId only." });
+  }
+  const jobId = shareInputJob({ value: (raw as Record<string, unknown>).jobId });
+  return jobId ? { jobId } : {};
 }
 
 function shareInputJob(required: { value: unknown }, _options = {}): string | undefined {
@@ -67,7 +61,6 @@ export function registerAdminSiteShareRoutes(required: { app: Express; deps: Rou
     try {
       if (!await gate(req, res)) return;
       const input = readShareInput({ body: req.body });
-      if (input.includeSavedKeys && !await requireSavedKeysOwnerSession({ req, res, deps })) return;
       res.json(await deps.siteShareBackend!.create({ principalId: getAuthedPrincipal(res).id, signal: new AbortController().signal, ...input }));
     } catch (error) { fail(res, error, req); }
   });

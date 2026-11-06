@@ -9,6 +9,7 @@ import test, { type TestContext } from "node:test";
 import { DuplicateThemeError, duplicateDiscoveredTheme, duplicateTheme, MAX_DUPLICATE_THEME_BYTES, themeIdFromName } from "../duplicate-theme.js";
 import { discoverAllBuiltInThemes, MIGRATION_STAGING_DIR_PREFIX, THEME_CATALOG_DIR, type DiscoveredTheme } from "../theme.js";
 import { MAX_LISTED_FILES, MAX_WALK_DEPTH, resolveThemeOriginalSource } from "../theme-files.js";
+import { writableThemeIds, ThemeStylingRequiredError } from "../active-theme.js";
 
 /**
  * @file `duplicateTheme` / `duplicateDiscoveredTheme` — the one runtime "make a new theme" service
@@ -56,6 +57,75 @@ function tierEntries(root: string): string[] {
 function assertRefused(fn: () => unknown, code: DuplicateThemeError["code"]): void {
   assert.throws(fn, (err: unknown) => err instanceof DuplicateThemeError && err.code === code);
 }
+
+test("structure-only Starter copies preserve wiring, discard appearance and remain previewable until styled", (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-structure-copy-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const sourceDir = path.join(root, "static/tovu-starter");
+  fs.cpSync(path.join(REPO_THEMES, "static/tovu-starter"), sourceDir, { recursive: true });
+  fs.writeFileSync(path.join(sourceDir, "css/extra.css"), "body{color:red}");
+  fs.writeFileSync(path.join(sourceDir, "css/extra.css.map"), "{}");
+  fs.writeFileSync(path.join(sourceDir, "assets/vendor/kuinetic/functional.css"), ".motion{opacity:1}");
+  const vendorLink = '<link rel="stylesheet" href="../assets/vendor/kuinetic/functional.css"><link rel="stylesheet" href="/theme-assets/tovu-starter/assets/vendor/kuinetic/functional.css">';
+  const probe = `${vendorLink}<style>.old{color:red}</style><form class="signup" data-form="join" hidden style="color:red"><input required></form><!-- embed -->`;
+  fs.writeFileSync(path.join(sourceDir, "render/partials/probe.html"), probe);
+  const before = snapshot(sourceDir);
+  const themes = discoverAllBuiltInThemes({ dir: root, source: "built-in" });
+  const { result, theme } = duplicateDiscoveredTheme({ themes, themesDir: root, sourceThemeId: "tovu-starter", newName: "Fresh" }, { mode: "structure-only" });
+  assert.equal(theme?.status, "valid", theme?.errors.join("; "));
+  assert.equal(result.stylingStatus, "unstyled");
+  assert.ok(theme?.css.includes("tovu:unstyled-structure-copy"));
+  assert.equal(fs.existsSync(path.join(result.dir, "css/extra.css")), false);
+  assert.equal(fs.existsSync(path.join(result.dir, "css/extra.css.map")), false);
+  const output = fs.readFileSync(path.join(result.dir, "render/partials/probe.html"), "utf8");
+  assert.equal(output, `${vendorLink.replace("/tovu-starter/", "/fresh/")}<form class="signup" data-form="join" hidden ><input required></form><!-- embed -->`);
+  assert.deepEqual(snapshot(path.join(result.dir, "assets/vendor/kuinetic")), snapshot(path.join(sourceDir, "assets/vendor/kuinetic")));
+  assert.equal(fs.readFileSync(path.join(result.dir, "scripts/vendor/lightbox.js"), "utf8"), fs.readFileSync(path.join(sourceDir, "scripts/vendor/lightbox.js"), "utf8"));
+  assert.match(Object.values(theme!.pages).join(""), /<link rel="stylesheet" href="\.\.\/css\/theme\.css" \/>/);
+  assert.match(Object.values(theme!.pages).join(""), /lightbox\.js/);
+  assert.doesNotMatch(Object.values(theme!.partials).join(""), /<style\b|\sstyle=/i);
+  assert.deepEqual(Object.keys(theme!.tokens), Object.keys(themes[0]!.tokens));
+  assert.equal(theme!.tokens["--font-body"], "system-ui, sans-serif");
+  assert.deepEqual(theme!.tokensLight, theme!.tokens);
+  assert.deepEqual(theme!.manifest.fontStylesheets, []);
+  assert.equal(writableThemeIds({ themes }).includes(result.id), false);
+  assert.throws(() => writableThemeIds({ themes }, { requestedThemeId: result.id }), ThemeStylingRequiredError);
+  const original = path.join(root, THEME_CATALOG_DIR, "static", result.id);
+  assert.equal(fs.readFileSync(path.join(original, "css/theme.css"), "utf8"), theme!.css);
+  assert.equal(fs.readFileSync(path.join(original, "render/partials/probe.html"), "utf8"), output);
+  assert.deepEqual(snapshot(sourceDir), before);
+  fs.writeFileSync(path.join(result.dir, "css/theme.css"), "body { font-family: system-ui; }");
+  const styled = discoverAllBuiltInThemes({ dir: root, source: "built-in" });
+  assert.ok(writableThemeIds({ themes: styled }, { requestedThemeId: result.id }).includes(result.id));
+});
+
+test("structure-only refuses unsupported themes before creating files", (t) => {
+  const { root, themes, source } = makeSite();
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const before = snapshot(root);
+  assertRefused(() => duplicateTheme({ source, themesRoot: root, newName: "Fresh", takenIds: new Set(themes.map(t => t.manifest.id)) }, { mode: "structure-only" }), "SOURCE_NOT_COPYABLE");
+  assert.deepEqual(snapshot(root), before);
+});
+
+test("structure-only refuses compiled themes and cleans staging after a transform failure", (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-structure-rollback-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const dir = path.join(root, "static/tovu-starter");
+  fs.cpSync(path.join(REPO_THEMES, "static/tovu-starter"), dir, { recursive: true });
+  const themes = discoverAllBuiltInThemes({ dir: root, source: "built-in" });
+  const source = themes.find(theme => theme.manifest.id === "tovu-starter")!;
+  const required = { source, themesRoot: root, newName: "Fresh", takenIds: new Set(["tovu-starter"]) };
+  const before = snapshot(root);
+  const compiled = { ...source, manifest: { ...source.manifest, build: { source: "compiled" as const, sourceDir: "source", artifactHashes: {} } } };
+  assertRefused(() => duplicateTheme({ ...required, source: compiled }, { mode: "structure-only" }), "SOURCE_NOT_COPYABLE");
+  assert.deepEqual(snapshot(root), before);
+  // A source file can change after discovery; a failed transformation must not publish a half-copy.
+  fs.writeFileSync(path.join(dir, "tokens.json"), "{");
+  const changed = snapshot(root);
+  assert.throws(() => duplicateTheme(required, { mode: "structure-only" }), SyntaxError);
+  assert.deepEqual(snapshot(root), changed);
+  assert.deepEqual(fs.readdirSync(path.join(root, "static")), ["tovu-starter"]);
+});
 
 test("copies every file; only theme.json changes, to the new identity with lineage", () => {
   const { root, themes, source } = makeSite();

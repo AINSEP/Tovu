@@ -38,6 +38,6 @@ test('Tool gaps audit read failures return a generic 500 and log without the sto
   const logged: unknown[][] = [];
   t.mock.method(console, 'error', (...args: unknown[]) => { logged.push(args); });
   const failing: ToolGapsToolDeps['toolGaps'] = { list: async () => { throw new Error('private storage detail'); } };
-  assertAdminResponse({ actual: await invoke('owner', 'w', failing), expected: { status: 500, body: { error: 'Could not read tool gaps.', code: 'INTERNAL_ERROR' }, reads: 0 } });
+  assertAdminResponse({ actual: await invoke('owner', 'w', failing), expected: { status: 500, body: { error: 'Could not read tool gaps.', code: 'INTERNAL_ERROR' }, reads: 0 } }, { failure: {"message":"Could not read tool gaps.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"system setting operation"} });
   assertAdminDiagnostics({ calls: logged, operation: "[routes/system/tool-gaps]", diagnostics: [/private storage detail/] });
 });

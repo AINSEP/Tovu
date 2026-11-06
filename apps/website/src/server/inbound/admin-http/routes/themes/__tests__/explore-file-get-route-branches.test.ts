@@ -114,5 +114,5 @@ test("GET file where the underlying read throws something OTHER than ThemePathEr
     return;
   }
   assert.equal(res.status, 500, `expected a permission-denied read to 500, got ${res.status}: ${JSON.stringify(body)}`);
-  assertAdminResponse({ actual: body, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: body, expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: {"message":"The themes could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load themes"} });
 });

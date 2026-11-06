@@ -3,7 +3,7 @@ import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { bundledContributionSources } from '../../features/agent-plugins/bundled-contribution-sources.js';
-import { resolveProductRoot } from '../../platform/site-dir/product-root.js';
+import { bundledAgentPluginsDir } from '../../platform/site-dir/product-root.js';
 import { nativeToolMetadata } from '../../contracts/core/tool-metadata/index.js';
 import { readBundledToolKeywords, toolSearchKeywords, indexedDescriptionFor, stripSearchKeywords } from '../tool-search-keywords.js';
 
@@ -54,7 +54,7 @@ test('registered metadata retains its authority and enrichment strips back to au
 
 test('shipped tool words enrich both legacy and registered search without plugin activation', () => {
   toolSearchKeywords({}, { sources: bundledContributionSources });
-  const sources = bundledContributionSources({ sourceRoot: path.join(resolveProductRoot(), 'content', 'agent-plugins'), filename: 'plugin.json' });
+  const sources = bundledContributionSources({ sourceRoot: bundledAgentPluginsDir(), filename: 'plugin.json' });
   let declarations = 0;
   for (const source of sources) {
     const manifest = JSON.parse(readFileSync(path.join(source.packageRoot, 'plugin.json'), 'utf8'));

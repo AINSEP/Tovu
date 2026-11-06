@@ -1,3 +1,4 @@
+import { notifyExternalMcpRosterChanged } from "#src/assistant/external-mcp-roster-change";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createNoopTracker } from "@jini-ai/diagnostics/observability";
@@ -44,7 +45,7 @@ function buildTestApp(overrides: Partial<PluginsRouteDeps> = {}): { app: express
   const baseDeps = createRouteDeps();
   const onEnabledCalls: string[] = [];
   const onDisabledCalls: string[] = [];
-  const pluginDeps: PluginsRouteDeps = {
+  const pluginDeps: PluginsRouteDeps = { notifyRosterChanged: notifyExternalMcpRosterChanged,
     tracker: createNoopTracker({}),
     workspaceId: baseDeps.workspaceId,
     authorize: baseDeps.authorize,
@@ -217,7 +218,7 @@ test("set-enabled: a record-persistence failure AFTER a successful first-time en
     body: JSON.stringify({ enabled: true }),
   });
   assert.equal(res.status, 500);
-  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: {"message":"The plugin save could not be completed.","action":"Check whether your changes were saved before repeating the save. Copy details and report this problem.","step":"Save plugin"} });
 
   // rollbackPluginActivation: no priorActivation existed -> the row this request just wrote is
   // deleted, and the compensating side effect is onPluginDisabled (priorActivation?.enabled is

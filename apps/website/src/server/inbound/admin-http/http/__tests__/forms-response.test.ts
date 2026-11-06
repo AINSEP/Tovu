@@ -128,3 +128,17 @@ test("unknown forms errors leave the response untouched for the caller's generic
   assert.equal(mapFormsWriteError(new Error("private db path"), res), false);
   assert.deepEqual(capture, { statusCode: 200, jsonBody: undefined });
 });
+
+test('invalid import classification is exposed beside answers on detail and list responses', () => {
+  const submission = { id: 's', workspaceId: 'w', formDefinitionId: 'f', data: { email: '' }, sourceIp: null, submittedAt: 'now', validation: { status: 'invalid' as const, fieldErrors: [{ field: 'email', reason: 'required' }] } };
+  assert.deepEqual(toAdminFormSubmissionResponse(submission).data.validation, submission.validation);
+  assert.deepEqual(toAdminFormSubmissionListResponse({ items: [submission], nextCursor: null }).data[0]!.validation, submission.validation);
+});
+
+test('submission detail exports original evidence while paginated lists carry only its hash',()=>{
+  const evidence={version:1 as const,fields:[{id:'accept',label:'Original consent',type:'checkbox' as const,required:true}],consent:[{fieldId:'accept',wording:'Original consent'}],schemaHash:'a'.repeat(64),capturedAt:'now',source:'native' as const};
+  const submission={id:'s',workspaceId:'w',formDefinitionId:'f',data:{accept:true},sourceIp:null,submittedAt:'now',evidence};
+  assert.deepEqual(toAdminFormSubmissionResponse(submission).data.evidence,evidence);
+  const listed=toAdminFormSubmissionListResponse({items:[submission],nextCursor:null}).data[0]!;
+  assert.equal(listed.schemaHash,evidence.schemaHash); assert.equal(listed.evidence,undefined);
+});

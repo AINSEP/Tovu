@@ -90,9 +90,11 @@ export type CustomCredentialScope = "site" | "project";
 export interface CustomCredentialProjectScope {
   readonly workspaceId: UUID;
   readonly repo: CustomCredentialSetRepoPort;
-  /** Admin metadata inventory and explicit deletion, over the raw project vault with its usage guard.
-   * Runtime credential resolution must continue to use the attachment-filtered `repo`. */
-  readonly deletionRepo?: CustomCredentialSetRepoPort;
+  /** Trusted human replacement retains the site-grant boundary. */
+  readonly replaceRepo?: CustomCredentialSetRepoPort;
+  /** Owner-session inventory only; cannot resolve, open or mutate a credential. */
+  readonly inventoryRepo?: Pick<CustomCredentialSetRepoPort, "listByWorkspace">;
+  readonly createRepo?: CustomCredentialSetRepoPort;
   readonly sealer: SecretSealerPort;
   readonly keyring: KeyringPort;
 }
@@ -120,6 +122,7 @@ export interface CustomCredentialSetRepoPort {
    *  connection rotation. Same UNIQUE-violation possibility as `insert` (renaming into another
    *  row's label). */
   update(record: CustomCredentialSetRecord): Promise<void>;
+  findByLabel?(input: { workspaceId: UUID; label: string }): Promise<CustomCredentialSetRecord | null>;
   findById(input: { workspaceId: UUID; id: UUID }): Promise<CustomCredentialSetRecord | null>;
   /** Every credential set a workspace has saved — inherently small (bounded by how many an
    *  operator bothers to add through this exact form), so no pagination/cap is added here, same

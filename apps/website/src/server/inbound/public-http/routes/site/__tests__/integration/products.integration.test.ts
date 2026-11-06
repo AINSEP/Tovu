@@ -4,7 +4,9 @@ import type { CommerceSiteTestDeps } from "../commerce-site-app.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { Product, StoreApi } from "#src/features/plugins/store/store-plugin";
+import type { SiteProduct } from "#src/server/inbound/public-http/http/site/render";
+type Product = SiteProduct & { version?: number };
+type StoreApi = { listProducts(): Promise<Product[]>; findProduct(required: { idOrSlug: string }): Promise<Product | null> };
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 
@@ -18,7 +20,7 @@ import { startTestServer } from "#src/server/__tests__/helpers/http-test-server"
 function fakeStore(required: { products: Product[] }, _optional: Record<string, never> = {}): StoreApi {
   return {
     listProducts: async () => required.products,
-    checkout: async () => ({ ok: false, reason: "not-found", retries: 0 }),
+    findProduct: async ({ idOrSlug }) => required.products.find(product => product.id === idOrSlug) ?? required.products.find(product => product.slug === idOrSlug) ?? null,
   };
 }
 
@@ -32,7 +34,7 @@ test("products: a store-plugin product renders through the real composed app", a
     price: 4200, stock: 5, version: 1,
   };
   const app = createApp(
-    testDeps({ store: fakeStore({ products: [product] }) })
+    testDeps({ commerceCatalog: fakeStore({ products: [product] }) })
   );
   const baseUrl = await startTestServer(app, t);
 
@@ -48,9 +50,8 @@ test("products: a store-plugin product renders through the real composed app", a
 test("products: the sample store plugin catalog renders through the composed app", async (t) => {
   const app = createApp(
     testDeps({
-      store: {
+      commerceCatalog: {
         listProducts: async () => [{ id: "sample-1", slug: "sample-1", title: "Sample Fallback Product", price: 999, stock: 1, version: 0 }],
-        checkout: async () => ({ ok: false, reason: "not-found", retries: 0 }),
       },
     })
   );
@@ -62,7 +63,7 @@ test("products: the sample store plugin catalog renders through the composed app
 });
 
 test("products: an empty store plugin catalog renders an empty grid through the composed app", async (t) => {
-  const app = createApp(testDeps({ store: fakeStore({ products: [] }) }));
+  const app = createApp(testDeps({ commerceCatalog: fakeStore({ products: [] }) }));
   const baseUrl = await startTestServer(app, t);
 
   const res = await fetch(`${baseUrl}/products`);
@@ -70,9 +71,9 @@ test("products: an empty store plugin catalog renders an empty grid through the 
   assert.match(await res.text(), /No products available yet\./);
 });
 
-test("products: no store plugin is wired — resolveStorefrontProducts's `deps.store?.listProducts() ?? []` fallback yields an empty grid, not a crash", async (t) => {
+test("products: no store plugin is wired — resolveStorefrontProducts's `deps.commerceCatalog?.listProducts() ?? []` fallback yields an empty grid, not a crash", async (t) => {
   const app = createApp(
-    testDeps({ store: undefined })
+    testDeps({ commerceCatalog: undefined })
   );
   const baseUrl = await startTestServer(app, t);
 
@@ -83,7 +84,7 @@ test("products: no store plugin is wired — resolveStorefrontProducts's `deps.s
 
 test("products: an unknown product id 404s through the real composed app", async (t) => {
   const app = createApp(
-    testDeps({ store: fakeStore({ products: [] }) })
+    testDeps({ commerceCatalog: fakeStore({ products: [] }) })
   );
   const baseUrl = await startTestServer(app, t);
 
@@ -110,7 +111,7 @@ function extractHandler(app: ReturnType<typeof createApp>, path: string): (req: 
 
 test("products: /products/:id's `req.params.id ?? \"\"` fallback, forced via a direct handler call on the REAL composed app with id omitted -- still 404s, not a crash", async () => {
   const app = createApp(
-    testDeps({ store: fakeStore({ products: [] }) })
+    testDeps({ commerceCatalog: fakeStore({ products: [] }) })
   );
   const handler = extractHandler(app, "/products/:id");
   let statusCode: number | undefined;
@@ -142,7 +143,7 @@ test("products: 'No themes installed' 500s when no theme is discovered (both rou
   };
   const app = createApp(
     testDeps({
-      store: fakeStore({ products: [product] }),
+      commerceCatalog: fakeStore({ products: [product] }),
       themes: [],
     })
   );
@@ -157,18 +158,18 @@ test("products: 'No themes installed' 500s when no theme is discovered (both rou
   assert.match(await detail.text(), /No themes installed/);
 });
 
-test("products: an unexpected exception 500s with 'Site error' (both routes)", async (t) => {
-  const app = createApp(testDeps({ store: {
+test("products: unexpected catalog and detail exceptions return specific safe errors (both routes)", async (t) => {
+  const app = createApp(testDeps({ commerceCatalog: {
     listProducts: async () => { throw new Error("boom"); },
-    checkout: async () => ({ ok: false, reason: "not-found", retries: 0 }),
+    findProduct: async () => { throw new Error("boom"); },
   } }));
   const baseUrl = await startTestServer(app, t);
 
   const list = await fetch(`${baseUrl}/products`);
   assert.equal(list.status, 500);
-  assert.match(await list.text(), /Site error/);
+  assert.equal(await list.text(), "<h1>The product catalog could not be loaded</h1><p>Please try again shortly.</p>");
 
   const detail = await fetch(`${baseUrl}/products/anything`);
   assert.equal(detail.status, 500);
-  assert.match(await detail.text(), /Site error/);
+  assert.equal(await detail.text(), "<h1>This product could not be loaded</h1><p>Please try again shortly.</p>");
 });

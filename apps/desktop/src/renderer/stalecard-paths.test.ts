@@ -31,14 +31,16 @@ test('stalecard: duplicate names show each parent under the name, including miss
   render(projects);
   const cards = [...dom.window.document.querySelectorAll('article.card')];
   assert.equal(cards.length, 3);
-  const parents = ['/repo/sites', '/Documents/Tovu', 'C:\\Sites'];
+  // Same name and date, so the list's last tiebreak, the id, decides the order.
+  const shown = [{ parent: '/Documents/Tovu', project: projects[1]! }, { parent: '/repo/sites', project: projects[0]! }, { parent: 'C:\\Sites', project: projects[2]! }];
   for (const [index, card] of cards.entries()) {
-    const name = card.querySelector('h3')!;
-    assert.equal(name.textContent, 'tovu-dev');
-    assert.equal(name.nextElementSibling?.textContent, parents[index]);
-    assert.equal(name.nextElementSibling?.getAttribute('title'), projects[index]!.installDir);
+    assert.equal(card.querySelector('h3')!.textContent, 'tovu-dev');
+    // The line sits right under the name's own line, in the same cell.
+    const parent = card.querySelector('.jini-site-card__nameline')!.nextElementSibling;
+    assert.equal(parent?.textContent, shown[index]!.parent);
+    assert.equal(parent?.getAttribute('title'), shown[index]!.project.installDir);
   }
-  assert.match(cards[0]!.textContent!, /Folder moved or not a site/);
+  assert.match(cards[1]!.textContent!, /Folder moved or not a site/);
   render([projects[1]!]);
   assert.equal(dom.window.document.querySelector('.card__parent'), null, 'unique names stay compact');
 });

@@ -1,7 +1,7 @@
 /** Cross-family host contract. Plugins ask the host; they never import another plugin family. */
 import type { PluginIdentityCandidate, PluginLookupPort } from '@jini-ai/core/plugin-directory';
 import type { InstalledAgentPlugin, SetAgentPluginEnabledInput as AgentPluginEnableInput, SetAgentPluginEnabledResult } from '@jini-ai/agent-plugins/lifecycle';
-import type { ToolExecutionContext, ToolExecutionOptions } from '@jini-ai/core';
+import type { AccessApprovalResource, ToolExecutionContext, ToolExecutionOptions } from '@jini-ai/core';
 import type { AssistantSurfaceDeps } from '@jini-ai/daemon/surface-exchanges';
 import type { SettingsRepoPort } from '@jini-ai/core/settings';
 import type { AuthorizeFn } from '../core/commands/index.js';
@@ -73,10 +73,16 @@ export type SetAgentPluginEnabledInput = AgentPluginEnableInput & { agentPluginL
 
 /** The lifecycle owner remains responsible for authorization, confirmation and durable writes. */
 export interface AgentPluginHostCapability {
+  /** Read the activation owner's off records once for a model-facing catalog request. */
+  inactivePluginIds?(required: Record<string, never>, optional?: Record<string, never>): Promise<ReadonlySet<string>>;
+  /** Point-read preview binds the plugin enable card to its external source and exact grants. */
+  previewEnableAccess?(required: { pluginId: string }, optional?: Record<string, never>): Promise<{ readonly key: string; readonly resources?: readonly Omit<AccessApprovalResource, 'scope'>[] }>;
+  /** Persist a declined source proposal through the same connection decision owner. */
+  recordDeclinedAccess?(required: { accessKey: string }, optional?: Record<string, never>): Promise<void>;
   listInstalled(required: Record<string, never>, optional?: Record<string, never>): Promise<readonly InstalledAgentPlugin[]>;
   assertWritable(required: Record<string, never>, optional?: Record<string, never>): Promise<void>;
   setEnabled(required: AgentPluginEnableInput, optional?: Record<string, never>): Promise<SetAgentPluginEnabledResult>;
-  provisionMcp(required: { pluginId: string; principalId: string }, optional?: Record<string, never>): Promise<void>;
+  provisionMcp(required: { pluginId: string; principalId: string }, optional?: { readonly approvedEnable?: boolean; readonly approvedEnableKey?: string }): Promise<void>;
   uninstall(required: { surfaces: AssistantSurfaceDeps; ctx: ToolExecutionContext; pluginId: string; executionOptions: ToolExecutionOptions }, optional?: Record<string, never>): Promise<unknown>;
 }
 

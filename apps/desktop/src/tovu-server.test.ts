@@ -1310,13 +1310,15 @@ test("post-ready output tail is bounded and redacts framed split and exact launc
   const child = fakeChild();
   const mirror = silentMirror();
   let launch: NodeJS.ProcessEnv = {};
+  const password = 'desktop-password-fixture';
   const starting = startTovuServer({ repoRoot, siteDir: '/fake/site', port: 4321, mirror,
     baseEnv: { TOVU_AGENT_DAEMON_TOKEN: 'opaque-launch-secret' },
+    desktopCredential: { username: 'admin', password },
     spawnFn: (_command, _args, options) => { launch = options.env!; return child; },
   });
   child.stdout.write('tovu serve: bootToken=private-boot-token\n' + REAL_BOOT_LINE);
   const handle = await starting;
-  const password = launch.TOVU_ADMIN_PASSWORD!;
+  assert.equal(launch.TOVU_ADMIN_PASSWORD, undefined);
   child.stderr.write(`unlabelled opaque-launch-`);
   child.stderr.write(`secret ${password}\n`);
   child.stdout.write('tovu serve: bootToken=late-secret\n');

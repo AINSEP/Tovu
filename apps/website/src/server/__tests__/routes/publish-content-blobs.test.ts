@@ -361,7 +361,7 @@ test("PUT .../blobs/:sha 500s generically (no internals) when the blob store wri
   assert.equal(res.status, 500);
   // Shared admin failure envelope: a correlatable id, never the blob store's cause.
   const resBody: unknown = await res.json();
-  assertAdminResponse({ actual: resBody, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: resBody, expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The publishing save could not be completed.", action: "Check whether your changes were saved before repeating the save. Copy details and report this problem.", step: "Save publishing" } });
   assert.doesNotMatch(JSON.stringify(resBody), /EACCES|\/var\/private\/blobs/);
 });
 
@@ -424,7 +424,7 @@ test("POST .../blobs/probe 404s a foreign workspace, 400s an empty shas array, a
   assert.equal(failed.status, 500);
   // Shared admin failure envelope: a correlatable id, never the blob store's cause.
   const failedBody: unknown = await failed.json();
-  assertAdminResponse({ actual: failedBody, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: failedBody, expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The publishing operation could not be completed.", action: "Check the result before repeating this operation. Copy details and report this problem.", step: "publishing operation" } });
   assert.doesNotMatch(JSON.stringify(failedBody), /store offline/);
 });
 

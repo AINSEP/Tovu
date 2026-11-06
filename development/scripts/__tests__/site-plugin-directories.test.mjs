@@ -25,9 +25,17 @@ function roots(siteDir, env) {
   return {
     plugins: pluginsInstallDir({ siteDir }, { env }),
     skills: resolveSkillLayout({ siteDir, env }).forWorkspace('workspace-local').root,
-    agentPlugins: resolveAgentPluginLayout({ siteDir, env }).forWorkspace('workspace-local').root,
+    agentPlugins: resolveAgentPluginLayout({ siteDir }, { env }).forWorkspace('workspace-local').root,
   };
 }
+
+test('the layout fixture honors its explicit environment independently for each site', () => {
+  const siteDir = path.join(repoRoot, 'sites', 'fixture');
+  assert.equal(roots(siteDir, overrides).agentPlugins,
+    path.join(overrides.TOVU_AGENT_PLUGINS_DIR, 'ws/workspace-local'));
+  assert.equal(roots(siteDir, {}).agentPlugins,
+    path.join(siteDir, 'agent-plugins/ws/workspace-local'));
+});
 
 for (const launcher of ['dev', 'desktop', 'local supervisor']) {
   test(`${launcher}: two site launch plans keep all three stores under their own roots despite parent overrides`, () => {

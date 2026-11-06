@@ -151,3 +151,13 @@ test("releasing a lease on an unknown server creates no row", async () => {
   await repo.releaseOAuthRefreshLease(IDENTITY);
   assert.equal(await repo.findByServerId(IDENTITY), null);
 });
+
+// The admin view must tolerate legacy/corrupt lists without weakening the enable-time parser.
+test("admin views retain valid lists and tolerate corrupt stored lists", async () => {
+  const { listExternalMcpServerViews } = await import("../external-mcp-store.js");
+  const repo = new InMemoryExternalMcpServerRepo();
+  await repo.upsert(serverRecord({ allowedToolNames: '["read"]', writeAllowedToolNames: '{broken' }));
+  const [view] = await listExternalMcpServerViews({ repo }, IDENTITY.workspaceId);
+  assert.deepEqual(view?.allowedToolNames, ["read"]);
+  assert.deepEqual(view?.writeAllowedToolNames, []);
+});

@@ -9,7 +9,7 @@ export const STATIC_EXPORT_OPTIONS_KEY = ["sites", "static-export-options"] as c
 /** Keep an ordered, deliberate selection across roster refreshes; removed IDs cannot be exported.
  * @complexity O(roster + selection) per render, one options request through the query owner.
  */
-export function useStaticExportSelection({ port, t }: { port: SiteTransferPort; t: Translate }, _options = {}) {
+export function useStaticExportSelection({ port, t }: { port: SiteTransferPort; t: Translate }, _options?: Record<string, never>) {
   const roster = useFetchQuery({ key: [...STATIC_EXPORT_OPTIONS_KEY], fetch: () => port.staticExportOptions({}) });
   const [selection, setSelection] = useState<readonly string[] | null>(null);
   const themes = roster.data?.themes;

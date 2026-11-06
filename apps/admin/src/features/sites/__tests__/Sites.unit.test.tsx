@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { Sites } from "../Sites";
+import { staticListPrefs } from "./site-list-prefs.fixture";
 import type { SitesController } from "../hooks/use-sites.hooks";
 import type { AdminSitesSnapshot } from "@/lib/api";
 
@@ -68,7 +69,7 @@ function controllerFixture(overrides: Partial<SitesController> = {}): SitesContr
  */
 function renderSites(overrides: Partial<SitesController> = {}, tabId?: string) {
   const controller = controllerFixture(overrides);
-  render(<Sites useSitesHook={() => controller} tabId={tabId} />);
+  render(<Sites useListPrefsHook={staticListPrefs} useSitesHook={() => controller} tabId={tabId} />);
   return controller;
 }
 
@@ -95,7 +96,7 @@ describe("Sites — the live binding is stated on the served site's own card", (
     });
 
     expect(screen.getByText("tovu-com")).toBeTruthy();
-    expect(screen.getByText("Serving now").className).toContain("status-ok");
+    expect(screen.getByText("Serving now").className).toContain("jini-site-card__status--running");
     // The fact the removed amber banner used to carry, now a quiet badge on the card. Without this
     // the card would promise a folder `tovu serve` will refuse.
     expect(screen.getByText("Not initialized")).toBeTruthy();
@@ -187,7 +188,7 @@ describe("Sites — the queued-choice pill (at-a-glance, not just prose)", () =>
   it("states the live site exactly once, on its own card, now that the page-level panel is gone", () => {
     renderSites();
     expect(screen.getAllByText("Serving now")).toHaveLength(1);
-    expect(screen.getByText("Serving now").className).toContain("status-ok");
+    expect(screen.getByText("Serving now").className).toContain("jini-site-card__status--running");
   });
 
   it("gives a queued-and-will-be-honored choice a warning tone, not the error tone reserved for 'won't apply'", () => {
@@ -224,11 +225,14 @@ describe("Sites — the capability flag", () => {
     // to reach the operator who opened the create screen, not only the one looking at the grid.
     expect(screen.getByText(/Creating and activating sites is turned off on this deployment/)).toBeTruthy();
     // 2026-10-08 card polish: an action that cannot apply is left out, not rendered disabled. With
-    // no local-sites controller and switching off, neither card has anything for its "⋯" menu, so
-    // no menu trigger renders at all. Per-site names keep the two cards distinguishable.
-    expect(screen.queryByRole("button", { name: "More actions for alpha" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "More actions for beta" })).toBeNull();
-    expect(screen.queryByRole("menuitem", { name: "Make default" })).toBeNull();
+    // no local-sites controller and switching off, neither card's "⋯" menu has anything but the
+    // list's own Hide. Per-site names keep the two cards distinguishable.
+    for (const name of ["alpha", "beta"]) {
+      fireEvent.click(screen.getByRole("button", { name: `More actions for ${name}` }));
+      const menu = screen.getByRole("menu", { name: `More actions for ${name}` });
+      expect(within(menu).getAllByRole("menuitem").map((item) => item.textContent)).toEqual(["Hide from list"]);
+      fireEvent.click(screen.getByRole("button", { name: `More actions for ${name}` }));
+    }
   });
 
   it("disables Create on the create screen, and still says why there", () => {
@@ -240,12 +244,15 @@ describe("Sites — the capability flag", () => {
 
   it("offers Make default only on the non-served card's overflow menu, and activates that site", () => {
     const controller = renderSites();
-    // `alpha` is being served (and is the default), so its card has no menu; `beta`'s menu offers
-    // Make default — named by site rather than indexed by DOM order.
-    expect(screen.queryByRole("button", { name: "More actions for alpha" })).toBeNull();
+    // `alpha` is being served (and is the default), so its menu offers only the list's Hide; `beta`'s
+    // menu offers Make default — named by site rather than indexed by DOM order.
+    fireEvent.click(screen.getByRole("button", { name: "More actions for alpha" }));
+    const alphaMenu = screen.getByRole("menu", { name: "More actions for alpha" });
+    expect(within(alphaMenu).getAllByRole("menuitem").map((item) => item.textContent)).toEqual(["Hide from list"]);
+    fireEvent.click(screen.getByRole("button", { name: "More actions for alpha" }));
     fireEvent.click(screen.getByRole("button", { name: "More actions for beta" }));
     const menu = screen.getByRole("menu", { name: "More actions for beta" });
-    expect(within(menu).getAllByRole("menuitem").map((item) => item.textContent)).toEqual(["Make default"]);
+    expect(within(menu).getAllByRole("menuitem").map((item) => item.textContent)).toEqual(["Make default", "Hide from list"]);
     fireEvent.click(within(menu).getByRole("menuitem", { name: "Make default" }));
     expect(controller.activate).toHaveBeenCalledExactlyOnceWith("beta");
   });
@@ -257,7 +264,7 @@ describe("Sites — the overflow menu's accessible name is translated copy", () 
     renderSites({ t });
 
     expect(screen.getByRole("button", { name: "Más acciones para beta" })).toHaveAttribute("aria-haspopup", "menu");
-    expect(screen.queryByRole("button", { name: "Más acciones para alpha" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Más acciones para alpha" })).toHaveAttribute("aria-haspopup", "menu");
   });
 });
 
@@ -405,7 +412,7 @@ describe("Sites — the PROCESS-level notices render above BOTH tabs", () => {
     // The point of removing the panel was the vertical space. A container that always rendered —
     // even empty — would give it straight back, and `:empty` in CSS cannot hide a box with
     // whitespace children, so this asserts on the DOM rather than trusting the stylesheet.
-    const { container } = render(<Sites useSitesHook={() => controllerFixture()} />);
+    const { container } = render(<Sites useListPrefsHook={staticListPrefs} useSitesHook={() => controllerFixture()} />);
     const notices = container.querySelector(".sites-process-notices");
     expect(notices?.childElementCount).toBe(0);
   });
@@ -498,11 +505,11 @@ describe("Sites — creating returns to the first tab, where the new card is", (
     // the new website created there." Driven through the controller's `createdName` transition,
     // which is the only signal a success produces.
     window.history.replaceState(null, "", "/admin/sites?tab=new");
-    const { rerender } = render(<Sites useSitesHook={() => controllerFixture()} tabId="new" />);
+    const { rerender } = render(<Sites useListPrefsHook={staticListPrefs} useSitesHook={() => controllerFixture()} tabId="new" />);
     expect(window.location.search).toBe("?tab=new");
 
     const created = controllerFixture({ createdName: "gamma" });
-    rerender(<Sites useSitesHook={() => created} tabId="new" />);
+    rerender(<Sites useListPrefsHook={staticListPrefs} useSitesHook={() => created} tabId="new" />);
     expect(window.location.search).toBe("?tab=all");
   });
 
@@ -601,7 +608,7 @@ describe("Sites — local management states", () => {
     vi.stubGlobal("fetch", vi.fn(async () => Response.json({ sitesHome: "/home/me/Sites", siteRoots: [], databases: "inSite", configPath: "/cfg", appData: "/data", overrides: { sitesHome: false, siteRoots: false } })));
     try {
       const controller = controllerFixture({ snapshot: snapshotFixture({ sitesHome: "/home/me/Sites" }) });
-      render(<FetchQueryProvider><Sites useSitesHook={() => controller} /></FetchQueryProvider>);
+      render(<FetchQueryProvider><Sites useListPrefsHook={staticListPrefs} useSitesHook={() => controller} /></FetchQueryProvider>);
       expect(screen.getByRole("button", { name: "Sites settings" })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Sites settings" }).closest(".sites-tabs-row")!.querySelector('[role="tablist"]')).not.toBeNull();
     } finally {

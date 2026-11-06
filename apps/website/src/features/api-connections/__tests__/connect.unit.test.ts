@@ -63,6 +63,13 @@ test("already connected with every requested scope: connected, with no sign-in c
   assert.deepEqual(cards, []);
 });
 
+test("hosted refuses an explicit shared destination before starting a sign-in", async () => {
+  const host = harness.makeHost();
+  const [connection] = await host.listConnections({ pluginId: ACME_PLUGIN });
+  await assert.rejects(startApiConnectionSignIn({ host, connection: connection!, actorId: 'owner', intent: 'connect', scopeSetIds: [], destination: 'shared' }), { code: 'connection-not-found' });
+  assert.equal(harness.provider.tokenCalls, 0);
+});
+
 test("connected but missing a scope the connection now requests: a new sign-in card is shown", async (t) => {
   const keyring = new InMemoryKeyring({ hkdfSalt: "connect-c3-scopes" });
   const vaultRepo = new InMemoryVaultRepo({});

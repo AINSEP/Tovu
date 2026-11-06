@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import type { DomainEvent } from "@jini-ai/cms/core";
-import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo, type FormDeliveryJob, type FormDeliveryResult } from "@jini-ai/cms/forms";
+import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo, type FormDeliveryReferenceJob, type FormDeliveryResult } from "@jini-ai/cms/forms";
 import type { ToolExecutionContext } from "@jini-ai/core";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { InMemorySettingsRepo, type AuthorizeFn } from "@jini-ai/core/settings";
@@ -141,11 +141,12 @@ describeEachDialect(
       for (const job of jobs) {
         assert.equal(job.event_json.includes(TOKEN), false, "no credential in the job");
         assert.equal(job.event_json.includes(SOURCE_IP), false, "no source IP in the job");
+        assert.equal(job.event_json.includes(ANSWER), false, "no answers in the job");
         assert.equal(job.event_json.includes('"label":"Email"'), true, "sanity: the frozen form carries field labels");
       }
     });
 
-    test("a retried job is handed exactly the payload frozen in its outbox row, which no attempt rewrites", async () => {
+    test("a retry hydrates answers while retaining frozen metadata and never rewriting its reference job", async () => {
       const { kernel } = make();
       returnsReceived.length = 0;
       const { outbox, bus } = await deliverOnce(kernel, W);
@@ -157,8 +158,9 @@ describeEachDialect(
       assert.deepEqual(await rowsOf(), stored, "no attempt rewrote a frozen job");
       const row = stored.find(entry => entry.event_json.includes('"bindingId":"b-returns"'));
       assert.ok(row, "the returns job is stored");
-      const { snapshot, binding, idempotencyKey } = (JSON.parse(row.event_json) as DomainEvent<FormDeliveryJob>).payload;
-      const frozen = { form: snapshot.form, submission: snapshot.submission, binding, idempotencyKey };
+      const { form, submissionRef, binding, idempotencyKey } = (JSON.parse(row.event_json) as DomainEvent<FormDeliveryReferenceJob>).payload;
+      assert.deepEqual(submissionRef, { submissionId: "sub-1", formId: "form-1" });
+      const frozen = { form, submission: { id: "sub-1", answers: { email: ANSWER }, submittedAt: T0 }, binding, idempotencyKey };
       assert.deepEqual(returnsReceived, [frozen, frozen]);
     });
 

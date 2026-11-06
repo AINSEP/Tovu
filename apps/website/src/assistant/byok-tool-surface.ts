@@ -1,3 +1,4 @@
+import { readFrozenFederationToolNames } from "@jini-ai/mcp/federation";
 /**
  * @file In-process admin tool composition for BYOK. Daemon and BYOK use the same registration
  * builder and shared executor factory, keeping catalog, permission, read-only, audit and recovery
@@ -65,6 +66,8 @@ export interface ByokToolRun {
 }
 
 export interface ByokToolSurface {
+  /** Read the exact source's original advertised names without starting federation or remote I/O. */
+  readonly readExternalMcpToolNames: (required: { serverId: string; admissionRevision: string }, optional?: Record<string, never>) => readonly string[] | null;
   /** Create one isolated provider turn. Example: surface.createRun({ principal, run }). */
   readonly createRun: (
     required: { readonly principal: Principal; readonly run: RunRef },
@@ -540,6 +543,7 @@ function attachSurfaceExtensions(
       federation: {
         presetRegistry: routeDeps.federatedMcpPresetRegistry,
         deps: buildExternalMcpFederationDeps({
+          agentPluginLayout: routeDeps.agentPluginLayout,
           authorize: routeDeps.authorize,
           workspaceId: routeDeps.workspaceId,
           repo: routeDeps.externalMcpServerRepo,
@@ -793,6 +797,8 @@ export function createByokToolSurface(routeDeps: ByokToolSurfaceDeps, options: B
     ready,
     federation,
     readFederationAdmissions,
+    readExternalMcpToolNames: ({ serverId, admissionRevision }) => readFrozenFederationToolNames({ registry,
+      connectionId: serverId, origin: { kind: "roster", admissionRevision } }),
     awaitFederation,
     daemonCalls: {
       executor: {

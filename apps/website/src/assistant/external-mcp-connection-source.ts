@@ -37,6 +37,7 @@ type ResolvePluginReadOnlyRemoteNames = (input: {
 }, optional?: Record<string, never>) => Promise<ReadonlySet<string>>;
 
 export interface StoredExternalMcpConnectionSourceDeps {
+  readonly isPluginEnabled?: (pluginId: string) => Promise<boolean>;
   readonly agentPluginLayout: import("../features/agent-plugins/layout.js").AgentPluginLayout;
   readonly repo: ExternalMcpServerRepoPort;
   readonly sealer: SecretSealerPort;
@@ -80,12 +81,13 @@ export function createStoredExternalMcpConnectionSource(
   deps: StoredExternalMcpConnectionSourceDeps,
 ): StoredExternalMcpConnectionSource {
   let configFailures: readonly StoredExternalMcpConnectionFailure[] = [];
+  const isPluginEnabled = deps.isPluginEnabled ?? createPluginEnabledReader(deps);
   const resolvePluginReads = deps.resolvePluginReadOnlyRemoteNames ?? loadPluginReadOnlyRemoteNames;
 
   return {
     async resolve(): Promise<ResolvedFederatedConnection[]> {
       try {
-        const repo = await withoutLegacyDesktop({ deps });
+        const repo = await withoutLegacyDesktop({ deps, isPluginEnabled });
         const { configs, failures } = await readEnabledExternalMcpConfigs(
           { repo, sealer: deps.sealer, oauth: deps.oauth },
           deps.workspaceId,
@@ -113,7 +115,7 @@ export function createStoredExternalMcpConnectionSource(
  * launch also removes its exact managed row before secrets/OAuth resolution can touch it.
  * Filtering fails closed if deletion fails; other rows retain their repository behavior.
  * @complexity One indexed lookup/delete, then O(c) filtering of the existing bounded roster. */
-async function withoutLegacyDesktop({ deps }: { deps: StoredExternalMcpConnectionSourceDeps }, _options = {}): Promise<ExternalMcpServerRepoPort> {
+async function withoutLegacyDesktop({ deps, isPluginEnabled }: { deps: StoredExternalMcpConnectionSourceDeps; isPluginEnabled: (pluginId: string) => Promise<boolean> }, _options = {}): Promise<ExternalMcpServerRepoPort> {
   const legacy = (row: { serverId: string; transport: string }) => row.serverId === DESKTOP_MCP_ID && row.transport === "stdio";
   if (deps.desktopOwned) {
     try {
@@ -122,12 +124,28 @@ async function withoutLegacyDesktop({ deps }: { deps: StoredExternalMcpConnectio
     } catch { console.warn(`${deps.log} legacy desktop MCP cleanup unavailable; stdio admission suppressed`); }
   }
   return {
-    listByWorkspaceId: async workspaceId => (await deps.repo.listByWorkspaceId(workspaceId)).filter(row => !legacy(row)),
+    listByWorkspaceId: async workspaceId => {
+      const rows = (await deps.repo.listByWorkspaceId(workspaceId)).filter(row => !legacy(row));
+      const visible = await Promise.all(rows.map(async row => !row.provisionedByPluginId || await isPluginEnabled(row.provisionedByPluginId)));
+      return rows.filter((_row, index) => visible[index]);
+    },
     findByServerId: input => deps.repo.findByServerId(input),
     upsert: record => deps.repo.upsert(record),
+    updateAccessIfCurrent: input => deps.repo.updateAccessIfCurrent(input),
     deleteByServerId: input => deps.repo.deleteByServerId(input),
     tryClaimOAuthRefreshLease: input => deps.repo.tryClaimOAuthRefreshLease(input),
     releaseOAuthRefreshLease: input => deps.repo.releaseOAuthRefreshLease(input),
+  };
+}
+
+/** Keep the host activation adapter lazy to avoid the boot cycle. One stat per call;
+ * activation contents are read only on a changed revision, shared by roster and call gates. */
+function createPluginEnabledReader(inputs: Pick<StoredExternalMcpConnectionSourceDeps, 'agentPluginLayout' | 'workspaceId'>): (pluginId: string) => Promise<boolean> {
+  let pluginReader: Promise<(pluginId: string) => Promise<boolean>> | undefined;
+  return async pluginId => {
+    pluginReader ??= import('../features/agent-plugins/activation-effects.js').then(({ createAgentPluginEnabledReader }) =>
+      createAgentPluginEnabledReader({ workspaceRoot: inputs.agentPluginLayout.forWorkspace(inputs.workspaceId).root }));
+    return (await pluginReader)(pluginId);
   };
 }
 
@@ -176,6 +194,8 @@ function errorDetail(error: unknown): string {
  * happened to register it (mirrors `agent-daemon-server.ts`'s own reasoning at `:1267-1270`).
  */
 export function buildExternalMcpFederationDeps(inputs: {
+  readonly agentPluginLayout: StoredExternalMcpConnectionSourceDeps['agentPluginLayout'];
+  readonly isPluginEnabled?: (pluginId: string) => Promise<boolean>;
   readonly authorize: AuthorizeFn;
   readonly workspaceId: UUID;
   readonly repo: ExternalMcpServerRepoPort;
@@ -183,7 +203,7 @@ export function buildExternalMcpFederationDeps(inputs: {
    *  NEXT call cheaply) and replaces the transport-shaped error with the gate's own terminal
    *  message. Absent, `onAuthFailed` is left unset — not set to a no-op — so `FederationDeps`'s own
    *  "propagate unchanged" default applies. */
-  readonly oauth?: Pick<ExternalMcpOAuthService, "reportAuthFailure">;
+  readonly oauth?: Pick<ExternalMcpOAuthService, "reportAuthFailure" | "assertSharedAuthorized">;
   /**
    * G3: the exchange store the root's MCP-UI click route is mounted with. When present, every
    * federated tool that is not marked read-only asks the human on a per-call Confirm/Cancel card
@@ -198,9 +218,12 @@ export function buildExternalMcpFederationDeps(inputs: {
    */
   readonly approvals?: Omit<FederatedApprovalDeps, "workspaceId" | "authorize">;
 }): FederationDeps {
+  const isPluginEnabled = inputs.isPluginEnabled ?? createPluginEnabledReader(inputs);
   const assertConnectionUsable = createExternalMcpConnectionGate({
     workspaceId: inputs.workspaceId,
     repo: inputs.repo,
+    isPluginEnabled,
+    ...(inputs.oauth?.assertSharedAuthorized ? { assertSharedAuthorized: inputs.oauth.assertSharedAuthorized } : {}),
   });
   const { oauth, surfaceExchanges } = inputs;
   return {

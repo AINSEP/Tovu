@@ -1,0 +1,115 @@
+
+> tovu@0.1.0 typecheck:tests
+> NODE_OPTIONS=--max-old-space-size=6144 tsc -p tsconfig.tests.json --noEmit
+
+apps/website/src/assistant/__tests__/tool-registrations.plugins-set-enabled-families.test.ts(700,94): error TS2352: Conversion of type '{ nativeApprovalMemory: RememberedApprovalPort; conversationToolApprovals: ConversationToolApprovalStore; tracker: import("/workspace/Jini/packages/diagnostics/dist/observability/tracker-types").Tracker; ... 354 more ...; adminScreenLinkEnv?: AdminScreenLinkEnv; }' to type 'RegistryDepsWithoutLimiter' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type '{ nativeApprovalMemory: RememberedApprovalPort; conversationToolApprovals: ConversationToolApprovalStore; tracker: import("/workspace/Jini/packages/diagnostics/dist/observability/tracker-types").Tracker; ... 354 more ...; adminScreenLinkEnv?: AdminScreenLinkEnv; }' is not comparable to type 'Omit<AssistantToolRegistryDeps, "mediaProviderRegistry" | "magicLinkPerEmailLimiter">'.
+    Types of property 'clock' are incompatible.
+      Type 'Clock' is not comparable to type 'Clock & { nowIso(): string; } & { nowIso(): string; } & { nowIso(): string; } & { nowIso(): string; } & { nowIso(): string; } & { nowIso(): string; } & { nowIso(): string; }'.
+        Property 'nowIso' is missing in type 'Clock' but required in type '{ nowIso(): string; }'.
+apps/website/src/features/agent-plugins/__tests__/fixtures/vitest-compat.ts(274,32): error TS2322: Type 'TestContext | SuiteContext' is not assignable to type 'TeardownHost'.
+  Property 'after' is missing in type 'SuiteContext' but required in type 'TeardownHost'.
+apps/website/src/features/deployments/__tests__/publish-agent-tools.unit.test.ts(2287,74): error TS2353: Object literal may only specify known properties, and 'executionId' does not exist in type 'DelegatedInternalErrorContext'.
+apps/website/src/features/deployments/publish-credentials/store.ts(410,88): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+apps/website/src/features/forms/__tests__/form-file-storage.test.ts(9,85): error TS2353: Object literal may only specify known properties, and 'get' does not exist in type 'MediaContentTypeStorePort'.
+apps/website/src/features/media/__tests__/library-publish-transport.test.ts(52,18): error TS2345: Argument of type 'string | OverwritablePrecheckRefusal' is not assignable to parameter of type 'string'.
+  Type 'OverwritablePrecheckRefusal' is not assignable to type 'string'.
+apps/website/src/features/media/__tests__/library-publish.test.ts(25,16): error TS2345: Argument of type 'string | OverwritablePrecheckRefusal' is not assignable to parameter of type 'string'.
+  Type 'OverwritablePrecheckRefusal' is not assignable to type 'string'.
+apps/website/src/features/media/__tests__/library-publish.test.ts(29,16): error TS2345: Argument of type 'string | OverwritablePrecheckRefusal' is not assignable to parameter of type 'string'.
+  Type 'OverwritablePrecheckRefusal' is not assignable to type 'string'.
+apps/website/src/features/media/__tests__/library-publish.test.ts(32,16): error TS2345: Argument of type 'string | OverwritablePrecheckRefusal' is not assignable to parameter of type 'string'.
+  Type 'OverwritablePrecheckRefusal' is not assignable to type 'string'.
+apps/website/src/features/navigation/__tests__/publish-content.characterization.test.ts(99,5): error TS2345: Argument of type 'string | OverwritablePrecheckRefusal' is not assignable to parameter of type 'string'.
+  Type 'OverwritablePrecheckRefusal' is not assignable to type 'string'.
+apps/website/src/features/navigation/__tests__/publish-content.test.ts(284,16): error TS2345: Argument of type 'string | OverwritablePrecheckRefusal' is not assignable to parameter of type 'string'.
+  Type 'OverwritablePrecheckRefusal' is not assignable to type 'string'.
+apps/website/src/features/post/__tests__/publish-content.characterization.test.ts(156,5): error TS2345: Argument of type 'string | OverwritablePrecheckRefusal' is not assignable to parameter of type 'string'.
+  Type 'OverwritablePrecheckRefusal' is not assignable to type 'string'.
+apps/website/src/features/post/__tests__/publish-content.test.ts(271,16): error TS2345: Argument of type 'string | OverwritablePrecheckRefusal' is not assignable to parameter of type 'string'.
+  Type 'OverwritablePrecheckRefusal' is not assignable to type 'string'.
+apps/website/src/features/post/__tests__/publish-content.test.ts(285,16): error TS2345: Argument of type 'string | OverwritablePrecheckRefusal' is not assignable to parameter of type 'string'.
+  Type 'OverwritablePrecheckRefusal' is not assignable to type 'string'.
+apps/website/src/features/project-keys/__tests__/site-sealer.unit.test.ts(32,44): error TS2554: Expected 0 arguments, but got 1.
+apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts(51,16): error TS2345: Argument of type 'string | OverwritablePrecheckRefusal' is not assignable to parameter of type 'string'.
+  Type 'OverwritablePrecheckRefusal' is not assignable to type 'string'.
+apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts(54,16): error TS2345: Argument of type 'string | OverwritablePrecheckRefusal' is not assignable to parameter of type 'string'.
+  Type 'OverwritablePrecheckRefusal' is not assignable to type 'string'.
+apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts(63,16): error TS2345: Argument of type 'string | OverwritablePrecheckRefusal' is not assignable to parameter of type 'string'.
+  Type 'OverwritablePrecheckRefusal' is not assignable to type 'string'.
+apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts(109,18): error TS2345: Argument of type 'string | OverwritablePrecheckRefusal' is not assignable to parameter of type 'string'.
+  Type 'OverwritablePrecheckRefusal' is not assignable to type 'string'.
+apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts(111,16): error TS2345: Argument of type 'string | OverwritablePrecheckRefusal' is not assignable to parameter of type 'string'.
+  Type 'OverwritablePrecheckRefusal' is not assignable to type 'string'.
+apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts(113,16): error TS2345: Argument of type 'string | OverwritablePrecheckRefusal' is not assignable to parameter of type 'string'.
+  Type 'OverwritablePrecheckRefusal' is not assignable to type 'string'.
+apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts(116,16): error TS2345: Argument of type 'string | OverwritablePrecheckRefusal' is not assignable to parameter of type 'string'.
+  Type 'OverwritablePrecheckRefusal' is not assignable to type 'string'.
+apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts(178,16): error TS2345: Argument of type 'string | OverwritablePrecheckRefusal' is not assignable to parameter of type 'string'.
+  Type 'OverwritablePrecheckRefusal' is not assignable to type 'string'.
+apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts(179,16): error TS2345: Argument of type 'string | OverwritablePrecheckRefusal' is not assignable to parameter of type 'string'.
+  Type 'OverwritablePrecheckRefusal' is not assignable to type 'string'.
+apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts(228,16): error TS2345: Argument of type 'string | OverwritablePrecheckRefusal' is not assignable to parameter of type 'string'.
+  Type 'OverwritablePrecheckRefusal' is not assignable to type 'string'.
+apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts(72,16): error TS2345: Argument of type 'string | OverwritablePrecheckRefusal' is not assignable to parameter of type 'string'.
+  Type 'OverwritablePrecheckRefusal' is not assignable to type 'string'.
+apps/website/src/features/redirects/__tests__/publish-content.test.ts(184,16): error TS2345: Argument of type 'string | OverwritablePrecheckRefusal' is not assignable to parameter of type 'string'.
+  Type 'OverwritablePrecheckRefusal' is not assignable to type 'string'.
+apps/website/src/features/redirects/__tests__/publish-content.test.ts(345,16): error TS2345: Argument of type 'string | OverwritablePrecheckRefusal' is not assignable to parameter of type 'string'.
+  Type 'OverwritablePrecheckRefusal' is not assignable to type 'string'.
+apps/website/src/features/redirects/__tests__/publish-content.test.ts(346,16): error TS2345: Argument of type 'string | OverwritablePrecheckRefusal' is not assignable to parameter of type 'string'.
+  Type 'OverwritablePrecheckRefusal' is not assignable to type 'string'.
+apps/website/src/features/site-backup/__tests__/integration/saved-keys-round-trip.integration.test.ts(131,96): error TS2558: Expected 0 type arguments, but got 1.
+apps/website/src/features/site-backup/__tests__/integration/saved-keys-round-trip.integration.test.ts(131,122): error TS2339: Property 'body_json' does not exist on type '{}'.
+apps/website/src/features/site-backup/__tests__/library-share.integration.test.ts(168,16): error TS2345: Argument of type 'string | OverwritablePrecheckRefusal' is not assignable to parameter of type 'string'.
+  Type 'OverwritablePrecheckRefusal' is not assignable to type 'string'.
+apps/website/src/features/theme/__tests__/publish-content.apply.test.ts(243,16): error TS2345: Argument of type 'string | OverwritablePrecheckRefusal' is not assignable to parameter of type 'string'.
+  Type 'OverwritablePrecheckRefusal' is not assignable to type 'string'.
+apps/website/src/platform/db/migrations/__tests__/owner-recovery-codes-step.test.ts(16,43): error TS2345: Argument of type 'ContentKernel' is not assignable to parameter of type 'StorageKernel<unknown>'.
+  Types of property 'run' are incompatible.
+    Type '<T>(fn: (db: Kysely<ContentDatabase>) => T | Promise<T>) => Promise<T>' is not assignable to type '<T>(fn: (db: Kysely<unknown>) => T | Promise<T>) => Promise<T>'.
+      Types of parameters 'fn' and 'fn' are incompatible.
+        Types of parameters 'db' and 'db' are incompatible.
+          Type 'Kysely<ContentDatabase>' is not assignable to type 'Kysely<unknown>'.
+            The types returned by 'fn.any(...)' are incompatible between these types.
+              Type 'KyselyTypeError<"any(expr) call failed: expr must be an array"> | ExpressionWrapper<ContentDatabase, keyof ContentDatabase, unknown>' is not assignable to type 'KyselyTypeError<"any(expr) call failed: expr must be an array">'.
+                Property '__kyselyTypeError__' is missing in type 'ExpressionWrapper<ContentDatabase, keyof ContentDatabase, unknown>' but required in type 'KyselyTypeError<"any(expr) call failed: expr must be an array">'.
+apps/website/src/platform/db/migrations/__tests__/owner-recovery-codes-step.test.ts(22,43): error TS2345: Argument of type 'ContentKernel' is not assignable to parameter of type 'StorageKernel<unknown>'.
+  Types of property 'run' are incompatible.
+    Type '<T>(fn: (db: Kysely<ContentDatabase>) => T | Promise<T>) => Promise<T>' is not assignable to type '<T>(fn: (db: Kysely<unknown>) => T | Promise<T>) => Promise<T>'.
+      Types of parameters 'fn' and 'fn' are incompatible.
+        Types of parameters 'db' and 'db' are incompatible.
+          Type 'Kysely<ContentDatabase>' is not assignable to type 'Kysely<unknown>'.
+            The types returned by 'fn.any(...)' are incompatible between these types.
+              Type 'KyselyTypeError<"any(expr) call failed: expr must be an array"> | ExpressionWrapper<ContentDatabase, keyof ContentDatabase, unknown>' is not assignable to type 'KyselyTypeError<"any(expr) call failed: expr must be an array">'.
+                Property '__kyselyTypeError__' is missing in type 'ExpressionWrapper<ContentDatabase, keyof ContentDatabase, unknown>' but required in type 'KyselyTypeError<"any(expr) call failed: expr must be an array">'.
+apps/website/src/server/__tests__/admin-external-mcp-oauth-routes.test.ts(154,69): error TS2304: Cannot find name 'SERVER'.
+apps/website/src/server/inbound/admin-http/__tests__/dev-auth-failures.unit.test.ts(60,55): error TS7006: Parameter 'input' implicitly has an 'any' type.
+apps/website/src/server/inbound/admin-http/routes/forms/__tests__/forms-route-failures.unit.test.ts(206,56): error TS18046: 'response.body' is of type 'unknown'.
+apps/website/src/server/inbound/admin-http/routes/system/__tests__/site-share-password-handler.test.ts(51,62): error TS2353: Object literal may only specify known properties, and 'keyring' does not exist in type 'SiteSavedKeysDeps'.
+apps/website/src/server/inbound/admin-http/routes/system/site-imports.integration.test.ts(70,5): error TS2322: Type '(input: { principalId: string; }) => Promise<{ importId: string; source: { url: string; }; newSiteId: null; newSiteName: null; state: "needs-owner"; status: "needs-owner"; createdAt: string; instructions: string; }[]>' is not assignable to type '(required: { principalId: string; }, optional?: Record<string, never> | undefined) => Promise<SiteImportView[]>'.
+  Type 'Promise<{ importId: string; source: { url: string; }; newSiteId: null; newSiteName: null; state: "needs-owner"; status: "needs-owner"; createdAt: string; instructions: string; }[]>' is not assignable to type 'Promise<SiteImportView[]>'.
+    Type '{ importId: string; source: { url: string; }; newSiteId: null; newSiteName: null; state: "needs-owner"; status: "needs-owner"; createdAt: string; instructions: string; }[]' is not assignable to type 'SiteImportView[]'.
+      Property 'credentialWarnings' is missing in type '{ importId: string; source: { url: string; }; newSiteId: null; newSiteName: null; state: "needs-owner"; status: "needs-owner"; createdAt: string; instructions: string; }' but required in type 'SiteImportView'.
+apps/website/src/server/inbound/admin-http/routes/system/site-imports.integration.test.ts(71,5): error TS2322: Type '(input: { principalId: string; importId: string; }) => { importId: string; source: { url: string; }; newSiteId: null; newSiteName: null; state: "needs-owner"; status: "needs-owner"; createdAt: string; instructions: string; }' is not assignable to type '(required: { principalId: string; importId: string; }, optional?: Record<string, never> | undefined) => SiteImportView'.
+  Property 'credentialWarnings' is missing in type '{ importId: string; source: { url: string; }; newSiteId: null; newSiteName: null; state: "needs-owner"; status: "needs-owner"; createdAt: string; instructions: string; }' but required in type 'SiteImportView'.
+apps/website/src/server/inbound/admin-http/routes/system/site-imports.integration.test.ts(73,5): error TS2322: Type '(input: { principalId: string; source: SiteImportSource; displayName?: string | undefined; requestId?: string | undefined; }, options: { signal?: AbortSignal | undefined; } | undefined) => Promise<...>' is not assignable to type '(required: { principalId: string; source: SiteImportSource; displayName?: string | undefined; requestId?: string | undefined; }, optional?: { signal?: AbortSignal | undefined; } | undefined) => Promise<...>'.
+  Type 'Promise<{ importId: string; source: { url: string; }; newSiteId: null; newSiteName: null; state: "needs-owner"; status: "needs-owner"; createdAt: string; instructions: string; }>' is not assignable to type 'Promise<SiteImportView>'.
+    Property 'credentialWarnings' is missing in type '{ importId: string; source: { url: string; }; newSiteId: null; newSiteName: null; state: "needs-owner"; status: "needs-owner"; createdAt: string; instructions: string; }' but required in type 'SiteImportView'.
+apps/website/src/server/inbound/admin-http/routes/system/site-imports.integration.test.ts(74,5): error TS2322: Type '(input: { principalId: string; importId: string; adminPassword: unknown; savedKeysPassword?: unknown; }, options: { signal?: AbortSignal | undefined; } | undefined) => Promise<{ state: "ready"; ... 6 more ...; instructions: string; }>' is not assignable to type '(required: { principalId: string; importId: string; adminPassword: unknown; savedKeysPassword?: unknown; }, optional?: { signal?: AbortSignal | undefined; } | undefined) => Promise<SiteImportView>'.
+  Type 'Promise<{ state: "ready"; status: "ready"; importId: string; source: { url: string; }; newSiteId: null; newSiteName: null; createdAt: string; instructions: string; }>' is not assignable to type 'Promise<SiteImportView>'.
+    Property 'credentialWarnings' is missing in type '{ state: "ready"; status: "ready"; importId: string; source: { url: string; }; newSiteId: null; newSiteName: null; createdAt: string; instructions: string; }' but required in type 'SiteImportView'.
+apps/website/src/server/inbound/admin-http/routes/system/site-imports.integration.test.ts(198,73): error TS2741: Property 'credentialWarnings' is missing in type '{ importId: string; source: { url: string; }; newSiteId: null; newSiteName: null; state: "needs-owner"; status: "needs-owner"; createdAt: string; instructions: string; }' but required in type 'SiteImportView'.
+apps/website/src/server/inbound/admin-http/routes/system/site-shares.integration.test.ts(20,3): error TS2741: Property 'acknowledge' is missing in type '{ registry: SiteShareRegistry; staticOptions: never; create: (input: unknown) => Promise<{ ok: boolean; }>; revoke: never; list: () => Promise<never[]>; revealPassword: () => Promise<...>; }' but required in type 'SiteShareBackend'.
+apps/website/src/server/runtime/lifecycle/__tests__/assistant-daemon-connection.test.ts(7,70): error TS5097: An import path can only end with a '.ts' extension when 'allowImportingTsExtensions' is enabled.
+apps/website/src/server/runtime/lifecycle/__tests__/site-idle-park.unit.test.ts(26,23): error TS2345: Argument of type '{ hasActiveRuns: () => Promise<boolean>; activeCount?: undefined; } | { activeCount: () => number; hasActiveRuns?: undefined; }' is not assignable to parameter of type '{ hasActiveRuns?: (() => Promise<boolean>) | undefined; activeCount?: (() => number) | undefined; hasBackgroundWork?: (() => Promise<boolean>) | undefined; } | undefined'.
+  Type '{ activeCount: () => number; hasActiveRuns?: undefined; }' is not assignable to type '{ hasActiveRuns?: (() => Promise<boolean>) | undefined; activeCount?: (() => number) | undefined; hasBackgroundWork?: (() => Promise<boolean>) | undefined; }'.
+    The types returned by 'activeCount()' are incompatible between these types.
+      Type 'number' is not assignable to type '0'.
+apps/website/src/server/runtime/lifecycle/__tests__/site-idle-park.unit.test.ts(50,82): error TS2719: Type '() => number' is not assignable to type '() => number'. Two different types with this name exist, but they are unrelated.
+  Type 'number' is not assignable to type '0'.
+apps/website/src/server/runtime/lifecycle/__tests__/site-idle-park.unit.test.ts(63,38): error TS2352: Conversion of type '{ status: () => ...; json: () => ...; }' to type 'Response<any, Record<string, any>>' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type '{ status: () => ...; json: () => ...; }' is missing the following properties from type 'Response<any, Record<string, any>>': sendStatus, links, send, jsonp, and 87 more.
+apps/website/src/server/runtime/lifecycle/__tests__/site-idle-park.unit.test.ts(121,80): error TS2719: Type '() => number' is not assignable to type '() => number'. Two different types with this name exist, but they are unrelated.
+  Type 'number' is not assignable to type '0'.

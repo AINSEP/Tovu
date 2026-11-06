@@ -352,7 +352,7 @@ test.describe.serial("Agent page-control — live verification", () => {
     expect(browserResponses).toContainEqual(expect.objectContaining({ ok: true }));
     expect(JSON.stringify(browserResponses), "the actual browser executor must resolve the live owner field").toContain(OWNER_TEST_VALUE);
     expect(JSON.stringify(browserResponses)).toContain(OWNER_FIELD_HANDLE);
-    expect(toolResultContent, `expected a tool_result event; run events seen: ${seenTypes.join(", ")}`).toBeTruthy();
+    expect(toolResultContent, `expected a tool_result event; run events seen: ${seenTypes.join(", ")}; agent payloads: ${JSON.stringify(agentPayloads)}`).toBeTruthy();
     const resultText = JSON.stringify(toolResultContent);
     // The decisive check: the real, live value typed into the real rendered field must appear in the
     // model-visible tool result, and the field's real handle/label must be there too — proving this

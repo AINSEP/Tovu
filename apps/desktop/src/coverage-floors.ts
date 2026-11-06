@@ -272,7 +272,8 @@ export function formatPerFileBranch({ result, policy }: { result: PerFileBranchR
  *
  * The tsx pass also runs renderer `.test.tsx` files recursively: the `.tsx` components are counted in their
  * own area since 2026-11-02, and a component test written as `.tsx` must run in the suite and the
- * gate alike rather than in neither.
+ * gate alike rather than in neither. It also loads `scripts/one-react.ts`, so a renderer test that
+ * runs a hook from a linked Jini package shares React with react-dom.
  *
  * Several of these globs match nothing today. Measured on node 24.2.0: a glob that matches nothing
  * exits 0 reporting "tests 0", with no error. Only a literal path errors. So `check-coverage.ts`'s
@@ -280,7 +281,7 @@ export function formatPerFileBranch({ result, policy }: { result: PerFileBranchR
  */
 export const TEST_PASSES: readonly coverage.TestPass[] = [
   { id: "node", nodeArgs: ["--experimental-test-module-mocks", "--import", "./scripts/resolve-ts-ext.ts"], globs: ["src/*.test.ts", "src/!(renderer|contracts)/**/*.test.ts"] },
-  { id: "tsx", nodeArgs: ["--import", "tsx"], globs: ["src/renderer/**/*.test.ts", "src/renderer/**/*.test.tsx", "src/contracts/**/*.test.ts"] },
+  { id: "tsx", nodeArgs: ["--import", "./scripts/one-react.ts", "--import", "tsx"], globs: ["src/renderer/**/*.test.ts", "src/renderer/**/*.test.tsx", "src/contracts/**/*.test.ts"] },
 ];
 
 /** The pass whose lcov keeps real source lines, so {@link foreignImageFunctions} can be checked on

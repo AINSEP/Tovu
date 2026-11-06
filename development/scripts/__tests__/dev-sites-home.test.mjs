@@ -19,7 +19,9 @@ test("dev keeps the checkout default despite Documents sites, while explicit sel
     const dir = path.join(root, "Documents", "Tovu", "alpha"); fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(path.join(dir, "config.json"), "{}"); fs.writeFileSync(path.join(dir, ".site-meta.json"), "{}");
     fs.writeFileSync(path.join(dir, ".tovu-running.json"), JSON.stringify({ pid: process.pid, port: 3456, app: "Desktop", scheme: "http", started: new Date().toISOString(), token: "fixture" }));
-    assert.equal(devSitesHome({ repoRoot }, options).dir, path.join(repoRoot, "sites", "tovu-dev"));
+    const selectedDefault = devSitesHome({ repoRoot }, options);
+    assert.equal(selectedDefault.dir, path.join(repoRoot, "sites", "tovu-dev"));
+    assert.equal(selectedDefault.dbPath, path.join(checkout, "data.nosync", "content.db"));
     const selected = devSitesHome({ repoRoot }, { ...options, env: { TOVU_SITE: "alpha" } });
     assert.equal(selected.dir, dir); assert.equal(selected.running?.port, 3456); assert.equal(selected.running?.app, "Desktop");
     assert.equal(fs.existsSync(path.join(dir, ".tovu-running.json.lock")), false);
@@ -70,5 +72,21 @@ test("stalecard: dev resolves its default in the configured home and refuses a s
     assert.equal(fs.existsSync(stale), false);
     assert.throws(() => devSitesHome({ repoRoot }, { ...options, env: { ...options.env, TOVU_SITE_DIR: stale } }), /Site folder is unavailable/);
     assert.equal(fs.existsSync(stale), false);
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
+
+test("a keyless legacy dev site cannot select app-data storage implicitly", () => {
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "dev-keyless-db-")));
+  try {
+    const repoRoot = path.join(root, "repo"), dir = path.join(repoRoot, "sites", "tovu-dev"), profile = path.join(root, "profile");
+    fs.mkdirSync(dir, { recursive: true });
+    fs.mkdirSync(profile);
+    fs.writeFileSync(path.join(dir, "config.json"), "{}");
+    fs.writeFileSync(path.join(dir, ".site-meta.json"), "{}");
+    fs.writeFileSync(path.join(profile, "config.json"), JSON.stringify({ databases: "appData" }));
+    const env = { TOVU_SITE_DIR: dir, TOVU_DESKTOP_USER_DATA_DIR: profile };
+    assert.throws(() => devSitesHome({ repoRoot }, { homeDir: root, env }), /stable siteId/);
+    const selected = devSitesHome({ repoRoot }, { homeDir: root, env: { ...env, TOVU_CONTENT_DB: path.join(dir, "explicit.db") } });
+    assert.equal(selected.dbPath, path.join(dir, "explicit.db"));
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });

@@ -207,6 +207,7 @@ test("AGENT_PLUGIN_SET_ENABLED: production composition captures one event per ac
       siteBinding: { dir, name: "toggle-fixture", dirOverridden: true, switcherCompatible: false },
       onStoreOpened: store => { close = () => store.close(); },
       bootProviderPlugins: async () => ({ observability: createNoopObservabilityPort({}), tracker, aiTraceSink: undefined,
+        paymentProviders: () => [],
         telemetryStatus: () => [], sendTelemetryTest: async () => ({ providers: [] }),
         reapply: async () => "now", appliesAt: () => "now", dispose: async () => {} }),
     });
@@ -639,7 +640,7 @@ for (const failure of [new Error("private activation failure"), "private activat
       const { baseUrl, cookie } = await bootAuthenticated(app, t);
       const response = await patch(baseUrl, cookie, "site-compliance", { enabled: false });
       assert.equal(response.status, 500);
-      assertAdminResponse({ actual: await response.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+      assertAdminResponse({ actual: await response.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: {"message":"The agent plugin save could not be completed.","action":"Check whether your changes were saved before repeating the save. Copy details and report this problem.","step":"Save agent plugin"} });
       assert.equal(writes, 1);
     });
   });

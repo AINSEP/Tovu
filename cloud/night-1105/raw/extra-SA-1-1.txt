@@ -1,0 +1,352 @@
+✔ a throwing helper teardown no longer skips a later helper's server close (2.50641ms)
+✔ several teardown failures are all reported (0.527225ms)
+▶ a real test context runs queued steps in one hook when the subtest ends
+  ✔ helper user (0.781349ms)
+✔ a real test context runs queued steps in one hook when the subtest ends (1.134852ms)
+✔ the vitest compat matchers fail wrong assertions and pass right ones (11.419243ms)
+✔ compat mocks retain exact arguments, resolve configured values and clear calls (1.858353ms)
+✔ compat timers fire at the deadline and globals restore to their original value (14.154588ms)
+✖ caught forbidden fetch still fails after every cleanup; broken cleanup=false (298.979596ms)
+✖ caught forbidden fetch still fails after every cleanup; broken cleanup=true (500.663098ms)
+✔ compat value and error matchers accept the right value and reject the wrong one (4.614768ms)
+✔ boot redemption rejects an invalid token before reading the boot owner or minting (628.776353ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[auth-boot-session] {
+  errorId: 'cc3c9d52-2ce3-4b65-9574-9e05fc739bee',
+  diagnostic: 'Error: Authentication operation failed\n' +
+    '    at sendAuthFailure (/workspace/Tovu/apps/website/src/server/inbound/admin-http/dev-auth.ts:489:34)\n' +
+    '    at redeemOwnerBootSession (/workspace/Tovu/apps/website/src/server/inbound/admin-http/dev-auth.ts:513:5)\n' +
+    '    at async TestContext.<anonymous> (/workspace/Tovu/apps/website/src/server/inbound/admin-http/__tests__/dev-auth-boot-owner.unit.test.ts:59:18)\n' +
+    '    at async Test.run (node:internal/test_runner/test:1409:7)\n' +
+    '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n' +
+    '{"cause":{"stack":"Error: Boot owner is unavailable\\n    at redeemOwnerBootSession (/workspace/Tovu/apps/website/src/server/inbound/admin-http/dev-auth.ts:513:35)\\n    at async TestContext.<anonymous> (/workspace/Tovu/apps/website/src/server/inbound/admin-http/__tests__/dev-auth-boot-owner.unit.test.ts:59:18)\\n    at async Test.run (node:internal/test_runner/test:1409:7)\\n    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)","message":"Boot owner is unavailable"}}'
+}
+✔ boot redemption rejects a missing owner before minting a session (297.687681ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[auth-boot-session] {
+  errorId: '6811e26a-9216-4669-9267-9bd09affebfd',
+  diagnostic: 'Error: Authentication operation failed\n' +
+    '    at sendAuthFailure (/workspace/Tovu/apps/website/src/server/inbound/admin-http/dev-auth.ts:489:34)\n' +
+    '    at redeemOwnerBootSession (/workspace/Tovu/apps/website/src/server/inbound/admin-http/dev-auth.ts:513:5)\n' +
+    '    at async TestContext.<anonymous> (/workspace/Tovu/apps/website/src/server/inbound/admin-http/__tests__/dev-auth-boot-owner.unit.test.ts:59:18)\n' +
+    '    at async Test.run (node:internal/test_runner/test:1409:7)\n' +
+    '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n' +
+    '{"cause":{"stack":"Error: Boot owner is unavailable\\n    at redeemOwnerBootSession (/workspace/Tovu/apps/website/src/server/inbound/admin-http/dev-auth.ts:513:35)\\n    at async TestContext.<anonymous> (/workspace/Tovu/apps/website/src/server/inbound/admin-http/__tests__/dev-auth-boot-owner.unit.test.ts:59:18)\\n    at async Test.run (node:internal/test_runner/test:1409:7)\\n    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)","message":"Boot owner is unavailable"}}'
+}
+✔ boot redemption rejects a disabled owner before minting a session (209.091266ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[auth-boot-session] {
+  errorId: '9317f7fc-8955-4185-aba7-95d2fe1bec3d',
+  diagnostic: 'Error: Authentication operation failed\n' +
+    '    at sendAuthFailure (/workspace/Tovu/apps/website/src/server/inbound/admin-http/dev-auth.ts:489:34)\n' +
+    '    at redeemOwnerBootSession (/workspace/Tovu/apps/website/src/server/inbound/admin-http/dev-auth.ts:513:5)\n' +
+    '    at async TestContext.<anonymous> (/workspace/Tovu/apps/website/src/server/inbound/admin-http/__tests__/dev-auth-boot-owner.unit.test.ts:59:18)\n' +
+    '    at async Test.run (node:internal/test_runner/test:1409:7)\n' +
+    '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n' +
+    '{"cause":{"stack":"Error: Boot owner is unavailable\\n    at redeemOwnerBootSession (/workspace/Tovu/apps/website/src/server/inbound/admin-http/dev-auth.ts:513:35)\\n    at async TestContext.<anonymous> (/workspace/Tovu/apps/website/src/server/inbound/admin-http/__tests__/dev-auth-boot-owner.unit.test.ts:59:18)\\n    at async Test.run (node:internal/test_runner/test:1409:7)\\n    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)","message":"Boot owner is unavailable"}}'
+}
+✔ boot redemption rejects a member owner before minting a session (234.791947ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ boot redemption consumes proof before awaiting identity readiness and owner lookup (238.337143ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ boot redemption propagates identityReady failure without minting or cookies (271.492887ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ boot redemption propagates ownerPrincipalId failure without minting or cookies (372.125813ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ boot redemption propagates repository failure without minting or cookies (326.27258ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[auth-boot-session] {
+  errorId: '8c6fd634-f2ba-4683-bfd0-62663baf8665',
+  diagnostic: 'Error: Authentication operation failed\n' +
+    '    at sendAuthFailure (/workspace/Tovu/apps/website/src/server/inbound/admin-http/dev-auth.ts:489:34)\n' +
+    '    at redeemOwnerBootSession (/workspace/Tovu/apps/website/src/server/inbound/admin-http/dev-auth.ts:526:5)\n' +
+    '    at async TestContext.<anonymous> (/workspace/Tovu/apps/website/src/server/inbound/admin-http/__tests__/dev-auth-boot-owner.unit.test.ts:117:16)\n' +
+    '    at async Test.run (node:internal/test_runner/test:1409:7)\n' +
+    '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n' +
+    '{"cause":{"stack":"Error: Boot session confirmation failed\\n    at redeemOwnerBootSession (/workspace/Tovu/apps/website/src/server/inbound/admin-http/dev-auth.ts:526:35)\\n    at async TestContext.<anonymous> (/workspace/Tovu/apps/website/src/server/inbound/admin-http/__tests__/dev-auth-boot-owner.unit.test.ts:117:16)\\n    at async Test.run (node:internal/test_runner/test:1409:7)\\n    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)","message":"Boot session confirmation failed"}}'
+}
+✔ boot redemption refuses a minted session that Jini cannot validate before setting a cookie (326.006184ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ boot redemption with tovu_session preserves its existing superseded-session policy (319.261887ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ boot redemption with tovu_session_local_303 preserves its existing superseded-session policy (255.755722ms)
+✔ identity failure gives an anonymous-safe explanation and correlated report (465.823531ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ session failure gives an anonymous-safe explanation and correlated report (243.87207ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ logout failure gives an anonymous-safe explanation and correlated report (305.366792ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ boot owner and verification refusals disclose equivalent explanations and no backend facts (208.851354ms)
+✔ getAuthedPrincipal throws the wiring error when absent and returns the attached record unchanged (1.804141ms)
+✔ getAuthedCredentialKind throws the wiring error when absent and returns the attached api_key kind (0.221254ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ requests without a key resolve to null and receive the exact 401 without calling next (292.959172ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ GET /auth/me directly returns the exact 401 for an unauthenticated request (216.824297ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ GET /auth/me/password-status directly returns the exact 401 for an unauthenticated request (196.707372ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ malformed authorization schemes never authenticate and invalid bearer keys fail closed (165.334106ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ password login without a User-Agent still creates a usable session without invented client metadata (269.76289ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ a request a publishing token already authenticated skips the session lookup and continues (173.779422ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ a credential lookup that fails is forwarded to Express's error handling instead of answering 401 (216.875487ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ a local owner cookie on a listener without a TCP port (a unix socket) is keyed to port 0 (254.688019ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ a login body without username or password fields is the same uniform 401 as a wrong password (793.747579ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ login attempts beyond the per-client minute budget are refused with 429 and Retry-After before any password check (476.474423ms)
+ℹ tests 37
+ℹ suites 0
+ℹ pass 35
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 36171.396059
+
+✖ failing tests:
+
+test at apps/website/src/features/agent-plugins/__tests__/unit/vitest-compat.unit.test.ts:1:2551
+✖ caught forbidden fetch still fails after every cleanup; broken cleanup=false (298.979596ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /ok 2 - clean following test/. Input:
+  
+  '✖ caught forbidden fetch (24.674584ms)\n' +
+    '✔ clean following test (1.20062ms)\n' +
+    'ℹ tests 2\n' +
+    'ℹ suites 0\n' +
+    'ℹ pass 1\n' +
+    'ℹ fail 1\n' +
+    'ℹ cancelled 0\n' +
+    'ℹ skipped 0\n' +
+    'ℹ todo 0\n' +
+    'ℹ duration_ms 232.827989\n' +
+    '\n' +
+    '✖ failing tests:\n' +
+    '\n' +
+    'test at ../../tmp/tovu-network-guard-ny4Tbt/guard.test.mjs:9:7\n' +
+    '✖ caught forbidden fetch (24.674584ms)\n' +
+    '  AssertionError [ERR_ASSERTION]: no test may reach the real network\n' +
+    '  + actual - expected\n' +
+    '  \n' +
+    '  + [\n' +
+    "  +   'https://guard.example.test/forbidden'\n" +
+    '  + ]\n' +
+    '  - []\n' +
+    '  \n' +
+    '      at step (/workspace/Tovu/apps/website/src/features/agent-plugins/__tests__/fixtures/vitest-compat.ts:274:54)\n' +
+    '      at runTeardownSteps (/workspace/Jini/packages/core/src/teardown.ts:19:17)\n' +
+    '      at async TestHook.run (node:internal/test_runner/test:1409:7)\n' +
+    '      at async Test.runHook (node:internal/test_runner/test:1289:9)\n' +
+    '      at async after (node:internal/test_runner/test:1342:9)\n' +
+    '      at async Test.run (node:internal/test_runner/test:1428:7)\n' +
+    '      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {\n' +
+    '    generatedMessage: false,\n' +
+    "    code: 'ERR_ASSERTION',\n" +
+    "    actual: [ 'https://guard.example.test/forbidden' ],\n" +
+    '    expected: [],\n' +
+    "    operator: 'deepStrictEqual',\n" +
+    "    diff: 'simple'\n" +
+    '  }\n'
+  
+      at TestContext.<anonymous> (/workspace/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/vitest-compat.unit.test.ts:104:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: "✖ caught forbidden fetch (24.674584ms)\n✔ clean following test (1.20062ms)\nℹ tests 2\nℹ suites 0\nℹ pass 1\nℹ fail 1\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 232.827989\n\n✖ failing tests:\n\ntest at ../../tmp/tovu-network-guard-ny4Tbt/guard.test.mjs:9:7\n✖ caught forbidden fetch (24.674584ms)\n  AssertionError [ERR_ASSERTION]: no test may reach the real network\n  + actual - expected\n  \n  + [\n  +   'https://guard.example.test/forbidden'\n  + ]\n  - []\n  \n      at step (/workspace/Tovu/apps/website/src/features/agent-plugins/__tests__/fixtures/vitest-compat.ts:274:54)\n      at runTeardownSteps (/workspace/Jini/packages/core/src/teardown.ts:19:17)\n      at async TestHook.run (node:internal/test_runner/test:1409:7)\n      at async Test.runHook (node:internal/test_runner/test:1289:9)\n      at async after (node:internal/test_runner/test:1342:9)\n      at async Test.run (node:internal/test_runner/test:1428:7)\n      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {\n    generatedMessage: false,\n    code: 'ERR_ASSERTION',\n    actual: [ 'https://guard.example.test/forbidden' ],\n    expected: [],\n    operator: 'deepStrictEqual',\n    diff: 'simple'\n  }\n",
+    expected: /ok 2 - clean following test/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/agent-plugins/__tests__/unit/vitest-compat.unit.test.ts:1:2551
+✖ caught forbidden fetch still fails after every cleanup; broken cleanup=true (500.663098ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /ok 2 - clean following test/. Input:
+  
+  '✖ caught forbidden fetch (26.480713ms)\n' +
+    '✔ clean following test (1.06772ms)\n' +
+    'ℹ tests 2\n' +
+    'ℹ suites 0\n' +
+    'ℹ pass 1\n' +
+    'ℹ fail 1\n' +
+    'ℹ cancelled 0\n' +
+    'ℹ skipped 0\n' +
+    'ℹ todo 0\n' +
+    'ℹ duration_ms 415.317266\n' +
+    '\n' +
+    '✖ failing tests:\n' +
+    '\n' +
+    'test at ../../tmp/tovu-network-guard-bIvHa3/guard.test.mjs:9:7\n' +
+    '✖ caught forbidden fetch (26.480713ms)\n' +
+    '  Error [AggregateError]: test teardown failed\n' +
+    '      at runTeardownSteps (/workspace/Jini/packages/core/src/teardown.ts:22:34)\n' +
+    '      at async TestHook.run (node:internal/test_runner/test:1409:7)\n' +
+    '      at async Test.runHook (node:internal/test_runner/test:1289:9)\n' +
+    '      at async after (node:internal/test_runner/test:1342:9)\n' +
+    '      at async Test.run (node:internal/test_runner/test:1428:7)\n' +
+    '      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {\n' +
+    '    [cause]: Error: cleanup canary\n' +
+    '        at step (file:///tmp/tovu-network-guard-bIvHa3/guard.test.mjs:11:138)\n' +
+    '        at runTeardownSteps (/workspace/Jini/packages/core/src/teardown.ts:19:17)\n' +
+    '        at TestContext.<anonymous> (/workspace/Jini/packages/core/src/teardown.ts:41:17)\n' +
+    '        at TestHook.runInAsyncScope (node:async_hooks:227:14)\n' +
+    '        at TestHook.run (node:internal/test_runner/test:1402:25)\n' +
+    '        at TestHook.run (node:internal/test_runner/test:1757:18)\n' +
+    '        at TestHook.run (node:internal/util:581:20)\n' +
+    '        at Test.runHook (node:internal/test_runner/test:1289:20)\n' +
+    '        at after (node:internal/test_runner/test:1342:20)\n' +
+    '        at Test.run (node:internal/test_runner/test:1428:13),\n' +
+    '    [errors]: [\n' +
+    '      Error: cleanup canary\n' +
+    '          at step (file:///tmp/tovu-network-guard-bIvHa3/guard.test.mjs:11:138)\n' +
+    '          at runTeardownSteps (/workspace/Jini/packages/core/src/teardown.ts:19:17)\n' +
+    '          at TestContext.<anonymous> (/workspace/Jini/packages/core/src/teardown.ts:41:17)\n' +
+    '          at TestHook.runInAsyncScope (node:async_hooks:227:14)\n' +
+    '          at TestHook.run (node:internal/test_runner/test:1402:25)\n' +
+    '          at TestHook.run (node:internal/test_runner/test:1757:18)\n' +
+    '          at TestHook.run (node:internal/util:581:20)\n' +
+    '          at Test.runHook (node:internal/test_runner/test:1289:20)\n' +
+    '          at after (node:internal/test_runner/test:1342:20)\n' +
+    '          at Test.run (node:internal/test_runner/test:1428:13),\n' +
+    '      AssertionError [ERR_ASSERTION]: no test may reach the real network\n' +
+    '      + actual - expected\n' +
+    '      \n' +
+    '      + [\n' +
+    "      +   'https://guard.example.test/forbidden'\n" +
+    '      + ]\n' +
+    '      - []\n' +
+    '      \n' +
+    '          at step (/workspace/Tovu/apps/website/src/features/agent-plugins/__tests__/fixtures/vitest-compat.ts:274:54)\n' +
+    '          at runTeardownSteps (/workspace/Jini/packages/core/src/teardown.ts:19:17)\n' +
+    '          at async TestHook.run (node:internal/test_runner/test:1409:7)\n' +
+    '          at async Test.runHook (node:internal/test_runner/test:1289:9)\n' +
+    '          at async after (node:internal/test_runner/test:1342:9)\n' +
+    '          at async Test.run (node:internal/test_runner/test:1428:7)\n' +
+    '          at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)\n' +
+    '    ]\n' +
+    '  }\n'
+  
+      at TestContext.<anonymous> (/workspace/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/vitest-compat.unit.test.ts:104:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: "✖ caught forbidden fetch (26.480713ms)\n✔ clean following test (1.06772ms)\nℹ tests 2\nℹ suites 0\nℹ pass 1\nℹ fail 1\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 415.317266\n\n✖ failing tests:\n\ntest at ../../tmp/tovu-network-guard-bIvHa3/guard.test.mjs:9:7\n✖ caught forbidden fetch (26.480713ms)\n  Error [AggregateError]: test teardown failed\n      at runTeardownSteps (/workspace/Jini/packages/core/src/teardown.ts:22:34)\n      at async TestHook.run (node:internal/test_runner/test:1409:7)\n      at async Test.runHook (node:internal/test_runner/test:1289:9)\n      at async after (node:internal/test_runner/test:1342:9)\n      at async Test.run (node:internal/test_runner/test:1428:7)\n      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {\n    [cause]: Error: cleanup canary\n        at step (file:///tmp/tovu-network-guard-bIvHa3/guard.test.mjs:11:138)\n        at runTeardownSteps (/workspace/Jini/packages/core/src/teardown.ts:19:17)\n        at TestContext.<anonymous> (/workspace/Jini/packages/core/src/teardown.ts:41:17)\n        at TestHook.runInAsyncScope (node:async_hooks:227:14)\n        at TestHook.run (node:internal/test_runner/test:1402:25)\n        at TestHook.run (node:internal/test_runner/test:1757:18)\n        at TestHook.run (node:internal/util:581:20)\n        at Test.runHook (node:internal/test_runner/test:1289:20)\n        at after (node:internal/test_runner/test:1342:20)\n        at Test.run (node:internal/test_runner/test:1428:13),\n    [errors]: [\n      Error: cleanup canary\n          at step (file:///tmp/tovu-network-guard-bIvHa3/guard.test.mjs:11:138)\n          at runTeardownSteps (/workspace/Jini/packages/core/src/teardown.ts:19:17)\n          at TestContext.<anonymous> (/workspace/Jini/packages/core/src/teardown.ts:41:17)\n          at TestHook.runInAsyncScope (node:async_hooks:227:14)\n          at TestHook.run (node:internal/test_runner/test:1402:25)\n          at TestHook.run (node:internal/test_runner/test:1757:18)\n          at TestHook.run (node:internal/util:581:20)\n          at Test.runHook (node:internal/test_runner/test:1289:20)\n          at after (node:internal/test_runner/test:1342:20)\n          at Test.run (node:internal/test_runner/test:1428:13),\n      AssertionError [ERR_ASSERTION]: no test may reach the real network\n      + actual - expected\n      \n      + [\n      +   'https://guard.example.test/forbidden'\n      + ]\n      - []\n      \n          at step (/workspace/Tovu/apps/website/src/features/agent-plugins/__tests__/fixtures/vitest-compat.ts:274:54)\n          at runTeardownSteps (/workspace/Jini/packages/core/src/teardown.ts:19:17)\n          at async TestHook.run (node:internal/test_runner/test:1409:7)\n          at async Test.runHook (node:internal/test_runner/test:1289:9)\n          at async after (node:internal/test_runner/test:1342:9)\n          at async Test.run (node:internal/test_runner/test:1428:7)\n          at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)\n    ]\n  }\n",
+    expected: /ok 2 - clean following test/,
+    operator: 'match',
+    diff: 'simple'
+  }

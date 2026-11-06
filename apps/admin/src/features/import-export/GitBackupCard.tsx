@@ -60,7 +60,7 @@ function GitBackupFormFields({ controller, connections, t }: GitBackupCardProps 
         {connections.length > 1 ? (
           <div className="field">
             <label className="field-label" htmlFor="git-backup-connection">{t("Connection")}</label>
-            <select id="git-backup-connection" value={form.connection} onChange={(event) => controller.setField("connection", event.target.value)}>
+            <select id="git-backup-connection" value={form.connection} onChange={(event) => controller.setField("connection", event.target.value)} {...agentHandle({ handle: "import-export-git-backup-connection" }, { role: "field", label: "Git backup connection" })}>
               {connections.map((label) => <option key={label} value={label}>{label}</option>)}
             </select>
           </div>
@@ -83,7 +83,7 @@ function TextField({ id, label, value, placeholder, onChange }: { id: string; la
   return (
     <div className="field">
       <label className="field-label" htmlFor={id}>{label}</label>
-      <input id={id} type="text" autoComplete="off" spellCheck={false} maxLength={200} value={value} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} />
+      <input id={id} type="text" autoComplete="off" spellCheck={false} maxLength={200} value={value} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} {...agentHandle({ handle: `import-export-${id}` }, { role: "field", label })} />
     </div>
   );
 }
@@ -106,7 +106,7 @@ function PlanSummary({ controller, t }: GitBackupCardProps) {
         <button type="button" className="btn-primary" disabled={pushing} aria-busy={pushing} onClick={() => void controller.pushBackup()} {...agentHandle({ handle: "import-export-git-backup-push" }, { role: "button", label: "Push the planned Git backup" })}>
           {pushing ? t("Pushing…") : t("Push backup")}
         </button>
-        {pushing ? null : <button type="button" className="btn-secondary" onClick={controller.reset}>{t("Cancel")}</button>}
+        {pushing ? null : <button type="button" className="btn-secondary" onClick={controller.reset} {...agentHandle({ handle: "import-export-git-backup-cancel" }, { role: "button", label: "Cancel the backup plan" })}>{t("Cancel")}</button>}
       </div>
     </>
   );
@@ -121,7 +121,7 @@ function BackupDone({ controller, t }: GitBackupCardProps) {
         <a className="btn-secondary" href={done.commitUrl} target="_blank" rel="noopener noreferrer" {...agentHandle({ handle: "import-export-git-backup-commit-link" }, { role: "link", label: "Open the backup commit on the Git host" })}>
           {t("View commit")}
         </a>
-        <button type="button" className="btn-secondary" onClick={controller.reset}>{t("Back up again")}</button>
+        <button type="button" className="btn-secondary" onClick={controller.reset} {...agentHandle({ handle: "import-export-git-backup-again" }, { role: "button", label: "Plan another Git backup" })}>{t("Back up again")}</button>
       </div>
     </>
   );
@@ -132,7 +132,7 @@ function BackupRefused({ controller, t }: GitBackupCardProps) {
     <>
       <div className="notice error" role="alert">{controller.message}</div>
       <div className="git-backup-actions">
-        <button type="button" className="btn-secondary" onClick={controller.reset}>{t("Try again")}</button>
+        <button type="button" className="btn-secondary" onClick={controller.reset} {...agentHandle({ handle: "import-export-git-backup-retry" }, { role: "button", label: "Retry the Git backup" })}>{t("Try again")}</button>
       </div>
     </>
   );

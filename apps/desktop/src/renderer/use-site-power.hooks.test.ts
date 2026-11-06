@@ -1,6 +1,6 @@
 /**
  * @file Coverage for `use-site-power.hooks.ts`'s decision logic — what the card's Start/Stop button
- * says for each of the seven lifecycle statuses, and what one press actually does.
+ * says for each lifecycle status, and what one press actually does.
  *
  * The decisions the hook makes are plain exported functions — `powerControl`,
  * `performPowerAction`, `powerToggleIntent`, `runPowerToggle` — and every test below calls one of
@@ -50,6 +50,11 @@ test('a FAILED site is offered Start, not a disabled button — a failed boot is
   assert.deepEqual(powerControl('failed'), { action: 'start', label: 'Start', tooltip: 'Start site', busy: false, on: false });
 });
 
+test('a SLEEPING site uses Start directly without changing its lifecycle record', () => {
+  assert.deepEqual(powerControl('sleeping'), { action: 'start', label: 'Start', tooltip: 'Start site', busy: false, on: false });
+  assert.equal(powerControl('sleeping', { external: true }), null);
+});
+
 test('mid-start the button says Starting… and does nothing when pressed', () => {
   const control = powerControl('starting');
   assert.equal(control?.label, 'Starting…');
@@ -78,7 +83,7 @@ test('provisioning and blocked get NO button rather than an inert one', () => {
 test('no status produces a label that contradicts its action', () => {
   // The whole contract in one sweep: an actionable control never reads as busy, and a busy one
   // never offers an action.
-  for (const status of ['provisioning', 'starting', 'running', 'stopping', 'stopped', 'failed', 'blocked'] as const) {
+  for (const status of ['provisioning', 'starting', 'running', 'stopping', 'stopped', 'sleeping', 'failed', 'blocked'] as const) {
     const control = powerControl(status);
     if (control === null) continue;
     assert.equal(control.busy, control.action === null, `${status}: busy and action disagree`);
@@ -231,6 +236,14 @@ test('an npm run dev site gets the owner\'s confirm copy; another app gets one n
   assert.equal(externalStopConfirm({ project: { ...DEV_SITE, externalLauncher: undefined } }), null, 'unstoppable: no confirm, and no Stop');
   assert.equal(externalStopConfirm({ project: { ...DEV_SITE, externalUrl: undefined } }), null, 'our own server needs no confirm');
   assert.equal(externalStopConfirm({ project: DEV_SITE }, { locale: 'de' })?.confirmTitle, 'Tovu Dev stoppen?');
+});
+
+test('Stop confirmation inserts site and app names as literal text', () => {
+  const displayName = "$& $` $' $$";
+  const runningApp = "$& $` $' $$";
+  const confirm = externalStopConfirm({ project: { ...DEV_SITE, displayName, externalLauncher: 'other', runningApp } }, { locale: 'en' });
+  assert.equal(confirm?.confirmTitle, `Stop ${displayName}?`);
+  assert.equal(confirm?.confirmBody, `This stops the server running this site in ${runningApp}.`);
 });
 
 test('codeSpans renders backticked text as code and drops empty parts', () => {

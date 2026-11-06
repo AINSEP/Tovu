@@ -140,7 +140,10 @@ export async function resolveUserLayerReadTarget(
  * narrowing buys nothing here.
  */
 export function respondToSettingsError(res: Response, err: unknown, mappings: readonly SettingsErrorMapping[]): void {
-  if (!mappings.some(mapping => mapping.matches(err))) { sendAdminFailure({ res, error: err }); return; }
+  if (!mappings.some(mapping => mapping.matches(err))) {
+    sendAdminFailure({ res, error: err }, { operation: "routes/settings", message: "The settings request could not finish." });
+    return;
+  }
   respondToCmsSettingsError({ response: res, error: err, mappings });
 }
 

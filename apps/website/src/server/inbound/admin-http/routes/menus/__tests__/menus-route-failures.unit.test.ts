@@ -12,11 +12,11 @@ import { MenuConflictError, MenuVersionConflictError } from '#src/features/navig
 import { WS, BASE, INTERNAL, fixture, invokeRouteDirectly, testRouteFailureMatrix, type RouteFailureCase } from '#src/server/__tests__/helpers/admin-route-failures';
 
 const routes: RouteFailureCase[] = [
-  { name: 'menus assign', register: registerAdminMenuAssignLocationRoute, method: 'POST', path: `${BASE}/menus/menu/locations`, body: { locationKey: 'primary' } },
-  { name: 'menus create', register: registerAdminMenuCreateRoute, method: 'POST', path: `${BASE}/menus` },
-  { name: 'menus delete', register: registerAdminMenuDeleteRoute, method: 'DELETE', path: `${BASE}/menus/menu` },
-  { name: 'menus get', register: registerAdminMenuGetRoute, method: 'GET', path: `${BASE}/menus/menu` },
-  { name: 'menus list', register: registerAdminMenuListRoute, method: 'GET', path: `${BASE}/menus` },
+  { name: 'menus assign', register: registerAdminMenuAssignLocationRoute, method: 'POST', path: `${BASE}/menus/menu/locations`, body: { locationKey: 'primary' }, failure: {"message": "The menu operation could not be completed.", "action": "Check the result before repeating this operation. Copy details and report this problem.", "step": "menu operation"} },
+  { name: 'menus create', register: registerAdminMenuCreateRoute, method: 'POST', path: `${BASE}/menus`, failure: {"message": "The menu operation could not be completed.", "action": "Check the result before repeating this operation. Copy details and report this problem.", "step": "menu operation"} },
+  { name: 'menus delete', register: registerAdminMenuDeleteRoute, method: 'DELETE', path: `${BASE}/menus/menu`, failure: {"message": "The menu removal could not be confirmed.", "action": "Check the list before repeating the removal. Copy details and report this problem.", "step": "Remove menu"} },
+  { name: 'menus get', register: registerAdminMenuGetRoute, method: 'GET', path: `${BASE}/menus/menu`, failure: {"message": "The menus could not be loaded.", "action": "Try loading them again. If it still fails, copy details and report this problem.", "step": "Load menus"} },
+  { name: 'menus list', register: registerAdminMenuListRoute, method: 'GET', path: `${BASE}/menus`, failure: {"message": "The menus could not be loaded.", "action": "Try loading them again. If it still fails, copy details and report this problem.", "step": "Load menus"} },
 ];
 
 testRouteFailureMatrix(routes);
@@ -27,7 +27,7 @@ test('menu get: lookup failure is private, missing slug falls back to the unnorm
     findBySlug: async (input: unknown) => { lookups.push(input); return null; },
     findById: async (input: unknown) => { lookups.push(input); throw new Error('private storage details'); },
   } });
-  assertAdminResponse({ actual: await dispatchJsonRequest(app, 'GET', `${BASE}/menus/Menu-ID`), expected: { status: 500, body: INTERNAL } });
+  assertAdminResponse({ actual: await dispatchJsonRequest(app, 'GET', `${BASE}/menus/Menu-ID`), expected: { status: 500, body: INTERNAL } }, { failure: {"message": "The menus could not be loaded.", "action": "Try loading them again. If it still fails, copy details and report this problem.", "step": "Load menus"} });
   assert.deepEqual(lookups, [{ workspaceId: WS, slug: 'menu-id' }, { workspaceId: WS, id: 'Menu-ID' }]);
 });
 

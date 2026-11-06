@@ -36,6 +36,7 @@ import { removeSiteTree } from "./remove-site-tree.ts";
 import { uniqueSiteName, duplicateSiteNameError } from "./site-name-policy.ts";
 import { siteNameError } from "./contracts/site-name.ts";
 import type { SiteFoldersPort } from "./site-folders.ts";
+import type { SiteArchiveSource } from "./site-archive-import.ts";
 import type { SiteRecord } from "./contracts/project.ts";
 import type { ExternalSiteStopper } from "./external-site-stop.ts";
 import { registerIdleSiteSleepIpc } from "./site-view-preference.ts";
@@ -54,6 +55,7 @@ const SITE_IPC_CHANNELS = Object.freeze({
   openExternal: "runner:sites:open-external",
   start: "runner:sites:start",
   stop: "runner:sites:stop",
+  keepRunning: "runner:sites:keep-running",
   rescan: "runner:sites:rescan",
   listFolders: "runner:sites:folders:list",
   addFolder: "runner:sites:folders:add",
@@ -61,6 +63,7 @@ const SITE_IPC_CHANNELS = Object.freeze({
   setHome: "runner:sites:home:set",
   saveSettings: "runner:sites:settings:save",
   addSite: "runner:sites:add-site",
+  importArchive: "runner:sites:import-archive",
   rename: "runner:sites:rename",
   preview: "runner:sites:preview",
   locate: "runner:sites:locate",
@@ -181,9 +184,10 @@ interface SiteRuntime {
   cancelled: boolean;
   cancelRetry?: () => void;
   starting?: Promise<unknown>;
-  status?: "starting" | "sleeping" | "error";
+  status?: "starting" | "sleeping" | "failed";
   detail?: string;
   lastPresentAt: number;
+  keepAwake?: boolean;
   rss?: { pid: number; since: number };
   restartAfterExit?: OpenSiteEntry["server"];
 }
@@ -197,6 +201,8 @@ interface SiteLifecycleOptions {
 export interface ProjectSiteLifecycle extends SitePresence<PresenceSender & { getURL(): string }> {
   onServerExit(input: { siteDir: string; exit: ServerExitLike; server: OpenSiteEntry["server"] }, options?: {}): void;
   maintain(input: { snapshot: ResourcesSnapshot }, options?: {}): Promise<void>;
+  /** Keep running in background: no idle sleep until this launch ends. Memory restarts still run. */
+  keepAwake(): void;
   manualStart(input: { siteDir: string }, options?: {}): void;
   cancel(input: { siteDir: string; forget?: boolean }, options?: {}): void;
   onBootFailure(input: { siteDir: string; error: unknown }, options?: {}): void;
@@ -209,14 +215,20 @@ function scheduleSiteRetry({ delayMs, run }: { delayMs: number; run: () => void 
   return () => clearTimeout(timer);
 }
 
-/** Use only the owned root's current RSS. Totals include grandchildren and cannot enforce this cap.
+/** Invalid samples cannot extend a high-RSS observation. */
+function isHighSiteRss({ rssBytes }: { rssBytes: number | undefined }): boolean {
+  return typeof rssBytes === "number" && Number.isFinite(rssBytes) && rssBytes >= 1_500_000_000;
+}
+
+/** Use only the owned root's current OS RSS, independent of the cached footprint display. Totals include grandchildren and cannot enforce this cap.
  * @complexity O(p) for the snapshot's p processes; O(1) retained observation per site.
  */
 function siteRssOverTime({ state, server, snapshot, siteDir, at }: {
   state: SiteRuntime; server: OpenSiteEntry["server"]; snapshot: ResourcesSnapshot; siteDir: string; at: number;
 }, _options = {}): boolean {
   const root = currentSiteRss({ snapshot, siteDir, pid: server.pid, at });
-  if (!root || !Number.isFinite(root.rssBytes) || root.rssBytes < 1_500_000_000) {
+  const rssBytes = root?.rawRssBytes ?? root?.rssBytes;
+  if (!root || !isHighSiteRss({ rssBytes })) {
     state.rss = undefined;
     return false;
   }
@@ -280,7 +292,8 @@ interface OpenDialogOptions {
   title: string;
   message?: string;
   buttonLabel: string;
-  properties: Array<"openDirectory" | "createDirectory">;
+  properties: Array<"openDirectory" | "createDirectory" | "openFile">;
+  filters?: Array<{ name: string; extensions: string[] }>;
 }
 
 /** Electron's `dialog.showOpenDialog` resolution — the subset read here. */
@@ -737,6 +750,19 @@ async function handleCreate(
     });
   };
   const siteDir = await withDirectoryFileLock({ lockPath: `${target}.creation.lock`, run: adopt }, { staleMs: Infinity });
+  return withCreatedTokens(recordCreatedSite({ siteDir, displayName }, deps), init.output);
+}
+
+/**
+ * What every site this app made gets: its catalog row with the identity `tovu` just stamped, its
+ * shared-registry entry, and its display name. Create and Import both end here.
+ * @throws {Error} when the catalog entry cannot be read back.
+ * @complexity O(n) in tracked rows.
+ */
+function recordCreatedSite(
+  { siteDir, displayName }: { siteDir: string; displayName: string },
+  deps: Pick<ProjectIpcDeps, "projectsPath" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "siteFolders" | "sharedSites" | "siteRuntime">,
+) {
   // Read AFTER `adoptSiteDir`, because before it there is no site there to have an identity: this is
   // the id `tovu init` just stamped into `.site-meta.json`. Recording it here is the only moment
   // this app can honestly say "the site at this path is one I made" — every later reader is looking
@@ -754,7 +780,7 @@ async function handleCreate(
   rememberSiteAlias({ projectsPath: deps.projectsPath, siteDir, displayNameAlias });
   const tracked = readTrackedSites(deps.projectsPath).find((row) => row.siteDir === siteDir);
   if (!tracked) throw new Error("The website was created, but its desktop catalog entry is missing. Use Add Tovu Website to add the folder again.");
-  return withCreatedTokens(buildSiteRecord({ ...tracked, displayNameAlias }, deps), init.output);
+  return buildSiteRecord({ ...tracked, displayNameAlias }, deps);
 }
 
 /** Validate creation before planning the destination; return the existing cleaned token contract.
@@ -815,23 +841,16 @@ async function handleTokenSignInPlugins(deps: Pick<ProjectIpcDeps, "repoRoot" | 
  *   complete Tovu site — either way an operator-facing message that names the fix.
  * @complexity O(n) in the tracked-project count, plus one classification.
  */
-async function handleAddSite(deps: Pick<ProjectIpcDeps, "dialog" | "addSitePointer" | "projectsPath" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "sharedSites" | "siteRuntime">) {
-  const picked = await deps.dialog.showOpenDialog({
-    title: "Choose your Tovu website's folder",
-    message: "Pick a folder that already contains a Tovu website. Nothing in it will be changed.",
-    buttonLabel: "Add website",
-    // No `createDirectory`: a folder the operator makes in this dialog is
-    // empty by definition, and an empty folder is precisely what this verb refuses. Offering the
-    // button would invite the one mistake the refusal then has to explain.
-    properties: ["openDirectory"],
-  });
-  if (picked.canceled || picked.filePaths.length === 0) {
-    // Cancelling is a completed choice, not an IPC failure to log or display.
-    return null;
-  }
+async function handleAddSite(
+  deps: Pick<ProjectIpcDeps, "dialog" | "addSitePointer" | "projectsPath" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "sharedSites" | "siteRuntime">,
+  input: { folder?: unknown } = {},
+) {
+  // A dropped folder arrives with its path; everything else goes through main's own dialog.
+  const folder = input.folder === undefined ? await pickSiteFolder(deps) : droppedPath({ value: input.folder });
+  if (folder === null) return null;
 
-  const { siteDir, alreadyTracked } = deps.addSitePointer({ siteDir: picked.filePaths[0]!, projectsPath: deps.projectsPath }, { workspace: deps.sharedSites });
-  if (deps.sharedSites) shareSiteDirectories({ workspace: deps.sharedSites, dirs: [siteDir], createdBy: "Desktop", allowRelocation: true }); // just checked `filePaths.length === 0` above, so index 0 exists
+  const { siteDir, alreadyTracked } = deps.addSitePointer({ siteDir: folder, projectsPath: deps.projectsPath }, { workspace: deps.sharedSites });
+  if (deps.sharedSites) shareSiteDirectories({ workspace: deps.sharedSites, dirs: [siteDir], createdBy: "Desktop", allowRelocation: true });
   const row = readTrackedSites(deps.projectsPath).find((entry) => entry.siteDir === siteDir)!; // addSitePointer just tracked this exact siteDir above, so a row for it always exists
   // Read back rather than synthesized: an already-tracked folder keeps its ORIGINAL `createdAt` and
   // origin, and a fabricated row would report today's date and reorder the operator's grid.
@@ -844,6 +863,60 @@ async function handleAddSite(deps: Pick<ProjectIpcDeps, "dialog" | "addSitePoint
   const record = buildSiteRecord(row, deps);
   rememberSiteName({ projectsPath: deps.projectsPath, siteDir, displayName: record.displayName });
   return { ...record, alreadyTracked };
+}
+
+/** Main's folder dialog; `null` when cancelled, which is a completed choice, not a failure to show. */
+async function pickSiteFolder(deps: Pick<ProjectIpcDeps, "dialog">): Promise<string | null> {
+  const picked = await deps.dialog.showOpenDialog({
+    title: "Choose your Tovu website's folder",
+    message: "Pick a folder that already contains a Tovu website. Nothing in it will be changed.",
+    buttonLabel: "Add website",
+    // No `createDirectory`: a folder the operator makes in this dialog is
+    // empty by definition, and an empty folder is precisely what this verb refuses. Offering the
+    // button would invite the one mistake the refusal then has to explain.
+    properties: ["openDirectory"],
+  });
+  return picked.canceled || picked.filePaths.length === 0 ? null : picked.filePaths[0]!;
+}
+
+/** A path the renderer read off a drop. What it holds is checked by the verb it goes to. */
+function droppedPath({ value }: { value: unknown }): string {
+  if (typeof value !== "string" || !path.isAbsolute(value)) throw new Error("That drop did not include a location on this computer. Use the Choose button instead.");
+  return value;
+}
+
+/** Which archive to import; `null` when the dialog was cancelled. Remote input is checked by the importer. */
+async function archiveSource(
+  { input }: { input: { file?: unknown; url?: unknown; pick?: unknown } | null | undefined },
+  deps: Pick<ProjectIpcDeps, "dialog">,
+): Promise<SiteArchiveSource | null> {
+  if (typeof input?.url === "string") return { url: input.url };
+  if (input?.file !== undefined) {
+    const file = droppedPath({ value: input.file });
+    if (!/\.zip$/i.test(file)) throw new Error("That is not a .tovu.zip file. Export a website from Tovu to get one.");
+    return { file };
+  }
+  if (input?.pick !== true) throw new Error("Import needs a file or a share link.");
+  const picked = await deps.dialog.showOpenDialog({ title: "Choose a .tovu.zip file", buttonLabel: "Import website",
+    properties: ["openFile"], filters: [{ name: "Tovu website", extensions: ["zip"] }] });
+  return picked.canceled || picked.filePaths.length === 0 ? null : { file: picked.filePaths[0]! };
+}
+
+/**
+ * A .tovu.zip or share link becomes a new tracked site: `importSiteArchive` makes it, or rolls it
+ * back and rejects with the reason, and it then ends the way Create does.
+ * @returns the new record and the importer's notices; `null` when the dialog was cancelled.
+ * @complexity One child process, then {@link recordCreatedSite}.
+ */
+async function handleImportArchive(
+  input: Parameters<typeof archiveSource>[0]["input"],
+  deps: Pick<ProjectIpcDeps, "dialog" | "importSiteArchive" | "cliMode" | "projectsPath" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "siteFolders" | "sharedSites" | "siteRuntime">,
+) {
+  const source = await archiveSource({ input }, deps);
+  if (source === null) return null;
+  const imported = await deps.importSiteArchive({ source, repoRoot: deps.repoRoot, cliMode: deps.cliMode });
+  const displayName = uniqueSiteName({ name: deps.readSiteName(imported.dir), names: otherSiteNames({ deps, siteDir: imported.dir }) });
+  return { ...recordCreatedSite({ siteDir: imported.dir, displayName }, deps), warnings: imported.warnings };
 }
 
 /**
@@ -1346,6 +1419,11 @@ async function stopSiteServer(id: string, deps: Pick<ProjectIpcDeps, "openSites"
     // By pid, never by site dir alone: a live SIBLING app instance can hold its own row for this same
     // site, and a close by site dir would take that one too (D-07). A failed Stop keeps this row.
     deps.recordSiteClosed(deps.registryPath, id, { pid: openEntry.server.pid });
+  }, error => {
+    // Stop could not confirm exit. Keep this live child supervised so Keep running can retain
+    // its normal memory and crash recovery, rather than losing it from the lifecycle entirely.
+    if (!deps.openSites.has(id)) deps.openSites.set(id, openEntry);
+    throw error;
   });
   // openSites no longer exposes this child, so Quit must find its drain in the existing tracker.
   deps.pendingTeardowns?.track({ promise: teardown });
@@ -1505,6 +1583,7 @@ function registerSiteIpcHandlers<TCtx>(deps: ProjectIpcDeps<TCtx>, options: Site
     const state = states.get(siteDir);
     if (!state) return;
     state.cancelRetry?.(); state.cancelRetry = undefined; state.cancelled = true;
+    state.keepAwake = false;
     state.restartAfterExit = undefined; state.status = undefined; state.detail = undefined;
     if (forget) states.delete(siteDir);
   }
@@ -1567,7 +1646,7 @@ function registerSiteIpcHandlers<TCtx>(deps: ProjectIpcDeps<TCtx>, options: Site
     state.cancelRetry?.();
     const decision = state.policy.recordFailure({ isPortConflict: false });
     if (decision.action === "give-up") {
-      state.cancelRetry = undefined; state.status = "error";
+      state.cancelRetry = undefined; state.status = "failed";
       state.detail = "This site couldn’t stay running after three automatic restarts in five minutes. Automatic restart has stopped. Try starting it again.\n\nRedacted details (copy and paste):\n" + detail;
       deps.onRestartStopped?.({ siteDir, detail: state.detail });
       return;
@@ -1614,12 +1693,22 @@ function registerSiteIpcHandlers<TCtx>(deps: ProjectIpcDeps<TCtx>, options: Site
     await deps.serializer.run(siteDir, async () => {
       if (disposed || state.cancelled || deps.openSites.get(siteDir)?.server !== server) return;
       if (!restart && presence.has({ siteId: siteDir })) return;
-      if (restart) state.restartAfterExit = server;
-      try {
-        await stopIfIdle({}, {});
-      } catch { /* Timeout, rejection and disposed channels are busy; the next tick may retry. */ }
-      finally { if (state.restartAfterExit === server) state.restartAfterExit = undefined; }
+      await requestIdleStop({ state, server, restart, stopIfIdle });
     });
+  }
+
+  /** Fence an RSS restart until confirmed exit; a refused sleep leaves it eligible next tick.
+   * @complexity O(1) state, one existing bounded child IPC request; no additional I/O.
+   */
+  async function requestIdleStop({ state, server, restart, stopIfIdle }: {
+    state: SiteRuntime; server: OpenSiteEntry["server"]; restart: boolean;
+    stopIfIdle: NonNullable<OpenSiteEntry["server"]["stopIfIdle"]>;
+  }, _options = {}): Promise<void> {
+    if (restart) state.restartAfterExit = server;
+    try {
+      await stopIfIdle({}, {});
+    } catch { /* Timeout, rejection and disposed channels are busy; the next tick may retry. */ }
+    finally { if (state.restartAfterExit === server) state.restartAfterExit = undefined; }
   }
 
   /** Presence events update the absence clock at tab closure, not one sampler tick earlier. */
@@ -1649,9 +1738,11 @@ function registerSiteIpcHandlers<TCtx>(deps: ProjectIpcDeps<TCtx>, options: Site
     const idle = minutes > 0 && at - state.lastPresentAt >= minutes * 60_000;
     if (restart || idle) await parkSite({ siteDir, state, server: entry.server, restart });
   }
+  // With no window left nothing reports presence, so ten idle minutes would stop the sites the user kept.
+  let keptAwake = false;
   const presence = createSitePresence({ allowed: deps.isPresenceShell ?? (() => false),
     trackedIds: () => new Set(readTrackedSites(deps.projectsPath).map(row => row.siteDir)),
-  }, { hasSiteWindow: siteId => Boolean(deps.openSites.get(siteId)?.window), onRelease: notePresence });
+  }, { hasSiteWindow: siteId => keptAwake || Boolean(states.get(siteId)?.keepAwake) || Boolean(deps.openSites.get(siteId)?.window), onRelease: notePresence });
   deps.ipcMain.handle(SITE_PRESENCE_CHANNEL, ({ sender }, input: { siteIds?: unknown } | undefined) => {
     notePresence();
     presence.replace({ sender, siteIds: input?.siteIds });
@@ -1661,7 +1752,7 @@ function registerSiteIpcHandlers<TCtx>(deps: ProjectIpcDeps<TCtx>, options: Site
   // The state and preferences files share the launch's userData folder, including E2E profiles.
   // Keep registration here: the original independent UI slice and the lifecycle share this profile.
   const offSleep = registerIdleSiteSleepIpc({ ipcMain: deps.ipcMain, allowed: deps.isPresenceShell ?? (() => false),
-    preferencePath: path.join(path.dirname(deps.statePath), 'desktop-preferences.json') });
+    preferencePath: () => path.join(path.dirname(deps.statePath), 'desktop-preferences.json') });
   const relocationGate = createRelocationGate({}, { classifySiteDir: deps.classifySiteDir });
   // Handlers share the live host ports: settings and discovery may be supplied after registration.
   // Read them at dispatch and pass registration-owned runtime explicitly, without mutating deps.
@@ -1682,6 +1773,20 @@ function registerSiteIpcHandlers<TCtx>(deps: ProjectIpcDeps<TCtx>, options: Site
   deps.ipcMain.handle(SITE_IPC_CHANNELS.stop, (_event, id) => {
     cancel({ siteDir: id });
     return handleStop(id, { ...deps, siteRuntime: states });
+  });
+  deps.ipcMain.handle(SITE_IPC_CHANNELS.keepRunning, ({ sender }, input: { id?: unknown } | undefined) => {
+    if (sender.isDestroyed() || !deps.isPresenceShell?.(sender)) throw new Error('Keep running is only available from the desktop window.');
+    const siteDir = input?.id;
+    if (typeof siteDir !== 'string' || !readTrackedSites(deps.projectsPath).some(site => site.siteDir === siteDir)) {
+      throw new Error('Keep running needs a tracked site.');
+    }
+    // Preserve the choice across automatic recovery; Stop/delete/manual Start release it in cancel.
+    const state = stateFor({ siteDir });
+    if (state.cancelled) {
+      // A failed Stop revoked the old intent. Replace it so queued work stays revoked while
+      // this explicit choice restores memory limits and crash recovery for the live site.
+      states.set(siteDir, { ...state, cancelled: false, keepAwake: true, starting: undefined });
+    } else state.keepAwake = true;
   });
   deps.ipcMain.handle(SITE_IPC_CHANNELS.rescan, () => rescanSites({ ...deps, siteRuntime: states }));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.setHome, async () => {
@@ -1710,11 +1815,12 @@ function registerSiteIpcHandlers<TCtx>(deps: ProjectIpcDeps<TCtx>, options: Site
     return deps.siteFolders.remove({ root: input.root });
   });
   deps.ipcMain.handle(SITE_IPC_CHANNELS.rename, (_event, input) => handleRename(input, { ...deps, siteRuntime: states }));
-  deps.ipcMain.handle(SITE_IPC_CHANNELS.addSite, () => handleAddSite({ ...deps, siteRuntime: states }));
+  deps.ipcMain.handle(SITE_IPC_CHANNELS.addSite, (_event, input) => handleAddSite({ ...deps, siteRuntime: states }, input ?? {}));
+  deps.ipcMain.handle(SITE_IPC_CHANNELS.importArchive, (_event, input) => handleImportArchive(input, { ...deps, siteRuntime: states }));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.preview, (_event, id) => handleGetPreview(id, deps));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.locate, (_event, id) => handleLocate(id, { ...deps, siteRuntime: states }));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.tokenSignInPlugins, () => handleTokenSignInPlugins(deps));
-  return { ...presence, onServerExit, manualStart, cancel,
+  return { ...presence, keepAwake: () => { keptAwake = true; }, onServerExit, manualStart, cancel,
     onBootFailure({ siteDir, error }, _options = {}) {
       recordFailure({ siteDir, state: stateFor({ siteDir }), detail: siteFailureDetails({ error }) });
     },
@@ -1769,6 +1875,8 @@ interface ProjectIpcDeps<TCtx = unknown> {
   pendingTeardowns?: { track(required: { promise: PromiseLike<unknown> }): Promise<void> };
   adoptSiteDir: (input: AdoptSiteDirInput) => Promise<string>;
   addSitePointer: AddSitePointerLike;
+  /** `site-archive-import.ts`'s real runner. */
+  importSiteArchive: typeof import("./site-archive-import.ts").importSiteArchive;
   /** Injected for tests; defaults to `agent-plugin-tokens.ts`'s CLI-backed lister. */
   listTokenSignInPlugins?: (input: { repoRoot: string; cliMode?: "source" | "compiled" }) => Promise<TokenSignInPlugin[]>;
   // `classifySiteDirSafely`'s verdicts, spelled out because `site-dir-store.ts` does not export its
@@ -1808,6 +1916,7 @@ export {
   handleList,
   handleAddSite,
   handleCreate,
+  handleImportArchive,
   handleDelete,
   handleOpenExternal,
   handleStart,

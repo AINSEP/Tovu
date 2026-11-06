@@ -27,11 +27,13 @@ export function useThemeExploreTheme(
     return () => { cancelled = true; };
   }, [themeId, port]);
 
-  return {
-    themeId: themeId || fallback?.themeId || null,
-    loading: !themeId && fallback === null,
-    error: themeId ? null : fallback?.error ?? null,
-  };
+  return themeExploreSelection({ themeId, fallback });
+}
+
+/** Explicit selections ignore a previous fallback lookup, including its error. */
+function themeExploreSelection({ themeId, fallback }: { themeId: string; fallback: { themeId: string | null; error: string | null } | null }) {
+  return { themeId: themeId || fallback?.themeId || null, loading: !themeId && fallback === null,
+    error: themeId ? null : fallback?.error ?? null };
 }
 
 export function useWiredThemeExploreTheme(

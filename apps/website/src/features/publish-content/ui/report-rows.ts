@@ -506,6 +506,22 @@ const LABEL_BY_OUTCOME: Readonly<Record<PublishContentOutcomeRow["outcome"], str
   blocked: "Skipped",
 };
 
+const COMPLETED_LABEL_BY_OUTCOME: Readonly<Record<PublishContentOutcomeRow["outcome"], string>> = {
+  created: "Published — new",
+  applied: "Published — update",
+  forced: "Published — overwrite",
+  unchanged: "Already up to date",
+  conflict: "Skipped",
+  blocked: "Skipped",
+};
+
+/** Pick planned or completed wording without changing the server's actual outcome.
+ * @complexity O(1); no effects. */
+function reportDispositionLabel({ row, completed }: { row: PublishContentOutcomeRow; completed: boolean }, _options = {}): string {
+  if (row.trashes === true && row.writes) return completed ? "Trashed on live" : TRASH_ON_LIVE_LABEL;
+  return (completed ? COMPLETED_LABEL_BY_OUTCOME : LABEL_BY_OUTCOME)[row.outcome];
+}
+
 /** The label for a row whose update trashes the item on live. */
 const TRASH_ON_LIVE_LABEL = "Will trash on live";
 
@@ -528,7 +544,7 @@ export function publishRowDisposition(row: PublishContentOutcomeRow): PublishRow
  * rows in `dependsOn` apply order and this keeps it. The dialog shows a sorted copy instead
  * (`publish-order.ts`, owner rule 2026-09-26: to publish first, A–Z).
  */
-export function toPublishReportRows(report: PublishContentReport): readonly PublishReportRow[] {
+export function toPublishReportRows(report: PublishContentReport, { completed = false }: { completed?: boolean } = {}): readonly PublishReportRow[] {
   if (report.refused) return [];
   return report.rows.map((row) => {
     const disposition = publishRowDisposition(row);
@@ -540,13 +556,13 @@ export function toPublishReportRows(report: PublishContentReport): readonly Publ
       entityTypeLabel: entityTypeLabelFor(row.entityType),
       entityId: row.entityId,
       entityLabel: displayLabelFor(row),
-      selectable: disposition === "publish" && includedFor.length === 0,
+      selectable: !completed && disposition === "publish" && includedFor.length === 0,
       outcome: row.outcome,
       disposition,
-      dispositionLabel: row.trashes === true ? TRASH_ON_LIVE_LABEL : LABEL_BY_OUTCOME[row.outcome],
+      dispositionLabel: reportDispositionLabel({ row, completed }),
       reason: rawReason === null ? null : friendlyPublishReason(rawReason),
       appliesOnExecute: row.writes,
-      overwritable: disposition === "skipped" && row.canOverwrite === true,
+      overwritable: !completed && disposition === "skipped" && row.canOverwrite === true,
       retiresLabel: retiresLabelFor(row),
       referencedByLabels: referencedByLabelsFor(row),
       includedFor,

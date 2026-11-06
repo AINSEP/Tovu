@@ -5,6 +5,8 @@ import assert from "node:assert/strict";
 
 import Database from "better-sqlite3";
 import { CHAT_HISTORY_DDL, createChatHistoryStore } from "@jini-ai/chat/store/sqlite";
+import { activeRunIndexStatement } from "../../../platform/db/migrations/chat/0003_active_run_index.js";
+import { CHAT_MIGRATIONS } from "../../../platform/db/migrations/index.js";
 
 /**
  * @file Guards the one hazard created by copying Jini's chat-history DDL into a Tovu migration
@@ -16,9 +18,10 @@ import { CHAT_HISTORY_DDL, createChatHistoryStore } from "@jini-ai/chat/store/sq
  * notices when a Jini upgrade changes one of them. A drifted column would not fail loudly: the
  * Jini store would simply query a column Tovu's table does not have, at runtime, in production.
  *
- * These tests compare the shipped migration against the package constant structurally rather than
- * by string equality. The C3 source-hash fixture separately forbids every byte change to applied
- * migration files, including comments. A mismatch rejects the new package release.
+ * These tests compare the frozen baseline plus its registered forward index migration against the
+ * package constant structurally rather than by string equality. The C3 source-hash fixture separately
+ * forbids every byte change to applied migration files, including comments. A mismatch rejects the
+ * new package release; applied history must never be rewritten to match it.
  */
 
 const MIGRATION_PATH = join(process.cwd(), "apps/website/src/platform/db/drizzle/0023_ai_chat_history.sql");
@@ -34,6 +37,11 @@ function normalizeDdl(sql: string): string {
     .replace(/\s+/g, " ")
     .trim()
     .toLowerCase();
+}
+
+/** Apply the existing host-owned forward index step without rewriting the frozen baseline. */
+function migratedChatHistoryDdl(): string {
+  return `${normalizeDdl(readFileSync(MIGRATION_PATH, "utf8"))}\n${activeRunIndexStatement({ dialect: "sqlite" }, {})};`;
 }
 
 /** Applies a DDL blob to a fresh in-memory database and returns its resulting shape. */
@@ -58,11 +66,11 @@ function schemaShapeOf(ddl: string): { tables: string[]; columns: Record<string,
 
 describe("ai_chats DDL parity with @jini-ai/chat/store/sqlite", () => {
   it("produces the identical schema to CHAT_HISTORY_DDL", () => {
-    const migration = readFileSync(MIGRATION_PATH, "utf8");
+    assert.ok(CHAT_MIGRATIONS.some(step => step.id === "0003_active_run_index"), "the forward index step must remain registered");
     assert.deepEqual(
-      schemaShapeOf(normalizeDdl(migration)),
+      schemaShapeOf(migratedChatHistoryDdl()),
       schemaShapeOf(CHAT_HISTORY_DDL),
-      "migration 0023 has drifted from @jini-ai/chat/store/sqlite's CHAT_HISTORY_DDL — reject the package release; commission a forward migration separately, never edit migration 0023",
+      "chat migration history has drifted from @jini-ai/chat/store/sqlite's CHAT_HISTORY_DDL — reject the package release; commission a forward migration separately, never edit migration 0023",
     );
   });
 
@@ -71,7 +79,7 @@ describe("ai_chats DDL parity with @jini-ai/chat/store/sqlite", () => {
     // real store against the real migration, which is the property that actually matters.
     const db = new Database(":memory:");
     db.pragma("foreign_keys = ON");
-    db.exec(normalizeDdl(readFileSync(MIGRATION_PATH, "utf8")));
+    db.exec(migratedChatHistoryDdl());
     const store = createChatHistoryStore({ db: db, scope: {
       scopeId: "workspace-local",
       ownerKind: "user",
@@ -90,7 +98,7 @@ describe("ai_chats DDL parity with @jini-ai/chat/store/sqlite", () => {
   it("enforces the cascade the migration declares", () => {
     const db = new Database(":memory:");
     db.pragma("foreign_keys = ON");
-    db.exec(normalizeDdl(readFileSync(MIGRATION_PATH, "utf8")));
+    db.exec(migratedChatHistoryDdl());
     const store = createChatHistoryStore({ db: db, scope: {
       scopeId: "workspace-local",
       ownerKind: "user",

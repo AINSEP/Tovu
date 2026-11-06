@@ -149,6 +149,13 @@ function mapThemePageRows(entries: readonly ThemePagesFileEntry[]): ThemePageRow
     }));
 }
 
+/** Action errors take precedence over presentation and dependent-detail load failures. */
+function themePagesError({ actionError, presentationError, detailError }: {
+  actionError: string | null; presentationError: Error | null; detailError: Error | null;
+}): string | null {
+  return actionError ?? presentationError?.message ?? detailError?.message ?? null;
+}
+
 /** Project the tab's loading/count state and action-before-load error precedence together. */
 function themePagesDisplayState(
   { data, actionError, presentationError, detailError }: {
@@ -160,7 +167,7 @@ function themePagesDisplayState(
   _options: Record<string, never> = {},
 ): Pick<ThemePagesController, "pages" | "pageCount" | "error"> {
   const pages = data?.pages ?? null;
-  const error = actionError ?? presentationError?.message ?? detailError?.message ?? null;
+  const error = themePagesError({ actionError, presentationError, detailError });
   const pageCount = pages === null ? 0 : pages.length;
   return { pages, pageCount, error };
 }

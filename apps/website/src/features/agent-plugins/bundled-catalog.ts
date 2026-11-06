@@ -38,10 +38,10 @@ const JINI_AGENT_PLUGINS = "@jini-ai/agent-plugins";
  * stripping, which cannot follow `./x.js` imports or compile enums.
  */
 export const SELECTED_AGENT_PLUGIN_PACKAGES: ReadonlyMap<string, string> = new Map([
-  "jev", "site-compliance", "site-import", "wordpress", "ui-ux-design", "slide-design",
+  "jev", "site-compliance", "site-import", "wordpress", "ui-ux-design", "slide-design", "software-engineering",
   "cloudflare", "netlify", "vercel", "github-pages", "s3-compatible", "fly", "render", "railway",
-  "github", "resend", "meilisearch", "google-login", "composio", "supabase", "higgsfield-media",
-  "posthog", "sentry", "opentelemetry", "google-workspace", "charts-recharts",
+  "github", "resend", "meilisearch", "google-login", "composio", "supabase", "higgsfield-media", "commerce", "stripe",
+  "posthog", "sentry", "opentelemetry", "google-workspace", "charts-recharts", "formspree", "google-forms",
 ].map((pluginId): [string, string] => [pluginId, `${JINI_AGENT_PLUGINS}/${pluginId}`]));
 
 /**

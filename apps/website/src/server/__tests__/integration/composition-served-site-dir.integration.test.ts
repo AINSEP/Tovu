@@ -175,7 +175,7 @@ describe("a site composed with an explicit binding, while env/cwd name another s
       "tovu-source-control.json": JSON.stringify({ schemaVersion: 1, providers: [{ id: "bound-git", label: "Bound Git", apiOrigin: "https://git.fixture.test", module: "fixture.mjs" }] }),
       "tovu-deploy-targets.json": JSON.stringify({ schemaVersion: 1, targets: [{ id: "bound-target", label: "Bound Target", module: "fixture.mjs", config: [] }] }),
       "tovu-deploy-ops.json": JSON.stringify({ schemaVersion: 1, platforms: [{ id: "bound-ops", label: "Bound Ops", module: "fixture.mjs", hosts: ["api.fixture.test"] }] }),
-      "tovu-mail-adapters.json": JSON.stringify({ schemaVersion: 1, adapters: [{ id: "bound-mail", label: "Bound Mail", module: "fixture.mjs", credentialLabel: "Fixture Mail Key" }] }),
+      "tovu-mail-adapters.json": JSON.stringify({ schemaVersion: 1, adapters: [{ id: "bound_mail", label: "Bound Mail", module: "fixture.mjs", credentialLabel: "Fixture Mail Key" }] }),
       "tovu-credential-schemes.json": JSON.stringify({ schemaVersion: 1, schemes: [{ id: "bound-scheme", prefix: "FixtureV1", scheme: "FixtureV1" }] }),
       "fixture.mjs": "export default { create() { return {}; }, validateConfig() { return null; }, async status() {}, async logs() {} };",
     };
@@ -194,7 +194,7 @@ describe("a site composed with an explicit binding, while env/cwd name another s
       assert.ok(providers.get("bound-git")!.module);
       assert.equal((await deps!.loadDeployTargets(workspaceId)).get("bound-target")?.pluginId, "github");
       assert.equal((await deps!.loadDeployOps({ workspaceId })).get("bound-ops")?.pluginId, "github");
-      assert.deepEqual((await loadMail()).list().map(adapter => adapter.descriptor.id), ["bound-mail"]);
+      assert.deepEqual((await loadMail()).list().map(adapter => adapter.descriptor.id), ["bound_mail"]);
       assert.deepEqual((await deps!.loadAuthSchemes({ workspaceId })).map(rule => rule.id), ["bound-scheme"]);
       assert.equal(fs.existsSync(path.join(sourceRoot, "other-site")), false);
 

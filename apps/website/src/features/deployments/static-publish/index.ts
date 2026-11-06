@@ -30,7 +30,7 @@ export { inspectStaticPublish } from "./inspection.js";
 
 export {
   getPublishRunSnapshot,
-  runPublishAndAwait,
+  getPublishJobSnapshot,
   startPublishRun,
   type PublishRunSnapshot,
   type PublishRunStatus,

@@ -8,7 +8,7 @@ import { t } from "../shared-components-i18n";
  * @file The admin's one masked-input primitive: Jini's `SecretInput` (a password/token/key `<input>`
  * with an eye toggle inside its right edge), named in the admin locale. Drop-in for
  * `<input type="password">` — every other input prop passes straight through (id, value, onChange,
- * autoComplete, agent handles, …).
+ * autoComplete, …); agent addressing is excluded even while revealed.
  *
  * Keep it OUT of a wrapping `<label>`: the toggle's "Show <label>" name would join the input's
  * own accessible name. Pair it with a sibling `<label htmlFor>` instead.

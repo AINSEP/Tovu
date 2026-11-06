@@ -15,6 +15,10 @@ test('Higgsfield setup documents video and its write grant without claiming a de
   assert.match(gates, /video\/mp4/);
   assert.match(gates, /video\/webm/);
   const manifest = JSON.parse(await readFile(path.join(root, 'plugin.json'), 'utf8'));
-  // The manifest supplies read defaults, so documentation must not imply installation grants writes.
-  assert.deepEqual(manifest.extensions.tovu.mcpServers.higgsfield.tovuDefaultTools, { read: ['models_explore', 'job_status'] });
+  // Browser sign-in grants the reviewed setup lists; installation alone does not authorize writes.
+  assert.deepEqual(manifest.extensions.tovu.mcpServers.higgsfield.tovuDefaultTools, {
+    allow: ['generate_image', 'generate_video', 'models_explore', 'job_status', 'jobs_wait', 'show_generations', 'reveal_generation', 'show_generation_by_ids'],
+    write: ['generate_image', 'generate_video', 'reveal_generation'],
+    read: ['models_explore', 'job_status', 'jobs_wait', 'show_generations', 'show_generation_by_ids'],
+  });
 });

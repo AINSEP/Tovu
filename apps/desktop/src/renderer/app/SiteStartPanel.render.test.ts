@@ -107,8 +107,17 @@ test('SiteStartPanel: a blocked site offers no Start at all', (t) => {
 
 test('B2 crash cap renders selectable redacted details beside manual Start', t => {
   const detail = 'Automatic restart has stopped. Try starting it again.\n\nRedacted details:\nExit code: 9\n[REDACTED]';
-  const view = renderPanel(t, { project: site('a', { status: 'error', statusDetail: detail }) });
+  const view = renderPanel(t, { project: site('a', { status: 'failed', statusDetail: detail }) });
   assert.equal(view.container.querySelector('pre')?.textContent, detail);
   assert.equal(view.button()?.textContent, 'Start site');
   assert.equal(view.starts.length, 0, 'a terminal error must wait for manual Start');
+});
+
+test('SiteStartPanel: only failed sites expose crash details', t => {
+  for (const status of ['stopped', 'sleeping', 'starting'] as const) {
+    const view = renderPanel(t, { project: site('a', { status, statusDetail: 'old crash details' }) });
+    assert.equal(view.container.querySelector('pre'), null, status);
+  }
+  const view = renderPanel(t, { project: site('a', { status: 'failed', statusDetail: null }) });
+  assert.equal(view.container.querySelector('pre'), null);
 });

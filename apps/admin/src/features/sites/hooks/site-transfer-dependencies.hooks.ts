@@ -67,7 +67,7 @@ export interface SiteTransferPort {
   revealSharePassword(required: { shareId: string }, optional?: Record<string, never>): Promise<{ password: string }>;
   staticExportOptions(required: Record<string, never>, optional?: Record<string, never>): Promise<StaticExportOptions>;
   listShares(): Promise<{ shares: SiteShare[] }>;
-  createShare(input: { jobId?: string; includeSavedKeys?: boolean }): Promise<SiteShareCreateResult>;
+  createShare(input: { jobId?: string }): Promise<SiteShareCreateResult>;
   createStaticShare(input: { jobId?: string; themeIds?: readonly string[] }, optional?: Record<string, never>): Promise<SiteShareCreateResult>;
   downloadShare(required: { share: SiteShare }, optional?: Record<string, never>): void;
   revokeShare(input: { shareId: string }): Promise<SiteShare>;
@@ -90,7 +90,7 @@ const IMPORTS = `/workspaces/${WORKSPACE_ID}/site-imports`;
 /** HEAD carries no zip bytes, so only a refusal pays for a GET to read its reason. A check that
  *  cannot run (offline, an old server) answers `null`: the download proceeds as it always did.
  * @complexity O(1) requests; two only when refused. */
-async function readDownloadRefusal({ href }: { href: string }, _options = {}): Promise<ShareDownloadRefusal | null> {
+async function readDownloadRefusal({ href }: { href: string }, _options?: Record<string, never>): Promise<ShareDownloadRefusal | null> {
   const head = await fetch(href, { method: "HEAD", credentials: "same-origin" }).catch(() => null);
   if (!head || head.ok) return null;
   const response = await fetch(href, { method: "GET", credentials: "same-origin" }).catch(() => null);
@@ -99,6 +99,13 @@ async function readDownloadRefusal({ href }: { href: string }, _options = {}): P
   const body = (await response?.json().catch(() => null) ?? {}) as { code?: unknown; message?: unknown; credentialWarnings?: unknown };
   return {
     status: response?.status ?? head.status,
+    ...downloadRefusalDetails(body),
+  };
+}
+
+/** Preserve only the public refusal fields; malformed warning payloads remain an empty list. */
+function downloadRefusalDetails(body: { code?: unknown; message?: unknown; credentialWarnings?: unknown }) {
+  return {
     ...(typeof body.code === "string" ? { code: body.code } : {}),
     ...(typeof body.message === "string" && body.message ? { message: body.message } : {}),
     credentialWarnings: Array.isArray(body.credentialWarnings) ? body.credentialWarnings as CredentialWarning[] : [],
@@ -121,7 +128,7 @@ export const defaultSiteTransferPort: SiteTransferPort = {
   },
   revealSharePassword: ({ shareId }, _optional = {}) => authenticatedAdminRequest({ method: "POST", path: `${SHARES}/${encodeURIComponent(shareId)}/password`, body: {} }),
   listShares: () => authenticatedAdminRequest({ method: "GET", path: SHARES }),
-  createShare: (input) => authenticatedAdminRequest({ method: "POST", path: SHARES, body: input.jobId ? { jobId: input.jobId } : input.includeSavedKeys === true ? { includeSavedKeys: true } : {} }),
+  createShare: (input) => authenticatedAdminRequest({ method: "POST", path: SHARES, body: input.jobId ? { jobId: input.jobId } : {} }),
   staticExportOptions: (_input, _options = {}) => authenticatedAdminRequest({ method: "GET", path: `${SHARES}/static/options` }),
   createStaticShare: (input, _options = {}) => authenticatedAdminRequest({ method: "POST", path: `${SHARES}/static`, body: staticShareInput(input) }),
   downloadShare: ({ share }, _options = {}) => {

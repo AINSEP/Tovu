@@ -8,8 +8,8 @@ import { CORE_HOST_SIGNAL_FALLBACK, evaluateHostSignals, type HostSignalOptions 
  * @returns A fresh, fixed-size permissions snapshot; pure, with no I/O or errors.
  * @complexity O(1) time/space for the fixed capability list.
  * @example assistantCliPermissions({ enabled: true, capabilities: { userMcp: true } }); */
-export function assistantCliPermissions(required: { enabled: boolean; capabilities?: Partial<Record<AssistantCliCapability, boolean>> }, _optional = {}): AssistantCliPermissions {
-  return { enabled: required.enabled, capabilities: Object.fromEntries(ASSISTANT_CLI_CAPABILITIES.map(({ key }) =>
+export function assistantCliPermissions(required: { enabled: boolean; capabilities?: Partial<Record<AssistantCliCapability, boolean>>; byAgent?: AssistantCliPermissions["byAgent"] }, _optional = {}): AssistantCliPermissions {
+  return { ...(required.byAgent ? { byAgent: required.byAgent } : {}), enabled: required.enabled, capabilities: Object.fromEntries(ASSISTANT_CLI_CAPABILITIES.map(({ key }) =>
     [key, required.capabilities?.[key] ?? (key === "userMcp" ? false : required.enabled)])) as Record<AssistantCliCapability, boolean> };
 }
 
@@ -73,10 +73,12 @@ export const resolveAssistantNativeFallbacks = resolveFullCliAccess;
  * @complexity O(1), a fixed number of permissions. No I/O.
  */
 export function resolveAssistantCliPermissions(required: {
-  isOwner: boolean; env: Readonly<Record<string, string | undefined>>; settings: AssistantCliPermissions;
+  isOwner: boolean; env: Readonly<Record<string, string | undefined>>; settings: AssistantCliPermissions; agentId?: string;
 }, optional: HostSignalOptions = {}): AssistantCliPermissions {
   if (!resolveFullCliAccess({ isOwner: required.isOwner, env: required.env }, optional)) return assistantCliPermissions({ enabled: false });
-  return assistantCliPermissions(required.settings);
+  const override = required.agentId ? required.settings.byAgent?.[required.agentId] : undefined;
+  return assistantCliPermissions({ ...required.settings, enabled: override?.enabled ?? required.settings.enabled,
+    capabilities: { ...required.settings.capabilities, ...override?.capabilities } });
 }
 
 /** Locked run policy (SEC-assistant-env-isolation-2026-09-07 Finding 2).

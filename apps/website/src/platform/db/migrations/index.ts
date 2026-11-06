@@ -1,3 +1,7 @@
+import { ownerPasskeys } from './0041_owner_passkeys.js';
+import { ownerMfa } from './0040_owner_mfa.js';
+import { ownerRecoveryCodes } from './0039_owner_recovery_codes.js';
+import { commerceCatalog } from "./commerce/0000_catalog.js";
 import { newsletterSendingIndex } from "./0038_newsletter_sending_index.js";
 import { mediaSourceMetadata } from './0037_media_source_metadata.js';
 import { publishHistoryConfigJsonb } from "./0036_publish_history_config_jsonb.js";
@@ -40,6 +44,7 @@ import { publishBackstop } from "./0007_publish_backstop.js";
 import { postsPublishAtFeaturedMedia } from "./0008_posts_publish_at_featured_media.js";
 import { postsAuthor } from "./0009_posts_author.js";
 import { membersCredentialsRevokedAt } from "./0010_members_credentials_revoked_at.js";
+import { archiveLegacyCommerce } from "./0011_archive_legacy_commerce.js";
 import { dropEmptyCoreCommerceTables } from "./0011_drop_empty_core_commerce_tables.js";
 import { secretsVault } from "./0012_secrets_vault.js";
 import { unifyVaultCredentials } from "./0013_unify_vault_credentials.js";
@@ -61,6 +66,7 @@ import type { MigrationStep } from "./step.js";
  */
 
 export const CHAT_LEDGER_TABLE = "tovu_chat_migrations";
+export const COMMERCE_LEDGER_TABLE = "tovu_commerce_migrations";
 
 function pinned(id: string): string {
   const checksum = MIGRATION_CHECKSUMS[id];
@@ -80,6 +86,7 @@ export const CONTENT_MIGRATIONS: readonly MigrationStep[] = [
   postsPublishAtFeaturedMedia({ checksum: pinned("0008_posts_publish_at_featured_media") }),
   postsAuthor({ checksum: pinned("0009_posts_author") }),
   membersCredentialsRevokedAt({ checksum: pinned("0010_members_credentials_revoked_at") }),
+  archiveLegacyCommerce({ checksum: pinned("0011_archive_legacy_commerce") }),
   dropEmptyCoreCommerceTables({ checksum: pinned("0011_drop_empty_core_commerce_tables") }),
   secretsVault({ checksum: pinned("0012_secrets_vault") }),
   unifyVaultCredentials({ checksum: pinned("0013_unify_vault_credentials") }),
@@ -108,6 +115,9 @@ export const CONTENT_MIGRATIONS: readonly MigrationStep[] = [
   publishHistoryConfigJsonb({ checksum: pinned("0036_publish_history_config_jsonb") }),
   mediaSourceMetadata({ checksum: pinned('0037_media_source_metadata') }),
   newsletterSendingIndex({ checksum: pinned('0038_newsletter_sending_index') }),
+  ownerRecoveryCodes({ checksum: pinned('0039_owner_recovery_codes') }),
+  ownerMfa({ checksum: pinned('0040_owner_mfa') }),
+  ownerPasskeys({ checksum: pinned('0041_owner_passkeys') }),
 ];
 
 export const CHAT_MIGRATIONS: readonly MigrationStep[] = [
@@ -124,6 +134,20 @@ export const PROJECT_MIGRATIONS: readonly MigrationStep[] = [
   projectCredentialKinds(pinned("project/0001_project_credential_kinds")),
   siteKeyAttachments({ checksum: pinned("project/0002_site_key_attachments") }),
 ];
+
+/** Opt-in history: dormant commerce never creates catalog tables at ordinary CMS boot. */
+export const COMMERCE_MIGRATIONS: readonly MigrationStep[] = [
+  commerceCatalog({ checksum: pinned("commerce/0000_catalog") }),
+];
+
+/** Apply the host catalog once on commerce activation; the shared runner serializes concurrent calls.
+ * @param required.kernel Content database kernel, already migrated through the core history.
+ * @returns Applied step ids and diagnostics; activation handles failures without stopping the CMS.
+ * @complexity One bounded schema step on first activation, one ledger read thereafter.
+ */
+export function migrateCommerceDatabase({ kernel }: { kernel: StorageKernel<unknown> }, _optional: Record<string, never> = {}): Promise<MigrationReport> {
+  return runMigrations(kernel, COMMERCE_MIGRATIONS, { ledgerTable: COMMERCE_LEDGER_TABLE });
+}
 
 /** Brings a project database (`project.db`, SQLite; see `project-store.ts`) to head. */
 export function migrateProjectDatabase(kernel: StorageKernel<unknown>): Promise<MigrationReport> {

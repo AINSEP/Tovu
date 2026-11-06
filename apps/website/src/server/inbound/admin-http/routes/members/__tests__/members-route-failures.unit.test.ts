@@ -10,9 +10,9 @@ import { WS, BASE, INTERNAL_CODE, allowed, fixture, invokeRouteDirectly, testRou
 import { registerAdminMemberDisableRoute } from '../disable.js';
 
 const routes: RouteFailureCase[] = [
-  { name: 'members get', register: registerAdminMemberGetRoute, method: 'GET', path: `${BASE}/members/member` },
-  { name: 'members list', register: registerAdminMemberListRoute, method: 'GET', path: `${BASE}/members` },
-  { name: 'members magic link', register: registerAdminMemberRequestMagicLinkRoute, method: 'POST', path: `${BASE}/members/request-magic-link` },
+  { name: 'members get', register: registerAdminMemberGetRoute, method: 'GET', path: `${BASE}/members/member`, failure: {"message": "The members could not be loaded.", "action": "Try loading them again. If it still fails, copy details and report this problem.", "step": "Load members"} },
+  { name: 'members list', register: registerAdminMemberListRoute, method: 'GET', path: `${BASE}/members`, failure: {"message": "The members could not be loaded.", "action": "Try loading them again. If it still fails, copy details and report this problem.", "step": "Load members"} },
+  { name: 'members magic link', register: registerAdminMemberRequestMagicLinkRoute, method: 'POST', path: `${BASE}/members/request-magic-link`, failure: {"message": "The member operation could not be completed.", "action": "Check the result before repeating this operation. Copy details and report this problem.", "step": "member operation"} },
 ];
 
 testRouteFailureMatrix(routes);
@@ -25,7 +25,7 @@ test('member get: a missing record is 404; an unavailable repository is 500', as
     const { app } = fixture(registerAdminMemberGetRoute, { memberRepo: { findById } });
     // The 404 stays an exact snapshot; the 500 is the shared incident envelope without the cause.
     const actual = await dispatchJsonRequest(app, 'GET', `${BASE}/members/member`);
-    assertAdminResponse({ actual, expected });
+    assertAdminResponse({ actual, expected }, { failure: {"message": "The members could not be loaded.", "action": "Try loading them again. If it still fails, copy details and report this problem.", "step": "Load members"} });
     assert.doesNotMatch(JSON.stringify(actual), /database details/);
   }
 });

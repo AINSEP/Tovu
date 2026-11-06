@@ -20,6 +20,10 @@
  * implementation (see the report) rather than trusted on a first GREEN.
  */
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import test from "node:test";
 
 import type { JsonObject } from "@jini-ai/core/primitives";
@@ -39,7 +43,10 @@ import {
 } from "#src/features/media/index";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqliteMediaRepo } from "#src/platform/db/sqlite/media-repo.sqlite";
+import { closeSqliteConnection } from "#src/platform/db/kernel/drivers/sqlite";
 import { contentHash, CONTENT_HASH_VERSION } from "#src/features/publish-content/content-hash";
+import { planImport } from "#src/features/publish-content/planner";
+import { registerPublishContentContributor, resetPublishContentContributorsForTests } from "#src/features/publish-content/type-registry";
 import type { PublishContentDeps } from "#src/features/publish-content/type-registry";
 import { renderDocNode, type MediaAssetRenderMeta } from "#src/server/inbound/public-http/http/site/render";
 
@@ -624,3 +631,66 @@ for (const operation of ["create", "update"] as const) {
     assert.deepEqual(await fixture.deps.outbox!.claimPending({ batchSize: 10, nowIso: "2026-09-18T12:00:00.000Z" }), []);
   });
 }
+
+test("ordinary uploaded media retains its content hash after publishing", async () => {
+  const fixture = await makeFixture();
+  const record = makeMediaRecord({ source: { sha256: PHOTO_SHA256, contentType: 'application/octet-stream', provenance: { kind: 'upload' } } });
+  await stageBlobBytes(fixture.blobStore, PHOTO_SHA256, PHOTO_BYTES);
+  const handler = handlerFor(fixture.deps);
+  const entity = packedFrom(record);
+  await handler.apply({ entity, expectedVersion: undefined, principalId: OPERATOR_ID, idempotencyKey: 'ordinary-upload-round-trip' });
+  assert.equal((await handler.inspect(record.id))!.hash, entity.contentHash,
+    'losing uploaded source metadata must not make the next publish look like a destination edit');
+});
+
+test("bug 44: video and poster published between disposable SQLite sites immediately re-plan unchanged", async t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "media-publish-roundtrip-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const sourceDb = openContentDb(path.join(root, "source.db"));
+  t.after(() => closeSqliteConnection(sourceDb));
+  const destinationDb = openContentDb(path.join(root, "destination.db"));
+  t.after(() => closeSqliteConnection(destinationDb));
+  resetPublishContentContributorsForTests();
+  t.after(resetPublishContentContributorsForTests);
+  registerPublishContentContributor(contributeMediaPublish());
+  const videoBytes = new TextEncoder().encode("disposable video bytes for the publish hashing contract");
+  const videoSha = createHash("sha256").update(videoBytes).digest("hex");
+  const poster = makeMediaRecord({ id: "poster", slug: "poster", createdBy: "source-owner",
+    source: { sha256: PHOTO_SHA256, contentType: "image/jpeg", provenance: { kind: "upload" } } });
+  const video = makeMediaRecord({ id: "video", slug: "video", createdBy: "source-owner",
+    htmlAttributes: 'poster="/m/poster/public.v1/image.webp"',
+    source: { sha256: videoSha, contentType: "video/mp4", provenance: { kind: "upload" } } });
+  const source = await makeFixture({ mediaRepo: new SqliteMediaRepo(sourceDb), mediaRows: [poster, video] });
+  const destination = await makeFixture({ mediaRepo: new SqliteMediaRepo(destinationDb) });
+  const destinationWorkspaceId = "22222222-2222-2222-2222-222222222222";
+  const destinationDeps = { ...destination.deps, workspaceId: destinationWorkspaceId };
+  for (const [sha256, bytes] of [[PHOTO_SHA256, PHOTO_BYTES], [videoSha, videoBytes]] as const) {
+    await destination.blobStore.putIfAbsent({ workspaceId: destinationWorkspaceId, sha256, bytes });
+  }
+  const entities = [];
+  for await (const entity of handlerFor(source.deps).pack()) entities.push(entity);
+  assert.equal(entities.length, 2);
+  const handler = handlerFor(destinationDeps);
+  for (const entity of entities) await handler.apply({ entity, expectedVersion: undefined,
+    principalId: OPERATOR_ID, idempotencyKey: `roundtrip-${entity.id}` });
+  assert.deepEqual(await handler.verifyApplied!({ entities }), []);
+  const report = await planImport({ artifactFormatVersion: 1, hashVersion: CONTENT_HASH_VERSION, entities }, {
+    publishContentDeps: destinationDeps, getBaseline: async () => null,
+    hasBlob: async sha256 => destination.blobStore.exists({ storageKey: computeBlobStorageKey({ workspaceId: destinationWorkspaceId, sha256 }) }),
+  });
+  assert.equal(report.refused, false);
+  assert.deepEqual(report.rows.map(row => [row.entityId, row.outcome, row.writes]).sort(),
+    [["poster", "unchanged", false], ["video", "unchanged", false]]);
+});
+
+test("ordinary metadata imports retain the destination's complete write-once source", async () => {
+  const prior = makeMediaRecord({ source: { sha256: PHOTO_SHA256, contentType: 'application/octet-stream', provenance: { kind: 'upload' } } });
+  const fixture = await makeFixture({ mediaRows: [prior] });
+  await stageBlobBytes(fixture.blobStore, PHOTO_SHA256, PHOTO_BYTES);
+  const incoming = makeMediaRecord({ title: 'Updated title', source: { sha256: PHOTO_SHA256, contentType: 'image/jpeg', provenance: { kind: 'url', url: 'https://example.com/relabelled.jpg' } } });
+  await handlerFor(fixture.deps).apply({ entity: packedFrom(incoming), expectedVersion: prior.version,
+    principalId: OPERATOR_ID, idempotencyKey: 'ordinary-metadata-source-preserved' });
+  const saved = (await fixture.mediaRepo.findById({ workspaceId: WORKSPACE_ID, id: prior.id }))!;
+  assert.equal(saved.title, 'Updated title');
+  assert.deepEqual(saved.source, prior.source, 'same bytes do not authorize changing provenance or MIME');
+});

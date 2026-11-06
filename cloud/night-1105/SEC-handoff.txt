@@ -1,0 +1,128 @@
+Programmer(Direct): Build SEC implementation handoff, 2026-11-05
+
+Status: implementation and regression tests authored; runtime verification NOT RUN by owner instruction.
+No tests, builds, servers, npm install, or commits were run. Other jobs' edits were preserved.
+Pattern priming was explicitly confirmed by the coordinator's brief. No schema change.
+
+Root causes and resulting behavior
+1. T assistant/mcp-ui-tool-calls-route.ts:205 and server/runtime/composition/modules/assistant.ts:461
+   treated a nonblank __typedAnswer as enough to pass the exchange-only callback gate.
+   Shared host policy now admits typed delivery only for assistant_ask_choice, including when an
+   explicit exchange id accompanies it. Refusals give fixed recovery instructions without values.
+   J ui/src/features/mcp-ui/secret-card.ts:114 separately rejects any own typed-answer marker as
+   cancelled before projection or persistence, including malformed/empty markers.
+2. J ui/src/features/mcp-ui/secret-card.ts:92 did not reserve freeText, which chat renders as prose.
+   It now refuses that field name for secret and non-secret fields before opening a card.
+3. T public external-MCP callback authenticated only sealed state and the provider code.
+   Browser-facing starts now return an authenticated host entry link. That GET checks session,
+   workspace, permission and rate budget, then uses the existing api-connections cookie helpers
+   with an isolated callback scope. The 43-byte proof also authenticates sealed-state AAD.
+   Public callbacks require that cookie; missing, malformed, duplicate or mismatched proof cannot
+   exchange a code. Missing proof and invalid state explain same-browser/cookie recovery with fixed
+   pasteable diagnostic codes. Existing stored grants retain their vault AAD, device grants retain
+   their existing flow, and reconnect uses the same host hop. Old unbound links must be restarted.
+   Direct in-process OAuth callers retain the legacy unbound service contract; HTTP never falls
+   back to it. Stateless proof validation works across daemon/web service reconstruction.
+4. J mcp/src/federation/trust.ts:833 only wrapped output as untrusted data, and registrations.ts
+   forwarded it. HTTP request results and stdio tool results lacked exact own-token scrubbing.
+   Both transports now reuse a shared exact-secret scrubber on successful tools/call JSON values;
+   text, structured values and keys are scrubbed, with numeric/boolean syntax preserved. Remote
+   error messages are scrubbed for all methods. HTTP credentials stay local to each response for
+   concurrency/rotation. Stdio uses only the connection's explicit env, not inherited launch env.
+   Initialization and tool-list metadata remain outside successful tool-result scrubbing, so
+   negotiated protocol fields are preserved. This is exact-value masking, not encoded-exfil detection.
+
+Files changed by SEC (T = /Users/la/Programming/tovu-integration-clones/prov2-tovu/apps/website/src)
+T assistant/mcp-ui-tool-calls.ts
+T assistant/mcp-ui-tool-calls-route.ts
+T assistant/index.ts
+T assistant/__tests__/mcp-ui-tool-calls-route.secret-forms.test.ts
+T server/runtime/composition/modules/assistant.ts
+T server/runtime/composition/modules/__tests__/assistant-mcp-proxy.pin.test.ts
+T features/api-connections/browser-binding.ts
+T features/api-connections/__tests__/browser-binding.unit.test.ts
+T features/external-mcp/contracts.ts
+T features/external-mcp/external-mcp-oauth.ts
+T features/external-mcp/tool-registrations.ts
+T features/external-mcp/__tests__/external-mcp-oauth.test.ts
+T features/external-mcp/__tests__/unit/tool-registrations.oauth-origin.unit.test.ts
+T features/agent-plugins/service-ports.ts
+T features/agent-plugins/connect-tool.ts
+T features/agent-plugins/connect-card-ui.ts (documentation only)
+T features/agent-plugins/__tests__/unit/connect-tool.unit.test.ts
+T server/inbound/admin-http/routes/external-mcp/oauth.ts
+T server/inbound/public-http/routes/external-mcp/oauth-callback.ts
+T server/inbound/public-http/routes/external-mcp/__tests__/oauth-callback.test.ts
+T server/inbound/public-http/routes/oauth/callback-page.ts
+T server/__tests__/admin-external-mcp-oauth-routes.test.ts
+
+Files changed by SEC (J = /Users/la/Programming/tovu-integration-clones/prov2-jini/packages)
+J ui/src/features/mcp-ui/secret-card.ts
+J ui/src/features/mcp-ui/__tests__/secret-card.unit.test.ts
+J mcp/src/federation/adapter.http.ts
+J mcp/src/federation/result-secrets.ts (new)
+J mcp/src/federation/stdio/adapter.stdio.ts
+J mcp/src/federation/stdio/default-connect.ts
+J mcp/src/federation/__tests__/http-result-secrets.test.ts (new)
+J mcp/src/federation/__tests__/stdio-result-secrets.test.ts (new)
+
+Tests added or extended
+- All secret-form ids reject typed attempts with an open exchange; ordinary explicit submissions
+  still reach that exchange, proving refusal did not consume it. Proxy rejects locally and never
+  forwards; existing ask-choice typed tests remain the compatibility proof.
+- Secret-card DI tests reject typed markers and reserved freeText without persistence/emission.
+- Scoped cookie helpers reject wrong names, duplicates and malformed proof; API defaults stay intact.
+- Real sealed-state service with injected clock/fake provider refuses missing/wrong proof, including
+  after service reconstruction. Wire tests cover unbound old links, forwarded provider links, first
+  connect and reconnect, cookie clearing, and no-store. Existing callback reason/PKCE/replay/expiry/
+  disconnect tests now carry the actual browser-hop proof instead of bypassing it.
+- HTTP DI tests cover static bearer/API-key reflection, escaped secrets, nested values/keys, remote
+  and transport errors, SSE, numeric syntax, protocol version, and out-of-order token rotation.
+- Stdio DI tests drive real default-connect with a fake spawn channel, covering env wiring,
+  structured/text/error output, protocol version, and preserving inherited launch settings.
+No new sleeps or live providers/subprocesses in these tests. Tests were authored before their fixes;
+RED/GREEN was deliberately not executed because the owner prohibited all test runs.
+
+Validation
+- git diff --check: passed in both clones after the final production edits.
+- npx tsc --noEmit -p packages/ui: failed at existing panel-kit/ErrorNotice.tsx:2 because installed
+  @jini-ai/core lacks UserFacingError. Log: /private/tmp/sec-ui-tsc.log
+- npx tsc --noEmit -p packages/mcp: failed at existing src/server/tool-arguments.ts:12 because installed
+  core lacks decodeToolInputObject and unwrapToolInputEnvelope. Final-state log:
+  /private/tmp/sec-mcp-token-scrub-final-tsc.log (same two errors after all MCP edits).
+- No website/admin/desktop typecheck or runtime/browser loop was attempted, per the brief.
+
+Cost: added operations, frequency x payload
+- Per browser redirect sign-in attempt, one additional authenticated GET x its one connection path
+  and existing session cookie; one redirect response x provider URL bytes plus one ~150-byte cookie.
+- For an already configured row, the extra host hop invokes two exact-key repo reads x one connection
+  record R bytes and one upsert x R bytes; no roster/collection read. It also invokes one existing
+  session lookup x one session record, one permission check x one principal/workspace permission,
+  and one limiter check x one IP bucket. Setup discovery is already persisted on the first leg.
+- Cookie issuance: one write/attempt x 43-byte proof plus fixed attributes. Callback: one bounded
+  header scan/callback x cookie header H bytes and one clear-cookie write/callback x fixed attributes.
+- Sealed redirect: 43 proof bytes added to AAD once on seal and once on open; zero pending-state DB I/O.
+- Token/card guards: zero added external reads/writes/polls x zero bytes. One in-memory scrub/tool
+  response x the transport-bounded JSON payload, O(s*b) time and O(b) space, plus credential bytes.
+- Background polling frequency added: zero. Existing bearer lookup remains once per HTTP POST.
+
+Architecture/quality self-review
+- PASS by source review: generic card/result rules are in Jini; Tovu retains callback metadata,
+  host cookie policy, site-key AAD binding and route/service wiring. No provider coupling or schema.
+- Reuse: callback policy uses existing metadata and exchange bindings; browser binding extends the
+  existing api-connections cookie helpers and Jini OAuth state generation/sealing, not a new cache.
+  Credential scrubbing reuses core exact-only redaction through one shared result helper.
+- Units: callback admission, checkedFields/answerStep, scoped cookie helpers, redirect codec/host hop,
+  and result scrub/transport wiring have no recorded source-review findings after local fixes.
+- Skepticism cases: explicit id plus typed marker, duplicate cookies, arbitrary-cookie old state,
+  wrong proof without token exchange, cross-process reconstruction, rotated concurrent tokens,
+  and short credentials corrupting negotiation. Regression cases cover each; execution is pending.
+- Existing positional HTTP/policy contracts were preserved for compatibility; new helper boundaries
+  use required/optional objects. Added comments document the security reasons and resource bounds.
+- Architecture/quality/runtime verification remains an execution WARNING, not a green test claim.
+
+Open for coordinator/TestRunner
+- Run the focused commands printed in the final response; resolve unrelated missing core exports.
+- Coordinate Jini package consumption/publication into Tovu; no build/install/publish was authorized.
+- Validate real browser cookie behavior when runtime testing is authorized. No runtime pass claimed.
+- Successful tool-list/initialization metadata is intentionally outside the requested result scrub.

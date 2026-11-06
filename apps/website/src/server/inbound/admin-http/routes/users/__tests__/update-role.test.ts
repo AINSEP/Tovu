@@ -229,5 +229,5 @@ test("UPDATE_ROLE route: 500 internal error when an unexpected error is thrown",
   });
   assert.equal(res.status, 500);
   const body = (await res.json()) as { error: string };
-  assertAdminResponse({ actual: body, expected: { error: "internal error" } });
+  assertAdminResponse({ actual: body, expected: { error: "internal error" } }, { failure: {"message":"The role save could not be completed.","action":"Check whether your changes were saved before repeating the save. Copy details and report this problem.","step":"Save role"} });
 });

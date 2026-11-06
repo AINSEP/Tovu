@@ -126,7 +126,7 @@ test("database restore-points routes: GET 500s with the concealed incident envel
   const res = await fetch(`${baseUrl}/api/admin/v1/database/restore-points`, { headers: { cookie } });
   assert.equal(res.status, 500);
   // 88f429c25: the shared envelope conceals the cause behind an incident id.
-  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The database information could not be loaded.", action: "Try loading them again. If it still fails, copy details and report this problem.", step: "Load database information" } });
 });
 
 test("database restore-points routes: GET 500s with a generic message when a non-Error is thrown", async (t) => {
@@ -144,7 +144,7 @@ test("database restore-points routes: GET 500s with a generic message when a non
 
   const res = await fetch(`${baseUrl}/api/admin/v1/database/restore-points`, { headers: { cookie } });
   assert.equal(res.status, 500);
-  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The database information could not be loaded.", action: "Try loading them again. If it still fails, copy details and report this problem.", step: "Load database information" } });
 });
 
 test("database restore-points routes: POST defaults trigger to 'manual' and mints its own idempotencyKey when the body omits both", async (t) => {
@@ -267,7 +267,7 @@ test("database restore-points routes: POST 500s with the concealed incident enve
   });
   assert.equal(res.status, 500);
   // 88f429c25: the shared envelope conceals the cause behind an incident id.
-  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The database operation could not be completed.", action: "Check the result before repeating this operation. Copy details and report this problem.", step: "database operation" } });
 });
 
 test("database restore-points routes: POST is idempotent — a repeat idempotencyKey returns the original restore point without capturing or persisting again (AC-11)", async (t) => {
@@ -327,7 +327,7 @@ test("database restore-points routes: POST 500s with a generic message when a no
     body: JSON.stringify({ trigger: "manual" }),
   });
   assert.equal(res.status, 500);
-  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The database operation could not be completed.", action: "Check the result before repeating this operation. Copy details and report this problem.", step: "database operation" } });
 });
 
 
@@ -343,7 +343,7 @@ test("restore-point retry refuses an inconsistent idempotency lookup before capt
   });
   assert.equal(response.status, 500);
   // The integrity breach stays an INTERNAL_ERROR 500, now concealed behind the shared incident envelope.
-  assertAdminResponse({ actual: await response.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: await response.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The database operation could not be completed.", action: "Check the result before repeating this operation. Copy details and report this problem.", step: "database operation" } });
   assert.equal(capture.mock.callCount(), 0);
   assert.equal(save.mock.callCount(), 0);
 });

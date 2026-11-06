@@ -6,7 +6,7 @@ import { createVisitorPageControl } from '../visitor-page-control';
 
 test('visitor page actions recover after a dropped stream before the next message is sent', async () => {
   const dom = new JSDOM('<script id="tovu-visitor-publication" type="application/json">{"revision":"reviewed","elements":[{"handle":"menu","action":"menu"}]}</script><main data-visitor-page-root data-agent-publication="reviewed"><button data-agent-element="menu">Menu</button></main>', { url: 'https://example.test/' });
-  const constructors = ['Element', 'HTMLElement', 'HTMLButtonElement', 'HTMLInputElement', 'HTMLTextAreaElement', 'HTMLSelectElement', 'HTMLDetailsElement'] as const;
+  const constructors = ['Element', 'Text', 'HTMLElement', 'HTMLButtonElement', 'HTMLInputElement', 'HTMLTextAreaElement', 'HTMLSelectElement', 'HTMLDetailsElement'] as const;
   const previous = constructors.map(name => Object.getOwnPropertyDescriptor(globalThis, name));
   for (const name of constructors) Object.defineProperty(globalThis, name, { configurable: true, value: dom.window[name] });
   const streams: ReadableStreamDefaultController<Uint8Array>[] = [];
@@ -46,8 +46,8 @@ test('visitor page actions recover after a dropped stream before the next messag
     } });
     // Page writes settle the DOM before responding; one event-loop turn is not that contract.
     await responseSent;
+    assert.equal(responses.at(-1)?.ok, true, JSON.stringify(responses.at(-1)));
     assert.equal(clicks, 1);
-    assert.equal(responses.at(-1)?.ok, true);
   } finally {
     control.close(); dom.window.close();
     constructors.forEach((name, index) => {

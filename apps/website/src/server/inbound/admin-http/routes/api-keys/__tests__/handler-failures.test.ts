@@ -61,7 +61,7 @@ test("API-key principal create redacts a persistence failure after a valid reque
   const deps = await depsForHandler();
   const fault = t.mock.method(deps.principalRepo, "save", fail);
   const capture = await invoke(registerAdminApiKeyPrincipalCreateRoute, deps, "/api/admin/v1/api-keys/principals", { displayName: "Nightly Export" });
-  assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: "internal error" } } });
+  assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: "internal error" } } }, { failure: {"message":"The API key operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"API key operation"} });
   assert.deepEqual(fault.mock.calls.map(({ arguments: args }) => args), [[{
     id: "new-1", workspaceId: "ws-7", kind: "api_key", displayName: "Nightly Export", status: "active", createdAt: NOW,
   }]]);
@@ -75,7 +75,7 @@ test("API-key issuance redacts an unexpected target lookup failure", async (t) =
   const capture = await invoke(registerAdminApiKeyIssueRoute, deps, "/api/admin/v1/api-keys", {
     principalId: "machine-3", label: "Export", policyIds: ["manage-keys"], expiresAt: "2027-01-01T00:00:00Z",
   });
-  assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: "internal error" } } });
+  assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: "internal error" } } }, { failure: {"message":"The API key operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"API key operation"} });
   assert.deepEqual(fault.mock.calls.filter(({ arguments: args }) => args[0].id === "machine-3").map(({ arguments: args }) => args), [[{ workspaceId: "ws-7", id: "machine-3" }]]);
   assert.deepEqual(await deps.principalPolicyRepo.listByPrincipalId({ workspaceId: "ws-7", principalId: "machine-3" }), []);
 });
@@ -84,7 +84,7 @@ test("API-key revoke redacts an unexpected key lookup failure", async (t) => {
   const deps = await depsForHandler();
   const fault = t.mock.method(deps.apiKeyRepo, "findById", fail);
   const capture = await invoke(registerAdminApiKeyRevokeRoute, deps, "/api/admin/v1/api-keys/:id/revoke", {}, { id: "key-5" });
-  assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: "internal error" } } });
+  assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: "internal error" } } }, { failure: {"message":"The API key operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"API key operation"} });
   assert.deepEqual(fault.mock.calls.map(({ arguments: args }) => args), [[{ workspaceId: "ws-7", id: "key-5" }]]);
 });
 

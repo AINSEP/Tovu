@@ -1,3 +1,4 @@
+import { publishJobRecoveryMessage } from "@jini-ai/devops/deploy";
 export type { StaticPublishToolDeps } from "./publish-tool-deps.js";
 import type { StaticPublishToolDeps } from "./publish-tool-deps.js";
 import type { AgentToolDefinition as SharedAgentToolDefinition } from "@jini-ai/core";
@@ -6,10 +7,11 @@ import { abortGuardedCredentialRepo } from "../vendor-credentials/abort-guarded-
 export { abortGuardedCredentialRepo } from "../vendor-credentials/abort-guarded-repo.js";
 import { applyPluginCredentialCard } from "../../contracts/core/plugin-credential-card.js";
 import { findPluginCredentialCard, type LoadPluginCredentialCards } from "../custom-credentials/plugin-credential-card.js";
-import { deploymentRefusal, type SiteConsentService } from '#src/features/consent/service';
 import { toolMetadata } from '../../contracts/core/tool-metadata/deployments.js';
 import { inspectStaticPublish } from './static-publish/inspection.js';
+import { humanConfirmedToolHandler, toolApprovalConfirmation } from '../../contracts/core/human-confirm.js';
 import { domainPublishTool } from './static-publish/domain-publish-tool.js';
+import { checkToolPublishConsent } from './static-publish/publish-consent.js';
 import type { GatewayDeps } from '#src/contracts/core/gated-mutations/gateway';
 import { CREDENTIAL_SAVE_TOOL_ID } from "../../contracts/headless/index.js";
 import { defineSecretCardTool, type SecretCardField, type SecretCardForm } from "@jini-ai/ui/mcp-ui/secret-card";
@@ -19,7 +21,6 @@ import { credentialText, formatCredentialHint, translateCredentialMessage } from
 import { resolveOperatorLocale } from '../settings/index.js';
 import { type OperatorLocaleDeps } from '../../contracts/headless/index.js';
 import { PublishCredentialDuplicateLabelError, PublishCredentialValidationError } from './publish-credentials/store.js';
-import { summarizeCredentialSources, type CredentialCopyToolDeps } from '../custom-credentials/index.js';
 import { verifyPublishCredentialById, verifySubmittedPublishCredential } from './static-publish/verify.js';
 import { nowIso as clockNowIso, type Clock } from "@jini-ai/core/primitives";
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
@@ -70,9 +71,10 @@ import { createPublishCredential, updatePublishCredential, type PublishCredentia
 import {
   composePublishCredentialSource,
   getPublishRunSnapshot,
+  getPublishJobSnapshot,
+  startPublishRun,
   planStaticPublish,
   readStaticPublishConfig,
-  runPublishAndAwait,
   unknownTargetMessage,
   type PublishCredentialSource,
   type PublishCredentialVerificationCache,
@@ -207,6 +209,13 @@ const SITE_PUBLISH_ENTITY = "site-publish";
  */
 export const staticPublishAgentToolCatalog: AgentToolDefinition[] = [
   {
+    name: "deployment_get_static_publish_status",
+    description: "Read a static-publish job's progress and final result. Pass the jobId returned by deployment_execute_static_publish, or executionId for an interrupted tool call; omit both to recover this site's most recent job after a lost response. Poll no more often than every 5 seconds. Read the job before retrying a timed-out publish; a public site's 200 may belong to an older deployment. Jobs survive call timeouts and are retained in this process for the last 20 completed publishes; a server restart loses these snapshots, so inspect the hosting dashboard then.",
+    sideEffects: "none",
+    authorization: { permission: DEPLOYMENTS_READ_PERMISSION },
+    inputSchema: { type: "object", additionalProperties: false, properties: { jobId: { type: "string", minLength: 1 }, executionId: { type: "string", minLength: 1 } } },
+  },
+  {
     name: "deployment_preview_static_publish",
     description:
       "Previews publishing the current site WITHOUT publishing anything. Hosts with authenticatedPreview require projectName (same value at execute) and resolve the selected credential server-side for authenticated READS of resource collisions and current domain records/bindings/routes. providerInspection includes the exact hosting/domain changes and per-hostname states; inventoryStatus unknown refuses domain changes. This never uploads or provisions. Other hosts retain local-only previews: validates the target's config fields, reports the base path a real publish would use (computed from the host and its config, never passed in, so it can never mismatch the export), and reports whether a publish credential is configured for that target (true/false only, never the credential itself). Use this before telling a human what a publish would do, or to check readiness. This tool NEVER publishes or changes remote state. Authenticated previews send provider API reads; secrets never reach the caller. Account fields: when a host's config field names the account to publish under (an owner, user or organization), do NOT guess it from the human's name, email address or any other context. Call deployment_get_static_publish_capabilities first: a verified credential reports its real account login as that provider's accountLabel. Use the requested account, or default to accountLabel when present. Ask only when the target account is missing or ambiguous. If accountLabel is null and no account was supplied the account is UNKNOWN: say so plainly and ask the human directly. Never soften that question with an illustrative example, placeholder, or 'e.g. <name>' value of any kind: this tool cannot know whether a made-up example matches a real account, and offering one is how an invented account name once got published to.",
@@ -217,7 +226,7 @@ export const staticPublishAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "deployment_get_static_publish_capabilities",
     description:
-      "Reports live publish readiness for every static-publish host the installed hosting plugins provide, including disabled ones (enabled:false, with guidance to turn them on), WITHOUT exposing any credential. If no hosts are listed, install a hosting plugin under Agent Plugins. Server-side unsealing derives only safe length and last-4 hints; short tokens expose length alone. For each provider: providerId and label; defaultForNewDestination (prefer this for a NEW destination; retain lastPublish target/config for an existing destination or explicit choice), authenticatedPreview (needs projectName and may issue authenticated provider READS); configFields (the fields to pass to deployment_preview_static_publish/deployment_execute_static_publish as top-level strings: name, label, required, help); whether it is ready to publish to right now (ready is true ONLY when a credential is configured AND it was last verified to actually work against the real provider; a saved-but-unverified or saved-but-failing credential is reported as NOT ready, distinctly from no credential at all); credentialConfigured (true iff a credential row/env var exists at all for this provider. This reports configuration, not saved-key presence; credentialOrigin is 'saved' when savedCredentials is nonempty, 'environment' when only the server environment configures it, or null when neither exists. It is kept deliberately separate from verified/accountLabel below: credentialConfigured:true with accountLabel:null means a credential EXISTS but its account identity is not yet known (never verified, or a verify that has not run since), which is a completely different situation from credentialConfigured:false, where no usable credential is configured for this provider and the human needs to configure one); every named credential set saved for it (id, label, isDefault, createdAt, updatedAt, tokenHint: the server-derived length and last4, with no characters exposed for tokens shorter than 12; tokenTail: the same safe last4 or an empty string, so it can be shown to a human as a short identifier like '••••ab12' when they have more than one saved connection for a provider; it is NEVER the full token, a longer fragment, or any ciphertext); the cached verification state (verified: 'valid' | 'invalid' | 'unreachable' | null, and verifiedAt. null means configured but never verified; 'unreachable' means the last check could not reach the provider due to a network issue and does NOT mean the credential is bad, distinctly from 'invalid', which means the provider itself rejected it; this is a CACHED result from the last time a human verified it, possibly stale, never a live check made by this call); accountLabel (the verified credential's own public account login/username, or null when not yet verified or for a provider with no such field to report; NEVER an email, plan, or org. Use it as the default for a config field that names the account to publish under, instead of guessing one from the human's name or email address, using the requested account when supplied. Ask only when the account is missing or ambiguous; when accountLabel is null and no account was supplied, say plainly that the account is not known yet and ask the human directly. NEVER offer an example, placeholder, or 'e.g. <name>' value to illustrate the answer, even a made-up-looking one, since this tool has no way to know whether it happens to match a real account); lastPublish (the last successful publish to this provider from this server: target, url, reachable, status, projectName, publishedAt and the config it used, or null if this provider has never been published to from here. When the human asks to 'publish again' or 'publish the same way as last time', use this to fill the config fields and projectName without asking, and report the previous url when relevant); and, for a provider that is NOT ready, a human-readable reason naming what is missing or wrong (no credential saved for this workspace, a required credential field is not configured, the credential has never been verified yet, it was rejected by the provider, or the last check could not reach the provider). Also reports this install's executionMode ('self-hosted-cli' or 'hosted-api-only'), which affects whether a server-environment-variable credential can ever be used as a fallback. credentialOrigin 'environment' means a working server key exists; publish with it; never open credential_save for that host unless a publish with it failed. credentialOrigin 'environment' with verified null is publishable even when ready is false. Call this before telling a human what publishing would do, before calling deployment_execute_static_publish, or whenever asked something like 'can I publish, and to where'. Do NOT ask the user to paste an API token, access key, or any other secret into this chat, ever, for any reason: a value typed into chat is written into the conversation transcript, which is exactly what this workspace's encrypted credential store exists to avoid, and this tool has no way to accept one anyway (it takes no input). When a host lacks a saved key, local installation owners also receive credentialSources, including for environment-configured hosts and hosts whose plugin is off (follow that host's guidance: offer to turn it on and copy the key): registered site names with matching credential labels and publishHosts, never secret values. An empty keys list means that site has no saved key for a host lacking a saved key; a reasonCode means that source could not be inspected. If the owner named a source with no matching key, name the sites that do have one and ask before changing the source; use credential_copy_from_project for its human selection card. Do not copy an unrelated host token or silently choose another site. Saved worksFor IDs declare compatibility; labels never imply it. Compatible vendor-group defaults take precedence, then a sole compatible key; choose an explicit id when ambiguous. If no existing key can be reused, or a credential was rejected, call credential_save with kind publish-host in this turn to open its secure card, then retry once after a successful save. The admin's Static Site tab (Deployment panel → Static Site → Publish) is an alternative for manual setup.",
+      "Reports live publish readiness for every static-publish host the installed hosting plugins provide, including disabled ones (enabled:false, with guidance to turn them on), WITHOUT exposing any credential. If no hosts are listed, install a hosting plugin under Agent Plugins. Server-side unsealing derives only safe length and last-4 hints; short tokens expose length alone. For each provider: providerId and label; defaultForNewDestination (prefer this for a NEW destination; retain lastPublish target/config for an existing destination or explicit choice), authenticatedPreview (needs projectName and may issue authenticated provider READS); configFields (the fields to pass to deployment_preview_static_publish/deployment_execute_static_publish as top-level strings: name, label, required, help); whether it is ready to publish to right now (ready is true ONLY when a credential is configured AND it was last verified to actually work against the real provider; a saved-but-unverified or saved-but-failing credential is reported as NOT ready, distinctly from no credential at all); credentialConfigured (true iff a credential row/env var exists at all for this provider. This reports configuration, not saved-key presence; credentialOrigin is 'saved' when savedCredentials is nonempty, 'environment' when only the server environment configures it, or null when neither exists. It is kept deliberately separate from verified/accountLabel below: credentialConfigured:true with accountLabel:null means a credential EXISTS but its account identity is not yet known (never verified, or a verify that has not run since), which is a completely different situation from credentialConfigured:false, where no usable credential is configured for this provider and the human needs to configure one); every named credential set saved for it (id, label, isDefault, createdAt, updatedAt, tokenHint: the server-derived length and last4, with no characters exposed for tokens shorter than 12; tokenTail: the same safe last4 or an empty string, so it can be shown to a human as a short identifier like '••••ab12' when they have more than one saved connection for a provider; it is NEVER the full token, a longer fragment, or any ciphertext); the cached verification state (verified: 'valid' | 'invalid' | 'unreachable' | null, and verifiedAt. null means configured but never verified; 'unreachable' means the last check could not reach the provider due to a network issue and does NOT mean the credential is bad, distinctly from 'invalid', which means the provider itself rejected it; this is a CACHED result from the last time a human verified it, possibly stale, never a live check made by this call); accountLabel (the verified credential's own public account login/username, or null when not yet verified or for a provider with no such field to report; NEVER an email, plan, or org. Use it as the default for a config field that names the account to publish under, instead of guessing one from the human's name or email address, using the requested account when supplied. Ask only when the account is missing or ambiguous; when accountLabel is null and no account was supplied, say plainly that the account is not known yet and ask the human directly. NEVER offer an example, placeholder, or 'e.g. <name>' value to illustrate the answer, even a made-up-looking one, since this tool has no way to know whether it happens to match a real account); lastPublish (the last successful publish to this provider from this server: target, url, reachable, status, projectName, publishedAt and the config it used, or null if this provider has never been published to from here. When the human asks to 'publish again' or 'publish the same way as last time', use this to fill the config fields and projectName without asking, and report the previous url when relevant); and, for a provider that is NOT ready, a human-readable reason naming what is missing or wrong (no credential saved for this workspace, a required credential field is not configured, the credential has never been verified yet, it was rejected by the provider, or the last check could not reach the provider). Also reports this install's executionMode ('self-hosted-cli' or 'hosted-api-only'), which affects whether a server-environment-variable credential can ever be used as a fallback. credentialOrigin 'environment' means a working server key exists; publish with it; never open credential_save for that host unless a publish with it failed. credentialOrigin 'environment' with verified null is publishable even when ready is false. Call this before telling a human what publishing would do, before calling deployment_execute_static_publish, or whenever asked something like 'can I publish, and to where'. Do NOT ask the user to paste an API token, access key, or any other secret into this chat, ever, for any reason: a value typed into chat is written into the conversation transcript, which is exactly what this workspace's encrypted credential store exists to avoid, and this tool has no way to accept one anyway (it takes no input). On a local installation, open credential_copy_from_project to select a shared key in the owner's card. Remote sites use credential_save to enter a new key securely. Saved worksFor IDs declare compatibility; labels never imply it. Compatible vendor-group defaults take precedence, then a sole compatible key; choose an explicit id when ambiguous. If no existing key can be reused, or a credential was rejected, call credential_save with kind publish-host in this turn to open its secure card, then retry once after a successful save. The admin's Static Site tab (Deployment panel → Static Site → Publish) is an alternative for manual setup.",
     sideEffects: "none",
     authorization: { permission: DEPLOYMENTS_READ_PERMISSION },
     inputSchema: NO_INPUT_SCHEMA,
@@ -225,7 +234,7 @@ export const staticPublishAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "deployment_execute_static_publish",
     description:
-      "Publishes a fresh static export immediately to a host listed by deployment_get_static_publish_capabilities using its saved credential.\n\nInput is {target, projectName, credentialId?, ...host configFields as top-level strings}; customDomain and zoneId are descriptor-owned fields. A requested domain is freshly inspected, shown in a human confirmation card and checked for stale state before mutation. A model-supplied confirmation flag is refused. unknown fields and secrets are refused. Requires deployments.publish. Wait for the result: {published:true, reachable:true, target, url, status, deploymentId?, basePath?} confirms the site is live. An upload awaiting public reachability returns {published:true, reachable:false, target, url, status, message, deploymentId?, basePath?}; report that partial outcome honestly. Missing credentials return {published:false, reason:'no-credential', message}; failures return {published:false, code, message}. Never exposes a token or raw provider response. A concurrent publish returns ALREADY_RUNNING; wait for it to settle.",
+      "Starts a background publish and returns jobId quickly. Read deployment_get_static_publish_status with that jobId every 5 seconds for progress and the final result. A running job is not a completed publication. If this call times out, read status without jobId before retrying. Publishes a fresh static export to a host listed by deployment_get_static_publish_capabilities using its saved credential.\n\nInput is {target, projectName, credentialId?, ...host configFields as top-level strings}; customDomain and zoneId are descriptor-owned fields. A requested domain is freshly inspected, shown in a human confirmation card and checked for stale state before mutation. A model-supplied confirmation flag is refused. unknown fields and secrets are refused. Requires deployments.publish. Wait for the result: {published:true, reachable:true, target, url, status, deploymentId?, basePath?} confirms the site is live. An upload awaiting public reachability returns {published:true, reachable:false, target, url, status, message, deploymentId?, basePath?}; report that partial outcome honestly. Missing credentials return {published:false, reason:'no-credential', message}; failures return {published:false, code, message}. Never exposes a token or raw provider response. A concurrent publish returns ALREADY_RUNNING; wait for it to settle.",
     // Genuinely destructive in the sense that matters for this domain (sends content to the public
     // internet with a write-scoped external credential) — classified accordingly, and cross-checked
     // against `staticPublishDerivedRisk` below at build time (`assertToolIsWirable`) so this
@@ -258,6 +267,7 @@ export const staticPublishDerivedRisk: DerivedRiskByToolId = new Map<string, Age
   // config shape (`validateStaticPublishConfig`, pure). Authenticated provider inspection may
   // resolve server-side for GETs only; no provisioning, uploads or export run.
   ["deployment_preview_static_publish", "none"],
+  ["deployment_get_static_publish_status", "none"],
   // -> `listPublishCredentials` (a pure DB read, never decrypts — `publish-credentials/store.ts`'s own
   // doc) plus `PublishCredentialSource.isConfigured` per provider (same non-decrypting contract the
   // preview tool relies on). No write, no decrypt, no network call.
@@ -607,26 +617,6 @@ function mapPublishOutcomeToToolResult(
   detailRows: readonly DetailRow[],
   projectName: string
 ): { result: unknown; outcome: SurfaceEmission } {
-  if (outcome.ok === "partial") {
-    return {
-      result: {
-        published: true,
-        reachable: false,
-        target: outcome.targetId,
-        url: outcome.url,
-        status: outcome.status,
-        message: outcome.message,
-        ...(outcome.deploymentId !== undefined ? { deploymentId: outcome.deploymentId } : {}),
-        ...(outcome.basePath !== undefined ? { basePath: outcome.basePath } : {}),
-      },
-      outcome: {
-        channel: "mcp-ui",
-        payload: {
-          resource: buildPublishOutcomeResource({ exchangeId: exchange.id, config, detailRows, projectName, state: "partial", message: outcome.message, url: outcome.url }),
-        },
-      },
-    };
-  }
   if (!outcome.ok) {
     return {
       result: { published: false, cancelled: false, code: outcome.code, message: outcome.message, ...(outcome.credentialSetup ? { credentialSetup: outcome.credentialSetup } : {}) },
@@ -636,26 +626,32 @@ function mapPublishOutcomeToToolResult(
       },
     };
   }
+  const published = {
+    published: true, target: outcome.targetId, url: outcome.url, status: outcome.status,
+    ...(outcome.providerMetadata ? { providerMetadata: outcome.providerMetadata } : {}),
+    ...(outcome.deploymentId !== undefined ? { deploymentId: outcome.deploymentId } : {}),
+    ...(outcome.basePath !== undefined ? { basePath: outcome.basePath } : {}),
+    ...(outcome.consentWarning ? { consentWarning: outcome.consentWarning } : {}),
+  };
+  if (outcome.ok === "partial") {
+    return {
+      result: { ...published, reachable: false, message: outcome.message },
+      outcome: {
+        channel: "mcp-ui",
+        payload: {
+          resource: buildPublishOutcomeResource({ exchangeId: exchange.id, config, detailRows, projectName, state: "partial", message: [outcome.message, outcome.consentWarning].filter(Boolean).join(" "), url: outcome.url }),
+        },
+      },
+    };
+  }
   return {
-    result: {
-      published: true,
-      reachable: true,
-      target: outcome.targetId,
-      url: outcome.url,
-      status: outcome.status,
-      ...(outcome.deploymentId !== undefined ? { deploymentId: outcome.deploymentId } : {}),
-      ...(outcome.basePath !== undefined ? { basePath: outcome.basePath } : {}),
-    },
+    result: { ...published, reachable: true },
     outcome: {
       channel: "mcp-ui",
       payload: {
         resource: buildPublishOutcomeResource({
-          exchangeId: exchange.id,
-          config,
-          detailRows,
-          projectName,
-          state: "success",
-          message: `Published live at ${outcome.url}.`,
+          exchangeId: exchange.id, config, detailRows, projectName, state: "success",
+          message: [`Published live at ${outcome.url}.`, outcome.consentWarning].filter(Boolean).join(" "),
           url: outcome.url,
         }),
       },
@@ -779,6 +775,8 @@ async function saveProposedCredential(required: {
   const repo = abortGuardedCredentialRepo({ store: deps.vendorCredentialSetRepo, signal });
   const writeDeps: PublishCredentialWriteDeps = {
     repo,
+    // Only this submitted secret card receives the trusted, grant-checked replacement port.
+    allowSharedKeyReplacement: true,
     loadDeployTargets: deployTargetsLoader(deps),
     sealer: deps.siteAssistantSecretSealer,
     keyring: deps.siteAssistantSecretKeyring,
@@ -866,15 +864,6 @@ function credentialConnectionStatus({ verification }: {
 /** All blocked assistant publishes report the same event and product source. */
 function trackBlockedToolPublish({ deps, principalId, target, reasonClass }: { deps: StaticPublishToolDeps; principalId: string; target: string; reasonClass: "config" | "consent" | "busy" }, _options = {}): void {
   deps.tracker?.capture({ name: "site_publish_blocked", userId: principalId }, { properties: { target, reasonClass, source: "assistant" } });
-}
-
-/** Consent remains a fail-closed preflight before credential reads or publishing. */
-async function checkToolPublishConsent({ deps, principalId }: {
-  deps: StaticPublishToolDeps; principalId: string;
-}, _options = {}) {
-  return deps.siteConsent
-    ? await deps.siteConsent.deploymentCheck({ principalId, permission: 'deployments.publish' })
-    : deploymentRefusal({ problems: [{ code: 'CONSENT_UNAVAILABLE', message: 'Cookie consent readiness is unavailable. No publish was started.' }] });
 }
 
 /**
@@ -978,33 +967,8 @@ function hostsMissingSavedKey({ providers, installed }: {
   });
 }
 
-/** Keep copy inventory keys that can fill a missing publish credential, after owner admission,
- *  naming the off hosts they match so the chat can offer them. */
-function matchingCredentialSources({ sources, missing }: {
-  sources: ReturnType<typeof summarizeCredentialSources>; missing: readonly MissingHost[];
-}, _options = {}) {
-  return sources.map(source => ({ ...source, keys: source.keys.flatMap(key => {
-    const hosts = missing.filter(host => key.publishHosts.includes(host.id) || key.worksFor.some(id => host.worksForIds.includes(id))).map(host => host.id);
-    return hosts.length ? [{ ...key, publishHosts: [...new Set([...key.publishHosts, ...hosts])] }] : [];
-  }) }));
-}
-
-/** An off host another site holds a key for: tell the chat exactly what to offer, through the
- *  existing enable (plugins_set_enabled) and owner-approved copy (credential_copy_from_project) paths. */
-function offerTurnOnAndCopy<P extends { providerId: string; label: string; pluginId: string; enabled: boolean | null }>({ providers, credentialSources }: {
-  providers: readonly P[]; credentialSources: ReturnType<typeof matchingCredentialSources>;
-}, _options = {}): P[] {
-  return providers.map(provider => {
-    if (provider.enabled !== false) return provider;
-    const sites = credentialSources.filter(source => source.keys.some(key => key.publishHosts.includes(provider.providerId))).map(source => source.name);
-    if (!sites.length) return provider;
-    const { label } = provider;
-    return { ...provider, guidance: `The ${label} plugin is off on this site, but ${sites.join(", ")} ${sites.length === 1 ? "has" : "have"} a saved ${label} key. ` +
-      `Offer the owner: "The ${label} plugin is off on this site. Turn it on and copy the key from ${sites[0]}?" If they agree, call plugins_set_enabled with family 'agent-plugin', pluginId '${provider.pluginId}' and enabled true, ` +
-      `then credential_copy_from_project (the owner picks the site and key in its card), then call deployment_get_static_publish_capabilities again. Never say no site has a ${label} key.` };
-  });
-}
-
+// Cross-site discovery used to offer another site's key for a missing host. That reveals private
+// inventory to a site agent. Offer the owner picker instead; the model never receives its choices.
 export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, surfaces: AssistantSurfaceDeps): ToolRegistration[] {
   const credentialSource =
     deps.credentialSource ??
@@ -1067,26 +1031,34 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
       const providers = await Promise.all(inventory.items.map(installed => buildInstalledProviderCapability({ installed, registry, context: providerCapabilityContext })));
       const refusals = [...new Set([...inventory.refusals, ...registry.refusals])];
 
-      // Cross-site labels belong only to the local installation owner. Reuse the copy inventory;
-      // discovery never opens a token, chooses a source or authorizes a copy.
-      // Off hosts count too (savedCredentials null): another site's key is what lets the chat offer "turn it on and copy".
       const missing = hostsMissingSavedKey({ providers, installed: inventory.items });
-      if (missing.length && deps.localCredentialCopy?.localHost && ctx.principal.id === await deps.ownerPrincipalId) {
-        try {
-          const sources = summarizeCredentialSources({ sources: await deps.localCredentialCopy.list({}) });
-          const credentialSources = matchingCredentialSources({ sources, missing });
-          return { executionMode: deps.publishExecutionMode, providers: offerTurnOnAndCopy({ providers, credentialSources }), refusals, credentialSources };
-        } catch {
-          return { executionMode: deps.publishExecutionMode, providers, refusals, credentialSourcesUnavailable: true };
-        }
-      }
+      if (missing.length) return { executionMode: deps.publishExecutionMode, providers, refusals,
+        credentialSetup: deps.vendorCredentialSetRepo.project
+          ? { toolId: "credential_copy_from_project", message: "Use a saved key to choose from Shared Keys, or enter a new key in the secure card." }
+          : { toolId: "credential_save", kind: "publish-host", message: "Open the secure key card to save a publishing key for this site." } };
       return { executionMode: deps.publishExecutionMode, providers, refusals };
     },
 
-    /** Validates and publishes with server-side credentials after the shared registration policy
-     * asks for human approval. The result still waits for the provider and
-     * public reachability check; headless assistant calls without consent fail closed. */
-    deployment_execute_static_publish: async (ctx, optional = {}) => {
+    /** Permission-checked job reads; no credentials or provider requests on the polling path. */
+    deployment_get_static_publish_status: async (ctx) => {
+      const raw = requireInputRecord({ input: ctx.input ?? {} });
+      for (const key of Object.keys(raw)) if (key !== "jobId" && key !== "executionId") throw new ToolInputError({ message: `Unknown publish-status field '${key}'. Pass jobId or executionId, or {} for this site's latest publish.` });
+      const jobId = raw.jobId === undefined ? undefined : requireString({ input: raw, key: "jobId" });
+      const requestId = raw.executionId === undefined ? undefined : requireString({ input: raw, key: "executionId" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: DEPLOYMENTS_READ_PERMISSION }, { entityType: SITE_PUBLISH_ENTITY });
+      const snapshot = getPublishJobSnapshot({ workspaceId: deps.workspaceId, jobId, requestId });
+      if (!snapshot) return { code: "PUBLISH_JOB_NOT_FOUND", message: "No retained publish job was found for this site. A restart clears job snapshots. Check the hosting dashboard before starting another publish." };
+      const mapped = snapshot.result ? mapPublishOutcomeToToolResult(snapshot.result, { id: snapshot.jobId }, { target: snapshot.target }, [], "") : undefined;
+      return { ...snapshot, ...(mapped ? { result: mapped.result } : {}),
+        message: publishJobRecoveryMessage({ job: snapshot, statusToolId: "deployment_get_static_publish_status" }) };
+    },
+
+    /** Validates and starts the existing background publish path after approval. The job owns
+     * its lifetime; the initiating delegated call can finish or be cancelled independently. */
+    deployment_execute_static_publish: async (inputCtx, optional = {}) => {
+      // Keep the same detached proposal/actor snapshot the former policy wrapper supplied before
+      // any asynchronous registry or permission read; later cards and effects use only this call.
+      const ctx = { ...inputCtx, input: structuredClone(inputCtx.input), principal: { ...inputCtx.principal }, run: { ...inputCtx.run } };
       const raw = requireInputRecord({ input: ctx.input });
       const registry = await deployTargetsLoader(deps)(deps.workspaceId);
       const loaded = requireStaticPublishTarget(raw, registry);
@@ -1095,7 +1067,7 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
 
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "deployments.publish" }, { entityType: SITE_PUBLISH_ENTITY });
 
-      const { config, plan, detailRows } = planToolPublish(registry, raw, loaded);
+      const { config, plan } = planToolPublish(registry, raw, loaded);
       if (!plan.ok) {
         trackBlockedToolPublish({ deps, principalId: ctx.principal.id, target, reasonClass: "config" });
         throw new ToolInputError({ message: `deployment_execute_static_publish: ${plan.message}` });
@@ -1106,8 +1078,15 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
         return { published: false, cancelled: false, ...consent };
       }
 
+      const onSettled = () => {
+        const settled = getPublishJobSnapshot({ workspaceId: deps.workspaceId, requestId: ctx.executionId });
+        if (settled?.result && optional.emitSurface) {
+          const mapped = mapPublishOutcomeToToolResult(settled.result, { id: settled.jobId }, config, [], "");
+          void optional.emitSurface(mapped.outcome).catch(() => console.warn("[static-publish] result card could not be delivered; read deployment_get_static_publish_status for the result"));
+        }
+      };
       if (config.customDomain && loaded.module.preview) {
-        return domainPublishTool({ deps, surfaces, credentialSource, historyStore, config, projectName,
+        return domainPublishTool({ deps, surfaces, credentialSource, historyStore, config, projectName, onSettled,
           ...toolCredentialChoice({ raw }) })(ctx, optional);
       }
 
@@ -1126,20 +1105,39 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
       }
 
       if (ctx.signal.aborted) return { published: false, cancelled: false, reason: "abandoned" };
-      if (getPublishRunSnapshot().status === "running") {
-        trackBlockedToolPublish({ deps, principalId: ctx.principal.id, target, reasonClass: "busy" });
-        return { published: false, cancelled: false, code: "ALREADY_RUNNING", message: "A publish is already running. Wait for it to finish before publishing again." };
-      }
-      const outcome = await runPublishAndAwait(
-        { credentialSource, loadDeployTargets: deployTargetsLoader(deps), buildTarget: deps.buildTarget, tracker: deps.tracker, observability: deps.observability, hostKit: deps.hostKit, formDestination: deps.formDestination },
-        { productEvent: { userId: ctx.principal.id, source: "assistant" }, workspaceId: deps.workspaceId, publishOutputRootDir: deps.publishOutputRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, config, projectName,
-          ...toolCredentialChoice({ raw }) },
-        { nowIso: () => clockNowIso({ clock: deps.clock }) },
-        historyStore,
-      );
-      const mapped = mapPublishOutcomeToToolResult(outcome, { id: ctx.executionId }, config, detailRows, projectName);
-      if (optional.emitSurface) await optional.emitSurface(mapped.outcome);
-      return mapped.result;
+
+      // This domain owns one approval: the detailed domain plan above, or the ordinary publish
+      // card below. A second registration wrapper would ask twice for a domain publication.
+      return humanConfirmedToolHandler(surfaces, {
+        flag: 'published',
+        prepare: async () => toolApprovalConfirmation({ descriptor: { id: 'deployment_execute_static_publish', metadata: toolMetadata.deployment_execute_static_publish, inputSchema: EXECUTE_STATIC_PUBLISH_SCHEMA },
+          input: raw, locale: await resolveOperatorLocale({ deps, workspaceId: deps.workspaceId, principalId: ctx.principal.id }) }),
+        dialog: spec => spec,
+        run: async (approvedCtx) => {
+          await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: approvedCtx.principal.id, permission: "deployments.publish" }, { entityType: SITE_PUBLISH_ENTITY });
+          const currentConsent = await checkToolPublishConsent({ deps, principalId: approvedCtx.principal.id });
+          if (currentConsent) {
+            trackBlockedToolPublish({ deps, principalId: approvedCtx.principal.id, target, reasonClass: "consent" });
+            return { published: false, cancelled: false, ...currentConsent };
+          }
+          if (approvedCtx.signal.aborted) return { published: false, cancelled: false, reason: "abandoned" };
+          const active = getPublishRunSnapshot();
+          if (active.status === "running") {
+            trackBlockedToolPublish({ deps, principalId: approvedCtx.principal.id, target, reasonClass: "busy" });
+            return { published: false, cancelled: false, code: "ALREADY_RUNNING", jobId: getPublishJobSnapshot({ workspaceId: deps.workspaceId, jobId: active.jobId! })?.jobId, message: "A publish is already running. Call deployment_get_static_publish_status with this jobId (or {} for the latest job on this site). Do not start another publish." };
+          }
+          const job = startPublishRun(
+            { credentialSource, loadDeployTargets: deployTargetsLoader(deps), buildTarget: deps.buildTarget, tracker: deps.tracker, observability: deps.observability, hostKit: deps.hostKit, formDestination: deps.formDestination, publicPageSecurityHeaders: deps.publicPageSecurityHeaders },
+            { requestId: approvedCtx.executionId, productEvent: { userId: approvedCtx.principal.id, source: "assistant" }, workspaceId: deps.workspaceId, publishOutputRootDir: deps.publishOutputRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, config, projectName,
+              ...toolCredentialChoice({ raw }) },
+            { nowIso: () => clockNowIso({ clock: deps.clock }) },
+            historyStore,
+            { triggeredBy: "agent_tool", onSettled },
+          );
+          return { published: false, accepted: true, jobId: job.jobId, status: job.status, progress: job.progress,
+            message: "Publish started in the background. Call deployment_get_static_publish_status with this jobId in 5 seconds for progress and the final result. Do not publish again while it is running." };
+        },
+      })(ctx, optional);
     },
 
     /**

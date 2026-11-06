@@ -1,9 +1,10 @@
 import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
 import { COMMON_I18N } from "../../lib/i18n-common";
+import { SKILLS_PAGE_DICT } from "./skills-page-dictionary";
 
 /**
- * @file Translations for the skill-install confirmation (`SkillInstallConfirmation.tsx`), which
+ * @file Translations for the Skills page and skill-install confirmation, which
  * renders both on the Skills page and inside the translated chat dock. Before this existed its
  * "Dismiss" button and "Install skill" dialog name were English for every locale (bug 11-02 o2).
  * "Cancel" comes from `COMMON_I18N`. Same lookup shape as `database-i18n.tsx`: feature keys first,
@@ -33,4 +34,5 @@ const SKILLS_DICT: Record<string, Record<string, string>> = {
   "zh-TW": { Dismiss: "關閉", "Install skill": "安裝技能", "Install skill?": "要安裝技能嗎？", "Review instructions from sources you trust. Installation runs no code.": "請檢閱來自可信來源的說明。安裝不會執行任何程式碼。", "Confirm install": "確認安裝" },
 };
 
-export const t = createDictionaryTranslator({ featureDictionary: SKILLS_DICT }, { commonDictionary: COMMON_I18N });
+const dictionary = Object.fromEntries(Object.entries(SKILLS_DICT).map(([locale, confirmation]) => [locale, { ...SKILLS_PAGE_DICT[locale], ...confirmation }]));
+export const t = createDictionaryTranslator({ featureDictionary: dictionary }, { commonDictionary: COMMON_I18N });

@@ -71,11 +71,11 @@ test("unexpected store or loader failures answer a private 500 and log a correla
   const logged: unknown[][] = [];
   t.mock.method(console, "error", (...args: unknown[]) => { logged.push(args); });
   const invoke = harness();
-  assertAdminResponse({ actual: await invoke("get", PROVIDERS), expected: internal });
-  assertAdminResponse({ actual: await invoke("get", BASE), expected: internal });
-  assertAdminResponse({ actual: await invoke("post", BASE, { body: { label: "valid", connection: { providerId: "example-git", token: "fixture-secret" } } }), expected: internal });
-  assertAdminResponse({ actual: await invoke("put", `${BASE}/:id`, { body: { isDefault: true } }), expected: internal });
-  assertAdminResponse({ actual: await invoke("delete", `${BASE}/:id`), expected: internal });
+  assertAdminResponse({ actual: await invoke("get", PROVIDERS), expected: internal }, { failure: {"message":"The system setting operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"system setting operation"} });
+  assertAdminResponse({ actual: await invoke("get", BASE), expected: internal }, { failure: {"message":"The system setting operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"system setting operation"} });
+  assertAdminResponse({ actual: await invoke("post", BASE, { body: { label: "valid", connection: { providerId: "example-git", token: "fixture-secret" } } }), expected: internal }, { failure: {"message":"The system setting operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"system setting operation"} });
+  assertAdminResponse({ actual: await invoke("put", `${BASE}/:id`, { body: { isDefault: true } }), expected: internal }, { failure: {"message":"The system setting operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"system setting operation"} });
+  assertAdminResponse({ actual: await invoke("delete", `${BASE}/:id`), expected: internal }, { failure: {"message":"The system setting operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"system setting operation"} });
   assertAdminDiagnostics({ calls: logged, operation: "[routes/system/source-control-credentials]", diagnostics: Array(5).fill(/SECRET repo detail/) });
 });
 

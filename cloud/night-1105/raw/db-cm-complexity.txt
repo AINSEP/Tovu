@@ -1,0 +1,9 @@
+
+/workspace/Tovu/apps/website/src/server/runtime/composition/__tests__/commerce-data-retention.integration.test.ts
+   42:78  warning  Make sure that executing SQL queries is safe here                              sonarjs/sql-queries
+   52:37  warning  Make sure that executing SQL queries is safe here                              sonarjs/sql-queries
+  106:9   warning  Refactor this code to not nest more than 3 if/for/while/switch/try statements  sonarjs/nested-control-flow
+  111:9   warning  Refactor this code to not nest more than 3 if/for/while/switch/try statements  sonarjs/nested-control-flow
+
+✖ 4 problems (0 errors, 4 warnings)
+

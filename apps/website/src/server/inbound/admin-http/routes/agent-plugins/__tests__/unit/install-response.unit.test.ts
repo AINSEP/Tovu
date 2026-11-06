@@ -101,7 +101,7 @@ test("installErrorResponse: a held activation lock is 409 busy and logs the real
 });
 
 test("installErrorResponse: an unrecognised error is a redacted 500 with no warning", () => {
-  assertAdminResponse({ actual: installErrorResponse(new Error("private /secret/layout")), expected: { status: 500, body: { code: "INTERNAL_ERROR", error: "internal error" } } });
+  assertAdminResponse({ actual: installErrorResponse(new Error("private /secret/layout")), expected: { status: 500, body: { code: "INTERNAL_ERROR", error: "internal error" } } }, { failure: {"message":"The agent plugin operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"agent plugin operation"} });
 });
 
 const candidate: AgentPluginSearchCandidate = {

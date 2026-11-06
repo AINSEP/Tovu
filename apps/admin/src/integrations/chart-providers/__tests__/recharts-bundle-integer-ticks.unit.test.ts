@@ -13,7 +13,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { act } from "@testing-library/react";
 
 /** Keep in step with RECHARTS_BROWSER_APPROVAL.version (the admin cannot import server composition). */
-const PINNED_VERSION = "0.6.19";
+const PINNED_VERSION = "0.6.24";
 // The package exports `./catalog` (catalog.json at its root), not `package.json`.
 const packageRoot = path.dirname(createRequire(import.meta.url).resolve("@jini-ai/provider-plugins/catalog"));
 const bundleUrl = pathToFileURL(path.join(packageRoot, "plugins/charts-recharts", PINNED_VERSION, "client/provider.js")).href;

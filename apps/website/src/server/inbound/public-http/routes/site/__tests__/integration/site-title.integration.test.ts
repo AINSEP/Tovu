@@ -127,10 +127,12 @@ test("AC-04/AC-11 (REQ-02, REQ-03, T-W2): an owner title written through the gen
   assert.equal((await putSiteTitle(site, OWNER_TITLE)).status, 200, "the owner write must be accepted");
 
   // `createRouteDeps()` wires no storefront catalog, so the product-detail surface needs one product.
-  // `resolveStorefrontProducts` reads `deps.store` per request, so assigning it after boot is enough.
-  site.deps.store = {
-    listProducts: () => [{ id: "prod-site-title", slug: "prod-site-title", title: "Title Probe", price: 100, stock: 1, version: 0 }],
-  } as unknown as CommerceSiteTestDeps["store"];
+  // Both grid and detail read `deps.commerceCatalog` per request; detail uses a scoped point lookup.
+  const fixtureProduct = { id: "prod-site-title", slug: "prod-site-title", title: "Title Probe", price: 100, stock: 1, version: 0 };
+  site.deps.commerceCatalog = {
+    listProducts: async () => [fixtureProduct],
+    findProduct: async ({ idOrSlug }) => idOrSlug === fixtureProduct.id || idOrSlug === fixtureProduct.slug ? fixtureProduct : null,
+  };
   const [product] = await resolveStorefrontProducts(site.deps);
   assert.ok(product, "expected the injected storefront product for the product-detail surface");
   const surfaces: Array<[string, string]> = [
@@ -237,9 +239,8 @@ test("AC-18 (REQ-02): the literal appears in no non-test module under apps/websi
       if (entry.name === "node_modules" || entry.name === "__tests__") continue;
       const full = path.join(dir, entry.name);
       if (entry.isDirectory()) walk(full);
-      else if (/\.(ts|tsx|js|mjs|cjs)$/.test(entry.name) && !/\.test\.[a-z]+$/.test(entry.name)) {
-        if (readFileSync(full, "utf8").includes(LEGACY_TITLE)) offenders.push(path.relative(srcRoot, full));
-      }
+      else if (/\.(ts|tsx|js|mjs|cjs)$/.test(entry.name) && !/\.test\.[a-z]+$/.test(entry.name)
+        && readFileSync(full, "utf8").includes(LEGACY_TITLE)) offenders.push(path.relative(srcRoot, full));
     }
   };
   walk(srcRoot);

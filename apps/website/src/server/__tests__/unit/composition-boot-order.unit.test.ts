@@ -90,6 +90,7 @@ test("index.ts main(): a refusing schema guard stops a disk boot before site-key
     installUnhandledRejectionGuard: () => {},
     ensureAgentDaemonToken: () => {},
     ensureToolExecToken: () => {},
+    initializeStartupSecrets: async () => { calls.push("startup-secrets"); },
     registerPluginSdkResolver: () => {},
     runProductionReadinessGateOrExit: async () => {},
     warnIfNoSiteKeyAtBoot: () => {},
@@ -105,7 +106,7 @@ test("index.ts main(): a refusing schema guard stops a disk boot before site-key
     createSiteRouteDeps: async () => { calls.push("store"); throw opened; },
   });
   await assert.rejects(boot, (error: unknown) => error === refusal);
-  assert.deepEqual(calls, ["schema"]);
+  assert.deepEqual(calls, ["startup-secrets", "schema"]);
 });
 
 test("createSiteRouteDeps: storage choice, then hydration, then the store open (the recovering site opener), then the chat sweep", () => {
@@ -165,7 +166,7 @@ test("createSiteRouteDeps prelude: store open, then the awaited workspace, deny 
   // analytics bus subscriptions (b46eb6e29a). Any other new top-level await fails here.
   assert.deepEqual(topLevelAwaits, [
     "  await normalizeSiteVaultAtBoot({ kernel, workspaceId, siteDir: siteDirForKeyring, clock }, {",
-    "  const { providerConfigSource: savedProviderConfig, projectId, projectVault, projectStore, siteId: projectSiteId } = await composeProviderConfig({ overrides, runtimeMode, onStoreClose, binding: resolvedSiteBinding,",
+    "  const { providerConfigSource: savedProviderConfig, projectId, projectVault, projectStore, siteId: projectSiteId } = await composeProviderConfig({ overrides, runtimeMode, onStoreClose, binding: resolvedSiteBinding, references: projectKeyReferences,",
     "  const providerPlugins = await providerPluginBoot({ overrides })({",
     "  await registerContentAnalytics({ deps: { bus, tracker, workspaceId } });",
   ], "only the fenced vault normalization and the listed composition steps may await after boot promises start");

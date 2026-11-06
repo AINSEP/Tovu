@@ -193,7 +193,13 @@ test("recent hits: a sink failure returns a caller-safe 500 INTERNAL_ERROR", asy
   t.mock.method(deps.analyticsSink, "list", async () => { throw new Error("private sink failure"); });
   const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/analytics/recent-hits`, { headers: { cookie } });
   assert.equal(res.status, 500);
-  assert.deepEqual(await res.json(), { error: { message: "internal error", code: "INTERNAL_ERROR" } });
+  const body = await res.json() as any;
+  assert.equal(body.error.code, "INTERNAL_ERROR");
+  assert.match(body.error.message, /analytics/i);
+  const failure = body.error.details.failure;
+  assert.equal(body.error.details.errorId, failure.errorId);
+  assert.match(body.error.message, new RegExp(failure.errorId));
+  assert.equal(JSON.stringify(body).includes("private sink failure"), false);
 });
 
 test("AC-29: 404s on a workspace id that does not match the deployed workspace (checked before authorize)", async (t) => {

@@ -1,3 +1,4 @@
+import { ToolAccessLoweringError } from '#src/assistant/external-mcp-roster-change';
 import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { describeExternalMcpOwnership } from "#src/features/external-mcp/built-in-connections";
 import { ExternalMcpSecretStoreUnconfiguredError, ExternalMcpValidationError, saveExternalMcpServer } from "../../../../../features/external-mcp/external-mcp-store.js";
@@ -114,13 +115,13 @@ function parseExternalMcpPutBody(rawBody: unknown) {
  * reachability, whether the connection is `authMode: "oauth"` and therefore not yet authorized).
  *
  * That said, `restartRequired: true` no longer means "does nothing until restart": turning a
- * connection off, or removing a tool or its write permission, takes effect on the next tool call.
+ * connection off stops affected answers immediately; removing a tool or its write permission takes effect on the next tool call.
  * Adding tools, or changing the server's address, command or sign-in method, needs a restart; until
  * then that connection's tools refuse. This is `external-mcp-revocation.ts`'s per-call gate, not this
  * route — the response value itself is unchanged (see that file's header for why).
  *
  * Federation hot-reload trigger (2026-09-11), fired unconditionally after every successful save,
- * fire-and-forget (never awaited by the response): the daemon-side coordinator
+ * best effort for enabled connections (OFF awaits Stop/cleanup): the daemon-side coordinator
  * (`mcp-federation/reload.ts`) is what actually decides whether anything changed — a save that only
  * edited fields on an ALREADY-admitted connection is a genuine no-op there (R5, restated above), and
  * a fresh `authMode: "oauth"` row is a no-op too until its own callback later completes and fires
@@ -152,13 +153,15 @@ export const registerAdminExternalMcpPutRoute: ExternalMcpRouteRegistrar = (app,
         },
       );
 
-      // Fire-and-forget: never awaited, so this route's own response time and shape are unaffected
-      // by federation latency — see this file's own header for why `restartRequired` stays `true`
-      // unconditionally regardless of what this trigger ends up doing. Fans out to every registered
-      // server federation via `external-mcp-roster-change.ts`; the slim daemon owns no federation.
-      void notifyExternalMcpRosterChanged();
+      // Ordinary discovery is best effort. OFF awaits Stop/cleanup before reporting success.
+      if (server.enabled) void notifyExternalMcpRosterChanged();
+      else await notifyExternalMcpRosterChanged({ lowered: { serverIds: [server.serverId] } });
       res.json({ server: describeExternalMcpOwnership({ server, ids: deps.builtInExternalMcpServerIds }), restartRequired: true });
     } catch (err) {
+      if (err instanceof ToolAccessLoweringError) {
+        res.status(503).json({ error: err.message, code: err.code });
+        return;
+      }
       if (err instanceof ExternalMcpValidationError) {
         res.status(400).json({ error: err.message, code: "INVALID_MCP_SERVER", details: { field: err.field } });
         return;

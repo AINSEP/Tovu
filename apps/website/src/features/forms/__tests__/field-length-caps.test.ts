@@ -74,3 +74,15 @@ test("choice fields keep their option check and are not length-capped", async ()
   assert.deepEqual(await fieldErrors(submit, { topic: "sales" }), []);
   assert.deepEqual(await fieldErrors(submit, { topic: "x".repeat(101) }), [{ field: "topic", reason: "invalid_option" }]);
 });
+
+
+test("published receiver preserves the live wrapper's code-point boundaries for emoji", async () => {
+  const receiver = await import(import.meta.resolve("@jini-ai/agent-plugins/cloudflare/worker/forms-receiver.mjs"));
+  const submit = submitter();
+  for (const value of ["😀".repeat(5), "a😀😀😀😀", "😀".repeat(6)]) {
+    const liveErrors = await fieldErrors(submit, { code: value });
+    const remote = receiver.checkFields({ form: { fields: [{ name: "code", type: "text", required: false, maxLength: 5 }] }, fields: new Map([["code", [value]]]) });
+    assert.equal(Boolean(remote.error), liveErrors.length > 0, value);
+    if (!remote.error) assert.equal(remote.answers.code, value);
+  }
+});

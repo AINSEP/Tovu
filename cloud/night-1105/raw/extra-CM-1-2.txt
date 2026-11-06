@@ -1,0 +1,12 @@
+✔ Postgres: concurrent upgrades archive once with stable relation identities; dumps restore all rows (2402.13421ms)
+✔ two connections migrating at once apply a step exactly once (289.260674ms)
+✔ the content history through the current head applies on real Postgres (823.31238ms)
+✔ the chat history lands in ai_chat with its own ledger there; public gets no chat table (38.769232ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4627.516998

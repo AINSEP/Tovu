@@ -127,8 +127,48 @@ function token(id: string, overrides: Partial<ConfirmationTokenRecord> = {}): Co
 describeEachDialect(
   "newsletter repos",
   { tables: ["newsletter_campaigns", "newsletter_campaign_revisions"], make: repos },
-  (makeRepos) => {
+  (makeRepos, dialect) => {
     describe("campaign repo", () => {
+      test("detail restores the latest body while list stays envelope-only without reverting live counters", async () => {
+        const { kernel, campaigns } = makeRepos();
+        const first = campaign("body-campaign", { bodyJson: { type: "doc", content: [{ text: "First" }] } });
+        await campaigns.saveCampaignRow(first);
+        await campaigns.appendRevision(revision(first));
+        const latest = { ...first, bodyJson: { type: "doc", content: [{ text: "Latest" }] } };
+        await campaigns.appendRevision(revision(latest));
+        await campaigns.incrementCounter({ workspaceId: WS, id: first.id, counter: "delivered", updatedAt: T1 });
+        const reopened = new SqlNewsletterCampaignRepo(kernel);
+        const detail = await reopened.findById({ workspaceId: WS, id: first.id });
+        assert.deepEqual(detail?.bodyJson, latest.bodyJson);
+        assert.equal(detail?.counters.delivered, 1);
+        assert.equal((await reopened.list({ workspaceId: WS, limit: 1 }))[0]?.bodyJson, undefined);
+        assert.equal(await reopened.findById({ workspaceId: OTHER, id: first.id }), null);
+      });
+      test("list queries never select revision bodies, and a corrupt latest body does not break detail", async (t) => {
+        const { kernel, campaigns } = makeRepos();
+        const c = campaign("corrupt-body");
+        await campaigns.saveCampaignRow(c);
+        await campaigns.appendRevision(revision(c));
+        await kernel.run(db => db.updateTable("newsletter_campaign_revisions").set({ // JSONB refuses malformed syntax before a read. Preserve SQLite's malformed
+          // text probe; Postgres stores a JSON string that is equally invalid revision state.
+          state_json: dialect === "sqlite" ? "{broken" : JSON.stringify("{broken") })
+          .where("campaign_id", "=", c.id).where("workspace_id", "=", WS).execute());
+        const queries: string[] = [];
+        const observed = new SqlNewsletterCampaignRepo({ ...kernel, run: work => kernel.run(db => work(db.withPlugin({
+          transformQuery({ node }) { queries.push(JSON.stringify(node)); return node; },
+          async transformResult({ result }) { return result; },
+        }))) });
+        const listed = await observed.list({ workspaceId: WS });
+        assert.equal(listed[0]?.bodyJson, undefined);
+        assert.ok(queries.every(query => !query.includes("newsletter_campaign_revisions")), "list must not read then discard bodies");
+        const warnings: string[] = [];
+        t.mock.method(console, "warn", (line: string) => warnings.push(line));
+        const detail = await observed.findById({ workspaceId: WS, id: c.id });
+        assert.equal(detail?.subject, c.subject);
+        assert.equal(detail?.bodyJson, undefined);
+        assert.match(warnings.join("\n"), /corrupt-body.*seq=\d+/);
+        assert.doesNotMatch(warnings.join("\n"), /broken/);
+      });
       test("incrementCounter initializes an absent stored counter without losing other counters", async () => {
         const { kernel, campaigns } = makeRepos();
         await campaigns.saveCampaignRow(campaign("c1"));

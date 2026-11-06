@@ -240,7 +240,8 @@ test("precheck() re-runs the secret scan on the destination against the staged b
   await fixture.blobStore.putIfAbsent({ workspaceId: WORKSPACE_ID, sha256, bytes: leaked });
   const files = (entity.state.files as Array<Record<string, unknown>>).map((f) => (f.path === "css/theme.css" ? { ...f, sha256, size: leaked.length } : f));
   const reason = await handlerFor(fixture.deps).precheck(rehash(entity, { ...entity.state, files }));
-  assert.match(reason ?? "", /^Theme: static\/basic was not published: "css\/theme\.css" looks like it holds a key/);
+  assert.ok(typeof reason === "string");
+  assert.match(reason, /^Theme: static\/basic was not published: "css\/theme\.css" looks like it holds a key/);
 });
 
 test("precheck() blocks when the destination's static/ tier folder is a symlink", async () => {

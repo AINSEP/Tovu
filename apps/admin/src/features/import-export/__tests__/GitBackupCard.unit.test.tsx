@@ -5,6 +5,7 @@ import { GitBackupCard, SOURCE_CONTROL_HREF } from "../GitBackupCard";
 import { backupConnectionLabels, gitBackupPlanInput, gitBackupRefusalMessage } from "../git-backup-rules";
 import { createFakeGitBackupPort, defaultGitBackupPort, type GitBackupPlan, type GitBackupPort } from "../hooks/git-backup-port.hooks";
 import { useGitBackup, useWiredGitBackup } from "../hooks/use-git-backup.hooks";
+import { createDomPageDriver } from "@jini-ai/agentic/dom";
 
 /**
  * @file The Git backup card driven end to end through `useGitBackup` against a fake port: no
@@ -32,6 +33,26 @@ function fillForm(owner = "me", repo = "site-backups") {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("GitBackupCard", () => {
+  it("drives each backup field directly and cancels the resulting plan", async () => {
+    const plan = vi.fn(async () => PLAN);
+    const port = createFakeGitBackupPort({
+      listConnections: async () => [connection(), connection({ id: "c2", label: "Other" })], plan,
+    });
+    const { container } = render(<Harness port={port} />);
+    await screen.findByLabelText("Connection");
+    const driver = createDomPageDriver({ root: container, pages: {} });
+    await act(async () => { await driver.selectOption({ handle: "import-export-git-backup-connection", option: "Other" }); });
+    for (const [part, text] of [["owner", "fixture-owner"], ["repo", "fixture-repo"], ["branch", "fixture-branch"]]) {
+      await act(async () => { await driver.fill({ handle: `import-export-git-backup-${part}`, text: text! }); });
+    }
+    await act(async () => { await driver.click({ handle: "import-export-git-backup-plan" }); });
+    expect(plan).toHaveBeenCalledWith({ credential: "Other", owner: "fixture-owner", repo: "fixture-repo", branch: "fixture-branch" });
+    await screen.findByRole("button", { name: "Cancel" });
+    await act(async () => { await driver.click({ handle: "import-export-git-backup-cancel" }); });
+    expect(screen.getByLabelText("Owner")).toHaveValue("fixture-owner");
+    expect(screen.queryByRole("button", { name: "Push backup" })).toBeNull();
+  });
+
   it("links to Source Control when no default connection exists", async () => {
     render(<Harness port={createFakeGitBackupPort({ listConnections: async () => [connection({ isDefault: false })] })} />);
     expect(screen.getByText("Loading connections…")).toBeTruthy();
@@ -76,7 +97,8 @@ describe("GitBackupCard", () => {
     expect(commit.getAttribute("href")).toBe("https://github.com/me/site-backups/commit/abc");
     expect(commit.getAttribute("rel")).toBe("noopener noreferrer");
     expect(screen.getByText("Backed up to me/site-backups.")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Back up again" }));
+    const doneDriver = createDomPageDriver({ root: screen.getByRole("button", { name: "Back up again" }).closest("section")!, pages: {} });
+    await act(async () => { await doneDriver.click({ handle: "import-export-git-backup-again" }); });
     expect((screen.getByLabelText("Owner") as HTMLInputElement).value).toBe("  me ");
   });
 
@@ -126,7 +148,8 @@ describe("GitBackupCard", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Cancel" }));
     fireEvent.click(screen.getByRole("button", { name: "Plan backup" }));
     expect((await screen.findByRole("alert")).textContent).toBe("me/site-backups is public.");
-    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+    const retryDriver = createDomPageDriver({ root: screen.getByRole("button", { name: "Try again" }).closest("section")!, pages: {} });
+    await act(async () => { await retryDriver.click({ handle: "import-export-git-backup-retry" }); });
     fireEvent.submit(screen.getByRole("button", { name: "Plan backup" }).closest("form")!);
     expect((await screen.findByRole("alert")).textContent).toBe("You do not have permission to back up this site.");
     expect(plans.map((input) => input.credential)).toEqual(["GitLab", "GitLab", "GitLab"]);

@@ -241,7 +241,7 @@ test("delete that fails for a reason OTHER than ThemePathError 500s via the rout
   try {
     const res = await del(baseUrl, "plain", "pages/about.html");
     assert.equal(res.status, 500);
-    assertAdminResponse({ actual: await res.json(), expected: { error: "internal error" } });
+    assertAdminResponse({ actual: await res.json(), expected: { error: "internal error" } }, { failure: {"message":"The theme removal could not be confirmed.","action":"Check the list before repeating the removal. Copy details and report this problem.","step":"Remove theme"} });
     assert.equal(failureReached, true);
     assertAdminResponse({ actual: fs.readFileSync(target), expected: originalBytes });
   } finally {

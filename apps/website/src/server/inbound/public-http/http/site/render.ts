@@ -1,15 +1,21 @@
+import type { DocumentAssets } from '@jini-ai/cms/presentation';
+import type { DeclaredScript } from '@jini-ai/cookie-consent';
+import { renderScriptAssets } from '@jini-ai/cookie-consent/render';
+import { renderFormCollection, type FormCollectionPlan } from "@jini-ai/cms/forms";
+import { formatMoney } from "@jini-ai/commerce/money";
 import type { SiteProduct, SiteRenderContext, MediaAssetRenderMeta } from "./render-context.js";
 import type { PluginExportRender } from "@jini-ai/cms/widgets/html";
 // Every module counts in fresh render workers; omit the rendering re-export wrapper.
 import { renderThemeFontLinks } from "#src/features/theme/font-links";
 import { renderMediaRawHtml } from "#src/features/widgets/media-html";
 import { existsSync } from "node:fs";
+import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { createSiteChatAssetReadiness, renderLazySiteChatMarkup, type SiteChatSelection } from "./site-chat-markup.js";
 // The leaf, not the site-dir barrel: this file runs inside the 64 MB theme render workers, and the
 // barrel's site-registry/repair/new-site members load the database (`worker-import-graph.test.ts`).
 import { resolveAppDistDir } from "#src/platform/site-dir/product-root";
-import { renderHtmlForm, renderHtmlFormBody } from "@jini-ai/cms/forms/html-render";
+import { renderHtmlForm, renderHtmlFormBody, renderFormSchemaHash } from "@jini-ai/cms/forms/html-render";
 import type { JsonObject, JsonValue } from "@jini-ai/core/primitives";
 import type { PublicPostRecord as PostRecord } from "#src/features/post/contracts";
 import { MAX_SLUG_LENGTH, SLUG_FORMAT_PATTERN } from "#src/features/post/rendering";
@@ -1652,7 +1658,7 @@ function productEntryList(ctx: SiteRenderContext): string {
   const items = ctx.products
     .map((product, i) => {
       const folio = String(i + 1).padStart(2, "0");
-      const price = escapeHtml(formatCents(product.price));
+      const price = escapeHtml(formatProductMoney({ amount: product.price, currency: product.currency }));
       // `|| product.id`: defensive, not the normal path — every real `SiteProduct` source
       // (`storefront.ts`'s `toSiteProduct`, `store-plugin.ts`'s `listProducts`) always sets a real
       // `slug`. Falls back rather than crashing `escapeHtml` on a caller/test double built against
@@ -1674,7 +1680,7 @@ function productEntryList(ctx: SiteRenderContext): string {
  */
 function productEntryContent(ctx: SiteRenderContext): string {
   if (!ctx.product) return "";
-  const price = escapeHtml(formatCents(ctx.product.price));
+  const price = escapeHtml(formatProductMoney({ amount: ctx.product.price, currency: ctx.product.currency }));
   return `<div class="wrap"><a class="back" href="/products">← ${escapeHtml(ctx.siteTitle)}</a><article class="entry"><h1 class="entry-title">${escapeHtml(ctx.product.title)}</h1><p class="entry-meta">${price}</p></article></div>`;
 }
 
@@ -2383,14 +2389,36 @@ const DEFAULT_CONTACT_FORM_SUCCESS_MESSAGE = "Thanks — your message has been s
  *    reveal it, never invent or fetch it — this render function is the only place `successMessage` is
  *    naturally in scope.
  */
+/** Preserve authored HTML only in HTML mode for a native collection plan.
+ * @complexity O(1) time/space; strings are reused, no I/O.
+ * @overallScore 97 — Recommended: HTML sanitization remains the authoring write boundary's responsibility. */
+
+function formSchemaOptions({ props }: { props: JsonObject }): { schemaHash?: string } {
+  return typeof props.schemaHash === "string" ? { schemaHash: props.schemaHash } : {};
+}
+
+function collectionHtmlOptions({ props }: { props: JsonObject }): { html?: string; className: string } {
+  return { ...(props.mode === "html" && typeof props.html === "string" ? { html: props.html } : {}), className: FORM_CLASS };
+}
+
+/** Render the resolved collection plan for native external forms or the existing built-in form shell.
+ * @complexity O(fields + HTML bytes) time/space, no I/O.
+ * @overallScore 95 — Low: the legacy built-in Builder shell remains separate for compatibility. */
 function renderWidgetContactForm(props: JsonObject): string {
   const slug = str(props.slug);
   if (!slug) return renderWidgetPlaceholder();
+  // Allocate at the occurrence boundary: the same resolved IR can appear in several embeds or
+  // regions, even repeatedly in one region. No answer data or process-wide counter is retained.
+  const idPrefix = `widget-contact-${randomUUID()}`;
   // HTML mode is Builder's look plus author refinements, not "unstyled": the same baseline and
   // `tovu-form` hook let the active theme's form rules apply, and author CSS still wins over both.
   // The slider value readout ships only with forms that have a range field.
   const rangeReadout = arr(props.fields).some(field => typeof field === "object" && field !== null && !Array.isArray(field) && field.type === "range") ? FORM_RANGE_READOUT_SCRIPT : "";
   const fieldDescriptors = arr(props.fields) as unknown as import("@jini-ai/cms/forms").FieldDescriptor[];
+  if (props.collectionPlan) return FORM_BASELINE_STYLE + renderFormCollection({
+    slug, fields: fieldDescriptors, plan: props.collectionPlan as unknown as FormCollectionPlan,
+    hooks: { field: "data-tovu-field", form: "data-tovu-form", success: "data-tovu-form-success", error: "data-tovu-form-error" },
+  }, { ...collectionHtmlOptions({ props }), idPrefix, consentOff: props.collectionConsentOff === true }) + rangeReadout;
   // Both modes show the length caps the submit route enforces (owner 2026-10-25, spam protection).
   if (props.mode === "html") return FORM_BASELINE_STYLE + stampFormFieldMaxLengths(renderHtmlForm({
     slug, action: `/forms/${encodeURIComponent(slug)}/submit`,
@@ -2398,11 +2426,13 @@ function renderWidgetContactForm(props: JsonObject): string {
     fields: fieldDescriptors,
   }, {
     ...(typeof props.html === "string" ? { html: props.html } : {}),
+    ...formSchemaOptions({ props }),
+    idPrefix,
     successMessage: str(props.successMessage) || DEFAULT_CONTACT_FORM_SUCCESS_MESSAGE,
     className: FORM_CLASS,
   }), fieldDescriptors) + rangeReadout;
   const escapedSlug = escapeHtml(slug);
-  const fieldOptions = { submitLabel: "Send", idPrefix: "widget-contact", fieldClass: "widget-form-field", errorClass: "widget-form-field-error" };
+  const fieldOptions = { submitLabel: "Send", idPrefix, fieldClass: "widget-form-field", errorClass: "widget-form-field-error" };
   const fields = stampFormFieldMaxLengths(renderHtmlFormBody({ fields: fieldDescriptors, hooks: { field: "data-tovu-field" } }, fieldOptions), fieldDescriptors);
   const successMessage = escapeHtml(str(props.successMessage) || DEFAULT_CONTACT_FORM_SUCCESS_MESSAGE);
   const legacyAttrs = `data-contact-form-slug="${escapedSlug}"`;
@@ -2413,7 +2443,7 @@ function renderWidgetContactForm(props: JsonObject): string {
     successSlot +
     `<form class="widget ${FORM_CLASS} widget-contact-form" toolname="form_${escapeHtml(slug.replace(/[^A-Za-z0-9_.-]/g, '_').slice(0, 123))}" tooldescription="${escapedSlug}" method="post"${fieldDescriptors.some(field => field && String(field.type) === "file") ? ' enctype="multipart/form-data"' : ""} action="/forms/${escapedSlug}/submit" data-form-slug="${escapedSlug}" ${legacyAttrs}>` +
     errorSlot +
-    fields +
+    fields + renderFormSchemaHash(formSchemaOptions({ props })) +
     `<div hidden aria-hidden="true"><input type="text" name="_hp" tabindex="-1" autocomplete="off"></div>` +
     `</form>` +
     rangeReadout
@@ -2840,10 +2870,10 @@ export function renderWidgetRegion(
  */
 export const RENDER_CTX_KEY = "__siteCtx";
 
-/** `2800` (cents) → `"$28.00"`. Neither tier's allowlist carries a currency filter/helper
- * (Shopify-specific in Liquid, nonexistent in Handlebars), so this is precomputed server-side. */
-function formatCents(cents: number): string {
-  return `$${(cents / 100).toFixed(2)}`;
+/** Currency formatting is shared with the catalog; old currency-less theme fixtures mean USD.
+ * @complexity O(1), with no I/O. */
+function formatProductMoney({ amount, currency }: { amount: number; currency?: string }): string {
+  return formatMoney({ money: { minorUnits: amount, currency: (currency ?? "USD").toUpperCase() } });
 }
 
 /**
@@ -2938,9 +2968,10 @@ function siteProductRenderShape(p: SiteProduct): Record<string, unknown> {
     slug: p.slug,
     title: p.title,
     price: p.price,
-    priceFormatted: formatCents(p.price),
+    ...(p.priceId === undefined ? {} : { priceId: p.priceId }),
+    priceFormatted: formatProductMoney({ amount: p.price, currency: p.currency }),
     stock: p.stock,
-    compareAtPriceFormatted: p.compareAtPrice === undefined ? undefined : formatCents(p.compareAtPrice),
+    compareAtPriceFormatted: p.compareAtPrice === undefined ? undefined : formatProductMoney({ amount: p.compareAtPrice, currency: p.currency }),
     currency: p.currency,
     specs: p.specs,
   };
@@ -3250,6 +3281,7 @@ function removeThemeOwnTitleElement(html: string): string {
  * hardcoded `<title>` is suppressed rather than emitting two competing tags.
  */
 export function pageShell(required: {
+  documentAssets?: DocumentAssets;
   title: string;
   /** `null` when the operator turned the theme off — see {@link RenderSiteRequired.theme}. */
   theme: DiscoveredTheme | null;
@@ -3263,6 +3295,7 @@ export function pageShell(required: {
   siteAssistantEnabled?: SiteChatSelection;
 }, _optional: Record<string, never> = {}): string {
   const { theme, extraHead } = required;
+  const assets = required.documentAssets ?? { head: '', body: '' };
   const foldHasTitle = extraHead?.includes("<title>") ?? false;
   const titleTag = foldHasTitle ? "" : `<title>${escapeHtml(required.title)}</title>`;
   const siteAssistant = siteAssistantMarkup(required.siteAssistantEnabled ?? false);
@@ -3271,9 +3304,7 @@ export function pageShell(required: {
   // synthesised `:root { }` or a `<link>` to no font family would be markup an operator has to work
   // around. `data-theme` in particular is omitted ENTIRELY rather than emitted empty — `[data-theme]`
   // matches `data-theme=""`, so an empty attribute is a selector someone hits by accident.
-  const themeFontLink = theme ? renderThemeFontLinks({ manifest: theme.manifest }) : "";
-  const themeStyle = theme ? `${tokensToCss(theme.tokens)}${theme.css}` : "";
-  const themeAttr = theme ? ` data-theme="${escapeHtml(theme.manifest.id)}"` : "";
+  const { themeFontLink, themeStyle, themeAttr } = shellThemeAssets({ theme });
   const document = `<!doctype html>
 <html lang="en">
 <head>
@@ -3284,10 +3315,12 @@ ${extraHead ?? ""}
 ${themeFontLink}
 <style>${BASE_STYLE}${themeStyle}</style>
 ${siteAssistant.head}
+${assets.head}
 </head>
 <body>
 <div class="site"${themeAttr}>${required.body}</div>
 ${siteAssistant.body}
+${assets.body}
 </body>
 </html>`;
   // Review fix 3a: the same once-per-page default style `finishStaticTierDocument`'s
@@ -3310,6 +3343,9 @@ ${siteAssistant.body}
  *  {@link renderSite}'s own complexity, no change to the accepted call shape (an inline object type
  *  and a structurally-identical named interface are the same type to every existing caller). */
 export interface RenderSiteRequired {
+  renderAssets?: (required: { scripts: readonly DeclaredScript[]; static?: true }) => Promise<DocumentAssets>;
+  transformBody?: (required: { html: string }) => Promise<string>;
+  scripts?: readonly DeclaredScript[];
   /**
    * The resolved active theme, or `null` when the operator has deliberately turned the theme off
    * (state 3 of the optional-theme feature). `null` is NOT "the theme is broken" — that case still
@@ -3489,17 +3525,19 @@ function fallbackSiteBody(ctx: SiteRenderContext, route: SiteRenderContext["rout
  * either (this was a live bug: a static-tier home page never showed the widget even with
  * `site.assistant.public_enabled` on, since `pageShell`'s own injection never ran for this branch).
  */
-function renderStaticTierHomePage(
+async function renderStaticTierHomePage(
   theme: DiscoveredTheme,
   route: SiteRenderContext["route"],
   staticMenus: RenderSiteRequired["staticMenus"],
   extraHead: string | undefined,
-  siteAssistantEnabled: SiteChatSelection
-): string | undefined {
+  siteAssistantEnabled: SiteChatSelection,
+  renderAssets: RenderSiteRequired['renderAssets']
+): Promise<string | undefined> {
   if (theme.manifest.tier !== "static" || route !== "home") return undefined;
   const staticHtml = renderStaticPage({ theme, pageId: "index", menus: staticMenus });
   if (!staticHtml) return undefined;
-  return injectSiteAssistantIntoStaticPage(injectExtraHeadIntoStaticPage(staticHtml, extraHead), siteAssistantEnabled);
+  const assets = await renderAssets?.({ scripts: [], static: true });
+  return injectSiteAssistantIntoStaticPage(injectExtraHeadIntoStaticPage(staticHtml, (extraHead ?? '') + (assets?.head ?? '')), siteAssistantEnabled);
 }
 
 /** Templated (LiquidJS) tier body — resolves the route to a `.liquid` template, renders it inside its
@@ -3573,15 +3611,16 @@ export async function renderSite(required: RenderSiteRequired): Promise<string> 
   if (theme === null) {
     const title = resolvePageTitle(route, required.post, required.siteTitle);
     const body = fallbackSiteBody(ctx, route);
-    return pageShell({ title, theme, body, extraHead: required.extraHead, siteAssistantEnabled: required.siteAssistantEnabled });
+    return finishManagedDocument({ required, title, body });
   }
 
-  const staticHomePage = renderStaticTierHomePage(
+  const staticHomePage = await renderStaticTierHomePage(
     theme,
     route,
     required.staticMenus,
     required.extraHead,
-    required.siteAssistantEnabled ?? false
+    required.siteAssistantEnabled ?? false,
+    required.renderAssets
   );
   if (staticHomePage !== undefined) return staticHomePage;
 
@@ -3595,5 +3634,18 @@ export async function renderSite(required: RenderSiteRequired): Promise<string> 
   }
 
   const title = resolvePageTitle(route, required.post, required.siteTitle);
-  return pageShell({ title, theme, body, extraHead: required.extraHead, siteAssistantEnabled: required.siteAssistantEnabled });
+  return finishManagedDocument({ required, title, body });
+}
+
+/** Resolve body contributions before the document slots, so optional comment assets join declarations. */
+async function finishManagedDocument({ required, title, body }: { required: RenderSiteRequired; title: string; body: string }): Promise<string> {
+  const transformed = required.transformBody ? await required.transformBody({ html: body }) : body;
+  const scripts = [...required.theme?.manifest.scripts ?? [], ...required.scripts ?? []];
+  const documentAssets = required.renderAssets ? await required.renderAssets({ scripts }) : { head: renderScriptAssets({ scripts: scripts.filter(script => script.consent === undefined) }), body: '' };
+  return pageShell({ title, theme: required.theme, body: transformed, extraHead: required.extraHead, siteAssistantEnabled: required.siteAssistantEnabled, documentAssets });
+}
+
+function shellThemeAssets({ theme }: { theme: DiscoveredTheme | null }) {
+  if (!theme) return { themeFontLink: '', themeStyle: '', themeAttr: '' };
+  return { themeFontLink: renderThemeFontLinks({ manifest: theme.manifest }), themeStyle: `${tokensToCss(theme.tokens)}${theme.css}`, themeAttr: ` data-theme="${escapeHtml(theme.manifest.id)}"` };
 }

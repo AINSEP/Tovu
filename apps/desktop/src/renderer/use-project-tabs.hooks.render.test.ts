@@ -11,14 +11,14 @@ import { useProjectTabs } from './use-project-tabs.hooks.js';
 test('useProjectTabs: opening adds once and selects, remembers an admin page, and closing picks a neighbour', (t) => {
   const hook = renderHook(t, () => useProjectTabs());
   act(() => hook.current().openProjectTab('a'));
-  act(() => hook.current().openProjectTab('b', { adminPage: 'import' }));
+  act(() => hook.current().openProjectTab('b', { adminPage: { page: 'import' } }));
   act(() => hook.current().openProjectTab('c'));
   act(() => hook.current().openProjectTab('a'));
   assert.deepEqual(hook.current().openTabs, ['a', 'b', 'c']);
   assert.equal(hook.current().activeTab, 'a');
   const pages = hook.current().adminPages;
-  assert.deepEqual(pages, { b: 'import' });
-  act(() => hook.current().openProjectTab('b', { adminPage: 'import' }));
+  assert.deepEqual(pages, { b: { page: 'import' } });
+  act(() => hook.current().openProjectTab('b', { adminPage: { page: 'import' } }));
   assert.equal(hook.current().adminPages, pages, 'reopening on the same page keeps the same record');
   act(() => hook.current().closeProjectTab('c'));
   assert.equal(hook.current().adminPages, pages, 'closing a tab with no page leaves the pages untouched');
@@ -51,11 +51,11 @@ test('useProjectTabs: closing the selected middle tab selects its right neighbou
 
 test('useProjectTabs: reopening a tab without a page keeps the admin page it was sent to', (t) => {
   const hook = renderHook(t, () => useProjectTabs());
-  act(() => hook.current().openProjectTab('a', { adminPage: 'import' }));
+  act(() => hook.current().openProjectTab('a', { adminPage: { page: 'import' } }));
   act(() => hook.current().openProjectTab('b'));
-  assert.deepEqual([hook.current().adminPages, hook.current().activeTab], [{ a: 'import' }, 'b']);
+  assert.deepEqual([hook.current().adminPages, hook.current().activeTab], [{ a: { page: 'import' } }, 'b']);
   act(() => hook.current().openProjectTab('a'));
-  assert.deepEqual([hook.current().adminPages, hook.current().activeTab], [{ a: 'import' }, 'a'], 'reopening without a page keeps where the tab was sent');
+  assert.deepEqual([hook.current().adminPages, hook.current().activeTab], [{ a: { page: 'import' } }, 'a'], 'reopening without a page keeps where the tab was sent');
 });
 
 test('useProjectTabs reports complete open lists initially and after changes, including hidden tabs', (t) => {

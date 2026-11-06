@@ -44,8 +44,8 @@ import { useWidgetAddControl, useWiredWidgetAddControl, useWiredWidgetPickerDial
  * | the "Create and place" submit | `place-widget-new-submit` | `button` |
  * | the Cancel button | `place-widget-cancel` | `button` |
  *
- * Omit `agentHandle` and no `data-agent-*` markup is emitted at all, including inside the two
- * composed components above — they only tag their own sub-elements when handed a base.
+ * Omit `agentHandle` and host controls receive no handles; shared Select and dialog controls
+ * retain their own automatic handles.
  */
 
 /** `{...(base ? agentHandle(\`${base}-<suffix>\`, opts) : {})}` as a named helper — same
@@ -208,7 +208,7 @@ export function WidgetPickerDialog({ useDialog = useWiredWidgetPickerDialog, age
  * Given `agentHandle="add-widget"` this publishes `<base>-type` (the type `Select`, via its own
  * scheme) and `<base>-open` (the trigger button); the nested `WidgetPickerDialog`, once opened,
  * gets `<base>-picker` as ITS OWN base — see that component's "Agent handles" doc for what that
- * expands to. Omit `agentHandle` and none of it is tagged.
+ * expands to. Without `agentHandle`, only shared controls retain their automatic handles.
  */
 export interface WidgetAddControlProps {
   triggerLabel: string;

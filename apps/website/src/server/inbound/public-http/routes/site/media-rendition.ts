@@ -1,3 +1,4 @@
+import { getMediaAccessEvidenceCache, type AssetReferenceScan, type AssetReferenceIndex } from '#src/features/media/access-evidence';
 import { collectReferencedMediaKeys, collectPlacedWidgetMediaKeys } from "#src/features/publish-content/media-references";
 import { parseWidgetInstancePayload } from "@jini-ai/cms/widgets";
 import { readRequestCookie } from "#src/server/http/request-cookie";
@@ -45,19 +46,12 @@ const TRANSFORM_SPEC_PATTERN = /^(.+)\.v(\d+)$/;
  *  independently would have drifted the same way. */
 const PRIVATE_NO_STORE = "private, no-store";
 
-/** Long-lived caching requires an UNGATED id URL with the CURRENT source hash prefix in `v`.
- *  Replacement preserves ids, so identity alone cannot promise immutable bytes. Never reachable
- *  from a gated outcome — see {@link renditionCacheControl}'s `access.gated` note. */
-const IMMUTABLE_PUBLIC = "public, max-age=31536000, immutable";
-const REVALIDATING_PUBLIC = "public, max-age=60, must-revalidate";
-
-/** The header an UNGATED 200 gets instead, when the request spelled the asset by its (editable)
- *  `slug` — current or retired (readable-slugs plan, S2b). A slug can be renamed; its URL can
- *  point at DIFFERENT bytes through replacement or permanent delete and name reuse.
- *  This 1-hour TTL caps old cached bytes after either operation; validators permit revalidation.
- *  Ids are never reassigned, but replacement changes their bytes too: bare/stale-version id URLs
- *  therefore use {@link REVALIDATING_PUBLIC}; only current-version ids get {@link IMMUTABLE_PUBLIC}. */
-const SLUG_KEYED_PUBLIC = "public, max-age=3600";
+/** Replacement preserves ids and authored URLs, including their old source-hash query.
+ *  Current and retired slugs can also resolve to changed bytes after replacement or name reuse.
+ *  These routes always resolve the live source rather than a historical content snapshot, so
+ *  even a matching `v` cannot promise immutable bytes. Limit reuse to sixty seconds;
+ *  the existing ETag lets an unchanged asset return 304. Never used for a gated outcome. */
+const REVALIDATING_PUBLIC = "public, max-age=60";
 
 /**
  * The ONE writer for every 404 either public media route emits.
@@ -143,7 +137,7 @@ const READABLE_BODY_FORMATS: ReadonlySet<string> = new Set(["doc", "html"]);
  *  three call sites that ask this question (live-referrer candidacy, the public-referrer shortcut,
  *  and opaque-body classification) share one definition of "gated" instead of three inline
  *  `resolvePostMemberAccess(...).visibility` reads that could drift apart. */
-function isGatedEntry(entry: PostRecord): boolean {
+function isGatedEntry(entry: Pick<PostRecord, "memberAccessJson">): boolean {
   return resolvePostMemberAccess(entry.memberAccessJson).visibility !== "public";
 }
 
@@ -235,36 +229,23 @@ function isLiveReferrerCandidate(entry: PostRecord): boolean {
   return entry.status === "published" || isGatedEntry(entry);
 }
 
-/** What one entry is to the asset being requested. `"opaque"` is the fail-closed case: a live,
- *  gated entry whose body this scan could NOT fully read, so "it does not reference this asset"
- *  is an assumption rather than a finding. */
-type EntryRelation = "referrer" | "opaque" | "irrelevant";
-
-/** Whether `scan` references the asset under ANY of its spellings — see {@link resolveAssetAliases}
- *  for why one asset has more than one. @complexity O(a) in the (at most two) aliases. */
-function referencesAnyAlias(scan: EntryAssetScan, aliases: ReadonlySet<string>): boolean {
-  for (const alias of aliases) {
-    if (scan.ids.has(alias)) return true;
-  }
-  return false;
-}
-
-function classifyEntry(entry: PostRecord, aliases: ReadonlySet<string>, savedWidgets?: ReadonlyMap<string, Record<string, unknown>>): EntryRelation {
-  if (!isLiveReferrerCandidate(entry)) return "irrelevant";
+/** Index each live entry once per workspace snapshot, sharing one access record across all
+ * aliases so a post mentioned by id and slug cannot be double-counted. Unreadable gated bodies
+ * remain fail-closed for assets they do not explicitly reference. */
+function indexEntryAssets(index: AssetReferenceIndex, entry: PostRecord, savedWidgets?: ReadonlyMap<string, Record<string, unknown>>): void {
+  if (!isLiveReferrerCandidate(entry)) return;
   const scan = scanEntryAssets(entry, savedWidgets);
-  if (referencesAnyAlias(scan, aliases)) return "referrer";
-  if (!scan.readable && isGatedEntry(entry)) return "opaque";
-  return "irrelevant";
-}
-
-/** The outcome of one full pass over the workspace's entries for a single asset. */
-interface AssetReferenceScan {
-  readonly referencing: PostRecord[];
-  readonly opaqueGated: PostRecord[];
+  const access = { memberAccessJson: entry.memberAccessJson };
+  for (const key of scan.ids) {
+    let references = index.byAsset.get(key);
+    if (!references) { references = new Set(); index.byAsset.set(key, references); }
+    references.add(access);
+  }
+  if (!scan.readable && isGatedEntry(entry)) index.opaqueGated.add(access);
 }
 
 /**
- * Finds every live entry (post OR page, `"doc"` OR `"html"`) that embeds `assetId` — the derivation
+ * Indexes every live entry (post OR page, `"doc"` OR `"html"`) by the assets it embeds — the derivation
  * this route uses in place of a hand-maintained asset->entry foreign key. There is no such column
  * anywhere in this codebase (`MediaRecord`, `@jini-ai/cms/media`, carries no post/owner reference at
  * all); deriving the relationship from the one place it's actually authored (an entry's own body) is
@@ -276,21 +257,49 @@ interface AssetReferenceScan {
  * (`repo.sqlite.ts:98` selects on `workspaceId` alone), so Pages have always come back from it
  * alongside posts. The axis that actually hid content from this scan was `bodyFormat`, not `kind`.
  *
- * @complexity O(p) over the workspace's entries, each behind an already-in-memory body scan (no
+ * @complexity O(p + r) over entries p and references r, once per workspace snapshot (no
  * additional I/O per entry) — the same `postRepo.list` + linear scan shape `buildSitemap`'s
  * `computeSitemapEntries` and `pages.ts`'s `filterVisiblePosts` already use at this codebase's
  * disclosed single-workspace scale.
  */
-async function scanEntriesForAsset(
-  deps: Pick<MediaRenditionRouteDeps, "postRepo" | "workspaceId" | "entryRepo">,
-  aliases: ReadonlySet<string>
-): Promise<AssetReferenceScan> {
+async function buildAssetReferenceIndex(
+  deps: Pick<MediaRenditionRouteDeps, "postRepo" | "workspaceId" | "entryRepo">
+): Promise<AssetReferenceIndex> {
   const entries = await deps.postRepo.list({ workspaceId: deps.workspaceId });
   const savedWidgets = await loadSavedWidgetConfigs(deps, entries);
-  const classified = entries.map((entry) => ({ entry, relation: classifyEntry(entry, aliases, savedWidgets) }));
-  const pick = (want: EntryRelation): PostRecord[] =>
-    classified.filter((candidate) => candidate.relation === want).map((candidate) => candidate.entry);
-  return { referencing: pick("referrer"), opaqueGated: pick("opaque") };
+  const index: AssetReferenceIndex = { byAsset: new Map(), opaqueGated: new Set() };
+  for (const entry of entries) indexEntryAssets(index, entry, savedWidgets);
+  return index;
+}
+
+/** One shared reverse index per workspace per sixty seconds, invalidated by post/widget writes.
+ * A cold/expired workspace rebuild lists posts once; distinct asset misses only query the index.
+ * Failed reads are not retained. Session checks below still run for every gated request.
+ * @complexity O(p + r) per workspace refresh; no source bodies retained in the cache. */
+async function cachedReferenceIndex(deps: MediaRenditionRouteDeps): Promise<AssetReferenceIndex> {
+  const cache = getMediaAccessEvidenceCache({ postRepo: deps.postRepo, entryRepo: deps.entryRepo });
+  const key = deps.workspaceId;
+  const now = deps.clock.nowMs();
+  const cached = cache.get(key);
+  if (cached && cached.expiresAt > now) return cached.value;
+  const value = buildAssetReferenceIndex(deps);
+  cache.set(key, { expiresAt: now + 60_000, value });
+  try { return await value; }
+  catch (error) {
+    if (cache.get(key)?.value === value) cache.delete(key);
+    throw error;
+  }
+}
+
+/** Alias lookups share a record Set: unreadable referrers are not also counted as opaque gates.
+ * @complexity O(a + r + o), aliases a, matching references r and opaque gated entries o; no I/O. */
+async function cachedAssetReferences(deps: MediaRenditionRouteDeps, aliases: ReadonlySet<string>): Promise<AssetReferenceScan> {
+  const index = await cachedReferenceIndex(deps);
+  const referencing = new Set<Pick<PostRecord, "memberAccessJson">>();
+  for (const alias of aliases) {
+    for (const access of index.byAsset.get(alias) ?? []) referencing.add(access);
+  }
+  return { referencing: [...referencing], opaqueGated: [...index.opaqueGated].filter(access => !referencing.has(access)) };
 }
 
 type SavedWidgetRow = Awaited<ReturnType<NonNullable<MediaRenditionRouteDeps["entryRepo"]>["listByWorkspace"]>>[number];
@@ -322,8 +331,8 @@ async function loadSavedWidgetConfigs(
 }
 
 /** {@link resolveAssetAliases}'s result: the full alias set to gate on, plus the resolved record
- *  itself (or `null` for an unknown identifier) — {@link sendMediaRenditionResult} needs the record
- *  too, to tell an id-keyed request from a slug-keyed one for the cache-header split (S2b). */
+ *  itself (or `null` for an unknown identifier). The rendition writer also uses the record for
+ *  its source guard and validator without another lookup. */
 interface AssetAliasResolution {
   readonly aliases: ReadonlySet<string>;
   readonly media: MediaRecord | null;
@@ -445,9 +454,9 @@ async function resolveMediaAccessDecision(
   assetId: string
 ): Promise<{ gated: boolean; allowed: boolean; record: MediaRecord | null }> {
   const { aliases, media } = await resolveAssetAliases(deps, assetId);
-  // Documents are private even when their id/slug is guessed or embedded in published content.
-  if (media?.kind === "document") return { gated: true, allowed: false, record: media };
-  const { referencing, opaqueGated } = await scanEntriesForAsset(deps, aliases);
+  // Documents and submitted files are private even when their id/slug is guessed or embedded in published content.
+  if (media?.kind === "document" || media?.source.private) return { gated: true, allowed: false, record: media };
+  const { referencing, opaqueGated } = await cachedAssetReferences(deps, aliases);
   if (referencing.some((entry) => !isGatedEntry(entry))) {
     return { gated: false, allowed: true, record: media };
   }
@@ -485,6 +494,40 @@ function readRenditionRouteParams(req: Request): { assetId: string; transformSpe
   };
 }
 
+/** Source and stored rendition identities identify the deterministic served representation,
+ * including SVG sanitization, without reloading bytes for a conditional request. */
+async function publicRenditionTag({ deps, media, transformName, version }: {
+  deps: MediaRenditionRouteDeps; media: MediaRecord | null; transformName: string; version: number;
+}): Promise<string | null> {
+  if (!media || media.status !== 'active') return null;
+  const input = { workspaceId: deps.workspaceId, assetId: media.id, transformName, version };
+  if (!await deps.transformDefinitionRepo.findByNameVersion({ workspaceId: deps.workspaceId, name: transformName, version })) return null;
+  const stored = await deps.assetRenditionRepo.findOne(input);
+  if (!stored && media.source.contentType !== 'image/svg+xml') return null;
+  const identity = JSON.stringify([media.source.sha256, transformName, version, stored?.storageKey ?? 'svg']);
+  return `"${createHash('sha256').update(identity).digest('hex')}"`;
+}
+
+/** GET validators use weak comparison and accept a list or wildcard, as If-None-Match requires. */
+function matchesRenditionTag(req: Request, etag: string): boolean {
+  return String(req.headers['if-none-match'] ?? '').split(',').some(value => {
+    const candidate = value.trim();
+    return candidate === '*' || candidate.replace(/^W\//, '') === etag.replace(/^W\//, '');
+  });
+}
+
+/** Access is resolved before validators: a gated request can never reuse public evidence. */
+async function sendNotModifiedRendition({ deps, req, res, access, transformName, version }: {
+  deps: MediaRenditionRouteDeps; req: Request; res: Response;
+  access: { gated: boolean; record: MediaRecord | null }; transformName: string; version: number;
+}): Promise<boolean> {
+  if (access.gated || !req.headers['if-none-match']) return false;
+  const etag = await publicRenditionTag({ deps, media: access.record, transformName, version });
+  if (!etag || !matchesRenditionTag(req, etag)) return false;
+  res.status(304).set(CACHE_CONTROL_HEADER, REVALIDATING_PUBLIC).set('ETag', etag).end();
+  return true;
+}
+
 /**
  * Resolves the access gate, fetches (or generates) the rendition, and writes the final HTTP
  * response — every outcome branch {@link registerMediaRenditionRoute}'s handler previously held
@@ -515,6 +558,8 @@ async function sendMediaRenditionResult(
       sendMediaNotFound(res, "rendition not found");
       return;
     }
+
+    if (await sendNotModifiedRendition({ deps, req, res, access, transformName, version })) return;
 
     const result = await resolveMediaRendition({
       deps: {
@@ -560,16 +605,15 @@ async function sendMediaRenditionResult(
       res.set("X-Content-Type-Options", "nosniff");
       res.set("Content-Security-Policy", SVG_CONTENT_SECURITY_POLICY);
     }
-    // Express's send owns If-None-Match (lists, weak comparison and 304); hash the served bytes
-    // as well as source/rendition identity so this is a strong validator even for sanitized SVG.
+    // Prefer source/rendition identities; legacy sources without stored evidence still hash bytes.
     if (!access.gated) {
       const identity = `${access.record?.source.sha256}:${transformName}:${version}:`;
-      const digest = createHash("sha256").update(identity).update(result.bytes).digest("hex");
-      res.set("ETag", `"${digest}"`);
+      const etag = await publicRenditionTag({ deps, media: access.record, transformName, version });
+      res.set("ETag", etag ?? `"${createHash("sha256").update(identity).update(result.bytes).digest("hex")}"`);
     }
     res
       .status(200)
-      .set(CACHE_CONTROL_HEADER, renditionCacheControl({ access, assetId, contentVersion: req.query.v }))
+      .set(CACHE_CONTROL_HEADER, renditionCacheControl({ access }))
       .set("Content-Type", result.contentType)
       .send(Buffer.from(result.bytes));
   } catch (err) {
@@ -578,18 +622,16 @@ async function sendMediaRenditionResult(
 }
 
 /** The `Cache-Control` for an ALLOWED 200 rendition. @complexity O(1). */
-function renditionCacheControl({ access, assetId, contentVersion }: { access: { gated: boolean; record: MediaRecord | null }; assetId: string; contentVersion: unknown }, _optional: Record<string, never> = {}): string {
+function renditionCacheControl({ access }: { access: { gated: boolean } }, _optional: Record<string, never> = {}): string {
   // `access.gated`: a gated asset's ALLOW outcome is per-viewer (it depended on this
-  // request's session cookie), so it must never be handed either of the two ungated,
+  // request's session cookie), so it must never be handed the ungated,
   // shared/CDN-facing headers below — the next, possibly unentitled, visitor to hit a
   // public/shared cache would be served this same cached response.
   //
-  // An id is stable identity, not stable bytes after replacement. A matching content version
-  // makes new HTML cacheable for a year; old HTML's bare ids and stale versions revalidate.
-  // Editable/reusable slugs (including retired aliases) retain their existing one-hour bound.
+  // Ids, matching versions and editable/reusable slugs all serve the live source. Header
+  // selection adds no reads; access evidence is refreshed within sixty seconds.
   if (access.gated) return PRIVATE_NO_STORE;
-  if (access.record?.id !== assetId) return SLUG_KEYED_PUBLIC;
-  return contentVersion === access.record.source.sha256.slice(0, 12) ? IMMUTABLE_PUBLIC : REVALIDATING_PUBLIC;
+  return REVALIDATING_PUBLIC;
 }
 
 /** Maps a failure while resolving/generating a rendition to its HTTP response. @complexity O(1). */

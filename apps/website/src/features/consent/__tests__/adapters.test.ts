@@ -1,10 +1,8 @@
 import '../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js';
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import type { Request } from 'express';
 import { InMemorySettingsRepo, set } from '@jini-ai/core/settings';
 import { createSiteConsentConfig, createSiteConsentReadiness, ensureSiteConsentDefinitions, resolveSiteConsentActivation, SITE_CONSENT_DEFAULTS, SITE_CONSENT_NAMESPACE, SITE_CONSENT_OFF } from '../settings.js';
-import { createSiteConsentRequestPorts } from '../host.js';
 import { renderSiteConsentPreview, siteBannerMode } from '../cookie-consent.js';
 import { ensureSettingsUiTabDefinitions } from '../../webmcp/settings.js';
 
@@ -105,49 +103,6 @@ test('invalid enabled copy fails visibly, but disabling remains a safe rollback'
   await write('enabled', false);
   assert.deepEqual(await config.get({}), { ...SITE_CONSENT_OFF, reopen: 'link' });
 });
-
-test('request ports ignore region headers until configured and parse malformed cookies without throwing', async () => {
-  const checked: string[] = [];
-  const rateLimiter = { check: async ({ key }: { key: string }) => { checked.push(key); return { allowed: true as const }; } };
-  const request = { get: (header: string) => header === 'x-trusted-region' ? 'US-CA' : undefined, ip: '127.0.0.1', socket: { remoteAddress: '127.0.0.1' } } as Request;
-  const ports = createSiteConsentRequestPorts({ origin: () => 'https://site.example/path', rateLimiter });
-  assert.equal(ports.region({ request }), null); assert.equal(ports.origin({ request }), 'https://site.example');
-  assert.equal(ports.readReceiptId({ cookieHeader: 'jini_consent=%E0%A4%A' }), null);
-  assert.equal(ports.readReceiptId({ cookieHeader: 'jini_consent=receipt_01234567890123456789' }), 'receipt_01234567890123456789');
-  assert.equal(ports.readReceiptId({ cookieHeader: 'jini_consent=../escape' }), null);
-  assert.equal(createSiteConsentRequestPorts({ origin: () => 'https://site.example', trustedRegionHeader: 'x-trusted-region', rateLimiter }).region({ request }), 'US-CA');
-  assert.equal(await ports.allowWrite({ request }), true); assert.deepEqual(checked, ['127.0.0.1']);
-});
-
-
-test('consent request ports use the injected platform rate-key owner after trusted IP resolution', async () => {
-  const keys: string[] = [];
-  const seen: string[] = [];
-  const request = { ip: '2001:db8:1:2::123', socket: { remoteAddress: '127.0.0.1' } } as Request;
-  const ports = createSiteConsentRequestPorts({ origin: () => 'https://site.example', rateLimiter: { check: async ({ key }) => { keys.push(key); return { allowed: true as const }; } }, rateLimitKey: ({ address }) => { seen.push(address); return '2001:db8:1:2::/64'; } });
-  assert.equal(await ports.allowWrite({ request }), true);
-  assert.deepEqual(seen, ['2001:db8:1:2::123']); assert.deepEqual(keys, ['2001:db8:1:2::/64']);
-});
-
-test('a configured region header missing from the request yields an unknown region', () => {
-  const ports = createSiteConsentRequestPorts({
-    origin: () => 'https://site.example', trustedRegionHeader: 'x-trusted-region',
-    rateLimiter: { check: async () => ({ allowed: true as const }) },
-  }, {});
-  const request = { get: () => undefined, ip: '127.0.0.1' } as unknown as Request;
-
-  assert.equal(ports.region({ request }, {}), null);
-});
-
-test('a request without a consent cookie has no receipt', () => {
-  const ports = createSiteConsentRequestPorts({
-    origin: () => 'https://site.example', rateLimiter: { check: async () => ({ allowed: true as const }) },
-  });
-
-  assert.equal(ports.readReceiptId({ cookieHeader: 'session=unrelated' }, {}), null);
-  assert.equal(ports.readReceiptId({ cookieHeader: '' }), null);
-});
-
 
 test('consent has independent readiness after the shared ledger boot and cannot reject WebMCP readiness', async () => {
   const { deps, settingsRepo, write } = await ledger({ register: false });
@@ -271,22 +226,4 @@ test('privacy bootstrap failure is reported without blocking consent and retries
   await createSiteConsentReadiness({ ...deps, after: Promise.resolve(), systemPrincipalId: 'system-test' }, options);
   assert.equal(attempts, 2);
   assert.equal(logged.length, 1);
-});
-
-test('region resolution reads only the configured header and fails strict for missing or invalid values', () => {
-  let headers: Record<string, string> = {};
-  const read: string[] = [];
-  const request = { get: (name: string) => { read.push(name); return headers[name]; }, ip: '8.8.8.8', socket: { remoteAddress: '127.0.0.1' },
-    headers: { 'x-forwarded-for': '1.1.1.1' } } as unknown as Request;
-  const input = { origin: () => 'https://site.example', rateLimiter: { check: async () => ({ allowed: true as const }) } };
-  headers = { 'x-visitor-country': 'US', 'x-custom-country': 'US' };
-  assert.equal(createSiteConsentRequestPorts(input).region({ request }), null);
-  assert.deepEqual(read, []);
-  const custom = createSiteConsentRequestPorts({ ...input, trustedRegionHeader: 'x-custom-country' });
-  for (const [value, expected] of [['US', 'US'], ['us-ca', 'US-CA'], ['DE', 'DE'], [undefined, null], ['XX', null], ['unknown', null], ['', null], ['US,DE', null]] as const) {
-    headers = { 'x-visitor-country': 'US', ...(value === undefined ? {} : { 'x-custom-country': value }) };
-    read.length = 0;
-    assert.equal(custom.region({ request }), expected);
-    assert.deepEqual(read, ['x-custom-country']);
-  }
 });

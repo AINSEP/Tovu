@@ -14,7 +14,7 @@ import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { bundledDeployEnvVars } from "#src/features/deployments/deploy-targets/__tests__/bundled-deploy-targets.fixture";
 import { processComposedBundledSourceRoot } from "#src/features/agent-plugins/__tests__/fixtures/bundled-source-root";
 import type { DeployTargetCreateContext, HostDeployPublishInput, LoadedDeployTarget } from "#src/features/deployments/deploy-targets/types";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { set as setSetting } from "@jini-ai/core/settings";
 import { SITE_CONSENT_NAMESPACE } from "#src/features/consent/config";
@@ -331,6 +331,16 @@ test("publish-site: a concurrent second trigger gets 409 while the first provide
   assert.equal(triggerBody.status, "running");
 
   await barrier.waitUntilEntered();
+  // The provider barrier advances progress beyond the trigger's exporting snapshot. A conflict
+  // reports the current held job while preserving its original identity and unfinished state.
+  const heldStatus = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${PUBLISH_PATH}`, { headers: { cookie } });
+  assert.equal(heldStatus.status, 200);
+  const heldSnapshot = await heldStatus.json();
+  const { progress: startedProgress, ...startedRun } = triggerBody;
+  const { progress: heldProgress, ...heldRun } = heldSnapshot;
+  assert.deepEqual(heldRun, startedRun);
+  assert.equal(startedProgress.phase, "exporting");
+  assert.equal(heldProgress.phase, "creating");
   // The provider request cannot settle until after the competing trigger is refused.
   const second = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${PUBLISH_PATH}`, {
     method: "POST",
@@ -338,7 +348,7 @@ test("publish-site: a concurrent second trigger gets 409 while the first provide
     body: JSON.stringify({ target: "vercel", projectName: "demo" }),
   });
   assert.equal(second.status, 409);
-  assert.deepEqual(await second.json(), { error: "a publish is already running", run: triggerBody });
+  assert.deepEqual(await second.json(), { error: "a publish is already running", run: heldSnapshot });
   assert.equal(vercelCallCount, 1, "the refused trigger must not create a second deployment");
   barrier.release();
 
@@ -430,12 +440,13 @@ test("publish-site: a concurrent call through the ASSISTANT TOOL while the HTTP 
   // to the real store, so the permission-wiring bypass above has to cover it too; consent itself is
   // certified by the consent-refusal tests below and in `publish-agent-tools.unit.test.ts`.
   const toolDeps = { ...deps, authorize: async () => ({ allowed: true, reason: "matched" }), siteConsent: { deploymentCheck: async () => null } };
-  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const exchangeId = "cross-path-publish-approval";
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: { newId: () => exchangeId }, defaultChannel: "mcp-ui" });
   const registrations = new Map(buildStaticPublishRegistrations(toolDeps, { surfaceExchanges }).map((r) => [r.descriptor.id, r]));
   const executeTool = registrations.get("deployment_execute_static_publish");
   assert.ok(executeTool, "expected 'deployment_execute_static_publish' to be wired");
 
-  // Only the count is asserted (a refused publish emits no card), so the emissions stay untyped.
+  // Approve the current publish plan; the shared run guard must still refuse its second publish.
   const emitted: unknown[] = [];
   const pending = executeTool.handler({
     executionId: "exec-cross-path",
@@ -444,12 +455,17 @@ test("publish-site: a concurrent call through the ASSISTANT TOOL while the HTTP 
     input: { target: "vercel", projectName: "demo-from-tool" },
     signal: new AbortController().signal,
   }, {
-    emitSurface: async (s) => void emitted.push(s),
+    emitSurface: async (surface) => {
+      emitted.push(surface);
+      assert.match(JSON.stringify(surface), /Publish static site/);
+      assert.match(JSON.stringify(surface), /demo-from-tool/);
+      assert.deepEqual(surfaceExchanges.deliver({ exchangeId, principalId: "principal-cross-path", params: { decision: "confirm" } },
+        { toolId: "deployment_execute_static_publish" }), { ok: true });
+    },
   });
-  // 6eac86229 ("confirm destructive and protected actions only") removed this tool's confirmation
-  // card: it now publishes immediately, so there is no dialog to answer. A call that lands while the
-  // HTTP route's run is in flight is refused with ALREADY_RUNNING before any export or provider call,
-  // and emits no surface (the refusal returns before the outcome card is sent).
+  // 6eac86229 formerly removed this card; the current publish-plan contract requires approval.
+  // After that approval, a call racing the HTTP run still refuses with ALREADY_RUNNING before
+  // another export or provider call, and sends no publication outcome card.
   const result = (await pending) as { published: boolean; cancelled: boolean; code?: string; message?: string };
   assert.equal(result.published, false);
   assert.equal(result.cancelled, false);
@@ -458,7 +474,8 @@ test("publish-site: a concurrent call through the ASSISTANT TOOL while the HTTP 
     "ALREADY_RUNNING",
     `expected the tool call to be refused while the HTTP route's own publish was still in flight, got: ${JSON.stringify(result)}`
   );
-  assert.equal(emitted.length, 0, "a refused publish must not send an outcome card");
+  assert.equal(emitted.length, 1, "only the approval card is emitted; a refused publish sends no outcome card");
+  assert.equal(surfaceExchanges.size(), 0, "the answered approval leaves no exchange waiting");
   assert.equal(vercelCallCount, 1, "the refused assistant call must not create a second deployment");
   barrier.release();
 
@@ -822,15 +839,15 @@ test("publish-site: an authorize() failure surfaces as a 500 on all three routes
     body: JSON.stringify({ target: "vercel", projectName: "demo" }),
   });
   assert.equal(trigger.status, 500);
-  assertAdminResponse({ actual: await trigger.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: await trigger.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The system setting publishing could not be completed.", action: "Check the result before repeating this operation. Copy details and report this problem.", step: "system setting publishing" } });
 
   const status = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${PUBLISH_PATH}`, { headers: { cookie } });
   assert.equal(status.status, 500);
-  assertAdminResponse({ actual: await status.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: await status.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The system information could not be loaded.", action: "Try loading them again. If it still fails, copy details and report this problem.", step: "Load system information" } });
 
   const preview = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${PUBLISH_PATH}/preview?target=vercel`, { headers: { cookie } });
   assert.equal(preview.status, 500);
-  assertAdminResponse({ actual: await preview.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: await preview.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The system information could not be loaded.", action: "Try loading them again. If it still fails, copy details and report this problem.", step: "Load system information" } });
 });
 
 test("publish-site: workspaceId can never actually be undefined through this app's real composition on any of the three routes (a matched `:param` segment is always a populated string) -- reached by calling each real handler directly, the same type-bypass technique put-entry.test.ts's own equivalent test uses", async (t) => {

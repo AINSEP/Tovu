@@ -13,6 +13,9 @@ test('new desktop copy is translated in all Tovu locales', () => {
   }
   assert.equal(desktopCopy({ locale: 'es-MX' }).restart, 'Reiniciar');
   assert.equal(desktopCopy({ locale: 'zh-Hant' }).restart, '重新啟動');
+  assert.equal(desktopCopy({ locale: 'zh_HK' }).restart, '重新啟動');
+  assert.equal(desktopCopy({ locale: 'zh' }).restart, '重启');
+  assert.equal(desktopCopy({ locale: 'PT_br' }).restart, 'Reiniciar');
   assert.deepEqual(desktopCopy({ locale: 'unknown' }), english);
 });
 
@@ -25,6 +28,33 @@ test('the external-Stop confirm is translated in every locale and keeps `npm run
     assert.ok(copy.title.includes('{name}'), `${locale} title names the site`);
     assert.ok(copy.devBody.includes('`npm run dev`'), `${locale} dev body keeps the command`);
     assert.ok(copy.otherBody.includes('{app}'), `${locale} other body names the app`);
+  }
+});
+
+test('the tab close ask is translated in every locale and names the site', () => {
+  const english = desktopCopy({ locale: 'en' }).tabClose;
+  assert.deepEqual(english, { stopToo: 'Stop {name} too?', keepRunning: 'Keep running' });
+  for (const locale of ['es', 'de', 'it', 'zh-CN', 'zh-TW', 'ar', 'fa', 'ru', 'ja', 'id', 'pt-BR', 'ko', 'pl', 'hu', 'fr', 'uk', 'tr', 'th', 'hi', 'ur', 'bn']) {
+    const copy = desktopCopy({ locale }).tabClose;
+    assert.ok(copy.stopToo.includes('{name}'), `${locale} names the site`);
+    assert.ok(copy.keepRunning, `${locale}.tabClose.keepRunning`);
+    assert.notEqual(copy.stopToo, english.stopToo, `${locale}.tabClose.stopToo`);
+    assert.notEqual(copy.keepRunning, english.keepRunning, `${locale}.tabClose.keepRunning`);
+  }
+});
+
+test('the last-window quit ask is translated in every locale and keeps its count', () => {
+  const english = desktopCopy({ locale: 'en' }).lastWindowQuit;
+  assert.equal(english.quitMany, 'Quit Tovu and stop {count} running sites?');
+  for (const locale of ['es', 'de', 'it', 'zh-CN', 'zh-TW', 'ar', 'fa', 'ru', 'ja', 'id', 'pt-BR', 'ko', 'pl', 'hu', 'fr', 'uk', 'tr', 'th', 'hi', 'ur', 'bn']) {
+    const copy = desktopCopy({ locale }).lastWindowQuit;
+    for (const key of Object.keys(english) as (keyof typeof english)[]) {
+      assert.ok(copy[key], `${locale}.lastWindowQuit.${key}`);
+      assert.notEqual(copy[key], english[key], `${locale}.lastWindowQuit.${key}`);
+    }
+    assert.ok(copy.quitMany.includes('{count}'), `${locale} says how many sites stop`);
+    assert.ok(copy.keepsMany.includes('{count}'), `${locale} says how many sites keep running`);
+    assert.ok(copy.quitOne.includes('Tovu'), `${locale} names the app`);
   }
 });
 

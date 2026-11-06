@@ -1,3 +1,5 @@
+import { createFormCollectionRegistry, describeFormCollectionProviders, type FormCollectionRegistry } from "@jini-ai/cms/forms";
+import type { FormAuthoring, FormProviderSelection } from "@jini-ai/cms/forms";
 import { toolMetadata } from '../../contracts/core/tool-metadata/forms.js';
 /**
  * @file Forms' half of ADR-049 Decision 4 (SPEC-010): maps `agent-tools.ts`'s five catalog entries
@@ -64,6 +66,8 @@ const CATALOG_BY_ID = indexCatalogById({ catalog: formsAgentToolCatalog });
  * `RouteDeps` object, with the CMS command executor supplied by composition.
  */
 export interface FormsToolDeps {
+  /** Same app-scoped collection registry as the admin provider listing. */
+  formCollectionProviders?: () => FormCollectionRegistry;
   executeCommand: FormCommandExecutorPort;
   authorize: AuthorizeFn;
   workspaceId: string;
@@ -87,6 +91,7 @@ export interface FormsToolDeps {
 export const formsDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
   // -> formDefinitionRepo.list: one unfiltered read, no write of any kind.
   ["forms_list_definitions", "none"],
+  ["forms_list_providers", "none"],
   // -> createFormDefinition (write-service.ts): executeCommand -> repo.create + change-set + outbox.
   ["forms_create_definition", "mutates-durable-state"],
   // -> updateFormDefinition (write-service.ts): executeCommand -> repo.update + change-set + outbox.
@@ -117,7 +122,7 @@ function isFormsShapeRejection({ error }: { error: unknown }): boolean {
 }
 
 /** What a Forms tool returns to the model — see {@link toFormDefinitionView}. */
-interface FormDefinitionToolView {
+interface FormDefinitionToolView extends FormAuthoring {
   id: string;
   name: string;
   slug: string;
@@ -143,6 +148,7 @@ interface FormDefinitionToolView {
  * @overallScore 100
  */
 function toFormDefinitionView(record: FormDefinitionRecord): FormDefinitionToolView {
+  const authoring = record as FormDefinitionRecord & FormAuthoring;
   return {
     id: record.id,
     name: record.name,
@@ -150,6 +156,9 @@ function toFormDefinitionView(record: FormDefinitionRecord): FormDefinitionToolV
     status: record.status,
     fields: record.fields.map((field) => ({ ...field })),
     notify: { enabled: record.notify.enabled, recipients: [...record.notify.recipients] },
+    ...(authoring.mode === undefined ? {} : { mode: authoring.mode }),
+    ...(authoring.html === undefined ? {} : { html: authoring.html }),
+    ...(authoring.provider ? { provider: authoring.provider } : {}),
   };
 }
 
@@ -221,6 +230,7 @@ function toDeliveryStatusView(row: FormDeliveryStatusRow): FormDeliveryStatusRow
 /** Binds host persistence and the audited command gateway for the Forms policy adapter. */
 function formsDeps(routeDeps: FormsToolDeps) {
   return {
+    formCollectionProviders: routeDeps.formCollectionProviders,
     executeCommand: routeDeps.executeCommand,
     repo: routeDeps.formDefinitionRepo,
     clock: routeDeps.clock,
@@ -264,11 +274,12 @@ function requireFormsStatus(input: Record<string, unknown>): FormDefinitionStatu
  * @complexity O(1).
  * @overallScore 100
  */
-function requireFormsPatch(input: Record<string, unknown>): { name?: string; fields?: FieldDescriptor[]; notify?: NotifyConfig } {
-  const patch: { name?: string; fields?: FieldDescriptor[]; notify?: NotifyConfig } = {};
+function requireFormsPatch(input: Record<string, unknown>): { name?: string; fields?: FieldDescriptor[]; notify?: NotifyConfig } & FormAuthoring {
+  const patch: { name?: string; fields?: FieldDescriptor[]; notify?: NotifyConfig } & FormAuthoring = {};
   if (typeof input.name === "string") patch.name = input.name;
   if (Array.isArray(input.fields)) patch.fields = input.fields as FieldDescriptor[];
   if (input.notify !== undefined) patch.notify = input.notify as NotifyConfig;
+  if (input.provider !== undefined) patch.provider = input.provider as FormProviderSelection;
   if (Object.keys(patch).length === 0) {
     throw new FormFieldValidationError({ message: "at least one of 'name', 'fields', or 'notify' is required — 'slug' is immutable and is never updated", fieldErrors: [] });
   }
@@ -307,6 +318,15 @@ const FORMS_MODEL_FACING_ERRORS: readonly ModelFacingErrorRule[] = [
 
 export function buildFormsRegistrations(routeDeps: FormsToolDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
+    forms_list_providers: async (ctx) => {
+      await requireToolPermission({
+        authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }),
+        workspaceId: routeDeps.workspaceId,
+        principalId: ctx.principal.id,
+        permission: "admin.forms.manage",
+      }, { entityType: "form_definition" });
+      return { providers: describeFormCollectionProviders({ providers: routeDeps.formCollectionProviders?.() ?? createFormCollectionRegistry({}) }) };
+    },
     forms_list_definitions: async (ctx) => {
       await requireToolPermission({
         authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }),
@@ -315,7 +335,12 @@ export function buildFormsRegistrations(routeDeps: FormsToolDeps): ToolRegistrat
         permission: "admin.forms.manage",
       }, { entityType: "form_definition" });
       const definitions = await routeDeps.formDefinitionRepo.list({ workspaceId: routeDeps.workspaceId });
-      return { definitions: definitions.map(toFormDefinitionView) };
+      return { definitions: definitions.map(record => {
+        const view = toFormDefinitionView(record);
+        // Collection discovery stays compact; single-definition writes retain their full HTML.
+        delete view.html;
+        return view;
+      }) };
     },
     forms_create_definition: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });
@@ -333,6 +358,7 @@ export function buildFormsRegistrations(routeDeps: FormsToolDeps): ToolRegistrat
               slug: requireString({ input, key: "slug" }),
               fields: Array.isArray(input.fields) ? (input.fields as FieldDescriptor[]) : [],
               notify: input.notify as NotifyConfig | undefined,
+              ...(input.provider !== undefined ? { provider: input.provider as FormProviderSelection } : {}),
             },
           });
           return { definition: toFormDefinitionView(definition) };
@@ -425,7 +451,7 @@ export function buildFormsRegistrations(routeDeps: FormsToolDeps): ToolRegistrat
         // does not change that: the message names only the id the caller already supplied.
         throw new FormSubmissionNotFoundError({ message: `submission '${submissionId}' was not found` });
       }
-      return { submission: toFormSubmissionView(submission) };
+      return { submission: { ...toFormSubmissionView(submission), ...(submission.evidence ? { evidence: submission.evidence } : {}), ...(submission.validation ? { validation: submission.validation } : {}) } };
     },
 
     forms_delivery_status: async (ctx) => {
@@ -567,6 +593,8 @@ async function duplicateFormDefinition(
       // source's — the same class of silent shared-state corruption `duplicate-embeds.ts` exists
       // to prevent on the post side.
       fields: source.fields.map((field) => ({ ...field })),
+      ...((source as { mode?: string }).mode === "html" ? { mode: "html" as const, html: (source as { html?: string }).html ?? "" } : {}),
+      ...((source as FormDefinitionRecord & FormAuthoring).provider ? { provider: structuredClone((source as FormDefinitionRecord & FormAuthoring).provider!) } : {}),
       notify: { enabled: source.notify.enabled, recipients: [...source.notify.recipients] },
     },
   });

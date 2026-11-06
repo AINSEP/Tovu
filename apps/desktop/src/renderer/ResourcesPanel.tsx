@@ -1,11 +1,13 @@
 /** Tovu's resource display adapter over Jini's dialog/list and the existing site power owner. */
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { TabbedDialog, useFocusTrap } from '@jini-ai/ui';
-import type { ResourceGroup, ResourceMetrics, ResourceProcess, ResourcesSnapshot } from '../contracts/resources.js';
+import type { MemoryMetric, ResourceMetrics, ResourceProcess, ResourcesSnapshot } from '../contracts/resources.js';
 import type { SiteRecord } from '../contracts/project.js';
 import { useResources } from './use-resources.hooks.js';
 import { useSitePower } from './use-site-power.hooks.js';
 import { ToolIcon } from './tool-icons.js';
+
+type ResourceGroup = ResourcesSnapshot['app'];
 
 const ResourcesContext = createContext<{
   snapshot: ResourcesSnapshot | null;
@@ -14,11 +16,14 @@ const ResourcesContext = createContext<{
   setOpen: (open: boolean) => void;
 } | null>(null);
 
-/** Decimal units match main's GB thresholds; unknown RSS is never formatted as zero. `unitGap` spaces
- * the unit for prose ("~559 MB"); compact chips and cells keep "~559MB". O(1). */
-export function memoryText({ bytes }: { bytes: number | null | undefined }, { unitGap = '' } = {}): string {
+/** Decimal units match main's GB thresholds; unknown memory is never formatted as zero.
+ * Readings from 0.1 GB use approximate tenths; smaller process rows retain MB precision. O(1).
+ * @example memoryText({ bytes: 550_000_000 }) // "~0.6 GB"
+ */
+export function memoryText({ bytes, memoryMetric }: { bytes: number | null | undefined; memoryMetric?: MemoryMetric }, _options = {}): string {
   if (bytes == null) return 'Memory unavailable';
-  return bytes >= 1_000_000_000 ? `~${(bytes / 1_000_000_000).toFixed(1)}${unitGap}GB` : `~${Math.round(bytes / 1_000_000)}${unitGap}MB`;
+  const amount = bytes >= 100_000_000 ? `~${(bytes / 1_000_000_000).toFixed(1)} GB` : `~${Math.round(bytes / 1_000_000)} MB`;
+  return memoryMetric && memoryMetric !== 'physical-footprint' && memoryMetric !== 'private-working-set' ? `${amount} approx.` : amount;
 }
 
 /** Main owns warning thresholds and sustained CPU history. This adapter only supplies copy. O(1). */
@@ -29,7 +34,7 @@ export function resourceWarnings({ metrics }: { metrics?: ResourceMetrics | null
 /** Null CPU is an unmeasured interval, distinct from a measured idle process. O(1). */
 function metricsText({ metrics }: { metrics?: ResourceMetrics }, _options = {}) {
   const cpu = metrics?.cpuPercent == null ? 'CPU unavailable' : `CPU ${metrics.cpuPercent.toFixed(0)}% of one core`;
-  return [memoryText({ bytes: metrics?.rssBytes }), cpu, resourceWarnings({ metrics })].filter(Boolean).join(' · ');
+  return [memoryText({ bytes: metrics?.rssBytes, memoryMetric: metrics?.memoryMetric }), cpu, resourceWarnings({ metrics })].filter(Boolean).join(' · ');
 }
 
 /** One table section: the Tovu app or a running site, its subtotal and its processes. */
@@ -70,9 +75,9 @@ function Unknown(_input: Record<string, never>, _options = {}) {
 }
 
 /** Memory and CPU cells; CPU is a percent of one core (the note under the table says so). O(1). */
-function MetricCells({ rssBytes, cpuPercent }: { rssBytes?: number | null; cpuPercent?: number | null }, _options = {}) {
+function MetricCells({ rssBytes, cpuPercent, memoryMetric }: { rssBytes?: number | null; cpuPercent?: number | null; memoryMetric?: MemoryMetric }, _options = {}) {
   return <>
-    <td className="num">{rssBytes == null ? <Unknown /> : memoryText({ bytes: rssBytes })}</td>
+    <td className="num">{rssBytes == null ? <Unknown /> : memoryText({ bytes: rssBytes, memoryMetric })}</td>
     <td className="num">{cpuPercent == null ? <Unknown /> : `${cpuPercent.toFixed(0)}%`}</td>
   </>;
 }
@@ -84,14 +89,14 @@ function ResourceGroupRows({ group, onStop }: { group: ResourceTableGroup; onSto
   return <tbody>
     <tr className="resources-table__group">
       <th scope="rowgroup" colSpan={2}>{group.title}{warning && <span className="resources-table__warning"> · {warning}</span>}</th>
-      <MetricCells rssBytes={group.metrics?.rssBytes} cpuPercent={group.metrics?.cpuPercent} />
+      <MetricCells rssBytes={group.metrics?.rssBytes} memoryMetric={group.metrics?.memoryMetric} cpuPercent={group.metrics?.cpuPercent} />
       <td className="resources-table__action">{group.stop && <button type="button" disabled={group.stop.disabled}
         onClick={() => onStop(group.id)}>{group.stop.label}</button>}</td>
     </tr>
     {group.processes.map((row) => <tr key={row.pid}>
       <td className="resources-table__process">{row.name}{ROLE_LABELS[row.role] && <span className="resources-table__role">{ROLE_LABELS[row.role]}</span>}</td>
       <td className="num">{row.pid}</td>
-      <MetricCells rssBytes={row.rssBytes} cpuPercent={row.cpuPercent} />
+      <MetricCells rssBytes={row.rssBytes} memoryMetric={row.memoryMetric} cpuPercent={row.cpuPercent} />
       <td />
     </tr>)}
   </tbody>;
@@ -123,7 +128,8 @@ export function ResourcesMonitor({ projects, onSiteUpdated, children, useReading
   Panel?: typeof ResourcesPanel;
 }, _options = {}) {
   const [open, setOpen] = useState(false);
-  const snapshot = useReadings({ panelOpen: open });
+  const refreshKey = JSON.stringify(projects.map(project => [project.id, project.status, project.externalUrl]));
+  const snapshot = useReadings({ panelOpen: open }, { refreshKey });
   const sites = useMemo(() => new Map(snapshot?.status === 'available' ? snapshot.sites.map((group) => [group.siteId, group]) : []), [snapshot]);
   return <ResourcesContext.Provider value={{ snapshot, sites, open, setOpen }}>
     {children}
@@ -136,8 +142,8 @@ function resourceChipReading({ snapshot }: { snapshot: ResourcesSnapshot | null 
   const metrics = snapshot?.status === 'available' ? snapshot.total : null;
   const warning = resourceWarnings({ metrics });
   const known = metrics?.rssBytes != null;
-  const label = known ? memoryText({ bytes: metrics.rssBytes }) : 'Unavailable';
-  const tip = `Memory used by Tovu and running sites: ${known ? memoryText({ bytes: metrics.rssBytes }, { unitGap: ' ' }) : 'unavailable'}`;
+  const label = known ? memoryText({ bytes: metrics.rssBytes, memoryMetric: metrics.memoryMetric }) : 'Unavailable';
+  const tip = `Memory used by Tovu and running sites: ${known ? label : 'unavailable'}`;
   return { warning, label, tip };
 }
 
@@ -154,14 +160,15 @@ export function ResourcesChip(_input: Record<string, never>, _options = {}) {
   </button>;
 }
 
-/** Site-card reading from the same snapshot as the total; stopped cards carry no stale figure. */
+/** Site-card reading from the same snapshot as the total; stopped cards carry no stale figure.
+ * External servers are outside this desktop's sampler, just as they are in the Resources panel. */
 export function ResourceSiteFigure({ project }: { project: SiteRecord }, _options = {}) {
   const monitor = useContext(ResourcesContext);
-  if (project.status !== 'running') return null;
+  if (project.status !== 'running' || project.externalUrl) return null;
   const group = monitor?.sites.get(project.id);
   const warning = resourceWarnings({ metrics: group });
   return <p className={`card__resources${warning ? ' is-warning' : ''}`}>
-    {memoryText({ bytes: group?.rssBytes })}{warning && <span> · {warning}</span>}
+    {memoryText({ bytes: group?.rssBytes, memoryMetric: group?.memoryMetric })}{warning && <span> · {warning}</span>}
   </p>;
 }
 

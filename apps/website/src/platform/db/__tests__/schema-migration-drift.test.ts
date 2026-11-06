@@ -46,6 +46,7 @@ import { openContentDb, openSqliteContentConnection, migrateSqliteContentFile } 
 import { openChatDb, openSiteChatDb } from "../sqlite/chat-db.js";
 import { sqliteKernel, type NativeSqliteDatabase } from "../kernel/drivers/sqlite.js";
 import { migrateContentDatabase } from "../migrations/index.js";
+import { CORE_COMMERCE_ARCHIVE_TABLES } from "../migrations/0011_archive_legacy_commerce.js";
 import { getTableConfig } from "drizzle-orm/sqlite-core";
 
 import { collectCoreTables, DERIVED_OBJECTS } from "../migration/manifest.js";
@@ -135,6 +136,7 @@ function fts5ShadowPrefixes(): string[] {
 
 function isNotDrift(tableName: string): boolean {
   if (tableName === MIGRATOR_BOOKKEEPING_TABLE || tableName === "tovu_migrations") return true;
+  if (CORE_COMMERCE_ARCHIVE_TABLES.includes(tableName)) return true; // Retained 0011 upgrade artifacts.
   if (tableName.startsWith("_vault_backup_")) return true; // 0012 restore artifacts are not application schema.
   if (tableName.startsWith("sqlite_")) return true; // SQLite's own internal catalog objects
   if (DERIVED_OBJECTS.some((o) => o.name === tableName)) return true;
@@ -143,6 +145,12 @@ function isNotDrift(tableName: string): boolean {
     (prefix) => tableName.startsWith(prefix) && (FTS5_SHADOW_SUFFIXES as readonly string[]).includes(tableName.slice(prefix.length))
   );
 }
+
+test("commerce archive artifacts are retained without hiding unrelated schema drift", () => {
+  for (const table of CORE_COMMERCE_ARCHIVE_TABLES) assert.equal(isNotDrift(table), true, table);
+  assert.equal(isNotDrift("_archive_0011_unexpected"), false);
+  assert.equal(isNotDrift("commerce_products"), false, "live legacy tables remain drift");
+});
 
 interface MigratedDatabase {
   readonly shape: TableShape;

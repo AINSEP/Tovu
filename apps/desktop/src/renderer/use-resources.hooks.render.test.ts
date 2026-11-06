@@ -73,6 +73,20 @@ test('a panel change waits for an outstanding badge read and discards its result
   assert.equal([...f.timers.values()][0]!.delay, 5_000);
 });
 
+test('a site lifecycle change refreshes the collapsed reading without waiting a minute', async (t) => {
+  const f = fixture();
+  let refreshKey = 'stopped';
+  const hook = renderHook(t, () => useResources({ panelOpen: false }, { ports: f.ports, refreshKey }));
+  await settle();
+  assert.equal(f.requests.length, 1);
+  refreshKey = 'running'; hook.rerender(); await settle();
+  assert.deepEqual(f.requests, [{ panelOpen: false }, { panelOpen: false }]);
+  assert.equal(f.timers.size, 1);
+  assert.equal([...f.timers.values()][0]!.delay, 60_000);
+  hook.rerender(); await settle();
+  assert.equal(f.requests.length, 2, 'unchanged card state does not add polling');
+});
+
 test('starts hidden without a read; IPC failures withdraw stale data and retry promptly', async (t) => {
   const f = fixture(); f.visibility(true);
   const hook = renderHook(t, () => useResources({ panelOpen: true }, { ports: f.ports }));
@@ -88,7 +102,9 @@ test('launch badge recovers from two initial sampler failures within ten seconds
   const f = fixture();
   let at = 0, attempts = 0;
   const monitor = createDesktopResources({ desktopPid: 1, platform: 'darwin', now: () => at,
-    totalMem: () => 8_000_000_000, openSites: () => [], listUsage: async () => {
+    totalMem: () => 8_000_000_000, openSites: () => [],
+    samplePrivateMemory: async () => ({ metric: 'unavailable', readings: [] }),
+    listUsage: async () => {
       if (++attempts <= 2) throw new Error('transient launch failure');
       return [{ pid: 1, ppid: 0, rssBytes: 123_000_000, cpuSeconds: 0, name: 'Tovu' }];
     } });

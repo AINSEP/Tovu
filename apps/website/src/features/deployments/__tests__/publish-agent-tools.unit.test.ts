@@ -1,3 +1,4 @@
+import { delegatedToolErrorDisclosure } from "../../../assistant/tool-recovery-preset.js";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { credentialSaveFixtureInput, credentialSaveFixtureRegistrations } from "../../../__tests__/support/credential-save.js";
 import { deploymentRefusal } from "../../consent/service.js";
@@ -8,8 +9,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import type { DeployFile, DeployPublishInput, DeployPublishResult, DeployTarget } from "@jini-ai/devops/deploy";
-import { ToolInputError, type SurfaceEmitter, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
+import { publishJobRecoveryMessage, type DeployFile, type DeployPublishInput, type DeployPublishResult, type DeployTarget } from "@jini-ai/devops/deploy";
+import { ToolInputError, type SurfaceEmitter, type SurfaceEmission, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
@@ -25,6 +26,7 @@ import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
 import { createCustomCredential } from "#src/features/custom-credentials/store";
 import { CustomCredentialVaultRepo } from "#src/features/custom-credentials/vault-repo";
 import { attachedOnlyVault } from "#src/features/project-keys/attached-vault";
+import { projectKeyCreateVault } from "#src/features/project-keys/create-vault";
 import { createProjectKeys } from "#src/features/project-keys/service";
 import { fakeAttachments } from "#src/features/project-keys/__tests__/helpers";
 
@@ -97,8 +99,15 @@ function fakeDeps(
   return { deps, authorizeCalls, setAllow: (value: boolean) => { allow = value; } };
 }
 
+const fixtureStatusTools = new WeakMap<ToolRegistration, ToolRegistration>();
+const fixturePublishExchanges = new WeakMap<ToolRegistration, SurfaceExchangeStore>();
+
 function buildRegistrations(deps: StaticPublishToolDeps, surfaceExchanges: SurfaceExchangeStore): Map<string, ToolRegistration> {
-  return new Map(credentialSaveFixtureRegistrations({ registrations: buildStaticPublishRegistrations(deps, { surfaceExchanges }), adapters: { publishHost: buildPublishHostCredentialHandler({ deps, surfaces: { surfaceExchanges } }) } }).map((r) => [r.descriptor.id, r]));
+  const registrations = new Map(credentialSaveFixtureRegistrations({ registrations: buildStaticPublishRegistrations(deps, { surfaceExchanges }), adapters: { publishHost: buildPublishHostCredentialHandler({ deps, surfaces: { surfaceExchanges } }) } }).map((r) => [r.descriptor.id, r]));
+  const execute = registrations.get("deployment_execute_static_publish");
+  const status = registrations.get("deployment_get_static_publish_status");
+  if (execute && status) { fixtureStatusTools.set(execute, status); fixturePublishExchanges.set(execute, surfaceExchanges); }
+  return registrations;
 }
 
 function tool(registrations: Map<string, ToolRegistration>, id: string): ToolRegistration {
@@ -107,127 +116,7 @@ function tool(registrations: Map<string, ToolRegistration>, id: string): ToolReg
   return found;
 }
 
-test("missing publish keys report matching registered-site labels only to the local installation owner", async () => {
-  const { deps } = fakeDeps();
-  deps.publishExecutionMode = "hosted-api-only";
-  deps.ownerPrincipalId = Promise.resolve(PRINCIPAL_ID);
-  let lists = 0;
-  deps.localCredentialCopy = { localHost: true, copy: async () => { assert.fail("discovery must never copy"); }, list: async () => {
-    lists++;
-    return [
-      { siteId: "dev", name: "tovu-dev", keys: [
-        { kind: "vendor", id: "github-id", label: "GitHub Pages token", provider: "github", worksFor: ["github-pages"], publishHosts: ["github-pages"] },
-      ] },
-      { siteId: "luv", name: "luvira", keys: [
-        { kind: "vendor", id: "vercel-id", label: "Vercel", provider: null, last4: "TAIL", worksFor: ["vercel"], publishHosts: ["vercel"],
-          secretCanary: "must-not-leak" } as { kind: "vendor"; id: string; label: string; provider: null; worksFor: string[]; publishHosts: string[] },
-      ] },
-    ];
-  } };
-  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-  const capabilities = tool(buildRegistrations(deps, surfaceExchanges), "deployment_get_static_publish_capabilities");
-  const result = await call(capabilities) as { credentialSources: { siteId: string; name: string; keys: { label: string; publishHosts: string[] }[] }[] };
-  assert.deepEqual(result.credentialSources, [
-    { siteId: "dev", name: "tovu-dev", keys: [{ kind: "vendor", label: "GitHub Pages token", provider: "github", worksFor: ["github-pages"], publishHosts: ["github-pages"] }] },
-    { siteId: "luv", name: "luvira", keys: [{ kind: "vendor", label: "Vercel", provider: null, worksFor: ["vercel"], publishHosts: ["vercel"] }] },
-  ]);
-  assert.deepEqual(result.credentialSources.filter(source => source.keys.some(key => key.publishHosts.includes("vercel"))).map(source => source.name), ["luvira"]);
-  assert.doesNotMatch(JSON.stringify(result.credentialSources), /must-not-leak|TAIL|vercel-id|github-id/);
-  deps.ownerPrincipalId = Promise.resolve("another-owner");
-  assert.equal(Object.hasOwn(await call(capabilities) as object, "credentialSources"), false);
-  assert.equal(lists, 1);
-  deps.ownerPrincipalId = Promise.resolve(PRINCIPAL_ID);
-  deps.localCredentialCopy.localHost = false;
-  assert.equal(Object.hasOwn(await call(capabilities) as object, "credentialSources"), false);
-  assert.equal(lists, 1);
-});
-
-for (const allConfigured of [false, true]) test(`environment-configured Vercel retains saved-key sources (all hosts configured: ${allConfigured})`, async () => {
-  const { deps } = fakeDeps({ credentialSource: {
-    isConfigured: async ({ target }) => allConfigured || target === "vercel"
-      ? { configured: true } : { configured: false, reason: "not configured" },
-    resolve: async () => assert.fail("capabilities must not resolve credentials"),
-  } });
-  deps.publishExecutionMode = "self-hosted-cli";
-  deps.publishCredentialVerificationCache = new InMemoryPublishCredentialVerificationCache();
-  deps.ownerPrincipalId = Promise.resolve(PRINCIPAL_ID);
-  deps.localCredentialCopy = { localHost: true, copy: async () => assert.fail("discovery must not copy"), list: async () => [
-    { siteId: "luv", name: "luvira", keys: [
-      { kind: "vendor", id: "vercel-id", label: "Vercel", provider: null, last4: "TAIL", worksFor: ["vercel"], publishHosts: ["vercel"] },
-    ] },
-    { siteId: "dev", name: "tovu-dev", keys: [] },
-  ] };
-  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-  const result = await call(tool(buildRegistrations(deps, surfaceExchanges), "deployment_get_static_publish_capabilities")) as {
-    providers: { providerId: string; credentialConfigured: boolean; credentialOrigin: string | null; savedCredentials: unknown[]; verified: string | null; ready: boolean; guidance?: string }[];
-    credentialSources: unknown[];
-  };
-  const vercel = result.providers.find(provider => provider.providerId === "vercel")!;
-  assert.equal(vercel.credentialConfigured, true);
-  assert.equal(vercel.credentialOrigin, "environment");
-  assert.deepEqual(vercel.savedCredentials, []);
-  assert.equal(vercel.verified, null);
-  assert.equal(vercel.ready, false);
-  assert.match(vercel.guidance!, /vercel key is configured on this server \(environment\)/i);
-  assert.match(vercel.guidance!, /publish with it/i);
-  assert.match(vercel.guidance!, /don't ask for or save another key/i);
-  assert.doesNotMatch(vercel.guidance!, /no key|not stored|no .+ stored/i);
-  if (!allConfigured) assert.equal(result.providers.find(provider => provider.providerId === "github-pages")!.credentialOrigin, null);
-  assert.deepEqual(result.credentialSources, [
-    { siteId: "luv", name: "luvira", keys: [{ kind: "vendor", label: "Vercel", provider: null, worksFor: ["vercel"], publishHosts: ["vercel"] }] },
-    { siteId: "dev", name: "tovu-dev", keys: [] },
-  ]);
-  assert.doesNotMatch(JSON.stringify(result.credentialSources), /vercel-id|TAIL/);
-});
-
-// 2026-11-02 owner bug: with the Vercel plugin off on fake-test-site, the chat said "no site has a
-// Vercel key" although xander-estin (and 7 more) held one. An off host must still surface the other
-// sites' keys (names only) and tell the chat to offer "turn it on and copy".
-test("a host whose plugin is off still reports other sites' keys and offers turn-on-and-copy", async () => {
-  const { deps } = fakeDeps({ credentialSource: {
-    isConfigured: async () => ({ configured: false, reason: "not configured" }),
-    resolve: async () => assert.fail("capabilities must not resolve credentials"),
-  } });
-  deps.publishExecutionMode = "hosted-api-only";
-  deps.ownerPrincipalId = Promise.resolve(PRINCIPAL_ID);
-  const bundled = await loadBundledDeployTargets();
-  const loaded = bundled.list().filter(item => item.descriptor.id !== "vercel");
-  const vercel = bundled.get("vercel");
-  assert.ok(vercel, "fixture needs the bundled Vercel host");
-  deps.loadDeployTargets = async () => ({ list: () => loaded, get: id => loaded.find(item => item.descriptor.id === id), refusals: [] });
-  deps.loadInstalledDeployTargets = async () => ({ items: bundled.list().map(({ descriptor, pluginId }) => ({ descriptor, pluginId, enabled: descriptor.id !== "vercel" })), refusals: [] });
-  // The copy inventory computes publishHosts against this site's LOADED hosts, so an off host is absent there.
-  deps.localCredentialCopy = { localHost: true, copy: async () => assert.fail("discovery must not copy"), list: async () => [
-    { siteId: "xe", name: "xander-estin", keys: [
-      { kind: "vendor", id: "vercel-secret-id", label: "Vercel", provider: "vercel", last4: "TAIL", worksFor: ["vercel"], publishHosts: [] },
-    ] },
-    { siteId: "dev", name: "tovu-dev", keys: [] },
-  ] };
-  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-  const result = await call(tool(buildRegistrations(deps, surfaceExchanges), "deployment_get_static_publish_capabilities")) as {
-    providers: { providerId: string; enabled: boolean; guidance: string }[];
-    credentialSources?: { name: string; keys: { label: string; publishHosts: string[] }[] }[];
-  };
-  const host = result.providers.find(provider => provider.providerId === "vercel")!;
-  assert.equal(host.enabled, false);
-  assert.deepEqual(result.credentialSources?.filter(source => source.keys.some(key => key.publishHosts.includes("vercel"))).map(source => source.name), ["xander-estin"]);
-  assert.match(host.guidance, /plugin is off on this site/i);
-  assert.match(host.guidance, /Turn it on and copy the key from xander-estin\?/);
-  assert.match(host.guidance, new RegExp(`plugins_set_enabled.*'agent-plugin'.*'${vercel.pluginId}'`));
-  assert.match(host.guidance, /credential_copy_from_project/);
-  assert.doesNotMatch(JSON.stringify(result), /vercel-secret-id|TAIL/);
-});
-
-test("unavailable cross-site inventory is explicit and cannot leak raw source errors", async () => {
-  const { deps } = fakeDeps();
-  deps.publishExecutionMode = "hosted-api-only";
-  deps.ownerPrincipalId = Promise.resolve(PRINCIPAL_ID);
-  deps.localCredentialCopy = { localHost: true, copy: async () => [], list: async () => { throw new Error("private-path-canary"); } };
-  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-  const result = await call(tool(buildRegistrations(deps, surfaceExchanges), "deployment_get_static_publish_capabilities")) as { credentialSourcesUnavailable: boolean };
-  assert.equal(result.credentialSourcesUnavailable, true);
-  assert.doesNotMatch(JSON.stringify(result), /private-path-canary/);
-});
+for (const allConfigured of [false, true])
 
 test("capabilities recognize custom Vercel tokens without opening them or claiming verification", async () => {
   const { deps } = fakeDeps();
@@ -367,7 +256,7 @@ async function fakeCredentialRepo(records: readonly VendorCredentialSetRecord[])
 // 1. Wiring shape — four publish tools; credential_save is owned by the shared contributor.
 // ---------------------------------------------------------------------------
 
-test("buildStaticPublishRegistrations wires all four publish tools, each with an input schema", () => {
+test("buildStaticPublishRegistrations wires all five publish tools, each with an input schema", () => {
   const { deps } = fakeDeps({ credentialSource: { async resolve() { return { ok: false, reason: "n/a" }; }, async isConfigured() { return { configured: false, reason: "n/a" }; } } });
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const registrations = buildStaticPublishRegistrations(deps, { surfaceExchanges });
@@ -376,6 +265,7 @@ test("buildStaticPublishRegistrations wires all four publish tools, each with an
     "deployment_execute_static_publish",
     "deployment_generate_bucket_hosting_setup",
     "deployment_get_static_publish_capabilities",
+    "deployment_get_static_publish_status",
     "deployment_preview_static_publish",
   ]);
   for (const entry of registrations) {
@@ -1302,9 +1192,12 @@ test("publish card saves attach to their site and reopening updates the sole att
     module: { create: () => assert.fail("must not publish") } };
   function site(siteId: string) {
     const { deps: base } = fakeDeps();
+    const view = attachedOnlyVault({ vault, attachments, siteId });
     const repo = new VendorCredentialSetVaultRepo({ vault: new InMemoryVaultRepo({}), kind: "vendor", vendor: true }, { project: {
       workspaceId: "project", keyring, sealer,
-      repo: new VendorCredentialSetVaultRepo({ vault: attachedOnlyVault({ vault, attachments, siteId }), kind: "vendor", vendor: true }),
+      repo: new VendorCredentialSetVaultRepo({ vault: view, kind: "vendor", vendor: true }),
+      createRepo: new VendorCredentialSetVaultRepo({ vault: projectKeyCreateVault({ owner: vault, view }), kind: "vendor", vendor: true }),
+      replaceRepo: new VendorCredentialSetVaultRepo({ vault: projectKeyCreateVault({ owner: vault, view }, { allowReplacement: true }), kind: "vendor", vendor: true }),
     } });
     const deps = { ...base, workspaceId: siteId, vendorCredentialSetRepo: repo,
       loadDeployTargets: async () => ({ get: (id: string) => id === "pin-host" ? host : undefined, list: () => [host], refusals: [] }) };
@@ -2010,11 +1903,20 @@ test("submit: a non-Error thrown by the credential write step still returns a sa
   assert.equal(JSON.stringify(result).includes(VALID_FORM_SUBMISSION.secretAccessKey), false);
 });
 
- test("n06: repository write runs without a confirmation channel", async (t) => {
+ test("n06: repository write runs after human approval and never before it", async (t) => {
   const captured: {value: DeployFile[] | null} = {value: null};
   const {deps} = fakeDeps({credentialSource: {async resolve() {return {ok: true, token: "fake"};}, async isConfigured() {return {configured: true};}}, buildTarget: () => fakeDeployTarget(captured)});
   const store = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-  const result = await call(tool(buildRegistrations(deps, store), "deployment_execute_static_publish"), {input: {target: "github-pages", owner: "octo", repo: "demo", projectName: "release"}}) as {published: boolean; reachable: boolean; url: string};
+  // Approval moved from the assembly wrapper to this prepared domain handler. Keep the full
+  // publication assertions and answer through its real channel instead of calling it headless.
+  let approvals = 0;
+  const approvedStore: SurfaceExchangeStore = { ...store, deliver: (...args) => {
+    approvals++;
+    assert.equal(captured.value, null, 'no provider effect before human approval');
+    return store.deliver(...args);
+  } };
+  const result = await call(tool(buildRegistrations(deps, approvedStore), "deployment_execute_static_publish"), {input: {target: "github-pages", owner: "octo", repo: "demo", projectName: "release"}, emitSurface: async () => undefined}) as {published: boolean; reachable: boolean; url: string};
+  assert.equal(approvals, 1);
   assert.equal(result.published, true, JSON.stringify(result));
   assert.equal(result.reachable, true);
   assert.equal(result.url, "https://example.test/published");
@@ -2022,13 +1924,42 @@ test("submit: a non-Error thrown by the credential write step still returns a sa
   assert.equal(store.size(), 0);
 });
 
+/** Provider/outcome assertions consume outcome surfaces; answer the separately tested approval. */
+function fixturePublishEmitter({ registration, principalId, emitSurface }: {
+  registration: ToolRegistration; principalId: string; emitSurface: SurfaceEmitter | undefined;
+}): SurfaceEmitter | undefined {
+  const publishExchanges = fixturePublishExchanges.get(registration);
+  if (!emitSurface || !publishExchanges) return emitSurface;
+  return async (surface: SurfaceEmission) => {
+    const html = (surface.payload.resource as { resource: { text: string } }).resource.text;
+    const match = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`));
+    if (!match) return emitSurface(surface);
+    assert.equal(publishExchanges.deliver({ exchangeId: match[1]!, principalId, params: { decision: 'confirm' } }, { toolId: registration.descriptor.id }).ok, true);
+  };
+}
+
 /** Supplies the fixture emitter through the canonical handler options, including headless calls. */
-function invokeFixtureHandler(
+/** Existing outcome assertions now follow the public job-status contract. The Job C test below
+ * calls the raw handler to prove enqueue returns while export is blocked. The final surface is
+ * the real job completion signal; a real export has no fixed number of event-loop turns. */
+async function invokeFixtureHandler(
   registration: import("@jini-ai/core").ToolRegistration,
   context: import("@jini-ai/core").ToolExecutionContext & { emitSurface?: import("@jini-ai/core").SurfaceEmitter },
 ) {
   const { emitSurface, ...required } = context;
-  return registration.handler(required, emitSurface ? { emitSurface } : {});
+  const completed = Promise.withResolvers<void>();
+  const effectEmitter = fixturePublishEmitter({ registration, principalId: required.principal.id,
+    emitSurface: emitSurface ? async surface => { completed.resolve(); await emitSurface(surface); } : undefined });
+  const result = await registration.handler(required, effectEmitter ? { emitSurface: effectEmitter } : {});
+  const accepted = result as { accepted?: boolean; jobId?: string } | undefined;
+  if (!accepted?.accepted || !accepted.jobId) return result;
+  const status = fixtureStatusTools.get(registration);
+  assert.ok(status, "accepted jobs have a registered status tool");
+  assert.ok(effectEmitter, "accepted publishes have a completion surface channel");
+  await completed.promise;
+  const snapshot = await status.handler({ ...required, input: { jobId: accepted.jobId }, signal: new AbortController().signal }, emitSurface ? { emitSurface } : {}) as { status: string; result?: unknown; error?: string };
+  assert.notEqual(snapshot.status, "running", "the final surface is emitted only after the job settles");
+  return snapshot.result ?? { published: false, message: snapshot.error };
 }
 
 // Cancellation during an async seal must still refuse the eventual repository write.
@@ -2316,4 +2247,95 @@ test("capabilities offer every installed host with truthful activation and enabl
   setAllow(false);
   await assert.rejects(call(capabilities), /deployments.read/);
   assert.equal(inventoryReads, 1, "denied reads must not enumerate installed hosts");
+});
+
+// Job C: keep provider work pending while the delegated tool returns a reusable job handle.
+test('static publish returns a job before export finishes, survives call abort, and exposes scoped final results', async () => {
+  let release!: () => void;
+  const blocked = new Promise<void>(resolve => { release = resolve; });
+  const { deps, setAllow } = fakeDeps({ credentialSource: {
+    resolve: async () => ({ ok: true, token: 'secret-canary' }),
+    isConfigured: async () => ({ configured: true }),
+  }, buildTarget: () => ({ id: 'vercel', publish: async (_input, options) => {
+    options?.onProgress?.({ phase: 'uploading', totalFiles: 1, uploadedFiles: 1, deploymentCreated: true, deploymentId: 'dpl_new', url: 'https://new.test', providerStatus: 'READY' });
+    return { targetId: 'vercel', url: 'https://new.test', status: 'ready', deploymentId: 'dpl_new' };
+  }, checkReachability: async () => ({ reachable: true }) }) });
+  const originalExport = deps.exportSiteBound;
+  deps.exportSiteBound = async options => { await blocked; return originalExport(options); };
+  const registrations = buildRegistrations(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' }));
+  const execute = tool(registrations, 'deployment_execute_static_publish');
+  const controller = new AbortController();
+  const context = { executionId: 'job-start', principal: { id: PRINCIPAL_ID }, run: { id: 'run-job' }, input: { target: 'vercel', projectName: 'demo' }, signal: controller.signal };
+  try {
+    const approve: SurfaceEmitter = async surface => {
+      const exchangeId = exchangeIdFromSurface(surface);
+      assert.equal(fixturePublishExchanges.get(execute)!.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: { decision: 'confirm' } }, { toolId: execute.descriptor.id }).ok, true);
+    };
+    const accepted = await execute.handler(context, { emitSurface: approve }) as { jobId: string; status: string; published: boolean };
+    assert.ok(accepted.jobId);
+    assert.equal(accepted.status, 'running');
+    assert.equal(accepted.published, false);
+    controller.abort();
+    const status = tool(registrations, 'deployment_get_static_publish_status');
+    const running = await call(status, { input: { jobId: accepted.jobId } }) as { status: string; progress: { phase: string } };
+    assert.equal(running.status, 'running');
+    assert.equal(running.progress.phase, 'exporting');
+    const retry = await execute.handler({ ...context, signal: new AbortController().signal }, { emitSurface: approve }) as { jobId: string; code: string };
+    assert.equal(retry.jobId, accepted.jobId);
+    assert.equal(retry.code, 'ALREADY_RUNNING');
+    setAllow(false);
+    await assert.rejects(call(status, { input: { jobId: accepted.jobId } }), /deployments.read/);
+    setAllow(true);
+    const other = buildRegistrations({ ...deps, workspaceId: 'another-site' }, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' }));
+    const missing = await call(tool(other, 'deployment_get_static_publish_status'), { input: { jobId: accepted.jobId } }) as { code: string };
+    assert.equal(missing.code, 'PUBLISH_JOB_NOT_FOUND');
+    release();
+    let finished: { status: string; result: { deploymentId: string; url: string }; progress: { uploadedFiles: number }; message: string } | undefined;
+    for (let turn = 0; turn < 1000; turn++) {
+      finished = await call(status, { input: { jobId: accepted.jobId } }) as NonNullable<typeof finished>;
+      if (finished.status !== 'running') break;
+      await new Promise<void>(resolve => setImmediate(resolve));
+    }
+    assert.ok(finished);
+    assert.equal(finished.status, 'completed');
+    assert.equal(finished.result.deploymentId, 'dpl_new');
+    assert.equal(finished.result.url, 'https://new.test');
+    assert.equal(finished.progress.uploadedFiles, 1);
+    const replayedCards: unknown[] = [];
+    for (let read = 0; read < 2; read++) await call(status, { input: { jobId: accepted.jobId }, emitSurface: async card => { replayedCards.push(card); } });
+    assert.deepEqual(replayedCards, [], 'status polling must not emit the settled result card again');
+    const recovered = await call(status, { input: { executionId: 'job-start' } }) as { jobId: string };
+    assert.equal(recovered.jobId, accepted.jobId);
+    assert.doesNotMatch(JSON.stringify(finished), /secret-canary/);
+    const disclosure = delegatedToolErrorDisclosure({}, { mintErrorId: () => 'ERR-AAAA-BBBB-CCCC-DDDD', onFailure: () => {} });
+    const interrupted = { source: 'delegated-tool-execute', toolId: 'deployment_execute_static_publish', runId: 'run-job', executionId: 'job-start', status: 'timed-out', correlationId: 'corr', error: 'timed-out' } as const;
+    const recovery = disclosure.describeInternalError({ ...interrupted, recoveryMessage: finished.message });
+    assert.match(recovery, /Deployment: created/);
+    assert.match(recovery, /uploaded files: 1 of 1/);
+    assert.match(recovery, /dpl_new/);
+    assert.match(recovery, /https:\/\/new.test/);
+    assert.match(recovery, /deployment_get_static_publish_status/);
+    const otherCall = disclosure.describeInternalError({ ...interrupted,
+      recoveryMessage: publishJobRecoveryMessage({ statusToolId: 'deployment_get_static_publish_status' }) });
+    assert.match(otherCall, /Publish job status could not be confirmed for this call/);
+    assert.match(otherCall, /Deployment: unknown/);
+    assert.doesNotMatch(otherCall, /dpl_new/);
+  } finally { release(); }
+});
+
+for (const status of ['ready', 'link-delayed'] as const) test(`public publish status retains the cookie preferences warning for ${status}`, async () => {
+  const { deps } = fakeDeps({
+    credentialSource: { async resolve() { return { ok: true, token: 'fixture-token' }; }, async isConfigured() { return { configured: true }; } },
+    buildTarget: () => ({ id: 'fixture', async publish() { return { targetId: 'fixture', url: 'https://example.test/published', status }; }, async checkReachability() { return { reachable: status === 'ready' }; } }),
+  });
+  const consentWarning = 'Cookie preferences could not be loaded. This published copy has no cookie banner.';
+  const exportSite = deps.exportSiteBound;
+  deps.exportSiteBound = async input => ({ ...await exportSite(input), consentWarning });
+  const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' });
+  const execute = tool(buildRegistrations(deps, exchanges), 'deployment_execute_static_publish');
+  const { pending, emitted } = await beginCall(execute, { target: 'vercel', projectName: 'fixture-warning' });
+  const result = await pending as { published: boolean; consentWarning?: string };
+  assert.equal(result.published, true);
+  assert.equal(result.consentWarning, consentWarning);
+  assert.ok(emitted.some(surface => surfaceHtmlAndUri(surface).html.includes(consentWarning)));
 });

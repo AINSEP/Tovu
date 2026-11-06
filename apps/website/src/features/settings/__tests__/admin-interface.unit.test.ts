@@ -8,6 +8,7 @@ import { createSettingsPrincipalLookup } from "../index.js";
 import {
   ADMIN_INTERFACE_NAMESPACE,
   ADMIN_THEME_KEY,
+  SITE_LIST_KEY,
   ADMIN_THEME_ACCENTS_KEY,
   CHAT_SHOW_THINKING_KEY,
   CHAT_SHOW_USAGE_LINE_KEY,
@@ -84,6 +85,15 @@ test("an operator with no stored row reads the defaults from the default layer",
   assert.deepEqual(await read(CHAT_TOOL_CALLS_KEY), { value: "collapsed", sourceLayer: "default", defVersion: 1 });
   assert.deepEqual(await read(CHAT_SHOW_USAGE_LINE_KEY), { value: true, sourceLayer: "default", defVersion: 1 });
   assert.deepEqual(await read(CHAT_SHOW_THINKING_KEY), { value: false, sourceLayer: "default", defVersion: 1 });
+});
+
+test("registers the Sites list choices per operator, defaulting to nothing chosen", async () => {
+  const { settingsRepo } = await registeredLedger();
+  const sitesList = await definition(settingsRepo, SITE_LIST_KEY);
+  assert.ok(sitesList, "core.interface/sitesList must be registered");
+  assert.deepEqual(sitesList.schema, { type: "json" });
+  assert.deepEqual(sitesList.defaultValue, {});
+  assert.equal(sitesList.scopes, PER_OPERATOR);
 });
 
 test("registers the admin theme per operator, defaulting to classic", async () => {

@@ -78,6 +78,7 @@ function repoWhoseFindThrows(inner: ExternalMcpServerRepoPort, error: Error): Ex
     findByServerId: () => Promise.reject(error),
     upsert: (record) => inner.upsert(record),
     deleteByServerId: (input) => inner.deleteByServerId(input),
+    updateAccessIfCurrent: (input) => inner.updateAccessIfCurrent(input),
     tryClaimOAuthRefreshLease: (input) => inner.tryClaimOAuthRefreshLease(input),
     releaseOAuthRefreshLease: (input) => inner.releaseOAuthRefreshLease(input),
   };
@@ -109,7 +110,7 @@ async function boot(options: {
 
   const session = new InMemoryMcpSession({ tools: REMOTE_TOOLS });
   const registry = createToolRegistry({});
-  const gate = createExternalMcpConnectionGate({ workspaceId: WORKSPACE, repo: options.gateRepo ?? repo });
+  const gate = createExternalMcpConnectionGate({ workspaceId: WORKSPACE, isPluginEnabled: async () => true, repo: options.gateRepo ?? repo });
 
   await attachFederatedMcpTools({
     registry,

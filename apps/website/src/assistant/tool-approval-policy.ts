@@ -1,10 +1,9 @@
-import { applyApprovalPolicy, isNonArrayRecord, type ToolRegistration, type ToolExecutionContext } from '@jini-ai/core';
-import { requireHumanConfirm, notConfirmedResult } from '../contracts/core/human-confirm.js';
+import { applyApprovalPolicy, isNonArrayRecord, type ApprovalContextPort, type ToolRegistration, type ToolExecutionContext, type ToolExecutionOptions } from '@jini-ai/core';
+import { requireHumanConfirm, notConfirmedResult, toolApprovalConfirmation, type HumanConfirmSpec, type HumanConfirmOutcome } from '../contracts/core/human-confirm.js';
 import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { TOOL_APPROVAL_POLICY, ASSISTANT_EXECUTION_APPROVAL_SETTINGS, type ToolApprovalClass, type ToolApprovalPolicy } from '../contracts/headless/index.js';
 import { approvalClassAsks, directPageAction, toolApprovalPolicyFor } from './assistant-tool-approval-policy.js';
-import { approvalText } from '../contracts/core/approval-i18n.js';
-import { toolApprovalPresentation, type SurfaceDetail } from '@jini-ai/ui/mcp-ui/surfaces';
+import type { SurfaceDetail } from '@jini-ai/ui/mcp-ui/surfaces';
 
 /** Classification is an owner-reviewed action policy, separate from read-only admission and auth.
  * Jini owns the generic registration wrapper; retain the CMS table in Tovu.
@@ -28,10 +27,19 @@ const RULE_CLASSIFIERS: Record<NonNullable<ToolApprovalPolicy['rule']>, (require
   'http-method': ({ args }, _options = {}) => typeof args.method === 'string' && args.method.toUpperCase() === 'DELETE' ? 'delete' : 'edit',
 };
 
+/** Bind the host confirmation transport once for native policy and domain-owned approval plans.
+ * The shared owner retains principal binding, admission rechecks and fail-closed missing-channel behavior.
+ * @complexity O(1) binding; confirmation work is owned by requireHumanConfirm. */
+export function createToolHumanConfirmer({ surfaces }: { surfaces: AssistantSurfaceDeps }, _optional = {}) {
+  return ({ ctx, description }: { ctx: ToolExecutionContext; description: HumanConfirmSpec }, options: ToolExecutionOptions = {}): Promise<HumanConfirmOutcome> =>
+    requireHumanConfirm({ ctx, surfaces, spec: description }, options);
+}
+
 export function applyToolApprovalPolicy(
   { registration, surfaces }: { registration: ToolRegistration; surfaces: AssistantSurfaceDeps },
-  { localeFor = async () => 'en', disclose }: {
+  { localeFor = async () => 'en', disclose, context }: {
     localeFor?: (ctx: ToolExecutionContext) => Promise<string>;
+    context?: ApprovalContextPort;
     /** Extra rows for the card, computed from the frozen call before asking (e.g. the account and
      *  the resources an external tool would change). A throw refuses the call before any effect. */
     disclose?: (required: { ctx: ToolExecutionContext }) => Promise<readonly SurfaceDetail[]>;
@@ -49,25 +57,13 @@ export function applyToolApprovalPolicy(
       let locale = 'en';
       try { locale = await localeFor(ctx); } catch { /* Copy failure must never bypass a safety gate. */ }
       const disclosed = disclose ? await disclose({ ctx }) : [];
-      const presentation = toolApprovalPresentation({ descriptor: registration.descriptor }, {
-        text: ({ key }) => approvalText({ locale, key }),
-      });
-      return {
-      toolId, errorCode: 'TOOL_APPROVAL', title: presentation.title,
-      ...(presentation.summary ? { description: presentation.summary } : {}),
-      details: disclosed,
-      detailDisclosure: { label: approvalText({ locale, key: 'Details' }), details: [
-        { label: approvalText({ locale, key: 'Input' }), value: ctx.input ?? {}, labels: presentation.labels,
-          description: `${approvalText({ locale, key: 'Technical name' })}: ${toolId}` },
-      ] },
-      danger: actionClass === 'trash' || actionClass === 'delete' || actionClass === 'restore-over-existing',
-      confirmLabel: presentation.confirmLabel, cancelLabel: approvalText({ locale, key: 'Cancel' }),
-      };
+      return toolApprovalConfirmation({ descriptor: registration.descriptor, input: ctx.input, locale, details: disclosed,
+        danger: actionClass === 'trash' || actionClass === 'delete' || actionClass === 'restore-over-existing' });
     },
-    askHuman: ({ ctx, description }, options) => requireHumanConfirm({ ctx, surfaces, spec: description }, options),
+    askHuman: createToolHumanConfirmer({ surfaces }),
     notConfirmed: ({ reason }) => ({ executed: false, ...notConfirmedResult({ confirmed: false, reason }) }),
     // Permissions and entity/version checks still run inside the original domain handler.
-  });
+  }, { ...(context ? { context } : {}) });
 }
 
 /** A remote declaration can add friction, never grant admission or permissions. MCP has no standard

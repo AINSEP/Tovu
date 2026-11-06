@@ -190,7 +190,7 @@ test("admin redirects create route: an unexpected error surfaces as 500 INTERNAL
   try {
     const res = await post(baseUrl, cookie, { matchType: "exact", fromPattern: "/err", toTarget: "/target", statusCode: 301 });
     assert.equal(res.status, 500);
-    assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+    assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The redirect operation could not be completed.", action: "Check the result before repeating this operation. Copy details and report this problem.", step: "redirect operation" } });
   } finally {
     deps.authorize = origAuthorize;
   }

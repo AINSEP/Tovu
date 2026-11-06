@@ -85,7 +85,7 @@ describe("SkillRow", () => {
 
 type Install = ReturnType<typeof useSkillInstall>;
 function install(overrides: Partial<Install> = {}): Install {
-  return { pending: null, busy: false, error: null, propose: vi.fn(), proposeFiles: vi.fn(), cancel: vi.fn(), confirm: vi.fn(async () => {}), fail: vi.fn(), ...overrides };
+  return { pending: null, busy: false, error: null, cause: null, propose: vi.fn(), proposeFiles: vi.fn(), cancel: vi.fn(), confirm: vi.fn(async () => {}), fail: vi.fn(), ...overrides };
 }
 
 describe("SkillInstallConfirmation", () => {

@@ -116,7 +116,7 @@
     "newsletter_schedule_campaign": "newsletter schedule campaign scheduled date time tomorrow later future issue email send",
     "newsletter_resume_campaign": "newsletter resume paused continue sending restart delivery remaining campaign email mailing list",
     "newsletter_pause_campaign": "pause hold stop email campaign newsletter sending",
-    "newsletter_create_campaign": "email campaign newsletter blast send announcement compose",
+    "newsletter_create_campaign": "email campaign newsletter blast send announcement compose draft write create new",
     "newsletter_list_campaigns": "email campaigns newsletters sent scheduled drafts list",
     "newsletter_remove_subscription": "unsubscribe remove subscriber opt out mailing list",
     "newsletter_list_send_log": "email sent delivery delivered log history newsletter campaign who received",
@@ -256,6 +256,7 @@
     "pages_write_html": "custom page html code write create new design page build a page landing page whole entire full complete rewrite rewriting redo start over from scratch replace the page restructure add a section remove a section",
     "pages_write_region": "section sections region regions part parts piece block chunk area one single just the only the hero headline heading title banner cta call to action pricing faq testimonial footer text copy edit editing change changing update updating tweak adjust revise reword swap replace fix amend without rewriting not the whole page leave the rest keep the rest surgical targeted in place handle data-agent-element",
     "pages_move_region": "move moving reorder reordering rearrange rearranging reposition order ordering sequence position swap places above below before after higher lower up down earlier later top bottom first last",
+    "deployment_get_static_publish_status": "publish deployment job progress timeout finished uploaded files did it land status result",
     "deployment_get_static_publish_capabilities": "can I publish yet ready deploy hosting connected status providers hosts where static host",
     "deployment_preview_static_publish": "dry run check before deploy publish what would happen what will be published test authenticated hosting preview domain dns records bindings routes conflicts",
     "deployment_execute_static_publish": "deploy push ship go live make it live publish the site hosting static host custom domain apex www dns",
@@ -314,7 +315,7 @@
     "plugin_source_delete": "plugin source draft delete file permanently remove",
     "plugin_source_seal": "plugin source seal validate integrity install version patch reload code",
     "plugin_source_rollback": "plugin source rollback previous version restore code",
-    "credential_copy_from_project": "copy import reuse keys credentials tokens local project site source overwrite",
+    "credential_copy_from_project": "use saved shared keys reuse credentials local project site grant revoke",
     "site_import_backup": "install import site share url link zip new separate restore",
     "site_import_list": "list past site imports history open imported sites",
     "site_share_create": "share export site zip portable link download drafts",
@@ -360,7 +361,8 @@
     "page.find_elements": "read this screen read admin UI page controls inspect current state show me discover buttons find elements open bring up go to navigate",
     "page.click": "click activate open bring up show me inspect published handle admin UI",
     "page.navigate": "open bring up show me go to navigate navigation admin UI screen panel page editor take me",
-    "site_export_static": "export static site html css javascript assets zip download"
+    "site_export_static": "export static site html css javascript assets zip download",
+    "forms_list_providers": "forms collection provider providers settings external embedded public answers validation"
   },
   "queries": {
     "library_save_attachment": [
@@ -1333,6 +1335,7 @@
     ],
     "newsletter_create_campaign": [
       "Can you draft a new email newsletter?",
+      "Draft an announcement newsletter about a menu, product, or event update.",
       "How do I start a new campaign — will it send automatically?",
       "I want to create a newsletter draft I can edit later.",
       "Can you set up a new campaign in draft status?",
@@ -1932,8 +1935,8 @@
       "Push my site live on my static host."
     ],
     "credential_copy_from_project": [
-      "Copy keys from another local project.",
-      "Reuse another site's saved API keys in this project."
+      "Use a saved key on this site.",
+      "Choose from Shared Keys without copying a token."
     ],
     "site_import_backup": [
       "Install the site at this link",
@@ -2061,6 +2064,10 @@
     "site_export_static": [
       "Export static site",
       "Download my site as HTML pages"
+    ],
+    "forms_list_providers": [
+      "Which form providers can I use?",
+      "What public settings does this form provider need?"
     ]
   },
   "approvals": {
@@ -2555,7 +2562,7 @@
     },
     "deployment_execute_static_publish": {
       "class": "publish",
-      "confirmation": "policy"
+      "confirmation": "plan"
     },
     "deployment_generate_bucket_hosting_setup": {
       "class": "read",
@@ -2570,6 +2577,10 @@
       "confirmation": "direct"
     },
     "deployment_get_export_status": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "deployment_get_static_publish_status": {
       "class": "read",
       "confirmation": "direct"
     },
@@ -2682,7 +2693,7 @@
       "confirmation": "plan"
     },
     "external_mcp_get_admissions": {
-      "class": "read",
+      "class": "edit",
       "confirmation": "direct"
     },
     "external_mcp_list": {
@@ -3277,7 +3288,7 @@
     },
     "theme_reset_file": {
       "class": "restore-over-existing",
-      "confirmation": "policy"
+      "confirmation": "direct"
     },
     "theme_restore_trashed_file": {
       "class": "edit",
@@ -3301,7 +3312,7 @@
     },
     "theme_write_file": {
       "class": "edit",
-      "confirmation": "plan"
+      "confirmation": "direct"
     },
     "trash_empty": {
       "class": "delete",
@@ -3681,6 +3692,26 @@
     "site_export_static": {
       "class": "edit",
       "confirmation": "direct"
+    },
+    "forms_list_providers": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "commerce_get_status": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "commerce_create_product": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "commerce_create_price": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "commerce_resolve_unknown": {
+      "class": "publish",
+      "confirmation": "plan"
     }
   },
   "policyConfirmationIds": [
@@ -3721,11 +3752,9 @@
     "source_control_delete_credential",
     "source_control_execute_commit",
     "taxonomy_execute_merge_term",
-    "theme_reset_file",
     "theme_trash",
     "theme_trash_file",
     "theme_set_active",
-    "theme_write_file",
     "trash_empty",
     "trash_item",
     "trash_purge_item",
@@ -3745,7 +3774,8 @@
     "fs_write_files",
     "image_transform",
     "files_copy",
-    "theme_duplicate"
+    "theme_duplicate",
+    "commerce_resolve_unknown"
   ],
   "secretForms": {
     "credential_save": {
@@ -3816,11 +3846,9 @@
     "source_control_delete_credential",
     "source_control_execute_commit",
     "taxonomy_execute_merge_term",
-    "theme_reset_file",
     "theme_trash",
     "theme_trash_file",
     "theme_set_active",
-    "theme_write_file",
     "trash_empty",
     "trash_item",
     "trash_purge_item",
@@ -3847,7 +3875,8 @@
     "fs_write_files",
     "image_transform",
     "files_copy",
-    "theme_duplicate"
+    "theme_duplicate",
+    "commerce_resolve_unknown"
   ],
   "exchangeOnlyIds": [
     "members_delete",
@@ -3891,11 +3920,9 @@
     "source_control_delete_credential",
     "source_control_execute_commit",
     "taxonomy_execute_merge_term",
-    "theme_reset_file",
     "theme_trash",
     "theme_trash_file",
     "theme_set_active",
-    "theme_write_file",
     "trash_empty",
     "trash_item",
     "trash_purge_item",
@@ -3916,7 +3943,8 @@
     "fs_write_files",
     "image_transform",
     "files_copy",
-    "theme_duplicate"
+    "theme_duplicate",
+    "commerce_resolve_unknown"
   ],
   "chatPermanentDeletes": {
     "defaultEnabled": false,

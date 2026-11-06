@@ -1,0 +1,38 @@
+✔ project store selection stays on stdin through the existing CLI transport (6.542936ms)
+✔ S3 put sends the complete private request only on stdin; replies omit payload/meta (2.20807ms)
+✔ S3 argv is only the fixed action and --json; no --site or request value ever reaches it (5.023124ms)
+✔ status and import replies keep only the published fields, including an optional reason (2.384155ms)
+✔ S3 recovery/CLI failure surfaces fixed codes without child messages or stderr (2.395582ms)
+✔ S3 malformed, mismatched, extra-line and nonzero-success replies never leak diagnostics (4.040413ms)
+✔ S3 a backup import keeps the passphrase and backup path exclusively on stdin (1.018987ms)
+✔ S3 caps UTF-8 stdin at 64 KiB before spawning and refuses relative profiles and removed actions (0.324018ms)
+✔ S3 spawn/pipe failures, oversized stdout and deadlines settle safely and kill runaway children (9.749211ms)
+✔ S3 all five channels reject untrusted, null, child and navigated frames before any effect (2.842396ms)
+✔ S3 invalid renderer paths/profile/unknown fields, sources and oversize requests never spawn (1.950961ms)
+✔ project saves and listing forward only the project store and never copy, list grants or sync (0.76972ms)
+✔ project deletion forwards the selected id and reviewed revision in one CLI call (0.354144ms)
+✔ S3 a refused save returns its fixed failure and makes no further call (0.411551ms)
+✔ import is a dry run first; only a confirmed dry run applies, with the same source fields (0.877193ms)
+✔ import: the apply names the confirmed dry run digest, so a source replaced during confirmation is refused (0.607856ms)
+✔ import: replies to the renderer never carry the source digest, while the apply still names it (0.462557ms)
+✔ import: cancelling the confirmation never applies; nothing new or a failed dry run skips the dialog (0.583339ms)
+✔ S3 the backup picker owns the path; cancellation/opaque picker errors do not spawn or echo secrets (0.492933ms)
+✔ S3 an open backup picker or confirmation does not hold the queue; its CLI calls still queue (0.505272ms)
+✔ the confirmation names what imports, what does not and why, and which sites keep their copies (0.390369ms)
+✔ start-up settle: an empty legacy store (0 entries AND 0 grants) is deleted without a notice (0.349417ms)
+✔ start-up settle: a store holding keys is kept and the import notice shows; settled/none do nothing (0.216857ms)
+✔ start-up settle: a failed or thrown status keeps every file, shows nothing and only logs (0.18555ms)
+(node:21431) ExperimentalWarning: Module mocking is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:21431) DeprecationWarning: mock.module(): options.namedExports is deprecated. Use options.exports instead.
+✔ preload.mts uses the shared speech bridge with the Tovu channel namespace (1.037815ms)
+✔ preload.mts exposes both bridges — dropping either is what the port had to avoid (0.258109ms)
+✔ the ESM preload exposes shared keys, runner and voice and maps methods to fixed contract channels (49.757061ms)
+ℹ tests 27
+ℹ suites 0
+ℹ pass 27
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 950.17853

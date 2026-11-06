@@ -1,3 +1,4 @@
+import type { ChatDeleteSurfaceDeps } from '#src/contracts/core/chat-delete-grant';
 import assert from "node:assert/strict";
 import test from "node:test";
 import { isReadOnlyTool, type ToolExecutionContext, type ToolExecutionOptions } from "@jini-ai/core";
@@ -121,7 +122,8 @@ function statusTools(control: MailProviderControl, mailStatus?: (optional?: { re
     before?.();
     store.deliver({ exchangeId: `exchange-${count}`, principalId: "owner", params: { decision: "confirm" } }, { toolId });
   } });
-  const registrations = buildMailStatusRegistrations({ workspaceId: "ws", mailer: new ConsoleMailerAdapter(), authorize: async () => ({ allowed: true, reason: "grant" }), mailProviderControl: control, ...(mailStatus ? { mailStatus } : {}) }, { surfaceExchanges: store });
+  const surfaces: ChatDeleteSurfaceDeps = { surfaceExchanges: store, assertAccessApprover: async () => {} };
+  const registrations = buildMailStatusRegistrations({ workspaceId: "ws", mailer: new ConsoleMailerAdapter(), authorize: async () => ({ allowed: true, reason: "grant" }), mailProviderControl: control, ...(mailStatus ? { mailStatus } : {}) }, surfaces);
   const call = (name: string, input: unknown, options: ToolExecutionOptions = {}) => registrations.find((r) => r.descriptor.id === name)!.handler({ ...ctx, input }, options);
   return { call, confirm, cards };
 }
@@ -134,6 +136,7 @@ test("mail_set_provider shows a split-lane setup on its card and re-checks the p
     check: async () => (available ? { ok: true, label: "Fake" } : { ok: false, reason: "'fakemail' has no saved credential" }),
     select: async ({ id }) => { selected.push(id); },
     describe: async () => report([], { transactional: "smtp", bulk: "other" }),
+    readSelection: async () => ({ setting: { transactional: "smtp", bulk: "other" }, revisionSeq: 4 }),
     invalidate: () => { invalidated += 1; },
   };
   const f = statusTools(control);

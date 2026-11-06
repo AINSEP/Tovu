@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import { createElement } from "react";
+import { createElement, lazy, type ComponentType } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { matchRoute } from "@jini-ai/admin/core";
 import type { PanelRenderContext } from "../../panel-contracts";
@@ -7,6 +7,9 @@ import type { PanelRenderContext } from "../../panel-contracts";
 // Record module evaluation, rather than component mounting: eagerly imported pages can also
 // remain unmounted until navigation, which would miss the bundle-loading regression.
 const loaded = new Set<string>();
+const loadedPages: string[] = [];
+const EAGER_BRIDGES = ["comments", "redirects", "seo", "widgets"];
+const EAGER_MODULES = [...EAGER_BRIDGES, "forms"];
 const ROUTE_FEATURES = [
   { modulePath: "../../features/skills/Skills", moduleId: "skills", exports: ["Skills"] },
   { modulePath: "../../features/themes", moduleId: "themes", exports: ["Themes", "ThemeExplore"] },
@@ -68,6 +71,7 @@ const Placeholder: PanelRenderContext["Placeholder"] = ({ sectionId }) => create
 beforeEach(() => {
   vi.resetModules();
   loaded.clear();
+  loadedPages.length = 0;
   // resetModules preserves cached mock factories. Re-register them so each case observes real
   // module evaluation afresh, including when another case has already visited the same feature.
   for (const feature of ROUTE_FEATURES) {
@@ -75,35 +79,76 @@ beforeEach(() => {
       loaded.add(feature.moduleId);
       return Object.fromEntries(feature.exports.map(name => [
         name,
-        routeProbes[name as keyof typeof routeProbes] ?? (() => createElement("h1", null, name)),
+        fakeRouteExport({ moduleId: feature.moduleId, name }),
       ]));
     });
   }
 });
 
+// Fake the Jini page boundary beneath a thin, synchronous host adapter. Module evaluation and
+// actual page-loader invocation are distinct observations; mounting alone cannot detect either.
+function fakeRouteExport({ moduleId, name }: { moduleId: string; name: string }) {
+  const Page = routeProbes[name as keyof typeof routeProbes] ?? (() => createElement("h1", null, name));
+  if (!EAGER_BRIDGES.includes(moduleId)) return Page;
+  const DeferredPage = lazy(async () => {
+    loadedPages.push(name);
+    return { default: Page as ComponentType<Record<string, unknown>> };
+  });
+  return (props: Record<string, unknown>) => createElement(DeferredPage, props);
+}
+
 describe("admin routes load only the page being visited", () => {
-  it("opening navigation leaves pages unloaded except the required Forms list bridge", async () => {
+  it("opening navigation evaluates only the thin adapters and required Forms bridge", async () => {
     const { ADMIN_PANELS } = await import("../../panels");
     const { getNav } = await import("../../nav");
     expect(getNav().flatMap(group => group.items).length).toBeGreaterThan(0);
     // Jini's Forms List deliberately avoids a native import before its bounded API read.
-    expect([...loaded]).toEqual(["forms"]);
+    expect([...loaded].sort()).toEqual([...EAGER_MODULES].sort());
+    expect([...loadedPages]).toEqual([]);
 
     const posts = ADMIN_PANELS.find(panel => panel.id === "posts")!;
     const context = { view: null, params: {}, query: new URLSearchParams(), Placeholder };
     // Constructing an element (as route selection does) must not start the import either.
     const element = posts.render(context);
-    expect([...loaded]).toEqual(["forms"]);
+    expect([...loaded].sort()).toEqual([...EAGER_MODULES].sort());
     const view = render(<><aside>Admin navigation</aside>{element}</>);
     expect(screen.getByRole("status")).toHaveTextContent("Cargando Tovu…");
     expect(screen.getByText("Admin navigation")).toBeVisible();
     await screen.findByRole("heading", { name: "Posts list" });
-    expect([...loaded]).toEqual(["forms", "posts"]);
+    expect([...loaded].sort()).toEqual([...EAGER_MODULES, "posts"].sort());
 
     const settings = ADMIN_PANELS.find(panel => panel.id === "settings")!;
     view.rerender(<><aside>Admin navigation</aside>{settings.render({ ...context, query: new URLSearchParams("tab=interface") })}</>);
     await screen.findByRole("heading", { name: "Settings interface" });
-    expect([...loaded].sort()).toEqual(["forms", "posts", "settings"]);
+    expect([...loaded].sort()).toEqual([...EAGER_MODULES, "posts", "settings"].sort());
+    expect([...loadedPages]).toEqual([]);
+  });
+
+  it.each([
+    ["/comments", "Comments"],
+    ["/redirects", "Redirects"],
+    ["/seo", "Seo"],
+    ["/widgets", "WidgetsLibrary"],
+    ["/widgets/regions", "WidgetRegions"],
+    ["/widgets/regions/footer", "WidgetRegionEditor"],
+    ["/widgets/new?type=text", "WidgetInstanceEditor"],
+  ])("%s has a synchronous adapter while its page waits for rendering", async (routePath, name) => {
+    const pages = await import("../../panel-pages");
+    const { ADMIN_PANELS } = await import("../../panels");
+    expect(typeof pages[name as keyof typeof pages]).toBe("function");
+    expect([...loadedPages]).toEqual([]);
+    const route = matchRoute({ routePath, panels: ADMIN_PANELS });
+    const element = ADMIN_PANELS.find(panel => panel.id === route.panelId)!.render({ ...route, Placeholder });
+    expect([...loadedPages]).toEqual([]);
+
+    const view = render(<>{element}</>);
+    await screen.findByRole("heading", { name });
+    expect([...loadedPages]).toEqual([name]);
+    expect([...loaded].sort()).toEqual([...EAGER_MODULES].sort());
+    view.unmount();
+    render(<>{element}</>);
+    expect(screen.getByRole("heading", { name })).toBeVisible();
+    expect([...loadedPages]).toEqual([name]);
   });
 
   it.each([
@@ -154,10 +199,10 @@ describe("admin routes load only the page being visited", () => {
   ])("a direct link to %s renders the matching page without loading unrelated routes", async (routePath, heading, moduleId) => {
     const { ADMIN_PANELS } = await import("../../panels");
     const route = matchRoute({ routePath, panels: ADMIN_PANELS });
-    expect([...loaded]).toEqual(["forms"]);
+    expect([...loaded].sort()).toEqual([...EAGER_MODULES].sort());
     const panel = ADMIN_PANELS.find(candidate => candidate.id === route.panelId)!;
     render(<>{panel.render({ ...route, Placeholder })}</>);
     await screen.findByRole("heading", { name: heading.trim() });
-    expect([...loaded]).toEqual([...new Set(["forms", moduleId])]);
+    expect([...loaded].sort()).toEqual([...new Set([...EAGER_MODULES, moduleId])].sort());
   });
 });

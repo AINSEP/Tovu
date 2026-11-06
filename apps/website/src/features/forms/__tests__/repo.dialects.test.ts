@@ -116,7 +116,14 @@ describeEachDialect(
       assert.equal(rows.length, 1);
       const events = await kernel.run((db) => db.selectFrom("outbox_events").select("event_json").execute());
       assert.deepEqual(events.map((row) => (JSON.parse(row.event_json) as { aggregateId: string }).aggregateId), [rows[0]!.id]);
-      assert.deepEqual(JSON.parse(rows[0]!.data_json), { name: "Ada" }, "the attempt token is never stored");
+      // Evidence is stored beside the answer map in the versioned envelope, never as a visitor field.
+      const evidence = {
+        version: 1, fields: [{ id: "name", label: "Name", type: "text", required: true }], consent: [],
+        schemaHash: "46972adbb71e4e4fda270a1bdd4eefc9cebdb3fbfd146743311e4e71bc1d270a", capturedAt: T0, source: "native",
+      };
+      assert.deepEqual(JSON.parse(rows[0]!.data_json), ["@jini/form-submission/v1", { name: "Ada" }, null, evidence]);
+      assert.deepEqual((await subs.findById({ workspaceId: WS, id: rows[0]!.id }))?.data, { name: "Ada" });
+      assert.doesNotMatch(rows[0]!.data_json, /"_attempt"|tok-1/, "the attempt token is never stored in answers or evidence");
     });
 
     test("submitForm: two concurrent POSTs of one attempt store exactly one row and answer both the same", async () => {

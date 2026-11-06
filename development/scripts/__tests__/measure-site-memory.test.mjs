@@ -26,15 +26,25 @@ test("tsx launch imports the maps-off preload after tsx, like the real dev launc
     ["--optimize-for-size", "/t/dist/src/cli/main.js", "serve", "/t/site", "--port", "4100"]);
 });
 
-test("the daemon is expected running unless the idle wait outlasts --idle-minutes", () => {
+test("cold and synthetic chat measurements expect an absent daemon unless running is explicit", () => {
   const chatting = parseArgs({ argv: ["--site", "/s", "--mode", "compiled", "--workload", "chatting"] });
-  assert.equal(chatting.idleMinutes, 0, "the fake chat workload must not let the real idle daemon park midway");
-  assert.equal(chatting.expectDaemon, "running");
-  assert.equal(parseArgs({ argv: ["--site", "/s", "--mode", "tsx"] }).expectDaemon, "running");
+  assert.equal(chatting.idleMinutes, 0);
+  assert.equal(chatting.expectDaemon, "parked", "the fake chat turn does not demand a real daemon");
+  assert.equal(parseArgs({ argv: ["--site", "/s", "--mode", "tsx"] }).expectDaemon, "parked");
   assert.equal(parseArgs({ argv: ["--site", "/s", "--mode", "tsx", "--idle-minutes", "1"] }).expectDaemon, "parked");
-  assert.equal(parseArgs({ argv: ["--site", "/s", "--mode", "tsx", "--idle-minutes", "0"] }).expectDaemon, "running");
+  assert.equal(parseArgs({ argv: ["--site", "/s", "--mode", "tsx", "--idle-minutes", "0"] }).expectDaemon, "parked");
   assert.equal(parseArgs({ argv: ["--site", "/s", "--mode", "tsx", "--idle-minutes", "1", "--expect-daemon", "running"] }).expectDaemon, "running");
   assert.throws(() => parseArgs({ argv: ["--site", "/s", "--mode", "tsx", "--expect-daemon", "maybe"] }), /--expect-daemon/);
+});
+
+test("the default cold and synthetic options accept a server-only tree", async () => {
+  for (const workload of [[], ["--workload", "chatting"]]) {
+    const { expectDaemon } = parseArgs({ argv: ["--site", "/s", "--mode", "tsx", ...workload] });
+    const result = await measureTree({ rootPid: SERVER.pid, expectDaemon }, fakePorts({ tree: [SERVER] }));
+    assert.equal(result.complete, true);
+    assert.equal(result.processCount, 1);
+    assert.deepEqual(result.totalFootprint, { natural: 10, afterGc: 10 });
+  }
 });
 
 test("a dead server is never measured as zero", async () => {

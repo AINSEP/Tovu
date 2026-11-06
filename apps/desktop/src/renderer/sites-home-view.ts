@@ -18,6 +18,8 @@ export interface SitesHomeView {
   // the thing on screen right now, as opposed to hidden behind Appearance, a project's workspace,
   // or a non-Projects section.
   showCreateForm: boolean;
+  // Same rule for the Import page.
+  showImportPage: boolean;
 }
 
 /**
@@ -36,6 +38,7 @@ export function deriveSitesHomeView(input: {
   openTabs: readonly string[];
   projects: readonly SiteRecord[];
   isCreating: boolean;
+  isImporting?: boolean;
 }): SitesHomeView {
   const openSites = input.openTabs
     .map((id) => input.projects.find((project) => project.id === id))
@@ -58,7 +61,9 @@ export function deriveSitesHomeView(input: {
   // The create form is a fourth layer competing for the same space as Appearance and a project's
   // workspace, so it is visible only when none of those are: not over Appearance, not over a
   // project tab, not over a non-Projects section.
-  const showCreateForm = input.isCreating && !input.appearanceOpen && showSitesHome && inSites;
+  const layerFree = !input.appearanceOpen && showSitesHome && inSites;
+  const showCreateForm = input.isCreating && layerFree;
+  const showImportPage = input.isImporting === true && layerFree;
 
   return {
     openSites,
@@ -68,6 +73,7 @@ export function deriveSitesHomeView(input: {
     showSitesHome,
     visibleWorkspaceId,
     showCreateForm,
+    showImportPage,
   };
 }
 

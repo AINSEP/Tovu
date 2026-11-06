@@ -44,11 +44,15 @@ export interface SectionNavState {
   setActiveId: Dispatch<SetStateAction<RunnerSectionId>>;
   appearanceOpen: boolean;
   isCreating: boolean;
+  /** The Import page (a sibling of the create form, never both). */
+  isImporting: boolean;
   selectSection: (id: RunnerSectionId) => void;
   openAppearance: () => void;
   closeAppearance: () => void;
   startCreating: () => void;
   stopCreating: () => void;
+  startImporting: () => void;
+  stopImporting: () => void;
 }
 
 /**
@@ -77,6 +81,7 @@ export function useSectionNav(
   // Appearance/Settings screen against the contract. See `AppearancePage` in `App.tsx`.
   const [appearanceOpen, setAppearanceOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
 
   // Moving section is a full reset of everything layered over the section's own screen: an
   // in-progress create form, the Appearance page, and any project tab all belong to where you
@@ -84,6 +89,7 @@ export function useSectionNav(
   const selectSection = (id: RunnerSectionId) => {
     setActiveId(id);
     setIsCreating(false);
+    setIsImporting(false);
     setActiveTab(null);
     setAppearanceOpen(false);
   };
@@ -96,19 +102,25 @@ export function useSectionNav(
   };
 
   const closeAppearance = () => setAppearanceOpen(false);
-  const startCreating = () => setIsCreating(true);
+  // Create and Import are two pages for the same space; opening one closes the other.
+  const startCreating = () => { setIsImporting(false); setIsCreating(true); };
   const stopCreating = () => setIsCreating(false);
+  const startImporting = () => { setIsCreating(false); setIsImporting(true); };
+  const stopImporting = () => setIsImporting(false);
 
   return {
     activeId,
     setActiveId,
     appearanceOpen,
     isCreating,
+    isImporting,
     selectSection,
     openAppearance,
     closeAppearance,
     startCreating,
     stopCreating,
+    startImporting,
+    stopImporting,
   };
 }
 

@@ -144,6 +144,6 @@ test("registerAdminWidgetRegionBindRoute: validation, authorization, binding and
     const res = createMockRes();
     await routeHandler({ params: { workspaceId: "ws-1" }, body: { regionKey: "header" } }, res);
     assert.equal(res.statusCode, 500);
-    assertAdminResponse({ actual: res.body, expected: { error: "internal error" } });
+    assertAdminResponse({ actual: res.body, expected: { error: "internal error" } }, { failure: {"message":"The widget operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"widget operation"} });
   }
 });

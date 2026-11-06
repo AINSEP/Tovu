@@ -103,6 +103,10 @@ const NON_EXCHANGE_OPEN_CALLS = new Map<string, ReadonlySet<string>>([
   ["features/vendor-credentials/vault-adapter.ts", new Set(["required.sealer.open(input, options)"])],
   ["server/runtime/composition/site-key-recovery.ts", new Set(["input.previous.open(required, options)"])],
   ["platform/secrets/vault-kinds.ts", new Set(["required.sealer.open(input, options)"])],
+  // b465b9bbb: the site-granted sealer re-checks the grant around a plain envelope open.
+  ["features/project-keys/site-sealer.ts", new Set(["sealer.open(input, options)"])],
+  // 7f97eb6f0: owner MFA unseals its stored authenticator secret; no card or exchange is involved.
+  ["server/inbound/admin-http/owner-mfa-deps.ts", new Set(["secrets().open(input)"])],
   // 2b0e2d7d9: member OIDC login unseals its redirect state and emailed-code continuation.
   ["features/member-login/oidc-login.ts", new Set([
     "stateless.open({ state: input.params.state, ownerKey, providerId: config.provider.id, redirectUri: config.redirectUri })",
@@ -142,6 +146,25 @@ function scanExchangeTexts(texts: readonly { file: string; text: string }[]): Ex
       }
     }
     return undefined;
+  };
+  // toolApprovalConfirmation copies descriptor.id into the prepared spec's toolId. Follow only
+  // that known builder and an identity dialog; other prepared values must still fail closed.
+  const preparedConfirmationId = (prepare: ts.Expression | undefined): ts.Expression | undefined => {
+    if (!prepare || !ts.isArrowFunction(prepare) || ts.isBlock(prepare.body)) return undefined;
+    const call = unparen(prepare.body);
+    if (!ts.isCallExpression(call) || !ts.isIdentifier(call.expression) || call.expression.text !== "toolApprovalConfirmation") return undefined;
+    return property(property(call.arguments[0], "descriptor"), "id");
+  };
+  const preparedDialogSpec = (node: ts.PropertyAssignment, dialog: ts.ArrowFunction, body: ts.Expression): ts.Expression => {
+    if (dialog.parameters.length !== 1) return body;
+    const parameter = dialog.parameters[0]!.name;
+    if (!ts.isIdentifier(parameter)) return body;
+    if (!ts.isIdentifier(body) || body.text !== parameter.text) return body;
+    const owner = node.parent;
+    if (!ts.isObjectLiteralExpression(owner) || !ts.isCallExpression(owner.parent)) return body;
+    const callee = owner.parent.expression;
+    if (!ts.isIdentifier(callee) || callee.text !== "humanConfirmedToolHandler") return body;
+    return preparedConfirmationId(property(owner, "prepare")) ?? body;
   };
   const toolIds = new Set<string>();
   const unresolved: string[] = [];
@@ -189,7 +212,7 @@ function scanExchangeTexts(texts: readonly { file: string; text: string }[]): Ex
         if (ts.isBlock(body)) {
           const returned = body.statements.find(ts.isReturnStatement);
           record(returned?.expression, node);
-        } else record(body, node);
+        } else record(preparedDialogSpec(node, node.initializer, body), node);
       }
     });
   }
@@ -219,6 +242,32 @@ test("the parser enumerates alternate opener shapes and reports unresolved bindi
   assert.match(fixture.unresolved[0]!, /unknownApprovalId$/);
   assert.match(fixture.unresolved[1]!, /binding$/);
   assert.match(fixture.unresolved[2]!, /unknownId$/);
+});
+
+test("the parser follows identity dialogs to prepared confirmation IDs and fails closed for unknown flows", () => {
+  const fixture = scanExchangeTexts([{ file: path.join(SRC_ROOT, "fixture.ts"), text: `
+    humanConfirmedToolHandler(surfaces, {
+      prepare: async () => toolApprovalConfirmation({ descriptor: { id: "prepared_tool" } }),
+      dialog: spec => spec,
+    });
+    humanConfirmedToolHandler(surfaces, {
+      prepare: async () => toolApprovalConfirmation({ descriptor: { id: unknownPreparedId } }),
+      dialog: spec => spec,
+    });
+    humanConfirmedToolHandler(surfaces, {
+      prepare: async () => unrelatedBuilder({ descriptor: { id: "not_a_confirmation" } }),
+      dialog: spec => spec,
+    });
+    humanConfirmedToolHandler(surfaces, {
+      prepare: async () => toolApprovalConfirmation({ descriptor: { id: "not_the_dialog" } }),
+      dialog: spec => otherSpec,
+    });
+  ` }]);
+  assert.deepEqual([...fixture.toolIds], ["prepared_tool"]);
+  assert.equal(fixture.unresolved.length, 3);
+  assert.match(fixture.unresolved[0]!, /unknownPreparedId$/);
+  assert.match(fixture.unresolved[1]!, /spec$/);
+  assert.match(fixture.unresolved[2]!, /otherSpec$/);
 });
 
 test("the federated card adapter permits only its reviewed dynamic spec expression", () => {
@@ -275,6 +324,8 @@ test("the scan finds the known exchange openers (guards against a scan that sile
     "external_mcp_save",
     "identity_user_create",
     "database_transfer_set_destination",
+    // The identity dialog carries the tool ID built by prepare, rather than an inline spec.
+    "deployment_execute_static_publish",
     "assistant_render_ui",
     // Through `humanConfirmedToolHandler`'s `dialog:` spec, not a direct call.
     "taxonomy_execute_merge_term",

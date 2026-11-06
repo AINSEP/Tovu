@@ -1,5 +1,6 @@
 /** The shared daemon's inherited-channel control: initialize, reuse and withdraw site scopes (ADR-070). */
 import { daemonControlRequest } from "../../runtime/lifecycle/assistant-daemon-connection.js";
+import type { SiteScopeKey } from "@tovu/contracts/site-scope-key";
 
 /** The slice of a site scope the control path manages; the entry also mounts its `app`. */
 export interface ControlledScope {
@@ -9,18 +10,19 @@ export interface ControlledScope {
 
 /** The entry's scope tables: it mounts, drains and park-checks the same maps this control fills. */
 export interface ScopeTables<S extends ControlledScope> {
-  scopes: Map<string, Promise<S>>;
-  scopeEnvironments: Map<string, string>;
-  scopedExchanges: Map<string, () => boolean>;
+  scopes: Map<SiteScopeKey, Promise<S>>;
+  scopeEnvironments: Map<SiteScopeKey, string>;
+  scopedExchanges: Map<SiteScopeKey, () => boolean>;
 }
 
 /** The shared host's routing key. `siteId` is the workspace id and is shared by every local site
  * (`workspace-local`), so it can never route; only the desktop's per-launched-server key can.
  * @complexity O(1).
  */
-function requireScopeKey({ scopeKey }: { scopeKey?: string }, _options = {}): string {
-  if (!scopeKey) throw new Error("the shared agent daemon needs a site scope key to tell sites apart");
-  return scopeKey;
+export function requireScopeKey({ scopeKey }: { scopeKey?: string }, _options = {}): SiteScopeKey {
+  if (!scopeKey) throw new Error("The agent daemon needs a site scope key. Set TOVU_SITE_DIR to the site's directory for a standalone launch, or supply scopeKey from the desktop.");
+  // The inherited parent channel supplies this key; the server cannot pick its shared identity.
+  return scopeKey as SiteScopeKey;
 }
 
 /** Shared scope control cannot stop a site listener or accept parent-only lifecycle notices. */

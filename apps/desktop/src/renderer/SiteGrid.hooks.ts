@@ -8,6 +8,7 @@
  * without mounting the grid: none touches React, `window`, or IPC, so a test can call them on a
  * plain `SiteRecord` or a plain-object event.
  */
+import type { SiteCardTone } from '@jini-ai/ui/site-card';
 import type { SiteRecord } from '../contracts/project.js';
 
 /**
@@ -227,6 +228,31 @@ export function closeMenuThen(setOpen: (open: boolean) => void): (act: () => voi
     setOpen(false);
     act();
   };
+}
+
+/**
+ * A name is a label, never site identity. Keep unrelated cards and expose their parent paths.
+ * @returns The display names more than one site has. @complexity O(n) in `projects`.
+ */
+export function duplicateDisplayNames({ projects }: { projects: readonly Pick<SiteRecord, 'displayName'>[] }, _options = {}): Set<string> {
+  const seenNames = new Set<string>();
+  const duplicateNames = new Set<string>();
+  for (const project of projects) {
+    if (seenNames.has(project.displayName)) duplicateNames.add(project.displayName);
+    seenNames.add(project.displayName);
+  }
+  return duplicateNames;
+}
+
+/**
+ * The status dot's tone. Both transitions are busy, not only the boot: a stop takes as long as its
+ * drain does. A failure is a warning, as it was on the card before the shared frame.
+ * @returns The tone for this status. @complexity O(1) time and space.
+ */
+export function siteCardTone(status: SiteRecord['status'], _options = {}): SiteCardTone {
+  if (status === 'running') return 'running';
+  if (status === 'starting' || status === 'stopping') return 'busy';
+  return status === 'failed' ? 'warning' : 'neutral';
 }
 
 /** The class for the card's existing open affordance; overlays keep the card inert.

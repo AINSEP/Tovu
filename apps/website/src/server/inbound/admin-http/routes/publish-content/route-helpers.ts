@@ -73,11 +73,16 @@ export type MappedErrorClass = readonly [errorClass: abstract new (...args: neve
  * Anything not in `table` is a 500 with fixed text: a raw driver error's message is never echoed.
  * @complexity O(t) in the table length.
  */
-export function mappedErrorResponse(err: unknown, table: readonly MappedErrorClass[], options: AdminFailurePorts & { message?: string } = {}): RouteRefusal {
+export function mappedErrorResponse(err: unknown, table: readonly MappedErrorClass[], options: AdminFailurePorts & {
+  message?: string; method?: string; route?: string; discloseDetails?: boolean;
+} = {}): RouteRefusal {
   for (const [errorClass, status, code] of table) {
     if (err instanceof errorClass) return { status, body: { error: err.message, code } };
   }
-  return adminFailureResponse({ error: err, tracker: options.tracker }, { operation: "routes/publish-content/route-helpers", message: options.message });
+  return adminFailureResponse({ error: err, tracker: options.tracker }, {
+    operation: "routes/publish-content/route-helpers", message: options.message,
+    method: options.method, route: options.route, discloseDetails: options.discloseDetails,
+  });
 }
 
 /** Sends a {@link RouteRefusal}. @complexity O(1). */

@@ -32,7 +32,8 @@ test('usage HTTP route enforces workspace and media.read before any asset lookup
   const mediaRepo = new MediaRepo();
   const app = { get: (_path: string, fn: typeof handler) => { handler = fn; } } as unknown as Parameters<typeof registerAdminMediaWhereUsedRoute>[0]['app'];
   registerAdminMediaWhereUsedRoute({ app, deps: { workspaceId: 'ws', mediaRepo, entryRefsRepo: new InMemoryEntryRefsRepo(), postRepo: new InMemoryPostRepo(), authorize: async () => ({ allowed, reason: allowed ? 'matched' : 'insufficient_permission' }) } });
-  const res = { locals: { principal: { id: 'owner', kind: 'user' } }, status: (code: number) => { status = code; return res; }, json: (value: unknown) => { body = value; return res; } };
+  const res = { req: { method: 'GET', route: { path: '/api/admin/v1/workspaces/:workspaceId/media/:mediaId/where-used' } },
+    locals: { principal: { id: 'owner', kind: 'user' } }, status: (code: number) => { status = code; return res; }, json: (value: unknown) => { body = value; return res; } };
   await handler({ params: { workspaceId: 'other', mediaId: 'm' } }, res);
   assert.equal(status, 404); assert.equal(reads, 0);
   await handler({ params: { workspaceId: 'ws', mediaId: 'm' } }, res);
@@ -45,8 +46,10 @@ test('usage HTTP route enforces workspace and media.read before any asset lookup
   assert.deepEqual(body, { mediaId: 'm', whereUsed: { count: 0, references: [] } });
   mediaRepo.findById = async () => { throw new Error('read failure'); };
   await handler({ params: { workspaceId: 'ws', mediaId: 'm' } }, res);
-  // Shared admin failure envelope (88f429c25): exact text with an incident id, no cause.
-  assert.equal(status, 500); assertAdminResponse({ actual: body, expected: { error: 'internal error', code: 'INTERNAL_ERROR' } });
+  // Shared admin failure envelope: exact route-owned copy and incident details, with a private cause.
+  assert.equal(status, 500); assertAdminResponse({ actual: body, expected: { error: 'internal error', code: 'INTERNAL_ERROR' } }, {
+    failure: { message: 'The media could not be loaded.', action: 'Try loading them again. If it still fails, copy details and report this problem.', step: 'Load media' },
+  });
 });
 
 // Exercise the purge adapter, not a second copy of the scanner or deletion ladder.
@@ -80,4 +83,18 @@ test('usage reports an html-format post body under bodyHtml and never counts a s
   const usage = await findMediaWhereUsed({ deps: { entryRefsRepo: new InMemoryEntryRefsRepo(), postRepo: { list: async () => posts }, mediaRepo: new InMemoryVersionedMediaRepo() }, input: { workspaceId, mediaId: 'canonical-photo', slug: 'photo' } });
   assert.equal(usage.count, 1);
   assert.deepEqual(usage.references.map(ref => [ref.sourceEntryId, ref.fieldPath, ref.targetId]), [['html-post', 'bodyHtml', 'canonical-photo']]);
+});
+
+test('cleanup usage includes restorable posts when requested and purge refuses their media', async () => {
+  const { purgeMedia, InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryBlobStore } = await import('../index.js');
+  const workspaceId = 'trash-usage', postRepo = new InMemoryPostRepo(), mediaRepo = new InMemoryVersionedMediaRepo();
+  const entryRefsRepo = new InMemoryEntryRefsRepo();
+  const { post } = await createPost({ deps: { clock: { nowMs: () => 0 }, repo: postRepo, outbox: new InMemoryOutbox() }, input: { id: 'restorable', workspaceId, title: 'Trash', slug: 'trash', actorId: 'owner', bodyJson: { type: 'doc', content: [{ type: 'image', attrs: { assetId: 'asset' } }] } } });
+  await postRepo.save({ ...post, deletedAt: '2026-10-10T00:00:00Z' });
+  const deps = { postRepo, mediaRepo, entryRefsRepo, blobRepo: new InMemoryAssetBlobRepo({}), renditionRepo: new InMemoryAssetRenditionRepo({}), blobStore: new InMemoryBlobStore() };
+  await mediaRepo.save({ id: 'asset', workspaceId, slug: 'photo', title: '', alt: '', caption: '', credit: '', source: { sha256: 'sha' }, status: 'trashed', createdAt: 'now', updatedAt: 'now', version: 1, width: null, height: null, cssClass: null, htmlAttributes: null });
+  const usage = await findMediaWhereUsed({ deps, input: { workspaceId, mediaId: 'asset', slug: 'photo' } }, { includeTrashed: true });
+  assert.deepEqual(usage.references.map(row => row.sourceEntryId), ['restorable']);
+  await assert.rejects(purgeMedia({ deps, input: { workspaceId, id: 'asset' } }), /still referenced/);
+  assert.ok(await mediaRepo.findById({ workspaceId, id: 'asset' }));
 });

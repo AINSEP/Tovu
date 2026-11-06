@@ -7,8 +7,8 @@ import type { PluginCredentialCard } from "../../contracts/core/plugin-credentia
 import type { ProjectKeysPort } from "./service.js";
 
 export const projectKeysCatalog: AgentToolDefinition[] = [
-  { name: "project_keys_list", description: "List keys saved in this project, their keyId, name, kind, usedByThisSite and usedBy sites. Never returns a key value. Ask before using a saved key on this site.", sideEffects: "none", authorization: { permission: "custom-credentials.read" }, inputSchema: { type: "object", additionalProperties: false, properties: {} } },
-  { name: "project_key_use", description: "Use or stop using a saved project key on this site. Call after the person answers the apply question. Credentials apply now; providers apply now or report restart. No additional confirmation dialog.", sideEffects: "mutates-durable-state", authorization: { permission: "resolved-per-kind" }, inputSchema: { type: "object", additionalProperties: false, required: ["keyId", "use"], properties: { keyId: { type: "string", minLength: 1 }, use: { type: "boolean" } } } },
+  { name: "project_keys_list", description: "List only saved keys already granted to this site. To choose another saved key, open credential_copy_from_project; its owner card keeps ungranted keys private.", sideEffects: "none", authorization: { permission: "custom-credentials.read" }, inputSchema: { type: "object", additionalProperties: false, properties: {} } },
+  { name: "project_key_use", description: "Stop using a granted shared key on this site. Use credential_copy_from_project to approve a new grant in the owner card. Revocation applies immediately to future reads.", sideEffects: "mutates-durable-state", authorization: { permission: "resolved-per-kind" }, inputSchema: { type: "object", additionalProperties: false, required: ["keyId", "use"], properties: { keyId: { type: "string", minLength: 1 }, use: { type: "boolean", const: false } } } },
   { name: "site_restart", description: "Offer a confirmation card before restarting this site when live provider apply reports restart. Unsaved work and running chats will be lost. Without a dev supervisor returns instructions for the Sites list.", sideEffects: "mutates-durable-state", authorization: { permission: "admin.plugins.enable" }, inputSchema: { type: "object", additionalProperties: false, properties: {} } },
 ];
 export const projectKeysRisk: DerivedRiskByToolId = new Map([["project_keys_list", "none"], ["project_key_use", "mutates-durable-state"], ["site_restart", "mutates-durable-state"]]);
@@ -30,17 +30,17 @@ export function buildProjectKeyRegistrations({ keys, authorize, loadCards, surfa
       project_keys_list: async ctx => {
         empty(ctx.input);
         await authorize({ ctx, permission: "custom-credentials.read" });
-        return { keys: await available().list({ cards: await loadCards() }) };
+        return { keys: await available().listGranted({ cards: await loadCards() }) };
       },
       project_key_use: async ctx => {
         const input = requireInputRecord({ input: ctx.input });
-        if (Object.keys(input).some(key => key !== "keyId" && key !== "use") || typeof input.keyId !== "string" || !input.keyId || typeof input.use !== "boolean") throw new ToolInputError({ message: "project_key_use requires keyId and use (true or false)." });
-        const keyId = input.keyId;
+        if (Object.keys(input).some(key => key !== "keyId" && key !== "use") || typeof input.keyId !== "string" || !input.keyId || input.use !== false) throw new ToolInputError({ message: "To revoke a grant, provide keyId and use:false. To grant a saved key, open credential_copy_from_project." });
         await authorize({ ctx, permission: "custom-credentials.read" });
-        // Attachment uses exactly the permission of the domain that owns saving this key.
-        await authorize({ ctx, permission: await available().permissionFor({ keyId }) });
+        const row = (await available().listGranted({})).find(row => row.keyId === input.keyId);
+        if (!row) throw new ToolInputError({ message: "This key is not granted to this site. Open Use a saved key to choose it in the owner's card." });
+        await authorize({ ctx, permission: await available().permissionFor({ keyId: row.keyId }) });
         ctx.signal.throwIfAborted();
-        return available().use({ keyId, use: input.use });
+        return { ...await available().use({ keyId: row.keyId, use: false }), usedBy: [] };
       },
       // The shared Jini approval lifecycle freezes the call and binds the actor; no supervisor = no card.
       site_restart: approvalToolHandler({ surfaces,

@@ -22,6 +22,7 @@ import type { ResourcesSnapshot } from '../contracts/resources.js';
 import { SiteGrid } from './SiteGrid.js';
 import { deleteActionCopy } from './SiteGrid.hooks.js';
 import { externalStopConfirm, restartControl } from './use-site-power.hooks.js';
+import { SITE_LIST_STORAGE_KEY, useSiteListPrefs, type SiteListStorage } from './use-site-list-prefs.hooks.js';
 import { STATUS_LABEL } from './site-status.js';
 import type { SiteRenameState } from './use-site-rename.hooks.js';
 import type { SitePower } from './use-site-power.hooks.js';
@@ -141,8 +142,8 @@ test('a stopped card opens on click and Enter, shows its details, and Start reac
   const [card] = grid.cards();
   assert.equal(card!.getAttribute('role'), 'button');
   assert.match(card!.className, /is-stopped/);
-  assert.ok(card!.querySelector('svg.card__placeholder'), 'no capture yet: the neutral placeholder');
-  assert.equal(card!.querySelector('.card__details')!.textContent, 'SQLite · Tovu 1.4.0');
+  assert.ok(card!.querySelector('svg.jini-site-card__placeholder'), 'no capture yet: the neutral placeholder');
+  assert.equal(card!.querySelector('.jini-site-card__details')!.textContent, 'SQLite · Tovu 1.4.0');
   assert.equal(card!.querySelector('.card__parent'), null);
   grid.click(card!);
   act(() => { card!.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); });
@@ -185,7 +186,7 @@ test('running cards join resource figures by site id even when names match; stop
     children: createElement(SiteGrid, { projects: records, onOpen() {}, onDelete: async () => {}, ...fakeHooks().hooks }),
   })));
   const figures = [...host.querySelectorAll('.card__resources')];
-  assert.deepEqual(figures.map((figure) => figure.textContent), ['~120MB', '~1.5GB · High memory use']);
+  assert.deepEqual(figures.map((figure) => figure.textContent), ['~0.1 GB', '~1.5 GB · High memory use']);
   assert.ok(figures[1]!.classList.contains('is-warning'));
 });
 
@@ -196,9 +197,10 @@ test('a running card shows its capture, failure line and details; the menu offer
   const running = site('/sites/live', { status: 'running', port: 4321, runningApp: 'Web', deleteErasesFiles: true, statusDetail: 'Running in Web (port 52612)' });
   const failed = site('/sites/failed', { status: 'failed', statusDetail: 'the server exited (code 1)' });
   const grid = renderGrid(t, [running, failed], fakes);
-  const [card, failedCard] = grid.cards();
-  assert.equal(card!.querySelector('img.card__preview')!.getAttribute('src'), 'blob:capture');
-  assert.equal(card!.querySelector('.state')!.getAttribute('title'), 'Running in Web at http://localhost:4321');
+  // These fixtures tie on date and name, so the list's last tiebreak, the id, decides the order.
+  const [failedCard, card] = grid.cards();
+  assert.equal(card!.querySelector('img.jini-site-card__preview')!.getAttribute('src'), 'blob:capture');
+  assert.equal(card!.querySelector('.jini-site-card__status')!.getAttribute('title'), 'Running in Web at http://localhost:4321');
   // Owner 2026-10-13: "Running in Web (port N)" is noise in the card's copy; it is the status title.
   assert.equal(card!.querySelector('.card__detail'), null, 'a site another app runs shows no detail line');
   assert.doesNotMatch(card!.textContent!, /port 52612/);
@@ -219,6 +221,7 @@ test('a running card shows its capture, failure line and details; the menu offer
   assert.deepEqual(items, [
     ['Rename…', 'card__menuitem'],
     ['Open in browser', 'card__menuitem'],
+    ['Hide from list', 'card__menuitem'],
     ['Delete…', 'card__menuitem card__menuitem--danger'],
   ]);
   grid.click(grid.button(card!, 'Open in browser'));
@@ -236,7 +239,7 @@ test('a running card shows its capture, failure line and details; the menu offer
   grid.click(grid.button(failedCard!, 'More actions for Bakery'));
   const failedItems = [...failedCard!.querySelectorAll('[role="menuitem"]')].map((item) => [item.textContent?.trim(), item.className]);
   // The danger styling is for a delete that erases files, never for an adopted site's "Remove".
-  assert.deepEqual(failedItems, [['Rename…', 'card__menuitem'], [deleteActionCopy(failed).menuItemLabel, 'card__menuitem']],
+  assert.deepEqual(failedItems, [['Rename…', 'card__menuitem'], ['Hide from list', 'card__menuitem'], [deleteActionCopy(failed).menuItemLabel, 'card__menuitem']],
     'Open in browser is only for a running site');
   act(() => { failedCard!.querySelector('.card__menu')!.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'x', bubbles: true })); });
 });
@@ -383,7 +386,7 @@ test('the default hooks render a card outside the desktop app without a bridge',
   t.after(() => { act(() => root.unmount()); host.remove(); });
   act(() => root.render(createElement(SiteGrid, { projects: [site('/sites/plain')], onOpen: () => {}, onDelete: async () => {} })));
   assert.equal(host.querySelectorAll('article.card').length, 1);
-  assert.ok(host.querySelector('svg.card__placeholder'), 'no bridge, no capture: the placeholder');
+  assert.ok(host.querySelector('svg.jini-site-card__placeholder'), 'no bridge, no capture: the placeholder');
 });
 
 // ---- Layout and wiring the source-text tests used to pin, now asserted on the rendered card ----
@@ -395,31 +398,31 @@ test('every control sits in the card body: the head reads name, ⋮, SQLite, sta
   // what the DOM owns is where each control is and the order it is in.
   const grid = renderGrid(t, [site('/sites/a')]);
   const [card] = grid.cards();
-  assert.equal(card!.querySelector('.card__tile')!.querySelectorAll('button, .card__menu').length, 0, 'no action control may sit on the screenshot');
-  const head = card!.querySelector('.card__body > .card__head')!;
+  assert.equal(card!.querySelector('.jini-site-card__tile')!.querySelectorAll('button, .card__menu').length, 0, 'no action control may sit on the screenshot');
+  const head = card!.querySelector('.jini-site-card__body > .jini-site-card__head')!;
   // Grid auto-placement fills row 1 then row 2, so the DOM order IS the layout — and the reading and
   // Tab order, which is why the ⋮ comes second rather than last.
-  assert.deepEqual([...head.children].slice(0, 4).map((child) => child.className), ['card__namewrap', 'card__menu', 'card__details', 'card__meta']);
+  assert.deepEqual([...head.children].slice(0, 4).map((child) => child.className), ['jini-site-card__namewrap', 'jini-site-card__menu', 'jini-site-card__details', 'jini-site-card__meta']);
   assert.equal(card!.querySelector('.card__info'), null, 'the old left-hand text column is gone');
-  const actions = card!.querySelector('.card__body > .card__actions')!;
+  const actions = card!.querySelector('.jini-site-card__body > .jini-site-card__actions')!;
   assert.equal(head.nextElementSibling, actions, 'the button row sits under the head');
   assert.equal(actions.getAttribute('role'), 'group');
   assert.equal(actions.getAttribute('aria-label'), 'Actions for Bakery', 'the row is a labelled group, not a bare div with handlers on it');
   assert.deepEqual([...actions.querySelectorAll('button')].map((button) => button.getAttribute('aria-label')), ['Start Bakery', 'Restart Bakery'],
     'the ⋮ no longer lives in the button row, and Start/Stop renders before Restart');
   assert.ok(grid.button(card!, 'Restart Bakery').classList.contains('card__restart'));
-  assert.equal(card!.querySelector('h3.card__name')!.getAttribute('title'), 'Bakery', 'D-28: a card name exposes its full text');
+  assert.equal(card!.querySelector('h3.jini-site-card__name')!.getAttribute('title'), 'Bakery', 'D-28: a card name exposes its full text');
   assert.equal(card!.querySelector('.card__missing'), null, 'a present folder shows no missing-folder line');
 });
 
-test('no standalone trash control exists — with the menu closed the card offers only ⋮, Start/Stop and Restart', (t) => {
+test('no standalone trash control exists — with the menu closed the card offers only the pin, ⋮, Start/Stop and Restart', (t) => {
   // The owner's requirement, reversing the earlier "trash always visible" layout: their reason is
   // misclicks, a destructive control beside a button pressed often. Delete lives only inside the ⋮.
   const grid = renderGrid(t, [site('/sites/a', { deleteErasesFiles: true }), site('/sites/b', { status: 'running', port: 4321, displayName: 'Other' })]);
   const names = grid.cards().map((card) => [...card.querySelectorAll('button')].map((button) => button.getAttribute('aria-label')));
   assert.deepEqual(names, [
-    ['More actions for Bakery', 'Start Bakery', 'Restart Bakery'],
-    ['More actions for Other', 'Stop Other', 'Restart Other'],
+    ['Pin Bakery', 'More actions for Bakery', 'Start Bakery', 'Restart Bakery'],
+    ['Pin Other', 'More actions for Other', 'Stop Other', 'Restart Other'],
   ]);
   assert.equal(grid.host.querySelectorAll('.card__delete').length, 0);
 });
@@ -430,13 +433,16 @@ test('the tile shows the capture usePreview returns for the card\'s own id and v
   const asked: { id: string; previewVersion: number | null }[] = [];
   fakes.hooks.usePreview = (input) => { asked.push(input); return input.id === '/sites/live' ? 'blob:capture' : null; };
   const grid = renderGrid(t, [site('/sites/live', { status: 'running', port: 3000, previewVersion: 7 }), site('/sites/idle', { port: 3001 })], fakes);
-  assert.deepEqual(asked.slice(0, 2), [{ id: '/sites/live', previewVersion: 7 }, { id: '/sites/idle', previewVersion: null }]);
-  const [live, idle] = grid.cards().map((card) => card.querySelector('.card__tile')!);
+  // These fixtures tie on date and name, so the list's last tiebreak, the id, decides the order.
+  assert.deepEqual(asked.slice(0, 2), [{ id: '/sites/idle', previewVersion: null }, { id: '/sites/live', previewVersion: 7 }]);
+  const [idle, live] = grid.cards().map((card) => card.querySelector('.jini-site-card__tile')!);
   // An empty alt is deliberate here (not a missing one): a screen-reader user already has the card's
   // own name and status text right below the tile, and announcing "image" or a fabricated
   // description of a screenshot the operator cannot act on would be noise, not information.
-  assert.equal(live!.querySelector('img.card__preview')!.getAttribute('alt'), '');
-  assert.equal(idle!.querySelector('svg.card__placeholder')!.getAttribute('aria-hidden'), 'true');
+  assert.equal(live!.querySelector('img.jini-site-card__preview')!.getAttribute('alt'), '');
+  assert.ok(idle!.querySelector('svg.jini-site-card__placeholder'));
+  // The shared card marks the whole tile as decoration, so the picture and the placeholder both are.
+  assert.deepEqual([live!.getAttribute('aria-hidden'), idle!.getAttribute('aria-hidden')], ['true', 'true']);
   assert.deepEqual([live!.textContent, idle!.textContent], ['', ''], 'the tile must not fall back to the port');
 });
 
@@ -450,7 +456,7 @@ test('a card wears the status the power hook decided, not the polled one, and it
   const grid = renderGrid(t, [project], fakes);
   const [card] = grid.cards();
   assert.match(card!.className, /\bis-stopping\b/);
-  assert.equal(card!.querySelector('.state')!.textContent, STATUS_LABEL.stopping);
+  assert.equal(card!.querySelector('.jini-site-card__status')!.textContent, STATUS_LABEL.stopping);
   const stop = grid.button(card!, 'Stopping… Bakery');
   assert.equal(stop.disabled, true, 'a busy control must be inert, not merely dimmed');
   assert.equal(stop.getAttribute('aria-busy'), 'true');
@@ -461,7 +467,7 @@ test('a card wears the status the power hook decided, not the polled one, and it
   // nothing — and a running-only entry decided from the polled record would still be offering a
   // port that this window's own in-flight Stop is closing.
   assert.deepEqual([...card!.querySelectorAll('[role="menuitem"]')].map((item) => item.textContent?.trim()),
-    ['Rename…', deleteActionCopy(project).menuItemLabel]);
+    ['Rename…', 'Hide from list', deleteActionCopy(project).menuItemLabel]);
 });
 
 test('a site another app serves gets a ⏻ only when Tovu knows how to stop it', (t) => {
@@ -470,7 +476,8 @@ test('a site another app serves gets a ⏻ only when Tovu knows how to stop it',
   const plain = site('/sites/ext', { status: 'stopping', externalUrl: 'https://localhost:4200/admin/' });
   const dev = site('/sites/dev', { status: 'running', externalUrl: 'http://localhost:3000/admin/', externalLauncher: 'npm-run-dev' });
   const grid = renderGrid(t, [plain, dev], fakes);
-  const [ext, own] = grid.cards();
+  // These fixtures tie on date and name, so the list's last tiebreak, the id, decides the order.
+  const [own, ext] = grid.cards();
   assert.equal(ext!.querySelector('button.card__power'), null, 'external servers cannot offer a power action, mid-stop either');
   grid.click(grid.button(own!, 'Stop Bakery'));
   assert.deepEqual(grid.calls, ['toggle /sites/dev'], 'an npm run dev site keeps its Stop, which goes to the power hook');
@@ -523,7 +530,7 @@ test('Enter or Space on the card opens it; the same key on anything inside the c
   press(card!, ' ');
   press(card!, 'Escape');
   assert.deepEqual(grid.opened, ['/sites/a'], 'Space opens, any other key does nothing');
-  const name = card!.querySelector('.card__name')!;
+  const name = card!.querySelector('.jini-site-card__name')!;
   press(name, 'Enter');
   press(name, ' ');
   assert.deepEqual(grid.opened, ['/sites/a'], 'a key that bubbles up from inside the card is not the card\'s own key');
@@ -597,4 +604,109 @@ test('delete through the real confirmation hook: the ⋮ entry only asks, Cancel
   ask();
   await act(async () => { grid.button(card(), copy.confirmButtonLabel).click(); });
   assert.deepEqual(deleted, ['/sites/a']);
+});
+
+// --- The list: sort, pins and hidden sites, through the real preferences hook ----------------------
+
+function memoryStorage(seed: Record<string, string> = {}) {
+  const items = new Map(Object.entries(seed));
+  const storage: SiteListStorage = {
+    getItem: (key) => items.get(key) ?? null,
+    setItem: (key, value) => { items.set(key, value); },
+  };
+  return { storage, saved: () => JSON.parse(items.get(SITE_LIST_STORAGE_KEY) ?? 'null') };
+}
+
+/** Sites named after their ids; a higher number is newer. */
+function dated(...numbers: number[]) {
+  return numbers.map((n) => site(`/sites/s${n}`, { displayName: `S${n}`, createdAt: `2026-01-${String(n).padStart(2, '0')}T00:00:00.000Z` }));
+}
+
+function renderList(t: TestContext, projects: SiteRecord[], storage: SiteListStorage) {
+  const grid = renderGrid(t, projects, fakeHooks(), { useListPrefs: () => useSiteListPrefs(storage) });
+  const names = () => grid.cards().map((card) => card.querySelector('h3')!.textContent);
+  const chip = (label: RegExp) => [...grid.host.querySelectorAll<HTMLButtonElement>('.jini-site-list-toolbar__view')].find((view) => label.test(view.textContent ?? ''));
+  const chooseMenuItem = (name: string, item: string) => {
+    const card = grid.cards().find((candidate) => candidate.querySelector('h3')!.textContent === name)!;
+    grid.click(grid.button(card, `More actions for ${name}`));
+    grid.click(grid.button(card, item));
+  };
+  return { ...grid, names, chip, chooseMenuItem };
+}
+
+test('the default view is the six newest, newest first; All websites shows the rest', (t) => {
+  const list = renderList(t, dated(1, 2, 3, 4, 5, 6, 7, 8), memoryStorage().storage);
+  assert.deepEqual(list.names(), ['S8', 'S7', 'S6', 'S5', 'S4', 'S3']);
+  assert.equal(list.chip(/Recent \+ Pinned/)!.getAttribute('aria-pressed'), 'true');
+  list.click(list.chip(/^All websites \(8\)$/)!);
+  assert.deepEqual(list.names(), ['S8', 'S7', 'S6', 'S5', 'S4', 'S3', 'S2', 'S1']);
+});
+
+test('a pin puts the site first, keeps an old site in the default view, never opens the card, and is saved', (t) => {
+  const memory = memoryStorage();
+  const list = renderList(t, dated(1, 2, 3, 4, 5, 6, 7), memory.storage);
+  assert.deepEqual(list.names(), ['S7', 'S6', 'S5', 'S4', 'S3', 'S2']);
+  list.click(list.chip(/^All websites/)!);
+  const oldest = list.cards().at(-1)!;
+  const pin = list.button(oldest, 'Pin S1');
+  assert.equal(pin.getAttribute('aria-pressed'), 'false');
+  list.click(pin);
+  assert.deepEqual(list.opened, [], 'the pin must not also open the card');
+  assert.deepEqual(memory.saved(), { sort: 'recent', pinned: ['/sites/s1'], hidden: [] });
+  assert.deepEqual(list.names(), ['S1', 'S7', 'S6', 'S5', 'S4', 'S3', 'S2']);
+  list.click(list.chip(/Recent \+ Pinned/)!);
+  assert.deepEqual(list.names(), ['S1', 'S7', 'S6', 'S5', 'S4', 'S3', 'S2'], 'pinned, plus the six newest');
+  const unpin = list.button(list.cards()[0]!, 'Unpin S1');
+  assert.equal(unpin.getAttribute('aria-pressed'), 'true');
+  list.click(unpin);
+  assert.deepEqual(memory.saved().pinned, []);
+  assert.deepEqual(list.names(), ['S7', 'S6', 'S5', 'S4', 'S3', 'S2']);
+});
+
+test('Hide takes the site off the list and Show in list brings it back, leaving the Hidden view once empty', (t) => {
+  const memory = memoryStorage();
+  const list = renderList(t, dated(1, 2), memory.storage);
+  assert.equal(list.chip(/^Hidden/), undefined, 'no Hidden chip until something is hidden');
+  list.chooseMenuItem('S2', 'Hide from list');
+  assert.deepEqual(list.names(), ['S1']);
+  assert.deepEqual(memory.saved().hidden, ['/sites/s2']);
+  assert.ok(list.chip(/^All websites \(1\)$/), 'a hidden site leaves the All count');
+  list.click(list.chip(/^Hidden \(1\)$/)!);
+  assert.deepEqual(list.names(), ['S2']);
+  list.chooseMenuItem('S2', 'Show in list');
+  assert.deepEqual(memory.saved().hidden, []);
+  assert.deepEqual(list.names(), ['S2', 'S1'], 'showing the last hidden site never strands the person on an empty list');
+  assert.equal(list.chip(/Recent \+ Pinned/)!.getAttribute('aria-pressed'), 'true');
+  assert.equal(list.chip(/^Hidden/), undefined);
+});
+
+test('a running site stays on the list even when it is hidden or not among the newest', (t) => {
+  const stored = JSON.stringify({ sort: 'recent', pinned: [], hidden: ['/sites/s1'] });
+  const projects = [...dated(2, 3, 4, 5, 6, 7, 8).map((p) => p), site('/sites/s1', { displayName: 'S1', status: 'running', createdAt: '2026-01-01T00:00:00.000Z' })];
+  const list = renderList(t, projects, memoryStorage({ [SITE_LIST_STORAGE_KEY]: stored }).storage);
+  assert.ok(list.names().includes('S1'), 'hidden and oldest, but running');
+  assert.equal(list.chip(/^Hidden/), undefined, 'a running site is not counted as hidden');
+});
+
+test('every site hidden says so and points at Hidden, instead of showing an empty page', (t) => {
+  const list = renderList(t, dated(1), memoryStorage().storage);
+  const empty = () => list.host.querySelector('.site-list__empty');
+  assert.equal(empty(), null);
+  list.chooseMenuItem('S1', 'Hide from list');
+  assert.equal(empty()!.textContent, 'Every website is hidden. Open Hidden to bring one back.');
+  assert.deepEqual(list.names(), []);
+  list.click(list.chip(/^Hidden \(1\)$/)!);
+  assert.equal(empty(), null);
+  assert.deepEqual(list.names(), ['S1']);
+});
+
+test('Sort by reorders the list and is saved', (t) => {
+  const memory = memoryStorage();
+  const projects = [site('/sites/b', { displayName: 'Beta', createdAt: '2026-01-02T00:00:00.000Z' }), site('/sites/a', { displayName: 'Alpha', createdAt: '2026-01-01T00:00:00.000Z' }), site('/sites/c', { displayName: 'Cedar', createdAt: '2026-01-03T00:00:00.000Z' })];
+  const list = renderList(t, projects, memory.storage);
+  assert.deepEqual(list.names(), ['Cedar', 'Beta', 'Alpha']);
+  const select = list.host.querySelector('select')!;
+  act(() => { select.value = 'name'; select.dispatchEvent(new dom.window.Event('change', { bubbles: true })); });
+  assert.deepEqual(list.names(), ['Alpha', 'Beta', 'Cedar']);
+  assert.equal(memory.saved().sort, 'name');
 });

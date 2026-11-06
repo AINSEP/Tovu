@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { AdminMenu } from "@/lib/api";
 import { MenuEditor } from "../MenuEditor";
 import type { MenuEditorController } from "../hooks/use-menu-editor.hooks";
+import { createDomPageDriver } from "@jini-ai/agentic/dom";
 
 const MENU: AdminMenu = {
   id: "m1", workspaceId: "ws", title: "Docs", slug: "docs", status: "published",
@@ -23,6 +24,15 @@ function controller({ overrides = {} }: { overrides?: Partial<MenuEditorControll
 
 // These tests target the original full editor's public hook seam, before header extraction.
 describe("MenuEditor header characterization", () => {
+  it("drives Copy HTML embed through its own handle", async () => {
+    const editor = controller({});
+    const { container } = render(<MenuEditor menuId="m1" useMenuEditorHook={() => editor} />);
+    const driver = createDomPageDriver({ root: container, pages: {} });
+    await driver.click({ handle: "menu-editor-copy-html-embed" });
+    expect(editor.copyHtmlEmbed).toHaveBeenCalledTimes(1);
+    expect(editor.save).not.toHaveBeenCalled();
+  });
+
   it.each([true, false])("uses the create/edit title when isNew=%s", (isNew) => {
     const editor = controller({ overrides: { isNew } });
     render(<MenuEditor menuId="m1" useMenuEditorHook={() => editor} />);

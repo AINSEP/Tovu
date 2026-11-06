@@ -1,3 +1,5 @@
+import { isDeepStrictEqual } from 'node:util';
+import type { SiteKeyReferences } from "#src/features/project-keys/site-references";
 import { migrateProviderSettings, type PluginProviderDeclaration } from "@jini-ai/plugins/host";
 import { providerKeyId } from "#src/features/project-keys/service";
 import type { ProviderConfigSource, ProviderKeyUsage, ProviderPluginConfig, ProviderSettingsView } from "@jini-ai/plugins/host";
@@ -10,8 +12,8 @@ import { SECRET_OPEN_FAILED } from "#src/features/webhooks/secret-sealer.aesgcm"
  * @file Where a provider plugin's saved settings live (provider wave 2 fix, owner 2026-10-25): a
  * neutral port, `pluginId → { settings, secrets }`, so boot and the admin settings card never know
  * which store answered. Two adapters: the site vault (default) and the project store (`project.db`,
- * visible to attached sites only — see `project-store.ts`). Site rows win; a project row is read only
- * when attached to this site.
+ * visible to attached sites only — see `project-store.ts`). Earlier site overrides could keep a
+ * copied key usable after revoke; grants now govern shared rows only, while independently owned local rows stay first.
  *
  * Both adapters reuse the existing plugin-state rows (`plugin-state:<pluginId>:<key>` in a
  * `secrets_vault` table, sealed with that store's key — `features/api-connections/plugin-state.ts`),
@@ -40,7 +42,7 @@ export class ProviderConfigUnreadableError extends Error {
 /**
  * The project store is configured here but could not open this run (its folder can't be created:
  * EACCES/ENOSPC; a refused key; a damaged file). A save is refused with this rather than written to the
- * site vault: the next start that opens the project store would read its rows first and hide that save.
+ * site vault by a shared-only write path; ordinary local edits retain their independent source.
  */
 export class ProviderStoreUnavailableError extends Error {
   readonly code = "PROVIDER_SETTINGS_UNAVAILABLE";
@@ -79,12 +81,15 @@ function isOpenFailure(error: unknown): boolean {
  * The provider config adapter over one plugin-state store (a site's or the project's vault).
  * @param required.state The plugin-state store; `workspaceId` is the scope that store serves.
  * @param required.scope Reported to the admin card.
+ * @param optional.configExists Selected metadata lookup for the owner store, avoiding a plugin-state inventory.
  * @complexity O(1) vault reads/writes per call.
  */
 export function createVaultProviderConfigSource(
   required: { state: AgentPluginStateStore; workspaceId: string; scope: ProviderConfigSource["scope"] },
-  _optional: Record<string, never> = {},
+  optional: { configExists?: (input: { pluginId: string }) => Promise<boolean> } = {},
 ): ProviderConfigSource {
+  const exists = optional.configExists ?? (async ({ pluginId }: { pluginId: string }) =>
+    (await required.state.describe({ workspaceId: required.workspaceId, pluginId })).keys.some(entry => entry.key === CONFIG_KEY));
   const store = ({ pluginId }: { pluginId: string }) => required.state.forPlugin({ workspaceId: required.workspaceId, pluginId });
   /**
    * Classifies a failed row read: the row is listed (the listing opens no envelope) and the failure
@@ -94,8 +99,7 @@ export function createVaultProviderConfigSource(
    * over a valid key.
    */
   async function unreadableOr({ pluginId, error }: { pluginId: string; error: unknown }): Promise<never> {
-    const listed = isOpenFailure(error) && await required.state.describe({ workspaceId: required.workspaceId, pluginId })
-      .then(({ keys }) => keys.some((entry) => entry.key === CONFIG_KEY), () => false);
+    const listed = isOpenFailure(error) && await exists({ pluginId }).catch(() => false);
     throw listed ? new ProviderConfigUnreadableError({ pluginId, cause: error }) : error;
   }
   async function read({ pluginId }: { pluginId: string }): Promise<ProviderPluginConfig | null> {
@@ -119,9 +123,9 @@ export function createVaultProviderConfigSource(
       return { settings, secretNames: Object.keys(secrets).filter((name) => secrets[name] !== "") };
     },
     async usage({ pluginId }) {
-      const exists = (await required.state.describe({ workspaceId: required.workspaceId, pluginId })).keys.some(entry => entry.key === CONFIG_KEY);
-      return { ...(exists ? { keyId: providerKeyId({ pluginId }) } : {}), store: required.scope,
-        usedByThisSite: exists && required.scope === "site", usedBy: [] };
+      const saved = await exists({ pluginId });
+      return { ...(saved ? { keyId: providerKeyId({ pluginId }) } : {}), store: required.scope,
+        usedByThisSite: saved && required.scope === "site", usedBy: [] };
     },
     async write({ pluginId, config }) {
       await store({ pluginId }).set({ key: CONFIG_KEY, value: { settings: { ...config.settings }, secrets: { ...config.secrets } } });
@@ -130,54 +134,70 @@ export function createVaultProviderConfigSource(
   };
 }
 
-/** Site rows win. Project saves attach in the same transaction, so status and live apply see the
+/** Local settings remain editable and take precedence. Shared settings require a current grant. Project saves attach in the same transaction, so status and live apply see the
  * committed config. Other project values stay invisible until explicitly attached. The unfiltered
- * store owns revision reads; filtering it would hide the row being replaced.
+ * store detects existing identities without granting a site permission to replace a shared key.
  */
 export function withAttachedProject(
   { site }: { site: ProviderConfigSource },
-  { project, attachments, siteId = "", siteName = siteId, transaction = async ({ run }) => run() }: { project: ProviderConfigSource; attachments: KeyAttachments; siteId?: string; siteName?: string; transaction?: ProjectKeyTransaction },
+  { project, attachments, siteId = "", siteName = siteId, references, transaction = async ({ run }) => run() }: { project: ProviderConfigSource; attachments: KeyAttachments; siteId?: string; siteName?: string; references?: SiteKeyReferences; transaction?: ProjectKeyTransaction },
 ): ProviderConfigSource {
-  const attached = ({ pluginId }: { pluginId: string }) => attachments.isAttached({ siteId, keyId: providerKeyId({ pluginId }) });
+  const attached = async ({ pluginId }: { pluginId: string }) => {
+    const keyId = providerKeyId({ pluginId });
+    return attachments.isAttached({ siteId, keyId });
+  };
   async function usage(input: { pluginId: string }): Promise<ProviderKeyUsage> {
-    const own = await site.usage(input);
-    if (own.usedByThisSite) return own;
+    const local = await site.usage(input);
+    if (local.keyId) return local;
+    if (!await attached(input)) return { store: "project", usedByThisSite: false, usedBy: [] };
     const keyId = providerKeyId(input);
     const exists = (await project.usage(input)).keyId !== undefined;
     const users = await attachments.usersOf({ keyId });
     return { ...(exists ? { keyId } : {}), store: "project", usedByThisSite: exists && users.some(user => user.siteId === siteId), usedBy: users.map(user => user.siteName) };
   }
+  async function grantedRead<T>(input: { pluginId: string }, read: (input: { pluginId: string }) => Promise<T>): Promise<T | null> {
+    try {
+      if (!await attached(input)) return null;
+      const value = await read(input);
+      return await attached(input) ? value : null;
+    } catch {
+      console.warn('[shared-keys] Provider settings could not be read. Retry Shared Keys; local settings remain available. Details: P25_SHARED_PROVIDER_READ_FAILED; secret values omitted.');
+      return null;
+    }
+  }
   return {
     scope: "project", usage,
-    read: async input => (await site.read(input)) ?? (await attached(input) ? project.read(input) : null),
-    readSettings: async input => (await site.readSettings(input)) ?? (await attached(input) ? project.readSettings(input) : null),
-    write: input => transaction({ run: async () => {
-      const current = await usage(input);
-      const own = !siteId || current.store === "site" || (!current.usedByThisSite && current.usedBy.length > 0);
-      await (own ? site : project).write(input);
-      if (!own) await attachments.attach({ siteId, siteName, keyId: providerKeyId(input) });
-      return usage(input).then(result => ({ ...result, keyId: providerKeyId(input) }));
-    } }),
+    read: async input => await site.read(input) ?? await grantedRead(input, value => project.read(value)),
+    readSettings: async input => await site.readSettings(input) ?? await grantedRead(input, value => project.readSettings(value)),
+    write: async input => {
+      if (!siteId || (await site.usage(input)).keyId) return site.write(input);
+      return transaction({ run: async () => {
+        const existing = await project.usage(input);
+        if (existing.keyId) {
+          if (!await attached(input)) throw new ProviderStoreUnavailableError({ reason: "Open Use a saved key to approve this owner key on this site before changing it. Details: P25_PROVIDER_KEY_NOT_GRANTED." });
+          if (!isDeepStrictEqual(await project.read(input), input.config)) throw new ProviderStoreUnavailableError({ reason: "Change this shared provider key in Shared Keys, then reopen this site's settings. Details: P25_PROVIDER_KEY_READ_ONLY; secret values omitted." });
+          return { ...await usage(input), keyId: providerKeyId(input) };
+        }
+        await project.write(input);
+        const keyId = providerKeyId(input);
+        await references?.set({ credentialId: keyId });
+        await attachments.attach({ siteId, siteName, keyId });
+        return usage(input).then(result => ({ ...result, keyId: providerKeyId(input) }));
+      } });
+    },
   };
 }
 
 /**
- * For a run whose project store failed to open: reads fall back to the site vault (what boot would
- * have read anyway for a plugin the project never saved), and every save is refused with
- * {@link ProviderStoreUnavailableError} instead of landing in a scope a later start would hide.
+ * Owner-store unavailability means no shared key; existing site keys still work.
+ * No shared half is supplied, so the site source remains independently readable and editable.
  */
 export function withUnavailableProject(
   required: { site: ProviderConfigSource; reason: string },
   _optional: Record<string, never> = {},
 ): ProviderConfigSource {
-  const { site, reason } = required;
-  return {
-    scope: "project",
-    usage: input => site.usage(input),
-    read: (input) => site.read(input),
-    readSettings: (input) => site.readSettings(input),
-    write: () => Promise.reject(new ProviderStoreUnavailableError({ reason })),
-  };
+  // Shared writes can be retried later; a local edit/save remains usable across owner outages.
+  return required.site;
 }
 
 

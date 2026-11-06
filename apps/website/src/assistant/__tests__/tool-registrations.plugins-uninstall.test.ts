@@ -1,3 +1,4 @@
+import { notifyExternalMcpRosterChanged } from "../external-mcp-roster-change.js";
 import { createTempSiteLayoutFixture, testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -91,6 +92,7 @@ function fakeRouteDeps(options: { allow?: boolean; discovery?: PluginDiscoveryRe
 
   const deps: PluginsToolDeps & TovuPluginHostDeps = testSiteLayoutContext({ ...siteLayouts.deps,
     preferences: { locale: async () => "en" },
+    notifyRosterChanged: notifyExternalMcpRosterChanged,
     providerFaces: composePluginProviderFaces({ workspaceRoot: () => siteLayouts.deps.agentPluginLayout.forWorkspace(WORKSPACE_ID).root }),
     authorize: async (params: Record<string, unknown>) => {
       authorizeCalls.push(params);

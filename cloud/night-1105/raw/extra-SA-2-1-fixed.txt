@@ -1,0 +1,12 @@
+✔ caught forbidden fetch still fails after every cleanup; broken cleanup=false (342.638537ms)
+✔ caught forbidden fetch still fails after every cleanup; broken cleanup=true (589.044923ms)
+✔ teardown attempts every step in reverse order and reports every failure (2.352317ms)
+✔ a single failure keeps its identity and a clean context has its own queue (0.338781ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1193.542106

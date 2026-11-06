@@ -201,6 +201,29 @@ function runAtomicitySuite(adapterName: string, make: () => { repo: MenuRepoPort
     const displaced = await repo.findById({ workspaceId: WS, id: "displaced" });
     assert.deepEqual([displaced?.title, displaced?.locations, displaced?.version], ["Primary Nav", ["primary"], 7]);
     assert.equal((await bindingRepo.findByLocation({ workspaceId: WS, locationKey: "primary" }))?.menuId, "displaced");
+    assert.deepEqual(events, [], "a rolled-back import must not publish an event");
+  });
+
+  test(`[${adapterName}] a later location conflict rolls back earlier bindings without publishing events`, async () => {
+    const { repo, bindingRepo } = make();
+    await repo.save(menu({ id: "first", slug: "first", locations: ["primary"], version: 3 }));
+    await repo.save(menu({ id: "second", slug: "second", locations: ["footer"], version: 7 }));
+    await bindingRepo.upsert({ workspaceId: WS, locationKey: "primary", menuId: "first", boundAt: BOUND_AT });
+    await bindingRepo.upsert({ workspaceId: WS, locationKey: "footer", menuId: "second", boundAt: BOUND_AT });
+    const events: string[] = [];
+    const outbox: OutboxPort = { ...noOutbox, enqueue: async (event) => { events.push(event.name); } };
+    await assert.rejects(
+      () => importMenuEntity({
+        deps: { repo: racing(repo, "second"), bindingRepo, clock: { nowMs: () => 0 }, idGen: { newId: () => "event" }, outbox },
+        input: { workspaceId: WS, record: menu({ id: "incoming", slug: "incoming", locations: ["primary", "footer"] }) },
+      }),
+      conflict("second", 7, 8),
+    );
+    assert.equal(await repo.findById({ workspaceId: WS, id: "incoming" }), null);
+    assert.deepEqual((await repo.findById({ workspaceId: WS, id: "first" }))?.locations, ["primary"]);
+    assert.equal((await bindingRepo.findByLocation({ workspaceId: WS, locationKey: "primary" }))?.menuId, "first");
+    assert.equal((await bindingRepo.findByLocation({ workspaceId: WS, locationKey: "footer" }))?.menuId, "second");
+    assert.deepEqual(events, [], "a later failed write must not leak earlier import events");
   });
 }
 

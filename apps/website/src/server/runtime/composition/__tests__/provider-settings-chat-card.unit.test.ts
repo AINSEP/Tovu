@@ -193,8 +193,8 @@ test("provider_status reports presence only: configured, missing, store, never a
   const pending = await run({ pluginId: PLUGIN }) as { providers: { configured: boolean; usedByThisSite: boolean; keyId: string }[] };
   assert.equal(pending.providers[0]!.configured, false);
   assert.equal(pending.providers[0]!.usedByThisSite, false);
-  assert.equal(pending.providers[0]!.keyId, `plugin-state:${PLUGIN}:provider.config`);
-  await attachments.attach({ siteId: "site-a", siteName: "A", keyId: pending.providers[0]!.keyId });
+  assert.equal(pending.providers[0]!.keyId, undefined);
+  await attachments.attach({ siteId: "site-a", siteName: "A", keyId: `plugin-state:${PLUGIN}:provider.config` });
   const status = await run({ pluginId: PLUGIN });
   assert.deepEqual(status, { providers: [{ pluginId: PLUGIN, fields: record.manifest!.contributes!.providers![0]!.settings!.map(field => ({ ...field, required: field.required === true })), settingsCard: { tool: "credential_save", input: { kind: "provider-settings", target: PLUGIN } }, enabled: true, configured: true, store: "project", keyId: `plugin-state:${PLUGIN}:provider.config`, usedByThisSite: true, usedBy: ["A"], appliesAt: "now", missing: [] }] });
   assert.ok(!JSON.stringify(status).includes(secret) && !JSON.stringify(status).includes("ph.private"), "no secret or setting value");

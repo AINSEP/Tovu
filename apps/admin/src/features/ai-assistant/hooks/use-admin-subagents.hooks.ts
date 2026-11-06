@@ -10,10 +10,23 @@ export function useAssistantSubagentsSettings(required: { port: AssistantSubagen
   const state = useAssistantOwnerGrantSettings({ ...required, namespace: SUBAGENTS_NAMESPACE, key: settingsKey });
   // A stale cached ON value cannot establish the current grant after a failed refresh.
   const localAgent = required.mode === "local-cli" && required.agentId !== null;
-  const granted = state.settings?.capabilities?.subagents ?? state.settings?.enabled;
+  const granted = subagentsGranted(state.settings);
   const tooltipKey = !state.loadError && localAgent && granted ? "This chat can use subagents" : null;
   return { ...state, tooltipKey };
 }
+/** Explain only the selected runtime's declared effects; the existing owner dialog owns consent.
+ * @complexity O(1), no reads beyond the current UI snapshot. */
+function personalMcpConfirmation({ agentId, settings, t }: { agentId: string; settings: AssistantSubagentsSettings; t: (key: string) => string }) {
+  const agent = settings.agents?.find(item => item.id === agentId);
+  const name = agent?.name ?? agentId;
+  const body = [
+    `Loads MCP servers set up in ${name} or this project. Tovu doesn't approve or log them. Applies to ${name}'s other chats on this site.`,
+    agent?.writesPersonalConfig ? "Allow also adds a credential-free connector and changes settings outside Tovu. Existing entries are kept and the original file is backed up first." : "",
+    agent?.inheritedRunKey ? "Those servers can see this chat's run key while it runs." : "",
+  ].filter(Boolean).map(t).join("\n");
+  return { title: t(`Allow personal MCP servers for ${name}?`), body, confirmLabel: t("Allow"), cancelLabel: t("Cancel"), tone: "danger" as const };
+}
+
 /** Subagent-specific copy and boolean payload; the shared hook owns locking and errors. */
 export function useAdminSubagents(required: { port: AssistantSubagentsPort; t?: (key: string) => string }, optional: { useConfirmation?: typeof useConfirmRequest } = {}) {
   const state = useAssistantOwnerGrant({ ...required, namespace: SUBAGENTS_NAMESPACE, key: settingsKey,
@@ -22,6 +35,10 @@ export function useAdminSubagents(required: { port: AssistantSubagentsPort; t?: 
   }, { ...optional, confirmEnable: false });
   return { ...state, setEnabled: async ({ enabled }: { enabled: boolean }, _options = {}) => {
     await state.save({ settings: assistantCliPermissions({ enabled }) });
+  }, setAgentMcp: async ({ agentId, enabled }: { agentId: string; enabled: boolean }, _options = {}) => {
+    if (!state.settings) return;
+    await state.save({ settings: { enabled: state.settings.enabled, agentId, capabilities: { userMcp: enabled } },
+      ...(enabled ? { confirmation: personalMcpConfirmation({ agentId, settings: state.settings, t: required.t ?? (key => key) }) } : {}) });
   }, setCapability: async ({ key, enabled }: { key: AssistantCliCapability; enabled: boolean }, _options = {}) => {
     if (!state.settings) return;
     const current = assistantCliPermissions(state.settings);
@@ -89,4 +106,9 @@ export function useWiredAdminSubagents(required: { t?: (key: string) => string }
 }
 export function useWiredAssistantSubagentsSettings(required: { mode: string; agentId: string | null }, _optional = {}) {
   return useAssistantSubagentsSettings({ ...required, port: assistantSubagentsPort });
+}
+
+/** Explicit per-capability grants override the legacy master flag, including explicit false. */
+function subagentsGranted(settings: AssistantSubagentsSettings | null) {
+  return settings?.capabilities?.subagents ?? settings?.enabled;
 }

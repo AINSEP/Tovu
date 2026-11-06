@@ -136,7 +136,7 @@ test("DELETE post: failed change-set persistence restores the row, revision ledg
   try {
     const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WS}/posts/${post.id}`, { method: "DELETE", headers: { cookie } });
     assert.equal(res.status, 500);
-    assertAdminResponse({ actual: await res.json(), expected: { error: "internal error" } });
+    assertAdminResponse({ actual: await res.json(), expected: { error: "internal error" } }, { failure: {"message":"The post removal could not be confirmed.","action":"Check the list before repeating the removal. Copy details and report this problem.","step":"Remove post"} });
   } finally {
     deps.changeSets.insert = originalInsert;
   }

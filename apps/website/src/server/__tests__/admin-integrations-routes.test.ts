@@ -250,7 +250,7 @@ test("integrations routes: pause surfaces an unexpected repo failure as 500 (gen
   assert.equal(res.status, 500);
   // Shared admin failure envelope: a correlatable id, never the repository's cause.
   const body: unknown = await res.json();
-  assertAdminResponse({ actual: body, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: body, expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The integration operation could not be completed.", action: "Check the result before repeating this operation. Copy details and report this problem.", step: "integration operation" } });
   assert.doesNotMatch(JSON.stringify(body), /boom/);
 });
 

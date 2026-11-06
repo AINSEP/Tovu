@@ -67,6 +67,7 @@ export type StaticPublishOutcome =
        *  serves the site under a repository subpath; absent for a host serving it at the root. Echoed back so a caller can show "published at /repo" without having to
        *  re-derive the same computation this module already did. */
       readonly basePath?: string;
+      readonly consentWarning?: string;
       /** The host's own facts about this publish (`DeployPublishResult.providerMetadata`), e.g. the
        *  repository and commit a git-backed host wrote. Carried into publish history. */
       readonly providerMetadata?: Readonly<Record<string, unknown>>;
@@ -84,6 +85,7 @@ export type StaticPublishOutcome =
       readonly message: string;
       readonly deploymentId?: string;
       readonly basePath?: string;
+      readonly consentWarning?: string;
       readonly providerMetadata?: Readonly<Record<string, unknown>>;
     }
   | {

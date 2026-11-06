@@ -8,6 +8,7 @@ import ts from "typescript";
 // self-starting module, arm its watchdog, open a database, or bind a socket.
 function bootHarness(required: {
   memory: boolean;
+  attached?: boolean;
   tls?: boolean;
   bindError?: Error;
   schema?: "allow" | "refuse";
@@ -51,6 +52,7 @@ function bootHarness(required: {
       assert.deepEqual(Array.from(options.alsoRead), ["/site/daemon.log"]);
       calls.push("attach-logs");
     },
+    initializeStartupSecrets: async () => { calls.push("startup-secrets"); },
     ensureAgentDaemonToken: () => { calls.push("token"); },
     ensureToolExecToken: () => { calls.push("tool-token"); },
     registerPluginSdkResolver: () => { calls.push("sdk"); },
@@ -61,7 +63,7 @@ function bootHarness(required: {
       assert.equal(input.app, "Web");
       assert.equal(input.scheme, required.tls ? "https" : "http");
       calls.push("claim");
-      return { ready: (input: { port: number }) => { assert.equal(input.port, 4322); calls.push("ready"); } };
+      return { attached: required.attached ? { port: 4320 } : null, ready: (input: { port: number }) => { assert.equal(input.port, 4322); calls.push("ready"); } };
     },
     reportSitesSyncWarning: () => { calls.push("sync-warning"); },
     defaultContentDbPath: () => "/site/content.db",
@@ -109,8 +111,8 @@ for (const memory of [true, false]) {
       const boot = bootHarness({ memory, tls });
       await assert.rejects(boot.main(), (error) => error === boot.compositionReached);
       const preparation = memory
-        ? ["rejections", "capture", "token", "tool-token", "sdk", "production-gate", "key-notice"]
-        : ["rejections", "pin-root", "capture", "attach-logs", "token", "tool-token", "sdk", "production-gate", "claim", "sync-warning", "schema", "ensure-key", "key-notice"];
+        ? ["rejections", "capture", "sdk", "startup-secrets", "token", "tool-token", "production-gate", "key-notice"]
+        : ["rejections", "pin-root", "capture", "attach-logs", "sdk", "startup-secrets", "token", "tool-token", "production-gate", "claim", "sync-warning", "schema", "ensure-key", "key-notice"];
       assert.deepEqual(boot.calls, [...preparation, tls ? "https" : "http", "reserve", "origin", ...(memory ? [] : ["ready"]), "error-listener"]);
       assert.equal(boot.env.PORT, "4322");
       const response = boot.response();
@@ -142,3 +144,11 @@ for (const code of ["EADDRINUSE", "EACCES"]) {
     else assert.deepEqual(boot.messages, []);
   });
 }
+
+test("an existing site attachment bypasses schema reads, composition and a second listener", async () => {
+  const boot = bootHarness({ memory: false, attached: true });
+  await boot.main();
+  assert.equal(boot.calls.at(-1), "claim");
+  for (const step of ["schema", "ensure-key", "http", "https", "reserve", "ready"]) assert.equal(boot.calls.includes(step), false);
+  assert.deepEqual(boot.exits, []);
+});

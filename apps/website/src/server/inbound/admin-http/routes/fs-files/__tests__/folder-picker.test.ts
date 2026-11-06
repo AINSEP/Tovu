@@ -111,6 +111,6 @@ test("one dialog at a time: a second pick while one is open is a 409", async () 
 
 test("a chooser failure is a fixed 500 that never echoes the cause, and frees the slot", async () => {
   const f = fixture({ pick: async () => { throw new Error("osascript: secret detail /Users/la"); } });
-  assertAdminResponse({ actual: await f.request(), expected: { statusCode: 500, jsonBody: { reasonCode: "picker-failed", error: "internal error", code: "INTERNAL_ERROR" } } });
+  assertAdminResponse({ actual: await f.request(), expected: { statusCode: 500, jsonBody: { reasonCode: "picker-failed", error: "internal error", code: "INTERNAL_ERROR" } } }, { failure: {"message":"The file operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"file operation"} });
   assert.equal((await f.request()).statusCode, 500);
 });

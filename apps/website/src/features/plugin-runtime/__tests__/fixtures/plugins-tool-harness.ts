@@ -1,3 +1,4 @@
+import { notifyExternalMcpRosterChanged } from "../../../../assistant/external-mcp-roster-change.js";
 import assert from "node:assert/strict";
 
 import type { SurfaceEmission, SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
@@ -91,10 +92,13 @@ export function harness(options: HarnessOptions = {}) {
     confirmEnable: (required, opts) => { policyCalls.push({ sealedHere: required.sealedHere, added: [...required.added] }); return confirmEnable(required, opts); },
   };
   const agentHost: AgentPluginHostCapability = {
+    ...(options.agentHost?.inactivePluginIds ? { inactivePluginIds: options.agentHost.inactivePluginIds } : {}),
+    ...(options.agentHost?.previewEnableAccess ? { previewEnableAccess: options.agentHost.previewEnableAccess } : {}),
+    ...(options.agentHost?.recordDeclinedAccess ? { recordDeclinedAccess: options.agentHost.recordDeclinedAccess } : {}),
     listInstalled: async () => { events.push("listInstalled"); return (await options.agentHost?.listInstalled?.({}, {})) ?? [installedAgentPlugin()]; },
     assertWritable: async () => { events.push("assertWritable"); await options.agentHost?.assertWritable?.({}, {}); },
     setEnabled: async (input) => { events.push(`setEnabled:${input.enabled}`); return (await options.agentHost?.setEnabled?.(input, {})) ?? { pluginId: input.pluginId, enabled: input.enabled }; },
-    provisionMcp: async (input) => { events.push(`provisionMcp:${input.pluginId}`); },
+    provisionMcp: async (input, opts) => { events.push(`provisionMcp:${input.pluginId}`); await options.agentHost?.provisionMcp?.(input, opts); },
     uninstall: notUsed("uninstall"),
   };
   const pluginHost: PluginHostPort = {
@@ -103,6 +107,7 @@ export function harness(options: HarnessOptions = {}) {
   };
   let authorizeCount = 0;
   const deps: PluginsToolDeps = {
+    notifyRosterChanged: notifyExternalMcpRosterChanged,
     agentPluginLayout: options.layout ?? FAKE_LAYOUT,
     providerFaces: { ...providerFacesFor({ workspaceRoot: () => (options.layout ?? FAKE_LAYOUT).forWorkspace(WORKSPACE_ID).root }), ...options.providerFaces },
     ...options.injected,
@@ -128,7 +133,7 @@ export function harness(options: HarnessOptions = {}) {
   };
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const tool = (id: string): ToolRegistration => {
-    const found = buildPluginsRegistrations(deps, { surfaceExchanges }).find((registration) => registration.descriptor.id === id);
+    const found = buildPluginsRegistrations(deps, { surfaceExchanges, assertAccessApprover: async () => {} } as never).find((registration) => registration.descriptor.id === id);
     assert.ok(found, `expected '${id}' to be wired`);
     return found;
   };
@@ -159,7 +164,7 @@ function cardHtml(surface: SurfaceEmission): string {
 export async function answerCard(
   { tool, surfaceExchanges, input, decision, signal }: { tool: ToolRegistration; surfaceExchanges: SurfaceExchangeStore; input: unknown; decision: "confirm" | "cancel"; signal?: AbortSignal },
 ): Promise<{ html: string; outcome: Promise<unknown> }> {
-  let raised: (html: string) => void = () => undefined;
+  let raised: (html: string) => void = (_html: string) => undefined;
   const card = new Promise<string>((resolve) => { raised = resolve; });
   const outcome = Promise.resolve(tool.handler(context(input, signal), {
     emitSurface: async (surface) => { raised(cardHtml(surface)); },
@@ -171,4 +176,10 @@ export async function answerCard(
   const delivery = surfaceExchanges.deliver({ exchangeId, params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, decision }, principalId: PRINCIPAL_ID }, { toolId: tool.descriptor.id });
   assert.equal(delivery.ok, true, JSON.stringify(delivery));
   return { html, outcome };
+}
+
+/** Exercise write-only assertions after a real owner confirmation, never a policy bypass. */
+export async function approveEnable({ h, input }: { h: ReturnType<typeof harness>; input: unknown }): Promise<unknown> {
+  const { outcome } = await answerCard({ tool: h.tool("plugins_set_enabled"), surfaceExchanges: h.surfaceExchanges, input, decision: "confirm" });
+  return outcome;
 }

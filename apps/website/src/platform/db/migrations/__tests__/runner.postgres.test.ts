@@ -69,7 +69,7 @@ test("the content history through the current head applies on real Postgres", as
     "0000_legacy_baseline", "0001_post_search", "0002_drop_empty_legacy_chat_tables",
     "0003_coercion_json_as_json", "0004_drop_unused_deployment_tables", "0005_media_createdby",
     "0006_submission_ip_retention", "0007_publish_backstop", "0008_posts_publish_at_featured_media",
-    "0009_posts_author", "0010_members_credentials_revoked_at", "0011_drop_empty_core_commerce_tables", "0012_secrets_vault",
+    "0009_posts_author", "0010_members_credentials_revoked_at", "0011_archive_legacy_commerce", "0011_drop_empty_core_commerce_tables", "0012_secrets_vault",
     "0013_unify_vault_credentials", "0014_media_library", "0015_document_blob_ownership",
     "0016_publish_destination_history", "0017_publish_history_kind", "0018_form_submission_remote_receipts",
     "0019_form_delivery_plans", "0020_vault_api_connection_kind", "0021_site_consent_revisions",
@@ -77,7 +77,7 @@ test("the content history through the current head applies on real Postgres", as
     "0027_search_index", "0028_search_index_retired", "0029_mail_activity_indexes",
     "0030_mail_suppression_admin", "0031_mail_activity_retention", "0032_member_signup_email",
     "0033_mail_activity_message", "0034_member_auth", "0035_member_external_identities",
-    "0036_publish_history_config_jsonb", "0037_media_source_metadata", "0038_newsletter_sending_index",
+    "0036_publish_history_config_jsonb", "0037_media_source_metadata", "0038_newsletter_sending_index", "0039_owner_recovery_codes", "0040_owner_mfa", "0041_owner_passkeys",
   ];
   assert.deepEqual(report.applied, head);
   assert.deepEqual(CONTENT_MIGRATIONS.map(step => step.id), head);
@@ -94,7 +94,7 @@ test("the content history through the current head applies on real Postgres", as
     "search_index_watermarks", "search_index_targets", "search_index_retired",
   ];
   assert.equal(n, collectCoreTables().length + nonCoreTables.length, "declared content tables plus search document, ledger and TS-only tables; 0035's member_external_identities is already core");
-  assert.equal(n, 93, "93 tables through 0038_newsletter_sending_index: an accidental drop or addition must change this pin");
+  assert.equal(n, 97, "97 tables through 0041_owner_passkeys: an accidental drop or addition must change this pin");
   assert.deepEqual(await baseline.query(sql`SELECT udt_name FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'publish_history' AND column_name = 'config_fields_json'`), [{ udt_name: "jsonb" }]);
   const [{ cfg }] = await baseline.query<{ cfg: number }>(sql`SELECT count(*)::int AS cfg FROM pg_ts_config WHERE cfgname = 'tovu_search'`);
   assert.equal(cfg, 1);

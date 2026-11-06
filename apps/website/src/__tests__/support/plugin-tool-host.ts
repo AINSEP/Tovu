@@ -13,7 +13,11 @@ export function buildPluginsRegistrations(deps: PluginsToolDeps, surfaces: Assis
   // Capture it once in this test adapter, matching production's explicit boot binding.
   if (!deps.agentPluginLayout) Object.assign(deps, { agentPluginLayout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }) });
   const bound = testSiteLayoutContext(deps);
-  return build(Object.assign(bound, { pluginHost: deps.pluginHost ?? createTovuPluginHost({ deps: bound }) }), surfaces);
+  return build(Object.assign(bound, { pluginHost: deps.pluginHost ?? createTovuPluginHost({ deps: bound }) }), {
+    ...surfaces,
+    // These direct domain fixtures model a verified human. Server assembly tests retain the real principal lookup.
+    assertAccessApprover: async () => {},
+  } as never);
 }
 export function contributePluginsTools() {
   return { ...contribute(), build: buildPluginsRegistrations };

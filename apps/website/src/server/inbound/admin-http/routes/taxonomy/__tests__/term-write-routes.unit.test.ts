@@ -72,14 +72,14 @@ test("create-term maps a non-Error throw to a generic 500", async () => {
   const invoke = harness({ taxonomyRepo: { findById: async () => { throw "storage offline"; } } });
   assertAdminResponse({ actual: await invoke("post", createPath, { params: { taxonomyId: "tax-1" }, body: { name: "News" } }), expected: {
     statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" },
-  } });
+  } }, { failure: {"message":"The request could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"Request"} });
 });
 
 test("create-term keeps an Error's own message private on an unexpected 500", async () => {
   const invoke = harness({ taxonomyRepo: { findById: async () => { throw new Error("db closed"); } } });
   assertAdminResponse({ actual: await invoke("post", createPath, { params: { taxonomyId: "tax-1" }, body: { name: "News" } }), expected: {
     statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" },
-  } });
+  } }, { failure: {"message":"The request could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"Request"} });
 });
 
 test("delete-taxonomy and delete-term answer 409 TRASH_VERSION_CHANGED when the Trash write loses its version check", async () => {
@@ -105,6 +105,6 @@ test("delete-taxonomy and delete-term hide storage failures behind a generic 500
   for (const path of ["/api/admin/v1/taxonomy/:id", "/api/admin/v1/taxonomy/terms/:id"]) {
     assertAdminResponse({ actual: await invoke("delete", path, { params: { id: "x-1" } }), expected: {
       statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" },
-    } });
+    } }, { failure: {"message":"The taxonomy operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"taxonomy operation"} });
   }
 });

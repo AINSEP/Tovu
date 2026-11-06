@@ -2,16 +2,18 @@ import type { LocalSitesController } from "./hooks/use-local-sites.hooks";
 import { RowMenu } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/agentic";
 import { interpolate } from "@jini-ai/ui/panel-kit";
+import { SiteCard as SiteCardFrame, SiteCardPin, SiteCardStatus, SiteListToolbar, useSiteListView, type SiteCardTone, type SiteListController } from "@jini-ai/ui/site-card";
 
 import type { AdminSiteListEntry, AdminSitesSnapshot } from "../../lib/api";
 import type { Translate } from "@jini-ai/ui/panel-kit";
+import type { SiteListPrefsController } from "./hooks/use-site-list-prefs.hooks";
 import {
   buildSiteCardMenuItems,
-  resolveSiteCardClassName,
   resolveSiteCardMeta,
   resolveSiteCardTitle,
   resolveSiteCardView,
   resolveSiteIsDefault,
+  resolveSiteListItems,
   resolveSiteRunningTitle,
   resolveSiteRegistrationBadge,
   resolveSiteStatusPill,
@@ -75,6 +77,14 @@ import { useSiteCardPreview } from "./hooks/use-site-card-preview.hooks";
  * sits on top of the card: the server's last capture of the site's public page (re-captured while it
  * runs, see `use-site-card-preview.hooks.ts`), or a neutral placeholder for a site never captured.
  *
+ * ## The shared card and the list above it (2026-11-06)
+ *
+ * The card is now Jini's `SiteCard`, the one the desktop app draws, so the two look alike: tile, then
+ * name | menu, details | status, then the buttons. Everything above still holds except where it says
+ * where a control sits: the menu moved up beside the name. `SiteListToolbar` picks what shows (Recent
+ * + Pinned by default) and the sort; the choices are stored per person, see
+ * `use-site-list-prefs.hooks.ts`. Hiding only takes a card off this list, the site stays on disk.
+ *
  * ## The empty state
  *
  * Now genuinely rare rather than this install's normal state: it takes a `sites/` with nothing in it
@@ -83,41 +93,44 @@ import { useSiteCardPreview } from "./hooks/use-site-card-preview.hooks";
  * pending choice.
  */
 
-/** The card's second line and its "this folder is not really a site" badge — a plain function so
- *  {@link SiteCard} carries neither `null` check against its own complexity budget, matching the
- *  split every other renderer in this feature makes. */
-function SiteCardFacts({ site, snapshot, activatingName, t }: { site: AdminSiteListEntry; snapshot: AdminSitesSnapshot; activatingName: string | null; t: Translate }) {
-  const subtitle = resolveSiteSubtitle(site);
-  const meta = resolveSiteCardMeta({ site, snapshot, activatingName, t });
+/** The card's "this folder is not really a site" badge, or nothing. */
+function SiteCardFlag({ site, snapshot, t }: { site: AdminSiteListEntry; snapshot: AdminSitesSnapshot; t: Translate }) {
   const registration = resolveSiteRegistrationBadge(site, snapshot);
+  if (registration === null) return null;
   return (
-    <>
-      {subtitle === null ? null : <p className="site-card-display-name">{subtitle}</p>}
-      {meta === null ? null : <p className="site-card-meta">{meta}</p>}
-      {registration === null ? null : (
-        // A glyph beside the words (2026-09-06 status-strip pass, `styles.css`'s "Sites — the
-        // card's status strip"): this line used to render in the same pill chrome as the state
-        // badge in the head, so the two read as competing states. The icon is what makes it a
-        // footnote about the folder rather than a second status; `aria-hidden` inside the
-        // component, since the text beside it already says the same thing.
-        <span className="status status-warning site-card-flag" title={t(registration.titleKey)}>
-          <SiteFlagIcon />
-          {t(registration.labelKey)}
-        </span>
-      )}
-    </>
+    // A glyph beside the words (2026-09-06 status-strip pass, `styles.css`'s "Sites — the
+    // card's status strip"): this line used to render in the same pill chrome as the state
+    // badge in the head, so the two read as competing states. The icon is what makes it a
+    // footnote about the folder rather than a second status; `aria-hidden` inside the
+    // component, since the text beside it already says the same thing.
+    <span className="status status-warning site-card-flag" title={t(registration.titleKey)}>
+      <SiteFlagIcon />
+      {t(registration.labelKey)}
+    </span>
   );
 }
 
-/** One site's grid tile — compact, equal-height in its row, and carrying the whole truth about that site.
+/** The status pill's tone class → the shared card's status tone. */
+const STATUS_TONES: Record<string, SiteCardTone> = { "status-ok": "running", "status-warning": "warning", "status-error": "danger", "status-neutral": "neutral" };
+
+/** The default star, or nothing. */
+function SiteCardDefaultStar({ site, snapshot, t }: { site: AdminSiteListEntry; snapshot: AdminSitesSnapshot; t: Translate }) {
+  if (!resolveSiteIsDefault(site, snapshot)) return null;
+  return <span className="site-card-default" role="img" aria-label={t("Opens by default")} title={t("Opens by default")}><StarIcon /></span>;
+}
+
+/** The second line under the name, or nothing. */
+function SiteCardSubtitle({ site }: { site: AdminSiteListEntry }) {
+  const subtitle = resolveSiteSubtitle(site);
+  return subtitle === null ? null : <p className="site-card-display-name">{subtitle}</p>;
+}
+
+/** One site's card — compact, and carrying the whole truth about that site.
  *
  *  The folder name (the technical identifier every write on this screen takes) is the dominant
- *  element; the state badge is the green `Serving now` pill for whichever card is genuinely live.
+ *  element; the status says whichever card is genuinely live.
  *  The absolute path is a hover tooltip on the card itself rather than a visible line, which is
- *  what the owner asked for and what buys back the vertical space.
- *
- *  {@link resolveSiteCardClassName} adds the `site-card-serving` tint — a purely visual echo of the
- *  same fact the badge states in words, never a substitute for it. */
+ *  what the owner asked for and what buys back the vertical space. */
 function SiteCard({
   site,
   snapshot,
@@ -126,6 +139,7 @@ function SiteCard({
   activatingName,
   onActivate,
   localSites,
+  list,
   t,
 }: {
   site: AdminSiteListEntry;
@@ -135,51 +149,40 @@ function SiteCard({
   activatingName: string | null;
   onActivate: (name: string) => void;
   localSites?: LocalSitesController;
+  list: Pick<SiteListController<unknown>, "isPinned" | "togglePin" | "isHidden" | "toggleHidden">;
   t: Translate;
 }) {
   const pill = resolveSiteStatusPill({ site, snapshot, t });
-  return (
-    <div className={resolveSiteCardClassName(site, snapshot)} title={resolveSiteCardTitle(site)}>
-      <SiteCardPreview site={site} snapshot={snapshot} />
-      <div className="site-card-body">
-        {/* Name, default star and a small right-aligned pill on one row (2026-10-09, owner): the
-            full-width status strip and the "Running in …" line are gone; the latter is the pill's
-            tooltip. */}
-        <div className="site-card-title-row">
-          <span className="site-card-name">{site.name}</span>
-          {resolveSiteIsDefault(site, snapshot) && (
-            <span className="site-card-default" role="img" aria-label={t("Opens by default")} title={t("Opens by default")}><StarIcon /></span>
-          )}
-          <span className={`status site-card-pill ${pill.toneClass}`} title={resolveSiteRunningTitle({ site, t })}>{pill.label}</span>
-        </div>
-        <SiteCardFacts site={site} snapshot={snapshot} activatingName={activatingName} t={t} />
-        <SiteCardActions
-          site={site}
-          snapshot={snapshot}
-          handle={handle}
-          switchingEnabled={switchingEnabled}
-          activatingName={activatingName}
-          onActivate={onActivate}
-          controller={localSites}
-          t={t}
-        />
-      </div>
-    </div>
-  );
-}
-
-/** The card's top band: the site's last captured public page, or a neutral placeholder. Decorative
- *  (`alt=""`, `aria-hidden`) like the desktop card's preview — the name and status pill right below
- *  already say which site this is, so a screen reader would only hear it twice. Lazy and async so a
- *  long grid never blocks on images below the fold. */
-function SiteCardPreview({ site, snapshot }: { site: AdminSiteListEntry; snapshot: AdminSitesSnapshot }) {
   const preview = useSiteCardPreview({ site, snapshot });
+  const view = resolveSiteCardView({
+    site, snapshot, switchingEnabled, activatingName, busyName: localSites?.busyName ?? null, managed: localSites !== undefined,
+  });
+  const hidden = list.isHidden(site.name);
+  const pinned = list.isPinned(site.name);
+  const items = buildSiteCardMenuItems({ site, menu: view.menu, onActivate, controller: localSites, t }, {
+    hide: { label: t(hidden ? "Show in list" : "Hide from list"), onSelect: () => list.toggleHidden(site.name) },
+  });
+  // Tile, then name | menu, details | status, then the buttons: the layout and why each part sits
+  // where it does are in Jini's `SiteCard`.
   return (
-    <div className="site-card-preview" aria-hidden="true">
-      {preview.src === null
-        ? <span className="site-card-preview-placeholder">{preview.initial}</span>
-        : <img src={preview.src} alt="" loading="lazy" decoding="async" onError={preview.onError} />}
-    </div>
+    <SiteCardFrame
+      name={site.name}
+      title={resolveSiteCardTitle(site)}
+      nameDetail={<SiteCardSubtitle site={site} />}
+      nameExtra={<SiteCardDefaultStar site={site} snapshot={snapshot} t={t} />}
+      previewSrc={preview.src}
+      onPreviewError={preview.onError}
+      menu={(
+        <>
+          <SiteCardPin pinned={pinned} label={interpolate({ template: t(pinned ? "Unpin {name}" : "Pin {name}"), vars: { name: site.name } })} onToggle={() => list.togglePin(site.name)} />
+          <RowMenu items={items} triggerLabel={interpolate({ template: t("More actions for {name}"), vars: { name: site.name } })} agentHandle={`${handle}-menu`} />
+        </>
+      )}
+      details={resolveSiteCardMeta({ site, snapshot, activatingName, t })}
+      status={<SiteCardStatus label={pill.label} tone={STATUS_TONES[pill.toneClass] ?? "neutral"} title={resolveSiteRunningTitle({ site, t })} />}
+      notes={<SiteCardFlag site={site} snapshot={snapshot} t={t} />}
+      actions={<SiteCardActions site={site} view={view} controller={localSites} t={t} />}
+    />
   );
 }
 
@@ -229,7 +232,7 @@ function CreatedSiteNotice({ createdName, createdTokens, createdAdminLogin, t }:
       })}
     >
       <strong>{createdName}</strong> {t("was created. Start it to open its admin.")}
-      <span className="field-hint" style={{ display: "block" }}>{createdAdminLogin}</span>
+      <span className="field-hint" style={{ display: "block" }} data-agent-private="">{createdAdminLogin}</span>
       <CreatedTokensLine createdTokens={createdTokens} />
     </p>
   );
@@ -259,6 +262,8 @@ export interface AllSitesTabProps {
   createdTokens?: { names: string[]; note: string } | null;
   onActivate: (name: string) => void;
   localSites?: LocalSitesController;
+  /** This person's sort, pins and hidden sites. */
+  listPrefs: SiteListPrefsController;
   t: Translate;
 }
 
@@ -268,28 +273,61 @@ export interface AllSitesTabProps {
  *  the identical gate. */
 function sitesGridOrEmpty(props: AllSitesTabProps) {
   if (resolveSitesEmpty(props.sites)) return <SitesEmptyState t={props.t} />;
+  if (!props.listPrefs.ready) return null;
   return <SitesGrid {...props} />;
 }
 
-function SitesGrid({ sites, snapshot, switchingEnabled, activatingName, onActivate, localSites, t }: AllSitesTabProps) {
+/** Why the remembered choices are not being kept, in the server's words, or nothing. */
+function SiteListPrefsNotice({ listPrefs, t }: { listPrefs: SiteListPrefsController; t: Translate }) {
+  if (listPrefs.loadError !== null) {
+    return <div className="notice error">{interpolate({ template: t("Your saved list choices could not be loaded: {reason}. Changes apply until you reload."), vars: { reason: listPrefs.loadError } })}</div>;
+  }
+  if (listPrefs.saveError !== null) {
+    return <div className="notice error">{interpolate({ template: t("Your list choices could not be saved: {reason}. They apply until you reload."), vars: { reason: listPrefs.saveError } })}</div>;
+  }
+  return null;
+}
+
+function SitesGrid({ sites, snapshot, switchingEnabled, activatingName, onActivate, localSites, listPrefs, t }: AllSitesTabProps) {
+  const list = useSiteListView({ items: resolveSiteListItems(sites), prefs: listPrefs.prefs, onPrefsChange: listPrefs.onPrefsChange });
   // Folder names are unique under `sites/` (they ARE the directory entries), so they disambiguate
   // one card's controls from another's — same reasoning as every other list on this workstream.
   const rowHandles = resolveSitesRowHandles(sites);
+  const handleOf = new Map(sites.map((site, index) => [site.name, rowHandles[index]!]));
   return (
-    <div className="sites-grid" role="group" aria-label={t("Sites")}>
-      {sites.map((site, index) => (
-        <SiteCard
-          key={site.name}
-          site={site}
-          snapshot={snapshot}
-          handle={rowHandles[index]!}
-          switchingEnabled={switchingEnabled}
-          activatingName={activatingName}
-          onActivate={onActivate}
-          localSites={localSites}
-          t={t}
-        />
-      ))}
+    // One wrapper so the page's section gap stays above the toolbar, not between it and its cards.
+    <div>
+      <SiteListPrefsNotice listPrefs={listPrefs} t={t} />
+      <SiteListToolbar
+        list={list}
+        copy={{
+          views: t("Which sites to show"),
+          pinnedRecent: t("Recent + Pinned"),
+          all: interpolate({ template: t("Show all ({count})"), vars: { count: String(list.allCount) } }),
+          hidden: interpolate({ template: t("Hidden ({count})"), vars: { count: String(list.hiddenCount) } }),
+          sortBy: t("Sort by"),
+          recent: t("Most recent"),
+          oldest: t("Oldest"),
+          name: t("A-Z"),
+        }}
+      />
+      {list.visible.length === 0 ? <p className="sites-empty-lead">{t("Every site is hidden. Open Hidden to bring one back.")}</p> : null}
+      <div className="sites-grid" role="group" aria-label={t("Sites")}>
+        {list.visible.map(({ site }) => (
+          <SiteCard
+            key={site.name}
+            site={site}
+            snapshot={snapshot}
+            handle={handleOf.get(site.name)!}
+            switchingEnabled={switchingEnabled}
+            activatingName={activatingName}
+            onActivate={onActivate}
+            localSites={localSites}
+            list={list}
+            t={t}
+          />
+        ))}
+      </div>
     </div>
   );
 }
@@ -303,39 +341,28 @@ export function AllSitesTab(props: AllSitesTabProps) {
   );
 }
 
-/** The card's action row — one visible lifecycle action and Open, then the "⋯" overflow menu for
- *  everything else. Only rendering: `resolveSiteCardView` decides which actions apply, and the
- *  controller owns every confirmation. Each control's accessible name carries the site's name, so a
- *  screen reader (or an agent reading the accessibility tree) can tell one card's Start from
- *  another's. */
-function SiteCardActions({ site, snapshot, handle, switchingEnabled, activatingName, onActivate, controller, t }: {
-  site: AdminSiteListEntry; snapshot: AdminSitesSnapshot; handle: string; switchingEnabled: boolean;
-  activatingName: string | null; onActivate: (name: string) => void; controller?: LocalSitesController; t: Translate;
+/** The card's action row — one visible lifecycle action at the left and Open at the right edge; the
+ *  menu with everything else sits beside the name. Only rendering: `resolveSiteCardView` decides
+ *  which actions apply, and the controller owns every confirmation. Each control's accessible name
+ *  carries the site's name, so a screen reader (or an agent reading the accessibility tree) can tell
+ *  one card's Start from another's. */
+function SiteCardActions({ site, view, controller, t }: {
+  site: AdminSiteListEntry; view: ReturnType<typeof resolveSiteCardView>; controller?: LocalSitesController; t: Translate;
 }) {
-  const view = resolveSiteCardView({
-    site, snapshot, switchingEnabled, activatingName, busyName: controller?.busyName ?? null, managed: controller !== undefined,
-  });
-  const items = buildSiteCardMenuItems({ site, menu: view.menu, onActivate, controller, t });
-  const menuLabel = interpolate({ template: t("More actions for {name}"), vars: { name: site.name } });
   const lifecycle = view.lifecycle;
   return (
-    <div className="site-card-actions">
-      {view.openUrl === null ? null : (
-        <a className="btn-secondary site-card-open" href={view.openUrl} target="_blank" rel="noopener noreferrer"
-          aria-label={interpolate({ template: t("Open {name} in a new tab"), vars: { name: site.name } })}>
-          {t("Open")}<span aria-hidden="true">↗</span>
-        </a>
-      )}
+    <div className="jini-site-card__actions">
       {lifecycle === null ? null : (
         <button type="button" className={lifecycle.className} disabled={lifecycle.disabled}
           aria-label={`${t(lifecycle.labelKey)} ${site.name}`} onClick={() => void controller?.run(site.name, lifecycle.action)}>
           {t(lifecycle.labelKey)}
         </button>
       )}
-      {items.length === 0 ? null : (
-        <span className="site-card-menu">
-          <RowMenu items={items} triggerLabel={menuLabel} agentHandle={`${handle}-menu`} />
-        </span>
+      {view.openUrl === null ? null : (
+        <a className="btn-secondary site-card-open" href={view.openUrl} target="_blank" rel="noopener noreferrer"
+          aria-label={interpolate({ template: t("Open {name} in a new tab"), vars: { name: site.name } })}>
+          {t("Open")}<span aria-hidden="true">↗</span>
+        </a>
       )}
     </div>
   );

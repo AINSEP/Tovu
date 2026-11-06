@@ -1,3 +1,7 @@
+import { deriveApiConnectionKey } from '@jini-ai/integrations/api-connections';
+import { apiConnectionVaultScope, createApiConnectionVaultRecordStore, createApiConnectionVaultTokenStore, PLUGIN_STATE_FORMAT } from '../../../api-connections/vault-stores.js';
+import { createSiteOAuthBindings } from '../../../project-keys/site-references.js';
+import { createSavedKeysStore } from './saved-keys-store.fixture.js';
 /** k1 T1–T4: real SQL vaults, project attachments, envelope, ZIP, isolated worker and site creation. */
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -23,7 +27,7 @@ import { siteKeySourcesForSiteDir } from "../../../webhooks/site-key-sources.js"
 import { attachedOnlyVault } from "../../../project-keys/attached-vault.js";
 import { resolveAgentPluginLayout } from "../../../agent-plugins/layout.js";
 import { openProjectStore } from "../../../../server/runtime/composition/project-store.js";
-import { composeSiteSavedKeys, createSavedKeysStore, sanitizeShareDatabase, rewriteArchiveMedia, restoreStagedImport } from "../../../../server/runtime/composition/site-portability.js";
+import { composeSiteSavedKeys, sanitizeShareDatabase, rewriteArchiveMedia, restoreStagedImport } from "../../../../server/runtime/composition/site-portability.js";
 import { createSiteShareBackend } from "../../share-backend.js";
 import { createSiteImportBackend } from "../../import-backend.js";
 import { SiteShareRegistry } from "../../share-registry.js";
@@ -58,8 +62,8 @@ async function shareRequest(app: express.Express, endpoint: string, body: unknow
   } finally { clearTimeout(timer); socket.destroy(); }
 }
 
-for (const placement of ["inSite", "appData"] as const) for (const scenario of ["off", "correct", "wrong", "missing"] as const) {
-  test(`real saved keys ${scenario} round trip (${placement})`, { timeout: 120000 }, async t => {
+for (const placement of ["inSite", "appData"] as const) {
+  test(`exports and imports contain no saved keys or inherited grants (${placement})`, { timeout: 120000 }, async t => {
     const h = await importFixture(t, placement), workspaceId = "ws";
     // Production sites use WAL. A memory-only source hides deserialization failures on export.
     const sourcePath = path.join(h.root, "source.db");
@@ -85,11 +89,30 @@ for (const placement of ["inSite", "appData"] as const) for (const scenario of [
     await put(projectKeys, "attached", "Attached", projectToken);
     await put(projectKeys, "shadow", "Hosting", "shadowed-project-secret");
     await put(projectKeys, "unattached", "Other site", "unattached-project-secret");
+    // Real OAuth record/token rows and sealed issuing clients must stay outside both ZIP and import.
+    const oauthSecrets = ["site-oauth-access-token", "site-oauth-refresh-token", "owner-oauth-access-token", "owner-oauth-refresh-token", "shared-issuing-client-secret"];
+    const seedOAuth = async (store: typeof source, prefix: 'site' | 'owner') => {
+      const clock = { nowMs: () => Date.parse("2026-11-05T00:00:00Z") };
+      const owner = { workspaceId: store.workspaceId, pluginId: 'archive-oauth', connectionId: 'account', clientId: 'issuing-client' };
+      const key = deriveApiConnectionKey(owner);
+      const records = createApiConnectionVaultRecordStore({ vault: store.vault, workspaceId: store.workspaceId, clock });
+      await records.compareAndSet({ key, expectedRevision: 0, record: { key, ...owner, status: 'connected', revision: 1, generation: 1,
+        account: { accountId: 'archive-account', displayName: 'Archive account' }, grantedScopes: ['read'], staged: null, revocationFailure: null, updatedAt: clock.nowMs().toString() } });
+      await createApiConnectionVaultTokenStore({ vault: store.vault, records, owner, clock }).install({ key, generation: 1,
+        tokens: { accessToken: `${prefix}-oauth-access-token`, refreshToken: `${prefix}-oauth-refresh-token`, tokenType: 'Bearer', scopes: ['read'], expiresAt: null } });
+      const id = `plugin-state:tovu-shared-oauth:${prefix}`;
+      await store.vault.put({ ...apiConnectionVaultScope({ workspaceId: store.workspaceId }), id, label: id, expectedRevision: null,
+        provider: null, meta: { credentialFormat: PLUGIN_STATE_FORMAT }, payload: { value: { clientId: owner.clientId, clientSecret: oauthSecrets[4]! } } });
+      return key;
+    };
+    await seedOAuth(source, 'site');
+    const ownerOAuth = await seedOAuth(projectKeys, 'owner');
+    await project.attachments.attach({ siteId: 'source-meta', keyId: ownerOAuth, siteName: 'Source' });
+    // The portable site has only a reference; copying it never grants the imported site's UUID.
+    const bindings = createSiteOAuthBindings({ vault: source.vault, repo: source.repo, workspaceId });
+    await bindings.set({ consumerId: 'api:archive-oauth:account', credentialId: ownerOAuth });
     for (const keyId of ["attached", "shadow"]) await project.attachments.attach({ siteId: "source-meta", keyId, siteName: "Source" });
-    const savedKeys = composeSiteSavedKeys({ workspaceId, keyring, sealer, settingsRepo: source.settings,
-      projectVault: { ...project.vault, repo: attachedOnlyVault({ vault: project.vault.repo, siteId: "source-meta", attachments: project.attachments }) },
-      projectTransaction: project.transaction,
-    }, { home: h.root, env: {}, mode: "local" });
+    const savedKeys = composeSiteSavedKeys({ workspaceId, sealer });
     const sourceDir = path.join(h.root, "source"); fs.mkdirSync(sourceDir); fs.writeFileSync(path.join(sourceDir, "config.json"), '{"name":"Portable"}');
     const shares = new SiteShareRegistry({ directory: path.join(h.root, "shares") });
     const backend = createSiteShareBackend({ registry: shares, site: workspaceId, ownerPrincipalId: "owner", savedKeys, zip: zipFolderFiles, delivery: async () => undefined,
@@ -105,54 +128,39 @@ for (const placement of ["inSite", "appData"] as const) for (const scenario of [
     app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; res.locals.authCredentialKind = "session"; next(); });
     registerAdminSiteShareRoutes({ app, deps: { workspaceId, ownerPrincipalId: "owner", siteShareBackend: backend, authorize: async () => ({ allowed: true }) } as unknown as RouteDeps });
     const endpoint = `/api/admin/v1/workspaces/${workspaceId}/site-shares`;
-    let exported = await shareRequest(app, endpoint, { includeSavedKeys: scenario !== "off" });
+    let exported = await shareRequest(app, endpoint, {});
     while (exported.jobId) exported = await shareRequest(app, endpoint, { jobId: exported.jobId });
-    assert.equal(exported.hasEncryptedKeys === true, scenario !== "off");
+    assert.equal(exported.hasEncryptedKeys === true, false);
     assert.match(exported.shareId, /^[0-9a-f-]{36}$/);
     assert.equal(exported.downloadUrl, `/api/admin/v1/workspaces/ws/site-shares/${exported.shareId}/download`);
-    assert.match(exported.notices.join(), /posts\.body_json.*post-0/);
-    const password = scenario === "off" ? undefined : (await shareRequest(app, `${endpoint}/${exported.shareId}/password`, {})).password;
+    // Credential-looking user content is preserved with location-only warnings and acknowledgement;
+    // saved keys, secret settings and inherited grants remain excluded by item 25.
+    assert.equal(exported.needsAcknowledgement, true);
+    assert.ok(exported.credentialWarnings.some((warning: { path: string }) => warning.path === 'content.db:posts.body_json'));
     const archive = fs.readFileSync(shares.artifactPath(exported));
     const files = new Map<string, Buffer>();
     for await (const e of reader.entries({ archive })) if (e.kind === "file") {
       const chunks: Buffer[] = []; for await (const c of e.openReadStream({})) chunks.push(Buffer.from(c)); files.set(e.entryPath, Buffer.concat(chunks));
     }
-    assert.equal(files.has(SAVED_KEYS_PATH), scenario !== "off");
-    assert.equal(Boolean(JSON.parse(files.get("manifest.json")!.toString()).encryptedKeys), scenario !== "off");
-    for (const bytes of files.values()) for (const secret of [bearer, sourceToken, projectToken, settingSecret, "shadowed-project-secret", "unattached-project-secret", "11".repeat(32), ...(password ? [password] : [])]) assert.equal(bytes.includes(Buffer.from(secret)), false);
+    assert.equal(files.has(SAVED_KEYS_PATH), false);
+    assert.equal(Boolean(JSON.parse(files.get("manifest.json")!.toString()).encryptedKeys), false);
+    for (const bytes of files.values()) for (const secret of [sourceToken, projectToken, settingSecret, "shadowed-project-secret", "unattached-project-secret", "11".repeat(32), ...oauthSecrets, ownerOAuth]) assert.equal(bytes.includes(Buffer.from(secret)), false);
     const imports = createSiteImportBackend({ ...h.backendPorts, restoreStagedImport: (input, options) => restoreStagedImport({ ...input, savedKeys }, options) });
     const { uploadId } = await imports.upload({ principalId: "owner", archive });
     const pending = await imports.importBackup({ principalId: "owner", source: { uploadId } });
-    assert.equal(pending.hasEncryptedKeys, scenario !== "off");
-    const supplied = scenario === "correct" ? password : scenario === "wrong" ? "wrong-password" : undefined;
-    const ready = await imports.completeOwner({ principalId: "owner", importId: pending.importId, adminPassword: OWNER_PASSWORD, savedKeysPassword: supplied });
+    assert.equal(pending.hasEncryptedKeys, false);
+    const ready = await imports.completeOwner({ principalId: "owner", importId: pending.importId, adminPassword: OWNER_PASSWORD, savedKeysPassword: undefined });
     assert.equal(ready.status, "ready");
     const dir = path.join(h.workspace.home({}), ready.newSiteName!), dbPath = resolveSiteDatabasePaths({ dir }, { workspace: h.workspace }).contentDbPath;
     const imported = openContentDb({ filePath: dbPath }); t.after(() => closeSqliteConnection(imported));
-    assert.equal(imported.$client.serialize().includes(Buffer.from(bearer)), false);
+    assert.equal(imported.$client.prepare<[], { body_json: string }>("SELECT body_json FROM posts WHERE id='post-0'").get()!.body_json.includes(bearer), true);
     const ids = imported.$client.prepare<[], { id: string }>("SELECT id FROM secrets_vault ORDER BY id").all().map(row => row.id);
-    assert.deepEqual(ids, scenario === "correct" ? ["attached", "site-key"] : []);
+    assert.deepEqual(ids, []);
     const settings = imported.$client.prepare("SELECT value_json FROM setting_values_workspace WHERE setting_id='saved-secret'").all();
-    assert.deepEqual(settings, scenario === "correct" ? [{ value_json: JSON.stringify(settingSecret) }] : []);
-    if (scenario === "wrong" || scenario === "missing") {
-      assert.match(ready.warnings!.join(), /Saved keys were left out/);
-      assert.deepEqual((await imports.list({ principalId: "owner" }))[0]!.warnings, ready.warnings);
-    }
-    if (scenario === "correct") {
-      const meta = JSON.parse(fs.readFileSync(path.join(dir, ".site-meta.json"), "utf8"));
-      assert.equal(meta.siteKeyId, ready.newSiteId);
-      assert.deepEqual(fs.readdirSync(path.join(h.root, ".tovu", "site-keys")), [meta.siteKeyId + ".hex"]);
-      const recipientWorkspace = readTemplate({ templateId: "starter" }).seed.workspace.id;
-      const recipientKeyring = new EnvOrFileKeyring({ sources: siteKeySourcesForSiteDir({ siteDir: dir, env: {}, home: h.root, mode: "local", cwd: h.root }) }, { env: () => ({}) });
-      const recipient = await createSavedKeysStore({ kernel: contentKernel(imported), workspaceId: recipientWorkspace, keyring: recipientKeyring, sealer: new AesGcmSecretSealer(recipientKeyring) });
-      for (const [id, token] of [["attached", projectToken], ["site-key", sourceToken]]) {
-        const context = { workspaceId: recipientWorkspace, kind: "vendor" as const, ownerKey: "tovu", principalId: null, binding: null, id: id! };
-        assert.deepEqual((await recipient.vault.get(context))!.payload, { token });
-        const row = (await recipient.repo.find({ workspaceId: recipientWorkspace, id: id! }))!;
-        await assert.rejects(sealer.open({ sealed: row.sealed! }, { aad: buildVaultAad(row) }));
-        await assert.rejects(project.vault.sealer.open({ sealed: row.sealed! }, { aad: buildVaultAad(row) }));
-      }
-    }
+    assert.deepEqual(settings, []);
+    assert.equal(await project.attachments.isAttached({ siteId: ready.newSiteId!, keyId: "attached" }), false);
+    assert.equal(await project.attachments.isAttached({ siteId: ready.newSiteId!, keyId: ownerOAuth }), false);
+    assert.equal(await project.attachments.isAttached({ siteId: 'source-meta', keyId: ownerOAuth }), true, 'export does not revoke the source');
     await h.assertOwnerLogin({ dir, rejectedPassword: "source-password" });
   });
 }

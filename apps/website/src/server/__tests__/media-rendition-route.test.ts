@@ -150,7 +150,7 @@ test("media rendition route: an already-generated bare-id rendition serves 200 w
 
     const res = await fetch(`${baseUrl}/m/${media.id}/${definition.name}.v${definition.version}/hero.webp`);
     assert.equal(res.status, 200);
-    assert.equal(res.headers.get("cache-control"), "public, max-age=60, must-revalidate");
+    assert.equal(res.headers.get("cache-control"), "public, max-age=60");
     assert.equal(res.headers.get("content-type"), "image/webp");
     const body = new Uint8Array(await res.arrayBuffer());
     assert.ok(body.byteLength > 0);
@@ -213,7 +213,7 @@ test("media rendition route: an older, never-generated transform version is an u
 
     const latestVersionRes = await fetch(`${baseUrl}/m/${media.id}/${v2.name}.v${v2.version}/b.webp`);
     assert.equal(latestVersionRes.status, 200);
-    assert.equal(latestVersionRes.headers.get("cache-control"), "public, max-age=60, must-revalidate");
+    assert.equal(latestVersionRes.headers.get("cache-control"), "public, max-age=60");
   });
 });
 
@@ -409,7 +409,7 @@ test("media rendition route: an unrelated or malformed cookie header does not gr
  * first half below. The second half is the behavior that moved: this test used to seed a draft
  * carrying `visibility: "members"` and assert 200, which is exactly the hole finding 2 named —
  * reverting a live members-only post to draft as a takedown released its media to the public web,
- * with `public, max-age=60, must-revalidate` stamped on it. A GATED draft now still gates.
+ * with `public, max-age=60` stamped on it. A GATED draft now still gates.
  */
 test("media rendition route: a PUBLIC draft's reference leaves its asset unrestricted, while a GATED draft still gates it — unpublishing is a takedown, not a release", async () => {
   await withServer(async (baseUrl, deps) => {
@@ -421,7 +421,7 @@ test("media rendition route: a PUBLIC draft's reference leaves its asset unrestr
     );
     const publicDraftRes = await fetch(`${baseUrl}/m/${publicDraftAsset.id}/${definition.name}.v${definition.version}/d.webp`);
     assert.equal(publicDraftRes.status, 200, "a public draft-only reference must not gate the asset");
-    assert.equal(publicDraftRes.headers.get("cache-control"), "public, max-age=60, must-revalidate");
+    assert.equal(publicDraftRes.headers.get("cache-control"), "public, max-age=60");
 
     const { media: gatedDraftAsset } = await uploadOne(deps, "gated-draft-bytes", "gated-draft.png");
     await deps.postRepo.save(
@@ -465,17 +465,16 @@ test("media rendition route: an asset referenced only by a TRASHED post is not g
       200,
       "a trashed post's stale reference must not gate the asset — no LIVE post references it, so it must be treated the same as an unreferenced asset"
     );
-    assert.equal(res.headers.get("cache-control"), "public, max-age=60, must-revalidate");
+    assert.equal(res.headers.get("cache-control"), "public, max-age=60");
   });
 });
 
-// --- readable-slugs S2b: cache split by which spelling was requested ----------------------------
-// The id and the slug both resolve to the SAME bytes for an ungated asset, but only a current-version id spelling
-// is immutable: replacement changes bytes under a stable id. A slug can be renamed (S2a's
-// `media_slug_history` is what makes an old
-// slug keep resolving at all), so a slug-keyed 200 gets a short, revalidate-soon TTL instead.
+// --- readable-slugs S2b: every live-source spelling revalidates --------------------------------
+// The id and slug resolve to the SAME live bytes. Replacement preserves the id; a slug can also
+// be renamed (S2a's `media_slug_history` keeps old spellings resolving) or reused after deletion.
+// None of these spellings promises immutable bytes, so all must validate before reuse.
 
-test("media rendition route: an ungated 200 requested BY SLUG gets a short-TTL public Cache-Control, while the SAME asset requested by bare id revalidates", async () => {
+test("media rendition route: an ungated 200 requested by slug or bare id revalidates before reuse", async () => {
   await withServer(async (baseUrl, deps) => {
     const { media } = await uploadOne(deps, "slug-cache-split-bytes", "slug-cache.png");
     const { definition } = await registerOne(deps, "public", { format: "webp" });
@@ -484,20 +483,20 @@ test("media rendition route: an ungated 200 requested BY SLUG gets a short-TTL p
     const suffix = `${definition.name}.v${definition.version}/x.webp`;
     const byId = await fetch(`${baseUrl}/m/${media.id}/${suffix}`);
     assert.equal(byId.status, 200);
-    assert.equal(byId.headers.get("cache-control"), "public, max-age=60, must-revalidate");
+    assert.equal(byId.headers.get("cache-control"), "public, max-age=60");
 
     const bySlug = await fetch(`${baseUrl}/m/${media.slug}/${suffix}`);
     assert.equal(bySlug.status, 200);
-    assert.equal(bySlug.headers.get("cache-control"), "public, max-age=3600");
+    assert.equal(bySlug.headers.get("cache-control"), "public, max-age=60");
     assert.deepEqual(
       new Uint8Array(await bySlug.arrayBuffer()),
       new Uint8Array(await (await fetch(`${baseUrl}/m/${media.id}/${suffix}`)).arrayBuffer()),
-      "the id and slug spellings must resolve to identical bytes — only the cache lifetime differs"
+      "the id and slug spellings must resolve to identical bytes under the same revalidation policy"
     );
   });
 });
 
-test("media rendition route: a RETIRED slug (renamed away) still serves the same asset with the short-TTL header, never the long-lived immutable one", async () => {
+test("media rendition route: a retired slug still serves the same asset and revalidates before reuse", async () => {
   await withServer(async (baseUrl, deps) => {
     const { media } = await uploadOne(deps, "retired-slug-cache-bytes", "retired-cache.png");
     const { definition } = await registerOne(deps, "public", { format: "webp" });
@@ -511,7 +510,7 @@ test("media rendition route: a RETIRED slug (renamed away) still serves the same
 
     const viaRetired = await fetch(`${baseUrl}/m/${retiredSlug}/${definition.name}.v${definition.version}/r.webp`);
     assert.equal(viaRetired.status, 200, "a retired slug must keep resolving to the same asset (S2a rename safety)");
-    assert.equal(viaRetired.headers.get("cache-control"), "public, max-age=3600");
+    assert.equal(viaRetired.headers.get("cache-control"), "public, max-age=60");
   });
 });
 
@@ -531,7 +530,7 @@ test("media rendition route: an asset embedded in BOTH a public post and a membe
     assert.equal(res.status, 200);
     assert.equal(
       res.headers.get("cache-control"),
-      "public, max-age=60, must-revalidate",
+      "public, max-age=60",
       "visible to everyone through the public post — ordinary public caching is correct here"
     );
   });

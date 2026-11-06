@@ -1,3 +1,5 @@
+import { describeFormCollectionProviders } from '@jini-ai/cms/forms';
+import { createLipayFake } from "@jini-ai/commerce/payments/testkit";
 import assert from "node:assert/strict";
 import { createHash } from 'node:crypto';
 import { mkdtemp, writeFile, rm } from 'node:fs/promises';
@@ -86,6 +88,35 @@ const RELEASE = processBuildRelease({});
 const OBS_ATTRIBUTION = attributionFor({ contract: "observability", site: SITE });
 const consentAlways = { consent: () => true, consentRevision: () => 0 };
 const quiet = () => {};
+
+test('removing a shared config retires delivery before shutdown and regrant creates a live client', async () => {
+  const delivered: string[] = [];
+  const admitted: string[] = [];
+  const signals: AbortSignal[] = [];
+  const { runtime } = fakeRuntime({ installed: ['analytics-posthog'], factories: {
+    'analytics-posthog': { contract: 'product_analytics', id: 'posthog', factory: (_input, options = {}) => {
+      const signal = options.signal as AbortSignal;
+      signals.push(signal);
+      const queued: string[] = [];
+      return { port: { capture: ({ name }: ProductEvent) => { queued.push(name); admitted.push(name); }, identify() {} },
+        dispose: () => { if (!signal?.aborted) delivered.push(...queued); } };
+    } },
+  } });
+  const configs = { ...CONFIGS };
+  const shared = await bootProviderPlugins({ runtime, config: configOf(configs), serviceName: 'tovu', site: SITE, ...consentAlways }, { warn: quiet });
+  shared.tracker.capture({ name: 'revoked_queue', userId: 'site:fixture' });
+  assert.equal(admitted.includes('revoked_queue'), true);
+  delete configs['analytics-posthog'];
+  assert.equal(await shared.reapply({ pluginId: 'analytics-posthog' }), 'now');
+  assert.equal(signals[0]?.aborted, true);
+  assert.deepEqual(delivered, []);
+  configs['analytics-posthog'] = CONFIGS['analytics-posthog']!;
+  await shared.reapply({ pluginId: 'analytics-posthog' });
+  assert.equal(signals[1]?.aborted, false);
+  shared.tracker.capture({ name: 'regranted', userId: 'site:fixture' });
+  await shared.dispose({});
+  assert.deepEqual(delivered.filter(name => name !== 'provider_initialized'), ['regranted']);
+});
 
 test('cookie-consent adapter is mounted under base/<pluginId> only while its lease is current', async () => {
   const paths: string[] = [];
@@ -249,11 +280,11 @@ test("unreadable saved settings are treated as not configured, with a warning na
 
 test("installed + enabled but unconfigured (or missing a required field): never loaded; contracts Tovu does not host are skipped", async () => {
   const calls: Calls = { inputs: [], disposed: 0 };
-  const { runtime, requested } = fakeRuntime({ installed: ["observability-opentelemetry", "payments-stripe"], factories: {
+  const { runtime, requested } = fakeRuntime({ installed: ["observability-opentelemetry", "unhosted-example"], factories: {
     "observability-opentelemetry": { contract: "observability", id: "opentelemetry", factory: fakeFactory({ calls, port: recordingObservability([]) }) },
-    "payments-stripe": { contract: "payments", id: "stripe", factory: fakeFactory({ calls, port: {} }) },
+    "unhosted-example": { contract: "unhosted", id: "example", factory: fakeFactory({ calls, port: {} }) },
   } });
-  const config = configOf({ "observability-opentelemetry": { settings: { endpoint: "  " }, secrets: { headers: "a=b" } }, "payments-stripe": { settings: {}, secrets: { apiKey: "sk" } } });
+  const config = configOf({ "observability-opentelemetry": { settings: { endpoint: "  " }, secrets: { headers: "a=b" } }, "unhosted-example": { settings: {}, secrets: { apiKey: "sk" } } });
   const ports = await bootProviderPlugins({ runtime, config, serviceName: "tovu", site: SITE, ...consentAlways }, { warn: quiet });
   assert.deepEqual(requested, []);
   assert.equal(isNoopObservabilityPort(ports.observability), false);
@@ -366,7 +397,7 @@ const HOSTILE = [undefined, null, [], {}, 0, Number.NaN, "", "  ", true, "port",
 for (const contract of PROVIDER_CONTRACTS) {
   test(`${contract.contract} validator refuses hostile values and accepts a full port`, () => {
     for (const value of HOSTILE) assert.equal(typeof contract.validate({ provider: value }), "string", `refused ${String(value)}`);
-    const full = contract.contract === "observability" ? createNoopObservabilityPort({}) : contract.contract === "product_analytics" ? { capture() {}, identify() {} } : { record() {} };
+    const full = contract.contract === "form_collection" ? { plan() {} } : contract.contract === "payments" ? createLipayFake({ now: () => 1000 }).provider : contract.contract === "observability" ? createNoopObservabilityPort({}) : contract.contract === "product_analytics" ? { capture() {}, identify() {} } : { record() {} };
     assert.equal(contract.validate({ provider: full }), undefined);
   });
 }
@@ -953,4 +984,121 @@ test('site factories receive the export decision as an option, never a saved set
       assert.equal(options.length, 1, 'unchanged settings retain the same guarded lease');
     } finally { await providers.dispose({}); }
   }
+});
+
+test('stateless form collection provider is trusted, selected and retired without site secrets', async () => {
+  const calls: Calls = { inputs: [], disposed: 0 };
+  const description = { label: 'Example', fields: [], answers: 'Example inbox', validation: 'Example validation', frameOrigins: [] };
+  const plan = { kind: 'post', action: 'https://forms.example.test/submit', external: true, capabilities: { answers: 'Example inbox', validation: 'Example validation', spamProtection: 'Example protection' } };
+  SETTINGS['forms-example'] = [];
+  const { runtime, requested } = fakeRuntime({ installed: ['forms-example'], factories: {
+    'forms-example': { contract: 'form_collection', id: 'example', factory: fakeFactory({ calls, port: { plan: () => plan, describe: () => description } }) },
+  } });
+  const providers = await bootProviderPlugins({ runtime, config: configOf({}), serviceName: 'tovu', site: SITE, ...consentAlways }, { warn: quiet });
+  assert.deepEqual(requested, [['forms-example']]);
+  const port = providers.formCollectionProviders?.().get({ id: 'example' })?.provider;
+  assert.deepEqual(port?.plan({ slug: 'contact', config: {} }), plan);
+  assert.deepEqual(port?.describe?.(), description);
+  assert.equal(calls.inputs.length, 1);
+  runtime.providerContributions.detach({ pluginId: 'forms-example' });
+  assert.equal(port?.describe?.(), undefined, 'retired leases do not expose stale settings');
+  const unavailable = describeFormCollectionProviders({ providers: providers.formCollectionProviders!() }).find(provider => provider.id === 'example');
+  assert.equal(unavailable?.label, 'Example');
+  assert.match(unavailable?.message ?? '', /plugin.*(disabled|unavailable).*enable/i);
+  assert.deepEqual(port?.plan({ slug: 'contact', config: {} }), { kind: 'unavailable', code: 'provider_unavailable', message: 'This form cannot send answers because its selected form provider is unavailable.' });
+  await providers.dispose({});
+  assert.equal(calls.disposed, 1);
+  delete SETTINGS['forms-example'];
+});
+
+test('payment providers use the shared host and disappear on detach', async () => {
+  const fake = createLipayFake({ now: () => 1000 });
+  const calls = { inputs: [], disposed: 0 } as Calls;
+  const { runtime } = fakeRuntime({ installed: ['payments-example'], factories: {
+    'payments-example': { contract: 'payments', id: fake.provider.id, factory: fakeFactory({ calls, port: fake.provider }) },
+  } });
+  const providers = await bootProviderPlugins({ runtime, config: configOf({ 'payments-example': { settings: {}, secrets: { apiKey: 'test-only' } } }), serviceName: 'tovu', site: SITE, ...consentAlways }, { warn: quiet });
+  try {
+    const current = providers.paymentProviders({});
+    assert.equal(current.length, 1);
+    assert.deepEqual(calls.inputs[0]?.attribution, {});
+    assert.equal(current[0]?.pluginId, 'payments-example');
+    assert.equal(current[0]?.module.id, fake.provider.id);
+    runtime.providerContributions.detach({ pluginId: 'payments-example' });
+    assert.deepEqual(providers.paymentProviders({}), []);
+  } finally { await providers.dispose({}); }
+});
+
+
+test('enabling a form provider after boot updates the same live host', async () => {
+  const installed: string[] = [];
+  const calls: Calls = { inputs: [], disposed: 0 };
+  SETTINGS['forms-late'] = [];
+  const { runtime, requested } = fakeRuntime({ installed, factories: {
+    'forms-late': { contract: 'form_collection', id: 'late', factory: fakeFactory({ calls, port: {
+      describe: () => ({ label: 'Late forms', fields: [], answers: 'Remote inbox', validation: 'Remote checks', frameOrigins: [] }),
+      plan: () => ({ kind: 'unavailable', code: 'invalid_configuration', message: 'Choose a public form.' }),
+    } }) },
+  } });
+  const providers = await bootProviderPlugins({ runtime, config: configOf({}), serviceName: 'tovu', site: SITE, ...consentAlways }, { warn: quiet });
+  try {
+    assert.equal(providers.formCollectionProviders!().has({ id: 'late' }), false);
+    installed.push('forms-late');
+    const load = runtime.loadProviderPlugins.bind(runtime);
+    let refuse = true;
+    runtime.loadProviderPlugins = input => refuse ? Promise.resolve([]) : load(input);
+    assert.equal((await providers.reapply({ pluginId: 'forms-late' }) as { appliesAt: string }).appliesAt, 'failed');
+    assert.equal(providers.formCollectionProviders!().has({ id: 'late' }), false, 'refused admission must not publish a selectable provider');
+    refuse = false;
+    assert.equal(await providers.reapply({ pluginId: 'forms-late' }), 'now');
+    assert.equal(providers.formCollectionProviders!().has({ id: 'late' }), true);
+    assert.equal(describeFormCollectionProviders({ providers: providers.formCollectionProviders!() }).find(item => item.id === 'late')?.available, true);
+    assert.equal(await providers.reapply({ pluginId: 'forms-late' }), 'now');
+    assert.equal(calls.inputs.length, 1, 'repeated refresh must not initialize a second provider');
+    assert.deepEqual(requested, [['forms-late']]);
+  } finally { await providers.dispose({}); delete SETTINGS['forms-late']; }
+});
+
+test('malformed provider metadata cannot replace a readable fallback label', async () => {
+  const calls: Calls = { inputs: [], disposed: 0 };
+  SETTINGS['forms-malformed'] = [];
+  const { runtime } = fakeRuntime({ installed: ['forms-malformed'], factories: {
+    'forms-malformed': { contract: 'form_collection', id: 'malformed', factory: fakeFactory({ calls, port: {
+      describe: () => ({ label: 77, fields: [], answers: '', validation: '', frameOrigins: [] }),
+      plan: () => ({ kind: 'unavailable', code: 'invalid_configuration', message: 'Choose a public form.' }),
+    } }) },
+  } });
+  const providers = await bootProviderPlugins({ runtime, config: configOf({}), serviceName: 'tovu', site: SITE, ...consentAlways }, { warn: quiet });
+  try {
+    const description = describeFormCollectionProviders({ providers: providers.formCollectionProviders!() }).find(item => item.id === 'malformed');
+    assert.equal(description?.label, 'malformed');
+    assert.equal(description?.available, false);
+  } finally { await providers.dispose({}); delete SETTINGS['forms-malformed']; }
+});
+
+
+test('form provider stays listed after its first initialization fails and recovers on reapply', async () => {
+  let ready = false;
+  SETTINGS['forms-recover'] = [];
+  const { runtime } = fakeRuntime({ installed: ['forms-recover'], factories: {
+    'forms-recover': { contract: 'form_collection', id: 'recover', factory: () => {
+      if (!ready) throw new Error('temporary initialization failure');
+      return { port: {
+        describe: () => ({ label: 'Recovered forms', fields: [], answers: 'Remote inbox', validation: 'Remote checks', frameOrigins: [] }),
+        plan: () => ({ kind: 'post', action: 'https://forms.example.test/submit', external: true, capabilities: { answers: 'Remote', validation: 'Remote', spamProtection: 'Remote' } }),
+      }, dispose() {} };
+    } },
+  } });
+  const providers = await bootProviderPlugins({ runtime, config: configOf({}), serviceName: 'tovu', site: SITE, ...consentAlways }, { warn: quiet });
+  try {
+    const before = describeFormCollectionProviders({ providers: providers.formCollectionProviders!() }).find(item => item.id === 'recover');
+    assert.equal(before?.label, 'recover');
+    assert.equal(before?.available, false);
+    assert.match(before?.message ?? '', /unavailable/i);
+    ready = true;
+    assert.equal(await providers.reapply({ pluginId: 'forms-recover' }), 'now');
+    const after = describeFormCollectionProviders({ providers: providers.formCollectionProviders!() }).find(item => item.id === 'recover');
+    assert.equal(after?.label, 'Recovered forms');
+    assert.equal(after?.available, true);
+  } finally { await providers.dispose({}); delete SETTINGS['forms-recover']; }
 });

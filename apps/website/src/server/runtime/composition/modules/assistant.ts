@@ -1,4 +1,6 @@
 import { assistantDaemonToken } from "../../lifecycle/assistant-daemon-connection.js";
+import { redactSecrets } from '@jini-ai/core';
+import { maskLocalPaths } from '@jini-ai/diagnostics';
 import { redactAdminRunContextRef } from "#src/assistant/credential-chat-intake";
 import { tryRestoreSurface } from '@jini-ai/daemon/http';
 /**
@@ -61,6 +63,7 @@ import {
   type LiveModelDiscovery,
   unionModels,
   isMcpUiToolCallPermitted,
+  MCP_UI_TYPED_ANSWER_REFUSAL,
   isTypedSurfaceAnswer,
   MCP_UI_TOOL_CALLS_PATH,
   readA2uiAction,
@@ -68,7 +71,7 @@ import {
   SURFACE_EXCHANGE_ID_PARAM,
   type SurfaceExchangeStore,
 } from "#src/assistant/index";
-import { getAuthedPrincipal, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
+import { getAuthedPrincipal, rejectUnlessSessionCredential, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
 import { registerAdminChatAttachmentReadRoute } from "#src/server/inbound/admin-http/routes/assistant/get-chat-attachment";
 import type { RouteDeps } from "#src/server/routes/types";
 
@@ -199,8 +202,15 @@ async function proxyPassthrough(req: Request, res: Response, daemon: DaemonCallO
 export async function activateFrontendDaemon({ req, res }: { req: Request; res: Response }, daemon: DaemonCallOptions = {}): Promise<void> {
   const response = await fetchAgentDaemon(req, res, { ...daemon, path: "/api/active", method: "GET" });
   if (!response) return;
+  if (!response.ok) {
+    const body: unknown = await response.json().catch(() => undefined);
+    const detail = maskLocalPaths({ text: redactSecrets({ input: JSON.stringify(body ?? { status: response.status }) },
+      { exactSecrets: [assistantDaemonToken({}, {})].filter((value): value is string => Boolean(value)) }) }).slice(0, 2048);
+    res.status(response.status).json({ error: 'The assistant could not attach to this page. Retry your message; if it keeps failing, restart the site.',
+      code: 'FRONTEND_ACTIVATION_FAILED', detail: `GET /api/active: HTTP ${response.status}; ${detail}` });
+    return;
+  }
   await response.body?.cancel();
-  if (!response.ok) { res.status(503).json({ error: "the agent daemon is currently unavailable", code: "AGENT_DAEMON_UNAVAILABLE" }); return; }
   res.sendStatus(204);
 }
 
@@ -433,8 +443,29 @@ function localMcpUiTarget({ exchangeId, params, toolName, res, byokSurfaceExchan
   return typedTarget ?? exchangeId;
 }
 
-async function proxyMcpUiToolCall(req: Request, res: Response, byokSurfaceExchanges: SurfaceExchangeStore, daemon: DaemonCallOptions): Promise<void> {
-  const body = (req.body ?? {}) as { toolName?: unknown; params?: unknown; exchangeId?: unknown; restore?: unknown };
+/** Admit answers only from an active person's browser session, before either exchange store sees them.
+ * Session authentication alone can resolve a nonhuman principal, so both facts are required.
+ * @returns False after sending the refusal; no delivery or daemon call occurs.
+ * @complexity O(1), using the identity freshly resolved by requireAdminSession. */
+function admitHumanSurfaceAnswer({ res }: { res: Response }, _optional = {}): boolean {
+  if (!rejectUnlessSessionCredential(res, {
+    message: "Answer this dialog from your signed-in browser session. Nothing was changed.",
+    permission: "assistant.confirm",
+  })) return false;
+  const principal = getAuthedPrincipal(res);
+  if (principal.kind === "user" && principal.status === "active") return true;
+  res.status(403).json({ error: "An active, signed-in person must answer this dialog. Nothing was changed.", code: "FORBIDDEN" });
+  return false;
+}
+
+/** Validate the callback envelope before looking up an exchange or forwarding to the daemon.
+ * @returns The admitted fields, or undefined after sending the validation refusal.
+ * @complexity O(1); tool metadata membership is a set lookup. */
+function readAllowedMcpUiCallback({ body, res }: {
+  body: { toolName?: unknown; params?: unknown; exchangeId?: unknown }; res: Response;
+}, _optional = {}): {
+  toolName: string; params: Record<string, unknown>; exchangeId: unknown;
+} | undefined {
   const toolName = body.toolName;
   if (typeof toolName !== "string" || toolName.length === 0) {
     res.status(400).json({ error: "'toolName' must be a non-empty string", code: "VALIDATION_ERROR" });
@@ -448,11 +479,20 @@ async function proxyMcpUiToolCall(req: Request, res: Response, byokSurfaceExchan
   const exchangeId = typeof body.exchangeId === "string" ? body.exchangeId : params[SURFACE_EXCHANGE_ID_PARAM];
   // The same rule the daemon route applies: a federated id (G3's per-call card) may only ANSWER an
   // open card, never be executed.
-  const answersAnExchange = (typeof exchangeId === "string" && exchangeId.length > 0) || isTypedSurfaceAnswer(params);
-  if (!isMcpUiToolCallPermitted(toolName, answersAnExchange)) {
-    res.status(403).json({ error: `'${toolName}' is not an MCP-UI-redeemable tool`, code: "TOOL_NOT_ALLOWLISTED" });
+  const typedAnswer = isTypedSurfaceAnswer(params);
+  const answersAnExchange = (typeof exchangeId === "string" && exchangeId.length > 0) || typedAnswer;
+  if (!isMcpUiToolCallPermitted(toolName, answersAnExchange, { typedAnswer })) {
+    res.status(403).json({ error: typedAnswer ? MCP_UI_TYPED_ANSWER_REFUSAL : `'${toolName}' is not an MCP-UI-redeemable tool`, code: "TOOL_NOT_ALLOWLISTED" });
     return;
   }
+  return { toolName, params, exchangeId };
+}
+
+async function proxyMcpUiToolCall(req: Request, res: Response, byokSurfaceExchanges: SurfaceExchangeStore, daemon: DaemonCallOptions): Promise<void> {
+  if (!admitHumanSurfaceAnswer({ res })) return;
+  const callback = readAllowedMcpUiCallback({ body: req.body ?? {}, res });
+  if (!callback) return;
+  const { toolName, params, exchangeId } = callback;
   const target = localMcpUiTarget({ exchangeId, params, toolName, res, byokSurfaceExchanges });
   const restoreOnly = (req.body as { restore?: unknown } | undefined)?.restore === true;
   if (!restoreOnly && tryLocalMcpUiDelivery(res, byokSurfaceExchanges, target, params, toolName)) return;
@@ -621,6 +661,9 @@ export function createAssistantModule(routeDeps: AssistantRouteDeps, byokSurface
       // Session-gated like every other chat POST (POST /api/runs wakes the daemon the same way).
       app.post("/api/frontend-sessions/activate", (req, res, next) => {
         activateFrontendDaemon({ req, res }, daemon).catch(next);
+      });
+      app.post("/api/frontend-sessions/request", (req, res, next) => {
+        proxyPassthrough(req, res, daemon).catch(next);
       });
       app.get("/api/frontend-sessions/stream", (req, res, next) => {
         if (parkColdFrontendStream({ res, isReady: routeDeps.assistantDaemonDemand?.isReady ?? isAssistantDaemonReady }, {})) return;

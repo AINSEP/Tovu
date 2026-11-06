@@ -14,6 +14,7 @@ import { resolveSitesTabId, resolveSitesTabs, type SitesTabId } from "./Sites.ho
 import type { ActivationOutlook } from "./rules";
 import { useReturnToSiteListOnCreate } from "./hooks/use-created-site-return.hooks";
 import { useWiredSites } from "./hooks/use-sites.hooks";
+import { useWiredSiteListPrefs, type SiteListPrefsController } from "./hooks/use-site-list-prefs.hooks";
 
 /** Owner update 2026-10-08: independent full-site children, recoverable Trash and default selection.
  * Earlier design explanations below are retained history; manual restart instructions are no longer rendered.
@@ -268,6 +269,8 @@ export interface SitesProps {
   /** Dependency injection seam for tests — same convention as every other wired-hook prop in this
    *  app. See `PostsProps.usePostsHook` for the full rationale. */
   useSitesHook?: typeof useWiredSites;
+  /** Same seam for this person's remembered list choices. */
+  useListPrefsHook?: typeof useWiredSiteListPrefs;
   /** The `?tab=` query value from `panels.tsx`'s `sites` route (`URLSearchParams.get` returns
    *  `null` when the param is absent). See `resolveSitesViewId`. */
   tabId?: string | null;
@@ -282,11 +285,16 @@ function resolveSitesHook(override: typeof useWiredSites | undefined): typeof us
   return override ?? useWiredSites;
 }
 
+/** Same split as {@link resolveSitesHook}, for the same reason. */
+function resolveListPrefsHook(override: typeof useWiredSiteListPrefs | undefined): typeof useWiredSiteListPrefs {
+  return override ?? useWiredSiteListPrefs;
+}
+
 /** Dispatches the active tab's panel as a flat if-chain — a plain function rather than a ternary
  *  written directly in `Sites`'s JSX, which would be counted against that component's own
  *  complexity. Same split `Deployment.tsx`'s own `deploymentTabPanel` makes for the identical gate.
  *  @complexity O(1) — mutually exclusive branches, no iteration. */
-function sitesTabPanel(tab: SitesTabId, controller: ReturnType<typeof useWiredSites>, snapshot: AdminSitesSnapshot) {
+function sitesTabPanel(tab: SitesTabId, controller: ReturnType<typeof useWiredSites>, snapshot: AdminSitesSnapshot, listPrefs: SiteListPrefsController) {
   if (tab === "trash") return <SiteTrashTab snapshot={snapshot} controller={controller.localSites} t={controller.t} />;
   if (tab === "new") return <CreateSiteOnboarding controller={controller} onCancel={goToSiteList} />;
   // Export Site / Import Site (and the Publish button beside "Export this site", owner 2026-10-18)
@@ -304,6 +312,7 @@ function sitesTabPanel(tab: SitesTabId, controller: ReturnType<typeof useWiredSi
       createdTokens={controller.createdTokens}
       localSites={controller.localSites}
       onActivate={controller.activate}
+      listPrefs={listPrefs}
       t={controller.t}
     />
   );
@@ -331,9 +340,18 @@ function goToSiteList() {
   navigate("/sites?tab=all", { replace: true });
 }
 
+/** Lifecycle and list writes retain separate visible failure messages. */
+function SitesWriteNotices({ writeError, localError }: { writeError: string | null; localError: string | null | undefined }) {
+  return <>
+    {writeError ? <div className="notice error">{writeError}</div> : null}
+    {localError ? <div className="notice error">{localError}</div> : null}
+  </>;
+}
+
 export function Sites(props: SitesProps = {}) {
   const controller = resolveSitesHook(props.useSitesHook)();
   const { snapshot, listStatus, listError, writeError, switchingEnabled, outlook, restartInstructions, createdName, sites, t } = controller;
+  const listPrefs = resolveListPrefsHook(props.useListPrefsHook)();
 
   // Before the early returns below, so this screen never changes its hook order between the
   // loading, error, and loaded renders.
@@ -358,8 +376,7 @@ export function Sites(props: SitesProps = {}) {
         </div>
       </div>
 
-      {writeError ? <div className="notice error">{writeError}</div> : null}
-      {controller.localSites?.error ? <div className="notice error">{controller.localSites.error}</div> : null}
+      <SitesWriteNotices writeError={writeError} localError={controller.localSites?.error} />
       {switchingEnabled ? null : <SwitchingDisabledNotice t={t} />}
 
       <SitesProcessNotices snapshot={snapshot} outlook={outlook} instructions={restartInstructions} t={t} />
@@ -376,7 +393,7 @@ export function Sites(props: SitesProps = {}) {
         t,
       )}
 
-      {sitesTabPanel(tab, controller, snapshot)}
+      {sitesTabPanel(tab, controller, snapshot, listPrefs)}
       <LocalSiteConfirmDialog dialog={controller.siteConfirm} />
     </div>
   );

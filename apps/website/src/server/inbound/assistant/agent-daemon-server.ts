@@ -1,9 +1,10 @@
 /** One desktop-owned listener, or the same host with one standalone scope (ADR-070). */
 import express from "express";
+import type { SiteScopeKey } from "@tovu/contracts/site-scope-key";
 import { createSupervisorRegistry, createNodeIpcChannel } from "@jini-ai/sidecar/supervisor/node";
 import { createSiteScope } from "./agent-daemon-scope.js";
 import { createAgentDaemonIdlePark } from "./agent-daemon-idle-park.js";
-import { createScopeControl } from "./agent-daemon-scope-control.js";
+import { createScopeControl, requireScopeKey } from "./agent-daemon-scope-control.js";
 import { isDaemonLifecycleLogQuiet } from "../../runtime/lifecycle/daemon-lifecycle-log.js";
 import { closeWithinBound, stopServingWithinGrace } from "../../runtime/lifecycle/close-store-on-shutdown.js";
 import { installUnhandledRejectionGuard } from "../../runtime/boot/process-error-guards.js";
@@ -14,9 +15,9 @@ import { TOOL_EXEC_TOKEN_ENV_VAR } from "#src/assistant/daemon-access";
 import { initializeStartupSecrets, startupSecretEnvironment } from '../../runtime/boot/startup-secrets.js';
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 
-const scopes = new Map<string, Promise<Awaited<ReturnType<typeof createSiteScope>>>>();
-const scopeEnvironments = new Map<string, string>();
-const scopedExchanges = new Map<string, () => boolean>();
+const scopes = new Map<SiteScopeKey, Promise<Awaited<ReturnType<typeof createSiteScope>>>>();
+const scopeEnvironments = new Map<SiteScopeKey, string>();
+const scopedExchanges = new Map<SiteScopeKey, () => boolean>();
 // Standalone launch also has IPC now, solely for startup credentials. It retains its own
 // fixed listener/root scope; the desktop's shared host still receives scopes through control.
 const sharedHost = Boolean(process.send) && process.env.TOVU_AGENT_DAEMON_STANDALONE !== '1';
@@ -190,7 +191,7 @@ stopIdleMonitor = () => idlePark.stop({}, {});
 // therefore meets that scope's OWN bearer/run-credential gate before parsing or route effects.
 // The path segment is the desktop's per-site scope key, never the (shared) workspace id.
 app.use("/s/:scopeKey", (req, res, next) => {
-  const pending = scopes.get(req.params.scopeKey);
+  const pending = scopes.get(req.params.scopeKey as SiteScopeKey);
   if (!pending) { res.status(404).end(); return; }
   void pending.then(scope => scope.app(req, res, next)).catch(next);
 });
@@ -215,11 +216,13 @@ async function start(): Promise<void> {
     const siteId = env.TOVU_WORKSPACE;
     const token = env[TOOL_EXEC_TOKEN_ENV_VAR];
     if (!siteId || !token) throw new Error("standalone daemon requires its site binding");
+    // A standalone process has one configured site; validate its directory before starting it.
+    const scopeKey = requireScopeKey({ scopeKey: env.TOVU_SITE_DIR });
     const scope = createSiteScope({ siteId, env: { ...env, JINI_AGENT_DAEMON_URL: listenerUrl,
       TOVU_SITE_PROCESS_CWD: process.env.TOVU_SITE_PROCESS_CWD ?? process.cwd() }, token }, { idlePark });
-    scopes.set(siteId, scope);
+    scopes.set(scopeKey, scope);
     const ready = await scope;
-    scopedExchanges.set(siteId, ready.hasExchanges); app.use(ready.app);
+    scopedExchanges.set(scopeKey, ready.hasExchanges); app.use(ready.app);
   }
   if (daemonExiting) return;
   registryPublication = daemonRegistry?.write({ record: {

@@ -1,5 +1,7 @@
 import type { CredentialWarning } from "./credential-warnings.js";
 import { randomUUID } from "node:crypto";
+import { DatabaseDiskSpaceError } from "@jini-ai/db/sqlite";
+import { SiteShareExportFailure, type SiteShareExportStep } from "./share-export-failure.js";
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 import type { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 import { NO_THEME_ID } from "../theme/index.js";
@@ -11,7 +13,7 @@ import { captureStaticSite, type StaticSitePorts, type StaticSiteCopy } from "./
 import { createSiteShare, acknowledgeSiteShare, isOwnShareFolder, revokeSiteShare, type ShareDelivery } from "./share-service.js";
 import { SiteShareRegistry, type SiteShareRecord, newShareIdentity } from "./share-registry.js";
 import { allocateStaticExportThemes, parseStaticExportInput, type StaticExportOptions } from "./static-export-selection.js";
-import type { SiteSavedKeysPort } from "./saved-keys-port.js";
+import { SAVED_KEYS_PATH, type SiteSavedKeysPort } from "./saved-keys-port.js";
 import { checkShareLimits, SiteShareRefusal } from "./share-policy.js";
 
 export interface SiteShareBackend {
@@ -30,6 +32,29 @@ export type SiteShareView = Omit<SiteShareRecord, "token" | "storage" | "sealedP
 type ExportedShare = SiteShareRecord & { readonly notes?: readonly string[] };
 
 const DOMAINLESS_DISCOVERY_NOTICE = "No domain was given, so sitemap.xml and feed.xml were left out.";
+
+/** Keep closed refusals' class/status contracts; wrap only unexpected export exceptions. */
+function exportFailure({ cause, step, appVersion, jiniVersion, time }: { cause: unknown; step: SiteShareExportStep; appVersion: string | undefined; jiniVersion: string | undefined; time: string }, _options = {}): unknown {
+  if (cause instanceof SiteShareRefusal || cause instanceof DatabaseDiskSpaceError) return cause;
+  return new SiteShareExportFailure({ step, cause, time, ...(appVersion ? { appVersion } : {}), ...(jiniVersion ? { jiniVersion } : {}) });
+}
+
+/** Run one export lifecycle, preserving stage evidence and releasing the site lane on every exit.
+ * Metadata is read at the failure boundary so it includes the stage and prepared app version.
+ * @throws Closed share refusals unchanged, otherwise SiteShareExportFailure with the original cause.
+ * @complexity The supplied bounded export plus O(1) stage metadata; no additional I/O.
+ */
+async function runExportStage({ execute, diagnostic, release }: {
+  execute: () => Promise<ExportedShare>;
+  diagnostic: () => Omit<Parameters<typeof exportFailure>[0], "cause">;
+  release: () => void;
+}, _options = {}): Promise<ExportedShare> {
+  try { return await execute(); }
+  catch (cause) {
+    // Preserve closed refusals and their status/recovery contracts for both HTTP and tools.
+    throw exportFailure({ cause, ...diagnostic() });
+  } finally { release(); }
+}
 
 /** Locators/tokens stay in the private registry. The authorized caller receives the verified URL. */
 function view(row: SiteShareRecord): SiteShareView {
@@ -98,21 +123,17 @@ async function captureSelection({ ports, themeIds, signal, publicUrl }: { ports:
   return { copy: copies[0]!, copies, activeThemeId, themes };
 }
 
-/** Opt-in capture is owner-only; polls cannot change the captured selection. */
-async function requireSavedKeysOwner(required: { input: { principalId: string; includeSavedKeys?: boolean; jobId?: string; format?: "static" }; ownerPrincipalId?: PromiseLike<string> | string }, _options = {}): Promise<void> {
-  const { input } = required;
-  if (!input.includeSavedKeys) return;
-  if (input.principalId !== await required.ownerPrincipalId) throw new SiteShareRefusal({ code: "FORBIDDEN", message: "Only the site owner can export saved keys." });
-  if (input.jobId || input.format) throw new SiteShareRefusal({ code: "INVALID_INPUT", message: "Saved keys can only be selected on the initial backup request." });
+/** Retired option fails closed for internal callers as well as HTTP. */
+/** Retired payloads cannot be published even if a stale preparation adapter returns one. */
+function requireCredentialFreeExport({ content }: { content: Awaited<ReturnType<typeof prepareShareContent>> }): void {
+  const hasKeyFile = content.bufferedFiles?.some(file => file.path === SAVED_KEYS_PATH);
+  if (content.encryptedKeys || content.sealedPassword || hasKeyFile) throw new SiteShareRefusal({ code: "INVALID_INPUT", message: "Exports no longer include saved keys. Update the export adapter and create this export again." });
 }
 
-/** A lost sealed password must prevent artifact publication, even if capture returned bytes. */
-function requireRetainedPassword(required: { content: Awaited<ReturnType<typeof prepareShareContent>>; includeSavedKeys?: boolean }, _options = {}): void {
-  if (!required.includeSavedKeys) return;
-  if (!required.content.encryptedKeys || !required.content.sealedPassword) throw new SiteShareRefusal({ code: "UNAVAILABLE", message: "Saved keys export could not retain its password. No archive was published." });
-}
-
-/** Reuses backup jobs and the common backup plan content. Only one bounded, buffered preparation runs per site at a time. */
+/** Reuses backup jobs and the common backup plan content. Only one bounded, buffered preparation runs per site at a time.
+ * Optional host clock/build versions stamp failures when they occur, before a later poll collects them.
+ * @complexity The existing bounded export work; diagnostics add only job-local metadata, with no I/O.
+ */
 export function createSiteShareBackend(required: {
   registry: SiteShareRegistry;
   site: string;
@@ -122,12 +143,13 @@ export function createSiteShareBackend(required: {
   ownerPrincipalId?: PromiseLike<string> | string;
   savedKeys?: Pick<SiteSavedKeysPort, "reveal">;
   staticSite?: StaticSitePorts;
-}, _optional: Record<string, never> = {}): SiteShareBackend {
-  const jobs = new SiteBackupPushJobs<ExportedShare>();
+}, { now = Date.now, appVersion: boundaryVersion, jiniVersion }: { now?: () => number; appVersion?: string; jiniVersion?: string } = {}): SiteShareBackend {
+  const jobs = new SiteBackupPushJobs<ExportedShare>({ now });
   let active: string | null = null;
   /** Prepares, archives and delivers one share under a ten-minute bound; always frees the site's lane. */
   const exportShare = async ({ signal, progress, format, themeIds, includeSavedKeys, publicUrl }: { signal: AbortSignal; progress: SiteBackupPushProgress; format?: "static"; themeIds?: readonly string[]; publicUrl?: string; includeSavedKeys?: boolean }, _options = {}): Promise<ExportedShare> => {
-    try {
+    const stage: { step: SiteShareExportStep; appVersion: string | undefined } = { step: "prepare", appVersion: boundaryVersion };
+    return runExportStage({ execute: async () => {
       const bounded = AbortSignal.any([signal, AbortSignal.timeout(10 * 60 * 1000)]);
       if (format === "static") {
         if (!required.staticSite) throw new SiteShareRefusal({ code: "UNAVAILABLE", message: "Static exporter is unavailable in this context." });
@@ -135,24 +157,29 @@ export function createSiteShareBackend(required: {
         const { copy } = selection;
         const notices: string[] = copy.publicOrigin ? [] : [DOMAINLESS_DISCOVERY_NOTICE];
         const credentialWarnings: CredentialWarning[] = [];
+        stage.step = "archive";
         const archive = await buildStaticSiteZip({ ...selection, zip: required.zip }, { signal: bounded, progress, notices, credentialWarnings });
+        stage.step = "delivery";
         return await createSiteShare({ registry: required.registry, site: required.site, name: copy.filename, archive }, { signal: bounded, filename: copy.filename, notices, credentialWarnings });
       }
       const identity = newShareIdentity({});
-      const content = await required.prepare({ signal: bounded, includeSavedKeys, shareId: identity.shareId, workspaceId: required.site });
-      requireRetainedPassword({ content, includeSavedKeys });
+      const content = await required.prepare({ signal: bounded, shareId: identity.shareId, workspaceId: required.site });
+      stage.appVersion = content.tovuVersion;
+      requireCredentialFreeExport({ content });
       const notices = [...new Set(content.notices ?? [])];
       const credentialWarnings = [...(content.credentialWarnings ?? [])];
       const notes = Object.values(content.scopeNotes).map(note => redactSecretShapes({ text: note }).text);
       // Progress's readonly totals describe the prepared backup; the ZIP collector records its exact files.
       Object.assign(progress, { filesTotal: content.files.length + (content.bufferedFiles?.length ?? 0) + 1, bytesTotal: content.totalBytes });
+      stage.step = "archive";
       const archive = await buildShareZip({ plan: content, zip: required.zip }, { signal: bounded, progress, notices, credentialWarnings });
+      stage.step = "delivery";
       const delivery = await required.delivery({});
       bounded.throwIfAborted();
       const record = await createSiteShare({ registry: required.registry, site: required.site, name: content.site.folderName, archive }, { delivery, signal: bounded, identity, sealedPassword: content.sealedPassword, notices, notes, credentialWarnings });
       // Plugins left out of the archive are told to the exporter, never dropped silently.
       return notes.length > 0 ? { ...record, notes } : record;
-    } finally { active = null; }
+    }, diagnostic: () => ({ ...stage, jiniVersion, time: new Date(now()).toISOString() }), release: () => { active = null; } });
   };
   /** Starts a new export job, refusing a resume of an unknown job and a second export on this site. */
   const startExport = (startRequired: { key: PushJobKey; resumedJobId: string | undefined; format?: "static"; themeIds?: readonly string[]; publicUrl?: string; includeSavedKeys?: boolean }, _options = {}) => {
@@ -167,12 +194,12 @@ export function createSiteShareBackend(required: {
     hasWork: () => active !== null,
     async staticOptions() {
       if (!required.staticSite) throw new SiteShareRefusal({ code: "UNAVAILABLE", message: "Static exporter is unavailable in this context." });
-      const { activeThemeId, themes } = staticRoster({ ports: required.staticSite, context: await required.staticSite.context() });
-      return { activeThemeId, themes: activeThemeId === NO_THEME_ID ? [{ themeId: NO_THEME_ID, name: "Current site" }] : themes };
+      const { activeThemeId, roster } = staticRoster({ ports: required.staticSite, context: await required.staticSite.context() });
+      return { activeThemeId, themes: activeThemeId === NO_THEME_ID ? [{ themeId: NO_THEME_ID, name: "Current site" }]
+        : roster.map(theme => ({ themeId: theme.themeId, name: theme.title })) };
     },
     async create(input, options = {}) {
       input.signal.throwIfAborted();
-      await requireSavedKeysOwner({ input, ownerPrincipalId: required.ownerPrincipalId });
       const selection = input.format === "static" ? parseStaticExportInput({ input: { jobId: input.jobId, themeIds: input.themeIds, publicUrl: input.publicUrl } }) : {};
       const jobId = input.jobId ?? randomUUID();
       const key = { planId: jobId, principalId: input.principalId, workspaceId: required.site + (input.format === "static" ? "/static" : "") };

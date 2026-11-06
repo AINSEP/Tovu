@@ -1,3 +1,5 @@
+import { ToolAccessLoweringError } from '#src/contracts/core/tool-access-change';
+import { lowerPluginToolAccess } from '#src/features/plugin-runtime/lower-tool-access';
 import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Response } from "express";
 
@@ -9,6 +11,11 @@ import { PluginInstallError } from "@jini-ai/plugins/host/node";
 import { toAdminPluginResponse } from "#src/server/inbound/admin-http/http/plugins";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { PluginsRouteDeps, PluginsRouteRegistrar } from "./deps.js";
+
+/** OFF commits before the existing serving runtime stops affected answers. */
+async function stopPluginAnswers(deps: PluginsRouteDeps, pluginId: string, enabled: boolean): Promise<void> {
+  if (!enabled) await lowerPluginToolAccess({ pluginId, notifyRosterChanged: deps.notifyRosterChanged, ...(deps.providerFaces ? { providerFaces: deps.providerFaces } : {}) }, {});
+}
 
 /**
  * `executeCommand`'s `rollback` for this route: restores the captured prior activation row (or
@@ -40,6 +47,10 @@ async function rollbackPluginActivation(
 /** Maps this route's thrown error types onto the admin error envelope.
  *  @complexity O(1). */
 function sendSetPluginEnabledError(res: Response, err: unknown): void {
+  if (err instanceof ToolAccessLoweringError) {
+    res.status(503).json({ error: err.message, code: err.code });
+    return;
+  }
   if (err instanceof PluginInstallError) {
     res.status(409).json({ error: err.message, code: err.code });
     return;
@@ -169,6 +180,8 @@ export const registerPluginSetEnabledRoute: PluginsRouteRegistrar = (app, deps) 
           rollback: () => rollbackPluginActivation(deps, { workspaceId: deps.workspaceId, pluginId, priorActivation }),
         },
       });
+
+      await stopPluginAnswers(deps, pluginId, result.activation.enabled);
 
       // `setPluginEnabled` throws `PluginNotFoundError` for an id absent from this same `discovery`
       // snapshot, so reaching this line means the record is in it.

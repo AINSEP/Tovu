@@ -8,7 +8,7 @@ test('bundled keywords are read only on first search use and then reused on both
     reads++;
     return JSON.stringify({ extensions: { tovu: { toolKeywords: { credential_save: 'lazy-provider' } } } });
   } } });
-  t.mock.module('../../platform/site-dir/product-root.js', { namedExports: { resolveProductRoot: () => '/product' } });
+  t.mock.module('../../platform/site-dir/product-root.js', { namedExports: { bundledAgentPluginsDir: () => '/product/content/agent-plugins' } });
   t.mock.module('../../features/agent-plugins/bundled-contribution-sources.js', { namedExports: {
     bundledContributionSources: () => [{ pluginId: 'example', packageRoot: '/product/content/agent-plugins/example' }],
   } });

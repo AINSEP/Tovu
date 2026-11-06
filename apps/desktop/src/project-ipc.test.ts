@@ -12,7 +12,7 @@ import os from "node:os";
 import path from "node:path";
 
 import { SITE_IPC_CHANNELS as CONTRACT_SITE_IPC_CHANNELS } from "./contracts/project.ts";
-import { SITE_IPC_CHANNELS, buildSiteRecord, siteRecordLifecycle, importSharedSiteDiscovery, handleList, handleAddSite, handleCreate, planNewSiteDir, handleDelete, handleOpenExternal, handleStart, handleStop, handleRename, handleGetPreview, handleLocate, handleTokenSignInPlugins, rescanSites, registerSiteIpcHandlers } from "./project-ipc.ts";
+import { SITE_IPC_CHANNELS, buildSiteRecord, siteRecordLifecycle, importSharedSiteDiscovery, handleList, handleAddSite, handleImportArchive, handleCreate, planNewSiteDir, handleDelete, handleOpenExternal, handleStart, handleStop, handleRename, handleGetPreview, handleLocate, handleTokenSignInPlugins, rescanSites, registerSiteIpcHandlers } from "./project-ipc.ts";
 import { createSiteTransitions } from "./site-transitions.ts";
 import type { ProjectIpcDeps } from "./project-ipc.ts";
 import { SITE_ORIGIN, sitesFilePath, trackSite, readTrackedSites, writeTrackedSites } from "./tracked-sites.ts";
@@ -988,6 +988,7 @@ test("Stop withdraws this window's own attachment BEFORE signalling the external
   await handleStop(site, deps);
   assert.deepEqual(calls.filter((call) => !call.startsWith("launcherOf")).map((call) => call.split(":")[0]), ["detach", "stop"]);
   assert.equal(deps.openSites.has(site), false);
+  assert.deepEqual(closed, [[site, 999]], "the detached child releases only its own crash-safety row");
 });
 
 test("an external Stop that fails surfaces main's sentence and keeps the lease", async (t) => {
@@ -2306,6 +2307,7 @@ function b2LifecycleHarness(t: { after(fn: () => void): void }) {
   };
   return { lifecycle, deps, openSites, siteDir, invoke, record, pending, snapshot, drain,
     report: (sender: { getURL(): string; isDestroyed(): boolean }) => registered.get(SITE_PRESENCE_CHANNEL)!({ sender }, { siteIds: [siteDir] }),
+    keepRunning: (sender: { getURL(): string; isDestroyed(): boolean }, id = siteDir) => registered.get(SITE_IPC_CHANNELS.keepRunning)!({ sender }, { id }),
     server: () => openSites.get(siteDir)!.server, boots: () => boots,
     setMinutes: (value: number) => { minutes = value; }, advance: (ms: number) => { now += ms; },
     failBoot: (error?: Error) => { bootError = error; },
@@ -2322,7 +2324,7 @@ test('B2 crash plus failed boots use 1/5/30 seconds, then show a pasteable plain
     await h.next();
   }
   assert.equal(h.boots(), 3); assert.equal(h.pending().length, 0);
-  assert.equal(h.record().status, 'error');
+  assert.equal(h.record().status, 'failed');
   assert.match(h.record().statusDetail, /three automatic restarts.*five minutes/i);
   assert.match(h.record().statusDetail, /last boot failed/);
 });
@@ -2346,7 +2348,7 @@ test('B2 failed manual boot is counted and a final exit retains redacted output'
   h.failBoot(); await h.next();
   for (let i = 0; i < 2; i++) { h.server().die(7); await h.next(); }
   h.server().die(9);
-  assert.equal(h.record().status, 'error'); assert.equal(h.pending().length, 0);
+  assert.equal(h.record().status, 'failed'); assert.equal(h.pending().length, 0);
   assert.match(h.record().statusDetail, /9/); assert.match(h.record().statusDetail, /safe redacted output \[REDACTED\]/);
 });
 
@@ -2402,21 +2404,55 @@ test('B2 sustained root RSS restarts at 120 seconds only after an accepted stop 
   assert.equal(h.boots(), 1); assert.equal(h.record().status, 'running'); assert.equal(h.pending().length, 0);
 });
 
-test('B2 below-cap, missing, stale and replacement PID samples reset sustained RSS', async t => {
-  for (const reset of ['below', 'missing', 'stale', 'pid'] as const) {
+test('B2 restart policy uses raw RSS across footprint and fallback display changes', async t => {
+  const h = b2LifecycleHarness(t); h.setMinutes(0); let stops = 0;
+  h.server().stopIfIdle = async () => { stops++; return false; };
+  for (const memoryMetric of ['physical-footprint', 'rss', 'physical-footprint'] as const) {
+    const snapshot = h.snapshot(2_000_000_000);
+    snapshot.sites[0]!.processes = snapshot.sites[0]!.processes.map(row => ({ ...row, memoryMetric, rawRssBytes: 100_000_000 }));
+    await h.lifecycle.maintain({ snapshot }, {}); h.advance(120000);
+  }
+  assert.equal(stops, 0, 'a large display estimate cannot trigger the raw RSS cap');
+});
+
+/** Each sample mutation exercises a distinct reason to restart the sustained-RSS observation. */
+function resetRssSample({ reset, snapshot, h }: {
+  reset: string; snapshot: ResourcesSnapshot; h: ReturnType<typeof b2LifecycleHarness>;
+}) {
+  switch (reset) {
+    case 'below': snapshot.sites = h.snapshot(1_499_999_999).sites; return;
+    case 'missing': snapshot.sites = []; return;
+    case 'stale': snapshot.sampledAt -= 30001; return;
+    case 'pid': h.server().pid += 1; snapshot.sites = h.snapshot(1_500_000_000).sites; return;
+    case 'nan': snapshot.sites = h.snapshot(Number.NaN).sites; return;
+    case 'infinite': snapshot.sites = h.snapshot(Number.POSITIVE_INFINITY).sites; return;
+    case 'unavailable': snapshot.status = 'unavailable'; return;
+    default: assert.fail(`Unknown RSS reset fixture: ${reset}`);
+  }
+}
+
+test('B2 below-cap, missing, stale, invalid and replacement PID samples reset sustained RSS', async t => {
+  for (const reset of ['below', 'missing', 'stale', 'pid', 'nan', 'infinite', 'unavailable'] as const) {
     const h = b2LifecycleHarness(t); h.setMinutes(0); let requests = 0;
     h.server().stopIfIdle = async () => { requests++; return false; };
     await h.lifecycle.maintain({ snapshot: h.snapshot(1_500_000_000) }, {}); h.advance(120000);
     const snapshot = h.snapshot(1_500_000_000);
-    if (reset === 'below') snapshot.sites = h.snapshot(1_499_999_999).sites;
-    if (reset === 'missing') snapshot.sites = [];
-    if (reset === 'stale') snapshot.sampledAt -= 30001;
-    if (reset === 'pid') { h.server().pid += 1; snapshot.sites = h.snapshot(1_500_000_000).sites; }
+    resetRssSample({ reset, snapshot, h });
     await h.lifecycle.maintain({ snapshot }, {}); assert.equal(requests, 0, reset);
     await h.lifecycle.maintain({ snapshot: h.snapshot(1_500_000_000) }, {});
     h.advance(119999); await h.lifecycle.maintain({ snapshot: h.snapshot(1_500_000_000) }, {});
     assert.equal(requests, 0, `${reset} must start a new observation`);
   }
+});
+
+test('Keep running in background holds idle sleep for the launch, but the memory restart still runs', async t => {
+  const h = b2LifecycleHarness(t); let requests = 0;
+  h.server().stopIfIdle = async () => { requests++; return false; };
+  h.lifecycle.keepAwake();
+  h.advance(600000); await h.lifecycle.maintain({ snapshot: h.snapshot() }, {});
+  h.advance(6000000); await h.lifecycle.maintain({ snapshot: h.snapshot() }, {});
+  assert.equal(requests, 0, 'the user chose to keep it running, so ten idle minutes must not sleep it');
+  assert.equal(h.record().status, 'running');
 });
 
 test('B2 Start racing idle shutdown waits for confirmed exit through the site serializer', async t => {
@@ -2501,4 +2537,127 @@ test('site registration accepts frozen deps and passes its runtime to record bui
   const records = registered.get(SITE_IPC_CHANNELS.list)!({});
   assert.equal(records.find((row: { id: string }) => row.id === siteDir)?.status, 'starting');
   assert.equal(Object.hasOwn(deps, 'siteRuntime'), false, 'registration state belongs to the registration, not its caller');
+});
+
+
+test('tab Keep running holds only that site through idle time and releases on explicit Stop', async t => {
+  const h = b2LifecycleHarness(t);
+  const sender = { isDestroyed: () => false, getURL: () => new URL('../dist/renderer/index.html', import.meta.url).href };
+  let requests = 0;
+  h.server().stopIfIdle = async () => { requests++; return false; };
+  h.keepRunning(sender);
+  assert.equal(h.lifecycle.has({ siteId: h.siteDir }), true);
+  assert.equal(h.lifecycle.has({ siteId: '/sites/other' }), false);
+  h.advance(6000000); await h.lifecycle.maintain({ snapshot: h.snapshot() });
+  assert.equal(requests, 0, 'closed tabs must not allow an explicit Keep running site to sleep');
+  await h.invoke(SITE_IPC_CHANNELS.stop);
+  assert.equal(h.lifecycle.has({ siteId: h.siteDir }), false, 'explicit Stop releases the per-site choice');
+});
+
+test('tab Keep running rejects untrusted senders and untracked sites', t => {
+  const h = b2LifecycleHarness(t);
+  const sender = { isDestroyed: () => false, getURL: () => new URL('../dist/renderer/index.html', import.meta.url).href };
+  assert.throws(() => h.keepRunning({ ...sender, getURL: () => 'https://untrusted.example' }), /desktop window/i);
+  assert.throws(() => h.keepRunning(sender, '/sites/unknown'), /tracked site/i);
+  assert.equal(h.lifecycle.has({ siteId: h.siteDir }), false);
+});
+
+
+test('tab Keep running survives automatic RSS restart but manual Start releases it', async t => {
+  const h = b2LifecycleHarness(t);
+  const sender = { isDestroyed: () => false, getURL: () => new URL('../dist/renderer/index.html', import.meta.url).href };
+  const old = h.server();
+  old.stopIfIdle = async () => { old.die(89); return true; };
+  h.keepRunning(sender);
+  await h.lifecycle.maintain({ snapshot: h.snapshot(1_500_000_000) });
+  h.advance(120000);
+  await h.lifecycle.maintain({ snapshot: h.snapshot(1_500_000_000) }); await h.drain();
+  assert.equal(h.boots(), 1, 'the hold does not disable sustained RSS recovery');
+  assert.equal(h.lifecycle.has({ siteId: h.siteDir }), true, 'automatic replacement keeps the explicit choice');
+  await h.invoke(SITE_IPC_CHANNELS.start);
+  assert.equal(h.lifecycle.has({ siteId: h.siteDir }), false, 'manual Start begins a fresh choice');
+});
+
+test('tab Keep running after a failed Stop restores memory limits and crash recovery', async t => {
+  const h = b2LifecycleHarness(t);
+  const sender = { isDestroyed: () => false, getURL: () => new URL('../dist/renderer/index.html', import.meta.url).href };
+  const old = h.server();
+  await h.lifecycle.maintain({ snapshot: h.snapshot() });
+  old.stop = async () => { throw new Error('The site did not stop.'); };
+  await assert.rejects(h.invoke(SITE_IPC_CHANNELS.stop), /did not stop/);
+  assert.equal(h.openSites.get(h.siteDir)?.server, old, 'a failed Stop keeps the live child supervised');
+  h.keepRunning(sender);
+  old.stopIfIdle = async () => { old.die(89); return true; };
+  await h.lifecycle.maintain({ snapshot: h.snapshot(1_500_000_000) });
+  h.advance(120000);
+  await h.lifecycle.maintain({ snapshot: h.snapshot(1_500_000_000) }); await h.drain();
+  assert.equal(h.boots(), 1, 'Keep running restores the sustained RSS restart');
+  h.server().die(1);
+  assert.equal(h.pending()[0]?.delayMs, 1000, 'Keep running restores automatic crash recovery');
+  await h.next();
+  assert.equal(h.boots(), 2);
+  assert.equal(h.lifecycle.has({ siteId: h.siteDir }), true, 'automatic restarts retain the idle hold');
+});
+
+/** `handleImportArchive` with a fake importer: it "made" an existing fixture site, as the CLI child would. */
+function importDeps(pickedPath: string | null, imported: { dir: string; warnings?: string[] } | Error) {
+  const asked: unknown[] = [];
+  const { deps } = addSiteDeps(pickedPath, {
+    importSiteArchive: async (input: unknown) => {
+      asked.push(input);
+      if (imported instanceof Error) throw imported;
+      return { dir: imported.dir, name: path.basename(imported.dir), siteId: "id-x", warnings: imported.warnings ?? [] };
+    },
+  } as never);
+  return { deps: deps as Parameters<typeof handleImportArchive>[1], asked };
+}
+
+test("handleImportArchive records the imported site as one this app made, with the importer's notices", async () => {
+  const siteDir = siteFixture("shop");
+  const { deps, asked } = importDeps("/picked/shop.tovu.zip", { dir: siteDir, warnings: ["Plugin kept switched off."] });
+  const record = await handleImportArchive({ pick: true }, deps) as Awaited<ReturnType<typeof handleImportArchive>> & { id: string; warnings: string[]; deleteErasesFiles: boolean };
+  assert.deepEqual(asked, [{ source: { file: "/picked/shop.tovu.zip" }, repoRoot: "/repo", cliMode: "source" }]);
+  assert.equal(record.id, siteDir);
+  assert.deepEqual(record.warnings, ["Plugin kept switched off."]);
+  assert.equal(readTrackedSites(deps.projectsPath)[0]!.origin, "created");
+  assert.equal(record.deleteErasesFiles, true, "an imported copy is this app's own, so deleting it may erase it");
+});
+
+test("handleImportArchive: a cancelled picker imports nothing", async () => {
+  const { deps, asked } = importDeps(null, { dir: siteFixture() });
+  assert.equal(await handleImportArchive({ pick: true }, deps), null);
+  assert.deepEqual(asked, []);
+  assert.deepEqual(readTrackedSites(deps.projectsPath), []);
+});
+
+test("handleImportArchive passes a share link through untouched and a dropped .zip by its path", async () => {
+  const { deps, asked } = importDeps(null, { dir: siteFixture("linked") });
+  await handleImportArchive({ url: "https://files.example.com/a.tovu.zip" }, deps);
+  assert.deepEqual((asked[0] as { source: unknown }).source, { url: "https://files.example.com/a.tovu.zip" });
+  await handleImportArchive({ file: "/drop/b.ZIP" }, { ...deps, importSiteArchive: async (input: unknown) => { asked.push(input); return { dir: siteFixture("dropped"), name: "dropped", siteId: "i", warnings: [] }; } });
+  assert.deepEqual((asked[1] as { source: unknown }).source, { file: "/drop/b.ZIP" });
+});
+
+test("handleImportArchive refuses a wrong file, a relative path and an empty request in plain words, importing nothing", async () => {
+  const { deps, asked } = importDeps(null, { dir: siteFixture() });
+  await assert.rejects(handleImportArchive({ file: "/drop/notes.txt" }, deps), /not a \.tovu\.zip file/);
+  await assert.rejects(handleImportArchive({ file: "relative.zip" }, deps), /Use the Choose button instead/);
+  await assert.rejects(handleImportArchive({}, deps), /needs a file or a share link/);
+  await assert.rejects(handleImportArchive(undefined, deps), /needs a file or a share link/);
+  assert.deepEqual(asked, []);
+});
+
+test("handleImportArchive: an importer that refuses leaves nothing tracked and its words intact", async () => {
+  const { deps } = importDeps("/picked/x.zip", new Error("ZIP size or SHA-256 mismatch."));
+  await assert.rejects(handleImportArchive({ pick: true }, deps), { message: "ZIP size or SHA-256 mismatch." });
+  assert.deepEqual(readTrackedSites(deps.projectsPath), []);
+});
+
+test("handleImportArchive gives a second import with the same name its own display name", async () => {
+  const first = importDeps("/p/a.zip", { dir: siteFixture("same") });
+  const one = await handleImportArchive({ pick: true }, first.deps) as { displayName: string };
+  const second = { ...first.deps, importSiteArchive: async () => ({ dir: siteFixture("same-2"), name: "same", siteId: "i2", warnings: [] }),
+    readSiteName: () => "same" };
+  const two = await handleImportArchive({ pick: true }, second as never) as { displayName: string };
+  assert.notEqual(one.displayName, two.displayName);
 });

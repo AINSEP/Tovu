@@ -31,7 +31,7 @@ test("hosted static token entered through the form is sealed, used as bearer aut
   const sealer = new AesGcmSecretSealer(keyring);
   const surfaces = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const deps = { workspaceId: "ws-n04-token", authorize: async () => ({ allowed: true, reason: "matched" }), clock: { nowMs: () => Date.parse("2026-10-01T00:00:00.000Z"), nowIso: () => "2026-10-01T00:00:00.000Z" }, externalMcpServerRepo: repo, siteAssistantSecretSealer: sealer, siteAssistantSecretKeyring: keyring };
-  const regs = buildExternalMcpRegistrations(deps, { surfaceExchanges: surfaces });
+  const regs = buildExternalMcpRegistrations(deps, { surfaceExchanges: surfaces, assertAccessApprover: async () => {} });
   const secret = "n04-human-secret";
   for (const accessToken of [secret, ""]) {
     let surface: unknown;
@@ -76,7 +76,7 @@ for (const [env, message] of [
   const keyring = new InMemoryKeyring();
   const surfaces = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const deps = { workspaceId: "ws-n04-invalid", authorize: async () => ({ allowed: true, reason: "matched" }), clock: { nowMs: () => Date.parse("2026-10-01T00:00:00.000Z"), nowIso: () => "2026-10-01T00:00:00.000Z" }, externalMcpServerRepo: repo, siteAssistantSecretSealer: new AesGcmSecretSealer(keyring), siteAssistantSecretKeyring: keyring };
-  const save = buildExternalMcpRegistrations(deps, { surfaceExchanges: surfaces }).find(r => r.descriptor.id === "external_mcp_save")!;
+  const save = buildExternalMcpRegistrations(deps, { surfaceExchanges: surfaces, assertAccessApprover: async () => {} }).find(r => r.descriptor.id === "external_mcp_save")!;
   let surface: unknown;
   const pending = invokeFixtureHandler(save, { executionId: "exec", principal: { id: "owner" }, run: { id: "run" }, input: { id: "local", transport: "stdio", command: "node", authMode: "static_env" }, signal: new AbortController().signal, emitSurface: async (s: unknown) => { surface = s; } } as never);
   await new Promise(resolve => setImmediate(resolve));
@@ -105,7 +105,7 @@ test('a rejected saved static token returns a secure update-card diagnostic', as
     externalMcpServerRepo: repo, siteAssistantSecretSealer: sealer, siteAssistantSecretKeyring: keyring,
     externalMcpProbe: async () => ({ ok: false, body: { code: 'MCP_AUTH_REJECTED' } }),
   };
-  const registrations = buildExternalMcpRegistrations(deps, { surfaceExchanges: surfaces });
+  const registrations = buildExternalMcpRegistrations(deps, { surfaceExchanges: surfaces, assertAccessApprover: async () => {} });
   let surface: unknown;
   const save = invokeFixtureHandler(registrations.find(registration => registration.descriptor.id === 'external_mcp_save')!, {
     executionId: 'save', principal: { id: 'owner' }, run: { id: 'run' }, input: { id: 'hosted', transport: 'streamable_http', authMode: 'static_env', url: 'https://hosted.example/mcp' }, signal: new AbortController().signal,
@@ -140,13 +140,13 @@ function cardFixture(repo = new InMemoryExternalMcpServerRepo()) {
   const emissions: SurfaceEmission[] = [];
   const controller = new AbortController();
   function call(toolId: string, input: unknown) {
-    const registration = buildExternalMcpRegistrations(deps, { surfaceExchanges: surfaces }).find(r => r.descriptor.id === toolId)!;
+    const registration = buildExternalMcpRegistrations(deps, { surfaceExchanges: surfaces, assertAccessApprover: async () => {} }).find(r => r.descriptor.id === toolId)!;
     return registration.handler({ executionId: "exec", principal: { id: "owner" }, run: { id: "run" }, input, signal: controller.signal });
   }
   async function open(input: Record<string, unknown>) {
     let didEmit!: (surface: SurfaceEmission) => void;
     const emitted = new Promise<SurfaceEmission>(resolve => { didEmit = resolve; });
-    const registration = buildExternalMcpRegistrations(deps, { surfaceExchanges: surfaces }).find(r => r.descriptor.id === "external_mcp_save")!;
+    const registration = buildExternalMcpRegistrations(deps, { surfaceExchanges: surfaces, assertAccessApprover: async () => {} }).find(r => r.descriptor.id === "external_mcp_save")!;
     const pending = registration.handler({ executionId: "exec", principal: { id: "owner" }, run: { id: "run" }, input, signal: controller.signal }, {
       emitSurface: async surface => { emissions.push(surface); didEmit(surface); },
     });
@@ -381,8 +381,9 @@ test("a hosted save without a probe binds routing and auth to preparation and re
   assert.equal(record.transport, "streamable_http");
   assert.equal(record.authMode, "none");
   assert.equal(record.label, "Display");
-  assert.equal(record.allowedToolNames, JSON.stringify(["read", "write"]));
-  assert.equal(record.writeAllowedToolNames, JSON.stringify(["write"]));
+  // Undeclared submitted grant fields cannot replace the fixed, empty proposal.
+  assert.equal(record.allowedToolNames, '[]');
+  assert.equal(record.writeAllowedToolNames, '[]');
   assert.equal(f.surfaces.size(), 0);
 });
 

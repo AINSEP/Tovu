@@ -104,6 +104,21 @@ async function patch(t: import("node:test").TestContext, app: express.Express, p
   return { status: res.status, json };
 }
 
+test("update-campaign: keeps the supplied document on PATCH and a later metadata-only edit", async () => {
+  const { app, deps } = buildApp();
+  const campaign = await seedCampaign(deps, { id: "body-patch" });
+  const handler = extractRouteHandler(app, "patch", "/api/admin/v1/workspaces/:workspaceId/newsletter/campaigns/:id");
+  const bodyJson = { type: "doc", content: [{ type: "text", text: "Retain this document" }] };
+  for (const body of [{ bodyJson }, { subject: "Changed subject" }]) {
+    const { res, capture } = createCapturingResponse();
+    res.locals.principal = { id: "test-principal" };
+    await handler({ params: { workspaceId: WORKSPACE_ID, id: campaign.id }, body }, res);
+    assert.equal(capture.statusCode, 200);
+    assert.deepEqual((capture.jsonBody as { data: CampaignRecord }).data.bodyJson, bodyJson);
+  }
+  assert.deepEqual((await deps.newsletterCampaignRepo.findById({ workspaceId: WORKSPACE_ID, id: campaign.id }))?.bodyJson, bodyJson);
+});
+
 test("update-campaign: mismatched workspaceId 404s", async (t) => {
   const { app } = buildApp();
   const { status, json } = await patch(t, app, `/api/admin/v1/workspaces/other-ws/newsletter/campaigns/camp-1`, {});

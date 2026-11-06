@@ -84,7 +84,9 @@ const ownerStoreBridge: OwnerStoreBridge = {
   status: (input, _options = {}) => ipcRenderer.invoke(OWNER_STORE_CHANNELS.status, input),
   list: (input, _options = {}) => ipcRenderer.invoke(OWNER_STORE_CHANNELS.list, input),
   put: (input, _options = {}) => ipcRenderer.invoke(OWNER_STORE_CHANNELS.put, input),
+  delete: (input, _options = {}) => ipcRenderer.invoke(OWNER_STORE_CHANNELS.delete, input),
   import: (input, _options = {}) => ipcRenderer.invoke(OWNER_STORE_CHANNELS.import, input),
+  disconnect: (input, _options = {}) => ipcRenderer.invoke(OWNER_STORE_CHANNELS.disconnect, input),
 };
 contextBridge.exposeInMainWorld('tovuOwnerStore', Object.freeze(ownerStoreBridge));
 contextBridge.exposeInMainWorld('tovuTelemetry', Object.freeze({
@@ -97,6 +99,7 @@ contextBridge.exposeInMainWorld(
     getAppVersion: () => ipcRenderer.invoke(RUNNER_APP_VERSION_CHANNEL),
     getIdleSiteSleepMinutes: () => ipcRenderer.invoke(IDLE_SITE_SLEEP_CHANNELS.read),
     setIdleSiteSleepMinutes: (minutes: IdleSiteSleepMinutes) => ipcRenderer.invoke(IDLE_SITE_SLEEP_CHANNELS.write, minutes),
+    keepSiteRunning: ({ id }: { id: string }, _options = {}) => ipcRenderer.invoke(SITE_IPC_CHANNELS.keepRunning, { id }),
     reportOpenSiteTabs: ({ siteIds }: { siteIds: readonly string[] }, _options = {}) => ipcRenderer.invoke(SITE_PRESENCE_CHANNEL, { siteIds }),
     getMaximumLiveSiteViews: () => ipcRenderer.invoke(SITE_VIEW_PREFERENCE_CHANNELS.read),
     setMaximumLiveSiteViews: (maximum: number) => ipcRenderer.invoke(SITE_VIEW_PREFERENCE_CHANNELS.write, maximum),
@@ -118,6 +121,10 @@ contextBridge.exposeInMainWorld(
      *  otherwise returns the record and alreadyTracked flag. Rejects unusable folders with an
      *  actionable message. See `SITE_IPC_CHANNELS.addSite`. */
     addSite: () => ipcRenderer.invoke(SITE_IPC_CHANNELS.addSite),
+    /** The same verb for a folder dropped on the Import page, whose path the drop already gave. */
+    addDroppedSite: (input: { folder: string }) => ipcRenderer.invoke(SITE_IPC_CHANNELS.addSite, input),
+    /** .tovu.zip or share link to a new site. See `SITE_IPC_CHANNELS.importArchive`. */
+    importSiteArchive: (input: import("../contracts/project.js").ImportArchiveInput) => ipcRenderer.invoke(SITE_IPC_CHANNELS.importArchive, input),
     planNewDir: (input: { name: string }) => ipcRenderer.invoke(SITE_IPC_CHANNELS.planNewDir, input),
     createSite: (input: CreateSiteInput) => ipcRenderer.invoke(SITE_IPC_CHANNELS.create, input),
     /** The services "+ Create website" can offer a token field for. See `SITE_IPC_CHANNELS.tokenSignInPlugins`. */

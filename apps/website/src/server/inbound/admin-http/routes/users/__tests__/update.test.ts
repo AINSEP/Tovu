@@ -30,7 +30,7 @@ test("UPDATE_USER maps a missing host audit binding to 500 and leaves the userna
   res.locals.principal = { id: ownerId };
   await handler({ params: { workspaceId: WORKSPACE_ID, principalId: user.principalId }, body: { username: "after" } }, res);
   assert.equal(capture.statusCode, 500);
-  assertAdminResponse({ actual: capture.jsonBody, expected: { error: "internal error" } });
+  assertAdminResponse({ actual: capture.jsonBody, expected: { error: "internal error" } }, { failure: {"message":"The user save could not be completed.","action":"Check whether your changes were saved before repeating the save. Copy details and report this problem.","step":"Save user"} });
   assertAdminResponse({ actual: await deps.userRepo.findByPrincipalId({ workspaceId: WORKSPACE_ID, principalId: user.principalId }), expected: user });
 });
 
@@ -265,7 +265,7 @@ test("UPDATE_USER route: 500 internal error when an unexpected error is thrown",
   });
   assert.equal(res.status, 500);
   const body = (await res.json()) as { error: string };
-  assertAdminResponse({ actual: body, expected: { error: "internal error" } });
+  assertAdminResponse({ actual: body, expected: { error: "internal error" } }, { failure: {"message":"The user save could not be completed.","action":"Check whether your changes were saved before repeating the save. Copy details and report this problem.","step":"Save user"} });
 });
 
 test("UPDATE_USER route: 409 USER_IN_TRASH when the target is currently in the Trash — OWNER DECISION 2026-09-24", async (t) => {

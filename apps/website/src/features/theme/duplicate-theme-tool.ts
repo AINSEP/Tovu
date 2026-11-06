@@ -7,6 +7,7 @@ import { THEME_WRITE_PERMISSION } from "./agent-tools.js";
 import { DuplicateThemeError, duplicateDiscoveredTheme } from "./duplicate-theme.js";
 import { requestThemePreviewRefresh } from "./preview-refresh.js";
 import { applyActiveTheme, type SetActiveThemeToolDeps } from "./set-active-theme-tool.js";
+import { THEME_STYLING_REQUIRED_MESSAGE } from "./active-theme.js";
 
 /**
  * @file `theme_duplicate` (owner-approved 2026-10-08) — the only agent tool that creates a theme.
@@ -33,10 +34,11 @@ export type DuplicateThemeToolDeps = SetActiveThemeToolDeps & { themesDir: strin
 const DUPLICATE_THEME_CATALOG: AgentToolDefinition = {
   name: "theme_duplicate",
   description:
-    "Creates a NEW theme by copying every file of an existing one (including a bundled stock theme) into a new theme folder, " +
-    "then renames the copy's theme.json (new id and display name, version reset to 1.0.0, `lineage.from` records the source). " +
+    "Creates a NEW theme from an existing one (including a bundled stock theme). Default mode 'full' copies every file; " +
+    "mode 'structure-only' keeps authored-v2 static structure and functional scripts, strips appearance CSS, and leaves an unstyled inactive draft. " +
+    "The copy gets its own theme.json identity (new id and display name, version reset to 1.0.0, `lineage.from` records the source). " +
     "The source is never modified. Use this to start a new theme or a redesign: duplicate, then edit the COPY with " +
-    "theme_write_file/theme_edit_file, and only switch the live site to it once the owner approves (theme_set_active, or activate: true here). " +
+    "theme_write_file/theme_edit_file, and only switch the live site to it once the owner approves (theme_set_active, or activate: true in full mode). " +
     "Refused if the source id is unknown, newId is malformed or already taken, or the source contains a symbolic link or exceeds the theme size limits.",
   sideEffects: "mutates-durable-state",
   authorization: { permission: THEME_WRITE_PERMISSION },
@@ -69,6 +71,12 @@ const DUPLICATE_THEME_CATALOG: AgentToolDefinition = {
         default: false,
         description: "Also make the copy the live site's active theme. Default false — leave it false until the owner has approved the new design.",
       },
+      mode: {
+        type: "string",
+        enum: ["full", "structure-only"],
+        default: "full",
+        description: "Use structure-only for new designs from Tovu Starter. Write fresh CSS and review screenshots before activation; activate must be false.",
+      },
     },
   },
 };
@@ -77,6 +85,18 @@ const DUPLICATE_THEME_CATALOG: AgentToolDefinition = {
 export const duplicateThemeAgentToolCatalog: AgentToolDefinition[] = [DUPLICATE_THEME_CATALOG];
 
 const CATALOG_BY_ID = indexCatalogById({ catalog: duplicateThemeAgentToolCatalog });
+
+/** Validate mode/activation together before copying; omitted mode keeps legacy full-copy behavior. */
+function duplicationMode(input: Record<string, unknown>): "full" | "structure-only" {
+  const mode = input.mode ?? "full";
+  if (mode !== "full" && mode !== "structure-only") {
+    throw new DuplicateThemeError("SOURCE_NOT_COPYABLE", "mode must be 'full' or 'structure-only'. Choose structure-only for a new design.");
+  }
+  if (mode === "structure-only" && input.activate === true) {
+    throw new DuplicateThemeError("SOURCE_NOT_COPYABLE", THEME_STYLING_REQUIRED_MESSAGE);
+  }
+  return mode;
+}
 
 /** Writes a new folder under the site's themes directory (and, with `activate`, the active-theme setting). */
 export const duplicateThemeDerivedRisk: DerivedRiskByToolId = new Map([["theme_duplicate", "mutates-durable-state"]]);
@@ -108,7 +128,7 @@ function buildDuplicateThemeHandlers(routeDeps: DuplicateThemeToolDeps): Record<
         toolId: "theme_duplicate",
         catalog: CATALOG_BY_ID,
         isShapeRejection: ({ error }) => error instanceof DuplicateThemeError,
-        fn: async () => duplicateDiscoveredTheme({ themes: routeDeps.themes, themesDir: routeDeps.themesDir, sourceThemeId, newName }, { newId }),
+        fn: async () => duplicateDiscoveredTheme({ themes: routeDeps.themes, themesDir: routeDeps.themesDir, sourceThemeId, newName }, { newId, mode: duplicationMode(input) }),
       });
       requestThemePreviewRefresh({ themesDir: routeDeps.themesDir });
 
@@ -123,6 +143,7 @@ function buildDuplicateThemeHandlers(routeDeps: DuplicateThemeToolDeps): Record<
         status: theme?.status ?? "invalid",
         errors: theme?.errors ?? [`the copy was written but not discovered as '${result.id}'`],
         activated: activation !== undefined,
+        ...(result.stylingStatus ? { stylingStatus: result.stylingStatus, warning: THEME_STYLING_REQUIRED_MESSAGE } : {}),
         ...(activation ? { previousThemeId: activation.previousThemeId } : {}),
       };
     },

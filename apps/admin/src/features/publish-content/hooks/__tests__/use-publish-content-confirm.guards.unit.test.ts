@@ -65,6 +65,22 @@ describe("usePublishContentConfirm — selection and re-entry guards", () => {
   });
 });
 
+describe("usePublishContentConfirm — actual publish outcomes", () => {
+  it.each([0, 1])("keeps named skips visible after %i applied rows", async applied => {
+    const skipped = { entityType: "media", entityId: "photo", entityLabel: "Team photo", outcome: "blocked" as const, writes: false,
+      canOverwrite: true, retires: null, reason: "This replaces the file on the live site. Tick Overwrite on live to publish it." };
+    const report = { ...TWO_POSTS, rows: [...TWO_POSTS.rows.slice(0, applied), skipped] } as PublishContentReport;
+    const { result } = await planned(createFakePublishContentPort({ peers: [peer], report: TWO_POSTS,
+      executeResult: { report, restorePointId: "rp", runId: "run", changeSetIds: applied ? ["cs"] : [] } }));
+    act(() => result.current.onPrimary());
+    await waitFor(() => expect(result.current.phase.kind).toBe("done"));
+    expect(result.current.doneMessage).toBe(applied ? "Published 1 change. 1 item skipped." : "Nothing published. 1 item skipped.");
+    expect(result.current.rows.some(row => row.entityLabel === "Team photo")).toBe(true);
+    expect(result.current.rows.find(row => row.entityLabel === "Team photo")?.reason).toContain("Tick Overwrite on live");
+    expect(result.current.showOverwriteColumn).toBe(false);
+  });
+});
+
 describe("usePublishContentConfirm — results that land after the dialog closed", () => {
   function gatedPort(step: "confirmPublish" | "executePublish", outcome: "resolve" | "reject") {
     const base = createFakePublishContentPort({ peers: [peer], report: TWO_POSTS });

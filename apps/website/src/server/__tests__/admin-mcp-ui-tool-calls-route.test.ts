@@ -249,8 +249,77 @@ async function bootWithStore(t: import("node:test").TestContext) {
   recorded = [];
   const baseUrl = await startTestServer(app, t);
   const cookie = await loginAsOwner(baseUrl);
-  return { baseUrl, cookie, surfaceExchanges };
+  return { baseUrl, cookie, surfaceExchanges, deps };
 }
+
+test("an API key cannot answer a local or daemon-held approval", async (t) => {
+  const { baseUrl, cookie, surfaceExchanges, deps } = await bootWithStore(t);
+  const { apiKeyServiceDepsFrom } = await import("../inbound/admin-http/routes/api-keys/deps.js");
+  const { createApiKeyPrincipal, issueApiKey } = await import("../../features/identity/api-key-service.js");
+  const callerPrincipalId = await authedPrincipalId(baseUrl, cookie);
+  const service = apiKeyServiceDepsFrom(deps);
+  const { principal } = await createApiKeyPrincipal({ deps: service, input: {
+    workspaceId: deps.workspaceId, callerPrincipalId, displayName: "Approval test machine",
+  } });
+  const policyId = deps.idGen.newId();
+  await deps.policyRepo.save({ id: policyId, workspaceId: deps.workspaceId, name: "Approval test empty policy", isBuiltin: false, isFrozen: false });
+  const { rawKey } = await issueApiKey({ deps: service, input: {
+    workspaceId: deps.workspaceId, callerPrincipalId, principalId: principal.id, label: "Approval test key", policyIds: [policyId],
+  } });
+  const exchange = surfaceExchanges.open({ binding: { toolId: "plugins_set_enabled", principalId: principal.id }, emit: async () => undefined });
+  t.after(() => exchange.close({}));
+  const before = recorded.length;
+  for (const exchangeId of [exchange.id, "daemon-held-card"]) {
+    const response = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
+      method: "POST", headers: { authorization: `Bearer ${rawKey}`, "content-type": "application/json" },
+      body: JSON.stringify({ toolName: "plugins_set_enabled", params: { __exchangeId: exchangeId, decision: "confirm" } }),
+    });
+    assert.equal(response.status, 403);
+    assert.equal((await response.json() as { details: { reason: string } }).details.reason, "credential_kind_not_permitted");
+  }
+  assert.equal(recorded.length, before, "machine answers must never reach the daemon");
+  assert.equal(surfaceExchanges.size(), 1, "machine answers must not consume the parked approval");
+});
+
+test("a session for a nonhuman principal cannot approve access", async (t) => {
+  const { baseUrl, surfaceExchanges, deps } = await bootWithStore(t);
+  const { apiKeyServiceDepsFrom } = await import("../inbound/admin-http/routes/api-keys/deps.js");
+  const { createSessionForPrincipal } = await import("@jini-ai/user-management/server");
+  for (const kind of ["agent", "api_key", "system"] as const) {
+    const principalId = deps.idGen.newId();
+    await deps.principalRepo.save({ id: principalId, workspaceId: deps.workspaceId, kind,
+      displayName: "Approval test nonhuman", status: "active", createdAt: deps.clock.nowIso() });
+    const { rawToken } = await createSessionForPrincipal({ deps: apiKeyServiceDepsFrom(deps), input: { workspaceId: deps.workspaceId, principalId } });
+    const exchange = surfaceExchanges.open({ binding: { toolId: "plugins_set_enabled", principalId }, emit: async () => undefined });
+    t.after(() => exchange.close({}));
+    const before = recorded.length;
+    const response = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
+      method: "POST", headers: { cookie: `tovu_session=${rawToken}`, "content-type": "application/json" },
+      body: JSON.stringify({ toolName: "plugins_set_enabled", params: { __exchangeId: exchange.id, decision: "confirm" } }),
+    });
+    assert.equal(response.status, 403, kind);
+    assert.equal((await response.json() as { code: string }).code, "FORBIDDEN");
+    assert.equal(recorded.length, before);
+  }
+});
+
+test("a disabled person cannot answer their still-open access card", async (t) => {
+  const { baseUrl, cookie, surfaceExchanges, deps } = await bootWithStore(t);
+  const principalId = await authedPrincipalId(baseUrl, cookie);
+  const principal = await deps.principalRepo.findById({ workspaceId: deps.workspaceId, id: principalId });
+  assert.ok(principal);
+  const exchange = surfaceExchanges.open({ binding: { toolId: "plugins_set_enabled", principalId }, emit: async () => undefined });
+  t.after(() => exchange.close({}));
+  await deps.principalRepo.save({ ...principal, status: "disabled", disabledAt: deps.clock.nowIso() });
+  const before = recorded.length;
+  const response = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
+    method: "POST", headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ toolName: "plugins_set_enabled", params: { __exchangeId: exchange.id, decision: "confirm" } }),
+  });
+  assert.equal(response.status, 401);
+  assert.equal(recorded.length, before);
+  assert.equal(surfaceExchanges.size(), 1);
+});
 
 /** The session principal this proxy stamps outbound — read off a forwarded request rather than
  *  hardcoded, since only `getAuthedPrincipal` knows it. */

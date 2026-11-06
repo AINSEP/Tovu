@@ -31,6 +31,20 @@ import { registerExternalMcpOAuthCallbackRoute, type ExternalMcpOAuthCallbackRou
  */
 
 const SERVER_ID = "higgs";
+const BROWSER_BINDING = 'a'.repeat(43);
+const BROWSER_HEADERS = { cookie: `__Secure-tovu_mcp_binding=${BROWSER_BINDING}` };
+
+test('missing, malformed and duplicate browser proof stops before the OAuth service', async t => {
+  let calls = 0;
+  const baseUrl = await startTestServer(buildApp({ oauth: fakeOAuthService(async () => { calls++; }), callbackLimiter: fixedRateLimiter({ allowed: true }) }), t);
+  for (const cookie of ['', '__Secure-tovu_mcp_binding=bad', `${BROWSER_HEADERS.cookie}; ${BROWSER_HEADERS.cookie}`]) {
+    const response = await fetch(`${baseUrl}/api/mcp-servers/oauth/callback/${SERVER_ID}?state=s&code=c`, { headers: { cookie } });
+    assert.equal(response.status, 400);
+    assert.match(await response.text(), /same browser/);
+    assert.match(response.headers.get('set-cookie') ?? '', /Max-Age=0/);
+  }
+  assert.equal(calls, 0);
+});
 
 /** A `RateLimiter` double that always answers the same fixed result — this suite only needs to
  *  choose "the limiter allows" vs. "the limiter is already tripped", never real window counting. */
@@ -113,7 +127,7 @@ test("state_expired: OAUTH_INVALID_STATE from the service — covers tampered, e
   };
   const baseUrl = await startTestServer(buildApp(deps), t);
 
-  const response = await fetch(`${baseUrl}/api/mcp-servers/oauth/callback/${SERVER_ID}?state=stale-state&code=c`);
+  const response = await fetch(`${baseUrl}/api/mcp-servers/oauth/callback/${SERVER_ID}?state=stale-state&code=c`, { headers: BROWSER_HEADERS });
   const html = await response.text();
 
   assert.equal(response.status, 400);
@@ -131,7 +145,7 @@ test("provider_denied: OAUTH_ACCESS_DENIED — the operator declined, or the pro
   };
   const baseUrl = await startTestServer(buildApp(deps), t);
 
-  const response = await fetch(`${baseUrl}/api/mcp-servers/oauth/callback/${SERVER_ID}?state=s&error=access_denied`);
+  const response = await fetch(`${baseUrl}/api/mcp-servers/oauth/callback/${SERVER_ID}?state=s&error=access_denied`, { headers: BROWSER_HEADERS });
   const html = await response.text();
 
   assert.equal(response.status, 400);
@@ -149,7 +163,7 @@ test("server_unknown: ExternalMcpValidationError — the serverId in the URL nam
   };
   const baseUrl = await startTestServer(buildApp(deps), t);
 
-  const response = await fetch(`${baseUrl}/api/mcp-servers/oauth/callback/${SERVER_ID}?state=s&code=c`);
+  const response = await fetch(`${baseUrl}/api/mcp-servers/oauth/callback/${SERVER_ID}?state=s&code=c`, { headers: BROWSER_HEADERS });
   const html = await response.text();
 
   assert.equal(response.status, 400);
@@ -166,7 +180,7 @@ test("exchange_failed: every other OAuthError code — and every non-OAuth error
     callbackLimiter: fixedRateLimiter({ allowed: true }),
   };
   const rejectedBaseUrl = await startTestServer(buildApp(rejectedDeps), t);
-  const rejectedResponse = await fetch(`${rejectedBaseUrl}/api/mcp-servers/oauth/callback/${SERVER_ID}?state=s&code=c`);
+  const rejectedResponse = await fetch(`${rejectedBaseUrl}/api/mcp-servers/oauth/callback/${SERVER_ID}?state=s&code=c`, { headers: BROWSER_HEADERS });
   const rejectedHtml = await rejectedResponse.text();
 
   assert.equal(rejectedResponse.status, 400);
@@ -179,7 +193,7 @@ test("exchange_failed: every other OAuthError code — and every non-OAuth error
     callbackLimiter: fixedRateLimiter({ allowed: true }),
   };
   const thrownBaseUrl = await startTestServer(buildApp(thrownDeps), t);
-  const thrownResponse = await fetch(`${thrownBaseUrl}/api/mcp-servers/oauth/callback/${SERVER_ID}?state=s&code=c`);
+  const thrownResponse = await fetch(`${thrownBaseUrl}/api/mcp-servers/oauth/callback/${SERVER_ID}?state=s&code=c`, { headers: BROWSER_HEADERS });
   const thrownHtml = await thrownResponse.text();
 
   assert.equal(thrownResponse.status, 400);
@@ -195,7 +209,7 @@ test("ok: true carries no reason at all — there is nothing to react to on succ
   };
   const baseUrl = await startTestServer(buildApp(deps), t);
 
-  const response = await fetch(`${baseUrl}/api/mcp-servers/oauth/callback/${SERVER_ID}?state=s&code=c`);
+  const response = await fetch(`${baseUrl}/api/mcp-servers/oauth/callback/${SERVER_ID}?state=s&code=c`, { headers: BROWSER_HEADERS });
   const html = await response.text();
 
   assert.equal(response.status, 200);
@@ -233,7 +247,7 @@ test("no provider response text, in any form, ever reaches the response — the 
     };
     const baseUrl = await startTestServer(buildApp(deps), t);
 
-    const response = await fetch(`${baseUrl}/api/mcp-servers/oauth/callback/${SERVER_ID}?state=s&code=c`);
+    const response = await fetch(`${baseUrl}/api/mcp-servers/oauth/callback/${SERVER_ID}?state=s&code=c`, { headers: BROWSER_HEADERS });
     const html = await response.text();
 
     assert.equal(response.status, 400, name);
@@ -257,10 +271,10 @@ test("callback forwards the exact server, callback URI and normalized query fiel
   ];
   for (const scenario of cases) {
     const before = calls.length;
-    const response = await fetch(`${baseUrl}/api/mcp-servers/oauth/callback/${SERVER_ID}?${scenario.query}`);
+    const response = await fetch(`${baseUrl}/api/mcp-servers/oauth/callback/${SERVER_ID}?${scenario.query}`, { headers: BROWSER_HEADERS });
     assert.equal(response.status, scenario.status, scenario.query);
     assert.deepEqual(calls.slice(before), scenario.params ? [{ serverId: SERVER_ID,
-      redirectUri: `${baseUrl}/api/mcp-servers/oauth/callback/${SERVER_ID}`, params: scenario.params }] : []);
+      redirectUri: `${baseUrl}/api/mcp-servers/oauth/callback/${SERVER_ID}`, params: scenario.params, browserBinding: BROWSER_BINDING }] : []);
   }
 });
 
@@ -276,10 +290,10 @@ test("callback URI includes the trusted public origin but excludes provider quer
     oauth: fakeOAuthService(async input => { calls.push(input); }),
     callbackLimiter: fixedRateLimiter({ allowed: true }),
   }), t);
-  const response = await fetch(`${baseUrl}/api/mcp-servers/oauth/callback/${SERVER_ID}?state=s&code=c&ignored=x`);
+  const response = await fetch(`${baseUrl}/api/mcp-servers/oauth/callback/${SERVER_ID}?state=s&code=c&ignored=x`, { headers: BROWSER_HEADERS });
   assert.equal(response.status, 200);
   assert.deepEqual(calls, [{ serverId: SERVER_ID,
-    redirectUri: `https://public.example.com/api/mcp-servers/oauth/callback/${SERVER_ID}`, params: { state: "s", code: "c" } }]);
+    redirectUri: `https://public.example.com/api/mcp-servers/oauth/callback/${SERVER_ID}`, params: { state: "s", code: "c" }, browserBinding: BROWSER_BINDING }]);
 });
 
 test("callback IP budgets stay independent after another client exhausts its allowance", async (t) => {
@@ -325,7 +339,7 @@ test("route-param guard: a handler reached without a :serverId param forwards an
   bare.get("/no-param", handler as express.RequestHandler);
   const errors = t.mock.method(console, "error", () => {});
   const baseUrl = await startTestServer(bare, t);
-  const response = await fetch(`${baseUrl}/no-param?state=s&code=c`);
+  const response = await fetch(`${baseUrl}/no-param?state=s&code=c`, { headers: BROWSER_HEADERS });
 
   assert.equal(response.status, 400);
   assert.deepEqual(extractPostMessagePayload(await response.text()), { type: "tovu:external-mcp-connected", reason: "server_unknown" });
@@ -344,7 +358,7 @@ test("a non-Error rejection is logged by its string form and still renders the g
   };
   const errors = t.mock.method(console, "error", () => {});
   const baseUrl = await startTestServer(buildApp(deps), t);
-  const response = await fetch(`${baseUrl}/api/mcp-servers/oauth/callback/${SERVER_ID}?state=s&code=c`);
+  const response = await fetch(`${baseUrl}/api/mcp-servers/oauth/callback/${SERVER_ID}?state=s&code=c`, { headers: BROWSER_HEADERS });
 
   assert.equal(response.status, 400);
   assert.deepEqual(extractPostMessagePayload(await response.text()), { type: "tovu:external-mcp-connected", reason: "exchange_failed" });

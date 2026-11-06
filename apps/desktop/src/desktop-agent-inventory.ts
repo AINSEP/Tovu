@@ -23,7 +23,7 @@ interface AgentRuntimePorts {
 /**
  * One def's summary. Probes models only for an installed CLI; an absent one shows its fallbacks and
  * says why it is unavailable.
- * @complexity O(1) plus one model probe when available.
+ * @complexity O(models + reasoning options) time and space, plus one model probe when available.
  */
 async function summarizeAgent(def: RuntimeAgentDef, ports: AgentRuntimePorts): Promise<RunnerAgentSummary> {
   const launch = ports.resolveLaunch({ def });
@@ -34,8 +34,10 @@ async function summarizeAgent(def: RuntimeAgentDef, ports: AgentRuntimePorts): P
     name: def.name,
     available,
     version: null,
-    models: models.map(({ id, label }) => ({ id, label })),
+    // An explicitly empty model vocabulary must survive so the picker does not inherit agent levels.
+    models: models.map(({ id, label, reasoning }) => ({ id, label, ...(reasoning !== undefined ? { reasoning } : {}) })),
     reasoningOptions: (def.reasoningOptions ?? []).map(({ id, label }) => ({ id, label })),
+    ...(def.reasoningInModelId ? { reasoningInModelId: def.reasoningInModelId } : {}),
     ...(def.supportsCustomModel === undefined ? {} : { supportsCustomModel: def.supportsCustomModel }),
     ...(available ? {} : { diagnostic: launch.diagnostic ?? `${def.name} CLI not found on PATH` }),
   };

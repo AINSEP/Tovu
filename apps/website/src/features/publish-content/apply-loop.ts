@@ -87,11 +87,12 @@ import type {
  * deviation corrects.
  */
 
-/** Stable command key for one source principal's exact serialized entity version. */
+/** Stable command key for one source version; reviewed file reverts also bind the destination version. */
 export function publishContentItemIdempotencyKey(input: {
   workspaceId: string;
   sourcePrincipalId: string;
   entity: PackedEntity;
+  sourceReplacement?: PublishContentOutcomeRow["sourceReplacement"];
 }): string {
   const exactVersion = JSON.stringify([
     input.workspaceId,
@@ -102,7 +103,8 @@ export function publishContentItemIdempotencyKey(input: {
     input.entity.hashVersion,
     input.entity.contentHash,
   ]);
-  return `publish-content:v1:${createHash("sha256").update(exactVersion).digest("hex")}`;
+  return `publish-content:v1:${createHash("sha256").update(exactVersion).digest("hex")}` +
+    (input.sourceReplacement ? `:${input.sourceReplacement.version}` : "");
 }
 
 /**
@@ -455,12 +457,15 @@ async function applyOneRow(
     try {
       const { changeSetId } = await handler.apply({
         entity,
+        // This row is the server-verified report, not bundle flags or writes:true.
+        ...(row.outcome === "forced" && row.canOverwrite && row.sourceReplacement
+          ? { sourceReplacement: row.sourceReplacement } : {}),
         expectedVersion: current?.version, // `created` -> undefined (current is null); applied/forced -> fresh version just read above.
         principalId: ctx.principalId, // always the operator — see this file's header.
         idempotencyKey: publishContentItemIdempotencyKey({
           workspaceId: ctx.workspaceId,
           sourcePrincipalId: ctx.sourcePrincipalId,
-          entity,
+          entity, sourceReplacement: row.sourceReplacement,
         }) + (handler.idempotencyScope === "run" ? `:${ctx.runId}` : ""),
       });
       // Persist the change-set id BEFORE the baseline write. If that next write fails, status lookup
@@ -610,7 +615,7 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
           const entity = entityByKey.get(key);
           const missingIdentity = `${input.workspaceId}:${sourcePrincipalId}:${key}`;
           const idempotencyKey = entity
-            ? publishContentItemIdempotencyKey({ workspaceId: input.workspaceId, sourcePrincipalId, entity })
+            ? publishContentItemIdempotencyKey({ workspaceId: input.workspaceId, sourcePrincipalId, entity, sourceReplacement: row.sourceReplacement })
             : `publish-content:v1:missing:${createHash("sha256").update(missingIdentity).digest("hex")}`;
           itemByKey.set(key, {
             entityType: row.entityType,
@@ -895,13 +900,16 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
   };
 }
 
-function refreshBaseline({ row, entity, ctx }: { row: PublishContentOutcomeRow; entity: PackedEntity; ctx: ApplyRowContext }, _optional: Record<string, never> = {}): Promise<void> {
+/** Replacement sanitizing may normalize source metadata; remember what actually landed.
+ * One indexed inspect per replaced row, with no additional reads on ordinary imports. */
+async function refreshBaseline({ row, entity, ctx }: { row: PublishContentOutcomeRow; entity: PackedEntity; ctx: ApplyRowContext }, _optional: Record<string, never> = {}): Promise<void> {
+  const destination = row.sourceReplacement ? await ctx.handlerByType.get(row.entityType)?.inspect(row.entityId) : null;
   return ctx.baselineRepo.upsert({
     workspaceId: ctx.workspaceId,
     peerPrincipalId: ctx.sourcePrincipalId,
     entityType: row.entityType,
     entityId: row.entityId,
-    hashAtLastSync: entity.contentHash,
+    hashAtLastSync: destination?.hash ?? entity.contentHash,
     hashVersion: entity.hashVersion,
     syncedAt: clockNowIso({ clock: ctx.clock }),
     runId: ctx.runId,

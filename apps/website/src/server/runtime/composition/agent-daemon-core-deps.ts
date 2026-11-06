@@ -18,7 +18,7 @@ import { createInMemoryToolAttemptAuditSink } from "#src/features/tool-audit/rep
 import { createInMemoryAgentSessionStore, createSqliteAgentSessionStore } from "#src/assistant/persistence/agent-session-store";
 import { createInMemoryConversationToolApprovalStore } from "#src/assistant/external-mcp-tool-approval-adapters";
 import { createSqliteConversationToolApprovalStore } from "#src/assistant/persistence/conversation-tool-approval-store";
-import { createDaemonCoreClient } from "../../inbound/assistant/agent-daemon-core-client.js";
+import { createDaemonCoreClient, type DaemonCoreClient } from "../../inbound/assistant/agent-daemon-core-client.js";
 import { resolvePostgresConnectionString } from "./storage-secret.js";
 
 export interface AgentDaemonResource { close(): Promise<void> }
@@ -40,6 +40,8 @@ export interface AgentDaemonCoreDeps extends AgentDaemonResource, RetainedReposi
   readonly chatRunLedger: { readonly durable: DaemonDurableRunStore };
   readonly tracker: Tracker;
   readonly aiTraceSink: AiTraceSink | undefined;
+  readonly readToolConsentSnapshot: DaemonCoreClient["readToolConsentSnapshot"];
+  readonly allowRunTools: DaemonCoreClient["allowRunTools"];
   getSessionForAttempt(input: { runId: string }, options?: Record<string, never>): Promise<string | null>;
 }
 export interface AgentDaemonCoreOptions {
@@ -79,6 +81,7 @@ export async function createAgentDaemonCoreDeps(required: { env: NodeJS.ProcessE
       siteStoragePaths: snapshot.siteStoragePaths, ownerPrincipalId: Promise.resolve(snapshot.ownerPrincipalId),
       instructionsNamespace: INSTRUCTIONS_NAMESPACE, settingsUiTabsReady: Promise.resolve(), siteTitleReady: Promise.resolve(),
       getEffective: client ? getEffective : site.getEffective,
+      readToolConsentSnapshot: site.readToolConsentSnapshot, allowRunTools: site.allowRunTools,
       getSessionForAttempt: site.getSessionForAttempt, chatRunLedger: { durable: site.durable }, tracker: site.tracker,
       aiTraceSink: snapshot.traceEnabled ? site.trace({ capture: snapshot.traceCapture }) : undefined,
       close,

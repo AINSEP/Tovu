@@ -10,7 +10,9 @@ import { join } from "node:path";
 import { describe, test } from "node:test";
 
 import { sql } from "kysely";
-import type { Product, StoreApi } from "#src/features/plugins/store/store-plugin";
+import type { SiteProduct } from "#src/server/inbound/public-http/http/site/render";
+type Product = SiteProduct & { version?: number };
+type StoreApi = { listProducts(): Promise<Product[]>; findProduct(required: { idOrSlug: string }): Promise<Product | null> };
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { buildRouteManifest } from "#src/features/site-export/route-manifest";
 import { collectTransferTables } from "#src/features/database-transfer/table-catalog";
@@ -69,6 +71,14 @@ const LATER_TABLES: Record<string, { before: string | null; classes: Record<stri
   member_external_identities: { before: "member_revisions", classes: { id: "plain-text", workspace_id: "plain-text",
     member_id: "plain-text", provider_id: "plain-text", issuer: "plain-text", subject: "plain-text",
     linked_at: "utc-timestamp-text", unlinked_at: "utc-timestamp-text" } },
+  // 0039–0041: owner login material is classified, but exclusions.ts forbids transferring it.
+  owner_recovery_codes: { before: null, classes: { workspace_id: "plain-text", principal_id: "plain-text", code_hash: "plain-text" } },
+  owner_mfa_factors: { before: null, classes: { workspace_id: "plain-text", principal_id: "plain-text",
+    sealed_secret: "plain-text", last_step: "plain-integer" } },
+  owner_mfa_pending: { before: null, classes: { token_hash: "plain-text", workspace_id: "plain-text", principal_id: "plain-text",
+    purpose: "plain-text", sealed_secret: "plain-text", expires_at: "plain-integer", attempts: "plain-integer" } },
+  owner_passkeys: { before: null, classes: { workspace_id: "plain-text", credential_id: "plain-text", principal_id: "plain-text",
+    public_key: "plain-text", counter: "plain-integer", rp_id: "plain-text" } },
 };
 
 // Classified but never copied (`member_magic_tokens` is a login table in `database-transfer/exclusions.ts`),
@@ -87,11 +97,11 @@ const products: Product[] = [
   { id: "prod-1", slug: "classic-boxy-tee", title: "Classic Boxy Tee", price: 3500, stock: 5, version: 1 },
   { id: "prod-2", slug: "canvas-tote", title: "Canvas Tote", price: 1800, stock: 2, version: 3 },
 ];
-const store: StoreApi = { listProducts: async () => products, checkout: async () => ({ ok: false, reason: "not-found", retries: 0 }) };
+const commerceCatalog: StoreApi = { listProducts: async () => products, findProduct: async ({ idOrSlug }) => products.find(product => product.id === idOrSlug) ?? products.find(product => product.slug === idOrSlug) ?? null };
 
 describe("storefront under the production composition", () => {
   async function startServer() {
-    const server = createServer(createCommerceSiteTestApp({ ...createRouteDeps(), store }));
+    const server = createServer(createCommerceSiteTestApp({ ...createRouteDeps(), commerceCatalog }));
     server.listen(0);
     await once(server, "listening");
     return { server, baseUrl: `http://127.0.0.1:${(server.address() as AddressInfo).port}` };
@@ -100,7 +110,7 @@ describe("storefront under the production composition", () => {
   test("/products renders exactly the store plugin's products, the pre-strip fallback", async (t) => {
     const deps = createRouteDeps();
     assert.equal("commerceProductRepo" in deps || "commercePriceRepo" in deps, false, "the core catalog was never wired");
-    assert.deepEqual(await resolveStorefrontProducts({ ...deps, store }), products);
+    assert.deepEqual(await resolveStorefrontProducts({ ...deps, commerceCatalog }), products);
     const { server, baseUrl } = await startServer();
     t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
     const res = await fetch(`${baseUrl}/products`);
@@ -126,7 +136,7 @@ describe("storefront under the production composition", () => {
   test("the static-export route manifest lists the same product routes", async () => {
     // `resolveStorefrontProducts` is a closure over the composed object: mutate it, never spread it.
     const deps = createRouteDeps() as ReturnType<typeof createRouteDeps> & CommerceSiteTestDeps;
-    deps.store = store;
+    deps.commerceCatalog = commerceCatalog;
     const { routes } = await buildRouteManifest(deps);
     assert.deepEqual(routes.filter(route => route.kind === "product-list" || route.kind === "product"), [
       { path: "/products", kind: "product-list", label: "products" },

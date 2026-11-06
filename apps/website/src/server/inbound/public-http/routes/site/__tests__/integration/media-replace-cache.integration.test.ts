@@ -27,12 +27,57 @@ async function fixture(t: test.TestContext) {
   return { deps, media, baseUrl, url: `${baseUrl}/m/${media.id}/public.v1/image.webp` };
 }
 
-// Guards renditionCacheControl's bare-id fallback and the response's SHA/rendition ETag writer.
+test("authored media URLs revalidate on reuse and return replaced bytes under their original version", async t => {
+  const { deps, media, baseUrl, url } = await fixture(t);
+  const contentVersion = media.source.sha256.slice(0, 12);
+  const renditionUrls = [
+    `${url}?v=${contentVersion}`,
+    `${baseUrl}/m/${media.slug}/public.v1/image.webp?v=${contentVersion}`,
+  ];
+  const cached = await Promise.all(renditionUrls.map(async authoredUrl => {
+    const before = await fetch(authoredUrl);
+    assert.equal(before.status, 200);
+    assert.equal(before.headers.get("cache-control"), "public, max-age=60");
+    const etag = before.headers.get("etag")!;
+    assert.match(etag, /^"[^"\r\n]+"$/);
+    return { authoredUrl, etag, body: await before.text() };
+  }));
+  const originalUrl = `${baseUrl}${(await resolveMediaPublicUrls(deps, [media])).get(media.id)}`;
+  const originalBefore = await fetch(originalUrl);
+  assert.equal(originalBefore.status, 200);
+  assert.equal(originalBefore.headers.get("cache-control"), "private, no-store");
+  const originalBody = await originalBefore.text();
+  const bytes = new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"><circle r="7"/></svg>');
+  await replaceMediaFile({ deps, media, bytes, contentType: "image/svg+xml", principalId: "owner" });
+  for (const { authoredUrl, etag, body } of cached) {
+    const after = await fetch(authoredUrl, { cache: "no-cache", headers: { "If-None-Match": etag } });
+    assert.equal(after.status, 200);
+    assert.equal(after.headers.get("cache-control"), "public, max-age=60");
+    const newEtag = after.headers.get("etag")!;
+    assert.notEqual(newEtag, etag);
+    const replacementBody = await after.text();
+    assert.notEqual(replacementBody, body);
+    assert.match(replacementBody, /<circle r="7"/);
+    const unchanged = await fetch(authoredUrl, { cache: "no-cache", headers: { "If-None-Match": newEtag } });
+    assert.equal(unchanged.status, 304);
+    assert.equal(unchanged.headers.get("cache-control"), "public, max-age=60");
+    assert.equal(unchanged.headers.get("etag"), newEtag);
+    assert.equal(await unchanged.text(), "");
+  }
+  const originalAfter = await fetch(originalUrl);
+  assert.equal(originalAfter.status, 200);
+  assert.equal(originalAfter.headers.get("cache-control"), "private, no-store");
+  const replacedOriginalBody = await originalAfter.text();
+  assert.notEqual(replacedOriginalBody, originalBody);
+  assert.match(replacedOriginalBody, /<circle r="7"/);
+});
+
+// Guards immediate bare-id revalidation and the response's SHA/rendition ETag writer.
 test("replacing bytes keeps a bare id revalidating, changes its strong ETag and serves the new body", async t => {
   const { deps, media, url } = await fixture(t);
   const before = await fetch(url);
   assert.equal(before.status, 200);
-  assert.equal(before.headers.get("cache-control"), "public, max-age=60, must-revalidate");
+  assert.equal(before.headers.get("cache-control"), "public, max-age=60");
   const oldEtag = before.headers.get("etag")!;
   assert.match(oldEtag, /^"[^"\r\n]+"$/);
   const oldBody = await before.text();
@@ -47,7 +92,7 @@ test("replacing bytes keeps a bare id revalidating, changes its strong ETag and 
   assert.notEqual(newPublicUrl, oldPublicUrl);
   const after = await fetch(url, { cache: "no-cache", headers: { "If-None-Match": oldEtag } });
   assert.equal(after.status, 200);
-  assert.equal(after.headers.get("cache-control"), "public, max-age=60, must-revalidate");
+  assert.equal(after.headers.get("cache-control"), "public, max-age=60");
   assert.notEqual(after.headers.get("etag"), oldEtag);
   const newBody = await after.text();
   assert.notEqual(newBody, oldBody);
@@ -55,26 +100,26 @@ test("replacing bytes keeps a bare id revalidating, changes its strong ETag and 
   const unchanged = await fetch(url, { cache: "no-cache", headers: { "If-None-Match": after.headers.get("etag")! } });
   assert.equal(unchanged.status, 304);
   assert.equal(unchanged.headers.get("etag"), after.headers.get("etag"));
-  assert.equal(unchanged.headers.get("cache-control"), "public, max-age=60, must-revalidate");
+  assert.equal(unchanged.headers.get("cache-control"), "public, max-age=60");
   assert.equal(await unchanged.text(), "");
   const stale = await fetch(`${url}?v=${media.source.sha256.slice(0, 12)}`);
   assert.equal(stale.status, 200);
-  assert.equal(stale.headers.get("cache-control"), "public, max-age=60, must-revalidate");
+  assert.equal(stale.headers.get("cache-control"), "public, max-age=60");
 });
 
-// Guards matching-version eligibility, editable-slug TTL, and Express's conditional GET handling.
-test("only the current version on an id is immutable; slugs retain their TTL and validators", async t => {
+// All live-source URL spellings must revalidate, while retaining Express's conditional GET handling.
+test("current and stale id versions and slugs all revalidate while preserving validators", async t => {
   const { media, url, baseUrl } = await fixture(t);
-  for (const [tail, expected] of [[`?v=${media.source.sha256.slice(0, 12)}`, "public, max-age=31536000, immutable"],
-    ["?v=obsolete", "public, max-age=60, must-revalidate"], ["?v=", "public, max-age=60, must-revalidate"],
-    [`?v=${media.source.sha256.slice(0, 12)}&v=${media.source.sha256.slice(0, 12)}`, "public, max-age=60, must-revalidate"]]) {
+  for (const [tail, expected] of [[`?v=${media.source.sha256.slice(0, 12)}`, "public, max-age=60"],
+    ["?v=obsolete", "public, max-age=60"], ["?v=", "public, max-age=60"],
+    [`?v=${media.source.sha256.slice(0, 12)}&v=${media.source.sha256.slice(0, 12)}`, "public, max-age=60"]]) {
     const response = await fetch(url + tail);
     assert.equal(response.status, 200);
     assert.equal(response.headers.get("cache-control"), expected);
   }
   const slugUrl = `${baseUrl}/m/${media.slug}/public.v1/image.webp?v=${media.source.sha256.slice(0, 12)}`;
   const response = await fetch(slugUrl);
-  assert.equal(response.headers.get("cache-control"), "public, max-age=3600");
+  assert.equal(response.headers.get("cache-control"), "public, max-age=60");
   const conditional = await fetch(slugUrl, { cache: "no-cache", headers: { "If-None-Match": `"other", W/${response.headers.get("etag")}` } });
   assert.equal(conditional.status, 304);
   assert.equal(await conditional.text(), "");

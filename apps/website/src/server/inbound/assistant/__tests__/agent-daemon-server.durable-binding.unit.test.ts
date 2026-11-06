@@ -37,7 +37,7 @@ test("the real durable guard binds live attempt message ids, fences deleted rows
     assert.equal(path, "/api/delegated-tool-calls"); route = handler;
   } } as unknown as Express;
   const deps = guardDependencies({ app, routeDeps: { chatRunLedger: ledger }, lifecycle, durableMessageIdsByRunId,
-    registry: { has: ({ toolId }: { toolId: string }) => toolId !== "content_read" }, defaultDaemonMessages: { readOnly: {} },
+    siteTools: { registry: { has: ({ toolId }: { toolId: string }) => toolId !== "content_read" } }, defaultDaemonMessages: { readOnly: {} },
     checkReadOnlyTool: ({ toolId }: { toolId: string }) => toolId === "read_state" ? null : "mutating",
   });
   registerDurableToolGuard(deps, {});

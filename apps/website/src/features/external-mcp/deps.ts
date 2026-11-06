@@ -56,6 +56,8 @@ import type { ExternalMcpOAuthService, ExternalMcpServerRepoPort } from "./contr
  * as a limitation either.
  */
 export interface ExternalMcpToolDeps extends OperatorLocaleDeps {
+  /** The current connection's original listing only; null means this source has no verified cache. */
+  externalMcpKnownToolNames?: (required: { serverId: string; admissionRevision: string }) => readonly string[] | null;
   externalMcpProbe?: (required: { serverId: string }) => Promise<{ ok: boolean; body: Readonly<Record<string, unknown>> }>;
   workspaceId: UUID;
   authorize: AuthorizeFn;

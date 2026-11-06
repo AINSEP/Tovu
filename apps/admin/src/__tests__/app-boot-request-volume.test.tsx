@@ -6,6 +6,10 @@ import { FetchQueryProvider } from "./fetch-query-provider.test-helper";
 import { appShellApiBody } from "./app-shell-api.fixture";
 import { publishSettingsRefresh, resetSettingsRefreshBus } from "../lib/settings-refresh-bus";
 import { createAssistantLastConversationStore } from "../hooks/assistant-chats-dependencies.hooks";
+import { navigate } from "../lib/router";
+
+// P18 exercises the real session/cache/shell/dock; routed page I/O is outside this seam.
+vi.mock("../features/ai-assistant", () => ({ AiAssistant: () => <h1>Assistant route</h1> }));
 
 /** Real App boot: record the transport, including StrictMode and the delayed settings-feed open. */
 class BootEventSource {
@@ -87,6 +91,29 @@ it("shares boot reads, retains per-pane health probes, and honors post-save sett
   expect(count("/api/agents")).toBe(3);
   const settingCount = (namespace: string) => calls.filter(url => url.pathname.endsWith("/settings/effective") && url.searchParams.get("namespace") === namespace).length;
   for (const namespace of namespaces) expect(settingCount(namespace), namespace).toBe(1);
+
+  // Expire ordinary query freshness without firing the dock's independent five-second health
+  // poll: navigation must reuse boot/settings reads after a short-lived cache hit would expire.
+  vi.setSystemTime(Date.now() + 11_000);
+
+  // A route may change its screen, but must not restart boot, settings, or the restored chat pane.
+  const main = document.querySelector("#main-content");
+  const sidebar = document.querySelector("#admin-sidebar");
+  const dock = document.querySelector("aside.admin-chat-dock");
+  expect(sidebar).not.toBeNull();
+  expect(dock).not.toBeNull();
+  for (const destination of ["/assistant?tab=admin", "/", "/assistant?tab=admin", "/"]) {
+    act(() => navigate(destination));
+    await act(async () => { await vi.advanceTimersByTimeAsync(100); });
+    expect(window.location.pathname).toBe(destination === "/" ? "/admin/" : "/admin/ai-assistant");
+    expect(document.querySelector("#main-content")).toBe(main);
+    expect(document.querySelector("#admin-sidebar")).toBe(sidebar);
+    expect(document.querySelector("aside.admin-chat-dock")).toBe(dock);
+    expect(screen.getByText("Saved reply")).toBeInTheDocument();
+    for (const resource of resources) expect(count(resource), resource).toBe(1);
+    for (const namespace of namespaces) expect(settingCount(namespace), namespace).toBe(1);
+    expect(count("/api/agents")).toBe(3);
+  }
 
   locale = "fr";
   act(() => publishSettingsRefresh(["core.language"]));

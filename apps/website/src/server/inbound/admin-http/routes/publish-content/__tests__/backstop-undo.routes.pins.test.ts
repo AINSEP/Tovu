@@ -105,19 +105,19 @@ test("a skipped file is reported and is not rolled back", async (t) => {
 test("when the audit write fails after a file was restored, the file is put back and the error is a private 500", async (t) => {
   const { app, footer } = await destination(t, [FILE], { refuseAuditWrites: true });
   undo.file = async () => { fs.writeFileSync(footer, "undone"); return null; };
-  assertAdminResponse({ actual: await dispatchJsonRequest(app, "POST", UNDO), expected: { status: 500, body: { error: "This send could not be undone.", code: "INTERNAL_ERROR" } } });
+  assertAdminResponse({ actual: await dispatchJsonRequest(app, "POST", UNDO), expected: { status: 500, body: { error: "This send could not be undone.", code: "INTERNAL_ERROR" } } }, { failure: {"message":"This send could not be undone.","action":"Content may already have changed. Check publishing and import history before repeating the undo. Copy details and report this problem.","step":"Undo manual publishing"} });
   assert.equal(fs.readFileSync(footer, "utf8"), "live");
 });
 
 test("a failed undo with no file restored rethrows without rolling anything back", async (t) => {
   const { app, footer } = await destination(t, [FILE], { refuseAuditWrites: true });
   undo.file = async () => "File 'assets/footer.txt' changed on live after this send; it was left alone.";
-  assertAdminResponse({ actual: await dispatchJsonRequest(app, "POST", UNDO), expected: { status: 500, body: { error: "This send could not be undone.", code: "INTERNAL_ERROR" } } });
+  assertAdminResponse({ actual: await dispatchJsonRequest(app, "POST", UNDO), expected: { status: 500, body: { error: "This send could not be undone.", code: "INTERNAL_ERROR" } } }, { failure: {"message":"This send could not be undone.","action":"Content may already have changed. Check publishing and import history before repeating the undo. Copy details and report this problem.","step":"Undo manual publishing"} });
   assert.equal(fs.readFileSync(footer, "utf8"), "live");
 });
 
 test("a non-Error thrown by an undo answers a correlated private 500", async (t) => {
   const { app } = await destination(t, [ROW]);
   undo.row = async () => { throw "rows driver dropped"; };
-  assertAdminResponse({ actual: await dispatchJsonRequest(app, "POST", UNDO), expected: { status: 500, body: { error: "This send could not be undone.", code: "INTERNAL_ERROR" } } });
+  assertAdminResponse({ actual: await dispatchJsonRequest(app, "POST", UNDO), expected: { status: 500, body: { error: "This send could not be undone.", code: "INTERNAL_ERROR" } } }, { failure: {"message":"This send could not be undone.","action":"Content may already have changed. Check publishing and import history before repeating the undo. Copy details and report this problem.","step":"Undo manual publishing"} });
 });

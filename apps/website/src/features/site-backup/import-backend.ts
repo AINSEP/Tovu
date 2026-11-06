@@ -159,7 +159,12 @@ export function createSiteImportBackend(required: {
         if (input.savedKeysPassword !== undefined && (typeof input.savedKeysPassword !== "string" || input.savedKeysPassword.length > 1024)) refusal("INVALID_INPUT", "Saved keys password must be text of at most 1024 characters.");
         const home = workspace.home({});
         requireFreeSpace({ dir: fs.existsSync(home) ? home : path.dirname(home), message: "Import requires 900 MiB of free space on the sites-home volume." });
-        signal.throwIfAborted();
+        if (signal.aborted) {
+          // Cancelled before any site exists (the desktop app quitting): the verified copy must not wait out its hour.
+          fs.rmSync(registry.stagePath(pending), { recursive: true, force: true });
+          put({ ...pending, status: "failed", error: "The import was stopped. No site was created. Import the archive again." });
+          signal.throwIfAborted();
+        }
         const creating: SiteImportRecord = { ...pending, status: "creating" }; put(creating);
         const { row: allocated, created } = await createImportedSite({ row: creating, adminPassword, savedKeysPassword: input.savedKeysPassword as string | undefined, signal });
         // Owner and restore are committed. A supervisor failure must not repeat site creation.

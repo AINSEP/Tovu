@@ -4,6 +4,7 @@ import test from "node:test";
 import { runExportCommand, type RunExportCommandOptional } from "../../commands/export.js";
 import type { BootSiteDirResult } from "#src/platform/site-dir/boot-site-dir";
 import type { SiteStore } from "#src/server/runtime/composition/open-site-store";
+import { mapErrorToCliOutcome } from "../../errors.js";
 
 type ExportRouteDeps = Awaited<ReturnType<NonNullable<RunExportCommandOptional["createSiteRouteDeps"]>>>;
 
@@ -133,4 +134,31 @@ test("export refuses pending migration recovery before crawling and closes even 
     exportSite: async () => assert.fail("blocked sites must not crawl"), closeSiteDirBoot: async () => { closed++; },
   }), { name: "ExportBlockedPendingRecoveryError", message: /BLOCKED_PENDING_RECOVERY/ });
   assert.equal(closed, 1);
+});
+
+test("export with only failed assets reports an incomplete export and closes the boot", async t => {
+  const stdout: string[] = [], stderr: string[] = [];
+  t.mock.method(process.stdout, "write", (chunk: unknown) => { stdout.push(String(chunk)); return true; });
+  t.mock.method(process.stderr, "write", (chunk: unknown) => { stderr.push(String(chunk)); return true; });
+  let closed = false;
+  await assert.rejects(runExportCommand({ dir: "/tmp/site" }, {
+    registerPluginSdkResolver: () => {},
+    bootSiteDir: async () => ({ workspaceId: "ws" }) as BootSiteDirResult,
+    createSiteRouteDeps: async () => ({ workspaceId: "ws", exportOutputRootDir: "/tmp/export" }) as ExportRouteDeps,
+    reconcileInterruptedMigrationOnBoot: async () => ({ blocked: false }),
+    closeSiteDirBoot: async () => { closed = true; },
+    exportSite: async () => ({ outputDir: "/tmp/export",
+      routes: { succeeded: [{ path: "/", kind: "page", outputFile: "index.html", data: "<html></html>" }], failed: [] },
+      assets: { succeeded: [], failed: [{ url: "/missing.png", reason: "not found" }] },
+      skippedManifestEntries: [], unreferencedThemeFiles: [], droppedReferences: [],
+    }),
+  }), error => {
+    assert.equal((error as Error).name, "ExportIncompleteError");
+    assert.equal(mapErrorToCliOutcome(error).exitCode, 6);
+    assert.match((error as Error).message, /1 failed asset/);
+    return true;
+  });
+  assert.equal(closed, true);
+  assert.deepEqual(stdout, ["tovu export: wrote 1/1 routes and 0/1 assets to /tmp/export\n"]);
+  assert.deepEqual(stderr, ["tovu export: FAILED asset /missing.png: not found\n"]);
 });

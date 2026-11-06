@@ -102,14 +102,14 @@ test('Library copies require the picked-folder grant and destination/source perm
   }
 });
 
-test('Library copies enforce the 10 MiB document cap and combined transfer cap before persistence', async t => {
+test('Library copies enforce the 50 MiB document cap and combined transfer cap before persistence', async t => {
   const h = await harness(t);
   fs.writeFileSync(path.join(h.site, 'boundary.txt'), Buffer.alloc(MAX_DOCUMENT_BYTES, 65));
   const result = await h.call({ sources: [{ root: 'site', path: 'boundary.txt' }], destination }) as Result;
   assert.equal(result.documents[0]!.byteSize, MAX_DOCUMENT_BYTES);
   fs.appendFileSync(path.join(h.site, 'boundary.txt'), 'x');
   await assert.rejects(h.call({ sources: [{ root: 'site', path: 'boundary.txt' }], destination }));
-  fs.writeFileSync(path.join(h.site, 'large.txt'), Buffer.alloc(9 * 1024 * 1024, 65));
+  fs.writeFileSync(path.join(h.site, 'large.txt'), Buffer.alloc(17 * 1024 * 1024, 65));
   await assert.rejects(h.call({ sources: Array.from({ length: 3 }, () => ({ root: 'site', path: 'large.txt' })), destination }), /caps/);
   assert.equal((await h.deps.mediaRepo.list({ workspaceId: 'ws' })).length, 1);
 });

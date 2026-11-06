@@ -13,6 +13,7 @@ import {
   defaultSiteTransferPort,
   type SiteImport,
   type SiteShare,
+  siteShareNotices,
 } from "../hooks/site-transfer-dependencies.hooks";
 import { liveImportPrompt, useSiteExport, useSiteImport, validShareLink, validWebsiteAddress } from "../hooks/use-site-transfer.hooks";
 
@@ -56,21 +57,15 @@ it("does not carry a revealed password across authenticated identities", async (
   expect(result.current.revealedPassword).toBeNull();
 }, 10000);
 
-it("retains older export scope notes in the completion controller", async () => {
+it("retains older export scope notes", () => {
   const notes = ["Published content only."];
-  const port = createFakeSiteTransferPort({ createShare: async () => ({ ...share(), notes }) });
-  const { result } = renderHook(() => useSiteExport({ port, t }), { wrapper });
-  await act(() => result.current.exportSite());
-  expect(result.current.exportNotices).toEqual(notes);
-  expect(result.current.noticeShareId).toBe("share-1");
-}, 10000);
+  expect(siteShareNotices({ share: { ...share(), notes } })).toEqual(notes);
+});
 
-it("keeps scope notes alongside new omission notices without duplicates", async () => {
-  const port = createFakeSiteTransferPort({ createShare: async () => ({ ...share(), notes: ["Published content only."], notices: ["Left out posts.content row 123.", "Published content only."] }) });
-  const { result } = renderHook(() => useSiteExport({ port, t }), { wrapper });
-  await act(() => result.current.exportSite());
-  expect(result.current.exportNotices).toEqual(["Published content only.", "Left out posts.content row 123."]);
-}, 10000);
+it("keeps scope notes alongside new omission notices without duplicates", () => {
+  expect(siteShareNotices({ share: { ...share(), notes: ["Published content only."], notices: ["Left out posts.content row 123.", "Published content only."] } }))
+    .toEqual(["Published content only.", "Left out posts.content row 123."]);
+});
 
 function share(overrides: Partial<SiteShare> = {}): SiteShare {
   return {

@@ -1,0 +1,13 @@
+
+ RUN  v2.1.9 /workspace/Jini/packages/admin
+
+ ✓ src/forms/react/__tests__/submissions-states.unit.test.tsx (17 tests) 1586ms
+   ✓ forms module editor page > opens the editor for a formId prop 345ms
+   ✓ forms module editor page > opens the editor for a route param on the submissions tab 323ms
+   ✓ forms module editor page > refuses to render the editor without a form id 306ms
+
+ Test Files  1 passed (1)
+      Tests  17 passed (17)
+   Start at  18:24:24
+   Duration  4.45s (transform 1.22s, setup 127ms, collect 1.91s, tests 1.59s, environment 436ms, prepare 79ms)
+

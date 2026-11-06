@@ -98,7 +98,7 @@ test("comments settings: an unexpected failure is a 500 INTERNAL_ERROR on GET an
 
   const getRes = await fetch(`${baseUrl}${PATH(WORKSPACE_ID)}`);
   assert.equal(getRes.status, 500);
-  assertAdminResponse({ actual: await getRes.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: await getRes.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: {"message":"The settings could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load settings"} });
 
   const putRes = await fetch(`${baseUrl}${PATH(WORKSPACE_ID)}`, {
     method: "PUT",
@@ -106,7 +106,7 @@ test("comments settings: an unexpected failure is a 500 INTERNAL_ERROR on GET an
     body: JSON.stringify({ requireModeration: false }),
   });
   assert.equal(putRes.status, 500);
-  assertAdminResponse({ actual: await putRes.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: await putRes.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: {"message":"The setting save could not be completed.","action":"Check whether your changes were saved before repeating the save. Copy details and report this problem.","step":"Save setting"} });
 });
 
 test("comments settings: a PUT with no request body is an empty patch — it echoes the stored settings unchanged", async (t) => {

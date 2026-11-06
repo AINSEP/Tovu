@@ -117,6 +117,7 @@ export function PublishContentDialog({
     >
       <p>{t(view.description)}</p>
       <p>{t("Anything edited on the live site is skipped unless you tick Overwrite on live.")}</p>
+      {view.rows.some(row => row.entityType === "form") && <p>{t("Form notification recipients stay local on each site; copying a form does not copy them.")}</p>}
 
       {view.peers.length > 1 && (
         <label className="field">
@@ -266,6 +267,14 @@ function PublishContentNotices({ view, t }: PublishContentSectionProps) {
       ))}
     </>
   );
+}
+
+/** The optional count summary describes the displayed plan, including skipped rows. */
+function PublishReportSummary({ summary, t }: { summary: PublishContentConfirmView["summary"]; t: Translate }) {
+  if (!summary) return null;
+  return <p className="muted publish-content-summary">
+    {summary.publishing} {t("to publish")} · {summary.unchanged} {t("unchanged")} ·{" "}{summary.skipped} {t("skipped")}
+  </p>;
 }
 
 function PublishContentReport({ view, t }: PublishContentSectionProps) {
@@ -431,12 +440,7 @@ function PublishContentReport({ view, t }: PublishContentSectionProps) {
           </tbody>
         </table>
       </div>
-      {view.summary && (
-        <p className="muted publish-content-summary">
-          {view.summary.publishing} {t("to publish")} · {view.summary.unchanged} {t("unchanged")} ·{" "}
-          {view.summary.skipped} {t("skipped")}
-        </p>
-      )}
+      <PublishReportSummary summary={view.summary} t={t} />
       {view.overwriteWarning && (
         <p className="notice publish-content-overwrite-warning" role="status">
           {view.overwriteWarning}

@@ -50,7 +50,7 @@ export const registerAdminMediaListRoute: MediaRouteRegistrar = (app, deps) => {
       ]);
       res.json(toAdminMediaListResponse({ media: visible, contentTypesBySha256: contentTypes, publicUrlsById: publicUrls, byteSizesBySha256: byteSizes }));
     } catch (error) {
-      sendAdminFailure({ res, error }, { operation: "routes/media/list", code: "INTERNAL_ERROR" });
+      sendAdminFailure({ res, error }, { operation: "routes/media/list", code: "INTERNAL_ERROR", message: "The media library could not be loaded." });
     }
   });
 };

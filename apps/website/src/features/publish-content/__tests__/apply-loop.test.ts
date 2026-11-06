@@ -81,6 +81,62 @@ function makeCounterIdGen(prefix: string) {
   return { newId: () => `${prefix}-${++n}` };
 }
 
+for (const offer of ["confirmed", "writes-only", "not-forced", "no-source"] as const) {
+  test(`media replacement context reaches apply only from its verified overwrite row: ${offer}`, async () => {
+    const h = makeHarness();
+    resetPublishContentContributorsForTests();
+    const observed: Array<Parameters<PublishContentHandler["apply"]>[0]> = [];
+    const sourceReplacement = { version: 3, sourceSha256: "a".repeat(64) };
+    const entity: PackedEntity = { entityType: "media", id: "photo", schemaVersion: 1, hashVersion: CONTENT_HASH_VERSION,
+      contentHash: "incoming", requiredBlobs: [], state: { title: "Photo", sourceReplacement, writes: true } };
+    const handler: PublishContentHandler = { entityType: "media", schemaVersion: 1, permission: "content.write", dependsOn: [],
+      pack: async function* () {}, inspect: async () => ({ version: 3, hash: "destination" }), precheck: async () => null,
+      seedHash: async () => "destination", apply: async input => { observed.push(input); return { changeSetId: "cs" }; } };
+    registerPublishContentContributor({ entityType: "media", dependsOn: [], build: () => handler });
+    const bundleId = await stage(h.bundleRepo, h.clock, [entity]);
+    const report: PublishContentReport = { refused: false, refusalReason: null, applyOrder: ["media"], rows: [{
+      entityType: "media", entityId: "photo", entityLabel: "Photo", outcome: offer === "not-forced" ? "applied" : "forced",
+      writes: true, canOverwrite: offer !== "writes-only", reason: null, retires: null,
+      ...(offer !== "no-source" ? { sourceReplacement } : {}),
+    }] };
+    await h.applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, bundleId, restorePointId: "rp" });
+    assert.equal(observed.length, 1);
+    assert.deepEqual(observed[0]!.sourceReplacement, offer === "confirmed" ? sourceReplacement : undefined);
+  });
+}
+
+test("reviewed file reverts use the destination version in both command and durable retry keys", async () => {
+  const h = makeHarness();
+  resetPublishContentContributorsForTests();
+  let version = 3, hash = "before";
+  const keys = new Set<string>();
+  const entity: PackedEntity = { entityType: "media", id: "photo", schemaVersion: 1, hashVersion: CONTENT_HASH_VERSION,
+    contentHash: "incoming", requiredBlobs: [], state: {} };
+  const handler: PublishContentHandler = { entityType: "media", schemaVersion: 1, permission: "content.write", dependsOn: [],
+    pack: async function* () {}, inspect: async () => ({ version, hash }), precheck: async () => null,
+    apply: async input => {
+      assert.equal(keys.has(input.idempotencyKey), false, "a later confirmed revert must not replay an earlier command");
+      keys.add(input.idempotencyKey); version++; hash = "sanitized-destination";
+      return { changeSetId: `cs-${version}` };
+    } };
+  registerPublishContentContributor({ entityType: "media", dependsOn: [], build: () => handler });
+  for (const reviewedVersion of [3, 5]) {
+    version = reviewedVersion; hash = "before";
+    const bundleId = await stage(h.bundleRepo, h.clock, [entity]);
+    const report: PublishContentReport = { refused: false, refusalReason: null, applyOrder: ["media"], rows: [{
+      entityType: "media", entityId: "photo", entityLabel: "Photo", outcome: "forced", writes: true,
+      canOverwrite: true, reason: null, retires: null, sourceReplacement: { version, sourceSha256: "a".repeat(64) },
+    }] };
+    const result = await h.applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, bundleId, restorePointId: "rp" });
+    const expected = publishContentItemIdempotencyKey({ workspaceId: WORKSPACE_ID, sourcePrincipalId: SOURCE_PRINCIPAL_ID, entity }) + `:${reviewedVersion}`;
+    assert.ok(keys.has(expected));
+    const status = await getPublishContentRunStatus(h.runRepo, { workspaceId: WORKSPACE_ID, runId: result.runId });
+    assert.equal(status?.items[0]?.idempotencyKey, expected);
+    const baseline = await h.baselineRepo.findOne({ workspaceId: WORKSPACE_ID, peerPrincipalId: SOURCE_PRINCIPAL_ID, entityType: "media", entityId: "photo" });
+    assert.equal(baseline?.hashAtLastSync, "sanitized-destination", "baseline describes the record actually written");
+  }
+});
+
 function makeClock(iso = "2026-09-19T00:00:00.000Z") {
   return { nowIso: () => iso, nowMs() { return Date.parse(this.nowIso()); } };
 }

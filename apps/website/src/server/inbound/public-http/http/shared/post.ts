@@ -55,20 +55,24 @@ export function toHeadlessPost(record: PostRecord): AdminPost {
 
 /**
  * Maps a post/page record into the narrower public content DTO shape.
+ * `bodyHtml` is trusted author HTML with unresolved embed markers; public renderers resolve them.
  * @throws PostNotFoundError for storage-only kinds such as email templates.
  */
 export function toHeadlessContentPost(record: PostRecord): ContentPost {
-  const post = requirePublicPost({ post: record });
-  return {
+  // Reuse the admin serializer's body-format validation, then select only public fields.
+  const post = toHeadlessPost(record);
+  const base = {
     id: post.id,
     kind: post.kind,
     title: post.title,
     slug: post.slug,
-    bodyJson: post.bodyJson,
     updatedAt: post.updatedAt,
-    author: postAuthorForDisplay({ post }),
+    author: postAuthorForDisplay({ post: record }),
     showAuthor: post.showAuthor ?? false,
   };
+  return post.bodyFormat === "html"
+    ? { ...base, bodyFormat: "html", bodyJson: null, bodyHtml: post.bodyHtml }
+    : { ...base, bodyJson: post.bodyJson };
 }
 
 /** Raw storage callers must not serialize a mail template through either content DTO. */

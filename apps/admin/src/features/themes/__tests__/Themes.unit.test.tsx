@@ -147,6 +147,18 @@ describe("theme grid", () => {
     expect(activate).toHaveBeenCalledWith("column");
   });
 
+  it("keeps every card where it is after activating, so a double-click cannot hit a second theme", () => {
+    const cardOrder = () => [...document.querySelectorAll(".theme-card")].map((card) => within(card as HTMLElement).getByRole("switch").getAttribute("aria-label"));
+    const opened = render(<Themes useThemesHook={() => baseController()} />);
+    const before = cardOrder();
+    expect(before[0]).toBe("Activate signal");
+    opened.rerender(<Themes useThemesHook={() => baseController({ settings: { ...SETTINGS, activeThemeId: "tovu-official" } })} />);
+    expect(cardOrder()).toEqual(before);
+    opened.unmount();
+    render(<Themes useThemesHook={() => baseController({ settings: { ...SETTINGS, activeThemeId: "tovu-official" } })} />);
+    expect(cardOrder()[0]).toBe("Activate tovu-official");
+  });
+
   it("disables every Activate switch while any one theme is busy, and names Activating… on that one", () => {
     render(<Themes useThemesHook={() => baseController({ busyTheme: "column" })} />);
     const columnSwitch = screen.getByRole("switch", { name: "Activating… column" });

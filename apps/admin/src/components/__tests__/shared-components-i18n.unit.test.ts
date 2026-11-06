@@ -72,6 +72,8 @@ describe("SHARED_COMPONENTS_DICT: cross-locale key parity", () => {
 
   // Spot-check every key the currently-wired call sites actually call t()/interpolate() with.
   const CALL_SITE_KEYS = [
+    // AdminFailureNotice.tsx: incident dismissal remains translated before sign-in.
+    "Dismiss error",
     // SecretInput.tsx (`secretToggleLabels`): the eye toggle's accessible name.
     "Show {label}",
     "Hide {label}",

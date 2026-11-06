@@ -144,7 +144,7 @@ test("duplicate: an unexpected failure is a bare 500", async (t) => {
   } as unknown as ContentRouteDeps);
   const { status, json } = await post(t, failing, { body: { newName: "X" } });
   assert.equal(status, 500);
-  assertAdminResponse({ actual: json, expected: { error: "internal error" } });
+  assertAdminResponse({ actual: json, expected: { error: "internal error" } }, { failure: {"message":"The theme operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"theme operation"} });
 });
 
 for (const newId of [undefined, "", null, 42]) {

@@ -1,0 +1,4 @@
+#!/bin/bash
+source /workspace/shared/dev-env.sh
+(cd /workspace/Tovu/apps/admin && timeout --kill-after=10s 900s bash -c 'npx vitest run --maxWorkers=2 src/features/auth/__tests__ src/features/skills/__tests__') > /workspace/Tovu/cloud/night-1105/raw/extra-SA-3-1-fixed.txt 2>&1
+printf "extra-SA-3-1\t%s\t/workspace/Tovu/cloud/night-1105/raw/extra-SA-3-1-fixed.txt\n" "$?" >> /workspace/shared/extra-rerun-results.tsv

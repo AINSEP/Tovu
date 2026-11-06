@@ -51,8 +51,8 @@ for (const route of ROUTES) {
     } });
     const missingPrincipal = await fixture({ t }, { principal: false });
     assertAdminResponse({ actual: await missingPrincipal.request(route), expected: { status: 500, body: {
-      error: route.suffix === "/home" ? "Could not save sites home." : "Could not read sites settings.", code: "INTERNAL_ERROR",
-    } } }); assert.deepEqual(missingPrincipal.permissions, []);
+      error: "internal error", code: "INTERNAL_ERROR",
+    } } }, { failure: route.method === "get" ? {"message":"The sites could not be loaded.","action":"Try loading them again. If it still fails, Report this error ID.","step":"Load sites","discloseDetails":false} : {"message":"The site save could not be completed.","action":"Check whether your changes were saved before repeating the save. Report this error ID.","step":"Save site","discloseDetails":false} }); assert.deepEqual(missingPrincipal.permissions, []);
     const success = await fixture({ t });
     const body = route.suffix === "/home" ? { path: success.root } : {};
     assert.equal((await success.request({ ...route, body })).status, 200); assert.deepEqual(success.permissions, [permission]);
@@ -69,14 +69,14 @@ for (const { label, error, readMessage, saveMessage, homeMessage } of [
 ]) {
   test(`settings routes retain ${label} boundaries and fallback messages`, async (t) => {
     const read = await fixture({ t }, { workspaceOverrides: { config: () => { throw error; } } });
-    assertAdminResponse({ actual: await read.request({ method: "get" }), expected: { status: 500, body: { error: readMessage, code: "INTERNAL_ERROR" } } });
+    assertAdminResponse({ actual: await read.request({ method: "get" }), expected: { status: 500, body: { error: readMessage, code: "INTERNAL_ERROR" } } }, { failure: {"message":"Could not read sites settings.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load sites"} });
     const save = await fixture({ t }, { workspaceOverrides: { updateConfig: () => { throw error; } } });
-    assertAdminResponse({ actual: await save.request(), expected: { status: 500, body: { error: saveMessage, code: "INTERNAL_ERROR" } } });
+    assertAdminResponse({ actual: await save.request(), expected: { status: 500, body: { error: saveMessage, code: "INTERNAL_ERROR" } } }, { failure: {"message":"Could not save sites settings.","action":"Check whether your changes were saved before repeating the save. Copy details and report this problem.","step":"Save site"} });
     const home = await fixture({ t }, { workspaceOverrides: { setHome: () => { throw error; } } });
-    assertAdminResponse({ actual: await home.request({ suffix: "/home", body: { path: home.root } }), expected: { status: 500, body: { error: homeMessage, code: "INTERNAL_ERROR" } } });
+    assertAdminResponse({ actual: await home.request({ suffix: "/home", body: { path: home.root } }), expected: { status: 500, body: { error: homeMessage, code: "INTERNAL_ERROR" } } }, { failure: {"message":"Could not save sites home.","action":"Check whether your changes were saved before repeating the save. Copy details and report this problem.","step":"Save site"} });
     for (const route of ROUTES) {
       const auth = await fixture({ t }, { overrides: { authorize: async () => { throw error; } } });
-      assertAdminResponse({ actual: await auth.request(route), expected: { status: 500, body: { error: route.suffix === "/home" ? homeMessage : readMessage, code: "INTERNAL_ERROR" } } });
+      assertAdminResponse({ actual: await auth.request(route), expected: { status: 500, body: { error: route.suffix === "/home" ? homeMessage : readMessage, code: "INTERNAL_ERROR" } } }, { failure: route.suffix === "/home" ? {"message":"Could not save sites home.","action":"Check whether your changes were saved before repeating the save. Copy details and report this problem.","step":"Save site"} : route.method === "get" ? {"message":"Could not read sites settings.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load sites"} : {"message":"Could not read sites settings.","action":"Check whether your changes were saved before repeating the save. Copy details and report this problem.","step":"Save site"} });
     }
   });
 }
@@ -108,13 +108,13 @@ test("unexpected directory probe errors use correlated private failures", async 
   for (const error of [Object.assign(new Error("access denied"), { code: "EACCES" }), "opaque"]) {
     const probe = t.mock.method(fs, "statSync", () => { throw error; });
     try {
-      assertAdminResponse({ actual: await f.request({ body: { sitesHome: f.root } }), expected: { status: 500, body: { error: "Could not save sites settings.", code: "INTERNAL_ERROR" } } });
-      assertAdminResponse({ actual: await f.request({ suffix: "/home", body: { path: f.root } }), expected: { status: 500, body: { error: "Could not save sites home.", code: "INTERNAL_ERROR" } } });
+      assertAdminResponse({ actual: await f.request({ body: { sitesHome: f.root } }), expected: { status: 500, body: { error: "Could not save sites settings.", code: "INTERNAL_ERROR" } } }, { failure: {"message":"Could not save sites settings.","action":"Check whether your changes were saved before repeating the save. Copy details and report this problem.","step":"Save site"} });
+      assertAdminResponse({ actual: await f.request({ suffix: "/home", body: { path: f.root } }), expected: { status: 500, body: { error: "Could not save sites home.", code: "INTERNAL_ERROR" } } }, { failure: {"message":"Could not save sites home.","action":"Check whether your changes were saved before repeating the save. Copy details and report this problem.","step":"Save site"} });
     } finally { probe.mock.restore(); }
   }
 });
 
 test("settings hide raw storage details behind a correlated error", async (t) => {
   const f = await fixture({ t }, { workspaceOverrides: { config: () => { throw new Error("private storage location"); } } });
-  assertAdminResponse({ actual: await f.request({ method: "get" }), expected: { status: 500, body: { error: "Could not read sites settings.", code: "INTERNAL_ERROR" } } });
+  assertAdminResponse({ actual: await f.request({ method: "get" }), expected: { status: 500, body: { error: "Could not read sites settings.", code: "INTERNAL_ERROR" } } }, { failure: {"message":"Could not read sites settings.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load sites"} });
 });

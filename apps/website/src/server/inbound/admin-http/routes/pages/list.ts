@@ -36,7 +36,7 @@ export const registerAdminPageListRoute: ContentRouteRegistrar = (app, deps) => 
       });
       res.json({ posts: result.posts.map(toAdminPostResponse) });
     } catch (error) {
-      sendAdminFailure({ res, error }, { operation: "routes/pages/list", code: "INTERNAL_ERROR" });
+      sendAdminFailure({ res, error }, { operation: "routes/pages/list", code: "INTERNAL_ERROR", message: "Pages could not be loaded." });
     }
   });
 };

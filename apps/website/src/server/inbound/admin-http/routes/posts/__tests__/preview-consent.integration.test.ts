@@ -1,4 +1,4 @@
-/** The editor's existing authenticated render route excludes consent; public flags cannot do so.
+/** Authenticated preview is separate from declared-script loading; public flags cannot suppress its runtime.
  * Real middleware, auth, renderers and native HTTP run in memory without opening a server. */
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
@@ -10,7 +10,7 @@ import { NO_THEME_ID } from "#src/features/theme/index";
 import { consentFixture } from "#src/features/consent/__tests__/fixture";
 import { dispatchHttpRequest, dispatchJsonRequest } from "#src/server/__tests__/helpers/in-process-http";
 import { registerAuthRoutes, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
-import { applySiteConsent } from "#src/server/inbound/public-http/middleware/site-consent";
+import { applySiteCookieConsent } from "#src/server/inbound/public-http/middleware/site-cookie-consent";
 import { registerSiteRoutes } from "#src/server/inbound/public-http/routes/site/pages";
 import { registerAdminPostTemplatePreviewRoute } from "../template-preview.js";
 import { bareDeps, barePost } from "./preview-fixtures.js";
@@ -18,12 +18,13 @@ import { bareDeps, barePost } from "./preview-fixtures.js";
 const video = "https://www.youtube.com/embed/dQw4w9WgXcQ";
 const note = "Cookie banner hidden in preview. Embedded videos may not play here; open the page to check.";
 
-test("authenticated preview leaves YouTube live while public delivery stays gated despite preview query/header claims", async t => {
+test("authenticated preview leaves authored HTML intact; public flags cannot disable managed declared-script loading", async t => {
   const consent = consentFixture({ t });
   const saved = await consent.service.saveDraft({ principalId: "owner", config: consent.config, expectedDraftId: null });
   await consent.service.publish({ principalId: "owner", draftId: saved.revision.id, expectedPublishedId: null });
   const post = { ...barePost, status: "published" as const, slug: "video", bodyHtml: `<!doctype html><html><head></head><body><iframe src="${video}"></iframe></body></html>` };
-  const { deps } = bareDeps([post]);
+  const managedPost = { ...post, id: "managed-video", slug: "managed-video", bodyHtml: `<iframe src="${video}"></iframe>` };
+  const { deps } = bareDeps([post, managedPost]);
   deps.consentStore = consent.store;
   deps.presentationRepo = new InMemoryPresentationSettingsRepo({}, {
     initialRows: [{ workspaceId: "w", activeThemeId: NO_THEME_ID, updatedAt: post.updatedAt }],
@@ -36,13 +37,19 @@ test("authenticated preview leaves YouTube live while public delivery stays gate
   // Preserve the real auth mount and consent placement; only transport is replaced.
   registerAuthRoutes(app, deps);
   app.use("/api/admin", requireAdminSession(deps));
-  applySiteConsent({ app, deps });
+  deps.cookieConsent = { regionResolvers: async () => [], scriptDeclarations: async () => ({
+    scripts: [{ src: '/scripts/optional-preview-fixture.js', consent: ['functional'] }], problems: [],
+  }) };
+  applySiteCookieConsent({ app, deps, consent: deps.cookieConsent });
+  await deps.cookieConsent.refresh?.();
   registerAdminPostTemplatePreviewRoute(app, deps);
   registerSiteRoutes(app, deps);
   const previewPath = `/api/admin/v1/workspaces/w/posts/${post.id}/template-preview?templateChoice=`;
 
-  assert.deepEqual(await dispatchJsonRequest(app, "GET", "/api/site-consent/status"), { status: 200, body: { ready: true } });
-  const rejectedChoice = await dispatchHttpRequest({ app, method: "POST", url: "/api/site-consent", headers: { origin: "null" }, body: { action: "accept", policyVersion: "1" } });
+  const context = await dispatchJsonRequest(app, "GET", "/_consent/context");
+  assert.equal(context.status, 200);
+  assert.equal((context.body as { enabled: boolean }).enabled, true);
+  const rejectedChoice = await dispatchHttpRequest({ app, method: "POST", url: "/_consent", headers: { origin: "null" }, body: { action: "accept", policy: "1" } });
   assert.equal(rejectedChoice.status, 403, "opaque preview origins must still fail the receipt origin check");
   assert.equal(rejectedChoice.headers["set-cookie"], undefined);
 
@@ -67,18 +74,32 @@ test("authenticated preview leaves YouTube live while public delivery stays gate
     } finally { dom.window.close(); }
   }
 
+  const fullDocument = await dispatchHttpRequest({ app, method: "GET", url: "/video" });
+  assert.equal(fullDocument.status, 200);
+  assert.equal(fullDocument.body, post.bodyHtml, 'consent never rewrites an authored full document');
+  const authored = new JSDOM(fullDocument.body);
+  try {
+    assert.equal(authored.window.document.querySelector('iframe')?.getAttribute('src'), video);
+    assert.equal(authored.window.document.querySelector('template[data-jini-consent-resource], #jini-consent-config'), null, 'full documents are never automatically converted');
+  } finally { authored.window.close(); }
+
   // No request flag grants the exclusion: it belongs to the authenticated route, not its query.
-  for (const url of ["/video", "/video?templateChoice=&__tovu_preview=claimed&preview=true&skipConsent=true"]) {
+  for (const url of ["/managed-video", "/managed-video?templateChoice=&__tovu_preview=claimed&preview=true&skipConsent=true"]) {
     const response = await dispatchHttpRequest({ app, method: "GET", url, headers: { "x-tovu-preview": "true" } });
     assert.equal(response.status, 200);
     const dom = new JSDOM(response.body);
     try {
       const document = dom.window.document;
-      assert.equal(document.querySelector("iframe[src]"), null, "public video cannot load before consent");
-      const gate = document.querySelector("template[data-jini-consent-resource]") as HTMLTemplateElement | null;
-      assert.equal(gate?.content.querySelector("iframe")?.getAttribute("src"), video);
+      assert.equal(document.querySelector("iframe")?.getAttribute("src"), video, "unmanaged authored embeds are unchanged and need owner review");
+      assert.equal(document.querySelector('script[src="/scripts/optional-preview-fixture.js"]'), null, 'optional declarations remain JSON until consent');
+      const configNode = document.querySelector('#jini-consent-config');
+      assert.ok(configNode, `managed consent runtime must be present for ${url}: ${response.body.slice(0, 240)}`);
+      const config = JSON.parse(configNode.textContent!);
+      assert.deepEqual(config.scripts, [{ src: '/scripts/optional-preview-fixture.js', consent: ['functional'] }]);
       assert.ok(document.querySelector("#jini-consent"));
+      assert.ok(document.querySelector('script[src^="/_consent/client-"]'));
       assert.ok(!response.body.includes(note), "the note belongs only to the admin preview UI");
     } finally { dom.window.close(); }
   }
+
 });

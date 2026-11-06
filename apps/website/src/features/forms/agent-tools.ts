@@ -199,7 +199,22 @@ const NO_INPUT_SCHEMA = {
  * exactly what `routes/admin/forms/{list,get}-submissions.ts` check, since submissions are visitor
  * data with their own permission tier, not form-configuration state.
  */
+const FORM_PROVIDER_SCHEMA = {
+  type: "object", additionalProperties: false, required: ["id", "config"],
+  properties: {
+    id: { type: "string", pattern: "^[a-z][a-z0-9_]{0,63}$", description: "Collection provider id from forms_list_providers. Existing definitions and history stay local when switching." },
+    config: { type: "object", additionalProperties: { type: "string" }, description: "Public string-valued settings described by forms_list_providers; never credentials or secrets." },
+  },
+} as const;
+
 export const formsAgentToolCatalog: AgentToolDefinition[] = [
+  {
+    name: "forms_list_providers",
+    description: "Lists the currently registered form collection providers, their public settings fields, answer location and validation behavior. Call before selecting a provider in forms_create_definition or forms_update_definition. Read-only; unavailable settings include an explanation and must not be guessed.",
+    sideEffects: "none",
+    authorization: { permission: FORMS_MANAGE_PERMISSION },
+    inputSchema: NO_INPUT_SCHEMA,
+  },
   {
     name: "forms_list_definitions",
     description:
@@ -211,7 +226,7 @@ export const formsAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "forms_create_definition",
     description:
-      "Creates a new form definition from a name, a URL slug, and a complete list of native field descriptors. For a dropdown, use type=select with options [{value,label}]. The slug must be unique within the workspace and can never be changed afterwards. To show this form in a post or other rich-text body, use widgets_create_instance to create a contact-form widget with config { formDefinitionId: <this form's id> }, then widgets_insert_embed it; HTML-format pages and theme templates can instead use a data-embed-config marker with {type:\"form\",id:<this form's id or slug>}.",
+      "Creates a new form definition from a name, a URL slug, and a complete list of native field descriptors. Call forms_list_providers before selecting a public collection provider. For a dropdown, use type=select with options [{value,label}]. The slug must be unique within the workspace and can never be changed afterwards. To show this form in a post or other rich-text body, use widgets_create_instance to create a contact-form widget with config { formDefinitionId: <this form's id> }, then widgets_insert_embed it; HTML-format pages and theme templates can instead use a data-embed-config marker with {type:\"form\",id:<this form's id or slug>}.",
     sideEffects: "mutates-durable-state",
     authorization: { permission: FORMS_MANAGE_PERMISSION },
     inputSchema: {
@@ -227,13 +242,14 @@ export const formsAgentToolCatalog: AgentToolDefinition[] = [
         },
         fields: FIELDS_SCHEMA,
         notify: NOTIFY_SCHEMA,
+        provider: FORM_PROVIDER_SCHEMA,
       },
     },
   },
   {
     name: "forms_update_definition",
     description:
-      "Updates an existing form definition's name, field list, or notification recipients. The slug is immutable and is ignored if supplied. Existing field ids cannot be dropped — omitting one is rejected, not treated as a deletion.",
+      "Updates an existing form definition's name, field list, notification recipients, or public collection provider. Call forms_list_providers before selecting a provider and explain its answer location and validation; republish all affected static pages and Cloudflare manifests after switching. The slug is immutable and is ignored if supplied. Existing field ids cannot be dropped — omitting one is rejected, not treated as a deletion.",
     sideEffects: "mutates-durable-state",
     authorization: { permission: FORMS_MANAGE_PERMISSION },
     inputSchema: {
@@ -245,6 +261,7 @@ export const formsAgentToolCatalog: AgentToolDefinition[] = [
         name: { type: "string", minLength: 1, maxLength: MAX_NAME_LENGTH, description: "New form name. Omit to leave unchanged." },
         fields: FIELDS_SCHEMA,
         notify: NOTIFY_SCHEMA,
+        provider: FORM_PROVIDER_SCHEMA,
       },
     },
   },

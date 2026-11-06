@@ -1,4 +1,4 @@
-import { FORM_DELIVERY_EVENT, formDeliveryRetryPolicy } from "@jini-ai/cms/forms";
+import { FORM_DELIVERY_EVENT, FORM_NOTIFY_DELIVERY_EVENT, FORM_ATTACHMENT_CLEANUP_EVENT, formDeliveryRetryPolicy } from "@jini-ai/cms/forms";
 import type { OutboxRetryPolicyResolver } from "@jini-ai/infra/events/outbox";
 import { computeBackoffMs, MAX_DELIVERY_ATTEMPTS } from "@jini-ai/integrations/webhooks";
 
@@ -20,4 +20,4 @@ const formDelivery = formDeliveryRetryPolicy({
 });
 
 /** Returns the policy for `event`, or undefined to keep the outbox defaults. @complexity O(1). */
-export const outboxRetryPolicyForEvent: OutboxRetryPolicyResolver = ({ event }) => (event.name === FORM_DELIVERY_EVENT ? formDelivery : undefined);
+export const outboxRetryPolicyForEvent: OutboxRetryPolicyResolver = ({ event }) => ((event.name === FORM_DELIVERY_EVENT || event.name === FORM_NOTIFY_DELIVERY_EVENT || event.name === FORM_ATTACHMENT_CLEANUP_EVENT) ? formDelivery : undefined);

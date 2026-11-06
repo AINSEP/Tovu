@@ -1,0 +1,27 @@
+
+ RUN  v2.1.9 /workspace/Jini/packages/admin
+
+ ✓ src/browser/__tests__/navigation-args.test.ts (7 tests) 16ms
+ ✓ src/browser/__tests__/shell-navigation.test.ts (3 tests) 23ms
+stderr | src/browser/__tests__/shell-navigation.test.ts
+Error: Not implemented: navigation (except hash changes)
+    at module.exports (/workspace/Jini/node_modules/.pnpm/jsdom@26.1.0/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)
+    at navigateFetch (/workspace/Jini/node_modules/.pnpm/jsdom@26.1.0/node_modules/jsdom/lib/jsdom/living/window/navigation.js:77:3)
+    at exports.navigate (/workspace/Jini/node_modules/.pnpm/jsdom@26.1.0/node_modules/jsdom/lib/jsdom/living/window/navigation.js:55:3)
+    at Timeout._onTimeout (/workspace/Jini/node_modules/.pnpm/jsdom@26.1.0/node_modules/jsdom/lib/jsdom/living/nodes/HTMLHyperlinkElementUtils-impl.js:80:7)
+    at listOnTimeout (node:internal/timers:685:17)
+    at processTimers (node:internal/timers:618:7) undefined
+Error: Not implemented: navigation (except hash changes)
+    at module.exports (/workspace/Jini/node_modules/.pnpm/jsdom@26.1.0/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)
+    at navigateFetch (/workspace/Jini/node_modules/.pnpm/jsdom@26.1.0/node_modules/jsdom/lib/jsdom/living/window/navigation.js:77:3)
+    at exports.navigate (/workspace/Jini/node_modules/.pnpm/jsdom@26.1.0/node_modules/jsdom/lib/jsdom/living/window/navigation.js:55:3)
+    at Timeout._onTimeout (/workspace/Jini/node_modules/.pnpm/jsdom@26.1.0/node_modules/jsdom/lib/jsdom/living/nodes/HTMLHyperlinkElementUtils-impl.js:80:7)
+    at listOnTimeout (node:internal/timers:685:17)
+    at processTimers (node:internal/timers:618:7) undefined
+
+
+ Test Files  2 passed (2)
+      Tests  10 passed (10)
+   Start at  18:27:02
+   Duration  747ms (transform 77ms, setup 237ms, collect 61ms, tests 39ms, environment 675ms, prepare 121ms)
+

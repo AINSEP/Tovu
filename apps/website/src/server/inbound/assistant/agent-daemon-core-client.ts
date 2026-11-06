@@ -6,13 +6,15 @@ import { createTracker, redactedError } from "@jini-ai/diagnostics/observability
 import type { Tracker } from "@jini-ai/diagnostics/observability";
 import type { AiTraceEvent, AiTraceSink, AiContentCapture } from "@jini-ai/agent-runtime/ai-trace";
 import type { getEffective } from "@jini-ai/core/settings";
-import { DaemonCoreError, daemonCoreSnapshot, type DaemonCoreRequest, type DaemonDurableRunStore, type DaemonCoreSnapshot } from "#src/assistant/daemon-core-protocol";
+import { DaemonCoreError, daemonCoreSnapshot, type DaemonCoreRequest, type DaemonDurableRunStore, type DaemonCoreSnapshot, daemonToolConsentSnapshot, type DaemonToolConsentSnapshot, type DaemonCliConsentTarget, type DaemonCliConsentAllow } from "#src/assistant/daemon-core-protocol";
 
 export interface DaemonCoreClient {
   bootstrap(): Promise<DaemonCoreSnapshot>;
   readonly durable: DaemonDurableRunStore;
   readonly getEffective: typeof getEffective;
   readonly tracker: Tracker;
+  readToolConsentSnapshot(input: DaemonCliConsentTarget, options?: Record<string, never>): Promise<DaemonToolConsentSnapshot>;
+  allowRunTools(input: DaemonCliConsentAllow, options?: Record<string, never>): Promise<boolean>;
   getSessionForAttempt(input: { runId: string }, options?: Record<string, never>): Promise<string | null>;
   trace(input: { capture: AiContentCapture }, options?: Record<string, never>): AiTraceSink;
   flush(): Promise<void>;
@@ -113,6 +115,8 @@ export function createDaemonCoreClient({ baseUrl, token }: { baseUrl: string; to
   };
   return { bootstrap: async () => daemonCoreSnapshot.parse(await call({ operation: "bootstrap", input: {} })), durable,
     getEffective: readEffective, tracker, flush, close: async () => { stopped = true; await flush(); },
+    readToolConsentSnapshot: async (input: DaemonCliConsentTarget, _options = {}) => daemonToolConsentSnapshot.parse(await call({ operation: "cliConsentSnapshot", input })),
+    allowRunTools: async (input: DaemonCliConsentAllow, _options = {}) => z.boolean().parse(await call({ operation: "cliConsentAllow", input: { ...input, keys: [...input.keys] } })),
     getSessionForAttempt: async (input: { runId: string }, _options = {}) => z.string().nullable().parse(await call({ operation: "sessionForAttempt", input })),
     trace: ({ capture }: { capture: AiContentCapture }, _options = {}): AiTraceSink => {
       traceCapture = capture;

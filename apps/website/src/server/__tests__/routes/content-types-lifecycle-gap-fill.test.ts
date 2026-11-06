@@ -215,6 +215,6 @@ test("lifecycle: 500s (generic) when the repo explodes on an otherwise-valid req
   const { status, json } = await lifecycle(baseUrl, cookie, "explode_type", "deprecate", 1);
   assert.equal(status, 500);
   // 88f429c25 stopped echoing err.message: the shared envelope conceals the cause behind an incident id.
-  assertAdminResponse({ actual: json, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: json, expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The content type operation could not be completed.", action: "Check the result before repeating this operation. Copy details and report this problem.", step: "content type operation" } });
   assert.doesNotMatch(JSON.stringify(json), /db exploded/);
 });

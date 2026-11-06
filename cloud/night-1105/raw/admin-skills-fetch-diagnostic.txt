@@ -1,0 +1,33 @@
+
+ RUN  v4.1.11 /workspace/Tovu/apps/admin
+
+stderr | src/features/skills/__tests__/Skills.unit.test.tsx > Skills > opens the read-only viewer from the eye and selects SKILL.md first
+SKILLS_FETCH_TRACE [
+  '/api/admin/v1/workspaces/workspace-local/settings/effective?namespace=core.language',
+  '/api/admin/v1/workspaces/workspace-local/skills',
+  '/api/admin/v1/workspaces/workspace-local/skills/skill_example/files'
+]
+
+ ❯ src/features/skills/__tests__/Skills.unit.test.tsx (17 tests | 1 failed | 16 skipped) 376ms
+     × opens the read-only viewer from the eye and selects SKILL.md first 374ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/features/skills/__tests__/Skills.unit.test.tsx > Skills > opens the read-only viewer from the eye and selects SKILL.md first
+AssertionError: expected "vi.fn()" to be called 2 times, but got 3 times
+ ❯ src/features/skills/__tests__/Skills.unit.test.tsx:84:23
+     82|     expect(screen.getByRole("treeitem", { name: "README.md" }).getAttr…
+     83|     console.error("SKILLS_FETCH_TRACE", fetchMock.mock.calls.map(([url…
+     84|     expect(fetchMock).toHaveBeenCalledTimes(2);
+       |                       ^
+     85|   });
+     86|   it("lists real skills, disables and removes via the shared workspace…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 16 skipped (17)
+   Start at  18:19:33
+   Duration  13.07s (transform 8.67s, setup 571ms, import 10.80s, tests 376ms, environment 1.03s)
+

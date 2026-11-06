@@ -1,3 +1,5 @@
+import { lowerPluginToolAccess } from './lower-tool-access.js';
+import { ToolAccessLoweringError } from '../../contracts/core/tool-access-change.js';
 import type { Tracker } from "@jini-ai/diagnostics/observability";
 import type { PluginExportCatalogPort, PluginExportCatalogRow } from "../../contracts/headless/plugin-export-catalog.js";
 import { AGENT_PLUGIN_CONTRACT_VERSION, AgentPluginHostIncompatibleError, AgentPluginUpdateError, checkAgentPluginCompatibility } from "@jini-ai/agent-plugins/lifecycle";
@@ -98,6 +100,7 @@ import { PluginChangedSincePreviewError, previewUninstallPlugin, uninstallPlugin
 // cross-domain read. `resolve-agent-plugin-refs.ts`/`layout.ts` only, never
 // `features/agent-plugins/tool-registrations.ts` (a separate workstream's file; not touched here).
 import type { InstalledAgentPlugin } from "@jini-ai/agent-plugins/lifecycle";
+import { agentVisiblePluginCandidate, type AgentPluginSearchCandidate } from '@jini-ai/agent-plugins/lifecycle';
 // The Agent Plugin half of `plugins_set_enabled` (2026-09-09). `set-enabled.ts` is that feature's own
 // business rule — a DOMAIN module, deliberately not `agent-plugins/tool-registrations.ts` — so this
 // adds no `plugin-runtime -> agent-plugins/tool-registrations` edge. See its header, and the
@@ -111,7 +114,9 @@ import { AgentPluginActivationsBusyError, AgentPluginActivationsUnreadableError 
 // The Agent Plugins MCP-provisioning half of `plugins_set_enabled` (2026-09-15). The route's own
 // enable path calls these same two primitives; see `applyAgentPluginDecision` below for why the
 // in-chat enable must not skip them.
-import { describeEnableApproval, PLUGINS_SET_ENABLED_TOOL_ID, type PluginFamily } from "./set-enabled-confirmation-ui.js";
+import { PLUGINS_SET_ENABLED_TOOL_ID, type PluginFamily } from "./agent-tools.js";
+import type { AccessApprovalResource } from "@jini-ai/core";
+import type { HumanConfirmSpec } from "../../contracts/core/human-confirm.js";
 import { describeUninstallApproval, PLUGINS_UNINSTALL_TOOL_ID } from "./uninstall-confirmation-ui.js";
 // The Agent Plugin branch of `plugins_uninstall` (S4, 2026-09-24) — the deleted standalone
 // `agent_plugins_uninstall` tool's own logic, moved rather than duplicated. `uninstall-tool.ts` is
@@ -155,11 +160,16 @@ function toAgentPluginListRow(required: { plugin: InstalledAgentPlugin; exports:
 /** Reads every installed Agent Plugin for `plugins_list`'s Agent Plugin half. Degrades to `[]` on
  *  any failure (see this file's header, "Failure isolation") rather than failing the whole tool
  *  call over the newer, less-exercised half of this tool. */
-async function listAgentPluginsForResponse(routeDeps: PluginsToolDeps): Promise<readonly AgentPluginListRow[]> {
+async function listAgentPluginsForResponse(routeDeps: PluginsToolDeps): Promise<readonly (AgentPluginListRow | Pick<AgentPluginSearchCandidate, 'pluginId' | 'enabled' | 'description'>)[]> {
   try {
     const installed = await listInstalledAgentPlugins(routeDeps);
+    const inactive = await routeDeps.pluginHost?.getHostCapability({ capability: 'agent-plugin-lifecycle' })?.inactivePluginIds?.({}, {}) ?? new Set<string>();
     const exports = await routeDeps.pluginExports?.catalog({ workspaceId: routeDeps.workspaceId }).catch(() => new Map());
-    return installed.map(plugin => toAgentPluginListRow({ plugin, exports: exports?.get(plugin.pluginId) ?? [] }));
+    return installed.map(plugin => {
+      if (!inactive.has(plugin.pluginId)) return toAgentPluginListRow({ plugin, exports: exports?.get(plugin.pluginId) ?? [] });
+      const visible = agentVisiblePluginCandidate({ candidate: { ...plugin, enabled: false, keywords: [], skills: [], mcpServerIds: [] } });
+      return { pluginId: visible.pluginId, enabled: false, description: visible.description };
+    });
   } catch {
     return [];
   }
@@ -177,6 +187,7 @@ export interface PluginsToolDeps extends OperatorLocaleDeps {
   readonly tracker?: Tracker;
   readonly pluginExports?: PluginExportCatalogPort;
   readonly providerFaces: PluginProviderFacesPort;
+  readonly notifyRosterChanged: import("../../contracts/core/tool-access-change.js").NotifyToolAccessChanged;
   readonly pluginSource?: import('@jini-ai/plugins/host/node').PluginSourcePort;
   readonly pluginSourcePolicy?: import('@jini-ai/plugins/host').PluginSourcePolicyPort;
   readonly pluginHost?: PluginHostPort;
@@ -296,6 +307,8 @@ interface PluginApprovalIdentity {
   readonly version?: string;
   readonly label: string;
   readonly discovery?: readonly PluginDiscoveryRecord[];
+  readonly accessKey?: string;
+  readonly accessResources?: readonly Omit<AccessApprovalResource, 'scope'>[];
 }
 
 /** Identity/version binding before and after consent. The existing MCP fingerprint owner
@@ -310,12 +323,16 @@ export async function pluginApprovalIdentity(
   let label: string | undefined;
   let discovery: readonly PluginDiscoveryRecord[] | undefined;
   let schema: Readonly<Record<string, unknown>> = {};
+  let accessKey: string | undefined;
+  let accessResources: PluginApprovalIdentity['accessResources'];
   if (request.family === AGENT_PLUGIN_FAMILY) {
     const plugins = await listInstalledAgentPlugins(routeDeps);
     const installed = plugins.filter(plugin => plugin.pluginId === request.pluginId);
     if (installed.length === 0) throw new ToolInputError({ message: `Agent Plugin '${request.pluginId}' is not installed` });
     // Every installed digest participates, independent of discovery ordering.
     revision = JSON.stringify(installed.map(plugin => [plugin.version ?? null, plugin.archiveDigest]).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b))));
+    const access = await requireAgentPluginHost(routeDeps).previewEnableAccess?.({ pluginId: request.pluginId }, {});
+    if (access) { revision = JSON.stringify([revision, access.key]); accessKey = access.key; accessResources = access.resources; }
     version = installed.map(plugin => plugin.version).filter((value): value is string => value !== undefined).sort().join(", ");
   } else {
     discovery = structuredClone(await routeDeps.discoverPlugins());
@@ -330,7 +347,7 @@ export async function pluginApprovalIdentity(
       remoteName: PLUGINS_SET_ENABLED_TOOL_ID, origin: { kind: "roster", admissionRevision: revision },
       declaredAnnotations: undefined, description: "Enable this plugin identity", inputSchema: schema },
   });
-  return { key: fingerprint, version, label: label ?? request.pluginId, discovery };
+  return { key: fingerprint, version, label: label ?? request.pluginId, discovery, accessKey, accessResources };
 }
 
 /** A fresh `uninstallPlugin` request. Discovery is re-read on every call, so the post-confirmation write never resolves
@@ -399,13 +416,11 @@ async function uninstallConfirmedPlugin(
  * (t91 F1.2). ENABLE still needs a restart, because there is no registration to re-admit: an
  * append-only `ToolRegistry` has nothing to un-skip.
  *
- * Neither Agent Plugin note may imply that the plugin's provisioned external MCP connections were
- * turned off — they never are (`agent-plugins/federate-mcp.ts`'s header, "THE ROW SURVIVES"), so the
- * disable note says so (t91 F1.3). Turning that connection off DOES stop them at once: the per-call connection gate
- * re-reads the row on every call and refuses once the connection is disabled, deleted, OAuth-disconnected, or
- * narrowed (`external-mcp-revocation.ts`), even though the tool stays admitted and listed — and its live session, if
- * any, stays open — until restart (`mcp-federation/reload.ts`), which is why the External MCP routes still answer
- * `restartRequired: true`.
+ * An Agent Plugin's provisioned connection rows and credentials survive disable: deleting those
+ * records would destroy a sign-in the owner already earned (`federate-mcp.ts`, "THE ROW SURVIVES").
+ * Retention is not permission: the connection's per-call gate now also checks the provisioning
+ * plugin's activation, and reload withdraws its frozen registrations from discovery. The note must
+ * distinguish saved credentials from callable tools so the model cannot keep using an OFF plugin.
  * @complexity O(1).
  */
 function restartNoteFor(request: SetEnabledRequest): string {
@@ -414,11 +429,8 @@ function restartNoteFor(request: SetEnabledRequest): string {
       ? `Enabled and saved. Read its guidance now with load_agent_plugin({pluginId:"${request.pluginId}"}) and use ` +
           `agent_plugin_connect for account sign-in when needed. Tool discovery refreshes without restarting; ` +
           `search for agent_plugin_${request.pluginId} to read its guidance. Do not ask the person to restart Tovu.`
-      : `Disabled and saved. This takes effect immediately, with no restart: the activation record is re-read at ` +
-          `the start of every run AND again before every agent_plugin_${request.pluginId} call, so the plugin's own ` +
-          `tool stops answering at once rather than lingering until Tovu restarts. This does NOT change any external ` +
-          `MCP server connection the plugin set up: if an operator turned one on, its mcp__<server>__* tools keep ` +
-          `working until that connection is disabled under Integrations → External MCP.`;
+      : 'Disabled and saved. Its guidance and provisioned external MCP tools stop immediately. ' +
+          'The connection rows and saved sign-in are retained. Ask to turn the plugin on through plugins_set_enabled before using it again.';
   }
   return request.enabled
     ? "Enabled and saved. The plugin's hooks are live now, but any tool it contributes is registered only when the agent " +
@@ -433,7 +445,7 @@ function restartNoteFor(request: SetEnabledRequest): string {
  * "installed in this workspace", not a second copy that could drift.
  * @complexity O(d) in installed-digest count plus one small file rewrite.
  */
-async function applyAgentPluginDecision(routeDeps: PluginsToolDeps, principalId: string, request: SetEnabledRequest): Promise<unknown> {
+async function applyAgentPluginDecision(routeDeps: PluginsToolDeps, principalId: string, request: SetEnabledRequest, optional: { accessKey?: string } = {}): Promise<unknown> {
   try {
     const input = {
       workspaceId: routeDeps.workspaceId,
@@ -461,7 +473,7 @@ async function applyAgentPluginDecision(routeDeps: PluginsToolDeps, principalId:
     // plugin's own activation, the operation this tool is named for, must not fail because one MCP row
     // could not be written. O(s) in the plugin's declared server count.
     if (result.enabled) {
-      await requireAgentPluginHost(routeDeps).provisionMcp({ pluginId: request.pluginId, principalId }, {});
+      await requireAgentPluginHost(routeDeps).provisionMcp({ pluginId: request.pluginId, principalId }, { approvedEnable: true, approvedEnableKey: optional.accessKey });
     }
     return {
       changed: true,
@@ -719,6 +731,7 @@ async function applySiteRuntimeDecision(routeDeps: PluginsToolDeps, principalId:
     },
   });
 
+  if (!result.activation.enabled) await lowerPluginToolAccess({ pluginId, providerFaces: routeDeps.providerFaces, notifyRosterChanged: routeDeps.notifyRosterChanged }, {});
   const record = discovery.find((r) => r.id === pluginId);
   if (!record) throw new ToolInputError({ message: `plugin '${pluginId}' was not found in the current discovery snapshot` });
   if (((priorActivation as PluginActivationRecord | null)?.enabled ?? false) !== result.activation.enabled) routeDeps.tracker?.capture({ name: "plugin_toggled", userId: principalId }, { properties: { pluginId: record.id, pluginKind: "cms", enabled: result.activation.enabled, source: "assistant" } });
@@ -748,9 +761,8 @@ function requireSetEnabledPermission(routeDeps: PluginsToolDeps, required: { rea
 }
 
 /** What the owner's consent to a site-package enable rests on. Only a site-sourced `.tovu-plugin`
- * that is being enabled can be "sealed here" or carry a capability set; every other call has none. */
+ * that is being enabled can carry a capability set; every other call has none. */
 interface SiteConsent {
-  readonly sealedHere: boolean;
   readonly capabilities: readonly string[] | undefined;
   readonly added: readonly string[];
 }
@@ -765,28 +777,19 @@ function siteRecordBeingEnabled(
   return request.enabled && request.family === "site-runtime" && record?.source === "site" ? record : undefined;
 }
 
-/** Reads the seal and the capabilities beyond the owner's last approval, in that order, for the
+/** Reads the capabilities beyond the owner's last approval for the
  * record the approval identity was read from (so `record.version` IS the identity's version).
- * @complexity O(c) in the manifest's declared capability count, plus two source-port reads. */
+ * @complexity O(c) in the manifest's declared capability count, plus one approval-port read. */
 async function siteConsentFor(
   routeDeps: PluginsToolDeps,
   required: { readonly request: SetEnabledRequest; readonly identity: PluginApprovalIdentity | undefined },
 ): Promise<SiteConsent> {
   const { request } = required;
   const record = siteRecordBeingEnabled(required);
-  if (record === undefined) return { sealedHere: false, capabilities: undefined, added: [] };
-  const sealedHere = routeDeps.pluginSource ? await routeDeps.pluginSource.isSealedHere({ id: request.pluginId, version: record.version }, {}) : false;
+  if (record === undefined) return { capabilities: undefined, added: [] };
   const capabilities = record.manifest ? pluginCapabilitySet({ manifest: record.manifest }) : undefined;
   const added = capabilities === undefined ? [] : addedPluginCapabilities({ approved: await routeDeps.pluginSource?.readApproval({ id: request.pluginId }, {}), next: capabilities });
-  return { sealedHere, capabilities, added };
-}
-
-/** Whether this enable must show the owner a card (before any remembered approval is consulted).
- * @complexity O(1) plus the policy's own decision. */
-function enableNeedsConfirmation(routeDeps: PluginsToolDeps, consent: SiteConsent): boolean {
-  // Consent gap (2026-10-12): "sealed here" may mean sealed by the assistant itself, so it skips
-  // the card only when this version adds nothing beyond what the owner last approved.
-  return (consent.sealedHere && consent.capabilities === undefined) || (routeDeps.pluginSourcePolicy?.confirmEnable({ sealedHere: consent.sealedHere, added: consent.added }, {}) ?? true);
+  return { capabilities, added };
 }
 
 /** One prepared `plugins_set_enabled` call: everything the card names and the write re-checks. */
@@ -797,6 +800,7 @@ interface SetEnabledPrepared {
   readonly confirm: boolean;
   readonly capabilities: readonly string[] | undefined;
   readonly added: readonly string[];
+  readonly previousEnabled: boolean | null;
 }
 
 /** parse -> authorize -> (Agent Plugin enable: activations.json writable?) -> identity -> consent
@@ -809,7 +813,17 @@ async function prepareSetEnabled(routeDeps: PluginsToolDeps, required: { readonl
   const refusal = request.enabled && request.family === AGENT_PLUGIN_FAMILY ? await agentPluginEnablePreflight(routeDeps, request) : undefined;
   const identity = request.enabled && refusal === undefined ? await pluginApprovalIdentity({ deps: routeDeps, request }) : undefined;
   const consent = await siteConsentFor(routeDeps, { request, identity });
-  return { request, identity, refusal, confirm: enableNeedsConfirmation(routeDeps, consent), capabilities: consent.capabilities, added: consent.added };
+  // Consent gap (2026-10-12): the assistant can seal its own package. Always require owner
+  // consent, including unchanged versions with a previous capability approval.
+  const previousEnabled = await previousPluginEnabled({ deps: routeDeps, request });
+  return { request, identity, refusal, confirm: true, capabilities: consent.capabilities, added: consent.added, previousEnabled };
+}
+
+/** Read only the selected family, once, for the previous access value shown on the card. */
+async function previousPluginEnabled({ deps, request }: { deps: PluginsToolDeps; request: SetEnabledRequest }, _options = {}): Promise<boolean | null> {
+  if (request.family !== AGENT_PLUGIN_FAMILY) return (await deps.pluginActivationRepo.getActivation({ workspaceId: deps.workspaceId, pluginId: request.pluginId }))?.enabled ?? false;
+  const inactive = await requireAgentPluginHost(deps).inactivePluginIds?.({}, {});
+  return inactive ? !inactive.has(request.pluginId) : null;
 }
 
 /** Re-reads an enable's identity after consent; a different key means the human approved something
@@ -823,7 +837,7 @@ async function currentApprovedIdentity(
   const { request, identity } = required;
   if (!request.enabled) return undefined;
   const current = await pluginApprovalIdentity({ deps: routeDeps, request });
-  if (current.key !== identity?.key) throw new ToolInputError({ message: "PLUGINS_STALE_APPROVAL: The plugin version or digest changed. Review and approve it again. Nothing was changed." });
+  if (current.key !== identity?.key) throw new ToolInputError({ message: "PLUGINS_STALE_APPROVAL: The plugin or its connection changed. Review and approve it again. Nothing was changed." });
   return current;
 }
 
@@ -851,7 +865,7 @@ async function runSetEnabled(
   // before the write so a failed record leaves the plugin off rather than enabled unrecorded.
   if (confirm && capabilities !== undefined && routeDeps.pluginSource) await routeDeps.pluginSource.recordApproval({ id: request.pluginId, capabilities }, {});
   return request.family === AGENT_PLUGIN_FAMILY
-    ? applyAgentPluginDecision(routeDeps, ctx.principal.id, request)
+    ? applyAgentPluginDecision(routeDeps, ctx.principal.id, request, { accessKey: identity?.accessKey })
     : applySiteRuntimeDecision(routeDeps, ctx.principal.id, request, { discovery: currentIdentity?.discovery });
 }
 
@@ -864,6 +878,7 @@ async function runSetEnabled(
  * classification, unchanged.
  */
 const PLUGINS_MODEL_FACING_ERRORS: readonly ModelFacingErrorRule[] = [
+  { error: ToolAccessLoweringError, code: 'TOOL_ACCESS_STOP_FAILED', guidance: 'The OFF decision was saved. Report that stopping affected answers failed; do not claim cleanup succeeded.' },
   {
     error: PluginConflictError,
     code: "PLUGINS_CONFLICT",
@@ -882,6 +897,10 @@ export function buildPluginsRegistrations(routeDeps: PluginsToolDeps, surfaces: 
       const plugins = await Promise.all(
         discovery.map(async (record) => {
           const activation = await routeDeps.pluginActivationRepo.getActivation({ workspaceId: routeDeps.workspaceId, pluginId: record.id });
+          if (!activation?.enabled) {
+            const visible = agentVisiblePluginCandidate({ candidate: { pluginId: record.id, displayName: record.name, enabled: false, keywords: [], skills: [], mcpServerIds: [] } });
+            return { id: record.id, enabled: false, status: record.status, description: visible.description };
+          }
           return toAdminPluginResponse(record, activation, { conflicts: conflicts.get(record.id) ?? [] });
         }),
       );
@@ -903,15 +922,22 @@ export function buildPluginsRegistrations(routeDeps: PluginsToolDeps, surfaces: 
      */
     plugins_set_enabled: approvalToolHandler({ surfaces,
       prepare: ({ ctx }) => prepareSetEnabled(routeDeps, { ctx }),
-      describe: ({ prepared: { request, identity, added } }) => describeEnableApproval({
-        subject: { family: request.family, pluginId: request.pluginId, version: identity?.version, label: identity?.label, adds: added },
+      describe: ({ ctx, prepared: { request, identity, added, refusal, previousEnabled } }) => describeEnableApproval({
+        subject: { family: request.family, pluginId: request.pluginId, version: identity?.version, label: identity?.label, adds: added,
+          previousEnabled, revision: identity?.key, resources: identity?.accessResources },
+        ...(request.enabled && refusal === undefined ? { scope: { personId: ctx.principal.id, siteId: routeDeps.workspaceId } } : {}),
       }),
       run: ({ ctx, prepared }) => runSetEnabled(routeDeps, { ctx, prepared }),
     }, { flag: "changed", ask: ({ prepared }) => prepared.request.enabled && prepared.refusal === undefined && prepared.confirm,
-      rememberKey: ({ prepared }) => prepared.request.enabled ? prepared.identity?.key : undefined,
-      remembered: routeDeps.nativeApprovalMemory,
-      declined: ({ reason, prepared }) => ({ changed: false, family: prepared?.request.family,
-        pluginId: prepared?.request.pluginId, restartRequired: false, ...notConfirmedResult({ confirmed: false, reason }) }),
+      // Turning a plugin back on is a new escalation. A remembered version approval must not
+      // silently turn it on after the owner switched it off.
+      declined: async ({ reason, prepared }) => {
+        if (reason === 'declined' && prepared?.request.family === AGENT_PLUGIN_FAMILY && prepared.identity?.accessKey) {
+          await requireAgentPluginHost(routeDeps).recordDeclinedAccess?.({ accessKey: prepared.identity.accessKey });
+        }
+        return { changed: false, family: prepared?.request.family,
+          pluginId: prepared?.request.pluginId, restartRequired: false, ...notConfirmedResult({ confirmed: false, reason }) };
+      },
     }),
 
     /**
@@ -992,4 +1018,64 @@ export function contributePluginsTools(
   return { domain: "plugins", build: (deps, surfaces) => buildPluginsRegistrations({
     ...deps, pluginHost: deps.pluginHost ?? required.createPluginHost?.({ deps }),
   }, surfaces), risk: pluginsDerivedRisk };
+}
+
+/** What the dialog needs to describe truthfully what is about to be switched on. */
+export interface EnableConfirmationSubject {
+  readonly family: PluginFamily;
+  readonly pluginId: string;
+  /** The human-readable name, when the family's read model has one distinct from the id. */
+  readonly label?: string;
+  readonly version?: string;
+  /** Site plugins: capability entries beyond the owner's last approval (all of them the first time). */
+  readonly adds?: readonly string[];
+  readonly previousEnabled?: boolean | null;
+  readonly revision?: string;
+  readonly resources?: readonly Omit<AccessApprovalResource, 'scope'>[];
+}
+
+/** Per-family wording. Kept as data rather than branches inside the builder so the two families'
+ *  copy can be read side by side and neither can silently inherit the other's claims. */
+const FAMILY_COPY: Record<PluginFamily, { readonly noun: string; readonly warning: string }> = {
+  "agent-plugin": {
+    noun: "Agent Plugin",
+    warning:
+      "This lets the assistant use this plugin's guidance and tools. Each action still follows your access settings.",
+  },
+  "site-runtime": {
+    noun: "site plugin",
+    warning:
+      "It gets full server access: it can run code on your site and change its database. Enable it only if you trust it.",
+  },
+};
+
+/**
+ * Describes the enable-confirmation dialog for the shared approval transport.
+ *
+ * @param spec.subject - What the human is being asked about. The plugin is NAMED, because a dialog
+ * that says "enable this plugin?" without saying which one is not consent.
+ * @complexity O(n) in the rendered field lengths.
+ */
+export function describeEnableApproval({ subject, scope }: { subject: EnableConfirmationSubject; scope?: AccessApprovalResource['scope'] }, _optional = {}): HumanConfirmSpec {
+  const copy = FAMILY_COPY[subject.family];
+  return {
+    toolId: PLUGINS_SET_ENABLED_TOOL_ID, errorCode: "PLUGINS",
+    title: `Enable ${subject.label ?? subject.pluginId}?`,
+    description: `This turns on the ${copy.noun} "${subject.pluginId}" for this workspace.`,
+    ...(scope ? { access: { resources: pluginEnableAccessResources({ subject, scope }) } } : {}),
+    details: [{ label: "Plugin", value: subject.pluginId }, { label: "Kind", value: copy.noun },
+      ...(subject.version === undefined ? [] : [{ label: "Version", value: subject.version }]),
+      ...(subject.adds?.length ? [{ label: "Adds", value: subject.adds.join(", ") }] : []),
+],
+    warning: copy.warning + " Only the listed access is turned on. A browser sign-in may still be needed to connect your account.", confirmLabel: "Enable",
+    // Cancelling posts back and resolves the parked call immediately, rather than stranding it.
+    cancelLabel: "Cancel",
+  };
+}
+
+/** Translate the frozen domain proposal into the common access disclosure. */
+function pluginEnableAccessResources({ subject, scope }: { subject: EnableConfirmationSubject; scope: AccessApprovalResource['scope'] }, _options = {}): readonly AccessApprovalResource[] {
+  return [{ id: `plugin:${subject.family}:${subject.pluginId}`, label: subject.label ?? subject.pluginId,
+    scope, previous: { enabled: subject.previousEnabled ?? null }, proposed: { enabled: true, family: subject.family, capabilities: subject.adds ?? [] }, revision: subject.revision ?? null },
+    ...(subject.resources ?? []).map(resource => ({ ...resource, scope }))];
 }

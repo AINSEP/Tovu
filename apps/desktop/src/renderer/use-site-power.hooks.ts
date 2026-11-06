@@ -75,9 +75,9 @@ export function externalStopConfirm(
 ) {
   if (!project.externalUrl || !project.externalLauncher) return null;
   const copy = desktopCopy({ locale }).stopConfirm;
-  const body = project.externalLauncher === 'npm-run-dev' ? copy.devBody : copy.otherBody.replace('{app}', project.runningApp ?? 'Tovu');
+  const body = project.externalLauncher === 'npm-run-dev' ? copy.devBody : copy.otherBody.replace('{app}', () => project.runningApp ?? 'Tovu');
   return {
-    confirmTitle: copy.title.replace('{name}', project.displayName),
+    confirmTitle: copy.title.replace('{name}', () => project.displayName),
     confirmBody: body,
     confirmButtonLabel: copy.confirm,
     confirmButtonBusyLabel: copy.confirming,
@@ -110,6 +110,8 @@ export interface SitePowerControl {
   on: boolean;
 }
 
+const STARTABLE_STATUSES: readonly SiteLifecycleStatus[] = ['stopped', 'failed', 'sleeping'];
+
 /**
  * The card's power button for a site in `status`, or `null` when there is no honest button to draw.
  *
@@ -119,6 +121,7 @@ export interface SitePowerControl {
  *
  * `failed` gets Start, not a disabled button — a site whose last boot failed is precisely one an
  * operator wants to try again, and `handleStart` is what they would be reaching for.
+ * Sleeping keeps its own label and neutral styling; its power action uses the normal Start path.
  *
  * `external` means another process serves the site AND main cannot stop it (no `externalLauncher`):
  * no button. One main can stop gets the ordinary Stop, gated by {@link externalStopConfirm}.
@@ -128,7 +131,7 @@ export interface SitePowerControl {
 export function powerControl(status: SiteLifecycleStatus, { external = false }: { external?: boolean } = {}): SitePowerControl | null {
   if (external) return null;
   if (status === 'running') return { action: 'stop', label: 'Stop', tooltip: 'Stop site', busy: false, on: true };
-  if (status === 'stopped' || status === 'failed') return { action: 'start', label: 'Start', tooltip: 'Start site', busy: false, on: false };
+  if (STARTABLE_STATUSES.includes(status)) return { action: 'start', label: 'Start', tooltip: 'Start site', busy: false, on: false };
   if (status === 'starting') return { action: null, label: 'Starting…', tooltip: 'Starting…', busy: true, on: false };
   if (status === 'stopping') return { action: null, label: 'Stopping…', tooltip: 'Stopping…', busy: true, on: true };
   return null;

@@ -7,6 +7,7 @@ import { rewriteThemeAssetPaths } from "./asset-path-rewrites.js";
 import { fileExtension, fileGroup, TRASH_DIR_NAME } from "./file-identity-lock.js";
 import { isRecognizedThemeRoot, MAX_LISTED_FILES, MAX_THEME_FILE_BYTES, MAX_WALK_DEPTH } from "./theme-files.js";
 import { writeGeneratedThemeOriginal } from "./sync-originals.js";
+import { keepStructureFile, prepareStructureTheme } from "./structure-only-theme.js";
 import { MIGRATION_STAGING_DIR_PREFIX, nextAvailableThemeId, rescanThemes, THEME_CATALOG_DIR, type DiscoveredTheme, type ThemeTier } from "./theme.js";
 
 /**
@@ -76,6 +77,22 @@ export interface DuplicateThemeResult {
   sourceThemeId: string;
   files: number;
   bytes: number;
+  /** Present only for a structure copy; valid loading does not establish styling readiness. */
+  stylingStatus?: "unstyled";
+}
+
+/** Omitted mode preserves the full-copy API used by the admin Duplicate action. */
+export interface DuplicateThemeOptions {
+  newId?: string;
+  stagingSuffix?: () => string;
+  mode?: "full" | "structure-only";
+}
+
+/** Refuse unsupported presentation stripping before creating staging or originals. */
+function validateStructureSource(source: DiscoveredTheme, mode: DuplicateThemeOptions["mode"]): void {
+  if (mode !== "structure-only") return;
+  if (source.manifest.apiVersion === 2 && source.manifest.tier === "static" && source.manifest.build?.source !== "compiled") return;
+  throw new DuplicateThemeError("SOURCE_NOT_COPYABLE", "Structure-only duplication needs an authored v2 static theme. Choose Tovu Starter, or use mode 'full' for an exact copy.");
 }
 
 /**
@@ -224,7 +241,7 @@ function addPlannedFile(required: { plan: ThemeCopyPlan; file: PlannedFile }): v
  * `invalid`), `name`, a reset `version`, and `lineage` — the same metadata-only record the CLI's
  * `copy` writes (nothing at runtime reads it; it answers "what was this forked from").
  */
-function rewriteCopiedManifest(stagingDir: string, identity: { id: string; name: string; source: DiscoveredTheme }): void {
+function rewriteCopiedManifest(stagingDir: string, identity: { id: string; name: string; source: DiscoveredTheme; mode?: DuplicateThemeOptions["mode"] }): void {
   const manifestPath = join(stagingDir, "theme.json");
   let manifest: unknown;
   try {
@@ -241,7 +258,25 @@ function rewriteCopiedManifest(stagingDir: string, identity: { id: string; name:
   record.name = identity.name;
   record.version = DUPLICATE_INITIAL_VERSION;
   record.lineage = { from: identity.source.manifest.id, tier: identity.source.manifest.tier, version: sourceVersion };
+  if (identity.mode === "structure-only") record.fontStylesheets = [];
   writeFileSync(manifestPath, `${JSON.stringify(record, null, 2)}\n`, "utf8");
+}
+
+/** Copy the bounded plan to staging, rebind asset paths, then strip presentation for structure drafts. The outer
+ * service owns cleanup on failure; all transformations precede the originals snapshot. */
+function copyStagedTheme(required: { sourceDir: string; stagingDir: string; plan: ThemeCopyPlan; sourceThemeId: string; id: string; mode?: DuplicateThemeOptions["mode"] }): void {
+  const { sourceDir, stagingDir, plan, sourceThemeId, id, mode } = required;
+  mkdirSync(stagingDir);
+  for (const dir of plan.dirs) mkdirSync(join(stagingDir, dir), { recursive: true });
+  for (const file of plan.files) {
+    copyFileSync(join(sourceDir, file.relativePath), join(stagingDir, file.relativePath), fsConstants.COPYFILE_EXCL);
+  }
+  // Stripping must see the rebound id so retained absolute vendor stylesheet links still match.
+  rewriteCopiedAssetPaths({ stagingDir, files: plan.files, sourceThemeId, targetThemeId: id });
+  if (mode !== "structure-only") return;
+  prepareStructureTheme({ stagingDir, files: plan.files, themeId: id });
+  const css = { relativePath: "css/theme.css", bytes: lstatSync(join(stagingDir, "css/theme.css")).size };
+  addPlannedFile({ plan, file: css });
 }
 
 /**
@@ -312,6 +347,7 @@ function writeCopyOriginal(required: { destDir: string; themesRoot: string; tier
  * @param optional.newId - Exact id to use; refused if malformed or taken. Omitted ⇒ derived from
  * `newName` and suffixed until free.
  * @param optional.stagingSuffix - Test seam for the staging folder's random suffix.
+ * @param optional.mode - `structure-only` strips authored-v2 presentation and marks the copy unstyled.
  * @returns The new theme's id, name, tier, folder, and what was copied.
  * @throws {DuplicateThemeError} On any refusal; nothing is left on disk. A failed write of the copy's
  * stored original ({@link writeCopyOriginal}) also leaves nothing — the copy is removed.
@@ -319,9 +355,10 @@ function writeCopyOriginal(required: { destDir: string; themesRoot: string; tier
  */
 export function duplicateTheme(
   required: { source: DiscoveredTheme; themesRoot: string; newName: string; takenIds: ReadonlySet<string> },
-  optional: { newId?: string; stagingSuffix?: () => string } = {}
+  optional: DuplicateThemeOptions = {}
 ): DuplicateThemeResult {
   const { source, themesRoot, takenIds } = required;
+  validateStructureSource(source, optional.mode);
   if (!isRecognizedThemeRoot({ themeDir: source.dir, themesRoot }) || !existsSync(source.dir)) {
     throw new DuplicateThemeError("SOURCE_NOT_COPYABLE", `theme '${source.manifest.id}' is not inside this site's themes folder`);
   }
@@ -330,19 +367,18 @@ export function duplicateTheme(
 
   const sourceDir = realpathSync(source.dir);
   const plan = planThemeCopy(sourceDir);
+  if (optional.mode === "structure-only") {
+    plan.files = plan.files.filter(file => keepStructureFile(file));
+    plan.bytes = plan.files.reduce((bytes, file) => bytes + file.bytes, 0);
+  }
   const parentDir = dirname(source.dir);
   const destDir = join(parentDir, id);
   const suffix = optional.stagingSuffix?.() ?? randomBytes(6).toString("hex");
   const stagingDir = join(parentDir, `${MIGRATION_STAGING_DIR_PREFIX}duplicate-${id}-${suffix}`);
 
   try {
-    mkdirSync(stagingDir);
-    for (const dir of plan.dirs) mkdirSync(join(stagingDir, dir), { recursive: true });
-    for (const file of plan.files) {
-      copyFileSync(join(sourceDir, file.relativePath), join(stagingDir, file.relativePath), fsConstants.COPYFILE_EXCL);
-    }
-    rewriteCopiedAssetPaths({ stagingDir, files: plan.files, sourceThemeId: source.manifest.id, targetThemeId: id });
-    rewriteCopiedManifest(stagingDir, { id, name, source });
+    copyStagedTheme({ sourceDir, stagingDir, plan, sourceThemeId: source.manifest.id, id, mode: optional.mode });
+    rewriteCopiedManifest(stagingDir, { id, name, source, mode: optional.mode });
     // Re-checked right before the rename: `renameSync` onto an EMPTY existing directory replaces it
     // silently on POSIX, so a folder created since `assignThemeId` must be refused here, not merged.
     if (existsSync(destDir)) throw new DuplicateThemeError("ID_TAKEN", `theme id '${id}' was taken while copying — try again`);
@@ -353,7 +389,8 @@ export function duplicateTheme(
   }
   writeCopyOriginal({ destDir, themesRoot, tier: source.manifest.tier, id });
 
-  return { id, name, tier: source.manifest.tier, dir: destDir, sourceThemeId: source.manifest.id, files: plan.files.length, bytes: plan.bytes };
+  return { id, name, tier: source.manifest.tier, dir: destDir, sourceThemeId: source.manifest.id, files: plan.files.length, bytes: plan.bytes,
+    ...(optional.mode === "structure-only" ? { stylingStatus: "unstyled" as const } : {}) };
 }
 
 /**
@@ -368,7 +405,7 @@ export function duplicateTheme(
  */
 export function duplicateDiscoveredTheme(
   required: { themes: DiscoveredTheme[]; themesDir: string; sourceThemeId: string; newName: string },
-  optional: { newId?: string; stagingSuffix?: () => string } = {}
+  optional: DuplicateThemeOptions = {}
 ): { result: DuplicateThemeResult; theme: DiscoveredTheme | undefined } {
   const { themes, themesDir, sourceThemeId, newName } = required;
   const source = themes.find((t) => t.manifest.id === sourceThemeId);

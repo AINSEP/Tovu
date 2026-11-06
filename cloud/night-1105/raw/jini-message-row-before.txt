@@ -1,0 +1,7 @@
+
+/workspace/Jini/packages/chat/src/react/components/MessageRow.tsx
+  321:1   error    Function 'AssistantMessageRow' has a complexity of 15. Maximum allowed is 10               complexity
+  544:17  warning  Reduce the number of conditional operators (4) used in the expression (maximum allowed 3)  sonarjs/expression-complexity
+
+✖ 2 problems (1 error, 1 warning)
+

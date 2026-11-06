@@ -1,0 +1,109 @@
+# Main runner results
+
+| Section | Initial exit | Final exit | Pass | Fail | Skip | Total |
+|---|---:|---:|---:|---:|---:|---:|
+| release-land-gates | 1 | 1 | - | - | - | - |
+| node-24 | 0 | 0 | - | - | - | - |
+| build-jini-core | 0 | 0 | - | - | - | - |
+| build-jini-dependents | 0 | 0 | - | - | - | - |
+| link-jini | 0 | 0 | - | - | - | - |
+| build-tovu-contracts | 0 | 0 | - | - | - | - |
+| build-desktop-preload | 0 | 0 | - | - | - | - |
+| jini-core | 0 | 0 | 200 | 0 | 0 | 200 |
+| jini-ui | 0 | 0 | 3 | 0 | 0 | 3 |
+| jini-http-kit | 0 | 0 | 37 | 0 | 0 | 37 |
+| jini-owner-recovery | 0 | 0 | 11 | 0 | 0 | 11 |
+| jini-vercel-node | 0 | 0 | 53 | 0 | 0 | 53 |
+| jini-eslint-complexity | 0 | 0 | - | - | - | - |
+| tovu-website | 1 | 0 | 797 | 0 | 1 | 798 |
+| tovu-admin | 1 | 0 | 168 | 0 | 0 | 168 |
+| tovu-desktop-auth | 0 | 0 | 31 | 0 | 0 | 31 |
+| tovu-eslint-complexity | 0 | 0 | - | - | - | - |
+| tovu-desktop-complexity | 0 | 0 | - | - | - | - |
+| tovu-eslint-rule-tests | 0 | 0 | 3 | 0 | 0 | 3 |
+| K1-dev-scripts | 0 | 0 | 6 | 0 | 0 | 6 |
+| K1-platform-regression | 0 | 0 | 16 | 0 | 0 | 16 |
+| backfill-cli-discovery | 0 | 0 | 10 | 0 | 0 | 10 |
+| tsc-root | 0 | 0 | - | - | - | - |
+| tsc-desktop-main | 0 | 0 | - | - | - | - |
+| O-tovu-website-keys | 0 | 0 | 273 | 0 | 1 | 274 |
+| O-desktop-ipc | 0 | 0 | 27 | 0 | 0 | 27 |
+| O-desktop-renderer | 0 | 0 | 10 | 0 | 0 | 10 |
+| O-tovu-website-forms | 0 | 0 | 116 | 0 | 0 | 116 |
+| O-jini-cf-forms | 0 | 0 | 49 | 0 | 0 | 49 |
+| O-jini-cms | 0 | 0 | 20 | 0 | 0 | 20 |
+| O-jini-admin | 0 | 0 | 17 | 0 | 0 | 17 |
+| jini-gateway-regression | 1 | 0 | 28 | 0 | 0 | 28 |
+| jini-chat-terminal-regression | 0 | 0 | 9 | 0 | 0 | 9 |
+| Q-jini-cms-media | 0 | 0 | 75 | 0 | 0 | 75 |
+| Q-jini-agent-plugins | 0 | 0 | 16 | 0 | 0 | 16 |
+| Q-tovu-website-media | 0 | 0 | 211 | 0 | 0 | 211 |
+| Q-desktop-renderer | 0 | 0 | 20 | 0 | 0 | 20 |
+| Bforms-jini-cf | 0 | 0 | 40 | 0 | 0 | 40 |
+| Bforms-jini-cms | 0 | 0 | 123 | 0 | 0 | 123 |
+| postgres-ready | 0 | 0 | - | - | - | - |
+| Bforms-website | 0 | 0 | 130 | 0 | 0 | 130 |
+| website-composition-regressions | 0 | 0 | 6 | 0 | 0 | 6 |
+| website-daemon-binding-regressions | 1 | 0 | 9 | 0 | 0 | 9 |
+| B25-keys-node | 1 | 0 | 297 | 0 | 1 | 298 |
+| B25-keys-admin | 1 | 0 | 258 | 0 | 0 | 258 |
+| admin-navigation-regressions | 0 | 0 | 27 | 0 | 0 | 27 |
+| jini-admin-navigation-regressions | 0 | 0 | 10 | 0 | 0 | 10 |
+| F-tovu-complexity | 1 | 0 | - | - | - | - |
+| F-jini-complexity | 1 | 1 | - | - | - | - |
+
+## release-land-gates
+Raw: cloud/night-1105/raw/release-land-gates.txt
+```
+package.json: @jini-ai/cms still permits an old or mismatched artifact; publish the new exports, raise the dependency floor above 0.6.19 and regenerate its lockfile.
+package.json: @jini-ai/agent-plugins still permits an old or mismatched artifact; publish the new exports, raise the dependency floor above 0.6.19 and regenerate its lockfile.
+apps/admin/package.json: @jini-ai/cms still permits an old or mismatched artifact; publish the new exports, raise the dependency floor above 0.6.19 and regenerate its lockfile.
+apps/admin/package.json: @jini-ai/agent-plugins still permits an old or mismatched artifact; publish the new exports, raise the dependency floor above 0.6.19 and regenerate its lockfile.
+```
+
+## F-jini-complexity
+Raw: cloud/night-1105/raw/F-jini-complexity.txt
+```
+
+/workspace/Jini/packages/chat/src/react/components/MessageRow.tsx
+  321:1   error    Function 'AssistantMessageRow' has a complexity of 15. Maximum allowed is 10               complexity
+  544:17  warning  Reduce the number of conditional operators (4) used in the expression (maximum allowed 3)  sonarjs/expression-complexity
+
+/workspace/Jini/packages/core/src/redact.ts
+  207:25  warning  Simplify this regular expression to reduce its runtime, as it has super-linear performance due to backtracking  sonarjs/super-linear-regex
+  725:3   warning  Reduce the total number of "break" and "continue" statements in this loop to use one at most                    sonarjs/too-many-break-or-continue-in-loop
+  754:97  warning  Extract this nested ternary operation into an independent statement                                             sonarjs/no-nested-conditional
+
+✖ 5 problems (1 error, 4 warnings)
+
+```
+
+Final main section test executions (overlapping command lists, not unique tests): pass3106,fail0,skip3,total3109.
+
+## Fix commits owned by main checks
+
+- `2e418db44`: publish credential save helpers require the explicit id both callers supply; provider moves now preserve typed duplicate-label errors even when the label is unchanged. Store suite117/117 and ceiling10; initial desktop-main TS2322 reproduced and final root/main tsc pass.
+- `5e2503eae`: stale DB schema comparisons normalize precise generated PK name/commerce quote spelling while retaining all definitions/data checks; no migrations/checksums changed. Affected CM54/54.
+- `0cdbb9944`: Skills test fixtures isolate language-setting reads, initialize asynchronous test promise before render, and distinguish exact English Cancel from valid Cancelar.104/104.
+- `6d4b9f03b`: Security recovery translator uses required object argument; fixes page crash/navigation.18/18 focused, admin full168/168.
+- `a3a7d4f66`: installed Supabase resolver test explicitly activates default-off plugin; import tests pin complete safe actionable error copy.67/67.
+- `4842aed94` then `c2e816712`: share tracker test inspects Error.message (not JSON.stringify's empty object), preserving ID/redaction; unrelated fixture cleanup restored per scope.13/13 final.
+- `d849a9f99`: federation test starts its owner before initial unknown-tool rejection; preserves live refusal assertions. Affected9/9.
+- `cb331f55c`: explicit shared-only outage fixture retains503/cause checks; added local-store outage successful save/privacy/persistence test.25/25focused; B25node297pass/1skip.
+- `5672fb7c9`: redundant optional snapshot selector spreads removed, required status complexity12→10 with same destructured argument values. Publish tools104pass/1skip; F-Tovu lint and final root/main tsc pass.
+
+## Minor findings preserved (not fixed)
+
+- site-share-failures.test.ts full style lint: line70 sonarjs/no-all-duplicated-branches error and sonarjs/no-nested-conditional warning; deliberate canary line16 sonarjs/no-hardcoded-passwords warning. Restored pre-existing branch per no-refactors rule. Required isolated complexity ceiling10 passes. Raw `site-share-full-lint-minor.txt`, `site-share-complexity-only.txt`.
+- publish-agent-tools.ts line1091 existing detailRows dead-store warning retained.
+- Skills tests existing prefer-specific-assertions/no-nested-incdec warnings retained.
+- DB tests four pre-existing style warnings retained; raw/db-cm-complexity.txt.
+- Agent plugin content tests emit charts-recharts integrity-refusal diagnostics while relevant assertions pass; report as emitted diagnostics, no unrequested runtime change.
+
+## Runtime command correction
+
+Original jini-gateway-regression used Node test runner for Vitest imports and failed before collection. Corrected once from packages/core using Vitest --maxWorkers=2 --minWorkers=1,28/28pass. Original output preserved. No test changes for this correction.
+
+## Evidence and unresolved checks
+
+All49 original sections executed. Initial failures retained in original raw filenames; once reruns in `<section>-rerun.txt` and `rerun-results.tsv` override only final status. Both final tsc outputs empty/pass; no remaining tsc errors. Main test commands all finally pass (skips separate); pending non-test checks are expected release-land-gates and MessageRow complexity15>10 awaiting parent/user decision. No coverage or unrelated suites run. Generated untracked sites/tovu-dev/.form-files-protected-v1 is test output, excluded from source commits and flagged to parent for cleanup.

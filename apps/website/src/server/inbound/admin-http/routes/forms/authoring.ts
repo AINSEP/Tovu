@@ -14,6 +14,7 @@ function authoringPatch({ body }: { body: Record<string, unknown> }, _options = 
     ...(body.notify !== undefined ? { notify: body.notify as NotifyConfig } : {}),
     ...(body.mode !== undefined ? { mode: body.mode as FormAuthoring["mode"] } : {}),
     ...(body.html !== undefined ? { html: body.html as string } : {}),
+    ...(body.provider !== undefined ? { provider: body.provider as FormAuthoring["provider"] } : {}),
   };
 }
 

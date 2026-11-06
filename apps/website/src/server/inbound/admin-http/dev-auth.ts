@@ -1,13 +1,21 @@
+import { registerOwnerPasskeyRoutes } from './owner-passkey-routes.js';
+import { ownerMfaDepsFrom } from "./owner-mfa-deps.js";
+import { registerOwnerMfaRoutes } from "./owner-mfa-routes.js";
+import { registerOwnerRecoveryRoutes } from "./owner-recovery-routes.js";
 import { readRequestCookie } from "#src/server/http/request-cookie";
 import type { Express, NextFunction, Request, Response } from "express";
 
 import {
   AuthInvalidCredentialsError,
+  IdentityValidationError,
   type IdentityRepos,
   type PrincipalKind as IdentityPrincipalKind,
   type PrincipalRecord,
 } from "@jini-ai/user-management";
 import {
+  beginOwnerLogin,
+  beginPrincipalSignIn,
+  completeOwnerLogin,
   createSessionForPrincipal,
   getEffectivePermissions,
   login,
@@ -22,6 +30,7 @@ import type { ClockDeps, IdentityDeps, RouteDeps } from "../../routes/types.js";
 import { authenticateApiKey, type ApiKeyServiceDeps } from "#src/features/identity/api-key-service";
 import { createRateLimiter, LOGIN_STRICT, resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
 import { createBootSessionTokenStore, redeemBootSessionToken } from "#src/features/identity/boot-session-token";
+import { sendAdminFailure } from "./routes/system/site-share-errors.js";
 import { allowsLocalOwnerSignInRequest, bootLocalOwnerSignIn, type LocalOwnerSignInPolicy } from "../../runtime/boot/local-owner-signin.js";
 import { DEFAULT_OWNER_PASSWORD } from "#src/features/identity/wiring";
 import { callerMayManageUserTrash, principalHoldsBuiltinAdminRole, principalHoldsOwnerWildcard } from "#src/features/identity/delete-user-service";
@@ -173,6 +182,7 @@ function identityReposFrom(deps: IdentityDeps): IdentityRepos {
 function authServiceDepsFrom(deps: SessionAuthDeps): AuthServiceDeps {
   return {
     repos: identityReposFrom(deps),
+    ...(deps.mfaStore ? { mfaStore: deps.mfaStore } : {}),
     hasher: deps.passwordHasher,
     clock: { nowMs: () => Date.parse(deps.clock.nowIso()) },
     idGen: deps.idGen,
@@ -454,7 +464,13 @@ function isLoopbackPeer(req: Request): boolean {
  *
  * @complexity O(1) — one session write (inside the shared minter).
  */
-async function mintSessionForPrincipal(deps: SessionAuthDeps, principalId: string): Promise<{ rawToken: string; expiresAt: string }> {
+async function mintSessionForPrincipal(deps: SessionAuthDeps, principalId: string): Promise<{ mfaRequired: true; pendingToken: string } | { rawToken: string; expiresAt: string }> {
+  if (deps.mfaStore) {
+    const result = await beginPrincipalSignIn({ deps: await ownerMfaDepsFrom({ deps }),
+      input: { workspaceId: deps.workspaceId, principalId } }, { sessionTtlMs: SESSION_TTL_MS });
+    if ("mfaRequired" in result) return result;
+    return { rawToken: result.rawToken, expiresAt: result.session.expiresAt };
+  }
   const { session, rawToken } = await createSessionForPrincipal({
     deps: authServiceDepsFrom(deps),
     input: { workspaceId: deps.workspaceId, principalId },
@@ -474,6 +490,26 @@ async function resolveBootOwner(
   return { principalId, principal };
 }
 
+/** Anonymous auth replies disclose only the operation, recovery action and incident ID.
+ * Wrap the cause so the shared helper's domain-specific refusals cannot disclose backend facts.
+ * Diagnostics retain the cause through the shared redactor; no credentials enter the reply.
+ * @complexity O(diagnostic length) redaction, one log and at most one configured tracker event.
+ */
+function sendAuthFailure(
+  { res, error, operation }: { res: Response; error: unknown; operation: "login" | "logout" | "boot-session" },
+  _options = {},
+): void {
+  const signingOut = operation === "logout";
+  sendAdminFailure({ res, error: new Error("Authentication operation failed", { cause: error }) }, {
+    operation: `auth-${operation}`,
+    message: signingOut ? "Sign-out could not finish." : "Sign-in could not finish.",
+    failure: {
+      step: `auth-${operation}`,
+      action: signingOut ? "Try signing out again. If it still fails, copy details and report this problem." : "Try signing in again. If it still fails, copy details and report this problem.",
+    },
+  });
+}
+
 /** Shared desktop/browser exchange: consume once, verify the real session, then set its cookie.
  * Resolves null after sending the existing rejection body. Repository failures propagate.
  * @complexity O(1): a bounded number of principal/session lookups and one session write.
@@ -488,11 +524,13 @@ export async function redeemOwnerBootSession(
   }
   const owner = await resolveBootOwner({ deps });
   if (!owner) {
-    res.status(500).json({ error: "internal error" });
+    sendAuthFailure({ res, error: new Error("Boot owner is unavailable"), operation: "boot-session" });
     return null;
   }
   const { principalId, principal } = owner;
-  const { rawToken, expiresAt } = await mintSessionForPrincipal(deps, principalId);
+  const minted = await mintSessionForPrincipal(deps, principalId);
+  if ("mfaRequired" in minted) { res.setHeader("Cache-Control", "no-store"); res.json(minted); return null; }
+  const { rawToken, expiresAt } = minted;
   // The fork guard promised in `mintSessionForPrincipal`'s doc: prove the row this route just
   // wrote is one the library itself will accept, BEFORE setting a cookie on it. Without this, a
   // future change to the library's private token hashing would leave every desktop launch
@@ -501,7 +539,7 @@ export async function redeemOwnerBootSession(
     deps: authServiceDepsFrom(deps), input: { workspaceId: deps.workspaceId, rawToken },
   });
   if (!confirmed?.principal) {
-    res.status(500).json({ error: "internal error" });
+    sendAuthFailure({ res, error: new Error("Boot session confirmation failed"), operation: "boot-session" });
     return null;
   }
   // The ordinary desktop cookie also replaces/clears local bootstrap; revoke what it supersedes.
@@ -536,6 +574,16 @@ function signalAdminSignIn({ deps, principalId, port }: { deps: SessionAuthDeps;
     .catch(() => console.warn("[admin-auth] post-sign-in form pull check failed; sign-in is unaffected"));
 }
 
+/** Shared request metadata for every ordinary owner session. O(1), no I/O. */
+function sessionRequestOptions({ req }: { req: Request }) {
+  return { ip: req.ip, userAgent: req.get("user-agent") ?? undefined, sessionTtlMs: SESSION_TTL_MS };
+}
+
+/** MFA proofs are strings; objects/numbers never become bearer tokens by coercion. O(1). */
+function mfaBodyText({ req, key }: { req: Request; key: string }): string {
+  return typeof req.body?.[key] === "string" ? req.body[key] as string : "";
+}
+
 /** Registers login/logout/me and the loopback boot exchange before the admin session gate.
  * `onAdminSignIn` hears every owner/admin sign-in: password login and both boot-session exchanges. */
 export function registerAuthRoutes(app: Express, deps: RouteDeps,
@@ -546,6 +594,24 @@ export function registerAuthRoutes(app: Express, deps: RouteDeps,
   // `createApp()`/`createRouteDeps()` pair (and therefore each test's server)
   // gets an isolated counter store rather than sharing process-wide state.
   const loginRateLimiter = createRateLimiter({ profile: LOGIN_STRICT, clock: { nowMs: () => Date.parse(deps.clock.nowIso()) } });
+
+  registerOwnerRecoveryRoutes({ app, deps, limiter: loginRateLimiter,
+    authenticate: req => currentPrincipal(deps, req, { localOwnerSignIn }),
+    desktopOwnerReset: localOwnerSignIn.enabled && !!localOwnerSignIn.acceptsCapability,
+    ...(localOwnerSignIn.acceptsCapability ? { acceptsDesktopCapability: localOwnerSignIn.acceptsCapability } : {}) });
+
+  registerOwnerMfaRoutes({ app, deps, limiter: loginRateLimiter,
+    authenticate: req => currentCredential(deps, req, { localOwnerSignIn }) });
+  registerOwnerPasskeyRoutes({ app, deps, limiter: loginRateLimiter,
+    authenticate: req => currentCredential(deps, req, { localOwnerSignIn }),
+    signedIn: async (req, res, result) => {
+      await revokeRequestSessions({ deps, req });
+      setSessionCookie(res, result.rawToken, result.session.expiresAt);
+      const user = await deps.userRepo.findByPrincipalId({ workspaceId: deps.workspaceId, principalId: result.principal.id });
+      signalAdminSignIn({ deps, principalId: result.principal.id, port: onAdminSignIn });
+      res.json({ user: { id: result.principal.id, username: user?.username ?? result.principal.displayName } });
+    },
+  });
 
   app.post("/api/admin/v1/auth/login", async (req, res) => {
     try {
@@ -569,18 +635,21 @@ export function registerAuthRoutes(app: Express, deps: RouteDeps,
       const username = String(req.body?.username ?? "");
       const password = String(req.body?.password ?? "");
 
-      const { principal, session, rawToken } = await login({
+      const result = deps.mfaStore
+        ? await beginOwnerLogin({ deps: await ownerMfaDepsFrom({ deps }), input: { workspaceId: deps.workspaceId, username, password } },
+          sessionRequestOptions({ req }))
+        : await login({
         deps: authServiceDepsFrom(deps),
         input: {
           workspaceId: deps.workspaceId,
           username,
           password,
         },
-      }, {
-        ip: req.ip,
-        userAgent: req.get("user-agent") ?? undefined,
-        sessionTtlMs: SESSION_TTL_MS,
-      });
+      }, sessionRequestOptions({ req }));
+
+      res.setHeader("Cache-Control", "no-store");
+      if ("mfaRequired" in result) { res.json(result); return; }
+      const { principal, session, rawToken } = result;
 
       // Credentials succeeded; revoke both superseded bearers before clearing/replacing cookies.
       await revokeRequestSessions({ deps, req });
@@ -592,7 +661,31 @@ export function registerAuthRoutes(app: Express, deps: RouteDeps,
         res.status(401).json({ error: "invalid username or password", code: "UNAUTHENTICATED" });
         return;
       }
-      res.status(500).json({ error: "internal error" });
+      sendAuthFailure({ res, error: err, operation: "login" });
+    }
+  });
+
+  app.post("/api/admin/v1/auth/mfa/login", async (req, res) => {
+    res.setHeader("Cache-Control", "no-store");
+    try {
+      const rate = await loginRateLimiter.check({ key: resolveClientIp(req) });
+      if (!rate.allowed) {
+        res.setHeader("Retry-After", String(rate.retryAfterSeconds));
+        res.status(429).json({ error: "Too many authenticator attempts. Wait a minute and try again.", code: "RATE_LIMIT_EXCEEDED" });
+        return;
+      }
+      const result = await completeOwnerLogin({ deps: await ownerMfaDepsFrom({ deps }),
+        input: { workspaceId: deps.workspaceId, pendingToken: mfaBodyText({ req, key: "pendingToken" }),
+          code: mfaBodyText({ req, key: "code" }) } },
+      sessionRequestOptions({ req }));
+      await revokeRequestSessions({ deps, req });
+      setSessionCookie(res, result.rawToken, result.session.expiresAt);
+      const user = await deps.userRepo.findByPrincipalId({ workspaceId: deps.workspaceId, principalId: result.principal.id });
+      signalAdminSignIn({ deps, principalId: result.principal.id, port: onAdminSignIn });
+      res.json({ user: { id: result.principal.id, username: user?.username ?? result.principal.displayName } });
+    } catch (error) {
+      if (error instanceof IdentityValidationError) { res.status(400).json({ error: error.message, code: "MFA_REFUSED" }); return; }
+      sendAuthFailure({ res, error, operation: "login" });
     }
   });
 
@@ -604,8 +697,8 @@ export function registerAuthRoutes(app: Express, deps: RouteDeps,
       await revokeRequestSessions({ deps, req });
       clearSessionCookie(res);
       res.json({ ok: true });
-    } catch {
-      res.status(500).json({ error: "internal error" });
+    } catch (error) {
+      sendAuthFailure({ res, error, operation: "logout" });
     }
   });
 

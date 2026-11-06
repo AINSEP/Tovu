@@ -4,7 +4,7 @@ import {
   PresentationSettingsValidationError,
   setActiveTheme,
 } from "#src/features/presentation/index";
-import { findStoredTheme, validThemeIds, writableThemeIds, requestThemePreviewRefresh } from "#src/features/theme/index";
+import { findStoredTheme, validThemeIds, writableThemeIds, requestThemePreviewRefresh, ThemeStylingRequiredError } from "#src/features/theme/index";
 import { toAdminPresentationResponse } from "#src/server/inbound/admin-http/http/presentation";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentRouteRegistrar } from "../content/deps.js";
@@ -33,12 +33,12 @@ function readActiveThemeId(body: unknown): string {
 
 /**
  * Maps a caught error from `setActiveTheme` to its status/body. Pulled out of the route handler for
- * the same reason as {@link readActiveThemeId}: the two `instanceof` checks are independent decision
+ * the same reason as {@link readActiveThemeId}: the error-category checks are independent decision
  * points that add to cyclomatic complexity without adding nesting, so moving them here is a pure
  * complexity-gate fix — still the same 400/404/500 statuses and bodies as before.
  */
 function presentationPatchErrorResponse(err: unknown, options: AdminFailurePorts = {}): { status: number; body: { error: string } } {
-  if (err instanceof PresentationSettingsValidationError) {
+  if (err instanceof PresentationSettingsValidationError || err instanceof ThemeStylingRequiredError) {
     return { status: 400, body: { error: err.message } };
   }
   if (err instanceof PresentationSettingsNotFoundError) {
@@ -76,7 +76,7 @@ export const registerAdminPresentationPatchRoute: ContentRouteRegistrar = (app, 
           repo: deps.presentationRepo,
           tracker: deps.tracker,
           clock: deps.clock,
-          availableThemeIds: writableThemeIds(deps),
+          availableThemeIds: writableThemeIds(deps, { requestedThemeId: readActiveThemeId(req.body) }),
         },
         input: {
           workspaceId: deps.workspaceId,

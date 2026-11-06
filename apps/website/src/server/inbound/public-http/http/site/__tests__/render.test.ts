@@ -1606,8 +1606,8 @@ test("contact-form widget: a field's maxLength reaches the rendered input as max
     }),
   });
   // Attribute order and HTML void-tag spelling belong to the shared renderer, not this contract.
-  assert.match(html, /<textarea\b(?=[^>]* name="message")(?=[^>]* id="widget-contact-message")(?=[^>]* required\b)(?=[^>]* maxlength="500")[^>]*>/);
-  assert.match(html, /<input\b(?=[^>]* type="email")(?=[^>]* name="email")(?=[^>]* id="widget-contact-email")(?=[^>]* required\b)(?=[^>]* maxlength="120")[^>]*>/);
+  assert.match(html, /<textarea\b(?=[^>]* name="message")(?=[^>]* id="widget-contact-[0-9a-f-]{36}-message")(?=[^>]* required\b)(?=[^>]* maxlength="500")[^>]*>/);
+  assert.match(html, /<input\b(?=[^>]* type="email")(?=[^>]* name="email")(?=[^>]* id="widget-contact-[0-9a-f-]{36}-email")(?=[^>]* required\b)(?=[^>]* maxlength="120")[^>]*>/);
   assert.doesNotMatch(html, /<input\b(?=[^>]* name="agree")(?=[^>]* maxlength=)[^>]*>/);
 });
 
@@ -1884,8 +1884,8 @@ test("contact-form widget: renders a hidden success slot from props.successMessa
     /<div class="tovu-form-success widget-contact-form-success" data-form-slug="contact" data-contact-form-slug="contact" hidden>Thanks &lt;for&gt; reaching out<\/div>/
   );
   assert.match(html, /<div class="tovu-form-error widget-contact-form-error" data-form-slug="contact" data-contact-form-slug="contact" hidden><\/div>/);
-  assert.match(html, /<div class="widget-form-field-error" data-field="email" id="widget-contact-email-error" hidden><\/div>/);
-  assert.match(html, /aria-describedby="widget-contact-email-error"/);
+  assert.match(html, /<div class="widget-form-field-error" data-field="email" id="widget-contact-[0-9a-f-]{36}-email-error" hidden><\/div>/);
+  assert.match(html, /aria-describedby="widget-contact-[0-9a-f-]{36}-email-error"/);
 });
 
 // ---------------------------------------------------------------------------
@@ -1932,7 +1932,7 @@ test("builder form: an empty required email shows a friendly field sentence whil
   assert.deepEqual(decoded, result);
 
   const updated = injectFormSubmissionResultIntoHtml(html, decoded);
-  assert.match(updated, /<div class="widget-form-field-error" data-field="email" id="widget-contact-email-error">Please enter your email\.<\/div>/);
+  assert.match(updated, /<div class="widget-form-field-error" data-field="email" id="widget-contact-[0-9a-f-]{36}-email-error">Please enter your email\.<\/div>/);
   assert.match(updated, /<div class="tovu-form-error widget-contact-form-error" data-form-slug="contact-us" data-contact-form-slug="contact-us">Please fix the highlighted fields below\.<\/div>/);
   assert.doesNotMatch(updated, />required<\/div>/);
   assert.equal(encodeFormSubmissionResultQuery(result).toString(), params.toString(), "rendering must leave machine-readable reasons unchanged");
@@ -1946,17 +1946,22 @@ test("builder field instructions use document language and honor a form language
     [`<html lang="es-MX">${html.replace("<form ", '<form lang="fr" ')}</html>`, "Veuillez renseigner Email."],
   ]) {
     const updated = injectFormSubmissionResultIntoHtml(page, result);
-    assert.ok(updated.includes(`id="widget-contact-email-error">${expected}</div>`));
+    const errorId = html.match(/ id="(widget-contact-[0-9a-f-]{36}-email-error)"/)?.[1];
+    assert.ok(errorId);
+    assert.ok(updated.includes(`id="${errorId}">${expected}</div>`));
     assert.match(updated, /Please fix the highlighted fields below\./);
   }
 });
 
 test("builder fields translate length and invalid reasons into label-based instructions", () => {
   for (const [reason, message] of [["too_long", "Please keep your email to 100 characters or fewer."], ["invalid", "Please check your email."]]) {
-    const updated = injectFormSubmissionResultIntoHtml(contactFormPageHtml(), {
+    const html = contactFormPageHtml();
+    const updated = injectFormSubmissionResultIntoHtml(html, {
       kind: "validation", slug: "contact", fieldErrors: [{ field: "email", reason }],
     });
-    assert.ok(updated.includes(`id="widget-contact-email-error">${message}</div>`));
+    const errorId = html.match(/ id="(widget-contact-[0-9a-f-]{36}-email-error)"/)?.[1];
+    assert.ok(errorId);
+    assert.ok(updated.includes(`id="${errorId}">${message}</div>`));
   }
 });
 
@@ -1977,7 +1982,7 @@ test("injectFormSubmissionResultIntoHtml: validation reveals a friendly matching
     slug: "contact",
     fieldErrors: [{ field: "email", reason: "<script>bad</script>" }],
   });
-  assert.match(updated, /<div class="widget-form-field-error" data-field="email" id="widget-contact-email-error">Please check your email\.<\/div>/);
+  assert.match(updated, /<div class="widget-form-field-error" data-field="email" id="widget-contact-[0-9a-f-]{36}-email-error">Please check your email\.<\/div>/);
   assert.doesNotMatch(updated, /bad|&lt;script&gt;/, "forged reason text must never be echoed");
   assert.match(updated, /data-field="message"[^>]*hidden><\/div>/, "an untouched field's error slot must stay hidden");
   assert.match(updated, /Please fix the highlighted fields below\./);
@@ -1992,7 +1997,7 @@ test("injectFormSubmissionResultIntoHtml: a field label containing an apostrophe
     slug: "contact",
     fieldErrors: [{ field: "email", reason: "required" }],
   });
-  assert.match(updated, /id="widget-contact-email-error">Please enter Recipient&#39;s email\.<\/div>/, "an apostrophe in the field instruction must be escaped");
+  assert.match(updated, /id="widget-contact-[0-9a-f-]{36}-email-error">Please enter Recipient&#39;s email\.<\/div>/, "an apostrophe in the field instruction must be escaped");
   assert.doesNotMatch(updated, /Recipient's email</, "a raw, unescaped apostrophe must never survive into rendered HTML");
 });
 
@@ -2005,7 +2010,7 @@ test("injectFormSubmissionResultIntoHtml: a field label containing '$&'/'$1'-sha
     slug: "contact",
     fieldErrors: [{ field: "email", reason: "required" }],
   });
-  assert.match(updated, /id="widget-contact-email-error">Please enter cost is \$1\.00, not \$&amp;\.<\/div>/);
+  assert.match(updated, /id="widget-contact-[0-9a-f-]{36}-email-error">Please enter cost is \$1\.00, not \$&amp;\.<\/div>/);
   // A `$&` mis-substitution would have duplicated the matched substring inline — the baseline count
   // (success slot + form tag + the form's own error-summary div, all three carry the attribute) must
   // stay exactly 3, not grow. Checked on BOTH the legacy attribute and the generic one it now stands
@@ -2101,7 +2106,7 @@ test("decodeFormSubmissionResultFromQuery -> injectFormSubmissionResultIntoHtml:
   assert.doesNotMatch(updated, /<script>alert\(1\)<\/script>/, "the hostile reason must never reach the response as live markup");
   assert.match(
     updated,
-    /<div class="widget-form-field-error" data-field="email" id="widget-contact-email-error">Please check your email\.<\/div>/,
+    /<div class="widget-form-field-error" data-field="email" id="widget-contact-[0-9a-f-]{36}-email-error">Please check your email\.<\/div>/,
     "the email field's error slot must show a friendly instruction"
   );
   assert.doesNotMatch(updated, /alert\(1\)|__proto__|no-such-field/);
@@ -2209,12 +2214,12 @@ test("injectFormSubmissionResultIntoHtml: validation WITH flash values re-popula
   });
   // The two fields that were VALID (no error) must come back with what the visitor typed — this is
   // the actual bug: before the fix, a 303 PRG reload wiped these even though only "message" failed.
-  assert.match(updated, /<input\b(?=[^>]* type="text")(?=[^>]* name="name")(?=[^>]* id="widget-contact-name")(?=[^>]* aria-describedby="widget-contact-name-error")(?=[^>]* value="Ada &lt;Lovelace&gt;")[^>]*>/);
-  assert.match(updated, /<input\b(?=[^>]* type="email")(?=[^>]* name="email")(?=[^>]* id="widget-contact-email")(?=[^>]* aria-describedby="widget-contact-email-error")(?=[^>]* value="ada@example\.com")[^>]*>/);
+  assert.match(updated, /<input\b(?=[^>]* type="text")(?=[^>]* name="name")(?=[^>]* id="widget-contact-[0-9a-f-]{36}-name")(?=[^>]* aria-describedby="widget-contact-[0-9a-f-]{36}-name-error")(?=[^>]* value="Ada &lt;Lovelace&gt;")[^>]*>/);
+  assert.match(updated, /<input\b(?=[^>]* type="email")(?=[^>]* name="email")(?=[^>]* id="widget-contact-[0-9a-f-]{36}-email")(?=[^>]* aria-describedby="widget-contact-[0-9a-f-]{36}-email-error")(?=[^>]* value="ada@example\.com")[^>]*>/);
   // The invalid field has no flash entry (only name/email were supplied above) — its own error slot
   // still gets its message, and its <textarea> is untouched (not forced empty, not crashed on).
   assert.match(updated, /<div class="widget-form-field-error" data-field="message"[^>]*>Please enter Message\.<\/div>/);
-  assert.match(updated, /<textarea\b(?=[^>]* name="message")(?=[^>]* id="widget-contact-message")[^>]*><\/textarea>/);
+  assert.match(updated, /<textarea\b(?=[^>]* name="message")(?=[^>]* id="widget-contact-[0-9a-f-]{36}-message")[^>]*><\/textarea>/);
 });
 
 test("injectFormSubmissionResultIntoHtml: a flash value naming a field this page's form does not have is a silent no-op for that entry (stale/forged flash)", () => {

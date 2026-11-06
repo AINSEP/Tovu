@@ -6,7 +6,7 @@ import { agentHandle } from "@jini-ai/agentic";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { adminHref, navigate } from "../../lib/router";
 import { TabBar } from "@jini-ai/ui/tab-strip";
-import { formatTimestamp } from "@jini-ai/ui/panel-kit";
+import { ErrorNotice, formatTimestamp } from "@jini-ai/ui/panel-kit";
 import { interpolate, splitOnPlaceholders } from "@jini-ai/ui/panel-kit";
 import type {
   AdminExportRunSnapshot,
@@ -38,6 +38,11 @@ import { useWiredStaticPublish } from "./hooks/use-static-publish.hooks";
 import type { StaticPublishController } from "./hooks/use-static-publish.hooks";
 import { useWiredPublishCredentials } from "./hooks/use-publish-credentials.hooks";
 import type { PublishCredentialRowState, PublishCredentialsController } from "./hooks/use-publish-credentials.hooks";
+
+function PublishFailureNotice({ controller, t: translate }: { controller: StaticPublishController; t: Translate }) {
+  if (controller.publishFailure) return <ErrorNotice failure={controller.publishFailure} t={translate} className="save-error" />;
+  return controller.publishError ? <p className="save-error" role="alert">{controller.publishError}</p> : null;
+}
 
 /**
  * @file Static Site tab — what a static export produces, a real trigger+poll build action, and a
@@ -1269,11 +1274,7 @@ function PublishTriggerAction({
       <p className="deployment-action-reason">
         {translate("This is immediately live on the public internet once it finishes — there is no draft or review step.")}
       </p>
-      {controller.publishError ? (
-        <p className="save-error" role="alert">
-          {controller.publishError}
-        </p>
-      ) : null}
+      <PublishFailureNotice controller={controller} t={translate} />
       {controller.pollError ? (
         <p
           className="notice warning"

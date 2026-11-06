@@ -3,18 +3,24 @@
  */
 export const OWNER_STORE_CHANNELS = {
   status: 'runner:owner-store:status', list: 'runner:owner-store:list',
-  put: 'runner:owner-store:put', import: 'runner:owner-store:import',
+  put: 'runner:owner-store:put', delete: 'runner:owner-store:delete', import: 'runner:owner-store:import',
+  disconnect: 'runner:owner-store:disconnect',
 } as const;
 export type OwnerStoreAction = keyof typeof OWNER_STORE_CHANNELS;
-export type OwnerStoreKind = 'vendor' | 'site-assistant' | 'media-provider' | 'publish-peer' | 'source-control' | 'database-destination';
+export type OwnerStoreKind = 'vendor' | 'site-assistant' | 'media-provider' | 'publish-peer' | 'source-control' | 'database-destination' | 'custom' | 'api-connection';
 
 /** The CLI's safe inventory view; no payload, arbitrary meta, envelope or key hints. */
 export interface OwnerStoreEntry {
   id: string; kind: OwnerStoreKind; label: string; provider: string | null;
   revision: number; configured: boolean; isDefault: boolean; worksFor: string[];
+  sharedOAuth?: boolean; usedBy?: string[]; status?: string;
+}
+export interface SharedOAuthDisconnectReport {
+  id: string; label: string; sites: string[]; revision: number; sourceDigest?: string;
+  applied: boolean; status: string; remoteRevocation: 'confirmed' | 'pending' | 'not-needed';
 }
 export interface OwnerStorePutEntry {
-  id?: string; kind?: OwnerStoreKind; label: string; provider: string;
+  id?: string; kind?: OwnerStoreKind; label: string; provider: string | null;
   meta: Record<string, unknown>; payload: Record<string, unknown>;
   /** null creates; replacing requires id and the last inventory revision. */
   expectedRevision: number | null;
@@ -42,12 +48,16 @@ export type LegacyOwnerState = 'none' | 'empty' | 'available' | 'settled';
 /** CLI fields exclude userDataDir: main supplies Electron's resolved profile on every call. */
 export interface OwnerStoreCliFields {
   status: {}; list: { store?: 'project' }; put: { entry: OwnerStorePutEntry; store?: 'project' };
+  delete: { id: string; expectedRevision: number };
+  disconnect: { id: string; expectedRevision: number; apply: boolean; expectedDigest?: string };
   import: { source: LegacyImportSource; apply: boolean; filePath?: string; passphrase?: string; expectedDigest?: string };
 }
 export interface OwnerStoreData {
   status: { legacy: LegacyOwnerState; entries: number; grants: number };
   list: { entries: OwnerStoreEntry[] };
   put: { entry: OwnerStoreEntry };
+  delete: { removed: boolean };
+  disconnect: SharedOAuthDisconnectReport;
   import: LegacyImportReport;
 }
 export interface OwnerStoreError { code: string; message: string }
@@ -58,6 +68,8 @@ export type OwnerStoreReply<A extends OwnerStoreAction = OwnerStoreAction> =
 /** Renderer supplies secrets and picks a source; main alone chooses filesystem paths. */
 export interface OwnerStoreInput {
   status: {}; list: OwnerStoreCliFields['list']; put: OwnerStoreCliFields['put'];
+  delete: OwnerStoreCliFields['delete'];
+  disconnect: { id: string; expectedRevision: number };
   import: { source: LegacyImportSource; passphrase?: string };
 }
 /** Exposed as window.tovuOwnerStore. Example: await bridge.list({}, {}). */

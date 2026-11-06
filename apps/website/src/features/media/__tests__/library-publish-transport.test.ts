@@ -49,7 +49,9 @@ test('Library document-only blob hashes cannot be downloaded through publish pee
     if (phase === 'purged') await purgeMedia({ deps: sharedDeps, input: { workspaceId: deps.workspaceId, id: media.id } });
     const response = await fetch(`${base}/api/admin/v1/workspaces/site-a/publish-content/blobs/${media.source.sha256}`);
     assert.equal(response.status, 404, phase); await response.arrayBuffer();
-    assert.match((await handler.precheck(entity))!, /documents cannot be published/i);
+    const documentRefusal = await handler.precheck(entity);
+    assert.ok(typeof documentRefusal === "string");
+    assert.match(documentRefusal, /documents cannot be published/i);
     await assert.rejects(handler.apply({ entity, expectedVersion: undefined, principalId: 'owner', idempotencyKey: phase }), /documents cannot be published/i);
     assert.equal(await deps.mediaRepo.findById({ workspaceId: deps.workspaceId, id }), null);
     assert.equal(reads, 0, phase);

@@ -211,30 +211,30 @@ for (const [locale, values] of Object.entries(STATIC_EXPORT_PICKER_DICT)) {
 }
 
 // Saved-keys export/import copy, merged the same way as the static export picker copy above.
-const SAVED_KEYS_LABELS = ["Include saved keys", "Saved keys password", "Export password", "Reveal password", "Revealing…", "Send this password separately", "Hide password", "Couldn't reveal the password.", "Couldn't copy the password. Copy it manually."] as const;
+const SAVED_KEYS_LABELS = ["Saved keys password", "Export password", "Reveal password", "Revealing…", "Send this password separately", "Hide password", "Couldn't reveal the password.", "Couldn't copy the password. Copy it manually."] as const;
 
 const SAVED_KEYS_COPY: Record<string, readonly string[]> = {
-  ar: ["تضمين المفاتيح المحفوظة", "كلمة مرور المفاتيح المحفوظة", "كلمة مرور التصدير", "إظهار كلمة المرور", "جارٍ الإظهار…", "أرسل كلمة المرور هذه بشكل منفصل", "إخفاء كلمة المرور", "تعذّر إظهار كلمة المرور.", "تعذّر نسخ كلمة المرور. انسخها يدويًا."],
-  bn: ["সংরক্ষিত কী অন্তর্ভুক্ত করুন", "সংরক্ষিত কীগুলির পাসওয়ার্ড", "রপ্তানির পাসওয়ার্ড", "পাসওয়ার্ড দেখান", "দেখানো হচ্ছে…", "এই পাসওয়ার্ড আলাদাভাবে পাঠান", "পাসওয়ার্ড লুকান", "পাসওয়ার্ড দেখানো যায়নি।", "পাসওয়ার্ড কপি করা যায়নি। নিজে কপি করুন।"],
-  de: ["Gespeicherte Schlüssel einschließen", "Passwort für gespeicherte Schlüssel", "Exportpasswort", "Passwort anzeigen", "Wird angezeigt…", "Dieses Passwort separat senden", "Passwort ausblenden", "Passwort konnte nicht angezeigt werden.", "Passwort konnte nicht kopiert werden. Bitte manuell kopieren."],
-  es: ["Incluir claves guardadas", "Contraseña de las claves guardadas", "Contraseña de exportación", "Mostrar contraseña", "Mostrando…", "Envía esta contraseña por separado", "Ocultar contraseña", "No se pudo mostrar la contraseña.", "No se pudo copiar la contraseña. Cópiala manualmente."],
-  fa: ["شامل کردن کلیدهای ذخیره‌شده", "گذرواژه کلیدهای ذخیره‌شده", "گذرواژه خروجی", "نمایش گذرواژه", "در حال نمایش…", "این گذرواژه را جداگانه ارسال کنید", "پنهان کردن گذرواژه", "نمایش گذرواژه ممکن نشد.", "کپی گذرواژه ممکن نشد. آن را دستی کپی کنید."],
-  fr: ["Inclure les clés enregistrées", "Mot de passe des clés enregistrées", "Mot de passe de l’export", "Afficher le mot de passe", "Affichage…", "Envoyez ce mot de passe séparément", "Masquer le mot de passe", "Impossible d’afficher le mot de passe.", "Impossible de copier le mot de passe. Copiez-le manuellement."],
-  hi: ["सहेजी गई कुंजियाँ शामिल करें", "सहेजी गई कुंजियों का पासवर्ड", "निर्यात पासवर्ड", "पासवर्ड दिखाएँ", "दिखाया जा रहा है…", "यह पासवर्ड अलग से भेजें", "पासवर्ड छिपाएँ", "पासवर्ड नहीं दिखाया जा सका।", "पासवर्ड कॉपी नहीं हो सका। इसे मैन्युअल रूप से कॉपी करें।"],
-  hu: ["Mentett kulcsok hozzáadása", "Mentett kulcsok jelszava", "Exportálási jelszó", "Jelszó megjelenítése", "Megjelenítés…", "Ezt a jelszót külön küldje el", "Jelszó elrejtése", "Nem sikerült megjeleníteni a jelszót.", "Nem sikerült másolni a jelszót. Másolja ki kézzel."],
-  id: ["Sertakan kunci tersimpan", "Kata sandi kunci tersimpan", "Kata sandi ekspor", "Tampilkan kata sandi", "Menampilkan…", "Kirim kata sandi ini secara terpisah", "Sembunyikan kata sandi", "Tidak dapat menampilkan kata sandi.", "Tidak dapat menyalin kata sandi. Salin secara manual."],
-  it: ["Includi le chiavi salvate", "Password delle chiavi salvate", "Password di esportazione", "Mostra password", "Visualizzazione…", "Invia questa password separatamente", "Nascondi password", "Impossibile mostrare la password.", "Impossibile copiare la password. Copiala manualmente."],
-  ja: ["保存済みのキーを含める", "保存済みキーのパスワード", "エクスポートのパスワード", "パスワードを表示", "表示中…", "このパスワードは別途送信してください", "パスワードを隠す", "パスワードを表示できませんでした。", "パスワードをコピーできませんでした。手動でコピーしてください。"],
-  ko: ["저장된 키 포함", "저장된 키 비밀번호", "내보내기 비밀번호", "비밀번호 표시", "표시 중…", "이 비밀번호는 별도로 보내세요", "비밀번호 숨기기", "비밀번호를 표시할 수 없습니다.", "비밀번호를 복사할 수 없습니다. 직접 복사하세요."],
-  pl: ["Dołącz zapisane klucze", "Hasło zapisanych kluczy", "Hasło eksportu", "Pokaż hasło", "Wyświetlanie…", "Wyślij to hasło osobno", "Ukryj hasło", "Nie udało się wyświetlić hasła.", "Nie udało się skopiować hasła. Skopiuj je ręcznie."],
-  "pt-BR": ["Incluir chaves salvas", "Senha das chaves salvas", "Senha da exportação", "Mostrar senha", "Mostrando…", "Envie esta senha separadamente", "Ocultar senha", "Não foi possível mostrar a senha.", "Não foi possível copiar a senha. Copie-a manualmente."],
-  ru: ["Включить сохранённые ключи", "Пароль сохранённых ключей", "Пароль экспорта", "Показать пароль", "Загрузка…", "Отправьте этот пароль отдельно", "Скрыть пароль", "Не удалось показать пароль.", "Не удалось скопировать пароль. Скопируйте его вручную."],
-  th: ["รวมคีย์ที่บันทึกไว้", "รหัสผ่านคีย์ที่บันทึกไว้", "รหัสผ่านการส่งออก", "แสดงรหัสผ่าน", "กำลังแสดง…", "ส่งรหัสผ่านนี้แยกต่างหาก", "ซ่อนรหัสผ่าน", "ไม่สามารถแสดงรหัสผ่านได้", "ไม่สามารถคัดลอกรหัสผ่านได้ โปรดคัดลอกด้วยตนเอง"],
-  tr: ["Kayıtlı anahtarları dahil et", "Kayıtlı anahtarların parolası", "Dışa aktarma parolası", "Parolayı göster", "Gösteriliyor…", "Bu parolayı ayrı gönderin", "Parolayı gizle", "Parola gösterilemedi.", "Parola kopyalanamadı. Elle kopyalayın."],
-  uk: ["Додати збережені ключі", "Пароль збережених ключів", "Пароль експорту", "Показати пароль", "Завантаження…", "Надішліть цей пароль окремо", "Приховати пароль", "Не вдалося показати пароль.", "Не вдалося скопіювати пароль. Скопіюйте його вручну."],
-  ur: ["محفوظ شدہ کلیدیں شامل کریں", "محفوظ شدہ کلیدوں کا پاس ورڈ", "برآمد کا پاس ورڈ", "پاس ورڈ دکھائیں", "دکھایا جا رہا ہے…", "یہ پاس ورڈ الگ سے بھیجیں", "پاس ورڈ چھپائیں", "پاس ورڈ نہیں دکھایا جا سکا۔", "پاس ورڈ کاپی نہیں ہو سکا۔ اسے دستی طور پر کاپی کریں۔"],
-  "zh-CN": ["包含已保存的密钥", "已保存密钥的密码", "导出密码", "显示密码", "正在显示…", "请单独发送此密码", "隐藏密码", "无法显示密码。", "无法复制密码。请手动复制。"],
-  "zh-TW": ["包含已儲存的金鑰", "已儲存金鑰的密碼", "匯出密碼", "顯示密碼", "正在顯示…", "請另外傳送此密碼", "隱藏密碼", "無法顯示密碼。", "無法複製密碼。請手動複製。"],
+  ar: ["كلمة مرور المفاتيح المحفوظة", "كلمة مرور التصدير", "إظهار كلمة المرور", "جارٍ الإظهار…", "أرسل كلمة المرور هذه بشكل منفصل", "إخفاء كلمة المرور", "تعذّر إظهار كلمة المرور.", "تعذّر نسخ كلمة المرور. انسخها يدويًا."],
+  bn: ["সংরক্ষিত কীগুলির পাসওয়ার্ড", "রপ্তানির পাসওয়ার্ড", "পাসওয়ার্ড দেখান", "দেখানো হচ্ছে…", "এই পাসওয়ার্ড আলাদাভাবে পাঠান", "পাসওয়ার্ড লুকান", "পাসওয়ার্ড দেখানো যায়নি।", "পাসওয়ার্ড কপি করা যায়নি। নিজে কপি করুন।"],
+  de: ["Passwort für gespeicherte Schlüssel", "Exportpasswort", "Passwort anzeigen", "Wird angezeigt…", "Dieses Passwort separat senden", "Passwort ausblenden", "Passwort konnte nicht angezeigt werden.", "Passwort konnte nicht kopiert werden. Bitte manuell kopieren."],
+  es: ["Contraseña de las claves guardadas", "Contraseña de exportación", "Mostrar contraseña", "Mostrando…", "Envía esta contraseña por separado", "Ocultar contraseña", "No se pudo mostrar la contraseña.", "No se pudo copiar la contraseña. Cópiala manualmente."],
+  fa: ["گذرواژه کلیدهای ذخیره‌شده", "گذرواژه خروجی", "نمایش گذرواژه", "در حال نمایش…", "این گذرواژه را جداگانه ارسال کنید", "پنهان کردن گذرواژه", "نمایش گذرواژه ممکن نشد.", "کپی گذرواژه ممکن نشد. آن را دستی کپی کنید."],
+  fr: ["Mot de passe des clés enregistrées", "Mot de passe de l’export", "Afficher le mot de passe", "Affichage…", "Envoyez ce mot de passe séparément", "Masquer le mot de passe", "Impossible d’afficher le mot de passe.", "Impossible de copier le mot de passe. Copiez-le manuellement."],
+  hi: ["सहेजी गई कुंजियों का पासवर्ड", "निर्यात पासवर्ड", "पासवर्ड दिखाएँ", "दिखाया जा रहा है…", "यह पासवर्ड अलग से भेजें", "पासवर्ड छिपाएँ", "पासवर्ड नहीं दिखाया जा सका।", "पासवर्ड कॉपी नहीं हो सका। इसे मैन्युअल रूप से कॉपी करें।"],
+  hu: ["Mentett kulcsok jelszava", "Exportálási jelszó", "Jelszó megjelenítése", "Megjelenítés…", "Ezt a jelszót külön küldje el", "Jelszó elrejtése", "Nem sikerült megjeleníteni a jelszót.", "Nem sikerült másolni a jelszót. Másolja ki kézzel."],
+  id: ["Kata sandi kunci tersimpan", "Kata sandi ekspor", "Tampilkan kata sandi", "Menampilkan…", "Kirim kata sandi ini secara terpisah", "Sembunyikan kata sandi", "Tidak dapat menampilkan kata sandi.", "Tidak dapat menyalin kata sandi. Salin secara manual."],
+  it: ["Password delle chiavi salvate", "Password di esportazione", "Mostra password", "Visualizzazione…", "Invia questa password separatamente", "Nascondi password", "Impossibile mostrare la password.", "Impossibile copiare la password. Copiala manualmente."],
+  ja: ["保存済みキーのパスワード", "エクスポートのパスワード", "パスワードを表示", "表示中…", "このパスワードは別途送信してください", "パスワードを隠す", "パスワードを表示できませんでした。", "パスワードをコピーできませんでした。手動でコピーしてください。"],
+  ko: ["저장된 키 비밀번호", "내보내기 비밀번호", "비밀번호 표시", "표시 중…", "이 비밀번호는 별도로 보내세요", "비밀번호 숨기기", "비밀번호를 표시할 수 없습니다.", "비밀번호를 복사할 수 없습니다. 직접 복사하세요."],
+  pl: ["Hasło zapisanych kluczy", "Hasło eksportu", "Pokaż hasło", "Wyświetlanie…", "Wyślij to hasło osobno", "Ukryj hasło", "Nie udało się wyświetlić hasła.", "Nie udało się skopiować hasła. Skopiuj je ręcznie."],
+  "pt-BR": ["Senha das chaves salvas", "Senha da exportação", "Mostrar senha", "Mostrando…", "Envie esta senha separadamente", "Ocultar senha", "Não foi possível mostrar a senha.", "Não foi possível copiar a senha. Copie-a manualmente."],
+  ru: ["Пароль сохранённых ключей", "Пароль экспорта", "Показать пароль", "Загрузка…", "Отправьте этот пароль отдельно", "Скрыть пароль", "Не удалось показать пароль.", "Не удалось скопировать пароль. Скопируйте его вручную."],
+  th: ["รหัสผ่านคีย์ที่บันทึกไว้", "รหัสผ่านการส่งออก", "แสดงรหัสผ่าน", "กำลังแสดง…", "ส่งรหัสผ่านนี้แยกต่างหาก", "ซ่อนรหัสผ่าน", "ไม่สามารถแสดงรหัสผ่านได้", "ไม่สามารถคัดลอกรหัสผ่านได้ โปรดคัดลอกด้วยตนเอง"],
+  tr: ["Kayıtlı anahtarların parolası", "Dışa aktarma parolası", "Parolayı göster", "Gösteriliyor…", "Bu parolayı ayrı gönderin", "Parolayı gizle", "Parola gösterilemedi.", "Parola kopyalanamadı. Elle kopyalayın."],
+  uk: ["Пароль збережених ключів", "Пароль експорту", "Показати пароль", "Завантаження…", "Надішліть цей пароль окремо", "Приховати пароль", "Не вдалося показати пароль.", "Не вдалося скопіювати пароль. Скопіюйте його вручну."],
+  ur: ["محفوظ شدہ کلیدوں کا پاس ورڈ", "برآمد کا پاس ورڈ", "پاس ورڈ دکھائیں", "دکھایا جا رہا ہے…", "یہ پاس ورڈ الگ سے بھیجیں", "پاس ورڈ چھپائیں", "پاس ورڈ نہیں دکھایا جا سکا۔", "پاس ورڈ کاپی نہیں ہو سکا۔ اسے دستی طور پر کاپی کریں۔"],
+  "zh-CN": ["已保存密钥的密码", "导出密码", "显示密码", "正在显示…", "请单独发送此密码", "隐藏密码", "无法显示密码。", "无法复制密码。请手动复制。"],
+  "zh-TW": ["已儲存金鑰的密碼", "匯出密碼", "顯示密碼", "正在顯示…", "請另外傳送此密碼", "隱藏密碼", "無法顯示密碼。", "無法複製密碼。請手動複製。"],
 };
 
 for (const [locale, values] of Object.entries(SAVED_KEYS_COPY)) {
@@ -281,5 +281,32 @@ const CREDENTIAL_COPY: Record<string, readonly string[]> = {
 for (const [locale, values] of Object.entries(CREDENTIAL_COPY)) {
   Object.assign(SITE_TRANSFER_DICT[locale], Object.fromEntries(CREDENTIAL_LABELS.map((key, index) => [key, values[index]!])));
 }
+
+// The notices' warning sign (owner, 2026-11-05).
+const WARNING_LABEL: Record<string, string> = {
+  ar: "تحذير",
+  bn: "সতর্কতা",
+  de: "Warnung",
+  es: "Advertencia",
+  fa: "هشدار",
+  fr: "Avertissement",
+  hi: "चेतावनी",
+  hu: "Figyelmeztetés",
+  id: "Peringatan",
+  it: "Avviso",
+  ja: "警告",
+  ko: "경고",
+  pl: "Ostrzeżenie",
+  "pt-BR": "Aviso",
+  ru: "Предупреждение",
+  th: "คำเตือน",
+  tr: "Uyarı",
+  uk: "Попередження",
+  ur: "انتباہ",
+  "zh-CN": "警告",
+  "zh-TW": "警告",
+};
+
+for (const [locale, value] of Object.entries(WARNING_LABEL)) Object.assign(SITE_TRANSFER_DICT[locale], { Warning: value });
 
 export const t = createDictionaryTranslator({ featureDictionary: SITE_TRANSFER_DICT }, { commonDictionary: COMMON_I18N });

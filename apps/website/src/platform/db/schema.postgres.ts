@@ -9,7 +9,7 @@
  * declarations, and PostgreSQL's tsvector/GIN equivalent is hand-authored. See the generator's
  * module doc.
  *
- * Tables: 78
+ * Tables: 82
  */
 import { sql } from "drizzle-orm";
 import { bigint, boolean, check, customType, foreignKey, index, pgTable, primaryKey, text, uniqueIndex } from "drizzle-orm/pg-core";
@@ -641,6 +641,48 @@ export const outboxEvents = pgTable("outbox_events", {
   createdAt: text("created_at").notNull(),
 }, (t) => [
     index("idx_outbox_events_claim").on(t.status, t.nextAttemptAt),
+  ]);
+
+export const ownerMfaFactors = pgTable("owner_mfa_factors", {
+  workspaceId: text("workspace_id").notNull(),
+  principalId: text("principal_id").notNull(),
+  sealedSecret: text("sealed_secret").notNull(),
+  lastStep: bigint("last_step", { mode: "number" }).notNull(),
+}, (t) => [
+    primaryKey({ columns: [t.workspaceId, t.principalId] }),
+  ]);
+
+export const ownerMfaPending = pgTable("owner_mfa_pending", {
+  workspaceId: text("workspace_id").notNull(),
+  principalId: text("principal_id").notNull(),
+  purpose: text("purpose").notNull(),
+  tokenHash: text("token_hash").notNull(),
+  expiresAt: bigint("expires_at", { mode: "number" }).notNull(),
+  attempts: bigint("attempts", { mode: "number" }).notNull(),
+  sealedSecret: text("sealed_secret"),
+}, (t) => [
+    primaryKey({ columns: [t.workspaceId, t.principalId, t.purpose] }),
+    uniqueIndex("idx_owner_mfa_pending_workspace_token").on(t.workspaceId, t.tokenHash),
+  ]);
+
+export const ownerPasskeys = pgTable("owner_passkeys", {
+  workspaceId: text("workspace_id").notNull(),
+  principalId: text("principal_id").notNull(),
+  credentialId: text("credential_id").notNull(),
+  publicKey: text("public_key").notNull(),
+  counter: bigint("counter", { mode: "number" }).notNull(),
+  rpId: text("rp_id").notNull(),
+}, (t) => [
+    primaryKey({ columns: [t.workspaceId, t.credentialId] }),
+    index("idx_owner_passkeys_scope").on(t.workspaceId, t.principalId),
+  ]);
+
+export const ownerRecoveryCodes = pgTable("owner_recovery_codes", {
+  workspaceId: text("workspace_id").notNull(),
+  principalId: text("principal_id").notNull(),
+  codeHash: text("code_hash").notNull(),
+}, (t) => [
+    primaryKey({ columns: [t.workspaceId, t.principalId, t.codeHash] }),
   ]);
 
 export const pluginActivations = pgTable("plugin_activations", {

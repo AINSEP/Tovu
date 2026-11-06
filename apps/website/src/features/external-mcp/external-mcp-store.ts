@@ -1,3 +1,6 @@
+import { ExternalMcpValidationError, externalMcpAdmissionRevision, externalMcpAccessSnapshot, readExternalMcpToolGrants, validateExternalMcpToolNames, parseExternalMcpJsonArray, type ExternalMcpApprovedAccess } from "../../contracts/core/external-mcp-access.js";
+export { ExternalMcpValidationError, externalMcpAdmissionRevision, externalMcpAccessSnapshot, readExternalMcpToolGrants, validateExternalMcpToolNames } from "../../contracts/core/external-mcp-access.js";
+import { ToolInputError } from "@jini-ai/core";
 import { resolveExternalMcpOAuthStatus } from "../../contracts/core/external-mcp-auth.js";
 /**
  * @file The operator-editable roster of external MCP servers — what Settings → External MCP writes,
@@ -41,9 +44,8 @@ import { resolveExternalMcpOAuthStatus } from "../../contracts/core/external-mcp
  * environment. Both combinations are real, so neither field can be derived from the other.
  */
 import { SUPPORTED_EXTERNAL_MCP_TRANSPORTS, EXTERNAL_MCP_OAUTH_GRANTS } from "./contracts.js";
-import type { ExternalMcpTransport, ExternalMcpOAuthGrant, ExternalMcpServerRecord, ExternalMcpServerTarget, ExternalMcpServerConfig, ExternalMcpServerView, ExternalMcpStoreDeps, ExternalMcpOAuthTokenResolverPort, SaveExternalMcpOAuthInput, SaveExternalMcpServerInput, ExternalMcpSealedOAuthPayload, SealedExternalMcpOAuth } from "./contracts.js";
+import type { ExternalMcpTransport, ExternalMcpOAuthGrant, ExternalMcpServerRepoPort, ExternalMcpServerRecord, ExternalMcpServerTarget, ExternalMcpServerConfig, ExternalMcpServerView, ExternalMcpStoreDeps, ExternalMcpOAuthTokenResolverPort, SaveExternalMcpOAuthInput, SaveExternalMcpServerInput, ExternalMcpSealedOAuthPayload, SealedExternalMcpOAuth } from "./contracts.js";
 import { CredentialInputError, assertCredentialFreeField, normalizeCredentialToken, assertCredentialToken, CREDENTIAL_MESSAGES, CREDENTIAL_TOKEN_LIMIT, credentialTokenHint, type CredentialTokenHint } from "../../contracts/core/credential-token.js";
-import { createHash } from "node:crypto";
 
 import { nowIso, type ISODateTime, type UUID } from "@jini-ai/core/primitives";
 
@@ -58,21 +60,6 @@ import { EXTERNAL_MCP_AUTH_MODES, externalMcpRecordHasStaticAccessToken, resolve
  *  (owner decision C — see that file's header). Imported from the shared contract leaf so every
  *  consumer reads the same mode vocabulary. */
 
-
-/** Raised when operator-supplied input cannot be stored. Carries `field` so a route can point the
- *  form at the offending input rather than rejecting the whole submission opaquely. */
-export class ExternalMcpValidationError extends Error {
-  readonly field: string;
-
-  constructor(
-    message: string,
-    field: string,
-  ) {
-    super(message);
-    this.field = field;
-    this.name = "ExternalMcpValidationError";
-  }
-}
 
 /** Raised when sealing fails because no site key is configured — distinct from a validation error,
  *  because nothing the operator types can fix it. */
@@ -92,11 +79,6 @@ import { openExternalMcpVaultPayload, sealExternalMcpVaultPayload } from "./exte
 const MAX_SERVERS_PER_WORKSPACE = 32;
 const MAX_ENV_VARS = 64;
 const MAX_ARGS = 64;
-const MAX_ALLOWED_TOOLS = 64;
-/** Matches `trust.ts`'s own `REMOTE_TOOL_NAME_PATTERN`. Restated rather than imported because that
- *  constant is private to the trust tier; `__tests__/external-mcp-store.test.ts` asserts the two
- *  agree by round-tripping a name through `admitRemoteTools`. */
-const REMOTE_TOOL_NAME_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$/;
 /** POSIX-ish environment variable name. Deliberately stricter than what a shell tolerates: a name
  *  outside this set is far more likely a mis-pasted line than an intentional variable. */
 const ENV_NAME_PATTERN = /^[A-Za-z_]\w*$/;
@@ -123,75 +105,22 @@ function parseJsonObject(raw: string | null): Record<string, string> {
   }
 }
 
-function parseJsonArray(raw: string | null): string[] {
-  if (!raw) return [];
-  try {
-    const parsed: unknown = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === "string") : [];
-  } catch {
-    return [];
-  }
-}
-
-/**
- * A connection's "admitted under this" fingerprint — what `external-mcp-revocation.ts`'s per-call
- * gate compares a roster connection's row against to catch a delete-then-recreate, a
- * url/command/args/transport/authMode edit, or a rotated/cleared static credential, none of
- * which re-admit an already-running connection (the registry is append-only;
- * `mcp-federation/reload.ts` never re-admits an admitted id).
- *
- * `sealedEnv`'s CIPHERTEXT is included: a `static_env`/`stdio` credential is
- * resealed only when an operator actually submits a new `env` block — an ordinary toggle/rename
- * leaves `env` undefined and carries the existing seal through byte-for-byte (see
- * `resolveExternalMcpSealedEnv`'s `rawEnv === undefined` branch), so the ciphertext is stable across
- * cosmetic saves and only moves when the credential itself is rotated or cleared. On `static_env`
- * rows, `sealedOAuth` holds the dedicated static access token and follows the same preservation rule,
- * so its ciphertext is included too. On OAuth rows it is excluded: re-sealing on token refresh must
- * not refuse an otherwise valid connection.
- *
- * Otherwise deliberately narrow: `label`, `enabled`, both grant lists, OAuth status/expiry/tokens,
- * and `updatedAt` are excluded, because none of them identify WHERE or via WHAT credentials a call
- * reaches the remote, and including any of them would flip the revision on a toggle or a token
- * refresh that must not refuse an already-admitted tool. `createdAt` is included so a delete +
- * re-create under the same id (same url/command, different row) still changes the revision.
- *
- * Hashed rather than kept as plain text, because a hosted row's `url` can itself carry a bearer
- * token as a query parameter — this value is compared, logged, and passed to a model-facing gate, so
- * it must never be a place a credential could leak through.
- *
- * @complexity O(1).
- * @overallScore 100
+/** Validate exact approved access, then conditionally replace only the access columns.
+ * @throws ExternalMcpValidationError for invalid names/subsets; ToolInputError if the source changed.
+ * @complexity O(a+w) in at most 64 tool names per list, one conditional repository operation.
  */
-export function externalMcpAdmissionRevision(
-  record: Pick<ExternalMcpServerRecord, "createdAt" | "transport" | "url" | "command" | "args" | "authMode" | "sealedEnv" | "sealedOAuth">,
-): string {
-  return createHash("sha256")
-    .update(
-      JSON.stringify([
-        record.createdAt,
-        record.transport,
-        record.url,
-        record.command,
-        record.args,
-        record.authMode,
-        record.sealedEnv?.ciphertext ?? null,
-        record.authMode === "static_env" ? (record.sealedOAuth?.ciphertext ?? null) : null,
-      ]),
-    )
-    .digest("hex");
-}
-
-/** Parses a row's two grant lists the same way {@link resolveExternalMcpConfig} does — shared so
- *  admission and `external-mcp-revocation.ts`'s per-call re-check can never silently disagree about
- *  what a malformed list means (both fail closed to `[]`).
- *  @complexity O(n) in the size of the two JSON blobs. */
-export function readExternalMcpToolGrants(
-  record: Pick<ExternalMcpServerRecord, "allowedToolNames" | "writeAllowedToolNames">,
-): { allowedToolNames: string[]; writeAllowedToolNames: string[] } {
-  return {
-    allowedToolNames: parseJsonArray(record.allowedToolNames),
-    writeAllowedToolNames: parseJsonArray(record.writeAllowedToolNames),
-  };
+export async function applyExternalMcpAccess(
+  { repo, clock, workspaceId, serverId, expected, access, principalId }: ExternalMcpApprovedAccess & {
+    repo: Pick<ExternalMcpServerRepoPort, 'updateAccessIfCurrent'>; clock: ExternalMcpStoreDeps['clock'];
+  }, _options = {},
+): Promise<void> {
+  const allowedToolNames = validateExternalMcpToolNames({ names: access.allowedToolNames, field: 'allowedToolNames' });
+  const writeAllowedToolNames = validateExternalMcpToolNames({ names: access.writeAllowedToolNames, field: 'writeAllowedToolNames' });
+  assertWriteAllowlistSubset(writeAllowedToolNames, allowedToolNames);
+  const applied = await repo.updateAccessIfCurrent({ workspaceId, serverId, expected,
+    access: { enabled: access.enabled, allowedToolNames: JSON.stringify(allowedToolNames), writeAllowedToolNames: JSON.stringify(writeAllowedToolNames) },
+    principalId, nowIso: nowIso({ clock }) });
+  if (!applied) throw new ToolInputError({ message: `The '${serverId}' connection or its access changed while awaiting approval. Nothing was changed by this approval. Request its access change again to review the current proposal.` });
 }
 
 /**
@@ -354,18 +283,7 @@ function parseToolNameList(raw: string, field: string): string[] {
     .map((part) => part.trim())
     .filter((part) => part.length > 0);
 
-  if (names.length > MAX_ALLOWED_TOOLS) {
-    throw new ExternalMcpValidationError(`at most ${MAX_ALLOWED_TOOLS} tools are supported`, field);
-  }
-  for (const name of names) {
-    if (!REMOTE_TOOL_NAME_PATTERN.test(name)) {
-      throw new ExternalMcpValidationError(
-        `'${name}' is not a valid MCP tool name, so the trust tier would refuse it on connect`,
-        field,
-      );
-    }
-  }
-  return [...new Set(names)];
+  return validateExternalMcpToolNames({ names, field });
 }
 
 /**
@@ -498,12 +416,12 @@ async function toView(record: ExternalMcpServerRecord, sealer?: SecretSealerPort
     enabled: record.enabled,
     command: record.command ?? "",
     url: record.url,
-    args: parseJsonArray(record.args),
-    allowedToolNames: parseJsonArray(record.allowedToolNames),
-    writeAllowedToolNames: parseJsonArray(record.writeAllowedToolNames),
+    args: parseExternalMcpJsonArray({ raw: record.args }),
+    allowedToolNames: parseExternalMcpJsonArray({ raw: record.allowedToolNames }),
+    writeAllowedToolNames: parseExternalMcpJsonArray({ raw: record.writeAllowedToolNames }),
     writeGrantsUpdatedByPrincipalId: record.writeGrantsUpdatedByPrincipalId,
     writeGrantsUpdatedAt: record.writeGrantsUpdatedAt,
-    envNames: parseJsonArray(record.envNames),
+    envNames: parseExternalMcpJsonArray({ raw: record.envNames }),
     hasAccessToken: externalMcpRecordHasStaticAccessToken(record),
     accessTokenHint,
     ...(Object.keys(envTokenHints).length ? { envTokenHints } : {}),
@@ -512,7 +430,7 @@ async function toView(record: ExternalMcpServerRecord, sealer?: SecretSealerPort
       providerId: record.oauthProviderId,
       grant: record.oauthGrant,
       clientId: record.oauthClientId,
-      scopes: parseJsonArray(record.oauthScopesJson),
+      scopes: parseExternalMcpJsonArray({ raw: record.oauthScopesJson }),
       status: resolveExternalMcpOAuthStatus(record),
       expiresAt: record.oauthExpiresAt,
       tokenEnvName: record.oauthTokenEnvName,
@@ -596,7 +514,11 @@ function oauthStatusFailure(record: ExternalMcpServerRecord): string | null {
 async function resolveExternalMcpAccessToken(
   record: ExternalMcpServerRecord,
   oauth: ExternalMcpOAuthTokenResolverPort | undefined,
-): Promise<{ readonly ok: true; readonly token: string } | { readonly ok: false; readonly reason: string }> {
+): Promise<{ readonly ok: true; readonly token: string; readonly shared?: true } | { readonly ok: false; readonly reason: string }> {
+  try {
+    const shared = await oauth?.resolveSharedAccessToken?.({ serverId: record.serverId });
+    if (shared !== undefined) return { ok: true, token: shared, shared: true };
+  } catch { return { ok: false, reason: "This shared connection is no longer granted to this site. Choose it again or sign in from Settings → External MCP." }; }
   const statusFailure = oauthStatusFailure(record);
   if (statusFailure !== null) return { ok: false, reason: statusFailure };
   if (!oauth) {
@@ -649,7 +571,7 @@ async function resolveStdioTarget(
     resolvedEnv = { ...resolvedEnv, [record.oauthTokenEnvName]: token.token };
   }
 
-  return { ok: true, target: { kind: "stdio", command: record.command, args: parseJsonArray(record.args), env: resolvedEnv } };
+  return { ok: true, target: { kind: "stdio", command: record.command, args: parseExternalMcpJsonArray({ raw: record.args }), env: resolvedEnv } };
 }
 
 /**
@@ -671,18 +593,26 @@ async function resolveHttpTarget(
   if (!record.url) return externalMcpFailure(record, "no URL is configured to reach it");
 
   const headers: Record<string, string> = {};
+  let shared = false;
   if (authMode === "static_env" && staticAccessToken !== null) headers.authorization = `Bearer ${staticAccessToken}`;
   if (authMode === "oauth") {
     const token = await resolveExternalMcpAccessToken(record, oauth);
     if (!token.ok) return externalMcpFailure(record, token.reason);
     headers.authorization = `Bearer ${token.token}`;
+    shared = token.shared === true;
   }
 
   if (headers.authorization !== undefined) {
     const failure = hostedTokenFailure({ authorization: headers.authorization });
     if (failure !== null) return externalMcpFailure(record, failure);
   }
-  return { ok: true, target: { kind: "streamable_http", url: record.url, headers } };
+  return { ok: true, target: { kind: "streamable_http", url: record.url, headers,
+    ...(shared ? { bearerToken: async () => {
+      const token = await oauth!.resolveSharedAccessToken!({ serverId: record.serverId });
+      if (token === undefined) throw new Error("This shared connection was removed from this site. Choose a saved connection again in Settings → External MCP.");
+      return token;
+    } } : {}),
+  } };
 }
 
 function hostedTokenFailure({ authorization }: { authorization: string }, _options = {}): string | null {
@@ -810,8 +740,10 @@ export function toResolvedFederatedConnections(
   readOnlyRemoteNamesByServer: ReadonlyMap<string, ReadonlySet<string>> = new Map(),
 ): ResolvedFederatedConnection[] {
   return configs.map((config) => ({
+    ...(config.target.kind === "streamable_http" && config.target.bearerToken ? { bearerToken: config.target.bearerToken } : {}),
     config: {
       connectionId: config.serverId,
+      ...(config.provisionedByPluginId ? { provisionedByPluginId: config.provisionedByPluginId } : {}),
       label: config.label,
       allowedToolNames: config.allowedToolNames,
       writeAllowedToolNames: config.writeAllowedToolNames,
@@ -1160,7 +1092,7 @@ function resolveOAuthTokenEnvName(
 /** Scopes for one save. Absent input KEEPS the stored list (the three-state rule `env` sets); an
  *  empty string clears it, since {@link parseOAuthScopes} of `""` is `[]`. */
 function resolveSavedOAuthScopes(oauth: SaveExternalMcpOAuthInput, existing: ExternalMcpServerRecord | null): string[] {
-  if (oauth.scopes === undefined) return parseJsonArray(existing?.oauthScopesJson ?? null);
+  if (oauth.scopes === undefined) return parseExternalMcpJsonArray({ raw: existing?.oauthScopesJson ?? null });
   return parseOAuthScopes(oauth.scopes);
 }
 
@@ -1233,7 +1165,7 @@ function carryForwardExternalMcpSealedEnv(
 ): { readonly sealedEnv: SealedSecret | null; readonly envNames: string[]; readonly aadVersion: number } {
   return {
     sealedEnv: existing?.sealedEnv ?? null,
-    envNames: parseJsonArray(existing?.envNames ?? null),
+    envNames: parseExternalMcpJsonArray({ raw: existing?.envNames ?? null }),
     aadVersion: existing?.aadVersion ?? EXTERNAL_MCP_VAULT_VERSION,
   };
 }
@@ -1498,7 +1430,7 @@ function resolveWriteGrantAttribution(
   existing: ExternalMcpServerRecord | null,
   nowIso: ISODateTime,
 ): Pick<ExternalMcpServerRecord, "writeGrantsUpdatedByPrincipalId" | "writeGrantsUpdatedAt"> {
-  const previousWriteAllowedToolNames = parseJsonArray(existing?.writeAllowedToolNames ?? null);
+  const previousWriteAllowedToolNames = parseExternalMcpJsonArray({ raw: existing?.writeAllowedToolNames ?? null });
   if (toolNameSetsEqual(previousWriteAllowedToolNames, writeAllowedToolNames)) {
     return {
       writeGrantsUpdatedByPrincipalId: existing?.writeGrantsUpdatedByPrincipalId ?? null,

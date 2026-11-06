@@ -169,7 +169,7 @@ test("registerAdminWidgetUpdateRoute", async (t) => {
       res
     );
     assert.equal(res.statusCode, 500);
-    assertAdminResponse({ actual: res.body, expected: { error: "internal error" } });
+    assertAdminResponse({ actual: res.body, expected: { error: "internal error" } }, { failure: {"message":"The widget operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"widget operation"} });
   });
 
   await t.test("an unknown widget is mapped to the real 404 response", async () => {

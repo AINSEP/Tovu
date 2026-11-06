@@ -153,5 +153,5 @@ test("themes/rescan: an unexpected failure during rescan 500s", async (t) => {
   const app = buildApp({ themes: throwingThemes, themesDir: base.themesDir });
   const { status, json } = await post(t, app);
   assert.equal(status, 500);
-  assertAdminResponse({ actual: json, expected: { error: "internal error" } });
+  assertAdminResponse({ actual: json, expected: { error: "internal error" } }, { failure: {"message":"The theme operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"theme operation"} });
 });

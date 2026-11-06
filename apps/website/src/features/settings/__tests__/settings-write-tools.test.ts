@@ -2,9 +2,9 @@ import { ASSISTANT_PERMANENT_DELETES_NAMESPACE, ASSISTANT_PERMANENT_DELETES_WRIT
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { Express, Request, Response } from "express";
-import type { ToolExecutionContext, ToolExecutionOptions } from "@jini-ai/core";
+import { ToolInputError, type ToolExecutionContext, type ToolExecutionOptions } from "@jini-ai/core";
 import type { ToolExecutor } from "@jini-ai/daemon";
-import { InMemorySettingsRepo, type SettingDefinitionRecord } from "@jini-ai/core/settings";
+import { InMemorySettingsRepo, SettingsRevisionConflictError, type SettingDefinitionRecord } from "@jini-ai/core/settings";
 import { createNativeApprovalMemory } from "../../../contracts/core/native-approval-memory.js";
 import { createInMemoryConversationToolApprovalStore } from "../../../assistant/external-mcp-tool-approval-adapters.js";
 import type { SettingsToolDeps } from "../tool-registrations.js";
@@ -45,11 +45,12 @@ function fixture(namespace: string, key: string, schema: SettingDefinitionRecord
     workspaceId: "ws-1", settingsRepo, settingsReady: Promise.resolve(), settingsUiTabsReady: Promise.resolve(),
     clock: { nowMs: () => Date.parse(definition.createdAt) }, idGen: { newId: () => "unused" },
     principalRepo: { findById: async () => null }, authorize: async () => ({ allowed, reason: allowed ? "matched" : "insufficient_permission" }),
-    set: (required: Parameters<typeof set>[0]) => set(required, { canEnablePublicAssistant: async () => visitorReady }),
+    set: (required: Parameters<typeof set>[0], optional: Parameters<typeof set>[1]) => set(required, { ...optional, canEnablePublicAssistant: async () => visitorReady }),
     assistantAgentInventory: { listAssistantAgents: async () => [], listDetectedAssistantAgents: async () => pickerAgents },
   } as unknown as SettingsToolDeps;
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: { newId: () => "exchange-1" }, defaultChannel: "mcp-ui" });
-  const registrations = contributeSettingsTools().build(deps as never, { surfaceExchanges });
+  const surfaces = { surfaceExchanges, assertAccessApprover: async () => {} };
+  const registrations = contributeSettingsTools().build(deps as never, surfaces);
   const call = (toolId: string, input: Record<string, unknown>, extras: Partial<ToolExecutionContext> & ToolExecutionOptions = {}) => {
     const registration = registrations.find((r) => r.descriptor.id === toolId);
     assert.ok(registration, `expected '${toolId}' to be wired`);
@@ -404,7 +405,13 @@ for (const toolId of ["settings_set_value", "settings_clear_value"] as const) {
         assert.deepEqual(await reply(toolId, "other", { decision: "confirm" }), mismatch);
         assert.deepEqual(await reply(toolId === "settings_set_value" ? "settings_clear_value" : "settings_set_value", "caller", { decision: "confirm" }), mismatch);
         assert.deepEqual(await f.settingsRepo.listRevisions({ settingId: "setting-1" }), []);
-        assert.deepEqual(await reply(toolId, "caller", decision === "typed" ? { __typedAnswer: "yes" } : { decision }), { status: 202, body: { delivered: true } });
+        if (decision === "typed") {
+          assert.deepEqual(await reply(toolId, "caller", { __typedAnswer: "yes" }), { status: 403, body: {
+            error: "This card cannot accept a typed answer. Open its form and submit it there. Details: MCP_UI_TYPED_ANSWER_REFUSED.", code: "TOOL_NOT_ALLOWLISTED",
+          } });
+          assert.deepEqual(await f.settingsRepo.listRevisions({ settingId: "setting-1" }), []);
+          assert.deepEqual(await reply(toolId, "caller", { decision: "cancel" }), { status: 202, body: { delivered: true } });
+        } else assert.deepEqual(await reply(toolId, "caller", { decision }), { status: 202, body: { delivered: true } });
       };
       const input = { namespace: "core.execution", key: "byok.protocol", ...(toolId === "settings_set_value" ? { value: "new" } : {}) };
       const operation = () => f.call(toolId, input, { emitSurface });
@@ -437,15 +444,26 @@ for (const [key, value] of [["byok.model", "model-a"], ["byok.maxTokens", 512]] 
 }
 
 for (const [namespace, key] of [["core.privacy", "telemetry.metrics"], ["core.instructions", "custom"]]) {
-  test(`${namespace}.${key} is an ordinary edit without a card`, async () => {
+  for (const toolId of ["settings_set_value", "settings_clear_value"]) test(`${namespace}.${key} requires one fresh card for ${toolId}`, async () => {
     const f = fixture(namespace!, key!);
-    await f.call("settings_set_value", { namespace, key, value: "new" }, { emitSurface: async () => assert.fail("ordinary edit asked") });
+    const input = { namespace, key, ...(toolId === "settings_set_value" ? { value: "new" } : {}) };
+    let cards = 0;
+    await assert.rejects(f.call(toolId, input, { emitSurface: async () => {
+      cards++; assert.deepEqual(await f.settingsRepo.listRevisions({ settingId: "setting-1" }), []);
+      f.surfaceExchanges.deliver({ exchangeId: "exchange-1", principalId: "caller", params: { decision: "cancel" } }, { toolId });
+    } }), /human did not confirm/);
+    assert.deepEqual(await f.settingsRepo.listRevisions({ settingId: "setting-1" }), []);
+    await f.call(toolId, input, { emitSurface: async () => {
+      cards++; assert.deepEqual(await f.settingsRepo.listRevisions({ settingId: "setting-1" }), []);
+      f.surfaceExchanges.deliver({ exchangeId: "exchange-1", principalId: "caller", params: { decision: "confirm" } }, { toolId });
+    } });
+    assert.equal(cards, 2);
     assert.equal((await f.settingsRepo.listRevisions({ settingId: "setting-1" })).length, 1);
     assert.equal(f.surfaceExchanges.size(), 0);
   });
 }
 
-test("execution escalation asks once per plugin digest and saved grants do not bypass current authorization", async () => {
+test("execution escalation asks freshly for every write and saved grants do not bypass current authorization", async () => {
   const f = fixture("core.execution", "mode");
   let identity = "plugin@1/digest1", cards = 0;
   f.deps.approvalIdentityForRun = async () => ({ key: identity, label: "Example Plugin", version: identity });
@@ -453,14 +471,14 @@ test("execution escalation asks once per plugin digest and saved grants do not b
   const write = (value: string) => f.call("settings_set_value", { namespace: "core.execution", key: "mode", value }, { emitSurface: async () => {
     cards++; f.surfaceExchanges.deliver({ exchangeId: "exchange-1", principalId: "caller", params: { decision: "confirm" } }, { toolId: "settings_set_value" });
   } });
-  await write("first"); await write("second"); assert.equal(cards, 1);
-  identity = "plugin@2/digest2"; await write("third"); assert.equal(cards, 2);
+  await write("first"); await write("second"); assert.equal(cards, 2);
+  identity = "plugin@2/digest2"; await write("third"); assert.equal(cards, 3);
   f.deny();
   await assert.rejects(write("fourth"), {
     name: "ToolInputError",
     message: "settings_set_value: permission 'settings.workspace.write' is required. Ask the owner to grant it before retrying.",
   });
-  assert.equal(cards, 2);
+  assert.equal(cards, 3);
   assert.equal((await f.settingsRepo.getWorkspaceValue({ workspaceId: "ws-1", settingId: "setting-1" }))?.valueJson, "third");
 });
 
@@ -475,13 +493,18 @@ test("a plugin identity changed during the human wait cannot change execution se
   assert.deepEqual(await f.settingsRepo.listRevisions({ settingId: "setting-1" }), []);
 });
 
-test("the invoking plugin's saved enable grant also covers execution settings without another ask", async () => {
+test("the invoking plugin's saved enable grant never replaces a fresh settings access card", async () => {
   const f = fixture("core.execution", "mode");
   const memory = createNativeApprovalMemory({ store: createInMemoryConversationToolApprovalStore(), workspaceId: "ws-1", clock: { nowMs: () => 0 }, conversationIdForRun: () => "chat-1" });
   f.deps.nativeApprovalMemory = memory;
   f.deps.approvalIdentityForRun = async () => ({ key: "canonical-plugin-enable-key", label: "Example", version: "1" });
   await memory.grant({ ctx: { executionId: "exec", principal: { id: "caller" }, run: { id: "run-1" }, input: {}, signal: new AbortController().signal }, key: "canonical-plugin-enable-key", confirmer: { id: "caller", kind: "user" } });
-  await f.call("settings_set_value", { namespace: "core.execution", key: "mode", value: "new" }, { emitSurface: async () => assert.fail("the same identity asked twice") });
+  let cards = 0;
+  await f.call("settings_set_value", { namespace: "core.execution", key: "mode", value: "new" }, { emitSurface: async () => {
+    cards++; assert.deepEqual(await f.settingsRepo.listRevisions({ settingId: "setting-1" }), []);
+    f.surfaceExchanges.deliver({ exchangeId: "exchange-1", principalId: "caller", params: { decision: "confirm" } }, { toolId: "settings_set_value" });
+  } });
+  assert.equal(cards, 1);
   assert.equal(f.surfaceExchanges.size(), 0);
   assert.equal((await f.settingsRepo.getWorkspaceValue({ workspaceId: "ws-1", settingId: "setting-1" }))?.valueJson, "new");
 });
@@ -671,4 +694,59 @@ test("a host's extra denied namespace is refused, and with no injected writer th
     (error: Error) => error.message.includes("Locked by the host for this test."));
   assert.deepEqual(await handler("settings_set_value", { namespace: "core.site", key: "title", value: "  Trimmed title  " }),
     { key: "core.site.title", scope: "workspace", previous: null, value: "Trimmed title", revisionSeq: 1 });
+});
+
+for (const toolId of ['settings_set_value', 'settings_clear_value']) test(`${toolId} carries the card revision through the host writer`, async () => {
+  const f = fixture('core.execution', 'mode');
+  const transaction = f.settingsRepo.transaction.bind(f.settingsRepo);
+  let injectEdit = true;
+  f.settingsRepo.transaction = async callback => {
+    if (injectEdit) {
+      injectEdit = false;
+      await set({ deps: { repo: f.settingsRepo, clock: f.deps.clock, ids: f.deps.idGen, principals: f.deps.principalRepo, authorize: f.deps.authorize },
+        input: { namespace: 'core.execution', key: 'mode', scope: 'workspace', value: 'concurrent edit', workspaceId: 'ws-1', authWorkspaceId: 'ws-1', callerPrincipalId: 'caller' } });
+    }
+    return transaction(callback);
+  };
+  let cards = 0;
+  await assert.rejects(f.call(toolId, { namespace: 'core.execution', key: 'mode', ...(toolId === 'settings_set_value' ? { value: 'approved edit' } : {}) }, {
+    emitSurface: async emission => {
+      cards++;
+      assert.deepEqual(await f.settingsRepo.listRevisions({ settingId: 'setting-1' }), []);
+      const html = (emission.payload as { resource: { resource: { text: string } } }).resource.resource.text;
+      assert.match(html, /<dt>Setting<\/dt><dd>core\.execution\.mode<\/dd>/);
+      assert.doesNotMatch(html, /<dt>Revision<\/dt>/);
+      assert.doesNotMatch(html, /<dt>Person ID<\/dt>/);
+      f.surfaceExchanges.deliver({ exchangeId: 'exchange-1', principalId: 'caller', params: { decision: 'confirm' } }, { toolId });
+    },
+  }), (error: unknown) => {
+    assert.ok(error instanceof ToolInputError);
+    assert.match(error.message, /setting changed before the approved change/);
+    assert.ok(error.cause instanceof SettingsRevisionConflictError);
+    assert.equal(error.cause.expectedRevisionSeq, 0);
+    assert.equal(error.cause.actualRevisionSeq, 1);
+    return true;
+  });
+  assert.equal(cards, 1);
+  assert.equal((await f.settingsRepo.getWorkspaceValue({ workspaceId: 'ws-1', settingId: 'setting-1' }))?.valueJson, 'concurrent edit');
+  assert.equal((await f.settingsRepo.listRevisions({ settingId: 'setting-1' })).length, 1);
+});
+
+
+test('the executor binds protected settings approval to the authenticated caller', async () => {
+  const { executeRegisteredTool } = await import('../../../assistant/__tests__/fixtures/execute-registered-tool.js');
+  const f = fixture('core.instructions', 'custom');
+  const registration = f.registrations.find(row => row.descriptor.id === 'settings_set_value')!;
+  const result = await executeRegisteredTool({ registration, input: { namespace: 'core.instructions', key: 'custom', value: 'approved text' } }, {
+    principalId: 'caller', emitSurface: async () => {
+      const wrong = f.surfaceExchanges.deliver({ exchangeId: 'exchange-1', principalId: 'another-user', params: { decision: 'confirm' } }, { toolId: 'settings_set_value' });
+      assert.deepEqual(wrong, { ok: false, reason: 'binding-mismatch' });
+      assert.deepEqual(await f.settingsRepo.listRevisions({ settingId: 'setting-1' }), []);
+      assert.deepEqual(f.surfaceExchanges.deliver({ exchangeId: 'exchange-1', principalId: 'caller', params: { decision: 'confirm' } }, { toolId: 'settings_set_value' }), { ok: true });
+    },
+  });
+  assert.equal(result.status, 'completed');
+  const revisions = await f.settingsRepo.listRevisions({ settingId: 'setting-1' });
+  assert.equal(revisions.length, 1);
+  assert.equal(revisions[0]!.actor, 'caller');
 });

@@ -32,13 +32,20 @@ find the existing one first.
 
 1. Bump the version in `apps/desktop/package.json`.
 2. Push a tag shaped `desktop-vX.Y.Z` — or run the release workflow by hand from the Actions
-   tab (Desktop Release → Run workflow). A desktop release never deploys the site: pushing
+   tab (Desktop Release → Run workflow), entering the desktop tag. Manual dispatch also works from `main`.
+   A desktop release never deploys the site: pushing
    `main` runs `fly-deploy.yml` and deploys tovu.dev, so push `main` first only when a site
    deploy is also authorized. Otherwise push only the tag; the draft step omits `--target` for
    an existing tag (d69e7eed4). If it still 403s ("Resource not accessible by integration"),
-   create the draft locally with `gh release create --draft` from the run's artifacts,
-   only after the local packaged-chat gate below passes.
-3. Wait for three green builds (one per platform target).
+   create the draft locally with `gh release create --draft` from
+   the run's artifacts, only after the CI `assistant-gate` and the packaged-chat check below pass.
+3. Wait for the CI `assistant-gate` and three green builds (one per platform target). The gate
+   packages an unsigned arm64 app on GitHub's macOS runner, starts two default `workspace-local`
+   sites, and requires activation, accepted runs, each CLI's site-bound init/PID and a specific
+   no-key refusal. It also checks five sites share one daemon. No model key/reply is used.
+   Expected cold cost: 10–15 minutes; hard job cap: 20 minutes. This is an estimate until its
+   first CI execution; the job summary records actual journey seconds. It runs only on desktop
+   tags, `release/*` refs, and manual dispatches with a desktop tag. A branch push runs the gate without signing or creating a release.
 4. Download the draft release's artifacts and smoke-test each one before publishing.
    Run the desktop journeys against the downloaded packaged app from the repo root:
    `TOVU_E2E_DESKTOP_APP="/path/to/Tovu.app" npm run e2e:desktop:app`.

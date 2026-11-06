@@ -125,3 +125,12 @@ test("external preview receives a saved connection without a username; non-Error
   assert.deepEqual(await throwing.port.previewInput(input("host-z")), { formSubmissions: { status: "off", forms: 1, message: "Form submissions: preview offline.", changes: [] } });
   await assert.rejects(throwing.port.prepare(input("host-z")), { message: "form destination 'relay' could not prepare its receiver: relay offline" });
 });
+
+test('empty built-in manifest retains the existing co-hosted receiver key so pending imports can finish', async () => {
+  const state = setup({ forms: [] });
+  await createCustomCredential(state.creds, { workspaceId: W, label: 'Form submissions key: host-a', category: 'hosting', baseUrl: 'https://old-site.example', connection: { token: KEY } });
+  const plan = await state.port.prepare(input('host-a'));
+  assert.deepEqual(plan.hosting, { forms: [], secret: KEY });
+  assert.deepEqual(await state.port.previewInput(input('host-a')), { hosting: { forms: [] } });
+  assert.deepEqual(await labels(state.creds), ['Form submissions key: host-a']);
+});

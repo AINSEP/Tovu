@@ -1,5 +1,6 @@
+import { resolveProtocol } from "../oauth/public-origin.js";
+import { productCheckoutWhenReady, type ProductCheckoutReadiness } from "./product-checkout.js";
 import { resolveRenderThemeId } from "../../middleware/render-theme-override.js";
-import type { StoreApi } from "#src/features/plugins/store/store-plugin";
 import { NO_THEME_ID, resolveActiveTheme } from "#src/features/theme/active-theme";
 import { renderSite, type SiteProduct } from "../../http/site/render.js";
 import { markOffSiteLinksOpenInNewTab } from "../../http/site/external-links.js";
@@ -39,27 +40,24 @@ function cacheControlFor(req: Parameters<typeof isStaticExportRequest>[0]): stri
   return isStaticExportRequest(req) ? CACHE_CONTROL_PRIVATE_STATIC_EXPORT : CACHE_CONTROL_PUBLIC_PAGE;
 }
 
-/**
- * The store plugin owns the rendered catalog. The former optional core-catalog path was unwired
- * in production; removing it preserves the existing plugin experience and leaves the parked
- * catalog library in Jini. An absent or empty store still uses the templates' own "No products
- * available yet" copy. Catalog isolation belongs to the injected store, never a second catalog
- * lookup in this rendering adapter.
- *
- * The parked core mapper deliberately omitted images (ADR-027 media-transform pipeline) and
- * stock (no inventory tracking). Templates must still degrade gracefully when optional product
- * data is absent.
- */
+/** Commerce owns the bounded catalog projection. The host's adapter applies the activation
+ * guard before any catalog reads. The public renderer has no legacy store or payment access. */
 export interface CommerceSiteAdapterDeps extends RouteDeps {
-  store?: StoreApi;
+  commerceCatalog?: {
+    listProducts(required?: Record<string, never>, optional?: { readiness?: ProductCheckoutReadiness }): Promise<SiteProduct[]>;
+    findProduct?(required: { idOrSlug: string }, optional?: { readiness?: ProductCheckoutReadiness }): Promise<SiteProduct | null>;
+  };
 }
 
-/** Exported (2026-08-15, static exporter) so `export/route-manifest.ts` enumerates the SAME
- *  product set `/products`/`/products/:id` actually render — one source of truth for the
- *  store-plugin selection below, rather than a second copy that could drift from it.
- *  Returns plugin products unchanged, or an empty list without a store; store errors propagate. */
-export async function resolveStorefrontProducts(deps: CommerceSiteAdapterDeps): Promise<SiteProduct[]> {
-  return (await deps.store?.listProducts()) ?? [];
+/** Shared by live routes and static export: one bounded projection, no per-product price reads.
+ * An absent commerce plugin exposes no products. @complexity O(24) response rows, <=2 DB reads. */
+export async function resolveStorefrontProducts(deps: CommerceSiteAdapterDeps, optional: { readiness?: ProductCheckoutReadiness } = {}): Promise<SiteProduct[]> {
+  return (await deps.commerceCatalog?.listProducts({}, optional)) ?? [];
+}
+
+/** Missing adapters expose no product, while registered adapters keep the scoped point lookup. */
+async function findStorefrontProduct({ deps, id, readiness }: { deps: CommerceSiteAdapterDeps; id: string; readiness: ProductCheckoutReadiness | undefined }): Promise<SiteProduct | null> {
+  return await deps.commerceCatalog?.findProduct?.({ idOrSlug: id }, { readiness }) ?? null;
 }
 
 /**
@@ -67,10 +65,10 @@ export async function resolveStorefrontProducts(deps: CommerceSiteAdapterDeps): 
  * theme's own `products`/`product` templates. Registered BEFORE the `/:slug` catch-all, same
  * reasoning as `registerStoreRoutes`.
  */
-export const registerProductRoutes = (app: import("express").Express, deps: CommerceSiteAdapterDeps): void => {
+export const registerProductRoutes = (app: import("express").IRouter, deps: CommerceSiteAdapterDeps): void => {
   app.get("/products", async (req, res) => {
     try {
-      const products = await resolveStorefrontProducts(deps);
+      const products = await resolveStorefrontProducts(deps, { readiness: res.locals?.commerceStatus });
       const [activeThemeId, siteAssistantEnabled, siteTitle] = await Promise.all([
         resolveRenderThemeId(res, deps),
         resolveSiteAssistantWidgetForRequest({ request: req, deps }),
@@ -86,19 +84,18 @@ export const registerProductRoutes = (app: import("express").Express, deps: Comm
       // 500 above), while the sentinel means the operator turned styling off on purpose and expects
       // a real page back.
       const theme = resolved === NO_THEME_ID ? null : resolved;
-      const html = await renderSite({ theme, route: "products", siteTitle, posts: [], products, siteAssistantEnabled });
+      const html = await renderSite({ renderAssets: res.locals.siteConsentAssets, theme, route: "products", siteTitle, posts: [], products, siteAssistantEnabled });
       res.set("Cache-Control", cacheControlFor(req)).type("html").send(markOffSiteLinksOpenInNewTab(html, req.hostname));
     } catch {
-      res.status(500).type("html").send("<h1>Site error</h1>");
+      res.status(500).type("html").send("<h1>The product catalog could not be loaded</h1><p>Please try again shortly.</p>");
     }
   });
 
   app.get("/products/:id", async (req, res) => {
     try {
       const id = String(req.params.id ?? "");
-      const products = await resolveStorefrontProducts(deps);
-      // Id or slug (readable-slugs S7) — id first, same fallback contract as posts/pages/menus.
-      const product = products.find((p) => p.id === id) ?? products.find((p) => p.slug === id);
+      // The database point lookup reaches products beyond the bounded grid; id wins over slug.
+      const product = await findStorefrontProduct({ deps, id, readiness: res.locals?.commerceStatus });
       if (!product) {
         res.status(404).type("html").send("<h1>404 — product not found</h1><p><a href='/products'>All products</a></p>");
         return;
@@ -118,10 +115,12 @@ export const registerProductRoutes = (app: import("express").Express, deps: Comm
       // 500 above), while the sentinel means the operator turned styling off on purpose and expects
       // a real page back.
       const theme = resolved === NO_THEME_ID ? null : resolved;
-      const html = await renderSite({ theme, route: "product", siteTitle, posts: [], products, product, siteAssistantEnabled });
+      let html = await renderSite({ renderAssets: res.locals.siteConsentAssets, theme, route: "product", siteTitle, posts: [], products: [product], product, siteAssistantEnabled });
+      html = await productCheckoutWhenReady({ html, workspaceId: deps.workspaceId, priceId: product.priceId,
+        productSlug: product.slug || product.id, currentOrigin: `${resolveProtocol(req)}://${req.get("host")}`, commerce: deps.commerce }, { readiness: res.locals?.commerceStatus });
       res.set("Cache-Control", cacheControlFor(req)).type("html").send(markOffSiteLinksOpenInNewTab(html, req.hostname));
     } catch {
-      res.status(500).type("html").send("<h1>Site error</h1>");
+      res.status(500).type("html").send("<h1>This product could not be loaded</h1><p>Please try again shortly.</p>");
     }
   });
 };

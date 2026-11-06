@@ -12,7 +12,7 @@ import { Authentication } from "../index";
  */
 
 describe("Authentication", () => {
-  it("is wired into the Authentication panel registry entry", () => {
+  it("is wired into the Authentication panel registry entry", async () => {
     const authenticationPanel = ADMIN_PANELS.find((panel) => panel.id === "authentication");
 
     expect(authenticationPanel).toBeDefined();
@@ -27,7 +27,8 @@ describe("Authentication", () => {
       </>,
     );
 
-    expect(screen.getByRole("note")).toHaveTextContent(/provider authentication backend/i);
+    // Registry pages now mount through Suspense; assert the real screen after its lazy entry resolves.
+    expect(await screen.findByRole("note")).toHaveTextContent(/provider authentication backend/i);
   });
 
   it("states the current backend boundary on the Home tab", () => {

@@ -9,6 +9,12 @@ import { createRouteDeps } from "../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/dev-auth.js";
 import { mintBootSessionToken } from "../../features/identity/boot-session-token.js";
 import type { RouteDeps } from "../routes/types.js";
+import { assertAdminResponse } from "../inbound/admin-http/http/__tests__/assert-admin-response.js";
+
+const SIGN_IN_FAILURE = {
+  code: "INTERNAL_ERROR",
+  error: "The sign-in operation could not be completed. Check the result before repeating this operation. Report this error ID.",
+};
 
 /**
  * @file Route-level tests for `POST /api/admin/v1/auth/boot-session` (desktop sign-in, see
@@ -105,7 +111,7 @@ test("boot-session: an unreadable freshly minted session gets the exact 500 and 
   });
 
   assert.equal(res.status, 500);
-  assert.deepEqual(await res.json(), { error: "internal error" });
+  assertAdminResponse({ actual: await res.json(), expected: SIGN_IN_FAILURE });
   assert.equal(res.headers.has("set-cookie"), false);
 });
 
@@ -191,14 +197,16 @@ test("fxdev: desktop boot exchange refuses a disabled or member owner before min
     const owner = await deps.principalRepo.findById({ workspaceId: deps.workspaceId, id });
     assert.ok(owner);
     await deps.principalRepo.save({ ...owner, ...override });
+    const saves = t.mock.method(deps.sessionRepo, "save");
     const base = await startTestServer(app, t);
     const token = mintBootSessionToken();
     const res = await fetch(`${base}/api/admin/v1/auth/boot-session`, { method: "POST",
       headers: { "content-type": "application/json" }, body: JSON.stringify({ token }),
     });
     assert.equal(res.status, 500);
-    assert.deepEqual(await res.json(), { error: "internal error" });
+    assertAdminResponse({ actual: await res.json(), expected: SIGN_IN_FAILURE });
     assert.equal(res.headers.has("set-cookie"), false);
+    assert.equal(saves.mock.callCount(), 0, "an unavailable operator must not mint a session");
     const replay = await fetch(`${base}/api/admin/v1/auth/boot-session`, { method: "POST",
       headers: { "content-type": "application/json" }, body: JSON.stringify({ token }),
     });

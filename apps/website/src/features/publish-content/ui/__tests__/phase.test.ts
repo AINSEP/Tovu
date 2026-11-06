@@ -10,7 +10,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { PublishContentPlanResult, PublishContentReport } from "../contract.js";
-import { canConfirmPlan, canRequestPlan, confirmationTokenFor, planOnScreen, type PublishContentPhase } from "../phase.js";
+import { canConfirmPlan, canRequestPlan, confirmationTokenFor, planOnScreen, reportOnScreen, type PublishContentPhase } from "../phase.js";
 
 const OK_REPORT: PublishContentReport = {
   refused: false,
@@ -91,4 +91,11 @@ test("the plan on screen survives confirm and execute, and does not exist before
   assert.deepEqual(withPlan, ["planned", "confirming", "confirmed", "executing"]);
   assert.equal(planOnScreen({ kind: "planning" }), null);
   assert.equal(planOnScreen({ kind: "confirmed", plan: PLAN, confirmationToken: "tok-1" }), PLAN);
+});
+
+test("completion shows the actual applied report, including a race-time refusal", () => {
+  const actual = { ...OK_REPORT, rows: [{ ...OK_REPORT.rows[0]!, outcome: "blocked" as const, writes: false, reason: "The live file changed. Plan publishing again." }] };
+  assert.equal(reportOnScreen({ phase: { kind: "done", result: { report: actual, restorePointId: "rp", runId: "run", changeSetIds: [] } } }), actual);
+  assert.equal(reportOnScreen({ phase: { kind: "planned", plan: PLAN } }), OK_REPORT);
+  assert.equal(reportOnScreen({ phase: { kind: "done", result: { restorePointId: "rp", runId: "run", changeSetIds: [] } } }), null);
 });

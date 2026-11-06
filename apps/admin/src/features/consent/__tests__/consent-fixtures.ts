@@ -32,7 +32,7 @@ export function fakeConsentPort(overrides: Partial<ConsentRevisionsPort> = {}): 
   const unexpected = (name: string) => () => Promise.reject(new Error(`${name} was not expected`));
   return {
     get: () => Promise.resolve(consentSnapshot()),
-    readiness: () => Promise.resolve({ ready: true, enabled: false, blockingProblems: [], detected: [], truncated: false, limitations: [] }),
+    readiness: () => Promise.resolve({ ready: true, enabled: false, blockingProblems: [], declarations: [], warnings: [], truncated: false, limitations: [] }),
     dryRun: unexpected('dryRun'),
     preview: () => Promise.resolve({ html: '<p>page</p>', blockingProblems: [], revisionId: null }),
     saveDraft: unexpected('saveDraft'),

@@ -42,13 +42,15 @@ export interface MailPolicyWrapperOptions {
 
 /**
  * Sign-in links are never re-sent after an unknown outcome (the member just asks again; two live
- * links are worse than none); everything else, e.g. a subscription confirmation, may be re-sent once.
+ * links are worse than none). Form notifications also stop: the provider may already have accepted
+ * them, and replaying a durable job must not blindly send a duplicate. Other mail, e.g. a
+ * subscription confirmation, may be re-sent once.
  * Purpose alone cannot tell them apart (both are `transactional`), so the module decides.
  * @complexity O(1).
  */
 export function resendPolicyFor(required: { options: Pick<MailerSendOptions, "purpose" | "sourceContext"> }, _optional: Record<string, never> = {}): MailResendPolicy {
   const { purpose, sourceContext } = required.options;
-  if (sourceContext.module === "members") return "never";
+  if (sourceContext.module === "members" || sourceContext.module === "forms") return "never";
   return typeof purpose === "string" && /login|signin|magic/.test(purpose) ? "never" : "on_unknown";
 }
 

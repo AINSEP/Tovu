@@ -86,7 +86,7 @@ const LIST_INPUT_SCHEMA = {
 const SAVE_INPUT_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["id", "transport"],
+  required: ["id"],
   properties: {
     id: {
       type: "string",
@@ -95,12 +95,13 @@ const SAVE_INPUT_SCHEMA = {
       description:
         "Lowercase letters, digits and dashes. An id that already names a configured server UPDATES it (replacing its stored row, the same PUT semantics Settings → External MCP itself uses); a new id creates one.",
     },
+    enabled: { type: "boolean", description: "For an existing source, approve turning its access on or off without changing its connection or stored credentials." },
     label: { type: "string", description: "Display name shown in Settings. Optional — defaults to the id." },
     transport: {
       type: "string",
       enum: [...EXTERNAL_MCP_TRANSPORTS],
       description:
-        "'stdio' launches a local command as a child process (e.g. an npx-installed MCP server) — for a hosted/remote service reachable over the network, this is almost always 'streamable_http' instead.",
+        "Required for connection setup; omit for access-only changes to an existing source. 'stdio' launches a local command as a child process (e.g. an npx-installed MCP server) — for a hosted/remote service reachable over the network, this is almost always 'streamable_http' instead.",
     },
     command: { type: "string", description: "Required when transport is 'stdio'. e.g. 'npx'." },
     args: { type: "string", description: "Space-separated command-line arguments. Only meaningful for 'stdio'." },
@@ -172,7 +173,7 @@ export const externalMcpAgentToolCatalog: readonly AgentToolDefinition[] = [
   {
     name: "external_mcp_save",
     description: [
-      "Proposes creating or updating one external MCP server, and shows the human a form to review and confirm before anything is written — THIS NEVER SAVES SILENTLY. Call content_read.external_mcp first if you are updating an existing id, so the human sees accurate current values rather than blanks for anything you did not restate.",
+      "Proposes creating or updating one external MCP server. Existing-source access-only changes (enabled, allowedToolNames, writeAllowedToolNames) show one fixed approval card and preserve stored credentials. Connection setup shows the human a credential form before anything is written — THIS NEVER SAVES SILENTLY. Call content_read.external_mcp first if you are updating an existing id, so the human sees accurate current values rather than blanks for anything you did not restate.",
       "The form the human sees is generated from the fields YOU pass: decide transport and authMode through ordinary conversation before calling this (ask the human, or infer from what they already told you), because the form's shape is fixed once generated and cannot change after the fact.",
       "Never pass a credential, API key, token, or client secret as an argument to this tool — there are no such properties on this schema, and the human types any secret directly into the rendered form, never through you.",
       "Returns one of: { saved: true, server } once the human confirms and the write succeeds; { saved: false, cancelled: true } if the human declines; { saved: false, reason: 'expired' | 'abandoned', note } if nobody answered in time; { saved: false, reason: 'invalid', message, field } if the human's submitted form failed validation (tell them what to fix and call this again).",

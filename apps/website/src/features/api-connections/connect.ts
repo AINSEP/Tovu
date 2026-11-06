@@ -1,5 +1,5 @@
 import {
-  ApiConnectionError, createApiConnectionGenerationReader, deriveApiConnectionKey, type ApiConnectionIntent, type ApiConnectionService, type CompletedAuthorization,
+  ApiConnectionError, createApiConnectionGenerationReader, deriveApiConnectionKey, waitForHostedSignIn, type ApiConnectionIntent, type CompletedAuthorization,
 } from "@jini-ai/integrations/api-connections";
 import { ToolInputError } from "@jini-ai/core";
 
@@ -36,6 +36,7 @@ interface ConnectRun {
   readonly deps: ApiConnectionConnectDeps;
   readonly connection: DeclaredApiConnection;
   readonly actorId: string;
+  readonly destination?: "site" | "shared";
   /** Shows the waiting card with the sign-in link; returns once it is on screen. */
   readonly showSignIn: (input: { readonly signInUrl: string }) => Promise<void>;
   readonly signal: AbortSignal;
@@ -47,33 +48,6 @@ interface ConnectRun {
 function asToolError(error: unknown): never {
   if (error instanceof ApiConnectionError) throw new ToolInputError({ message: `agent_plugin_connect: ${error.message}` });
   throw error;
-}
-
-function pause(ms: number, signal: AbortSignal): Promise<void> {
-  return new Promise((resolve) => {
-    const timer = setTimeout(done, ms);
-    signal.addEventListener("abort", done, { once: true });
-    function done(): void { clearTimeout(timer); signal.removeEventListener("abort", done); resolve(); }
-  });
-}
-
-interface CallbackWatch {
-  readonly connectionRef: string;
-  readonly startGeneration: number;
-  readonly readGeneration: ReturnType<typeof createApiConnectionGenerationReader>;
-}
-
-/** Hosted: wait for the callback route to install a newer credential. @complexity O(t / interval) record reads. */
-async function waitForCallback(run: ConnectRun, service: ApiConnectionService, watch: CallbackWatch): Promise<boolean> {
-  const { connectionRef, startGeneration, readGeneration } = watch;
-  const { workspaceId } = run.deps.host;
-  const deadline = Date.now() + run.waitTimeoutMs;
-  while (Date.now() < deadline && !run.signal.aborted) {
-    const status = await service.getStatus({ connectionRef, workspaceId });
-    if (status.status === "connected" && (await readGeneration({ key: connectionRef })) > startGeneration) return true;
-    await pause(Math.min(run.pollIntervalMs, Math.max(deadline - Date.now(), 0)), run.signal);
-  }
-  return false;
 }
 
 /** A started sign-in. Desktop also carries its own completion; hosted completes at the public callback. */
@@ -100,6 +74,7 @@ export async function startApiConnectionSignIn(
   optional: SignInOptions = {},
 ): Promise<ApiConnectionSignInStart> {
   if (required.host.runtime === "desktop") return startDesktopSignIn(required, optional);
+  if (required.destination === "shared") throw new ApiConnectionError({ code: 'connection-not-found', message: 'Shared connections are available only on this Mac. Choose this site for a hosted sign-in.' });
   const { host, connection, actorId, intent, scopeSetIds } = required;
   // The service first: its setup refusals (no client configured) come before the callback address's.
   const service = host.serviceFor({ connection });
@@ -115,7 +90,7 @@ export async function startApiConnectionSignIn(
 
 interface SignInRequest {
   readonly host: ApiConnectionHost; readonly connection: DeclaredApiConnection; readonly actorId: string;
-  readonly intent: ApiConnectionIntent; readonly scopeSetIds: readonly string[];
+  readonly destination?: "site" | "shared"; readonly intent: ApiConnectionIntent; readonly scopeSetIds: readonly string[];
 }
 
 interface SignInOptions {
@@ -157,13 +132,14 @@ async function startDesktopSignIn(required: SignInRequest, optional: SignInOptio
       callbackFields: connection.descriptor.callbackFields.map((field) => field.name), signal: listening.signal,
       ...(optional.timeoutMs === undefined ? {} : { timeoutMs: optional.timeoutMs }),
     });
-    const service = host.serviceFor({ connection, redirectUri: receiver.redirectUri });
-    const start = await service.start({ workspaceId: host.workspaceId, actorId, intent, scopeSetIds, redirectUri: receiver.redirectUri }, startOptionsOf(optional));
+    const target = await host.prepareSignIn({ connection, actorId, destination: required.destination, redirectUri: receiver.redirectUri });
+    const service = target.service;
+    const start = await service.start({ workspaceId: target.workspaceId, actorId, intent, scopeSetIds, redirectUri: receiver.redirectUri }, startOptionsOf(optional));
     // `state` and `browserBinding` stay here: the receiver that gets the callback is this process,
     // so both go straight back to `complete`, never into the result.
     const { state, browserBinding } = start;
     const completion = receiver.receive({ expectedState: state }).then(
-      (callback) => service.complete({ workspaceId: host.workspaceId, actorId, redirectUri: receiver.redirectUri, callbackParams: { ...callback.fields, state, code: callback.code }, browserBinding }),
+      (callback) => service.complete({ workspaceId: target.workspaceId, actorId, redirectUri: receiver.redirectUri, callbackParams: { ...callback.fields, state, code: callback.code }, browserBinding }).then(async done => { await target.onCompleted(); return done; }),
       () => null,
     ).finally(release);
     return { authorizationUrl: start.authorizationUrl, attemptId: start.attemptId, expiresAt: start.expiresAt, completion };
@@ -185,7 +161,10 @@ async function connectHosted(run: ConnectRun, scopeSetIds: readonly string[]): P
   // client secret) raw, past the `ToolInputError` mapping above.
   const service = host.serviceFor({ connection: run.connection });
   await run.showSignIn({ signInUrl: start.authorizationUrl });
-  return waitForCallback(run, service, { connectionRef, startGeneration, readGeneration });
+  return waitForHostedSignIn({
+    workspaceId: host.workspaceId, connectionRef, startGeneration, getStatus: service.getStatus, readGeneration,
+    signal: run.signal, pollIntervalMs: run.pollIntervalMs, waitTimeoutMs: run.waitTimeoutMs,
+  });
 }
 
 /**
@@ -201,7 +180,7 @@ async function connectDesktop(run: ConnectRun, scopeSetIds: readonly string[]): 
   try {
     // `runApiConnectionConnect` takes this path only for a desktop host, so the desktop start is
     // called directly and its completion is always present (no "no completion" case to handle).
-    const start = await startDesktopSignIn({ host, connection: run.connection, actorId: run.actorId, intent: "connect", scopeSetIds }, {
+    const start = await startDesktopSignIn({ host, connection: run.connection, actorId: run.actorId, intent: "connect", scopeSetIds, destination: run.destination }, {
       timeoutMs: run.waitTimeoutMs, signal: listening.signal,
     }).catch(asToolError);
     await run.showSignIn({ signInUrl: start.authorizationUrl });
@@ -226,10 +205,13 @@ export async function runApiConnectionConnect(
   const { connection } = required;
   // Chat connects the plugin's base scopes; products add theirs from the plugin's own panel.
   const scopeSetIds: readonly string[] = [];
-  const status = await host.statusOf({ connection });
+  const status = await host.statusOf({ connection, local: required.destination === "site" });
   const { connectionRef } = status;
   const wanted = await host.requestedScopes({ connection, scopeSetIds });
-  if (status.status === "connected" && wanted.every((scope) => status.grantedScopes.includes(scope))) return { status: "connected", connectionRef };
+  if (required.destination !== "shared" && status.status === "connected" && wanted.every((scope) => status.grantedScopes.includes(scope))) {
+    if (required.destination === "site") await host.sharedOAuth?.selectLocal(connection);
+    return { status: "connected", connectionRef };
+  }
   const connected = host.runtime === "desktop" ? await connectDesktop(required, scopeSetIds) : await connectHosted(required, scopeSetIds);
   return { status: connected ? "connected" : "waiting-for-sign-in", connectionRef };
 }

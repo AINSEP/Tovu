@@ -11,6 +11,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { forceRemove } from "../fixtures/force-remove.js";
 import { seedBundledAgentPlugins } from "../../lifecycle.js";
+import { agentPluginActivations } from "../../activation-effects.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
 
 import type { SurfaceEmission, ToolExecutionContext } from "@jini-ai/core";
@@ -25,7 +26,6 @@ import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm"
 import { defaultResolveInstalledAgentPlugin, runAgentPluginConnect as runConnectWithOptions, type AgentPluginConnectToolDeps } from "../../connect-tool.js";
 import { ToolInputError } from "@jini-ai/core";
 import { provisionAgentPluginMcpServers } from "../../federate-mcp.js";
-import { createApplyConnectDefaults } from "../../apply-connect-defaults.js";
 import type { McpServerConfig } from "../../mcp-metadata.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
@@ -116,7 +116,7 @@ test("agent_plugin_connect: a bundled plugin with one OAuth server shows exactly
 
   const result = await runAgentPluginConnect(deps, surfaces, ctx, "widget-store");
   assert.deepEqual(result, { status: "waiting-for-sign-in" });
-  assert.deepEqual(beginInputs, [{ serverId: "widget", redirectUri: "https://public.example/api/mcp-servers/oauth/callback/widget" }]);
+  assert.deepEqual(beginInputs, [{ serverId: "widget", redirectUri: "https://public.example/api/mcp-servers/oauth/callback/widget", delivery: 'hosted' }]);
   assert.equal(emissions.length, 1, "exactly one card sent while nobody has signed in yet");
 
   const html = htmlOf(emissions[0]!);
@@ -212,7 +212,7 @@ test("connect_token_only_uses_plugin_card_without_oauth", async () => {
     saveToken: async (input, options) => {
       cards += 1;
       assert.equal(input.pluginId, "widget-store");
-      assert.equal(input.ctx, ctx);
+      assert.deepEqual(input.ctx, ctx, "the credential flow receives the frozen execution context");
       assert.equal(options?.emitSurface, emitSurface);
       return { saved: true, next: "The account is connected." };
     },
@@ -250,6 +250,33 @@ test("token-only connect reuses a stored credential without prompting or changin
   }), { status: "connected" });
   assert.deepEqual(await store.repo.findByServerId({ workspaceId: WORKSPACE_ID, serverId: "widget" }), before);
 });
+
+for (const decision of ['confirm', 'cancel'] as const) {
+  test(`a retained access token uses one fixed access card without replacing credentials: ${decision}`, async () => {
+    const store = makeStoreDeps();
+    const server = { ...TOKEN_SERVER, tovuDefaultTools: { allow: ['list_items', 'write_item'], write: ['write_item'] } };
+    await provisionAgentPluginMcpServers(mcpTestPort(store), { workspaceId: WORKSPACE_ID, pluginId: 'widget-store', servers: { widget: server }, principalId: PRINCIPAL_ID });
+    await saveExternalMcpServer(store, { workspaceId: WORKSPACE_ID, serverId: 'widget', transport: 'streamable_http', authMode: 'static_env', enabled: false,
+      command: '', url: TOKEN_SERVER.url, args: '', allowedToolNames: '', writeAllowedToolNames: '', accessToken: 'fixture-account-token', principalId: PRINCIPAL_ID });
+    const before = (await store.repo.findByServerId({ workspaceId: WORKSPACE_ID, serverId: 'widget' }))!;
+    const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' });
+    let cards = 0;
+    const result = await runConnectWithOptions({ routeDeps: baseDeps(store, { resolveInstalledPlugin: async () => ({ servers: { widget: server } }) }),
+      surfaces: { surfaceExchanges: exchanges, assertAccessApprover: async () => {} } as never, ctx: fakeCtx([]), pluginId: 'widget-store',
+    }, { saveToken: async () => { throw new Error('retained credential must never be requested again'); }, emitSurface: async emission => {
+      cards++; const html = htmlOf(emission);
+      assert.match(html, /list_items/); assert.match(html, /write_item/);
+      assert.equal((await store.repo.findByServerId({ workspaceId: WORKSPACE_ID, serverId: 'widget' }))!.enabled, false);
+      const exchangeId = html.match(/__exchangeId"\s*:\s*"([^"]+)"/)?.[1]; assert.ok(exchangeId);
+      exchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: { decision } }, { toolId: 'agent_plugin_connect' });
+    } });
+    assert.equal(cards, 1); assert.equal(result.status, decision === 'confirm' ? 'connected' : 'not-connected');
+    const after = (await store.repo.findByServerId({ workspaceId: WORKSPACE_ID, serverId: 'widget' }))!;
+    assert.deepEqual(after.sealedOAuth, before.sealedOAuth); assert.equal(after.enabled, decision === 'confirm');
+    assert.deepEqual(JSON.parse(after.allowedToolNames!), decision === 'confirm' ? ['list_items', 'write_item'] : []);
+    assert.deepEqual(JSON.parse(after.writeAllowedToolNames!), decision === 'confirm' ? ['write_item'] : []);
+  });
+}
 
 test("oauth_with_token_fallback_still_starts_oauth", async () => {
   const store = makeStoreDeps();
@@ -505,41 +532,44 @@ for (const credential of ["oauth", "static-token"] as const) {
 // Bug 2026-11-02 (Higgsfield Media): a site that signed in before its plugin declared default tools
 // kept a connected row with no allowlist and no may-write grant, and the chat sent the owner to
 // Settings → External MCP by hand. Connecting again must grant the declared defaults through the
-// sign-in's own `onConnected` (apply-connect-defaults.ts), without starting a second sign-in.
-test("agent_plugin_connect: an already signed-in OAuth row gets the plugin's declared default tools, with no new sign-in", async () => {
+// common access card, without starting a second sign-in.
+test("agent_plugin_connect: an already signed-in OAuth row gets the plugin's declared default tools, after one access approval and with no new sign-in", async () => {
   const store = makeStoreDeps();
   const server: McpServerConfig = { ...OAUTH_SERVER, tovuDefaultTools: { allow: ["list_things", "make_thing"], write: ["make_thing"] } };
   await provisionAgentPluginMcpServers(mcpTestPort(store), { workspaceId: WORKSPACE_ID, pluginId: "widget-store", servers: { widget: server }, principalId: PRINCIPAL_ID });
   await flipRowConnected(store.repo, "widget");
   let rosterNotifications = 0;
-  const onConnected = createApplyConnectDefaults({
-    workspaceId: WORKSPACE_ID, agentPluginLayout: testSiteLayoutContext({}).agentPluginLayout, repo: store.repo, clock: CLOCK,
-    resolveServers: async () => ({ widget: server }),
-    enablePlugin: async () => true,
-    isPluginOffByOperator: async () => false,
-    notifyRosterChanged: async () => { rosterNotifications += 1; },
-  });
   let beginCalls = 0;
   const oauth = fakeOAuth(store.repo, "https://mcp.example.com/authorize");
   const emissions: SurfaceEmission[] = [];
+  const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' });
 
   const result = await runConnectWithOptions({
     routeDeps: baseDeps(store, {
       externalMcpOAuth: { ...oauth, beginConnect: async (input) => { beginCalls += 1; return oauth.beginConnect(input); } },
+      mcp: { ...mcpTestPort(store), notifyRosterChanged: async () => { rosterNotifications++; } },
       resolveInstalledPlugin: async () => ({ servers: { widget: server } }),
     }),
-    surfaces: { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
+    surfaces: { surfaceExchanges: exchanges, assertAccessApprover: async () => {} } as never,
     ctx: fakeCtx(emissions), pluginId: "widget-store",
-  }, { onConnected });
+  }, { emitSurface: async emission => {
+    emissions.push(emission);
+    const before = (await store.repo.findByServerId({ workspaceId: WORKSPACE_ID, serverId: 'widget' }))!;
+    assert.equal(before.enabled, false, 'retained sign-in never grants before the click');
+    const html = htmlOf(emission);
+    const exchangeId = html.match(/__exchangeId"\s*:\s*"([^"]+)"/)?.[1];
+    assert.ok(exchangeId); assert.match(html, /list_things/); assert.match(html, /make_thing/);
+    exchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: { decision: 'confirm' } }, { toolId: 'agent_plugin_connect' });
+  } });
 
   assert.deepEqual(result, { status: "connected" });
   assert.equal(beginCalls, 0, "an existing sign-in is reused, never restarted");
-  assert.deepEqual(emissions, []);
+  assert.equal(emissions.length, 1, "exactly one fixed access approval card");
   const row = (await store.repo.findByServerId({ workspaceId: WORKSPACE_ID, serverId: "widget" }))!;
   assert.equal(row.enabled, true);
   assert.deepEqual(JSON.parse(row.allowedToolNames ?? "[]"), ["list_things", "make_thing"]);
   assert.deepEqual(JSON.parse(row.writeAllowedToolNames ?? "[]"), ["make_thing"]);
-  assert.equal(rosterNotifications, 1, "the assistant's tool list is refreshed, not left for a restart");
+  assert.equal(rosterNotifications, 2, "the approved grant and the existing provisioning refresh each notify the assistant's tool list");
 });
 
 test("agent_plugin_connect resolves the installed package without an injected resolver", async () => {
@@ -548,6 +578,11 @@ test("agent_plugin_connect resolves the installed package without an injected re
   process.env.TOVU_AGENT_PLUGINS_DIR = dir;
   try {
     await seedBundledAgentPlugins({ layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }), workspaceId: WORKSPACE_ID, sourceRoot: bundledSource.root });
+    // Bundled plugins seed disabled; this resolver test starts after the operator enables Supabase.
+    await agentPluginActivations.setAgentPluginActivation({
+      workspaceRoot: resolveAgentPluginLayout({ siteDir: dir }).forWorkspace(WORKSPACE_ID).root,
+      pluginId: "supabase", enabled: true, actor: PRINCIPAL_ID,
+    });
     const store = makeStoreDeps();
     const emissions: SurfaceEmission[] = [];
     const result = await runAgentPluginConnect(baseDeps(store, {
@@ -568,10 +603,10 @@ test("agent_plugin_connect resolves the installed package without an injected re
 
 test("agent_plugin_connect: signed-in servers recover their tools while another server still needs sign-in", { timeout: 5_000 }, async t => {
   const store = makeStoreDeps();
-  const servers = { widget: OAUTH_SERVER, other: { ...OAUTH_SERVER, url: "https://other.example.com/mcp" } };
+  const servers = { widget: { ...OAUTH_SERVER, tovuDefaultTools: { allow: ["list_things"], write: [] } }, other: { ...OAUTH_SERVER, url: "https://other.example.com/mcp" } };
   await provisionAgentPluginMcpServers(mcpTestPort(store), { workspaceId: WORKSPACE_ID, pluginId: "widget-store", servers, principalId: PRINCIPAL_ID });
   await flipRowConnected(store.repo, "widget");
-  const granted: string[] = [];
+  let accessCards = 0;
   const controller = new AbortController();
   t.after(() => controller.abort());
   const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
@@ -583,11 +618,22 @@ test("agent_plugin_connect: signed-in servers recover their tools while another 
       resolveInstalledPlugin: async () => ({ servers }),
       pollIntervalMs: 60_000, waitTimeoutMs: 60_000,
     }),
-    surfaces: { surfaceExchanges: exchanges }, ctx: fakeCtx([], controller.signal), pluginId: "widget-store",
-  }, { onConnected: async id => { granted.push(id); }, emitSurface: async () => { cardSent(); } });
+    surfaces: { surfaceExchanges: exchanges, assertAccessApprover: async () => {} } as never, ctx: fakeCtx([], controller.signal), pluginId: "widget-store",
+  }, { emitSurface: async emission => {
+    const html = htmlOf(emission);
+    if (!html.includes('Allow access for')) { cardSent(); return; }
+    accessCards++;
+    assert.equal((await store.repo.findByServerId({ workspaceId: WORKSPACE_ID, serverId: 'widget' }))!.enabled, false);
+    const exchangeId = html.match(/__exchangeId"\s*:\s*"([^"]+)"/)?.[1]; assert.ok(exchangeId);
+    exchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: { decision: 'confirm' } }, { toolId: 'agent_plugin_connect' });
+  } });
   try {
     await card;
-    assert.deepEqual(granted, ["widget"], "only the already signed-in server receives defaults before the other sign-in completes");
+    assert.equal(accessCards, 1);
+    const widget = (await store.repo.findByServerId({ workspaceId: WORKSPACE_ID, serverId: 'widget' }))!;
+    const other = (await store.repo.findByServerId({ workspaceId: WORKSPACE_ID, serverId: 'other' }))!;
+    assert.equal(widget.enabled, true); assert.deepEqual(JSON.parse(widget.allowedToolNames!), ['list_things']);
+    assert.equal(other.enabled, false); assert.deepEqual(JSON.parse(other.allowedToolNames!), []);
   } finally {
     controller.abort();
     await pending;
@@ -753,7 +799,7 @@ test("agent_plugin_connect: no configured or derived origin leaves the redirect 
     externalMcpOAuth: { ...original, beginConnect: async (input) => { inputs.push(input); return original.beginConnect(input); } },
     resolveInstalledPlugin: async () => ({ servers: { widget: OAUTH_SERVER } }),
   }), freshSurfaces(), fakeCtx([]), "widget-store");
-  assert.deepEqual(inputs, [{ serverId: "widget", redirectUri: undefined }]);
+  assert.deepEqual(inputs, [{ serverId: "widget", redirectUri: undefined, delivery: 'hosted' }]);
 });
 
 test("agent_plugin_connect: an OAuth validation refusal becomes a ToolInputError; any other failure propagates unchanged", async () => {

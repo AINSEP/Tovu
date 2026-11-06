@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import path from 'node:path';
 import { tmpdir } from 'node:os';
-import { createOwnerStoreController, importConfirmation, registerOwnerStoreIpc, settleLegacyOwnerStore } from './owner-store-ipc.ts';
+import { createOwnerStoreController, disconnectConfirmation, importConfirmation, registerOwnerStoreIpc, settleLegacyOwnerStore } from './owner-store-ipc.ts';
 import { ownerStoreFailure } from './owner-store-cli.ts';
 import { OWNER_STORE_CHANNELS, type LegacyImportReport, type OwnerStoreAction, type OwnerStoreData,
   type OwnerStoreReply } from './contracts/owner-store.ts';
@@ -29,7 +29,8 @@ function fixture(options: { run?: Run; pickBackup?: Ports['pickBackup']; confirm
     calls.push(input);
     if (options.run) return options.run(input);
     const apply = input.action === 'import' && (input.fields as { apply: boolean }).apply;
-    const data = { list: { entries: [entry] }, put: { entry }, status: { legacy: 'none', entries: 0, grants: 0 },
+    const data: OwnerStoreData = { list: { entries: [entry] }, put: { entry }, delete: { removed: true }, status: { legacy: 'none', entries: 0, grants: 0 },
+      disconnect: { id: 'oauth', label: 'Mail', sites: ['A'], revision: 2, sourceDigest: 'reviewed', applied: false, status: 'connected', remoteRevocation: 'pending' },
       import: apply ? report('imported', true) : report('new') };
     return { version: 1, ok: true, action: input.action, data: data[input.action] } as OwnerStoreReply<typeof input.action>;
   };
@@ -39,7 +40,7 @@ function fixture(options: { run?: Run; pickBackup?: Ports['pickBackup']; confirm
 }
 
 // Before: 'S3 all nine channels reject untrusted, null, child and navigated frames before any effect'.
-test('S3 all four channels reject untrusted, null, child and navigated frames before any effect', () => {
+test('S3 all six channels reject untrusted, null, child and navigated frames before any effect', () => {
   const handlers = new Map<string, (event: { senderFrame: { url: string; parent: unknown } | null }, input: unknown) => Promise<OwnerStoreReply>>();
   let executions = 0;
   registerOwnerStoreIpc({ ipcMain: { handle: (channel, fn) => { handlers.set(channel, fn); } },
@@ -47,7 +48,7 @@ test('S3 all four channels reject untrusted, null, child and navigated frames be
     controller: { execute: async ({ action }) => { executions++; return ownerStoreFailure({ action, code: 'operation-failed' }); } },
   });
   assert.deepEqual([...handlers.keys()], Object.values(OWNER_STORE_CHANNELS));
-  assert.equal(handlers.size, 4);
+  assert.equal(handlers.size, 6);
   for (const handler of handlers.values()) {
     for (const senderFrame of [null, { url: 'https://attacker.test', parent: null }, { url: 'file:///sites-home.html?fake=1', parent: null },
       { url: 'file:///sites-home.html', parent: {} }, { url: 'file:///other.html', parent: null }]) {
@@ -94,6 +95,13 @@ test('project saves and listing forward only the project store and never copy, l
   await f.controller.execute({ action: 'list', input: { store: 'project' } });
   await f.controller.execute({ action: 'list', input: {} });
   assert.deepEqual(f.calls.slice(2), [{ action: 'list', fields: { store: 'project' } }, { action: 'list', fields: {} }]);
+});
+
+test('project deletion forwards the selected id and reviewed revision in one CLI call', async () => {
+  const f = fixture();
+  const result = await f.controller.execute({ action: 'delete', input: { id: entry.id, expectedRevision: entry.revision } });
+  assert.deepEqual(result, reply({ action: 'delete', data: { removed: true } }));
+  assert.deepEqual(f.calls, [{ action: 'delete', fields: { id: entry.id, expectedRevision: entry.revision } }]);
 });
 
 // Before: 'S3 denied writes never sync; a grant-read error after put explicitly preserves the committed write'.
@@ -249,4 +257,37 @@ test('start-up settle: a failed or thrown status keeps every file, shows nothing
     assert.deepEqual(f.events, ['run:status', 'log:tovu desktop: the older shared-key store could not be checked; it was left in place.']);
     assert.ok(!f.events.join('').includes(secret));
   }
+});
+
+test('global disconnect requires native approval and binds apply to the reviewed revision and grant digest', async () => {
+  const calls: Parameters<Run>[0][] = [];
+  const reviewed = { id: 'oauth', label: 'Mail', sites: ['A', 'B'], revision: 2, sourceDigest: 'reviewed-sites', applied: false, status: 'connected', remoteRevocation: 'pending' as const };
+  const run: Run = async input => {
+    calls.push(input);
+    return { version: 1, ok: true, action: input.action, data: { ...reviewed, applied: (input.fields as { apply: boolean }).apply } } as OwnerStoreReply<typeof input.action>;
+  };
+  let allow = false;
+  const controller = createOwnerStoreController({ run, pickBackup: async () => null, confirmImport: async () => false,
+    confirmDisconnect: async ({ report }) => {
+      assert.deepEqual(report.sites, ['A', 'B']);
+      const text = disconnectConfirmation({ report });
+      assert.match(text.message, /every site on this Mac/);
+      assert.match(text.detail, /Independent local connections remain connected/);
+      return allow;
+    } });
+  const input = { id: 'oauth', expectedRevision: 2 };
+  const cancelled = await controller.execute({ action: 'disconnect', input });
+  assert.ok(!cancelled.ok && cancelled.error.code === 'cancelled');
+  assert.equal(calls.length, 1);
+  assert.equal((calls[0]!.fields as { apply: boolean }).apply, false);
+  allow = true;
+  const applied = await controller.execute({ action: 'disconnect', input });
+  assert.equal(applied.ok, true);
+  assert.deepEqual(calls.at(-1), { action: 'disconnect', fields: { ...input, apply: true, expectedDigest: 'reviewed-sites' } });
+  assert.equal(JSON.stringify(applied).includes('reviewed-sites'), false);
+  const count = calls.length;
+  for (const forged of [{ ...input, apply: true }, { ...input, expectedDigest: 'forged' }, { ...input, siteId: 'other' }, { ...input, expectedRevision: -1 }]) {
+    assert.equal((await controller.execute({ action: 'disconnect', input: forged })).ok, false);
+  }
+  assert.equal(calls.length, count);
 });

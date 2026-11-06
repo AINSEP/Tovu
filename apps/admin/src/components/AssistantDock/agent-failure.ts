@@ -115,11 +115,11 @@ function safeEvent(event: AgentEvent): AgentEvent {
 function projectEvents(
   { events, failed, agentId }: { events: readonly AgentEvent[]; failed: boolean; agentId: string | undefined },
 ): AgentEvent[] {
-  const kept = events.filter(event => event.kind !== "ext" || event.name !== AGENT_FAILURE_EVENT);
+  const kept = events.filter(event => (event.kind !== "ext" || event.name !== AGENT_FAILURE_EVENT) &&
+    !(failed && event.kind === "status" && event.label === GENERIC_AGENT_FAILURE));
   const failure = failed ? extractAgentFailure({ events: kept, ...agentIdField(agentId) }, {}) : null;
-  const fallback: AgentEvent[] = failed && !failure &&
-    !kept.some(event => event.kind === "status" && event.label === GENERIC_AGENT_FAILURE)
-    ? [{ kind: "status", code: "run_terminal", label: GENERIC_AGENT_FAILURE }] : [];
+  const fallback: AgentEvent[] = failed && !failure
+    ? [failureEvent({ reason: GENERIC_AGENT_FAILURE, details: "The assistant stopped without reporting a cause.", ...agentIdField(agentId) })] : [];
   return [...kept.map(safeEvent), ...(failure ? [failureEvent(failure)] : fallback)];
 }
 

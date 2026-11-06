@@ -12,6 +12,41 @@ import { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 import type { SiteSharePlanContent } from "../plan-store.js";
 import { createSiteShareBackend } from "../share-backend.js";
 import { SiteShareRegistry } from "../share-registry.js";
+import { SiteShareExportFailure } from "../share-export-failure.js";
+
+for (const step of ["prepare", "archive", "delivery"] as const) {
+  test(`a ${step} exception keeps its actual step when collected by a later job poll`, async t => {
+    t.mock.timers.enable({ apis: ["setTimeout"] });
+    let release!: () => void;
+    let entered!: () => void;
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    const reached = new Promise<void>(resolve => { entered = resolve; });
+    const cause = new Error(`ERR-1234-5678-9ABC-DEF0 ${step} failed password=CANARY_EXPORT`);
+    const fail = async (): Promise<never> => { entered(); await gate; throw cause; };
+    const registry = {} as SiteShareRegistry;
+    const backend = createSiteShareBackend({ registry, site: "ws",
+      prepare: step === "prepare" ? fail : async () => content(),
+      zip: step === "archive" ? fail : async () => new File(["zip"], "test.zip"),
+      delivery: step === "delivery" ? fail : async () => undefined,
+    }, { now: () => Date.parse("2026-11-04T12:00:00Z"), jiniVersion: "test-jini" });
+    const signal = new AbortController().signal;
+    const waiting = backend.create({ principalId: "owner", signal }, { waitMs: 0 });
+    await Promise.race([reached, waiting.then(() => assert.fail(`export settled before reaching ${step}`))]);
+    t.mock.timers.tick(0);
+    const pending = await waiting as { jobId: string };
+    assert.ok(pending.jobId);
+    release();
+    await assert.rejects(backend.create({ principalId: "owner", jobId: pending.jobId, signal }), error => {
+      assert.ok(error instanceof SiteShareExportFailure);
+      assert.equal(error.step, step);
+      assert.equal(error.cause, cause);
+      assert.equal(error.time, "2026-11-04T12:00:00.000Z");
+      assert.equal(error.jiniVersion, "test-jini");
+      return true;
+    });
+    assert.equal(backend.hasWork?.({}), false);
+  });
+}
 
 async function registryIn(t: TestContext): Promise<SiteShareRegistry> {
   const directory = await mkdtemp(path.join(tmpdir(), "share-backend-"));
@@ -107,7 +142,7 @@ test("static selection snapshots roster, active identity and time, captures sequ
   assert.equal(new Set(directories).size, 2);
   const { existsSync } = await import("node:fs");
   for (const directory of directories) assert.equal(existsSync(directory), false);
-  assert.deepEqual(await backend.staticOptions({}), { activeThemeId: "zoran-poster", themes: [{ themeId: "zoran-poster", name: "poster" }, { themeId: "zoran-editorial", name: "editorial" }] });
+  assert.deepEqual(await backend.staticOptions({}), { activeThemeId: "zoran-poster", themes: [{ themeId: "zoran-poster", name: "Poster" }, { themeId: "zoran-editorial", name: "Editorial" }] });
 });
 
 test("static backend refuses unknown selections before rendering and unusable captures without creating a ZIP", async t => {
@@ -170,3 +205,15 @@ for (const publicUrl of [undefined, "https://download.example"]) {
     }
   });
 }
+
+
+test("static options show installed display titles while keeping theme IDs", async () => {
+  const backend = createSiteShareBackend({ registry: {} as SiteShareRegistry, site: "site",
+    prepare: async () => content(), zip: zipFolderFiles, delivery: async () => undefined,
+    staticSite: { now: () => new Date(), context: async () => ({ name: "Site", slug: "studio", theme: "Poster Display", themeId: "studio-poster" }),
+      themes: () => [{ themeId: "studio-poster", title: "Poster Display" }, { themeId: "poster", title: "Another Poster" }] },
+  });
+  assert.deepEqual(await backend.staticOptions!({}), { activeThemeId: "studio-poster", themes: [
+    { themeId: "studio-poster", name: "Poster Display" }, { themeId: "poster", name: "Another Poster" },
+  ] });
+});

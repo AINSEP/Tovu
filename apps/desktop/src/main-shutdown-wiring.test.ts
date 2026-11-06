@@ -24,10 +24,27 @@ import { createShutdownTracker, decideBeforeQuit } from "@jini-ai/desktop-host/s
 import { handleStop } from "./project-ipc.ts";
 import { createKeyedSerializer } from "./keyed-serializer.ts";
 import { sitesFilePath, trackSite } from "./tracked-sites.ts";
+import { sourceFunction } from "./renderer/source-test-harness.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const source = fs.readFileSync(path.join(__dirname, "main", "index.ts"), "utf8");
+
+test('the entry defines lifecycle cleanup that clears maintenance, retries and recovering windows', () => {
+  const timer = {};
+  const cleared: unknown[] = [];
+  let disposals = 0;
+  const recoveringSiteWindows = new Map([['/site', {}]]);
+  const stop = sourceFunction(source, 'stopSiteLifecycle', {
+    clearInterval: (value: unknown) => { cleared.push(value); }, siteMaintenanceTimer: timer,
+    siteLifecycle: { dispose: () => { disposals++; } }, recoveringSiteWindows,
+  });
+  stop();
+  stop();
+  assert.deepEqual(cleared, [timer, undefined]);
+  assert.equal(disposals, 2);
+  assert.equal(recoveringSiteWindows.size, 0);
+});
 
 function deferred() {
   let resolve!: () => void;
@@ -68,7 +85,11 @@ test("before-quit waits on in-flight teardowns, not only on openSites", async ()
   let onQuit!: (event: { preventDefault: () => void }) => void;
   let prevented = 0;
   let finalQuits = 0;
+  let lifecycleStops = 0;
+  let quitNotifications = 0;
   vm.runInNewContext(`${beforeQuitHandler()}\n});`, {
+    lastWindowQuit: { onQuitStarted: () => { quitNotifications++; } },
+    stopSiteLifecycle: () => { lifecycleStops++; },
     app: {
       on: (_event: string, listener: typeof onQuit) => { onQuit = listener; },
       quit: () => { shutdownOrder.push("quit"); finalQuits++; },
@@ -89,6 +110,8 @@ test("before-quit waits on in-flight teardowns, not only on openSites", async ()
   try {
     await flush();
     assert.equal(prevented, 1);
+    assert.equal(quitNotifications, 1);
+    assert.equal(lifecycleStops, 1);
     assert.equal(finalQuits, 0, "app.quit() must await a tracked teardown even with no open windows");
     assert.deepEqual(shutdownOrder, ["product-listeners", "product-memory", "product", "runtime", "mcp", "previews", "agent-service"]);
     teardown.resolve();
@@ -127,8 +150,12 @@ test("Quit during a card Stop waits for its tracked teardown after openSites bec
   let onQuit!: (event: { preventDefault: () => void }) => void;
   let finalQuits = 0;
   let prevented = 0;
+  let lifecycleStops = 0;
+  let quitNotifications = 0;
   const shutdownOrder: string[] = [];
   vm.runInNewContext(`${beforeQuitHandler()}\n});`, {
+    lastWindowQuit: { onQuitStarted: () => { quitNotifications++; } },
+    stopSiteLifecycle: () => { lifecycleStops++; },
     app: {
       on: (_event: string, listener: typeof onQuit) => { onQuit = listener; },
       quit: () => { shutdownOrder.push("quit"); finalQuits++; },
@@ -150,6 +177,8 @@ test("Quit during a card Stop waits for its tracked teardown after openSites bec
     await flush();
     onQuit({ preventDefault: () => { prevented++; } });
     assert.equal(prevented, 2);
+    assert.equal(quitNotifications, 2);
+    assert.equal(lifecycleStops, 2);
     assert.equal(finalQuits, 0, "Quit must not outrun the card's pending Stop");
     assert.equal(closedRows, 0, "the recovery row must outlive the child");
     assert.deepEqual(shutdownOrder, ["product-listeners", "product"], "repeated quits dispose product telemetry once");

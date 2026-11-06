@@ -3,9 +3,9 @@ import { PublishContentApplyRowError } from "#src/features/publish-content/apply
 import { collectMediaUrlKeys } from "#src/features/publish-content/media-references";
 import { isValidSha256Hex } from "#src/features/publish-content/blob-staging";
 import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
-import type { PublishContentContributor, PublishContentPorts } from "#src/features/publish-content/type-registry";
+import type { PublishContentContributor, PublishContentPorts, OverwritablePrecheckRefusal } from "#src/features/publish-content/type-registry";
 
-import { importMediaEntity, type ImportMediaEntityResult } from "./import-media-entity.js";
+import { importMediaEntity, restoreImportedMedia, type ImportMediaEntityResult } from "./import-media-entity.js";
 import { computeBlobStorageKey, sniffContentType, isDocumentOnlyBlob } from "./index.js";
 import type { MediaRecord } from "./index.js";
 import { verifyPublishedMedia } from "./verify-published-media.js";
@@ -115,6 +115,18 @@ const LIBRARY_DOCUMENT_REFUSAL = "Library documents cannot be published";
 
 type MediaPorts = PublishContentPorts["media"];
 
+/** Changed bytes require explicit review even when live still matches its last baseline.
+ * @returns An overwrite offer, a hard capability refusal, or no source change. No I/O.
+ * @complexity O(1), compares the row already read by precheck. */
+function sourceReplacementRefusal({ ports, existing, sha256 }: { ports: MediaPorts; existing: MediaRecord | null; sha256: string | undefined }, _options = {}): OverwritablePrecheckRefusal | string | null {
+  if (!existing || !sha256 || existing.source.sha256 === sha256) return null;
+  if (existing.source.private) return "Private submitted files cannot be replaced. Keep the submission file and upload a separate public media item.";
+  if (existing.status !== "active") return "This file is in the live site's Trash. Restore it on live before replacing it.";
+  if (!ports.repo.replaceFileIfVersion) return "This destination cannot replace media files atomically. Update the live site and plan publishing again.";
+  return { reason: "This replaces the file on the live site. Tick Overwrite on live to publish it.",
+    sourceReplacement: { version: existing.version, sourceSha256: existing.source.sha256 } };
+}
+
 /** A Library document by either signal: the packed discriminant or the destination row it would replace. */
 function isLibraryDocument({ kind, existing }: { kind: unknown; existing?: MediaRecord | null }, _options = {}): boolean {
   return (kind !== undefined && kind !== "media") || existing?.kind === "document";
@@ -214,9 +226,9 @@ export const contributeMediaPublish = (): PublishContentContributor =>
           return `required blob '${sha256}' is not available on this destination`;
         }
       }
-      return null;
+      return sourceReplacementRefusal({ ports, existing, sha256: source?.sha256 });
     },
-    write: async ({ ports, deps, workspaceId, id, state, existing, expectedVersion, principalId }) => {
+    write: async ({ ports, deps, workspaceId, id, state, existing, expectedVersion, principalId, sourceReplacement }) => {
       await assertPublishableMedia({ ports, workspaceId, state, existing });
       const { repo: mediaRepo, assetBlobRepo, blobStore, contentTypeStore } = ports;
       const record = state as unknown as MediaRecord; // this handler's own pack() produced it
@@ -233,13 +245,14 @@ export const contributeMediaPublish = (): PublishContentContributor =>
           // Only a brand-new blob row takes the importing operator; an existing one is never re-stamped.
           blobCreatedByPrincipal: principalId,
           baseVersion: expectedVersion ?? null,
+          ...(sourceReplacement ? { sourceReplacement } : {}),
         },
       }) });
       // Every other write path (upload, import, duplicate) records the sniffed type; without it the
       // destination's embed resolver cannot tell a video from an image. Sniffed from the bytes just
       // imported, never carried from the source (the store's own invariant). `bytes` is non-null
       // here: `importMediaEntity` blocks a missing one.
-      if (bytes) await contentTypeStore.set({ workspaceId, sha256: record.source.sha256, contentType: sniffContentType({ bytes }) });
+      if (bytes && !sourceReplacement) await contentTypeStore.set({ workspaceId, sha256: record.source.sha256, contentType: sniffContentType({ bytes }) });
       const saved = await mediaRepo.findById({ workspaceId, id });
       // `blobWritten`: true when this import created the `asset_blobs` row, false when the bytes were
       // already there (a normal dedup, not a conflict). Passed through on `apply()`'s result.
@@ -248,7 +261,9 @@ export const contributeMediaPublish = (): PublishContentContributor =>
     undo: {
       // An update restores the prior record verbatim; a create removes its row. The blob row and bytes
       // stay: they are append-only and content-addressed, and an orphan is reclaimable by GC.
-      restore: ({ ports }, prior) => ports.repo.save(prior),
+      restore: ({ ports, deps }, prior) => restoreImportedMedia({ deps: { mediaRepo: ports.repo,
+        assetBlobRepo: ports.assetBlobRepo, blobStore: ports.blobStore, idGen: deps.idGen,
+        clock: { nowIso: () => clockNowIso({ clock: deps.clock }) } }, prior }),
       remove: ({ ports, workspaceId, id }) => ports.repo.remove({ workspaceId, id }),
       summary: async ({ ports, workspaceId, id, state }) => {
         const sha256 = (state as unknown as MediaRecord).source?.sha256 ?? "";

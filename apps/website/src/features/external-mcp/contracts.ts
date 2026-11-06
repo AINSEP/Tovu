@@ -1,3 +1,5 @@
+import type { ExternalMcpAccessSnapshot } from "../../contracts/core/external-mcp-access.js";
+export type { ExternalMcpAccessSnapshot } from "../../contracts/core/external-mcp-access.js";
 import type { ExternalMcpOAuthStatus } from "../../contracts/core/external-mcp-auth.js";
 /** External-MCP connection DTOs and ports; no assistant or service initialization. */
 import type { Clock as ClockPort, ISODateTime, UUID } from "@jini-ai/core/primitives";
@@ -99,12 +101,24 @@ export interface ExternalMcpServerRecord {
   updatedAt: ISODateTime;
 }
 
+/** A conditional access-only write. Credential and connection configuration are never replaced. */
+export interface ExternalMcpAccessUpdate {
+  readonly workspaceId: UUID;
+  readonly serverId: string;
+  readonly expected: ExternalMcpAccessSnapshot;
+  readonly access: { readonly enabled: boolean; readonly allowedToolNames: string; readonly writeAllowedToolNames: string };
+  readonly principalId: string;
+  readonly nowIso: ISODateTime;
+}
+
 /** Workspace-scoped persistence (ADR-007 §1). Multi-row per workspace, so list/upsert/delete rather
  *  than a single-row find/upsert. */
 export interface ExternalMcpServerRepoPort {
   listByWorkspaceId(workspaceId: UUID): Promise<ExternalMcpServerRecord[]>;
   findByServerId(input: { workspaceId: UUID; serverId: string }): Promise<ExternalMcpServerRecord | null>;
   upsert(record: ExternalMcpServerRecord): Promise<void>;
+  /** Compare the approved snapshot and update access atomically, preserving credential columns. */
+  updateAccessIfCurrent(required: ExternalMcpAccessUpdate, optional?: Record<string, never>): Promise<boolean>;
   deleteByServerId(input: { workspaceId: UUID; serverId: string }): Promise<boolean>;
   /**
    * Atomically claims the OAuth refresh lease for one row, iff nobody holds an unexpired one.
@@ -161,6 +175,8 @@ export type ExternalMcpServerTarget =
        * the same reason.
        */
       readonly headers: Record<string, string>;
+      /** Captures the selected shared connection; missing/revoked bindings refuse instead of using launch headers. */
+      readonly bearerToken?: import("@jini-ai/mcp/federation").McpBearerTokenSupplier;
     };
 
 export interface ExternalMcpServerConfig {
@@ -248,6 +264,8 @@ export interface ExternalMcpStoreDeps {
  * it comes from. That is also what keeps this module testable without a network.
  */
 export interface ExternalMcpOAuthTokenResolverPort {
+  /** Undefined identifies an existing local connection. Shared failures must throw, never fall back. */
+  resolveSharedAccessToken?(input: { serverId: string }): Promise<string | undefined>;
   /**
    * Returns the access token to inject, refreshing first when it is due.
    *
@@ -394,6 +412,8 @@ export interface DeviceAuthorizationStore {
 }
 
 export interface ExternalMcpOAuthDeps {
+  /** Desktop owner storage is optional; absence retains existing site-local sign-in. */
+  readonly shared?: import("./external-mcp-shared-oauth.js").SharedExternalMcpOwner;
   readonly workspaceId: UUID;
   readonly repo: ExternalMcpServerRepoPort;
   readonly sealer: SecretSealerPort;
@@ -456,15 +476,20 @@ export interface ExternalMcpOAuthService {
    * @throws {ExternalMcpValidationError} When the server is unknown, is not OAuth-authenticated, or
    *   uses a grant that requires a redirect URI and none was supplied.
    * @throws {OAuthError} Bounded, terminal, never retried — see this file's header.
+   * @param input.delivery - Browser-facing callers use `hosted`: only the authenticated host hop
+   *   reveals the provider URL and sets the browser cookie. Device grants keep their existing shape.
+   * @param input.browserBinding - Host-issued cookie proof when that browser hop mints provider state.
    */
-  beginConnect(input: { serverId: string; redirectUri?: string }): Promise<ExternalMcpConnectStart>;
+  beginConnect(input: { serverId: string; redirectUri?: string; delivery?: "hosted"; browserBinding?: string; destination?: "shared"; actorId?: string }): Promise<ExternalMcpConnectStart>;
   /**
    * Finishes an authorization-code handshake from the public callback route.
    *
    * @param input.params - The callback's query parameters, already narrowed to strings. Untrusted.
    * @param input.redirectUri - Canonical callback URI from the host's existing trusted origin policy.
+   * @param input.browserBinding - Public callbacks must supply the validated browser cookie.
+   *   Direct in-process callers retain the legacy unbound contract; HTTP never falls back to it.
    */
-  completeAuthorizationCallback(input: { serverId: string; redirectUri: string; params: AuthorizationCallbackParams }, optionalArgs?: Record<string, never>): Promise<void>;
+  completeAuthorizationCallback(input: { serverId: string; redirectUri: string; params: AuthorizationCallbackParams; browserBinding?: string }, optionalArgs?: Record<string, never>): Promise<void>;
   /**
    * Polls a device authorization exactly once.
    *
@@ -494,6 +519,12 @@ export interface ExternalMcpOAuthService {
   reportAuthFailure(serverId: string, error: Error): Promise<never>;
   /** The port `readEnabledExternalMcpConfigs` takes, wired to this service's refresher. */
   readonly tokenResolver: ExternalMcpOAuthTokenResolverPort;
+  /** True when a shared binding was checked; throws if its current grant is unavailable. */
+  listSharedConnections?(input: { serverId: string; actorId: string }): Promise<{ available: boolean; connections: readonly { credentialId: string; label: string }[];
+    current: { credentialId: string; status: string; granted: boolean } | null }>;
+  assertSharedAuthorized?(input: { serverId: string }): Promise<boolean>;
+  useLocalConnection?(input: { serverId: string; actorId: string }): Promise<void>;
+  useSharedConnection?(input: { serverId: string; credentialId: string; actorId: string }): Promise<void>;
 }
 
 /** Why an admitted federated tool is refused on THIS call. Every value pairs with one D3 message in

@@ -16,6 +16,7 @@ import type { Dispatch, SetStateAction } from 'react';
 import type { SiteRecord } from '../contracts/project.js';
 import { runnerInventoryBridge, type RunnerInventoryBridge } from './runner-api.js';
 import { humanSiteError, siteOperationError, addedSiteMessage } from './site-shell-policy.js';
+import { copyableDetails } from './import-error-details.js';
 
 /** The refusal shown when the IPC bridge itself is absent — a renderer running outside Electron
  *  (a plain `vite preview`, a test harness). Stated rather than silent: a button that does nothing
@@ -40,25 +41,32 @@ const CANCELLED_MESSAGE = 'No folder was chosen.';
  * @complexity O(n) in the current project count, for the duplicate check.
  */
 export function useAddSite({ setProjects }: { setProjects: Dispatch<SetStateAction<readonly SiteRecord[]>> },
-  { onAlreadyTracked, getBridge = runnerInventoryBridge }: {
+  { onAlreadyTracked, onAdded, getBridge = runnerInventoryBridge }: {
     onAlreadyTracked?: (id: string) => void;
+    /** Every added site, new or already tracked: the Import page opens its tab. */
+    onAdded?: (added: SiteRecord & { alreadyTracked?: boolean }) => void;
     /** Reads this window's preload bridge at click time (absent outside a real desktop window). */
-    getBridge?: () => Pick<RunnerInventoryBridge, 'addSite'> | undefined;
+    getBridge?: () => Pick<RunnerInventoryBridge, 'addSite' | 'addDroppedSite'> | undefined;
   } = {},
 ): {
   adding: boolean;
   addError: string | null;
+  /** The redacted raw error behind `addError`, for the Import page's Copy details. */
+  addDetails: string | null;
   addNotice: { siteId: string; message: string } | null;
   addSite: () => Promise<void>;
+  /** The same add, for a folder dropped on the Import page. */
+  addDroppedFolder: (folder: string) => Promise<void>;
   clearAddError: () => void;
 } {
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
+  const [addDetails, setAddDetails] = useState<string | null>(null);
   const [addNotice, setAddNotice] = useState<{ siteId: string; message: string } | null>(null);
 
-  const clearAddError = useCallback(() => { setAddError(null); setAddNotice(null); }, []);
+  const clearAddError = useCallback(() => { setAddError(null); setAddDetails(null); setAddNotice(null); }, []);
 
-  const addSite = useCallback(async () => {
+  const add = useCallback(async (folder?: string) => {
     setAddNotice(null);
     const bridge = getBridge();
     if (bridge === undefined) {
@@ -67,22 +75,27 @@ export function useAddSite({ setProjects }: { setProjects: Dispatch<SetStateActi
     }
     setAdding(true);
     setAddError(null);
+    setAddDetails(null);
     try {
-      const added = await bridge.addSite();
-      if (added === null) return;
+      const added = folder === undefined ? await bridge.addSite() : await bridge.addDroppedSite?.({ folder });
+      if (!added) return;
       setProjects((current) => mergeAddedSite(current, added));
+      onAdded?.(added);
       const message = addedSiteMessage({ added });
       setAddError(message);
       setAddNotice(message ? { siteId: added.id, message } : null);
       if (message) onAlreadyTracked?.(added.id);
     } catch (error) {
-      setAddError(describeAddFailure(error));
+      const message = describeAddFailure(error);
+      setAddError(message);
+      setAddDetails(message === null ? null : copyableDetails({ error }));
     } finally {
       setAdding(false);
     }
-  }, [setProjects, onAlreadyTracked, getBridge]);
+  }, [setProjects, onAlreadyTracked, onAdded, getBridge]);
 
-  return { adding, addError, addNotice, addSite, clearAddError };
+  const addSite = useCallback(() => add(), [add]);
+  return { adding, addError, addDetails, addNotice, addSite, addDroppedFolder: add, clearAddError };
 }
 
 /**

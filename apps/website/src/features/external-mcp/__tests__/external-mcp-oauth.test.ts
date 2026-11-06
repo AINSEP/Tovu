@@ -141,6 +141,27 @@ async function readRow(repo: InMemoryExternalMcpServerRepo) {
   return row;
 }
 
+test("redirect state requires the starting browser proof, including after service reconstruction", async () => {
+  const h = await makeHarness({ script: [{ json: { access_token: 'synthetic-token', token_type: 'Bearer' } }] });
+  const browserBinding = 'a'.repeat(43);
+  const start = await h.service.beginConnect({ serverId: SERVER, redirectUri: REDIRECT_URI, browserBinding });
+  assert.equal(start.kind, 'redirect_required');
+  if (start.kind !== 'redirect_required') throw new Error('Expected redirect sign-in');
+  const rebuilt = createExternalMcpOAuthService({
+    workspaceId: WORKSPACE, repo: h.repo, sealer: h.sealer, keyring: h.keyring, clock: h.clock,
+    devices: createDeviceAuthorizationStore(), lookupProvider: () => PROVIDER,
+    httpPorts: { guard: createTovuOAuthGuard({}, { allowLoopbackHttp: true }), fetchFn: ({ url }, init) => h.http.fetchFn(url, init) },
+  });
+  const params = { state: new URL(start.authorizationUrl).searchParams.get('state')!, code: 'synthetic-code' };
+  for (const proof of [undefined, '', 'b'.repeat(43)]) {
+    await assert.rejects(rebuilt.completeAuthorizationCallback({ serverId: SERVER, redirectUri: REDIRECT_URI, params, browserBinding: proof }),
+      (error: unknown) => error instanceof OAuthError && error.code === 'OAUTH_INVALID_STATE');
+    assert.equal(h.http.callCount(), 0);
+  }
+  await rebuilt.completeAuthorizationCallback({ serverId: SERVER, redirectUri: REDIRECT_URI, params, browserBinding });
+  assert.equal(h.http.callCount(), 1);
+});
+
 for (const typedEndpoints of [false, true]) {
   test(`beginConnect persists the discovered protected resource (${typedEndpoints ? "typed" : "discovered"} endpoints)`, async () => {
     const resource = "https://mcp.example.com/mcp";
@@ -838,7 +859,7 @@ test("the connection gate lets a healthy OAuth connection through", async () => 
     script: [{ json: { token_type: "Bearer", access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } }],
   });
   await connect(service);
-  const gate = createExternalMcpConnectionGate({ workspaceId: WORKSPACE, repo });
+  const gate = createExternalMcpConnectionGate({ workspaceId: WORKSPACE, isPluginEnabled: async () => true, repo });
 
   await gate(SERVER, await rosterCallTarget(repo, SERVER, "generate_image"));
 });
@@ -853,7 +874,7 @@ test("the connection gate refuses a needs_reauth connection with the terminal, m
   await connect(service);
   clock.advance(60 * 60 * 1000);
   await assert.rejects(() => service.tokenResolver.resolveAccessToken({ serverId: SERVER }));
-  const gate = createExternalMcpConnectionGate({ workspaceId: WORKSPACE, repo });
+  const gate = createExternalMcpConnectionGate({ workspaceId: WORKSPACE, isPluginEnabled: async () => true, repo });
   const call = await rosterCallTarget(repo, SERVER, "generate_image");
 
   let caught: unknown;
@@ -882,7 +903,7 @@ test("the gate still refuses a needs_reauth ROSTER connection with the unchanged
   await connect(service);
   clock.advance(60 * 60 * 1000);
   await assert.rejects(() => service.tokenResolver.resolveAccessToken({ serverId: SERVER }));
-  const gate = createExternalMcpConnectionGate({ workspaceId: WORKSPACE, repo });
+  const gate = createExternalMcpConnectionGate({ workspaceId: WORKSPACE, isPluginEnabled: async () => true, repo });
   const call = await rosterCallTarget(repo, SERVER, "generate_image");
 
   await assert.rejects(
@@ -906,7 +927,7 @@ test("the connection gate reads the ROW, so the daemon sees a state the web serv
     ],
   });
   await connect(service);
-  const daemonGate = createExternalMcpConnectionGate({ workspaceId: WORKSPACE, repo });
+  const daemonGate = createExternalMcpConnectionGate({ workspaceId: WORKSPACE, isPluginEnabled: async () => true, repo });
   const call = await rosterCallTarget(repo, SERVER, "generate_image");
   await daemonGate(SERVER, call);
 
@@ -920,14 +941,14 @@ test("the connection gate reads the ROW, so the daemon sees a state the web serv
 
 test("the connection gate passes through a connection id it has no row for — presets have none", async () => {
   const { repo } = await makeHarness();
-  const gate = createExternalMcpConnectionGate({ workspaceId: WORKSPACE, repo });
+  const gate = createExternalMcpConnectionGate({ workspaceId: WORKSPACE, isPluginEnabled: async () => true, repo });
 
   await gate("supabase", { remoteName: "some_tool", declaredAnnotations: undefined, origin: { kind: "preset" } });
 });
 
 test("a preset call is not refused for a missing row, even for a connection id that looks like a roster one", async () => {
   const { repo } = await makeHarness();
-  const gate = createExternalMcpConnectionGate({ workspaceId: WORKSPACE, repo });
+  const gate = createExternalMcpConnectionGate({ workspaceId: WORKSPACE, isPluginEnabled: async () => true, repo });
 
   // `higgs` DOES have a row (created by `makeHarness`) — this proves the preset short-circuit is
   // driven by `call.origin.kind`, not by whether a row happens to exist.
@@ -940,7 +961,7 @@ test("the gate refuses an OAuth connection the operator disconnected", async () 
   });
   await connect(service);
   await service.disconnect({ serverId: SERVER });
-  const gate = createExternalMcpConnectionGate({ workspaceId: WORKSPACE, repo });
+  const gate = createExternalMcpConnectionGate({ workspaceId: WORKSPACE, isPluginEnabled: async () => true, repo });
   const call = await rosterCallTarget(repo, SERVER, "generate_image");
 
   await assert.rejects(
@@ -963,7 +984,7 @@ test("the gate refuses a non-preset call with no admission origin", async () => 
     script: [{ json: { token_type: "Bearer", access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } }],
   });
   await connect(service);
-  const gate = createExternalMcpConnectionGate({ workspaceId: WORKSPACE, repo });
+  const gate = createExternalMcpConnectionGate({ workspaceId: WORKSPACE, isPluginEnabled: async () => true, repo });
 
   await assert.rejects(
     () => gate(SERVER, { remoteName: "generate_image", declaredAnnotations: undefined, origin: undefined }),
@@ -992,7 +1013,7 @@ test("the connection gate ignores a static_env server, which has no authorizatio
       principalId: "principal-1",
     },
   );
-  const gate = createExternalMcpConnectionGate({ workspaceId: WORKSPACE, repo });
+  const gate = createExternalMcpConnectionGate({ workspaceId: WORKSPACE, isPluginEnabled: async () => true, repo });
 
   await gate("plain", await rosterCallTarget(repo, "plain", "some_tool"));
 });
@@ -1020,18 +1041,14 @@ function sealerThatCannotOpen(inner: SecretSealerPort): SecretSealerPort {
   };
 }
 
-/** Opens `healthyOpens` times and then stops — a site key that goes away BETWEEN a boot-time read
- *  and the write that follows it, which is how a live session discovers the problem rather than a
- *  process that was broken from the start. */
-function sealerThatStopsOpeningAfter(inner: SecretSealerPort, healthyOpens: number): SecretSealerPort {
-  let opens = 0;
+/** Keep reads healthy until the scripted provider has rejected the refresh. Lease reloads may
+ * add reads before the request; the fixture models a lost key at the observable rejection. */
+function sealerThatLosesKeyAfterRefresh(base: Awaited<ReturnType<typeof makeHarness>>): SecretSealerPort {
   return {
-    seal: (input) => inner.seal(input),
-    open: async (input, optional) => {
-      opens += 1;
-      if (opens > healthyOpens) throw new Error("Unsupported state or unable to authenticate data");
-      return inner.open(input, optional);
-    },
+    seal: input => base.sealer.seal(input),
+    open: (input, optional) => base.http.callCount() >= 2
+      ? Promise.reject(new Error("Unsupported state or unable to authenticate data"))
+      : base.sealer.open(input, optional),
   };
 }
 
@@ -1082,6 +1099,7 @@ function repoWhoseUpsertRejects(inner: ExternalMcpServerRepoPort, error: Error):
     findByServerId: (input) => inner.findByServerId(input),
     upsert: () => Promise.reject(error),
     deleteByServerId: (input) => inner.deleteByServerId(input),
+    updateAccessIfCurrent: (input) => inner.updateAccessIfCurrent(input),
     tryClaimOAuthRefreshLease: (input) => inner.tryClaimOAuthRefreshLease(input),
     releaseOAuthRefreshLease: (input) => inner.releaseOAuthRefreshLease(input),
   };
@@ -1238,13 +1256,12 @@ test("markNeedsReauth records the durable state even when the blob became unopen
   });
   await connect(base.service);
   base.clock.advance(60 * 60 * 1000);
-  // Two healthy opens — the refresher's own read of the token, then `resolveClient` reading the
-  // client secret for the refresh request — and the THIRD, the clear that follows the provider's
-  // rejection, finds the key gone. Losing the state write here is the worst of the three cases:
-  // `needs_reauth` is what stops every later tool call from re-probing a grant already refused.
-  const service = serviceWithBrokenDependency(base, { sealer: sealerThatStopsOpeningAfter(base.sealer, 2) });
+  // The key disappears only after the provider rejects the refresh, regardless of lease reloads.
+  // `needs_reauth` must stop later calls from probing a grant already known to be dead.
+  const service = serviceWithBrokenDependency(base, { sealer: sealerThatLosesKeyAfterRefresh(base) });
 
-  await assert.rejects(() => service.tokenResolver.resolveAccessToken({ serverId: SERVER }));
+  await assert.rejects(() => service.tokenResolver.resolveAccessToken({ serverId: SERVER }), ExternalMcpReauthRequiredError);
+  assert.equal(base.http.callCount(), 2, "the provider really rejected the refresh before the key disappeared");
 
   const row = await readRow(base.repo);
   assert.equal(row.oauthStatus, "needs_reauth", "the durable state must be recorded even when the dead token cannot be read back");

@@ -2,6 +2,7 @@
  * this protocol exposes neither acceptance/recovery writes nor a provider settings secret. */
 import type { AiTraceEvent } from "@jini-ai/agent-runtime/ai-trace";
 import { z } from "zod";
+import { ASSISTANT_CLI_CAPABILITIES } from "#src/contracts/headless/assistant-subagents-policy";
 import type { DurableRunStore, DurableRunHead } from "./durable-runs/ports.js";
 
 /** Only fields the daemon's start/liveness gates read; the daemon already owns its event log.
@@ -14,6 +15,17 @@ export interface DaemonDurableRunStore extends Pick<DurableRunStore, "captureSes
 
 const id = z.string().min(1).max(1024);
 const runId = { runId: id };
+const cliConsentTarget = { ...runId, agentId: id };
+const cliConsentKey = z.string().refine(key => key === "enabled" || ASSISTANT_CLI_CAPABILITIES.some(capability => capability.key === key));
+/** Explicit non-secret authority only; the daemon never receives the raw permissions blob. */
+export const daemonToolConsentSnapshot = z.object({
+  permissions: z.object({ enabled: z.boolean(), capabilities: z.record(z.boolean()) }).strict(),
+  revisionSeq: z.number().int().nonnegative(), allowed: z.boolean(), reason: z.string().max(1024).optional(),
+}).strict();
+export type DaemonToolConsentSnapshot = z.infer<typeof daemonToolConsentSnapshot>;
+export interface DaemonCliConsentTarget { runId: string; agentId: string }
+export interface DaemonCliConsentAllow extends DaemonCliConsentTarget { keys: readonly string[]; expectedRevisionSeq: number }
+
 const operation = <N extends string, S extends z.ZodType>(name: N, input: S) => z.object({ operation: z.literal(name), input }).strict();
 const primitiveAttributes = z.record(z.union([z.string(), z.number(), z.boolean()]));
 // The wire grammar mirrors Jini's trace event contract, never its provider implementation.
@@ -33,6 +45,10 @@ const aiTraceEvent = z.discriminatedUnion("kind", [
 ]);
 export const daemonCoreRequest = z.discriminatedUnion("operation", [
   operation("bootstrap", z.object({}).strict()),
+  operation("cliConsentSnapshot", z.object(cliConsentTarget).strict()),
+  operation("cliConsentAllow", z.object({ ...cliConsentTarget,
+    keys: z.array(cliConsentKey).min(1).max(ASSISTANT_CLI_CAPABILITIES.length + 1), expectedRevisionSeq: z.number().int().nonnegative(),
+  }).strict()),
   operation("sessionForAttempt", z.object(runId).strict()),
   operation("find", z.object({ ...runId, principalId: id.optional() }).strict()),
   operation("captureSession", z.object({ ...runId, sessionId: id, confirmed: z.boolean().optional(),

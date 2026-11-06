@@ -43,24 +43,24 @@ test('App: Locate replaces a missing-folder card with the found site at once', a
   });
   assert.match(app.text(), /Folder moved or not a site/);
   await app.click(app.byLabel('Locate the folder for Site gone'));
-  assert.deepEqual(app.all('article.card').map((card) => card.querySelector('.card__name')?.textContent), ['Site found']);
+  assert.deepEqual(app.all('article.card').map((card) => card.querySelector('.jini-site-card__name')?.textContent), ['Site found']);
   assert.doesNotMatch(app.text(), /Folder moved or not a site/);
 });
 
-test('App: a refused Add stays on Websites — a site tab hides it, and coming back shows it again', async (t) => {
-  // D-24: the Add failure belongs to the Websites view; it must not overlay a site the operator
-  // switched to, and it must still be there when they come back.
+test('App: a refused folder stays on the Import page with its words, and reopening the page starts clean', async (t) => {
+  // D-24: the refusal names the fix and keeps the person on the page; it must not follow them to
+  // the grid or into a site, and must not greet them again next time the page opens.
   const app = await renderApp(t, {
     listSites: async () => [site('a')],
     addSite: () => Promise.reject(new Error('That folder is not a Tovu site.')),
   });
-  const feedback = () => app.container.querySelector('.projects-feedback');
-  await app.click(app.byText('Add Tovu Website'));
-  assert.ok(feedback(), 'the refusal is reported on Websites');
-  await openFirstSite(app);
-  assert.equal(feedback(), null, 'the Add failure must not overlay the site');
-  await app.click(app.byLabel('Websites'));
-  assert.ok(feedback(), 'back on Websites, the refusal is still reported');
+  await app.click(app.byText('Import'));
+  await app.click(app.byText('Choose folder…'));
+  assert.match(app.container.querySelector('[role="alert"]')?.textContent ?? '', /not a Tovu site/);
+  assert.equal(app.container.querySelector('.projects-feedback'), null, 'not on the grid');
+  await app.click(app.container.querySelector('[aria-labelledby="import-website-title"] .back-link'));
+  await app.click(app.byText('Import'));
+  assert.equal(app.container.querySelector('[role="alert"]'), null, 'a reopened page has no stale refusal');
 });
 
 test('App: a running card\'s ⏻ wears the header\'s own "Create website" class', async (t) => {

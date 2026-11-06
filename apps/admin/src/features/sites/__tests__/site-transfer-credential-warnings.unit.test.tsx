@@ -40,21 +40,30 @@ function renderImport(port: SiteTransferPort) {
 }
 
 async function exportRow() {
-  return (await screen.findByText("example.com/_share/abc/mingjie.tovu.zip")).closest("tr")!;
+  // The whole table body: an export's row and its full-width detail line under it are one unit here.
+  return (await screen.findByText("example.com/_share/abc/mingjie.tovu.zip")).closest("tbody")!;
 }
 
 afterEach(() => vi.unstubAllGlobals());
 
 describe("export credential warning", () => {
-  it("shows the warning in the export's row with each file and what it may contain", async () => {
+  it("shows the warning in the export's detail line, not the Status column, with each file once and its kinds beside it", async () => {
     renderExport(createFakeSiteTransferPort({ listShares: async () => ({ shares: [share({ credentialWarnings: warnings, needsAcknowledgement: true })] }) }));
     const row = await exportRow();
-    const notice = within(row).getByText("This export may contain credentials in 2 files.").closest(".notice")!;
-    expect(notice.className).toContain("warning");
-    expect(within(notice as HTMLElement).getByText("Show files")).toBeTruthy();
-    expect(within(notice as HTMLElement).getByText("content.db:settings.value")).toBeTruthy();
-    expect(within(notice as HTMLElement).getAllByText("media/notes.txt")).toHaveLength(2);
-    for (const kind of ["API key", "Private key", "Password"]) expect(within(notice as HTMLElement).getByText(kind)).toBeTruthy();
+    const detail = row.querySelector<HTMLElement>(".list-table-detail")!;
+    // Status says only the status; the warning text lives in the full-width line under the row.
+    expect(row.querySelector(".site-transfer-status")!.querySelector(".site-transfer-notice-tip")).toBeNull();
+    expect(within(row).queryByRole("button", { name: "Warning" })).toBeNull();
+    expect(within(detail).getByText("This export may contain credentials in 2 files.")).toBeTruthy();
+    expect(row.querySelector(".notice")).toBeNull();
+    expect(within(detail).getByText("Show files")).toBeTruthy();
+    expect(within(detail).getByText("content.db:settings.value")).toBeTruthy();
+    // One entry per file: media/notes.txt has two kinds, listed next to the one path.
+    expect(within(detail).getAllByText("media/notes.txt")).toHaveLength(1);
+    const notes = within(detail).getByText("media/notes.txt").closest("li")!;
+    expect(notes.textContent).toContain("Private key");
+    expect(notes.textContent).toContain("Password");
+    expect(within(detail).getByText("API key")).toBeTruthy();
     expect((within(row).getByRole("checkbox", { name: "I understand this export may contain credentials" }) as HTMLInputElement).checked).toBe(false);
     // In the row, never a dialog.
     expect(screen.queryByRole("dialog")).toBeNull();
@@ -109,6 +118,9 @@ describe("export credential warning", () => {
     const row = await exportRow();
     expect(within(row).queryByRole("checkbox")).toBeNull();
     expect(within(row).queryByText(/may contain credentials/)).toBeNull();
+    expect(within(row).queryByRole("button", { name: "Warning" })).toBeNull();
+    // No warning, no detail line: an empty one drew a stray 13px strip under every row.
+    expect(row.querySelector(".list-table-detail")).toBeNull();
     expect(within(row).getByRole("link", { name: "Download zip" }).getAttribute("download")).toBe("mingjie.tovu.zip");
     expect((within(row).getByRole("button", { name: "Copy link" }) as HTMLButtonElement).disabled).toBe(false);
     fireEvent.click(within(row).getByRole("link", { name: "Download zip" }));
@@ -124,6 +136,8 @@ describe("export credential warning", () => {
     fireEvent.click(within(row).getByRole("link", { name: "Download zip" }));
     expect(await within(row).findByText(REFUSAL)).toBeTruthy();
     expect(within(row).getByText("content.db:settings.value")).toBeTruthy();
+    // A 409's warnings reach the detail line too, though the listed row had none.
+    expect(within(row).getByText("This export may contain credentials in 2 files.").closest(".list-table-detail")).toBeTruthy();
     expect(screen.queryByText("Download failed.")).toBeNull();
     expect(downloadShare).not.toHaveBeenCalled();
     expect((within(row).getByRole("button", { name: "Download zip" }) as HTMLButtonElement).disabled).toBe(true);
@@ -163,11 +177,12 @@ describe("import credential notice", () => {
     renderImport(createFakeSiteTransferPort({ startImport }));
     fireEvent.change(screen.getByLabelText("Share link"), { target: { value: "https://example.com/s/abc" } });
     fireEvent.click(screen.getByRole("button", { name: "Import as a new site" }));
-    const notice = (await screen.findByText("This import may contain credentials in 1 file.")).closest(".notice") as HTMLElement;
-    expect(notice.getAttribute("role")).toBe("status");
-    expect(within(notice).getByText("content.db:settings.value")).toBeTruthy();
-    expect(within(notice).getByText("API key")).toBeTruthy();
-    expect(within(notice).queryByRole("checkbox")).toBeNull();
+    const summary = await screen.findByText("This import may contain credentials in 1 file.");
+    expect(summary.closest(".site-transfer-notice-tip")).toBeTruthy();
+    const form = summary.closest("form") as HTMLElement;
+    expect(within(form).getByText("content.db:settings.value")).toBeTruthy();
+    expect(within(form).getByText("API key")).toBeTruthy();
+    expect(within(form).queryByRole("checkbox")).toBeNull();
     expect(screen.getByRole("button", { name: "Create site" })).toBeTruthy();
   });
 
@@ -175,6 +190,7 @@ describe("import credential notice", () => {
     renderImport(createFakeSiteTransferPort({ listImports: async () => ({ imports: [siteImport({ state: "ready", credentialWarnings: warnings })] }) }));
     const table = await screen.findByRole("table");
     expect(within(table).getByText("This import may contain credentials in 2 files.")).toBeTruthy();
+    expect(within(table).getByText("content.db:settings.value")).toBeTruthy();
   });
 
   it("shows no credential notice for an import without warnings", async () => {

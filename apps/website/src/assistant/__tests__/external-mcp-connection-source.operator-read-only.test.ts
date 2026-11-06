@@ -11,7 +11,7 @@ import * as federation from "../../features/agent-plugins/federate-mcp.js";
 import { parseAgentPluginMcpConfig, type McpServerConfig } from "../../features/agent-plugins/mcp-metadata.js";
 import { createStoredExternalMcpConnectionSource } from "../external-mcp-connection-source.js";
 import { InMemoryExternalMcpServerRepo } from "../../features/external-mcp/external-mcp-store.memory.js";
-import { readEnabledExternalMcpConfigs, saveExternalMcpServer } from "../../features/external-mcp/external-mcp-store.js";
+import { readEnabledExternalMcpConfigs, applyExternalMcpAccess, saveExternalMcpServer } from "../../features/external-mcp/external-mcp-store.js";
 
 const siteLayouts = createTempSiteLayoutFixture({});
 after(siteLayouts.cleanup);
@@ -97,7 +97,7 @@ test("a read-only manifest does not enable the plugin or change grants on first 
   await deps.repo.upsert({ ...existing, enabled: false, allowedToolNames: "[]", writeAllowedToolNames: "[]" });
   const before = await deps.repo.findByServerId({ workspaceId, serverId: "remote" });
   const effects: string[] = [];
-  const apply = createApplyConnectDefaults(testSiteLayoutContext({ ...siteLayouts.deps, ...deps, workspaceId, resolveServers: async () => servers(["inspect"]),
+  const apply = createApplyConnectDefaults(testSiteLayoutContext({ ...siteLayouts.deps, ...deps, applyAccess: input => applyExternalMcpAccess({ ...input, repo: deps.repo, clock: deps.clock }), workspaceId, resolveServers: async () => servers(["inspect"]),
     enablePlugin: async () => { effects.push("enable"); }, notifyRosterChanged: async () => { effects.push("notify"); } }));
   await apply("remote");
   assert.deepEqual(await deps.repo.findByServerId({ workspaceId, serverId: "remote" }), before);
@@ -156,6 +156,7 @@ test("a roster read rejecting with a non-Error value logs it and resolves to no 
   const deps = await harness();
   const repo = { ...deps.repo, listByWorkspaceId: () => Promise.reject("locked"), findByServerId: deps.repo.findByServerId.bind(deps.repo),
     upsert: deps.repo.upsert.bind(deps.repo), deleteByServerId: deps.repo.deleteByServerId.bind(deps.repo),
+    updateAccessIfCurrent: deps.repo.updateAccessIfCurrent.bind(deps.repo),
     tryClaimOAuthRefreshLease: deps.repo.tryClaimOAuthRefreshLease.bind(deps.repo), releaseOAuthRefreshLease: deps.repo.releaseOAuthRefreshLease.bind(deps.repo) };
   const source = createStoredExternalMcpConnectionSource(testSiteLayoutContext({ ...siteLayouts.deps, ...deps, repo, workspaceId, log: "[t05]" }));
   assert.deepEqual(await source.resolve(), []);

@@ -31,8 +31,12 @@ import { readPluginInstallRequest, readPluginInstallArchive } from "#src/feature
 import { createPluginInstallAttachmentReader } from "./plugin-install-attachment-reader.js";
 import type { InstallAttachmentReader } from '#src/contracts/headless/index';
 import type { AssistantToolContributions, AssistantToolRegistryDeps } from "#src/assistant/tool-registrations";
-import { ToolInputError } from "@jini-ai/core";
+import { createToolHumanConfirmer } from '#src/assistant/tool-approval-policy';
+import { ToolInputError, withToolMetadata } from "@jini-ai/core";
 import { contributeAnalyticsTools } from "#src/features/analytics/tool-registrations";
+import { toolMetadata as commerceToolMetadata } from '#src/contracts/core/tool-metadata/commerce';
+import { toMajorString } from '@jini-ai/commerce/money';
+import { commerceCatalogDerivedRisk, derivedRisk as commerceStatusRisk } from "@jini-ai/commerce/tools";
 import { contributeMailStatusTools } from "#src/features/mail-status/tool-registrations";
 import { contributeMailProviderTools } from "#src/features/mail-status/provider-tool-registrations";
 import { contributeMailDeliveryTools } from "#src/features/mail-status/delivery-tool-registrations";
@@ -347,6 +351,7 @@ export function installFirstPartyToolContributors(
     observability,
     createHttpClient = createDefaultHttpClient,
     readAdmissions = () => readServerAdmissions({}, {}),
+    readExternalMcpToolNames,
     chatAttachmentsDir,
     mediaVideoPorts = createMediaVideoToolPorts({}, { uploadDirectory: chatAttachmentsDir }),
     readInstallAttachment = createPluginInstallAttachmentReader({}, { uploadDirectory: chatAttachmentsDir }),
@@ -356,6 +361,7 @@ export function installFirstPartyToolContributors(
     createHttpClient?: typeof createDefaultHttpClient;
     /** Server-owned reader; omitted until composition binds the surface, diagnostics fail closed. */
     readAdmissions?: ExternalMcpOperations["admissions"];
+    readExternalMcpToolNames?: import("#src/features/external-mcp/deps").ExternalMcpToolDeps["externalMcpKnownToolNames"];
     /** The booted site's `RouteDeps.siteStoragePaths.chatAttachmentsDir`, which the two default
      *  attachment readers below read from. Both production callers pass it; omitted (hermetic
      *  tests), those readers refuse every ref instead of resolving a directory from env. */
@@ -368,6 +374,23 @@ export function installFirstPartyToolContributors(
   contributions.contentTargetInputs = bindContentTargetInputs;
   contributions.contributors.register({ contribution: contributeContentStatsTools() });
   contributions.contributors.register({ contribution: contributeAnalyticsTools() });
+  // Readiness remains discoverable while disabled; setup handlers recheck the activation reader.
+  contributions.contributors.register({ contribution: {
+    domain: "commerce", risk: new Map([...commerceStatusRisk, ...commerceCatalogDerivedRisk, ['commerce_resolve_unknown', 'mutates-durable-state']]),
+    build: (deps, surfaces) => {
+      const confirm = createToolHumanConfirmer({ surfaces });
+      return withToolMetadata({ metadata: commerceToolMetadata, registrations: deps.commerce?.toolRegistrations({ authorize: deps.authorize,
+      askHuman: ({ ctx, description }, options) => confirm({ ctx, description: {
+        toolId: 'commerce_resolve_unknown', errorCode: 'COMMERCE', title: 'Record this verified payment outcome?',
+        details: [{ label: 'Order', value: description.orderId }, { label: 'Payment', value: description.paymentId },
+          { label: 'Amount', value: `${description.amount.currency} ${toMajorString({ money: description.amount })}` }, { label: 'Mode', value: description.mode },
+          { label: 'Outcome', value: description.outcome }, { label: 'Verification reason', value: description.reason }],
+        warning: 'Approve only after verifying this exact payment in the provider dashboard or with provider support. A succeeded outcome can fulfill the order.',
+        confirmLabel: 'Record verified outcome',
+      } }, options),
+    }) ?? [] });
+    },
+  } });
   contributions.contributors.register({ contribution: contributeMailStatusTools() });
   contributions.contributors.register({ contribution: contributeMailProviderTools() });
   contributions.contributors.register({ contribution: contributeMailDeliveryTools() });
@@ -427,7 +450,7 @@ export function installFirstPartyToolContributors(
     listExpectedHosts: () => listSavedHostingHosts(routeDeps),
   }) }) });
   contributions.contributors.register({ contribution: contributeEntriesTools() });
-  contributions.contributors.register({ contribution: contributeExternalMcpTools({ probe: probeExternalMcpServer }) });
+  contributions.contributors.register({ contribution: contributeExternalMcpTools({ probe: probeExternalMcpServer, knownToolNames: readExternalMcpToolNames }) });
   contributions.contributors.register({ contribution: contributeExternalMcpOperationsTools({ probe: probeExternalMcpServer, admissions: readAdmissions }) });
   contributions.contributors.register({ contribution: contributeFsFilesTools() });
   contributions.contributors.register({ contribution: contributeFilesCopyTools() });
@@ -555,7 +578,7 @@ export function installFirstPartyToolContributors(
   contributions.contributors.register({ contribution: contributeStaticPublishTools() });
   contributions.contributors.register({ contribution: {
     domain: "credential-copy", risk: credentialCopyDerivedRisk,
-    build: (deps, surfaces) => buildCredentialCopyRegistrations({ deps, surfaces }),
+    build: (deps, surfaces) => buildCredentialCopyRegistrations({ deps, surfaces, saveNew: buildApiCredentialSaveHandlers({ routeDeps: deps, surfaces }).create }),
   } });
   const candidatePaths = readBundledDeployConfigCandidatePaths({ sourceRoot: bundledPluginsRoot });
   const committedRoot = resolveCommittedConfigRoot();

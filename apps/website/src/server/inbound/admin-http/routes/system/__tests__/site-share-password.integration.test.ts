@@ -47,5 +47,5 @@ test("password reveal denies other principals, workspaces, origins, tools and ma
   const revealed = await request(app, endpoint);
   assert.equal(revealed.status, 200); assert.equal(revealed.cache, "no-store"); assert.match(revealed.wire, /private-export-password/);
   credential = "api_key";
-  assert.equal((await request(app, root, "http://localhost", { includeSavedKeys: true })).status, 403);
+  assert.equal((await request(app, root, "http://localhost", { includeSavedKeys: true })).status, 400);
 });

@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from "node:util";
 import { sql, type Selectable } from "kysely";
 import { SqlSecretsVaultRepo, type SecretsVaultDatabase, type SecretsVaultTable } from "@jini-ai/db/secrets-vault";
 import { VaultError, type VaultRecord } from "@jini-ai/platform/secrets/credential-sets";
@@ -6,7 +7,8 @@ import type { StorageKernel } from "../../platform/db/kernel/port.js";
 
 import type { UUID } from "@jini-ai/core/primitives";
 
-import type { ExternalMcpServerRecord, ExternalMcpServerRepoPort } from "./contracts.js";
+import { externalMcpAccessSnapshot } from "./external-mcp-store.js";
+import type { ExternalMcpAccessUpdate, ExternalMcpServerRecord, ExternalMcpServerRepoPort } from "./contracts.js";
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
 import type { ExternalMcpServersTable } from "../../platform/db/content-database.generated.js";
 import { toBool } from "../../platform/db/kernel/dialect.js";
@@ -173,6 +175,32 @@ export class SqlExternalMcpServerRepo implements ExternalMcpServerRepoPort {
       // The upsert unlinks old pointers first; RESTRICT foreign keys remain satisfied throughout.
       if (previous?.env_secret_id !== env_secret_id) await deleteExternalMcpVaultEnvelope({ repo: this.vaultRepo, workspaceId: record.workspaceId, id: previous?.env_secret_id ?? null });
       if (previous?.oauth_secret_id !== oauth_secret_id) await deleteExternalMcpVaultEnvelope({ repo: this.vaultRepo, workspaceId: record.workspaceId, id: previous?.oauth_secret_id ?? null });
+    });
+  }
+
+  /** Serialize with credential writers, validate the approved source, then replace access only.
+   * The conditional UPDATE also compares prior grants and their decision; no credential/vault column is written.
+   * @complexity One indexed hydrated read and conditional UPDATE, O(a+w) bounded grant bytes.
+   */
+  async updateAccessIfCurrent(input: ExternalMcpAccessUpdate, _options = {}): Promise<boolean> {
+    return this.kernel.transaction(async () => {
+      await this.kernel.lockKey(`secrets_vault:${input.workspaceId}`);
+      const current = await this.findByServerId(input);
+      if (!current || !isDeepStrictEqual(externalMcpAccessSnapshot({ record: current }), input.expected)) return false;
+      const expected = input.expected;
+      const result = await this.kernel.run(db => db.updateTable("external_mcp_servers")
+        .set({ enabled: input.access.enabled, allowed_tool_names: input.access.allowedToolNames,
+          write_allowed_tool_names: input.access.writeAllowedToolNames, write_grants_updated_by_principal_id: input.principalId,
+          write_grants_updated_at: input.nowIso, updated_at: input.nowIso })
+        .where("workspace_id", "=", input.workspaceId).where("server_id", "=", input.serverId)
+        .where("enabled", "=", expected.enabled)
+        .where("allowed_tool_names", expected.allowedToolNames === null ? "is" : "=", expected.allowedToolNames)
+        .where("write_allowed_tool_names", expected.writeAllowedToolNames === null ? "is" : "=", expected.writeAllowedToolNames)
+        .where("write_grants_updated_by_principal_id", expected.writeGrantsUpdatedByPrincipalId === null ? "is" : "=", expected.writeGrantsUpdatedByPrincipalId)
+        .where("write_grants_updated_at", expected.writeGrantsUpdatedAt === null ? "is" : "=", expected.writeGrantsUpdatedAt)
+        .where("provisioned_by_plugin_id", expected.provisionedByPluginId === null ? "is" : "=", expected.provisionedByPluginId)
+        .executeTakeFirst());
+      return Number(result.numUpdatedRows) === 1;
     });
   }
 

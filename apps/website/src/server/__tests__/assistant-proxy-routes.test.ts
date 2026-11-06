@@ -431,6 +431,28 @@ test("frontend session streams, answers, and attachment deletion are session-gat
   }
 });
 
+test("runless page requests authenticate the session and preserve the originating tab", async (t) => {
+  const { baseUrl, cookie } = await bootProxy(t);
+  const me = await (await fetch(`${baseUrl}/api/admin/v1/auth/me`, { headers: { cookie } })).json() as { user: { id: string } };
+  const body = { capabilityId: 'page.click', input: { handle: 'permanent-delete' }, bindToken: 'private-tab-token' };
+  const path = '/api/frontend-sessions/request';
+  const denied = await fetch(`${baseUrl}${path}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  assert.equal(denied.status, 401);
+  await denied.text();
+  assert.equal(recorded.length, 0);
+  const response = await fetch(`${baseUrl}${path}`, { method: 'POST',
+    headers: { cookie, 'content-type': 'application/json', 'x-frontend-tab-id': 'tab-a', [RUN_PRINCIPAL_HEADER]: 'forged-principal' },
+    body: JSON.stringify(body),
+  });
+  assert.equal(response.status, 200);
+  await response.text();
+  assert.equal(recorded.length, 1);
+  assert.equal(recorded[0]!.headers[RUN_PRINCIPAL_HEADER], me.user.id);
+  assert.equal(recorded[0]!.headers['x-frontend-tab-id'], 'tab-a');
+  assert.equal(recorded[0]!.headers.authorization, `Bearer ${TOKEN}`);
+  assert.deepEqual(JSON.parse(recorded[0]!.body), body);
+});
+
 test("a message sent mid-run is session-gated and forwarded to the daemon with its token, principal and body", async (t) => {
   const { baseUrl, cookie } = await bootProxy(t);
   const me = await (await fetch(`${baseUrl}/api/admin/v1/auth/me`, { headers: { cookie } })).json() as { user: { id: string } };

@@ -1,0 +1,6 @@
+
+/workspace/Tovu/apps/website/src/features/deployments/publish-agent-tools.ts
+  1091:29  warning  Remove this useless assignment to variable "detailRows"  sonarjs/no-dead-store
+
+✖ 1 problem (0 errors, 1 warning)
+

@@ -48,10 +48,14 @@ test("destination rechecks deny paths, links and actual blob secrets without tru
   await writeFile(path.join(f.siteDir, "snippets/footer.html"), "footer");
   const [entity] = await f.pack();
   assert.ok(entity);
-  assert.match((await f.handler.precheck({ ...entity, id: ".env", state: { ...entity.state, path: ".env" } }))!, /never|environment/);
+  const privatePathRefusal = await f.handler.precheck({ ...entity, id: ".env", state: { ...entity.state, path: ".env" } });
+  assert.ok(typeof privatePathRefusal === "string");
+  assert.match(privatePathRefusal, /never|environment/);
   await mkdir(path.join(f.siteDir, "other"));
   await symlink(path.join(f.siteDir, "other"), path.join(f.siteDir, "link"));
-  assert.match((await f.handler.precheck({ ...entity, id: "link/footer.html", state: { ...entity.state, path: "link/footer.html" } }))!, /[Ll]ink/);
+  const linkedPathRefusal = await f.handler.precheck({ ...entity, id: "link/footer.html", state: { ...entity.state, path: "link/footer.html" } });
+  assert.ok(typeof linkedPathRefusal === "string");
+  assert.match(linkedPathRefusal, /[Ll]ink/);
   const planted = Buffer.from("sk-ant-api03-" + "X".repeat(120));
   await writeFile(path.join(f.siteDir, "snippets/footer.html"), planted);
   assert.deepEqual(await f.pack(), []);
@@ -60,7 +64,9 @@ test("destination rechecks deny paths, links and actual blob secrets without tru
   await f.blobs.putIfAbsent({ workspaceId: "ws", sha256, bytes: planted });
   const state = { ...entity.state, sha256, size: planted.byteLength };
   const forged = { ...entity, state, contentHash: contentHash("raw-file", state), requiredBlobs: [sha256] };
-  assert.match((await f.handler.precheck(forged))!, /looks like it holds a key/);
+  const credentialRefusal = await f.handler.precheck(forged);
+  assert.ok(typeof credentialRefusal === "string");
+  assert.match(credentialRefusal, /looks like it holds a key/);
 });
 
 test("replace then undo restores bytes, and a later live edit is skipped", async (t) => {
@@ -106,14 +112,22 @@ test("L044 validation rejects malformed metadata before reading blobs", async (t
   const states = [{ sha256: 1 }, { sha256: "bad" }, { size: "6" }, { size: 1.5 }, { size: -1 }, { size: 50 * 1024 * 1024 + 1 }, { mode: 0o777 }];
   for (const patch of states) assert.equal(await f.handler.precheck({ ...entity, state: { ...entity.state, ...patch } }), "The raw file has an invalid address, size, mode or checksum.");
   for (const requiredBlobs of [[], ["wrong"], [entity.state.sha256 as string, "extra"]]) {
-    assert.match((await f.handler.precheck({ ...entity, requiredBlobs }))!, /invalid address/);
+    const blobAddressRefusal = await f.handler.precheck({ ...entity, requiredBlobs });
+    assert.ok(typeof blobAddressRefusal === "string");
+    assert.match(blobAddressRefusal, /invalid address/);
   }
-  assert.match((await f.handler.precheck({ ...entity, id: "different" }))!, /invalid address/);
+  const pathMismatchRefusal = await f.handler.precheck({ ...entity, id: "different" });
+  assert.ok(typeof pathMismatchRefusal === "string");
+  assert.match(pathMismatchRefusal, /invalid address/);
   assert.equal(await f.handler.precheck({ ...entity, state: { ...entity.state, path: 1 } }), "Choose a regular file inside the site folder.");
-  assert.match((await f.handler.precheck(entity))!, /verified bytes are missing/);
+  const missingBytesRefusal = await f.handler.precheck(entity);
+  assert.ok(typeof missingBytesRefusal === "string");
+  assert.match(missingBytesRefusal, /verified bytes are missing/);
   await f.blobs.putIfAbsent({ workspaceId: "ws", sha256: entity.state.sha256 as string, bytes: Buffer.from("footer") });
   assert.equal(await f.handler.precheck(entity), null);
-  assert.match((await f.handler.precheck({ ...entity, contentHash: "wrong" }))!, /checked content hash/);
+  const contentHashRefusal = await f.handler.precheck({ ...entity, contentHash: "wrong" });
+  assert.ok(typeof contentHashRefusal === "string");
+  assert.match(contentHashRefusal, /checked content hash/);
   const noMedia = contributeRawFilePublish().build({ ...f.deps, ports: {} });
   assert.equal(await noMedia.precheck(entity), "Library documents cannot be published");
   const unavailable = contributeRawFilePublish().build({ ...f.deps, backstop: undefined });
@@ -175,8 +189,12 @@ test("L044 pack availability, aggregate byte cap and byte verification use typed
     putIfAbsent: async () => { throw new Error("no writes expected"); },
     remove: async () => { throw new Error("no writes expected"); },
   } } });
-  assert.match((await wrongBytes.precheck(entity))!, /verified bytes are missing/);
-  assert.match((await wrongBytes.precheck({ ...entity, state: { ...entity.state, size: 7 } }))!, /verified bytes are missing/);
+  const wrongBytesRefusal = await wrongBytes.precheck(entity);
+  assert.ok(typeof wrongBytesRefusal === "string");
+  assert.match(wrongBytesRefusal, /verified bytes are missing/);
+  const wrongSizeRefusal = await wrongBytes.precheck({ ...entity, state: { ...entity.state, size: 7 } });
+  assert.ok(typeof wrongSizeRefusal === "string");
+  assert.match(wrongSizeRefusal, /verified bytes are missing/);
 });
 
 test("L044 recorded inverses support compensation and reject later drift", async (t) => {
@@ -225,7 +243,9 @@ test("a destination without a blob store treats verified bytes as missing, and a
   const [entity] = await f.pack();
   assert.ok(entity);
   const noBlobs = contributeRawFilePublish().build({ ...f.deps, backstop: { ...f.deps.backstop!, blobs: undefined } });
-  assert.match((await noBlobs.precheck(entity))!, /verified bytes are missing/);
+  const missingBlobRefusal = await noBlobs.precheck(entity);
+  assert.ok(typeof missingBlobRefusal === "string");
+  assert.match(missingBlobRefusal, /verified bytes are missing/);
   const unreadable = contributeRawFilePublish().build({ ...f.deps, backstop: { ...f.deps.backstop!, files: { ...f.files, read: async () => { throw new Error("EACCES"); } } } });
   assert.equal(await unreadable.inspect(entity.id), null);
 });

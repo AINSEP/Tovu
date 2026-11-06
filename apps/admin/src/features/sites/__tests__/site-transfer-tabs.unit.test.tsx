@@ -105,8 +105,9 @@ describe("SiteExportTab", () => {
       renderExport(createFakeSiteTransferPort({ createShare: defaultSiteTransferPort.createShare }));
       fireEvent.click(screen.getByRole("button", { name: "Export Tovu site" }));
       const alert = await screen.findByRole("alert");
-      expect(alert.textContent).toBe(message);
+      expect(within(alert).getByText(message, { selector: "p" }).textContent).toBe(message);
       expect(alert.querySelector("strong")).toBeNull();
+      expect(alert.querySelector("pre")?.textContent).toContain(`Message: ${message}`);
     } finally { fetch.mockRestore(); }
   });
   it("shows an empty state, then exports with one press and no confirmation", async () => {
@@ -139,7 +140,8 @@ describe("SiteExportTab", () => {
 
   it("says when exports are zip downloads only, and gives a revoked export no actions", async () => {
     renderExport(createFakeSiteTransferPort({ listShares: async () => ({ shares: [share({ url: null }), share({ shareId: "old", status: "revoked" })] }) }));
-    expect(await screen.findByText(/No link host is set up/)).toBeTruthy();
+    // A warning sign beside the export buttons, not a box.
+    expect((await screen.findByText(/No link host is set up/)).closest(".site-transfer-notice-tip")).toBeTruthy();
     expect(screen.getByText("Zip only")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Copy link" })).toBeNull();
     expect(screen.getAllByRole("link", { name: "Download zip" })).toHaveLength(1);
@@ -158,7 +160,11 @@ describe("SiteExportTab", () => {
   it("shows an export failure as an alert", async () => {
     renderExport(createFakeSiteTransferPort({ createShare: async () => { throw "no"; } }));
     fireEvent.click(await screen.findByRole("button", { name: "Export Tovu site" }));
-    expect((await screen.findByRole("alert")).textContent).toBe("Export failed.");
+    const alert = await screen.findByRole("alert");
+    expect(within(alert).getByText("The site export could not finish.", { selector: "p" }).textContent).toBe("The site export could not finish.");
+    expect(within(alert).getByText("Check export history before starting another export. Copy details and report this problem.", { selector: "p" })).toBeTruthy();
+    expect(alert.querySelector("details")?.hasAttribute("open")).toBe(false);
+    expect(alert.querySelector("pre")?.textContent).toContain("Cause: no");
   });
 });
 
@@ -260,7 +266,7 @@ describe("SiteImportTab", () => {
 // Exercise markup through the components' supported controller seam. Effects and persistence
 // remain covered above through the real hooks; these cases pin every transient display state.
 function exportController(overrides: Partial<SiteExportController> = {}): SiteExportController {
-  return { canManageSavedKeys: false, includeSavedKeys: false, setIncludeSavedKeys: vi.fn(), exportNotices: [], noticeShareId: null,
+  return { canManageSavedKeys: false,
     revealedPassword: null, passwordError: null, revealingId: null, passwordCopied: false, revealPassword: vi.fn(async () => {}), copyPassword: vi.fn(async () => {}), hidePassword: vi.fn(),
     staticThemes: [], selectedThemeIds: [], staticExportReady: false, staticOptionsLoading: false, staticOptionsError: null, toggleStaticTheme: vi.fn(), selectAllStaticThemes: vi.fn(),
     shares: [], listError: null, exporting: false, exportError: null, zipOnly: false,
@@ -534,10 +540,43 @@ it("withholds Open for failed, unfinished and ready imports without an admin add
 
 it("explains that export images are web-optimized copies", () => {
   render(<SiteExportTab t={t} useExport={() => exportController()} />);
-  expect(screen.getByText("Images are exported as web-optimized copies.")).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Images are exported as web-optimized copies." })).toBeTruthy();
 });
-it("shows edited-code warnings in the current import result", () => {
+it.each(["needs-owner", "ready"] as const)("shows edited-code warnings on the warning sign of a current %s import", state => {
   const warning = "Edited agent-plugins/demo was imported and kept switched off.";
-  render(<SiteImportTab t={t} useImport={() => importController({ current: siteImport({ warnings: [warning] }) })} />);
-  expect(screen.getByRole("status").textContent).toContain(warning);
+  render(<SiteImportTab t={t} useImport={() => importController({ current: siteImport({ state, warnings: [warning] }) })} />);
+  expect(screen.getByText(warning).closest(".site-transfer-notice-tip")).toBeTruthy();
+});
+
+describe("export row notices", () => {
+  it("shows every notice of an export once in its detail line, not on the Status column", () => {
+    const notice = "No domain was given, so sitemap.xml and feed.xml were left out.";
+    render(<SiteExportTab t={t} useExport={() => exportController({ shares: [share({ notes: ["Published content only."], notices: [notice, "Published content only."] }), share({ shareId: "plain" })] })} />);
+    expect(screen.queryByRole("button", { name: "Warning" })).toBeNull();
+    const details = document.querySelectorAll(".list-table-detail");
+    expect(details).toHaveLength(1);
+    expect(within(details[0] as HTMLElement).getAllByText("Published content only.")).toHaveLength(1);
+    expect(within(details[0] as HTMLElement).getByText(notice)).toBeTruthy();
+    expect(document.querySelector(".site-transfer-status .notice")).toBeNull();
+  });
+});
+
+describe("rows hold still after Revoke", () => {
+  it("keeps the revoked row and its detail line at their height, so the next row's Revoke cannot slide under a second click", () => {
+    const revoke = vi.fn(async () => {});
+    const credentialWarnings = [{ path: "media/notes.txt", kind: "Password" }];
+    const shares = [share({ credentialWarnings }), share({ shareId: "next" })];
+    const ui = render(<SiteExportTab t={t} useExport={() => exportController({ shares, revoke })} />);
+    const [row, detail, next] = screen.getAllByRole("row").slice(1);
+    vi.spyOn(row!, "getBoundingClientRect").mockReturnValue({ height: 61 } as DOMRect);
+    vi.spyOn(detail!, "getBoundingClientRect").mockReturnValue({ height: 28 } as DOMRect);
+    fireEvent.click(within(row!).getByRole("button", { name: "Revoke" }));
+    expect(revoke).toHaveBeenCalledOnce();
+    ui.rerender(<SiteExportTab t={t} useExport={() => exportController({ shares: [{ ...shares[0]!, status: "revoked" }, shares[1]!], revoke })} />);
+    const [rowAfter, detailAfter, nextAfter] = screen.getAllByRole("row").slice(1);
+    expect(within(rowAfter!).queryByRole("button", { name: "Revoke" })).toBeNull();
+    expect([rowAfter!.style.height, detailAfter!.style.height]).toEqual(["61px", "28px"]);
+    expect(nextAfter).toBe(next);
+    expect(nextAfter!.style.height).toBe("");
+  });
 });

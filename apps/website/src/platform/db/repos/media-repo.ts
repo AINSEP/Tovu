@@ -3,7 +3,7 @@ import type { Kysely, Selectable } from "kysely";
 import type { ContentDatabase, AssetBlobsTable, AssetRenditionsTable, MediaSlugHistoryTable, MediaTable, TransformRegistryTable } from "../content-database.generated.js";
 import type { ContentKernel } from "../content-kernel.js";
 import { isUniqueViolation, listColumns } from "../kernel/dialect.js";
-import type { MediaRecord } from "@jini-ai/cms/media";
+import { mediaFileReplacementRecord, type MediaRecord, type MediaFileReplacementInput } from "@jini-ai/cms/media";
 import type { MediaContentTypeStorePort, VersionedMediaRepoPort } from "#src/features/media/index";
 import type { UUID } from "@jini-ai/core/primitives";
 import { MediaConflictError } from "@jini-ai/cms/media";
@@ -177,7 +177,7 @@ export class SqlMediaRepo implements VersionedMediaRepoPort {
     Promise<Omit<MediaTable, "created_by" | "kind" | "original_filename"> & { created_by?: string | null; kind: string; original_filename: string | null }> {
     const { record } = required;
     const columns = await listColumns(this.kernel, "media");
-    return { ...toMediaRow(record), source_metadata_json: JSON.stringify({ provenance: record.source.provenance, contentType: record.source.contentType }),
+    return { ...toMediaRow(record), source_metadata_json: JSON.stringify({ provenance: record.source.provenance, contentType: record.source.contentType, ...(record.source.private ? { private: true } : {}) }),
       kind: record.kind ?? "media", original_filename: record.originalFilename ?? null, ...(columns.some(column => column.name === "created_by")
       ? { created_by: record.createdBy ?? null } : {}) };
   }
@@ -342,33 +342,50 @@ export class SqlMediaRepo implements VersionedMediaRepoPort {
 
   /** An authorized replace command is the sole mutable-source operation. Invalidate derived
    * previews in the SAME transaction: a failed insert must leave the old source and previews
-   * intact. Ordinary metadata/import writes retain their existing source policy. */
-  async replaceFileIfVersion(required: {
-    workspaceId: UUID; id: UUID; ifVersion: number; sha256: string; storageKey: string;
-    originalRenditionId: UUID; updatedAt: string; contentType: string; provenance: NonNullable<MediaRecord['source']['provenance']>;
-  }, _optional: Record<string, never> = {}): Promise<{ applied: boolean }> {
-    return this.kernel.transaction(async () => {
-      await this.kernel.lockKey(slugLockKey(required.workspaceId));
-      return this.kernel.run(async db => {
-        const blob = await db.selectFrom('asset_blobs').select('id')
-          .where('workspace_id', '=', required.workspaceId).where('sha256', '=', required.sha256)
-          .where('storage_key', '=', required.storageKey).where('status', '=', 'active').executeTakeFirst();
-        if (!blob) return { applied: false };
-        const rows = await db.updateTable('media').set({ source_sha256: required.sha256,
-          source_metadata_json: JSON.stringify({ contentType: required.contentType, provenance: required.provenance }),
-          version: required.ifVersion + 1, updated_at: required.updatedAt })
-          .where('workspace_id', '=', required.workspaceId).where('id', '=', required.id)
-          .where('version', '=', required.ifVersion).where('status', '=', 'active')
-          .returning('id').execute();
-        if (!rows.length) return { applied: false };
-        await db.deleteFrom('asset_renditions').where('workspace_id', '=', required.workspaceId)
-          .where('asset_id', '=', required.id).execute();
-        await db.insertInto('asset_renditions').values({ id: required.originalRenditionId,
-          workspace_id: required.workspaceId, asset_id: required.id, transform_name: 'original',
-          version: 1, storage_key: required.storageKey, created_at: required.updatedAt }).execute();
-        return { applied: true };
+   * intact. Ordinary metadata/import writes retain their existing source policy.
+   * @returns Whether the active source/version was switched; compensation may restore a trashed row.
+   * @throws MediaConflictError for slug contention; other persistence failures propagate.
+   * @complexity O(R) deleted renditions; fixed indexed row/slug/blob reads and one media CAS. */
+  async replaceFileIfVersion(required: MediaFileReplacementInput, _optional: Record<string, never> = {}): Promise<{ applied: boolean }> {
+    try {
+      return await this.kernel.transaction(async () => {
+        await this.kernel.lockKey(slugLockKey(required.workspaceId));
+        return this.kernel.run(async db => {
+          const currentRow = await db.selectFrom('media').selectAll()
+            .where('workspace_id', '=', required.workspaceId).where('id', '=', required.id)
+            .where('version', '=', required.ifVersion).where('status', 'in', required.restore ? ['active', 'trashed'] : ['active'])
+            .where('kind', '=', 'media').executeTakeFirst();
+          if (!currentRow) return { applied: false };
+          const current = toMediaRecord(currentRow);
+          const updated = mediaFileReplacementRecord({ media: current, input: required });
+          const claimant = await findSlugClaimant(db, required.workspaceId, updated.slug);
+          assertSlugReclaimable(claimant, required.id, updated.slug);
+          const blob = await db.selectFrom('asset_blobs').select('id')
+            .where('workspace_id', '=', required.workspaceId).where('sha256', '=', required.sha256)
+            .where('storage_key', '=', required.storageKey).where('status', '=', 'active').executeTakeFirst();
+          if (!blob) return { applied: false };
+          const { sha256: _sha, ...sourceMetadata } = updated.source;
+          const rows = await db.updateTable('media').set({ ...toMediaRow(updated),
+            source_metadata_json: JSON.stringify(sourceMetadata) })
+            .where('workspace_id', '=', required.workspaceId).where('id', '=', required.id)
+            .where('version', '=', required.ifVersion).where('status', 'in', required.restore ? ['active', 'trashed'] : ['active'])
+            .returning('id').execute();
+          if (!rows.length) return { applied: false };
+          if (claimant) await deleteHistoryRow(db, required.workspaceId, updated.slug);
+          await retireSlug(db, required.workspaceId, required.id, current.slug, updated.slug, required.updatedAt);
+          if (!required.restore) await new SqlMediaContentTypeStore(this.kernel).set({ workspaceId: required.workspaceId,
+            sha256: required.sha256, contentType: required.contentType });
+          await db.deleteFrom('asset_renditions').where('workspace_id', '=', required.workspaceId)
+            .where('asset_id', '=', required.id).execute();
+          await db.insertInto('asset_renditions').values({ id: required.originalRenditionId,
+            workspace_id: required.workspaceId, asset_id: required.id, transform_name: 'original',
+            version: 1, storage_key: required.storageKey, created_at: required.updatedAt }).execute();
+          return { applied: true };
+        });
       });
-    });
+    } catch (error) {
+      return translateSlugConflict(error, required.metadata?.slug ?? required.id);
+    }
   }
 
   async saveRenditionIfSource({ record, sourceSha256 }: { record: AssetRenditionRecord; sourceSha256: string },

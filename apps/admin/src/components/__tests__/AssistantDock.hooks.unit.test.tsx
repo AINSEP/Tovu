@@ -5,6 +5,7 @@ import type { ChatMessage } from "@jini-ai/chat/core";
 import type { FrontendSessionBridge } from "@jini-ai/chat/react";
 import type { ExecutionConfig } from "@jini-ai/ui";
 import { onUnauthenticated } from "../../lib/api";
+import { adminFrontendTabId } from "../../lib/admin-frontend-session";
 
 /**
  * @file `AssistantDock.hooks.tsx` — the three extracted hooks (`useExecutionConfig`,
@@ -2063,16 +2064,16 @@ describe("useRunContext", () => {
     const agentBridge = { bindToken: () => token } as unknown as FrontendSessionBridge;
     const { result } = renderHook(() => useRunContext({ agentBridge, model: "sonnet" }));
 
-    expect(result.current()).toEqual({ frontendBindToken: "tok-1", model: "sonnet" });
+    expect(result.current()).toEqual({ frontendTabId: adminFrontendTabId, frontendBindToken: "tok-1", model: "sonnet" });
 
     token = "tok-2"; // simulates an EventSource reconnect minting a new bind token
-    expect(result.current()).toEqual({ frontendBindToken: "tok-2", model: "sonnet" });
+    expect(result.current()).toEqual({ frontendTabId: adminFrontendTabId, frontendBindToken: "tok-2", model: "sonnet" });
   });
 
   it("omits frontendBindToken when there is no agentBridge", () => {
     const { result } = renderHook(() => useRunContext({ agentBridge: null, model: "sonnet" }));
 
-    expect(result.current()).toEqual({ model: "sonnet" });
+    expect(result.current()).toEqual({ frontendTabId: adminFrontendTabId, model: "sonnet" });
   });
 
   // 2026-09-16 owner report: in the page editor for "Landing sample — xai", the assistant could not
@@ -2088,13 +2089,13 @@ describe("useRunContext", () => {
     let screen: typeof pageEditor | { path: string; section: string } | undefined = pageEditor;
     const { result } = renderHook(() => useRunContext({ agentBridge: null, readScreenContext: () => screen }));
 
-    expect(result.current()).toEqual({ pageContext: pageEditor });
+    expect(result.current()).toEqual({ frontendTabId: adminFrontendTabId, pageContext: pageEditor });
 
     screen = { path: "/pages", section: "pages" };
-    expect(result.current()).toEqual({ pageContext: { path: "/pages", section: "pages" } });
+    expect(result.current()).toEqual({ frontendTabId: adminFrontendTabId, pageContext: { path: "/pages", section: "pages" } });
 
     screen = undefined;
-    expect(result.current()).toEqual({});
+    expect(result.current()).toEqual({ frontendTabId: adminFrontendTabId });
   });
 
   it("memoizes the callback while agentBridge and model are unchanged", () => {
@@ -2128,11 +2129,11 @@ describe("useRunContext", () => {
       { initialProps: { pluginRefIds: [] as readonly string[] } },
     );
 
-    expect(result.current()).toEqual({ frontendBindToken: "tok", model: "sonnet" });
+    expect(result.current()).toEqual({ frontendTabId: adminFrontendTabId, frontendBindToken: "tok", model: "sonnet" });
 
     rerender({ pluginRefIds: ["ui-ux-design"] });
 
-    expect(result.current()).toEqual({ frontendBindToken: "tok", model: "sonnet", pluginRefIds: ["ui-ux-design"] });
+    expect(result.current()).toEqual({ frontendTabId: adminFrontendTabId, frontendBindToken: "tok", model: "sonnet", pluginRefIds: ["ui-ux-design"] });
   });
 
   it("carries conversationId through, and rebuilds the callback when it changes (a conversation switch)", () => {
@@ -2143,11 +2144,11 @@ describe("useRunContext", () => {
     );
     const first = result.current;
 
-    expect(result.current()).toEqual({ frontendBindToken: "tok", model: "sonnet" });
+    expect(result.current()).toEqual({ frontendTabId: adminFrontendTabId, frontendBindToken: "tok", model: "sonnet" });
 
     rerender({ conversationId: "c1" });
 
-    expect(result.current()).toEqual({ frontendBindToken: "tok", model: "sonnet", conversationId: "c1" });
+    expect(result.current()).toEqual({ frontendTabId: adminFrontendTabId, frontendBindToken: "tok", model: "sonnet", conversationId: "c1" });
     expect(result.current).not.toBe(first);
   });
 });

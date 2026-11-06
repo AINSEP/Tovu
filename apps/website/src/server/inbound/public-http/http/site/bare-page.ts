@@ -1,3 +1,4 @@
+import type { DocumentAssets } from '@jini-ai/cms/presentation';
 import type { PostRecord } from "#src/features/post/index";
 import type { ResolveHtmlPageEmbedsResult } from "@jini-ai/cms/widgets/html";
 import type { WidgetRenderIR } from "@jini-ai/cms/widgets";
@@ -66,18 +67,19 @@ export function isFullHtmlDocument(html: string): boolean {
  *
  * Deliberately absent, versus `pageShell`: `BASE_STYLE`, any theme font link/style, `data-theme`, the
  * `<div class="site">` wrapper, and the site-assistant widget's head/body markup. Bare means only the
- * page's own authored HTML plus the same SEO fold every other route gets — nothing else Tovu's theme
+ * page's own authored HTML plus the same SEO fold and explicit host asset slots — nothing else Tovu's theme
  * layer would otherwise contribute (owner ruling, plan §3).
  *
  * @complexity O(1) beyond the linear cost of concatenating its own inputs.
  */
-function wrapBareFragment(required: { title: string; extraHead: string | undefined; body: string }): string {
+function wrapBareFragment(required: { title: string; extraHead: string | undefined; body: string; documentAssets?: DocumentAssets }): string {
+  const assets = required.documentAssets ?? { head: "", body: "" };
   const foldHasTitle = required.extraHead?.includes("<title>") ?? false;
   const titleTag = foldHasTitle ? "" : `<title>${escapeHtml(required.title)}</title>`;
   return (
     `<!doctype html><html lang="en"><head><meta charset="utf-8"/>` +
-    `<meta name="viewport" content="width=device-width, initial-scale=1"/>${titleTag}${required.extraHead ?? ""}` +
-    `</head><body>${required.body}</body></html>`
+    `<meta name="viewport" content="width=device-width, initial-scale=1"/>${titleTag}${required.extraHead ?? ""}${assets.head}` +
+    `</head><body>${required.body}${assets.body}</body></html>`
   );
 }
 
@@ -85,6 +87,8 @@ function wrapBareFragment(required: { title: string; extraHead: string | undefin
  *  `render.ts`'s `buildSiteRenderContext` already defaults the same fields for `renderSite`, so a
  *  caller that only has a post/siteTitle (no widgets, no embeds) still gets a valid document. */
 export interface RenderBareEntryDocumentRequired {
+  /** Host assets join only documents this renderer constructs; authored full documents stay intact. */
+  documentAssets?: DocumentAssets;
   post: PostRecord;
   siteTitle: string;
   /** SPEC-008 T049 — the caller's pre-built SEO/og head fold (`pages.ts`'s `buildExtraHead`), spliced
@@ -133,7 +137,7 @@ export function renderBareEntryDocument(required: RenderBareEntryDocumentRequire
     const rawBodyHtml = post.bodyHtml ?? "";
     const resolvedBody = renderHtmlPageBody(rawBodyHtml, required.pageHtmlEmbeds);
     if (isFullHtmlDocument(rawBodyHtml)) return resolvedBody;
-    return wrapBareFragment({ title, extraHead: required.extraHead, body: resolvedBody });
+    return wrapBareFragment({ title, extraHead: required.extraHead, body: resolvedBody, documentAssets: required.documentAssets });
   }
   const body = renderDocNode(
     post.bodyJson,
@@ -141,5 +145,5 @@ export function renderBareEntryDocument(required: RenderBareEntryDocumentRequire
     required.mediaTransformVersions ?? EMPTY_MEDIA_TRANSFORM_VERSIONS,
     required.mediaAssetMetadata ?? EMPTY_MEDIA_ASSET_METADATA
   );
-  return wrapBareFragment({ title, extraHead: required.extraHead, body });
+  return wrapBareFragment({ title, extraHead: required.extraHead, body, documentAssets: required.documentAssets });
 }

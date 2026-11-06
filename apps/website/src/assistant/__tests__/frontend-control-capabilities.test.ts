@@ -74,6 +74,14 @@ test("page.* capabilities are still present alongside the chat verbs", () => {
   assert.deepEqual(ids.filter((id) => id.startsWith("page.")).sort(), EXPECTED_PAGE_IDS);
 });
 
+test("page clicks use the server chat-card exchange without requiring a second browser dialog", () => {
+  const click = FRONTEND_CONTROL_CAPABILITIES.find(capability => capability.id === "page.click");
+  assert.ok(click);
+  assert.notEqual((click as { requiresFrontendApproval?: boolean }).requiresFrontendApproval, true);
+  assert.equal(nativeToolMetadata.exchangeOnlyIds.has("page.click"), true);
+  assert.equal(nativeToolMetadata.redeemableIds.has("page.click"), true);
+});
+
 /**
  * The admin-screenshot capability (`admin.capture_screenshot`) — the assistant's only way to see
  * pixels rather than markup. Pinned separately from the chat/page assertions above because its

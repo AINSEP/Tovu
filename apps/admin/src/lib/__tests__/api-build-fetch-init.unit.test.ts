@@ -40,3 +40,11 @@ test("buildFetchInit lets the caller override credentials itself", () => {
   const init = buildFetchInit({ credentials: "omit" });
   expect(init.credentials).toBe("omit");
 });
+
+// Bug 2026-11-06: the owner-recovery client sends a lowercase "content-type". Merged beside the
+// default "Content-Type" key, fetch joined them into "application/json, application/json", the
+// server's JSON check refused it, and "Reset owner password" never worked in any desktop site.
+test("buildFetchInit sends ONE content type when the caller spells the header in lowercase", () => {
+  const init = buildFetchInit({ headers: { "content-type": "application/json" } });
+  expect(new Headers(init.headers).get("content-type")).toBe("application/json");
+});

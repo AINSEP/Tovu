@@ -393,6 +393,7 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
     // verified child identity, reconstruction is the safe universal continuation path.
     verifyChildDead: options.verifyChildDead ?? ((required, _options) => verifyAttemptChildDead(required, {})),
     supportsNativeResume: options.supportsNativeResume ?? (({ agentId }, _options) => agentCarriesOwnMemory({ agentId: agentId }, {})),
+    checkpoint: (required, _options) => options.ledger.checkpoint(required),
     settle: (required, _options) => options.ledger.settle(required),
   }, {}) : undefined;
 

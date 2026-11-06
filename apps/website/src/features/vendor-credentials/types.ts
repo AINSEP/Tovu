@@ -53,8 +53,10 @@ export interface VendorCredentialSetRepoPort extends JiniVendorRepo {
 export interface VendorCredentialProjectScope {
   readonly workspaceId: string;
   readonly repo: VendorCredentialSetRepoPort;
-  /** Explicit deletion metadata only, over the raw project vault with its usage guard. */
-  readonly deletionRepo?: VendorCredentialSetRepoPort;
+  /** Human cards may create a key without granting reads of other owner entries. */
+  readonly createRepo?: VendorCredentialSetRepoPort;
+  /** Trusted human replacement writer; the owner transaction rechecks this site's grant. */
+  readonly replaceRepo?: VendorCredentialSetRepoPort;
   readonly sealer: SecretSealerPort;
   readonly keyring: KeyringPort;
 }

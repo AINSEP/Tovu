@@ -208,7 +208,7 @@ test("ENABLE_PRINCIPAL route: 500 internal error when an unexpected error is thr
   const res = await fetch(`${baseUrl}${urlFor("any-id")}`, { method: "POST" });
   assert.equal(res.status, 500);
   const body = (await res.json()) as { error: string };
-  assertAdminResponse({ actual: body, expected: { error: "internal error" } });
+  assertAdminResponse({ actual: body, expected: { error: "internal error" } }, { failure: {"message":"The user operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"user operation"} });
 });
 
 test("ENABLE_PRINCIPAL route: 409 USER_IN_TRASH when the target is currently in the Trash — OWNER DECISION 2026-09-24", async (t) => {
@@ -246,7 +246,7 @@ for (const { error, status, body } of [
     res.locals.principal = { id: ownerId };
     await handler({ params: { workspaceId: WORKSPACE_ID, principalId: "target" } }, res);
     assert.equal(capture.statusCode, status);
-    assertAdminResponse({ actual: capture.jsonBody, expected: body });
+    assertAdminResponse({ actual: capture.jsonBody, expected: body }, { failure: {"message":"The user operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"user operation"} });
   });
 }
 

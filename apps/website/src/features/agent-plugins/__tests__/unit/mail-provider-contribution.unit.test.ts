@@ -32,6 +32,26 @@ function adapters(list: readonly LoadedMailAdapter[], refusals: readonly string[
 
 const V2 = { id: "postal", label: "Postal", module: "adapters/postal.mjs", credentialKeys: ["token"], feedback: true };
 
+test("v1 descriptor IDs accepted by the parser register unchanged as mail providers", () => {
+  const ids = ["a", "custom_mail", `a${"0".repeat(63)}`];
+  const parsed = parseMailAdaptersFile(JSON.stringify({
+    schemaVersion: 1,
+    adapters: ids.map(id => ({ id, label: id, module: "a.mjs", credentialLabel: "Mail key" })),
+  }));
+  assert.ok(parsed.ok);
+  const registry = createMailProviderRegistry();
+  const result = contributeMailProviders({ registry, adapters: adapters(parsed.descriptors.map(descriptor => adapter(descriptor))) });
+  assert.deepEqual(result, { accepted: ids, refusals: [] });
+  assert.deepEqual(registry.list().map(provider => provider.id), ids);
+});
+
+test("v1 descriptors reject IDs the mail provider registry cannot register", () => {
+  for (const id of ["my-mail", "7mail", "a".repeat(65)]) {
+    const parsed = parseMailAdaptersFile(JSON.stringify({ schemaVersion: 1, adapters: [{ id, label: "Mail", module: "a.mjs", credentialLabel: "Mail key" }] }));
+    assert.deepEqual(parsed, { ok: false, reason: "adapters[0].id must match ^[a-z][a-z0-9_]{0,63}$" }, id);
+  }
+});
+
 test("parseMailAdaptersFile accepts schemaVersion 2 with credentialKeys/feedback and defaults the credential label", () => {
   assert.deepEqual(parseMailAdaptersFile(JSON.stringify({ schemaVersion: 2, adapters: [V2] })), {
     ok: true,
@@ -105,7 +125,7 @@ test("parseMailAdaptersFile v1 still refuses a non-array list, a non-object entr
   const entry = { id: "a", label: "A", module: "a.mjs", credentialLabel: "A key" };
   assert.deepEqual(v1("x"), { ok: false, reason: "adapters must be an array" });
   assert.deepEqual(v1([7]), { ok: false, reason: "adapters[0] must be an object" });
-  assert.deepEqual(v1([{ ...entry, id: "Bad Id" }]), { ok: false, reason: "adapters[0].id must be a lowercase hyphenated id" });
+  assert.deepEqual(v1([{ ...entry, id: "Bad Id" }]), { ok: false, reason: "adapters[0].id must match ^[a-z][a-z0-9_]{0,63}$" });
   assert.deepEqual(v1([{ ...entry, label: " " }]), { ok: false, reason: "adapters[0].label must be a non-empty string" });
 });
 

@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@/__tests__/fetch-query-render";
+import { cleanup, render, screen, within } from "@/__tests__/fetch-query-render";
 import { afterEach, expect, it, vi } from "vitest";
 
 import { ADMIN_LOCALES } from "@/lib/settings-tabs";
@@ -15,7 +15,7 @@ import type { useSkillInstall } from "../use-skill-install.hooks";
 afterEach(cleanup);
 
 function install(overrides: Partial<ReturnType<typeof useSkillInstall>> = {}): ReturnType<typeof useSkillInstall> {
-  return { pending: null, busy: false, error: null, propose: vi.fn(), proposeFiles: vi.fn(), cancel: vi.fn(), confirm: vi.fn(async () => {}), fail: vi.fn(), ...overrides };
+  return { pending: null, busy: false, error: null, cause: null, propose: vi.fn(), proposeFiles: vi.fn(), cancel: vi.fn(), confirm: vi.fn(async () => {}), fail: vi.fn(), ...overrides };
 }
 
 const pending = { githubUrl: "https://github.com/acme/skill" };
@@ -45,7 +45,7 @@ it("keeps English when no locale is given (existing callers and tests)", () => {
 it.each(NON_ENGLISH)("%s translates the dismiss row's text and accessible name", locale => {
   render(<SkillInstallConfirmation install={install({ error: "SKILL.md is missing." })} locale={locale} />);
   const alert = screen.getByRole("alert");
-  const dismiss = alert.querySelector("button")!;
+  const dismiss = alert.querySelector("button[aria-label]")!;
   expect(dismiss.textContent?.trim()).not.toBe("Dismiss");
   expect(dismiss.textContent?.trim().length).toBeGreaterThan(0);
   expect(dismiss.getAttribute("aria-label")).toBe(dismiss.textContent);
@@ -58,7 +58,9 @@ it.each(NON_ENGLISH)("%s translates the install dialog's accessible name and cop
   const dialog = screen.getByRole("dialog");
   expect(dialog.getAttribute("aria-label")).not.toBe("Install skill");
   expect(dialog.getAttribute("aria-label")?.trim().length).toBeGreaterThan(0);
-  for (const english of ["Install skill?", "Review instructions from sources you trust. Installation runs no code.", "Cancel", "Confirm install"]) {
+  // Spanish and Portuguese correctly use "Cancelar"; reject the untranslated button, not that substring.
+  expect(within(dialog).queryByRole("button", { name: "Cancel" })).not.toBeInTheDocument();
+  for (const english of ["Install skill?", "Review instructions from sources you trust. Installation runs no code.", "Confirm install"]) {
     expect(dialog.textContent, `${locale}: ${english}`).not.toContain(english);
   }
 });

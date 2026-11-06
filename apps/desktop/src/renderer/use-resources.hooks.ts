@@ -33,10 +33,11 @@ function pollDelay({ currentVisibility, snapshot }: { currentVisibility: boolean
  * Read one shared snapshot while the host document is visible. Returns null on IPC failure or
  * stale preload; native errors never enter the UI. Cleanup removes the listener and timer.
  * A shared promise serializes reads even when opening the panel replaces the effect mid-request.
+ * A changed refreshKey requests a reading after a site lifecycle change, retaining the normal cadence.
  * @example const snapshot = useResources({ panelOpen });
  * @complexity O(1) work/state per poll beyond the existing main-process IPC.
  */
-export function useResources({ panelOpen }: ResourcesRequest, { ports = browserPorts }: { ports?: ResourcesPorts } = {}) {
+export function useResources({ panelOpen }: ResourcesRequest, { ports = browserPorts, refreshKey }: { ports?: ResourcesPorts; refreshKey?: string } = {}) {
   const [snapshot, setSnapshot] = useState<ResourcesSnapshot | null>(null);
   const inFlight = useRef<Promise<ResourcesSnapshot | null> | null>(null);
   useEffect(() => {
@@ -85,6 +86,6 @@ export function useResources({ panelOpen }: ResourcesRequest, { ports = browserP
       clearTimer();
       ports.document.removeEventListener('visibilitychange', visibilityChanged);
     };
-  }, [panelOpen, ports]);
+  }, [panelOpen, ports, refreshKey]);
   return snapshot;
 }

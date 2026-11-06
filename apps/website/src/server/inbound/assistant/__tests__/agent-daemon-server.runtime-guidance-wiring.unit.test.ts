@@ -146,12 +146,15 @@ test("reply length reaches each run's actual overlay without leaking into the ne
   for (const agentId of ["claude", "codex"]) {
     const input = { enabled: false, agentId, preferSubagents: false };
     const normal = (await launchOverlay(input)).overlay;
-    // Filesystem notices are appended after runtime guidance, so reply guidance lands before them.
+    // Reply guidance precedes the new run-facts block; filesystem notices still come last.
     const notices = buildAssistantFilesystemNotices({ agentId, capabilities: assistantCliPermissions({ enabled: false }).capabilities }, {});
     assert.ok(normal.endsWith(notices));
-    const beforeNotices = normal.slice(0, normal.length - notices.length);
-    assert.equal((await launchOverlay({ ...input, replyLength: "short" })).overlay, `${beforeNotices}${SHORT_REPLY_GUIDANCE} ${notices}`);
-    assert.equal((await launchOverlay({ ...input, replyLength: "detailed" })).overlay, `${beforeNotices}${DETAILED_REPLY_GUIDANCE} ${notices}`);
+    const factsIndex = normal.lastIndexOf("Tools provided here — this run's settings: ");
+    assert.ok(factsIndex > 0, "the launch includes its run-bound facts before filesystem notices");
+    const beforeFacts = normal.slice(0, factsIndex);
+    const factsAndNotices = normal.slice(factsIndex);
+    assert.equal((await launchOverlay({ ...input, replyLength: "short" })).overlay, `${beforeFacts}${SHORT_REPLY_GUIDANCE} ${factsAndNotices}`);
+    assert.equal((await launchOverlay({ ...input, replyLength: "detailed" })).overlay, `${beforeFacts}${DETAILED_REPLY_GUIDANCE} ${factsAndNotices}`);
     assert.equal((await launchOverlay({ ...input, replyLength: "normal" })).overlay, normal);
     assert.equal((await launchOverlay({ ...input, replyLength: "invalid" })).overlay, normal);
   }

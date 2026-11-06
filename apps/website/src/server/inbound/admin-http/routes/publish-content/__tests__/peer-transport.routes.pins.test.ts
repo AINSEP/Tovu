@@ -1,4 +1,3 @@
-import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -37,6 +36,13 @@ const SEND_BODIES: Record<string, Record<string, unknown>> = {
   pull: {},
 };
 
+const FAILURE_COPY: Record<string, { message: string; action: string; step: string }> = {
+  "push/plan": { message: "Publishing preparation could not be completed.", action: "Check publishing history before preparing another push. Copy details and report this problem.", step: "Prepare publishing push" },
+  "push/confirm": { message: "The publishing confirmation could not be completed.", action: "Check publishing history before confirming again. Copy details and report this problem.", step: "Confirm publishing push" },
+  "push/execute": { message: "The publishing push result could not be confirmed.", action: "Content may already have changed. Check publishing and import history before repeating the push. Copy details and report this problem.", step: "Execute publishing push" },
+  pull: { message: "The publishing destination pull could not be completed.", action: "Check the result before repeating this operation. Copy details and report this problem.", step: "publishing destination pull" },
+};
+
 const TYPED_ERRORS: ReadonlyArray<[Error, number, string]> = [
   [new PublishContentPeerNotFoundError("peer 'peer-1' was not found"), 404, "PEER_NOT_FOUND"],
   [new PublishTrustHandshakeError("live.example does not accept publishes from this computer yet", "not-connected"), 502, "PUBLISH_TRUST_HANDSHAKE_FAILED"],
@@ -56,7 +62,16 @@ for (const [route, body] of Object.entries(SEND_BODIES)) {
   test(`${route} answers an untyped or unmapped error with the fixed 500`, async () => {
     for (const error of [new Error("ECONNRESET 10.0.0.5"), new PublishContentPeerValidationError("label is required")]) {
       const app = routeApp(registerPublishContentPeerTransportRoutes, routeDeps({ publishContentPeerRepo: new FailingPeerRepo(error) }));
-      assertAdminResponse({ actual: await dispatchJsonRequest(app, "POST", `${PEER}/${route}`, body), expected: { status: 500, body: { error: "internal error", code: "INTERNAL_ERROR" } } });
+      const response = await dispatchJsonRequest(app, "POST", `${PEER}/${route}`, body);
+      assert.equal(response.status, 500);
+      const failureBody = response.body as any;
+      const copy = FAILURE_COPY[route];
+      assert.equal(failureBody.code, "INTERNAL_ERROR");
+      assert.equal(failureBody.error, `${copy.message} ${copy.action} (error ${failureBody.errorId})`);
+      assert.deepEqual({ message: failureBody.details.failure.message, action: failureBody.details.failure.action, step: failureBody.details.failure.step }, copy);
+      assert.equal(failureBody.details.failure.errorId, failureBody.errorId);
+      assert.equal(failureBody.details.failure.cause, "The error ID identifies the server report.");
+      assert.equal(JSON.stringify(failureBody).includes(error.message), false);
     }
   });
 

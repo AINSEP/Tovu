@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 /workspace/Jini/packages/core
+
+ ✓ src/gated-mutations/__tests__/gateway.test.ts (28 tests) 13ms
+
+ Test Files  1 passed (1)
+      Tests  28 passed (28)
+   Start at  18:25:08
+   Duration  501ms (transform 175ms, setup 0ms, collect 199ms, tests 13ms, environment 0ms, prepare 84ms)
+

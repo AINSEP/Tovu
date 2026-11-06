@@ -14,7 +14,8 @@ export interface SiteMutationsState {
    */
   lastCreated: CreatedSiteRecord | null;
   openCreateWebsite: () => void;
-  handleCreate: (input: CreateSiteInput) => Promise<void>;
+  /** Resolves with the new site's record (the Import page opens its tab), or nothing when cancelled. */
+  handleCreate: (input: CreateSiteInput) => Promise<SiteRecord | undefined>;
   handleDelete: (id: string) => Promise<void>;
   /** Cancel's handler, not `stopCreating` directly — see `cancelCreate` below for why the two
    *  differ. */
@@ -83,13 +84,13 @@ export function useProjectMutations(deps: {
     deps.startCreating();
   };
 
-  const handleCreate = async (input: CreateSiteInput) => {
+  const handleCreate = async (input: CreateSiteInput): Promise<SiteRecord | undefined> => {
     const bridge = getBridge();
     if (bridge === undefined) {
       throw new Error('Runner desktop connection required to create a website.');
     }
     const result = await bridge.createSite(input);
-    if (result === null) return; // Cancelling the picker keeps the form and its name intact.
+    if (result === null) return undefined; // Cancelling the picker keeps the form and its name intact.
     // The token outcome is for the notice only; the grid keeps plain records.
     const { agentPluginTokens: _tokens, ...record } = result;
     deps.setProjects((current) => [...current, record]);
@@ -99,6 +100,7 @@ export function useProjectMutations(deps: {
     // remounts the form empty rather than leaving the just-submitted site's name and credential
     // sitting in fields the operator is about to open again for a second site.
     setCreateFormKey((key) => key + 1);
+    return record;
   };
 
   // Distinct from `deps.stopCreating` rather than a second name for it: Cancel is the ONE exit

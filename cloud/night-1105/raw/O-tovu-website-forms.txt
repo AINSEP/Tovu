@@ -1,0 +1,518 @@
+✔ active forms map to names, required flags, lengths and multi-value groups only (3.033644ms)
+✔ no active forms means an empty manifest (0.19182ms)
+✔ T9: the static-host manifest includes default text caps and preserves authored limits (0.247984ms)
+✔ the delivery form adds each field's label and type to the manifest's names, flags, lengths and groups (0.310709ms)
+✔ the delivery form is built whatever the definition's status is now (the submission was already accepted) (0.162375ms)
+✔ the delivery form never carries notification recipients or option lists (0.17252ms)
+✔ receiver manifest carries validation semantics and identifies unsupported file fields before publish (0.270077ms)
+✔ empty select placeholders are omitted from the receiver allowlist (0.19219ms)
+✔ form and individual purges capture trashed submissions with a workspace-scoped bounded read (213.642121ms)
+✔ private source metadata survives the durable media adapter (266.305877ms)
+✔ legacy files are made private before public serving, including submissions already in Trash (170.388883ms)
+✔ protection warns for corrupt or mismatched legacy rows and records completion without refusing boot (183.676748ms)
+✔ unavailable protection storage warns and leaves completion absent for an automatic next-owner-start retry (2.402923ms)
+✔ delayed cleanup ownership probes include Trash and stay workspace scoped (442.433194ms)
+✔ form purge captures the attachment after submission 100 without truncation (190.959371ms)
+✔ transient legacy stamp failures keep the marker absent and retry automatically on the next owner start (328.818519ms)
+✔ download forms cannot submit answers through native GET, implicit submit or external controls (106.603958ms)
+✔ explicit empty actions require a server; external receivers remain usable (17.624314ms)
+✔ dialog forms and JS-only forms keep their authored markup in downloaded pages (0.799205ms)
+✔ downloaded backend forms retain form selectors and cannot override dialog submission (8.896074ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ configured public origin replaces every render origin; exporter layout and root links stay pinned (609.06934ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ no public origin omits sitemap and feed, removes identity metadata, and keeps root-relative llms and images (355.986277ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ download removes server form actions, reports only actual removals, and writes a plain dated README (482.864969ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ static publish pins about/index.html, media and theme paths, root links and working form actions (421.177795ms)
+✔ origin replacement handles remote render authorities, loopback aliases, JSON escaping and origin-only links (1.006388ms)
+✔ registry absence, dev evidence and configured loopback never provide export identity (1.252579ms)
+✔ download form edits preserve external and mailto actions, theme attributes and unrelated script bytes (2.442213ms)
+✔ fallback metadata removes nested JSON-LD identity and invalid blocks without serializing theme HTML (0.78973ms)
+[theme] active theme 'tovu-starter' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ static download excludes a saved private Library document and removes every HTML and CSS reference to it (1396.865219ms)
+▶ form delivery repo security [sqlite]
+  ✔ notification summary isolates workspace and submission and returns counts only (287.805703ms)
+  ✔ a plan for workspace B never returns or reuses workspace A's plan for the same submission id (263.856531ms)
+  ✔ a purged submission's jobs lose their answers and the unfinished ones fail, in its own workspace only (213.30075ms)
+  ✔ a purge during an in-flight attempt is final: the attempt's retryable failure neither revives the job nor resends it (181.545988ms)
+  ✔ a purge during an in-flight attempt is final: the attempt's success does not mark the purged job delivered (171.304375ms)
+  ✔ a purged form scrubs the jobs of every submission planned for it (465.086825ms)
+  ✔ status reads for workspace B list only workspace B's jobs (183.243718ms)
+  ✔ a built plan or child job naming another workspace is refused and nothing is stored (148.008287ms)
+  ✔ a built plan or child job for another submission of the same workspace is refused (268.68357ms)
+  ✔ a per-submission status read lists only that submission's bindings, ordered by binding id (149.054105ms)
+  ✔ the recent listing leaves out completed deliveries, lists the newest first and honours its limit (232.081969ms)
+  ✔ a status read returns only an allowlisted error code, never the raw outbox error text (210.537013ms)
+  ✔ a lease held in workspace A neither blocks workspace B nor can be released by B's token (217.428299ms)
+  ✔ release is fenced by token: a stale holder cannot clear a newer holder's lease (168.481598ms)
+  ✔ a claim says why it refused: a live lease is already-running, a recent start is recent (185.941105ms)
+  ✔ a lease that would already be over (leaseMs <= 0) is refused before anything is stored (215.279594ms)
+  ✔ a manual claim is not refused as recent when the clock moved back past the last start (142.460231ms)
+✔ form delivery repo security [sqlite] (3710.069912ms)
+▶ form delivery repo security [pglite]
+  ✔ notification summary isolates workspace and submission and returns counts only (6557.297407ms)
+  ✔ a plan for workspace B never returns or reuses workspace A's plan for the same submission id (17.257352ms)
+  ✔ a purged submission's jobs lose their answers and the unfinished ones fail, in its own workspace only (18.200075ms)
+  ✔ a purge during an in-flight attempt is final: the attempt's retryable failure neither revives the job nor resends it (16.019566ms)
+  ✔ a purge during an in-flight attempt is final: the attempt's success does not mark the purged job delivered (14.14592ms)
+  ✔ a purged form scrubs the jobs of every submission planned for it (14.257469ms)
+  ✔ status reads for workspace B list only workspace B's jobs (25.440673ms)
+  ✔ a built plan or child job naming another workspace is refused and nothing is stored (15.176425ms)
+  ✔ a built plan or child job for another submission of the same workspace is refused (15.204588ms)
+  ✔ a per-submission status read lists only that submission's bindings, ordered by binding id (30.197535ms)
+  ✔ the recent listing leaves out completed deliveries, lists the newest first and honours its limit (15.867266ms)
+  ✔ a status read returns only an allowlisted error code, never the raw outbox error text (39.456802ms)
+  ✔ a lease held in workspace A neither blocks workspace B nor can be released by B's token (19.353193ms)
+  ✔ release is fenced by token: a stale holder cannot clear a newer holder's lease (21.212982ms)
+  ✔ a claim says why it refused: a live lease is already-running, a recent start is recent (14.127043ms)
+  ✔ a lease that would already be over (leaseMs <= 0) is refused before anything is stored (7.421781ms)
+  ✔ a manual claim is not refused as recent when the clock moved back past the last start (12.709545ms)
+✔ form delivery repo security [pglite] (6855.005545ms)
+[routes/forms/authoring] {
+  errorId: '324ffec7-082a-4e64-94a9-fce0afc185a3',
+  diagnostic: 'Error: private credential\n' +
+    '    at authorize (/workspace/Tovu/apps/website/src/server/__tests__/helpers/admin-route-failures.ts:36:80)\n' +
+    '    at authorizeOrRespond (/workspace/Tovu/apps/website/src/server/inbound/admin-http/authorize-guard.ts:56:28)\n' +
+    '    at <anonymous> (/workspace/Tovu/apps/website/src/server/inbound/admin-http/routes/forms/authoring.ts:35:32)\n' +
+    '    at Layer.handle [as handle_request] (/workspace/Tovu/node_modules/express/lib/router/layer.js:95:5)\n' +
+    '    at next (/workspace/Tovu/node_modules/express/lib/router/route.js:149:13)\n' +
+    '    at Route.dispatch (/workspace/Tovu/node_modules/express/lib/router/route.js:119:3)\n' +
+    '    at Layer.handle [as handle_request] (/workspace/Tovu/node_modules/express/lib/router/layer.js:95:5)\n' +
+    '    at /workspace/Tovu/node_modules/express/lib/router/index.js:284:15\n' +
+    '    at param (/workspace/Tovu/node_modules/express/lib/router/index.js:365:14)\n' +
+    '    at param (/workspace/Tovu/node_modules/express/lib/router/index.js:376:14)'
+}
+[routes/forms/get-by-id] {
+  errorId: 'f5aa4975-bcbe-44c6-a4c2-0bcab32f3336',
+  diagnostic: 'Error: private credential\n' +
+    '    at Object.authorize (/workspace/Tovu/apps/website/src/server/__tests__/helpers/admin-route-failures.ts:36:80)\n' +
+    '    at <anonymous> (/workspace/Tovu/apps/website/src/server/inbound/admin-http/routes/forms/get-by-id.ts:19:37)\n' +
+    '    at Layer.handle [as handle_request] (/workspace/Tovu/node_modules/express/lib/router/layer.js:95:5)\n' +
+    '    at next (/workspace/Tovu/node_modules/express/lib/router/route.js:149:13)\n' +
+    '    at Route.dispatch (/workspace/Tovu/node_modules/express/lib/router/route.js:119:3)\n' +
+    '    at Layer.handle [as handle_request] (/workspace/Tovu/node_modules/express/lib/router/layer.js:95:5)\n' +
+    '    at /workspace/Tovu/node_modules/express/lib/router/index.js:284:15\n' +
+    '    at param (/workspace/Tovu/node_modules/express/lib/router/index.js:365:14)\n' +
+    '    at param (/workspace/Tovu/node_modules/express/lib/router/index.js:376:14)\n' +
+    '    at param (/workspace/Tovu/node_modules/express/lib/router/index.js:376:14)'
+}
+[routes/forms/delete-submission] {
+  errorId: '9190d0ff-7262-4638-9938-5aa9f45645ca',
+  diagnostic: 'Error: private credential\n' +
+    '    at Object.authorize (/workspace/Tovu/apps/website/src/server/__tests__/helpers/admin-route-failures.ts:36:80)\n' +
+    '    at <anonymous> (/workspace/Tovu/apps/website/src/server/inbound/admin-http/routes/forms/delete-submission.ts:23:39)\n' +
+    '    at Layer.handle [as handle_request] (/workspace/Tovu/node_modules/express/lib/router/layer.js:95:5)\n' +
+    '    at next (/workspace/Tovu/node_modules/express/lib/router/route.js:149:13)\n' +
+    '    at Route.dispatch (/workspace/Tovu/node_modules/express/lib/router/route.js:119:3)\n' +
+    '    at Layer.handle [as handle_request] (/workspace/Tovu/node_modules/express/lib/router/layer.js:95:5)\n' +
+    '    at /workspace/Tovu/node_modules/express/lib/router/index.js:284:15\n' +
+    '    at param (/workspace/Tovu/node_modules/express/lib/router/index.js:365:14)\n' +
+    '    at param (/workspace/Tovu/node_modules/express/lib/router/index.js:376:14)\n' +
+    '    at param (/workspace/Tovu/node_modules/express/lib/router/index.js:376:14)'
+}
+[routes/forms/get-submission] {
+  errorId: 'a111e621-f6b0-4660-a90b-8a6d01f5fc29',
+  diagnostic: 'Error: private credential\n' +
+    '    at Object.authorize (/workspace/Tovu/apps/website/src/server/__tests__/helpers/admin-route-failures.ts:36:80)\n' +
+    '    at <anonymous> (/workspace/Tovu/apps/website/src/server/inbound/admin-http/routes/forms/get-submission.ts:38:39)\n' +
+    '    at Layer.handle [as handle_request] (/workspace/Tovu/node_modules/express/lib/router/layer.js:95:5)\n' +
+    '    at next (/workspace/Tovu/node_modules/express/lib/router/route.js:149:13)\n' +
+    '    at Route.dispatch (/workspace/Tovu/node_modules/express/lib/router/route.js:119:3)\n' +
+    '    at Layer.handle [as handle_request] (/workspace/Tovu/node_modules/express/lib/router/layer.js:95:5)\n' +
+    '    at /workspace/Tovu/node_modules/express/lib/router/index.js:284:15\n' +
+    '    at param (/workspace/Tovu/node_modules/express/lib/router/index.js:365:14)\n' +
+    '    at param (/workspace/Tovu/node_modules/express/lib/router/index.js:376:14)\n' +
+    '    at param (/workspace/Tovu/node_modules/express/lib/router/index.js:376:14)'
+}
+[routes/forms/list-submissions] {
+  errorId: '80deae82-ce27-4d34-a0a5-bc9d62570197',
+  diagnostic: 'Error: private credential\n' +
+    '    at Object.authorize (/workspace/Tovu/apps/website/src/server/__tests__/helpers/admin-route-failures.ts:36:80)\n' +
+    '    at <anonymous> (/workspace/Tovu/apps/website/src/server/inbound/admin-http/routes/forms/list-submissions.ts:53:37)\n' +
+    '    at Layer.handle [as handle_request] (/workspace/Tovu/node_modules/express/lib/router/layer.js:95:5)\n' +
+    '    at next (/workspace/Tovu/node_modules/express/lib/router/route.js:149:13)\n' +
+    '    at Route.dispatch (/workspace/Tovu/node_modules/express/lib/router/route.js:119:3)\n' +
+    '    at Layer.handle [as handle_request] (/workspace/Tovu/node_modules/express/lib/router/layer.js:95:5)\n' +
+    '    at /workspace/Tovu/node_modules/express/lib/router/index.js:284:15\n' +
+    '    at param (/workspace/Tovu/node_modules/express/lib/router/index.js:365:14)\n' +
+    '    at param (/workspace/Tovu/node_modules/express/lib/router/index.js:376:14)\n' +
+    '    at param (/workspace/Tovu/node_modules/express/lib/router/index.js:376:14)'
+}
+[routes/forms/list] {
+  errorId: '9543a6ec-bb76-4751-a3bd-21da524a8150',
+  diagnostic: 'Error: private credential\n' +
+    '    at Object.authorize (/workspace/Tovu/apps/website/src/server/__tests__/helpers/admin-route-failures.ts:36:80)\n' +
+    '    at <anonymous> (/workspace/Tovu/apps/website/src/server/inbound/admin-http/routes/forms/list.ts:16:37)\n' +
+    '    at Layer.handle [as handle_request] (/workspace/Tovu/node_modules/express/lib/router/layer.js:95:5)\n' +
+    '    at next (/workspace/Tovu/node_modules/express/lib/router/route.js:149:13)\n' +
+    '    at Route.dispatch (/workspace/Tovu/node_modules/express/lib/router/route.js:119:3)\n' +
+    '    at Layer.handle [as handle_request] (/workspace/Tovu/node_modules/express/lib/router/layer.js:95:5)\n' +
+    '    at /workspace/Tovu/node_modules/express/lib/router/index.js:284:15\n' +
+    '    at param (/workspace/Tovu/node_modules/express/lib/router/index.js:365:14)\n' +
+    '    at param (/workspace/Tovu/node_modules/express/lib/router/index.js:376:14)\n' +
+    '    at router.process_params (/workspace/Tovu/node_modules/express/lib/router/index.js:421:3)'
+}
+[routes/forms/update] {
+  errorId: '7262621b-a2b2-43c0-b0b8-ee84cd08756b',
+  diagnostic: 'Error: private credential\n' +
+    '    at authorize (/workspace/Tovu/apps/website/src/server/__tests__/helpers/admin-route-failures.ts:36:80)\n' +
+    '    at authorizeOrRespond (/workspace/Tovu/apps/website/src/server/inbound/admin-http/authorize-guard.ts:56:28)\n' +
+    '    at <anonymous> (/workspace/Tovu/apps/website/src/server/inbound/admin-http/routes/forms/update.ts:84:32)\n' +
+    '    at Layer.handle [as handle_request] (/workspace/Tovu/node_modules/express/lib/router/layer.js:95:5)\n' +
+    '    at next (/workspace/Tovu/node_modules/express/lib/router/route.js:149:13)\n' +
+    '    at Route.dispatch (/workspace/Tovu/node_modules/express/lib/router/route.js:119:3)\n' +
+    '    at Layer.handle [as handle_request] (/workspace/Tovu/node_modules/express/lib/router/layer.js:95:5)\n' +
+    '    at /workspace/Tovu/node_modules/express/lib/router/index.js:284:15\n' +
+    '    at param (/workspace/Tovu/node_modules/express/lib/router/index.js:365:14)\n' +
+    '    at param (/workspace/Tovu/node_modules/express/lib/router/index.js:376:14)'
+}
+[routes/forms/list] {
+  errorId: '076724a3-a66e-4278-a0a6-c6fa98ec8d17',
+  diagnostic: 'Error: private\n' +
+    '    at Object.list (/workspace/Tovu/apps/website/src/server/inbound/admin-http/routes/forms/__tests__/forms-route-failures.unit.test.ts:82:106)\n' +
+    '    at <anonymous> (/workspace/Tovu/apps/website/src/server/inbound/admin-http/routes/forms/list.ts:31:57)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)'
+}
+[routes/forms/create] {
+  errorId: '20f36a6f-8b93-4e58-8354-7ee202b737e9',
+  diagnostic: 'Error: private\n' +
+    '    at Object.executeCommand (/workspace/Tovu/apps/website/src/server/inbound/admin-http/routes/forms/__tests__/forms-route-failures.unit.test.ts:118:114)\n' +
+    '    at createFormDefinition (/workspace/Jini/packages/cms/src/forms/write-service.ts:158:33)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n' +
+    '    at async createFormDefinition (/workspace/Tovu/apps/website/src/features/forms/index.ts:103:12)\n' +
+    '    at async <anonymous> (/workspace/Tovu/apps/website/src/server/inbound/admin-http/routes/forms/create.ts:45:30)'
+}
+✔ forms authoring: authorization failure is private and does not become a success (211.53ms)
+✔ forms authoring: denied permission stops before reaching repositories (146.323254ms)
+✔ forms authoring: workspace isolation precedes authorization (756.282725ms)
+✔ forms authoring: `req.params.workspaceId ?? ""` fallback, forced via a direct handler call, is the workspace 404 before authorization (166.482923ms)
+✔ forms get: authorization failure is private and does not become a success (157.060285ms)
+✔ forms get: denied permission stops before reaching repositories (238.502613ms)
+✔ forms get: workspace isolation precedes authorization (131.031154ms)
+✔ forms get: `req.params.workspaceId ?? ""` fallback, forced via a direct handler call, is the workspace 404 before authorization (124.483641ms)
+✔ forms submissions delete: authorization failure is private and does not become a success (150.914938ms)
+✔ forms submissions delete: denied permission stops before reaching repositories (135.779876ms)
+✔ forms submissions delete: workspace isolation precedes authorization (131.775637ms)
+✔ forms submissions delete: `req.params.workspaceId ?? ""` fallback, forced via a direct handler call, is the workspace 404 before authorization (128.91249ms)
+✔ forms submissions get: authorization failure is private and does not become a success (146.775746ms)
+✔ forms submissions get: denied permission stops before reaching repositories (137.745479ms)
+✔ forms submissions get: workspace isolation precedes authorization (136.011785ms)
+✔ forms submissions get: `req.params.workspaceId ?? ""` fallback, forced via a direct handler call, is the workspace 404 before authorization (130.79605ms)
+✔ forms submissions list: authorization failure is private and does not become a success (495.560065ms)
+✔ forms submissions list: denied permission stops before reaching repositories (156.073076ms)
+✔ forms submissions list: workspace isolation precedes authorization (129.932238ms)
+✔ forms submissions list: `req.params.workspaceId ?? ""` fallback, forced via a direct handler call, is the workspace 404 before authorization (139.883754ms)
+✔ forms list: authorization failure is private and does not become a success (133.802353ms)
+✔ forms list: denied permission stops before reaching repositories (143.311392ms)
+✔ forms list: workspace isolation precedes authorization (129.258162ms)
+✔ forms list: `req.params.workspaceId ?? ""` fallback, forced via a direct handler call, is the workspace 404 before authorization (144.962546ms)
+✔ forms update: authorization failure is private and does not become a success (133.611793ms)
+✔ forms update: denied permission stops before reaching repositories (151.736871ms)
+✔ forms update: workspace isolation precedes authorization (138.070854ms)
+✔ forms update: `req.params.workspaceId ?? ""` fallback, forced via a direct handler call, is the workspace 404 before authorization (132.663881ms)
+✔ form submission GET: unknown form stops before reading or removing submissions (140.165391ms)
+✔ form submission DELETE: unknown form stops before reading or removing submissions (137.602247ms)
+✔ form submission GET: absent is not disclosed or removed (515.498263ms)
+✔ form submission DELETE: absent is not disclosed or removed (310.008795ms)
+✔ form submission GET: different form is not disclosed or removed (142.636389ms)
+✔ form submission DELETE: different form is not disclosed or removed (157.141781ms)
+✔ submission deletion race reports not-found and carries scoped removal metadata (140.543101ms)
+✔ submission deletion race reports version-changed and carries scoped removal metadata (135.38843ms)
+✔ forms list: repository rejection is an internal error (134.678489ms)
+✔ forms update: ignored fields read the existing definition, missing definition maps to 404 (148.295552ms)
+✔ forms create: absent body validates the required name instead of throwing (137.979976ms)
+✔ forms create: duplicate command reports the winning change set and does not save a definition (141.17787ms)
+✔ forms create: unexpected command failure is private and leaves no definition (142.545844ms)
+✔ forms authoring: supplied patch fields persist, absent fields and an absent body preserve them (138.548766ms)
+✔ forms submissions: non-string cursor is rejected without listing submissions (145.419367ms)
+✔ forms create: `req.params.workspaceId ?? ""` fallback, forced via a direct handler call, is the workspace 404 before authorization (124.845273ms)
+✔ forms get: `req.params.formId ?? ""` fallback, forced via a direct handler call, looks up the empty id and answers not-found (331.795781ms)
+✔ forms update: `req.params.formId ?? ""` fallback, forced via a direct handler call, looks up the empty id and answers not-found (417.041258ms)
+✔ forms submissions list: `req.params.formId ?? ""` fallback, forced via a direct handler call, looks up the empty id and answers not-found (146.719757ms)
+✔ forms submissions get: `req.params.formId ?? ""` / `req.params.submissionId ?? ""` fallback, forced via a direct handler call, looks up the empty id and answers not-found (127.245732ms)
+✔ forms submissions delete: `req.params.formId ?? ""` / `req.params.submissionId ?? ""` fallback, forced via a direct handler call, looks up the empty id and answers not-found (125.707443ms)
+✔ submission detail exposes permanent email failures without provider messages or recipient addresses (143.325779ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginLoadError: plugin 'charts-recharts' failed to load (INTEGRITY_FAILED)
+    at performPluginAttachment (/workspace/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:405:13) {
+  pluginId: 'charts-recharts',
+  reason: 'INTEGRITY_FAILED'
+}
+✔ source and site admission runs before a body reader and uses injected time without sleeping (2.968156ms)
+✔ rotating IPs cannot bypass the aggregate site budget (3.229199ms)
+✔ URL-encoded signup spikes do not consume the multipart site budget (1.3463ms)
+ℹ tests 116
+ℹ suites 2
+ℹ pass 116
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 37228.53744

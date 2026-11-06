@@ -1,4 +1,7 @@
 import { useState } from "react";
+import { useLogin as useJiniLogin } from "@jini-ai/user-management/react";
+import { formatUserFacingError, type UserFacingError } from "@jini-ai/core";
+import { ApiError } from "@/lib/api";
 
 import type { AdminUser } from "@/lib/api";
 import { defaultLoginPort } from "./login-dependencies.hooks";
@@ -7,7 +10,7 @@ import type { LoginPort } from "./login-port.hooks";
 /**
  * @file Everything the Login screen does, so `Login.tsx` is only markup.
  *
- * Extracted verbatim — same state, same order, same error string. Naming follows
+ * Keeps submission order and refusal messages; unexpected failures also carry safe copy details. Naming follows
  * `hooks/use-settings-slice.hooks.ts`: `use-<thing>.hooks.ts`. Feature-local because nothing
  * outside `features/auth` needs it.
  *
@@ -28,13 +31,28 @@ export interface LoginDependencies {
 }
 
 export interface LoginController {
+  mfa?: { pendingToken: string; code: string; setCode: (code: string) => void; cancel: () => void };
   username: string;
   setUsername: (username: string) => void;
   password: string;
   setPassword: (password: string) => void;
   error: string | null;
+  failure?: UserFacingError | null;
   busy: boolean;
   submit: (e: React.FormEvent) => Promise<void>;
+}
+
+/** Keep safe server refusals, correlate unexpected failures without copying a submitted proof.
+ * @complexity O(diagnostic length), no effects or retained credentials.
+ */
+function loginFailure(err: unknown, secrets: string[]): UserFacingError | null {
+  if (err instanceof ApiError && [400, 401, 429].includes(err.status)) return null;
+  const errorId = err instanceof ApiError && typeof err.body?.errorId === "string" ? err.body.errorId : undefined;
+  // Anonymous copy never contains a transport exception or backend diagnosis, even redacted.
+  return formatUserFacingError({ message: "Sign-in could not finish.",
+    action: "Try signing in again. If it still fails, copy details and report this problem.",
+    step: "auth-login", cause: "The sign-in request did not finish. Its error ID identifies the server report." },
+  { errorId, exactSecrets: secrets.filter(Boolean) });
 }
 
 /**
@@ -44,26 +62,20 @@ export interface LoginController {
  * @complexity Time/space: O(1) — one credential round trip per submit, no iteration.
  */
 export function useLogin({ onLogin }: LoginHookProps, { port }: LoginDependencies): LoginController {
-  const [username, setUsername] = useState("admin");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    setError(null);
-    try {
-      const { user } = await port.login({ username, password });
-      onLogin(user);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "login failed");
-    } finally {
-      setBusy(false);
+  const [failure, setFailure] = useState<UserFacingError | null>(null);
+  async function observed<T>(execute: () => Promise<T>, secrets: string[]): Promise<T> {
+    setFailure(null);
+    try { return await execute(); }
+    catch (err) {
+      setFailure(loginFailure(err, secrets));
+      throw err instanceof Error ? err : new Error("Sign-in could not finish. Try signing in again.");
     }
   }
-
-  return { username, setUsername, password, setPassword, error, busy, submit };
+  const controller = useJiniLogin({ onLogin, translate: text => text,
+    port: { login: input => observed(() => port.login(input), [input.password]),
+      ...(port.completeMfa ? { completeMfa: (input: { pendingToken: string; code: string }) =>
+        observed(() => port.completeMfa!(input), [input.code, input.pendingToken]) } : {}) } }, { initialUsername: "admin" });
+  return { ...controller, failure };
 }
 
 /**

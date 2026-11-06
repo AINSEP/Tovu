@@ -15,6 +15,10 @@ import { durableAttemptOwnsAnswer, resolveStoredSessionId, selectRunHistoryPromp
 import { resolveAssistantRuntimeLaunch } from "../assistant-runtime-guidance.js";
 import { createAgentSelectionResolver, getAgentDef } from "@jini-ai/agent-runtime";
 import { resolveNativeToolPolicy } from "@jini-ai/agent-runtime/native-tool-policy";
+import { admittedToolSources, type ToolAccessRun } from "@jini-ai/daemon";
+import { isTerminalRunState } from "@jini-ai/protocol";
+import { readAssistantRunToolPolicy, assistantRunPlan, assistantToolSetupMessage } from "../assistant-run-tool-policy.js";
+import { assistantRunToolFacts } from "../assistant-run-tool-facts.js";
 import { daemonInitializer, evaluateDaemonExpression, withDaemonLifecycle } from "./helpers/daemon-source.js";
 
 /**
@@ -47,6 +51,7 @@ function sessionHarness(coldStartContext?: string, options: { env?: Record<strin
     compilerOptions: { target: ts.ScriptTarget.ES2022 },
   }).outputText;
   const bindings = new Map<string, string>();
+  const toolAccessRuns = new Map<string, ToolAccessRun>();
   const contexts = new Map<string, { prompt: string; coldStartContext?: string; conversationId: string }>();
   let minted = 0;
   let writes = 0;
@@ -59,6 +64,12 @@ function sessionHarness(coldStartContext?: string, options: { env?: Record<strin
   const onStarted = runInNewContext(`${compiled}\nonStarted`, {
     idlePark: { hold: () => () => {} },
     stagedAttachmentCleanupByRunId: new Map(),
+    toolAccessRuns, chatSettingsByRunId: new Map(), revokedToolRuns: new Set(), noToolsNotices: new Set(),
+    visibleRegistry: { list: () => [] }, admittedToolSources, isTerminalRunState,
+    readAssistantRunToolPolicy, assistantRunPlan, assistantToolSetupMessage, assistantRunToolFacts,
+    resolveAgentLaunch: () => ({ launchPath: "/fixture/cli" }),
+    assistantInventory: { listAssistantAgents: async () => ["claude", "codex"].map(id => ({ id, available: true, authStatus: "unknown" })) },
+    ensureJsonAgentInstall: async () => {}, bridgeInjection: { command: "host-bridge" },
     parseRunStartContextRef: (ref: string) => ({ ...contexts.get(ref), principalId: "principal-1", attachmentIds: [], pluginRefIds: [] }),
     assemblePromptWithPluginPrefix: (prompt: string, prefix: string) => prefix ? `${prefix}\n\n${prompt}` : prompt,
     buildPageContextPromptBlock: () => "",
@@ -104,7 +115,13 @@ function sessionHarness(coldStartContext?: string, options: { env?: Record<strin
       withRun: ({ fn }: { fn: () => unknown }) => fn(), finish() {} },
     assistantCliCapabilitiesContext: new AsyncLocalStorage<ReturnType<typeof assistantCliPermissions>["capabilities"]>(),
     assistantNativeToolsContext: new AsyncLocalStorage<boolean>(),
-    resolveAssistantRuntimeLaunch, getAgentDef, probeAssistantChrome: async () => true, assistantRuntimeGuidanceContext: new AsyncLocalStorage(),
+    resolveAssistantRuntimeLaunch,
+    // Like the shared daemon capture fixture, these CLIs have a prepared per-run bridge.
+    getAgentDef: ({ id }: { id: string }) => {
+      const def = getAgentDef({ id });
+      return def && ["claude", "codex"].includes(id) ? { ...def, mcpIsolation: { perRun: "fixture@2026-11-05" } } : def;
+    },
+    probeAssistantChrome: async () => true, assistantRuntimeGuidanceContext: new AsyncLocalStorage(),
     // 1ca5e89e9 added the picked-folder lookup; these session fixtures have no picked folder.
     getCustomFsRoot: () => undefined,
     deleteScope: { fresh: async ({ run }: { run: () => Promise<unknown> }) => run() },
@@ -118,7 +135,7 @@ function sessionHarness(coldStartContext?: string, options: { env?: Record<strin
     forgetSession: (conversationId: string, agentId: string) => bindings.delete(`${conversationId}:${agentId}`),
     captureSession: (conversationId: string, agentId: string, sessionId: string) => bindings.set(`${conversationId}:${agentId}`, sessionId),
     flush: () => new Promise<void>((resolve) => setImmediate(resolve)),
-    releaseWrite, launches, failures, prompts,
+    releaseWrite, launches, failures, prompts, toolAccessRuns,
     get stored() { return bindings.get("conv-1:claude") ?? null; }, get minted() { return minted; }, get writes() { return writes; },
   };
 }
@@ -128,6 +145,7 @@ for (const override of [undefined, "/explicit/agent-workdir"]) {
   test(`runtime: cold and resumed CLI cwd ${override === undefined ? "defaults to the site directory" : "ignores TOVU_AGENT_CWD (owner 2026-10-23)"}`, async () => {
     const harness = sessionHarness(undefined, { env: override === undefined ? {} : { TOVU_AGENT_CWD: override } });
     harness.start("cold");
+    assert.equal(harness.toolAccessRuns.get("cold")?.agentId, "claude", "run admission records its selected agent before asynchronous preparation");
     harness.releaseWrite();
     await harness.flush();
     assert.deepEqual(harness.failures, []);
@@ -143,6 +161,8 @@ for (const override of [undefined, "/explicit/agent-workdir"]) {
     assert.equal(harness.launches[1]!.newSessionId, undefined);
     assert.equal(harness.launches[1]!.resumeSessionId, "minted-1");
     assert.equal(harness.launches[1]!.cwd, "/external/site");
+    assert.deepEqual([...harness.toolAccessRuns.keys()], ["cold", "resumed"], "each still-live run retains its own access snapshot");
+    assert.equal(harness.toolAccessRuns.get("resumed")?.runId, "resumed");
   });
 }
 

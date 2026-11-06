@@ -268,7 +268,8 @@ test("precheck() blocks an entity whose slug is held by a DIFFERENT id — never
     requiredBlobs: [],
     state: { kind: "post", slug: "taken" },
   });
-  assert.match(result ?? "", /already held by a different post \('post-1'\)/);
+  assert.ok(typeof result === "string");
+  assert.match(result, /already held by a different post \('post-1'\)/);
 });
 
 test("precheck() blocks an entity with no usable slug rather than throwing", async () => {
@@ -282,7 +283,8 @@ test("precheck() blocks an entity with no usable slug rather than throwing", asy
     requiredBlobs: [],
     state: { kind: "post" },
   });
-  assert.match(result ?? "", /no usable slug/);
+  assert.ok(typeof result === "string");
+  assert.match(result, /no usable slug/);
 });
 
 test("precheck() no longer blocks a body-format difference — D2 (2026-09-24 owner decision) lets publishing replace it instead of refusing", async () => {

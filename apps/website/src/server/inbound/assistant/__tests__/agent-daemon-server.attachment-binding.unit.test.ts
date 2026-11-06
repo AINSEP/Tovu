@@ -3,33 +3,34 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import ts from "typescript";
 
 import { createToolRegistry, type Principal, type ToolRegistration } from "@jini-ai/core";
 import { getAgentDef } from "@jini-ai/agent-runtime";
 import { sniffContentType } from "@jini-ai/cms/media";
 import { createInMemoryEventLog, createRunLifecycle, createToolExecutor, prepareMessageAttachments } from "@jini-ai/daemon";
-import { createDiskAttachmentStore, stageAttachmentClaim, delegatedToolExecuteRoute, type DelegatedToolsHttpDeps } from "@jini-ai/daemon/http";
+import { createDiskAttachmentStore, stageAttachmentClaim, delegatedToolExecuteRoute, type AttachmentLookup, type DelegatedToolsHttpDeps } from "@jini-ai/daemon/http";
 import { constrainPrincipalToReadOnlyTools } from "#src/assistant/read-only-tool-constraint";
-import { parseRunStartContextRef } from "#src/assistant/run-start-context";
-import { buildListPendingChatAttachmentsTool } from "#src/features/media/list-pending-chat-attachments";
+import { runWithDaemonCallContext, type DaemonCallContext } from "#src/assistant/daemon-call-context";
+import { buildDaemonAttachmentTools } from "#src/server/runtime/composition/modules/assistant-tool-exec";
 import { readChatAttachmentForOwner } from "#src/features/media/read-chat-attachment";
 import { createLiveRunTracker, failRunBeforeStart, waitForStoppingRuns, STOPPING_RUN_WAIT_MS } from "../../../../assistant/agent-session-preset.js";
 import { extractSessionRefFromEndEvent, shouldClearSessionOnFailedResume } from "../../../../assistant/agent-session-preset.js";
 import { agentReceivesImageAttachments } from "../run-start-decisions.js";
-import { captureDaemonRun, daemonFunction, daemonInitializer, daemonSource, evaluateDaemonExpression } from "./helpers/daemon-source.js";
+import { captureDaemonRun, daemonFunction, daemonInitializer, evaluateDaemonExpression } from "./helpers/daemon-source.js";
 
-/** Evaluate the real registration's resolver, not a test-written callback that already knows the
- * refs. Importing the daemon entry would start its server; AST evaluation keeps its binding intact. */
-function discoveryRegistration(bindings: Record<string, unknown>): ToolRegistration {
-  let call: ts.CallExpression | undefined;
-  const visit = (node: ts.Node) => {
-    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === "buildListPendingChatAttachmentsTool") call = node;
-    ts.forEachChild(node, visit);
-  };
-  visit(daemonSource);
-  assert.ok(call, "the daemon must register attachment discovery");
-  return evaluateDaemonExpression<ToolRegistration>(call, { buildListPendingChatAttachmentsTool, parseRunStartContextRef, ...bindings });
+/** ADR-070 moved discovery to the server. Evaluate the daemon's real outgoing binding and feed it
+ * through the server's real context/registration owners, without booting a listener or daemon. */
+function discoveryRegistration({ attachmentStore, ...bindings }: Record<string, unknown>): ToolRegistration {
+  const contextFor = evaluateDaemonExpression<{ contextFor: (input: { runId: string }) => DaemonCallContext }>(
+    daemonInitializer("siteTools"), { env: {}, siteToolToken: "fixture", registry: {}, routeDeps: {},
+      createDaemonSiteTools: (required: unknown) => required, ...bindings },
+  ).contextFor;
+  const registration = buildDaemonAttachmentTools({ deps: {} as never, registrations: [] },
+    { getLookup: () => attachmentStore as AttachmentLookup })
+    .find(tool => tool.descriptor.id === "chat_list_pending_attachments");
+  assert.ok(registration, "the server must register attachment discovery");
+  return { ...registration, handler: (ctx, options) => runWithDaemonCallContext({ context: contextFor({ runId: ctx.run.id }),
+    fn: () => registration.handler(ctx, options) }) };
 }
 
 test("Claude Local-CLI claiming and delegated discovery share the actual accepted-message binding", async () => {
@@ -37,6 +38,7 @@ test("Claude Local-CLI claiming and delegated discovery share the actual accepte
   const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
   const principalByRunId = new Map<string, Principal>();
   const messageAttachmentRefsByRunId = new Map<string, readonly string[]>();
+  const liveRunTracker = createLiveRunTracker({}, {});
   try {
     const store = await createDiskAttachmentStore({ uploadDirectory: root }, { retainAcrossRestarts: true });
     const bytes = new Uint8Array(334);
@@ -58,7 +60,7 @@ test("Claude Local-CLI claiming and delegated discovery share the actual accepte
     const { run } = await lifecycle.start({ contextRef: JSON.stringify(context) }, { runId: "daemon-test-run", agentId: "claude" });
     // This is the contract the old unit test bypassed: get() exposes status, never contextRef.
     assert.equal("contextRef" in (await lifecycle.get({ runId: run.id }))!, false);
-    const registration = discoveryRegistration({ lifecycle, attachmentStore: store, messageAttachmentRefsByRunId });
+    const registration = discoveryRegistration({ attachmentStore: store, messageAttachmentRefsByRunId, liveRunTracker });
     const stagedAttachmentCleanupByRunId = new Map<string, () => Promise<void>>();
     const resolveAttachmentRunFields = evaluateDaemonExpression<(required: unknown, optional: {}) => Promise<unknown>>(
       daemonFunction("resolveAttachmentRunFields"),
@@ -67,7 +69,7 @@ test("Claude Local-CLI claiming and delegated discovery share the actual accepte
     const launched = await captureDaemonRun(context, {
       lifecycle, request: { agentId: "claude" }, bindings: {
         principalByRunId, messageAttachmentRefsByRunId, attachmentStore: store, resolveAttachmentRunFields, stagedAttachmentCleanupByRunId,
-        liveRunTracker: createLiveRunTracker({}, {}), waitForStoppingRuns, STOPPING_RUN_WAIT_MS,
+        liveRunTracker, waitForStoppingRuns, STOPPING_RUN_WAIT_MS,
         extractSessionRefFromEndEvent, shouldClearSessionOnFailedResume,
         runCredentials: { revoke() {} }, runOwners: { record() {}, forget() {} }, RUN_OWNER_RETENTION_MS: 0,
         routeDeps: { workspaceId: "ws-attachment-regression", siteBinding: { dir: root }, chatRunLedger: {}, agentSessions: {

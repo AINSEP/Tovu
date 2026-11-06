@@ -1,3 +1,4 @@
+import { ExternalMcpSharedChoice } from "./ExternalMcpSharedChoice";
 import { useState } from "react";
 import {
   Icon,
@@ -147,6 +148,7 @@ const DRAFT_TEST_SCOPE = "__draft__";
  *  presence-only prop spreads (`submitError`, the draft's own `testResult`), just out of the
  *  parent's nesting scope. `null` while the form is closed, same as the inline ternary it replaces. */
 function ExternalMcpAddFormSection(props: {
+  t: (key: string) => string;
   open: boolean;
   fieldSpecs: ReturnType<typeof buildExternalMcpFieldSpecs>;
   addForm: ReturnType<typeof useWiredSourceConfigAddForm<SourceConfigItem>>;
@@ -157,7 +159,7 @@ function ExternalMcpAddFormSection(props: {
   onCancel: () => void;
 }) {
   if (!props.open) return null;
-  const { fieldSpecs, addForm, canTest, testing, testResult, onTest, onCancel } = props;
+  const { t, fieldSpecs, addForm, canTest, testing, testResult, onTest, onCancel } = props;
   return (
     <SourceConfigAddForm
       fieldSpecs={fieldSpecs}
@@ -364,6 +366,8 @@ function ExternalMcpSourceRow(props: {
         </button>
       </div>
       <ExternalMcpConnectStatus state={signIn.state} tDrift={tDrift} onCancel={signIn.cancel} />
+      {source.fields["authMode"] === "oauth" && source.fields["transport"] !== "stdio" && <ExternalMcpSharedChoice serverId={source.id} busy={signIn.state.phase !== "idle"}
+        signIn={() => void signIn.connect({ destination: "shared" })} onChanged={() => void list.reload()} t={tDrift} />}
 
       {toolsOpen ? (
         <ExternalMcpToolsModal
@@ -535,6 +539,7 @@ export function ExternalMcpSettingsPanel({ dependencies, saveStatusLabel, showTi
       ) : null}
 
       <ExternalMcpAddFormSection
+        t={t}
         open={formOpen}
         fieldSpecs={addFormFieldSpecs}
         addForm={addForm}

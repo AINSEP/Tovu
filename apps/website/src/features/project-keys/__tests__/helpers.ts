@@ -5,6 +5,7 @@ export function fakeAttachments(_required = {}, _optional = {}): KeyAttachments 
   const rows = new Map<string, { siteId: string; siteName: string; keyId: string }>();
   const id = ({ siteId, keyId }: { siteId: string; keyId: string }) => JSON.stringify([siteId, keyId]);
   return {
+    async keysFor({ siteId }) { return [...rows.values()].filter(row => row.siteId === siteId).map(row => row.keyId).sort(); },
     async attach(input) { if (!input.siteId) throw new Error("This site has no id yet; restart it."); rows.set(id(input), input); },
     async detach(input) { rows.delete(id(input)); },
     async isAttached(input) { return rows.has(id(input)); },

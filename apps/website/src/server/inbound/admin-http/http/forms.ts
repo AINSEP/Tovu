@@ -33,6 +33,7 @@ export interface AdminFormDefinitionDto {
   name: string;
   slug: string;
   fields: AdminFormFieldDto[];
+  provider?: FormDefinitionRecord["provider"];
   mode?: "builder" | "html";
   html?: string;
   notify: AdminFormNotifyDto;
@@ -42,6 +43,10 @@ export interface AdminFormDefinitionDto {
 }
 
 export interface AdminFormSubmissionDto {
+  evidence?: FormSubmissionRecord["evidence"];
+  schemaHash?: string;
+  notificationDelivery?: { failed: number; pending: number };
+  validation?: FormSubmissionRecord["validation"];
   id: string;
   formDefinitionId: string;
   workspaceId: string;
@@ -57,6 +62,7 @@ export function toAdminFormDefinitionDto(definition: FormDefinitionRecord): Admi
     name: definition.name,
     slug: definition.slug,
     fields: definition.fields.map((f) => ({ ...f })),
+    ...(definition.provider ? { provider: definition.provider } : {}),
     mode: (definition as { mode?: "builder" | "html" }).mode ?? "builder",
     html: (definition as { html?: string }).html,
     notify: { enabled: definition.notify.enabled, recipients: [...definition.notify.recipients] },
@@ -82,6 +88,8 @@ export function toAdminFormSubmissionDto(submission: FormSubmissionRecord): Admi
     formDefinitionId: submission.formDefinitionId,
     workspaceId: submission.workspaceId,
     data: { ...submission.data },
+    ...(submission.evidence ? { schemaHash: submission.evidence.schemaHash } : {}),
+    ...(submission.validation ? { validation: submission.validation } : {}),
     // cms-forms 0.2.2 types an expired IP as null; the wire DTO keeps repo.rows.ts's empty string.
     sourceIp: submission.sourceIp ?? "",
     submittedAt: submission.submittedAt,
@@ -89,7 +97,7 @@ export function toAdminFormSubmissionDto(submission: FormSubmissionRecord): Admi
 }
 
 export function toAdminFormSubmissionResponse(submission: FormSubmissionRecord): { data: AdminFormSubmissionDto } {
-  return { data: toAdminFormSubmissionDto(submission) };
+  return { data: { ...toAdminFormSubmissionDto(submission), ...(submission.evidence ? { evidence: structuredClone(submission.evidence) } : {}) } };
 }
 
 export function toAdminFormSubmissionListResponse(page: {

@@ -4,7 +4,7 @@ import { EventEmitter } from "node:events";
 import type { Serializable } from "node:child_process";
 import type { Request, Response } from "express";
 import { fetchAgentDaemon } from "../../composition/modules/assistant-daemon-client.js";
-import { activateAssistantDaemon, prepareAssistantPageBinding } from "../../../../../../admin/src/lib/assistant-daemon-activation.ts";
+import { activateAssistantDaemon, prepareAssistantPageBinding } from "../../../../../../admin/src/lib/assistant-daemon-activation.js";
 import { ensureToolExecToken } from "#src/assistant/daemon-access";
 import { publishDaemonPluginEvent } from "../../composition/modules/assistant-tool-exec.js";
 import { createHttpRunDaemonClient } from "../../composition/modules/assistant-run-finalizer.js";
@@ -105,7 +105,7 @@ test("desktop refusal reaches the server log and chat response without losing it
       activate: (input, options) => activateAssistantDaemon(input, { ...options,
         request: async () => globalThis.Response.json(body, { status }),
       }),
-    }), { message: reason }, "the chat binding must display the server's actual reason");
+    }), { message: `${reason}\nDetails: HTTP 503; AGENT_DAEMON_UNAVAILABLE` }, "the chat binding retains the server reason and its HTTP/code diagnostic");
     await shutdownAssistantDaemon();
     assert.deepEqual(warning.mock.calls.map(call => call.arguments[0]), [
       `[daemon-supervisor] desktop scope withdrawal unavailable: ${reason}`,

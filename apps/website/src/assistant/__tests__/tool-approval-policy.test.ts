@@ -4,7 +4,7 @@ import test from 'node:test';
 import { createToolRegistry, type ToolRegistration, type ToolExecutionContext } from '@jini-ai/core';
 import { createToolExecutor } from '@jini-ai/daemon';
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import { applyToolApprovalPolicy, approvalClassFor } from '../tool-approval-policy.js';
+import { applyToolApprovalPolicy, approvalClassFor, createToolHumanConfirmer } from '../tool-approval-policy.js';
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { directPageAction } from '../assistant-tool-approval-policy.js';
@@ -80,7 +80,9 @@ test('permanent deletes and actions that leave this site refuse without a human 
     ['theme_set_active',{themeId:'ground'}],
   ];
   for (const [id,input] of calls) {
-    const f=fixture(id); const result=await f.executor.execute({toolId:id,principal:{id:'owner'},run:{id:'run'},input});
+    // Static publishing now owns its prepared plan; exercise policy transport here with an explicit policy fixture.
+    const descriptor: Partial<ToolRegistration['descriptor']> = id === 'deployment_execute_static_publish' ? { metadata: { approval: { class: 'publish', confirmation: 'policy' } } } : {};
+    const f=fixture(id, {}, descriptor); const result=await f.executor.execute({toolId:id,principal:{id:'owner'},run:{id:'run'},input});
     assert.equal(result.status,'failed',id); assert.equal(f.calls(),0,id);
   }
 });
@@ -204,7 +206,8 @@ test('generic approval input uses the shared structured renderer and escapes unt
 test('deployment approval shows catalog title and summary with technical input only behind Details', async () => {
   const { toolMetadata } = await import('../../contracts/core/tool-metadata/deployments.js');
   const toolId = 'deployment_execute_static_publish';
-  const f = fixture(toolId, {}, { metadata: toolMetadata[toolId] });
+  // Test the generic renderer separately from the domain-owned preparation/approval path.
+  const f = fixture(toolId, {}, { metadata: { ...toolMetadata[toolId], approval: { class: 'publish', confirmation: 'policy' } } });
   const card = await cardFor(f, toolId, { target: 'vercel', projectName: 'zoran-new' });
   try {
     assert.match(card.html, /<h1[^>]*>Publish static site\?<\/h1>/);
@@ -294,4 +297,13 @@ test('published plugin details and inspect disclosures run directly; state-chang
   for (const action of ['enabled', 'remove', 'delete-confirm', 'inspect-confirm']) {
     assert.equal(directPageAction({ capabilityId: 'page.click', input: { handle: `agent-plugin-row-ui-ux-design-${action}` } }), false);
   }
+});
+
+
+test('the shared domain confirmer refuses commerce without an interactive channel', async () => {
+  const f = fixture('commerce_resolve_unknown');
+  const confirm = createToolHumanConfirmer({ surfaces: f.surfaces });
+  await assert.rejects(confirm({ ctx: ctx(), description: { toolId: 'commerce_resolve_unknown', errorCode: 'COMMERCE',
+    title: 'Record this verified payment outcome?', details: [], confirmLabel: 'Record verified outcome' } }), /COMMERCE_NO_CONFIRMATION_CHANNEL/);
+  assert.equal(f.calls(), 0);
 });

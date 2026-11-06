@@ -50,7 +50,7 @@ test("test-agent: an authenticated CLI offering the requested model reports ok:t
   let available = true;
   let detectionFails = false;
   let allowed = true;
-  const detectAgents = t.mock.fn(async (_input: Record<string, never>, options: { force?: boolean } = {}): Promise<DetectedAgent[]> => {
+  const detectAgents = t.mock.fn(async (_input: { agentIds?: readonly string[] }, options: { force?: boolean } = {}): Promise<DetectedAgent[]> => {
     assert.equal(options.force, true, "an explicit Test must bypass the process detection cache");
     if (detectionFails) throw new Error("probe failed");
     return [
@@ -127,9 +127,9 @@ test("test-agent: an authenticated CLI offering the requested model reports ok:t
   assert.equal(body.ok, true);
   assert.equal(body.message, "Mocked CLI 3.1.4 is installed and authenticated, and offers 'model-a'.");
   // Proves the route reached the injected detector rather than a real PATH scan: exactly one call, with no
-  // configuration -- the explicit Test forces discovery through Jini's optional object.
+  // unrelated CLI probes -- the explicit Test scopes discovery and forces fresh evidence.
   assert.equal(detectAgents.mock.callCount(), 1);
-  assert.deepEqual(detectAgents.mock.calls[0]?.arguments, [{}, { force: true }]);
+  assert.deepEqual(detectAgents.mock.calls[0]?.arguments, [{ agentIds: ["mocked-cli"] }, { force: true }]);
 
   // Omitted models check CLI readiness without a model mismatch. Keep these requests in the
   // parent's sequence, before its shared detector state changes to unavailable below.
@@ -142,7 +142,7 @@ test("test-agent: an authenticated CLI offering the requested model reports ok:t
       message: "Mocked CLI 3.1.4 is installed and authenticated.",
     });
     assert.equal(detectAgents.mock.callCount(), callsBefore + 1);
-    assert.deepEqual(detectAgents.mock.calls[callsBefore]?.arguments, [{}, { force: true }]);
+    assert.deepEqual(detectAgents.mock.calls[callsBefore]?.arguments, [{ agentIds: ["mocked-cli"] }, { force: true }]);
   }
 
   await t.test("test-agent: a missing body returns the agentId validation error", async () => {
@@ -180,5 +180,5 @@ test("test-agent: an authenticated CLI offering the requested model reports ok:t
   detectionFails = true;
   const failed = await post(baseUrl, TEST_AGENT_PATH, { agentId: "mocked-cli" });
   assert.equal(failed.status, 500);
-  assertAdminResponse({ actual: await failed.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: await failed.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: {"message":"The assistant task operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"assistant task operation"} });
 });

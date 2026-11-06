@@ -19,8 +19,12 @@ rules:
         - content/agent-plugins/**
     pattern-sources: &caught_error_sources
       - patterns:
-          - pattern-inside: |
-              try { ... } catch ($ERR) { ... }
+          - pattern-either:
+              - pattern-inside: |
+                  try { ... } catch ($ERR) { ... }
+              - pattern-inside: |
+                  $PROMISE.catch(($ERR) => { ... })
+              - pattern-inside: $PROMISE.catch(($ERR) => $BODY)
           - pattern-either:
               - pattern: $ERR.message
               - pattern: $ERR.body

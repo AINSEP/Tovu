@@ -179,3 +179,16 @@ test('withdrawal or disposal during metric admission prevents a late diagnostic 
   }
   f.memory.dispose();
 });
+
+test('telemetry keeps raw RSS when the display switches between footprint and fallback', async () => {
+  const f = fixture();
+  const snapshot = await f.monitor.get({ panelOpen: true });
+  const project = () => projectMemoryProcesses({ snapshot, desktopPid: 1, rendererPids: new Set([2, 3]), heapUsedBytes: 0 });
+  const before = project();
+  snapshot.app.processes = snapshot.app.processes.map(row => ({ ...row, rawRssBytes: row.rssBytes,
+    rssBytes: 9_000_000_000, memoryMetric: 'physical-footprint' as const }));
+  assert.deepEqual(project(), before);
+  snapshot.app.processes = snapshot.app.processes.map(row => ({ ...row, memoryMetric: 'rss' as const }));
+  assert.deepEqual(project(), before);
+  f.memory.dispose();
+});

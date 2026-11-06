@@ -45,7 +45,7 @@ test("L255 workspace guards precede auth and body validation on both routes", as
     }
     assertAdminResponse({ actual: await invoke({ workspaceId: "ws-7", principal: false }), expected: {
       statusCode: 500, jsonBody: { error: "internal error" },
-    } });
+    } }, { failure: suffix === "/restore" ? {"message":"The trash item restore could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"trash item restore"} : {"message":"The trash item operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"trash item operation"} });
   }
 });
 
@@ -105,7 +105,7 @@ test("L255 move preserves kind denial and masks unexpected failures", async () =
     });
     assertAdminResponse({ actual: await invoke({ workspaceId: "ws-7", body: { type: "theme", id: "i" } }), expected: throws
       ? { statusCode: 500, jsonBody: { error: "internal error" } }
-      : { statusCode: 403, jsonBody: { error: "principal 'p-7' is not authorized for 'theme.edit'", code: "FORBIDDEN", details: { permission: "theme.edit" } } } });
+      : { statusCode: 403, jsonBody: { error: "principal 'p-7' is not authorized for 'theme.edit'", code: "FORBIDDEN", details: { permission: "theme.edit" } } } }, { failure: {"message":"The trash item operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"trash item operation"} });
   }
 });
 

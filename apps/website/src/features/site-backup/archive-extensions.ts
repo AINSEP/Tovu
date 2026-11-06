@@ -23,16 +23,28 @@ export async function prepareArchiveExtensions(required: { sources: SiteBackupSo
     const lifecycle = createTovuAgentPluginLifecycle({ layout: required.sources.agentPlugins });
     const workspaceRoot = required.sources.agentPlugins.forWorkspace(workspaceId).root;
     const candidates = await lifecycle.listInstalledPlugins(workspaceRoot);
-    const installed = lifecycle.preferBundledAgentPluginDigests(candidates, await lifecycle.readBundledAgentPluginDigests(workspaceRoot));
+    const bundled = await lifecycle.readBundledAgentPluginDigests(workspaceRoot);
+    const installed = lifecycle.preferBundledAgentPluginDigests(candidates, bundled);
     if (new Set(installed.map(plugin => plugin.pluginId)).size !== installed.length) throw new SiteShareRefusal({ code: "UNSUPPORTED_PLUGIN", message: "Export requires one installed digest per plugin id." });
     const activations = await lifecycle.readAgentPluginActivations({ workspaceRoot });
-    const supersededRoots = candidates.filter(candidate => !installed.includes(candidate)).map(plugin => plugin.packageRoot + "/");
-    selected = files.filter(file => !supersededRoots.some(root => file.absPath.startsWith(root)));
+    // Old copies can stop indexing after a manifest contract changes. The ledger still names
+    // this build's valid revision; leave every other copy on disk, outside the flattened export.
+    const bundledSelection = new Map(installed.filter(plugin => bundled.get(plugin.pluginId) === plugin.archiveDigest).map(plugin => [plugin.pluginId, plugin.archiveDigest]));
+    selected = files.filter(file => !isSupersededBundledRevision({ file, selected: bundledSelection }));
     for (const plugin of installed) plugins.push({ kind: "agent", id: plugin.pluginId, version: plugin.version ?? "unknown", digest: plugin.archiveDigest, enabled: activations.plugins[plugin.pluginId]?.enabled ?? true, shipped: true });
   }
   plugins.push(...await unindexedAgentRecords({ files: selected, plugins }));
   plugins.push(...await sitePluginRecords({ files: selected }));
   return { files: selected.filter(file => runtimeToArchivePath({ path: file.path }) !== null), plugins, ...(notices.length ? { notices } : {}) };
+}
+
+/** Flatten only the verified selected bundled revision; unrecorded/absent selections still refuse.
+ * @complexity O(path length) matching and O(1) ledger lookup per planned file; no disk writes. */
+function isSupersededBundledRevision(required: { file: PlannedDiskFile; selected: ReadonlyMap<string, string> }): boolean {
+  const revision = /^agent-plugins\/ws\/[^/]+\/([^/]+)\/package\/sha256\/([a-f0-9]{64})\//.exec(required.file.path);
+  if (!revision) return false;
+  const selected = required.selected.get(revision[1]!);
+  return selected !== undefined && selected !== revision[2];
 }
 
 async function includeThemeOriginals(required: { sources: SiteBackupSources; files: PlannedDiskFile[]; notices: string[] }, optional: { packageThemesRoot?: string }): Promise<void> {

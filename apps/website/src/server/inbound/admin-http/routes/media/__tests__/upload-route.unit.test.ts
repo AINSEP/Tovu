@@ -13,6 +13,17 @@ const png = { filename: 'pixel.png', contentType: 'image/png', dataBase64: PNG_B
 const svg = '<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"><path d="M0 0h10v10z"/></svg>';
 type Uploaded = { media: { id: string; kind: string; contentType: string; byteSize: number | null; sha256: string } };
 
+test('media upload: a document above the former 10 MiB cap uses the host 50 MiB policy', async () => {
+  const { app } = fixture(registerAdminMediaUploadRoute);
+  const bytes = Buffer.alloc(10 * 1024 * 1024 + 1, 65);
+  const result = await dispatchJsonRequest(app, 'POST', `${BASE}/media`, {
+    kind: 'document', filename: 'large.txt', dataBase64: bytes.toString('base64'),
+  });
+  assert.equal(result.status, 201);
+  assert.equal((result.body as Uploaded).media.byteSize, bytes.byteLength);
+  assert.equal(MAX_DOCUMENT_BYTES, 50 * 1024 * 1024);
+});
+
 test('media upload: denial writes the exact 403 body for media.upload without naming an entity', async () => {
   const calls: unknown[] = [];
   const authorize: Deps['authorize'] = async (params) => { calls.push(params); return { allowed: false, reason: 'no_grant' }; };
@@ -40,7 +51,7 @@ test('media upload: a document whose base64 could only inflate past the limit is
   const put = t.mock.method(deps.blobStore, 'put');
   const dataBase64 = 'A'.repeat(4 * Math.ceil(MAX_DOCUMENT_BYTES / 3) + 4);
   assert.deepEqual(await dispatchJsonRequest(app, 'POST', `${BASE}/media`, { kind: 'document', filename: 'big.txt', dataBase64 }), {
-    status: 400, body: { error: 'document exceeds the 10 MiB limit' },
+    status: 400, body: { error: 'document exceeds the 50 MiB limit' },
   });
   assert.equal(put.mock.callCount(), 0);
 });

@@ -1,4 +1,5 @@
 import { decodeApiError } from "@jini-ai/protocol";
+import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 import type { CredentialTokenHint } from './credential-copy';
 import type { SettingScope } from "@jini-ai/core/settings";
 import type { MediaProviderCredentials } from "@jini-ai/ui/core";
@@ -11,6 +12,7 @@ import type {
 } from "@tovu/publish-content-ui";
 
 import { isPageUnloading } from "./page-lifecycle";
+import { adminFailureChannel, publishAdminFailure } from "./admin-failure-channel";
 import { siteUrl } from "./site-url";
 import { shareSettingsEffectiveRead } from "./settings-effective-reads";
 import { serverReconnect, shouldRetryAfterReconnect, UPSTREAM_REFUSED_HEADER, UPSTREAM_REFUSED_VALUE, type ServerReconnect } from "./server-reconnect";
@@ -2553,10 +2555,14 @@ export function bodyFitsKeepalive(body: string): boolean {
 }
 
 export function buildFetchInit(init: RequestInit = {}): RequestInit {
+  const callerHeaders = init.headers ?? {};
+  // Header names are case-insensitive: a caller's lowercase "content-type" beside this default's
+  // capitalised key would be sent as two values joined with a comma, which the server refuses.
+  const callerSetsType = new Headers(callerHeaders).has("content-type");
   return {
     credentials: "same-origin",
     ...init,
-    headers: { "Content-Type": "application/json", ...(init.headers ?? {}) },
+    headers: callerSetsType ? callerHeaders : { "Content-Type": "application/json", ...callerHeaders },
   };
 }
 
@@ -2587,6 +2593,7 @@ async function parseJsonBody(res: Response, { requireJson = false }: { requireJs
  *  own step, run before {@link buildRequestFailedError} builds the thrown error. */
 function notifyIfUnauthenticated({ status, body }: { status: number; body: Record<string, unknown> }): void {
   if (status === 401 && decodeApiError({ body }).code === "UNAUTHENTICATED") {
+    adminFailureChannel.reset();
     for (const listener of unauthenticatedListeners) listener();
   }
 }
@@ -2611,7 +2618,8 @@ function notifyIfUnauthenticated({ status, body }: { status: number; body: Recor
  *  to. It names the likeliest cause, keeps the status for the other one, and points at the server
  *  either way, which is the correct first action for both. Parseable JSON (including a literal
  *  `null` body) is the discriminator that IS reliable: it proves an application, not a proxy,
- *  composed the response, so those keep `request failed (n)`.
+ *  composed the response, so an otherwise empty error names its request and HTTP status, with
+ *  guidance to check for a completed write before trying again.
  *
  *  Pulled out of `request` (2026-09-04, complexity pass) as its own pure step: a `{status, body,
  *  wasUnparseable}` triple in, an `ApiError` out, no `fetch`/parsing involved. */
@@ -2619,16 +2627,23 @@ function buildRequestFailedError({
   status,
   body,
   wasUnparseable,
+  init,
+  path,
 }: {
   status: number;
   body: Record<string, unknown>;
   wasUnparseable: boolean;
+  init: RequestInit | undefined;
+  path: string;
 }): ApiError {
   const noAppEnvelope = wasUnparseable && status >= 500;
+  const method = init?.method ?? "GET";
+  const fallback = redactSecretShapes({ text: `The API could not finish ${method} ${path} (HTTP ${status}). Check whether your change was saved before trying again. Copy details and report this problem.` }).text;
   const decoded = decodeApiError({ body }, {
-    fallbackMessage: noAppEnvelope ? unreachableApiMessage(status) : `request failed (${status})`,
+    fallbackMessage: noAppEnvelope ? unreachableApiMessage(status) : fallback,
   });
-  return new ApiError(decoded.message, status, noAppEnvelope ? API_UNREACHABLE_CODE : decoded.code, body);
+  const error = new ApiError(decoded.message, status, noAppEnvelope ? API_UNREACHABLE_CODE : decoded.code, body);
+  return error;
 }
 
 /**
@@ -2658,7 +2673,7 @@ export async function requestOnce<T>(
   const { body, wasUnparseable } = await parseJsonBody(res, { requireJson: res.ok && options.requireJson });
   if (!res.ok) {
     notifyIfUnauthenticated({ status: res.status, body });
-    const defaultError = buildRequestFailedError({ status: res.status, body, wasUnparseable });
+    const defaultError = buildRequestFailedError({ status: res.status, body, wasUnparseable, init, path });
     const error = options.errorFactory?.({ response: res, error: defaultError }) ?? defaultError;
     // The dev proxy's mark for "the API refused the connection": this request never reached it.
     if (res.headers.get(UPSTREAM_REFUSED_HEADER) === UPSTREAM_REFUSED_VALUE) upstreamRefusedErrors.add(error);
@@ -2693,8 +2708,25 @@ export async function requestRidingOutRestart<T>(
   }
 }
 
+/** Publish one unexpected failure after restart recovery settles, preserving the caller's rejection.
+ * The captured generation prevents an older session/site response from restoring cleared details.
+ * @complexity O(1) orchestration plus existing request/retry and bounded failure formatting.
+ * @overallScore 98 — approved backend copy remains a server disclosure contract.
+ */
 async function request<T>(path: string, init?: RequestInit, onOk?: (res: Response) => void, options: AuthenticatedAdminRequestOptions = {}): Promise<T> {
-  return requestRidingOutRestart({ send: () => requestOnce<T>({ path, init, onOk }, options), method: init?.method }, options);
+  const generation = adminFailureChannel.getGeneration();
+  const method = init?.method ?? "GET";
+  try {
+    return await requestRidingOutRestart({ send: () => requestOnce<T>({ path, init, onOk }, options), method }, options);
+  } catch (error) {
+    // Only the final unexpected failure is shared; callers keep their original error and body.
+    try {
+      if (error instanceof ApiError && (error.status === 0 || error.status >= 500)) {
+        publishAdminFailure({ body: error.body, path, method, status: error.status, generation });
+      }
+    } catch { /* Notice effects must never replace the original request rejection. */ }
+    throw error;
+  }
 }
 
 /** C2's safe inventory contract. Eligibility and the minimum hint length remain server-owned. */
@@ -2709,7 +2741,7 @@ export interface AdminCredentialCopySource {
 export interface AdminCredentialCopyResult {
   kind: string;
   id: string;
-  status: "copied" | "skipped" | "failed";
+  status: "granted" | "copied" | "skipped" | "failed";
   last4?: string;
   reasonCode?: string;
 }
@@ -2799,16 +2831,19 @@ export function adminSitePreviewUrl({ name, version }: { name: string; version: 
  */
 export function describeApiError(e: unknown, fallback: string): string {
   if (e instanceof ApiError) return e.message || fallback;
-  return e instanceof Error ? e.message : fallback;
+  return e instanceof Error ? e.message || fallback : fallback;
 }
 
 export const api = {
   login: ({ username, password }: { username: string; password: string }, _options: Record<string, never> = {}) =>
-    request<{ user: AdminUser }>("/auth/login", {
+    request<{ user: AdminUser } | { mfaRequired: true; pendingToken: string }>("/auth/login", {
       method: "POST",
       body: JSON.stringify({ username, password }),
       // Signing in twice is harmless, so a login sent while the dev server restarts waits and retries.
     }, undefined, { retryWrites: true }),
+  completeMfa: (input: { pendingToken: string; code: string }) => requestOnce<{ user: AdminUser }>({
+    path: "/auth/mfa/login", init: { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input), cache: "no-store" },
+  }),
   logout: () => request<{ ok: boolean }>("/auth/logout", { method: "POST" }),
   /**
    * Exchanges a single-use loopback boot token (the zip launcher's `#boot=<token>` sign-in link,
@@ -3313,11 +3348,17 @@ export const api = {
   /** Starts an OAuth sign-in for one saved server. `redirect_required` carries the provider URL to
    *  open; `device_code` carries a code the operator types at `verificationUri`, then
    *  {@link api.pollExternalMcpOAuthDevice} reports when it lands. */
-  connectExternalMcpOAuth: (serverId: string) =>
+  connectExternalMcpOAuth: (serverId: string, options?: { destination?: "shared" }) =>
     request<{ auth: AdminExternalMcpConnectStart }>(
       `/workspaces/${WORKSPACE_ID}/mcp-servers/${encodeURIComponent(serverId)}/oauth/connect`,
-      { method: "POST" }
+      { method: "POST", ...(options?.destination ? { body: JSON.stringify(options) } : {}) }
     ),
+  useLocalMcpConnection: (serverId: string) => request<void>(`/workspaces/${WORKSPACE_ID}/mcp-servers/${encodeURIComponent(serverId)}/oauth/shared`, { method: "DELETE" }),
+  stopSharedMcpConnection: (serverId: string) => request<void>(`/workspaces/${WORKSPACE_ID}/mcp-servers/${encodeURIComponent(serverId)}/oauth`, { method: "DELETE" }),
+  listSharedMcpConnections: (serverId: string) => request<{ available: boolean; connections: { credentialId: string; label: string }[]; current: { credentialId: string; status: string; granted: boolean } | null }>(
+    `/workspaces/${WORKSPACE_ID}/mcp-servers/${encodeURIComponent(serverId)}/oauth/shared`),
+  useSharedMcpConnection: (input: { serverId: string; credentialId: string }) => request<{ connected: boolean }>(
+    `/workspaces/${WORKSPACE_ID}/mcp-servers/${encodeURIComponent(input.serverId)}/oauth/shared`, { method: "POST", body: JSON.stringify({ credentialId: input.credentialId }) }),
   /** One poll of a device sign-in; the caller owns the loop and waits `retryAfterSeconds`. */
   pollExternalMcpOAuthDevice: (serverId: string) =>
     request<{ status: "pending"; retryAfterSeconds: number } | { status: "connected" }>(
@@ -4063,7 +4104,7 @@ export const api = {
   manageLocalSite: (input: { name: string; action: AdminLocalSiteAction; confirmed?: boolean; checked?: boolean }) => {
     const name = encodeURIComponent(input.name);
     if (input.action === "switch") return request<AdminSiteActivation>(
-      `/workspaces/${WORKSPACE_ID}/system/sites/${name}/activate`, { method: "POST", body: JSON.stringify({ restartNow: true }) });
+      `/workspaces/${WORKSPACE_ID}/system/sites/${name}/activate`, { method: "POST", body: JSON.stringify({ restartNow: true }) }, () => adminFailureChannel.reset());
     const path = input.action === "restore" || input.action === "delete"
       ? `trash/${name}/${input.action}` : `${name}/${input.action}`;
     return request<unknown>(`/workspaces/${WORKSPACE_ID}/system/sites/${path}`, {
@@ -4289,12 +4330,12 @@ export const api = {
   deleteSourceControlCredential: (id: string) =>
     request<void>(`/workspaces/${WORKSPACE_ID}/system/source-control/credentials/${encodeURIComponent(id)}`, { method: "DELETE" }),
 
-  /** Safe local project choices and eligible key summaries; no credential values. */
+  /** Owner-only Shared Keys metadata; no other site inventories or credential values. */
   listCredentialCopySources: (_required: Record<string, never>, options: AuthenticatedAdminRequestOptions = {}) =>
     authenticatedAdminRequest<{ sources: AdminCredentialCopySource[] }>({
       path: `/workspaces/${WORKSPACE_ID}/system/credential-copy`, method: "GET",
     }, options),
-  /** Copy selected source IDs through the owner-only route; overwrite is explicit. */
+  /** Approve one Shared Keys reference for this site; sourceSiteId is the fixed shared-keys group. */
   copyCredentials: (input: { sourceSiteId: string; ids: string[]; overwrite: boolean }, options: AuthenticatedAdminRequestOptions = {}) =>
     authenticatedAdminRequest<{ results: AdminCredentialCopyResult[] }>({
       path: `/workspaces/${WORKSPACE_ID}/system/credential-copy`, method: "POST", body: input,

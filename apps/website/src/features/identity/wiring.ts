@@ -1,3 +1,7 @@
+import { createPasskeyStore } from "./passkeys.repo.js";
+import { createMfaStore } from "./mfa.repo.js";
+import type { MfaStore, PasskeyStore, RecoveryCodeStore } from "@jini-ai/user-management/server";
+import { createRecoveryCodeStore } from "./recovery-codes.repo.js";
 // Shared identity boundaries: Jini/packages/user-management/src/core/index.ts and Jini/packages/user-management/src/server/index.ts.
 import type { AuthorizeFn } from "@jini-ai/cms/core";
 // Catalog/migration rationale: Jini/packages/user-management/src/core/builtin-permissions.ts.
@@ -96,6 +100,12 @@ function assertOwnerCredentials(value: unknown): asserts value is OwnerCredentia
 
 /** The identity-owned slice of `RouteDeps` (see that file's fields of the same names). */
 export interface IdentityRouteDepsSlice {
+  /** Durable recovery is available only when bound to the identity SQL transaction. */
+  recoveryCodes?: RecoveryCodeStore;
+  /** Factor and pending proofs share the same identity transaction. */
+  mfaStore?: MfaStore;
+  /** Public passkey credentials use the same identity transaction. */
+  passkeyStore?: PasskeyStore;
   /** Every route/tool writer shares these ports; see Jini user-management's transaction contract. */
   transactions: IdentityRepos["transactions"];
   tokens: import("@jini-ai/user-management").SessionTokenPort;
@@ -361,5 +371,5 @@ export function createSqliteIdentityRouteDeps(
     principalRoles: new SqlitePrincipalRoleRepo(db),
     principalPolicies: new SqlitePrincipalPolicyRepo(db),
   };
-  return buildIdentityRouteDeps(repos, apiKeyRepo, seedRequired);
+  return { ...buildIdentityRouteDeps(repos, apiKeyRepo, seedRequired), recoveryCodes: createRecoveryCodeStore({ kernel: db }, {}), mfaStore: createMfaStore({ kernel: db }, {}), passkeyStore: createPasskeyStore({ kernel: db }, {}) };
 }

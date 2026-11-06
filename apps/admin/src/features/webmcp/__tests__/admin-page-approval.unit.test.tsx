@@ -1,161 +1,124 @@
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, expect, it, vi } from "vitest";
+import { expect, it, vi } from "vitest";
 import { PAGE_CAPABILITIES, type PageDriver, type WebMcpToolRegistration } from "@jini-ai/agentic";
-import { registerAdminPageWebMcpTools } from "../admin-page-tools";
-import { createAdminPageApprovalStore } from "../admin-page-approval.store";
-import { AdminPageApprovalDialog } from "../AdminPageApprovalDialog";
-import { WEBMCP_DICT, t } from "../webmcp-i18n";
+import { registerAdminPageWebMcpTools, type RequestAdminPageAction } from "../admin-page-tools";
 
-afterEach(cleanup);
-function fixture(approvals = createAdminPageApprovalStore({}, { createId: () => "approval-1" })) {
+function fixture(requestPageAction: RequestAdminPageAction = async () => ({ executed: false })) {
   const tools: WebMcpToolRegistration[] = [];
   const controller = new AbortController();
   const driver: PageDriver = {
     findElements: async () => [], listPages: async () => [], describeField: async () => ({ type: "text" }),
-    highlight: async () => {}, scrollTo: async () => {}, click: vi.fn(async () => {}),
-    fill: vi.fn(async () => {}), selectOption: async () => {}, navigate: async () => {},
+    highlight: vi.fn(), scrollTo: vi.fn(), click: vi.fn(), fill: vi.fn(), selectOption: vi.fn(), navigate: vi.fn(),
   };
+  const request = vi.fn(requestPageAction);
   registerAdminPageWebMcpTools({ driver, signal: controller.signal }, {
-    approvals, isEnabled: () => true,
+    requestPageAction: request, isEnabled: () => true,
     modelContext: { registerTool: async ({ tool }) => { tools.push(tool as WebMcpToolRegistration); } },
   });
   const tool = (name: string) => tools.find(tool => tool.name === name)!;
-  const request = () => tool("page.click").execute({ handle: "post-delete-confirm" });
-  const respond = (approved: boolean, approvalId = "approval-1") => tool("admin.respond_page_approval").execute({ approvalId, approved });
-  return { approvals, driver, controller, tool, request, respond };
+  const click = () => tool("page.click").execute({ handle: "post-delete-confirm" });
+  return { tools, driver, controller, tool, click, request };
 }
 
-it("uses the default UUID to identify the pending action and consume its approval once", async () => {
-  const approvalId = "7aece7ae-34ce-4f82-9214-82c11ea355f0";
-  const randomUUID = vi.spyOn(crypto, "randomUUID").mockReturnValue(approvalId);
-  const f = fixture(createAdminPageApprovalStore({}));
-  try {
-    const proposal = await f.request();
-    expect(proposal).toEqual({
-      status: "approval_required", approvalId, capabilityId: "page.click",
-      args: { handle: "post-delete-confirm" }, responseTool: "admin.respond_page_approval",
-    });
-    expect(f.approvals.getSnapshot().pending?.approvalId).toBe(approvalId);
-    expect(f.driver.click).not.toHaveBeenCalled();
-    await f.respond(true, approvalId);
-    expect(f.driver.click).toHaveBeenCalledExactlyOnceWith({ handle: "post-delete-confirm" });
-    expect(f.approvals.getSnapshot().pending).toBeNull();
-    await expect(f.respond(true, approvalId)).rejects.toThrow("Page approval is missing or expired");
-  } finally {
-    f.controller.abort();
-    randomUUID.mockRestore();
-  }
-});
-
-it("returns an answerable approval and shows the same exact action to the human before executing", async () => {
-  const f = fixture();
-  render(<AdminPageApprovalDialog locale="en" approvals={f.approvals} />);
-  let result: unknown;
-  await act(async () => { result = await f.request(); });
-  expect(result).toEqual({ status: "approval_required", approvalId: "approval-1", capabilityId: "page.click", args: { handle: "post-delete-confirm" }, responseTool: "admin.respond_page_approval" });
+it("waits on the authenticated card exchange without performing a local effect", async () => {
+  let answer!: (value: unknown) => void;
+  const f = fixture(() => new Promise(resolve => { answer = resolve; }));
+  let settled = false;
+  const waiting = f.click().then(result => { settled = true; return result; });
+  await Promise.resolve();
+  expect(settled).toBe(false);
+  expect(f.request).toHaveBeenCalledExactlyOnceWith({ capabilityId: "page.click", input: { handle: "post-delete-confirm" }, signal: f.controller.signal });
   expect(f.driver.click).not.toHaveBeenCalled();
-  expect(screen.getByRole("dialog")).toHaveTextContent("Allow the browser agent to perform this admin action?");
-  expect(screen.getByRole("dialog")).toHaveTextContent('"post-delete-confirm"');
-  expect(screen.getByRole("button", { name: "Confirm" })).not.toHaveAttribute("data-agent-element");
-  await act(async () => { await f.respond(true); });
-  expect(f.driver.click).toHaveBeenCalledExactlyOnceWith({ handle: "post-delete-confirm" });
-  expect(screen.queryByRole("dialog")).toBeNull();
-  await expect(f.respond(true)).rejects.toThrow("Page approval is missing or expired");
-});
-
-it("denial, human Cancel, unknown ids and malformed replies never execute", async () => {
-  const f = fixture();
-  render(<AdminPageApprovalDialog locale="en" approvals={f.approvals} />);
-  await act(async () => { await f.request(); });
-  await expect(f.respond(true, "other")).rejects.toThrow("Page approval is missing or expired");
-  await expect(f.tool("admin.respond_page_approval").execute({ approvalId: "approval-1", approved: "true" })).rejects.toThrow("Expected approvalId (string) and approved (boolean)");
-  await act(async () => { expect(await f.respond(false)).toEqual({ status: "declined" }); });
-  await act(async () => { await f.request(); });
-  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  answer({ clicked: "post-delete-confirm" });
+  expect(await waiting).toEqual({ clicked: "post-delete-confirm" });
   expect(f.driver.click).not.toHaveBeenCalled();
-  expect(f.approvals.getSnapshot().pending).toBeNull();
 });
 
-it("requires explicit approval even for destructive controls and keeps their own dialog gate", async () => {
+it("cannot answer a pending card through any registered WebMCP capability", async () => {
+  const f = fixture();
+  await f.click();
+  expect(f.tools.map(tool => tool.name)).toEqual(PAGE_CAPABILITIES.map(capability => capability.id));
+  expect(f.tools.find(tool => tool.name === "admin.respond_page_approval")).toBeUndefined();
+  expect(f.driver.click).not.toHaveBeenCalled();
+});
+
+it.each(["declined", "abandoned"])("returns a human %s outcome without clicking locally", async reason => {
+  const result = { executed: false, reason };
+  const f = fixture(async () => result);
+  expect(await f.click()).toEqual(result);
+  expect(f.driver.click).not.toHaveBeenCalled();
+});
+
+it("requires the server card exchange for feature-specific destructive confirmation buttons", async () => {
   const f = fixture();
   await f.tool("page.click").execute({ handle: "plugin-row-remove-confirm" });
-  expect(f.driver.click).not.toHaveBeenCalled();
-  await f.respond(false);
+  expect(f.request).toHaveBeenCalledExactlyOnceWith({ capabilityId: "page.click", input: { handle: "plugin-row-remove-confirm" }, signal: f.controller.signal });
   expect(f.driver.click).not.toHaveBeenCalled();
 });
 
-it("validates inputs before asking and invalidates pending approvals on abort", async () => {
-  const f = fixture();
+it("validates before asking and passes abort to the pending request", async () => {
+  let interrupted = false;
+  const f = fixture(({ signal }) => new Promise((_, reject) => {
+    signal.addEventListener("abort", () => { interrupted = true; reject(new Error("Page action cancelled")); }, { once: true });
+  }));
   const schema = PAGE_CAPABILITIES.find(capability => capability.id === "page.click")!.inputSchema;
   await expect(f.tool("page.click").execute({})).rejects.toThrow(`page.click: "handle" is required. Expected input: ${JSON.stringify(schema)}`);
-  expect(f.approvals.getSnapshot().pending).toBeNull();
-  await f.request();
+  expect(f.request).not.toHaveBeenCalled();
+  const waiting = f.click();
   f.controller.abort();
-  expect(f.approvals.getSnapshot().pending).toBeNull();
-  await expect(f.respond(true)).rejects.toThrow("WebMCP admin access is disabled or closed");
+  await expect(waiting).rejects.toThrow("Page action cancelled");
+  expect(interrupted).toBe(true);
   expect(f.driver.click).not.toHaveBeenCalled();
 });
 
-it("rejects concurrent proposals and snapshots the input so an approved call cannot change", async () => {
-  const f = fixture();
+it("captures opaque action arguments before waiting so caller mutation cannot redirect the request", async () => {
+  let answer!: (value: unknown) => void;
+  const f = fixture(() => new Promise(resolve => { answer = resolve; }));
   const args = { handle: "post-delete-confirm" };
-  await f.tool("page.click").execute(args);
+  const waiting = f.tool("page.click").execute(args);
   args.handle = "plugin-row-remove-confirm";
-  f.approvals.getSnapshot().pending!.args.handle = "another-remove-confirm";
-  await expect(f.request()).rejects.toThrow("A page approval is already pending");
-  await f.respond(true);
-  expect(f.driver.click).toHaveBeenCalledExactlyOnceWith({ handle: "post-delete-confirm" });
+  expect(f.request.mock.calls[0][0].input).toEqual({ handle: "post-delete-confirm" });
+  answer({ clicked: "post-delete-confirm" });
+  expect(await waiting).toEqual({ clicked: "post-delete-confirm" });
+  expect(f.driver.click).not.toHaveBeenCalled();
 });
 
-it("human Confirm uses the same once-only decision and displays execution failures", async () => {
-  const f = fixture();
-  vi.mocked(f.driver.click).mockRejectedValueOnce(new Error("Plugin source unavailable"));
-  render(<AdminPageApprovalDialog locale="en" approvals={f.approvals} />);
-  await act(async () => { await f.request(); });
-  await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Confirm" })); });
-  expect(screen.getByRole("alert")).toHaveTextContent("Plugin source unavailable");
-  await expect(f.respond(true)).rejects.toThrow("Page approval is missing or expired");
+it("propagates execution errors from the authenticated exchange without retrying locally", async () => {
+  const f = fixture(async () => { throw new Error("Plugin source unavailable"); });
+  await expect(f.click()).rejects.toThrow("Plugin source unavailable");
+  expect(f.request).toHaveBeenCalledTimes(1);
+  expect(f.driver.click).not.toHaveBeenCalled();
 });
 
-it("translates the confirmation choice in every supported locale", () => {
-  expect(Object.keys(WEBMCP_DICT)).toHaveLength(22);
-  for (const locale of Object.keys(WEBMCP_DICT)) {
-    expect(WEBMCP_DICT[locale].Confirm).toBeTruthy();
-    expect(t({ locale: locale, key: "Confirm" })).toBe(WEBMCP_DICT[locale].Confirm);
-  }
+it("does not treat a returned confirmed flag as permission to execute another local click", async () => {
+  const f = fixture(async () => ({ confirmed: true }));
+  expect(await f.click()).toEqual({ confirmed: true });
+  expect(f.driver.click).not.toHaveBeenCalled();
 });
 
-
-it("retains credential-field and navigation guards after approval, and refuses disabled access", async () => {
+it("retains credential and navigation guards on reviewed direct actions", async () => {
   const f = fixture();
   f.driver.describeField = async () => ({ type: "password", name: "password" });
   await expect(f.tool("page.fill").execute({ handle: "secret", text: "example" })).rejects.toThrow('refusing to fill "secret": this field type can never be filled by an agent');
-  expect(f.driver.fill).not.toHaveBeenCalled();
   await expect(f.tool("page.navigate").execute({ page: "https://example.com" })).rejects.toThrow('"https://example.com" is not a published page. Available: (none)');
-  const tools: WebMcpToolRegistration[] = [];
-  let enabled = true;
-  registerAdminPageWebMcpTools({ driver: f.driver, signal: f.controller.signal }, {
-    approvals: f.approvals, isEnabled: () => enabled,
-    modelContext: { registerTool: async ({ tool }) => { tools.push(tool as WebMcpToolRegistration); } },
-  });
-  await tools.find(t => t.name === "page.click")!.execute({ handle: "post-delete-confirm" });
-  enabled = false;
-  await expect(f.approvals.respond({ approvalId: "approval-1", approved: true })).rejects.toThrow("WebMCP admin access is disabled or closed");
+  expect(f.driver.fill).not.toHaveBeenCalled();
+  expect(f.driver.navigate).not.toHaveBeenCalled();
+  expect(f.request).not.toHaveBeenCalled();
+});
+
+it("never accepts typed yes or a legacy approval answer as page click input", async () => {
+  const f = fixture();
+  for (const input of [{ answer: "yes" }, { approvalId: "old", approved: true }, { confirmed: true }]) {
+    await expect(f.tool("page.click").execute(input)).rejects.toThrow(/handle/);
+  }
+  expect(f.request).not.toHaveBeenCalled();
   expect(f.driver.click).not.toHaveBeenCalled();
 });
 
-it('the assistant awaits the same dialog and cannot redeem its own human-only proposal', async () => {
-  const approvals = createAdminPageApprovalStore({}, { createId: () => 'assistant-call' });
-  render(<AdminPageApprovalDialog locale="en" approvals={approvals} />);
-  const controller = new AbortController();
-  let waiting!: ReturnType<typeof approvals.request>;
-  await act(async () => {
-    waiting = approvals.request({ interaction: { capability: PAGE_CAPABILITIES.find(capability => capability.id === 'page.click')!, args: { handle: 'plugin-details' } }, signal: controller.signal });
-  });
-  expect(screen.getAllByRole('dialog')).toHaveLength(1);
-  expect(screen.getByRole('button', { name: 'Confirm' })).not.toHaveAttribute('data-agent-element');
-  await expect(approvals.respond({ approvalId: 'assistant-call', approved: true })).rejects.toThrow('app dialog');
-  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Confirm' })); });
-  expect(await waiting).toEqual({ confirmed: true });
-  expect(approvals.getSnapshot().pending).toBeNull();
-});
+it.each(["Authentication required", "Page request belongs to another tab", "Page request is expired"])(
+  "keeps authenticated-channel refusal visible without a local fallback: %s", async message => {
+    const f = fixture(async () => { throw new Error(message); });
+    await expect(f.click()).rejects.toThrow(message);
+    expect(f.request).toHaveBeenCalledTimes(1);
+    expect(f.driver.click).not.toHaveBeenCalled();
+  },
+);

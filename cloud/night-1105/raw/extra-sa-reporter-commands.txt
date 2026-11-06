@@ -1,0 +1,7 @@
+#!/bin/bash
+set -u
+source /workspace/shared/dev-env.sh
+(cd /workspace/Tovu && timeout --kill-after=10s 900s bash -c 'node --import tsx --test --test-timeout=60000 --test-concurrency=2 apps/website/src/server/inbound/admin-http/__tests__/dev-auth-failures.unit.test.ts apps/website/src/server/inbound/admin-http/__tests__/dev-auth-boot-owner.unit.test.ts apps/website/src/server/inbound/admin-http/__tests__/dev-auth.unit.test.ts apps/website/src/features/agent-plugins/__tests__/unit/vitest-compat.unit.test.ts apps/website/src/__tests__/fixtures/teardown.test.ts') > /workspace/Tovu/cloud/night-1105/raw/extra-SA-1-1-fixed.txt 2>&1
+printf "extra-SA-1-1\t%s\t/workspace/Tovu/cloud/night-1105/raw/extra-SA-1-1-fixed.txt\n" "$?" >> /workspace/shared/extra-rerun-results.tsv
+(cd /workspace/Jini && timeout --kill-after=10s 900s bash -c 'node --import tsx --test --test-timeout=60000 --test-concurrency=2 packages/core/src/__tests__/teardown.test.ts packages/agent-plugins/__tests__/vitest-compat.test.mjs') > /workspace/Tovu/cloud/night-1105/raw/extra-SA-2-1-fixed.txt 2>&1
+printf "extra-SA-2-1\t%s\t/workspace/Tovu/cloud/night-1105/raw/extra-SA-2-1-fixed.txt\n" "$?" >> /workspace/shared/extra-rerun-results.tsv

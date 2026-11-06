@@ -58,11 +58,11 @@ test("post read routes: a repository failure is a generic 500 on both routes, ne
 
   const list = await get(`/api/admin/v1/workspaces/${WS}/posts`);
   assert.equal(list.status, 500);
-  assertAdminResponse({ actual: await list.json(), expected: { error: "internal error" } });
+  assertAdminResponse({ actual: await list.json(), expected: { error: "internal error" } }, { failure: {"message":"The posts could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load posts"} });
 
   const one = await get(`/api/admin/v1/workspaces/${WS}/posts/post-home`);
   assert.equal(one.status, 500);
-  assertAdminResponse({ actual: await one.json(), expected: { error: "internal error" } });
+  assertAdminResponse({ actual: await one.json(), expected: { error: "internal error" } }, { failure: {"message":"The posts could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load posts"} });
 });
 
 /** Express guarantees matched `:workspaceId`/`:postId` segments, so each `?? ""` fallback is only

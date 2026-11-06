@@ -103,6 +103,8 @@ export interface CampaignRecord {
   workspaceId: UUID;
   status: CampaignStatus;
   subject: string;
+  /** Editorial document persisted in the same-transaction revision JSON; absent on legacy drafts. */
+  bodyJson?: Record<string, unknown>;
   preheader: string | null;
   fromName: string;
   fromEmail: string;

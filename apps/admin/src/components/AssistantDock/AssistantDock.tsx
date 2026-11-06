@@ -1,4 +1,6 @@
+import "@jini-ai/chat/react/styles/chat-settings.css";
 import { onAdminSecretRedacted } from "@/lib/credential-card-guidance";
+import { subscribeToAdminPageSurfaces } from "@/lib/admin-frontend-session";
 import { ConfirmDialog, useConfirmRequest } from "@jini-ai/admin/react";
 import { DockHeader } from "./DockHeader";
 import { DockLeadingAccessory } from "./DockLeadingAccessory";
@@ -328,7 +330,7 @@ export function AssistantDock({
   useRuntimeAccess: useRuntimeAccessOverride,
   onFolderDropCaptureReady,
   useExecutionPolicy,
-  useChatDisplayPreferences: useChatDisplayPreferencesOverride = useChatDisplayPreferences,
+  useChatDisplayPreferences: useChatDisplayPreferencesOverride,
   useChatAgentPlugins = useChatAgentPluginsPreference,
   useAssistantRuntimePreferences = useAssistantRuntimePreferencesPreference,
 }: AssistantDockProps) {
@@ -342,7 +344,7 @@ export function AssistantDock({
   const { locale, t, chatI18n } = useAssistantDockChrome(useAdminLocale);
   const conversationDelete = useConfirmRequest({});
   // Gear menu: per-operator transcript display, applied to the pane at once.
-  const chatDisplay = useChatDisplayPreferencesOverride();
+  const chatDisplay = useDockDisplayPreferences(useChatDisplayPreferencesOverride);
   // Gear menu: per-person Agent plugins mode; Off hides the pane's "Using" chip at once.
   const agentPlugins = useChatAgentPlugins();
   // Gear menu: per-person runtime switches; the server reads them when it starts the next run.
@@ -353,7 +355,7 @@ export function AssistantDock({
   const executionPolicy = useTovuDockExecution({ controller: useExecutionConfigSeam(useExecutionConfigOverride), locale }, { usePolicy: useExecutionPolicy });
   const { executionConfig, executionConfigRef, setExecutionConfig, handleExecutionModeChange, hasStoredAdminKey, configLoaded, readExecutionConfigForSend } = executionPolicy;
   // The dock, not the layout, owns the pre-warm: only it knows the chat's execution mode.
-  useLocalCliDaemonPrewarm({ mode: executionConfig.mode, configLoaded, agentBridge });
+  const pageActivationError = useLocalCliDaemonPrewarm({ mode: executionConfig.mode, configLoaded, agentBridge });
   const { byokRuntime, handleByokModelChange } = useByokRuntimeSeam(useByokRuntimeOverride, { executionConfig, setExecutionConfig });
   const { localCliSelection, handleLocalCliSelectionChange, readLocalCliSelectionForSend } = useLocalCliSelectionSeam(useLocalCliSelectionOverride, {
     executionConfig,
@@ -462,6 +464,7 @@ export function AssistantDock({
     <JiniChatProvider transport={failureSurface.transport} i18n={chatI18n} extEventRendererRegistry={renderers.registry}>
       <FailureSurfaceContext.Provider value={failureSurface.actions}>
       <SkillInstallConfirmation install={skillInstall} locale={locale} />
+      {pageActivationError && <div className="jini-chat-pane__notice" role="alert">{t(pageActivationError)}</div>}
       {/* ChatPane takes `transport` directly as well as via the provider — the package's
           components read their dependencies from props, not implicitly from context. */}
       <div className="admin-chat-dock-drop" data-testid="admin-chat-driver-root" data-tovu-local-cli={executionPolicy.visibility} data-conversation-id={chats.activeId ?? ""} ref={discoveryDraft.rootRef} style={{ display: "contents" }} onClickCapture={captureComposerClick} onChangeCapture={discoveryDraft.captureDraft} onDropCapture={folderDrop.handleDropCapture}>
@@ -483,6 +486,7 @@ export function AssistantDock({
         selection={localCliSelection}
         onSelectionChange={handleSelectionChange}
         initialMessages={failureSurface.initialMessages}
+        subscribeToSurfaces={subscribeToAdminPageSurfaces}
         // `agents`, `conversationId`, `refreshSignal` and `composerHistoryScope` are passed only
         // when they hold a value — see `optionalChatPaneProps`. Recent prompt recall
         // (`composerHistoryScope`) is local to this signed-in admin, including in a new chat.
@@ -651,4 +655,10 @@ export function AssistantDock({
       </FailureSurfaceContext.Provider>
     </JiniChatProvider>
   );
+}
+
+/** Resolve the injectable preference owner with the same unconditional hook call as the dock. */
+function useDockDisplayPreferences(override: AssistantDockProps["useChatDisplayPreferences"]) {
+  const usePreferences = override ?? useChatDisplayPreferences;
+  return usePreferences();
 }

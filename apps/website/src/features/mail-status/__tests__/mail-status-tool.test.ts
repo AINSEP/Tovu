@@ -1,3 +1,4 @@
+import type { ChatDeleteSurfaceDeps } from '#src/contracts/core/chat-delete-grant';
 import assert from "node:assert/strict";
 import test from "node:test";
 import { isReadOnlyTool, type ToolExecutionContext } from "@jini-ai/core";
@@ -79,12 +80,14 @@ function controls(overrides: Partial<MailStatusToolDeps> = {}, grants: string[] 
     mailProviderControl: {
       check: async ({ id }) => (id === "smtp" ? { ok: true, label: "SMTP server" } : { ok: false, reason: `'${id}' is not an installed mail provider` }),
       select: async (input) => { selected.push(input); },
+      readSelection: async () => ({ setting: { transactional: "before", bulk: "before" }, revisionSeq: 7 }),
     },
     userRepo: { findByPrincipalId: async () => ({ principalId: "owner", workspaceId: "ws", username: "owner", email: "owner@example.com", passwordHash: "x" }) },
     mailSenderIdentity: { resolve: async () => ({ email: "news@example.com", name: "Site" }) },
     ...overrides,
   };
-  const registrations = buildMailStatusRegistrations(deps, { surfaceExchanges: x.store });
+  const surfaces: ChatDeleteSurfaceDeps = { surfaceExchanges: x.store, assertAccessApprover: async () => {} };
+  const registrations = buildMailStatusRegistrations(deps, surfaces);
   const call = (name: string, input: unknown = {}, options: ToolExecutionOptions = {}) =>
     registrations.find((r) => r.descriptor.id === name)!.handler({ ...ctx, input }, options);
   return { ...x, deps, call, selected, sent, revoke: (name: string) => allowed.delete(name), registrations };
@@ -105,7 +108,7 @@ test("mail_set_provider sets both lanes only after the person confirms", async (
   assert.deepEqual(await f.call("mail_set_provider", { providerId: "smtp" }, f.answer("mail_set_provider", "cancel")), { set: false, cancelled: true, note: "The user cancelled. Nothing was changed." });
   assert.deepEqual(f.selected, []);
   assert.deepEqual(await f.call("mail_set_provider", { providerId: " smtp " }, f.answer("mail_set_provider")), { set: true, providerId: "smtp" });
-  assert.deepEqual(f.selected, [{ id: "smtp", principalId: "owner" }]);
+  assert.deepEqual(f.selected, [{ id: "smtp", principalId: "owner", expectedRevisionSeq: 7 }]);
   // Not rememberable: the next call asks again.
   await assert.rejects(f.call("mail_set_provider", { providerId: "smtp" }), /NO_CONFIRMATION_CHANNEL/);
 });
@@ -174,4 +177,30 @@ test("mail_send_test without a composed sender resolver falls back to the mailer
   const f = controls({ mailSenderIdentity: undefined });
   await assert.rejects(f.call("mail_send_test", {}, f.answer("mail_send_test")), /No sender address is configured/);
   assert.deepEqual(f.sent, []);
+});
+
+
+test("mail_set_provider discloses fixed scoped lanes and verifies the human before and after approval", async () => {
+  const f = controls();
+  const checks: string[] = [];
+  const surfaces: ChatDeleteSurfaceDeps = { surfaceExchanges: f.store,
+    assertAccessApprover: async ({ principalId }) => { checks.push(principalId); } };
+  const registrations = buildMailStatusRegistrations(f.deps, surfaces);
+  const registration = registrations.find(r => r.descriptor.id === "mail_set_provider")!;
+  await registration.handler({ ...ctx, input: { providerId: "smtp" } }, { emitSurface: async emission => {
+    assert.deepEqual(checks, ["owner"]);
+    assert.equal(f.selected.length, 0);
+    const html = (emission.payload.resource as { resource: { text: string } }).resource.text;
+    for (const text of ["Mail provider", "before", "smtp", "Transactional and bulk mail"]) assert.ok(html.includes(text), text);
+    // The card names the resource; the exact principal and revision remain bound to the write below.
+    assert.doesNotMatch(html, /core\.mail\.provider|"(?:personId|siteId|revision)"\s*:/);
+    await f.answer("mail_set_provider").emitSurface!(emission);
+  } });
+  assert.deepEqual(checks, ["owner", "owner"]);
+  assert.deepEqual(f.selected, [{ id: "smtp", principalId: "owner", expectedRevisionSeq: 7 }]);
+});
+
+test("mail_set_provider refuses when the exact selection snapshot cannot be read", async () => {
+  const f = controls({ mailProviderControl: { check: async () => ({ ok: true, label: "SMTP" }), select: async () => assert.fail("no write") } });
+  await assert.rejects(f.call("mail_set_provider", { providerId: "smtp" }, f.answer("mail_set_provider")), /selection snapshot is unavailable/);
 });

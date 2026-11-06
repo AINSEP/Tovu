@@ -7,7 +7,7 @@ import { InMemorySettingsRepo, type AuthorizeFn, type SetValueRequired } from "@
 import { createSettingsPrincipalLookup, set } from "../index.js";
 import {
   ensureMailProviderSettings, MAIL_PROVIDER_KEY, MAIL_PROVIDER_NAMESPACE, MAIL_TEST_MODE_KEY,
-  parseMailProviderSetting, parseMailTestMode, readMailProviderSetting, readMailTestMode, writeMailProviderSetting,
+  parseMailProviderSetting, parseMailTestMode, readMailProviderSetting, readMailProviderSelection, readMailTestMode, writeMailProviderSetting,
 } from "../mail-provider.js";
 
 /**
@@ -71,4 +71,16 @@ test("readMailTestMode defaults to off and reads a stored mode fresh", async () 
   await write(MAIL_TEST_MODE_KEY, { mode: "capture" });
   assert.deepEqual(await readMailTestMode({ settingsRepo, workspaceId: WS }), { mode: "capture" });
   assert.deepEqual(await readMailTestMode({ settingsRepo: (await ledger({ register: false })).settingsRepo, workspaceId: WS }), { mode: "off" });
+});
+
+
+test("provider selection snapshots carry the addressed row revision, including absence and cleared rows", async () => {
+  const f = await ledger();
+  assert.deepEqual(await readMailProviderSelection({ settingsRepo: f.settingsRepo, workspaceId: WS }), { setting: { transactional: null, bulk: null }, revisionSeq: 0 });
+  const written = await f.write(MAIL_PROVIDER_KEY, { transactional: "one", bulk: "two" });
+  assert.deepEqual(await readMailProviderSelection({ settingsRepo: f.settingsRepo, workspaceId: WS }), { setting: { transactional: "one", bulk: "two" }, revisionSeq: written.revisionSeq });
+  const { clear } = await import("../index.js");
+  const cleared = await clear({ deps: f.deps, input: { namespace: MAIL_PROVIDER_NAMESPACE, key: MAIL_PROVIDER_KEY, scope: "workspace", workspaceId: WS, callerPrincipalId: "owner" } });
+  assert.deepEqual(await readMailProviderSelection({ settingsRepo: f.settingsRepo, workspaceId: WS }), { setting: { transactional: null, bulk: null }, revisionSeq: cleared.revisionSeq });
+  await assert.rejects(readMailProviderSelection({ settingsRepo: (await ledger({ register: false })).settingsRepo, workspaceId: WS }), /Mail provider settings are unavailable/);
 });

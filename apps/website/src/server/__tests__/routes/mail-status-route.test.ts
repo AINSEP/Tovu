@@ -102,6 +102,6 @@ test("mail-status: a failing status source is a 500 without detail", async (t) =
   const logged = t.mock.method(console, "error", () => {});
   const res = await getMailStatus({ ...createRouteDeps(), mailStatus: async () => { throw new Error("db down"); } }, t);
   assert.equal(res.status, 500);
-  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The system information could not be loaded.", action: "Try loading them again. If it still fails, copy details and report this problem.", step: "Load system information" } });
   assert.equal(logged.mock.callCount(), 1);
 });

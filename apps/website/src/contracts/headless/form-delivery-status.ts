@@ -17,6 +17,8 @@ export type FormDeliveryStatusRow = {
 
 /** Read side of durable form delivery (`SqlFormDeliveryRepo`); both reads are scoped to `workspaceId`. */
 export interface FormDeliveryStatusPort {
+  /** Counts only, never recipient addresses, answers, or provider exception text. */
+  notificationSummary?(required: { workspaceId: string; submissionId: string }, optional?: Record<string, never>): Promise<{ failed: number; pending: number }>;
   forSubmission(required: { workspaceId: string; submissionId: string }, optional?: Record<string, never>): Promise<readonly FormDeliveryStatusRow[]>;
   recentUnfinished(required: { workspaceId: string }, optional?: { limit?: number }): Promise<readonly FormDeliveryStatusRow[]>;
 }

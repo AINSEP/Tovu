@@ -557,7 +557,7 @@ test("publishStaticSite: a target's terminal status of 'ready' is a full ok:true
   assert.equal(result.ok, true);
 });
 
-for (const notReadyStatus of ["link-delayed", "protected", "failed"] as const) {
+for (const notReadyStatus of ["link-delayed", "protected"] as const) {
   test(`publishStaticSite: a target's terminal status of '${notReadyStatus}' is a genuine "partial" outcome — never ok:true, never ok:false`, async () => {
     const deps: RouteDeps = testRouteDeps();
     const result = await publishStaticSite({ loadDeployTargets: hermeticDeployTargets,
@@ -897,4 +897,35 @@ test("publishStaticSite: a connection changed after domain review is refused bef
   assert.deepEqual(result, { ok: false, code: "INVALID_CONFIG", message: "CREDENTIAL_CHANGED: The connection changed after domain review. Preview and confirm again before publishing." });
   assert.equal(exports, 0);
   assert.ok(warnings.some(args => args[0] === "[static-publish] deploy target 'ghost' was not loaded: fixture refusal"));
+});
+
+test("publishStaticSite: a provider's failed status is refused, never a published outcome", async () => {
+  const deps: RouteDeps = testRouteDeps();
+  const result = await publishStaticSite({ loadDeployTargets: hermeticDeployTargets,
+    credentialSource: { async resolve() { return { ok: true, token: "synthetic-publish-token" }; }, async isConfigured() { return { configured: true }; } },
+    buildTarget: () => ({ id: "fake", async publish() {
+      return { targetId: "fake", url: "https://example.test/failed", deploymentId: "dpl_failed", status: "failed" as const, statusMessage: "Build failed. Check the provider dashboard." };
+    }, async checkReachability() { assert.fail("a failed deployment cannot be verified through an old public URL"); } }),
+  }, { workspaceId: deps.workspaceId, publishOutputRootDir: deps.publishOutputRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound,
+    config: { target: "s3-compatible" }, projectName: "demo" });
+  assert.equal(result.ok, false);
+  if (result.ok !== false) assert.fail("failed provider must refuse publication");
+  assert.equal(result.code, "PROVIDER_ERROR");
+  assert.match(result.message, /Build failed/);
+});
+
+test('publishStaticSite carries the export cookie preferences warning through a successful result', async () => {
+  const captured: { value: DeployFile[] | null } = { value: null };
+  const deps = testRouteDeps();
+  const consentWarning = 'Cookie preferences could not be loaded. This published copy has no cookie banner.';
+  const result = await publishStaticSite({ loadDeployTargets: hermeticDeployTargets,
+    credentialSource: { async resolve() { return { ok: true, token: 'fixture-token' }; }, async isConfigured() { return { configured: true }; } },
+    buildTarget: () => fakeDeployTarget(captured),
+  }, {
+    workspaceId: deps.workspaceId, publishOutputRootDir: deps.publishOutputRootDir, idGen: deps.idGen,
+    exportSiteBound: async () => ({ outputDir: '/tmp/unused-consent-warning-export', routes: { succeeded: [], failed: [] }, assets: { succeeded: [], failed: [] }, skippedManifestEntries: [], unreferencedThemeFiles: [], droppedReferences: [], consentWarning }),
+    config: { target: 'vercel' }, projectName: 'fixture',
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.consentWarning, consentWarning);
 });

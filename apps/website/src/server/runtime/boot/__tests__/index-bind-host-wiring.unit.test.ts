@@ -90,23 +90,47 @@ test("index.ts calls no .listen() of its own -- neither TLS branch can bind arou
   assert.deepEqual(listens.map((call) => call.getText(ast)), []);
 });
 
-for (const [entry, expectedArgs] of [
-  [INDEX_TS_PATH, { scheme: 'devTls.active ? "https" : "http"', host: 'bindHost', port: 'port' }],
-  [path.resolve(import.meta.dirname, '../../../../cli/commands/serve.ts'), { scheme: '"http"', host: 'host', port: 'port' }],
+for (const [entry, expectedPins, compositionCount] of [
+  [INDEX_TS_PATH, [
+    { scheme: 'devTls.active ? "https" : "http"', host: 'bindHost', port: 'port' },
+    { scheme: 'devTls.active ? "https" : "http"', host: 'bindHost', port: 'port' },
+    { scheme: 'devTls.active ? "https" : "http"', host: 'bindHost', port: 'address.port' },
+  ], 2],
+  [path.resolve(import.meta.dirname, '../../../../cli/commands/serve.ts'), [
+    { scheme: '"http"', host: 'host', port: 'port' },
+    { scheme: '"http"', host: 'host', port: '(server.address() as import("node:net").AddressInfo).port' },
+  ], 1],
 ] as const) {
-  test(`${path.basename(entry)} pins its selected listener before origin composition and daemon startup`, () => {
+  test(`${path.basename(entry)} pins composition, callback and actual listener origins in their owning boot phases`, () => {
     const ast = ts.createSourceFile(entry, fs.readFileSync(entry, 'utf8'), ts.ScriptTarget.Latest, true);
     const pins = callsMatching(ast, call => call.expression.getText(ast) === 'pinSiteListenerOrigin');
-    assert.equal(pins.length, 1);
-    const required = pins[0]!.arguments[0];
-    assert.ok(required && ts.isObjectLiteralExpression(required));
-    const fields = Object.fromEntries(required.properties.map(property => {
-      assert.ok(ts.isPropertyAssignment(property) || ts.isShorthandPropertyAssignment(property));
-      return [property.name.getText(ast), (ts.isPropertyAssignment(property) ? property.initializer : property.name).getText(ast)];
-    }));
-    assert.deepEqual(fields, expectedArgs);
-    const consumers = callsMatching(ast, call => ['createRouteDeps', 'createSiteRouteDeps', 'startAssistantDaemon'].includes(call.expression.getText(ast)));
-    assert.ok(consumers.length >= 2);
-    for (const consumer of consumers) assert.ok(pins[0]!.pos < consumer.pos, `${consumer.expression.getText(ast)} must consume the selected listener pin`);
+    assert.equal(pins.length, expectedPins.length);
+    const fields = pins.map(pin => {
+      const required = pin.arguments[0];
+      assert.ok(required && ts.isObjectLiteralExpression(required));
+      return Object.fromEntries(required.properties.map(property => {
+        assert.ok(ts.isPropertyAssignment(property) || ts.isShorthandPropertyAssignment(property));
+        return [property.name.getText(ast), (ts.isPropertyAssignment(property) ? property.initializer : property.name).getText(ast)];
+      }));
+    });
+    assert.deepEqual(fields, expectedPins);
+    const composition = callsMatching(ast, call => ['createRouteDeps', 'createSiteRouteDeps'].includes(call.expression.getText(ast)));
+    assert.equal(composition.length, compositionCount);
+    for (const consumer of composition) assert.ok(pins[0]!.pos < consumer.pos, 'composition must consume the initial listener pin');
+    const actual = pins.at(-1)!;
+    const listeners = callsMatching(ast, call => call.expression.getText(ast) === 'reserveBootListener' ||
+      (ts.isPropertyAccessExpression(call.expression) && call.expression.name.text === 'listen'));
+    assert.equal(listeners.length, entry === INDEX_TS_PATH ? 1 : 2);
+    for (const listener of listeners) assert.ok(listener.pos < actual.pos, 'actual port must follow listener binding');
+    const callbacks = callsMatching(ast, call => call.expression.getText(ast) === 'startSiteDaemonListener');
+    assert.equal(callbacks.length, 1);
+    if (entry === INDEX_TS_PATH) {
+      assert.ok(callbacks[0]!.pos < pins[1]!.pos && pins[1]!.end < callbacks[0]!.end, 'callback owns the second configured-origin pin');
+    } else {
+      assert.ok(actual.pos < callbacks[0]!.pos, 'callback consumes the actual listener origin');
+    }
+    const daemons = callsMatching(ast, call => call.expression.getText(ast) === 'startAssistantDaemon');
+    assert.equal(daemons.length, 1);
+    assert.ok(actual.pos < daemons[0]!.pos, 'daemon must consume the actual listener pin');
   });
 }

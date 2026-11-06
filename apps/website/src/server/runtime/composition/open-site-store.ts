@@ -170,7 +170,7 @@ async function waitForPgliteSocket(
 /**
  * Postgres and PGlite alike: content history to head → chat history to head (`ai_chat`) → watermark
  * row + first-run demo seed → stored-data repairs (`boot-data-repairs.ts`), over one kernel. `close`
- * runs when any step fails.
+ * runs when any step fails. Content migration notes are logged so archive warnings reach operators.
  */
 async function preparePgStore(required: {
   storage: Exclude<SiteStorage, { kind: "sqlite" }>;
@@ -183,7 +183,8 @@ async function preparePgStore(required: {
   // The same connection(s), typed per history: the content tables here, the chat tables via `pgChatKernel`.
   const content = base as ContentKernel;
   try {
-    await migrateContentDatabase(base);
+    const report = await migrateContentDatabase(base);
+    for (const note of report.notes) console.log(`[migrations] ${note}`);
     await migrateChatDatabase(base);
     await prepareContentStore(content, { seed });
     await runBootDataRepairs({ kernel: content });

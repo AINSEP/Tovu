@@ -296,7 +296,7 @@ test("POST request-magic-link returns 500 on unexpected internal error", async (
   assert.equal(res.status, 500);
   const body = (await res.json()) as { error: string };
   // 88f429c25 conceals internal causes behind the shared correlated incident envelope.
-  assertAdminResponse({ actual: body, expected: { code: "INTERNAL_ERROR", error: "internal error" } });
+  assertAdminResponse({ actual: body, expected: { code: "INTERNAL_ERROR", error: "internal error" } }, { failure: { message: "The member operation could not be completed.", action: "Check the result before repeating this operation. Copy details and report this problem.", step: "member operation" } });
 });
 
 /**

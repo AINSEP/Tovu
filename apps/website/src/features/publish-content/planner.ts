@@ -7,6 +7,7 @@ import type {
   PackedEntity,
   RetireTarget,
   ReferenceHolder,
+  MediaSourceReplacement,
 } from "./type-registry.js";
 
 /**
@@ -104,6 +105,8 @@ export type { RetireTarget, ReferenceHolder };
 /** One entity's classification. `writes` describes what a LATER apply pass (Task 8) would do if this
  *  report were accepted as-is — `planImport` itself never writes regardless of this flag's value. */
 export interface PublishContentOutcomeRow {
+  /** Included in the confirmation hash; binds replacement to the reviewed live bytes/version. */
+  readonly sourceReplacement?: MediaSourceReplacement;
   readonly entityType: string;
   readonly entityId: string;
   /** What a human calls this entity — see {@link entityDisplayLabel}. `null` when the packed state
@@ -306,9 +309,24 @@ async function planEntity(
 
   const blockReason = await handler.precheck(entity);
   if (blockReason) {
+    if (typeof blockReason !== "string") {
+      const forced = deps.forcedEntityKeys?.has(entityKey(entity.entityType, entity.id)) ?? false;
+      return { ...identity, outcome: forced ? "forced" : "blocked", writes: forced,
+        reason: await replacementReason({ entity, handler, baseline, reason: blockReason.reason }), canOverwrite: true, retires: null, sourceReplacement: blockReason.sourceReplacement };
+    }
     return planBlockedEntity({ entity, handler, deps, bundleKeys, identity, blockReason });
   }
   return planCheckedEntity({ entity, handler, baseline, deps, identity });
+}
+
+/** Keep the live-edit warning when a file change offers Overwrite before ordinary conflict planning.
+ * @returns Operator copy. @complexity O(1), one indexed inspect only when a baseline exists. */
+async function replacementReason({ entity, handler, baseline, reason }: {
+  entity: PackedEntity; handler: PublishContentHandler; baseline: BaselineRecord | null; reason: string;
+}, _options = {}): Promise<string> {
+  const destination = baseline ? await handler.inspect(entity.id) : null;
+  return destination && baseline && destination.hash !== baseline.hashAtLastSync
+    ? `${reason} This file has been edited on the destination since the last sync with this peer.` : reason;
 }
 
 type RowIdentity = Pick<PublishContentOutcomeRow, "entityType" | "entityId" | "entityLabel">;

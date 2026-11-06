@@ -48,7 +48,7 @@ test("only the same-origin browser owner can open this share's real sealed passw
   await registry.put({ record: { shareId: identity.shareId, site: "ws", token: "ABCDEFGHIJKLMNOP", file: "site.tovu.zip", bytes: 12, sha256: "a".repeat(64), url: null,
     status: "active", createdAt: "2026-10-31T00:00:00Z", revokedAt: null, hasEncryptedKeys: true, sealedPassword } });
   const unexpected = async (): Promise<never> => { throw new Error("Unrelated export/import operation invoked"); };
-  const savedKeys = createSiteSavedKeys({ workspaceId: "ws", keyring, sealer, openSnapshot: unexpected, openRecipient: unexpected, trustedDefinitions: unexpected });
+  const savedKeys = createSiteSavedKeys({ workspaceId: "ws", sealer });
   const backend = createSiteShareBackend({ registry, site: "ws", zip: zipFolderFiles, prepare: unexpected, delivery: async () => undefined, ownerPrincipalId: "owner", savedKeys });
   const app = express();
   app.use((req, res, next) => {

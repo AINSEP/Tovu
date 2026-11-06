@@ -4,18 +4,19 @@
  *
  * Purpose:
  * Subscribes `form.submission.received`; on a notify-enabled definition, calls `MailerPort.send()`
- * per configured recipient. The one piece of Forms-owned business logic riding the outbox — kept
+ * per configured recipient through an isolated durable job. The one piece of Forms-owned business logic riding the outbox — kept
  * separate from the webhook-fanout forwarding (which is not Forms-owned logic; see
- * `server/app.ts`'s wiring). A send failure (thrown or `{ ok: false }`) is logged, never thrown
- * back into `EventBusPort.publish()`'s subscriber loop (`core/events/memory-bus.ts`'s `publish`
+ * `server/app.ts`'s wiring). Legacy hosts log failures; durable recipient jobs propagate
+ * failures to their own outbox row, outside the source `EventBusPort.publish()` subscriber loop (`core/events/memory-bus.ts`'s `publish`
  * does not catch handler errors itself — a subscriber that fails to catch its own errors would
- * break every OTHER subscriber to the same event, including the webhook fan-out).
+ * break every OTHER subscriber to the same event, including the webhook fan-out). Recipient jobs
+ * keep those failures separate while preserving retry and terminal status.
  *
  * Deliberately duplicates the `'form.submission.received'` topic-name literal rather than
  * importing it from `./manifest` — see `types.ts`'s file header for why domain code never reads
  * the manifest back.
  */
-import { registerFormNotifySubscriber, type FormDefinitionRepoPort, type FormSubmissionRepoPort } from "@jini-ai/cms/forms";
+import { registerFormAttachmentCleanup, registerFormNotifySubscriber, type FormDefinitionRepoPort, type FormSubmissionRepoPort } from "@jini-ai/cms/forms";
 import type { Tracker } from "@jini-ai/diagnostics/observability";
 import type { EventBusPort } from "@jini-ai/cms/core";
 import { mailSenderIdentityFor, type MailerPort, type MailSenderIdentityPort } from "#src/platform/mail/index";
@@ -23,6 +24,8 @@ import type { ServerModuleHandle } from "./types.js";
 
 export interface FormsModuleDeps {
   bus: EventBusPort;
+  outbox?: import("@jini-ai/cms/core").OutboxPort;
+  fileCleanup?: Omit<Parameters<typeof registerFormAttachmentCleanup>[0], "bus">;
   tracker: Tracker;
   mailer: MailerPort;
   formDefinitionRepo: FormDefinitionRepoPort;
@@ -47,6 +50,7 @@ export function createFormsModule(deps: FormsModuleDeps): ServerModuleHandle {
   return {
     name: "forms",
     start: () => {
+      if (deps.fileCleanup) void registerFormAttachmentCleanup({ bus: deps.bus, ...deps.fileCleanup });
       void deps.bus.subscribe<{ workspaceId: string; formDefinitionId: string; deliveryMode?: string;
         analyticsProvenance?: import('#src/features/forms/index').FormAnalyticsProvenance }>({
         eventName: "form.submission.received",

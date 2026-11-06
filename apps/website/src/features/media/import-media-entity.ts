@@ -1,7 +1,9 @@
 import { bytesMatchSha256, isValidSha256Hex } from "#src/features/publish-content/blob-staging";
 
-import { MediaConflictError, MediaSourceImmutableError, resolveWriteOnceSource } from "./index.js";
+import { MediaConflictError, MediaSourceImmutableError, resolveWriteOnceSource, replaceMediaFile, MediaValidationError, sniffContentType } from "./index.js";
 import type { AssetBlobRecord, AssetBlobRepoPort, BlobStorePort, MediaRecord, VersionedMediaRepoPort } from "./index.js";
+import type { MediaSourceReplacement } from "#src/features/publish-content/type-registry";
+import { TOVU_MAX_UPLOAD_BYTES } from "#src/contracts/core/upload-limits";
 
 /**
  * @file Task 12 of the publish-content (Publish Content) feature —
@@ -45,8 +47,9 @@ import type { AssetBlobRecord, AssetBlobRepoPort, BlobStorePort, MediaRecord, Ve
  *    before any blob or media write, so a slug collision never leaves a dangling blob with no media
  *    row pointing at it.
  * 3. **`source.sha256` is write-once**, enforced by reusing the library's own
- *    `resolveWriteOnceSource` (the exact seam its own doc says "any future 'replace source'
- *    operation would have to go through") rather than re-deriving the same rule a second time.
+ *    `resolveWriteOnceSource` rather than re-deriving the same rule a second time. An explicit
+ *    server-confirmed replacement instead uses Jini's atomic replacement operation, so metadata,
+ *    type and renditions cannot be left describing the old bytes.
  *    Re-importing the same id with a DIFFERENT claimed sha256 is blocked; the SAME sha256 is an
  *    idempotent no-op re-save (title/slug/etc. may still legitimately change on a re-import).
  * 4. **An existing `asset_blobs` row's `createdByPrincipal` is never re-stamped.** `AssetBlobRepoPort
@@ -80,6 +83,8 @@ export interface ImportMediaEntityDeps {
 }
 
 export interface ImportMediaEntityInput {
+  /** Server-verified report context; packed entity fields never supply this intent. */
+  readonly sourceReplacement?: MediaSourceReplacement;
   readonly workspaceId: string;
   /**
    * The SOURCE system's own `MediaRecord`, `id` included — this is the row that lands at the
@@ -264,13 +269,17 @@ function basisRefusal(
 
 /**
  * Safety property 3 (write-once source.sha256) — reuses the library's own guard rather than
- * re-deriving it; see this file's header for why. Only its own refusal becomes a result.
+ * re-deriving it; see this file's header for why. Preserve the full source on creation and the
+ * destination source on updates. Only the guard's own refusal becomes a result.
  *
  * @complexity O(1).
  */
 function writeOnceSource({ record, existingById }: { record: MediaRecord; existingById: MediaRecord | null }, _options = {}): { source: MediaRecord["source"] } | ImportRefusal {
   try {
-    return { source: resolveWriteOnceSource({ existing: existingById?.source, requestedSha256: record.source.sha256 }) };
+    const checked = resolveWriteOnceSource({ existing: existingById?.source, requestedSha256: record.source.sha256 });
+    // The guard owns hash immutability; the import must also retain hashed source metadata.
+    // Existing provenance/MIME stays write-once, while a new row keeps the packed source intact.
+    return { source: { ...(existingById?.source ?? record.source), ...checked } };
   } catch (error) {
     if (error instanceof MediaSourceImmutableError) {
       return { status: "blocked", code: "precondition", reason: error.message };
@@ -357,6 +366,10 @@ export async function importMediaEntity(required: {
   const basisProblem = basisRefusal({ record, baseVersion, existingById, slugHolder });
   if (basisProblem) return basisProblem;
 
+  if (input.sourceReplacement) {
+    return replaceImportedMedia({ deps, input, existing: existingById, bytes: checked.bytes });
+  }
+
   const resolved = writeOnceSource({ record, existingById });
   if (!("source" in resolved)) return resolved;
 
@@ -369,4 +382,61 @@ export async function importMediaEntity(required: {
   if (refusal) return refusal;
 
   return { status: "imported", id: record.id, blobWritten };
+}
+
+/** Replace only the source/version reviewed on live. Byte and slug checks already ran above.
+ * @returns A typed refusal or imported result. Storage failures propagate to the command gateway.
+ * @complexity O(B) for B bounded bytes; fixed indexed repo I/O, no collection reads. */
+async function replaceImportedMedia({ deps, input, existing, bytes }: {
+  deps: ImportMediaEntityDeps; input: ImportMediaEntityInput; existing: MediaRecord | null; bytes: Uint8Array;
+}, _options = {}): Promise<ImportMediaEntityResult> {
+  const reviewed = input.sourceReplacement!;
+  if (!existing || existing.version !== reviewed.version || existing.source.sha256 !== reviewed.sourceSha256) {
+    return { status: "conflict", reason: "The live file changed after review. Plan publishing again and review Overwrite on live." };
+  }
+  if (!deps.mediaRepo.replaceFileIfVersion) {
+    return { status: "blocked", code: "precondition", reason: "This destination cannot replace media files atomically. Update the live site and plan publishing again." };
+  }
+  const blobWritten = (await deps.assetBlobRepo.findByHash({ workspaceId: input.workspaceId, sha256: input.record.source.sha256 })) === null;
+  try {
+    const saved = await replaceMediaFile({ deps: { ...deps, workspaceId: input.workspaceId,
+      clock: { nowMs: () => Date.parse(deps.clock.nowIso()) } },
+      media: existing, bytes, contentType: sniffContentType({ bytes }), principalId: input.blobCreatedByPrincipal,
+      provenance: input.record.source.provenance, expectedSha256: input.record.source.sha256,
+      metadata: input.record }, { maxUploadBytes: TOVU_MAX_UPLOAD_BYTES });
+    return saved ? { status: "imported", id: existing.id, blobWritten }
+      : { status: "conflict", reason: "The live file changed during replacement. Plan publishing again." };
+  } catch (error) {
+    if (error instanceof MediaValidationError) return { status: "blocked", code: "precondition", reason: error.message };
+    if (error instanceof MediaConflictError) return { status: "blocked", code: "slug-taken", reason: error.message };
+    throw error;
+  }
+}
+
+/** A replacement rollback restores bytes through the same CAS/rendition transaction, never save().
+ * @throws A competing edit refuses compensation rather than overwriting it.
+ * @complexity O(1), two indexed reads and one atomic replacement on this failure-only path. */
+export async function restoreImportedMedia({ deps, prior }: { deps: ImportMediaEntityDeps; prior: MediaRecord }, _options = {}): Promise<void> {
+  const current = await deps.mediaRepo.findById({ workspaceId: prior.workspaceId, id: prior.id });
+  if (!current || current.version !== prior.version + 1) {
+    throw new Error(`Could not restore media '${prior.id}' after publishing failed. Restore the publish restore point; the live file changed.`);
+  }
+  const { applied } = current.source.sha256 === prior.source.sha256
+    ? await deps.mediaRepo.saveIfVersion({ record: prior, ifVersion: current.version })
+    : await restoreReplacedSource({ deps, prior, current });
+  if (!applied) throw new Error(`Could not restore media '${prior.id}': the live file changed during rollback. Restore the publish restore point.`);
+}
+
+/** Prepare the prior blob and ask the same atomic source switch to compensate it.
+ * @throws Missing bytes/capability leave the live row alone and name the restore action.
+ * @complexity O(1), one indexed blob read and one source/rendition transaction. */
+async function restoreReplacedSource({ deps, prior, current }: { deps: ImportMediaEntityDeps; prior: MediaRecord; current: MediaRecord }, _options = {}): Promise<{ applied: boolean }> {
+  const blob = await deps.assetBlobRepo.findByHash({ workspaceId: prior.workspaceId, sha256: prior.source.sha256 });
+  if (!blob || !deps.mediaRepo.replaceFileIfVersion) {
+    throw new Error(`Could not restore media '${prior.id}' after publishing failed. Restore the publish restore point; the live file changed or its original blob is unavailable.`);
+  }
+  return deps.mediaRepo.replaceFileIfVersion({ workspaceId: prior.workspaceId, id: prior.id,
+    ifVersion: current.version, sha256: prior.source.sha256, storageKey: blob.storageKey,
+    originalRenditionId: deps.idGen.newId(), updatedAt: prior.updatedAt,
+    metadata: prior, restore: { version: prior.version, updatedAt: prior.updatedAt, source: prior.source } });
 }

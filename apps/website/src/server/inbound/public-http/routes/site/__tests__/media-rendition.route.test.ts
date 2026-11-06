@@ -53,7 +53,7 @@ test("a public post's featured image keeps the asset ungated with bare-id revali
   await deps.postRepo.save(post(deps, { id: "p2", slug: "gated", memberAccessJson: MEMBERS_ONLY, featuredMediaId: media.id }));
   const response = await fetch(`${baseUrl}/m/${media.id}/public.v1/hero.webp`);
   assert.equal(response.status, 200);
-  assert.equal(response.headers.get("cache-control"), "public, max-age=60, must-revalidate");
+  assert.equal(response.headers.get("cache-control"), "public, max-age=60");
 });
 
 test("a library document is never served on the rendition route, even unreferenced", async t => {
@@ -126,4 +126,34 @@ test("saved widgets are not listed when no live entry places a widget", async t 
   const listings = t.mock.method(deps.entryRepo, "listByWorkspace");
   assert.equal((await fetch(`${baseUrl}/m/${media.id}/public.v1/a.webp`)).status, 200);
   assert.equal(listings.mock.callCount(), 0);
+});
+
+test('private submitted photos deny anonymous originals and renditions by id and slug', async t => {
+  const { deps, baseUrl } = await boot(t);
+  const { media } = await uploadMedia({ deps: { clock: deps.clock, idGen: deps.idGen, mediaRepo: deps.mediaRepo, blobRepo: deps.assetBlobRepo, renditionRepo: deps.assetRenditionRepo, blobStore: deps.blobStore }, input: { workspaceId: deps.workspaceId, createdByPrincipal: 'system', filename: 's-photo.png', bytes: PNG, contentType: 'image/png', access: 'private' } });
+  for (const alias of [media.id, media.slug]) for (const suffix of ['original', 'public.v1/photo.webp']) {
+    const response = await fetch(`${baseUrl}/m/${alias}/${suffix}`);
+    assert.equal(response.status, 404); assert.equal(response.headers.get('cache-control'), 'private, no-store');
+  }
+});
+
+
+test('distinct asset misses share one reference index and content writes invalidate it', async t => {
+  const { deps, baseUrl } = await boot(t);
+  const first = await upload(deps, { bytes: SVG, filename: 'first.svg', contentType: 'image/svg+xml' });
+  const second = await upload(deps, { bytes: SVG, filename: 'second.svg', contentType: 'image/svg+xml' });
+  const listings = t.mock.method(deps.postRepo, 'list');
+  const url = (id: string) => `${baseUrl}/m/${id}/public.v1/image.webp`;
+  assert.equal((await fetch(url(first.id))).status, 200);
+  const afterFirst = listings.mock.callCount();
+  assert.ok(afterFirst > 0);
+  assert.equal((await fetch(url(second.id))).status, 200);
+  assert.equal(listings.mock.callCount(), afterFirst, 'a distinct asset miss must not list every post again');
+  assert.equal((await fetch(url(second.slug))).status, 200);
+  assert.equal(listings.mock.callCount(), afterFirst, 'a slug alias reuses the same index');
+  await deps.postRepo.save(post(deps, { id: 'gated-second', slug: 'gated-second', memberAccessJson: MEMBERS_ONLY, featuredMediaId: second.id }));
+  assert.equal((await fetch(url(second.id))).status, 404, 'updated gating applies on the next request');
+  assert.equal(listings.mock.callCount(), afterFirst + 1);
+  assert.equal((await fetch(url(first.id))).status, 200, 'the unrelated asset stays public');
+  assert.equal(listings.mock.callCount(), afterFirst + 1);
 });

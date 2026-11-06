@@ -126,6 +126,11 @@ function blankDraft(): DraftFields {
   return { name: "", token: "", values: {}, username: "", worksFor: [] };
 }
 
+/** Seed a row's editable metadata while keeping its secret input blank. */
+function existingTokenDraft({ row, draft }: { row: AccessTokenRow; draft: DraftFields | undefined }): DraftFields {
+  return draft ?? { ...blankDraft(), name: row.name, username: row.username ?? "", worksFor: row.worksFor ?? [] };
+}
+
 interface BusyState {
   readonly saving: boolean;
   readonly error: string | null;
@@ -210,7 +215,7 @@ function existingRowState(
   busy: BusyState | undefined,
   info: AccessTokenProviderInfo
 ): AccessTokenExistingRowState {
-  const d = draft ?? { ...blankDraft(), name: row.name, username: row.username ?? "", worksFor: row.worksFor ?? [] };
+  const d = existingTokenDraft({ row, draft });
   const b = busy ?? IDLE;
   const readyToSave = accessTokenExistingRowReadyToSave({ ref: { kind: row.kind, providerId: row.providerId }, ...d }, row, info);
   return { row, name: d.name, token: d.token, values: d.values, username: d.username, worksFor: d.worksFor, readyToSave, saving: b.saving, error: b.error };
@@ -596,7 +601,7 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
    *  duplicate check (see that function's own doc for why it is NOT {@link accessTokenNameTaken}).
    *  Split out purely to keep {@link replaceToken} itself under this repo's complexity gate. */
   async function replaceCustomCredential(row: AccessTokenRow): Promise<void> {
-    const draft = existingDrafts[row.id] ?? { ...blankDraft(), name: row.name, username: row.username ?? "", worksFor: row.worksFor ?? [] };
+    const draft = existingTokenDraft({ row, draft: existingDrafts[row.id] });
     const fields: AccessTokenFormFields = { ref: { kind: "custom", providerId: row.providerId }, ...draft };
     const error = credentialDraftError({ value: fields.token }, { locale });
     if (error) { setExistingBusy(prev => ({ ...prev, [row.id]: { saving: false, error } })); return; }
@@ -638,7 +643,7 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
     // replaceCustomCredential's identical fallback, so a future publish/source-control provider that
     // grows a saved username inherits the correct prefill automatically instead of silently reading
     // blank the same way custom rows used to.
-    const draft = existingDrafts[row.id] ?? { ...blankDraft(), name: row.name, username: row.username ?? "", worksFor: row.worksFor ?? [] };
+    const draft = existingTokenDraft({ row, draft: existingDrafts[row.id] });
     const fields: AccessTokenFormFields = { ref, ...draft };
     const info = accessTokenProviderInfo(providers, ref);
     const error = credentialDraftError({ value: fields.token }, { locale });
@@ -828,7 +833,7 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
    *  {@link RemoveConfirmDialog} already draws). */
   async function createCustomCredential(): Promise<boolean> {
     const fields: CustomCredentialFormFields = customAddDraft;
-    const scope = customQuery.data?.projectKeysAvailable ? customAddDraft.scope ?? "project" : "site";
+    const scope = customQuery.data?.projectKeysAvailable ? "project" : "site";
     const error = credentialDraftError({ value: fields.token }, { locale, required: true });
     if (error) { setCustomAddBusy({ saving: false, error }); return false; }
     if (!customCredentialReadyToSave(fields)) return false;

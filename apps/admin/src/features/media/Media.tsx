@@ -311,26 +311,10 @@ function MediaCardStage({ preview, title, onExpand, agentExpandHandle, editButto
   editButton: ReactNode;
   t: (key: string) => string;
 }) {
-  const { stage, src, altText, handleImageError, handleVideoError, shape, handleImageLoad, handleVideoMetadata } = preview;
+  const { stage } = preview;
   const expandHandle = agentExpandHandle
     ? agentHandle({ handle: agentExpandHandle }, { role: "button", label: "Open this asset larger in the lightbox" })
     : {};
-  const badges = shape ? mediaShapeBadges(shape) : null;
-  // A `<video>` without `controls` is not interactive content, so (like an `<img>`) it may sit
-  // inside the expand button: clicking the still frame opens the lightbox for both kinds.
-  const fill = shape ? mediaFillsPreview(shape) : false;
-  const fit = fill ? " media-card-media--fill" : "";
-  const media = stage === "video" ? (
-    <video className={`media-card-media${fit}`} src={src} preload="metadata" muted playsInline aria-label={altText} onError={handleVideoError} onLoadedMetadata={handleVideoMetadata} />
-  ) : (
-    <img className={badges?.isLong ? "media-card-media media-card-media--long" : `media-card-media${fit}`} src={src} alt={altText} loading="lazy" onError={handleImageError} onLoad={handleImageLoad} />
-  );
-  // A tall or very wide image stays whole (never cropped), so its spare space gets a soft blurred
-  // copy of the same picture instead of flat gray. Videos keep the card background: a second
-  // decoding <video> per tile is not worth a blur.
-  const backdrop = stage === "image" && shape && !fill && !badges?.isLong ? (
-    <img className="media-card-backdrop" src={src} alt="" aria-hidden="true" loading="lazy" />
-  ) : null;
 
   // The picture itself sits INSIDE the expand button (an `<img>` is legal button content), so a
   // click anywhere on it opens the lightbox and Enter/Space work on the button.
@@ -343,8 +327,7 @@ function MediaCardStage({ preview, title, onExpand, agentExpandHandle, editButto
         onClick={onExpand}
         {...expandHandle}
       >
-        {backdrop}
-        {media}
+        <MediaCardPicture preview={preview} />
         {stage === "video" ? <PlayIcon /> : <ExpandIcon />}
       </button>
       {editButton}
@@ -1021,11 +1004,7 @@ export interface MediaProps {
  *  stays its own element so a part can be found by its text. */
 function MediaCardMetadata(props: { item: AdminMedia; locale: string; shape: MediaShape | null; t: (key: string) => string }) {
   const metadata = useMediaCardMetadata({ item: props.item }, { locale: props.locale });
-  const badges = props.shape ? mediaShapeBadges(props.shape) : null;
-  const parts: ReactNode[] = [];
-  if (badges?.isLong) parts.push(<span key="long">{props.t("Long image")}</span>);
-  if (badges) parts.push(<span key="size">{badges.size}</span>);
-  if (badges?.duration) parts.push(<span key="duration">{badges.duration}</span>);
+  const parts = mediaShapeParts({ shape: props.shape, t: props.t });
   if (metadata.byteSize) parts.push(<span key="bytes">{metadata.byteSize}</span>);
   // The date sits alone on the right edge of the row (owner design, 2026-11-01), under the menu.
   const date = metadata.uploadDate ? <time dateTime={metadata.uploadDateTime}>{metadata.uploadDate}</time> : null;
@@ -1555,4 +1534,46 @@ export function Media(props: MediaProps) {
       />
     </MediaPageShell>
   );
+}
+
+/** The preview image/video and decorative backdrop share one fitted asset snapshot. */
+function MediaCardPicture({ preview }: { preview: ReturnType<typeof useWiredMediaPreview> }) {
+  const { stage, src, altText, handleImageError, handleVideoError, shape, handleImageLoad, handleVideoMetadata } = preview;
+  const badges = shape ? mediaShapeBadges(shape) : null;
+  // A `<video>` without `controls` is not interactive content, so (like an `<img>`) it may sit
+  // inside the expand button: clicking the still frame opens the lightbox for both kinds.
+  const fill = shape ? mediaFillsPreview(shape) : false;
+  const fit = fill ? " media-card-media--fill" : "";
+  const media = stage === "video" ? (
+    <video className={`media-card-media${fit}`} src={src} preload="metadata" muted playsInline aria-label={altText} onError={handleVideoError} onLoadedMetadata={handleVideoMetadata} />
+  ) : (
+    <img className={badges?.isLong ? "media-card-media media-card-media--long" : `media-card-media${fit}`} src={src} alt={altText} loading="lazy" onError={handleImageError} onLoad={handleImageLoad} />
+  );
+  // A tall or very wide image stays whole (never cropped), so its spare space gets a soft blurred
+  // copy of the same picture instead of flat gray. Videos keep the card background: a second
+  // decoding <video> per tile is not worth a blur.
+  const backdrop = showMediaBackdrop({ stage, shape, fill, badges }) ? (
+    <img className="media-card-backdrop" src={src} alt="" aria-hidden="true" loading="lazy" />
+  ) : null;
+
+  return <>{backdrop}{media}</>;
+}
+
+/** Only still images with spare space need a decorative blurred copy; never decode a second video. */
+function showMediaBackdrop({ stage, shape, fill, badges }: {
+  stage: ReturnType<typeof useWiredMediaPreview>["stage"]; shape: MediaShape | null;
+  fill: boolean; badges: ReturnType<typeof mediaShapeBadges> | null;
+}): boolean {
+  return stage === "image" && !!shape && !fill && !badges?.isLong;
+}
+
+/** Shape-derived labels omit unknown dimensions and inapplicable duration without hiding other metadata. */
+function mediaShapeParts({ shape, t }: { shape: MediaShape | null; t: (key: string) => string }): ReactNode[] {
+  const badges = shape ? mediaShapeBadges(shape) : null;
+  const parts: ReactNode[] = [];
+  if (badges?.isLong) parts.push(<span key="long">{t("Long image")}</span>);
+  if (badges) parts.push(<span key="size">{badges.size}</span>);
+  if (badges?.duration) parts.push(<span key="duration">{badges.duration}</span>);
+
+  return parts;
 }

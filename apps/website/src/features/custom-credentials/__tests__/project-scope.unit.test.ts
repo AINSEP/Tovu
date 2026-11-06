@@ -1,4 +1,3 @@
-import { protectProjectKeyDeletes } from "#src/features/project-keys/protected-vault";
 import { attachedOnlyVault } from "#src/features/project-keys/attached-vault";
 import { fakeAttachments } from "#src/features/project-keys/__tests__/helpers";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
@@ -68,75 +67,41 @@ test("a save lands in the project store and a second site of the project reads i
   assert.equal((await describeCredential(siteB, { workspaceId: SITE_B, id: saved.id }))?.scope, "project");
 });
 
-test("a site's own row overrides the project's; other sites keep the project's", async () => {
-  const project = projectScope();
-  const siteA = siteDeps({ project });
-  const siteB = siteDeps({ project });
-  await save(siteA, SITE_A, "hosting", secret("project"));
-  const own = await save(siteB, SITE_B, "hosting", secret("site-b"), { scope: "site" });
-  assert.equal(own.scope, "site");
-  assert.equal((await resolveCustomCredentialByLabel(siteB, { workspaceId: SITE_B, label: "hosting" }))?.connection.token, secret("site-b"));
-  assert.equal((await resolveCustomCredentialByLabel(siteA, { workspaceId: SITE_A, label: "hosting" }))?.connection.token, secret("project"));
-  const listed = await listCustomCredentials(siteB, { workspaceId: SITE_B });
-  assert.deepEqual(listed.map(({ label, scope }) => ({ label, scope })), [{ label: "hosting", scope: "site" }], "the shadowed project row is not listed twice");
+test("an explicit local save stays editable with a configured owner store", async () => {
+  const project = projectScope(), site = siteDeps({ project });
+  const saved = await save(site, SITE_A, "hosting", secret("project"));
+  const local = await save(site, SITE_A, "other", secret("site"), { scope: "site" });
+  await updateCustomCredential(site, { workspaceId: SITE_A, id: local.id, connection: { token: secret("rotated") } });
+  assert.equal((await resolveCustomCredentialByLabel(site, { workspaceId: SITE_A, label: "other" }))?.connection.token, secret("rotated"));
+  assert.equal((await describeCredentialByLabel(site, { workspaceId: SITE_A, label: "hosting" }))?.id, saved.id);
 });
 
-test("an existing site-only credential keeps working, listed beside project rows in label order", async () => {
+test("existing local keys remain readable when an owner store is configured", async () => {
+  const old = siteDeps();
+  await save(old, SITE_A, "legacy", secret("legacy"));
   const project = projectScope();
-  const site = siteDeps({ project });
-  await save(site, SITE_A, "b-legacy", secret("legacy"), { scope: "site" });
-  await save(site, SITE_A, "a-shared", secret("shared"));
-  await save(site, SITE_A, "c-shared", secret("shared-c"));
-  assert.equal((await resolveCustomCredentialByLabel(site, { workspaceId: SITE_A, label: "b-legacy" }))?.connection.token, secret("legacy"));
-  const listed = await listCustomCredentials(site, { workspaceId: SITE_A });
-  assert.deepEqual(listed.map(({ label, scope }) => [label, scope]), [["a-shared", "project"], ["b-legacy", "site"], ["c-shared", "project"]]);
+  const site = { ...old, repo: new CustomCredentialVaultRepo({ vault: old.repo.vault! }, { project }) };
+  assert.equal((await resolveCustomCredentialByLabel(site, { workspaceId: SITE_A, label: "legacy" }))?.connection.token, secret("legacy"));
+  assert.equal((await listCustomCredentials(site, { workspaceId: SITE_A })).length, 1);
 });
 
 test("a project save whose label this site already uses is refused (the site row would hide it)", async () => {
   const project = projectScope();
   const site = siteDeps({ project });
-  await save(site, SITE_A, "hosting", secret("legacy"), { scope: "site" });
+  await save({ ...site, repo: new CustomCredentialVaultRepo({ vault: site.repo.vault! }) }, SITE_A, "hosting", secret("legacy"));
   await assert.rejects(save(site, SITE_A, "hosting", secret("new")), CustomCredentialDuplicateLabelError);
   await assert.rejects(save(site, SITE_A, "other", secret("new"), { scope: "everywhere" }), CustomCredentialValidationError);
   assert.deepEqual(await project.repo.listByWorkspace({ workspaceId: "project" }), []);
 });
 
-test("T6: project key renames refuse site-owned and unattached project labels", async (t) => {
-  const project = projectScope();
+test("a granted consumer cannot rename or rotate the shared owner entry", async () => {
+  const project = projectScope(), owner = siteDeps({ project });
+  const saved = await save(owner, SITE_A, "shared", secret("owner"));
   const attachments = fakeAttachments();
-  const site = siteDeps({ project: { ...project,
-    repo: new CustomCredentialVaultRepo({ vault: attachedOnlyVault({ vault: project.repo.vault!, siteId: SITE_A, attachments }) }),
-    deletionRepo: project.repo,
-  } });
-  const siteKey = await save(site, SITE_A, "site-label", secret("site"), { scope: "site" });
-  const first = await save(site, SITE_A, "first-project-key", secret("first"));
-  const second = await save(site, SITE_A, "second-project-key", secret("second"));
-  const hidden = await save(site, SITE_A, "hidden-project-label", secret("hidden"));
-  await attachments.attach({ siteId: SITE_A, siteName: "A", keyId: first.id });
-  await attachments.attach({ siteId: SITE_A, siteName: "A", keyId: second.id });
-  assert.equal(await describeCredential(site, { workspaceId: SITE_A, id: hidden.id }), null);
-
-  await t.test("a site label collision is refused before it hides the renamed project key", async () => {
-    await assert.rejects(
-      updateCustomCredential(site, { workspaceId: SITE_A, id: first.id, label: siteKey.label }),
-      CustomCredentialDuplicateLabelError,
-    );
-    assert.equal((await describeCredentialByLabel(site, { workspaceId: SITE_A, label: first.label }))?.id, first.id);
-    assert.equal((await describeCredentialByLabel(site, { workspaceId: SITE_A, label: siteKey.label }))?.id, siteKey.id);
-    assert.equal((await project.repo.findById({ workspaceId: project.workspaceId, id: first.id }))?.label, first.label);
-  });
-
-  await t.test("an unattached project label collision is translated to the domain duplicate error", async () => {
-    await assert.rejects(
-      updateCustomCredential(site, { workspaceId: SITE_A, id: second.id, label: hidden.label }),
-      CustomCredentialDuplicateLabelError,
-    );
-    assert.equal((await describeCredentialByLabel(site, { workspaceId: SITE_A, label: second.label }))?.id, second.id);
-    assert.equal((await project.repo.findById({ workspaceId: project.workspaceId, id: second.id }))?.label, second.label);
-    assert.equal((await project.repo.findById({ workspaceId: project.workspaceId, id: hidden.id }))?.label, hidden.label);
-    assert.equal(await describeCredential(site, { workspaceId: SITE_A, id: hidden.id }), null);
-    assert.equal(await attachments.isAttached({ siteId: SITE_A, keyId: hidden.id }), false);
-  });
+  await attachments.attach({ siteId: SITE_A, siteName: "A", keyId: saved.id });
+  const site = siteDeps({ project: { ...project, createRepo: project.repo, repo: new CustomCredentialVaultRepo({ vault: attachedOnlyVault({ vault: project.repo.vault!, siteId: SITE_A, attachments }) }) } });
+  await assert.rejects(updateCustomCredential(site, { workspaceId: SITE_A, id: saved.id, label: "changed" }), /Shared Keys/);
+  assert.equal((await project.repo.findById({ workspaceId: "project", id: saved.id }))?.label, "shared");
 });
 
 test("without a project store (Fly / production) saves go to the site vault and summaries carry no scope", async () => {
@@ -186,33 +151,30 @@ test("an aborted save never writes the project half either", async () => {
 test("custom project keys stay hidden until attached and detach immediately across label and id lookups", async () => {
   const project = projectScope(); const attachments = fakeAttachments();
   const raw = project.repo.vault!;
-  const a = siteDeps({ project: { ...project, repo: new CustomCredentialVaultRepo({ vault: attachedOnlyVault({ vault: raw, siteId: SITE_A, attachments }) }) } });
+  const a = siteDeps({ project: { ...project, createRepo: project.repo, repo: new CustomCredentialVaultRepo({ vault: attachedOnlyVault({ vault: raw, siteId: SITE_A, attachments }) }) } });
   const saved = await save(a, SITE_A, "attached-only", secret("attached"));
   assert.equal(await describeCredential(a, { workspaceId: SITE_A, id: saved.id }), null);
   assert.equal(await resolveCustomCredentialByLabel(a, { workspaceId: SITE_A, label: "attached-only" }), null);
   await attachments.attach({ siteId: SITE_A, keyId: saved.id, siteName: "A" });
   assert.equal((await resolveCustomCredentialByLabel(a, { workspaceId: SITE_A, label: "attached-only" }))?.connection.token, secret("attached"));
-  const b = siteDeps({ project: { ...project, repo: new CustomCredentialVaultRepo({ vault: attachedOnlyVault({ vault: raw, siteId: SITE_B, attachments }) }) } });
+  const b = siteDeps({ project: { ...project, createRepo: project.repo, repo: new CustomCredentialVaultRepo({ vault: attachedOnlyVault({ vault: raw, siteId: SITE_B, attachments }) }) } });
   assert.equal(await describeCredential(b, { workspaceId: SITE_B, id: saved.id }), null);
   await attachments.detach({ siteId: SITE_A, keyId: saved.id });
   assert.deepEqual(await listCustomCredentials(a, { workspaceId: SITE_A }), []);
 });
 
 
-test("an explicit delete can remove an unattached project key and refuses a hidden key used by another site", async () => {
-  const project = projectScope(); const attachments = fakeAttachments();
-  const raw = project.repo.vault!;
-  const protectedVault = protectProjectKeyDeletes({ vault: raw, attachments, siteId: SITE_A, transaction: async ({ run }) => run() });
-  const deps = siteDeps({ project: { ...project,
-    repo: new CustomCredentialVaultRepo({ vault: attachedOnlyVault({ vault: protectedVault, siteId: SITE_A, attachments }) }),
-    deletionRepo: new CustomCredentialVaultRepo({ vault: protectedVault }),
-  } });
-  const saved = await save(deps, SITE_A, "unused", secret("unused"));
-  assert.equal(await describeCredential(deps, { workspaceId: SITE_A, id: saved.id }), null);
-  await deleteCustomCredential(deps, { workspaceId: SITE_A, id: saved.id });
-  assert.equal(await raw.find({ workspaceId: "project", id: saved.id }), null);
-  const next = await save(deps, SITE_A, "used-elsewhere", secret("elsewhere"));
-  await attachments.attach({ siteId: SITE_B, siteName: "B", keyId: next.id });
-  await assert.rejects(deleteCustomCredential(deps, { workspaceId: SITE_A, id: next.id }), { message: "Used by B too. To stop using it here, choose 'Stop using it on this site'." });
-  assert.equal((await raw.find({ workspaceId: "project", id: next.id }))?.id, next.id);
+test("the trusted owner replacement port rotates only a granted shared key", async () => {
+  const project = projectScope(), owner = siteDeps({ project });
+  const saved = await save(owner, SITE_A, "shared", secret("first"));
+  const attachments = fakeAttachments();
+  await attachments.attach({ siteId: SITE_A, siteName: "A", keyId: saved.id });
+  const view = attachedOnlyVault({ vault: project.repo.vault!, siteId: SITE_A, attachments });
+  const site = siteDeps({ project: { ...project, createRepo: project.repo, replaceRepo: project.repo,
+    repo: new CustomCredentialVaultRepo({ vault: view }) } });
+  await assert.rejects(updateCustomCredential(site, { workspaceId: SITE_A, id: saved.id, connection: { token: secret("denied") } }), /Shared Keys/);
+  await updateCustomCredential({ ...site, allowSharedKeyReplacement: true }, { workspaceId: SITE_A, id: saved.id, connection: { token: secret("second") } });
+  assert.equal((await resolveCustomCredentialByLabel(site, { workspaceId: SITE_A, label: "shared" }))?.connection.token, secret("second"));
+  await attachments.detach({ siteId: SITE_A, keyId: saved.id });
+  await assert.rejects(updateCustomCredential({ ...site, allowSharedKeyReplacement: true }, { workspaceId: SITE_A, id: saved.id, connection: { token: secret("denied") } }), /no custom credential/);
 });

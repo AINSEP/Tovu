@@ -28,6 +28,7 @@ export const MIGRATION_CHECKSUMS: Readonly<Record<string, string>> = {
   "chat/0003_active_run_index": "8655b54d8d75d7b316c83c634bdcbeb7f6c8c06a3c3c63d11cba8879a47b8bd0",
   "chat/0002_durable_run_attempts": "c5737dcb73f4c5711ad44db8531e268551c0b7c94f219dee609539138acd9414",
   "0010_members_credentials_revoked_at": "51b21e04877cf8293e02af18121767ea6b95b7ada284e6d82468f93be607e571",
+  "0011_archive_legacy_commerce": "9285bd7e510617f03e3aca422c32e7094312a65d64481411a1a78af37899a7ac",
   "0011_drop_empty_core_commerce_tables": "047fc0b89a63c6a42a82e63d3e6d5f5065be0359a99e8740779ef794a4b0b9ad",
   "0012_secrets_vault": "8d01ea77b29f63e6dc3a0a41ee22d71f364dbeaad70083572a190382d9c20d16",
   "0013_unify_vault_credentials": "c5f2e8abb16c9cd25b505c7968e882a5ce0c2ff5165a5f16777b1b920bd18ab9",
@@ -59,4 +60,8 @@ export const MIGRATION_CHECKSUMS: Readonly<Record<string, string>> = {
   "project/0000_project_vault": "c6206893120f96b25319cc2568584b1d12a52f29366923be7fc89da7e7672154",
   "project/0001_project_credential_kinds": "08e2740b64e8316ac8b53af08494c53d5954d834806dee4e7df2411998bf547f",
   "project/0002_site_key_attachments": "5ddcf07dfaf428543682569901d65167803a98f1c3f2049d9f44c0bf50e3c6ea",
+  "0039_owner_recovery_codes": "6c639b1d746ab6aff9a18dc9ecbe2ec086e9e967acc1fe5bb704ec0d296f242f",
+  "0040_owner_mfa": "069ad71da2b69d001c82446cdc56e5c105b4f59ce38a87814807a6c4c793bb29",
+  "0041_owner_passkeys": "df042694218e9c1b82b69f5969c4fa63545d0e52511300f97326906d494ea20d",
+  "commerce/0000_catalog": "56fecf3aebb6e372ae017a51fb678c357bbe8ac2272f7da91768441c444330d6",
 };

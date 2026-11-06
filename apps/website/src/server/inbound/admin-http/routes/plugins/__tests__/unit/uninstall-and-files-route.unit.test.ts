@@ -1,3 +1,4 @@
+import { notifyExternalMcpRosterChanged } from "#src/assistant/external-mcp-roster-change";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import { createNoopTracker } from "@jini-ai/diagnostics/observability";
 import assert from "node:assert/strict";
@@ -23,7 +24,7 @@ const FILES_PATH = "/api/admin/v1/workspaces/:workspaceId/plugins/:pluginId/file
 
 function fakeDeps(overrides: Partial<PluginsRouteDeps> = {}) {
   const calls = { discover: 0, remove: 0, readFiles: 0 };
-  const deps: PluginsRouteDeps = {
+  const deps: PluginsRouteDeps = { notifyRosterChanged: notifyExternalMcpRosterChanged,
     tracker: createNoopTracker({}),
     workspaceId: WS,
     authorize: async () => ({ allowed: true, reason: "ok" }),
@@ -94,7 +95,7 @@ test("PLUGIN_UNINSTALL: an unmapped discovery failure is the opaque 500 INTERNAL
   const baseUrl = await listen(t, appWith(deps));
   const response = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WS}/plugins/alpha`, { method: "DELETE" });
   assert.equal(response.status, 500);
-  assertAdminResponse({ actual: await response.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: await response.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: {"message":"The plugin removal could not be confirmed.","action":"Check the list before repeating the removal. Copy details and report this problem.","step":"Remove plugin"} });
   assert.equal(calls.remove, 0);
 });
 
@@ -122,7 +123,7 @@ test("PLUGIN_FILES: an unmapped listing failure is the opaque 500 INTERNAL_ERROR
   const baseUrl = await listen(t, appWith(deps));
   const response = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WS}/plugins/alpha/files`);
   assert.equal(response.status, 500);
-  assertAdminResponse({ actual: await response.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: await response.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: {"message":"The plugins could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load plugins"} });
 });
 
 test("PLUGIN_FILES: `req.params.workspaceId ?? \"\"` fallback, via a hand-built request with no params, is the workspace 404", async () => {

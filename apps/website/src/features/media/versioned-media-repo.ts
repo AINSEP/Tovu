@@ -1,6 +1,6 @@
 import type { UUID } from "@jini-ai/core/primitives";
-import { MediaConflictError, type MediaFileReplacementRepoPort } from "@jini-ai/cms/media";
-import { preserveMediaCreator, type MediaRecord } from "@jini-ai/cms/media";
+import { MediaConflictError, mediaFileReplacementRecord, type MediaFileReplacementRepoPort, type MediaFileReplacementInput } from "@jini-ai/cms/media";
+import { InMemoryAssetRenditionRepo, preserveMediaCreator, type AssetRenditionRecord, type MediaRecord } from "@jini-ai/cms/media";
 
 /**
  * @file `MediaRepoPort` extended with an atomic compare-and-set write, and the in-memory adapter
@@ -74,7 +74,7 @@ export interface VersionedMediaRepoPort extends MediaFileReplacementRepoPort {
  * In-memory `VersionedMediaRepoPort` adapter — the ADR-006 rule-of-two test double for the
  * publish-import path's atomic writes. Copies `@jini-ai/cms/media`'s `InMemoryMediaRepo` exactly
  * (same constructor, same `findById`/`findBySlug`/`list` shape, same `save` keyed on id alone) and
- * adds the two compare-and-set primitives. Neither new method enforces slug uniqueness, for parity
+ * adds the compare-and-set primitives. Neither new method enforces slug uniqueness, for parity
  * with the upstream in-memory adapter — the contract suite's slug-collision tests are `[sqlite]`-only.
  */
 export class InMemoryVersionedMediaRepo implements VersionedMediaRepoPort {
@@ -86,7 +86,10 @@ export class InMemoryVersionedMediaRepo implements VersionedMediaRepoPort {
    *  constraint, since this adapter has none). */
   private retired: Array<{ workspaceId: UUID; slug: string; mediaId: UUID; retiredAt: string }>;
 
-  constructor(initialRows: MediaRecord[] = []) {
+  private readonly renditionRepo: InMemoryAssetRenditionRepo;
+
+  constructor(initialRows: MediaRecord[] = [], { renditionRepo = new InMemoryAssetRenditionRepo({}) }: { renditionRepo?: InMemoryAssetRenditionRepo } = {}) {
+    this.renditionRepo = renditionRepo;
     this.rows = [...initialRows];
     this.retired = [];
   }
@@ -179,5 +182,27 @@ export class InMemoryVersionedMediaRepo implements VersionedMediaRepoPort {
     this.reclaimOwnSlug(record.workspaceId, record.id, record.slug);
     this.rows.push(record);
     return { applied: true };
+  }
+
+  /** Saves to the shared memory rendition table only while its active source still matches.
+   * The concrete memory adapter mutates synchronously: no await separates compare and persistence.
+   * @returns A refused compare leaves the rendition table unchanged.
+   * @complexity O(m + r) time for media and rendition rows; O(1) auxiliary space, no I/O. */
+  async saveRenditionIfSource({ record, sourceSha256 }: { record: AssetRenditionRecord; sourceSha256: string },
+    _optional: Record<string, never> = {}): Promise<{ applied: boolean }> {
+    const current = this.rows.find(row => row.workspaceId === record.workspaceId && row.id === record.assetId);
+    if (!current || current.status !== "active" || current.source.sha256 !== sourceSha256) return { applied: false };
+    await this.renditionRepo.save(record);
+    return { applied: true };
+  }
+
+  /** In-process source CAS for publish tests. Durable rendition/type atomicity is covered by the
+   * SQL adapter contracts; source replacement in this adapter remains a row-only fake.
+   * @complexity O(n) rows, as with saveIfVersion; no await between compare and switch. */
+  async replaceFileIfVersion(input: MediaFileReplacementInput, _options = {}): Promise<{ applied: boolean }> {
+    const current = this.rows.find(row => row.workspaceId === input.workspaceId && row.id === input.id);
+    if (!current || (!input.restore && current.status !== "active") || current.kind === "document") return { applied: false };
+    const record = mediaFileReplacementRecord({ media: current, input });
+    return this.saveIfVersion({ record, ifVersion: input.ifVersion });
   }
 }

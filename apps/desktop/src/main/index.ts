@@ -140,7 +140,7 @@ import { createDesktopResources } from "../desktop-resources.ts";
 import { reportDesktopServerExit } from '../product-telemetry.ts';
 import { registerResourcesIpc } from "../resources-ipc.ts";
 import { runOwnerStoreCli } from "../owner-store-cli.ts";
-import { createOwnerStoreController, importConfirmation, registerOwnerStoreIpc, settleLegacyOwnerStore } from "../owner-store-ipc.ts";
+import { createOwnerStoreController, disconnectConfirmation, importConfirmation, registerOwnerStoreIpc, settleLegacyOwnerStore } from "../owner-store-ipc.ts";
 import { listProcessUsage } from "@jini-ai/platform/process";
 import { totalmem } from "node:os";
 import { createUpdateCheckNow, registerUpdateCheckIpc } from "../update-check-now.ts";
@@ -155,6 +155,7 @@ import { registerSiteIpcHandlers, rescanSites, type ProjectSiteLifecycle } from 
 import { createSiteFolders } from "../site-folders.ts";
 import { discoverDesktopSites, startDesktopSiteDiscovery } from "../site-discovery.ts";
 import { addSitePointer } from "../add-site-pointer.ts";
+import { importSiteArchive, stopRunningImports } from "../site-archive-import.ts";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { resolveDesktopRoots } from "../packaged-paths.ts";
 import { readWindowBounds, writeWindowBounds } from "../window-bounds-store.ts";
@@ -173,6 +174,7 @@ import type { SelftestTracker } from "../selftest-tracker.ts";
 // (site spawn, previews, boot steps and failures), updates/ (updater, Settings menu, notices, telemetry).
 import { promptForSiteDir as promptForSiteFolder } from "./windows/site-folder-prompt.ts";
 import { createAppWindow } from "./windows/app-window.ts";
+import { createLastWindowQuitPrompt } from "./windows/last-window-quit.ts";
 import { openSitesHomeWindow as openSitesHomeWindowWith } from "./windows/sites-home-window.ts";
 import { openSiteWindow as openSiteWindowWith } from "./windows/site-window.ts";
 import { installWebviewGuestPolicy } from "./windows/guest-navigation.ts";
@@ -345,6 +347,12 @@ const ownerStore = createOwnerStoreController({
     const { response } = parent ? await dialog.showMessageBox(parent, options) : await dialog.showMessageBox(options);
     return response === 0;
   },
+  confirmDisconnect: async ({ report }) => {
+    const parent = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
+    const options = { type: "warning" as const, buttons: ["Disconnect everywhere", "Cancel"], defaultId: 1, cancelId: 1, ...disconnectConfirmation({ report }) };
+    const { response } = parent ? await dialog.showMessageBox(parent, options) : await dialog.showMessageBox(options);
+    return response === 0;
+  },
 });
 
 /** Desktop start: an empty legacy owner store (and its key, -wal, -shm) is deleted; one holding
@@ -489,11 +497,33 @@ function resolveCliMode(): CliMode { return resolveCliModeIn({ env: process.env,
 function isUnattendedSiteLaunch(): boolean { return isUnattendedSiteLaunchIn({ env: process.env }); }
 function readSiteName(siteDir: string): string { return readSiteNameIn({ siteDir }); }
 
+/** The ask before the last app window closes with sites running — see `last-window-quit.ts`. */
+const lastWindowQuit = createLastWindowQuitPrompt<BrowserWindow>({ ports: {
+  openServers: () => [...openSites.values()].map((entry) => entry.server),
+  platform: process.platform,
+  locale: () => app.getLocale(),
+  showMessageBox: (window, options) => dialog.showMessageBox(window, options),
+  quit: () => app.quit(),
+  keepSitesRunning: () => siteLifecycle?.keepAwake(),
+  logError: (message) => console.error(message),
+} });
+
+/** Every app window, as it is created. Capture windows do not come through here. */
+function trackAppWindow(window: BrowserWindow): void {
+  selftestTracker?.add(window);
+  if (!SELFTEST) lastWindowQuit.watch({ window });
+}
+
+/** App windows for the Dock-click check. `getAllWindows()` also lists hidden capture windows, which would stop a click reopening the app. The self-test does not watch windows, so it keeps the plain count. */
+function appWindowCount(): number {
+  return SELFTEST ? BrowserWindow.getAllWindows().length : lastWindowQuit.openCount();
+}
+
 /** One sandboxed admin window (own-server site or attach mode) — see `app-window.ts`. */
 function createWindow(url: string, title?: string, partition?: string): BrowserWindow {
   return createAppWindow(
     { url, createBrowserWindow: (options) => new BrowserWindow(options), preloadPath: SPEECH_PRELOAD_PATH, openExternal: (target) => void shell.openExternal(target) },
-    { title, partition, selftest: SELFTEST, trackWindow: (window) => selftestTracker?.add(window) },
+    { title, partition, selftest: SELFTEST, trackWindow: trackAppWindow },
   );
 }
 
@@ -509,7 +539,7 @@ function openSitesHomeWindow(): BrowserWindow | null {
     relayFindResults, registerSpellCheck: ({ webContents }) => registerSpellCheckContextMenu({ webContents, menuBuilder: Menu }),
     showErrorBox: (title, message) => dialog.showErrorBox(title, message), logError: (message) => console.error(message),
     setExitCode: (code) => { process.exitCode = code; }, quit: () => app.quit(),
-  } }, { selftest: SELFTEST, trackWindow: (window) => selftestTracker?.add(window) });
+  } }, { selftest: SELFTEST, trackWindow: trackAppWindow });
 }
 
 /** One main owns the desktop capability, regardless of its window/site count. It is never
@@ -711,7 +741,7 @@ async function bootOwnServerMode(): Promise<void> {
     runSerialized: (siteDir, work) => serializer.run(siteDir, work),
     openSiteWindow: ({ siteDir, ctx: openCtx }, options) => openSiteWindow(siteDir, openCtx, options),
     onActivate: (listener) => { app.on("activate", listener); },
-    windowCount: () => BrowserWindow.getAllWindows().length, quitPhase: () => quitPhase,
+    windowCount: appWindowCount, quitPhase: () => quitPhase,
     openSiteDirs: () => [...openSites.values()].map((entry) => entry.siteDir), promptAndOpenNewSite,
     reportOpenFailure: (error) => dialog.showErrorBox("Tovu could not open that site", error.message) } });
 }
@@ -891,6 +921,7 @@ function buildProjectDeps(sitesCtx: SitesHomeCtx) {
     // "Add Tovu Website" — pointer-only, and deliberately NOT `adoptSiteDir`, which inits an
     // empty folder. See `add-site-pointer.ts`'s header and `handleAddSite`.
     addSitePointer,
+    importSiteArchive,
     openSiteServer: (siteDir: string, ctx: SitesHomeCtx) => siteBackend.openSiteServer({ siteDir, ctx }),
     recordSiteClosed,
     // How `handleDelete` sees a SIBLING app instance's open sites before erasing a directory —
@@ -932,7 +963,7 @@ function startSitesHomeDiscovery(projectDeps: ProjectDeps): void {
 function singleWindowPorts(openWindow: () => void): SingleWindowPorts {
   return { selftest: SELFTEST, installSelftestTracker: ({ expectedCount }) => { selftestTracker = buildSelftestTracker(expectedCount); },
     openWindow, onActivate: (listener) => { app.on("activate", listener); },
-    windowCount: () => BrowserWindow.getAllWindows().length, quitPhase: () => quitPhase };
+    windowCount: appWindowCount, quitPhase: () => quitPhase };
 }
 
 /** A single fleet tick shares Resources' cache and in-flight read with the UI. Child authority,
@@ -1034,6 +1065,7 @@ app.whenReady().then(bootDesktop).catch(reportBootFailure);
  * window opens on the NEXT launch — is what answers that now (see this file's own header).
  */
 app.on("before-quit", (event) => {
+  lastWindowQuit.onQuitStarted();
   stopSiteLifecycle();
   siteDiscovery.abortAll();
   // Discovery can still be in flight even with no open sites; include its disposal in the same
@@ -1043,6 +1075,8 @@ app.on("before-quit", (event) => {
     pendingTeardowns.track({ promise: productState.product.dispose() });
     pendingTeardowns.track({ promise: desktopAgentRuntime.dispose({}) });
     pendingTeardowns.track({ promise: desktopMcpHttp.close({}) });
+    // An import in progress would otherwise finish creating its site after the app is gone.
+    pendingTeardowns.track({ promise: stopRunningImports() });
   }
   // `pendingTeardowns` as well as `openSites` (D-09). A window's `closed` handler removes its entry
   // from `openSites` synchronously and only THEN starts stopping the child, so closing the last

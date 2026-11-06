@@ -1,3 +1,4 @@
+import { isSurfaceCallbackPermitted } from '@jini-ai/daemon/http';
 import { nativeToolMetadata } from '../contracts/core/tool-metadata/index.js';
 // Membership is derived from each owning domain's reviewed metadata.
 // Credential forms submit secrets only to an already parked, principal-bound exchange.
@@ -37,6 +38,8 @@ import { nativeToolMetadata } from '../contracts/core/tool-metadata/index.js';
  * ADR-053 Decision 6 requires widening this surface only by deliberate per-tool review.
  */
 export const MCP_UI_REDEEMABLE_TOOL_IDS: ReadonlySet<string> = nativeToolMetadata.redeemableIds;
+/** Fixed, secret-free recovery copy shared by both HTTP hops. */
+export { SURFACE_TYPED_ANSWER_REFUSAL as MCP_UI_TYPED_ANSWER_REFUSAL } from '@jini-ai/daemon/http';
 
 /**
  * Whether `toolName` may be executed through the MCP-UI redemption endpoint.
@@ -53,7 +56,7 @@ export function isMcpUiToolCallAllowed(toolName: string): boolean {
  * all secret-bearing forms and permanent-delete cards require an exchange;
  * other allowlisted ids pass.
  * A FEDERATED id (`mcp__<connection>__<name>`) passes only when the
- * request answers an open card (names an exchange, or is a typed answer resolved to one).
+ * request names an exchange. Only `assistant_ask_choice` accepts composer answers.
  *
  * Why federated ids are not simply allowlisted: they are discovered at runtime, and every one of them
  * declaring a protected action opens a per-call confirmation card (G3, `external-mcp-call-
@@ -64,14 +67,20 @@ export function isMcpUiToolCallAllowed(toolName: string): boolean {
  *
  * @complexity O(1).
  */
-export function isMcpUiToolCallPermitted(toolName: string, answersAnExchange: boolean): boolean {
+export function isMcpUiToolCallPermitted(toolName: string, answersAnExchange: boolean, { typedAnswer = false }: { typedAnswer?: boolean } = {}): boolean {
+  // Only choice cards accept composer text. A typed marker cannot authorize a secret submission,
+  // even when the caller also supplies a valid exchange id.
   // Form secrets must reach a parked handler, never a fresh tool execution or its input audit.
   // Destructive/publish policy cards may answer a parked call, never execute a new call via this endpoint.
   // An exchange-only constraint does not itself admit an otherwise unlisted callback.
-  if (MCP_UI_REDEEMABLE_TOOL_IDS.has(toolName)) return answersAnExchange || !nativeToolMetadata.exchangeOnlyIds.has(toolName);
+  const native = MCP_UI_REDEEMABLE_TOOL_IDS.has(toolName);
   // Plugin tools (`p_<plugin>__<tool>`) park on the same principal-bound exchange when they ask;
   // only the click answering that parked call is accepted, never a fresh execution.
-  return answersAnExchange && (toolName.startsWith("mcp__") || isPluginToolId({ toolName }));
+  return isSurfaceCallbackPermitted({
+    admitted: native || toolName.startsWith("mcp__") || isPluginToolId({ toolName }),
+    exchangeOnly: !native || nativeToolMetadata.exchangeOnlyIds.has(toolName),
+    answersAnExchange,
+  }, { typedAnswer, acceptsTypedAnswer: toolName === "assistant_ask_choice" });
 }
 
 /** The plugin tool contract's namespaced id shape (`pluginToolIdFor` in `@jini-ai/plugins/host`). */

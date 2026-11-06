@@ -8,7 +8,9 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import test from "node:test";
 
-import type { Product, StoreApi } from "#src/features/plugins/store/store-plugin";
+import type { SiteProduct } from "#src/server/inbound/public-http/http/site/render";
+type Product = SiteProduct & { version?: number };
+type StoreApi = { listProducts(): Promise<Product[]>; findProduct(required: { idOrSlug: string }): Promise<Product | null> };
 import { InMemoryPresentationSettingsRepo } from "#src/features/presentation/index";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 
@@ -26,7 +28,7 @@ import { createRouteDeps } from "#src/server/runtime/composition/app";
 function fakeStore(required: { products: Product[] }, _optional: Record<string, never> = {}): StoreApi {
   return {
     listProducts: async () => required.products,
-    checkout: async () => ({ ok: false, reason: "not-found", retries: 0 }),
+    findProduct: async ({ idOrSlug }) => required.products.find(product => product.id === idOrSlug) ?? required.products.find(product => product.slug === idOrSlug) ?? null,
   };
 }
 
@@ -49,7 +51,7 @@ test("GET /products renders a store-plugin product with its formatted price and 
   assert.ok(theme, "the compare-at fixture must use the shipped storefront template");
   const { server, baseUrl } = await startServer({
     themes: [theme],
-    store: fakeStore({ products: [product] }),
+    commerceCatalog: fakeStore({ products: [product] }),
   });
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
 
@@ -72,7 +74,7 @@ test("GET /products/:id renders the single store-plugin product's detail route",
   };
 
   const { server, baseUrl } = await startServer({
-    store: fakeStore({ products: [product] }),
+    commerceCatalog: fakeStore({ products: [product] }),
   });
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
 
@@ -88,7 +90,7 @@ function storeProduct(required: { id: string; title: string; slug: string }, opt
 // Readable-slugs S7: the grid links by slug, so the detail route must resolve that slug.
 test("GET /products/:slug resolves a store-plugin product by its slug", async (t) => {
   const { server, baseUrl } = await startServer({
-    store: fakeStore({ products: [storeProduct({ id: "prod-1", title: "Classic Boxy Tee", slug: "classic-boxy-tee" })] }),
+    commerceCatalog: fakeStore({ products: [storeProduct({ id: "prod-1", title: "Classic Boxy Tee", slug: "classic-boxy-tee" })] }),
   });
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
 
@@ -100,7 +102,7 @@ test("GET /products/:slug resolves a store-plugin product by its slug", async (t
 // Id first, then slug: a product whose slug spells another product's id must not shadow it.
 test("GET /products/:id prefers an id match over another product's identical slug", async (t) => {
   const { server, baseUrl } = await startServer({
-    store: fakeStore({ products: [
+    commerceCatalog: fakeStore({ products: [
       storeProduct({ id: "prod-a", title: "Id Owner", slug: "id-owner" }),
       storeProduct({ id: "prod-b", title: "Slug Squatter", slug: "prod-a" }),
     ] }),
@@ -116,9 +118,8 @@ test("GET /products/:id prefers an id match over another product's identical slu
 
 test("GET /products renders the sample store plugin catalog", async (t) => {
   const { server, baseUrl } = await startServer({
-    store: {
+    commerceCatalog: {
       listProducts: async () => [{ id: "store-prod-1", slug: "store-prod-1", title: "Sample Teacup", price: 2800, stock: 5, version: 0 }],
-      checkout: async () => ({ ok: false, reason: "not-found", retries: 0 }),
     },
   });
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
@@ -128,14 +129,14 @@ test("GET /products renders the sample store plugin catalog", async (t) => {
   assert.match(await res.text(), /Sample Teacup/);
 });
 
-test("GET /products renders an empty grid when no store plugin is wired (deps.store itself undefined)", async (t) => {
+test("GET /products renders an empty grid when no store plugin is wired (deps.commerceCatalog itself undefined)", async (t) => {
   const { server, baseUrl } = await startServer({
-    store: undefined,
+    commerceCatalog: undefined,
   });
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
 
-  // Exercises `resolveStorefrontProducts`'s `deps.store?.listProducts() ?? []` fallback on BOTH
-  // its optional-chaining short-circuit (`deps.store` itself undefined, not just an empty catalog)
+  // Exercises `resolveStorefrontProducts`'s `deps.commerceCatalog?.listProducts() ?? []` fallback on BOTH
+  // its optional-chaining short-circuit (`deps.commerceCatalog` itself undefined, not just an empty catalog)
   // and the trailing `?? []` — every other test in this file that reaches this line supplies an
   // explicit `store`, so this specific combination was otherwise untested.
   const res = await fetch(`${baseUrl}/products`);
@@ -148,7 +149,7 @@ test("GET /products renders an empty grid when no store plugin is wired (deps.st
 
 test("GET /products/:id returns 404 for an id that doesn't match any product", async (t) => {
   const { server, baseUrl } = await startServer({
-    store: { listProducts: async () => [], checkout: async () => ({ ok: false, reason: "not-found", retries: 0 }) },
+    commerceCatalog: { listProducts: async () => [], },
   });
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
 
@@ -159,7 +160,7 @@ test("GET /products/:id returns 404 for an id that doesn't match any product", a
 
 test("GET /products 500s with 'No themes installed' when resolveActiveTheme finds none", async (t) => {
   const { server, baseUrl } = await startServer({
-    store: { listProducts: async () => [], checkout: async () => ({ ok: false, reason: "not-found", retries: 0 }) },
+    commerceCatalog: { listProducts: async () => [], },
     themes: [],
   });
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
@@ -175,7 +176,7 @@ test("GET /products/:id 500s with 'No themes installed' when resolveActiveTheme 
     price: 3500, stock: 5, version: 1,
   };
   const { server, baseUrl } = await startServer({
-    store: fakeStore({ products: [product] }),
+    commerceCatalog: fakeStore({ products: [product] }),
     themes: [],
   });
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
@@ -185,32 +186,31 @@ test("GET /products/:id 500s with 'No themes installed' when resolveActiveTheme 
   assert.match(await res.text(), /No themes installed/);
 });
 
-test("GET /products 500s with a generic 'Site error' when an unexpected exception is thrown", async (t) => {
+test("GET /products 500s with a specific catalog error when an unexpected exception is thrown", async (t) => {
   const { server, baseUrl } = await startServer({
-    store: {
+    commerceCatalog: {
       listProducts: async () => { throw new Error("boom"); },
-      checkout: async () => ({ ok: false, reason: "not-found", retries: 0 }),
     },
   });
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
 
   const res = await fetch(`${baseUrl}/products`);
   assert.equal(res.status, 500);
-  assert.match(await res.text(), /Site error/);
+  assert.match(await res.text(), /The product catalog could not be loaded/);
 });
 
-test("GET /products/:id 500s with a generic 'Site error' when an unexpected exception is thrown", async (t) => {
+test("GET /products/:id 500s with a specific product error when an unexpected exception is thrown", async (t) => {
   const { server, baseUrl } = await startServer({
-    store: {
+    commerceCatalog: {
       listProducts: async () => { throw new Error("boom"); },
-      checkout: async () => ({ ok: false, reason: "not-found", retries: 0 }),
+      findProduct: async () => { throw new Error("boom"); },
     },
   });
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
 
   const res = await fetch(`${baseUrl}/products/anything`);
   assert.equal(res.status, 500);
-  assert.match(await res.text(), /Site error/);
+  assert.match(await res.text(), /This product could not be loaded/);
 });
 
 /** `/products/:id`'s `String(req.params.id ?? "")` is unreachable through any real HTTP request --
@@ -233,7 +233,7 @@ function extractHandler(app: ReturnType<typeof createApp>, path: string): (req: 
 }
 
 test("GET /products/:id -- `req.params.id ?? \"\"` fallback, forced via a direct handler call with id omitted -- still 404s (no product has an empty-string id), not a crash", async () => {
-  const deps = { ...createRouteDeps(), store: fakeStore({ products: [] }) };
+  const deps = { ...createRouteDeps(), commerceCatalog: fakeStore({ products: [] }) };
   const app = createApp(deps);
   const handler = extractHandler(app, "/products/:id");
   let statusCode: number | undefined;
@@ -289,7 +289,7 @@ test("GET /products/:id survives a workspace with no presentation_settings row",
 
   const { server, baseUrl } = await startServer({
     presentationRepo: new InMemoryPresentationSettingsRepo({}, { initialRows: [] }),
-    store: fakeStore({ products: [product] }),
+    commerceCatalog: fakeStore({ products: [product] }),
   });
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
 
@@ -307,7 +307,7 @@ test("the product adapter preserves store-plugin sale prices and the handler ren
   // Assert adapter data here without repeating a worker render against the fixed 5s budget.
   const products = await resolveStorefrontProducts({
     ...baseDeps,
-    store: fakeStore({ products: [storeProduct({ id: "sale", title: "Sale Tee", slug: "sale-tee" }, { compareAtPrice: 4500 })] }),
+    commerceCatalog: fakeStore({ products: [storeProduct({ id: "sale", title: "Sale Tee", slug: "sale-tee" }, { compareAtPrice: 4500 })] }),
   });
   // A message on every assert.ok here: without one, Node regenerates the failing expression by
   // acorn-parsing this file's tsx output (one very long line), which takes minutes and looks like a hang.
@@ -318,11 +318,12 @@ test("the product adapter preserves store-plugin sale prices and the handler ren
   assert.equal(products[0].price, 3500);
   assert.equal(products[0].compareAtPrice, 4500);
   const deps = {
-    ...baseDeps, store: undefined,
+    ...baseDeps, commerceCatalog: undefined,
   };
   let html = "";
   let status = 200;
   const res = {
+    locals: {},
     status(code: number) { status = code; return res; },
     set() { return res; }, type() { return res; },
     send(body: string) { html = body; return res; },
@@ -334,28 +335,63 @@ test("the product adapter preserves store-plugin sale prices and the handler ren
   assert.doesNotMatch(html, /class="product-card"|href="\/products\/[^" ]+"/);
 });
 
-test("GET /products and /products/:id cache only with consent off; the static-export marker always prevents storage", async (t) => {
+test("GET /products and /products/:id cache visitor-independent HTML for both consent modes; context and static exports stay private", async (t) => {
   const product: Product = { id: "prod-1", slug: "classic-boxy-tee", title: "Classic Boxy Tee", price: 3500, stock: 5, version: 1 };
-  // Owner-ON consent is visitor-specific; ad8a49c74 gates this opt-in adapter too. Consent is off by
-  // default (owner, 2026-11-02), so both arms save an explicit owner choice.
-  // Owner-OFF still proves the export marker itself prevents caching, independently of consent.
+  // Document assets use a site-wide publication; visitor consent stays in the private context.
+  // Both owner choices must keep HTML identical across visitor cookies and GPC headers.
   for (const consentEnabled of [true, false]) {
     const deps = createRouteDeps();
     await deps.siteConsentReady;
     await deps.set({ deps: { repo: deps.settingsRepo, clock: deps.clock, ids: deps.idGen,
       principals: deps.principalRepo, authorize: deps.authorize }, input: { namespace: "core.consent", key: "enabled",
       value: consentEnabled, scope: "workspace", workspaceId: deps.workspaceId, callerPrincipalId: await deps.ownerPrincipalId } });
-    const { server, baseUrl } = await startServer({ ...deps, store: fakeStore({ products: [product] }) });
+    deps.cookieConsent = { regionResolvers: async () => [] };
+    const { server, baseUrl } = await startServer({ ...deps, commerceCatalog: fakeStore({ products: [product] }) });
     t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+    const visitorHeaders: Record<string, string>[] = [{ cookie: "jini_consent=private-visitor-choice" }, { "sec-gpc": "1" }];
 
     for (const path of ["/products", "/products/prod-1"]) {
       const plain = await fetch(`${baseUrl}${path}`);
       assert.equal(plain.status, 200, path);
-      assert.equal(plain.headers.get("cache-control"), consentEnabled ? "private, no-store" : "public, max-age=60, stale-while-revalidate=300", path);
-      if (consentEnabled) assert.equal(plain.headers.get("vary"), "Cookie, Sec-GPC", path);
+      assert.equal(plain.headers.get("cache-control"), "public, max-age=60, stale-while-revalidate=300", path);
+      assert.equal(plain.headers.get("set-cookie"), null, path);
+      assert.doesNotMatch(plain.headers.get("vary") ?? "", /Cookie|Sec-GPC/i, path);
+      const html = await plain.text();
+      for (const headers of visitorHeaders) {
+        const visitor = await fetch(`${baseUrl}${path}`, { headers });
+        assert.equal(visitor.status, 200, path);
+        assert.equal(visitor.headers.get("cache-control"), "public, max-age=60, stale-while-revalidate=300", path);
+        assert.equal(visitor.headers.get("set-cookie"), null, path);
+        assert.doesNotMatch(visitor.headers.get("vary") ?? "", /Cookie|Sec-GPC/i, path);
+        assert.equal(await visitor.text(), html, "visitor state must not enter shared HTML");
+      }
       const exported = await fetch(`${baseUrl}${path}`, { headers: { "x-tovu-static-export": "1" } });
       assert.equal(exported.status, 200, path);
       assert.equal(exported.headers.get("cache-control"), "private, no-store", path);
+      await exported.text();
     }
+    const context = await fetch(`${baseUrl}/_consent/context`);
+    assert.equal(context.status, 200);
+    assert.equal(context.headers.get("cache-control"), "private, no-store");
+    assert.equal((await context.json() as { enabled: boolean }).enabled, consentEnabled);
   }
+});
+
+
+test("the catalog resolver ignores an injected legacy store runtime", async () => {
+  const deps = Object.assign(createRouteDeps(), { store: { listProducts: async () => { throw new Error("legacy runtime must not run"); } } });
+  assert.deepEqual(await resolveStorefrontProducts(deps), []);
+});
+
+test('detail resolves a product outside the bounded grid with a point lookup', async t => {
+  let lists = 0, lookups = 0;
+  const product = storeProduct({ id: 'product-25', title: 'Beyond the grid', slug: 'beyond-grid' });
+  const { server, baseUrl } = await startServer({ commerceCatalog: {
+    listProducts: async () => { lists++; return []; },
+    findProduct: async ({ idOrSlug }: { idOrSlug: string }) => { lookups++; return idOrSlug === 'beyond-grid' ? product : null; },
+  } } as never);
+  t.after(() => new Promise<void>(resolve => server.close(() => resolve())));
+  const response = await fetch(`${baseUrl}/products/beyond-grid`);
+  assert.equal(response.status, 200); assert.match(await response.text(), /Beyond the grid/);
+  assert.equal(lookups, 1); assert.equal(lists, 0);
 });

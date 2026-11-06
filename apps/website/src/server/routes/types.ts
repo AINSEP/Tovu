@@ -18,7 +18,6 @@ import type {
   SiteAssistantCredentialRepoPort,
   AdminExecutionCredentialRepoPort,
 } from "#src/assistant/host-ports";
-import type { LocalCredentialCopy } from "#src/server/runtime/composition/local-credential-copy";
 import type { SiteSearchRuntime } from "#src/server/runtime/composition/modules/site-search";
 import type { SiteBinding } from "#src/platform/site-dir/index";
 import type { SiteBackupSources } from "#src/features/site-backup/sources";
@@ -189,6 +188,12 @@ export interface ClockDeps {
  * Principal-centric auth ports (ADR-021 / SPEC-006) used by admin authentication.
  */
 export interface IdentityDeps {
+  /** Scoped recovery hashes share the identity SQL transaction; absent on ephemeral hosts. */
+  recoveryCodes?: import("@jini-ai/user-management/server").RecoveryCodeStore;
+  /** Durable owner factors and pending proofs; absent on ephemeral hosts. */
+  mfaStore?: import("@jini-ai/user-management/server").MfaStore;
+  /** Public credential material only; private keys remain with authenticators. */
+  passkeyStore?: import("@jini-ai/user-management/server").PasskeyStore;
   /** The same transaction/session token ports the identity root binds; callers cannot omit them. */
   transactions: import("@jini-ai/user-management").IdentityRepos["transactions"];
   tokens: import("@jini-ai/user-management").SessionTokenPort;
@@ -389,7 +394,7 @@ export interface CredentialsDeps {
   mcp: import("../../features/agent-plugins/service-ports.js").AgentPluginMcpPort;
   preferences: import("../../features/agent-plugins/service-ports.js").AgentPluginPreferencesPort;
   providerFaces: import("../../features/plugin-runtime/service-ports.js").PluginProviderFacesPort;
-  notifyRosterChanged: () => Promise<void>;
+  notifyRosterChanged: import("../../contracts/core/tool-access-change.js").NotifyToolAccessChanged;
   /** Runtime-owned connections declared by the desktop host, independent of labels. */
   builtInExternalMcpServerIds?: readonly string[];
   /**
@@ -444,6 +449,8 @@ export interface CredentialsDeps {
    * env var.
    */
   derivedPublicOrigin?: string;
+  /** Trusted configured external origin for passkeys; never derived from request headers. */
+  passkeyOrigin?: string;
   /**
    * 2026-08-15 — the `source_control_credential_sets` repo backing the admin Source Control page's
    * connect/replace form (`routes/admin/system/source-control-credentials.ts`). Real
@@ -748,6 +755,8 @@ export interface WebhooksDeps {
  * structural to avoid a back-edge into the composition root.
  */
 export interface FormsDeps {
+  /** Current app-scoped collection providers, shared by admin and assistant discovery. */
+  formCollectionProviders?: () => import("@jini-ai/cms/forms").FormCollectionRegistry;
   executeCommand: typeof import("@jini-ai/cms/core").executeCommand;
   formDefinitionRepo: FormDefinitionRepoPort;
   formSubmissionRepo: FormSubmissionRepoPort;
@@ -867,8 +876,7 @@ export interface SettingsDeps {
   consentStore?: import('#src/features/consent/revisions').SiteConsentStore;
   siteConsent?: import('#src/features/consent/service').SiteConsentService;
   consentTrustedRegionHeader?: string;
-  /** THE consent-engine switch (TOVU_CONSENT_ENGINE=cookie-consent): present = `@jini-ai/cookie-consent`
-   * serves public pages, absent = the old cms engine. P4 cleanup removes the old engine and this switch. */
+  /** Declared-script consent bindings; absent only in minimal hosts/test compositions. */
   cookieConsent?: import('#src/contracts/headless/index').SiteCookieConsentDeps;
   /** Cookie-consent adapters of the analytics plugins attached to this site (none when no plugin is). */
   consentAdapters?: (required: { base: string }) => readonly import('#src/contracts/headless/index').ConsentPluginContribution[];
@@ -1124,7 +1132,6 @@ export interface DatabaseOpsDeps {
    */
   verifyDueDomainBindings?: (required: { limit: number }) => Promise<string[]>;
   /** Local source reader/transfer; absent in the hermetic root, which has no target content DB. */
-  localCredentialCopy?: LocalCredentialCopy;
   /** Owner-only reads of other local SQLite sites; absent in hermetic/deployed roots. */
   peerSiteReads?: PeerSiteReads;
   /** Bumps `database_write_watermark` for taxonomy writes (create/rename/assign/delete). Real in
@@ -1342,6 +1349,15 @@ export interface TrashDeps {
  * putting them in a sub-interface creates a circular type TypeScript rejects.
  */
 export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps & ContentTaxonomyDeps & CommentsDeps & MembersDeps & DatabaseRecoveryDeps & WebhooksDeps & FormsDeps & PostDeps & PresentationDeps & SettingsDeps & ChangeSetDeps & EventBusDeps & AnalyticsDeps & NavigationDeps & DatabaseOpsDeps & RedirectsDeps & WidgetsDeps & PluginRuntimeDeps & ObservabilityDeps & PublishTrustRevocationDeps & TrashDeps & {
+  documentAssets?: (required: { scripts: readonly import('@jini-ai/cookie-consent').DeclaredScript[]; static?: true }) => Promise<import('@jini-ai/cms/presentation').DocumentAssets>;
+  declaredScripts?: import('@jini-ai/cookie-consent').DeclaredScript[];
+  /** Optional plugin-controlled purchase runtime. Member routes never select a merchant scope. */
+  commerce?: import("../runtime/composition/commerce.js").CommerceRuntime;
+  /** Bounded public catalog projection; absent while commerce is disabled or unavailable. */
+  commerceCatalog?: {
+    listProducts(required?: Record<string, never>, optional?: { readiness?: { active: boolean; ready: boolean } }): Promise<SiteProduct[]>;
+    findProduct?(required: { idOrSlug: string }, optional?: { readiness?: { active: boolean; ready: boolean } }): Promise<SiteProduct | null>;
+  };
   workspaceRepo: WorkspaceRepoPort;
   /**
    * Site search (`server/runtime/composition/modules/site-search.ts`): registry, query service and
@@ -1640,6 +1656,8 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * exports into — never re-reads `process.env` itself.
    */
   publishOutputRootDir: string;
+  /** Current public security headers, including app-scoped collection frame declarations. */
+  publicPageSecurityHeaders?: () => import("#src/contracts/core/public-page-security-headers").SecurityHeaderSet;
   /**
    * This workspace's plugin-contributed deploy targets (`deploy-targets/registry.ts`): the one place
    * the publish route and the static-publish agent tools learn which targets exist and which config

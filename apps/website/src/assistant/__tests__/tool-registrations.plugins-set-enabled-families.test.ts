@@ -1,7 +1,7 @@
 import { resolveSiteRoot } from "#src/platform/site-dir/index";
 import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
-import { createContributionRegistry, createToolRegistry } from "@jini-ai/core";
+import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -38,9 +38,6 @@ import {
 import { createInMemoryConversationToolApprovalStore } from "../external-mcp-tool-approval-adapters.js";
 import { createNativeApprovalMemory } from "../../contracts/core/native-approval-memory.js";
 import { createRouteDeps } from "../../server/runtime/composition/app.js";
-import { createLiveRunTracker } from "../agent-session-preset.js";
-import { daemonInitializer, evaluateDaemonExpression } from "../../server/inbound/assistant/__tests__/helpers/daemon-source.js";
-import { ALL_CHAT_DELETE_TOOLS } from "../permanent-delete-tool-gate.js";
 import { buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
@@ -73,10 +70,10 @@ const contributions = {
  * 2. Enabling raises a real human confirmation (the held-open MCP-UI exchange
  *    `content_post_delete` uses), because enabling changes what the assistant itself can do next.
  *    Disabling does not — it only ever removes capability.
- * 3. Enabling an Agent Plugin reports `restartRequired: true`, honestly: `activations.json` is
- *    re-read per run for prompt injection, but the plugin's own `agent_plugin_<id>` tool is
- *    registered once at daemon boot (`agent-daemon-server.ts`) and folded into a one-shot
- *    `search_tools` snapshot right after, so it is NOT callable until the daemon restarts.
+ * 3. Enabling an Agent Plugin reports live discovery without a restart. The running server
+ *    refreshes the tool roster and guidance is available through load_agent_plugin. Previously
+ *    the boot-only registrations and one-shot search_tools snapshot required a restart; pinning
+ *    the live answer prevents that stale-snapshot behavior from returning.
  * 4. The tool is genuinely in the BUILT registration list reached through the real contributor
  *    seam — not merely compiling.
  */
@@ -397,7 +394,7 @@ test("t91 §7.2: ENABLING on a corrupt activations file returns activations-unre
     const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
     const tool = setEnabledTool(deps, surfaceExchanges);
     const emitted: unknown[] = [];
-    let dialogRaised: (surface: unknown) => void = () => undefined;
+    let dialogRaised: (surface: unknown) => void = (_surface: unknown) => undefined;
     const dialog = new Promise<unknown>((resolve) => {
       dialogRaised = resolve;
     });
@@ -517,7 +514,7 @@ test("the confirmation dialog is a real MCP-UI resource naming the plugin, and c
 // 4. The restart answer is reported, not assumed
 // ---------------------------------------------------------------------------
 
-test("enabling an Agent Plugin reports restartRequired:true and says why — its tool is registered only at daemon boot", async () => {
+test("enabling an Agent Plugin reports live discovery and guidance without a restart", async () => {
   await withInstalledAgentPlugin(async () => {
     const { deps } = fakeRouteDeps();
     const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
@@ -525,7 +522,7 @@ test("enabling an Agent Plugin reports restartRequired:true and says why — its
 
     const { result } = await answerDialog(tool, surfaceExchanges, { pluginId: AGENT_PLUGIN_ID, enabled: true, family: "agent-plugin" }, "confirm");
     const out = result as { restartRequired: boolean; note: string };
-    assert.equal(out.restartRequired, true);
+    assert.equal(out.restartRequired, false);
     assert.match(out.note, /load_agent_plugin/);
     assert.match(out.note, /Do not ask the person to restart Tovu/);
   });
@@ -589,7 +586,7 @@ test("plugins_set_enabled: disabling a site-runtime plugin says its tool is refu
   );
 });
 
-test("disabling an Agent Plugin says exactly what stopped — and that its provisioned external MCP connections did NOT", async () => {
+test("disabling an Agent Plugin reports that its guidance and external tools stop while credentials are retained", async () => {
   await withInstalledAgentPlugin(async () => {
     const { deps } = fakeRouteDeps();
     const tool = setEnabledTool(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }));
@@ -597,11 +594,8 @@ test("disabling an Agent Plugin says exactly what stopped — and that its provi
 
     assert.equal(
       out.note,
-      `Disabled and saved. This takes effect immediately, with no restart: the activation record is re-read at ` +
-        `the start of every run AND again before every agent_plugin_${AGENT_PLUGIN_ID} call, so the plugin's own ` +
-        `tool stops answering at once rather than lingering until Tovu restarts. This does NOT change any external ` +
-        `MCP server connection the plugin set up: if an operator turned one on, its mcp__<server>__* tools keep ` +
-        `working until that connection is disabled under Integrations → External MCP.`,
+      'Disabled and saved. Its guidance and provisioned external MCP tools stop immediately. ' +
+        'The connection rows and saved sign-in are retained. Ask to turn the plugin on through plugins_set_enabled before using it again.',
     );
   });
 });
@@ -653,7 +647,7 @@ function invokeFixtureHandler(
   return registration.handler(required, emitSurface ? { emitSurface } : {});
 }
 
-test("enabling reuses one saved identity grant; changed versions ask again and revocation still refuses", async () => {
+test("enabling always asks for fresh owner approval, including a saved identity; revocation still refuses", async () => {
   const { deps } = fakeRouteDeps();
   const store = createInMemoryConversationToolApprovalStore();
   deps.nativeApprovalMemory = createNativeApprovalMemory({ store, workspaceId: WORKSPACE_ID, clock: { nowMs: () => 0 }, conversationIdForRun: () => "chat-1" });
@@ -664,7 +658,7 @@ test("enabling reuses one saved identity grant; changed versions ask again and r
   const enable = { family: "site-runtime", pluginId: SITE_PLUGIN.id, enabled: true };
   assert.equal((await answerDialog(tool, surfaces, enable, "confirm")).emitted.length, 1);
   await call(tool, { ...enable, enabled: false }, async () => assert.fail("disable asked"));
-  await call(tool, enable, async () => assert.fail("same identity asked twice"));
+  assert.equal((await answerDialog(tool, surfaces, enable, "confirm")).emitted.length, 1, "a saved identity cannot replace this enable card");
   version = "2.0.0";
   assert.equal((await answerDialog(tool, surfaces, enable, "confirm")).emitted.length, 1);
   deps.authorize = async () => ({ allowed: false, reason: "insufficient_permission" });
@@ -680,41 +674,41 @@ test("a version changed while enabling was approved is refused without an activa
   await assert.rejects(call(tool, { family: "site-runtime", pluginId: SITE_PLUGIN.id, enabled: true }, async surface => {
     version = "2.0.0";
     surfaces.deliver({ exchangeId: exchangeIdFromSurface(surface), principalId: PRINCIPAL_ID, params: { decision: "confirm" } }, { toolId: SET_ENABLED });
-  }), { message: "PLUGINS_STALE_APPROVAL: The plugin version or digest changed. Review and approve it again. Nothing was changed." });
+  }), { message: "PLUGINS_STALE_APPROVAL: The plugin or its connection changed. Review and approve it again. Nothing was changed." });
   assert.equal(await pluginActivationRepo.getActivation({ workspaceId: WORKSPACE_ID, pluginId: SITE_PLUGIN.id }), null);
 });
 
-test("daemon-composed approval memory asks on first enable, skips the same version, and asks on a new version", async () => {
+test("server-composed approval memory cannot replace the owner card when enabling the same or a new version", async () => {
   const { deps } = fakeRouteDeps();
   const store = createInMemoryConversationToolApprovalStore();
   const nativeApprovalMemory = createNativeApprovalMemory({ store, workspaceId: WORKSPACE_ID,
     clock: deps.clock, conversationIdForRun: ({ runId, principalId }) => runId === "run-1" && principalId === PRINCIPAL_ID ? "chat-1" : undefined });
   const approvalIdentityForRun = async () => ({ key: "trusted-host-identity", label: "Host provenance port" });
   const composed = createRouteDeps({ nativeApprovalMemory, approvalIdentityForRun });
+  await composed.principalRepo.save({ workspaceId: WORKSPACE_ID, id: PRINCIPAL_ID, kind: 'user', displayName: 'Approval test user', status: 'active', createdAt: '2026-11-05T00:00:00.000Z' });
   assert.equal(composed.nativeApprovalMemory, nativeApprovalMemory);
   assert.equal(composed.approvalIdentityForRun, approvalIdentityForRun);
   let version = "1.0.0";
   deps.discoverPlugins = async () => [{ ...SITE_PLUGIN, version }];
   const surfaces = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-  const liveRunTracker = createLiveRunTracker({}, {});
-  liveRunTracker.register({ runId: "run-1", conversationId: "chat-1" }, {});
   const daemonContributions = {
     contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
     derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
   };
   daemonContributions.contributors.register({ contribution: contributePluginsTools() });
-  const registrations = evaluateDaemonExpression<ToolRegistration[]>(daemonInitializer("assistantRegistrations"), {
-    routeDeps: { ...deps, conversationToolApprovals: store }, visibleRegistry: createToolRegistry({}),
-    contributions: daemonContributions, listToolCatalogEntries: () => [], buildAssistantToolRegistrations,
-    createNativeApprovalMemory, liveRunTracker, magicLinkPerEmailLimiter: {}, surfaceExchanges: surfaces,
-    ALL_CHAT_DELETE_TOOLS,
-  });
+  // ADR-070 moved site handlers to the server. Exercise its real registration assembler,
+  // retaining a live approval-memory port that must never bypass the enable handler's card.
+  const registrations = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: {
+    ...composed, ...deps, nativeApprovalMemory, conversationToolApprovals: store,
+    clock: { ...deps.clock, nowIso: () => NOW },
+  } as RegistryDepsWithoutLimiter }), { surfaceExchanges: surfaces }, { contributions: daemonContributions });
   const tool = registrations.find((registration) => registration.descriptor.id === SET_ENABLED);
   assert.ok(tool);
   const enable = { family: "site-runtime", pluginId: SITE_PLUGIN.id, enabled: true };
   const first = await answerDialog(tool, surfaces, enable, "confirm");
   assert.equal(first.emitted.length, 1);
-  await call(tool, enable, async () => assert.fail("the same version must reuse the saved enable grant"));
+  const same = await answerDialog(tool, surfaces, enable, "confirm");
+  assert.equal(same.emitted.length, 1, 'the same version still requires a fresh owner approval');
   version = "2.0.0";
   const changed = await answerDialog(tool, surfaces, enable, "confirm");
   assert.equal(changed.emitted.length, 1);

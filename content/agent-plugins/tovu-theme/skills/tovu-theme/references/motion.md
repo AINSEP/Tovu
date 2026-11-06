@@ -2,7 +2,10 @@
 
 Use this for every new theme, conversion and reference match unless the owner asks for no or
 less motion. Replace heavier inherited effects with this recipe. Keep the source's layout and
-appearance; do not add stats just to animate them.
+appearance when converting or matching an owner-supplied reference; do not add stats just to
+animate them. For a new design, Tovu Starter supplies structure only: never reuse its appearance
+stylesheet. Keep functional lightbox.js (its CSS makes the image overlay work) and the complete
+motion vendor folder, including licensing.
 
 ## Load once
 

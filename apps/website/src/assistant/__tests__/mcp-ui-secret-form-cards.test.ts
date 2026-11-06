@@ -60,12 +60,11 @@ function scanFormFields(file: string, text: string) {
     if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && formBuilders.has(node.expression.text)) buildsForm = true;
     if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression) && node.expression.name.text === "open"
       && node.expression.expression.getText(source).endsWith("surfaceExchanges")) lifecycle(node).opens = true;
-    if (ts.isPropertyAssignment(node) || ts.isShorthandPropertyAssignment(node)) {
-      if ((ts.isIdentifier(node.name) || ts.isStringLiteralLike(node.name)) && node.name.text === "secret") {
-        lifecycle(node).secret = true;
-        const line = source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1;
-        violations.push(`${file}:${line}: secret fields must use SECRET_FORM_CARD_DEFINITIONS`);
-      }
+    if ((ts.isPropertyAssignment(node) || ts.isShorthandPropertyAssignment(node))
+      && (ts.isIdentifier(node.name) || ts.isStringLiteralLike(node.name)) && node.name.text === "secret") {
+      lifecycle(node).secret = true;
+      const line = source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1;
+      violations.push(`${file}:${line}: secret fields must use SECRET_FORM_CARD_DEFINITIONS`);
     }
     if (ts.isPropertyAccessExpression(node) && node.name.text === "secretField" && ts.isPropertyAccessExpression(node.expression)
       && ts.isIdentifier(node.expression.expression) && node.expression.expression.text === "SECRET_FORM_CARD_DEFINITIONS") {

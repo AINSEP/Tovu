@@ -1,9 +1,15 @@
 /** Assistant-owned host ports; server composition supplies their implementations. */
 import type { Principal, ToolRegistration } from '@jini-ai/core';
+import type { CommerceResolutionToolsRequired } from '@jini-ai/commerce/payments/tools';
 import type { AuthorizeFn } from '@jini-ai/cms/core';
 import type { ChatStoreFactory } from './persistence/tenant-scope.js';
 
 export type { ProviderConfigSource } from '@jini-ai/plugins/host';
+
+/** Commerce owns its private repositories; the assistant sees only admitted tool registrations. */
+export interface CommerceToolHost {
+  toolRegistrations(required: { authorize: AuthorizeFn; askHuman: CommerceResolutionToolsRequired['askHuman'] }): ToolRegistration[];
+}
 
 /** Registered local source identity, shared with the host's discovery adapter. */
 export type RegisteredSiteSource = { siteId: string; name: string; dir: string };

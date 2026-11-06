@@ -11,6 +11,7 @@ import { SHARE_LIMITS } from "../share-policy.js";
 import type { SiteSharePlanContent } from "../plan-store.js";
 import { collectSiteBackupFiles, type PlannedDiskFile } from "../sources.js";
 import { resolveAgentPluginLayout } from "../../agent-plugins/layout.js";
+import { createBundledExportFilePolicy } from "../bundled-export-file-policy.js";
 type ZipArgs = Parameters<typeof zipFolderFiles>[0];
 function plan(overrides: Partial<SiteSharePlanContent> = {}): SiteSharePlanContent {
   return { target: { kind: "zip" }, profile: "share", include: { database: true, media: true, themes: true, plugins: true, settings: true }, database: { bytes: Buffer.from("db"), watermarkAtCapture: 4 }, files: [], bufferedFiles: [{ path: "settings.json", content: Buffer.from("{}") }], media: [], plugins: [], skipped: [], scopeNotes: {}, totalBytes: 4, site: { name: "Site", folderName: "site" }, schema: { index: 1, tag: "test" }, tovuVersion: "test", createdAt: "2026-10-26", ...overrides };
@@ -20,10 +21,63 @@ function encoder(error?: Error) {
   const zip: typeof zipFolderFiles = async args => { calls.push(args); if (error) throw error; return new File(["encoded"], "share.zip"); };
   return { zip, calls };
 }
+
+test("export retains every file, skips identical bundled bytes, and scans changed/custom files", async t => {
+  const key = ["sk", "proj", ""].join("-") + "Ab3".repeat(12);
+  const bundled = Buffer.from(`token=${key}`);
+  const installed = new Map([['SKILL.md', bundled], ['__tests__/example.ts', bundled], ['fixtures/example.json', bundled], ['fixtures/modified.json', bundled], ['src/example.test.ts', bundled]]);
+  const bundledFilePolicy = createBundledExportFilePolicy({}, {
+    selection: new Map([['sample', '@jini-ai/agent-plugins/sample']]),
+    resolve: () => '/installed/sample/plugin.json',
+    readFile: async filename => installed.get(filename.slice('/installed/sample/'.length)) ?? Buffer.from('{}'),
+  });
+  const runtime = `agent-plugins/ws/ws/sample/package/sha256/${'a'.repeat(64)}`;
+  const changed = Buffer.from(`token=${key}\n// changed`);
+  const content = plan({
+    files: [disk(t, `${runtime}/src/example.test.ts`, bundled.toString())],
+    bufferedFiles: [
+      { path: 'settings.json', content: Buffer.from('{}') },
+      { path: 'agent-plugins/sample/package/plugin.json', content: Buffer.from('{}') },
+      ...['SKILL.md', '__tests__/example.ts', 'fixtures/example.json'].map(name => ({ path: `agent-plugins/sample/package/${name}`, content: bundled })),
+      { path: 'agent-plugins/sample/package/fixtures/modified.json', content: changed },
+      { path: 'agent-plugins/custom/package/fixtures/example.json', content: bundled },
+    ],
+    plugins: [{ kind: 'agent', id: 'sample', version: '1', digest: 'a'.repeat(64), enabled: true, shipped: true },
+      { kind: 'agent', id: 'custom', version: '1', digest: 'b'.repeat(64), enabled: false, shipped: true }],
+  });
+  const { zip, calls } = encoder();
+  const credentialWarnings: { path: string; kind: string }[] = [];
+  const progress = { filesDone: 0, bytesDone: 0, filesTotal: 0, bytesTotal: 0 };
+  await buildShareZip({ plan: content, zip }, { bundledFilePolicy, credentialWarnings, progress });
+  const picked = calls[0]!.files;
+  const manifest = JSON.parse(await picked.at(-1)!.text());
+  const paths = manifest.files.map((file: { path: string }) => file.path);
+  assert.equal(manifest.formatVersion, 2);
+  assert.deepEqual(paths, ['settings.json', 'agent-plugins/sample/package/plugin.json', 'agent-plugins/sample/package/SKILL.md',
+    'agent-plugins/sample/package/__tests__/example.ts', 'agent-plugins/sample/package/fixtures/example.json',
+    'agent-plugins/sample/package/fixtures/modified.json', 'agent-plugins/custom/package/fixtures/example.json',
+    'content.db', 'agent-plugins/sample/package/src/example.test.ts']);
+  assert.equal(picked.length, paths.length + 1);
+  assert.deepEqual([progress.filesDone, progress.filesTotal], [paths.length, paths.length]);
+  const retainedBytes = manifest.files.reduce((sum: number, file: { bytes: number }) => sum + file.bytes, 0);
+  assert.deepEqual([progress.bytesDone, progress.bytesTotal], [retainedBytes, retainedBytes]);
+  assert.deepEqual([...new Set(credentialWarnings.map(warning => warning.path))].sort(), [
+    'agent-plugins/custom/package/fixtures/example.json', 'agent-plugins/sample/package/fixtures/modified.json',
+  ]);
+  assert.equal(JSON.stringify(credentialWarnings).includes(key), false);
+  assert.equal((await picked[5]!.text()), changed.toString());
+  assert.equal((await picked[6]!.text()), bundled.toString());
+  for (let index = 0; index < manifest.files.length; index++) {
+    const bytes = Buffer.from(await picked[index]!.arrayBuffer());
+    assert.equal(manifest.files[index].sha256, createHash('sha256').update(bytes).digest('hex'));
+  }
+});
+
 function disk(t: TestContext, relative: string, text: string): PlannedDiskFile {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "v2-zip-")); t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const absPath = path.join(root, "file"); fs.writeFileSync(absPath, text);
-  return { path: relative, bytes: Buffer.byteLength(text), scope: "themes", absPath, mtimeMs: fs.statSync(absPath).mtimeMs };
+  const ids = fs.statSync(absPath, { bigint: true });
+  return { root: path.dirname(absPath), identity: ids.ino === 0n ? null : `${ids.dev}:${ids.ino}`, nlink: Number(ids.nlink), path: relative, bytes: Buffer.byteLength(text), scope: "themes", absPath, mtimeMs: fs.statSync(absPath).mtimeMs };
 }
 
 /** Uses the real share collector so these tests require planning to pin theme and override bytes. */
@@ -272,3 +326,27 @@ test("any other encoder Error propagates unchanged", { timeout: 120000 }, async 
 test("a non-Error encoder failure propagates unchanged, even if it mentions a limit", { timeout: 120000 }, async () => {
   await assert.rejects(buildShareZip({ plan: plan(), zip: throwingEncoder("limit") }), (thrown: unknown) => thrown === "limit");
 });
+
+for (const linkedBundle of [false, true]) {
+  test(`a packaged theme outside the site shares its reviewed bytes (linked bundle: ${linkedBundle})`, { skip: linkedBundle && process.platform === "win32" }, async t => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "packaged-theme-share-"));
+    t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+    const siteDir = path.join(root, "site");
+    const bundle = path.join(root, "bundle");
+    fs.mkdirSync(siteDir);
+    fs.mkdirSync(path.join(bundle, "themes/static/site"), { recursive: true });
+    fs.writeFileSync(path.join(bundle, "themes/static/site/index.html"), "packaged page");
+    const bundlePath = linkedBundle ? path.join(root, "bundle-link") : bundle;
+    if (linkedBundle) fs.symlinkSync(bundle, bundlePath);
+    const themesDir = path.join(bundlePath, "themes");
+    const sources = { siteDir, themesDir, mediaUploadsDir: null, skillsDir: path.join(siteDir, "skills"), tovuVersion: "test",
+      agentPlugins: resolveAgentPluginLayout({ siteDir }, { env: { TOVU_AGENT_PLUGINS_DIR: path.join(siteDir, "agent-plugins") } }) };
+    const collected = await collectSiteBackupFiles({ sources, include: { database: false, media: false, themes: true, plugins: false, settings: false } }, { profile: "share" });
+    assert.equal(collected.files.length, 1);
+    assert.equal(collected.files[0]!.root, fs.realpathSync(themesDir));
+    const { zip, calls } = encoder();
+    await buildShareZip({ plan: plan({ files: collected.files }), zip }, { packageFiles: new Map() });
+    assert.equal(await calls[0]!.files[2]!.text(), "packaged page");
+    assert.equal(calls[0]!.files[2]!.webkitRelativePath, "share/themes/site/index.html");
+  });
+}

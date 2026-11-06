@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Toast } from "@jini-ai/ui";
 import { ConfirmDialog, RowMenu } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/agentic";
@@ -184,16 +185,19 @@ function resolveThemesActiveTabId(
 function withThemeDefaults(controller: ThemesController) {
   return {
     ...controller,
-    themeTiers: controller.themeTiers ?? {},
-    themeNames: controller.themeNames ?? {},
-    themePreviewImages: controller.themePreviewImages ?? {},
+    ...themeMetadataDefaults(controller),
     rescanning: controller.rescanning ?? false,
     rescanNotice: controller.rescanNotice ?? null,
     duplicatingTheme: controller.duplicatingTheme ?? null,
     duplicateNotice: controller.duplicateNotice ?? null,
-    themeBuiltIn: controller.themeBuiltIn ?? {},
     trashNotice: controller.trashNotice ?? null,
   };
+}
+
+/** Theme-card metadata defaults stay separate from operation-progress defaults. */
+function themeMetadataDefaults(controller: ThemesController) {
+  return { themeTiers: controller.themeTiers ?? {}, themeNames: controller.themeNames ?? {},
+    themePreviewImages: controller.themePreviewImages ?? {}, themeBuiltIn: controller.themeBuiltIn ?? {} };
 }
 
 /** The tab list for `TabBar` — one tab per configured {@link ThemeTabGroup}, each with its theme
@@ -548,6 +552,18 @@ function ThemesToolbar({
   );
 }
 
+/**
+ * The theme that was active when this screen's settings first arrived. Cards keep that order for the
+ * visit: moving a newly activated card to the front would slide another theme's switch under the
+ * pointer, and the second click of a double-click would activate that theme too (owner, 2026-11-03).
+ * @returns The first active theme id, or `undefined` before settings load. @complexity O(1).
+ */
+function useFirstActiveTheme(settings: PresentationSettings | null | undefined): string | undefined {
+  const [first, setFirst] = useState(settings?.activeThemeId);
+  if (first === undefined && settings) setFirst(settings.activeThemeId);
+  return first;
+}
+
 // `tabId` deliberately has no destructured default (unlike `useThemesHook`/`basePath` below) — this
 // package's ESLint `complexity` rule counts each default-parameter assignment as a branch, and this
 // screen was already at its ceiling. `resolveThemesActiveTabId` already treats an omitted prop
@@ -578,6 +594,7 @@ export function Themes({ useThemesHook = useWiredThemes, tabId, basePath = "/the
     dismissTrashNotice,
     t,
   } = withThemeDefaults(useThemesHook());
+  const firstActiveThemeId = useFirstActiveTheme(settings);
 
   // Combines the original two guards (`error && !settings` / `!settings`) into one `if` so
   // TypeScript still narrows `settings` to non-null for everything below, while keeping only one
@@ -595,12 +612,12 @@ export function Themes({ useThemesHook = useWiredThemes, tabId, basePath = "/the
   const activeTab = resolveThemesActiveTabId(tabId, settings, themeTiers);
   // `?? []` is a guard, not a live branch: `resolveThemesActiveTabId` only returns a real
   // `ThemeTabGroup` now that the theme Marketplace tab is gone (2026-10-04).
-  // Active theme first, then A-Z by display name (`sortThemesForDisplay`).
+  // The theme active when the screen opened first, then A-Z by display name (`sortThemesForDisplay`).
   const visibleThemes = sortThemesForDisplay(
     // `groupThemesByTabGroup` seeds every tab group (empty when it has no themes) and `activeTab` is
     // always a resolved, valid group, so this lookup always hits.
     grouped[activeTab as ThemeTabGroup],
-    settings.activeThemeId,
+    firstActiveThemeId ?? settings.activeThemeId,
     themeNames,
   );
 

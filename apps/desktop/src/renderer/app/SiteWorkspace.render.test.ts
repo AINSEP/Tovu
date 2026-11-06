@@ -161,7 +161,7 @@ test('ExpandToggle: names the move it makes, and reports a press', async (t) => 
 });
 
 test('SiteWorkspace: a tab opened on an admin page loads that page', async (t) => {
-  const view = await renderWorkspaces(t, { adminPages: { a: 'import' } });
+  const view = await renderWorkspaces(t, { adminPages: { a: { page: 'import' } } });
   assert.match(view.container.querySelector('webview')?.getAttribute('src') ?? '', /^http:\/\/127\.0\.0\.1:4100\/admin\/.*import/);
 });
 

@@ -63,7 +63,7 @@ test("permission removal hides storage failures, retains the row on failure, and
     await handler({ params: { workspaceId: deps.workspaceId, policyId: policy.id, policyPermissionId: permission.id } }, res);
     return capture;
   };
-  assertAdminResponse({ actual: await invoke(), expected: { statusCode: 500, jsonBody: { error: "internal error" } } });
+  assertAdminResponse({ actual: await invoke(), expected: { statusCode: 500, jsonBody: { error: "internal error" } } }, { failure: {"message":"The user operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"user operation"} });
   assert.deepEqual(await read(), [permission]);
   assert.deepEqual(await invoke(), { statusCode: 204, jsonBody: undefined });
   assert.deepEqual(sentBodies, [undefined]);

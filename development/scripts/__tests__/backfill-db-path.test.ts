@@ -55,10 +55,10 @@ test("every backfill, convert, migrate and cleanup CLI refuses its effective def
     const source = fs.readFileSync(path.join(scriptsDir, name), "utf8");
     return /resolveExistingDbPath\(|runAadBackfill\(/.test(source) && /\bmain\(/.test(source);
   });
-  // S5 retired the AAD backfills; pin the remaining CLIs so discovery cannot pass vacuously.
+  // S5 retired the AAD backfills; owner recovery retired the password backfill CLI.
+  // Pin the remaining CLIs so discovery cannot pass vacuously.
   assert.deepEqual(scripts.sort(), [
     "backfill-media-slugs.ts",
-    "backfill-reset-admin-password.ts",
     "backfill-slug-collision-defaults.ts",
     "backfill-trashed-items.ts",
     "cleanup-stale-owner-sessions.ts",

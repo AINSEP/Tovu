@@ -16,7 +16,9 @@ function fakePort(initial: AssistantSubagentsSettings = { enabled: false, canEdi
   const writes: Parameters<AssistantSubagentsPort["write"]>[0][] = [];
   const port: AssistantSubagentsPort = {
     read: async () => { if (readFailure) throw readFailure; return settings; },
-    write: async (input) => { writes.push(input); if (failure) throw failure; settings = { ...settings, ...assistantCliPermissions(input) }; return settings; },
+    write: async (input) => { writes.push(input); if (failure) throw failure; settings = input.agentId ? { ...settings, byAgent: { ...settings.byAgent,
+      [input.agentId]: { ...settings.byAgent?.[input.agentId], capabilities: { ...settings.byAgent?.[input.agentId]?.capabilities, ...input.capabilities } } } }
+      : { ...settings, ...assistantCliPermissions(input) }; return settings; },
   };
   return { port, writes, failRead: (message: string) => { readFailure = new Error(message); }, fail: (message: string) => { failure = new Error(message); },
     changeElsewhere: (enabled: boolean) => { settings = { ...settings, ...assistantCliPermissions({ enabled }) }; } };
@@ -39,7 +41,7 @@ describe("owner subagent setting", () => {
     mount(f.port);
     await ready();
     expect(toggle()).toBeChecked();
-    expect(toggle()).toHaveAccessibleDescription("On by default for the local owner. Loads your CLI settings, skills, agents and MCP servers, and allows shell commands, file edits, subagents and workflows. Like a hand-run CLI, it can read local key files and write other sites. Forced off in production and hosted environments; visitors and other admins never receive it. Changes apply to new runs.");
+    expect(toggle()).toHaveAccessibleDescription("On by default for the local owner. Allows shell commands, file edits, subagents and workflows. Personal MCP servers are off unless allowed separately. Forced off in production and hosted environments; visitors and other admins never receive it. Lowering access stops affected answers immediately.");
     expect(icon()).toBeVisible();
     expect(icon()).toHaveAccessibleName("This chat can use subagents");
     expect(icon()?.querySelector(".ri-group-line")).not.toBeNull();
@@ -72,7 +74,7 @@ describe("owner subagent setting", () => {
     mount(f.port);
     await screen.findByText("Only the owner can change Full CLI access.");
     expect(toggle()).toBeDisabled();
-    expect(toggle()).toHaveAccessibleDescription("On by default for the local owner. Loads your CLI settings, skills, agents and MCP servers, and allows shell commands, file edits, subagents and workflows. Like a hand-run CLI, it can read local key files and write other sites. Forced off in production and hosted environments; visitors and other admins never receive it. Changes apply to new runs. Only the owner can change Full CLI access.");
+    expect(toggle()).toHaveAccessibleDescription("On by default for the local owner. Allows shell commands, file edits, subagents and workflows. Personal MCP servers are off unless allowed separately. Forced off in production and hosted environments; visitors and other admins never receive it. Lowering access stops affected answers immediately. Only the owner can change Full CLI access.");
     expect(toggle()).toBeChecked();
     expect(icon()).toBeVisible();
     expect(f.writes).toEqual([]);
@@ -177,7 +179,7 @@ it("describes the locked owner switch with the server's env-lock reason", async 
   const f = fakePort({ enabled: false, canEdit: true, unavailableReason: "Turned off on this computer by TOVU_AGENT_FORBID_BASH." });
   render(<AdminSubagents useController={input => useAdminSubagents({ ...input, port: f.port })} />);
   await screen.findByText("Turned off on this computer by TOVU_AGENT_FORBID_BASH.");
-  expect(toggle()).toHaveAccessibleDescription(expect.stringMatching(/Changes apply to new runs\. Turned off on this computer by TOVU_AGENT_FORBID_BASH\.$/));
+  expect(toggle()).toHaveAccessibleDescription(expect.stringMatching(/Lowering access stops affected answers immediately\. Turned off on this computer by TOVU_AGENT_FORBID_BASH\.$/));
   expect(screen.queryByText("Only the owner can change Full CLI access.")).toBeNull();
 });
 
@@ -203,4 +205,45 @@ it("disables the switch and shows Saving… while a write is in flight", async (
   await act(async () => { release(); });
   await ready();
   expect(screen.queryByText("Saving…")).toBeNull();
+});
+
+
+it("shows tools provided here and saves personal MCP for only the selected agent", async () => {
+  const f = fakePort({ enabled: true, canEdit: true, agents: [{ id: "claude", name: "Claude" }, { id: "antigravity", name: "Antigravity", writesPersonalConfig: true, inheritedRunKey: true }], byAgent: { claude: { capabilities: { userMcp: true } } } });
+  mount(f.port);
+  await ready();
+  expect(screen.getByText("Tools provided here")).toBeVisible();
+  expect(screen.getByText("Tovu and Jini tools, enabled plugin tools, and connected servers.")).toBeVisible();
+  const claude = screen.getByRole("checkbox", { name: "Also use Claude's personal MCP servers." });
+  const agy = screen.getByRole("checkbox", { name: "Also use Antigravity's personal MCP servers." });
+  expect(claude).toBeChecked();
+  expect(agy).not.toBeChecked();
+  await userEvent.setup().click(agy);
+  expect(f.writes).toEqual([]);
+  const dialog = await screen.findByRole("dialog");
+  expect(dialog).toHaveTextContent("changes settings outside Tovu");
+  expect(dialog).toHaveTextContent("Those servers can see this chat's run key while it runs.");
+  await userEvent.setup().click(screen.getByRole("button", { name: "Allow" }));
+  await waitFor(() => expect(f.writes).toHaveLength(1));
+  expect(f.writes[0]).toEqual({ enabled: true, agentId: "antigravity", capabilities: { userMcp: true }, riskAcknowledged: true });
+  await waitFor(() => expect(agy).toBeChecked());
+  expect(claude).toBeChecked();
+  await ready();
+  await userEvent.setup().click(agy);
+  await waitFor(() => expect(f.writes).toHaveLength(2));
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(f.writes[1]).toEqual({ enabled: true, agentId: "antigravity", capabilities: { userMcp: false }, riskAcknowledged: false });
+  await waitFor(() => expect(agy).not.toBeChecked());
+  expect(claude).toBeChecked();
+});
+
+it("declining personal MCP access writes nothing", async () => {
+  const f = fakePort({ enabled: true, canEdit: true, agents: [{ id: "claude", name: "Claude" }] });
+  mount(f.port); await ready();
+  const personal = screen.getByRole("checkbox", { name: "Also use Claude's personal MCP servers." });
+  await userEvent.setup().click(personal);
+  await screen.findByRole("dialog");
+  await userEvent.setup().click(screen.getByRole("button", { name: "Cancel" }));
+  expect(f.writes).toEqual([]);
+  expect(personal).not.toBeChecked();
 });

@@ -15,7 +15,7 @@ import { createSiteRouteDeps } from "#src/server/runtime/composition/deps";
 /**
  * @file The real composition root (`deps.ts`) wires custom and publish credentials project-first
  * (owner 2026-10-25): a key saved from site A lands in the shared `project.db` and site B of the same
- * project reads it only after explicit attachment; with a project store that cannot open, saves stay in the site's own vault.
+ * project reads it only after explicit attachment; an unavailable configured owner store refuses saves without site copies.
  */
 
 function withSiteKey(t: TestContext, hex: string): void {
@@ -53,7 +53,7 @@ test("a key saved from site A lands in project.db and site B cannot use it until
     assert.equal(saved.scope, "project"); id = saved.id;
     assert.equal(JSON.stringify(saved).includes(token), false);
     assert.equal(await resolveCustomCredentialByLabel({ repo: a.deps.customCredentialSetRepo, sealer: a.deps.siteAssistantSecretSealer }, { workspaceId: a.deps.workspaceId, label: "hosting" }), null);
-    await assert.rejects(saveKey(a.deps, token), { message: "Your project already has a key named 'hosting'. Use it here, or pick another name." });
+    await assert.rejects(saveKey(a.deps, token), /Use a saved key/);
     await a.deps.projectKeys!.use({ keyId: id, use: true });
   } finally { await a.close(); }
   const b = await bootSite({ siteDir: path.join(sitesHome, "site-b"), openProjectStore: projectStore });
@@ -95,7 +95,7 @@ test("a publish-host connection saved from site A deploys from site B only after
   } finally { await b.close(); }
 });
 
-test("a project store that can't open: a key still saves, in the site's own vault", async (t) => {
+test("an owner-store outage leaves local saves usable", async (t) => {
   withSiteKey(t, "cd".repeat(32));
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-project-credentials-down-"));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
@@ -104,8 +104,33 @@ test("a project store that can't open: a key still saves, in the site's own vaul
   t.after(() => { console.warn = originalWarn; });
   const site = await bootSite({ siteDir: path.join(root, "site"), openProjectStore: () => Promise.reject(Object.assign(new Error("EACCES"), { code: "EACCES" })) });
   try {
-    const saved = await saveKey(site.deps, `tok-${"d".repeat(14)}`);
-    assert.equal("scope" in saved, false, "site-only: no project store attached");
-    assert.equal((await site.deps.customCredentialSetRepo.listByWorkspace({ workspaceId: site.deps.workspaceId })).length, 1);
+    const token = `tok-${"d".repeat(14)}`;
+    const saved = await saveKey(site.deps, token);
+    assert.equal(saved.scope, undefined);
+    assert.equal((await resolveCustomCredentialByLabel({ repo: site.deps.customCredentialSetRepo, sealer: site.deps.siteAssistantSecretSealer }, { workspaceId: site.deps.workspaceId, label: "hosting" }))?.connection.token, token);
   } finally { await site.close(); }
+});
+
+
+test("opening Shared Keys never moves, edits or grants an existing site's local key", async t => {
+  withSiteKey(t, "89".repeat(32));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-local-keys-stay-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const siteDir = path.join(root, "sites", "existing");
+  const local = await bootSite({ siteDir, openProjectStore: async () => undefined as never });
+  const token = `tok-${"local".repeat(5)}`;
+  let id: string, before: unknown;
+  try {
+    const saved = await saveKey(local.deps, token);
+    id = saved.id;
+    before = (await local.deps.customCredentialSetRepo.findById({ workspaceId: local.deps.workspaceId, id }))?.vaultRecord;
+  } finally { await local.close(); }
+  const owner = () => openProjectStore({ sitesHome: path.join(root, "sites"), home: path.join(root, "profile") });
+  const reopened = await bootSite({ siteDir, openProjectStore: owner });
+  try {
+    const resolved = await resolveCustomCredentialByLabel({ repo: reopened.deps.customCredentialSetRepo, sealer: reopened.deps.siteAssistantSecretSealer }, { workspaceId: reopened.deps.workspaceId, label: "hosting" });
+    assert.equal(resolved?.connection.token, token);
+    assert.deepEqual((await reopened.deps.customCredentialSetRepo.findById({ workspaceId: reopened.deps.workspaceId, id: id! }))?.vaultRecord, before);
+    assert.deepEqual(await reopened.deps.projectKeys!.list({}), []);
+  } finally { await reopened.close(); }
 });

@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   notifyExternalMcpRosterChanged,
+  ToolAccessLoweringError,
   onExternalMcpRosterChanged,
   resetExternalMcpRosterChangeListenersForTests,
 } from "../external-mcp-roster-change.js";
@@ -62,4 +63,25 @@ test("a throwing listener does not reject notify", async () => {
   onExternalMcpRosterChanged("healthy", () => { healthyCalls++; });
   await assert.doesNotReject(() => notifyExternalMcpRosterChanged());
   assert.equal(healthyCalls, 1, "throwing listeners must not stop the fan-out");
+});
+
+test('lowering carries source IDs, waits for cleanup, and reports a failed stop', async () => {
+  let release!: () => void;
+  const cleanup = new Promise<void>(resolve => { release = resolve; });
+  let seen: unknown;
+  onExternalMcpRosterChanged('serving-app', async change => { seen = change; await cleanup; });
+  let settled = false;
+  const pending = notifyExternalMcpRosterChanged({ lowered: { serverIds: ['source'] } }).then(() => { settled = true; });
+  await Promise.resolve(); assert.equal(settled, false);
+  assert.deepEqual(seen, { serverIds: ['source'] });
+  release(); await pending;
+  onExternalMcpRosterChanged('serving-app', async () => { throw new Error('cleanup failed'); });
+  await assert.rejects(notifyExternalMcpRosterChanged({ lowered: { pluginIds: ['mail'] } }), error => error instanceof ToolAccessLoweringError && !error.message.includes('cleanup failed'));
+});
+
+test('a stuck lowering rejects instead of claiming the answer stopped', async () => {
+  let release!: () => void;
+  onExternalMcpRosterChanged('serving-app', () => new Promise<void>(resolve => { release = resolve; }));
+  await assert.rejects(notifyExternalMcpRosterChanged({ lowered: { agentIds: ['claude'] }, waitMs: 10 }), /could not be confirmed stopped/);
+  release();
 });

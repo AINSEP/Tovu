@@ -1,6 +1,6 @@
 {
   "name": "tovu-desktop",
-  "version": "0.1.29",
+  "version": "0.1.30",
   "private": true,
   "type": "module",
   "description": "Electron shell around the same Tovu the web mode serves. Additive: nothing outside this directory knows it exists.",
@@ -16,7 +16,7 @@
     "watch:renderer": "vite build --watch",
     "typecheck": "tsc -p tsconfig.preload.json --noEmit && tsc -p tsconfig.renderer.json && tsc -p tsconfig.main.json && tsc -p tsconfig.live-verify.json",
     "pretest": "npm run build:preload",
-    "test": "node --experimental-test-module-mocks --import ./scripts/resolve-ts-ext.ts --test \"src/*.test.ts\" \"src/!(renderer|contracts)/**/*.test.ts\" && node --import tsx --test \"src/renderer/**/*.test.ts\" \"src/renderer/**/*.test.tsx\" \"src/contracts/**/*.test.ts\"",
+    "test": "node --experimental-test-module-mocks --import ./scripts/resolve-ts-ext.ts --test \"src/*.test.ts\" \"src/!(renderer|contracts)/**/*.test.ts\" && node --import ./scripts/one-react.ts --import tsx --test \"src/renderer/**/*.test.ts\" \"src/renderer/**/*.test.tsx\" \"src/contracts/**/*.test.ts\"",
     "gates": "node scripts/check-gates.ts",
     "smoke:packaged-chat": "node scripts/smoke-packaged-chat.ts",
     "release:inputs": "node ../../development/scripts/check-no-linked-jini.mjs && cd ../.. && node development/scripts/check-no-linked-jini.mjs",
@@ -28,16 +28,16 @@
   "dependencies": {
     "@tovu/contracts": "file:../../packages/contracts",
     "@cfworker/json-schema": "^4.1.1",
-    "@jini-ai/agent-runtime": "^0.6.19",
-    "@jini-ai/chat": "^0.6.21",
-    "@jini-ai/core": "^0.6.21",
-    "@jini-ai/daemon": "^0.6.19",
+    "@jini-ai/agent-runtime": "^0.6.23",
+    "@jini-ai/chat": "^0.6.23",
+    "@jini-ai/core": "^0.6.23",
+    "@jini-ai/daemon": "^0.6.23",
     "@jini-ai/desktop-host": "^0.6.19",
-    "@jini-ai/diagnostics": "^0.6.19",
+    "@jini-ai/diagnostics": "^0.6.22",
     "@jini-ai/db": "^0.6.19",
-    "@jini-ai/mcp": "^0.6.19",
-    "@jini-ai/platform": "^0.6.19",
-    "@jini-ai/sidecar": "^0.6.21",
+    "@jini-ai/mcp": "^0.6.23",
+    "@jini-ai/platform": "^0.6.23",
+    "@jini-ai/sidecar": "^0.6.22",
     "@mcp-ui/client": "7.1.1",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@radix-ui/react-checkbox": "^1.3.11",
@@ -55,10 +55,10 @@
   },
   "devDependencies": {
     "@electron/asar": "^3.4.1",
-    "@jini-ai/agentic": "^0.6.19",
-    "@jini-ai/devops": "^0.6.20",
+    "@jini-ai/agentic": "^0.6.23",
+    "@jini-ai/devops": "^0.6.22",
     "@jini-ai/protocol": "^0.6.19",
-    "@jini-ai/ui": "^0.6.19",
+    "@jini-ai/ui": "^0.6.23",
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
@@ -82,6 +82,6 @@
     "vite": "^8.2.0"
   },
   "overrides": {
-    "@jini-ai/core": "^0.6.21"
+    "@jini-ai/core": "^0.6.23"
   }
 }

@@ -129,7 +129,7 @@ function findRegistration(deps: AgentPluginUninstallToolDeps, surfaceExchanges: 
 
 function surfaceRecorder() {
   const emitted: unknown[] = [];
-  let resolveFirst: (surface: unknown) => void = () => undefined;
+  let resolveFirst: (surface: unknown) => void = (_surface: unknown) => undefined;
   const first = new Promise<unknown>((resolve) => {
     resolveFirst = resolve;
   });

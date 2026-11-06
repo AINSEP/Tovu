@@ -1,12 +1,16 @@
+import { providerKeyId } from "#src/features/project-keys/service";
+import { createSitesWorkspace } from "#src/platform/site-dir/sites-home";
 import { sql } from "kysely";
 import { openSqliteConnection } from "@jini-ai/db/sqlite";
 import { createKeyAttachments, type KeyAttachments, type ProjectKeyTransaction } from "#src/features/project-keys/attachments";
 import { createHash } from "node:crypto";
 import fs from "node:fs";
+import { homedir } from "node:os";
 import path from "node:path";
+import type { RuntimeMode } from "#src/contracts/core/runtime-mode";
 import type { StorageKernel } from "@jini-ai/db/kernel";
 import { SqlSecretsVaultRepo, type SecretsVaultDatabase } from "@jini-ai/db/secrets-vault";
-import type { VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
+import type { VaultRecord, VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
 
 import { createAgentPluginStateStore } from "#src/features/api-connections/plugin-state";
 import { createApiConnectionVault } from "#src/features/api-connections/vault-stores";
@@ -19,24 +23,11 @@ import { migrateProjectDatabase } from "#src/platform/db/migrations/index";
 import { createVaultProviderConfigSource, type ProviderConfigSource } from "./provider-config-source.js";
 
 /**
- * @file The PROJECT store (owner decisions 2026-10-25): one `project.db` shared by every site of a
- * project, used by BOTH the local web app (`development/scripts/dev.mjs`) and the desktop app. Both
- * run this same server composition, and both find their sites through the same shared sites root
- * (`platform/site-dir/sites-home.ts`'s `resolveSitesHome`: `TOVU_SITES_HOME`, else the saved
- * `~/.tovu/sites-home.json`, else `~/Documents/Tovu`; desktop's child process shares its profile via
- * `TOVU_DESKTOP_USER_DATA_DIR`). The project id is a hash of that root, so
- * `~/.tovu/projects/<projectId>/project.db` is the SAME file whichever starts. Never desktop
- * app-data, and (owner, 8:05 PM) never the sites root itself: that is often iCloud-synced
- * `~/Documents`, and a live SQLite file with its -wal must not sync. Opened, or created when absent;
- * nothing is moved in from an older layout (no build that wrote one ever shipped).
- *
- * Rows: the same `secrets_vault` shape as a site's (workspace `'project'`, no FK to site tables), own
- * migration ledger (`tovu_project_migrations`, `migrations/project/`), sealed with the project key
- * `project-key.hex` in the same folder, minted here like the site key (32 random bytes, hex, file
- * mode 0600, never exported, never inside a site folder). One key per project, not one per machine:
- * a project folder holds its database and the key that opens it together (removed, backed up or
- * restored as one), and one project's key never opens another's rows. Fly / single-site production has no project store: there the project IS the site
- * and the site vault answers (`provider-config-source.ts`).
+ * @file One owner project.db in resolved app-data, shared by desktop and localhost regardless of
+ * the sites root. Keep it outside sites: Documents may sync via iCloud, and live SQLite/WAL files
+ * must not sync. The owner encryption root stays beside its DB, mode 0600, never in site config.
+ * The earlier root-hashed layout used ~/.tovu/projects/<projectId>; projectId remains telemetry
+ * identity only. Production remote access and shared OAuth are outside this local API-key store.
  */
 
 export const PROJECT_WORKSPACE_ID = "project";
@@ -44,19 +35,32 @@ export const PROJECT_DB_FILENAME = "project.db";
 
 const PROJECT_KEY_FILENAME = "project-key.hex";
 
-/** `~/.tovu/projects/<projectId>/` — the project's database and its key, outside every site folder. */
-function projectDir({ home, projectId }: { home: string; projectId: string }): string {
-  return path.join(home, ".tovu", "projects", projectId);
+type OwnerStoreLocation = { home: string; projectId?: string; appDataDir?: string };
+
+/** Resolve the same profile as the directory workspace; root changes cannot split Shared Keys. */
+function projectDir({ home, appDataDir }: OwnerStoreLocation): string {
+  if (appDataDir) return appDataDir;
+  // A supplied fixture/home is its own profile. Ambient desktop overrides belong to the actual
+  // process home only; the desktop CLI always passes its explicit appDataDir above.
+  const env = path.resolve(home) === path.resolve(homedir()) ? process.env : {};
+  return createSitesWorkspace({}, { homeDir: home, env, cwd: home, sourceRoots: [] }).config({}).appData;
 }
 
-/** `~/.tovu/projects/<projectId>/project.db`. */
-export function projectDbPath(required: { home: string; projectId: string }, _optional: Record<string, never> = {}): string {
+/** Owner database outside every portable site folder. @complexity O(1) path resolution. */
+export function projectDbPath(required: OwnerStoreLocation, _optional: Record<string, never> = {}): string {
   return path.join(projectDir(required), PROJECT_DB_FILENAME);
 }
 
-/** `~/.tovu/projects/<projectId>/project-key.hex`, beside the database it seals. */
-export function projectKeyFilePath(required: { home: string; projectId: string }, _optional: Record<string, never> = {}): string {
+/** Private owner encryption root; only trusted host composition opens it. */
+export function projectKeyFilePath(required: OwnerStoreLocation, _optional: Record<string, never> = {}): string {
   return path.join(projectDir(required), PROJECT_KEY_FILENAME);
+}
+
+/** A configured desktop/localhost profile is host-local even for a production server build.
+ * Remote production hosts without that explicit profile retain their existing site-only mode.
+ */
+export function localOwnerStoreEnabled({ runtimeMode, env }: { runtimeMode: RuntimeMode; env: NodeJS.ProcessEnv }, _options = {}): boolean {
+  return runtimeMode !== "production" || Boolean(env.TOVU_DESKTOP_USER_DATA_DIR?.trim());
 }
 
 const KEY_HEX = /^[0-9a-f]{64}$/;
@@ -186,13 +190,16 @@ function enableProjectWal({ db }: { db: ReturnType<typeof openNativeSqlite> }, _
 export interface ProjectVaultScope {
   readonly workspaceId: string;
   readonly repo: VaultRepoPort;
-  readonly deletionRepo?: VaultRepoPort;
+  readonly replaceRepo?: VaultRepoPort;
+  readonly createRepo?: VaultRepoPort;
   readonly keyring: KeyringPort;
   readonly sealer: SecretSealerPort;
 }
 
 export interface ProjectStore {
   readonly projectId: string;
+  inventory?(required: Record<string, never>, optional?: Record<string, never>): Promise<VaultRecord[]>;
+  findByLabel?(input: { label: string; kind: VaultRecord["kind"] }, options?: Record<string, never>): Promise<VaultRecord | null>;
   readonly attachments: KeyAttachments;
   readonly transaction: ProjectKeyTransaction;
   providerRevisions(required: { siteId: string }, optional?: Record<string, never>): Promise<readonly { id: string; revision: number; attached_at: string }[]>;
@@ -206,21 +213,25 @@ export interface ProjectStore {
  * Opens (creating when absent) and migrates `project.db`, and returns its provider-settings adapter.
  * @param required.sitesHome The shared sites root (`resolveSitesHome`).
  * @param required.home The OS user's home (`os.homedir()`: HOME, or USERPROFILE on Windows), where
- *   `~/.tovu/projects/<projectId>/` lives.
+ *   the canonical owner profile lives.
  * @throws When the folder can't be created (EACCES, ENOSPC), the key is refused, or the database can't
  *   be opened or migrated. The caller must not fall back to another store for writes (`deps.ts`).
  * @complexity O(m) pending migrations.
  */
 export async function openProjectStore(
-  required: { sitesHome: string; home: string },
+  required: { sitesHome: string; home: string; appDataDir?: string },
   optional: { clock?: { nowMs(): number } } = {},
 ): Promise<ProjectStore> {
   const projectId = projectIdFor(required);
-  const dbPath = projectDbPath({ home: required.home, projectId });
+  const dbPath = projectDbPath(required);
+  const relative = path.relative(canonicalRoot(path.resolve(required.sitesHome)), canonicalRoot(path.dirname(dbPath)));
+  if (relative === "" || (!relative.startsWith(`..${path.sep}`) && relative !== ".." && !path.isAbsolute(relative))) {
+    throw new Error("Shared Keys must stay outside site folders. Choose a separate app-data folder, then restart Tovu. Details: P25_OWNER_STORE_INSIDE_SITES.");
+  }
   // 0700: the folder holds the key; `recursive` applies the mode to every folder it creates.
   fs.mkdirSync(path.dirname(dbPath), { recursive: true, mode: 0o700 });
   // The key first: no database is created beside a key that is refused.
-  const hex = ensureProjectKey({ keyFile: projectKeyFilePath({ home: required.home, projectId }) });
+  const hex = ensureProjectKey({ keyFile: projectKeyFilePath({ ...required, appDataDir: path.dirname(dbPath) }) });
   const db = openProjectDb({ dbPath });
   const kernel = sqliteKernel<SecretsVaultDatabase>(db);
   try {
@@ -234,9 +245,26 @@ export async function openProjectStore(
   const vault = createApiConnectionVault({ repo: scope.repo, keyring, sealer: scope.sealer,
     clock: optional.clock ?? { nowMs: () => Date.now() }, workspaceId: PROJECT_WORKSPACE_ID });
   const config = createVaultProviderConfigSource({ workspaceId: PROJECT_WORKSPACE_ID, scope: "project",
-    state: createAgentPluginStateStore({ vault, workspaceId: PROJECT_WORKSPACE_ID }) });
-  return { projectId, config,
+    state: createAgentPluginStateStore({ vault, workspaceId: PROJECT_WORKSPACE_ID }) }, {
+    // Every status/card read × one selected identity; plugin-state.describe lists the whole kind.
+    configExists: async input => (await kernel.query(sql`SELECT 1 FROM secrets_vault WHERE workspace_id='project' AND id=${providerKeyId(input)} LIMIT 1`)).length > 0,
+  });
+  const store: ProjectStore = { projectId, config,
+    findByLabel: async ({ label, kind }) => {
+      const rows = await kernel.query<{ id: string }>(sql`SELECT id FROM secrets_vault WHERE workspace_id='project' AND kind=${kind} AND label=${label} AND owner_key='tovu' AND principal_id IS NULL LIMIT 2`);
+      if (rows.length > 1) throw new Error("More than one Shared Key has this label. Rename the conflicting key in Shared Keys and try again.");
+      return rows[0] ? scope.repo.find({ workspaceId: PROJECT_WORKSPACE_ID, id: rows[0].id }) : null;
+    },
+    inventory: async () => {
+      // One picker open × at most 50 metadata rows. Never select ciphertext for owner discovery.
+      const rows = await kernel.query<{ id: string; kind: VaultRecord["kind"]; label: string; credential_type: string | null; credential_format: string | null }>(sql`SELECT id, kind, label, json_extract(meta, '$.credentialType') AS credential_type, json_extract(meta, '$.credentialFormat') AS credential_format FROM secrets_vault WHERE workspace_id='project' AND owner_key='tovu' AND principal_id IS NULL AND (kind IN ('vendor','custom','source-control') OR (kind='api-connection' AND (id LIKE 'plugin-state:%:provider.config' OR json_extract(meta, '$.credentialFormat')='oauth-token-set'))) ORDER BY id LIMIT 51`);
+      if (rows.length > 50) throw new Error("Shared Keys has more than 50 entries. Narrow the saved keys in Shared Keys before opening this picker.");
+      return rows.map((row): VaultRecord => ({ workspaceId: PROJECT_WORKSPACE_ID, id: row.id, kind: row.kind, label: row.label,
+        ownerKey: "tovu", principalId: null, binding: null, provider: null, isDefault: false, revision: 1,
+        sealed: null, last4: null, tokenLength: null, meta: { ...(row.credential_type ? { credentialType: row.credential_type } : {}), ...(row.credential_format ? { credentialFormat: row.credential_format } : {}) }, createdAt: "", updatedAt: "" }));
+    },
     transaction: ({ run }) => kernel.transaction(run),
     providerRevisions: ({ siteId }) => kernel.query<{ id: string; revision: number; attached_at: string }>(sql`SELECT v.id, v.revision, a.attached_at FROM site_key_attachments a JOIN secrets_vault v ON v.id=a.key_id AND v.workspace_id='project' WHERE a.site_id=${siteId} AND v.kind='api-connection' ORDER BY v.id`),
     attachments: createKeyAttachments({ kernel: kernel as unknown as StorageKernel<unknown> }), vault: scope, dbPath, close: () => closeSqliteConnection(db) };
+  return store;
 }

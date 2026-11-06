@@ -146,9 +146,11 @@ test("createDefaultConnect: a stdioLaunchResolver that throws McpLaunchUnavailab
   const { attachFederatedMcpTools, createDefaultConnect } = await import("../mcp-federation/bootstrap.js");
 
   let spawnCalls = 0;
+  const failure = new McpLaunchUnavailableError({ message: UVX_UNAVAILABLE_MESSAGE });
+  failure.stack = `McpLaunchUnavailableError: ${UVX_UNAVAILABLE_MESSAGE}\n    at resolver fixture`;
   const throwingResolver: McpStdioLaunchResolver = {
     resolve(): ResolvedStdioLaunch {
-      throw new McpLaunchUnavailableError({ message: UVX_UNAVAILABLE_MESSAGE });
+      throw failure;
     },
   };
   const fakeSpawnChannel = (): McpStdioChannel => {
@@ -183,7 +185,7 @@ test("createDefaultConnect: a stdioLaunchResolver that throws McpLaunchUnavailab
 
   assert.equal(spawnCalls, 0, "the resolver's throw must prevent any spawn from ever happening");
   assert.ok(
-    messages.some((message) => message === `warn:mcp-federation: '${UVX_CONFIG.connectionId}' failed, continuing without its tools — ${UVX_UNAVAILABLE_MESSAGE}`),
+    messages.some((message) => message === `warn:mcp-federation: '${UVX_CONFIG.connectionId}' failed, continuing without its tools — McpLaunchUnavailableError: ${UVX_UNAVAILABLE_MESSAGE}\n    at resolver fixture`),
     `expected logger.warn to receive the resolver's exact message; got ${JSON.stringify(messages)}`,
   );
   assert.equal(registry.registered.length, 1, "the other connection must still attach and register its tool");

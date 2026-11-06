@@ -83,7 +83,7 @@ for (const scenario of scenarios) {
       const method = suffix === "" || suffix.startsWith("/file?") ? "GET" : "POST";
       const result = await dispatchJsonRequest(app, method, base + suffix, { path: "pages/about.html", name: "renamed.html" });
       assert.equal(faultReached, true, "the injected failure must reach the filesystem operation");
-      assertAdminResponse({ actual: result, expected: { status: 500, body: { error: "internal error" } } });
+      assertAdminResponse({ actual: result, expected: { status: 500, body: { error: "internal error" } } }, { failure: method === "GET" ? {"message":"The themes could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load themes"} : suffix === "/file/delete" ? {"message":"The theme removal could not be confirmed.","action":"Check the list before repeating the removal. Copy details and report this problem.","step":"Remove theme"} : {"message":"The theme operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"theme operation"} });
     } finally {
       injected.mock.restore();
       syncBuiltinESMExports();

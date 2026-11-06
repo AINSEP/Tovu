@@ -9,6 +9,9 @@ import type { SiteRecord } from '../contracts/project.js';
 import { installDom, settle } from './dom-hook-harness.js';
 import { ResourcesMonitor, ResourcesChip, ResourceSiteFigure, ResourcesPanel, memoryText, resourceWarnings, resourceGroups } from './ResourcesPanel.js';
 import { useSitePower } from './use-site-power.hooks.js';
+import { useResources, type ResourcesPorts } from './use-resources.hooks.js';
+import { createDesktopResources } from '../desktop-resources.ts';
+import type { ProcessUsage } from '@jini-ai/platform/process';
 
 Object.assign(globalThis, { React });
 installDom();
@@ -35,13 +38,57 @@ const Shell: typeof SettingsDialogShell = ({ tabs, onClose }) => createElement('
   createElement('button', { onClick: onClose }, 'Close'));
 
 test('one snapshot drives the chip and site figure, warnings and panel-open cadence request', () => {
-  assert.equal(memoryText({ bytes: 0 }), '~0MB');
+  assert.equal(memoryText({ bytes: 0 }), '~0 MB');
   assert.equal(memoryText({ bytes: null }), 'Memory unavailable');
-  assert.equal(memoryText({ bytes: 1_500_000_000 }), '~1.5GB');
-  assert.equal(memoryText({ bytes: 1_100_000_000 }), '~1.1GB');
-  assert.equal(memoryText({ bytes: 559_000_000 }, { unitGap: ' ' }), '~559 MB');
+  assert.equal(memoryText({ bytes: 1_500_000_000 }), '~1.5 GB');
+  assert.equal(memoryText({ bytes: 1_100_000_000 }), '~1.1 GB');
+  assert.equal(memoryText({ bytes: 559_000_000 }), '~0.6 GB');
   assert.equal(resourceWarnings({ metrics }), 'High memory use · Sustained high CPU use');
   assert.equal(resourceWarnings({ metrics: null }), '');
+});
+
+test('Job M formats the owner\'s 0.55 GB footprint as ~0.6 GB', () => {
+  assert.equal(memoryText({ bytes: 550_000_000 }), '~0.6 GB');
+  assert.equal(memoryText({ bytes: 78_000_000 }), '~78 MB');
+});
+
+test('M2 labels footprint, committed, RSS and mixed fallback in memory copy', () => {
+  assert.equal(memoryText({ bytes: 550_000_000, memoryMetric: 'physical-footprint' }), '~0.6 GB');
+  assert.equal(memoryText({ bytes: 550_000_000, memoryMetric: 'committed' }), '~0.6 GB approx.');
+  assert.equal(memoryText({ bytes: 550_000_000, memoryMetric: 'rss' }), '~0.6 GB approx.');
+  assert.equal(memoryText({ bytes: 550_000_000, memoryMetric: 'mixed-rss' }), '~0.6 GB approx.');
+  assert.equal(memoryText({ bytes: null, memoryMetric: 'physical-footprint' }), 'Memory unavailable');
+});
+
+test('M2 shows provenance on toolbar, tooltip, site card, panel totals and individual process rows', (t) => {
+  const footprint = { ...metrics, rssBytes: 550_000_000, memoryMetric: 'physical-footprint' as const, memoryWarning: false, cpuWarning: false };
+  const snapshot = { ...SNAPSHOT, total: { ...footprint, memoryMetric: 'mixed-rss' as const }, app: { ...footprint, siteId: null, processes: [] },
+    sites: [{ ...footprint, siteId: SITE.id, processes: [{ ...SNAPSHOT.sites[0]!.processes[0]!, rssBytes: 78_000_000, memoryMetric: 'rss' as const }] }] };
+  const usePower: typeof useSitePower = () => useSitePower(() => {}, { getBridge: () => ({}) as never });
+  const Panel: typeof ResourcesPanel = props => createElement(ResourcesPanel, { ...props, usePower, Shell, useTrap() {} });
+  const { host } = mount(t, createElement(ResourcesMonitor, {
+    projects: [SITE], onSiteUpdated() {}, useReadings: () => snapshot, Panel,
+    children: createElement(React.Fragment, null, createElement(ResourcesChip), createElement(ResourceSiteFigure, { project: SITE })),
+  }));
+  const chip = host.querySelector<HTMLButtonElement>('.resources-chip')!;
+  assert.equal(chip.textContent, '~0.6 GB approx.');
+  assert.equal(chip.getAttribute('data-tooltip'), 'Memory used by Tovu and running sites: ~0.6 GB approx.');
+  assert.equal(host.querySelector('.card__resources')!.textContent, '~0.6 GB');
+  act(() => chip.click());
+  assert.match(host.querySelector('.resources-total')!.textContent!, /^Total: ~0\.6 GB approx\./);
+  assert.deepEqual([...host.querySelectorAll('tbody .resources-table__group td.num:first-of-type')].map(cell => cell.textContent), ['~0.6 GB', '~0.6 GB']);
+  assert.equal(host.querySelector('tbody:last-child tr:nth-child(2) td:nth-child(3)')!.textContent, '~78 MB approx.');
+});
+
+test('Job M displays the same 0.55 GB memory reading on the toolbar and the site card', (t) => {
+  const footprint = { ...metrics, rssBytes: 550_000_000, memoryWarning: false, cpuWarning: false };
+  const snapshot = { ...SNAPSHOT, total: footprint, sites: [{ ...footprint, siteId: SITE.id, processes: [] }] };
+  const { host } = mount(t, createElement(ResourcesMonitor, {
+    projects: [SITE], onSiteUpdated() {}, useReadings: () => snapshot,
+    children: createElement(React.Fragment, null, createElement(ResourcesChip), createElement(ResourceSiteFigure, { project: SITE })),
+  }));
+  assert.equal(host.querySelector('.resources-chip')!.textContent, '~0.6 GB');
+  assert.equal(host.querySelector('.card__resources')!.textContent, '~0.6 GB');
 });
 
 test('chip is a focusable dialog trigger; all readers share data and close restores collapsed cadence', (t) => {
@@ -54,12 +101,12 @@ test('chip is a focusable dialog trigger; all readers share data and close resto
     children: createElement(React.Fragment, null, createElement(ResourcesChip), createElement(ResourceSiteFigure, { project: SITE })),
   }));
   const chip = host.querySelector<HTMLButtonElement>('.resources-chip')!;
-  assert.equal(chip.textContent, '~1.5GB · High memory use · Sustained high CPU use');
+  assert.equal(chip.textContent, '~1.5 GB · High memory use · Sustained high CPU use');
   assert.ok(chip.querySelector('svg[aria-hidden="true"]'), 'a memory-chip icon replaces the word "Memory:"');
   assert.equal(chip.getAttribute('data-tooltip'), 'Memory used by Tovu and running sites: ~1.5 GB');
   assert.equal(chip.getAttribute('aria-label'), 'Memory used by Tovu and running sites: ~1.5 GB · High memory use · Sustained high CPU use');
   assert.ok(chip.classList.contains('jini-tooltip'));
-  assert.equal(host.querySelector('.card__resources')!.textContent, '~1.5GB · High memory use · Sustained high CPU use');
+  assert.equal(host.querySelector('.card__resources')!.textContent, '~1.5 GB · High memory use · Sustained high CPU use');
   assert.equal(chip.getAttribute('aria-haspopup'), 'dialog');
   chip.focus(); assert.equal(document.activeElement, chip);
   act(() => chip.click());
@@ -99,16 +146,16 @@ test('panel is a Process | PID | Memory | CPU table with a subtotal row per grou
   const text = (row: Element) => [...row.children].map((cell) => cell.textContent);
   const bodies = [...table.querySelectorAll('tbody')];
   assert.deepEqual(bodies.map((body) => text(body.rows[0]!)), [
-    ['Tovu app', '~222MB', '3%', ''],
-    ['Bakery · High memory use · Sustained high CPU use', '~1.5GB', '81%', 'Stop'],
+    ['Tovu app', '~0.2 GB', '3%', ''],
+    ['Bakery · High memory use · Sustained high CPU use', '~1.5 GB', '81%', 'Stop'],
   ]);
   assert.deepEqual([...bodies[0]!.rows].slice(1).map(text), [
-    ['TovuMain process', '23743', '~110MB', '2%', ''], ['Tovu Helper', '23745', '~112MB', '1%', '']]);
+    ['TovuMain process', '23743', '~0.1 GB', '2%', ''], ['Tovu Helper', '23745', '~0.1 GB', '1%', '']]);
   // An unmeasured CPU is a dash spoken as "unavailable", never 0%.
-  assert.deepEqual(text(bodies[1]!.rows[1]!), ['nodeSite server', '42', '~1.5GB', '—unavailable', '']);
+  assert.deepEqual(text(bodies[1]!.rows[1]!), ['nodeSite server', '42', '~1.5 GB', '—unavailable', '']);
   assert.equal(bodies[0]!.rows[0]!.querySelector('th')!.getAttribute('scope'), 'rowgroup');
   assert.ok([...table.querySelectorAll('tbody td.num')].length >= 6);
-  assert.equal(host.querySelector('.resources-total')!.textContent, 'Total: ~1.7GB · CPU 3% of one core · High memory use · Sustained high CPU use');
+  assert.equal(host.querySelector('.resources-total')!.textContent, 'Total: ~1.7 GB · CPU 3% of one core · High memory use · Sustained high CPU use');
   assert.match(host.querySelector('.resources-note')!.textContent!, /^Memory totals are estimates/);
 });
 
@@ -146,4 +193,45 @@ test('unavailable snapshot shows unavailable chip/cards, and stopped cards hide 
   assert.equal(host.querySelector('.resources-chip')!.getAttribute('data-tooltip'), 'Memory used by Tovu and running sites: unavailable');
   assert.equal(host.querySelectorAll('.card__resources').length, 1);
   assert.equal(host.querySelector('.card__resources')!.textContent, 'Memory unavailable');
+});
+
+test('an externally served running card has no local-memory failure readout', (t) => {
+  const { host } = mount(t, createElement(ResourcesMonitor, {
+    projects: [SITE], onSiteUpdated() {}, useReadings: () => SNAPSHOT,
+    children: createElement(React.Fragment, null, createElement(ResourcesChip),
+      createElement(ResourceSiteFigure, { project: { ...SITE, externalUrl: 'http://localhost:4000/admin/' } })),
+  }));
+  assert.equal(host.querySelector('.resources-chip')!.textContent, '~1.5 GB · High memory use · Sustained high CPU use');
+  assert.equal(host.querySelector('.card__resources'), null);
+});
+
+test('starting a site refreshes the real sampler, hook and card while the toolbar cache is still young', async (t) => {
+  let at = 0, reads = 0;
+  let sites: { id: string; pid: number }[] = [];
+  let rows: ProcessUsage[] = [{ pid: 1, ppid: 0, name: 'Tovu', rssBytes: 100_000_000, cpuSeconds: 0 }];
+  const monitor = createDesktopResources({ desktopPid: 1, platform: 'darwin', now: () => at,
+    totalMem: () => 8_000_000_000, openSites: () => sites,
+    listUsage: async () => { reads++; return rows; },
+    samplePrivateMemory: async () => ({ metric: 'unavailable', readings: [] }),
+  });
+  const ports: ResourcesPorts = {
+    getBridge: () => ({ getResources: request => monitor.get(request) }),
+    document: { hidden: false, addEventListener() {}, removeEventListener() {} },
+    setTimer: () => 1, clearTimer() {},
+  };
+  const useReadings: typeof useResources = (request, options) => useResources(request, { ...options, ports });
+  const element = (project: SiteRecord) => createElement(ResourcesMonitor, {
+    projects: [project], onSiteUpdated() {}, useReadings,
+    children: createElement(React.Fragment, null, createElement(ResourcesChip), createElement(ResourceSiteFigure, { project })),
+  });
+  const { host, render } = mount(t, element({ ...SITE, status: 'stopped' }));
+  await settle();
+  assert.equal(host.querySelector('.resources-chip')!.textContent, '~0.1 GB approx.');
+  at += 5_000;
+  sites = [{ id: SITE.id, pid: 10 }];
+  rows = [...rows, { pid: 10, ppid: 1, name: 'node', rssBytes: 300_000_000, cpuSeconds: 0 }];
+  render(element(SITE)); await settle();
+  assert.equal(host.querySelector('.card__resources')!.textContent, '~0.3 GB approx.');
+  assert.equal(host.querySelector('.resources-chip')!.textContent, '~0.4 GB approx.');
+  assert.equal(reads, 2);
 });

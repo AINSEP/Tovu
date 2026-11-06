@@ -303,7 +303,7 @@ test("WRITE_POLICY_PERMISSION route: 500 internal error when an unexpected error
   });
   assert.equal(res.status, 500);
   const body = (await res.json()) as { error: string };
-  assertAdminResponse({ actual: body, expected: { error: "internal error" } });
+  assertAdminResponse({ actual: body, expected: { error: "internal error" } }, { failure: {"message":"The policy operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"policy operation"} });
 });
 
 for (const permission of ["publish.backstop", "publish_content.backstop"]) {

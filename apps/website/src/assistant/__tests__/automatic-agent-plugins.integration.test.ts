@@ -11,6 +11,7 @@ import { createSurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';
 import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/core/primitives';
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
 import { createToolRegistry } from '@jini-ai/core';
+import { createAccessApprover } from '../tool-registrations.js';
 import { createToolExecutor } from '@jini-ai/daemon';
 import { AWAITING_ANSWER_NOTICE, createDurableRecovery, type DurableRun, type DurableRunStore, type RecoveryPorts } from '@jini-ai/chat/server/durable-runs';
 import { createTempSiteLayoutFixture } from '#src/__tests__/fixtures/site-layout-context';
@@ -50,14 +51,15 @@ async function fixture(t: TestContext, { pluginId = 'synthetic-author', count = 
   const principalRepo = Object.assign(principalRecords, createSettingsPrincipalLookup({ repo: principalRecords }));
   const settingsUiTabsReady = ensureAdminInterfaceSettingDefinitions({ settingsRepo, clock, ids: idGen, principals: { findActiveById: async ({ id }) => ({ id }) } }, { systemPrincipalId: 'system' });
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' });
+  const preferences = composeAgentPluginPreferences({ settings: { repo: settingsRepo, clock, ids: idGen,
+    principals: createSettingsPrincipalLookup({ repo: principalRepo }), authorize: async () => ({ allowed: true, reason: 'test' }) } });
   const runs = createAutomaticPluginRuns({ askAgentPluginChoice, deps: { workspaceId, agentPluginLayout: layout, siteTitleReady: settingsUiTabsReady,
-    preferences: composeAgentPluginPreferences({ settings: { repo: settingsRepo, clock, ids: idGen,
-      principals: createSettingsPrincipalLookup({ repo: principalRepo }), authorize: async () => ({ allowed: true, reason: 'test' }) } }),
-  }, surfaces: { surfaceExchanges } });
+    preferences,
+  }, surfaces: { surfaceExchanges, assertAccessApprover: createAccessApprover({ principalRepo, workspaceId }) } });
   const published: Parameters<AutomaticPluginRun['publish']>[0][] = [];
   const context: AutomaticPluginRun = { principal: { id: 'alice' }, conversationId: 'chat', state: { decision: null, excluded: [] }, query: 'Design holography', pinned: [], signal: new AbortController().signal, emitSurface: async () => { assert.fail('Auto must not ask'); }, publish: async value => { published.push(value); } };
   await settingsUiTabsReady;
-  return { runs, context, published, workspaceId, workspace, layout, pluginId, principalRepo, settingsRepo, clock, idGen, surfaceExchanges };
+  return { runs, context, published, workspaceId, workspace, layout, pluginId, principalRepo, settingsRepo, clock, idGen, surfaceExchanges, preferences };
 }
 
 test('Auto preflight suggests metadata only; the first guarded write still loads real guidance once', async t => {
@@ -334,7 +336,7 @@ test('load_agent_plugin uses the real resolver and publishes the loaded chip thr
   f.runs.forget({ runId: 'explicit' });
 });
 
-test('inactive Higgsfield returns the exact activation and retry calls without activating it', async t => {
+test('inactive plugin returns setup guidance and the activation call while tools remain off', async t => {
   const f = await fixture(t, { pluginId: 'higgsfield-media' });
   await setAgentPluginEnabled({ agentPluginLayout: f.layout, workspaceId: f.workspaceId, pluginId: f.pluginId, enabled: false, actor: 'fixture' });
   await f.runs.start({ runId: 'inactive', context: f.context });
@@ -346,13 +348,20 @@ test('inactive Higgsfield returns the exact activation and retry calls without a
   assert.equal(result.status, 'completed');
   const output = result.output as { status: string; guidance: string; note: string };
   assert.equal(output.status, 'installed-but-inactive');
-  assert.equal(output.guidance, '');
+  assert.match(output.guidance, /Use holographic layout discipline/);
+  assert.match(output.guidance, /off/);
+  assert.match(output.guidance, /tools are unavailable/);
   assert.ok(output.note.includes('plugins_set_enabled({family:"agent-plugin",pluginId:"higgsfield-media",enabled:true})'));
-  assert.ok(output.note.includes('load_agent_plugin({pluginId:"higgsfield-media"})'));
+  assert.match(output.note, /Read-only guidance/);
   assert.doesNotMatch(output.note, /agent_plugin_higgsfield_media/);
   assert.equal(f.published.length, 0);
   const stillInactive = await executor.execute(input);
-  assert.equal((stillInactive.output as { status: string }).status, 'installed-but-inactive');
+  assert.equal((stillInactive.output as { status: string }).status, 'already-loaded');
+  assert.equal((stillInactive.output as { guidance: string }).guidance, '');
+  assert.equal(f.published.length, 0, 'deduplicating off guidance must not publish active plugin usage');
+  const stillOff = await resolveAgentPluginRefs([f.pluginId], f.workspace, 'inject');
+  assert.equal(stillOff.ok, false);
+  if (!stillOff.ok) assert.match(stillOff.reason, /is not enabled/);
   await setAgentPluginEnabled({ agentPluginLayout: f.layout, workspaceId: f.workspaceId, pluginId: f.pluginId, enabled: true, actor: 'fixture' });
   const retry = await executor.execute(input);
   assert.equal((retry.output as { status: string }).status, 'loaded');
@@ -374,7 +383,7 @@ test('the first theme write loads installed tovu-theme after a note-only preflig
   f.runs.forget({ runId: 'theme' });
 });
 
-test('the loader cannot use another principal’s run, an excluded plugin, or a revoked activation', async t => {
+test('the loader refuses another principal and exclusions, and reads revoked plugins only as off guidance', async t => {
   const f = await fixture(t);
   const registry = createToolRegistry({});
   registry.register(f.runs.loadRegistration);
@@ -393,7 +402,10 @@ test('the loader cannot use another principal’s run, an excluded plugin, or a 
   await writeFile(path.join(f.workspace.root, 'activations.json'), JSON.stringify({ schemaVersion: 1, plugins: { [f.pluginId]: { enabled: false, origin: 'operator-installed', updatedAt: '2026-10-18T00:00:00.000Z', updatedBy: 'fixture' } } }));
   const revoked = await executor.execute({ principal: f.context.principal, run: { id: 'owner' }, toolId: 'load_agent_plugin', input: { pluginId: f.pluginId } });
   assert.equal(revoked.status, 'completed');
-  assert.doesNotMatch(JSON.stringify(revoked.output), /Use holographic layout discipline/);
+  const offGuidance = revoked.output as { status: string; guidance: string; note: string };
+  assert.equal(offGuidance.status, 'installed-but-inactive');
+  assert.match(offGuidance.guidance, /Use holographic layout discipline/);
+  assert.match(offGuidance.note, /tools remain unavailable/);
   assert.equal(f.published.length, 0);
   for (const runId of ['owner', 'excluded']) f.runs.forget({ runId });
 });
@@ -550,4 +562,81 @@ test('load_agent_plugin reads a supporting file after load without any per-plugi
   assert.match(result.guidance, /Read-only permission reference/);
   assert.doesNotMatch(result.guidance, /agent_plugin_synthetic_author/);
   assert.equal(f.published.length, 1);
+});
+
+for (const action of ['use', 'auto'] as const) test(`pending plugin ${action} cannot override a newer personal Off preference`, async t => {
+  const f = await fixture(t);
+  await f.principalRepo.save({ id: 'alice', workspaceId: f.workspaceId, kind: 'user', displayName: 'Alice', status: 'active', createdAt: f.clock.nowIso() });
+  const writeMode = (value: 'ask' | 'off') => set({ deps: { repo: f.settingsRepo, clock: f.clock, ids: f.idGen,
+    principals: createSettingsPrincipalLookup({ repo: f.principalRepo }), authorize: async () => ({ allowed: true, reason: 'test' }) },
+    input: { namespace: 'core.interface', key: 'chatAgentPlugins', scope: 'user', workspaceId: f.workspaceId, principalId: 'alice', callerPrincipalId: 'alice', authWorkspaceId: f.workspaceId, value } });
+  await writeMode('ask');
+  let cards = 0;
+  const notices: unknown[] = [];
+  await assert.rejects(f.runs.start({ runId: 'stale-personal-choice', context: { ...f.context, emitSurface: async emission => {
+    if (emission.channel === 'text_delta') notices.push(emission.payload.delta);
+    if (emission.channel !== 'mcp-ui') return;
+    cards++;
+    const html = (emission.payload.resource as { resource: { text: string } }).resource.text;
+    const exchangeId = html.match(/__exchangeId"\s*:\s*"([^"]+)"/)?.[1];
+    assert.ok(exchangeId);
+    await writeMode('off');
+    assert.equal(f.surfaceExchanges.deliver({ exchangeId, principalId: 'alice', params: { __choiceAction: action, selections: [f.pluginId] } }, { toolId: ASK_CHOICE_TOOL_ID }).ok, true);
+  } } }), /changed/);
+  const mode = await getEffective({ repo: f.settingsRepo }, { namespace: 'core.interface', key: 'chatAgentPlugins', scopeContext: { workspaceId: f.workspaceId, principalId: 'alice' } });
+  assert.equal(mode?.value, 'off');
+  assert.equal(cards, 1);
+  assert.deepEqual(notices, ['\n\nYour Agent Plugins preference changed while this card was open. Nothing was changed by this answer. Start a new request using your current preference.\n\n']);
+  assert.equal(f.published.length, 0);
+  f.runs.forget({ runId: 'stale-personal-choice' });
+});
+
+test('automatic plugin access rechecks the real active person after the answer', async t => {
+  const f = await fixture(t);
+  const person = { id: 'alice', workspaceId: f.workspaceId, kind: 'user' as const, displayName: 'Alice', status: 'active' as const, createdAt: f.clock.nowIso() };
+  await f.principalRepo.save(person);
+  await set({ deps: { repo: f.settingsRepo, clock: f.clock, ids: f.idGen,
+    principals: createSettingsPrincipalLookup({ repo: f.principalRepo }), authorize: async () => ({ allowed: true, reason: 'test' }) },
+    input: { namespace: 'core.interface', key: 'chatAgentPlugins', scope: 'user', workspaceId: f.workspaceId, principalId: 'alice', callerPrincipalId: 'alice', authWorkspaceId: f.workspaceId, value: 'ask' } });
+  let cards = 0;
+  await assert.rejects(f.runs.start({ runId: 'revoked-person', context: { ...f.context, emitSurface: async emission => {
+    if (emission.channel !== 'mcp-ui') return;
+    cards++;
+    const html = (emission.payload.resource as { resource: { text: string } }).resource.text;
+    const exchangeId = html.match(/__exchangeId"\s*:\s*"([^"]+)"/)?.[1];
+    assert.ok(exchangeId);
+    await f.principalRepo.save({ ...person, status: 'disabled' });
+    assert.equal(f.surfaceExchanges.deliver({ exchangeId, principalId: 'alice', params: { __choiceAction: 'auto', selections: [f.pluginId] } }, { toolId: ASK_CHOICE_TOOL_ID }).ok, true);
+  } } }), /active, signed-in person/);
+  const mode = await getEffective({ repo: f.settingsRepo }, { namespace: 'core.interface', key: 'chatAgentPlugins', scopeContext: { workspaceId: f.workspaceId, principalId: 'alice' } });
+  assert.equal(mode?.value, 'ask');
+  assert.equal(cards, 1);
+  assert.equal(f.published.length, 0);
+  f.runs.forget({ runId: 'revoked-person' });
+});
+
+test('a real Auto CAS failure after the post-card read retains no consent on the same controller', async t => {
+  const f = await fixture(t);
+  await f.principalRepo.save({ id: 'alice', workspaceId: f.workspaceId, kind: 'user', displayName: 'Alice', status: 'active', createdAt: f.clock.nowIso() });
+  const writeMode = (value: 'ask' | 'off') => set({ deps: { repo: f.settingsRepo, clock: f.clock, ids: f.idGen,
+    principals: createSettingsPrincipalLookup({ repo: f.principalRepo }), authorize: async () => ({ allowed: true, reason: 'test' }) },
+    input: { namespace: 'core.interface', key: 'chatAgentPlugins', scope: 'user', workspaceId: f.workspaceId, principalId: 'alice', callerPrincipalId: 'alice', authWorkspaceId: f.workspaceId, value } });
+  await writeMode('ask');
+  const saveAuto = f.preferences.saveAuto;
+  f.preferences.saveAuto = async input => { await writeMode('off'); await saveAuto(input); };
+  let cards = 0;
+  const context = { ...f.context, emitSurface: async (emission: Parameters<AutomaticPluginRun['emitSurface']>[0]) => {
+    if (emission.channel !== 'mcp-ui') return;
+    cards++;
+    const html = (emission.payload.resource as { resource: { text: string } }).resource.text;
+    const exchangeId = html.match(/__exchangeId"\s*:\s*"([^"]+)"/)?.[1];
+    assert.ok(exchangeId);
+    assert.equal(f.surfaceExchanges.deliver({ exchangeId, principalId: 'alice', params: { __choiceAction: 'auto', selections: [f.pluginId] } }, { toolId: ASK_CHOICE_TOOL_ID }).ok, true);
+  } };
+  await assert.rejects(f.runs.start({ runId: 'cas-retry', context }), /revision changed/);
+  await assert.rejects(f.runs.start({ runId: 'cas-retry', context }), /preference changed/);
+  assert.equal(await f.preferences.mode({ workspaceId: f.workspaceId, principalId: 'alice' }), 'off');
+  assert.equal(cards, 1, 'Off does not reopen a card');
+  assert.equal(f.published.length, 0, 'rejected access is never published as used');
+  f.runs.forget({ runId: 'cas-retry' });
 });

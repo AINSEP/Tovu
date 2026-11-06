@@ -1,0 +1,14 @@
+✔ the vitest compat matchers fail wrong assertions and pass right ones (22.760745ms)
+✔ compat mocks retain exact arguments, resolve configured values and clear calls (0.984505ms)
+✔ compat timers fire at the deadline and globals restore to their original value (32.416677ms)
+✔ caught forbidden fetch still fails after every cleanup; broken cleanup=false (575.50461ms)
+✔ caught forbidden fetch still fails after every cleanup; broken cleanup=true (383.485368ms)
+✔ compat value and error matchers accept the right value and reject the wrong one (4.547148ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1514.235881

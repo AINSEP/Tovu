@@ -267,7 +267,7 @@ test("taxonomy mergeTerm: a non-Error failure in any step returns a generic 500 
     await invokeMerge(broken, "confirm", { params: { id: "term-1" }, body: { planId: "plan-1", planHash: "hash-1" } }, owner),
     await invokeMerge(broken, "execute", { params: { id: "term-1" }, body: { intoTermId: "term-2", confirmationToken: "token-1" } }, owner),
   ]) {
-    assertAdminResponse({ actual, expected });
+    assertAdminResponse({ actual, expected }, { failure: { message: "The request could not be completed.", action: "Check the result before repeating this operation. Copy details and report this problem.", step: "Request" } });
     assert.doesNotMatch(JSON.stringify(actual), /storage offline|authz offline/);
   }
 });

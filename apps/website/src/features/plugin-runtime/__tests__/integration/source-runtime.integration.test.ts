@@ -1,3 +1,4 @@
+import { notifyExternalMcpRosterChanged } from "#src/assistant/external-mcp-roster-change";
 import assert from 'node:assert/strict';
 import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -22,6 +23,7 @@ const workspaceId = 'site';
 const clock = { nowMs: () => Date.parse('2026-10-09T00:00:00Z') };
 const entry = `import { value } from './helper.mjs';\nexport default { definition: { setup(sdk) { sdk.addFilter('content.entry.beforeSave', () => ({ value })); } } };\n`;
 const draft = { id: 'entry', workspaceId, title: 'Test', slug: 'test', status: 'draft' as const, bodyJson: {}, ext: {} };
+const assertAccessApprover = async ({ principalId }: { principalId: string }) => { assert.equal(principalId, 'owner', 'access cards belong to the signed-in fixture owner'); };
 const context = (input: unknown) => ({ executionId: 'exec', principal: { id: 'owner' }, run: { id: 'run' }, input, signal: new AbortController().signal });
 async function harness(t: TestContext) {
   const root = await mkdtemp(path.join(tmpdir(), 'source-runtime-')); t.after(() => rm(root, { recursive: true, force: true }));
@@ -31,14 +33,14 @@ async function harness(t: TestContext) {
   const runtime = composePluginRuntime({ workspaceId, clock, activationRepo, sources: [], installDir, pluginSourcePolicy: policy });
   assert.ok(runtime.pluginSource); const source = runtime.pluginSource;
   let counter = 0;
-  const deps = { ...runtime, workspaceId, clock, pluginActivationRepo: activationRepo,
+  const deps = { ...runtime, notifyRosterChanged: notifyExternalMcpRosterChanged, workspaceId, clock, pluginActivationRepo: activationRepo,
     authorize: async () => ({ allowed: true, reason: 'matched' }), idGen: { newId: () => 'change-' + ++counter },
     changeSets: new InMemoryChangeSetRepo(), outbox: new InMemoryOutbox(),
     removePlugin: async () => assert.fail('Source tools must never uninstall'),
     agentPluginLayout: {} as never, providerFaces: providerFacesFor({ workspaceRoot: () => assert.fail('Site-runtime tools do not read Agent Plugin faces') }),
   } satisfies PluginsToolDeps;
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' });
-  const surfaces = { surfaceExchanges };
+  const surfaces = { surfaceExchanges, assertAccessApprover };
   const registrations = [...buildPluginsRegistrations(deps, surfaces), ...buildPluginSourceRegistrations({ deps, surfaces })];
   const call = async (toolId: string, input: unknown) => {
     const tool = registrations.find(tool => tool.descriptor.id === toolId); assert.ok(tool);
@@ -179,14 +181,17 @@ test('consent gap (2026-10-12): an assistant-sealed plugin cannot enable without
   assert.equal(result.changed, true);
 });
 
-test('an unchanged re-seal does not re-prompt; a widened re-seal waits for a new confirmation listing only the additions', async t => {
+test('an unchanged re-seal keeps its capability approval; each enable gets fresh consent and widening lists only additions', async t => {
   const h = await harness(t); await h.createFilter(); await h.call('plugin_source_seal', { id });
   await h.approve('plugins_set_enabled', { family: 'site-runtime', pluginId: id, enabled: true });
   await h.source.write({ id, path: 'server/helper.mjs', content: 'export const value = 5;\n' });
   assert.equal((await h.source.seal({ id })).reloaded, true);
   assert.deepEqual(await h.runtime.beforeSaveHook(draft), { [id]: { value: 5 } });
-  // Re-enabling the same capabilities runs directly: `call` fails on any card.
-  assert.equal((await h.call('plugins_set_enabled', { family: 'site-runtime', pluginId: id, enabled: true }) as { changed: boolean }).changed, true);
+  // Reload keeps the capability approval; an explicit enable still asks for fresh access consent.
+  const repeated = await h.approve('plugins_set_enabled', { family: 'site-runtime', pluginId: id, enabled: true });
+  assert.equal((repeated.result as { changed: boolean }).changed, true);
+  assert.equal(repeated.cards.length, 1);
+  assert.doesNotMatch(repeated.cards[0]!, new RegExp(`ext\\.${id}\\.extra`));
   const manifest = JSON.parse((await h.source.read({ id, path: 'jini.plugin.json' })).content);
   await h.source.write({ id, path: 'jini.plugin.json', content: JSON.stringify({ ...manifest, fields: [...manifest.fields, { path: `ext.${id}.extra`, type: 'integer', queryable: false }] }) });
   await h.source.write({ id, path: 'server/helper.mjs', content: 'export const value = 6;\n' });
@@ -206,7 +211,8 @@ test('copied site packages lack site-owned provenance and keep their enable conf
   await cp(path.join(h.installDir, id), path.join(other, id), { recursive: true });
   const runtime = composePluginRuntime({ workspaceId, clock, activationRepo: new InMemoryPluginActivationRepo(), sources: [], installDir: other, pluginSourcePolicy: h.runtime.pluginSourcePolicy });
   assert.ok(runtime.pluginSource); assert.equal(await runtime.pluginSource.isSealedHere({ id, version: '0.1.0' }), false);
-  const tool = buildPluginsRegistrations({ ...h.deps, ...runtime, pluginActivationRepo: new InMemoryPluginActivationRepo() }, { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' }) }).find(tool => tool.descriptor.id === 'plugins_set_enabled');
+  const surfaces = { assertAccessApprover, surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' }) };
+  const tool = buildPluginsRegistrations({ ...h.deps, ...runtime, pluginActivationRepo: new InMemoryPluginActivationRepo() }, surfaces).find(tool => tool.descriptor.id === 'plugins_set_enabled');
   assert.ok(tool);
   await assert.rejects(tool.handler(context({ family: 'site-runtime', pluginId: id, enabled: true }), {}), error => /NO_CONFIRMATION_CHANNEL/.test((error as Error).message));
 });

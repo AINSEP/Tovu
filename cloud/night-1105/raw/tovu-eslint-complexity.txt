@@ -1,0 +1,13 @@
+
+/workspace/Tovu/apps/admin/src/lib/api.ts
+   696:13  warning  Remove this redundant type alias and replace its occurrences with "AdminPublishCredentialProviderId"  sonarjs/redundant-type-aliases
+   821:13  warning  Remove this redundant type alias and replace its occurrences with "string"                            sonarjs/redundant-type-aliases
+  1017:13  warning  Remove this redundant type alias and replace its occurrences with "string"                            sonarjs/redundant-type-aliases
+  2639:17  warning  Immediately return this expression instead of assigning it to the temporary variable "error"          sonarjs/prefer-immediate-return
+
+/workspace/Tovu/apps/website/src/server/inbound/admin-http/owner-recovery-routes.ts
+  34:58  warning  Extract this nested ternary operation into an independent statement  sonarjs/no-nested-conditional
+
+✖ 5 problems (0 errors, 5 warnings)
+  0 errors and 1 warning potentially fixable with the `--fix` option.
+

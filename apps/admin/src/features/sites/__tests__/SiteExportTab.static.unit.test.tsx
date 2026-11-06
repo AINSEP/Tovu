@@ -3,6 +3,8 @@ import userEvent from "@testing-library/user-event";
 import { beforeAll, afterAll, describe, expect, it, vi } from "vitest";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { SiteExportTab } from "../SiteExportTab";
+import { ApiError } from "@/lib/api";
+import { formatUserFacingError } from "@jini-ai/core";
 import { useSiteExport } from "../hooks/use-site-transfer.hooks";
 import { createFakeSiteTransferPort, type SiteShare, type SiteShareCreateResult } from "../hooks/site-transfer-dependencies.hooks";
 
@@ -16,12 +18,33 @@ const options = { activeThemeId: "zoran-poster", themes: [{ themeId: "zoran-post
 const t = (text: string) => text;
 const share: SiteShare = { shareId: "static-1", file: "site-static-2026-10-30-1015.zip", bytes: 40, url: null, status: "active", createdAt: "2026-10-30T17:15:00Z", downloadUrl: "/download/static-1" };
 
+it("retains a polled job failure through transport, controller and ErrorNotice", async () => {
+  const failure = formatUserFacingError({ message: "The export stopped while building the ZIP.",
+    action: "Copy details and report this problem.", step: "archive", cause: "ZIP writer failed password=CANARY_EXPORT" },
+    { errorId: "ERR-1234-5678-9ABC-DEF0", time: "2026-11-04T12:00:00Z", appVersion: "test" });
+  const createShare = vi.fn().mockResolvedValueOnce({ jobId: "job-1", phase: "preparing" })
+    .mockRejectedValueOnce(new ApiError(failure.message, 500, "SHARE_FAILED", { details: { failure: { ...failure, copyText: "CANARY_WIRE" } } }));
+  const port = createFakeSiteTransferPort({ createShare });
+  render(<FetchQueryProvider><SiteExportTab t={t} useExport={() => useSiteExport({ port, t })} /></FetchQueryProvider>);
+  fireEvent.click(screen.getByRole("button", { name: "Export Tovu site" }));
+  expect(await screen.findByText(failure.message)).toBeVisible();
+  expect(screen.getByText(failure.action)).toBeVisible();
+  expect(screen.getByText((_, element) => element?.tagName === "PRE" && element.textContent === failure.copyText).closest("details")).not.toHaveAttribute("open");
+  fireEvent.click(screen.getByText("Show details"));
+  expect(screen.getByRole("button", { name: "Copy details" })).toBeTruthy();
+  expect(document.body.textContent).not.toContain("CANARY_EXPORT");
+  expect(document.body.textContent).not.toContain("CANARY_WIRE");
+  expect(createShare.mock.calls).toEqual([[{}], [{ jobId: "job-1" }]]);
+});
+
 it("shows static-export scope notes and omission notices while downloading", async () => {
   const notices = ["Left out custom/example.txt."];
   const notes = ["Static copy only."];
   const downloadShare = vi.fn();
+  let created: SiteShare | undefined;
   const port = createFakeSiteTransferPort({ staticExportOptions: async () => options,
-    createStaticShare: async () => ({ ...share, notices, notes }), downloadShare });
+    createStaticShare: async () => { created = { ...share, notices, notes }; return created; },
+    listShares: async () => ({ shares: created ? [created] : [] }), downloadShare });
   render(<FetchQueryProvider><SiteExportTab t={t} useExport={() => useSiteExport({ port, t })} /></FetchQueryProvider>);
   const button = screen.getByRole("button", { name: "Export static site" });
   await waitFor(() => expect(button).not.toBeDisabled());

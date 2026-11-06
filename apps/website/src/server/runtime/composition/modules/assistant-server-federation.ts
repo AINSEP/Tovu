@@ -1,3 +1,5 @@
+import type { ToolAccessChange } from '@jini-ai/daemon';
+import { lowerAssistantToolAccess } from './assistant-tool-access-lowering.js';
 import type { ByokToolSurface } from "#src/assistant/byok-tool-surface";
 import { onExternalMcpRosterChanged } from "#src/assistant/external-mcp-roster-change";
 import { readServerAdmissions } from "../../services/external-mcp-admissions.js";
@@ -22,7 +24,7 @@ export interface AssistantServerFederation {
  */
 export function createAssistantServerFederation(
   { toolSurface }: { toolSurface: Pick<ByokToolSurface, "readFederationAdmissions" | "awaitFederation" | "federation" | "daemonCalls"> },
-  _optional: Record<string, never> = {},
+  optional: { lowerLocal?: (change: ToolAccessChange) => Promise<void> } = {},
 ): AssistantServerFederation {
   const readAdmissions = () => toolSurface.readFederationAdmissions({}, {});
 
@@ -37,7 +39,15 @@ export function createAssistantServerFederation(
   return {
     admissions: () => readServerAdmissions({ awaitFederation: toolSurface.awaitFederation, readAdmissions }, {}),
     reload,
-    registerRosterListener: () => onExternalMcpRosterChanged("byok", () => reload({}, {})),
+    registerRosterListener: () => onExternalMcpRosterChanged("byok", async lowered => {
+      if (lowered) {
+        await Promise.all([lowerAssistantToolAccess(lowered, {}), optional.lowerLocal?.(lowered)]);
+        // Stop/cleanup certifies OFF; optional discovery latency must not turn that into a failure.
+        void reload({}, {}).catch(() => {});
+        return;
+      }
+      await reload({}, {});
+    }),
     daemonCalls: {
       executor: {
         ...toolSurface.daemonCalls.executor,

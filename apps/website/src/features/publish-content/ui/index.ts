@@ -65,6 +65,6 @@ export {
 } from "./sections.js";
 
 export type { PublishContentPhase } from "./phase.js";
-export { canConfirmPlan, canRequestPlan, confirmationTokenFor, planOnScreen } from "./phase.js";
+export { canConfirmPlan, canRequestPlan, confirmationTokenFor, planOnScreen, reportOnScreen } from "./phase.js";
 
 export { overwriteReplanIsConsistent, preparePublishConfirmation, PublishPlanDriftError } from "./replan.js";

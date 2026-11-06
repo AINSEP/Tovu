@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { expect, it } from "vitest";
 import { AllSitesTab } from "../AllSitesTab";
+import { staticListPrefs } from "./site-list-prefs.fixture";
 import { SiteTrashTab } from "../SiteTrashTab";
 import type { AdminSitesSnapshot } from "@/lib/api";
 import type { LocalSitesController } from "../hooks/use-local-sites.hooks";
@@ -20,7 +21,7 @@ function recordingController(actions: unknown[], overrides: Partial<LocalSitesCo
 
 function renderCards(snapshot: AdminSitesSnapshot, controller: LocalSitesController) {
   render(<AllSitesTab sites={snapshot.sites} snapshot={snapshot} switchingEnabled activatingName={null} createdName={null}
-    onActivate={() => {}} localSites={controller} t={(key) => key} />);
+    onActivate={() => {}} localSites={controller} listPrefs={staticListPrefs()} t={(key) => key} />);
 }
 
 /** The menu's item labels, in order, after opening the named card's "⋯" trigger. */
@@ -29,10 +30,10 @@ function openMenu(site: string): string[] {
   return within(screen.getByRole("menu", { name: `More actions for ${site}` })).getAllByRole("menuitem").map((item) => item.textContent ?? "");
 }
 
-it("serving card: status pill, default star, Open in a new tab, and no lifecycle, Delete or menu", () => {
+it("serving card: status, default star, Open in a new tab, and no lifecycle or Delete", () => {
   renderCards(localSnapshot(), recordingController([]));
   const owner = within(screen.getByTitle("/sites/owner"));
-  expect(owner.getByText("Serving now").className).toContain("status-ok");
+  expect(owner.getByText("Serving now").className).toContain("jini-site-card__status--running");
   expect(owner.getByRole("img", { name: "Opens by default" })).toHaveAttribute("title", "Opens by default");
   expect(owner.queryByText("Default")).toBeNull();
   const open = owner.getByRole("link", { name: "Open owner in a new tab" });
@@ -40,30 +41,30 @@ it("serving card: status pill, default star, Open in a new tab, and no lifecycle
   expect(owner.queryByRole("button", { name: "Start owner" })).toBeNull();
   expect(owner.queryByRole("button", { name: "Stop owner" })).toBeNull();
   expect(owner.queryByRole("button", { name: /Delete/ })).toBeNull();
-  expect(owner.queryByRole("button", { name: "More actions for owner" })).toBeNull();
+  expect(openMenu("owner")).toEqual(["Hide from list"]);
 });
 
 it("running card: port pill, Open + secondary Stop, and a menu without Delete", () => {
   const actions: unknown[] = [];
   renderCards(localSnapshot(), recordingController(actions));
   const alpha = within(screen.getByTitle("/sites/alpha"));
-  expect(alpha.getByText("Running on :3101").className).toContain("status-ok");
+  expect(alpha.getByText("Running on :3101").className).toContain("jini-site-card__status--running");
   expect(alpha.getByRole("link", { name: "Open alpha in a new tab" })).toHaveAttribute("href", "https://localhost:3101/admin/");
   const stop = alpha.getByRole("button", { name: "Stop alpha" });
   expect(stop.className).toBe("btn-secondary");
   fireEvent.click(stop);
   expect(actions).toEqual([["alpha", "stop"]]);
-  expect(openMenu("alpha")).toEqual(["Make default", "Switch now"]);
+  expect(openMenu("alpha")).toEqual(["Make default", "Switch now", "Hide from list"]);
 });
 
 it("stopped card: primary Start, no Open, and Delete… last and danger-toned in the menu", () => {
   const actions: unknown[] = [];
   renderCards(localSnapshot(), recordingController(actions));
   const beta = within(screen.getByTitle("/sites/beta"));
-  expect(beta.getByText("Stopped").className).toContain("status-neutral");
+  expect(beta.getByText("Stopped").className).toContain("jini-site-card__status--neutral");
   expect(beta.queryByRole("link")).toBeNull();
   expect(beta.getByRole("button", { name: "Start beta" }).className).toBe("btn-primary");
-  expect(openMenu("beta")).toEqual(["Make default", "Switch now", "Delete…"]);
+  expect(openMenu("beta")).toEqual(["Make default", "Switch now", "Hide from list", "Delete…"]);
   const remove = screen.getByRole("menuitem", { name: "Delete…" });
   expect(remove.className).toContain("btn-danger");
   fireEvent.click(remove);
@@ -80,12 +81,12 @@ it("crashed and starting cards state their process, and a host that cannot switc
   ];
   renderCards(snapshot, recordingController([]));
   const alpha = within(screen.getByTitle("/sites/alpha"));
-  expect(alpha.getByText("Crashed").className).toContain("status-error");
+  expect(alpha.getByText("Crashed").className).toContain("jini-site-card__status--danger");
   expect(alpha.getByRole("button", { name: "Start alpha" })).toBeEnabled();
-  expect(openMenu("alpha")).toEqual(["Make default", "Delete…"]);
+  expect(openMenu("alpha")).toEqual(["Make default", "Hide from list", "Delete…"]);
   const beta = within(screen.getByTitle("/sites/beta"));
-  expect(beta.getByText("Starting…").className).toContain("status-warning");
-  expect(beta.getByText(":3201").className).toBe("site-card-meta");
+  expect(beta.getByText("Starting…").className).toContain("jini-site-card__status--warning");
+  expect(beta.getByText(":3201").className).toBe("jini-site-card__details");
   expect(beta.getByRole("button", { name: "Stop beta" })).toBeEnabled();
 });
 

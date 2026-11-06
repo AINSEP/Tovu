@@ -1,3 +1,5 @@
+import { createFormCollectionRegistry, type FormCollectionProvider, type FormCollectionRegistry } from "@jini-ai/cms/forms";
+import { leasedProviderItem, type LoadedProviderItem } from "@jini-ai/commerce/payments/kernel";
 import { createTracker, createTrackerWarning, createTelemetryTestProbe } from "@jini-ai/diagnostics/observability/node";
 import type { ConsentPluginContribution } from '#src/contracts/headless/index';
 import { createHash } from 'node:crypto';
@@ -36,7 +38,7 @@ export { PROVIDER_CONTRACTS } from "./provider-contracts.js";
  * generation, which disposes its resources; its port then goes inert (`gatedPort`) until it is reapplied.
  */
 
-export type ProviderContract = "observability" | "product_analytics" | "ai_trace";
+export type ProviderContract = "observability" | "product_analytics" | "ai_trace" | "form_collection";
 
 /** Which site sends every signal (owner 2026-10-25): sites of one project can share one backend. */
 export interface SiteIdentity {
@@ -53,7 +55,8 @@ export interface SiteIdentity {
  * traces metadata plus a `site:<slug>` tag.
  * @complexity O(1).
  */
-export function attributionFor({ contract, site }: { contract: ProviderContract; site: SiteIdentity }, { release = processBuildRelease({}) }: { release?: string } = {}): Readonly<Record<string, unknown>> {
+export function attributionFor({ contract, site }: { contract: ProviderSlotContract; site: SiteIdentity }, { release = processBuildRelease({}) }: { release?: string } = {}): Readonly<Record<string, unknown>> {
+  if (contract === "payments") return {};
   if (contract === "observability") {
     return { attributes: { "tovu.site.id": site.siteId, "tovu.site.slug": site.siteSlug, "deployment.environment": site.environment, "tovu.project.id": site.projectId, "service.version": release } };
   }
@@ -82,12 +85,16 @@ export function legacyProviderCredentialCheck(
 
 /**
  * The factory input a provider's saved settings make, or undefined when it is not configured: no row
- * saved, no declared settings, or a required declared field without a value. Only declared names pass.
+ * saved, no declared settings, or a required declared field without a value. Stateless form collection
+ * providers initialize with empty input; their public endpoint stays on the form. Only declared names pass.
  * A blank public field takes the plugin's declared `default` (e.g. its vendor's cloud host).
  * @complexity O(f) declared fields.
+ * @overallScore 96 — Recommended: only the stateless collection contract bypasses saved settings.
  */
 export function providerInputOf({ declaration, saved }: { declaration: PluginProviderDeclaration; saved: ProviderPluginConfig | null }, _optional = {}): Readonly<Record<string, string>> | undefined {
   const fields = declaration.settings ?? [];
+  // Collection plans are stateless; public per-form config stays in the form definition.
+  if (declaration.contract === "form_collection" && fields.length === 0) return {};
   if (!saved || fields.length === 0) return undefined;
   const defaults = Object.fromEntries(fields.filter((field) => !field.secret && field.default).map((field) => [field.name, field.default!]));
   const values: Record<string, string | undefined> = { ...defaults, ...Object.fromEntries(Object.entries(saved.settings).filter(([, value]) => value.trim() !== "")), ...saved.secrets };
@@ -105,6 +112,9 @@ export interface ProviderPluginRuntime {
 }
 
 export interface ProviderPluginPorts {
+  readonly formCollectionProviders?: () => FormCollectionRegistry;
+  /** Current guarded payment leases from this same host; never initializes a second host. */
+  paymentProviders(required: Record<string, never>, optional?: Record<string, never>): readonly LoadedProviderItem[];
   readonly browserAnalytics?: (required: { surface: 'site' | 'admin' }) => readonly BrowserAnalyticsContribution[];
   /** Cookie-consent adapters of the attached analytics plugins, each mounted under `base/<pluginId>`. */
   readonly consentAdapters?: (required: { base: string }) => readonly ConsentPluginContribution[];
@@ -145,8 +155,9 @@ export interface BootProviderPluginsOptional {
   readonly info?: (message: string) => void;
 }
 
-type ProviderSlot = { pluginId: string; contract: ProviderContract; id: string;
-  declaration: PluginProviderDeclaration; lease?: PluginProviderLease; input?: string; initializationObserved?: boolean };
+type ProviderSlotContract = ProviderContract | "payments";
+type ProviderSlot = { pluginId: string; contract: ProviderSlotContract; id: string;
+  declaration: PluginProviderDeclaration; label?: string; lease?: PluginProviderLease; retirement: AbortController; input?: string; initializationObserved?: boolean };
 /** An absent input is already inert; a configured input must also retain a current generation. */
 function unchangedSlot({ slot, signature }: { slot: ProviderSlot; signature: string | undefined }, _optional = {}): boolean {
   if (signature !== slot.input) return false;
@@ -166,10 +177,11 @@ function browserNeedsRestart({ slot, saved }: { slot: ProviderSlot; saved: Provi
     });
   } catch { return true; }
 }
-const KNOWN_CONTRACTS = new Set<string>(["observability", "product_analytics", "ai_trace"]);
+const KNOWN_CONTRACTS = new Set<string>(["observability", "product_analytics", "ai_trace", "form_collection", "payments"]);
 
 /** Each contract's inert behavior, used once a lease is retired. */
 const NOOP_PORTS: Readonly<Record<ProviderContract, () => object>> = {
+  form_collection: () => ({ plan: () => ({ kind: "unavailable", code: "provider_unavailable", message: "This form cannot send answers because its selected form provider is unavailable." }) }),
   observability: () => createNoopObservabilityPort({}),
   product_analytics: () => createNoopProductAnalytics({}),
   ai_trace: (): AiTraceSink => ({ record() {}, flush: async () => {}, shutdown: async () => {} }),
@@ -187,6 +199,7 @@ function gatedPort({ slot, contract, testProbe }: { slot: ProviderSlot; contract
   const names = Object.keys(noop).filter(name => typeof noop[name] === "function");
   // Keep the optional hook available before attachment; every call follows the current slot.
   if (contract === "product_analytics") names.push("captureAiGeneration", "browserAnalytics");
+  if (contract === "form_collection") names.push("describe");
   const browserCache = new Map<string, { lease: unknown; contribution: unknown }>();
   const gated = Object.fromEntries(names.map((name) => [name, (...args: unknown[]) => {
     const lease = slot.lease;
@@ -225,6 +238,23 @@ function gatedConsentAdapter({ slot }: { slot: ProviderSlot }, _optional = {}): 
     const port = slot.lease?.isCurrent({}) ? slot.lease.port as { consentAdapter?: (required: { path: string }) => unknown } : undefined;
     return typeof port?.consentAdapter === 'function' ? port.consentAdapter({ path: `${base}/${slot.pluginId}` }) : undefined;
   };
+}
+
+/** Form collection follows the same guarded leases as other contracts, in an isolated domain registry.
+ * @complexity O(p) time/space for declared collection providers; no I/O.
+ * Existing leases can retire or reapply; newly enabled collection providers join this inventory. */
+function formRegistryFor({ slots, testProbe }: { slots: readonly ProviderSlot[]; testProbe: ReturnType<typeof createTelemetryTestProbe> }): FormCollectionRegistry {
+  const registry = createFormCollectionRegistry({});
+  for (const slot of slots.filter(slot => slot.contract === "form_collection")) {
+    const provider = gatedPort({ slot, contract: "form_collection", testProbe }) as FormCollectionProvider;
+    // Retain the public name after retirement; the disabled selection still needs readable guidance.
+    try {
+      const label = provider.describe?.()?.label;
+      if (typeof label === 'string') slot.label = label;
+    } catch { /* unavailable metadata keeps its last known name */ }
+    registry.contribute({ pluginId: slot.pluginId, definition: { id: slot.id, label: slot.label, provider } });
+  }
+  return registry;
 }
 
 /** Composes guarded analytics, trace destinations and independent observability without vendor knowledge.
@@ -286,6 +316,8 @@ function composePorts({ leases, consent, consentRevision, site, warn, product }:
   };
 }
 
+function isTelemetrySlot(slot: ProviderSlot): slot is ProviderSlot & { contract: ProviderContract } { return slot.contract !== 'payments'; }
+
 /**
  * Selects, loads and initializes provider plugins, then composes one port per contract.
  * @param required Plugin runtime, saved-settings source, service identity and the operator's telemetry consent.
@@ -298,14 +330,15 @@ export async function bootProviderPlugins(required: BootProviderPluginsRequired,
   const release = required.release ?? processBuildRelease({});
   const exportEnabled = resolveTovuObservabilityExport({ env: optional.env });
   // Factory options are host-owned; analytics and AI tracing retain their existing policies.
-  const exportOptions = (contract: ProviderContract) => contract === 'observability' ? { exportEnabled } : {};
+  const exportOptions = (contract: ProviderSlotContract) => contract === 'observability' ? { exportEnabled } : {};
   const warn = optional.warn ?? ((message: string) => console.warn(`[provider-plugins] ${message}`));
   const delivery = createTelemetryDeliveryMonitor({ warn });
   const testProbe = createTelemetryTestProbe({});
   const timeoutMs = optional.initializeTimeoutMs ?? 10_000;
   const slots: ProviderSlot[] = (await required.runtime.listProviderPlugins({})).flatMap(({ pluginId, providers }) =>
     providers.filter(declaration => KNOWN_CONTRACTS.has(declaration.contract)).map(declaration => ({ pluginId,
-      contract: declaration.contract as ProviderContract, id: declaration.id, declaration })));
+      contract: declaration.contract as ProviderSlotContract, id: declaration.id, declaration, retirement: new AbortController() })));
+  let formCollectionRegistry = createFormCollectionRegistry({});
   const loaded = new Set<string>();
   const host = createPluginProviderHost({ contributions: required.runtime.providerContributions, contracts: PROVIDER_CONTRACTS }, {
     initializeTimeoutMs: timeoutMs,
@@ -331,6 +364,10 @@ export async function bootProviderPlugins(required: BootProviderPluginsRequired,
       return;
     }
     const old = slot.lease;
+    // Reconfiguration/revocation drops queued exports before SDK shutdown can flush the old key.
+    slot.retirement.abort();
+    const retirement = new AbortController();
+    slot.retirement = retirement;
     try {
       const lease = input ? await host.initialize({ contract: slot.contract, id: slot.id,
         // Host environment is only a default: a card's saved environment (Sentry) wins, and a blank one
@@ -339,6 +376,7 @@ export async function bootProviderPlugins(required: BootProviderPluginsRequired,
           attribution: attributionFor({ contract: slot.contract, site: required.site }, { release }) } }, {
         factoryOptions: {
           ...exportOptions(slot.contract),
+          signal: retirement.signal,
           reportTelemetry: (report: ProviderTelemetryReport) => delivery.report({ providerId: `${slot.pluginId}/${slot.id}`, report }),
           info: optional.info ?? ((message: string) => console.info(message)),
         },
@@ -375,23 +413,40 @@ export async function bootProviderPlugins(required: BootProviderPluginsRequired,
     if (!admitted.includes(pluginId)) throw new Error("ProviderUnavailable");
     loaded.add(pluginId);
   }
+  /** Re-read only on a newly enabled plugin; stateless collection declarations join the existing host.
+   * @complexity O(p + s) manifest metadata once per new plugin, with no per-request reads. */
+  async function selectSlots({ pluginId }: { pluginId: string }): Promise<ProviderSlot[]> {
+    let selected = slots.filter(slot => slot.pluginId === pluginId);
+    if (selected.length === 0) {
+      // The runtime already applies enabled-plugin changes here. Collection providers are stateless,
+      // so admit their new declarations through the same loader and host rather than requiring reboot.
+      const plugin = (await required.runtime.listProviderPlugins({})).find(item => item.pluginId === pluginId);
+      selected = (plugin?.providers ?? []).filter(declaration => declaration.contract === 'form_collection').map(declaration => ({
+        pluginId, contract: 'form_collection' as const, id: declaration.id, declaration, retirement: new AbortController(),
+      }));
+      slots.push(...selected);
+    }
+    return selected;
+  }
   /** Apply one saved snapshot, retiring every selected lease on failure and logging only its class.
    * @returns Live-apply timing; missing slots and closed hosts require restart; initialization/admission failures carry safe guidance.
    * @complexity O(s * f + r) slot settings/registrations plus bounded provider load and initialization.
    */
   async function apply({ pluginId }: { pluginId: string }, _optional = {}): Promise<import("@jini-ai/plugins/host").PluginProviderApplyResult> {
     if (closed) return "restart";
-    const selected = slots.filter(slot => slot.pluginId === pluginId);
-    if (selected.length === 0) return "restart";
+    let selected: ProviderSlot[] = [];
     try {
+      selected = await selectSlots({ pluginId });
+      if (selected.length === 0) return "restart";
       const saved = await required.config.read({ pluginId });
       const restartBrowser = selected.some(slot => browserNeedsRestart({ slot, saved }));
       await ensureLoaded({ pluginId, selected, saved });
       await applySlots({ selected, saved });
+      if (selected.some(slot => slot.contract === "form_collection")) formCollectionRegistry = formRegistryFor({ slots, testProbe });
       return restartBrowser ? 'restart' : 'now';
     } catch (error) {
       for (const slot of selected) initialization({ slot, outcome: 'failure', reasonClass: 'initialization_failed' });
-      const retired = selected.map(slot => { const lease = slot.lease; slot.lease = undefined; slot.input = undefined; return lease; });
+      const retired = selected.map(slot => { slot.retirement.abort(); const lease = slot.lease; slot.lease = undefined; slot.input = undefined; return lease; });
       await Promise.all(retired.map(lease => lease?.dispose({})));
       // Class only: an SDK's construction error can quote the endpoint or DSN it was given.
       // Names are allowlisted too: custom Error.name values can themselves contain credentials.
@@ -407,11 +462,13 @@ export async function bootProviderPlugins(required: BootProviderPluginsRequired,
     return recorded;
   }
   const leases = new Map<ProviderContract, unknown[]>();
-  for (const slot of slots) {
+  for (const slot of slots.filter(isTelemetrySlot)) {
     if (slot.contract === "observability" || slot.contract === "product_analytics") delivery.register({ providerId: `${slot.pluginId}/${slot.id}` });
     leases.set(slot.contract, [...(leases.get(slot.contract) ?? []), gatedPort({ slot, contract: slot.contract, testProbe })]);
   }
   await Promise.all([...new Set(slots.map(slot => slot.pluginId))].map(pluginId => reapply({ pluginId })));
+  // Declared collection choices remain visible even when their first initialization failed.
+  formCollectionRegistry = formRegistryFor({ slots, testProbe });
   const product = await bootProductTelemetryFromEnv({ env: optional.env, processRole: required.processRole }, { warn, ...optional.productTelemetry });
   const { shutdownGenerations, siteTracker, ...ports } = composePorts({ leases, consent: required.consent, consentRevision: required.consentRevision, site: required.site, warn, product });
   tracker = ports.tracker;
@@ -420,7 +477,12 @@ export async function bootProviderPlugins(required: BootProviderPluginsRequired,
   for (const event of initializations) tracker.capture({ name: event.name, userId: event.userId }, { properties: event.properties });
   initializations.length = 0;
   let disposal: Promise<void> | undefined;
-  return { ...ports,
+  return { ...ports, formCollectionProviders: () => formCollectionRegistry,
+    paymentProviders: () => slots.flatMap(slot => {
+      if (slot.contract !== "payments" || !slot.lease?.isCurrent({})) return [];
+      const item = leasedProviderItem({ pluginId: slot.pluginId, lease: slot.lease });
+      return "problem" in item ? [] : [item];
+    }),
     telemetryStatus: () => delivery.read({}).map(status => ({ ...status,
       ...(slots.some(slot => slot.contract === 'observability' && `${slot.pluginId}/${slot.id}` === status.providerId) ? { exportEnabled } : {}),
     })),

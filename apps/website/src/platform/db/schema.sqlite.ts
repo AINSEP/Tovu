@@ -1048,6 +1048,38 @@ export const identityUsers = sqliteTable(
   (table) => [uniqueIndex("idx_identity_users_workspace_username").on(table.workspaceId, table.username)]
 );
 
+/** Recovery kits store only scoped digests; raw codes are returned once at issuance. */
+export const ownerRecoveryCodes = sqliteTable(
+  "owner_recovery_codes",
+  {
+    workspaceId: text("workspace_id").notNull(),
+    principalId: text("principal_id").notNull(),
+    codeHash: text("code_hash").notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.workspaceId, table.principalId, table.codeHash] })]
+);
+
+/** Owner TOTP data is sealed; pending bearer proofs are stored only as digests. */
+export const ownerMfaFactors = sqliteTable("owner_mfa_factors", {
+  workspaceId: text("workspace_id").notNull(),
+  principalId: text("principal_id").notNull(),
+  sealedSecret: text("sealed_secret").notNull(),
+  lastStep: integer("last_step").notNull(),
+}, table => [primaryKey({ columns: [table.workspaceId, table.principalId] })]);
+
+export const ownerMfaPending = sqliteTable("owner_mfa_pending", {
+  workspaceId: text("workspace_id").notNull(),
+  principalId: text("principal_id").notNull(),
+  purpose: text("purpose").notNull(),
+  tokenHash: text("token_hash").notNull(),
+  expiresAt: integer("expires_at").notNull(),
+  attempts: integer("attempts").notNull(),
+  sealedSecret: text("sealed_secret"),
+}, table => [
+  primaryKey({ columns: [table.workspaceId, table.principalId, table.purpose] }),
+  uniqueIndex("idx_owner_mfa_pending_workspace_token").on(table.workspaceId, table.tokenHash),
+]);
+
 export const sessions = sqliteTable(
   "sessions",
   {
@@ -2351,3 +2383,15 @@ export const trashedItems = sqliteTable(
     index("idx_trashed_items_workspace_trashed_at").on(table.workspaceId, table.trashedAt),
   ]
 );
+
+export const ownerPasskeys = sqliteTable("owner_passkeys", {
+  workspaceId: text("workspace_id").notNull(),
+  principalId: text("principal_id").notNull(),
+  credentialId: text("credential_id").notNull(),
+  publicKey: text("public_key").notNull(),
+  counter: integer("counter").notNull(),
+  rpId: text("rp_id").notNull(),
+}, (t) => [
+  primaryKey({ columns: [t.workspaceId, t.credentialId], name: "owner_passkeys_workspace_credential_pk" }),
+  index("idx_owner_passkeys_scope").on(t.workspaceId, t.principalId),
+]);

@@ -1,3 +1,4 @@
+import { ToolAccessLoweringError } from '#src/assistant/external-mcp-roster-change';
 import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 import type { Request, Response } from "express";
@@ -158,7 +159,7 @@ async function provisionAgentPluginMcpServersBestEffort(
     // An account signed in while the plugin was off gets the plugin's declared tools now: switching
     // on is the moment "on + connected" first holds (bug 2026-11-04, `grant-signed-in-defaults.ts`).
     await grantDeclaredToolsToSignedInRows({
-      deps: { workspaceId: deps.workspaceId, agentPluginLayout: deps.agentPluginLayout, repo: deps.mcp.repo, clock: deps.clock, notifyRosterChanged: () => deps.mcp.notifyRosterChanged({}, {}) },
+      deps: { workspaceId: deps.workspaceId, agentPluginLayout: deps.agentPluginLayout, repo: deps.mcp.repo, applyAccess: deps.mcp.applyAccess, clock: deps.clock, notifyRosterChanged: () => deps.mcp.notifyRosterChanged({}, {}) },
       pluginId: input.pluginId,
       servers,
     }, { skipServerKeys: result.failed.map((failure) => failure.serverKey) });
@@ -192,6 +193,10 @@ async function provisionAgentPluginMcpServersBestEffort(
  * - Anything else: opaque 500, matching every other route in this admin surface.
  */
 function sendSetEnabledError(res: Response, pluginId: string, error: unknown): void {
+  if (error instanceof ToolAccessLoweringError) {
+    res.status(503).json({ error: error.message, code: error.code });
+    return;
+  }
   // Not for this host (enable only), or an interrupted update awaits boot recovery
   // (PLUGIN_UPDATE_PENDING): both conflicts with the installed state, never a 500.
   if (error instanceof AgentPluginHostIncompatibleError || error instanceof AgentPluginUpdateError) {
@@ -290,6 +295,10 @@ export const registerAgentPluginSetEnabledRoute: AgentPluginsRouteRegistrar = (a
       // previously-provisioned row survives a disable untouched (`federate-mcp.ts`'s own header).
       if (written.enabled) {
         await provisionAgentPluginMcpServersBestEffort(deps, { pluginId, principalId: principal.id });
+      } else {
+        // Keep the durable OFF switch effective in discovery too; surviving OAuth rows keep
+        // their credentials, while the existing reload withdraws their tools and guidance.
+        await deps.mcp.notifyRosterChanged({ lowered: { pluginIds: [pluginId] } }, {});
       }
 
       sendUpdatedRow(res, candidate, written.enabled, written.warnings);

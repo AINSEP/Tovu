@@ -4,6 +4,18 @@ import { test } from "node:test";
 import { API_CONNECTION_BINDING_COOKIE, browserBindingCookie, clearedBrowserBindingCookie, createSignInHandoffs, hostedSignInLink, readBrowserBinding } from "../browser-binding.js";
 import { isHostedSignInLinkPath } from "../../../contracts/core/hosted-sign-in-links.js";
 
+test("MCP reuses browser cookies with an isolated name and callback scope", () => {
+  const scope = { cookieName: '__Secure-tovu_mcp_binding', callbackPath: '/api/mcp-servers/oauth/callback' };
+  const proof = 'c'.repeat(43);
+  const header = browserBindingCookie({ browserBinding: proof }, scope);
+  assert.match(header, /^__Secure-tovu_mcp_binding=/);
+  assert.match(header, /Path=\/api\/mcp-servers\/oauth\/callback; HttpOnly; Secure; SameSite=Lax/);
+  assert.equal(readBrowserBinding({ cookieHeader: header.split(';')[0] }, scope), proof);
+  assert.equal(readBrowserBinding({ cookieHeader: `${API_CONNECTION_BINDING_COOKIE}=${proof}` }, scope), '');
+  assert.equal(readBrowserBinding({ cookieHeader: `${scope.cookieName}=${proof}; ${scope.cookieName}=${proof}` }, scope), '');
+  assert.match(clearedBrowserBindingCookie({}, scope), /Max-Age=0; Path=\/api\/mcp-servers\/oauth\/callback/);
+});
+
 const binding = "b".repeat(43);
 const draft = { actorId: "admin-1", authorizationUrl: "https://auth.acme.test/authorize", browserBinding: binding, expiresAt: "2030-01-01T00:10:00.000Z" };
 

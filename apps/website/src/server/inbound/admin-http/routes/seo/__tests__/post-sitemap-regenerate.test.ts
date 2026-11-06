@@ -143,7 +143,7 @@ test("post-sitemap-regenerate: unexpected authorization error returns 500", asyn
   });
   const { status, json } = await post(t, app);
   assert.equal(status, 500);
-  assertAdminResponse({ actual: json, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: json, expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: {"message":"The search setting operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"search setting operation"} });
 });
 
 test("post-sitemap-regenerate: error when regenerateSitemapCache rejects returns 500", async (t) => {
@@ -151,7 +151,7 @@ test("post-sitemap-regenerate: error when regenerateSitemapCache rejects returns
   const app = buildApp({ settingsRepo });
   const { status, json } = await post(t, app);
   assert.equal(status, 500);
-  assertAdminResponse({ actual: json, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: json, expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: {"message":"The search setting operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"search setting operation"} });
   assert.ok(settingsRepo.calls > 0, "the 500 must come from the injected settings failure");
 });
 

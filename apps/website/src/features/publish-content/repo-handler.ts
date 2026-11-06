@@ -4,7 +4,7 @@ import type { JsonObject } from "@jini-ai/core/primitives";
 import { PublishContentApplyRowError } from "./apply-errors.js";
 import { contentHash, CONTENT_HASH_VERSION } from "./content-hash.js";
 import { addressHeldByOther, addressHeldInTrash, changedSincePlan, notWired, trashedAtDestination } from "./precheck-reasons.js";
-import type { PackedEntity, PublishContentContributor, PublishContentDeps, PublishContentHandler, PublishContentReference } from "./type-registry.js";
+import type { PackedEntity, PublishContentContributor, PublishContentDeps, PublishContentHandler, PublishContentReference, MediaSourceReplacement } from "./type-registry.js";
 
 /**
  * @file Slice F1 of `ADS-memory/.local-artifacts/plan-publish-all-types-2026-09-25.md` (§2): the
@@ -35,6 +35,7 @@ export interface RepoWriteContext<Row, Ports> {
   readonly existing: Row | null;
   readonly expectedVersion: number | undefined;
   readonly principalId: string;
+  readonly sourceReplacement?: MediaSourceReplacement;
   /** With `undo`: registers an undo for a side effect of `write` beyond the row (e.g. post's term
    *  assignments). The gateway's rollback runs these, last first, before `restore`/`remove`. */
   readonly onRollback: (undo: () => Promise<void>) => void;
@@ -105,7 +106,7 @@ export interface RepoPublishTypeConfig<Row, Ports> {
   /** What a packed entity uses, carried along by a scoped publish ({@link PublishContentHandler.references}). */
   readonly references?: (entity: PackedEntity) => readonly PublishContentReference[];
   /** Type-specific refusals, after the generic ones. Returns a reason or `null`. */
-  readonly validate?: (input: { ports: Ports; workspaceId: string; entity: PackedEntity; existing: Row | null }) => Promise<string | null>;
+  readonly validate?: (input: { ports: Ports; workspaceId: string; entity: PackedEntity; existing: Row | null }) => ReturnType<PublishContentHandler["precheck"]>;
 
   /** The one write. Throws domain errors, which `errors` maps. Without `undo`, a returned
    *  `changeSetId` is the report's (else the packed id); with `undo`, the gateway's id wins. */
@@ -234,7 +235,7 @@ export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConf
     }
 
     /** Order (plan §2.2): not wired, address held, destination trashed, then `validate`. */
-    async function precheck(entity: PackedEntity): Promise<string | null> {
+    async function precheck(entity: PackedEntity): ReturnType<PublishContentHandler["precheck"]> {
       const p = ports();
       if (!p) return notWired(entityType, entity.id, `${portsKey} port`);
       const addressReason = await precheckAddress({ entity, p });
@@ -249,6 +250,7 @@ export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConf
       expectedVersion: number | undefined;
       principalId: string;
       idempotencyKey: string;
+      sourceReplacement?: MediaSourceReplacement;
     }): Promise<{ changeSetId: string }> {
       const unwired = (what: string) =>
         new Error(`publish-content: ${entityType}.apply() requires ${what} — wire it from the apply-loop composition root (features/publish-content/apply-loop.ts).`);
@@ -266,6 +268,7 @@ export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConf
         existing,
         expectedVersion,
         principalId: input.principalId,
+        ...(input.sourceReplacement ? { sourceReplacement: input.sourceReplacement } : {}),
         onRollback,
       });
 

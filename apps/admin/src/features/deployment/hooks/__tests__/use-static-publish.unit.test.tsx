@@ -617,6 +617,21 @@ describe("useStaticPublish — publish trigger and poll", () => {
     expect(result.current.publishError).toContain("a publish is already running");
   });
 
+  it("explains a publish rejection without a message and retains copyable redacted evidence", async () => {
+    const port = portWith({ triggerPublish: async () => { throw { password: "CANARY_PUBLISH", note: "tovu_ak_012345abcdef.PUBLISH_KEY_CANARY_abcdefghijklmnop" }; } });
+    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.run !== undefined && result.current.targets !== undefined).toBe(true));
+    act(() => result.current.setProjectName("demo"));
+    await act(() => result.current.publish());
+    expect(result.current.publishError).not.toContain("unknown error");
+    expect(result.current.publishFailure?.step).toBe("static.publish.start");
+    expect(result.current.publishFailure?.action).toBe("Check publish status before starting another publish. Copy details and report this problem.");
+    expect(result.current.publishFailure?.copyText).not.toContain("CANARY_PUBLISH");
+    expect(result.current.publishFailure?.copyText).not.toContain("PUBLISH_KEY_CANARY");
+    expect(result.current.publishFailure?.copyText).toContain("[REDACTED:tovu_api_key]");
+    expect(result.current.publishFailure?.cause).toContain("[REDACTED");
+  });
+
   it("polls the publish status route while running and stops once the run settles", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const runningRun: AdminPublishRunSnapshot = { status: "running", startedAtIso: "t0", finishedAtIso: null, target: "vercel" };

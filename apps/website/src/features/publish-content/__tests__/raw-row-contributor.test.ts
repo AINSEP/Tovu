@@ -69,7 +69,9 @@ test("covered tables, shape drift and hostile column names are refused on destin
   const [packed] = await f.collect();
   assert.equal(await f.handler.precheck({ ...packed!, state: { ...packed!.state, table: "posts" } }), "Table 'posts' already publishes normally; use Overwrite live in normal publishing.");
   assert.equal(await f.handler.precheck({ ...packed!, state: { ...packed!.state, columns: [{ name: "id", type: "INTEGER", pk: 1, notnull: 0 }, { name: "title", type: "TEXT", pk: 0, notnull: 0 }] } }), "Live's 'p_widgets' has a different shape; update live first.");
-  assert.match((await f.handler.precheck({ ...packed!, state: { ...packed!.state, values: { ...packed!.state.values as object, access_token: "x" } } }))!, /access_token/);
+  const credentialRefusal = await f.handler.precheck({ ...packed!, state: { ...packed!.state, values: { ...packed!.state.values as object, access_token: "x" } } });
+  assert.ok(typeof credentialRefusal === "string");
+  assert.match(credentialRefusal, /access_token/);
 });
 
 test("unsafe SQLite integers are skipped instead of silently rounded during transport", async (t) => {

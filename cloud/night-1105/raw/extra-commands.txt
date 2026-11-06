@@ -1,0 +1,57 @@
+#!/bin/bash
+set -u
+source /workspace/shared/dev-env.sh
+mkdir -p /workspace/Tovu/cloud/night-1105/raw
+summary=/workspace/shared/extra-results.tsv
+printf 'section\texit\n' > "$summary"
+echo RUN extra-BA-1-1
+(cd /workspace/Jini/packages/agent-runtime && timeout --kill-after=10s 900s bash -c 'npx --no-install vitest run --maxWorkers=2 src/__tests__/startup-failure.test.ts src/__tests__/native-tool-compatibility.unit.test.ts') > /workspace/Tovu/cloud/night-1105/raw/extra-BA-1-1.txt 2>&1
+printf "extra-BA-1-1\t%s\n" "$?" >> "$summary"
+echo RUN extra-BA-1-2
+(cd /workspace/Jini/packages/daemon && timeout --kill-after=10s 900s bash -c 'npx --no-install vitest run --maxWorkers=2 src/__tests__/startup-failure.test.ts src/__tests__/agent-run-concurrency.test.ts') > /workspace/Tovu/cloud/night-1105/raw/extra-BA-1-2.txt 2>&1
+printf "extra-BA-1-2\t%s\n" "$?" >> "$summary"
+echo RUN extra-BA-1-3
+(cd /workspace/Jini/packages/chat && timeout --kill-after=10s 900s bash -c 'npx --no-install vitest run --maxWorkers=2 src/server/durable-runs/__tests__/recover.test.ts src/server/durable-runs/__tests__/recover-boundaries.test.ts src/react/features/chat-pane/__tests__/components/AgentRuntimePicker.native-policy.unit.test.tsx src/react/features/chat-pane/__tests__/components/AgentRuntimePicker.access-note-icon.unit.test.tsx') > /workspace/Tovu/cloud/night-1105/raw/extra-BA-1-3.txt 2>&1
+printf "extra-BA-1-3\t%s\n" "$?" >> "$summary"
+echo RUN extra-BA-1-4
+(cd /workspace/Tovu && timeout --kill-after=10s 900s bash -c 'node --test --test-timeout=60000 --test-concurrency=2 development/scripts/__tests__/measure-site-memory.test.mjs') > /workspace/Tovu/cloud/night-1105/raw/extra-BA-1-4.txt 2>&1
+printf "extra-BA-1-4\t%s\n" "$?" >> "$summary"
+echo RUN extra-BA-1-5
+(cd /workspace/Tovu && timeout --kill-after=10s 900s bash -c 'TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node --import tsx --import ./development/test-support/composed-bundle-env.ts --test --experimental-test-module-mocks --test-timeout=60000 --test-concurrency=2 apps/website/src/server/inbound/assistant/__tests__/agent-daemon-startup-cause.unit.test.ts apps/website/src/server/__tests__/assistant-launch-cause.unit.test.ts apps/website/src/server/runtime/lifecycle/__tests__/daemon-size-flag.unit.test.ts apps/website/src/server/runtime/lifecycle/__tests__/daemon-identity.test.ts development/scripts/__tests__/site-plugin-directories.test.mjs') > /workspace/Tovu/cloud/night-1105/raw/extra-BA-1-5.txt 2>&1
+printf "extra-BA-1-5\t%s\n" "$?" >> "$summary"
+echo RUN extra-BA-1-6
+(cd /workspace/Tovu && timeout --kill-after=10s 900s bash -c 'TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node --import tsx --import ./development/test-support/composed-bundle-env.ts --test --experimental-test-module-mocks --test-timeout=60000 --test-concurrency=2 --test-name-pattern='"'"'tovu serve mints TOVU_AGENT_DAEMON_TOKEN'"'"' apps/website/src/cli/__tests__/integration/serve-command.integration.test.ts') > /workspace/Tovu/cloud/night-1105/raw/extra-BA-1-6.txt 2>&1
+printf "extra-BA-1-6\t%s\n" "$?" >> "$summary"
+echo RUN extra-CM-1-1
+(cd /workspace/Tovu && timeout --kill-after=10s 900s bash -c 'TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node --import tsx --import ./development/test-support/composed-bundle-env.ts --test --test-timeout=60000 --test-concurrency=2 --experimental-test-module-mocks apps/website/src/platform/db/migrations/__tests__/{archive-legacy-commerce,drop-empty-core-commerce-tables-step,checksums,postgres-baseline}.test.ts apps/website/src/platform/db/__tests__/schema-migration-drift.test.ts apps/website/src/platform/db/sqlite/__tests__/integration/content-db-fresh.integration.test.ts apps/website/src/server/runtime/composition/__tests__/commerce-data-retention.integration.test.ts') > /workspace/Tovu/cloud/night-1105/raw/extra-CM-1-1.txt 2>&1
+printf "extra-CM-1-1\t%s\n" "$?" >> "$summary"
+echo RUN extra-CM-1-2
+(cd /workspace/Tovu && timeout --kill-after=10s 900s bash -c 'TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node --import tsx --import ./development/test-support/composed-bundle-env.ts --test --test-timeout=60000 --test-concurrency=2 --experimental-test-module-mocks apps/website/src/platform/db/migrations/__tests__/{archive-legacy-commerce.postgres,runner.postgres}.test.ts') > /workspace/Tovu/cloud/night-1105/raw/extra-CM-1-2.txt 2>&1
+printf "extra-CM-1-2\t%s\n" "$?" >> "$summary"
+echo RUN extra-SA-1-1
+(cd /workspace/Tovu && timeout --kill-after=10s 900s bash -c 'node --import tsx --test --test-timeout=60000 --test-concurrency=2 apps/website/src/server/inbound/admin-http/__tests__/dev-auth-failures.unit.test.ts apps/website/src/server/inbound/admin-http/__tests__/dev-auth-boot-owner.unit.test.ts apps/website/src/server/inbound/admin-http/__tests__/dev-auth.unit.test.ts apps/website/src/features/agent-plugins/__tests__/unit/vitest-compat.unit.test.ts apps/website/src/__tests__/fixtures/teardown.test.ts') > /workspace/Tovu/cloud/night-1105/raw/extra-SA-1-1.txt 2>&1
+printf "extra-SA-1-1\t%s\n" "$?" >> "$summary"
+echo RUN extra-SA-2-1
+(cd /workspace/Jini && timeout --kill-after=10s 900s bash -c 'node --import tsx --test --test-timeout=60000 --test-concurrency=2 packages/core/src/__tests__/teardown.test.ts packages/agent-plugins/__tests__/vitest-compat.test.mjs') > /workspace/Tovu/cloud/night-1105/raw/extra-SA-2-1.txt 2>&1
+printf "extra-SA-2-1\t%s\n" "$?" >> "$summary"
+echo RUN extra-SA-3-1
+(cd /workspace/Tovu/apps/admin && timeout --kill-after=10s 900s bash -c 'npx vitest run --maxWorkers=2 src/features/auth/__tests__ src/features/skills/__tests__') > /workspace/Tovu/cloud/night-1105/raw/extra-SA-3-1.txt 2>&1
+printf "extra-SA-3-1\t%s\n" "$?" >> "$summary"
+echo RUN extra-SEC-1-1
+(cd /workspace/Tovu && timeout --kill-after=10s 900s bash -c 'TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node    --import tsx    --import ./development/test-support/composed-bundle-env.ts    --test --experimental-test-module-mocks    --test-timeout=60000 --test-concurrency=2    apps/website/src/assistant/__tests__/mcp-ui-tool-calls-route.secret-forms.test.ts    apps/website/src/assistant/__tests__/mcp-ui-tool-calls-route.ask-choice-typed-answer.integration.test.ts    apps/website/src/server/runtime/composition/modules/__tests__/assistant-mcp-proxy.pin.test.ts    apps/website/src/features/api-connections/__tests__/browser-binding.unit.test.ts    apps/website/src/features/external-mcp/__tests__/external-mcp-oauth.test.ts    apps/website/src/features/external-mcp/__tests__/unit/tool-registrations.oauth-origin.unit.test.ts    apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.unit.test.ts    apps/website/src/server/inbound/public-http/routes/external-mcp/__tests__/oauth-callback.test.ts    apps/website/src/server/__tests__/admin-external-mcp-oauth-routes.test.ts') > /workspace/Tovu/cloud/night-1105/raw/extra-SEC-1-1.txt 2>&1
+printf "extra-SEC-1-1\t%s\n" "$?" >> "$summary"
+echo RUN extra-SEC-2-1
+(cd /workspace/Jini && timeout --kill-after=10s 900s bash -c 'npx vitest run --maxWorkers=2    packages/ui/src/features/mcp-ui/__tests__/secret-card.unit.test.ts    packages/mcp/src/federation/__tests__/http-result-secrets.test.ts    packages/mcp/src/federation/__tests__/stdio-result-secrets.test.ts    packages/mcp/src/federation/__tests__/http-authentication-ports.test.ts    packages/mcp/src/federation/__tests__/default-connect.unit.test.ts    packages/mcp/src/federation/__tests__/mcp-federation.stdio-adapter.test.ts') > /workspace/Tovu/cloud/night-1105/raw/extra-SEC-2-1.txt 2>&1
+printf "extra-SEC-2-1\t%s\n" "$?" >> "$summary"
+echo RUN extra-T-1-1
+(cd /workspace/Tovu && timeout --kill-after=10s 900s bash -c 'TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node --import tsx    --import ./development/test-support/composed-bundle-env.ts    --test --test-timeout=60000 --test-concurrency=2 --experimental-test-module-mocks    apps/website/src/features/theme/__tests__/duplicate-theme.test.ts    apps/website/src/assistant/__tests__/tool-registrations.theme-duplicate.test.ts    apps/website/src/assistant/__tests__/tool-registrations.theme-set-active.test.ts    apps/website/src/server/inbound/admin-http/routes/presentation/__tests__/patch-active-theme.test.ts    apps/website/src/features/agent-plugins/__tests__/unit/bundled-tovu-theme-package.unit.test.ts    content/agent-plugins/tovu-theme/__tests__/bundled-package.test.mjs    content/agent-plugin-overlays/ui-ux-design/__tests__/ui-ux-design-overlay.test.mjs    content/agent-plugin-overlays/site-import/__tests__/site-import-overlay.test.mjs') > /workspace/Tovu/cloud/night-1105/raw/extra-T-1-1.txt 2>&1
+printf "extra-T-1-1\t%s\n" "$?" >> "$summary"
+echo RUN extra-T-2-1
+(cd /workspace/Jini/packages/platform && timeout --kill-after=10s 900s bash -c 'npx vitest run --maxWorkers=2 --minWorkers=1 src/web/__tests__/strip-html-presentation.test.ts') > /workspace/Tovu/cloud/night-1105/raw/extra-T-2-1.txt 2>&1
+printf "extra-T-2-1\t%s\n" "$?" >> "$summary"
+echo RUN extra-desktop-window-i18n
+(cd /workspace/Tovu/apps/desktop && timeout --kill-after=10s 900s bash -c 'node --experimental-test-module-mocks --import ./scripts/resolve-ts-ext.ts --test-concurrency=1 --test src/main/windows/last-window-quit.test.ts src/desktop-i18n.test.ts') > /workspace/Tovu/cloud/night-1105/raw/extra-desktop-window-i18n.txt 2>&1
+printf "extra-desktop-window-i18n\t%s\n" "$?" >> "$summary"
+echo RUN extra-desktop-typecheck
+(cd /workspace/Tovu/apps/desktop && timeout --kill-after=10s 900s bash -c 'npm run typecheck') > /workspace/Tovu/cloud/night-1105/raw/extra-desktop-typecheck.txt 2>&1
+printf "extra-desktop-typecheck\t%s\n" "$?" >> "$summary"

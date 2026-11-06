@@ -100,7 +100,7 @@ const APPLY_FIXTURES: Array<{ entityType: string; id: string; state: Record<stri
     kind, title: `Published ${kind}`, slug: `published-${kind}`, status: "published", bodyFormat: "html",
     bodyJson: { type: "doc", content: [] }, bodyHtml: `<p>Registry ${kind} body</p>`,
   } })),
-  { entityType: "form", id: "registry-contact", state: { name: "Registry contact", slug: "registry-contact", status: "active", fields: [{ id: "message", type: "textarea", label: "Message", required: true }], notify: { enabled: false, recipients: [] } } },
+  { entityType: "form", id: "registry-contact", state: { name: "Registry contact", slug: "registry-contact", status: "active", fields: [{ id: "message", type: "textarea", label: "Message", required: true }] } },
   { entityType: "content-type", id: "registry_recipe", state: { key: "registry_recipe", label: "Registry recipes", fields: [], status: "active" } },
   { entityType: "taxonomy", id: "registry-taxonomy", state: { name: "Registry categories", hierarchical: true } },
   { entityType: "term", id: "registry-term", state: { taxonomyId: "fixture-taxonomy", parentId: null, name: "Registry term" } },
@@ -126,7 +126,12 @@ for (const fixture of APPLY_FIXTURES) {
         createdAt: at, updatedAt: at,
       });
       await site.presentation.save({ workspaceId: WORKSPACE_ID, activeThemeId: "paper", updatedAt: at });
-      site.themes.push({ status: "valid", manifest: { id: "registry-theme", tier: "static" }, dir: "/themes/static/registry-theme" } as DiscoveredTheme);
+      site.themes.push({
+        status: "valid", errors: [], css: ".registry-fixture { color: black; }",
+        manifest: { id: "registry-theme", name: "Registry theme", version: "1.0.0", engine: 1, tier: "static" },
+        dir: "/themes/static/registry-theme", source: "site", tokens: {}, tokensLight: {}, templates: {},
+        liquidTemplates: {}, handlebarsTemplates: {}, pages: {}, partials: {},
+      } satisfies DiscoveredTheme);
       const forms = new SqliteFormDefinitionRepo(site.db);
       const widget = { entries: site.entries, contentTypes: site.contentTypes, forms,
         entryRefs: new SqliteEntryRefsRepo(site.db), bindings: new SqliteWidgetRegionBindingRepo(site.db) };
@@ -148,6 +153,7 @@ for (const fixture of APPLY_FIXTURES) {
       const landed = after.find(entity => entity.id === fixture.id);
       assert.ok(landed, `${fixture.entityType}:${fixture.id} must be exportable after apply`);
       assert.deepEqual(Object.fromEntries(Object.keys(fixture.state).map(key => [key, landed.state[key]])), fixture.state);
+      if (fixture.entityType === "form") assert.equal(Object.hasOwn(landed.state, "notify"), false, "recipient configuration stays local to the destination");
       // Direct SQLite read-back independently pins the widget-area binding, whose packed
       // placements are intentionally empty in this smallest registration fixture.
       if (fixture.entityType === "widget-area") {

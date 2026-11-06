@@ -2,12 +2,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import fs from "node:fs";
 import { createServer } from "node:http";
-import { finishDevStartup, waitForDevApi } from "../dev.mjs";
+import { PassThrough } from "node:stream";
+import { finishDevStartup, waitForDevApi, observeDevApiAttachment, classifyChildExit } from "../dev.mjs";
 
 test("the dev entrypoint gates its admin startup through the API readiness result", () => {
   const source = fs.readFileSync(new URL("../dev.mjs", import.meta.url), "utf8");
   assert.ok(source.includes("await finishDevStartup({ apiPort: API_PORT"));
-  assert.ok(source.includes("waitForReady = () => waitForDevApi({ apiPort, scheme }, { certificate })"));
+  assert.ok(source.includes("waitForReady: () => waitForDevApi({ apiPort, scheme }, { certificate })"));
   assert.ok(source.includes("waitForReady: () => waitForDevApi({ apiPort: API_PORT, scheme }, { certificate })"));
   assert.equal(source.includes("starting the admin anyway"), false);
 });
@@ -84,4 +85,77 @@ test("an API that binds before boot completes must answer readyz successfully be
   t.after(() => new Promise(resolve => { server.close(resolve); server.closeAllConnections(); }));
   assert.equal(await waitForDevApi({ apiPort: server.address().port, scheme: "http" }), true);
   assert.deepEqual(paths, ["/readyz", "/readyz"]);
+});
+
+
+test("a split attachment line adopts only the launched site's verified lease", async () => {
+  const stdout = new PassThrough();
+  const record = { pid: 123, port: 4328, scheme: "https", app: "Desktop", token: "owner" };
+  const adopted = [], reads = [];
+  observeDevApiAttachment({ stdout, dir: "/sites/alpha" }, {
+    readRunning: ({ dir }) => { reads.push(dir); return record; },
+    adopt: input => adopted.push(input), mirror: new PassThrough(),
+  });
+  stdout.write("Using the site already run");
+  assert.deepEqual(adopted, []);
+  stdout.end("ning in Desktop: https://localhost:4328/admin/\n");
+  assert.deepEqual(reads, ["/sites/alpha"]);
+  assert.deepEqual(adopted, [{ dir: "/sites/alpha", record }]);
+  assert.equal(classifyChildExit({ shuttingDown: false, planned: false, code: 0, attached: true }), "attached");
+  assert.equal(classifyChildExit({ shuttingDown: false, planned: false, code: 1, attached: true }), "crash");
+  assert.equal(classifyChildExit({ shuttingDown: false, planned: false, code: 0, attached: false }), "crash");
+});
+
+test("a URL line without a lease for the selected site cannot attach to a different site or foreign process", () => {
+  const stdout = new PassThrough();
+  observeDevApiAttachment({ stdout, dir: "/sites/alpha" }, {
+    readRunning: () => null, adopt: () => assert.fail("no verified owner"), mirror: new PassThrough(),
+  });
+  stdout.end("Using the site already running in Web: http://localhost:4328/admin/\n");
+});
+
+test("readiness follows an attached site's address and startup continues without a second admin", async () => {
+  const record = { pid: 123, port: 4328, scheme: "https", app: "Desktop", token: "owner" };
+  const readAttachment = () => record;
+  const probed = [], lines = [];
+  assert.equal(await waitForDevApi({ apiPort: 4327, scheme: "http" }, {
+    readAttachment, wait: async (url, options) => assert.equal(await options.probe({ url, timeoutMs: 100 }), true),
+    probe: async ({ url }) => { probed.push(url); return true; },
+  }), true);
+  assert.deepEqual(probed, ["https://127.0.0.1:4328/readyz"]);
+  assert.equal(await finishDevStartup({ apiPort: 4327, vitePort: 5327, scheme: "http" }, {
+    waitForReady: async () => true, readAttachment, isShuttingDown: () => false,
+    log: line => lines.push(line), stop: () => assert.fail("attachment is success"),
+    startAdmin: () => assert.fail("the running site already serves its admin"),
+  }), true);
+  assert.match(lines.join("\n"), /https:\/\/localhost:4328\/admin\//);
+});
+
+
+test("an unreadable selected-site lease refuses attachment with a recovery step", () => {
+  const stdout = new PassThrough(), warnings = [];
+  observeDevApiAttachment({ stdout, dir: "/sites/alpha" }, {
+    readRunning: () => { throw new Error("fixture invalid record"); },
+    adopt: () => assert.fail("invalid ownership cannot attach"), mirror: new PassThrough(),
+    warn: line => warnings.push(line),
+  });
+  stdout.end("Using the site already running in Web: http://localhost:4328/admin/\n");
+  assert.match(warnings.join("\n"), /could not verify.*selected site's running record/);
+  assert.match(warnings.join("\n"), /Stop it in the other Tovu app.*npm run dev/);
+});
+
+test("an attachment still starting cannot probe the requested port or report success early", async () => {
+  let record = { app: "Desktop", scheme: "http", port: 0 };
+  const probed = [];
+  assert.equal(await waitForDevApi({ apiPort: 4327, scheme: "http" }, {
+    readAttachment: () => record,
+    wait: async (url, options) => {
+      assert.equal(await options.probe({ url, timeoutMs: 100 }), false);
+      assert.deepEqual(probed, []);
+      record = { ...record, port: 4328 };
+      assert.equal(await options.probe({ url, timeoutMs: 100 }), true);
+    },
+    probe: async ({ url }) => { probed.push(url); return true; },
+  }), true);
+  assert.deepEqual(probed, ["http://127.0.0.1:4328/readyz"]);
 });

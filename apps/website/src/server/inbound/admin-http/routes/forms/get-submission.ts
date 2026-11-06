@@ -67,7 +67,9 @@ export const registerAdminFormsGetSubmissionRoute: FormsRouteRegistrar = (app, d
             .json({ error: `submission '${submissionId}' was not found`, code: "FORMS_SUBMISSION_NOT_FOUND" });
           return;
         }
-        res.json(toAdminFormSubmissionResponse(submission));
+        const response = toAdminFormSubmissionResponse(submission);
+        if (deps.formDeliveryStatus?.notificationSummary) response.data.notificationDelivery = await deps.formDeliveryStatus.notificationSummary({ workspaceId: deps.workspaceId, submissionId });
+        res.json(response);
       } catch (error) {
         sendAdminFailure({ res, error }, { operation: "routes/forms/get-submission", code: "INTERNAL_ERROR" });
       }

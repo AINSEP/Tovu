@@ -1,11 +1,12 @@
 import { act, fireEvent, render, renderHook, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { ReactElement, ReactNode } from "react";
+import { Suspense, type ReactElement, type ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { api } from "@/lib/api";
 import { ADMIN_PANELS } from "@/panels";
+import { Library as LibraryRoute } from "@/panel-pages";
 import { Placeholder } from "@/components/Placeholder";
 import { translateAdminNavLabel } from "@/lib/admin-nav-i18n";
 import { COMMON_I18N } from "@/lib/i18n-common";
@@ -65,8 +66,11 @@ describe("Library panel registration", () => {
 
   it("passes ?tab= through to the page", () => {
     const library = ADMIN_PANELS.find((panel) => panel.id === "library")!;
-    const element = library.render({ view: null, params: {}, query: new URLSearchParams("tab=documents"), Placeholder }) as ReactElement;
-    expect(element.type).toBe(Library);
+    // Route pages now load lazily beneath the registry's Suspense boundary.
+    const boundary = library.render({ view: null, params: {}, query: new URLSearchParams("tab=documents"), Placeholder }) as ReactElement<{ children: ReactElement }>;
+    expect(boundary.type).toBe(Suspense);
+    const element = boundary.props.children;
+    expect(element.type).toBe(LibraryRoute);
     expect(element.props).toMatchObject({ tabId: "documents" });
   });
 

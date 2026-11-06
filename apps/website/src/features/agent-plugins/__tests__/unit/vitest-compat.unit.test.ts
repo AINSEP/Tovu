@@ -64,7 +64,7 @@ test("compat timers fire at the deadline and globals restore to their original v
   }
 });
 
-test("the network guard fails the test even when the forbidden fetch rejection is caught, and file cleanup still runs", () => {
+for (const brokenCleanup of [false, true]) test(`caught forbidden fetch still fails after every cleanup; broken cleanup=${brokenCleanup}`, () => {
   const compatUrl = new URL("../fixtures/vitest-compat.ts", import.meta.url).href;
   const env = { ...process.env };
   delete env.NODE_TEST_CONTEXT;
@@ -72,22 +72,37 @@ test("the network guard fails the test even when the forbidden fetch rejection i
   const childPath = path.join(root, "guard.test.mjs");
   try {
     writeFileSync(childPath, `
-      import { after, test } from 'node:test';
+      import { after, afterEach, test } from 'node:test';
       import { writeFileSync } from 'node:fs';
       import { installNetworkGuard } from ${JSON.stringify(compatUrl)};
+      import { onTeardown } from ${JSON.stringify(new URL("../../../../__tests__/fixtures/teardown.ts", import.meta.url).href)};
       installNetworkGuard();
+      afterEach(t => writeFileSync(${JSON.stringify(path.join(root, "later-after-each"))} + t.name, "yes"));
       after(() => writeFileSync(${JSON.stringify(path.join(root, "cleaned"))}, "yes"));
-      test('caught forbidden fetch', async () => {
+      test('caught forbidden fetch', async t => {
+        onTeardown({ t, step: () => writeFileSync(${JSON.stringify(path.join(root, "queued-cleanup"))}, "yes") });
+        onTeardown({ t, step: () => { if (${brokenCleanup}) { writeFileSync(${JSON.stringify(path.join(root, "broken-cleanup-attempted"))}, "yes"); throw new Error('cleanup canary'); } } });
         await globalThis.fetch('https://guard.example.test/forbidden').catch(() => {});
       });
+      test('clean following test', () => {});
     `);
-    const run = spawnSync(process.execPath, ["--import", "tsx", "--test", "--test-concurrency=1", childPath], { encoding: "utf8", timeout: 10_000, env });
+    // These assertions inspect TAP; Node's default reporter can be spec instead.
+    const run = spawnSync(process.execPath, ["--import", "tsx", "--test", "--test-reporter=tap", "--test-timeout=60000", "--test-concurrency=2", childPath], { encoding: "utf8", timeout: 60_000, env });
     assert.ifError(run.error);
     assert.equal(run.status, 1);
-    assert.match(run.stdout + run.stderr, /no test may reach the real network/);
-    assert.match(run.stdout + run.stderr, /https:\/\/guard.example.test\/forbidden/);
+    if (brokenCleanup) {
+      assert.match(run.stdout + run.stderr, /test teardown failed/);
+      assert.equal(existsSync(path.join(root, "broken-cleanup-attempted")), true);
+    } else {
+      assert.match(run.stdout + run.stderr, /no test may reach the real network/);
+      assert.match(run.stdout + run.stderr, /https:\/\/guard.example.test\/forbidden/);
+    }
     // A guard failure must not skip the file's own cleanup (e.g. dialect-matrix's shared PGlite close).
     assert.equal(existsSync(path.join(root, "cleaned")), true, "file-level after hook must still run");
+    assert.equal(existsSync(path.join(root, "later-after-eachcaught forbidden fetch")), true, "later afterEach must run before guard verification");
+    assert.equal(existsSync(path.join(root, "later-after-eachclean following test")), true);
+    assert.equal(existsSync(path.join(root, "queued-cleanup")), true, "queued cleanup must survive another cleanup failure");
+    assert.match(run.stdout, /ok 2 - clean following test/);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

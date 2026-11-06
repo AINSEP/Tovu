@@ -44,14 +44,15 @@ describe("agent failure reasons", () => {
       .toBe("https://example.com?key=[REDACTED]&code=[REDACTED] Authorization: Basic [REDACTED]");
   });
 
-  it("keeps today's exact generic message when there is no stderr", () => {
+  it("adds actionable copyable failure data when the assistant reports no cause", () => {
     const message: ChatMessage = { id: "empty", role: "assistant", content: "", runStatus: "failed",
       events: [{ kind: "status", label: GENERIC_AGENT_FAILURE }] };
     expect(extractAgentFailure({ events: message.events }, {})).toBeNull();
-    expect(projectAgentFailureMessage({ message }, {}).events).toEqual([{ kind: "status", label: "The assistant could not continue this answer. Saved work is above." }]);
+    const expected = [{ kind: "ext", name: AGENT_FAILURE_EVENT, data: { reason: GENERIC_AGENT_FAILURE, details: "The assistant stopped without reporting a cause." } }];
+    expect(projectAgentFailureMessage({ message }, {}).events).toEqual(expected);
     expect(extractAgentFailure({ events: [{ kind: "raw", line: "YOLO mode is enabled.\nWarning: 256-color support not detected." }] }, {})).toBeNull();
     expect(projectAgentFailureMessage({ message: { ...message, events: [] } }, {}).events)
-      .toEqual([{ kind: "status", code: "run_terminal", label: "The assistant could not continue this answer. Saved work is above." }]);
+      .toEqual(expected);
   });
 
   // Durable recovery finalizes a bridge failure with the daemon's own message (order-pinch chat.db shape).
@@ -140,7 +141,9 @@ describe("agent failure reasons", () => {
     const user: ChatMessage = { id: "user", role: "user", content: "hello" };
     expect(projectAgentFailureMessage({ message: user })).toBe(user);
     expect(projectAgentFailureMessage({ message: { id: "empty", role: "assistant", content: "", runStatus: "failed" } }).events)
-      .toEqual([{ kind: "status", code: "run_terminal", label: GENERIC_AGENT_FAILURE }]);
+      .toEqual([{ kind: "ext", name: AGENT_FAILURE_EVENT, data: {
+        reason: GENERIC_AGENT_FAILURE, details: "The assistant stopped without reporting a cause.",
+      } }]);
   });
 
   it("redacts credentials with default options while preserving ordinary whitespace", () => {

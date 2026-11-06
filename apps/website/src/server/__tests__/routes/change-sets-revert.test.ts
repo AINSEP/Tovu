@@ -207,7 +207,7 @@ test("change-sets revert: an unexpected error is 500 with a generic body", async
     headers: { cookie },
   });
   assert.equal(res.status, 500);
-  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The change set operation could not be completed.", action: "Check the result before repeating this operation. Copy details and report this problem.", step: "change set operation" } });
 });
 
 /**

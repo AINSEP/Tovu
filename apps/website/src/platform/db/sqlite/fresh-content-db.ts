@@ -1,3 +1,6 @@
+import { OWNER_PASSKEYS_SQL } from '../migrations/0041_owner_passkeys.js';
+import { OWNER_MFA_SQL } from '../migrations/0040_owner_mfa.js';
+import { OWNER_RECOVERY_CODES_SQL } from '../migrations/0039_owner_recovery_codes.js';
 import { MEMBER_EXTERNAL_IDENTITIES_STATEMENTS } from "../migrations/0035_member_external_identities.js";
 import { NEWSLETTER_SENDING_INDEX_SQL } from "../migrations/0038_newsletter_sending_index.js";
 import { memberAuthStatements } from "../migrations/0034_member_auth.js";
@@ -131,6 +134,7 @@ export function bootstrapFreshContentDb(
       for (const statement of POSTS_AUTHOR_SQLITE_STATEMENTS) client.exec(statement);
     },
     "0010_members_credentials_revoked_at": () => client.exec(MEMBERS_CREDENTIALS_REVOKED_AT_SQL),
+    "0011_archive_legacy_commerce": () => {}, // Fresh baseline has no commerce rows to preserve.
     "0011_drop_empty_core_commerce_tables": () => {
       // Fresh-only: the frozen chain seeds no commerce rows; upgrades use 0011's count guard.
       for (const table of CORE_COMMERCE_TABLES_IN_DROP_ORDER) client.exec(`DROP TABLE IF EXISTS "${table}"`);
@@ -207,6 +211,9 @@ export function bootstrapFreshContentDb(
     "0036_publish_history_config_jsonb": () => {}, // Postgres-only conversion; SQLite retains 0016's text column.
     "0037_media_source_metadata": () => client.exec("ALTER TABLE media ADD COLUMN \"source_metadata_json\" text"),
     "0038_newsletter_sending_index": () => client.exec(NEWSLETTER_SENDING_INDEX_SQL),
+    "0039_owner_recovery_codes": () => client.exec(OWNER_RECOVERY_CODES_SQL),
+    "0040_owner_mfa": () => { for (const statement of OWNER_MFA_SQL) client.exec(statement); },
+    "0041_owner_passkeys": () => { for (const statement of OWNER_PASSKEYS_SQL) client.exec(statement); },
     "0018_form_submission_remote_receipts": () => {
       for (const statement of FORM_SUBMISSION_REMOTE_RECEIPTS_STATEMENTS) client.exec(statement);
     },

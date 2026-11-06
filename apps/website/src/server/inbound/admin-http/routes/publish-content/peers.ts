@@ -1,3 +1,4 @@
+import type { Response } from "express";
 import {
   createPublishContentPeer,
   deletePublishContentPeer,
@@ -46,7 +47,7 @@ import {
 /** Maps this feature's typed store errors to HTTP. Every case is a specific status — a validation
  *  refusal must never read as a server fault, and a duplicate label must never read as a validation
  *  error the operator can fix by retyping the same value. A raw driver error falls through to the
- *  generic 500 text rather than being echoed (`mappedErrorResponse`). */
+ *  approved request wording rather than being echoed (`mappedErrorResponse`). */
 const PEER_ERRORS: readonly MappedErrorClass[] = [
   [PublishContentPeerValidationError, 400, "VALIDATION_ERROR"],
   [PublishContentPeerDuplicateLabelError, 409, "DUPLICATE_LABEL"],
@@ -55,6 +56,18 @@ const PEER_ERRORS: readonly MappedErrorClass[] = [
   // configuration failure, never the plaintext that failed to seal.
   [PublishContentPeerSecretStoreUnconfiguredError, 503, "SECRET_STORE_UNCONFIGURED"],
 ];
+
+/** Preserve typed refusals while unexpected failures use the safe registered template and
+ * authenticated-principal disclosure policy. Concrete paths and submitted values never enter copy.
+ * @complexity O(bounded route tokens) for formatting; existing diagnostic sinks are unchanged.
+ */
+function respondToPeerFailure({ res, error }: { res: Response; error: unknown }): void {
+  sendRefusal(res, mappedErrorResponse(error, PEER_ERRORS, {
+    tracker: res.locals?.adminFailureTracker, method: res.req?.method,
+    route: typeof res.req?.route?.path === "string" ? res.req.route.path : undefined,
+    discloseDetails: !res.req || !!res.locals?.principal,
+  }));
+}
 
 /** The write-side dependency bag, assembled once per handler from this module's route deps.
  *  @complexity O(1). */
@@ -88,7 +101,7 @@ export const registerPublishContentPeerRoutes: PublishContentRouteRegistrar = (a
       const peers = await listPublishContentPeers({ repo: deps.publishContentPeerRepo }, { workspaceId: deps.workspaceId });
       res.json({ peers });
     } catch (err) {
-      sendRefusal(res, mappedErrorResponse(err, PEER_ERRORS, { tracker: res.locals?.adminFailureTracker }));
+      respondToPeerFailure({ res, error: err });
     }
   });
 
@@ -106,7 +119,7 @@ export const registerPublishContentPeerRoutes: PublishContentRouteRegistrar = (a
       });
       res.status(201).json({ peer });
     } catch (err) {
-      sendRefusal(res, mappedErrorResponse(err, PEER_ERRORS, { tracker: res.locals?.adminFailureTracker }));
+      respondToPeerFailure({ res, error: err });
     }
   });
 
@@ -121,7 +134,7 @@ export const registerPublishContentPeerRoutes: PublishContentRouteRegistrar = (a
       });
       res.json({ peer });
     } catch (err) {
-      sendRefusal(res, mappedErrorResponse(err, PEER_ERRORS, { tracker: res.locals?.adminFailureTracker }));
+      respondToPeerFailure({ res, error: err });
     }
   });
 
@@ -137,7 +150,7 @@ export const registerPublishContentPeerRoutes: PublishContentRouteRegistrar = (a
       });
       res.status(204).end();
     } catch (err) {
-      sendRefusal(res, mappedErrorResponse(err, PEER_ERRORS, { tracker: res.locals?.adminFailureTracker }));
+      respondToPeerFailure({ res, error: err });
     }
   });
 };

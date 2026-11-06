@@ -161,13 +161,16 @@ async function prepareSiteBoot(
 
   // Claim before the schema guard, which already opens the site's database.
   const runningLease = useMemory ? undefined : claimSiteRunning({ dir: siteDir(), app: "Web", scheme: devTls.active ? "https" : "http" });
-  if (!useMemory) reportSitesSyncWarning({});
-  if (!useMemory) await guardContentDbSchemaOrExit(defaultContentDbPath());
-  // site-key plan §A3a: gated identically to the schema guard right above — a `:memory:` boot has
-  // no site directory at all, so there is nowhere for `ensureSiteKeyForBoot` to look. Must precede
-  // `createSiteRouteDeps` below, which is what actually resolves the site key this may have just
-  // adopted or minted.
-  if (!useMemory) await ensureSiteKeyForBoot({ siteDir: siteDir(), findSiteKeyDependentData });
+  if (runningLease?.attached) return runningLease;
+  if (!useMemory) {
+    reportSitesSyncWarning({});
+    await guardContentDbSchemaOrExit(defaultContentDbPath());
+    // site-key plan §A3a: gated identically to the schema guard right above — a `:memory:` boot has
+    // no site directory at all, so there is nowhere for `ensureSiteKeyForBoot` to look. Must precede
+    // `createSiteRouteDeps` below, which is what actually resolves the site key this may have just
+    // adopted or minted.
+    await ensureSiteKeyForBoot({ siteDir: siteDir(), findSiteKeyDependentData });
+  }
 
   // The LOCAL-mode counterpart to the production readiness gate, which returns immediately outside
   // production. "Do not refuse to boot without a site key" was implemented as "do not mention it",
@@ -221,8 +224,14 @@ async function reserveSiteBootListener(
   }
 }
 
+/** Uses the configured TLS pair when present; creating the server does not bind its listener. */
+function createBootHttpServer({ handler }: { handler: import("node:http").RequestListener }, _options = {}) {
+  return devTls.active && devTls.credentials ? createHttpsServer(devTls.credentials, handler) : createHttpServer(handler);
+}
+
 async function main(): Promise<void> {
   const runningLease = await prepareSiteBoot({ useMemory }, {});
+  if (runningLease?.attached) return;
 
   // Reserve the actual HTTP(S) listener before composition derives origins or spawns daemons.
   // During boot it answers 503; attaching the app later keeps this SAME socket bound throughout.
@@ -230,9 +239,7 @@ async function main(): Promise<void> {
     response.writeHead(503, { "Retry-After": "1" });
     response.end("Server is starting");
   };
-  const server = devTls.active && devTls.credentials
-    ? createHttpsServer(devTls.credentials, (request, response) => requestHandler(request, response))
-    : createHttpServer((request, response) => requestHandler(request, response));
+  const server = createBootHttpServer({ handler: (request, response) => requestHandler(request, response) });
   await reserveSiteBootListener({ server, runningLease }, {});
 
   server.on("error", (error: Error) => { throw error; });

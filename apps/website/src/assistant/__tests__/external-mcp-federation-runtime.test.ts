@@ -307,6 +307,8 @@ test("the logger prefixes warnings with the caller's own log tag too", async (t)
     warnLines.push(args.map(String).join(" "));
   });
   t.mock.method(console, "log", () => {});
+  const failure = new Error("boom");
+  failure.stack = "Error: boom\n    at connect fixture";
 
   const runtime = createFederationRuntime({
     registry: fakeRegistry(),
@@ -314,14 +316,14 @@ test("the logger prefixes warnings with the caller's own log tag too", async (t)
     resolveConnections: async () => [connection("x")],
     log: "[assistant-byok]",
     connect: async () => {
-      throw new Error("boom");
+      throw failure;
     },
   });
 
   await runtime.start();
 
   assert.ok(
-    warnLines.includes("[assistant-byok] mcp-federation: 'x' failed, continuing without its tools — boom"),
+    warnLines.includes("[assistant-byok] mcp-federation: 'x' failed, continuing without its tools — Error: boom\n    at connect fixture"),
     `expected the exact warn line; got: ${JSON.stringify(warnLines)}`,
   );
 });

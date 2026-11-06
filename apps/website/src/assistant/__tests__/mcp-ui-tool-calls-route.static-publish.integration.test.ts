@@ -74,12 +74,20 @@ const CONFIGURED_CREDENTIAL_SOURCE: PublishCredentialSource = {
 /** Builds the real tool surface for the static-publish domain: one registry, one
  *  production-shaped executor (no `delegate`, matching `agent-daemon-server.ts`'s own
  *  construction), over the real hermetic `createRouteDeps()` fixture. */
-function buildRealStaticPublishToolExecutor(
+async function buildRealStaticPublishToolExecutor(
   surfaceExchanges: SurfaceExchangeStore,
   options: { credentialSource?: PublishCredentialSource; captured?: { value: DeployFile[] | null } } = {},
 ) {
   const captured = options.captured ?? { value: null };
-  const routeDeps = { ...createRouteDeps(), authorize: async () => ({ allowed: true as const, reason: "matched" }), workspaceId: WORKSPACE_ID };
+  const baseRouteDeps = createRouteDeps();
+  // createSiteApp captures this original object. Mount the production consent routes and turn
+  // consent on before copying dependencies, so the server adds the shipped loader reference.
+  baseRouteDeps.cookieConsent = { regionResolvers: async () => [] };
+  await baseRouteDeps.siteConsentReady;
+  await baseRouteDeps.set({ deps: { repo: baseRouteDeps.settingsRepo, clock: baseRouteDeps.clock, ids: baseRouteDeps.idGen,
+    principals: baseRouteDeps.principalRepo, authorize: baseRouteDeps.authorize }, input: { namespace: 'core.consent', key: 'enabled',
+    value: true, scope: 'workspace', workspaceId: baseRouteDeps.workspaceId, callerPrincipalId: await baseRouteDeps.ownerPrincipalId } });
+  const routeDeps = { ...baseRouteDeps, authorize: async () => ({ allowed: true as const, reason: "matched" }), workspaceId: WORKSPACE_ID };
   const deps: StaticPublishToolDeps = {
     ...routeDeps,
     // why: the consent preflight (d2126748) authorizes through its own bound deps; bind it to this fixture's authorize.
@@ -110,7 +118,7 @@ const PUBLISH_INPUT = { target: "vercel", projectName: "demo-site" };
 
 test("deployment_execute_static_publish waits for one human approval over HTTP before publishing", async (t) => {
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-  const { toolExecutor, captured } = buildRealStaticPublishToolExecutor(surfaceExchanges);
+  const { toolExecutor, captured } = await buildRealStaticPublishToolExecutor(surfaceExchanges);
 
   let routeExecutions = 0;
   const app = express();
@@ -124,9 +132,13 @@ test("deployment_execute_static_publish waits for one human approval over HTTP b
   } });
   const baseUrl = await startTestServer(app, t);
   let approvalCards = 0;
+  let completePublish!: () => void;
+  const publishCompleted = new Promise<void>(resolve => { completePublish = resolve; });
   const executed = await toolExecutor.execute({ principal: { id: PRINCIPAL }, run: { id: "run-1" }, toolId: "deployment_execute_static_publish", input: PUBLISH_INPUT }, { emitSurface: async (emission: SurfaceEmission) => {
     const match = surfaceHtml(emission).match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`));
-    if (!match) return; // Outcome surfaces carry no answer correlation.
+    // Background publication has no fixed number of event-loop turns. Its final surface
+    // is the completion signal; the cloud runner bounds the test, without polling or sleeps.
+    if (!match) { completePublish(); return; }
     approvalCards += 1;
     assert.equal(captured.value, null, "no publish may occur before the human approves");
     const response = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
@@ -139,18 +151,32 @@ test("deployment_execute_static_publish waits for one human approval over HTTP b
   } });
 
   assert.equal(executed.status, "completed", `the approved call must complete: ${JSON.stringify(executed)}`);
-  assert.equal(approvalCards, 1, "exactly one approval mechanism asks for this publish");
+  assert.equal(approvalCards, 1, `exactly one approval mechanism asks for this publish: ${JSON.stringify(executed)}`);
   assert.equal(routeExecutions, 0, "the human answer resumes the parked call without starting another");
-  const output = executed.output as { published: boolean; target: string; url: string };
+  const accepted = executed.output as { accepted: boolean; jobId: string };
+  assert.equal(accepted.accepted, true);
+  assert.ok(accepted.jobId);
+  await publishCompleted;
+  const checked = await toolExecutor.execute({ principal: { id: PRINCIPAL }, run: { id: "run-status" }, toolId: "deployment_get_static_publish_status", input: { jobId: accepted.jobId } });
+  assert.equal(checked.status, "completed");
+  const job = checked.output as { status: string; result: { published: boolean; target: string; url: string } };
+  assert.equal(job.status, "completed", JSON.stringify(job));
+  const output = job.result;
+  assert.ok(output, "background publish must produce a retrievable result");
   assert.equal(output.published, true, `expected a real publish to have happened: ${JSON.stringify(output)}`);
   assert.equal(output.target, "vercel");
   assert.equal(output.url, "https://example.test/published");
   assert.ok(captured.value && captured.value.length > 0, "the real hermetic fixture must have actually exported files for the fake deploy target to receive");
+  assert.ok(captured.value.some(({ file }) => file === '_consent/load.js'), 'the server-added consent loader must export through the mounted routes');
+  const home = captured.value.find(({ file }) => file === 'index.html');
+  assert.ok(home);
+  assert.match(typeof home.data === 'string' ? home.data : Buffer.from(home.data).toString('utf8'), /data-jini-consent-loader/,
+    'the exported page itself must reference the server-added loader');
 });
 
 test("SECURITY: a surface callback cannot run deployment_execute_static_publish — the route refuses it with 403 and never reaches the executor", async (t) => {
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-  const { toolExecutor, captured } = buildRealStaticPublishToolExecutor(surfaceExchanges);
+  const { toolExecutor, captured } = await buildRealStaticPublishToolExecutor(surfaceExchanges);
 
   let routeExecutions = 0;
   const countingExecutor = {
@@ -180,7 +206,7 @@ test("SECURITY: a surface callback cannot run deployment_execute_static_publish 
 
 test("SECURITY: deployment_get_static_publish_capabilities is refused by this same route — it is a read tool with nothing to confirm, and must not become reachable through the confirmation channel", async (t) => {
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-  const { toolExecutor } = buildRealStaticPublishToolExecutor(surfaceExchanges);
+  const { toolExecutor } = await buildRealStaticPublishToolExecutor(surfaceExchanges);
 
   const app = express();
   app.use(express.json());
@@ -203,7 +229,7 @@ test("SECURITY: deployment_get_static_publish_capabilities is refused by this sa
 
 test("deployment_get_static_publish_capabilities still runs fine through the ordinary (non-MCP-UI) executor path — being excluded from the confirmation allowlist does not mean it is broken or unreachable", async () => {
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-  const { toolExecutor } = buildRealStaticPublishToolExecutor(surfaceExchanges);
+  const { toolExecutor } = await buildRealStaticPublishToolExecutor(surfaceExchanges);
 
   const result = await toolExecutor.execute({ principal: { id: PRINCIPAL }, run: { id: "run-1" }, toolId: "deployment_get_static_publish_capabilities", input: {} });
 

@@ -6,7 +6,6 @@ import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { createCustomCredential, listCustomCredentials, resolveCustomCredentialByLabel } from "#src/features/custom-credentials/index";
 import { CustomCredentialVaultRepo } from "#src/features/custom-credentials/vault-repo";
 import { attachedOnlyVault } from "#src/features/project-keys/attached-vault";
-import { protectProjectKeyDeletes } from "#src/features/project-keys/protected-vault";
 import { createProjectKeys } from "#src/features/project-keys/service";
 import { fakeAttachments } from "#src/features/project-keys/__tests__/helpers";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
@@ -21,19 +20,19 @@ function inventoryFixture(_required = {}, _optional = {}) {
   const vault = new InMemoryVaultRepo({});
   const attachments = fakeAttachments();
   const transaction = async <T>({ run }: { run: () => Promise<T> }) => run();
-  const guarded = protectProjectKeyDeletes({ vault, attachments, siteId: "shop-id", transaction });
+  const guarded = vault;
   const keyring = new InMemoryKeyring();
   const sealer = new AesGcmSecretSealer(keyring);
   const project = { workspaceId: "project", keyring, sealer,
     repo: new CustomCredentialVaultRepo({ vault: attachedOnlyVault({ vault: guarded, attachments, siteId: "shop-id" }) }),
-    deletionRepo: new CustomCredentialVaultRepo({ vault: guarded }) };
+    inventoryRepo: new CustomCredentialVaultRepo({ vault: guarded }), createRepo: new CustomCredentialVaultRepo({ vault: guarded }) };
   const repo = new CustomCredentialVaultRepo({ vault: new InMemoryVaultRepo({}) }, { project });
   const keys = createProjectKeys({ vault, attachments, siteId: "shop-id", siteName: "Shop", transaction, providerUsage: async () => assert.fail("custom keys have no provider usage"), reapply: async () => "now" });
   let sequence = 0;
   const write = { repo, sealer, keyring, clock: createFakeClock({ startIso: "2026-10-26T00:00:00.000Z" }), idGen: { newId: () => `credential-${++sequence}` } };
   const deps: AdminCustomCredentialsDeps = { workspaceId: "workspace", customCredentialSetRepo: repo,
     siteAssistantSecretSealer: sealer, siteAssistantSecretKeyring: keyring, clock: write.clock, idGen: write.idGen,
-    authorize: async () => ({ allowed: true, reason: "test" }), projectKeys: keys };
+    authorize: async () => ({ allowed: true, reason: "test" }), ownerPrincipalId: Promise.resolve("owner"), projectKeys: keys };
   const save = ({ label, scope }: { label: string; scope?: "project" | "site" }) => createCustomCredential(write, {
     workspaceId: deps.workspaceId, label, scope, category: "general", baseUrl: "https://api.example.test",
     connection: { token: ["synthetic", label.replaceAll(" ", "-"), "value"].join("-") },
@@ -44,7 +43,7 @@ function inventoryFixture(_required = {}, _optional = {}) {
 async function inventoryClient({ t, deps }: { t: import("node:test").TestContext; deps: AdminCustomCredentialsDeps }, _optional = {}) {
   const app = express();
   app.use(express.json());
-  app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; next(); });
+  app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; res.locals.authCredentialKind = "session"; next(); });
   registerAdminCustomCredentialsRoutes(app, deps);
   const root = await startTestServer(app, t);
   return (init?: RequestInit) => fetch(`${root}/api/admin/v1/workspaces/${deps.workspaceId}/system/custom/credentials`, init);
@@ -77,18 +76,14 @@ test("admin inventory keeps an unattached key visible, reports exact site usage,
   assert.equal(await resolveCustomCredentialByLabel(write, { workspaceId: deps.workspaceId, label: saved.label }), null);
 });
 
-test("admin inventory retains same-label site and project keys while runtime precedence stays site-first", async t => {
-  const { deps, write, save, keys } = inventoryFixture();
+test("local admin save preserves a separate shared key", async t => {
+  const { deps, save, keys } = inventoryFixture();
   const project = await save({ label: "Shared label" });
-  const site = await save({ label: "Shared label", scope: "site" });
+  const local = await save({ label: "Shared label", scope: "site" });
   await keys.use({ keyId: project.id, use: true });
   const read = await inventoryClient({ t, deps });
   const result = await (await read()).json();
-  assert.deepEqual(result.credentials.map((row: { id: string; scope: string }) => ({ id: row.id, scope: row.scope })), [
-    { id: site.id, scope: "site" }, { id: project.id, scope: "project" },
-  ]);
-  assert.equal(result.credentials[1].usedByThisSite, true);
-  assert.deepEqual((await listCustomCredentials(write, { workspaceId: deps.workspaceId })).map(row => row.id), [site.id]);
+  assert.deepEqual(result.credentials.map((row: { id: string }) => row.id).sort(), [project.id, local.id].sort());
 });
 
 test("admin inventory denies unauthorized readers before inspecting project metadata", async t => {

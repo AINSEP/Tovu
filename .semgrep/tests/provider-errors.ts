@@ -50,3 +50,18 @@ async function fixedCopyWithCause() {
     throw new Error("Import failed", { cause: err });
   }
 }
+
+async function awaitedRejection() {
+  return await provider.call().catch(error => {
+    // ruleid: no-provider-error-echo
+    throw new Error(error.message);
+  });
+}
+async function awaitedRedactedRejection() {
+  return await provider.call().catch(error => {
+    // ok: no-provider-error-echo, log-raw-error
+    console.error(redactSecrets({ input: error.message }));
+    // ok: no-provider-error-echo
+    throw new Error('Provider request failed');
+  });
+}

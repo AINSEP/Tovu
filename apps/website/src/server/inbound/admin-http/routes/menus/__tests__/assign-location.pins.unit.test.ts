@@ -62,7 +62,7 @@ for (const { error, status, body } of failures) {
   test(`assign-location: preserves ${error.name} response (${JSON.stringify(body)})`, async () => {
     const { app, deps } = fixture(registerAdminMenuAssignLocationRoute);
     deps.menuRepo.findById = async () => { throw error; };
-    assertAdminResponse({ actual: await dispatchJsonRequest(app, 'POST', path, { locationKey: 'primary' }), expected: { status, body } });
+    assertAdminResponse({ actual: await dispatchJsonRequest(app, 'POST', path, { locationKey: 'primary' }), expected: { status, body } }, { failure: {"message":"The menu operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"menu operation"} });
   });
 }
 
@@ -71,7 +71,7 @@ test('assign-location: authorization failures remain opaque', async () => {
   const { app } = fixture(registerAdminMenuAssignLocationRoute, { authorize });
   assertAdminResponse({ actual: await dispatchJsonRequest(app, 'POST', path, { locationKey: 'primary' }), expected: {
     status: 500, body: { error: 'internal error' },
-  } });
+  } }, { failure: {"message":"The menu operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"menu operation"} });
 });
 
 for (const locationKey of [' primary ', 0, false]) {

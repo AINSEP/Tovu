@@ -10,7 +10,7 @@ import { createProjectKeys } from "#src/features/project-keys/service";
 import { fakeAttachments, vaultRow } from "#src/features/project-keys/__tests__/helpers";
 import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
 
-import { ProviderConfigUnreadableError, withAttachedProject, withUnavailableProject, type ProviderConfigSource, type ProviderPluginConfig } from "#src/server/runtime/composition/provider-config-source";
+import { ProviderConfigUnreadableError, ProviderStoreUnavailableError, withAttachedProject, withUnavailableProject, type ProviderConfigSource, type ProviderPluginConfig } from "#src/server/runtime/composition/provider-config-source";
 import { registerPluginProviderSettingsRoutes, type ProviderSettingsRouteDeps } from "../../provider-settings.js";
 
 /**
@@ -35,12 +35,12 @@ test('project key use reports a typed unknown-key refusal as 400 and keeps opaqu
   for (const failure of [new ToolInputError({ message: 'Unknown project key' }), new Error('private vault location')]) {
     let writes = 0;
     const { call } = await serve(t, { projectKeys: {
-      list: async () => [], savedResult: async ({ result }) => result,
+      list: async () => [], listGranted: async () => [], savedResult: async ({ result }) => result,
       permissionFor: async () => { throw failure; }, use: async () => { writes++; assert.fail('missing key cannot be attached'); },
     } });
     const reply = await call('PUT', `${WS}/project-keys/missing/use`, { use: true });
     assertAdminResponse({ actual: [reply.status, reply.json], expected: failure instanceof ToolInputError
-      ? [400, { error: 'Unknown project key' }] : [500, { error: 'internal error', code: 'INTERNAL_ERROR' }] });
+      ? [400, { error: 'Unknown project key' }] : [500, { error: 'internal error', code: 'INTERNAL_ERROR' }] }, { failure: {"message":"The project key save could not be completed.","action":"Check whether your changes were saved before repeating the save. Copy details and report this problem.","step":"Save project key"} });
     assert.equal(writes, 0);
   }
 });
@@ -76,8 +76,8 @@ async function serve(t: TestContext, deps: Partial<ProviderSettingsRouteDeps> = 
   const config = memoryConfig();
   const app = express();
   app.use(express.json());
-  app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; next(); });
-  registerPluginProviderSettingsRoutes(app, { workspaceId: WS, discoverPlugins: async () => RECORDS, providerConfig: config,
+  app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; res.locals.authCredentialKind = "session"; next(); });
+  registerPluginProviderSettingsRoutes(app, { workspaceId: WS, ownerPrincipalId: Promise.resolve("owner"), discoverPlugins: async () => RECORDS, providerConfig: config,
     authorize: async ({ permission }: { permission: string }) => { permissions.push(permission); return { allowed: true, reason: "ok" }; }, ...deps } as ProviderSettingsRouteDeps);
   const server = app.listen(0);
   t.after(() => server.close());
@@ -194,11 +194,25 @@ test("refusals: other workspace 404, plugin without declared settings 404, no se
   assert.equal((await failing.call("PUT", `${WS}/plugins/obs/provider-settings`, { values: {} })).status, 500);
 });
 
-test("a project store that could not open this run: a save is refused 503 with the cause, never a bare internal error", async (t) => {
-  const { call } = await serve(t, { providerConfig: withUnavailableProject({ site: memoryConfig(), reason: "EACCES: permission denied" }) });
+test("a shared-only store that could not open this run: a save is refused 503 with the cause, never a bare internal error", async (t) => {
+  // Owner outages no longer block independent local saves; this refusal is specific to a shared-only write.
+  const unavailable = { ...memoryConfig(), write: async () => { throw new ProviderStoreUnavailableError({ reason: "EACCES: permission denied" }); } };
+  const { call } = await serve(t, { providerConfig: unavailable });
   const response = await call("PUT", `${WS}/plugins/obs/provider-settings`, { values: { endpoint: "https://otlp.example.test" } });
   assert.equal(response.status, 503);
   assert.deepEqual(response.json, { code: "PROVIDER_SETTINGS_UNAVAILABLE", error: "Project settings can't be saved right now: EACCES: permission denied" });
+});
+
+test("an unavailable owner store does not block a local provider settings save", async t => {
+  const site = { ...memoryConfig(), scope: "site" as const };
+  site.usage = async ({ pluginId }) => ({ store: "site", usedByThisSite: site.saved.has(pluginId), usedBy: [] });
+  const { call } = await serve(t, { providerConfig: withUnavailableProject({ site, reason: "EACCES: permission denied" }) });
+  const response = await call("PUT", `${WS}/plugins/obs/provider-settings`, { values: { endpoint: "https://otlp.example.test", headers: "private-local-fixture" } });
+  assert.equal(response.status, 200);
+  assert.equal(response.json.store, "site");
+  assert.equal(response.json.usedByThisSite, true);
+  assert.deepEqual(site.saved.get("obs"), { settings: { endpoint: "https://otlp.example.test" }, secrets: { headers: "private-local-fixture" } });
+  assert.equal(response.text.includes("private-local-fixture"), false);
 });
 
 test("a key saved the retired way (API credential `plugin:<id>`) shows a re-entry notice until new settings are saved (Codex fix-lane MED)", async (t) => {
@@ -286,7 +300,7 @@ test("admin attaches an encoded provider key with its save permission and return
   const calls: { keyId: string; use: boolean }[] = [];
   const keyId = "plugin-state:observability-example:provider.config";
   const { call, permissions } = await serve(t, { projectKeys: {
-    list: async () => [], savedResult: async ({ result }) => result,
+    list: async () => [], listGranted: async () => [], savedResult: async ({ result }) => result,
     permissionFor: async ({ keyId: found }) => { assert.equal(found, keyId); return "admin.plugins.enable"; },
     use: async input => { calls.push(input); return { ...input, usedByThisSite: input.use, usedBy: input.use ? ["A"] : [], appliesAt: "now" }; },
   } });
@@ -312,7 +326,7 @@ test("project key use denies base readers before looking up any existing or miss
   const { call } = await serve(t, {
     authorize: async () => ({ allowed: false, reason: "no_grant" }),
     projectKeys: {
-      list: async () => [], savedResult: async ({ result }) => result,
+      list: async () => [], listGranted: async () => [], savedResult: async ({ result }) => result,
       permissionFor: async () => assert.fail("must authorize before revealing existence"),
       use: async () => assert.fail("must not mutate"),
     },

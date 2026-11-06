@@ -198,7 +198,7 @@ test("commerce status: a payment-runtime failure is a fixed 500 that never echoe
   const response = await fetch(statusUrl(baseUrl, deps.workspaceId), { headers: { cookie } });
   const raw = await response.text();
   assert.equal(response.status, 500);
-  assertAdminResponse({ actual: JSON.parse(raw), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: JSON.parse(raw), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The commerce settings could not be loaded.", action: "Try loading them again. If it still fails, copy details and report this problem.", step: "Load commerce settings" } });
   assert.equal(raw.includes(leak), false);
 });
 

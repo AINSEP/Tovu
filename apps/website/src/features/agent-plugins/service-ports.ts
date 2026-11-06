@@ -8,15 +8,17 @@ import type { ApiConnectionConnectStatus } from "../api-connections/connect.js";
 
 /** Roster persistence and safe classification; sealing/keyring dependencies stay in composition. */
 export interface AgentPluginMcpPort {
-  readonly repo: Pick<ExternalMcpServerRepoPort, "findByServerId" | "upsert" | "deleteByServerId">;
+  readonly repo: Pick<ExternalMcpServerRepoPort, "findByServerId" | "upsert" | "deleteByServerId" | "updateAccessIfCurrent">;
+  /** Atomically save exactly the approved source and previous grants through the store owner. */
+  applyAccess(input: import("../../contracts/core/external-mcp-access.js").ExternalMcpApprovedAccess, options?: Record<string, never>): Promise<void>;
   saveServer(input: SaveExternalMcpServerInput, options?: Record<string, never>): Promise<ExternalMcpServerView>;
   classifyError(input: { error: unknown }, options?: Record<string, never>): "validation" | "unconfigured" | "other";
-  notifyRosterChanged(input: Record<string, never>, options?: Record<string, never>): Promise<void>;
+  notifyRosterChanged(input: { readonly lowered?: import("@jini-ai/daemon").ToolAccessChange }, options?: Record<string, never>): Promise<void>;
 }
 
 /** Connect-time OAuth discovery and the existing validation error identity, adapted by composition. */
 export interface AgentPluginOAuthPort {
-  beginConnect(input: { serverId: string; redirectUri?: string }, options?: Record<string, never>): Promise<ExternalMcpConnectStart>;
+  beginConnect(input: { serverId: string; redirectUri?: string; delivery?: "hosted" }, options?: Record<string, never>): Promise<ExternalMcpConnectStart>;
   isValidationError(input: { error: unknown }, options?: Record<string, never>): boolean;
 }
 
@@ -33,13 +35,16 @@ export interface AgentPluginPreferencesPort {
   locale(input: { workspaceId: string; principalId: string }, options?: Record<string, never>): Promise<string>;
   /** Anything but the stored Ask or Off preference (including no value) resolves to Auto. */
   mode(input: { workspaceId: string; principalId: string }, options?: Record<string, never>): Promise<ChatAgentPlugins>;
-  saveAuto(input: { workspaceId: string; principalId: string }, options?: Record<string, never>): Promise<void>;
+  /** Effective mode plus the addressed personal layer's revision, fixed before the approval. */
+  snapshot(input: { workspaceId: string; principalId: string }, options?: Record<string, never>): Promise<{ mode: ChatAgentPlugins; revisionSeq: number }>;
+  saveAuto(input: { workspaceId: string; principalId: string; expectedRevisionSeq?: number }, options?: Record<string, never>): Promise<void>;
 }
 
 /** Declared API connections; the host retains OAuth clients, browser binding and token custody. */
 export interface AgentPluginApiConnectionsPort {
+  readonly sharingAvailable?: boolean;
   listConnections(input: { pluginId: string }, options?: Record<string, never>): Promise<readonly DeclaredApiConnection[]>;
-  connect(input: { connection: DeclaredApiConnection; actorId: string; signal: AbortSignal; pollIntervalMs: number; waitTimeoutMs: number; showSignIn: (input: { readonly signInUrl: string }) => Promise<void> }, options?: Record<string, never>): Promise<ApiConnectionConnectStatus>;
+  connect(input: { destination?: 'site' | 'shared'; connection: DeclaredApiConnection; actorId: string; signal: AbortSignal; pollIntervalMs: number; waitTimeoutMs: number; showSignIn: (input: { readonly signInUrl: string }) => Promise<void> }, options?: Record<string, never>): Promise<ApiConnectionConnectStatus>;
 }
 
 /** Resolved host paths; consumers take only the facts they need. */

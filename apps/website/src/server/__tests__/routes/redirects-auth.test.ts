@@ -359,7 +359,7 @@ test("admin redirects import route: workspace mismatch, batch-size validation, a
   try {
     const errRes = await post({ rules: [{ matchType: "exact", fromPattern: "/import-e", toTarget: "/target-e", statusCode: 301 }] });
     assert.equal(errRes.status, 500);
-    assertAdminResponse({ actual: await errRes.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+    assertAdminResponse({ actual: await errRes.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The redirect import could not be completed.", action: "Check the result before repeating this operation. Copy details and report this problem.", step: "redirect import" } });
   } finally {
     deps.authorize = origAuthorize;
   }

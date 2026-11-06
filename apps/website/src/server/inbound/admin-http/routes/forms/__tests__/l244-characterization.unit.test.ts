@@ -144,6 +144,6 @@ for (const register of [registerAdminFormsAuthoringRoute, registerAdminFormsDele
     const { deps } = fixture(() => {});
     const result = await invoke({ register, deps: { ...deps, authorize: async () => { throw new Error('private'); } },
       params: { workspaceId: WS, formId: 'form', submissionId: 'sub' } });
-    assertAdminResponse({ actual: result, expected: { status: 500, body: { error: 'internal error', code: 'INTERNAL_ERROR' }, ended: false } });
+    assertAdminResponse({ actual: result, expected: { status: 500, body: { error: 'internal error', code: 'INTERNAL_ERROR' }, ended: false } }, { failure: {"message":"The form operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"form operation"} });
   });
 }

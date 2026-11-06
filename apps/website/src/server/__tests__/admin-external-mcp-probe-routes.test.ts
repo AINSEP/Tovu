@@ -374,6 +374,15 @@ test("external-mcp module treats an explicitly-undefined externalMcpOAuth like a
   assert.deepEqual(withUndefined, withoutKey);
   assert.equal(withoutKey.some((route) => route.includes("oauth")), false);
   const withOAuth = recordRegisteredRoutes(base);
-  assert.equal(withOAuth.filter((route) => route.includes("oauth")).length, 4);
+  assert.deepEqual(withOAuth.filter((route) => route.includes("oauth")), [
+    "get /api/admin/v1/workspaces/:workspaceId/mcp-servers/:serverId/oauth/sign-in",
+    "get /api/admin/v1/workspaces/:workspaceId/mcp-servers/:serverId/oauth/shared",
+    "delete /api/admin/v1/workspaces/:workspaceId/mcp-servers/:serverId/oauth/shared",
+    "post /api/admin/v1/workspaces/:workspaceId/mcp-servers/:serverId/oauth/shared",
+    "post /api/admin/v1/workspaces/:workspaceId/mcp-servers/:serverId/oauth/connect",
+    "post /api/admin/v1/workspaces/:workspaceId/mcp-servers/:serverId/oauth/device/poll",
+    "delete /api/admin/v1/workspaces/:workspaceId/mcp-servers/:serverId/oauth",
+    "get /api/mcp-servers/oauth/callback/:serverId",
+  ]);
   assert.deepEqual(withOAuth.slice(0, withoutKey.length), withoutKey);
 });

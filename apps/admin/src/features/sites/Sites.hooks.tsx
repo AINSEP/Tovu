@@ -89,15 +89,6 @@ export function resolveSiteStateDisplay(
   return { toneClass: siteRowStateToneClass(state), labelKey: siteRowStateLabelKey(state) };
 }
 
-/** One grid card's own class name: adds `site-card-serving` for whichever card is genuinely the
- *  live binding (2026-09-05 card-grid redesign) — a purely visual echo of the same
- *  `siteRowState`/`"serving"` fact the badge in {@link resolveSiteStateDisplay} already states in
- *  words, so the two can never disagree (one source, two renderings), and never a substitute for
- *  the badge itself. */
-export function resolveSiteCardClassName(site: AdminSiteListEntry, snapshot: AdminSitesSnapshot): string {
-  return siteRowState(site, snapshot) === "serving" ? "site-card site-card-serving" : "site-card";
-}
-
 /**
  * The card's hover tooltip: the site folder's absolute path.
  *
@@ -533,19 +524,29 @@ export function resolveSiteCardMeta(
 /**
  * The overflow menu's items for {@link resolveSiteCardView}'s `menu`. Switch now and Delete… go
  * through the local-sites controller, which owns their confirmation; Delete… is danger-toned.
- * @complexity O(k) in the menu's length (at most three).
+ * @complexity O(k) in the menu's length (at most four).
  */
 export function buildSiteCardMenuItems(
   { site, menu, onActivate, controller, t }: {
     site: AdminSiteListEntry; menu: readonly SiteCardMenuAction[]; onActivate: (name: string) => void;
     controller?: LocalSitesController; t: Translate;
   },
-  _optional = {},
+  { hide }: { hide?: { label: string; onSelect: () => void } } = {},
 ): RowMenuItem[] {
   const items: Record<SiteCardMenuAction, RowMenuItem> = {
     "make-default": { key: "make-default", label: t("Make default"), onSelect: () => onActivate(site.name) },
     switch: { key: "switch", label: t("Switch now"), onSelect: () => void controller?.run(site.name, "switch") },
     trash: { key: "trash", label: t("Delete…"), tone: "danger", onSelect: () => void controller?.run(site.name, "trash") },
   };
-  return menu.map((action) => items[action]);
+  const listed = menu.map((action) => items[action]);
+  if (!hide) return listed;
+  // Before Delete…, which stays last.
+  const hideItem: RowMenuItem = { key: "hide", label: hide.label, onSelect: hide.onSelect };
+  return [...listed.filter((item) => item.key !== "trash"), hideItem, ...listed.filter((item) => item.key === "trash")];
+}
+
+/** The Sites page's cards in the shape the shared list view sorts: the folder name is the id, and
+ *  `site` carries the rest through. @complexity O(n). */
+export function resolveSiteListItems(sites: readonly AdminSiteListEntry[]): { id: string; name: string; createdAt: string; site: AdminSiteListEntry }[] {
+  return sites.map((site) => ({ id: site.name, name: site.name, createdAt: site.createdAt, site }));
 }

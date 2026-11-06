@@ -150,7 +150,8 @@ test("a failed fresh subagent read still launches Claude with every default tool
   assert.deepEqual(input.disallowedTools, ASSISTANT_DISALLOWED_TOOLS);
   assert.equal(input.permissionMode, "bypass");
   assert.deepEqual(input.settingSources, ASSISTANT_SETTING_SOURCES);
-  assert.deepEqual(warnings, ["[agent-daemon] Full CLI access settings unavailable; access remains OFF."]);
+  assert.deepEqual(warnings, Array(2).fill("[agent-daemon] Full CLI access settings unavailable; access remains OFF."),
+    "both the consent preflight and final launch read deny access on storage failure");
 });
 
 test("catalog identity survives a parser continuation using the pre-existing request resource", async () => {

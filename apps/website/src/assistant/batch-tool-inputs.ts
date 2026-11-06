@@ -81,6 +81,7 @@ export const BATCH_OPT_OUT: readonly BatchOptOut[] = [
   { toolId: "preview_reload", reason: "reloads the preview server" },
   { toolId: "theme_rescan", reason: "rescans every theme in one call" },
   { toolId: "theme_set_active", reason: "only one theme can be active" },
+  { toolId: "theme_duplicate", reason: `optional activation changes the live theme; ${ASKS}` },
   { toolId: "backup_create_restore_point", reason: "one restore point already covers the whole site" },
   { toolId: "site_import_backup", reason: "imports a whole site" },
   { toolId: "site_backup_push", reason: "pushes a whole-site backup plan" },

@@ -24,6 +24,10 @@ test("a plain Error's message is used as-is", () => {
   expect(describeApiError(new Error("network down"), "fallback text")).toBe("network down");
 });
 
+test("a plain Error without an explanation uses the call site's recovery message", () => {
+  expect(describeApiError(new Error(""), "The page could not be saved. Keep your edits and check the saved page.")).toBe("The page could not be saved. Keep your edits and check the saved page.");
+});
+
 test("a non-Error thrown value uses the fallback", () => {
   expect(describeApiError("just a string", "fallback text")).toBe("fallback text");
   expect(describeApiError(undefined, "fallback text")).toBe("fallback text");

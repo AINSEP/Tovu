@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { isDeepStrictEqual } from "node:util";
-import { afterEach, mock } from "node:test";
+import { beforeEach, mock } from "node:test";
+import { onTeardown } from "#src/__tests__/fixtures/teardown";
 
 /**
  * @file The small slice of vitest's `expect` / `vi` API the `@jini-ai/devops` deploy-target suites
@@ -253,14 +254,15 @@ export const vi = {
 
 /**
  * Replaces the global `fetch` with one that throws for the rest of this test file, and fails the test
- * that called it in an `afterEach` hook (even if the test caught the rejection). `vi.unstubAllGlobals`
+ * that called it through its cleanup queue (even if the test caught the rejection). `vi.unstubAllGlobals`
  * restores to this guard, not to the real `fetch`, because the guard is what was installed when the
  * first stub was taken.
  *
- * Why `afterEach`, not a file-level `after`: a throwing `after` hook stops node:test from running the
- * file's later `after` hooks, so a guard failure would skip cleanup such as dialect-matrix's shared
- * PGlite close. A throwing `afterEach` fails only that test; file-level `after` hooks still run. A
- * fetch from a file-level hook is not attributed here, but the guard still throws at the call.
+ * Why per-test cleanup, not a throwing global hook: node:test stops a hook list at its first
+ * failure, skipping later cleanup such as dialect-matrix's shared PGlite close. Register verification
+ * first so reverse-order teardown attempts resource cleanup before reporting the guard failure;
+ * ordinary afterEach hooks finish before the test's cleanup queue runs. A fetch from a file-level
+ * hook is not attributed here, but the guard still throws at the call.
  */
 export function installNetworkGuard(): void {
   const reached: string[] = [];
@@ -269,5 +271,8 @@ export function installNetworkGuard(): void {
     reached.push(url);
     throw new Error(`network guard: unstubbed fetch to ${url}`);
   }) as typeof fetch;
-  afterEach(() => assert.deepEqual(reached.splice(0), [], "no test may reach the real network"));
+  beforeEach(t => {
+    assert.ok('after' in t, 'network guard requires a test teardown context');
+    onTeardown({ t, step: () => assert.deepEqual(reached.splice(0), [], "no test may reach the real network") });
+  });
 }

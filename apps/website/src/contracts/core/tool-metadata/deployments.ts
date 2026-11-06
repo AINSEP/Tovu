@@ -3,6 +3,10 @@ import type { ToolApprovalPolicy } from './approval-policy.js';
 
 /** deployments registration declarations; shared placement rationale is in ./index.ts. */
 export const toolMetadata = {
+  "deployment_get_static_publish_status": {
+    search: { keywords: "publish deployment job progress timeout finished uploaded files did it land status result" },
+    approval: { class: 'read', confirmation: 'direct' },
+  },
   "deployment_execute_static_publish": {
     summary: 'This publishes the current site to the selected hosting project.',
     title: 'Publish static site',
@@ -11,7 +15,7 @@ export const toolMetadata = {
       keywords: "deploy push ship go live make it live publish the site hosting static host custom domain apex www dns",
       queries: ["Publish the site.", "Publish the site to production hosting.", "Deploy this website and make it live.", "Push my site live on my static host."],
     },
-    approval: { class: 'publish', confirmation: 'policy' },
+    approval: { class: 'publish', confirmation: 'plan' },
   },
   "deployment_generate_bucket_hosting_setup": {
     search: {

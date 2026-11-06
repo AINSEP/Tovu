@@ -12,6 +12,10 @@ or the operator's terminal. If a compiled build needs that environment, hand it 
 
 **Load design first.** Before designing a theme or writing page layouts, call `agent_plugin_ui_ux_design({"skill":"ui-ux-design"})` and follow its guidance, including the reference files and companion skills it directs you to load.
 
+## Cookie preferences in static documents
+
+Declare optional scripts through the theme JSON `scripts` entries and their `consent` field; do not add optional raw script tags.
+
 ## Motion by default
 
 Every new theme, converted site and reference match gets light kUInetic motion by default.
@@ -23,8 +27,8 @@ skip or reduce it. Apply this recipe when duplicating a theme too; inherited eff
 
 This plugin covers three jobs that share one theme format:
 
-- **Job A — a new theme** (Part A below): by default a `theme_duplicate` copy of a working
-  theme that you then restyle; otherwise from scratch, or wrapping a framework build as a
+- **Job A — a new theme** (Part A below): by default a `theme_duplicate` structure-only copy of
+  Tovu Starter with fresh CSS from the selected design direction; otherwise from scratch, or wrapping a framework build as a
   `compiled` theme.
 - **Job B — convert an existing static site** (Part B below): someone has a plain HTML/CSS/JS
   site and wants it running as a Tovu theme. If they pointed you at a folder that looks like a
@@ -61,7 +65,7 @@ After ONE "Operation not permitted" or permission refusal, do not retry the same
 Shell is only for genuine tool gaps: literal paths inside granted roots, no paths computed at run time, no ~/.claude/tool-results or other CLI spill-file reads. Applies to every agent CLI. Before a fallback, call search_tools for the job and retry discovery with different phrasing or a higher limit if nothing fits.
 
 Everything runs on tools that already exist: `fs_list_files` / `fs_read_file` to survey and
-read a source tree, `theme_duplicate` to start a new theme as a full copy of an existing one
+read a source tree, `theme_duplicate` with `mode: "structure-only", activate: false` to start a new design
 (Part A2), and `theme_write_file` / `theme_edit_file` / `theme_list_files` /
 `theme_read_file` to author the theme, `theme_rescan` to make a hand-built theme folder show up
 (it also returns each invalid theme's errors), `theme_set_page_published` to publish a page
@@ -101,9 +105,7 @@ path name if a doc and what you see on disk seem to disagree.
 
 # Shared rules (every job)
 
-If a theme uses Alpine's standard build or `new Function` / `eval(`, resolve consent CSP compatibility in this order: first self-host CDN Alpine in the theme (CDN Alpine stays blocked pre-consent even with unsafe-eval enabled); then offer `@alpinejs/csp` for simple expressions; only then offer Cookie Consent → Rules → "Allow dynamic code (unsafe-eval)". Warn that it weakens script protection across the site while optional scripts still wait for consent. Never enable it from detection alone; use the existing draft confirmation and Publish flow.
-
-Analytics, tracking, or marketing scripts you add must carry `data-consent-category="analytics"` or `data-consent-category="marketing"`, including first-party and inline scripts.
+Theme and plugin scripts use the JSON `scripts` declaration. Put `consent: ["analytics"]` or `consent: ["marketing"]` on scripts that need those categories; multiple categories must all be allowed. A script without a `consent` field runs normally. For example: `{"src":"/analytics.js","consent":["analytics"]}`. Do not use HTML category attributes or change page HTML to gate scripts.
 
 The theme preview / demo bar (`.tovu-theme-preview-host`, "Theme preview" with one button per theme) is host-owned: Tovu pins it to the top, centres it and pads the page. Never restyle, re-position, re-centre, re-home or rebuild it, never inject styles into its shadow root, and never override `--tovu-theme-preview-height` / `--tovu-theme-preview-base-padding` or `body` `padding-top` for it. A theme may read `--tovu-theme-preview-height` to offset its own sticky or pinned blocks. If the bar shows a gap or sits left-aligned, that is a Tovu bug: report it, do not patch it in the theme.
 
@@ -240,9 +242,9 @@ referenced file was actually placed at. This is a by-hand fix, not something a c
 do generically — flag it to the operator rather than silently leaving it broken or silently
 "fixing" it into something unverified.
 
-A duplicated theme has the mirror-image problem: `theme_duplicate` rewrites only `theme.json`,
-so every hardcoded `/theme-assets/<old-id>/` path keeps loading the ORIGINAL theme's logo and
-icons. Replace each with the new id.
+`theme_duplicate` automatically rewrites the source's `/theme-assets/<old-id>/` paths to the new
+id in copied text files, including HTML, SVG, CSS and manifests. Check any newly imported source
+paths separately; they were not part of that copy pass.
 
 ## Rule 6 — A post list that can outgrow one page must page
 
@@ -335,9 +337,9 @@ What this means in practice:
 
 ## A1 — Gather the essentials
 
-For the default path (A2, duplicate and restyle) you need only a **name** for the new theme and
-**which theme to start from** — the theme the site uses now unless the owner says otherwise. The
-copy keeps its source's tier, and its id is derived from the name. The questions below are for
+For the default path (A2, structure-only) gather a **name**, the site's purpose and a fitting design
+direction using the UI/UX guidance's inspiration order. Use Tovu Starter's structure unless the
+owner names another authored v2 static scaffold. The id is derived from the name. The questions below are for
 building from scratch (A3).
 
 Ask (batch into one question if more than one is missing):
@@ -353,23 +355,27 @@ Ask (batch into one question if more than one is missing):
      `sourceDir` with the framework-native source.
 4. **Name, description, one-line purpose.**
 
-## A2 — Default: duplicate a working theme, restyle the copy
+## A2 — Default: duplicate structure, author a fresh design
 
-Starting from something that already loads is much faster than starting from nothing, and every
-rule above is already satisfied in it (themes-guide §4).
+Tovu Starter supplies pages, shells and functional wiring. We don't ever want to use Tovu Starter
+for CSS. We only use it for the structure. Choose the design direction before writing fresh CSS.
 
-1. **Pick the source.** Use the theme the site runs now unless the owner names another.
+1. **Pick the source.** Prefer `tovu-starter`, or an owner-named authored v2 static theme.
    `site_get_profile { sections: ["theme"] }` exposes the configured id and installed active row
    (the exact fields and unavailable/disabled cases are in C1). A bundled stock theme
    (e.g. `tovu-starter`, the default for a new site) works too. `content_read.theme` gives the roster's ids.
-2. **Duplicate it:** `theme_duplicate { sourceThemeId, newName }` (add `newId` only if the owner
-   asked for a specific folder id). It copies every file — binaries included — into a new folder,
+2. **Duplicate it:** `theme_duplicate { sourceThemeId, newName, mode: "structure-only", activate: false }`
+   (add `newId` only if the owner asked for a specific folder id). It copies structure and assets,
    gives the copy its own `id`/`name`, resets `version` to `1.0.0`, records `lineage.from`, and
-   returns the new `themeId` with its load `status`/`errors`. The source is never touched. Leave
-   `activate` at its default `false`.
-3. **Restyle the COPY**, never the source: `theme_edit_file` / `theme_write_file` on the new
-   `themeId` — tokens (Rule 3), `css/theme.css`, pages, partials — and replace every
-   `/theme-assets/<old-id>/` path with the new id (Rule 5).
+   returns `themeId`, load `status`/`errors` and `stylingStatus: "unstyled"`. The source is never
+   touched. Appearance stylesheets, style blocks and inline styles are stripped; tokens become
+   neutral. Keep functional hooks, lightbox.js and the complete kUInetic vendor folder.
+3. **Author the COPY**, never the source: `theme_edit_file` / `theme_write_file` on the new
+   `themeId` — tokens (Rule 3), `css/theme.css`, pages and partials. Write typography, spacing,
+   colours, responsive rules and components from the selected direction. Asset paths are rewritten
+   automatically (Rule 5). `valid` means it loads; `unstyled` means it still needs presentation.
+   Replace the marked `css/theme.css` with fresh CSS to make it eligible for activation. Inspect
+   every page through inactive previews and complete screenshot QA before presenting it.
 4. **Show it to the owner** and wait for an explicit yes. Only then switch the live site with
    `theme_set_active { themeId }` (or Admin → Themes). Report the previous theme id it returns so
    the switch can be undone.
@@ -559,11 +565,14 @@ half-converting something this procedure was never built for.
 Reuse C1's static-theme selection: read the active theme through `site_get_profile` and use
 `content_read.theme` to select a valid static scaffold when needed. If no valid static theme
 is available, stop and report it; do not attempt writes into an undiscovered folder.
-Call `theme_duplicate { sourceThemeId: <selected id>, newName: "<Source> conversion", activate: false }`
+Call `theme_duplicate { sourceThemeId: <selected id>, newName: "<Source> conversion", mode: "structure-only", activate: false }`
 and use its returned `themeId` for every subsequent theme import and write in B2 or B3. Check
 the returned status/errors before continuing. This creates the destination folder and discovers
 the theme; `theme_rescan` alone cannot create it. Replace the copy's scaffold files to match
-the source. Keep activation deferred to B2/B4 under the submitted card's authorization.
+the supplied source design, including fresh CSS; do not inherit Starter styling. The scaffold must
+be authored v2 static; compiled sources require the from-scratch path. `valid` and `unstyled` are
+separate: replace the marked stylesheet, complete screenshot QA, then keep activation deferred to
+B2/B4 under the submitted card's authorization.
 
 ## B2 — Editable default
 
@@ -724,9 +733,11 @@ missing.
    `content_read.theme` returns `{ themes: [...] }`, a roster, not the active id; use it to choose
    a valid static scaffold when needed. If none is available, use Part A's from-scratch path.
    Duplicate the selected theme with
-   `theme_duplicate { sourceThemeId: <selected id>, newName: "<Source> match" }` (`activate` stays
-   `false`). Use the `theme_duplicate` copy as a scaffold only — a file layout that loads — and
-   replace its look. Never edit the live theme.
+   `theme_duplicate { sourceThemeId: <selected id>, newName: "<Source> match", mode: "structure-only", activate: false }`.
+   Use an authored v2 static theme for this mode. Use the `theme_duplicate` copy as a scaffold only
+   — a file layout that loads — and rebuild CSS from the supplied reference design. Never inherit
+   Starter styling or edit the live theme. A valid unstyled copy remains inactive until its marked
+   stylesheet is replaced; screenshot QA and owner approval still establish design completion.
 2. The compare loop (C4) sees the copy with `web_screenshot_page { sitePath, themeId: <copy id> }`,
    which renders this site's page through the copy WITHOUT activating it. Do not activate the copy
    to compare; visitors keep the live theme until the owner approves the switch.

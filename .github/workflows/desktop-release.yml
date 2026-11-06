@@ -2,7 +2,7 @@ name: Desktop Release
 
 # Cuts a Tovu Desktop release build. STANDALONE: this workflow does not touch `ci.yml` or
 # `desktop.yml`, does not re-enable either of them, and shares no jobs with them. It only
-# triggers on `workflow_dispatch` or a `desktop-v*` tag push — no `pull_request` and no
+# triggers on `workflow_dispatch`, a `desktop-v*` tag or `release/*` branch push — no `pull_request` and no
 # `pull_request_target` — so a fork can never reach its secrets.
 #
 # Secrets (all five live in the `desktop-release` GitHub Actions environment, Mac jobs only):
@@ -48,13 +48,62 @@ on:
       tag: { description: "Release tag, e.g. desktop-v0.1.0", required: true, type: string }
   push:
     tags: ["desktop-v*"]
+    branches: ["release/*"]
 permissions: { contents: read }
 concurrency: { group: "desktop-release-${{ github.ref }}", cancel-in-progress: false }
 env:
   TAG: ${{ inputs.tag || github.ref_name }}
 
 jobs:
+  # One unsigned packaged-app gate, no model/signing secrets. Expected 10–15 minutes including
+  # cold install/build/stage; hard cap 20 minutes. The two journeys have 10-minute limits each,
+  # one worker, zero retries, and print elapsed seconds below. Branch pushes never cut a release.
+  assistant-gate:
+    if: (github.event_name == 'workflow_dispatch' && startsWith(inputs.tag, 'desktop-v')) || startsWith(github.ref, 'refs/tags/desktop-v') || startsWith(github.ref, 'refs/heads/release/')
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with: { node-version: 24, cache: npm, cache-dependency-path: "package-lock.json\napps/desktop/package-lock.json" }
+      - name: Install release inputs
+        run: |
+          npm ci
+          npm ci --prefix apps/desktop
+      - name: Site identity guard and release-wiring regression tests
+        run: |
+          npm run quality:site-identity
+          node --import tsx --test --test-timeout=60000 --test-concurrency=2 development/eslint-rules/__tests__/site-identity-keys.unit.test.ts development/scripts/__tests__/desktop-assistant-release-gate.unit.test.ts
+      - name: Build the shipping payload and both admin surfaces
+        run: |
+          npm run build
+          (cd apps/admin && npm ci && npx vite build)
+          (cd apps/site-chat && npm ci && npx vite build)
+      - name: Package an unsigned app with the release staging path
+        working-directory: apps/desktop
+        env: { CSC_IDENTITY_AUTO_DISCOVERY: "false" }
+        run: |
+          npm run build
+          TOVU_TARGET_ARCH=arm64 npm run stage
+          npx electron-builder --mac --arm64 --dir --publish never
+      - name: Two default-ID assistants and shared-daemon ownership (no model key)
+        env:
+          TOVU_E2E_DESKTOP_APP: ${{ github.workspace }}/apps/desktop/release/mac-arm64/Tovu.app
+        run: |
+          started=$SECONDS
+          trap 'echo "Packaged assistant journeys: $((SECONDS-started)) seconds (no retries)" >> "$GITHUB_STEP_SUMMARY"' EXIT
+          npm run e2e:desktop:app -- two-sites-assistant.desktop.ts shared-agent-daemon.desktop.ts --workers=1 --retries=0
+      - if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: assistant-release-gate-failure
+          path: |
+            development/test-results/desktop-journeys
+            development/playwright-report/desktop-journeys
+          retention-days: 7
+
   gates:                                   # gates run on Linux only, once
+    if: (github.event_name == 'workflow_dispatch' && startsWith(inputs.tag, 'desktop-v')) || startsWith(github.ref, 'refs/tags/desktop-v') || (github.event_name == 'workflow_dispatch' && startsWith(github.ref, 'refs/heads/release/'))
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -74,7 +123,8 @@ jobs:
         run: test "$TAG" = "desktop-v$(node -p "require('./apps/desktop/package.json').version")"
 
   build:
-    needs: gates
+    if: (github.event_name == 'workflow_dispatch' && startsWith(inputs.tag, 'desktop-v')) || startsWith(github.ref, 'refs/tags/desktop-v') || (github.event_name == 'workflow_dispatch' && startsWith(github.ref, 'refs/heads/release/'))
+    needs: [gates, assistant-gate]
     strategy:
       fail-fast: false
       matrix:
@@ -246,6 +296,7 @@ jobs:
           if-no-files-found: error
 
   store-identity:                           # is the Partner Center identity configured yet?
+    if: (github.event_name == 'workflow_dispatch' && startsWith(inputs.tag, 'desktop-v')) || startsWith(github.ref, 'refs/tags/desktop-v') || (github.event_name == 'workflow_dispatch' && startsWith(github.ref, 'refs/heads/release/'))
     runs-on: ubuntu-latest
     environment: desktop-release
     outputs: { ready: "${{ steps.check.outputs.ready }}" }
@@ -310,7 +361,8 @@ jobs:
         with: { name: store-win-x64-appx, path: apps/desktop/release/Tovu-windows-x64-store.appx, retention-days: 30, if-no-files-found: error }
 
   release:                                  # one job creates ONE draft (no 3-way race)
-    needs: build
+    if: (github.event_name == 'workflow_dispatch' && startsWith(inputs.tag, 'desktop-v')) || startsWith(github.ref, 'refs/tags/desktop-v') || (github.event_name == 'workflow_dispatch' && startsWith(github.ref, 'refs/heads/release/'))
+    needs: [build, assistant-gate]
     runs-on: ubuntu-latest
     permissions: { contents: write }
     steps:

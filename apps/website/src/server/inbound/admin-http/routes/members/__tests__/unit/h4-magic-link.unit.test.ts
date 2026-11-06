@@ -8,7 +8,7 @@ import { createCapturingResponse, extractRouteHandler } from '#src/server/__test
 import { portFake } from '#src/server/__tests__/helpers/port-fake';
 import type { MembersRouteDeps } from '../../deps.js';
 
-let send: typeof members.requestSignInLink = async () => assert.fail('unexpected sign-in mail');
+let send: typeof members.requestSignInLink = async (_required) => assert.fail('unexpected sign-in mail');
 mock.module('#src/features/members/index', { namedExports: { ...members, requestSignInLink: (required: Parameters<typeof send>[0]) => send(required) } });
 const { registerAdminMemberRequestMagicLinkRoute } = await import('../../request-magic-link.js');
 const PATH = '/api/admin/v1/workspaces/:workspaceId/members/request-magic-link';
@@ -31,7 +31,7 @@ for (const [error, status, body] of [
     const { res, capture } = createCapturingResponse();
     res.locals.principal = { id: 'operator' };
     await extractRouteHandler(app, 'post', PATH)({ params: { workspaceId: 'ws' }, body: { email: ' Person@Example.com ', redirectPath: '/account' } }, res);
-    assertAdminResponse({ actual: capture, expected: { statusCode: status, jsonBody: body } });
+    assertAdminResponse({ actual: capture, expected: { statusCode: status, jsonBody: body } }, { failure: {"message":"The member operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"member operation"} });
     assert.deepEqual(order, [
       { principalId: 'operator', permission: 'member.manage', workspaceId: 'ws', entityType: 'member' },
       { key: 'person@example.com' },

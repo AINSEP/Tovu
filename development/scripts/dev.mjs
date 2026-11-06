@@ -31,6 +31,7 @@
  * an exit nobody asked for still tears everything down exactly as before.
  */
 import { spawn, spawnSync } from "node:child_process";
+import { createInterface } from "node:readline";
 import { existsSync, readFileSync, unlinkSync, unwatchFile, watchFile } from "node:fs";
 import net from "node:net";
 import os from "node:os";
@@ -39,7 +40,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { parseEnv } from "node:util";
 import { omitEnvironmentKeys, waitForHttpOk } from "@jini-ai/platform";
 import { probeLoopbackHttp } from "@jini-ai/platform/net";
-import { createNodeAtomicFilesystem, upsertEnvLine, writeFileAtomic } from "@jini-ai/platform/fs";
+import { createNodeAtomicFilesystem, createNodeDirectoryWorkspace, upsertEnvLine, writeFileAtomic } from "@jini-ai/platform/fs";
 import { createCommandInvocation } from "@jini-ai/platform/command";
 import { collectProcessTreePids, listProcessSnapshots, stopProcesses } from "@jini-ai/platform/process";
 
@@ -245,15 +246,16 @@ function waitForPort(port, timeoutMs = 30_000) {
 
 /**
  * What a child's exit means. Only a restart this script asked for (`createApiRestarter`) is
- * `planned`; every other exit outside shutdown is a `crash`, which tears the stack down as it always
- * has — restart-on-request adds no restart-on-crash.
+ * `planned`; a clean exit with a verified same-site attachment is successful. All other exits
+ * outside shutdown remain crashes — restart-on-request adds no restart-on-crash.
  *
- * @param {{shuttingDown: boolean, planned: boolean}} input
- * @returns {"ignore" | "planned" | "crash"}
+ * @param {{shuttingDown: boolean, planned: boolean, code?: number | null, attached?: boolean}} input
+ * @returns {"ignore" | "planned" | "attached" | "crash"}
  */
-export function classifyChildExit({ shuttingDown, planned }) {
+export function classifyChildExit({ shuttingDown, planned, code, attached = false }) {
   if (shuttingDown) return "ignore";
-  return planned ? "planned" : "crash";
+  if (planned) return "planned";
+  return code === 0 && attached ? "attached" : "crash";
 }
 
 /**
@@ -273,27 +275,72 @@ export function buildDevChildEnv({ parent, env }, { warn = console.warn } = {}) 
   return isolated.env;
 }
 
+// The launched directory is fixed before spawning; never infer site identity from a printed URL.
+let devAttachment;
+
+/** Read one selected site's lease through Jini's canonical-path and PID-liveness owner.
+ * No registry/config reads: once on attachment, then one small lease per readiness probe
+ * (at most every 150 ms, 90 s cap); each record has only identity/address fields.
+ */
+function readDevRunning({ dir }) {
+  const homeDir = os.homedir();
+  const workspace = createNodeDirectoryWorkspace({ homeDir, defaultFolder: "Tovu", envName: "TOVU_SITES_HOME",
+    settingsFile: path.join(homeDir, ".tovu", "sites-home.json"), registryName: "sites.json", runningName: ".tovu-running.json" });
+  return workspace.running({ path: dir }).peek({});
+}
+
+function readDevAttachment() {
+  if (!devAttachment) return null;
+  const record = readDevRunning({ dir: devAttachment.dir });
+  if (record?.token !== devAttachment.record.token) throw new Error("The site that dev attached to stopped or changed. Run npm run dev again to use its current server.");
+  return record;
+}
+
+/** Watch complete lines, including split chunks, while preserving the API's original output.
+ * An attach announcement is only a hint: adopt solely the live lease of the launched directory.
+ * @complexity O(output bytes); one bounded lease read per attach announcement, no catalog reads.
+ */
+export function observeDevApiAttachment({ stdout, dir }, {
+  readRunning = readDevRunning, adopt = input => { devAttachment = input; }, mirror = process.stdout, warn = console.warn,
+} = {}) {
+  stdout.pipe(mirror, { end: false });
+  const lines = createInterface({ input: stdout });
+  lines.on("line", line => {
+    if (!line.startsWith("Using the site already running in ") && !line.startsWith("Using the site starting in ")) return;
+    try {
+      const record = readRunning({ dir });
+      if (record) adopt({ dir, record });
+    } catch {
+      warn("tovu dev: could not verify the selected site's running record. Stop it in the other Tovu app, then run npm run dev again. Details: .tovu-running.json is unreadable or invalid; no server was adopted.");
+    }
+  });
+}
+
 function start(name, command, args, env) {
+  if (name === "api server") devAttachment = undefined;
   const childEnv = buildDevChildEnv({ parent: process.env, env });
   const executable = process.platform === "win32" && ["npx", "npm"].includes(command) ? `${command}.cmd` : command;
   const invocation = createCommandInvocation({ command: executable, args, env: childEnv });
   const child = spawn(invocation.command, invocation.args, {
     cwd: REPO_ROOT,
-    stdio: "inherit",
+    stdio: name === "api server" ? ["inherit", "pipe", "inherit"] : "inherit",
     detached: true, // own process group — required for killGroup to reap grandchildren
     env: childEnv,
     windowsVerbatimArguments: invocation.windowsVerbatimArguments,
     windowsHide: true,
   });
+  if (name === "api server" && child.stdout) observeDevApiAttachment({ stdout: child.stdout, dir: env.TOVU_SITE_DIR });
   child.on("error", (error) => {
     console.error(`\ntovu dev: failed to start ${name}:`, error.message);
     if (plannedExits.has(child)) return; // The requested boot is owned by restart recovery.
     shutdown(1);
   });
-  child.on("exit", (code, signal) => {
-    const kind = classifyChildExit({ shuttingDown, planned: plannedExits.has(child) });
+  // close follows stdout drain, so a final attachment line wins before exit classification.
+  child.on("close", (code, signal) => {
+    const kind = classifyChildExit({ shuttingDown, planned: plannedExits.has(child), code,
+      attached: name === "api server" && devAttachment?.dir === env.TOVU_SITE_DIR });
     if (kind === "ignore") return;
-    if (kind === "planned") {
+    if (kind === "planned" || kind === "attached") {
       children.splice(children.indexOf(child), 1);
       return;
     }
@@ -689,10 +736,15 @@ export function startAdminVite({ apiPort, vitePort, apiScheme, extraCaCerts }, s
  * configured loopback TLS trust policy; neither the watcher nor a bound TCP port proves boot.
  * @returns False on a failed/timed-out boot. @complexity Bounded probes for at most 90 seconds.
  */
-export async function waitForDevApi({ apiPort, scheme }, { certificate, wait = waitForHttpOk, probe = probeLoopbackHttp } = {}) {
+export async function waitForDevApi({ apiPort, scheme }, { certificate, wait = waitForHttpOk, probe = probeLoopbackHttp, readAttachment = readDevAttachment } = {}) {
   try {
     await wait(`${scheme}://127.0.0.1:${apiPort}/readyz`, { timeoutMs: 90_000,
-      probe: ({ url, timeoutMs }) => probe({ url }, { certificate, servername: "localhost", timeoutMs: Math.min(1500, timeoutMs) }),
+      probe: ({ url, timeoutMs }) => {
+        const attached = readAttachment();
+        if (attached?.port === 0) return false;
+        const target = attached ? `${attached.scheme}://127.0.0.1:${attached.port}/readyz` : url;
+        return probe({ url: target }, { certificate, servername: "localhost", timeoutMs: Math.min(1500, timeoutMs) });
+      },
     });
     return true;
   } catch { return false; }
@@ -704,9 +756,13 @@ export async function waitForDevApi({ apiPort, scheme }, { certificate, wait = w
  */
 export async function finishDevStartup(
   { apiPort, vitePort, scheme, extraCaCerts, certificate, lite = false },
-  { waitForReady = () => waitForDevApi({ apiPort, scheme }, { certificate }), isShuttingDown = () => shuttingDown,
-    log = console.log, warn = console.warn, stop = shutdown, startAdmin = startAdminVite } = {},
+  options = {},
 ) {
+  const { waitForReady, isShuttingDown, log, warn, stop, startAdmin, readAttachment } = {
+    waitForReady: () => waitForDevApi({ apiPort, scheme }, { certificate }), isShuttingDown: () => shuttingDown,
+    log: console.log, warn: console.warn, stop: shutdown, startAdmin: startAdminVite, readAttachment: readDevAttachment,
+    ...options,
+  };
   const ready = await waitForReady();
   if (isShuttingDown()) return false;
   if (!ready) {
@@ -714,6 +770,8 @@ export async function finishDevStartup(
     stop(1);
     return false;
   }
+  const attached = readAttachment();
+  if (attached) { announceRunningDevSite({ record: attached }, { log }); return true; }
   log(lite ? `tovu dev: prebuilt admin at ${scheme}://localhost:${apiPort}/admin/ (no Vite).`
     : `tovu dev: API is up. Open ${scheme}://localhost:${apiPort}/admin/ (Vite direct: ${scheme}://localhost:${vitePort}/admin/)\n`);
   if (!lite) startAdmin({ apiPort, vitePort, apiScheme: scheme, extraCaCerts });
@@ -770,12 +828,34 @@ export function announceRunningDevSite({ record }, { log = console.log } = {}) {
   return url;
 }
 
-function openRunningSite({ record }, _options = {}) {
+function openRunningSite({ record }) {
   const url = announceRunningDevSite({ record });
   if (url) {
     const opener = process.platform === "darwin" ? "open" : process.platform === "win32" ? "explorer.exe" : "xdg-open";
     spawn(opener, [url], { stdio: "ignore" }).on("error", () => console.warn(`Open this website at ${url}`));
   }
+}
+
+/** Assemble the one API launch environment; the same snapshot feeds requested restarts. */
+async function prepareApiLaunch({ selectedSite, scheme, lite, extraCaCerts }) {
+  const apiEnv = { ...selectedSite.env, ...buildApiEnv({ scheme, apiPort: API_PORT, vitePort: VITE_PORT, supervisorPid: process.pid }, { env: selectedSite.env }) };
+  if (lite) {
+    apiEnv.TOVU_ADMIN_DIST = await prepareLiteAdmin({ repoRoot: REPO_ROOT, env: process.env });
+    apiEnv.TOVU_ADMIN_DEV_PROXY_URL = "";
+  }
+  const runtime = selectNodeRuntime({ searchFrom: [REPO_ROOT, path.join(REPO_ROOT, "apps/desktop")], nodePath: process.execPath });
+  if (runtime.fallback) console.log("tovu dev: Electron unavailable; using stock Node for the API.");
+  Object.assign(apiEnv, runtime.env);
+  apiEnv.TOVU_DEV_WARM_SITES = "1";
+  // The API's source site children watch through tsx; dev hands in its CLI path so the shipped server never resolves the devDependency.
+  apiEnv.TOVU_DEV_TSX_CLI = createRequire(import.meta.url).resolve("tsx/cli");
+  apiEnv.TOVU_DEV_WARM_HOST_URL = `${scheme}://localhost:${API_PORT}`;
+  apiEnv.TOVU_DEV_WARM_CONTROL_TOKEN = randomBytes(32).toString("hex");
+  apiEnv.TOVU_BUNDLED_AGENT_PLUGINS_DIR = process.env.TOVU_BUNDLED_AGENT_PLUGINS_DIR;
+  // Snapshot the actual boot selection, including the implicit default, before .env can change.
+  apiEnv.TOVU_SITE = selectedSite.env.TOVU_SITE ?? "tovu-dev";
+  if (extraCaCerts) apiEnv.NODE_EXTRA_CA_CERTS = extraCaCerts;
+  return { apiEnv, runtime };
 }
 
 async function main() {
@@ -809,23 +889,7 @@ async function main() {
     `tovu dev: Ctrl-C stops everything.\n`
   );
 
-  const apiEnv = { ...selectedSite.env, ...buildApiEnv({ scheme, apiPort: API_PORT, vitePort: VITE_PORT, supervisorPid: process.pid }, { env: selectedSite.env }) };
-  if (lite) {
-    apiEnv.TOVU_ADMIN_DIST = await prepareLiteAdmin({ repoRoot: REPO_ROOT, env: process.env });
-    apiEnv.TOVU_ADMIN_DEV_PROXY_URL = "";
-  }
-  const runtime = selectNodeRuntime({ searchFrom: [REPO_ROOT, path.join(REPO_ROOT, "apps/desktop")], nodePath: process.execPath });
-  if (runtime.fallback) console.log("tovu dev: Electron unavailable; using stock Node for the API.");
-  Object.assign(apiEnv, runtime.env);
-  apiEnv.TOVU_DEV_WARM_SITES = "1";
-  // The API's source site children watch through tsx; dev hands in its CLI path so the shipped server never resolves the devDependency.
-  apiEnv.TOVU_DEV_TSX_CLI = createRequire(import.meta.url).resolve("tsx/cli");
-  apiEnv.TOVU_DEV_WARM_HOST_URL = `${scheme}://localhost:${API_PORT}`;
-  apiEnv.TOVU_DEV_WARM_CONTROL_TOKEN = randomBytes(32).toString("hex");
-  apiEnv.TOVU_BUNDLED_AGENT_PLUGINS_DIR = process.env.TOVU_BUNDLED_AGENT_PLUGINS_DIR;
-  // Snapshot the actual boot selection, including the implicit default, before .env can change.
-  apiEnv.TOVU_SITE = selectedSite.env.TOVU_SITE ?? "tovu-dev";
-  if (extraCaCerts) apiEnv.NODE_EXTRA_CA_CERTS = extraCaCerts;
+  const { apiEnv, runtime } = await prepareApiLaunch({ selectedSite, scheme, lite, extraCaCerts });
   // Per-supervisor request file (OD-S1): two `npm run dev`s on different ports never cross.
   const restartRequestFile = path.join(os.tmpdir(), `tovu-dev-restart-${process.pid}.json`);
   try {

@@ -1,10 +1,65 @@
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
+import { InMemoryFormSubmissionRepo } from "@jini-ai/cms/forms";
 import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
 import { bootAuthenticated, loginAsBarePrincipal } from "../helpers/http-test-server.js";
 
 const W = "/api/admin/v1/workspaces/workspace-local";
+
+for (const entityType of ["form", "form_submission"] as const) {
+  test(`memory ${entityType} purge advances attachment pages and captures every reference`, async () => {
+    const deps = createRouteDeps();
+    const submissions = deps.formSubmissionRepo;
+    assert.ok(submissions instanceof InMemoryFormSubmissionRepo);
+    const workspaceId = deps.workspaceId;
+    const at = deps.clock.nowIso();
+    const actor = { principalId: "cleanup-owner" };
+    await deps.formDefinitionRepo.create({ id: "paged-form", workspaceId, name: "Paged", slug: "paged",
+      fields: [], notify: { enabled: false, recipients: [] }, status: "active", createdAt: at, updatedAt: at, version: 1 });
+    const count = entityType === "form" ? 105 : 1;
+    const mediaIds: string[] = [];
+    // Reverse insertion catches cursor advancement that forgets to sort before limiting.
+    for (let index = count - 1; index >= 0; index -= 1) {
+      const id = `answer-${String(index).padStart(3, "0")}`;
+      const mediaId = `media-${id}`;
+      mediaIds.push(mediaId);
+      await deps.formSubmissionRepo.create({ id, workspaceId, formDefinitionId: "paged-form", sourceIp: null, submittedAt: at,
+        data: { file: { mediaId, filename: "fixture.png", contentType: "image/png", byteSize: 8 } } });
+    }
+    const lookups: string[] = [];
+    deps.mediaRepo.findById = async ({ id }) => { lookups.push(id); return null; };
+    let reads = 0;
+    if (entityType === "form") {
+      const read = submissions.listAllForDefinition.bind(submissions);
+      submissions.listAllForDefinition = async required => {
+        reads += 1;
+        // Fail promptly on repeated pages rather than leaving an unbounded purge running.
+        assert.ok(reads <= 4, "105 submissions require two pages, a terminal empty read and the cascade read");
+        return read(required);
+      };
+    } else {
+      const read = submissions.findAnyById.bind(submissions);
+      submissions.findAnyById = async required => {
+        reads += 1;
+        // Hide, pre-purge and post-purge checks surround the two attachment-page reads.
+        assert.ok(reads <= 5, "one submission must not repeat indefinitely after its cursor advances");
+        return read(required);
+      };
+    }
+    const entityId = entityType === "form" ? "paged-form" : "answer-000";
+    assert.equal((await deps.trash.trash({ workspaceId, entityType, entityId, actor,
+      display: { title: entityId }, at, expectedVersion: 1 })).ok, true);
+    const page = await deps.trash.list({ workspaceId, now: at, limit: 10 });
+    assert.equal(page.items.length, 1);
+    const report = await deps.trash.purgeSelected({ workspaceId, ids: [page.items[0]!.id], actor, authorizeItem: async () => true });
+    assert.equal(report.purged, 1);
+    assert.equal(reads, entityType === "form" ? 4 : 5);
+    assert.deepEqual(report.results.map(row => row.outcome), ["purged"]);
+    assert.deepEqual(lookups.sort(), mediaIds.sort());
+    assert.deepEqual((await deps.trash.list({ workspaceId, now: at, limit: 10 })).items, []);
+  });
+}
 
 test("memory admin cleanup purges only selected forms, menus and widgets, including dependents", async (t) => {
   const deps = createRouteDeps();

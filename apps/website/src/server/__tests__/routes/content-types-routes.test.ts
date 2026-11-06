@@ -363,7 +363,7 @@ test("UPDATE-FIELDS: an unexpected repo failure surfaces as 500 through the rout
     });
     assert.equal(res.status, 500);
     const body: unknown = await res.json();
-    assertAdminResponse({ actual: body, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+    assertAdminResponse({ actual: body, expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The content type save could not be completed.", action: "Check whether your changes were saved before repeating the save. Copy details and report this problem.", step: "Save content type" } });
     assert.doesNotMatch(JSON.stringify(body), /simulated repo failure/);
   } finally {
     deps.contentTypeRepo.transaction = originalTransaction;
@@ -393,7 +393,7 @@ test("UPDATE-FIELDS: a non-Error throw still surfaces as 500 with the same conce
     });
     assert.equal(res.status, 500);
     const body: unknown = await res.json();
-    assertAdminResponse({ actual: body, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+    assertAdminResponse({ actual: body, expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The content type save could not be completed.", action: "Check whether your changes were saved before repeating the save. Copy details and report this problem.", step: "Save content type" } });
     assert.doesNotMatch(JSON.stringify(body), /simulated non-Error rejection/);
   } finally {
     deps.contentTypeRepo.transaction = originalTransaction;

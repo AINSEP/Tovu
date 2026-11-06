@@ -213,8 +213,8 @@ describe("AccessTokensTab project copy entry", () => {
       useOtherCredentialsHook={() => makeOtherCredentials()}
       useCopyKeysHook={input => useCopyKeys(input, { port: { listCredentialCopySources, copyCredentials } })}
     />);
-    expect(screen.queryByRole("button", { name: "Copy keys from another project…" })).toBeNull();
-    expect(screen.queryByRole("dialog", { name: "Copy keys from another project…" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Use a saved key" })).toBeNull();
+    expect(screen.queryByRole("dialog", { name: "Use a saved key" })).toBeNull();
     expect(listCredentialCopySources).not.toHaveBeenCalled();
   });
 });
@@ -324,7 +324,7 @@ describe("AccessTokensTab project copy entry, when re-enabled", () => {
       useOtherCredentialsHook={() => makeOtherCredentials()}
       useCopyKeysHook={input => useCopyKeys(input, { port: { listCredentialCopySources, copyCredentials: vi.fn() } })}
     />);
-    await user.click(screen.getByRole("button", { name: "Copy keys from another project…" }));
+    await user.click(screen.getByRole("button", { name: "Use a saved key" }));
     await waitFor(() => expect(listCredentialCopySources).toHaveBeenCalledTimes(1));
   });
 });

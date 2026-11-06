@@ -53,6 +53,7 @@ export type OAuthCallbackFailureReason =
   | "rate_limited"
   | "no_state"
   | "state_expired"
+  | "browser_mismatch"
   | "provider_denied"
   | "exchange_failed"
   | "server_unknown"
@@ -67,7 +68,8 @@ const FAILURE_HEADING = "Couldn’t finish connecting";
 const FAILURE_BODY: Record<OAuthCallbackFailureReason, string> = {
   rate_limited: "Too many attempts too quickly. Wait a moment, then try connecting again from Tovu.",
   no_state: "This page wasn’t reached from a connection Tovu started, so there’s nothing to finish here. Close this window and start again from Tovu.",
-  state_expired: "This connection attempt is no longer valid — it may have expired, already been used, or been started from another window. Close this window and try again from Tovu.",
+  state_expired: "This connection attempt is no longer valid — it may have expired, already been used, or been started from another window. Close this window and try again from Tovu in the same browser, with cookies enabled. Details: OAUTH_INVALID_STATE.",
+  browser_mismatch: "This sign-in did not return to the browser that started it, or its cookie is missing. Close this window, return to Tovu in the same browser with cookies enabled, and start connecting again. Details: MCP_OAUTH_BROWSER_BINDING.",
   provider_denied: "The request was declined on the provider’s side. Approve the request on their consent screen, then try again from Tovu.",
   exchange_failed: "Something went wrong finishing the connection. Close this window and try again from Tovu.",
   server_unknown: "This connection could not be found. Close this window and check Settings → External MCP.",

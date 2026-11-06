@@ -28,7 +28,7 @@ export {
 
 export { InMemoryCustomCredentialSetRepo } from "./repo.memory.js";
 export { customVaultScope } from "./vault-repo.js";
-export { summarizeCredentialSources, type CredentialCopyToolDeps } from "./credential-copy-tool.js";
+export { type CredentialCopyToolDeps } from "./credential-copy-tool.js";
 
 export {
   ConsoleCredentialedRequestAuditLog,

@@ -61,17 +61,18 @@ test('readiness preserves receipt failure evidence, page status, metadata and re
     assert.equal(result.placement, 'bottom-right');
     assert.equal(result.regionMode, 'auto');
     assert.equal(result.delivery, 'live');
-    assert.equal(result.staticSupported, false);
+    assert.equal(result.staticSupported, true);
     assert.equal(result.sampleOnly, true);
     assert.deepEqual(result.sampledPaths, ['/privacy']);
     assert.equal(result.limitations.length, 1);
-    await assert.rejects(f.service.preview({ principalId: 'owner', config: f.config }), { message: 'Preview requires one complete rendered page of at most 1 MB.' });
+    assert.match((await f.service.preview({ principalId: 'owner', config: f.config })).html, /jini-consent/, 'banner preview is independent of unavailable page evidence');
   }
   f.ports.renderPage = async () => { throw new Error('private renderer path'); };
-  await assert.rejects(f.service.preview({ principalId: 'owner', config: f.config }), { message: 'private renderer path' });
+  assert.match((await f.service.preview({ principalId: 'owner', config: f.config })).html, /jini-consent/);
   const failed = await f.service.readiness({ principalId: 'owner', path: '/privacy', config: f.config });
   assert.deepEqual(failed.blockingProblems.map(problem => problem.code), ['RECEIPT_STORAGE_UNAVAILABLE', 'RENDER_FAILED']);
-  assert.deepEqual(failed.detected, []);
+  assert.deepEqual(failed.declarations, []);
+  assert.deepEqual(failed.warnings, []);
   assert.equal(failed.ready, false);
   assert.equal(failed.truncated, false);
   assert.deepEqual(failed.sampledPaths, ['/privacy']);

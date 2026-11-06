@@ -125,7 +125,7 @@ for (const fault of [new Error("index unavailable"), "private failure"]) {
     const response = await send(`${baseUrl}/api/admin/v1/content-types`, "POST", { key: "recipe", label: "Recipe", fields: FIELDS });
     assert.equal(response.status, 500);
     // 88f429c25: Error and non-Error faults alike answer the concealed incident envelope.
-    assertAdminResponse({ actual: response.json, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+    assertAdminResponse({ actual: response.json, expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: {"message":"The content type operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"content type operation"} });
     assert.equal(provision.mock.callCount(), 1);
     assert.equal((await repo.findByKey({ workspaceId: "ws-1", key: "recipe" }))?.label, "Recipe");
   });

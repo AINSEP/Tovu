@@ -5,6 +5,7 @@ import { defineConfig, type Plugin } from "vite";
 
 import { destroyClientWhenUpstreamCloses } from "./dev-proxy-upstream-close";
 import { isDevTlsExplicitlyDisabled } from "./dev-tls-disable-flag";
+import { adminJiniDependencyFingerprint } from "./dev-jini-deps";
 
 // The admin SPA is served at /admin by the Tovu server in production builds.
 // In dev, Vite serves it at :5173 and proxies /api to the backend.
@@ -118,6 +119,8 @@ function linkedJiniRoot(): string[] {
   return existsSync(linkedUi) ? [path.resolve(realpathSync(linkedUi), "../..")] : [];
 }
 
+const jiniDependencyFingerprint = await adminJiniDependencyFingerprint({ adminDir: __dirname });
+
 export default defineConfig({
   base: "/admin/",
   define: {
@@ -125,7 +128,9 @@ export default defineConfig({
     // `__TOVU_ADMIN_DEV_PORT__` is NOT here: `injectAdminDevPort` supplies it from the resolved
     // `server.port`, so a CLI `--port` cannot leave the define disagreeing with the real bind.
   },
-  plugins: [injectAdminDevPort, redirectBareAdmin, react()],
+  // Vite hashes plugin names into its optimizer config hash. Installed Jini upgrades must
+  // invalidate prebundles even when npm leaves the lockfile/dependency ranges unchanged.
+  plugins: [{ name: `tovu:jini-deps:${jiniDependencyFingerprint}` }, injectAdminDevPort, redirectBareAdmin, react()],
   resolve: {
     // The `@jini-ai/*` deps are `file:` links into a sibling Jini checkout, and three of them
     // (`admin`, `chat`, `ui`) carry their OWN `node_modules/react`. Without

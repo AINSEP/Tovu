@@ -1,10 +1,11 @@
 import { StaticExportPicker } from "./StaticExportPicker";
-import { CredentialWarningList, credentialSummary } from "./CredentialWarnings";
+import { CredentialWarningList, TransferNoticeTip, credentialSummary } from "./CredentialWarnings";
 import type { CredentialGate } from "./hooks/use-share-credential-gate.hooks";
 import { DataTable } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/agentic";
-import { formatTimestamp, type Translate } from "@jini-ai/ui/panel-kit";
-import { siteShareNotices, type SiteShare } from "./hooks/site-transfer-dependencies.hooks";
+import { InfoTip } from "@jini-ai/ui/admin-widgets";
+import { ErrorNotice, formatTimestamp, type Translate } from "@jini-ai/ui/panel-kit";
+import { siteShareNotices, type SiteShare, type CredentialWarning } from "./hooks/site-transfer-dependencies.hooks";
 import { useWiredSiteExport, type SiteExportController } from "./hooks/use-site-transfer.hooks";
 import { formatTransferBytes, shareStatusView, shortLink } from "./site-transfer-rules";
 
@@ -26,16 +27,12 @@ export function SiteExportTab({ t, useExport = useWiredSiteExport }: SiteExportT
   const exporting = controller.exporting || controller.exportingStatic;
   return (
     <section className="site-transfer" aria-label={t("Export Site")}>
-      <p className="onboarding-section-lead site-transfer-lead">{t("Makes a .tovu.zip copy of this site that another Tovu can import.")}</p>
-      <p className="site-transfer-lead">{t("Images are exported as web-optimized copies.")}</p>
-      {controller.canManageSavedKeys ? (
-        <label className="field-label">
-          <input type="checkbox" checked={controller.includeSavedKeys} disabled={exporting}
-            onChange={event => controller.setIncludeSavedKeys(event.target.checked)}
-            {...agentHandle({ handle: "sites-export-include-keys" }, { role: "field", label: "Include saved keys in an encrypted bundle" })} />
-          {" "}{t("Include saved keys")}
-        </label>
-      ) : null}
+      <p className="onboarding-section-lead site-transfer-lead">
+        {t("Makes a .tovu.zip copy of this site that another Tovu can import.")}
+        {/* A bubble, not inline copy: opening it must not push the export rows down. */}
+        <InfoTip label={t("Images are exported as web-optimized copies.")} agentHandle="sites-export-info" />
+        <TransferNoticeTip notices={controller.zipOnly ? [t("No link host is set up, so exports are zip downloads only. Set up storage to get a share link.")] : []} t={t} />
+      </p>
       <div className="site-export-actions">
         <button
           type="button"
@@ -50,23 +47,24 @@ export function SiteExportTab({ t, useExport = useWiredSiteExport }: SiteExportT
         </button>
         <StaticExportPicker controller={controller} t={t} />
       </div>
-      {controller.exportError ? <div className="notice error" role="alert">{controller.exportError}</div> : null}
+      <ExportFailureNotice controller={controller} t={t} />
       {controller.passwordError ? <div className="notice error" role="alert">{controller.passwordError}</div> : null}
-      {controller.exportNotices?.map((notice, index) => <div className="notice" role="status" key={index}>{notice}</div>)}
       <ExportPassword controller={controller} t={t} />
-      {controller.zipOnly ? (
-        <div className="notice">{t("No link host is set up, so exports are zip downloads only. Set up storage to get a share link.")}</div>
-      ) : null}
       <ExportList controller={controller} t={t} />
     </section>
   );
+}
+
+function ExportFailureNotice({ controller, t }: { controller: SiteExportController; t: Translate }) {
+  if (controller.exportFailure) return <ErrorNotice failure={controller.exportFailure} t={t} />;
+  return controller.exportError ? <div className="notice error" role="alert">{controller.exportError}</div> : null;
 }
 
 /** Passwords exist only while explicitly displayed; refreshing requires an owner reveal again. */
 function ExportPassword({ controller, t }: { controller: SiteExportController; t: Translate }) {
   if (!controller.revealedPassword) return null;
   return (
-    <div className="notice">
+    <div className="notice" data-agent-private="">
       <div className="field">
         <label className="field-label" htmlFor="sites-export-password">{t("Export password")}</label>
         <input id="sites-export-password" type="text" readOnly autoComplete="off" spellCheck={false}
@@ -74,8 +72,7 @@ function ExportPassword({ controller, t }: { controller: SiteExportController; t
         <p className="field-hint" id="sites-export-password-hint">{t("Send this password separately")}</p>
       </div>
       <div className="site-transfer-actions">
-        <button type="button" className="btn-secondary" onClick={() => void controller.copyPassword()}
-          {...agentHandle({ handle: "sites-export-password-copy" }, { role: "button", label: "Copy this export's saved keys password" })}>
+        <button type="button" className="btn-secondary" onClick={() => void controller.copyPassword()}>
           <span aria-live="polite">{controller.passwordCopied ? t("Copied") : t("Copy")}</span>
         </button>
         <button type="button" className="btn-secondary" onClick={controller.hidePassword}>{t("Hide password")}</button>
@@ -93,21 +90,18 @@ function ExportList({ controller, t }: { controller: SiteExportController; t: Tr
       rowKey={(share) => share.shareId}
       label={t("Exports")}
       empty={<div className="sites-empty"><p className="sites-empty-lead">{t("No exports yet.")}</p></div>}
+      rowDetail={(share, index) => exportCredentialDetail({ share, index, controller, t })}
       columns={[
+        { key: "type", header: t("Type"), cell: (share) => share.file.endsWith(".tovu.zip") ? t("Tovu backup") : t("Static site") },
         { key: "date", header: t("Date"), cellClassName: "site-transfer-num", cell: (share) => formatTimestamp({ iso: share.createdAt }, { timeZone: "local" }) },
         { key: "size", header: t("Size"), cellClassName: "site-transfer-num", cell: (share) => formatTransferBytes(share.bytes) },
         { key: "link", header: t("Link"), cell: (share) => <ShareLinkCell share={share} t={t} /> },
         {
           key: "status",
           header: t("Status"),
-          cell: (share, rowIndex) => {
+          cell: (share) => {
             const view = shareStatusView(share.status, t);
-            const gate = controller.credentialGate(share);
-            return <>
-              <span className={view.className}>{view.label}</span>
-              {gate ? <ExportCredentialNotice share={share} gate={gate} index={rowIndex} controller={controller} t={t} /> : null}
-              {controller.noticeShareId !== share.shareId ? siteShareNotices({ share }).map((notice, index) => <div className="notice" role="status" key={index}>{notice}</div>) : null}
-            </>;
+            return <span className="site-transfer-status"><span className={view.className}>{view.label}</span></span>;
           },
         },
         { key: "actions", headerLabel: t("Actions"), cell: (share, index) => <ShareActions share={share} index={index} controller={controller} t={t} /> },
@@ -116,29 +110,84 @@ function ExportList({ controller, t }: { controller: SiteExportController; t: Tr
   );
 }
 
-/** In the row, not a modal (owner, 2026-11-03): where credentials may be, and the one checkbox
- * that records "I understand" and then enables Download zip and Copy link. Deliberately carries no
- * agent handle: acknowledging is the user's own act. */
-function ExportCredentialNotice({ share, gate, index, controller, t }: { share: SiteShare; gate: CredentialGate; index: number; controller: SiteExportController; t: Translate }) {
-  const errorId = `sites-export-${index + 1}-credentials-error`;
+/**
+ * The row's notices, drawn in its detail line: the export's own, plus where credentials may be. A gate's warnings
+ * win over the listed ones, since a 409 can name files the row's last list never had.
+ * @complexity O(n) notices and warnings.
+ */
+function exportRowNotices({ share, gate, t }: { share: SiteShare; gate: CredentialGate | null; t: Translate }, _options = {}): readonly string[] {
+  const notices = siteShareNotices({ share });
+  const warnings = gate?.warnings.length ? gate.warnings : share.credentialWarnings ?? [];
+  if (!gate && !share.needsAcknowledgement && !warnings.length) return notices;
+  return [...notices, credentialSummary({ subject: "export", warnings, t })];
+}
+
+/**
+ * The full-width line under an export with credential warnings: "Show files" has the row's whole
+ * width instead of the narrow Status column. The one checkbox records "I understand" and then enables
+ * Download zip and Copy link; deliberately no agent handle, acknowledging is the user's own act. The
+ * line stays once the checkbox has gone, so Revoke and "I understand" never move the rows below. A plain
+ * function, not a component: DataTable draws a row for any element, and an export with nothing to say gets none.
+ */
+function exportCredentialDetail({ share, index, controller, t }: { share: SiteShare; index: number; controller: SiteExportController; t: Translate }, _options?: Record<string, never>) {
+  const gate = controller.credentialGate(share);
+  const warnings = exportCredentialWarnings({ share, gate });
+  const notices = exportRowNotices({ share, gate, t });
+  if (!gate && !warnings.length && !notices.length) return null;
   return (
-    <div className="notice warning site-transfer-credentials" role={gate.message ? "alert" : undefined}>
-      <p>{gate.message ?? credentialSummary({ subject: "export", warnings: gate.warnings, t })}</p>
-      <CredentialWarningList warnings={gate.warnings} t={t} />
-      <label>
-        <input type="checkbox" checked={gate.acknowledging} disabled={gate.acknowledging} aria-busy={gate.acknowledging}
-          aria-describedby={gate.error ? errorId : undefined}
-          onChange={event => { if (event.target.checked) void controller.acknowledge(share); }} />
-        {t("I understand this export may contain credentials")}
-      </label>
-      {gate.error ? <p className="field-error" id={errorId} role="alert">{gate.error}</p> : null}
+    <div className="site-transfer-detail" role={gate?.message ? "alert" : undefined}>
+      {notices.map(notice => <p key={notice} className="site-transfer-detail-message">{notice}</p>)}
+      {gate?.message ? <p className="site-transfer-detail-message">{gate.message}</p> : null}
+      {gate ? <ExportAcknowledge share={share} gate={gate} index={index} controller={controller} t={t} /> : null}
+      <CredentialWarningList warnings={warnings} t={t} />
     </div>
   );
+}
+
+/** Preserve a live gate's complete warning snapshot, including an intentionally empty list. */
+function exportCredentialWarnings({ share, gate }: { share: SiteShare; gate: CredentialGate | null }, _options = {}): readonly CredentialWarning[] {
+  return gate?.warnings ?? share.credentialWarnings ?? [];
+}
+
+function ExportAcknowledge({ share, gate, index, controller, t }: { share: SiteShare; gate: CredentialGate; index: number; controller: SiteExportController; t: Translate }) {
+  const errorId = `sites-export-${index + 1}-credentials-error`;
+  return <>
+    <label className="site-transfer-acknowledge">
+      <input type="checkbox" checked={gate.acknowledging} disabled={gate.acknowledging} aria-busy={gate.acknowledging}
+        aria-describedby={gate.error ? errorId : undefined}
+        onChange={event => { if (event.target.checked) void controller.acknowledge(share); }} />
+      {t("I understand this export may contain credentials")}
+    </label>
+    {gate.error ? <p className="field-error" id={errorId} role="alert">{gate.error}</p> : null}
+  </>;
 }
 
 function ShareLinkCell({ share, t }: { share: SiteShare; t: Translate }) {
   if (!share.url) return <span className="muted-cell">{t("Zip only")}</span>;
   return <span className="site-transfer-link" title={share.url}>{shortLink(share.url)}</span>;
+}
+
+/** Human-only reveal: keep the native control private even when its export row is published. */
+function ExportPasswordRevealAction({ share, controller, t }: { share: SiteShare; controller: SiteExportController; t: Translate }) {
+  if (!share.hasEncryptedKeys || !controller.canManageSavedKeys) return null;
+  return <button type="button" className="btn-secondary" disabled={controller.revealingId !== null || controller.exporting || controller.exportingStatic}
+    onClick={() => void controller.revealPassword({ shareId: share.shareId })}
+    data-agent-private="">
+    {controller.revealingId === share.shareId ? t("Revealing…") : t("Reveal password")}
+  </button>;
+}
+
+/**
+ * Revoke takes this row's buttons away. Holding the row and its detail line at their height, for this
+ * visit, keeps the next row's Revoke from sliding under a second click, in the table and on phone cards.
+ * @complexity O(1).
+ */
+function holdRowHeight({ control }: { control: HTMLElement }, _options = {}): void {
+  const row = control.closest("tr");
+  const detail = row?.nextElementSibling;
+  for (const line of [row, detail?.classList.contains("list-table-detail") ? detail : null]) {
+    if (line instanceof HTMLElement) line.style.height = `${line.getBoundingClientRect().height}px`;
+  }
 }
 
 /** Copy link, Download zip and Revoke for an active export; nothing for a revoked or failed one.
@@ -149,14 +198,8 @@ function ShareActions({ share, index, controller, t }: { share: SiteShare; index
   // Handing the archive out waits for "I understand"; Revoke and the password reveal do not.
   const gated = controller.credentialGate(share) !== null;
   return (
-    <div className="site-transfer-actions">
-      {share.hasEncryptedKeys && controller.canManageSavedKeys ? (
-        <button type="button" className="btn-secondary" disabled={controller.revealingId !== null || controller.exporting || controller.exportingStatic}
-          onClick={() => void controller.revealPassword({ shareId: share.shareId })}
-          {...agentHandle({ handle: `sites-export-${index + 1}-password` }, { role: "button", label: "Reveal this export's saved keys password" })}>
-          {controller.revealingId === share.shareId ? t("Revealing…") : t("Reveal password")}
-        </button>
-      ) : null}
+    <div className="site-transfer-actions site-transfer-actions--export">
+      <ExportPasswordRevealAction share={share} controller={controller} t={t} />
       {share.url ? (
         <button
           type="button"
@@ -186,7 +229,7 @@ function ShareActions({ share, index, controller, t }: { share: SiteShare; index
         type="button"
         className="btn-danger"
         disabled={controller.revokingId !== null}
-        onClick={() => void controller.revoke(share)}
+        onClick={event => { holdRowHeight({ control: event.currentTarget }); void controller.revoke(share); }}
         {...agentHandle({ handle: `sites-export-${index + 1}-revoke` }, { role: "button", label: "Revoke this export so its link stops working" })}
       >
         {revoking ? t("Revoking…") : t("Revoke")}

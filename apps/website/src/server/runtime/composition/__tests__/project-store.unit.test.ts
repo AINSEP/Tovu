@@ -24,7 +24,7 @@ import { UnknownAppliedMigrationError } from "#src/platform/db/migrations/step";
 
 /**
  * @file `project.db` on a real filesystem (temp dirs only): it and its key live in
- * `~/.tovu/projects/<projectId>/` (never the often cloud-synced sites root), the key is minted once
+ * resolved app-data (never the often cloud-synced sites root), the key is minted once
  * (0600), the same file serves two openers (the web app and the desktop app), its secrets are sealed
  * (plaintext never in the file), and a wrong key cannot read them.
  */
@@ -52,11 +52,11 @@ test("a newer project ledger refuses an older runtime instead of ignoring access
     && error.ids.includes("9999_future_attachment_boundary"));
 });
 
-test("project.db and its key live in ~/.tovu/projects/<projectId>/, outside the sites root; each sites root is its own project", async (t) => {
+test("project.db and its key share canonical app-data across sites roots", async (t) => {
   const { home, sitesHome, projectId } = dirs(t);
   const store = await openProjectStore({ sitesHome, home });
   store.close({});
-  const dir = path.join(home, ".tovu", "projects", projectId);
+  const dir = path.dirname(projectDbPath({ home, projectId }));
   assert.equal(store.dbPath, path.join(dir, "project.db"));
   assert.equal(store.dbPath, projectDbPath({ home, projectId }));
   assert.equal(projectKeyFilePath({ home, projectId }), path.join(dir, "project-key.hex"));
@@ -64,8 +64,8 @@ test("project.db and its key live in ~/.tovu/projects/<projectId>/, outside the 
   assert.equal(fs.existsSync(path.join(sitesHome, "project.db")), false, "nothing is written into the sites root");
   const other = await openProjectStore({ sitesHome: path.join(home, "Elsewhere"), home });
   other.close({});
-  assert.notEqual(other.dbPath, store.dbPath);
-  assert.notEqual(fs.readFileSync(projectKeyFilePath({ home, projectId: other.projectId }), "utf8"), fs.readFileSync(projectKeyFilePath({ home, projectId }), "utf8"));
+  assert.equal(other.dbPath, store.dbPath);
+  assert.equal(fs.readFileSync(projectKeyFilePath({ home, projectId: other.projectId }), "utf8"), fs.readFileSync(projectKeyFilePath({ home, projectId }), "utf8"));
 });
 
 test("the project key is minted once (0600, under ~/.tovu, never in the sites root) and then reused", (t) => {
@@ -370,4 +370,27 @@ test("a non-busy project WAL error is propagated immediately and closes the hand
   });
   await assert.rejects(openProjectStore(input), error => error === failure);
   assert.equal(handle?.open, false);
+});
+
+
+test('provider usage checks one selected owner identity without listing the vault', async t => {
+  const store = await openProjectStore(dirs(t));
+  try {
+    await store.config.write({ pluginId: 'example', config: { settings: {}, secrets: { token: 'fixture-only' } } });
+    store.vault.repo.list = async () => assert.fail('provider usage must not list owner records');
+    assert.equal((await store.config.usage({ pluginId: 'example' })).keyId, 'plugin-state:example:provider.config');
+    assert.equal((await store.config.usage({ pluginId: 'absent' })).keyId, undefined);
+  } finally { store.close({}); }
+});
+
+
+test('owner picker inventory excludes unrelated API connections before offering keys', async t => {
+  const store = await openProjectStore(dirs(t));
+  try {
+    await store.config.write({ pluginId: 'example', config: { settings: {}, secrets: { token: 'fixture-only' } } });
+    const provider = (await store.vault.repo.find({ workspaceId: 'project', id: 'plugin-state:example:provider.config' }))!;
+    await store.vault.repo.put({ record: { ...provider, id: 'record:private-connection', label: 'Private connection', revision: 1 }, expectedRevision: null });
+    assert.deepEqual((await store.inventory!({})).map(row => row.id), ['plugin-state:example:provider.config']);
+    assert.deepEqual((await store.inventory!({}))[0]!.meta, { credentialFormat: 'agent-plugin-state' }, 'owner picker retains the credential format without undefined subtype metadata');
+  } finally { store.close({}); }
 });

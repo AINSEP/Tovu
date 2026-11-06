@@ -267,7 +267,7 @@ test("AGENT_PLUGINS_LIST: discovery failure is redacted", async (t) => {
   const fault = t.mock.method(agentPluginsDeps.agentPluginLayout, "forWorkspace", () => { throw new Error("private /secret/packages"); });
   const response = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_A}/agent-plugins`, { headers: { cookie } });
   assert.equal(response.status, 500);
-  assertAdminResponse({ actual: await response.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: await response.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: {"message":"The agent plugins could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load agent plugins"} });
   assert.equal(fault.mock.callCount(), 1);
 });
 

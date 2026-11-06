@@ -302,7 +302,7 @@ test("AGENT_PLUGIN_INSTALL_ZIP: a host layout failure returns a redacted interna
   const archive = await buildZipFixture([{ path: "plugin.json", content: manifest("1.0.0") }]);
   const response = await upload(baseUrl, cookie, archive);
   assert.equal(response.status, 500);
-  assertAdminResponse({ actual: await response.json(), expected: { code: "INTERNAL_ERROR", error: "internal error" } });
+  assertAdminResponse({ actual: await response.json(), expected: { code: "INTERNAL_ERROR", error: "internal error" } }, { failure: {"message":"The agent plugin operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"agent plugin operation"} });
   assert.equal(fault.mock.callCount(), 1);
   // Redacted for the client, so the operator's log is the only place the cause survives.
   assert.equal(logged.mock.callCount(), 1);
@@ -580,7 +580,7 @@ test("AGENT_PLUGIN_UPDATE_ZIP: a host without the settings snapshot owner answer
     const digest = await installedDigest(baseUrl, cookie, await buildZipFixture([{ path: "plugin.json", content: manifest("1.0.0") }]));
     const response = await postUpdate(baseUrl, cookie, await buildZipFixture([{ path: "plugin.json", content: manifest("1.1.0") }]), { expectedOldDigest: digest });
     assert.equal(response.status, 500);
-    assertAdminResponse({ actual: await response.json(), expected: { code: "INTERNAL_ERROR", error: "internal error" } });
+    assertAdminResponse({ actual: await response.json(), expected: { code: "INTERNAL_ERROR", error: "internal error" } }, { failure: {"message":"The agent plugin operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"agent plugin operation"} });
     assert.equal((await loadAgentPluginSearchCandidates(deps)).find((entry) => entry.pluginId === PLUGIN_ID)?.archiveDigest, digest);
   });
 });

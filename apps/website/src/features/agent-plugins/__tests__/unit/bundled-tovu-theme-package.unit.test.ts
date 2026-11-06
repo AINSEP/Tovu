@@ -320,6 +320,6 @@ test("Tovuize reuses local Media and shared Page mapping with matching family sh
   const plugin = JSON.parse(await readFile(path.join(PLUGINS_ROOT, "tovu-theme", "plugin.json"), "utf8"));
   assert.equal(plugin.name, "tovu-theme");
   assert.equal(plugin.extensions.tovu.id, "tovu/tovu-theme");
-  // f871c3ec2 shipped default motion as plugin 1.1.1.
-  assert.equal(plugin.version, "1.1.1");
+  // f871c3ec2 shipped default motion as plugin 1.1.1; 1.1.2 starts new designs from structure only.
+  assert.equal(plugin.version, "1.1.2");
 });

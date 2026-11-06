@@ -151,7 +151,7 @@ test("get-entry-analyze: unexpected repo error returns 500 (INTERNAL_ERROR)", as
   });
   const { status, json } = await get(t, app);
   assert.equal(status, 500);
-  assertAdminResponse({ actual: json, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: json, expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: {"message":"The entries could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load entries"} });
 });
 
 test("get-entry-analyze: workspaceId and entryId undefined fallbacks via direct handler execution", async () => {

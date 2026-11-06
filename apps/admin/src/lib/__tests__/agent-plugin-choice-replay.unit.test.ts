@@ -13,7 +13,7 @@ it.each(['use', 'auto', 'skip'] as const)('journals the validated %s answer agai
   const emissions: SurfaceEmission[] = [];
   let uri: string | undefined;
   let exchangeId: string | undefined;
-  const result = await askAgentPluginChoice({ surfaces: { surfaceExchanges }, principalId: 'alice', signal: new AbortController().signal,
+  const result = await askAgentPluginChoice({ surfaces: { surfaceExchanges, assertAccessApprover: async () => {} }, principalId: 'alice', workspaceId: 'ws', conversationId: 'chat', preferenceRevisionSeq: 0, selected: [], signal: new AbortController().signal,
     matches: [{ id: 'github', name: 'GitHub', why: 'Lets the assistant use the repository' }], emitSurface: async emission => {
       emissions.push(emission);
       if (emission.channel !== 'mcp-ui') return;
@@ -49,7 +49,7 @@ it('never records an unoffered pick as a human answer', async () => {
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(),
     idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' });
   const emissions: SurfaceEmission[] = [];
-  const result = await askAgentPluginChoice({ surfaces: { surfaceExchanges }, principalId: 'alice', signal: new AbortController().signal,
+  const result = await askAgentPluginChoice({ surfaces: { surfaceExchanges, assertAccessApprover: async () => {} }, principalId: 'alice', workspaceId: 'ws', conversationId: 'chat', preferenceRevisionSeq: 0, selected: [], signal: new AbortController().signal,
     matches: [{ id: 'github', name: 'GitHub', why: 'Repository work' }], emitSurface: async emission => {
       emissions.push(emission);
       const html = (emission.payload.resource as { resource: { text: string } }).resource.text;

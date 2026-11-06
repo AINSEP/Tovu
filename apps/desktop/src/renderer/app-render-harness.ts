@@ -70,6 +70,7 @@ function installBridge(overrides: Partial<RunnerInventoryBridge> = {}) {
     getSitePreview: async () => null, locateSite: async (id: string) => site(id),
     startSite: async (id: string) => { calls.push(`start:${id}`); return site(id, { status: 'running', port: 4100 }); },
     stopSite: async (id: string) => site(id), deleteSite: async () => {},
+    keepSiteRunning: async ({ id }: { id: string }) => { calls.push(`keep-running:${id}`); },
     openSiteExternal: async (input: { siteId: string; view: string }) => { calls.push(`external:${input.siteId}:${input.view}`); },
     chatStart: async () => { throw new Error('unused'); }, chatReattach: async () => {}, chatDetach: async () => {}, chatStop: async () => {}, chatStatus: async () => null,
     saveChatAttachment: async () => { throw new Error('unused'); },

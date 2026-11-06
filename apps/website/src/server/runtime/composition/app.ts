@@ -1,3 +1,7 @@
+import { createFormAttachmentPurgeHooks } from "@jini-ai/cms/forms";
+import { startupSecretEnvironment } from "../boot/startup-secrets.js";
+import { statfs } from "node:fs/promises";
+import { registerCommerceHttp, registerCommerceWebhooks } from "./commerce-http.js";
 import { getExportRunSnapshot } from '../../../features/deployments/export-run.js';
 import { getPublishRunSnapshot } from '../../../features/deployments/static-publish/publish-run.js';
 import { createSiteIdlePark } from "../lifecycle/site-idle-park.js";
@@ -20,6 +24,7 @@ import { createCommentTargetLookup } from '#src/features/comments/comment-target
 import { applyThemePreviewSwitcher } from "../../inbound/public-http/middleware/theme-preview-switcher.js";
 import { ensurePreviewSwitcherSetting, preparePreviewSwitcherWrite } from "#src/features/theme/preview-switcher";
 import { contentKernel } from '#src/platform/db/content-kernel';
+import { createFormMediaCleanup, hasFormFileOwners, hasFormFileStorageKeyOwners, withFormFileStorageKeyLock } from '#src/features/forms/form-file-purge';
 import { createSiteConsentStore } from '#src/features/consent/revisions.repo';
 import { bindSiteConsentService } from './site-consent.js';
 import { registerAdminConsentRoutes } from '../../inbound/admin-http/routes/consent/routes.js';
@@ -174,6 +179,8 @@ import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm"
 import { ensureSiteKeyForSite } from "#src/features/webhooks/site-key-ensure";
 import { InMemoryMediaProviderCredentialRepo } from "#src/features/media/provider-credential-store.memory";
 import {
+  DEFAULT_GC_GRACE_MS,
+  withSha256Lock,
   InMemoryAssetBlobRepo,
   InMemoryAssetRenditionRepo,
   InMemoryBlobStore,
@@ -283,7 +290,6 @@ import { applyTrustProxy } from "../../inbound/shared/trust-proxy.js";
 import { applySiteServingGate } from "../../inbound/public-http/middleware/site-serving-gate.js";
 import { applyPublicPageSecurityHeaders } from "../../inbound/public-http/middleware/public-page-security-headers.js";
 import { applyPublishedWebMcp } from '../../inbound/public-http/middleware/published-webmcp.js';
-import { applySiteConsent } from '../../inbound/public-http/middleware/site-consent.js';
 import { applySiteCookieConsent } from '../../inbound/public-http/middleware/site-cookie-consent.js';
 import { applyAdminBrowserAnalytics } from './browser-analytics.js';
 import { applyBrowserAnalyticsHttp } from './browser-analytics-http.js';
@@ -446,6 +452,15 @@ function createLazyProxy<T extends object>(factory: () => T): T {
   });
 }
 
+/** Preserve optional plugin-runtime overrides without turning absent values into explicit options.
+ * @complexity O(1), no I/O. */
+function inMemoryPluginRuntimeOptions({ options }: { options: CreateRouteDepsOptions }, _optional = {}) {
+  return {
+    ...(options.installDir === undefined ? {} : { installDir: options.installDir }),
+    ...(options.pluginFailureThreshold === undefined ? {} : { failureThreshold: options.pluginFailureThreshold }),
+  };
+}
+
 /** In-memory route deps seeded from `./seed`. Default for tests/dev. */
 export function createRouteDeps(options: CreateRouteDepsOptions = {}): NewsletterRouteDeps & ByokToolSurfaceDeps {
   // TOVU_DB=memory can still serve public routes; anonymous audit traffic shares this bounded sink.
@@ -479,13 +494,10 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     declaredContentTypes: deferDeclaredContentTypePorts({
       build: () => createDeclaredContentTypePorts({ repo: contentTypeRepo, clock, ids: idGen, outbox }),
     }),
-    ...(options.installDir === undefined ? {} : { installDir: options.installDir }),
-    ...(options.pluginFailureThreshold === undefined
-      ? {}
-      : { failureThreshold: options.pluginFailureThreshold }),
+    ...inMemoryPluginRuntimeOptions({ options }),
   });
   // Composition root: the in-memory root keeps the same env-driven owner login as `deps.ts`.
-  const identity = createInMemoryIdentityRouteDeps({ workspaceId: seededWorkspace.id, clock, idGen, permissionGrants: createAppPermissionGrants({}), ownerCredentials: resolveOwnerCredentials({ env: process.env }) });
+  const identity = createInMemoryIdentityRouteDeps({ workspaceId: seededWorkspace.id, clock, idGen, permissionGrants: createAppPermissionGrants({}), ownerCredentials: resolveOwnerCredentials({ env: startupSecretEnvironment({ env: process.env }) }) });
   // Keep the host repository ABI while binding the active/workspace-scoped settings lookup.
   const settingsPrincipals = {
     ...createSettingsPrincipalLookup({ repo: identity.principalRepo }),
@@ -580,7 +592,8 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   // `media.apply()` must write into the very stores the media routes and this file's own tests
   // read — constructed twice they would be two disconnected in-memory stores — and the media
   // `TrashAdapter` just below needs the same instance.
-  const mediaRepo = new InMemoryVersionedMediaRepo([]);
+  const assetRenditionRepo = new InMemoryAssetRenditionRepo({}, { initialRows: [] });
+  const mediaRepo = new InMemoryVersionedMediaRepo([], { renditionRepo: assetRenditionRepo });
   // Hoisted for the same reason: the `form_submission` `TrashAdapter` below must flip the marker on
   // the very store the Forms routes read.
   const formSubmissionRepo = new InMemoryFormSubmissionRepo();
@@ -855,6 +868,33 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
       })),
     ],
   ]);
+  for (const entityType of ["form", "form_submission"] as const) {
+    const adapter = trashAdapters.get(entityType)!;
+    trashAdapters.set(entityType, withFollowUps({ adapter }, createFormAttachmentPurgeHooks({
+      readSubmissions: async ({ workspaceId, entityId, after, limit }) => {
+        const rows = entityType === "form" ? await formSubmissionRepo.listAllForDefinition({ workspaceId, formDefinitionId: entityId })
+          : [await formSubmissionRepo.findAnyById({ workspaceId, id: entityId })];
+        // Match the SQL host's keyset pages, including the terminal empty page for one submission.
+        return rows.filter(row => row !== null)
+          .filter(row => after === undefined || row.id > after)
+          .sort((left, right) => {
+            if (left.id < right.id) return -1;
+            return left.id > right.id ? 1 : 0;
+          })
+          .slice(0, limit).map(row => ({ id: row.id, dataJson: JSON.stringify(row.data) }));
+      },
+      remove: async ({ workspaceId, mediaId }) => {
+        const asset = await mediaRepo.findById({ workspaceId, id: mediaId });
+        if (!asset) return;
+        const files = createFormFileStorage({ media: {
+          mediaRepo, clock, idGen, entryRefsRepo, postRepo, blobRepo: routeDeps.assetBlobRepo,
+          renditionRepo: routeDeps.assetRenditionRepo, blobStore: routeDeps.blobStore,
+          ...createFormMediaCleanup({ kernel: routeDeps.contentKernel, outbox, clock, graceMs: DEFAULT_GC_GRACE_MS }),
+        }, contentTypes: routeDeps.mediaContentTypeStore, resolveCreatedByPrincipal: async () => { throw new Error("Purge never creates files"); } });
+        await files.discard({ workspaceId, reference: { mediaId } });
+      },
+    })));
+  }
   const trash = createTrashService({
     repo: trashRepo,
     adapters: trashAdapters,
@@ -1297,10 +1337,11 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
       keyring: siteAssistantSecretKeyring,
       clock,
       devices: externalMcpOAuthDevices,
-      onConnected: createApplyConnectDefaults({ agentPluginLayout, workspaceId: seededWorkspace.id, repo: externalMcpServerRepo, clock, notifyRosterChanged: notifyExternalMcpRosterChanged }),
+      onConnected: createApplyConnectDefaults({ agentPluginLayout, workspaceId: seededWorkspace.id, repo: externalMcpServerRepo, applyAccess: input => routeDeps.mcp.applyAccess(input), clock, notifyRosterChanged: notifyExternalMcpRosterChanged }),
     }),
     externalMcpOAuthDevices,
     derivedPublicOrigin,
+    passkeyOrigin: process.env.TOVU_PUBLIC_URL,
     // Same three plugin seams as `deps.ts`, over an in-memory vault. Handler modules load on the
     // first surface bootstrap rather than at this hermetic root's construction (no boot disk read).
     ...composeAgentPluginConnections({
@@ -1408,7 +1449,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // disclosed precedent the last several admin-section libraries followed).
     mediaRepo,
     assetBlobRepo,
-    assetRenditionRepo: new InMemoryAssetRenditionRepo({}, { initialRows: [] }),
+    assetRenditionRepo,
     mediaContentTypeStore,
     blobStore,
     // ADR-027 §4 transform registry + rendition generation (new in this task): in-memory registry
@@ -1819,6 +1860,19 @@ function subscribeSiteEventHandlersOnce(routeDeps: NewsletterRouteDeps): void {
    */
   startModule(
     createFormsModule({
+      outbox: routeDeps.outbox,
+      fileCleanup: {
+        withHashLock: withSha256Lock,
+        withStorageKeyLock: withFormFileStorageKeyLock,
+        hasStorageKeyOwners: input => hasFormFileStorageKeyOwners({ kernel: routeDeps.contentKernel, ...input }),
+        findBlob: input => routeDeps.assetBlobRepo.findByHash(input),
+        // This is a delayed cold GC job, never a visitor or upload hot path. Without a
+        // persistent content database we cannot prove orphanhood, so retain the bytes.
+        hasOwners: input => routeDeps.contentKernel
+          ? hasFormFileOwners({ kernel: routeDeps.contentKernel, ...input }) : Promise.resolve(true),
+        deleteBytes: input => routeDeps.blobStore.remove(input),
+        removeBlob: input => routeDeps.assetBlobRepo.remove(input),
+      },
       visitorAnalyticsDeliveryAllowed: routeDeps.visitorAnalyticsDeliveryAllowed,
       bus: routeDeps.bus,
       mailer: routeDeps.mailer,
@@ -1910,7 +1964,7 @@ function applyPublicMiddleware(
   applySiteServingGate(app, { siteStatusRepo: routeDeps.siteStatusRepo, workspaceId: routeDeps.workspaceId });
   // nosniff + Referrer-Policy + a report-only CSP on every non-admin response, set before any
   // public route runs. See `public-page-security-headers.ts`.
-  applyPublicPageSecurityHeaders(app);
+  applyPublicPageSecurityHeaders(app, { readHeaders: routeDeps.publicPageSecurityHeaders });
   // Redirect page aliases before consent/preview middleware can render or set a visitor cookie.
   applyCanonicalSiteHostRedirect({ app, originRegistry: routeDeps.originRegistry, workspaceId: routeDeps.workspaceId, runtimeMode: routeDeps.seoDeps.runtimeMode });
   if (options.themeIdOverride === undefined) applyThemePreviewSwitcher({ app, deps: routeDeps });
@@ -1919,14 +1973,9 @@ function applyPublicMiddleware(
     allowsVisitorPublication: async ({ path }) => process.env.TOVU_VISITOR_TOOLS_POLICY !== 'off'
       && await isPublicAssistantEnabled({ settingsRepo: routeDeps.settingsRepo, getEffective: routeDeps.getEffective }, { workspaceId: routeDeps.workspaceId })
       && (await visitorPageTargets.list({})).some(page => page.path === path) });
-  // Visitor cookie consent (`site-consent.ts`): after WebMCP so its injected script is gated too,
-  // before every public renderer. The region header is trusted only when the operator names it,
-  // and only behind an edge that strips visitor-supplied copies.
-  // THE consent-engine switch (`deps.cookieConsent`, see composition/site-cookie-consent.ts). The audit
-  // app renders the bare page, which the admin preview then shows with the banner. P4 cleanup removes the legacy fallback.
-  if (options.consentAudit) { /* no consent on the audit render */ }
-  else if (routeDeps.cookieConsent) applySiteCookieConsent({ app, deps: routeDeps, consent: routeDeps.cookieConsent });
-  else applySiteConsent({ app, deps: routeDeps }, { trustedRegionHeader: routeDeps.consentTrustedRegionHeader });
+  // Consent contributes assets during document construction. Audit renders omit that runtime;
+  // admin readiness reports unmanaged content without transforming the sampled page.
+  if (!options.consentAudit && routeDeps.cookieConsent) applySiteCookieConsent({ app, deps: routeDeps, consent: routeDeps.cookieConsent });
 
   applyBrowserAnalyticsHttp({ app, deps: routeDeps });
 
@@ -1935,6 +1984,7 @@ function applyPublicMiddleware(
   // base64 upload routes). See `inbound/shared/json-body-parsers.ts` for the limits and why.
   // Mail provider webhooks read RAW bytes (signatures), so they mount ahead of the JSON parser.
   if (routeDeps.mailFeedbackRoute) registerMailFeedbackRoute({ app, route: routeDeps.mailFeedbackRoute });
+  registerCommerceWebhooks({ app, deps: routeDeps });
   // The agent daemon's tool RPC (ADR-070) gates before parsing and parses its own body, so it mounts
   // ahead of the public parser. Its routes are added once the BYOK surface exists (`createApp`); they
   // carry full `/internal/...` paths, so this mounts at the root.
@@ -1948,6 +1998,14 @@ function registerAdminSpa({ app, routeDeps }: { app: Express; routeDeps: RouteDe
   applyAdminBrowserAnalytics({ app, deps: routeDeps });
   registerAdminStatic(app, {
     distDir: process.env.TOVU_ADMIN_DIST ?? resolveAppDistDir("admin"),
+  });
+}
+
+/** Mount the public browser bundle at the configured built-output location.
+ * @complexity O(1) route registration. */
+function registerSiteChatBundle({ app }: { app: Express }, _optional = {}): void {
+  registerSiteChatStatic(app, {
+    distDir: process.env.TOVU_SITE_CHAT_DIST ?? resolveAppDistDir("site-chat"),
   });
 }
 
@@ -2398,9 +2456,7 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // ADR-054 Task 2/3 — the built public site-chat bundle (apps/site-chat/dist) at /site-chat.
   // Distinct static mount from the admin SPA above: a single self-mounting script, not an app with
   // client-side routing, so `site-chat-static.ts` has no `index.html` SPA fallback to serve.
-  registerSiteChatStatic(app, {
-    distDir: process.env.TOVU_SITE_CHAT_DIST ?? resolveAppDistDir("site-chat"),
-  });
+  registerSiteChatBundle({ app });
   registerSiteChatComparisonRoutes({ app, deps: routeDeps });
 
   // SPIKE — `static`-tier theme preview builds at /theme-preview/<theme-id>/<dark|light>/...; see
@@ -2443,8 +2499,9 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // other ADR-046 Phase 3 module calls above (`createUsersModule`); the original inline
   // unauthenticated `POST /workspaces` route that lived here has been removed (see the file header).
 
-  // Commerce remains off: no store, product or payment routes are mounted. Stored rows and
-  // namespace claims remain intact; retirement requires a separate migration decision.
+  // Commerce's plugin switch controls new purchases; its durable settlement drain remains available.
+  // Historical rows and namespace claims survive retirement independently of activation.
+  registerCommerceHttp({ app, deps: routeDeps });
 
   // Public comment submission (ADR-031 §4) — unauthenticated by design; must precede the site
   // `/:slug` catch-all, same reasoning as the store/analytics routes above.
@@ -2508,10 +2565,17 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
       clock: routeDeps.clock,
       idGen: routeDeps.idGen,
       rateLimiter: routeDeps.formsRateLimiter,
+      readUploadFreeBytes: async () => {
+        if (await routeDeps.siteBackupSources?.isMediaRemote?.()) return undefined;
+        const stats = await statfs(routeDeps.siteStoragePaths.mediaUploadsDir);
+        return stats.bavail * stats.bsize;
+      },
+      uploadSpaceMessage: "This site has no room for another attachment. Your answers are kept below. Your form has not been sent.",
       files: createFormFileStorage({ media: {
         clock: routeDeps.clock, idGen: routeDeps.idGen, mediaRepo: routeDeps.mediaRepo,
         entryRefsRepo: routeDeps.entryRefsRepo, postRepo: routeDeps.postRepo,
         blobRepo: routeDeps.assetBlobRepo, renditionRepo: routeDeps.assetRenditionRepo, blobStore: routeDeps.blobStore,
+        ...createFormMediaCleanup({ kernel: routeDeps.contentKernel, outbox: routeDeps.outbox, clock: routeDeps.clock, graceMs: DEFAULT_GC_GRACE_MS }),
       }, contentTypes: routeDeps.mediaContentTypeStore,
         resolveCreatedByPrincipal: async ({ workspaceId }) => {
           // Uploads have no signed-in operator. Await identity's existing seed and attribute the

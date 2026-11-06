@@ -10,6 +10,12 @@ import { mintBootSessionToken } from "../../features/identity/boot-session-token
 import { extractRouteHandler, loginAsBarePrincipal, startTestServer } from "./helpers/http-test-server.js";
 import { createServingFormPullTrigger, FORM_PULL_FAILED_LINE } from "../runtime/composition/form-pull-triggers.js";
 import type { RouteDeps } from "../routes/types.js";
+import { assertAdminResponse } from "../inbound/admin-http/http/__tests__/assert-admin-response.js";
+
+const SIGN_IN_FAILURE = {
+  code: "INTERNAL_ERROR",
+  error: "The sign-in operation could not be completed. Check the result before repeating this operation. Report this error ID.",
+};
 
 /** devsignin: real sessions in two independent site stores; no password or schema changes. */
 const dev = { NODE_ENV: "development", TOVU_DEV_OWNER_SIGNIN: "1", TOVU_HOST: "127.0.0.1", TOVU_DEV_SUPERVISOR_PID: "42" };
@@ -153,7 +159,7 @@ test("fxdev: failed superseded-session revocation refuses password login without
     body: JSON.stringify({ username: "revoke-failure", password: "editor-value" }),
   });
   assert.equal(login.status, 500);
-  assert.deepEqual(await login.json(), { error: "internal error" });
+  assertAdminResponse({ actual: await login.json(), expected: SIGN_IN_FAILURE });
   assert.equal(login.headers.has("set-cookie"), false);
 });
 
@@ -281,11 +287,13 @@ test("devsignin: a disabled owner cannot receive an automatic session", async (t
   const owner = await deps.principalRepo.findById({ workspaceId: deps.workspaceId, id });
   assert.ok(owner);
   await deps.principalRepo.save({ ...owner, status: "disabled" });
+  const saves = t.mock.method(deps.sessionRepo, "save");
   const base = await startTestServer(app, t);
   const res = await bootstrap(base);
   assert.equal(res.status, 500);
-  assert.deepEqual(await res.json(), { error: "internal error" });
+  assertAdminResponse({ actual: await res.json(), expected: SIGN_IN_FAILURE });
   assert.equal(res.headers.has("set-cookie"), false);
+  assert.equal(saves.mock.callCount(), 0, "a disabled owner must not mint a session");
 });
 
 test("devsignin: failed identity readiness forwards an error instead of hanging or setting a cookie", async (t) => {

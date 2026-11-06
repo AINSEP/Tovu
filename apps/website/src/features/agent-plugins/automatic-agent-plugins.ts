@@ -2,7 +2,7 @@
 import { createAutomaticAgentPluginUse, readChatAgentPluginState, type AutomaticAgentPluginPorts, type ChatAgentPluginState, type ChatAgentPlugins } from '@jini-ai/agent-plugins/lifecycle';
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, optionalString, ToolInputError, type AgentToolDefinition, type AgentToolSideEffect, type Principal, type SurfaceEmitter } from '@jini-ai/core';
 import type { PrepareToolGuidance } from '@jini-ai/daemon';
-import type { AssistantSurfaceDeps } from '@jini-ai/daemon/surface-exchanges';
+import type { ChatDeleteSurfaceDeps } from '../../contracts/core/chat-delete-grant.js';
 import { loadAgentPluginSearchCandidates, type AgentPluginSearchToolDeps } from './tool-registrations.js';
 import { formatPluginToolPointer } from './bundled-catalog.js';
 import type { PluginMaturity } from './identity.js';
@@ -12,20 +12,21 @@ import { toolMetadata } from '../../contracts/core/tool-metadata/agent-plugins.j
 
 /** Only the ports read by automatic plugin guidance and its settings write. */
 export interface AutomaticPluginDeps extends AgentPluginSearchToolDeps {
-  preferences: Pick<AgentPluginPreferencesPort, 'mode' | 'saveAuto'>;
+  preferences: Pick<AgentPluginPreferencesPort, 'mode' | 'snapshot' | 'saveAuto'>;
   siteTitleReady: Promise<void>;
 }
 
 /** The feature's consent port; the assistant supplies its principal-bound exchange adapter. */
 export type AskAgentPluginChoice = (required: {
-  surfaces: AssistantSurfaceDeps; principalId: string; emitSurface: SurfaceEmitter; signal: AbortSignal;
+  surfaces: ChatDeleteSurfaceDeps; principalId: string; emitSurface: SurfaceEmitter; signal: AbortSignal;
+  workspaceId: string; conversationId: string; preferenceRevisionSeq: number; selected: readonly string[];
   matches: Parameters<AutomaticAgentPluginPorts['ask']>[0]['matches'];
 }, optional?: Record<string, never>) => ReturnType<AutomaticAgentPluginPorts['ask']>;
 
 /** Root-added tool contract; both roots register it before constructing tool search. */
 export const agentPluginGuidanceCatalog = [{
   name: 'load_agent_plugin',
-  description: 'Load guidance when asked to use or apply an Agent Plugin by pluginId before acting in its domain. For viewing its admin screen, use page.navigate with the entity target, then discover and click its details handle. Returns full guidance; optional skill selects a declared skill and file reads a supporting file relative to that skill folder (default SKILL.md). Requested files can be read even after guidance is loaded. Only active, trusted plugins allowed for this chat can load. Find ids with search_agent_plugin_local.',
+  description: 'Load guidance when asked to use or apply an Agent Plugin by pluginId before acting in its domain. For viewing its admin screen, use page.navigate with the entity target, then discover and click its details handle. Returns full guidance; optional skill selects a declared skill and file reads a supporting file relative to that skill folder (default SKILL.md). Requested files can be read even after guidance is loaded. Trusted off plugins can be read for setup guidance, clearly marked off; their tools remain unavailable. Chat exclusions still apply. Find ids with search_agent_plugin_local.',
   sideEffects: 'none', authorization: { permission: 'admin.assistant.use' },
   inputSchema: { type: 'object', additionalProperties: false, required: ['pluginId'], properties: { pluginId: { type: 'string', minLength: 1 }, skill: { type: 'string', minLength: 1 }, file: { type: 'string', minLength: 1 } } },
 }] satisfies AgentToolDefinition[];
@@ -42,7 +43,7 @@ export interface AutomaticPluginRun {
  * @returns start/forget, the read-only guidance loader and the tool preparation hook.
  * @complexity O(1) identity lookup; one controller per live turn, one late answer per chat.
  */
-export function createAutomaticPluginRuns({ deps, surfaces, askAgentPluginChoice }: { deps: AutomaticPluginDeps; surfaces: AssistantSurfaceDeps; askAgentPluginChoice: AskAgentPluginChoice }, _options = {}) {
+export function createAutomaticPluginRuns({ deps, surfaces, askAgentPluginChoice }: { deps: AutomaticPluginDeps; surfaces: ChatDeleteSurfaceDeps; askAgentPluginChoice: AskAgentPluginChoice }, _options = {}) {
   type Entry = { turnId: string; controller: ReturnType<typeof createAutomaticAgentPluginUse>; context: AutomaticPluginRun; abort: AbortController; pending: boolean; attempts: Set<string>; maturities: Map<string, PluginMaturity | undefined> };
   const turns = new Map<string, Entry>();
   const runs = new Map<string, Entry>();
@@ -97,21 +98,26 @@ export function createAutomaticPluginRuns({ deps, surfaces, askAgentPluginChoice
   function createEntry({ mode, context, turnId, runId }: { mode: ChatAgentPlugins; context: AutomaticPluginRun; turnId: string; runId: string }): Entry {
     const abort = new AbortController();
     const maturities = new Map<string, PluginMaturity | undefined>();
+    let approvedPreferenceRevisionSeq: number | undefined;
     let entry: Entry;
     const controller = createAutomaticAgentPluginUse({ mode, state: readChatAgentPluginState({ value: context.state }), ports: {
       formatPluginToolPointer,
       list: async () => {
         const candidates = await loadAgentPluginSearchCandidates(deps);
         maturities.clear();
-        for (const candidate of candidates) maturities.set(candidate.pluginId, candidate.maturity);
+        for (const candidate of candidates) if (candidate.enabled) maturities.set(candidate.pluginId, candidate.maturity);
         return candidates;
       },
       rank: (input) => rankInstalledAgentPlugins(input.query.slice(0, 16000), input.candidates, input.limit, { automatic: true }),
-      resolve: ({ pluginId, ...request }) => resolveAgentPluginGuidance({ pluginRefIds: [pluginId], workspaceLayout: deps.agentPluginLayout.forWorkspace(deps.workspaceId) }, { deliveryMode: 'inject', ...request }),
+      resolve: ({ pluginId, ...request }) => resolveAgentPluginGuidance({ pluginRefIds: [pluginId], workspaceLayout: deps.agentPluginLayout.forWorkspace(deps.workspaceId) }, { deliveryMode: 'inject', allowInactiveGuidance: true, ...request }),
       ask: async ({ matches }) => {
         entry.pending = true;
         try {
-          return await askAgentPluginChoice({ surfaces, principalId: context.principal.id,
+          const preference = await deps.preferences.snapshot({ workspaceId: deps.workspaceId, principalId: context.principal.id });
+          if (preference.mode !== 'ask') throw new ToolInputError({ message: 'Your Agent Plugins preference changed before this card opened. Nothing was changed. Start a new request using your current preference.' });
+          const answer = await askAgentPluginChoice({ surfaces, principalId: context.principal.id,
+            workspaceId: deps.workspaceId, conversationId: context.conversationId, preferenceRevisionSeq: preference.revisionSeq,
+            selected: context.state.decision?.selected ?? [],
             // A retry can replace this attempt while the card is open; its receipt belongs to the
             // current transcript emitter, just like the later plugin-state publication below.
             emitSurface: async emission => {
@@ -120,9 +126,20 @@ export function createAutomaticPluginRuns({ deps, surfaces, askAgentPluginChoice
               if (emission.channel === 'user_message' && !entry.attempts.size) return;
               await entry.context.emitSurface(emission);
             }, signal: abort.signal, matches });
+          if (answer.action !== 'skip') {
+            const current = await deps.preferences.snapshot({ workspaceId: deps.workspaceId, principalId: context.principal.id });
+            if (current.mode !== preference.mode || current.revisionSeq !== preference.revisionSeq) throw new ToolInputError({ message: 'Your Agent Plugins preference changed while this card was open. Nothing was changed by this answer. Start a new request using your current preference.' });
+            approvedPreferenceRevisionSeq = preference.revisionSeq;
+          }
+          return answer;
+        } catch (error) {
+          // Preflight callers keep the turn running after a failed choice. Preserve the domain's
+          // person-facing refusal in the transcript; raw provider/filesystem errors stay private.
+          if (error instanceof ToolInputError) await entry.context.emitSurface({ channel: 'text_delta', payload: { delta: `\n\n${error.message}\n\n` } });
+          throw error;
         } finally { entry.pending = false; }
       },
-      saveAuto: () => deps.preferences.saveAuto({ workspaceId: deps.workspaceId, principalId: context.principal.id }),
+      saveAuto: () => deps.preferences.saveAuto({ workspaceId: deps.workspaceId, principalId: context.principal.id, expectedRevisionSeq: approvedPreferenceRevisionSeq }),
       publish: async value => {
         if (abort.signal.aborted) return;
         if (!entry.attempts.size) lateAnswers.set(chatKey(context), value.state);
@@ -158,7 +175,7 @@ export function createAutomaticPluginRuns({ deps, surfaces, askAgentPluginChoice
       const id = JSON.stringify(pluginId);
       const notes = {
         loaded: '',
-        'installed-but-inactive': `Installed but inactive. Request activation through plugins_set_enabled({family:"agent-plugin",pluginId:${id},enabled:true}) using its existing approval flow, then retry load_agent_plugin({pluginId:${id}}).`,
+        'installed-but-inactive': `Read-only guidance from an installed, off plugin. Its tools remain unavailable. If tools are needed, offer plugins_set_enabled({family:"agent-plugin",pluginId:${id},enabled:true}) through the existing approval flow.`,
         excluded: 'This plugin is excluded from this chat. No guidance was loaded.',
         untrusted: 'This plugin failed the installed-package trust check. No guidance was loaded.',
         missing: 'This plugin was not found in this workspace’s installed catalog. No guidance was loaded.',

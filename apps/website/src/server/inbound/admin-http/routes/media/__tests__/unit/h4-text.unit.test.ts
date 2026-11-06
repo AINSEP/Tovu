@@ -24,7 +24,7 @@ for (const [failure, status, body] of [
     const headers: Record<string, string> = {};
     res.set = ((key: string, value: string) => { headers[key] = value; return res; }) as typeof res.set;
     await extractRouteHandler(app, 'get', PATH)({ params: { workspaceId: 'ws', mediaId: 'document' }, query: {} }, res);
-    assertAdminResponse({ actual: capture, expected: { statusCode: status, jsonBody: body } });
+    assertAdminResponse({ actual: capture, expected: { statusCode: status, jsonBody: body } }, { failure: {"message":"The request could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"Request"} });
     assert.deepEqual(headers, { 'Cache-Control': 'private, no-store', 'X-Content-Type-Options': 'nosniff' });
   });
 }

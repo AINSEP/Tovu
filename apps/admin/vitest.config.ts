@@ -1,7 +1,19 @@
 import { readFileSync, realpathSync } from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vitest/config";
+import { parseCLI } from "vitest/node";
+
+/** Full-suite floors cannot judge a deliberately filtered test or coverage report. O(args). */
+function fullSuiteCoverageThresholds({ args }: { args: string[] }, _options = {}) {
+  const { filter, options } = parseCLI(["vitest", ...args], { allowUnknownOptions: true });
+  const coverage = typeof options.coverage === "object" ? options.coverage : undefined;
+  const scopes = [filter.length, options.testNamePattern, options.changed, options.related,
+    options.shard, options.exclude, options.project, options.dir, coverage?.include, coverage?.exclude];
+  if (scopes.some(Boolean)) return undefined;
+  return { statements: 98, branches: 98, functions: 98, lines: 98 };
+}
 
 /**
  * @file First-ever test harness for `apps/admin` (SPEC-005 REQ-12..17 dispatch). This app had
@@ -45,9 +57,11 @@ export default defineConfig({
        * `src/main.tsx` imports `@jini-ai/ui/remixicon.css?inline`. That package is a `file:` link
        * into the sibling Jini checkout, outside this repo, and Vite refuses `?inline`/`?raw` reads
        * outside `server.fs.allow` ("Denied ID"), so the entry module could not load under test.
-       * Allow exactly this repo plus that one package's real directory.
+       * The reviewed chart-bundle tests also import provider-plugins' built payload directly.
+       * Allow exactly this repo plus those two packages' real directories.
        */
-      allow: [path.resolve(__dirname, "../.."), realpathSync(path.resolve(__dirname, "node_modules/@jini-ai/ui"))],
+      allow: [path.resolve(__dirname, "../.."), realpathSync(path.resolve(__dirname, "node_modules/@jini-ai/ui")),
+        path.dirname(createRequire(import.meta.url).resolve("@jini-ai/provider-plugins/catalog"))],
     },
   },
   resolve: {
@@ -119,6 +133,12 @@ export default defineConfig({
     },
     coverage: {
       provider: "v8",
+      // Unloaded runtime files remain in the denominator; only tests and declarations are outside it.
+      include: ["src/**/*.{ts,tsx}"],
+      exclude: ["**/*.{test,spec}.{ts,tsx}", "**/__tests__/**", "**/*.d.ts"],
+      // AI Dev Shop's full unit-suite floor applies equally to every axis. Scoped reports still
+      // measure the same sources, but cannot be compared with a floor for the whole test suite.
+      thresholds: fullSuiteCoverageThresholds({ args: process.argv.slice(2) }),
       reporter: ["text", "lcov"],
       reportsDirectory: "./coverage",
       // Vitest defaults this to `false` — a coverage run with even one failing test then produces

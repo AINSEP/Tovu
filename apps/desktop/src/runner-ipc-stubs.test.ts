@@ -73,6 +73,8 @@ const IMPLEMENTED_CHANNELS = new Set([
   "runner:sites:open-external",
   "runner:sites:start",
   "runner:sites:stop",
+  // Real lifecycle handler in project-ipc.ts; covered by its keep-running tests.
+  "runner:sites:keep-running",
   "runner:sites:rescan",
   "runner:sites:folders:list",
   "runner:sites:folders:add",

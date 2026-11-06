@@ -70,12 +70,12 @@ export function sendMediaNotFound({ res, mediaId }: { res: Response; mediaId: st
 }
 
 /** A `MediaValidationError` is the caller's fault and its message is safe to return (400); anything
- *  else is an unexpected failure whose details stay private (500 `internal error`).
+ *  else is an unexpected failure whose cause stays private, correlated by the copyable error ID.
  *  @complexity O(1). */
 export function sendValidationOrInternalError({ res, error }: { res: Response; error: unknown }): void {
   if (error instanceof MediaValidationError) {
     res.status(400).json({ error: error.message });
     return;
   }
-  sendAdminFailure({ res, error }, { operation: "routes/media/route-guards", code: "INTERNAL_ERROR" });
+  sendAdminFailure({ res, error }, { operation: "routes/media/route-guards", code: "INTERNAL_ERROR", message: "The media upload or change could not finish." });
 }

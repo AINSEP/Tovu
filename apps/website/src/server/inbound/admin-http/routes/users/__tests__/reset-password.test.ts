@@ -332,7 +332,7 @@ test("RESET_USER_PASSWORD route: 500 internal error when an unexpected error is 
   });
   assert.equal(res.status, 500);
   const body = (await res.json()) as { error: string };
-  assertAdminResponse({ actual: body, expected: { error: "internal error" } });
+  assertAdminResponse({ actual: body, expected: { error: "internal error" } }, { failure: {"message":"The user operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"user operation"} });
 });
 
 test("RESET_USER_PASSWORD route: 409 USER_IN_TRASH when the target is currently in the Trash — OWNER DECISION 2026-09-24", async (t) => {

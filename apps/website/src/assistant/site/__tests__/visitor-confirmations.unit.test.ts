@@ -5,6 +5,7 @@ import { confirmationFixture } from "./visitor-confirmations.fixture.js";
 for (const allow of [true, false]) test(`only a single live ID can deliver allow=${allow}`, async () => {
   const f = confirmationFixture();
   const waiting = f.confirmations.request(f.request);
+  await f.waitForDirectives();
   const challengeId = f.directives[0].challengeId;
   assert.equal(await f.confirmations.confirm({ challengeId: "forged", allow: true }), false);
   assert.equal(f.exchanges.size(), 1);
@@ -19,6 +20,7 @@ test("60-second expiry and disconnect deny, close and dispose every timer", asyn
   for (const end of ["timeout", "disconnect"] as const) {
     const f = confirmationFixture();
     const waiting = f.confirmations.request(f.request);
+    await f.waitForDirectives();
     if (end === "timeout") { f.advance(59_999); assert.equal(f.exchanges.size(), 1); f.advance(1); }
     else f.abort.abort();
     assert.equal(await waiting, false);
@@ -36,6 +38,7 @@ test("changed plan, validation error, expiry during validation and simultaneous 
       if (reason === "expires") f.advance(60_000);
       return reason !== "changed";
     } });
+    await f.waitForDirectives();
     const challengeId = f.directives[0].challengeId;
     const decision = f.confirmations.confirm({ challengeId, allow: true });
     assert.equal(await f.confirmations.confirm({ challengeId, allow: true }), false);
@@ -55,6 +58,7 @@ test("headless emission failure, pre-abort, one per turn and bounded site prompt
   assert.equal(await failed.confirmations.request(failed.request), false);
   const f = confirmationFixture();
   const turns = Array.from({ length: 20 }, (_, n) => f.confirmations.request({ ...f.request, binding: { ...f.request.binding, runId: `run-${n}`, ip: `ip-${n}` } }));
+  await f.waitForDirectives(20);
   assert.equal(f.directives.length, 20);
   assert.equal(await f.confirmations.request(f.request), false);
   f.abort.abort();
@@ -75,6 +79,7 @@ test("two pending prompts per IP leave capacity for other visitors and release s
     const first = request("one"), second = request("two");
     assert.equal(await request("three"), false);
     const other = request("other", "another-ip");
+    await f.waitForDirectives(3);
     assert.equal(f.directives.length, 3, "another IP still gets a prompt");
     if (end === "timeout") f.advance(60_000);
     else if (end === "abort") f.abort.abort();
@@ -84,6 +89,7 @@ test("two pending prompts per IP leave capacity for other visitors and release s
     await Promise.all([first, second, other]);
     signal = undefined;
     const renewed = [request("four"), request("five")];
+    await f.waitForDirectives(5);
     assert.equal(f.directives.length, 5, "both slots on the original IP were released");
     assert.equal(await request("six"), false);
     f.advance(60_000);
@@ -98,6 +104,7 @@ test("an abort after the claim but before delivery is not accepted", async () =>
   let validate!: (valid: boolean) => void;
   const validation = new Promise<boolean>(resolve => { validate = resolve; });
   const waiting = f.confirmations.request({ ...f.request, validate: () => validation });
+  await f.waitForDirectives();
   const decision = f.confirmations.confirm({ challengeId: f.directives[0].challengeId, allow: true });
   f.abort.abort();
   assert.equal(await waiting, false);
@@ -113,6 +120,7 @@ test("claimed replies still count toward site capacity while validation is pendi
   const validation = new Promise<boolean>(resolve => { validate = resolve; });
   const waiting = Array.from({ length: 20 }, (_, n) => f.confirmations.request({ ...f.request,
     binding: { ...f.request.binding, runId: `run-${n}`, ip: `ip-${n}` }, validate: () => validation }));
+  await f.waitForDirectives(20);
   const decisions = f.directives.map(({ challengeId }) => f.confirmations.confirm({ challengeId, allow: true }));
   assert.equal(await f.confirmations.request(f.request), false);
   assert.equal(f.exchanges.size(), 20);
@@ -127,6 +135,7 @@ test("two visitors remain independent and a restarted process refuses every old 
   const f = confirmationFixture();
   const first = f.confirmations.request(f.request);
   const second = f.confirmations.request({ ...f.request, binding: { ...f.request.binding, runId: "another-turn", executionId: "another-execution" } });
+  await f.waitForDirectives(2);
   const [a, b] = f.directives;
   assert.notEqual(a.challengeId, b.challengeId);
   assert.equal(await confirmationFixture().confirmations.confirm({ challengeId: a.challengeId, allow: true }), false);

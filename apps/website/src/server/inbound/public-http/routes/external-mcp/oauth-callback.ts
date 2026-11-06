@@ -1,4 +1,5 @@
 import type { Express } from "express";
+import { clearedBrowserBindingCookie, readBrowserBinding, EXTERNAL_MCP_BROWSER_BINDING } from '#src/features/api-connections/browser-binding';
 
 import { ExternalMcpValidationError } from "../../../../../features/external-mcp/external-mcp-store.js";
 import { notifyExternalMcpRosterChanged } from "../../../../../assistant/index.js";
@@ -19,7 +20,9 @@ import { EXTERNAL_MCP_OAUTH_CALLBACK_PATH, externalMcpOAuthCallbackUrl } from ".
  * and stays untouched.
  *
  * What authenticates the request instead is the OAuth `state`, sealed with the site key and bound
- * to workspace, server, provider, exact redirect URI and expiry. The encrypted verifier can cross
+ * to workspace, server, provider, exact redirect URI, starting-browser proof and expiry. The
+ * authenticated host sign-in GET sets a callback-scoped SameSite=Lax cookie; forwarding the
+ * provider URL alone cannot complete sign-in. The encrypted verifier can cross
  * processes without a pending row. The provider's single-use code prevents replay within the TTL;
  * token exchange remains a server-side POST and plaintext credentials never reach the browser.
  *
@@ -63,7 +66,8 @@ import { EXTERNAL_MCP_OAUTH_CALLBACK_PATH, externalMcpOAuthCallbackUrl } from ".
  * above) — encrypted state minted by the admin-session-gated connect route or an authorized
  * assistant tool, followed by the provider's single-use code exchange. A remote MCP server or
  * an unauthenticated caller cannot manufacture a valid `state`, so by the time this trigger fires, an
- * admin session is already the reason this code path is running at all — the same "operator-
+ * starting browser also proved possession of its binding cookie, so an admin session is already
+ * the reason this code path is running at all — the same "operator-
  * authorized" property `beginConnect`'s own gate establishes, just observed one hop later.
  */
 
@@ -122,6 +126,7 @@ function classifyCallbackFailure(error: unknown): OAuthCallbackFailureReason {
  */
 export function registerExternalMcpOAuthCallbackRoute(app: Express, deps: ExternalMcpOAuthCallbackRouteDeps): void {
   app.get(`${EXTERNAL_MCP_OAUTH_CALLBACK_PATH}/:serverId`, async (req, res) => {
+    res.set({ 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' });
     // In front of everything: the route is anonymous and each hit
     // can cost an outbound token exchange.
     if (!(await deps.callbackLimiter.check({ key: resolveClientIp(req) })).allowed) {
@@ -136,9 +141,16 @@ export function registerExternalMcpOAuthCallbackRoute(app: Express, deps: Extern
       return;
     }
 
+    const browserBinding = readBrowserBinding({ cookieHeader: req.get('cookie') }, EXTERNAL_MCP_BROWSER_BINDING);
+    res.append('Set-Cookie', clearedBrowserBindingCookie({}, EXTERNAL_MCP_BROWSER_BINDING));
+    if (browserBinding === '') {
+      res.status(400).type('html').send(renderOAuthCallbackPage({ ok: false, reason: 'browser_mismatch', messageType: EXTERNAL_MCP_CALLBACK_MESSAGE_TYPE }));
+      return;
+    }
+
     try {
       const serverId = String(req.params.serverId ?? "");
-      await deps.oauth.completeAuthorizationCallback({ serverId, redirectUri: externalMcpOAuthCallbackUrl(req, serverId), params });
+      await deps.oauth.completeAuthorizationCallback({ serverId, redirectUri: externalMcpOAuthCallbackUrl(req, serverId), params, browserBinding });
       // The seal-and-persist is already awaited inside `completeAuthorizationCallback`, so by the
       // time this responds the token is durable — the operator's next action is to close the window,
       // and reporting success over a write still in flight would report a connection that is one
