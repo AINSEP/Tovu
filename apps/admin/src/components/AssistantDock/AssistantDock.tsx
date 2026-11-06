@@ -1,3 +1,4 @@
+import "@jini-ai/chat/react/styles/chat-settings.css";
 import { onAdminSecretRedacted } from "@/lib/credential-card-guidance";
 import { subscribeToAdminPageSurfaces } from "@/lib/admin-frontend-session";
 import { ConfirmDialog, useConfirmRequest } from "@jini-ai/admin/react";
