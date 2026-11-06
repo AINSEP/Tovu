@@ -28,7 +28,10 @@ async function fixture(t: test.TestContext) {
       calls.push({ action: "create", input }); return { order: { id: "order-one", status: "pending" } };
     },
     pay: async (input: { memberId: string; orderId: string }) => {
-      calls.push({ action: "pay", input }); return { order: { id: input.orderId, status: "pending" }, payment: { status: "pending", next: { kind: "redirect", url: "https://checkout.example.test/session" } } };
+      calls.push({ action: "pay", input }); return { order: { id: input.orderId, status: "pending", workspaceId: "shop", memberId: "buyer", totalAmount: { minorUnits: 2400, currency: "JPY" }, placedAt: now, version: 1 },
+        payment: { status: "pending", scope: { workspaceId: "shop", siteId: "private-site", providerAccountId: "private-account" }, reference: "private-reference",
+          amount: { minorUnits: 2400, currency: "JPY" }, captured: { minorUnits: 0, currency: "JPY" }, refunded: { minorUnits: 0, currency: "JPY" },
+          next: { kind: "redirect", url: "https://checkout.example.test/session" } }, intent: { ok: true, payment: { scope: "private-intent-scope" }, private: "internal-intent" } };
     },
     readOrder: async (input: { memberId: string; orderId: string }) => {
       calls.push({ action: "read", input }); return { order: { id: input.orderId, status: "pending", workspaceId: "shop", memberId: "buyer",
@@ -196,4 +199,16 @@ test("only POST requests use the host request-scoped commerce port", async t => 
   assert.equal((await f.request(`${orders}/order-one`)).status, 200);
   assert.equal((await f.request("/commerce/return?orderId=order-one")).status, 200);
   assert.equal(scopes, 1);
+});
+
+
+test("POST pay returns only buyer fields and the continuation and intent outcome", async t => {
+  const f = await fixture(t);
+  const response = await f.request(`${orders}/order-one/pay`, {});
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), {
+    order: { id: "order-one", status: "pending", totalAmount: { minorUnits: 2400, currency: "JPY" }, placedAt: now, version: 1 },
+    payment: { status: "pending", amount: { minorUnits: 2400, currency: "JPY" }, captured: { minorUnits: 0, currency: "JPY" }, refunded: { minorUnits: 0, currency: "JPY" }, next: { kind: "redirect", url: "https://checkout.example.test/session" } },
+    intent: { ok: true },
+  });
 });

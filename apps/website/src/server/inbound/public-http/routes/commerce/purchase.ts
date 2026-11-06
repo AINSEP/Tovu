@@ -159,7 +159,10 @@ export function registerCommerceRoutes({ app, deps }: { app: Express; deps: Comm
         res.status(400).json({ error: "Pay an existing order with an empty request body.", code: "CHECKOUT_INVALID" }); return;
       }
       const admitted = await admit({ req, res, deps, limiter }); if (!admitted) return;
-      res.json(await admitted.commerce.pay({ memberId: admitted.memberId, orderId: req.params.orderId }));
+      const view = await admitted.commerce.pay({ memberId: admitted.memberId, orderId: req.params.orderId }) as CommerceOrderView;
+      const buyerView = toCommerceBuyerOrder({ view });
+      res.json({ ...buyerView, payment: buyerView.payment ? { ...buyerView.payment, next: view.payment?.next } : null,
+        intent: view.intent ? { ok: view.intent.ok, ...("error" in view.intent ? { error: view.intent.error } : {}) } : null });
     } catch (error) { failure({ res, error }); }
   });
   const read = async (req: Request, res: Response): Promise<void> => {
