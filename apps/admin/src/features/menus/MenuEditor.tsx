@@ -415,7 +415,7 @@ function MenuEditorHeader({ editor }: {
         className="page-header-actions page-actions"
         {...agentHandle({ handle: "menu-editor-actions" }, { role: "region", label: "Save status and the Save button" })}
       >
-        {menu ? <button type="button" className="btn-secondary" onClick={copyHtmlEmbed}>{t("Copy HTML embed")}</button> : null}
+        {menu ? <button type="button" className="btn-secondary" onClick={copyHtmlEmbed} {...agentHandle({ handle: "menu-editor-copy-html-embed" }, { role: "button", label: "Copy this menu's HTML embed" })}>{t("Copy HTML embed")}</button> : null}
         {copyFeedback ? <span role="status">{copyFeedback}</span> : null}
         {message ? <span className="save-ok">{message}</span> : null}
         <button onClick={save} disabled={saving} {...agentHandle({ handle: "menu-editor-save" }, { role: "button", label: "Save this menu" })}>

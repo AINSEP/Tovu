@@ -275,7 +275,7 @@ describe("account-management controls are agent-drivable, like the rest of the p
     policyIds: [],
   };
 
-  it("publishes the reset-password fields, their show toggles, and the reset confirm", async () => {
+  it("keeps reset-password fields and reveal controls human-only while reset actions retain handles", async () => {
     function useResetController() {
       const [newPassword, setNewPassword] = useState("");
       return usersController({ resetPasswordFor: bob, newPassword, setNewPassword: (value: SetStateAction<string>) => {
@@ -290,31 +290,40 @@ describe("account-management controls are agent-drivable, like the rest of the p
     for (const handle of [
       "users-reset-password-cancel",
       "users-reset-password-confirm",
+    ]) {
+      expect(handles).toContain(handle);
+    }
+    for (const handle of [
       "users-reset-password",
       "users-reset-password-reveal",
       "users-reset-password-retype",
       "users-reset-password-retype-reveal",
     ]) {
-      expect(handles).toContain(handle);
+      expect(handles).not.toContain(handle);
     }
-    expect(container.querySelector("#users-reset-password-input")).toHaveAttribute("data-agent-element", "users-reset-password");
-    expect(container.querySelector("#users-reset-password-confirm-input")).toHaveAttribute(
-      "data-agent-element",
-      "users-reset-password-retype",
-    );
+    const password = container.querySelector("#users-reset-password-input")!;
+    const retype = container.querySelector("#users-reset-password-confirm-input")!;
+    expect(password).not.toHaveAttribute("data-agent-element");
+    expect(retype).not.toHaveAttribute("data-agent-element");
+    expect(password).toHaveAttribute("data-agent-private");
+    expect(retype).toHaveAttribute("data-agent-private");
     for (const handle of ["users-reset-password", "users-reset-password-retype"]) {
       await expect(executePageCapability({ driver, capabilityId: "page.fill", input: { handle, text: "secret123" } })).rejects.toThrow();
     }
-    await act(async () => {
-      await executePageCapability({ driver, capabilityId: "page.click", input: { handle: "users-reset-password-reveal" } });
-      await executePageCapability({ driver, capabilityId: "page.click", input: { handle: "users-reset-password-retype-reveal" } });
-    });
+    for (const handle of ["users-reset-password-reveal", "users-reset-password-retype-reveal"]) {
+      await expect(executePageCapability({ driver, capabilityId: "page.click", input: { handle } })).rejects.toThrow();
+    }
+    fireEvent.click(screen.getByRole("button", { name: "Show New password" }));
+    fireEvent.click(screen.getByRole("button", { name: "Show Confirm new password" }));
     expect(container.querySelector("#users-reset-password-input")).toHaveAttribute("type", "text");
     expect(container.querySelector("#users-reset-password-confirm-input")).toHaveAttribute("type", "text");
     // Credentials are human-only; drive their React handlers with ordinary input.
     fireEvent.change(container.querySelector("#users-reset-password-input")!, { target: { value: "secret123" } });
     fireEvent.change(container.querySelector("#users-reset-password-confirm-input")!, { target: { value: "secret123" } });
     expect(setNewPasswordSpy).toHaveBeenCalledWith("secret123");
+    expect(JSON.stringify(await driver.findElements({}))).not.toContain("secret123");
+    expect(password).not.toHaveAttribute("data-agent-element");
+    expect(retype).not.toHaveAttribute("data-agent-element");
     await executePageCapability({ driver, capabilityId: "page.click", input: { handle: "users-reset-password-confirm" } });
     expect(confirmResetPassword).toHaveBeenCalledTimes(1);
     await executePageCapability({ driver, capabilityId: "page.click", input: { handle: "users-reset-password-cancel" } });
