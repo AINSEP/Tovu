@@ -55,7 +55,13 @@ test("software-engineering seeds OFF, explicit enablement delivers its skill/ove
   const tool = completed.output as { guidance: string; files: string[] };
   const overlay = await readFile(path.join(overlayRoot, PLUGIN_ID, "GUIDANCE.md"), "utf8");
   assert.equal(tool.guidance, `${overlay}\n\n${await readSkill()}`);
-  assert.deepEqual(tool.files, ["references/debugging.md", "references/implementation.md", "references/planning.md", "references/verification.md"]);
+  assert.deepEqual(tool.files, ["references/debugging.md", "references/implementation.md", "references/planning.md", "references/prototyping.md", "references/security.md", "references/verification.md"]);
+  for (const file of tool.files) {
+    const reference = await executor.execute({ ...request, input: { skill: PLUGIN_ID, file } });
+    assert.equal(reference.status, "completed");
+    assert.equal((reference.output as { guidance: string }).guidance,
+      `${overlay}\n\n${await readFile(path.join(PACKAGE_ROOT, "skills/software-engineering", file), "utf8")}`);
+  }
   const injected = await lifecycle.resolveAgentPluginRefs([PLUGIN_ID], workspace, "inject");
   assert.equal(injected.ok, true);
   assert.ok(injected.promptPrefix.includes(overlay));
@@ -76,7 +82,7 @@ test("software-engineering seeds OFF, explicit enablement delivers its skill/ove
 });
 
 test("staged upstream skill tree is byte-identical and the host overlay stays within its budget", async () => {
-  for (const file of ["SKILL.md", "references/debugging.md", "references/implementation.md", "references/planning.md", "references/verification.md"]) {
+  for (const file of ["SKILL.md", "references/debugging.md", "references/implementation.md", "references/planning.md", "references/prototyping.md", "references/security.md", "references/verification.md"]) {
     assert.equal(await readFile(path.join(REPO_ROOT, "cloud/ads-ainsep-skill/software-engineering", file), "utf8"),
       await readFile(path.join(PACKAGE_ROOT, "skills/software-engineering", file), "utf8"), file);
   }
