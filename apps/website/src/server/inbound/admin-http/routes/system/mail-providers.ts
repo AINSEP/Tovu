@@ -39,7 +39,7 @@ export type AdminMailProviderDeps = Pick<RouteDeps, "workspaceId" | "authorize" 
 const BASE_PATH = "/api/admin/v1/workspaces/:workspaceId/system/mail-providers";
 
 const OPERATION_STATUS: Readonly<Record<MailProviderOperationCode, number>> = {
-  MAIL_PROVIDER_CONTROL_UNAVAILABLE: 503, MAIL_PROVIDER_NOT_FOUND: 404, MAIL_PROVIDER_KEYLESS: 409, MAIL_PROVIDER_REFUSED: 409, MAIL_PROVIDER_INPUT: 400,
+  MAIL_PROVIDER_CONTROL_UNAVAILABLE: 503, MAIL_PROVIDER_NOT_FOUND: 404, MAIL_PROVIDER_KEYLESS: 409, MAIL_PROVIDER_REFUSED: 409, MAIL_PROVIDER_INPUT: 400, MAIL_PROVIDER_CHANGED: 409,
 };
 
 /** Store errors keep the custom-credentials route's codes. */

@@ -5,7 +5,7 @@ import type { AuthorizeFn, SettingsRepoPort, SetValueRequired } from "@jini-ai/c
 import type { MailCapturePort, MailSendLedgerPort, MailSuppressionRepoPort } from "@jini-ai/platform/mail";
 import { setAgentPluginEnabled } from "#src/features/agent-plugins/set-enabled";
 
-import { readMailProviderSetting, readMailTestMode, writeMailProviderSetting } from "#src/features/settings/mail-provider";
+import { readMailProviderSetting, readMailProviderSelection, readMailTestMode, writeMailProviderSetting } from "#src/features/settings/mail-provider";
 import { createMailPolicyWrapper } from "../boot/mail-delivery-policy.js";
 import { createResolvedMailer, type ResolvedMailer, type ResolveMailerDeps } from "../boot/resolve-mailer.js";
 import { loadMailProviderCatalog } from "../boot/mail-provider-catalog.js";
@@ -39,7 +39,9 @@ export interface SiteMailer extends ResolvedMailer {
   };
   /** Sets both lanes to `id` as `principalId`, then drops cached mailers and status; the caller already
    *  checked `checkProvider` and got approval. A failed write throws and changes nothing. */
-  selectProvider: (required: { id: string; principalId: string }) => Promise<void>;
+  selectProvider: (required: { id: string; principalId: string; expectedRevisionSeq?: number }) => Promise<void>;
+  /** Snapshot read waits for initialization and returns the exact workspace setting revision. */
+  readProviderSelection: () => ReturnType<typeof readMailProviderSelection>;
 }
 
 /**
@@ -75,11 +77,11 @@ export function createSiteMailer(required: SiteMailerRequired, options: { durabl
     } finally { resolved.invalidate(); }
     return written;
   };
-  const selectProvider: SiteMailer["selectProvider"] = async ({ id, principalId }) => {
+  const selectProvider: SiteMailer["selectProvider"] = async ({ id, principalId, expectedRevisionSeq }) => {
     await ready();
     // Finish the first-boot unconfigured write before persisting the owner's selection.
     await resolved.ready;
-    await writeMailProviderSetting({ deps: { ...settings.deps, repo: settings.repo, authorize: settings.authorize }, workspaceId, callerPrincipalId: principalId, value: { transactional: id, bulk: id } });
+    await writeMailProviderSetting({ deps: { ...settings.deps, repo: settings.repo, authorize: settings.authorize }, workspaceId, callerPrincipalId: principalId, value: { transactional: id, bulk: id } }, { expectedRevisionSeq });
     // Only after the write succeeded: a switch must reach the very next send and status read.
     resolved.invalidate();
   };
@@ -98,6 +100,11 @@ export function createSiteMailer(required: SiteMailerRequired, options: { durabl
     ),
     readSenderEmail: required.readSenderEmail,
   });
+  const readProviderSelection: SiteMailer["readProviderSelection"] = async () => {
+    await ready();
+    await resolved.ready;
+    return readMailProviderSelection({ settingsRepo: settings.repo, workspaceId });
+  };
   const operations: SiteMailer["operations"] = {
     mailTestMode: async () => { await ready(); return readMailTestMode({ settingsRepo: settings.repo, workspaceId }); },
     mailTestProvider: async () => { await ready(); return (await readMailProviderSetting({ settingsRepo: settings.repo, workspaceId }))?.transactional ?? null; },
@@ -110,5 +117,5 @@ export function createSiteMailer(required: SiteMailerRequired, options: { durabl
     }),
     mailPurposeGate: createMailPurposeGateProbe({ mode: resolve.mode, durableOutboxReady: options.durableOutboxReady ?? (() => false) }),
   };
-  return { ...resolved, setAgentPluginEnabled: setPluginEnabled, selectProvider, operations };
+  return { ...resolved, setAgentPluginEnabled: setPluginEnabled, selectProvider, readProviderSelection, operations };
 }

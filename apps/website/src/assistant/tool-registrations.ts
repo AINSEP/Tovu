@@ -444,13 +444,7 @@ export function buildAssistantToolRegistrations(
     const policy = await readChatPermanentDeletesPolicy({ ...routeDeps, principalId, settingsReady: routeDeps.settingsUiTabsReady });
     if (!isChatToolAllowed({ toolId, policy })) throw chatDeleteRefusal({ toolId });
   };
-  // One indexed identity read per check; domain writers retain their resource-specific authority checks.
-  const assertAccessApprover = async ({ toolId, principalId }: { toolId: string; principalId: string }) => {
-    const principal = await routeDeps.principalRepo.findById({ workspaceId: routeDeps.workspaceId, id: principalId });
-    if (!principal || principal.kind !== "user" || principal.status !== "active") {
-      throw new ToolInputError({ message: `${toolId}: an active, signed-in person must approve this access change. Nothing was changed.` });
-    }
-  };
+  const assertAccessApprover = createAccessApprover(routeDeps);
   const guardedSurfaces: ChatDeleteSurfaceDeps = { ...surfaces, assertChatDeleteAllowed, assertAccessApprover };
   const policy = options.permanentDeletePolicy ?? DEFAULT_PERMANENT_DELETES_POLICY;
   const { registrations, ownerByToolId } = collectDomainRegistrations({ routeDeps: enrichedRouteDeps,
@@ -527,6 +521,25 @@ export function buildAssistantToolRegistrations(
   // A new collapsed card is a new registered tool too: never exempt it from the guard.
   for (const registration of finalRegistrations) toolApprovalPolicyFor({ registration });
   return finalRegistrations;
+}
+
+/** Bind the same active-person check to tools and automatic plugin preflight.
+ * Domain writers retain their resource-specific authority checks.
+ * @returns A fresh indexed identity read per check; no authorization grants or writes.
+ * @throws ToolInputError for missing, inactive or nonhuman principals.
+ * @complexity O(1) local work plus one principal projection per call.
+ */
+export function createAccessApprover(
+  { principalRepo, workspaceId }: Pick<AssistantToolRegistryDeps, 'principalRepo' | 'workspaceId'>,
+  _options = {},
+): NonNullable<ChatDeleteSurfaceDeps['assertAccessApprover']> {
+  // One indexed identity read per check; domain writers retain their resource-specific authority checks.
+  return async ({ toolId, principalId }) => {
+    const principal = await principalRepo.findById({ workspaceId, id: principalId });
+    if (!principal || principal.kind !== 'user' || principal.status !== 'active') {
+      throw new ToolInputError({ message: `${toolId}: an active, signed-in person must approve this access change. Nothing was changed.` });
+    }
+  };
 }
 
 export { toolSearchKeywords } from "./tool-search-keywords.js";

@@ -13,7 +13,7 @@ import type { MailProviderControl, MailStatusReport } from "../../platform/mail/
 import { mailStatusAgentToolCatalog } from "./agent-tools.js";
 import { planMailTestSend, readTestRecipient, runMailTestSend, type MailTestSendDeps, type MailTestSendPlan } from "./test-send.js";
 import { activateMailProvider, checkMailProvider } from "./provider-operations.js";
-import { asToolInputError, currentLanesDetail, readCurrentLanes } from "./provider-tool-registrations.js";
+import { asToolInputError, currentLanesDetail } from "./provider-tool-registrations.js";
 
 export interface MailStatusToolDeps {
   authorize: AuthorizeFn; workspaceId: string; mailer: MailerPort;
@@ -90,16 +90,20 @@ export function buildMailStatusRegistrations(deps: MailStatusToolDeps, surfaces:
         await permission(deps, ctx, "settings.workspace.write");
         const control = providerControl(deps);
         const { label } = await asToolInputError({ run: () => checkMailProvider({ control, providerId }) });
-        return { providerId, label, current: await readCurrentLanes({ control }) };
+        if (!control.readSelection) throw new ToolInputError({ message: "Mail provider selection snapshot is unavailable on this server. Nothing was changed. Reopen the chat after this site finishes starting." });
+        const snapshot = await control.readSelection();
+        return { providerId, label, current: snapshot.setting, revisionSeq: snapshot.revisionSeq };
       },
-      describe: ({ prepared }) => ({ toolId: "mail_set_provider", errorCode: "MAIL", title: `Send this site's email through ${prepared.label}?`,
+      describe: ({ ctx, prepared }) => ({ toolId: "mail_set_provider", errorCode: "MAIL", title: `Send this site's email through ${prepared.label}?`,
+        access: { resources: [{ id: "core.mail.provider", label: "Mail provider", scope: { personId: ctx.principal.id, siteId: deps.workspaceId },
+          previous: prepared.current, proposed: { transactional: prepared.providerId, bulk: prepared.providerId }, revision: String(prepared.revisionSeq) }] },
         details: [{ label: "Provider", value: `${prepared.label} (${prepared.providerId})` }, { label: "Applies to", value: "Transactional and bulk mail" }, ...currentLanesDetail(prepared)],
         warning: "From the next message on, every email this site sends (sign-in links, confirmations, form notifications, newsletters) goes through this provider.", confirmLabel: "Switch provider" }),
       run: async ({ ctx, prepared }) => {
         // The card may sit open for minutes: recheck the grant at the moment of the write.
         await permission(deps, ctx, "settings.workspace.write");
         // The shared activation re-checks the provider too: a key deleted meanwhile refuses, unchanged.
-        await asToolInputError({ run: () => activateMailProvider({ control: providerControl(deps), providerId: prepared.providerId, principalId: ctx.principal.id }) });
+        await asToolInputError({ run: () => activateMailProvider({ control: providerControl(deps), providerId: prepared.providerId, principalId: ctx.principal.id, expectedRevisionSeq: prepared.revisionSeq }) });
         return { set: true, providerId: prepared.providerId };
       },
     }, { flag: "set" }),

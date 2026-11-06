@@ -1,7 +1,7 @@
 import { runApiConnectionConnect } from '#src/features/api-connections/connect';
 import type { ApiConnectionHost } from '#src/features/api-connections/host';
 /** Bind plugin consumers to the existing service owners; secret custody stays in composition. */
-import type { SetValueRequired } from '@jini-ai/core/settings';
+import { resolveDefinitionRaw, type SetValueRequired } from '@jini-ai/core/settings';
 import { getEffective, set } from '#src/features/settings/index';
 import type { Clock } from '@jini-ai/core/primitives';
 import type { HttpClientPort } from '#src/platform/http/ports';
@@ -49,8 +49,16 @@ export function composeAgentPluginPreferences({ settings, read = getEffective, w
       const effective = await read({ repo: settings.repo }, { namespace: ADMIN_INTERFACE_NAMESPACE, key: CHAT_AGENT_PLUGINS_KEY, scopeContext: { workspaceId, principalId } });
       return effective?.value === 'ask' || effective?.value === 'off' ? effective.value : 'auto';
     },
-    saveAuto: async ({ workspaceId, principalId }, _options = {}) => {
-      await write({ deps: { ...settings, clock: { nowMs: () => Date.parse(settings.clock.nowIso()) } }, input: { namespace: ADMIN_INTERFACE_NAMESPACE, key: CHAT_AGENT_PLUGINS_KEY, value: 'auto', scope: 'user', workspaceId, principalId, callerPrincipalId: principalId, authWorkspaceId: workspaceId } });
+    snapshot: async ({ workspaceId, principalId }, _options = {}) => {
+      const definition = await resolveDefinitionRaw({ repo: settings.repo }, { namespace: ADMIN_INTERFACE_NAMESPACE, key: CHAT_AGENT_PLUGINS_KEY, workspaceId });
+      // Read the addressed revision first: a personal change during the effective read must
+      // invalidate the later write, never attach the new revision to an old approval snapshot.
+      const layer = definition ? await settings.repo.getUserValue({ workspaceId, principalId, settingId: definition.settingId }) : null;
+      const effective = await read({ repo: settings.repo }, { namespace: ADMIN_INTERFACE_NAMESPACE, key: CHAT_AGENT_PLUGINS_KEY, scopeContext: { workspaceId, principalId } });
+      return { mode: effective?.value === 'ask' || effective?.value === 'off' ? effective.value : 'auto', revisionSeq: layer?.seq ?? 0 };
+    },
+    saveAuto: async ({ workspaceId, principalId, expectedRevisionSeq }, _options = {}) => {
+      await write({ deps: { ...settings, clock: { nowMs: () => Date.parse(settings.clock.nowIso()) } }, input: { namespace: ADMIN_INTERFACE_NAMESPACE, key: CHAT_AGENT_PLUGINS_KEY, value: 'auto', scope: 'user', workspaceId, principalId, callerPrincipalId: principalId, authWorkspaceId: workspaceId } }, { expectedRevisionSeq });
     },
   };
 }

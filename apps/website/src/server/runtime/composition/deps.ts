@@ -2496,7 +2496,7 @@ async function composeSiteRouteDeps(
     settleMailer: resolvedMailer.settle,
     mailStatus: resolvedMailer.status,
     setAgentPluginEnabled: resolvedMailer.setAgentPluginEnabled,
-    mailProviderControl: { check: resolvedMailer.checkProvider, select: resolvedMailer.selectProvider, describe: resolvedMailer.describeProviders, invalidate: resolvedMailer.invalidate },
+    mailProviderControl: { check: resolvedMailer.checkProvider, select: resolvedMailer.selectProvider, readSelection: resolvedMailer.readProviderSelection, describe: resolvedMailer.describeProviders, invalidate: resolvedMailer.invalidate },
     // `dns_plan`/`dns_verify` `include: ["mail"]` read the provider's sender-domain records here.
     mailDomainRequirements: resolvedMailer.domainRequirements,
     // The From for members/newsletter/forms system mail (`platform/mail/sender-identity.ts`): the

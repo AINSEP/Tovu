@@ -15,6 +15,7 @@ import { prepareByokMessageAttachments } from "#src/server/inbound/assistant/byo
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor, DerivedToolContributor } from "@jini-ai/core";
 import type { AssistantToolRegistryDeps } from "#src/assistant/tool-registrations";
+import { createAccessApprover } from "#src/assistant/tool-registrations";
 import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 /**
  * @file The admin assistant dock's "API · BYOK" execution mode (ADR-049's picker, see
@@ -577,7 +578,8 @@ export function createAssistantByokModule(
         registry.register(automaticPluginRuns.loadRegistration);
       },
     });
-  automaticPluginRuns = createAutomaticPluginRuns({ deps: routeDeps, askAgentPluginChoice, surfaces: { surfaceExchanges: resolvedToolSurface.surfaceExchanges } });
+  automaticPluginRuns = createAutomaticPluginRuns({ deps: routeDeps, askAgentPluginChoice,
+    surfaces: { surfaceExchanges: resolvedToolSurface.surfaceExchanges, assertAccessApprover: createAccessApprover(routeDeps) } });
   // Reuse the server's admission-aware adapters. No daemon federation or second registrar:
   // both catalog demand and execution await this same server surface's lazy startup.
   serverFederation = createAssistantServerFederation({ toolSurface: resolvedToolSurface }, { lowerLocal });

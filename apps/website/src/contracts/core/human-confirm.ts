@@ -86,7 +86,7 @@ export async function requireHumanConfirm(
   { emitSurface }: ToolExecutionOptions = {},
 ): Promise<HumanConfirmOutcome> {
   await requireChatDeleteGrant({ surfaces, toolId: spec.toolId, principalId: ctx.principal.id });
-  await requireAccessApprover({ surfaces, ctx, toolId: spec.toolId, access: spec.access });
+  await requireAccessApprover({ surfaces, principalId: ctx.principal.id, toolId: spec.toolId, access: spec.access });
   if (!emitSurface) {
     throw new ToolInputError({ message: `${spec.errorCode}_NO_CONFIRMATION_CHANNEL: ${spec.toolId}: this execution context has no interactive ` +
         "confirmation channel (no emitSurface), so a human cannot approve this action here. Nothing was changed." });
@@ -107,7 +107,7 @@ export async function requireHumanConfirm(
     const answer = await askOnce({ exchange, emission: { channel: "mcp-ui", payload: { resource } } });
     const outcome = classifyConfirmationAnswer({ answer });
     if (!outcome.confirmed || answer.status !== "received") return outcome;
-    await requireAccessApprover({ surfaces, ctx, toolId: spec.toolId, access: spec.access });
+    await requireAccessApprover({ surfaces, principalId: ctx.principal.id, toolId: spec.toolId, access: spec.access });
     // A revoke while the human reads the card takes effect before the domain effect resumes.
     await requireChatDeleteGrant({ surfaces, toolId: spec.toolId, principalId: ctx.principal.id });
     const choice = answer.params[HUMAN_CONFIRM_CHOICE_PARAM];
@@ -120,13 +120,13 @@ export async function requireHumanConfirm(
 
 /** Re-read the active person before disclosure and before resuming the domain writer.
  * Domain writers retain their own current permission and revision checks. */
-async function requireAccessApprover({ surfaces, ctx, toolId, access }: {
-  surfaces: ChatDeleteSurfaceDeps; ctx: ToolExecutionContext; toolId: string; access: AccessApprovalDescription | undefined;
+export async function requireAccessApprover({ surfaces, principalId, toolId, access }: {
+  surfaces: ChatDeleteSurfaceDeps; principalId: string; toolId: string; access: AccessApprovalDescription | undefined;
 }, _optional = {}): Promise<void> {
   if (!access) return;
-  if (access.resources.some(resource => resource.scope.personId !== ctx.principal.id)) throw new ToolInputError({ message: `${toolId}: this access proposal belongs to another person. Nothing was changed. Request access for your own signed-in session.` });
+  if (access.resources.some(resource => resource.scope.personId !== principalId)) throw new ToolInputError({ message: `${toolId}: this access proposal belongs to another person. Nothing was changed. Request access for your own signed-in session.` });
   if (!surfaces.assertAccessApprover) throw new ToolInputError({ message: `${toolId}: this chat cannot verify the person approving access. Nothing was changed. Reopen the chat in your signed-in admin session.` });
-  await surfaces.assertAccessApprover({ toolId, principalId: ctx.principal.id });
+  await surfaces.assertAccessApprover({ toolId, principalId });
 }
 
 /**

@@ -7,7 +7,7 @@ import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
 
 for (const action of ['use', 'skip', 'auto'] as const) test(`plugin ask-choice: checked matching options and ${action} round trip`, async () => {
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' });
-  const result = await askAgentPluginChoice({ surfaces: { surfaceExchanges }, principalId: 'alice', signal: new AbortController().signal,
+  const result = await askAgentPluginChoice({ surfaces: { surfaceExchanges, assertAccessApprover: async () => {} }, principalId: 'alice', workspaceId: 'site', conversationId: 'chat', preferenceRevisionSeq: 3, selected: [], signal: new AbortController().signal,
     matches: [{ id: 'synthetic', name: 'Synthetic', why: 'Provides holography' }], emitSurface: async emission => {
       if (emission.channel === 'user_message') {
         assert.equal(emission.payload.text, `Agent plugins: ${action === 'skip' ? 'Declined' : 'Synthetic'}`);
@@ -34,7 +34,7 @@ for (const action of ['use', 'skip', 'auto'] as const) test(`plugin ask-choice: 
 
 test('plugin ask-choice rejects an unoffered selection even with the Auto action', async () => {
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' });
-  const result = await askAgentPluginChoice({ surfaces: { surfaceExchanges }, principalId: 'alice', signal: new AbortController().signal,
+  const result = await askAgentPluginChoice({ surfaces: { surfaceExchanges, assertAccessApprover: async () => {} }, principalId: 'alice', workspaceId: 'site', conversationId: 'chat', preferenceRevisionSeq: 3, selected: [], signal: new AbortController().signal,
     matches: [{ id: 'offered', name: 'Offered', why: 'Matches' }], emitSurface: async emission => {
       const html = (emission.payload.resource as { resource: { text: string } }).resource.text;
       const exchangeId = html.match(/__exchangeId"\s*:\s*"([^"]+)"/)?.[1];
