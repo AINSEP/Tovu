@@ -77,7 +77,11 @@ function unexpectedAdminBody({ errorId, options }: { errorId: string; options: F
  */
 function approvedFailureCopy({ options }: { options: FailureOptions }): { message: string; context: NonNullable<FailureOptions["failure"]>; includeAction: boolean } {
   const copy = describeRequestFailure({ method: options.method, route: options.route, operation: options.operation, vocabulary: ADMIN_FAILURE_VOCABULARY });
-  if (options.discloseDetails === false) return { message: copy.message, context: copy, includeAction: true };
+  if (options.discloseDetails === false) return {
+    message: copy.message,
+    context: { ...copy, action: copy.action.replace(/copy details and report this problem\./i, 'Report this error ID.') },
+    includeAction: true,
+  };
   return { message: options.message ?? copy.message, context: options.failure ?? copy, includeAction: !!options.failure || options.message === undefined };
 }
 

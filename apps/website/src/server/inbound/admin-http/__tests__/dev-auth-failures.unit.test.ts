@@ -73,7 +73,7 @@ test("boot owner and verification refusals disclose equivalent explanations and 
   for (const [index, body] of bodies.entries()) {
     assert.deepEqual(Object.keys(body).sort(), ["code", "error", "errorId"]);
     assert.equal(body.code, "INTERNAL_ERROR");
-    assert.equal(body.error, `The sign-in operation could not be completed. Check the result before repeating this operation. Copy details and report this problem. (error ${body.errorId})`);
+    assert.equal(body.error, `The sign-in operation could not be completed. Check the result before repeating this operation. Report this error ID. (error ${body.errorId})`);
     assert.equal((logs.mock.calls[index]!.arguments[1] as { errorId: string }).errorId, body.errorId);
   }
   assert.equal(logs.mock.callCount(), 2);
