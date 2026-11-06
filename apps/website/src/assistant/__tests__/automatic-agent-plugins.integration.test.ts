@@ -354,7 +354,12 @@ test('inactive plugin returns setup guidance and the activation call while tools
   assert.doesNotMatch(output.note, /agent_plugin_higgsfield_media/);
   assert.equal(f.published.length, 0);
   const stillInactive = await executor.execute(input);
-  assert.equal((stillInactive.output as { status: string }).status, 'installed-but-inactive');
+  assert.equal((stillInactive.output as { status: string }).status, 'already-loaded');
+  assert.equal((stillInactive.output as { guidance: string }).guidance, '');
+  assert.equal(f.published.length, 0, 'deduplicating off guidance must not publish active plugin usage');
+  const stillOff = await resolveAgentPluginRefs([f.pluginId], f.workspace, 'inject');
+  assert.equal(stillOff.ok, false);
+  if (!stillOff.ok) assert.match(stillOff.reason, /is not enabled/);
   await setAgentPluginEnabled({ agentPluginLayout: f.layout, workspaceId: f.workspaceId, pluginId: f.pluginId, enabled: true, actor: 'fixture' });
   const retry = await executor.execute(input);
   assert.equal((retry.output as { status: string }).status, 'loaded');
