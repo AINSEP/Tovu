@@ -246,14 +246,25 @@ async function briefPendingRead({ state }: { state: DocumentState }): Promise<vo
 export async function siteConsentDocumentAssets({ deps, request, scripts, static: staticDocument }: { deps: Pick<RouteDeps, 'cookieConsent' | 'consentAdapters'>; request: Request; scripts: readonly DeclaredScript[]; static?: true }, _optional = {}): Promise<DocumentAssets> {
   const consent = deps.cookieConsent;
   const config = await documentPolicy({ consent });
-  if (staticDocument && (!config || request.res?.locals.tovuRenderThemeIdOverride)) return { head: '', body: '' };
+  if (staticDocument) return staticDocumentAssets({ config, request, scripts, consent });
   const allScripts = [...scripts, ...await documentDeclarations({ consent })];
   if (request.res?.locals.tovuRenderThemeIdOverride) return { head: renderScriptAssets({ scripts: allScripts.filter(script => script.consent === undefined) }), body: '' };
   if (!config || !consent) return { head: renderScriptAssets({ scripts: allScripts.filter(script => script.consent === undefined) }), body: '' };
   if (siteBannerMode({ config }) === 'off') return { head: renderScriptAssets({ scripts: allScripts }), body: '' };
-  // Static pages use the loader only for consent; ordinary declarations need no consent runtime.
-  if (staticDocument) return { head: `<script src="${CONSENT_LOADER_SRC}" defer data-jini-consent-loader></script>`, body: '' };
   return renderDocumentConsent({ deps, request, consent, config, scripts: allScripts });
+}
+
+/** Static documents share managed shells' cached publication; off-mode declarations need no consent runtime.
+ * @complexity O(declared scripts) time/space when off; reuses the cached declaration Promise without I/O. */
+async function staticDocumentAssets({ config, request, scripts, consent }: {
+  config: ConsentConfig | null; request: Request; scripts: readonly DeclaredScript[]; consent?: SiteCookieConsentDeps;
+}): Promise<DocumentAssets> {
+  if (!config || request.res?.locals.tovuRenderThemeIdOverride) return { head: '', body: '' };
+  if (siteBannerMode({ config }) === 'off') {
+    const allScripts = [...scripts, ...await documentDeclarations({ consent })];
+    return { head: renderScriptAssets({ scripts: allScripts }), body: '' };
+  }
+  return { head: `<script src="${CONSENT_LOADER_SRC}" defer data-jini-consent-loader></script>`, body: '' };
 }
 
 /** Render the shared banner and client assets once a usable snapshot has been selected. */
