@@ -1510,11 +1510,12 @@ async function composeSiteRouteDeps(
           const value = Reflect.get(target, key);
           return typeof value === "function" ? value.bind(target) : value;
         } });
-        return async ({ workspaceId: ws, mediaId, submissionId }) => {
+        return async ({ workspaceId: ws, mediaId }) => {
           const asset = await mediaRepo.findById({ workspaceId: ws, id: mediaId });
           if (!asset) return;
-          // Never let a forged legacy reference purge an unrelated editorial asset.
-          if (!asset.source.private && !asset.originalFilename?.startsWith(`${submissionId}-`)) throw new Error(`Form attachment ${mediaId} has no matching upload owner. Check this submission's files before purging it.`);
+          // A filename is visitor-influenced display data, never proof of attachment ownership.
+          // Legacy public references stay intact when their ownership cannot be established.
+          if (!asset.source.private) throw new Error(`Form attachment ${mediaId} has no proven form upload owner. The submission and file were kept.`);
           await trashFormMedia({ deps: { mediaRepo, clock }, input: { workspaceId: ws, id: mediaId } });
           await purgeFormMedia({ deps: { mediaRepo: snapshotMedia, blobRepo: assetBlobRepo, renditionRepo: assetRenditionRepo, blobStore, clock, entryRefsRepo, postRepo: snapshotPosts,
             ...createFormMediaCleanup({ kernel, outbox, clock, graceMs: DEFAULT_GC_GRACE_MS }) }, input: { workspaceId: ws, id: mediaId } });

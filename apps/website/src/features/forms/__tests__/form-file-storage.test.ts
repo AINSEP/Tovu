@@ -13,3 +13,24 @@ test('form photos are private before store resolves and failed submission compen
   await files.discard({ workspaceId: 'w', reference });
   assert.equal(await media.mediaRepo.findById({ workspaceId: 'w', id: reference.mediaId }), null);
 });
+
+test('failed upload metadata writes and discarded submissions retain their rendition cleanup jobs', async () => {
+  const { createFormMediaCleanup } = await import('../form-file-purge.js');
+  let id = 0; const events: any[] = [];
+  const media = { mediaRepo: Object.assign(new InMemoryMediaRepo({}), { listRetiredSlugs: async () => [] }), blobRepo: new InMemoryAssetBlobRepo({}), renditionRepo: new InMemoryAssetRenditionRepo({}), blobStore: new InMemoryBlobStore(), clock: { nowMs: () => 0 }, idGen: { newId: () => `m-${++id}` }, entryRefsRepo: { findByTarget: async () => [] }, postRepo: { list: async () => [] },
+    ...createFormMediaCleanup({ outbox: { enqueue: async event => { events.push(event); } }, clock: { nowMs: () => 0 }, graceMs: 10 }),
+  };
+  let failMetadata = true;
+  const files = createFormFileStorage({ media, contentTypes: { set: async () => { if (failMetadata) throw new Error('metadata failed'); }, get: async () => null }, resolveCreatedByPrincipal: async () => 'system' });
+  const input = { workspaceId: 'w', submissionId: 's', fieldId: 'photo', file: { filename: 'photo.png', contentType: 'image/png', bytes: Uint8Array.of(137,80,78,71,13,10,26,10) } };
+  await assert.rejects(files.store(input), /metadata failed/);
+  assert.deepEqual(await media.mediaRepo.list({ workspaceId: 'w' }), []);
+  assert.equal(events.length, 1); assert.equal(events[0].payload.storageKeys.length, 1);
+  assert.equal(Date.parse(events[0].occurredAt), 10);
+  failMetadata = false;
+  const reference = await files.store(input);
+  await files.discard({ workspaceId: 'w', reference });
+  assert.deepEqual(await media.mediaRepo.list({ workspaceId: 'w' }), []);
+  assert.equal(events.length, 2);
+  assert.deepEqual(events[1].payload.storageKeys, events[0].payload.storageKeys);
+});

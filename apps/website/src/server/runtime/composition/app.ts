@@ -1850,8 +1850,7 @@ function subscribeSiteEventHandlersOnce(routeDeps: NewsletterRouteDeps): void {
       fileCleanup: {
         withHashLock: withSha256Lock,
         withStorageKeyLock: withFormFileStorageKeyLock,
-        hasStorageKeyOwners: input => routeDeps.contentKernel
-          ? hasFormFileStorageKeyOwners({ kernel: routeDeps.contentKernel, ...input }) : Promise.resolve(true),
+        hasStorageKeyOwners: input => hasFormFileStorageKeyOwners({ kernel: routeDeps.contentKernel, ...input }),
         findBlob: input => routeDeps.assetBlobRepo.findByHash(input),
         // This is a delayed cold GC job, never a visitor or upload hot path. Without a
         // persistent content database we cannot prove orphanhood, so retain the bytes.

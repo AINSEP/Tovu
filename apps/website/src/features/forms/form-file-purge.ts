@@ -39,11 +39,19 @@ export async function hasFormFileOwners({ kernel, workspaceId, sha256 }: { kerne
  * @returns Cleanup dependencies shared by purge, compensation and explicit maintenance.
  * @complexity One small outbox write per removed asset; no file reads or recurring work. */
 export function createFormMediaCleanup(
-  { kernel, outbox, clock, graceMs }: { kernel?: ContentKernel | undefined; outbox: FormOutboxPort; clock: { nowMs(): number }; graceMs: number },
+  { kernel, outbox, clock, graceMs }: { kernel?: ContentKernel; outbox: FormOutboxPort; clock: { nowMs(): number }; graceMs: number },
   _optional = {},
-): Pick<MediaRowCleanupDeps, 'cleanupJournal' | 'cleanupTransaction'> {
+): Pick<MediaRowCleanupDeps, 'cleanupJournal' | 'cleanupTransaction' | 'tombstoneLock'> {
   return {
-    cleanupTransaction: ({ work }) => kernel ? kernel.transaction(work) : work(),
+    ...(kernel ? {
+      cleanupTransaction: ({ work }: { work: () => Promise<void> }) => kernel.transaction(work),
+      // SQLite owns the entire database writer turn here. Waiting for the JS hash lock would
+      // deadlock with an upload holding that hash while it waits for this database transaction.
+      tombstoneLock: <T>({ key, criticalSection }: { key: string; criticalSection: () => Promise<T> }): Promise<T> => {
+        if (kernel.dialect === 'sqlite' && kernel.inTransaction()) return criticalSection();
+        return withSha256Lock({ key, criticalSection });
+      },
+    } : {}),
     cleanupJournal: input => scheduleFormAttachmentCleanup({ ...input, outbox, now: clock.nowMs(), graceMs }),
   };
 }
@@ -51,11 +59,13 @@ export function createFormMediaCleanup(
 /** Exact-key ownership also covers shared rendition objects and other workspaces. Exclude only
  * this cleanup job's own tombstoned source row: counting it would retain every original forever.
  * @returns Whether any retained rendition or different/live blob still names these exact bytes.
- * @complexity Two metadata EXISTS probes per cold cleanup key; no object downloads or polling. */
+ * @complexity Two EXISTS queries per cold key, O(rendition + blob rows) without a storage-key
+ * index in the existing schema. Returns at most one identity; no object downloads or polling. */
 export async function hasFormFileStorageKeyOwners(
-  { kernel, workspaceId, sha256, storageKey }: { kernel: ContentKernel; workspaceId: string; sha256: string; storageKey: string },
+  { kernel, workspaceId, sha256, storageKey }: { kernel?: ContentKernel; workspaceId: string; sha256: string; storageKey: string },
   _optional = {},
 ): Promise<boolean> {
+  if (!kernel) return true;
   return kernel.run(async db => {
     const rendition = await db.selectFrom('asset_renditions').select('id').where('storage_key', '=', storageKey).limit(1).executeTakeFirst();
     if (rendition) return true;
