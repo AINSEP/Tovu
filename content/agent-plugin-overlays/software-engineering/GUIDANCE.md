@@ -1,7 +1,9 @@
 ## Tovu software engineering tools and permissions
 
-Load this guidance and its references with `agent_plugin_software_engineering`, passing `skill`
-and optional `file`. Discover current site, theme, page and other permitted tools with
+Load this guidance with `load_agent_plugin({"pluginId":"software-engineering"})`; pass `skill`
+and optional `file` for references. Trusted OFF-plugin guidance is read-only setup help, not
+tool access. After enablement, `agent_plugin_software_engineering` also reads guidance.
+Discover current site, theme, page and other permitted tools with
 `search_tools` and `describe_tool` before editing. Use site/theme/page tools for site changes;
 reuse existing content, forms and widgets before proposing custom code.
 
@@ -17,3 +19,6 @@ follow it when available; do not duplicate its policy here.
 
 The software-engineering plugin is available but OFF by default. Follow the owner's normal
 plugin enablement and consent flow; guidance never changes activation or bypasses permissions.
+
+For authorized Tovu checkout work, cognitive and cyclomatic complexity in `apps/desktop` must
+both be ≤9; elsewhere the shared ≤10 ceiling applies. Keep nesting ≤3.
