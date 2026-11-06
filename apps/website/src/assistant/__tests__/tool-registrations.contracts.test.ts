@@ -115,6 +115,8 @@ import { newsletterDeliveryAgentToolCatalog } from "../../features/newsletter/de
 import { getRedirectsAgentToolCatalog } from "../../features/redirects/agent-tools.js";
 import { getSeoAgentToolCatalog } from "../../features/seo/agent-tools.js";
 import { catalog as searchAgentToolCatalog } from "@jini-ai/search/tools";
+import { catalog as commerceStatusCatalog, commerceCatalogToolCatalog } from "@jini-ai/commerce/tools";
+import { commerceResolutionToolCatalog } from "@jini-ai/commerce/payments/tools";
 import { widgetsAgentToolCatalog } from "../../features/widgets/agent-tools.js";
 import type { ContentTypeRecord } from "../../features/content-types/index.js";
 import { createRouteDeps } from "../../server/runtime/composition/app.js";
@@ -244,6 +246,7 @@ const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
   "tool-gaps": toolGapsAgentToolCatalog,
   "content-stats": contentStatsAgentToolCatalog as unknown as AgentToolDefinition[],
   analytics: analyticsAgentToolCatalog as unknown as AgentToolDefinition[],
+  commerce: [...commerceStatusCatalog, ...commerceCatalogToolCatalog, ...commerceResolutionToolCatalog] as unknown as AgentToolDefinition[],
   "system-mail": mailStatusAgentToolCatalog as unknown as AgentToolDefinition[],
   "system-mail-providers": mailProviderAgentToolCatalog as unknown as AgentToolDefinition[],
   "visitor-tools": visitorToolsAgentCatalog,
