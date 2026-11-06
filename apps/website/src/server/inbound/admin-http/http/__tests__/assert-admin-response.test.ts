@@ -21,7 +21,7 @@ const expectedFailure = {
   copyText: [
     "Message: The pages could not be loaded.", "Next action: Try loading them again.",
     `Error ID: ${incidentId}`, "Step: Load pages", "Cause: The error ID identifies the server report.",
-    "App version: Unavailable", "Jini version: Unavailable", `Time: ${incidentTime}`,
+    `Time: ${incidentTime}`,
   ].join("\n"),
 };
 const responseWithFailure = {
@@ -34,6 +34,8 @@ test("failure snapshots require explicitly specified copy and independently veri
   const expected = { error: "internal error", code: "INTERNAL_ERROR" };
   assert.doesNotThrow(() => assertAdminResponse({ actual: responseWithFailure, expected }, { failure: failureCopy }));
   assert.throws(() => assertAdminResponse({ actual: responseWithFailure, expected }));
+  const staleCopy = `${expectedFailure.copyText}\nApp version: Unavailable\nJini version: Unavailable`;
+  assert.throws(() => assertAdminResponse({ actual: { ...responseWithFailure, details: { failure: { ...expectedFailure, copyText: staleCopy } } }, expected }, { failure: failureCopy }));
   for (const field of ["message", "action", "step", "cause", "copyText"]) {
     const actual = { ...responseWithFailure, details: { failure: { ...expectedFailure, [field]: "WRONG" } } };
     assert.throws(() => assertAdminResponse({ actual, expected }, { failure: failureCopy }), field);

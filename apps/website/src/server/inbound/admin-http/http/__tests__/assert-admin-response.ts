@@ -61,7 +61,7 @@ function expectedFailure({ received, failure }: { received: Record<string, unkno
   const errorId = received.errorId;
   const copyText = [
     `Message: ${message}`, `Next action: ${action}`, `Error ID: ${errorId}`, `Step: ${step}`,
-    `Cause: ${cause}`, "App version: Unavailable", "Jini version: Unavailable", `Time: ${time}`,
+    `Cause: ${cause}`, `Time: ${time}`,
   ].join("\n");
   return { message, action, step, cause, errorId, time, copyText };
 }
