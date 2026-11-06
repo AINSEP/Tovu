@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 
 import { InMemoryExternalMcpServerRepo } from "../../../external-mcp/external-mcp-store.memory.js";
-import { saveExternalMcpServer } from "../../../external-mcp/external-mcp-store.js";
+import { applyExternalMcpAccess, saveExternalMcpServer } from "../../../external-mcp/external-mcp-store.js";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 
@@ -59,7 +59,7 @@ async function bootWith(input: { activation: Activation; signedIn?: boolean; wri
     let rosterNotifications = 0;
     const log = { info: [] as string[], warn: [] as string[] };
     await grantDeclaredToolsAtBoot(
-      { workspaceId: WORKSPACE, agentPluginLayout, repo, clock, notifyRosterChanged: async () => { rosterNotifications += 1; } },
+      { workspaceId: WORKSPACE, agentPluginLayout, repo, applyAccess: input => applyExternalMcpAccess({ ...input, repo, clock }), clock, notifyRosterChanged: async () => { rosterNotifications += 1; } },
       { info: (message) => log.info.push(message), warn: (message) => log.warn.push(message) },
     );
     const row = (await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "media" }))!;

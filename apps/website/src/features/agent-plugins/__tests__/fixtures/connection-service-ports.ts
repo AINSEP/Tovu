@@ -1,5 +1,5 @@
 import { applyPluginCredentialCard } from "../../../../contracts/core/plugin-credential-card.js";
-import { ExternalMcpSecretStoreUnconfiguredError, ExternalMcpValidationError, saveExternalMcpServer } from "../../../external-mcp/external-mcp-store.js";
+import { ExternalMcpSecretStoreUnconfiguredError, ExternalMcpValidationError, applyExternalMcpAccess, saveExternalMcpServer } from "../../../external-mcp/external-mcp-store.js";
 import type { ExternalMcpStoreDeps } from "../../../external-mcp/contracts.js";
 import { findPluginCredentialCard, loadPluginCredentialCardsSafely, type LoadPluginCredentialCards } from "../../../custom-credentials/plugin-credential-card.js";
 import { probeCredentialConnection } from "../../../custom-credentials/credentialed-request.js";
@@ -10,6 +10,7 @@ import type { AgentPluginMcpPort, PluginCredentialsPort } from "../../service-po
 export function mcpTestPort(store: ExternalMcpStoreDeps, _options = {}): AgentPluginMcpPort {
   return {
     repo: store.repo,
+    applyAccess: (input, _options = {}) => applyExternalMcpAccess({ ...input, repo: store.repo, clock: store.clock }),
     saveServer: (input, _options = {}) => saveExternalMcpServer(store, input),
     classifyError: ({ error }, _options = {}) => {
       if (error instanceof ExternalMcpValidationError) return "validation";

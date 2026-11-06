@@ -27,7 +27,7 @@ test('connecting an off plugin refuses before resolving its connection instructi
     pluginId: 'higgsfield', ctx: context({ pluginId: 'higgsfield' }), surfaces: { surfaceExchanges: h.surfaceExchanges },
     routeDeps: { workspaceId: 'workspace-1', agentPluginLayout: h.deps.agentPluginLayout,
       authorize: async () => ({ allowed: true, reason: 'matched' }), credentials: credentialTestPort({}),
-      mcp: { repo: new InMemoryExternalMcpServerRepo(), saveServer: async () => assert.fail('OFF must not save') },
+      mcp: { repo: new InMemoryExternalMcpServerRepo(), applyAccess: async () => assert.fail('OFF must not grant'), saveServer: async () => assert.fail('OFF must not save') },
       isPluginEnabled: async () => false,
       resolveInstalledPlugin: async () => { resolved = true; return { servers: {} }; },
     },

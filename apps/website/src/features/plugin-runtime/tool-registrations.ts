@@ -1,5 +1,5 @@
 import { lowerPluginToolAccess } from './lower-tool-access.js';
-import { ToolAccessLoweringError } from '../../assistant/external-mcp-roster-change.js';
+import { ToolAccessLoweringError } from '../../contracts/core/tool-access-change.js';
 import type { Tracker } from "@jini-ai/diagnostics/observability";
 import type { PluginExportCatalogPort, PluginExportCatalogRow } from "../../contracts/headless/plugin-export-catalog.js";
 import { AGENT_PLUGIN_CONTRACT_VERSION, AgentPluginHostIncompatibleError, AgentPluginUpdateError, checkAgentPluginCompatibility } from "@jini-ai/agent-plugins/lifecycle";
@@ -187,6 +187,7 @@ export interface PluginsToolDeps extends OperatorLocaleDeps {
   readonly tracker?: Tracker;
   readonly pluginExports?: PluginExportCatalogPort;
   readonly providerFaces: PluginProviderFacesPort;
+  readonly notifyRosterChanged: import("../../contracts/core/tool-access-change.js").NotifyToolAccessChanged;
   readonly pluginSource?: import('@jini-ai/plugins/host/node').PluginSourcePort;
   readonly pluginSourcePolicy?: import('@jini-ai/plugins/host').PluginSourcePolicyPort;
   readonly pluginHost?: PluginHostPort;
@@ -730,7 +731,7 @@ async function applySiteRuntimeDecision(routeDeps: PluginsToolDeps, principalId:
     },
   });
 
-  if (!result.activation.enabled) await lowerPluginToolAccess({ pluginId, providerFaces: routeDeps.providerFaces }, {});
+  if (!result.activation.enabled) await lowerPluginToolAccess({ pluginId, providerFaces: routeDeps.providerFaces, notifyRosterChanged: routeDeps.notifyRosterChanged }, {});
   const record = discovery.find((r) => r.id === pluginId);
   if (!record) throw new ToolInputError({ message: `plugin '${pluginId}' was not found in the current discovery snapshot` });
   if (((priorActivation as PluginActivationRecord | null)?.enabled ?? false) !== result.activation.enabled) routeDeps.tracker?.capture({ name: "plugin_toggled", userId: principalId }, { properties: { pluginId: record.id, pluginKind: "cms", enabled: result.activation.enabled, source: "assistant" } });

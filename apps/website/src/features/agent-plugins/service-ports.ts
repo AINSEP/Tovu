@@ -9,9 +9,11 @@ import type { ApiConnectionConnectStatus } from "../api-connections/connect.js";
 /** Roster persistence and safe classification; sealing/keyring dependencies stay in composition. */
 export interface AgentPluginMcpPort {
   readonly repo: Pick<ExternalMcpServerRepoPort, "findByServerId" | "upsert" | "deleteByServerId" | "updateAccessIfCurrent">;
+  /** Atomically save exactly the approved source and previous grants through the store owner. */
+  applyAccess(input: import("../../contracts/core/external-mcp-access.js").ExternalMcpApprovedAccess, options?: Record<string, never>): Promise<void>;
   saveServer(input: SaveExternalMcpServerInput, options?: Record<string, never>): Promise<ExternalMcpServerView>;
   classifyError(input: { error: unknown }, options?: Record<string, never>): "validation" | "unconfigured" | "other";
-  notifyRosterChanged(input: Record<string, never>, options?: Record<string, never>): Promise<void>;
+  notifyRosterChanged(input: { readonly lowered?: import("@jini-ai/daemon").ToolAccessChange }, options?: Record<string, never>): Promise<void>;
 }
 
 /** Connect-time OAuth discovery and the existing validation error identity, adapted by composition. */

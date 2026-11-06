@@ -2004,7 +2004,7 @@ async function composeSiteRouteDeps(
     readSenderEmail: async () => (await readMailSenderSetting({ settingsRepo, workspaceId })).email,
     readConfiguredSender: (required) => readMailSenderSetting({ settingsRepo, workspaceId: required.workspaceId }),
   }, { durableOutboxReady: capabilityName => mailDurableOutboxReady(capabilityName),
-    setAgentPluginEnabled: input => setAgentPluginEnabled(input, { lifecycle: agentPluginLifecycle }) });
+    setAgentPluginEnabled: input => setAgentPluginEnabled(input, { lifecycle: agentPluginLifecycle, notifyRosterChanged: notifyExternalMcpRosterChanged }) });
   // Email page phase 3: the provider's own sender-domain verdict and the test-mode read, each fresh.
   // SPEC-022's durable-outbox readiness, named once: the live mailer's purpose gate below and the
   // Email page's use readiness probe (`platform/mail/purpose-gate-probe.ts`) read the same function.
@@ -2359,7 +2359,7 @@ async function composeSiteRouteDeps(
       clock,
       devices: externalMcpOAuthDevices,
       ...compositionSharedOAuth(),
-      onConnected: createApplyConnectDefaults({ agentPluginLayout, workspaceId, repo: externalMcpServerRepo, clock, notifyRosterChanged: notifyExternalMcpRosterChanged }),
+      onConnected: createApplyConnectDefaults({ agentPluginLayout, workspaceId, repo: externalMcpServerRepo, applyAccess: input => routeDeps.mcp.applyAccess(input), clock, notifyRosterChanged: notifyExternalMcpRosterChanged }),
     }),
     externalMcpOAuthDevices,
     // See `routes/types.ts`'s `derivedPublicOrigin` doc; computed above with the plugin connection seams.

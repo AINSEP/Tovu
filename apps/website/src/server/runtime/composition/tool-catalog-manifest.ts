@@ -31,7 +31,7 @@ import { readPluginInstallRequest, readPluginInstallArchive } from "#src/feature
 import { createPluginInstallAttachmentReader } from "./plugin-install-attachment-reader.js";
 import type { InstallAttachmentReader } from '#src/contracts/headless/index';
 import type { AssistantToolContributions, AssistantToolRegistryDeps } from "#src/assistant/tool-registrations";
-import { requireHumanConfirm } from '#src/contracts/core/human-confirm';
+import { createToolHumanConfirmer } from '#src/assistant/tool-approval-policy';
 import { ToolInputError, withToolMetadata } from "@jini-ai/core";
 import { contributeAnalyticsTools } from "#src/features/analytics/tool-registrations";
 import { toolMetadata as commerceToolMetadata } from '#src/contracts/core/tool-metadata/commerce';
@@ -377,8 +377,10 @@ export function installFirstPartyToolContributors(
   // Readiness remains discoverable while disabled; setup handlers recheck the activation reader.
   contributions.contributors.register({ contribution: {
     domain: "commerce", risk: new Map([...commerceStatusRisk, ...commerceCatalogDerivedRisk, ['commerce_resolve_unknown', 'mutates-durable-state']]),
-    build: (deps, surfaces) => withToolMetadata({ metadata: commerceToolMetadata, registrations: deps.commerce?.toolRegistrations({ authorize: deps.authorize,
-      askHuman: ({ ctx, description }, options) => requireHumanConfirm({ ctx, surfaces, spec: {
+    build: (deps, surfaces) => {
+      const confirm = createToolHumanConfirmer({ surfaces });
+      return withToolMetadata({ metadata: commerceToolMetadata, registrations: deps.commerce?.toolRegistrations({ authorize: deps.authorize,
+      askHuman: ({ ctx, description }, options) => confirm({ ctx, description: {
         toolId: 'commerce_resolve_unknown', errorCode: 'COMMERCE', title: 'Record this verified payment outcome?',
         details: [{ label: 'Order', value: description.orderId }, { label: 'Payment', value: description.paymentId },
           { label: 'Amount', value: `${description.amount.currency} ${toMajorString({ money: description.amount })}` }, { label: 'Mode', value: description.mode },
@@ -386,7 +388,8 @@ export function installFirstPartyToolContributors(
         warning: 'Approve only after verifying this exact payment in the provider dashboard or with provider support. A succeeded outcome can fulfill the order.',
         confirmLabel: 'Record verified outcome',
       } }, options),
-    }) ?? [] }),
+    }) ?? [] });
+    },
   } });
   contributions.contributors.register({ contribution: contributeMailStatusTools() });
   contributions.contributors.register({ contribution: contributeMailProviderTools() });

@@ -1,3 +1,5 @@
+import type { ExternalMcpAccessSnapshot } from "../../contracts/core/external-mcp-access.js";
+export type { ExternalMcpAccessSnapshot } from "../../contracts/core/external-mcp-access.js";
 import type { ExternalMcpOAuthStatus } from "../../contracts/core/external-mcp-auth.js";
 /** External-MCP connection DTOs and ports; no assistant or service initialization. */
 import type { Clock as ClockPort, ISODateTime, UUID } from "@jini-ai/core/primitives";
@@ -97,17 +99,6 @@ export interface ExternalMcpServerRecord {
   oauthAadVersion: number;
   createdAt: ISODateTime;
   updatedAt: ISODateTime;
-}
-
-/** Exact source identity and prior access decision captured before an access-only update; no credential bytes. */
-export interface ExternalMcpAccessSnapshot {
-  readonly admissionRevision: string;
-  readonly enabled: boolean;
-  readonly allowedToolNames: string | null;
-  readonly writeAllowedToolNames: string | null;
-  readonly writeGrantsUpdatedByPrincipalId: string | null;
-  readonly writeGrantsUpdatedAt: ISODateTime | null;
-  readonly provisionedByPluginId: string | null;
 }
 
 /** A conditional access-only write. Credential and connection configuration are never replaced. */

@@ -1,3 +1,4 @@
+import { notifyExternalMcpRosterChanged } from "../../../../assistant/external-mcp-roster-change.js";
 import assert from "node:assert/strict";
 
 import type { SurfaceEmission, SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
@@ -106,6 +107,7 @@ export function harness(options: HarnessOptions = {}) {
   };
   let authorizeCount = 0;
   const deps: PluginsToolDeps = {
+    notifyRosterChanged: notifyExternalMcpRosterChanged,
     agentPluginLayout: options.layout ?? FAKE_LAYOUT,
     providerFaces: { ...providerFacesFor({ workspaceRoot: () => (options.layout ?? FAKE_LAYOUT).forWorkspace(WORKSPACE_ID).root }), ...options.providerFaces },
     ...options.injected,

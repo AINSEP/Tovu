@@ -4,7 +4,7 @@ import test from 'node:test';
 import { createToolRegistry, type ToolRegistration, type ToolExecutionContext } from '@jini-ai/core';
 import { createToolExecutor } from '@jini-ai/daemon';
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import { applyToolApprovalPolicy, approvalClassFor } from '../tool-approval-policy.js';
+import { applyToolApprovalPolicy, approvalClassFor, createToolHumanConfirmer } from '../tool-approval-policy.js';
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { directPageAction } from '../assistant-tool-approval-policy.js';
@@ -294,4 +294,13 @@ test('published plugin details and inspect disclosures run directly; state-chang
   for (const action of ['enabled', 'remove', 'delete-confirm', 'inspect-confirm']) {
     assert.equal(directPageAction({ capabilityId: 'page.click', input: { handle: `agent-plugin-row-ui-ux-design-${action}` } }), false);
   }
+});
+
+
+test('the shared domain confirmer refuses commerce without an interactive channel', async () => {
+  const f = fixture('commerce_resolve_unknown');
+  const confirm = createToolHumanConfirmer({ surfaces: f.surfaces });
+  await assert.rejects(confirm({ ctx: ctx(), description: { toolId: 'commerce_resolve_unknown', errorCode: 'COMMERCE',
+    title: 'Record this verified payment outcome?', details: [], confirmLabel: 'Record verified outcome' } }), /COMMERCE_NO_CONFIRMATION_CHANNEL/);
+  assert.equal(f.calls(), 0);
 });

@@ -108,7 +108,8 @@ test("tovu export <dir> --out <out>: exits 0, prints an honest route/asset summa
   assert.equal(routesWritten, routesTotal);
   assert.equal(assetsWritten, assetsTotal);
   const files = (fs.readdirSync(outDir, { recursive: true }) as string[]).filter(file => fs.statSync(path.join(outDir, file)).isFile());
-  const assetFiles = files.filter(file => /^(theme-assets|agent-icons|m)\//.test(file));
+  const assetFiles = files.filter(file => /^(theme-assets|agent-icons|m|api\/agent-plugin-exports\/v1|_consent)\//.test(file));
+  assert.ok(assetFiles.includes("_consent/load.js"), "the shipped consent loader is an exported asset");
   assert.equal(assetFiles.length, assetsWritten, "reported assets match independently inspected files");
   assert.equal(files.length - assetFiles.length, routesWritten, "reported routes match independently inspected files");
   const assetUrls = [...home.matchAll(/(?:href|src)="(\/theme-assets\/[^"?#]+)"/g)].map(match => match[1]);

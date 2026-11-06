@@ -1,4 +1,4 @@
-import { ToolAccessLoweringError } from '#src/assistant/external-mcp-roster-change';
+import { ToolAccessLoweringError } from '#src/contracts/core/tool-access-change';
 import { lowerPluginToolAccess } from '#src/features/plugin-runtime/lower-tool-access';
 import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Response } from "express";
@@ -14,7 +14,7 @@ import type { PluginsRouteDeps, PluginsRouteRegistrar } from "./deps.js";
 
 /** OFF commits before the existing serving runtime stops affected answers. */
 async function stopPluginAnswers(deps: PluginsRouteDeps, pluginId: string, enabled: boolean): Promise<void> {
-  if (!enabled) await lowerPluginToolAccess({ pluginId, ...(deps.providerFaces ? { providerFaces: deps.providerFaces } : {}) }, {});
+  if (!enabled) await lowerPluginToolAccess({ pluginId, notifyRosterChanged: deps.notifyRosterChanged, ...(deps.providerFaces ? { providerFaces: deps.providerFaces } : {}) }, {});
 }
 
 /**

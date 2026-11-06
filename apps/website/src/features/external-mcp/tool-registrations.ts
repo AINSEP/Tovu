@@ -1,4 +1,4 @@
-import { ToolAccessLoweringError } from '../../assistant/external-mcp-roster-change.js';
+import { ToolAccessLoweringError } from '../../contracts/core/tool-access-change.js';
 import { toolMetadata } from '../../contracts/core/tool-metadata/external-mcp.js';
 import { issueCredentialSetup } from "#src/contracts/core/tool-failure-diagnostics";
 import { assertCredentialFreeField } from '../../contracts/core/credential-token.js';

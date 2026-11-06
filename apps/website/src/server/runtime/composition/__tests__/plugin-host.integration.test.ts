@@ -1,3 +1,4 @@
+import { notifyExternalMcpRosterChanged } from "#src/assistant/external-mcp-roster-change";
 import { ExternalMcpValidationError, ExternalMcpSecretStoreUnconfiguredError, saveExternalMcpServer } from "#src/features/external-mcp/external-mcp-store";
 import { composeAgentPluginMcp, composePluginProviderFaces } from "../agent-plugin-service-ports.js";
 import { InMemoryExternalMcpServerRepo } from "#src/features/external-mcp/external-mcp-store.memory";
@@ -146,7 +147,7 @@ test('plugin list/toggle/uninstall dispatch to injected host capabilities and re
     provisionMcp: async () => { calls.push('provision'); },
     uninstall: async () => { calls.push('trash'); return { pluginId: 'github', trashed: true }; },
   }) };
-  const deps: PluginsToolDeps = { ...ctx.deps, pluginHost: host, idGen: { newId: () => 'change' }, changeSets: new InMemoryChangeSetRepo(), outbox: {} as never, onPluginEnabled: async () => {}, onPluginDisabled: () => {}, removePlugin: async () => ({ ok: true, version: null }) };
+  const deps: PluginsToolDeps = { notifyRosterChanged: notifyExternalMcpRosterChanged, ...ctx.deps, pluginHost: host, idGen: { newId: () => 'change' }, changeSets: new InMemoryChangeSetRepo(), outbox: {} as never, onPluginEnabled: async () => {}, onPluginDisabled: () => {}, removePlugin: async () => ({ ok: true, version: null }) };
   // Let the host capability own the read, rather than the compatibility fake on the fixture.
   delete (deps as { listInstalledAgentPlugins?: unknown }).listInstalledAgentPlugins;
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' });

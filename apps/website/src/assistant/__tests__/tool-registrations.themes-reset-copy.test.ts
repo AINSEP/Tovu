@@ -366,20 +366,14 @@ test("theme_reset_file refuses when authorize() denies, and never touches disk",
 });
 
 test("theme_reset_file refuses a ../ escape into a sibling theme's folder, leaving it untouched", async () => {
-  // The catalog check `resetThemeFileToOriginal` does first resolves `path` against the CATALOG copy
-  // of `plain`, through the identical `resolveThemeFilePath` containment check every other path in
-  // this domain goes through — so `../compiled/theme.json` is refused there, before the live side is
-  // ever resolved or written. The refusal surfaces as "not in this theme's original", not "outside
-  // the theme folder": a catalog-side containment failure means "no original for this path", the
-  // same answer `explore.ts`'s per-file reset route gives as NOT_IN_ORIGINAL. The wording
-  // differs from the read/write tools' own escape message; the safety property — nothing outside
-  // `plain`'s own folder is ever read or written — is the same.
+  // Complete-batch destination preparation now checks containment before the original-catalog
+  // lookup. The escape must fail at that earlier guard, leaving the sibling's bytes untouched.
   const { deps, themesDir } = fakeRouteDeps();
   const victim = path.join(themesDir, "static", "compiled", "theme.json");
   const before = fs.readFileSync(victim, "utf8");
   await assert.rejects(
     () => wired(deps, "theme_reset_file").handler(executionContext({ themeId: "plain", path: "../compiled/theme.json" })),
-    /is not in this theme's original/
+    /path '\.\.\/compiled\/theme\.json' resolves outside the theme folder/
   );
   assert.equal(fs.readFileSync(victim, "utf8"), before, "the sibling theme's file must be untouched");
 });

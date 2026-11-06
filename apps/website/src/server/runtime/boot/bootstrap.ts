@@ -349,6 +349,7 @@ export function buildBootModules(deps: NewsletterRouteDeps, options: BuildBootMo
             workspaceId: deps.workspaceId,
             agentPluginLayout: deps.agentPluginLayout,
             repo: deps.externalMcpServerRepo,
+            applyAccess: deps.mcp.applyAccess,
             clock: deps.clock,
             notifyRosterChanged: () => notifyExternalMcpRosterChanged(),
           },

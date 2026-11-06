@@ -8,9 +8,9 @@ import test from "node:test";
 import express from "express";
 
 import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
-import { FormSchemaChangedError, FormAttachmentSpaceError, InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "@jini-ai/cms/forms";
+import { FormSchemaChangedError, FormAttachmentSpaceError, FormRateLimitExceededError, InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "@jini-ai/cms/forms";
 import { FORMS_SUBMIT_PROFILE } from "#src/features/forms/rate-limit-profile";
-import { formSubmissionAttemptsFor } from "#src/features/forms/index";
+import { formSubmissionAttemptsFor, submitForm } from "#src/features/forms/index";
 import { injectFormAttemptTokens } from "../../inbound/public-http/http/site/form-render.js";
 import type { VisitorAnalyticsDeps } from "../../inbound/public-http/visitor-analytics.js";
 import type { HtmlFormDefinitionRecord as FormDefinitionRecord, FieldDescriptor, FormDefinitionRepoPort } from "@jini-ai/cms/forms";
@@ -71,6 +71,9 @@ async function startTestApp(overrides: { definitionRepo?: FormDefinitionRepoPort
   const app = express();
   app.use(express.json());
   if (overrides.upstreamCookie) app.use((_req, res, next) => { res.cookie("upstream", "kept", { path: "/" }); next(); });
+  const submitFormDeps = { definitionRepo, submissionRepo, outbox, bus, clock, idGen,
+    rateLimiter: createRateLimiter({ profile: FORMS_SUBMIT_PROFILE, clock }),
+  };
   registerFormsSubmitRoute(app, {
     workspaceId: WORKSPACE_ID,
     formSubmissionAttempts,
@@ -78,22 +81,14 @@ async function startTestApp(overrides: { definitionRepo?: FormDefinitionRepoPort
     idGen,
     visitorAnalyticsProof,
     visitorAnalyticsDeliveryAllowed,
-    submitForm: {
-      definitionRepo,
-      submissionRepo,
-      outbox,
-      bus,
-      clock,
-      idGen,
-      rateLimiter: createRateLimiter({ profile: FORMS_SUBMIT_PROFILE, clock }),
-    },
+    submitForm: submitFormDeps,
   });
 
   const server = createServer(app);
   server.listen(0);
   await once(server, "listening");
   const address = server.address() as AddressInfo;
-  return { server, app, baseUrl: `http://127.0.0.1:${address.port}`, definitionRepo, submissionRepo, outbox, bus, formSubmissionAttempts };
+  return { server, app, baseUrl: `http://127.0.0.1:${address.port}`, definitionRepo, submissionRepo, outbox, bus, formSubmissionAttempts, submitFormDeps };
 }
 
 /** Stands in for a repo/DB failure none of `submitForm`'s three typed error classes model (e.g. the
@@ -269,7 +264,7 @@ test("POST /forms/:slug/submit: an invalid payload returns 400 FORMS_SUBMISSION_
 });
 
 test("POST /forms/:slug/submit: AC-13 — a honeypot-tripped request returns the identical 201 accepted response", async (t) => {
-  const { server, baseUrl, definitionRepo, submissionRepo, outbox, bus } = await startTestApp();
+  const { server, baseUrl, definitionRepo, submissionRepo, outbox, bus, submitFormDeps } = await startTestApp();
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
   await definitionRepo.create(makeDefinition());
 
@@ -288,8 +283,9 @@ test("POST /forms/:slug/submit: AC-13 — a honeypot-tripped request returns the
   assert.equal(delivered, 0);
   assert.deepEqual(await outbox.claimPending({ batchSize: 20, nowIso: NOW }), []);
 
-  // The bot must not consume any of this IP/form's five real-submission allowances.
-  for (let i = 0; i < 5; i++) {
+  // Pre-body source admission counts the bot too: only four network requests remain.
+  // The separate per-form budget still admits all five human submissions below.
+  for (let i = 0; i < 4; i++) {
     const accepted = await fetch(`${baseUrl}/forms/contact/submit`, {
       method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: `Visitor ${i}` }),
     });
@@ -297,9 +293,17 @@ test("POST /forms/:slug/submit: AC-13 — a honeypot-tripped request returns the
     assert.deepEqual(await accepted.json(), { status: "accepted" });
   }
   const limited = await fetch(`${baseUrl}/forms/contact/submit`, {
-    method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: "Sixth visitor" }),
+    method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: "Fifth visitor" }),
   });
   assert.equal(limited.status, 429);
+  assert.equal(limited.headers.get("retry-after"), "60");
+  assert.equal((await limited.json()).code, "FORMS_RATE_LIMIT_EXCEEDED");
+  // Reach the same domain limiter directly after network admission is exhausted. The bot
+  // consumed no per-form allowance: the fifth human succeeds and only the sixth is refused.
+  const input = { workspaceId: WORKSPACE_ID, slug: "contact", sourceIp: "::ffff:127.0.0.1", body: { name: "Fifth visitor" } };
+  assert.deepEqual(await submitForm({ deps: submitFormDeps, input }), { status: "accepted" });
+  await assert.rejects(submitForm({ deps: submitFormDeps, input: { ...input, body: { name: "Sixth visitor" } } }), FormRateLimitExceededError);
+  assert.equal((await submissionRepo.listByDefinition({ workspaceId: WORKSPACE_ID, formDefinitionId: "def-1", limit: 10 })).items.length, 5);
 });
 
 test("POST /forms/:slug/submit: AC-14 — the 6th submission in-window is rate-limited 429", async (t) => {
@@ -374,15 +378,17 @@ test("POST /forms/:slug/submit: a real browser's application/x-www-form-urlencod
 });
 
 test("POST /forms/:slug/submit: a double-clicked Send on a JS-disabled form (two identical browser POSTs) stores one submission and redirects both to the same success page", async (t) => {
-  const { server, baseUrl, definitionRepo, submissionRepo } = await startTestApp();
+  const { server, baseUrl, definitionRepo, submissionRepo, formSubmissionAttempts } = await startTestApp();
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
   await definitionRepo.create(makeDefinition());
+  // Real rendered browser forms carry a page-issued attempt; tokenless legacy POSTs are distinct.
+  formSubmissionAttempts.issue({ workspaceId: WORKSPACE_ID, slug: "contact", attemptToken: "double-click", issuedAtMs: Date.parse(NOW) - 1000 });
 
   const post = () => fetch(`${baseUrl}/forms/contact/submit`, {
     method: "POST",
     redirect: "manual",
     headers: { "content-type": "application/x-www-form-urlencoded", accept: "text/html", referer: `${baseUrl}/contact-us` },
-    body: "name=Ada&_hp=",
+    body: "name=Ada&_hp=&_attempt=double-click",
   });
   const [first, second] = await Promise.all([post(), post()]);
 

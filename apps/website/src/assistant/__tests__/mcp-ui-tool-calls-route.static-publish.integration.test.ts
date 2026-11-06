@@ -79,7 +79,11 @@ function buildRealStaticPublishToolExecutor(
   options: { credentialSource?: PublishCredentialSource; captured?: { value: DeployFile[] | null } } = {},
 ) {
   const captured = options.captured ?? { value: null };
-  const routeDeps = { ...createRouteDeps(), authorize: async () => ({ allowed: true as const, reason: "matched" }), workspaceId: WORKSPACE_ID };
+  const baseRouteDeps = createRouteDeps();
+  // createSiteApp captures this original object. Mount the production consent routes before
+  // copying the fixture's other dependencies, so authored loader assets export through them.
+  baseRouteDeps.cookieConsent = { regionResolvers: async () => [] };
+  const routeDeps = { ...baseRouteDeps, authorize: async () => ({ allowed: true as const, reason: "matched" }), workspaceId: WORKSPACE_ID };
   const deps: StaticPublishToolDeps = {
     ...routeDeps,
     // why: the consent preflight (d2126748) authorizes through its own bound deps; bind it to this fixture's authorize.
@@ -159,6 +163,7 @@ test("deployment_execute_static_publish waits for one human approval over HTTP b
   assert.equal(output.target, "vercel");
   assert.equal(output.url, "https://example.test/published");
   assert.ok(captured.value && captured.value.length > 0, "the real hermetic fixture must have actually exported files for the fake deploy target to receive");
+  assert.ok(captured.value.some(({ file }) => file === '_consent/load.js'), 'the authored consent loader must export through the mounted routes');
 });
 
 test("SECURITY: a surface callback cannot run deployment_execute_static_publish — the route refuses it with 403 and never reaches the executor", async (t) => {

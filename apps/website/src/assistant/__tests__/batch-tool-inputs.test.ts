@@ -35,6 +35,7 @@ import { ALL_CHAT_DELETE_TOOLS } from "../permanent-delete-tool-gate.js";
 import { approvalClassAsks, toolApprovalPolicyFor } from "../assistant-tool-approval-policy.js";
 import { buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { currentToolIdFor } from "../content-read-tool.js";
+import { THEME_CONTENT_REPLACEMENT_TOOL_IDS } from "../../contracts/core/tool-metadata/theme.js";
 
 function executionContext(input: unknown, signal: AbortSignal = new AbortController().signal): ToolExecutionContext {
   return { executionId: "exec-1", principal: { id: "principal-under-test" }, run: { id: "run-1" }, input, signal };
@@ -188,9 +189,18 @@ test("guard: every production pure read batches; other tools retain explicit wri
   assert.deepEqual(unclassified.map(registration => registration.descriptor.id), [], "add these to BATCH_OPT_OUT with a one-line reason, or make them batchable");
   const asking = raw.filter(registration => {
     const policy = toolApprovalPolicyFor({ registration });
-    return registration.descriptor.sideEffects !== "none" && (policy.rule !== undefined || approvalClassAsks({ class: policy.class })) && !optOut.has(registration.descriptor.id);
+    // Explicit direct policies without a rule bypass approval; the class alone cannot add an ask.
+    const asks = policy.rule !== undefined || (policy.confirmation !== "direct" && approvalClassAsks({ class: policy.class }));
+    return registration.descriptor.sideEffects !== "none" && asks && !optOut.has(registration.descriptor.id);
   });
   assert.deepEqual(asking.map(registration => registration.descriptor.id), [], "a tool that asks per call would ask once per item: opt it out");
+  const batchTools = resolveBatchableTools({ registrations: raw });
+  for (const toolId of THEME_CONTENT_REPLACEMENT_TOOL_IDS) {
+    const policy = toolApprovalPolicyFor({ registration: raw.find(tool => tool.descriptor.id === toolId)! });
+    assert.equal(policy.confirmation, "direct", toolId);
+    assert.equal(policy.rule, undefined, toolId);
+    assert.equal(batchTools.find(tool => tool.toolId === toolId)?.mode, "plan", `${toolId} retains complete-batch preparation`);
+  }
   assert.deepEqual(BATCH_OPT_OUT.filter(entry => !ids.has(entry.toolId)).map(entry => entry.toolId), [], "stale opt-out entries");
   assert.equal(optOut.size, BATCH_OPT_OUT.length, "each opt-out appears once");
   for (const entry of BATCH_OPT_OUT) assert.ok(entry.reason.length > 0, `${entry.toolId} needs a reason`);
@@ -297,7 +307,7 @@ test("web fetch batches refuse screenshots from shared or item fields before ren
   assert.equal(inputs.length, 2, "single calls still reach the image-producing handler");
 });
 
-test("local theme asset batches inherit root/theme, allow item overrides and continue after a refusal", async (t) => {
+test("local theme asset plans retain completed effects, stop on refusal and accept a valid retry", async (t) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-batch-local-theme-"));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const dir = path.join(root, "plain");
@@ -319,13 +329,24 @@ test("local theme asset batches inherit root/theme, allow item overrides and con
     mediaImportHttpClient: { send: async () => { throw new Error("local imports must not fetch"); } },
   });
   const registration = applyBatchInputs({ registrations }).find(r => r.descriptor.id === "theme_import_local_file")!;
-  const batch = await invokeRegistration(registration, executionContext({
+  // Owner changes 20871ad239 / 27ba3c762 put these imports through the complete prepared plan.
+  // Execution failures stop subsequent items; prior effects remain and must be reviewed for retry.
+  await assert.rejects(invokeRegistration(registration, executionContext({
     themeId: "plain", root: "custom", sourcePath: "font.woff2",
     items: [{ path: "assets/font.woff2" }, { sourcePath: ".env", path: "assets/denied.woff2" }, { root: "site", sourcePath: "icon.ico", path: "assets/icon.ico" }],
-  })) as BatchResult;
-  assert.deepEqual(batch.results.map(r => r.ok), [true, false, true]);
-  assert.deepEqual([batch.total, batch.succeeded, batch.failed], [3, 2, 1]);
-  assert.deepEqual(permissions, ["theme.edit", "theme.edit", "theme.edit"]);
+  })), /matches a denied filename pattern/);
+  assert.deepEqual(new Uint8Array(fs.readFileSync(path.join(dir, "assets/font.woff2"))), font);
+  assert.equal(fs.existsSync(path.join(dir, "assets/denied.woff2")), false);
+  assert.equal(fs.existsSync(path.join(dir, "assets/icon.ico")), false);
+  assert.deepEqual(permissions, Array(5).fill("theme.edit"), "three preparations and two attempted effects; the third effect never runs");
+  const batch = await invokeRegistration(registration, executionContext({
+    themeId: "plain", root: "custom", sourcePath: "font.woff2",
+    items: [{ path: "assets/font.woff2" }, { root: "site", sourcePath: "icon.ico", path: "assets/icon.ico" }],
+  })) as { batch: boolean; total: number; results: { path: string; sourcePath: string }[] };
+  assert.equal(batch.batch, true);
+  assert.equal(batch.total, 2);
+  assert.deepEqual(batch.results.map(item => [item.path, item.sourcePath]), [["assets/font.woff2", "font.woff2"], ["assets/icon.ico", "icon.ico"]]);
+  assert.deepEqual(permissions, Array(9).fill("theme.edit"), "the retry prepares and executes both authorized items");
   assert.deepEqual(new Uint8Array(fs.readFileSync(path.join(dir, "assets/font.woff2"))), font);
   assert.deepEqual(new Uint8Array(fs.readFileSync(path.join(dir, "assets/icon.ico"))), icon);
   assert.equal(fs.existsSync(path.join(dir, "assets/denied.woff2")), false);

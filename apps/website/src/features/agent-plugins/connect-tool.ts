@@ -2,11 +2,9 @@ import type { PluginCredentialCard } from "../../contracts/core/plugin-credentia
 import type { AgentPluginMcpPort, AgentPluginOAuthPort, AgentPluginApiConnectionsPort, PluginCredentialsPort } from "./service-ports.js";
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { type AgentToolSideEffect, type DerivedRiskByToolId, type AgentToolDefinition } from "@jini-ai/core";
-import { createSystemClock } from "@jini-ai/core/primitives";
 import { approvalToolHandler, notConfirmedResult } from "../../contracts/core/human-confirm.js";
 import { previewAgentPluginEnableAccess } from "./enable-access.js";
 import { recordAgentPluginAccessDeclined } from "./apply-connect-defaults.js";
-import { applyExternalMcpAccess } from "../external-mcp/external-mcp-store.js";
 import type { UUID } from "@jini-ai/core/primitives";
 import { requireToolPermission, type AuthorizeFn } from "@jini-ai/cms/core";
 import { ToolInputError, redactSecrets, type ToolExecutionOptions, type ToolExecutionContext } from "@jini-ai/core";
@@ -205,7 +203,7 @@ export interface AgentPluginConnectToolDeps {
   readonly agentPluginLayout: AgentPluginLayout;
   readonly workspaceId: UUID;
   readonly authorize: AuthorizeFn;
-  readonly mcp: Pick<AgentPluginMcpPort, "repo" | "saveServer"> & Partial<Pick<AgentPluginMcpPort, "notifyRosterChanged">>;
+  readonly mcp: Pick<AgentPluginMcpPort, "repo" | "saveServer" | "applyAccess"> & Partial<Pick<AgentPluginMcpPort, "notifyRosterChanged">>;
   readonly externalMcpOAuth?: AgentPluginOAuthPort;
   readonly derivedPublicOrigin?: string;
   /** Injectable for tests; a real composition root omits both and gets the production cadence. */
@@ -494,7 +492,7 @@ async function approveSignedInAccess({ routeDeps, surfaces, ctx, pluginId, serve
         for (const source of prepared.snapshots) {
           if (!source.grant || !source.expected) continue;
           if (bound.signal.aborted) throw new ToolInputError({ message: 'The run ended. Other connections were not changed.' });
-          await applyExternalMcpAccess({ repo: routeDeps.mcp.repo, clock: createSystemClock(),
+          await routeDeps.mcp.applyAccess({
             workspaceId: routeDeps.workspaceId, serverId: source.connectionId, expected: source.expected,
             access: { enabled: source.grant.enabled, allowedToolNames: source.grant.allow, writeAllowedToolNames: source.grant.write }, principalId: bound.principal.id });
           granted.push(source.connectionId);
@@ -508,8 +506,7 @@ async function approveSignedInAccess({ routeDeps, surfaces, ctx, pluginId, serve
       return { approved: true };
     },
   }, { ask: ({ prepared }) => prepared.resources.length > 0, declined: async ({ reason, prepared }) => {
-    if (reason === 'declined' && prepared) await recordAgentPluginAccessDeclined({ repo: routeDeps.mcp.repo,
-      clock: createSystemClock(), workspaceId: routeDeps.workspaceId, accessKey: prepared.key });
+    if (reason === 'declined' && prepared) await recordAgentPluginAccessDeclined({ applyAccess: routeDeps.mcp.applyAccess, workspaceId: routeDeps.workspaceId, accessKey: prepared.key });
     return { approved: false, result: { status: 'not-connected', ...notConfirmedResult({ confirmed: false, reason }) } };
   } });
   return await handler(ctx, optional) as { approved: true } | { approved: false; result: AgentPluginConnectResult };

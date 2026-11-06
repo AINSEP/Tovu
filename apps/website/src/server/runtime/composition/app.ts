@@ -591,7 +591,8 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   // `media.apply()` must write into the very stores the media routes and this file's own tests
   // read — constructed twice they would be two disconnected in-memory stores — and the media
   // `TrashAdapter` just below needs the same instance.
-  const mediaRepo = new InMemoryVersionedMediaRepo([]);
+  const assetRenditionRepo = new InMemoryAssetRenditionRepo({}, { initialRows: [] });
+  const mediaRepo = new InMemoryVersionedMediaRepo([], { renditionRepo: assetRenditionRepo });
   // Hoisted for the same reason: the `form_submission` `TrashAdapter` below must flip the marker on
   // the very store the Forms routes read.
   const formSubmissionRepo = new InMemoryFormSubmissionRepo();
@@ -1328,7 +1329,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
       keyring: siteAssistantSecretKeyring,
       clock,
       devices: externalMcpOAuthDevices,
-      onConnected: createApplyConnectDefaults({ agentPluginLayout, workspaceId: seededWorkspace.id, repo: externalMcpServerRepo, clock, notifyRosterChanged: notifyExternalMcpRosterChanged }),
+      onConnected: createApplyConnectDefaults({ agentPluginLayout, workspaceId: seededWorkspace.id, repo: externalMcpServerRepo, applyAccess: input => routeDeps.mcp.applyAccess(input), clock, notifyRosterChanged: notifyExternalMcpRosterChanged }),
     }),
     externalMcpOAuthDevices,
     derivedPublicOrigin,
@@ -1440,7 +1441,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // disclosed precedent the last several admin-section libraries followed).
     mediaRepo,
     assetBlobRepo,
-    assetRenditionRepo: new InMemoryAssetRenditionRepo({}, { initialRows: [] }),
+    assetRenditionRepo,
     mediaContentTypeStore,
     blobStore,
     // ADR-027 §4 transform registry + rendition generation (new in this task): in-memory registry

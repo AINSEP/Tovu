@@ -1,5 +1,5 @@
 import { ToolInputError } from '@jini-ai/core';
-import { applyExternalMcpAccess, externalMcpAccessSnapshot } from '../external-mcp/external-mcp-store.js';
+import { externalMcpAccessSnapshot } from '../../contracts/core/external-mcp-access.js';
 import type { ExternalMcpAccessSnapshot, ExternalMcpServerRecord } from '../external-mcp/contracts.js';
 /**
  * @file Grants a plugin's declared default tools (`mcp.json`'s `tovuDefaultTools`, parsed by
@@ -73,7 +73,7 @@ export async function switchPluginOnUnlessOperatorOff(input: { workspaceId: stri
   return result.enabled;
 }
 
-export interface ApplyConnectDefaultsDeps extends Pick<AgentPluginMcpPort, "repo"> {
+export interface ApplyConnectDefaultsDeps extends Pick<AgentPluginMcpPort, "repo" | "applyAccess"> {
   readonly clock: ClockPort;
   readonly workspaceId: string;
   readonly agentPluginLayout: AgentPluginLayout;
@@ -141,7 +141,7 @@ export function createApplyConnectDefaults(deps: ApplyConnectDefaultsDeps, optio
     const expected = approved?.expected ?? externalMcpAccessSnapshot({ record: row });
     // Direct repo write, the same reason `federate-mcp.ts`'s adoption gives: every other field
     // (url, auth, the token this sign-in just stored) must stay exactly as it is.
-    await applyExternalMcpAccess({ repo: deps.repo, clock: deps.clock, workspaceId: deps.workspaceId, serverId,
+    await deps.applyAccess({ workspaceId: deps.workspaceId, serverId,
       expected, access: { enabled: true, allowedToolNames: grant.allow, writeAllowedToolNames: grant.write },
       principalId: options.approvedEnable?.principalId ?? CONNECT_DEFAULTS_ACTOR });
     await deps.notifyRosterChanged();
@@ -186,13 +186,13 @@ function assertApprovedSource({ approved, grant, current, url, expected }: {
  * @throws The existing conditional writer's source-changed error if a displayed row changed.
  * @complexity One conditional point write per eligible displayed source; O(s*(a+w)) grant bytes.
  */
-export async function recordAgentPluginAccessDeclined({ repo, clock, workspaceId, accessKey }: {
-  repo: ApplyConnectDefaultsDeps['repo']; clock: ClockPort; workspaceId: string; accessKey: string;
+export async function recordAgentPluginAccessDeclined({ applyAccess, workspaceId, accessKey }: {
+  applyAccess: AgentPluginMcpPort['applyAccess']; workspaceId: string; accessKey: string;
 }, _options = {}): Promise<void> {
   const sources = JSON.parse(accessKey) as Awaited<ReturnType<typeof previewAgentPluginEnableAccess>>['snapshots'];
   for (const source of sources) {
     if (!source.grant || !source.expected || source.expected.writeGrantsUpdatedByPrincipalId !== null) continue;
-    await applyExternalMcpAccess({ repo, clock, workspaceId, serverId: source.connectionId, expected: source.expected,
+    await applyAccess({ workspaceId, serverId: source.connectionId, expected: source.expected,
       principalId: CONNECT_DECLINED_ACTOR,
       access: { enabled: source.current.enabled, allowedToolNames: source.current.allow, writeAllowedToolNames: source.current.write } });
   }

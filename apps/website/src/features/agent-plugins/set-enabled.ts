@@ -1,4 +1,4 @@
-import { notifyExternalMcpRosterChanged } from '../../assistant/external-mcp-roster-change.js';
+import type { NotifyToolAccessChanged } from '../../contracts/core/tool-access-change.js';
 
 /**
  * @file The ONE composition that turns "enable/disable this Agent Plugin" into a durable decision:
@@ -61,6 +61,8 @@ export type { SetAgentPluginEnabledInput } from '../../contracts/headless/index.
 const lifecycles = new WeakMap<import("./layout.js").AgentPluginLayout, ReturnType<typeof createTovuAgentPluginLifecycle>>();
 
 export async function setAgentPluginEnabled(input: SetAgentPluginEnabledInput, options: {
+  /** Serving hosts await Stop/cleanup after the durable OFF decision. */
+  readonly notifyRosterChanged?: NotifyToolAccessChanged;
   readonly links?: Pick<ProviderFacePorts, "links">;
   /** Reuse boot queues and tracking while retaining this host's linked-face guard. */
   readonly lifecycle?: Pick<ReturnType<typeof createTovuAgentPluginLifecycle>, "setAgentPluginEnabled">;
@@ -72,17 +74,13 @@ export async function setAgentPluginEnabled(input: SetAgentPluginEnabledInput, o
   const providerPluginId = await linkedProviderOf({ ports: links, pluginId: input.pluginId });
   if (providerPluginId !== undefined) throw new AgentPluginLinkedError({ pluginId: input.pluginId, providerPluginId });
   const conditional = options.unlessOperatorDisabled ? { unlessOperatorDisabled: true } : {};
-  if (options.lifecycle) {
-    const result = await options.lifecycle.setAgentPluginEnabled(input, conditional);
-    if (!result.enabled) await notifyExternalMcpRosterChanged({ lowered: { pluginIds: [input.pluginId] } });
-    return result;
-  }
-  let lifecycle = lifecycles.get(input.agentPluginLayout);
+  let lifecycle = options.lifecycle ?? lifecycles.get(input.agentPluginLayout);
   if (!lifecycle) {
-    lifecycle = createTovuAgentPluginLifecycle({ layout: input.agentPluginLayout });
-    lifecycles.set(input.agentPluginLayout, lifecycle);
+    const created = createTovuAgentPluginLifecycle({ layout: input.agentPluginLayout });
+    lifecycles.set(input.agentPluginLayout, created);
+    lifecycle = created;
   }
   const result = await lifecycle.setAgentPluginEnabled(input, conditional);
-  if (!result.enabled) await notifyExternalMcpRosterChanged({ lowered: { pluginIds: [input.pluginId] } });
+  if (!result.enabled) await options.notifyRosterChanged?.({ lowered: { pluginIds: [input.pluginId] } });
   return result;
 }
