@@ -198,12 +198,17 @@ function Actions(props: { controller: EmailTemplateEditorController; locale: str
 
 /** Whether an anchor replaces this editor through the admin SPA. Pure; other windows stay usable. */
 function leavesEditor({ anchor, location }: { anchor: HTMLAnchorElement | null; location: Location }, _options = {}): boolean {
-  if (!anchor || anchor.hasAttribute("download")) return false;
-  if (anchor.target && anchor.target !== "_self") return false;
+  if (!replacesCurrentWindow(anchor)) return false;
   const url = new URL(anchor.href, location.href);
   const adminPath = url.pathname === ADMIN_BASE || url.pathname.startsWith(`${ADMIN_BASE}/`);
   const routeChanged = url.pathname !== location.pathname || url.search !== location.search;
   return url.origin === location.origin && adminPath && routeChanged;
+}
+
+/** Downloads and explicitly separate browsing contexts leave the working copy open. */
+function replacesCurrentWindow(anchor: HTMLAnchorElement | null): anchor is HTMLAnchorElement {
+  if (!anchor || anchor.hasAttribute("download")) return false;
+  return !anchor.target || anchor.target === "_self";
 }
 
 /** Only a plain click replaces this tab; modified clicks leave its working copy alive. */

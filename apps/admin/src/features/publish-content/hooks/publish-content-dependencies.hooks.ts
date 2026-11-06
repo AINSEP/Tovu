@@ -139,6 +139,12 @@ function stageFakeReport(
   return { rows, idSuffix };
 }
 
+/** A staged replan changes all three bound identities together. */
+function fakePublishPlanIdentity({ options, idSuffix }: { options: FakePublishContentPortOptions; idSuffix: string }) {
+  return { planId: `${options.planId ?? "fake-plan"}${idSuffix}`,
+    planHash: `${options.planHash ?? "fake-plan-hash"}${idSuffix}`, bundleId: `${options.bundleId ?? "fake-bundle"}${idSuffix}` };
+}
+
 /**
  * An in-memory {@link PublishContentPort} for tests — "every port gets a fake" (see
  * `dashboard-dependencies.hooks.ts`). Also the reason this dialog could be built and tested against
@@ -203,9 +209,7 @@ export function createFakePublishContentPort(
       const { rows, idSuffix } = stageFakeReport({ report, input });
 
       return {
-        planId: `${options.planId ?? "fake-plan"}${idSuffix}`,
-        planHash: `${options.planHash ?? "fake-plan-hash"}${idSuffix}`,
-        bundleId: `${options.bundleId ?? "fake-bundle"}${idSuffix}`,
+        ...fakePublishPlanIdentity({ options, idSuffix }),
         details: idSuffix === "" ? report : { ...report, rows },
         liveCanOverwrite,
         ...(options.notSupportedByLive === undefined ? {} : { notSupportedByLive: options.notSupportedByLive }),

@@ -139,6 +139,7 @@ test("by default the rendered config goes to stdout", async (t) => {
     if (previous === undefined) delete process.env.TOVU_BUNDLED_AGENT_PLUGINS_DIR; else process.env.TOVU_BUNDLED_AGENT_PLUGINS_DIR = previous;
   }
   assert.ok(written.some((chunk) => chunk.includes("ams")));
+  assert.deepEqual(errors, ["tovu deploy config: Create the volume before the first deploy: example-host volumes create tovu_sites --region ams\n"]);
 });
 
 test("--site <name> picks which local site's id is stamped, and stderr says which site it was", async (t) => {

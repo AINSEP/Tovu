@@ -130,25 +130,29 @@ for (const publicUrl of [undefined, "https://download.example", "https://user.gi
     const renderedLlms = copy.files.find(file => file.path === "llms.txt")!.content.toString();
     const renderedBase = publicUrl?.replace(/\/$/, "") ?? "";
     assert.ok(renderedLlms.includes(`](${renderedBase}/how-themes-work)`), renderedLlms);
-    const files = new Map(staticDownloadLayout({ copy }).map(file => [path.posix.basename(file.path), file.content.toString()]));
+    const files = new Map(staticDownloadLayout({ copy }).map(file => [file.path, file.content.toString()]));
+    // The root index is the download's landing page; SEO belongs to the actual delivered site home.
+    const home = files.get("sites/none/index.html")!;
+    assert.ok(home, "the theme folder must contain its rendered home");
+    assert.ok(files.get("index.html")!.includes('href="sites/none/index.html"'), "the landing page must link to the delivered home");
     // The download-layout owner makes local content links relative for offline viewing.
-    assert.ok(files.get("llms.txt")!.includes("](how-themes-work)"), files.get("llms.txt"));
+    assert.ok(files.get("sites/none/llms.txt")!.includes("](how-themes-work)"), files.get("sites/none/llms.txt"));
     if (!publicUrl) {
-      assert.ok(!files.has("sitemap.xml")); assert.ok(!files.has("feed.xml"));
+      assert.ok(!files.has("sites/none/sitemap.xml")); assert.ok(!files.has("sites/none/feed.xml"));
       assert.match(files.get("README.txt")!, /sitemap.xml was left out/);
-      assert.doesNotMatch(files.get("robots.txt")!, /Sitemap:/);
-      assert.doesNotMatch(files.get("index.html")!, /rel="canonical"|application\/rss\+xml/);
-      assert.match(files.get("llms.txt")!, /^- \[.+\]\((?!https?:)\S+\)/m);
-      assert.doesNotMatch(files.get("llms.txt")!, /https?:\/\/(?:saved\.example|render-\d+\.invalid|localhost)/);
+      assert.doesNotMatch(files.get("sites/none/robots.txt")!, /Sitemap:/);
+      assert.doesNotMatch(home, /rel="canonical"|application\/rss\+xml/);
+      assert.match(files.get("sites/none/llms.txt")!, /^- \[.+\]\((?!https?:)\S+\)/m);
+      assert.doesNotMatch(files.get("sites/none/llms.txt")!, /https?:\/\/(?:saved\.example|render-\d+\.invalid|localhost)/);
     } else {
       const base = publicUrl.replace(/\/$/, "");
       for (const [file, tag] of [["sitemap.xml", "loc"], ["feed.xml", "link"]]) {
-        const urls = absoluteValues(files.get(file!)!, tag!);
-        assert.ok(urls.length > 0); assert.ok(urls.every(url => url.startsWith(base + "/")), files.get(file!));
+        const urls = absoluteValues(files.get(`sites/none/${file!}`)!, tag!);
+        assert.ok(urls.length > 0); assert.ok(urls.every(url => url.startsWith(base + "/")), files.get(`sites/none/${file!}`));
       }
-      assert.ok(files.get("index.html")!.includes(`rel="canonical" href="${base}/"`));
-      assert.ok(files.get("index.html")!.includes(`href="${base}/feed.xml"`));
-      assert.ok(files.get("index.html")!.includes('href="index.html"'), "the offline home link must resolve to a delivered file even for a project URL");
+      assert.ok(home.includes(`rel="canonical" href="${base}/"`));
+      assert.ok(home.includes(`href="${base}/feed.xml"`));
+      assert.ok(home.includes('href="index.html"'), "the offline home link must resolve to a delivered file even for a project URL");
     }
   });
 }

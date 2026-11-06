@@ -1589,7 +1589,9 @@ for (const outcome of ['confirm', 'cancel', 'revoked', 'inactive', 'abort'] as c
           const { resource } = emission.payload as { resource: UIResource };
           const exchangeId = resource.resource.uri.split('/').at(-1)!;
           const html = resource.resource.text;
-          assert.match(html, /cloudAnalytics/); assert.match(html, /principal-meta-tool/);
+          // The card names the setting; opaque actor/site coordinates stay in its bound exchange.
+          assert.match(html, /core\.privacy\.cloudAnalytics/);
+          assert.doesNotMatch(html, /principal-meta-tool|ws-meta-tool/);
           assert.deepEqual(s.surfaceExchanges.deliver({ exchangeId, principalId: 'someone-else', params: { decision: 'confirm' } }, { toolId: 'settings_set_value' }), { ok: false, reason: 'binding-mismatch' });
           assert.deepEqual(s.surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL.id, params: { decision: 'confirm' } }, { toolId: 'plugins_set_enabled' }), { ok: false, reason: 'binding-mismatch' });
           if (outcome === 'abort') { controller.abort(); return; }

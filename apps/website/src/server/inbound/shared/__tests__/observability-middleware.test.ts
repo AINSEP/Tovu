@@ -236,10 +236,14 @@ for (const scenario of [
     assert.equal(res.status, 500);
     assert.equal(res.headers.get("x-request-id"), "failed-request");
     const body = await res.json() as { error: { code: string; requestId: string } };
-    assert.equal(body.error.code, "INTERNAL_ERROR");
-    assert.match(body.error.requestId, /^[0-9a-f-]{36}$/);
+    assert.deepEqual(body, { error: {
+      code: "INTERNAL_ERROR",
+      message: "The server could not finish this request. Check whether your change was saved, then copy the request ID and report this problem.",
+      requestId: body.error.requestId,
+    } });
+    assert.match(body.error.requestId, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
     assert.deepEqual(error.mock.calls.map(call => call.arguments), [[
-      `[@jini-ai/http-kit] internal error (GET /boom, correlationId=${body.error.requestId})`, failure,
+      `[@jini-ai/http-kit] internal error (GET /boom, correlationId=${body.error.requestId})`, failure.stack,
     ]]);
     assert.deepEqual(info.mock.calls.map(call => call.arguments), scenario.completionLogged ? [[
       "http 500 GET /boom 10ms req=failed-request",

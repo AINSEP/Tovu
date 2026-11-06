@@ -7,7 +7,7 @@ import type { ElectronProcessMemory } from '@jini-ai/desktop-host/electron';
 import { sampleTopMemory, type PrivateMemorySampler } from './desktop-memory-sampler.ts';
 
 // Legacy RSS fixtures exercise the fallback without launching a host process.
-const unavailablePrivateMemory: PrivateMemorySampler = async () => ({ metric: 'unavailable', readings: [] });
+const unavailablePrivateMemory: PrivateMemorySampler = async (_input) => ({ metric: 'unavailable', readings: [] });
 
 test('M3 macOS batches owned PIDs once a minute while inventory follows the open-panel cadence', async () => {
   let at = 0, inventories = 0, probes = 0;

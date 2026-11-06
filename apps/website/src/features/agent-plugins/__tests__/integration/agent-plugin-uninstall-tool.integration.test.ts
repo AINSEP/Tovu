@@ -128,7 +128,7 @@ function findRegistration(deps: AgentPluginUninstallToolDeps, surfaceExchanges: 
  *  the disk before raising its dialog, so waiting one tick is not enough. */
 function surfaceRecorder() {
   const emitted: unknown[] = [];
-  let resolveFirst: (surface: unknown) => void = () => undefined;
+  let resolveFirst: (surface: unknown) => void = (_surface: unknown) => undefined;
   const first = new Promise<unknown>((resolve) => {
     resolveFirst = resolve;
   });

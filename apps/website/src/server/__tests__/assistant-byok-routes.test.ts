@@ -576,14 +576,15 @@ test(`${BYOK_TURN_PATH} sends the bare SYSTEM_PREAMBLE as 'system' when no custo
  * Bare `ByokToolSurface` stand-in for the federation system-prompt tests below — deliberately NOT
  * built through `createByokToolSurface` (which would spin up a real registry/executor/federation
  * runtime these tests have no interest in controlling). `handleTurn` (`assistant-byok.ts`) only ever
- * reads `.ready`, `.metaTools`, `.executeMetaTool`, `.awaitFederation`, and
+ * reads `.registry.list`, `.ready`, `.metaTools`, `.executeMetaTool`, `.awaitFederation`, and
  * `.federation?.refusalPrefix()` off the surface it is handed, so those are the only members given
  * real behavior here — everything else is a placeholder the route never touches for a turn with no
  * tool_use block, and the whole object is cast past the full interface rather than hand-filling
- * `registry`/`executor` with fakes nothing here exercises.
+ * the remaining executor ports with fakes nothing here exercises.
  */
 function stubByokToolSurface(options: { readonly settled: boolean; readonly refusalPrefix?: string }): ByokToolSurface {
   return {
+    registry: createToolRegistry({}),
     metaTools: [],
     surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }),
     executeMetaTool: async () => ({ content: "" }),
@@ -597,9 +598,8 @@ function stubByokToolSurface(options: { readonly settled: boolean; readonly refu
   } as unknown as ByokToolSurface;
 }
 
-/** Builds a hand-assembled express app around a caller-supplied `toolSurface`, mirroring the
- *  no-hang test's identical shape below — `createApp` always builds its own production
- *  `ByokToolSurface` and offers no seam to swap in {@link stubByokToolSurface}'s bare stand-in. */
+/** Builds only the BYOK route around a caller-supplied surface for focused prompt/abort tests.
+ * Tests that answer cards use the full app so its authenticated delivery endpoint is mounted. */
 async function bootWithStubSurface(deps: ReturnType<typeof createRouteDeps>, toolSurface: ByokToolSurface, t: import("node:test").TestContext) {
   const app = express();
   app.use(express.json());
@@ -1137,58 +1137,68 @@ test(`${BYOK_TURN_PATH}: cancelling the same confirmation dialog leaves the post
 });
 
 /**
- * The no-hang property, proven structurally rather than by waiting out the real thing: production
- * uses `surface-exchanges.ts`'s `DEFAULT_SURFACE_MAX_LIFETIME_MS` (5.5 minutes) as the hard ceiling on
- * an unredeemed park, which would make a literal test of it both slow and a bad use of a shared test
- * run (see `PRIORITY: scoped test runs only`). `createByokToolSurface`'s injectable
- * `surfaceExchangeStore` override (added for exactly this) lets this test swap in a store with
- * millisecond TTLs, exercising the SAME code path (`trash_purge_item`'s `askOnce` loop,
- * `SurfaceExchangeStore`'s own idle/lifetime timers) production uses — only the constant differs.
- * Built with a hand-assembled express app (not `createApp`) because `createApp` always builds its
- * BYOK surface with the production defaults; this is the one place that needs to override them.
+ * Run-bound cards follow the executing call, so the owner can still answer after the store's
+ * unleased deadlines. Prove both contracts with the same short-TTL store, then cancel through the
+ * real HTTP surface endpoint and retain the bounded-completion and no-deletion checks.
  */
-test(`${BYOK_TURN_PATH}: an UNREDEEMED confirmation resolves via its own bounded TTL — it does not hang the request for anywhere near the production 5.5-minute ceiling`, async (t) => {
+test(`${BYOK_TURN_PATH}: a run-bound confirmation survives short store TTLs and a human cancel promptly ends the turn without deleting`, async (t) => {
   const deps = createRouteDeps();
   await deps.identityReady;
 
-  const shortTtlStore = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }, { idleTtlMs: 30, maxLifetimeMs: 60 });
+  const scheduler = createTimeoutScheduler({});
+  const schedule = t.mock.method(scheduler, "schedule");
+  const shortTtlStore = createSurfaceExchangeStore({ scheduler, clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }, { idleTtlMs: 30, maxLifetimeMs: 60 });
   await grantChatDeletes(deps);
   const toolSurface = createByokToolSurface(deps, { surfaceExchangeStore: shortTtlStore, contributions: firstPartyContributions() });
-
-  const app = express();
-  app.use(express.json());
-  registerAuthRoutes(app, deps);
-  createAssistantByokModule(deps, toolSurface).registerRoutes?.(app);
-
-  const { baseUrl } = await bootAuthenticated(app, t);
+  const { baseUrl } = await bootAuthenticated(createApp(deps, { assistantToolSurface: toolSurface }), t);
   const cookie = await loginWithPermissions(deps, baseUrl, ["content.read", "content.write"]);
 
-  const postId = `byok-no-hang-probe-${Date.now()}`;
-  await grantChatDeletes(deps);
-  const providerUrl = await seedTrashedPostAndStubPurgeTurn(t, deps, postId);
+  const unleased = shortTtlStore.open({ binding: { toolId: "ttl-positive-control", principalId: "owner" }, emit: async () => {} });
+  assert.deepEqual(await unleased.receive({}), { status: "expired" }, "the configured short TTL still expires unleased exchanges");
+  assert.equal(shortTtlStore.size(), 0);
+  assert.equal(schedule.mock.callCount(), 2, "the unleased control arms idle and lifetime timers");
 
-  const startedAt = Date.now();
+  const postId = `byok-no-hang-probe-${Date.now()}`;
+  const providerUrl = await seedTrashedPostAndStubPurgeTurn(t, deps, postId);
   const res = await postByokTurn(baseUrl, cookie, { messages: [{ role: "user", content: "Delete that draft post." }], byok: { ...BYOK_BODY.byok, baseUrl: providerUrl } });
   assert.equal(res.status, 200);
-  const frames = parseSseFrames(await res.text()); // safe to buffer here — nobody redeems, so the short TTL is what ends the wait
-  const elapsedMs = Date.now() - startedAt;
+  assert.ok(res.body);
+  const reader = res.body.getReader();
+  try {
+    const { frames: beforeAnswer, done } = await readSseFramesLive(reader, frame => frame.event === "agent" && frame.payload.type === "mcp-ui");
+    assert.equal(done, false, "the confirmation must park the real tool call");
+    const surfaceFrame = beforeAnswer.find(frame => frame.event === "agent" && frame.payload.type === "mcp-ui");
+    assert.ok(surfaceFrame, "the actual confirmation dialog must reach the browser");
+    assert.equal(surfaceFrame.payload.toolUseId, "toolu_1");
+    const exchangeId = extractExchangeId(surfaceFrame.payload);
 
-  assert.ok(elapsedMs < 5_000, `expected the short-TTL override to end the park in well under 5s (it did not redeem), took ${elapsedMs}ms`);
+    await new Promise(resolve => setTimeout(resolve, 80));
+    assert.equal(shortTtlStore.size(), 1, "the run-bound card survives both configured store deadlines");
+    assert.equal(schedule.mock.callCount(), 2, "the run-bound card must not arm independent expiry timers");
+    assert.ok(await trashRowFor(deps, postId), "waiting for an answer must not delete the post");
 
-  const surfaceFrame = frames.find((f) => f.event === "agent" && f.payload.type === "mcp-ui");
-  assert.ok(surfaceFrame, "expected the confirmation dialog to be raised — proves parking happened, not a fail-closed short-circuit");
+    const startedAt = Date.now();
+    const cancel = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
+      method: "POST", headers: { cookie, "content-type": "application/json" },
+      body: JSON.stringify({ toolName: PURGE_TOOL_ID, params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, decision: "cancel" } }),
+    });
+    assert.equal(cancel.status, 202);
+    assert.deepEqual(await cancel.json(), { delivered: true });
+    const { frames: afterAnswer } = await readSseFramesLive(reader, () => false);
+    const elapsedMs = Date.now() - startedAt;
+    assert.ok(elapsedMs < 5_000, `expected the human cancel to end the park in well under 5s, took ${elapsedMs}ms`);
 
-  const toolResultFrame = frames.find((f) => f.event === "agent" && f.payload.type === "tool_result");
-  assert.ok(toolResultFrame, "expected a tool_result event — the parked call resolved on its own, it did not hang the request");
-  assert.notEqual(toolResultFrame!.payload.isError, true, "an expired confirmation is a truthful RESULT the model can read, not a thrown error");
-  const parsedResult = JSON.parse(String(toolResultFrame!.payload.content)) as { removed: boolean; reason?: string };
-  assert.equal(parsedResult.removed, false);
-  assert.equal(parsedResult.reason, "expired");
-
-  const endFrame = frames.find((f) => f.event === "end");
-  assert.ok(endFrame, "expected a terminal end frame — the turn completed, it did not hang");
-
-  assert.ok(await trashRowFor(deps, postId), "nothing was deleted — the confirmation never arrived");
+    const result = afterAnswer.find(frame => frame.event === "agent" && frame.payload.type === "tool_result");
+    assert.ok(result, "the parked call must resolve to a truthful result");
+    assert.notEqual(result.payload.isError, true);
+    assert.deepEqual(JSON.parse(String(result.payload.content)), { removed: false, cancelled: true, note: "The user cancelled. Nothing was changed." });
+    assert.ok(afterAnswer.some(frame => frame.event === "end"), "the turn must complete normally");
+    assert.equal(shortTtlStore.size(), 0, "the answered exchange is released");
+  } finally {
+    await reader.cancel().catch(() => undefined);
+  }
+  assert.ok(await trashRowFor(deps, postId), "nothing was deleted — the human cancelled");
+  assert.ok(await deps.postRepo.findById({ workspaceId: deps.workspaceId, id: postId }), "the real post remains stored");
 });
 
 // --- Spans: one root agent-run span per BYOK turn, named for the protocol, ended with how the turn

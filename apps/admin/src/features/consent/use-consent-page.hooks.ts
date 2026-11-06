@@ -87,7 +87,7 @@ export function useConsentPage({ port, t }: { port: ConsentRevisionsPort; t: Tra
         },
         onConflict: () => setSaveState('conflict'),
         onError: ({ error }) => { setSaveState('error'); setSaveError(describeApiError(error, t("Couldn't save."))); },
-      } }, { ...(delayMs === undefined ? {} : { delayMs }), ...(timers ? { timers } : {}) });
+      } }, consentAutosaveOptions({ delayMs, timers }));
     }, error => { if (alive) setLoadError(describeApiError(error, t("Couldn't load cookie consent."))); });
     return () => { alive = false; autosave.current?.stop(); };
   }, [port, loadNonce]); // eslint-disable-line react-hooks/exhaustive-deps -- t/delay/timers are fixed per mount
@@ -188,4 +188,9 @@ export function useConsentReadiness({ port, refresh, t }: { port: ConsentRevisio
     return () => { alive = false; };
   }, [port, refresh]); // eslint-disable-line react-hooks/exhaustive-deps -- t is fixed per mount
   return state;
+}
+
+/** Preserve omitted autosave options so the autosave owner supplies its browser defaults. */
+function consentAutosaveOptions({ delayMs, timers }: { delayMs: number | undefined; timers: ConsentTimers | undefined }) {
+  return { ...(delayMs === undefined ? {} : { delayMs }), ...(timers ? { timers } : {}) };
 }

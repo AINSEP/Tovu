@@ -1,3 +1,4 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
@@ -7,6 +8,12 @@ import path from "node:path";
 import test, { after } from "node:test";
 
 import { childProcessCoverageEnv } from "#src/contracts/core/__tests__/helpers/child-process-coverage-env";
+import { bootSiteDir } from "#src/server/runtime/composition/site-dir";
+import { closeSiteDirBoot } from "#src/platform/site-dir/boot-site-dir";
+import { createSiteRouteDeps } from "#src/server/runtime/composition/deps";
+import type { SiteStore } from "#src/server/runtime/composition/open-site-store";
+import { resolveSiteDatabasePaths } from "#src/platform/site-dir/site-databases";
+import { drainBootReadiness } from "#src/server/__tests__/helpers/unrun-site-boot";
 
 const require = createRequire(import.meta.url);
 
@@ -57,6 +64,25 @@ function mkTempParent(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), "tovu-cli-export-"));
 }
 
+/** The product default is off; this asset-count fixture needs an explicit saved owner choice. */
+async function enableSiteConsent({ dir }: { dir: string }): Promise<void> {
+  const boot = await bootSiteDir({ dir });
+  let composed: SiteStore | undefined;
+  try {
+    const deps = await createSiteRouteDeps(resolveSiteDatabasePaths({ dir }).contentDbPath, {
+      db: boot.db, store: boot.store, workspaceId: boot.workspaceId,
+      uploadsDir: path.join(dir, "uploads"), themesDir: path.join(dir, "themes"),
+      siteBinding: { dir, name: path.basename(dir), dirOverridden: true, switcherCompatible: false },
+      onStoreOpened: store => { composed = store; },
+    });
+    await drainBootReadiness(deps);
+    await deps.siteConsentReady;
+    await deps.set({ deps: { repo: deps.settingsRepo, clock: deps.clock, ids: deps.idGen,
+      principals: deps.principalRepo, authorize: deps.authorize }, input: { namespace: "core.consent", key: "enabled",
+      value: true, scope: "workspace", workspaceId: deps.workspaceId, callerPrincipalId: await deps.ownerPrincipalId } });
+  } finally { await closeSiteDirBoot(boot, composed); }
+}
+
 test("tovu export --public-url writes absolute discovery and SEO; omitting it keeps the copy domainless", t => {
   const parent = mkTempParent();
   t.after(() => fs.rmSync(parent, { recursive: true, force: true }));
@@ -81,7 +107,7 @@ test("tovu export --public-url writes absolute discovery and SEO; omitting it ke
   assert.doesNotMatch(fs.readFileSync(path.join(outDir, "index.html"), "utf8"), /rel="canonical"/);
 });
 
-test("tovu export <dir> --out <out>: exits 0, prints an honest route/asset summary, and writes a real static file tree", (t) => {
+test("tovu export <dir> --out <out>: exits 0, prints an honest route/asset summary, and writes a real static file tree", async (t) => {
   const parent = mkTempParent();
   t.after(() => fs.rmSync(parent, { recursive: true, force: true }));
   const installDir = path.join(parent, "site");
@@ -89,6 +115,7 @@ test("tovu export <dir> --out <out>: exits 0, prints an honest route/asset summa
 
   const init = runCli(["init", installDir, "--with-sample-content"]);
   assert.equal(init.status, 0, `init stderr: ${init.stderr}`);
+  await enableSiteConsent({ dir: installDir });
 
   const result = runCli(["export", installDir, "--out", outDir]);
   assert.equal(result.status, 0, `export stderr: ${result.stderr}`);
@@ -110,6 +137,7 @@ test("tovu export <dir> --out <out>: exits 0, prints an honest route/asset summa
   const files = (fs.readdirSync(outDir, { recursive: true }) as string[]).filter(file => fs.statSync(path.join(outDir, file)).isFile());
   const assetFiles = files.filter(file => /^(theme-assets|agent-icons|m|api\/agent-plugin-exports\/v1|_consent)\//.test(file));
   assert.ok(assetFiles.includes("_consent/load.js"), "the shipped consent loader is an exported asset");
+  assert.match(home, /<script\b[^>]*\bsrc=["']\/_consent\/load\.js["']/, "the rendered home page references the shipped loader");
   assert.equal(assetFiles.length, assetsWritten, "reported assets match independently inspected files");
   assert.equal(files.length - assetFiles.length, routesWritten, "reported routes match independently inspected files");
   const assetUrls = [...home.matchAll(/(?:href|src)="(\/theme-assets\/[^"?#]+)"/g)].map(match => match[1]);

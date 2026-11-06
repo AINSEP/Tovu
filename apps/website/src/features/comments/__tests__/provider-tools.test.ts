@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { JSDOM } from 'jsdom';
+import type { UIResource } from '@jini-ai/ui/mcp-ui/surfaces';
 import { createSurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
 import { createSystemClock } from '@jini-ai/core/primitives';
@@ -16,7 +18,9 @@ function fixture() {
     commentsReady: Promise.resolve(), commentsSettingsReady: Promise.resolve(), settingsRepo: new InMemorySettingsRepo(),
     commentRepo: { countByStatus: async () => pending },
     commentsProviders: { active: async () => ({ providerId, revision, adapter: providerId ? {} : undefined }),
-      select: async (input: { providerId: string | null; expectedRevision: number }) => {
+      select: async (input: { siteId: string; providerId: string | null; expectedRevision: number; actorPrincipalId: string }) => {
+        assert.equal(input.siteId, 's');
+        assert.equal(input.actorPrincipalId, 'owner');
         if (input.expectedRevision !== revision) throw new Error('selection changed');
         providerId = input.providerId; revision++; writes++;
       } },
@@ -29,10 +33,15 @@ function fixture() {
     return tool.handler(ctx, options);
   };
   const answer = (decision: 'confirm' | 'cancel' | 'typed', before?: () => void): ToolExecutionOptions => ({ emitSurface: async emission => {
-    assert.match(JSON.stringify(emission), /Pending stored comments/);
-    assert.match(JSON.stringify(emission), /core.comments.provider/);
-    assert.match(JSON.stringify(emission), /Resource/);
-    assert.match(JSON.stringify(emission), /3/);
+    const resource = emission.payload.resource as UIResource;
+    const dom = new JSDOM(resource.resource.text);
+    try {
+      const details = [...dom.window.document.querySelectorAll('dt')].map(label => [label.textContent, label.nextElementSibling?.textContent]);
+      assert.deepEqual(details.find(([label]) => label === 'Resource'), ['Resource', 'Provider']);
+      assert.deepEqual(details.find(([label]) => label === 'Pending stored comments'), ['Pending stored comments', '3']);
+      // Opaque scope/revision identifiers stay bound to the exchange instead of being displayed.
+      assert.doesNotMatch(dom.window.document.body.textContent ?? '', /core\.comments\.provider|Person ID|Site ID|Revision/);
+    } finally { dom.window.close(); }
     before?.();
     surfaceExchanges.deliver({ exchangeId: `exchange-${exchanges}`, principalId: 'owner', params: decision === 'typed' ? { __typedAnswer: 'yes' } : { decision } }, { toolId: 'comments_set_provider' });
   } });
@@ -41,7 +50,7 @@ function fixture() {
 }
 const input = { providerId: null, expectedRevision: 0 };
 
-test('provider tools preserve the eight tools, publish confirmation metadata and disclose pending count', async () => {
+test('provider tools preserve the ten tools, publish confirmation metadata and disclose pending count', async () => {
   const f = fixture();
   assert.equal(f.registrations.length, 10);
   assert.deepEqual(await f.call('comments_get_provider'), { providerId: 'built-in', revision: 0, ready: true, pendingCount: 3 });

@@ -52,7 +52,7 @@ for (const route of ROUTES) {
     const missingPrincipal = await fixture({ t }, { principal: false });
     assertAdminResponse({ actual: await missingPrincipal.request(route), expected: { status: 500, body: {
       error: "internal error", code: "INTERNAL_ERROR",
-    } } }, { failure: route.method === "get" ? {"message":"The sites could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load sites","discloseDetails":false} : {"message":"The site save could not be completed.","action":"Check whether your changes were saved before repeating the save. Copy details and report this problem.","step":"Save site","discloseDetails":false} }); assert.deepEqual(missingPrincipal.permissions, []);
+    } } }, { failure: route.method === "get" ? {"message":"The sites could not be loaded.","action":"Try loading them again. If it still fails, Report this error ID.","step":"Load sites","discloseDetails":false} : {"message":"The site save could not be completed.","action":"Check whether your changes were saved before repeating the save. Report this error ID.","step":"Save site","discloseDetails":false} }); assert.deepEqual(missingPrincipal.permissions, []);
     const success = await fixture({ t });
     const body = route.suffix === "/home" ? { path: success.root } : {};
     assert.equal((await success.request({ ...route, body })).status, 200); assert.deepEqual(success.permissions, [permission]);

@@ -3,7 +3,7 @@ import Ajv from "ajv";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
+import { processComposedBundledSourceRootSync } from "../../../agent-plugins/__tests__/fixtures/bundled-source-root.js";
 
 import { FS_ROOT_DESCRIPTORS } from "../../../fs-files/layout.js";
 import { pluginAgentToolCatalog } from "../../agent-tools.js";
@@ -19,8 +19,8 @@ import { pluginAgentToolCatalog } from "../../agent-tools.js";
  * than left asserting guidance about a tool that no longer does this.
  */
 
-const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../../../../..");
-const AGENT_PLUGINS_CONTENT = path.join(REPO_ROOT, "content", "agent-plugins");
+// Guidance belongs to the whole shipped bundle, including selected Jini plugin packages.
+const AGENT_PLUGINS_ROOT = processComposedBundledSourceRootSync();
 
 /** Phrasings of "no tool can enable an Agent Plugin" found in shipped guidance. */
 const CANNOT_ENABLE_CLAIMS = [
@@ -55,23 +55,23 @@ test("the custom fs root's description names plugins_set_enabled for enabling to
   // The named plugin must be one Tovu still ships — a retired id would send the model to a plugin
   // that no longer exists.
   assert.match(custom.description, /pluginId 'tovu-theme'/);
-  assert.ok(fs.existsSync(path.join(AGENT_PLUGINS_CONTENT, "tovu-theme", "plugin.json")), "tovu-theme is not bundled");
+  assert.ok(fs.existsSync(path.join(AGENT_PLUGINS_ROOT, "tovu-theme", "plugin.json")), "tovu-theme is not bundled");
 });
 
 test("no bundled Agent Plugin markdown tells the model it cannot enable a plugin", () => {
-  const markdownFiles = (fs.readdirSync(AGENT_PLUGINS_CONTENT, { recursive: true }) as string[]).filter((file) =>
+  const markdownFiles = (fs.readdirSync(AGENT_PLUGINS_ROOT, { recursive: true }) as string[]).filter((file) =>
     file.endsWith(".md"),
   );
-  assert.ok(markdownFiles.length > 0, `no markdown found under ${AGENT_PLUGINS_CONTENT}`);
+  assert.ok(markdownFiles.length > 0, `no markdown found under ${AGENT_PLUGINS_ROOT}`);
   const offenders = markdownFiles.flatMap((file) =>
-    claimsIn(fs.readFileSync(path.join(AGENT_PLUGINS_CONTENT, file), "utf8")).map((claim) => `${file}: ${claim}`),
+    claimsIn(fs.readFileSync(path.join(AGENT_PLUGINS_ROOT, file), "utf8")).map((claim) => `${file}: ${claim}`),
   );
   assert.deepEqual(offenders, []);
 });
 
 test("bundled cold-start guidance names the enable tool and Agent Plugin family", () => {
   for (const pluginId of ["composio", "higgsfield-media"]) {
-    const guidance = fs.readFileSync(path.join(AGENT_PLUGINS_CONTENT, pluginId, "skills", pluginId, "SKILL.md"), "utf8");
+    const guidance = fs.readFileSync(path.join(AGENT_PLUGINS_ROOT, pluginId, "skills", pluginId, "SKILL.md"), "utf8");
     assert.match(guidance, /plugins_set_enabled[\s\S]*family: "agent-plugin"/);
     assert.match(guidance, new RegExp(`pluginId: "${pluginId}"`));
   }

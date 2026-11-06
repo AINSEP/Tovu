@@ -1276,7 +1276,7 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
     activeThemeId,
     activeThemeApiVersion,
     themeCanvasPort,
-    resolveCanvasTemplateChoice(templateChoice, page?.bodyFormat ?? "doc"),
+    resolveCanvasTemplateChoice(templateChoice, pageBodyFormat(page)),
   );
 
   return {
@@ -1380,4 +1380,9 @@ export function useWiredPageEditor(routeSlug: string): PageEditorController {
     t: defaultT,
     locale,
   });
+}
+
+/** Before load, the canvas retains the same safe document-format fallback. */
+function pageBodyFormat(page: AdminPost | null) {
+  return page?.bodyFormat ?? "doc";
 }

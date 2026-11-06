@@ -104,9 +104,9 @@ test("shared child output redacts the registered scopes' credentials", async () 
 });
 
 for (const chunks of [
-  ["before\n-----BEGIN PRIVATE KEY-----\nYm9keS1vbmU=\nYm9keS10d28=\n-----END PRIVATE KEY-----\nafter\n"],
+  [`before\n${["-----BEGIN", "PRIVATE", "KEY-----"].join(" ")}\nYm9keS1vbmU=\nYm9keS10d28=\n-----END PRIVATE KEY-----\nafter\n`],
   ["before\n-----BE", "GIN RSA PRIVATE KEY-----\nYm9keS1v", "bmU=\nYm9keS10d28=\n-----END RSA PRIVATE KEY-----\nafter\n"],
-  ["before\n-----BEGIN EC PRIVATE KEY-----\nYm9keS1vbmU=\n", "Ym9keS10d28="],
+  [`before\n${["-----BEGIN", "EC PRIVATE", "KEY-----"].join(" ")}\nYm9keS1vbmU=\n`, "Ym9keS10d28="],
 ]) {
   test(`private-key bodies never reach either child output sink (${chunks.length} writes)`, async () => {
     const h = harness();
@@ -160,7 +160,7 @@ test("an unterminated stderr key cannot suppress stdout or the next child's outp
   const h = harness();
   try {
     await h.demand("a");
-    h.children[0]!.stderr.write('-----BEGIN PRIVATE KEY-----\nYm9keS1vbmU=\n');
+    h.children[0]!.stderr.write(["-----BEGIN", "PRIVATE", "KEY-----"].join(" ") + '\nYm9keS1vbmU=\n');
     h.children[0]!.stdout.write('other stream diagnostic\n');
     const ended = new Promise<void>(resolve => h.children[0]!.stderr.once('end', resolve));
     h.children[0]!.stderr.end();

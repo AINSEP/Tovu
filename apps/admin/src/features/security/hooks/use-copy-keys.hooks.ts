@@ -9,6 +9,12 @@ const SHARED_KEYS = 'shared-keys';
 const LOAD_FAILED = "Couldn't load Shared Keys. Open Shared Keys and try again. Details: P25_KEY_PICKER_LOAD_FAILED; secret values omitted.";
 const GRANT_FAILED = 'Using the saved key failed. Reopen Shared Keys and choose the key again. Details: P25_KEY_GRANT_FAILED; secret values omitted.';
 
+/** Present metadata-only key choices; this never reads or copies credential values. */
+function copyKeyRows({ source, credentialId }: { source: AdminCredentialCopySource | undefined; credentialId: string }) {
+  return (source?.keys ?? []).map(key => ({ id: key.id, checked: key.id === credentialId,
+    text: `${key.label} · ${key.provider ?? key.kind}`, worksFor: (key.worksFor ?? []).join(', ') }));
+}
+
 /** One metadata read per open, one reference per approval, no source-site discovery or key copies.
  * @returns The existing dialog controller with secret-free labels and outcomes.
  * @complexity O(k) time/space per open for at most 50 owner metadata rows; no background polling.
@@ -57,8 +63,7 @@ export function useCopyKeys({ t }: { t: Translate }, { port = api }: { port?: Co
   return { open, show, cancel, submit, loading, pending, disabled, changeKey,
     empty: !loading && !source?.keys.length,
     error: error ? t(error) : '',
-    keys: (source?.keys ?? []).map(key => ({ id: key.id, checked: key.id === credentialId,
-      text: `${key.label} · ${key.provider ?? key.kind}`, worksFor: (key.worksFor ?? []).join(', ') })),
+    keys: copyKeyRows({ source, credentialId }),
     results: results.map((result, index) => ({ key: `${result.id}:${index}`,
       text: result.status === 'granted' ? t('Granted to this site') : t(GRANT_FAILED) })),
   };

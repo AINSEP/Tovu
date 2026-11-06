@@ -191,7 +191,7 @@ async function bootServerRoster(t: import("node:test").TestContext) {
   t.after(() => fs.rmSync(themesDir, { recursive: true, force: true }));
   writeDeclarativeTheme(fs, path.join(themesDir, "static", "tovu-starter"), "tovu-starter");
   const themes = discoverAllBuiltInThemes({ dir: themesDir, source: "built-in" });
-  let middleware: Function = () => assert.fail("middleware not registered");
+  let middleware: Function = (..._args: unknown[]) => assert.fail("middleware not registered");
   let reload: Function = () => assert.fail("reload route not registered");
   const app = {
     use: (handler: Function) => { middleware = handler; },

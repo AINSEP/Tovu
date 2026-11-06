@@ -8,7 +8,7 @@ import { createCapturingResponse, extractRouteHandler } from '#src/server/__test
 import { portFake } from '#src/server/__tests__/helpers/port-fake';
 import type { MembersRouteDeps } from '../../deps.js';
 
-let send: typeof members.requestSignInLink = async () => assert.fail('unexpected sign-in mail');
+let send: typeof members.requestSignInLink = async (_required) => assert.fail('unexpected sign-in mail');
 mock.module('#src/features/members/index', { namedExports: { ...members, requestSignInLink: (required: Parameters<typeof send>[0]) => send(required) } });
 const { registerAdminMemberRequestMagicLinkRoute } = await import('../../request-magic-link.js');
 const PATH = '/api/admin/v1/workspaces/:workspaceId/members/request-magic-link';

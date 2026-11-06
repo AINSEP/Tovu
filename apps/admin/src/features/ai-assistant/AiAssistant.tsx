@@ -302,7 +302,7 @@ export function AdminExecutionMode(props: AdminExecutionModeProps) {
   // don't read `byok` until an explicit Save/migrate press, and the panel this feeds isn't rendered
   // until past the gate anyway.
   const adminCredential = useAdminExecutionCredentialHook({
-    byok: execution.value?.byok ?? DEFAULT_EXECUTION_CONFIG.byok,
+    byok: adminExecutionByok(execution.value),
     onByokChange: (byok) => execution.onChange({ ...(execution.value ?? DEFAULT_EXECUTION_CONFIG), byok }),
   });
 
@@ -458,9 +458,7 @@ export function AssistantDaemonRestart(props: AssistantDaemonRestartProps) {
       {restartError ? <div className="save-error">{restartError}</div> : null}
       {!restartError && restartResult ? (
         <p className="assistant-save-line" role="status">
-          {restartResult.ok
-            ? t("Restart accepted. This does not confirm the process is healthy yet — check the status below.")
-            : t("Restart refused: {reason}").replace("{reason}", restartResult.reason ?? "")}
+          {assistantRestartResultMessage(restartResult, t)}
         </p>
       ) : null}
       {statusMessage ? <p className="muted-cell" role="status">{statusMessage}</p> : null}
@@ -774,7 +772,7 @@ export function VisitorCredentialForm({
       <section className="jini-settings-section jini-settings-byok">
         <div className="visitor-inline-field">
           <label htmlFor={providerSelectId}>{t("Provider")}</label>
-          <select id={providerSelectId} className="jini-input visitor-compact-select" value={preset?.id ?? ""}
+          <select id={providerSelectId} className="jini-input visitor-compact-select" value={visitorPresetId(preset)}
             onChange={(event) => selectPresetById(event.target.value)}
             {...agentHandle({ handle: "ai-assistant-visitor-provider" }, { role: "field", label: "Visitor assistant provider" })}>
             {preset ? null : <option value="" disabled>{t("Custom endpoint")}</option>}
@@ -1059,4 +1057,21 @@ export function AiAssistant({ useAiAssistantHook = useWiredAiAssistant, tabId }:
       </I18nProvider>
     </div>
   );
+}
+
+/** A restart acknowledgement describes acceptance, never inferred process health. */
+function assistantRestartResultMessage(result: NonNullable<AssistantDaemonRestartController["restartResult"]>, t: (key: string) => string): string {
+  return result.ok
+    ? t("Restart accepted. This does not confirm the process is healthy yet — check the status below.")
+    : t("Restart refused: {reason}").replace("{reason}", result.reason ?? "");
+}
+
+/** An unrecognized saved endpoint keeps the select on its custom-endpoint placeholder. */
+function visitorPresetId(preset: VisitorCredentialFormController["preset"]): string {
+  return preset?.id ?? "";
+}
+
+/** Keep the credential fallback for both unloaded execution and incomplete legacy snapshots. */
+function adminExecutionByok(config: typeof DEFAULT_EXECUTION_CONFIG | null) {
+  return config?.byok ?? DEFAULT_EXECUTION_CONFIG.byok;
 }

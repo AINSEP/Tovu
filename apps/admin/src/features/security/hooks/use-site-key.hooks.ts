@@ -72,10 +72,15 @@ export type SiteKeyGenerateFailure =
   | { kind: "already-exists" }
   | { kind: "generic"; detail: string };
 
+/** Keep the server's public detail when present, including an intentionally empty string. */
+function siteKeyGenerateDetail(error: ApiError, t: Translate): string {
+  return typeof error.body?.detail === "string" ? error.body.detail : describeApiError(error, t(UNKNOWN_ERROR));
+}
+
 export function classifySiteKeyGenerateError(e: unknown, t: Translate): SiteKeyGenerateFailure {
   if (!(e instanceof ApiError)) return { kind: "generic", detail: describeApiError(e, t(UNKNOWN_ERROR)) };
   const marker = e.code ?? e.message;
-  const detail = typeof e.body?.detail === "string" ? e.body.detail : describeApiError(e, t(UNKNOWN_ERROR));
+  const detail = siteKeyGenerateDetail(e, t);
   if (marker === "KEY_DEPENDENT_DATA" || marker === "KEY_MISMATCH") return { kind: "locked", code: marker, detail };
   if (marker === "KEY_INVALID" || marker === "SITE_META_UNREADABLE") return { kind: "refused", code: marker, detail };
   if (marker === "ALREADY_EXISTS") return { kind: "already-exists" };

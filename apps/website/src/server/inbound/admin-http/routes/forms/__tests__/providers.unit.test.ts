@@ -1,3 +1,4 @@
+import '#src/platform/site-dir/__tests__/helpers/isolated-catalog-home';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createFormCollectionRegistry } from '@jini-ai/cms/forms';

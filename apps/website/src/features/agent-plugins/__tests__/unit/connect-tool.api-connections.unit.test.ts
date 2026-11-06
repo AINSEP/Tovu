@@ -1,3 +1,4 @@
+import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import { mcpTestPort, credentialTestPort } from "../fixtures/connection-service-ports.js";
 import type { AgentPluginApiConnectionsPort } from "../../service-ports.js";
 import { runApiConnectionConnect, type ApiConnectionConnectDeps } from "../../../api-connections/connect.js";
@@ -46,6 +47,9 @@ function depsFor(apiConnections: ApiConnectionConnectDeps | undefined, waitTimeo
   return testSiteLayoutContext({
     workspaceId: WORKSPACE, clock: { nowMs: () => Date.now(), nowIso: () => new Date().toISOString() },
     mcp: mcpTestPort({ repo: new InMemoryExternalMcpServerRepo(), keyring, sealer: new AesGcmSecretSealer(keyring), clock: createSystemClock() }), credentials: credentialTestPort({}), authorize: async () => ({ allowed: true, reason: "test" }), ...(waitTimeoutMs === null ? {} : { pollIntervalMs: 5, waitTimeoutMs }),
+    // These API-flow fixtures resolve only these installed declarations; activation is explicit
+    // so the real connection host is reached without consulting an ambient plugin workspace.
+    isPluginEnabled: async (pluginId: string) => pluginId === PLUGIN || pluginId === "other-plugin",
     resolveInstalledPlugin: async () => ({ servers: {} }), ...(apiPort ? { apiConnections: apiPort } : {}),
   });
 }
@@ -167,7 +171,7 @@ test("a failed connected-card update never turns a real connection into a tool f
   assert.equal(cards.length, 2);
 });
 
-test("an abort before any card exists is harmless: the call still ends as waiting-for-sign-in", async () => {
+test("an abort during the initial status read rejects before emitting a sign-in card", async () => {
   const composition = await compose();
   const controller = new AbortController();
   const real = composition.apiConnections.host;
@@ -176,9 +180,11 @@ test("an abort before any card exists is harmless: the call still ends as waitin
     statusOf: (input: Parameters<typeof real.statusOf>[0]) => { controller.abort(); return real.statusOf(input); },
   });
   const cards: string[] = [];
-  const result = await runAgentPluginConnect({ routeDeps: depsFor({ host }), surfaces: surfaces(), ctx: ctxFor(controller.signal), pluginId: PLUGIN }, { emitSurface: async (emission) => void cards.push(htmlOf(emission)) });
-  assert.equal(result.status, "waiting-for-sign-in");
-  assert.equal(cards.length, 1, "the card is still shown once, then the aborted wait ends at once");
+  await assert.rejects(
+    runAgentPluginConnect({ routeDeps: depsFor({ host }), surfaces: surfaces(), ctx: ctxFor(controller.signal), pluginId: PLUGIN }, { emitSurface: async (emission) => void cards.push(htmlOf(emission)) }),
+    { name: "AbortError", message: "This operation was aborted" },
+  );
+  assert.deepEqual(cards, [], "an ended run must not open a new sign-in card");
 });
 
 /** A typed stand-in that delegates to `target` except for `overrides` (keeps class methods). */

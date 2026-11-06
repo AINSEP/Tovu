@@ -14,8 +14,8 @@ import { bootSite, expectJson, send, SITE_DIALECTS, type BootedSite } from "../h
  * Existing route tests use the hermetic root's in-memory form repos; `forms.journey.ts` (round 3)
  * drives the browser. Unproven over a real store until here: `fields` JSON round-tripping the
  * dialect, the `form_definitions` slug check (`repo.ts`), an anonymous submission landing in
- * `form_submissions` and listing for the admin, the duplicate collapse (no `_attempt` token: same
- * IP and body within the window, `submission-attempts.ts`), a disabled definition refusing
+ * `form_submissions` and listing for the admin, duplicate collapse for one explicit `_attempt`
+ * token and independent tokenless submissions (`submission-attempts.ts`), a disabled definition refusing
  * submissions, and submission delete.
  *
  * Public submissions are intentionally unauthenticated; these requests carry no cookie.
@@ -40,6 +40,8 @@ interface SubmissionDto {
   id: string;
   formDefinitionId: string;
   data: Record<string, unknown>;
+  schemaHash: string;
+  submittedAt: string;
 }
 
 async function createForm(site: BootedSite, slug: string): Promise<FormDto> {
@@ -87,13 +89,14 @@ for (const dialect of SITE_DIALECTS) {
     });
   });
 
-  test(`[unrun] forms [${dialect}]: an anonymous submission is accepted, stored with only declared keys, and listed for the admin; an identical resubmit collapses into one row`, async (t) => {
+  test(`[unrun] forms [${dialect}]: anonymous submissions store only declared keys; one attempt dedupes while tokenless identical answers remain independent`, async (t) => {
     const site = await bootSite(t, dialect);
     const form = await createForm(site, "unrun-signup");
     const answers = { name: "Zoë Ünrun <b>bold</b>", email: "zoe@example.test", subscribe: true };
+    const attempt = { ...answers, _attempt: "integration-signup-attempt" };
 
-    assert.deepEqual(await expectJson(await submitPublic(site, form.slug, answers), 201), { status: "accepted" });
-    assert.deepEqual(await expectJson(await submitPublic(site, form.slug, answers), 201), { status: "accepted" }, "a double submit still answers accepted");
+    assert.deepEqual(await expectJson(await submitPublic(site, form.slug, attempt), 201), { status: "accepted" });
+    assert.deepEqual(await expectJson(await submitPublic(site, form.slug, attempt), 201), { status: "accepted" }, "a double submit still answers accepted");
 
     const page = await submissions(site, form.id);
     assert.equal(page.data.length, 1, "the duplicate collapsed into the first row");
@@ -101,7 +104,27 @@ for (const dialect of SITE_DIALECTS) {
     assert.equal(page.data[0].formDefinitionId, form.id);
 
     const one = await expectJson<{ data: SubmissionDto }>(await send(site, "GET", `${site.ws}/forms/${form.id}/submissions/${page.data[0].id}`), 200);
-    assert.deepEqual(one.data, page.data[0]);
+    // SHA-256 of the fixed fields/consent schema, independently calculated with sorted JSON keys.
+    const schemaHash = "bb6f1e9807e64c433768326ea392b300bcd1344dc5027a95c696bdffcd70e3e0";
+    assert.equal(page.data[0].schemaHash, schemaHash);
+    assert.equal(new Date(page.data[0].submittedAt).toISOString(), page.data[0].submittedAt);
+    assert.deepEqual(one.data, {
+      ...page.data[0],
+      evidence: { version: 1, fields: FIELDS, consent: [{ fieldId: "subscribe", wording: "Subscribe" }],
+        schemaHash, capturedAt: page.data[0].submittedAt, source: "native" },
+      notificationDelivery: { failed: 0, pending: 0 },
+    }, "detail retains every listed field and adds the exact captured schema and delivery summary");
+    assert.doesNotMatch(JSON.stringify(one.data), /_attempt|integration-signup-attempt/, "attempt identity never enters the stored submission view");
+
+    // Shared-IP visitors and static/API callers have no unique page token; equal answers are valid.
+    for (let visitor = 0; visitor < 2; visitor++) {
+      assert.deepEqual(await expectJson(await submitPublic(site, form.slug, answers), 201), { status: "accepted" });
+    }
+    const independent = await submissions(site, form.id);
+    assert.equal(independent.data.length, 3, "the token attempt plus both tokenless visitors are retained");
+    assert.equal(new Set(independent.data.map(row => row.id)).size, 3);
+    assert.deepEqual(independent.data.map(row => row.data), [answers, answers, answers]);
+    assert.ok(independent.data.every(row => row.formDefinitionId === form.id));
   });
 
   test(`[unrun] forms [${dialect}]: validation failures are 400 with field errors and store nothing; the honeypot is accepted silently and stores nothing`, async (t) => {

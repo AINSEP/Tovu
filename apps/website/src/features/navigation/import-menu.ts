@@ -102,7 +102,8 @@ async function rebindLocation(
   workspaceId: UUID,
   menu: NavMenuEntry,
   locationKey: string,
-  now: string
+  now: string,
+  events: DomainEvent[],
 ): Promise<NavMenuEntry | null> {
   const existingBinding = await deps.bindingRepo.findByLocation({ workspaceId, locationKey });
   let displacedMenu: NavMenuEntry | null = null;
@@ -117,7 +118,7 @@ async function rebindLocation(
         version: displaced.version + 1,
       };
       await deps.repo.save(displacedMenu, { expectedVersion: displaced.version });
-      await deps.outbox.enqueue(
+      events.push(
         buildEvent(deps, NAV_LOCATION_UNASSIGNED_EVENT, workspaceId, displacedMenu.id, {
           locationKey,
           menuId: displacedMenu.id,
@@ -127,7 +128,7 @@ async function rebindLocation(
   }
 
   await deps.bindingRepo.upsert({ workspaceId, locationKey, menuId: menu.id, boundAt: now });
-  await deps.outbox.enqueue(
+  events.push(
     buildEvent(deps, NAV_LOCATION_ASSIGNED_EVENT, workspaceId, menu.id, { locationKey, menuId: menu.id })
   );
 
@@ -170,12 +171,12 @@ async function assertSlugAvailable({ deps, workspaceId, record, existing }: {
 }
 
 /** Rebinds every location `menu` claims, in order, returning each menu displaced on the way. @complexity O(k) repo calls. */
-async function rebindClaimedLocations({ deps, workspaceId, menu, now }: {
-  deps: ImportMenuEntityDeps; workspaceId: UUID; menu: NavMenuEntry; now: string;
+async function rebindClaimedLocations({ deps, workspaceId, menu, now, events }: {
+  deps: ImportMenuEntityDeps; workspaceId: UUID; menu: NavMenuEntry; now: string; events: DomainEvent[];
 }): Promise<NavMenuEntry[]> {
   const displacedMenus: NavMenuEntry[] = [];
   for (const locationKey of menu.locations) {
-    const displaced = await rebindLocation(deps, workspaceId, menu, locationKey, now);
+    const displaced = await rebindLocation(deps, workspaceId, menu, locationKey, now, events);
     if (displaced) displacedMenus.push(displaced);
   }
   return displacedMenus;
@@ -212,11 +213,14 @@ async function unbindDroppedLocations({ deps, workspaceId, menu, existing }: {
  * is one on the version just read, so a writer landing after a read loses nothing
  * (`MenuVersionConflictError`). Every write — the menu, displaced menus, bindings and events — runs in
  * ONE `repo.transaction`, so a displaced menu's conflict also rolls back the menu's own save.
+ * Events stay buffered until all menu and binding writes succeed, so an injected outbox never
+ * receives events for a partially applied import that a later location conflict rolls back.
  *
  * @complexity O(n) in the incoming tree size for `validateAndCloneTree`, plus O(k) location repo
  * calls where k = `record.locations.length` plus however many locations this update DROPS relative
  * to the destination's prior `locations` — both bounded by `DEFAULT_MAX_ITEM_COUNT`/registered-
- * location counts, never a user-scale collection.
+ * location counts, never a user-scale collection. O(n + k) temporary space for the cloned tree and
+ * at most 1 + 2k buffered events; no extra reads, writes or polling are added.
  */
 export async function importMenuEntity(required: {
   deps: ImportMenuEntityDeps;
@@ -240,15 +244,17 @@ export async function importMenuEntity(required: {
   };
 
   return deps.repo.transaction({ fn: async () => {
+    const events: DomainEvent[] = [];
     await deps.repo.save(menu, { expectedVersion: input.expectedVersion ?? null });
-    await deps.outbox.enqueue(
+    events.push(
       buildEvent(deps, existing ? NAV_MENU_UPDATED_EVENT : NAV_MENU_CREATED_EVENT, workspaceId, menu.id, {
         menuId: menu.id,
         slug: menu.slug,
       })
     );
-    const displacedMenus = await rebindClaimedLocations({ deps, workspaceId, menu, now });
+    const displacedMenus = await rebindClaimedLocations({ deps, workspaceId, menu, now, events });
     await unbindDroppedLocations({ deps, workspaceId, menu, existing });
+    for (const event of events) await deps.outbox.enqueue(event);
     return { menu, displacedMenus };
   } });
 }

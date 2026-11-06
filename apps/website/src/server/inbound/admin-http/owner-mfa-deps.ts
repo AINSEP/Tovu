@@ -17,13 +17,16 @@ export async function ownerMfaDepsFrom(
 ): Promise<OwnerMfaDeps> {
   await deps.identityReady;
   if (!deps.mfaStore) throw new Error('Owner authenticator storage is unavailable');
-  const secrets = () => {
+  const sealingPorts = () => {
     if (!deps.siteAssistantSecretSealer || !deps.siteAssistantSecretKeyring) {
       throw new Error('The site key is unavailable for owner authenticator verification');
     }
-    return createSealedMfaSecrets({ sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring }, {});
+    return { sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring };
   };
+  const secrets = createSealedMfaSecrets({
+    get sealer() { return sealingPorts().sealer; },
+    get keyring() { return sealingPorts().keyring; },
+  }, {});
   return { auth: identityServiceDepsFrom(deps), store: deps.mfaStore,
-    seededOwnerPrincipalId: await deps.ownerPrincipalId, totp: createOtplibTotp({}, {}),
-    secrets: { seal: input => secrets().seal(input), open: input => secrets().open(input) } };
+    seededOwnerPrincipalId: await deps.ownerPrincipalId, totp: createOtplibTotp({}, {}), secrets };
 }
