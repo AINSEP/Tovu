@@ -1,4 +1,5 @@
 import { createFormCollectionRegistry, type FormCollectionProvider, type FormCollectionRegistry } from "@jini-ai/cms/forms";
+import { leasedProviderItem, type LoadedProviderItem } from "@jini-ai/commerce/payments/kernel";
 import { createTracker, createTrackerWarning, createTelemetryTestProbe } from "@jini-ai/diagnostics/observability/node";
 import type { ConsentPluginContribution } from '#src/contracts/headless/index';
 import { createHash } from 'node:crypto';
@@ -54,7 +55,8 @@ export interface SiteIdentity {
  * traces metadata plus a `site:<slug>` tag.
  * @complexity O(1).
  */
-export function attributionFor({ contract, site }: { contract: ProviderContract; site: SiteIdentity }, { release = processBuildRelease({}) }: { release?: string } = {}): Readonly<Record<string, unknown>> {
+export function attributionFor({ contract, site }: { contract: ProviderSlotContract; site: SiteIdentity }, { release = processBuildRelease({}) }: { release?: string } = {}): Readonly<Record<string, unknown>> {
+  if (contract === "payments") return {};
   if (contract === "observability") {
     return { attributes: { "tovu.site.id": site.siteId, "tovu.site.slug": site.siteSlug, "deployment.environment": site.environment, "tovu.project.id": site.projectId, "service.version": release } };
   }
@@ -111,6 +113,8 @@ export interface ProviderPluginRuntime {
 
 export interface ProviderPluginPorts {
   readonly formCollectionProviders?: () => FormCollectionRegistry;
+  /** Current guarded payment leases from this same host; never initializes a second host. */
+  paymentProviders(required: Record<string, never>, optional?: Record<string, never>): readonly LoadedProviderItem[];
   readonly browserAnalytics?: (required: { surface: 'site' | 'admin' }) => readonly BrowserAnalyticsContribution[];
   /** Cookie-consent adapters of the attached analytics plugins, each mounted under `base/<pluginId>`. */
   readonly consentAdapters?: (required: { base: string }) => readonly ConsentPluginContribution[];
@@ -151,7 +155,8 @@ export interface BootProviderPluginsOptional {
   readonly info?: (message: string) => void;
 }
 
-type ProviderSlot = { pluginId: string; contract: ProviderContract; id: string;
+type ProviderSlotContract = ProviderContract | "payments";
+type ProviderSlot = { pluginId: string; contract: ProviderSlotContract; id: string;
   declaration: PluginProviderDeclaration; lease?: PluginProviderLease; retirement: AbortController; input?: string; initializationObserved?: boolean };
 /** An absent input is already inert; a configured input must also retain a current generation. */
 function unchangedSlot({ slot, signature }: { slot: ProviderSlot; signature: string | undefined }, _optional = {}): boolean {
@@ -172,7 +177,7 @@ function browserNeedsRestart({ slot, saved }: { slot: ProviderSlot; saved: Provi
     });
   } catch { return true; }
 }
-const KNOWN_CONTRACTS = new Set<string>(["observability", "product_analytics", "ai_trace", "form_collection"]);
+const KNOWN_CONTRACTS = new Set<string>(["observability", "product_analytics", "ai_trace", "form_collection", "payments"]);
 
 /** Each contract's inert behavior, used once a lease is retired. */
 const NOOP_PORTS: Readonly<Record<ProviderContract, () => object>> = {
@@ -304,6 +309,8 @@ function composePorts({ leases, consent, consentRevision, site, warn, product }:
   };
 }
 
+function isTelemetrySlot(slot: ProviderSlot): slot is ProviderSlot & { contract: ProviderContract } { return slot.contract !== 'payments'; }
+
 /**
  * Selects, loads and initializes provider plugins, then composes one port per contract.
  * @param required Plugin runtime, saved-settings source, service identity and the operator's telemetry consent.
@@ -316,14 +323,14 @@ export async function bootProviderPlugins(required: BootProviderPluginsRequired,
   const release = required.release ?? processBuildRelease({});
   const exportEnabled = resolveTovuObservabilityExport({ env: optional.env });
   // Factory options are host-owned; analytics and AI tracing retain their existing policies.
-  const exportOptions = (contract: ProviderContract) => contract === 'observability' ? { exportEnabled } : {};
+  const exportOptions = (contract: ProviderSlotContract) => contract === 'observability' ? { exportEnabled } : {};
   const warn = optional.warn ?? ((message: string) => console.warn(`[provider-plugins] ${message}`));
   const delivery = createTelemetryDeliveryMonitor({ warn });
   const testProbe = createTelemetryTestProbe({});
   const timeoutMs = optional.initializeTimeoutMs ?? 10_000;
   const slots: ProviderSlot[] = (await required.runtime.listProviderPlugins({})).flatMap(({ pluginId, providers }) =>
     providers.filter(declaration => KNOWN_CONTRACTS.has(declaration.contract)).map(declaration => ({ pluginId,
-      contract: declaration.contract as ProviderContract, id: declaration.id, declaration, retirement: new AbortController() })));
+      contract: declaration.contract as ProviderSlotContract, id: declaration.id, declaration, retirement: new AbortController() })));
   const loaded = new Set<string>();
   const host = createPluginProviderHost({ contributions: required.runtime.providerContributions, contracts: PROVIDER_CONTRACTS }, {
     initializeTimeoutMs: timeoutMs,
@@ -430,7 +437,7 @@ export async function bootProviderPlugins(required: BootProviderPluginsRequired,
     return recorded;
   }
   const leases = new Map<ProviderContract, unknown[]>();
-  for (const slot of slots) {
+  for (const slot of slots.filter(isTelemetrySlot)) {
     if (slot.contract === "observability" || slot.contract === "product_analytics") delivery.register({ providerId: `${slot.pluginId}/${slot.id}` });
     leases.set(slot.contract, [...(leases.get(slot.contract) ?? []), gatedPort({ slot, contract: slot.contract, testProbe })]);
   }
@@ -445,6 +452,11 @@ export async function bootProviderPlugins(required: BootProviderPluginsRequired,
   let disposal: Promise<void> | undefined;
   const formCollectionRegistry = formRegistryFor({ slots, testProbe });
   return { ...ports, formCollectionProviders: () => formCollectionRegistry,
+    paymentProviders: () => slots.flatMap(slot => {
+      if (slot.contract !== "payments" || !slot.lease?.isCurrent({})) return [];
+      const item = leasedProviderItem({ pluginId: slot.pluginId, lease: slot.lease });
+      return "problem" in item ? [] : [item];
+    }),
     telemetryStatus: () => delivery.read({}).map(status => ({ ...status,
       ...(slots.some(slot => slot.contract === 'observability' && `${slot.pluginId}/${slot.id}` === status.providerId) ? { exportEnabled } : {}),
     })),

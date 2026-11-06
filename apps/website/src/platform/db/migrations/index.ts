@@ -1,6 +1,7 @@
 import { ownerPasskeys } from './0041_owner_passkeys.js';
 import { ownerMfa } from './0040_owner_mfa.js';
 import { ownerRecoveryCodes } from './0039_owner_recovery_codes.js';
+import { commerceCatalog } from "./commerce/0000_catalog.js";
 import { newsletterSendingIndex } from "./0038_newsletter_sending_index.js";
 import { mediaSourceMetadata } from './0037_media_source_metadata.js';
 import { publishHistoryConfigJsonb } from "./0036_publish_history_config_jsonb.js";
@@ -65,6 +66,7 @@ import type { MigrationStep } from "./step.js";
  */
 
 export const CHAT_LEDGER_TABLE = "tovu_chat_migrations";
+export const COMMERCE_LEDGER_TABLE = "tovu_commerce_migrations";
 
 function pinned(id: string): string {
   const checksum = MIGRATION_CHECKSUMS[id];
@@ -132,6 +134,20 @@ export const PROJECT_MIGRATIONS: readonly MigrationStep[] = [
   projectCredentialKinds(pinned("project/0001_project_credential_kinds")),
   siteKeyAttachments({ checksum: pinned("project/0002_site_key_attachments") }),
 ];
+
+/** Opt-in history: dormant commerce never creates catalog tables at ordinary CMS boot. */
+export const COMMERCE_MIGRATIONS: readonly MigrationStep[] = [
+  commerceCatalog({ checksum: pinned("commerce/0000_catalog") }),
+];
+
+/** Apply the host catalog once on commerce activation; the shared runner serializes concurrent calls.
+ * @param required.kernel Content database kernel, already migrated through the core history.
+ * @returns Applied step ids and diagnostics; activation handles failures without stopping the CMS.
+ * @complexity One bounded schema step on first activation, one ledger read thereafter.
+ */
+export function migrateCommerceDatabase({ kernel }: { kernel: StorageKernel<unknown> }, _optional: Record<string, never> = {}): Promise<MigrationReport> {
+  return runMigrations(kernel, COMMERCE_MIGRATIONS, { ledgerTable: COMMERCE_LEDGER_TABLE });
+}
 
 /** Brings a project database (`project.db`, SQLite; see `project-store.ts`) to head. */
 export function migrateProjectDatabase(kernel: StorageKernel<unknown>): Promise<MigrationReport> {

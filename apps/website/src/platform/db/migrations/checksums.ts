@@ -63,4 +63,5 @@ export const MIGRATION_CHECKSUMS: Readonly<Record<string, string>> = {
   "0039_owner_recovery_codes": "6c639b1d746ab6aff9a18dc9ecbe2ec086e9e967acc1fe5bb704ec0d296f242f",
   "0040_owner_mfa": "069ad71da2b69d001c82446cdc56e5c105b4f59ce38a87814807a6c4c793bb29",
   "0041_owner_passkeys": "df042694218e9c1b82b69f5969c4fa63545d0e52511300f97326906d494ea20d",
+  "commerce/0000_catalog": "56fecf3aebb6e372ae017a51fb678c357bbe8ac2272f7da91768441c444330d6",
 };

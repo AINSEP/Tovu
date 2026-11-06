@@ -1,3 +1,4 @@
+import { createLipayFake } from "@jini-ai/commerce/payments/testkit";
 import assert from "node:assert/strict";
 import { createHash } from 'node:crypto';
 import { mkdtemp, writeFile, rm } from 'node:fs/promises';
@@ -278,11 +279,11 @@ test("unreadable saved settings are treated as not configured, with a warning na
 
 test("installed + enabled but unconfigured (or missing a required field): never loaded; contracts Tovu does not host are skipped", async () => {
   const calls: Calls = { inputs: [], disposed: 0 };
-  const { runtime, requested } = fakeRuntime({ installed: ["observability-opentelemetry", "payments-stripe"], factories: {
+  const { runtime, requested } = fakeRuntime({ installed: ["observability-opentelemetry", "unhosted-example"], factories: {
     "observability-opentelemetry": { contract: "observability", id: "opentelemetry", factory: fakeFactory({ calls, port: recordingObservability([]) }) },
-    "payments-stripe": { contract: "payments", id: "stripe", factory: fakeFactory({ calls, port: {} }) },
+    "unhosted-example": { contract: "unhosted", id: "example", factory: fakeFactory({ calls, port: {} }) },
   } });
-  const config = configOf({ "observability-opentelemetry": { settings: { endpoint: "  " }, secrets: { headers: "a=b" } }, "payments-stripe": { settings: {}, secrets: { apiKey: "sk" } } });
+  const config = configOf({ "observability-opentelemetry": { settings: { endpoint: "  " }, secrets: { headers: "a=b" } }, "unhosted-example": { settings: {}, secrets: { apiKey: "sk" } } });
   const ports = await bootProviderPlugins({ runtime, config, serviceName: "tovu", site: SITE, ...consentAlways }, { warn: quiet });
   assert.deepEqual(requested, []);
   assert.equal(isNoopObservabilityPort(ports.observability), false);
@@ -395,7 +396,7 @@ const HOSTILE = [undefined, null, [], {}, 0, Number.NaN, "", "  ", true, "port",
 for (const contract of PROVIDER_CONTRACTS) {
   test(`${contract.contract} validator refuses hostile values and accepts a full port`, () => {
     for (const value of HOSTILE) assert.equal(typeof contract.validate({ provider: value }), "string", `refused ${String(value)}`);
-    const full = contract.contract === "observability" ? createNoopObservabilityPort({}) : contract.contract === "product_analytics" ? { capture() {}, identify() {} } : { record() {} };
+    const full = contract.contract === "payments" ? createLipayFake({ now: () => 1000 }).provider : contract.contract === "observability" ? createNoopObservabilityPort({}) : contract.contract === "product_analytics" ? { capture() {}, identify() {} } : { record() {} };
     assert.equal(contract.validate({ provider: full }), undefined);
   });
 }
@@ -1001,4 +1002,22 @@ test('stateless form collection provider is trusted, selected and retired withou
   await providers.dispose({});
   assert.equal(calls.disposed, 1);
   delete SETTINGS['forms-example'];
+});
+
+test('payment providers use the shared host and disappear on detach', async () => {
+  const fake = createLipayFake({ now: () => 1000 });
+  const calls = { inputs: [], disposed: 0 } as Calls;
+  const { runtime } = fakeRuntime({ installed: ['payments-example'], factories: {
+    'payments-example': { contract: 'payments', id: fake.provider.id, factory: fakeFactory({ calls, port: fake.provider }) },
+  } });
+  const providers = await bootProviderPlugins({ runtime, config: configOf({ 'payments-example': { settings: {}, secrets: { apiKey: 'test-only' } } }), serviceName: 'tovu', site: SITE, ...consentAlways }, { warn: quiet });
+  try {
+    const current = providers.paymentProviders({});
+    assert.equal(current.length, 1);
+    assert.deepEqual(calls.inputs[0]?.attribution, {});
+    assert.equal(current[0]?.pluginId, 'payments-example');
+    assert.equal(current[0]?.module.id, fake.provider.id);
+    runtime.providerContributions.detach({ pluginId: 'payments-example' });
+    assert.deepEqual(providers.paymentProviders({}), []);
+  } finally { await providers.dispose({}); }
 });

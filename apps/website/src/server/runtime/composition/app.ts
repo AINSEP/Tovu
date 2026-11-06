@@ -1,5 +1,6 @@
 import { createFormAttachmentPurgeHooks, scheduleFormAttachmentCleanup } from "@jini-ai/cms/forms";
 import { statfs } from "node:fs/promises";
+import { registerCommerceHttp, registerCommerceWebhooks } from "./commerce-http.js";
 import { getExportRunSnapshot } from '../../../features/deployments/export-run.js';
 import { getPublishRunSnapshot } from '../../../features/deployments/static-publish/publish-run.js';
 import { createSiteIdlePark } from "../lifecycle/site-idle-park.js";
@@ -1972,6 +1973,7 @@ function applyPublicMiddleware(
   // base64 upload routes). See `inbound/shared/json-body-parsers.ts` for the limits and why.
   // Mail provider webhooks read RAW bytes (signatures), so they mount ahead of the JSON parser.
   if (routeDeps.mailFeedbackRoute) registerMailFeedbackRoute({ app, route: routeDeps.mailFeedbackRoute });
+  registerCommerceWebhooks({ app, deps: routeDeps });
   // The agent daemon's tool RPC (ADR-070) gates before parsing and parses its own body, so it mounts
   // ahead of the public parser. Its routes are added once the BYOK surface exists (`createApp`); they
   // carry full `/internal/...` paths, so this mounts at the root.
@@ -2480,8 +2482,9 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // other ADR-046 Phase 3 module calls above (`createUsersModule`); the original inline
   // unauthenticated `POST /workspaces` route that lived here has been removed (see the file header).
 
-  // Commerce remains off: no store, product or payment routes are mounted. Stored rows and
-  // namespace claims remain intact; retirement requires a separate migration decision.
+  // Commerce's plugin switch controls new purchases; its durable settlement drain remains available.
+  // Historical rows and namespace claims survive retirement independently of activation.
+  registerCommerceHttp({ app, deps: routeDeps });
 
   // Public comment submission (ADR-031 §4) — unauthenticated by design; must precede the site
   // `/:slug` catch-all, same reasoning as the store/analytics routes above.

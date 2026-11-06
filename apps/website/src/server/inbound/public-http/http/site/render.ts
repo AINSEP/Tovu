@@ -1,4 +1,5 @@
 import { renderFormCollection, type FormCollectionPlan } from "@jini-ai/cms/forms";
+import { formatMoney } from "@jini-ai/commerce/money";
 import type { SiteProduct, SiteRenderContext, MediaAssetRenderMeta } from "./render-context.js";
 import type { PluginExportRender } from "@jini-ai/cms/widgets/html";
 // Every module counts in fresh render workers; omit the rendering re-export wrapper.
@@ -1653,7 +1654,7 @@ function productEntryList(ctx: SiteRenderContext): string {
   const items = ctx.products
     .map((product, i) => {
       const folio = String(i + 1).padStart(2, "0");
-      const price = escapeHtml(formatCents(product.price));
+      const price = escapeHtml(formatProductMoney({ amount: product.price, currency: product.currency }));
       // `|| product.id`: defensive, not the normal path — every real `SiteProduct` source
       // (`storefront.ts`'s `toSiteProduct`, `store-plugin.ts`'s `listProducts`) always sets a real
       // `slug`. Falls back rather than crashing `escapeHtml` on a caller/test double built against
@@ -1675,7 +1676,7 @@ function productEntryList(ctx: SiteRenderContext): string {
  */
 function productEntryContent(ctx: SiteRenderContext): string {
   if (!ctx.product) return "";
-  const price = escapeHtml(formatCents(ctx.product.price));
+  const price = escapeHtml(formatProductMoney({ amount: ctx.product.price, currency: ctx.product.currency }));
   return `<div class="wrap"><a class="back" href="/products">← ${escapeHtml(ctx.siteTitle)}</a><article class="entry"><h1 class="entry-title">${escapeHtml(ctx.product.title)}</h1><p class="entry-meta">${price}</p></article></div>`;
 }
 
@@ -2855,10 +2856,10 @@ export function renderWidgetRegion(
  */
 export const RENDER_CTX_KEY = "__siteCtx";
 
-/** `2800` (cents) → `"$28.00"`. Neither tier's allowlist carries a currency filter/helper
- * (Shopify-specific in Liquid, nonexistent in Handlebars), so this is precomputed server-side. */
-function formatCents(cents: number): string {
-  return `$${(cents / 100).toFixed(2)}`;
+/** Currency formatting is shared with the catalog; old currency-less theme fixtures mean USD.
+ * @complexity O(1), with no I/O. */
+function formatProductMoney({ amount, currency }: { amount: number; currency?: string }): string {
+  return formatMoney({ money: { minorUnits: amount, currency: (currency ?? "USD").toUpperCase() } });
 }
 
 /**
@@ -2953,9 +2954,10 @@ function siteProductRenderShape(p: SiteProduct): Record<string, unknown> {
     slug: p.slug,
     title: p.title,
     price: p.price,
-    priceFormatted: formatCents(p.price),
+    ...(p.priceId === undefined ? {} : { priceId: p.priceId }),
+    priceFormatted: formatProductMoney({ amount: p.price, currency: p.currency }),
     stock: p.stock,
-    compareAtPriceFormatted: p.compareAtPrice === undefined ? undefined : formatCents(p.compareAtPrice),
+    compareAtPriceFormatted: p.compareAtPrice === undefined ? undefined : formatProductMoney({ amount: p.compareAtPrice, currency: p.currency }),
     currency: p.currency,
     specs: p.specs,
   };

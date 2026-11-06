@@ -7,7 +7,7 @@ import { test } from "node:test";
 import { stripComments } from "../../kernel/__tests__/raw-sqlite-scan.js";
 import { LEGACY_BASELINE_ID, legacyBaselineChecksum } from "../0000_legacy_baseline.js";
 import { MIGRATION_CHECKSUMS } from "../checksums.js";
-import { CHAT_MIGRATIONS, CONTENT_MIGRATIONS, PROJECT_MIGRATIONS } from "../index.js";
+import { CHAT_MIGRATIONS, COMMERCE_MIGRATIONS, CONTENT_MIGRATIONS, PROJECT_MIGRATIONS } from "../index.js";
 import { FROZEN_CHAIN, LEGACY_DRIZZLE_DIR } from "../legacy-sqlite.js";
 
 /**
@@ -33,7 +33,8 @@ const derive = (id: string) => (id === LEGACY_BASELINE_ID ? legacyBaselineChecks
 
 /** Every pinned history as `[pin key, step]`: content ids as they are, chat ids under `chat/`. */
 const PINNED = [...CONTENT_MIGRATIONS.map((step) => [step.id, step] as const), ...CHAT_MIGRATIONS.map((step) => [`chat/${step.id}`, step] as const),
-  ...PROJECT_MIGRATIONS.map((step) => [`project/${step.id}`, step] as const)];
+  ...PROJECT_MIGRATIONS.map((step) => [`project/${step.id}`, step] as const),
+  ...COMMERCE_MIGRATIONS.map((step) => [`commerce/${step.id}`, step] as const)];
 
 test("every step's pinned checksum matches its sources", () => {
   const unpinned = PINNED.map(([id]) => id).filter((id) => MIGRATION_CHECKSUMS[id] === undefined);

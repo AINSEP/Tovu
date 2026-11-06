@@ -10,7 +10,6 @@ import { FORM_FLASH_COOKIE_NAME } from "../../inbound/public-http/http/site/rend
 import { MEMBER_SESSION_COOKIE } from "../../inbound/public-http/routes/members/complete-sign-in.js";
 import { registerSiteRoutes } from "../../inbound/public-http/routes/site/pages.js";
 import { registerProductRoutes, type CommerceSiteAdapterDeps } from "../../inbound/public-http/routes/site/products.js";
-import { registerStoreRoutes } from "../../inbound/public-http/routes/site/store.js";
 import { createSeoModule } from "../../runtime/composition/modules/seo.js";
 import type { RouteDeps } from "../../routes/types.js";
 import { startTestServer } from "../helpers/http-test-server.js";
@@ -35,13 +34,14 @@ import { startTestServer } from "../helpers/http-test-server.js";
  * cookies/headers), not asserted from reading the source.
  */
 
-function buildPublicSiteApp(): { app: express.Express; deps: CommerceSiteAdapterDeps } {
-  const deps: CommerceSiteAdapterDeps = createRouteDeps();
+type CommerceSiteTestDeps = CommerceSiteAdapterDeps;
+
+function buildPublicSiteApp(): { app: express.Express; deps: CommerceSiteTestDeps } {
+  const deps: CommerceSiteTestDeps = createRouteDeps();
   const app = express();
   // Registration order matters — mirrors `app.ts`'s real order: SEO (sitemap/robots) and
   // store/products must precede `registerSiteRoutes`'s `/:slug` catch-all.
   createSeoModule(deps).registerRoutes?.(app);
-  registerStoreRoutes(app, deps);
   registerProductRoutes(app, deps);
   registerSiteRoutes(app, deps);
   return { app, deps };
@@ -146,72 +146,6 @@ test("A: GET /products (grid) and /products/:id (detail) — headers + cacheabil
   assert.equal(bodyA, bodyB, "product grid body must be identical regardless of cookie");
 });
 
-test("A: GET /store — plugin NOT wired (createRouteDeps()'s own default) — headers + cacheability", async (t) => {
-  const { app } = buildPublicSiteApp();
-  const baseUrl = await startTestServer(app, t);
-
-  const plain = await fetch(`${baseUrl}/store`);
-  logRow("GET /store (no store plugin)", summarizeCacheHeaders(plain), "deps.store unset — matches createRouteDeps()'s own default, and per its file header, only the real SQLite runtime ever wires it");
-  assert.equal(plain.headers.get("cache-control"), null, "Phase 2 explicitly excluded /store — it must NOT get a cache header (cacheable only by full URL including query, not by path alone)");
-  const bodyPlain = await plain.text();
-  const withMsg = await fetch(`${baseUrl}/store?msg=hello`);
-  const bodyMsg = await withMsg.text();
-  assert.equal(bodyPlain, bodyMsg, "with no store plugin wired, the early-return branch never reaches req.query.msg at all — body is identical regardless of query string in this state");
-});
-
-test("A: GET /store — plugin wired — query-string-dependent (not visitor-dependent) variance", async (t) => {
-  const deps: CommerceSiteAdapterDeps = createRouteDeps();
-  // Minimal fake matching RouteDeps' own `store?` shape (types.ts:518) — exercises the flash-message
-  // branch `req.query.msg` actually reads, which the no-plugin default above never reaches.
-  deps.store = {
-    listProducts: async () => [{ id: "p1", slug: "p1", title: "Test Widget", price: 500, stock: 3, version: 1 }],
-    checkout: async () => ({ ok: true, orderId: "o1", remainingStock: 2, retries: 0 }),
-  };
-  const app = express();
-  registerStoreRoutes(app, deps);
-  const t2 = t;
-  const baseUrl = await startTestServer(app, t2);
-
-  const plain = await fetch(`${baseUrl}/store`);
-  logRow("GET /store (plugin wired)", summarizeCacheHeaders(plain), "no ?msg=");
-  assert.equal(plain.headers.get("cache-control"), null, "Phase 2 explicitly excluded /store — left alone regardless of plugin state");
-  const withMsg = await fetch(`${baseUrl}/store?msg=hello`);
-  logRow("GET /store?msg=... (plugin wired)", summarizeCacheHeaders(withMsg), "flash message present");
-  assert.equal(withMsg.headers.get("cache-control"), null, "Phase 2 explicitly excluded /store, including the ?msg= variant");
-
-  const bodyPlain = await plain.text();
-  const bodyMsg = await withMsg.text();
-  assert.notEqual(bodyPlain, bodyMsg, "confirms /store's body DOES vary by query string (?msg=) when the plugin is active — cacheable only by full URL including query, not by path alone");
-
-  // Two requests with the SAME query string, different cookies, must still match — proves the
-  // variance is query-string-driven, not visitor-driven.
-  const withMsgOtherCookie = await fetch(`${baseUrl}/store?msg=hello`, { headers: { cookie: "visitor=2" } });
-  const bodyMsgOtherCookie = await withMsgOtherCookie.text();
-  assert.equal(bodyMsg, bodyMsgOtherCookie, "same query string, different cookie -> identical body (not visitor-dependent)");
-});
-
-test("A: GET /store/buy — MUST NEVER get a cache header of any kind (it's a GET that mutates)", async (t) => {
-  const deps: CommerceSiteAdapterDeps = createRouteDeps();
-  deps.store = {
-    listProducts: async () => [{ id: "p1", slug: "p1", title: "Test Widget", price: 500, stock: 3, version: 1 }],
-    checkout: async () => ({ ok: true, orderId: "o1", remainingStock: 2, retries: 0 }),
-  };
-  const app = express();
-  registerStoreRoutes(app, deps);
-  const baseUrl = await startTestServer(app, t);
-
-  // redirect: false so we can inspect the redirect response itself, not follow it.
-  const res = await fetch(`${baseUrl}/store/buy?productId=p1`, { redirect: "manual" });
-  assert.equal(res.status, 302);
-  assert.match(res.headers.get("location") ?? "", /^\/store\?msg=/);
-  logRow("GET /store/buy", summarizeCacheHeaders(res), `status=${res.status} (a redirect, per the handler's own res.redirect())`);
-  assert.equal(
-    res.headers.get("cache-control"),
-    null,
-    "Phase 2 explicitly forbids ANY cache header here — this GET mutates (stock decrement + order write); caching or a CDN/crawler prefetching it would be actively dangerous"
-  );
-});
-
 test("A: does the auto-generated ETag actually short-circuit a conditional GET today?", async (t) => {
   const { app } = buildPublicSiteApp();
   const baseUrl = await startTestServer(app, t);
@@ -234,7 +168,7 @@ test("A: does the auto-generated ETag actually short-circuit a conditional GET t
 
 test("A: GET /products/:id (detail)", async (t) => {
   const deps: CommerceSiteAdapterDeps = createRouteDeps();
-  deps.store = { listProducts: async () => [{ id: "p1", slug: "test-widget", title: "Test Widget", price: 500, stock: 3, version: 1 }], checkout: async () => ({ ok: true, orderId: "o1", remainingStock: 2, retries: 0 }) };
+  deps.commerceCatalog = { listProducts: async () => [{ id: "p1", slug: "test-widget", title: "Test Widget", price: 500, stock: 3, version: 1 }], findProduct: async () => ({ id: "p1", slug: "test-widget", title: "Test Widget", price: 500, stock: 3, version: 1 }) };
   const app = express();
   registerProductRoutes(app, deps);
   const baseUrl = await startTestServer(app, t);

@@ -1348,6 +1348,13 @@ export interface TrashDeps {
  * putting them in a sub-interface creates a circular type TypeScript rejects.
  */
 export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps & ContentTaxonomyDeps & CommentsDeps & MembersDeps & DatabaseRecoveryDeps & WebhooksDeps & FormsDeps & PostDeps & PresentationDeps & SettingsDeps & ChangeSetDeps & EventBusDeps & AnalyticsDeps & NavigationDeps & DatabaseOpsDeps & RedirectsDeps & WidgetsDeps & PluginRuntimeDeps & ObservabilityDeps & PublishTrustRevocationDeps & TrashDeps & {
+  /** Optional plugin-controlled purchase runtime. Member routes never select a merchant scope. */
+  commerce?: import("../runtime/composition/commerce.js").CommerceRuntime;
+  /** Bounded public catalog projection; absent while commerce is disabled or unavailable. */
+  commerceCatalog?: {
+    listProducts(required?: Record<string, never>, optional?: { readiness?: { active: boolean; ready: boolean } }): Promise<SiteProduct[]>;
+    findProduct?(required: { idOrSlug: string }, optional?: { readiness?: { active: boolean; ready: boolean } }): Promise<SiteProduct | null>;
+  };
   workspaceRepo: WorkspaceRepoPort;
   /**
    * Site search (`server/runtime/composition/modules/site-search.ts`): registry, query service and
