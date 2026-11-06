@@ -50,6 +50,16 @@ test('one owner card approves only its selected reference; metadata stays out of
   assert.equal((await f.vault.find({ workspaceId: 'project', id: 'key-a' }))?.revision, 1, 'owner entry is not rewritten');
 });
 
+test('the key dropdown opens on a plain prompt, never on a dash', async () => {
+  const f = await fixture();
+  await f.tool.handler(f.ctx, { emitSurface: async emission => {
+    const html = JSON.stringify(emission);
+    assert.doesNotMatch(html, /disabled>—</);
+    assert.match(html, /disabled>Choose a saved key or enter a new one</);
+    f.deliver({ [SURFACE_DISMISSED_PARAM]: true });
+  } });
+});
+
 test('cancel, expiry and forged site identity never create a grant', async () => {
   for (const answer of ['cancel', 'expiry', 'forged'] as const) {
     const f = await fixture();

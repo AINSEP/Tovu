@@ -1,6 +1,8 @@
+import { InfoTip } from "@jini-ai/ui/admin-widgets";
 import { interpolate, type Translate } from "@jini-ai/ui/panel-kit";
 import type { CredentialWarning } from "./hooks/site-transfer-dependencies.hooks";
 import { credentialFileCount } from "./hooks/use-share-credential-gate.hooks";
+import { SiteFlagIcon } from "./sites-visuals";
 
 /**
  * @file The credential warning copy and file list shared by the Export and Import tabs (owner,
@@ -36,13 +38,15 @@ export function CredentialWarningList({ warnings, t }: { warnings: readonly Cred
   );
 }
 
-/** The import's non-blocking notice: imports need no acknowledgement. */
-export function ImportCredentialNotice({ warnings, t }: { warnings: readonly CredentialWarning[] | undefined; t: Translate }) {
-  if (!warnings?.length) return null;
+/**
+ * Every export and import notice is a small yellow warning sign beside the row's status, never a box
+ * (owner, 2026-11-05). InfoTip is the shared hover, tap and keyboard tooltip. Renders nothing with no notices.
+ */
+export function TransferNoticeTip({ notices, t }: { notices: readonly string[]; t: Translate }) {
+  if (!notices.length) return null;
   return (
-    <div className="notice warning site-transfer-credentials" role="status">
-      <p>{credentialSummary({ subject: "import", warnings, t })}</p>
-      <CredentialWarningList warnings={warnings} t={t} />
-    </div>
+    <span className="site-transfer-notice-tip">
+      <InfoTip icon={<SiteFlagIcon />} triggerLabel={t("Warning")} label={notices.join("\n")} agentHandle={false} />
+    </span>
   );
 }

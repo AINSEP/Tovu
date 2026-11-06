@@ -282,4 +282,31 @@ for (const [locale, values] of Object.entries(CREDENTIAL_COPY)) {
   Object.assign(SITE_TRANSFER_DICT[locale], Object.fromEntries(CREDENTIAL_LABELS.map((key, index) => [key, values[index]!])));
 }
 
+// The notices' warning sign (owner, 2026-11-05).
+const WARNING_LABEL: Record<string, string> = {
+  ar: "تحذير",
+  bn: "সতর্কতা",
+  de: "Warnung",
+  es: "Advertencia",
+  fa: "هشدار",
+  fr: "Avertissement",
+  hi: "चेतावनी",
+  hu: "Figyelmeztetés",
+  id: "Peringatan",
+  it: "Avviso",
+  ja: "警告",
+  ko: "경고",
+  pl: "Ostrzeżenie",
+  "pt-BR": "Aviso",
+  ru: "Предупреждение",
+  th: "คำเตือน",
+  tr: "Uyarı",
+  uk: "Попередження",
+  ur: "انتباہ",
+  "zh-CN": "警告",
+  "zh-TW": "警告",
+};
+
+for (const [locale, value] of Object.entries(WARNING_LABEL)) SITE_TRANSFER_DICT[locale]!.Warning = value;
+
 export const t = createDictionaryTranslator({ featureDictionary: SITE_TRANSFER_DICT }, { commonDictionary: COMMON_I18N });

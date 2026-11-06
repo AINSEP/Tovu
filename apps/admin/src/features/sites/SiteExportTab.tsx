@@ -1,5 +1,5 @@
 import { StaticExportPicker } from "./StaticExportPicker";
-import { CredentialWarningList, credentialSummary } from "./CredentialWarnings";
+import { CredentialWarningList, TransferNoticeTip, credentialSummary } from "./CredentialWarnings";
 import type { CredentialGate } from "./hooks/use-share-credential-gate.hooks";
 import { DataTable } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/agentic";
@@ -44,7 +44,6 @@ export function SiteExportTab({ t, useExport = useWiredSiteExport }: SiteExportT
       </div>
       <ExportFailureNotice controller={controller} t={t} />
       {controller.passwordError ? <div className="notice error" role="alert">{controller.passwordError}</div> : null}
-      {controller.exportNotices?.map((notice, index) => <div className="notice" role="status" key={index}>{notice}</div>)}
       <ExportPassword controller={controller} t={t} />
       {controller.zipOnly ? (
         <div className="notice">{t("No link host is set up, so exports are zip downloads only. Set up storage to get a share link.")}</div>
@@ -89,6 +88,7 @@ function ExportList({ controller, t }: { controller: SiteExportController; t: Tr
       rowKey={(share) => share.shareId}
       label={t("Exports")}
       empty={<div className="sites-empty"><p className="sites-empty-lead">{t("No exports yet.")}</p></div>}
+      rowDetail={(share, index) => <ExportCredentialDetail share={share} index={index} controller={controller} t={t} />}
       columns={[
         { key: "date", header: t("Date"), cellClassName: "site-transfer-num", cell: (share) => formatTimestamp({ iso: share.createdAt }, { timeZone: "local" }) },
         { key: "size", header: t("Size"), cellClassName: "site-transfer-num", cell: (share) => formatTransferBytes(share.bytes) },
@@ -96,14 +96,9 @@ function ExportList({ controller, t }: { controller: SiteExportController; t: Tr
         {
           key: "status",
           header: t("Status"),
-          cell: (share, rowIndex) => {
+          cell: (share) => {
             const view = shareStatusView(share.status, t);
-            const gate = controller.credentialGate(share);
-            return <>
-              <span className={view.className}>{view.label}</span>
-              {gate ? <ExportCredentialNotice share={share} gate={gate} index={rowIndex} controller={controller} t={t} /> : null}
-              {controller.noticeShareId !== share.shareId ? siteShareNotices({ share }).map((notice, index) => <div className="notice" role="status" key={index}>{notice}</div>) : null}
-            </>;
+            return <span className="site-transfer-status"><span className={view.className}>{view.label}</span><TransferNoticeTip notices={exportRowNotices({ share, t })} t={t} /></span>;
           },
         },
         { key: "actions", headerLabel: t("Actions"), cell: (share, index) => <ShareActions share={share} index={index} controller={controller} t={t} /> },
@@ -112,24 +107,43 @@ function ExportList({ controller, t }: { controller: SiteExportController; t: Tr
   );
 }
 
-/** In the row, not a modal (owner, 2026-11-03): where credentials may be, and the one checkbox
- * that records "I understand" and then enables Download zip and Copy link. Deliberately carries no
- * agent handle: acknowledging is the user's own act. */
-function ExportCredentialNotice({ share, gate, index, controller, t }: { share: SiteShare; gate: CredentialGate; index: number; controller: SiteExportController; t: Translate }) {
-  const errorId = `sites-export-${index + 1}-credentials-error`;
+/** The row's warning sign: the export's own notices, plus where credentials may be. @complexity O(n) notices. */
+function exportRowNotices({ share, t }: { share: SiteShare; t: Translate }, _options = {}): readonly string[] {
+  const notices = siteShareNotices({ share });
+  if (!share.needsAcknowledgement && !share.credentialWarnings?.length) return notices;
+  return [...notices, credentialSummary({ subject: "export", warnings: share.credentialWarnings ?? [], t })];
+}
+
+/**
+ * The full-width line under an export with credential warnings: "Show files" has the row's whole
+ * width instead of the narrow Status column. The one checkbox records "I understand" and then enables
+ * Download zip and Copy link; deliberately no agent handle, acknowledging is the user's own act. The
+ * line stays once the checkbox has gone, so Revoke and "I understand" never move the rows below.
+ */
+function ExportCredentialDetail({ share, index, controller, t }: { share: SiteShare; index: number; controller: SiteExportController; t: Translate }) {
+  const gate = controller.credentialGate(share);
+  const warnings = gate?.warnings ?? share.credentialWarnings ?? [];
+  if (!gate && !warnings.length) return null;
   return (
-    <div className="notice warning site-transfer-credentials" role={gate.message ? "alert" : undefined}>
-      <p>{gate.message ?? credentialSummary({ subject: "export", warnings: gate.warnings, t })}</p>
-      <CredentialWarningList warnings={gate.warnings} t={t} />
-      <label>
-        <input type="checkbox" checked={gate.acknowledging} disabled={gate.acknowledging} aria-busy={gate.acknowledging}
-          aria-describedby={gate.error ? errorId : undefined}
-          onChange={event => { if (event.target.checked) void controller.acknowledge(share); }} />
-        {t("I understand this export may contain credentials")}
-      </label>
-      {gate.error ? <p className="field-error" id={errorId} role="alert">{gate.error}</p> : null}
+    <div className="site-transfer-detail" role={gate?.message ? "alert" : undefined}>
+      {gate?.message ? <p className="site-transfer-detail-message">{gate.message}</p> : null}
+      <CredentialWarningList warnings={warnings} t={t} />
+      {gate ? <ExportAcknowledge share={share} gate={gate} index={index} controller={controller} t={t} /> : null}
     </div>
   );
+}
+
+function ExportAcknowledge({ share, gate, index, controller, t }: { share: SiteShare; gate: CredentialGate; index: number; controller: SiteExportController; t: Translate }) {
+  const errorId = `sites-export-${index + 1}-credentials-error`;
+  return <>
+    <label className="site-transfer-acknowledge">
+      <input type="checkbox" checked={gate.acknowledging} disabled={gate.acknowledging} aria-busy={gate.acknowledging}
+        aria-describedby={gate.error ? errorId : undefined}
+        onChange={event => { if (event.target.checked) void controller.acknowledge(share); }} />
+      {t("I understand this export may contain credentials")}
+    </label>
+    {gate.error ? <p className="field-error" id={errorId} role="alert">{gate.error}</p> : null}
+  </>;
 }
 
 function ShareLinkCell({ share, t }: { share: SiteShare; t: Translate }) {

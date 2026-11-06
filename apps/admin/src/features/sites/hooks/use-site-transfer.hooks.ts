@@ -12,7 +12,6 @@ import { SHARE_LIMITS } from "@tovu/contracts/site-share-limits";
 import { useAdminBootScope } from "@/lib/admin-boot-scope";
 import {
   defaultSiteTransferPort,
-  siteShareNotices,
   type SiteImport,
   type SiteShare,
   type SiteShareCreateResult,
@@ -47,8 +46,6 @@ async function createShareUntilDone({ create, alive, initial = {} }: { create: S
 
 export interface SiteExportController extends StaticExportSelection {
   canManageSavedKeys: boolean;
-  exportNotices: readonly string[];
-  noticeShareId: string | null;
   revealedPassword: { shareId: string; password: string } | null;
   passwordError: string | null;
   revealingId: string | null;
@@ -168,8 +165,6 @@ export function useSiteExport(
   const scope = useAdminBootScope();
   const canManageSavedKeys = useSavedKeysAccess({ port, scope });
   const passwordDisplay = useExportPassword({ port, t, canManageSavedKeys, identity: scope.queryScope, clipboard });
-  const [exportNotices, setExportNotices] = useState<readonly string[]>([]);
-  const [noticeShareId, setNoticeShareId] = useState<string | null>(null);
   const list = useFetchQuery({ key: [...SITE_TRANSFER_KEYS.shares, scope.queryScope], fetch: () => port.listShares() }, { enabled: !scope.checking });
   const staticSelection = useStaticExportSelection({ port, t });
   const invalidate = useInvalidate();
@@ -190,9 +185,6 @@ export function useSiteExport(
   async function finishExport({ result, format }: { result: SiteShareCreateResult; format: "backup" | "static" }, _options = {}) {
     if (!alive.current) return;
     if (!isFinishedShare(result)) { setExportError(t("The export is taking too long. Try again later.")); return; }
-    // Completion notices must survive even when the following password request fails.
-    setExportNotices(siteShareNotices({ share: result }));
-    setNoticeShareId(result.shareId);
     if (format === "static") await credentials.downloadWhenAllowed(result);
     if (format === "backup" && result.hasEncryptedKeys) await passwordDisplay.revealPassword({ shareId: result.shareId });
   }
@@ -204,8 +196,6 @@ export function useSiteExport(
     setExportError(null);
     setExportFailure(null);
     passwordDisplay.hidePassword();
-    setExportNotices([]);
-    setNoticeShareId(null);
     try {
       const { create, initial } = selectExportRequest({ port, format, themeIds: [...staticSelection.selectedThemeIds] });
       const result = await createShareUntilDone({ create, alive: () => alive.current, initial });
@@ -251,8 +241,6 @@ export function useSiteExport(
   return {
     ...passwordDisplay,
     canManageSavedKeys,
-    exportNotices,
-    noticeShareId,
     ...staticSelection,
     shares,
     listError: list.error ? describeApiError(list.error, t("Couldn't load exports.")) : null,

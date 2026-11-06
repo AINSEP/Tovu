@@ -38,25 +38,38 @@
 .site-transfer-actions > .btn-danger,
 .site-transfer-actions > .btn-primary { display: inline-flex; align-items: center; gap: var(--space-2); white-space: nowrap; }
 
-/* Credential warnings (owner, 2026-11-03): in the export's Status cell or above an import, never a
-   modal. `.notice.warning` gives the tone and the checkbox label's layout; this keeps the notice
-   readable in a table cell and lets long paths wrap instead of widening the table. */
-.site-transfer-credentials { display: flex; flex-direction: column; gap: var(--space-2); min-inline-size: min(18rem, 100%); max-inline-size: 40rem; }
-.site-transfer-credentials > p { margin: 0; }
-.site-transfer-credentials > label { margin-top: 0; color: var(--fg); font-weight: 600; }
-.site-transfer-credentials input[type="checkbox"] { flex: none; accent-color: var(--accent); }
-.site-transfer-credentials .field-error { margin: 0; }
-.site-transfer-credential-files { color: var(--fg-2); }
+/* Notices (owner, 2026-11-05): a small yellow warning sign beside the status, the words in InfoTip. */
+.site-transfer-status { display: inline-flex; align-items: center; gap: var(--space-1); }
+.site-transfer-notice-tip .info-tip { margin-inline-start: 0; }
+.site-transfer-notice-tip .info-tip-icon--custom,
+.site-transfer-notice-tip .info-tip:hover .info-tip-icon--custom,
+.site-transfer-notice-tip .info-tip:focus-within .info-tip-icon--custom { color: var(--warning); }
+.site-transfer-notice-tip .info-tip-icon--custom:focus-visible { border-radius: var(--r-sm); }
+/* The tap target grows; the 18px sign does not. */
+@media (pointer: coarse) {
+  .site-transfer-notice-tip .info-tip-icon--custom { width: 44px; height: 44px; }
+}
+
+/* Credential warnings (owner, 2026-11-03): on their own full-width row under the export or import,
+   never a modal. The file list scrolls, so a large site cannot make the table thousands of px tall. */
+.list-table-detail > td { padding-block-start: 0; }
+.site-transfer-detail { display: flex; flex-wrap: wrap; align-items: flex-start; column-gap: var(--space-4); row-gap: var(--space-1); font-size: var(--text-sm); }
+.site-transfer-detail-message { flex-basis: 100%; margin: 0; color: var(--fg); }
+.site-transfer-detail .field-error { flex-basis: 100%; margin: 0; }
+.site-transfer-acknowledge { display: inline-flex; align-items: center; gap: var(--space-2); color: var(--fg); font-weight: 600; }
+.site-transfer-acknowledge input[type="checkbox"] { flex: none; accent-color: var(--accent); }
+.site-transfer-credential-files { color: var(--fg-2); min-inline-size: 0; }
+.site-transfer-credential-files[open] { flex-basis: 100%; order: 1; }
 .site-transfer-credential-files > summary { cursor: pointer; inline-size: fit-content; }
-.site-transfer-credential-files > ul { margin: var(--space-2) 0 0; padding-inline-start: var(--space-4); display: flex; flex-direction: column; gap: var(--space-1); }
+.site-transfer-credential-files > ul { margin: var(--space-2) 0 0; padding-inline-start: var(--space-4); display: flex; flex-direction: column; gap: var(--space-1); max-block-size: 16rem; overflow-y: auto; }
 .site-transfer-credential-files li { display: flex; flex-wrap: wrap; column-gap: var(--space-2); }
 .site-transfer-credential-path { font-family: var(--font-mono); font-size: 0.78rem; overflow-wrap: anywhere; min-inline-size: 0; }
 .site-transfer-credential-kind { color: var(--muted); }
 @media (pointer: coarse) {
-  .site-transfer-credentials > label { min-height: 44px; }
+  .site-transfer-acknowledge { min-height: 44px; }
   .site-transfer-credential-files > summary { min-height: 44px; display: flex; align-items: center; }
   /* The tab-wide 44px input rule would stretch the checkbox itself. */
-  .site-transfer .site-transfer-credentials input[type="checkbox"] { min-height: 0; }
+  .site-transfer .site-transfer-acknowledge input[type="checkbox"] { min-height: 0; }
 }
 
 /* The "or" between the link field and the drop zone: a quiet rule-and-word divider. */
