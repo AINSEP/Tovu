@@ -1,152 +1,170 @@
 # tests-tovu-apps
 
-Status: in progress. Started 2026-11-06 11:49 PST (19:49 UTC); hard cap 13:49 PST (21:49 UTC).
+Status: completed with the coverage and environment limits recorded below. All requested suites ran and all code fixes are pushed.
 
-## Revisions and scope
+## Revisions
 
-- Tovu branch `cloud/tests-tovu-apps`, frozen source revision `ddb41f38016f5c7ce0bfa1864117fb723b3bb3d1` (final publication revision pending).
-- Tovu base `b34b9cb7ada1783698eea8ec83bb3d6913fc63c4` (`origin/cloud/combine`).
-- Jini branch `cloud/tests-tovu-apps`, unchanged code revision `3a41ec5b678e7445dce1f23d5fe08735cdd4e2b8` (`origin/cloud/combine`); no Jini source changes or push needed.
-- Pushed Tovu checkpoints: `3497f4f58`, `5da64e73a`, `adaf83ea8`.
-- All logs are under `/workspace/work/tests-tovu-apps/`. All commands below source `/workspace/.tovu-build/env.sh`; commands use `/workspace/Tovu` unless stated otherwise.
-- No deployment, publication, main push, force push, threshold reduction, exclusion, skipped-test addition, timeout increase, or complexity-debt addition.
+- Tovu branch: `cloud/tests-tovu-apps`. Final tested source: `ddb41f38016f5c7ce0bfa1864117fb723b3bb3d1`, based on `origin/cloud/combine` at `b34b9cb7ada1783698eea8ec83bb3d6913fc63c4`. Subsequent commits update this report only.
+- Jini branch: `cloud/tests-tovu-apps`. Unchanged source: `3a41ec5b678e7445dce1f23d5fe08735cdd4e2b8`, the specified `origin/cloud/combine` base. No Jini source change or push was necessary.
+- Pushed Tovu checkpoints: `3497f4f58`, `5da64e73a`, `adaf83ea8`, `31631eda6`, `a08b2b10b`, `3f0a704fa`, `ddb41f380`, `ecdc1723b`; later report-only checkpoint SHAs appear in branch history and the final chat.
+- Started 2026-11-06 at 11:49 PST (19:49 UTC); hard cap 13:49 PST (21:49 UTC). Completed 2026-11-06 12:56 PST; within the two-hour cap.
+- Logs and retained raw coverage: `/workspace/work/tests-tovu-apps/`.
 
-## Setup
+## Full-suite results
 
-Refreshed the stale Jini dependency tree with a frozen install into a writable workspace store, then rebuilt from the specified base and relinked Tovu before trusting tests. Non-Jini installed Tovu dependencies match the base manifests.
+All commands first source `/workspace/.tovu-build/env.sh`. Working directory is `/workspace/Tovu` unless specified. Desktop uses the rootless tini subreaper shown in each command.
+
+| Suite | Exact command | Result | Evidence |
+| --- | --- | --- | --- |
+| Admin full tests and coverage | `npm --prefix apps/admin run test:cov -- --maxWorkers=2 --coverage.reporter=text --coverage.reporter=lcov --coverage.reporter=json-summary` | 883 files passed; 14,335 passed, 0 failed, 2 existing skips (14,337 total); exit 1 solely branch floor | `admin-coverage-final.log`, `.exit`, `-summary.json`, `-lcov.info` |
+| Admin typecheck | `npm --prefix apps/admin run typecheck` | PASS, exit 0 after all edits | `admin-typecheck-quality.log` (post-repair) |
+| Standalone site-chat | `npm --prefix apps/site-chat test` | 188 passed, 0 failed, 0 skipped; 17 suites; exit 0 | `site-chat-tests-1.log` |
+| Site-chat typecheck | `npm --prefix apps/site-chat run typecheck` | PASS, exit 0 | `site-chat-typecheck-1.log` |
+| Desktop tests | `/workspace/work/tests-tovu-apps/tini/root/usr/bin/tini -s -- npm --prefix apps/desktop test` | 3,048 total: 3,036 passed, 2 environment failures, 10 existing skips; exit 1 | `desktop-tests-final.log` |
+| Desktop gates | `/workspace/work/tests-tovu-apps/tini/root/usr/bin/tini -s -- npm --prefix apps/desktop run gates` | 4 passed, 2 failed: only tests and coverage, both blocked by Chromium; exit 1 | `desktop-gates-final.log` |
+| Desktop typecheck | `npm --prefix apps/desktop run typecheck` | PASS, all four tsconfigs; exit 0 | `desktop-typecheck-after.log` |
+| Desktop complexity, cwd apps/desktop | `node scripts/check-complexity.ts` | PASS: 251 files, 9/9 ceiling, 3 pre-existing grandfathered cases, 0 new; exit 0 | `desktop-complexity-after.log` |
+
+Desktop main: 2,191 total, 2,181 passed, 0 failed, 10 existing platform skips. Renderer/contracts: 857 total, 855 passed, 2 failed, no skips. Admin's two existing skips are the `panels-render.unit.test.tsx` `/media/new` context cases; none were added.
+
+### Admin coverage against unchanged 98% floors
+
+| Metric | Measured | Covered / total | Floor | Gap to floor |
+| --- | --- | --- | --- | --- |
+| Statements | 98.82% | 23,650 / 23,931 | 98% | 0.00 percentage points |
+| Branches | 97.78% | 15,867 / 16,227 | 98% | 0.22 percentage points |
+| Functions | 98.27% | 8,450 / 8,598 | 98% | 0.00 percentage points |
+| Lines | 99.13% | 19,573 / 19,743 | 98% | 0.00 percentage points |
+
+Percentages above use the tool's displayed precision. The exact branch deficit from raw counts is 394/1803 percentage points (approximately 0.21852468); the displayed deficit is 0.22 points. At the unchanged denominator, the floor requires 15,903 covered branches, so 36 additional covered branches are needed. Exit 1 is solely the branch floor; no tests failed. No floor was lowered and no coverage gap was chased. Final duration: 878.52s. Raw artifacts: `admin-coverage-final-summary.json`, `admin-coverage-final-lcov.info`.
+
+No coverage was chased. Include/exclude patterns, floors, test timeouts and quality rules were not reduced or bypassed.
+
+### Desktop coverage
+
+The unchanged Node lcov gate counts comments/blank lines differently from Vitest; these metrics are not directly comparable to admin. The browser suite failed before layout assertions, so this is a measured failing run, not a passing coverage gate. All configured area floors and inventory checks themselves passed.
+
+| Area | Lines / floor | Branches / floor | Functions / floor | Measured files |
+| --- | --- | --- | --- | --- |
+| Main process | 97.40% / 96% | 97.62% / 90% | 92.78% / 90% | 124/125 |
+| Renderer/contracts | 99.73% / 76% | 98.37% / 88% | 94.43% / 66% | 82/82 |
+| Renderer components | 99.68%, no floor | 97.13%, no floor | 97.74%, no floor | 22/23 |
+| bin | 100% / 85% | 100% / 80% | 100% / 62% | 1/1 |
+
+Source inventory: 232 files, zero violations. Existing declared unmeasured files: `src/speech/preload-speech.cts`, `src/renderer/main.tsx`. Per-file branch policy is advisory (`enforced:false`); its failures array is empty. Listed only:
+
+- `src/main/index.ts`: 1/5 branches = 20%, 60 percentage points below advisory 80%; composition-root Electron callbacks are not dynamically covered (0/109 functions).
+- `src/desktop-agent-service.ts`: 78/104 = 75%, 5 points below advisory 80%; native defaults, Windows normalization and lifecycle/control refusal/error/stale-ready arms are unexercised.
+- `src/desktop-mcp-http.ts`: 20/26 = 76.9231%, 3.0769 points below advisory 80%; runtime start, connect/abort races, optional/non-OK handoff and shutdown-disconnect arms are unexercised.
+
+These advisory gaps are independent of missing Chromium; no production bug was demonstrated and no debt entry was added. Retained `desktop-final-node.lcov`, `desktop-final-tsx.lcov` and `desktop-final-coverage-summary.{json,log}` were reconstructed with the unchanged coverage evaluators after preserving open read-only handles before the gate deleted temporary lcov.
+
+## Fixes and every changed test
+
+Paths below are relative to `apps/admin/`, except the three desktop paths. Existing tests that were updated were genuinely stale; the current source contracts and exact behavior assertions remain verified.
+
+| Changed test/support | Cause and resulting verification |
+| --- | --- |
+| `src/features/deployment/__tests__/StaticSiteTab.unit.test.tsx` | Secret controls intentionally became private. Retains exact row/Save handles; asserts input/toggle privacy and privacy after reveal. 105/105 focused tests passed. |
+| `src/components/__tests__/Select.unit.test.tsx` | Shared controls now generate default handles. Adds automatic trigger/search relationship coverage; retains absence checks through explicit `false`. Select + request-volume group: 59/59. |
+| `src/__measurements__/request-volume.measurement.test.tsx` | Form editor now discovers providers. Exact request multiset includes one `_providers` GET and the saved-form GET; duplicate/unexpected requests still fail. |
+| `src/features/library/__tests__/Library.unit.test.tsx` | Registry now returns Suspense plus the lazy Library owner. Verifies exact boundary, owner and `tabId` prop. |
+| `src/lib/__tests__/execution-settings.test.ts` | Required access-approver port was absent from fixture. Strict caller/tool assertions and six approval checks preserve real settings-write/reload/next-send assertions. Library + execution-settings: 180/180. |
+| `src/features/plugins/__tests__/plugin-provider-settings.unit.test.tsx` | Secret handles were deliberately removed. Tests camelCase normalization on non-secret `apiHost` and secret-only privacy marker. |
+| `src/features/settings/__tests__/external-mcp-agent-drive.unit.test.tsx` | Secret discovery/fill contract changed to undiscoverable/unaddressable. Exact no-published-element refusal, unchanged value, public-field discovery and hidden/revealed privacy retained. Plugin + MCP: 34/34. |
+| `src/admin-themes/__tests__/admin-themes.unit.test.ts` | Existing SeeMore import shifted indexes. Explicitly asserts it precedes the same bridge/Classic/Glass cascade and retains no-Default-stylesheet checks. |
+| `src/lib/__tests__/dictionary-lookup-sinks.unit.test.ts` | Guard falsely rejected Skills' valid initialization map. Exact owner initializer recognition, red-first regression and negative later/runtime access probes retain the guard. Dictionary/theme/Sites/Skills group: 179/179. |
+| `src/components/WidgetConfigFields/__tests__/MediaContentEditor.markup.unit.test.tsx` | Global absence assertion predated shared help/dialog default handles. Only the two named help controls and dialog close may be automatic; host controls still lack handles. Markup/behavior group: 53/53. |
+| `src/components/__tests__/agent-handle-batch1.unit.test.tsx` | Preserves original opt-out assertions with supported `false`; adds default InfoTip/SeeMore/ImagePreviewModal cases. 23/23. |
+| `src/components/__tests__/agent-handle-batch3.unit.test.tsx` | Retains absence on host inputs/actions and recognizes only the shared Select/dialog controls' default handles. 7/7. |
+| `src/features/auth/__tests__/OwnerRecoverySignIn.unit.test.tsx` | New rendered red-first regression proves recovery-code autocomplete remains `new-password` hidden and revealed. |
+| `src/features/security/__tests__/RecoveryCodesCard.unit.test.tsx` | New rendered regression verifies existing-password proof is `current-password`, while reset fields remain `new-password`, including reveal. |
+| `src/lib/__tests__/credential-input-autocomplete.unit.test.ts` | Guard predated the recovery-kit reauthentication field. Recognizes only exact file + literal proof id; negative other/conditional-id/missing/off/undefined probes remain. Recovery group: 35/35. |
+| `src/features/posts/__tests__/posts-i18n.unit.test.ts` | Creation moved from eager list action to first editor Save. The same two locale scenarios now verify actual Save failure, rejected payload/call count and retained typed title. 47/47; expanded Posts/Sites group: 294/294. |
+| `src/features/sites/__tests__/sites-i18n.unit.test.ts` | New literal German/Japanese/Arabic and English fallback check for localized ascending-name sort display. Sort behavior/key unchanged. |
+| `src/__tests__/unit/app-admin-assistant-dock-visibility.unit.test.tsx` | Preloads actual lazy editor as setup before timing containment. Same route/dock/CSS assertions, same timeouts. 4/4. |
+| `src/__tests__/unit/scroll-jump-layout-css.unit.test.ts` | Guard merged phone overrides into desktop rule. Separates base 32 px and phone 44 px centering and retains spacer/clearance assertions; adds phone case. 6/6; no CSS change. |
+| `src/features/consent/__tests__/consent-i18n.unit.test.tsx` | Tests demanded a deliberately retired dynamic-code control/help. All21 locale cases now render active translated rules and assert legacy values do not restore retired UI or emit changes. Same26 cases, all passed. |
+| `src/features/authentication/__tests__/Authentication.unit.test.tsx` | Awaits same real lazy registry screen/note. 5/5. |
+| `src/features/admin-ui/__tests__/redirects.unit.test.tsx` | Locale fixture supplies both real fallback hook names; preload/await actual lazy redirects. Same exact pathname/query/hash/history checks. 4/4. |
+| `__tests__/vitest-coverage-config.unit.test.ts` | Node config imports CLI/esbuild; jsdom's typed-array realm violated its invariant. Correct Node test environment executes all unchanged exact source scope/98% floors/reportOnFailure assertions. 1/1; no config change. |
+| `src/integrations/chart-providers/__tests__/recharts-bundle-integer-ticks.unit.test.ts` | Duplicate pin lagged already-reviewed 0.6.24 payload. Refreshes literal only; no approval or integrity changes. 13/13 chart tests and 7/7 authoritative digest tests. |
+| `src/lib/__tests__/credential-copy-card-frame.unit.test.ts` | Retired copy/upgrade fixture lacked current Shared Keys service. Approve/cancel scenarios use real in-memory service; assert grant/no-grant, unchanged vault, cleanup, one card, original compact metadata and executed 212 → 165 px shrink. 2/2 plus 6/6 current tool tests. |
+| `src/features/settings/__tests__/ExternalMcpSharedChoice.unit.test.tsx` | Adds two rendered Spanish regressions for translated choices/stopped/unavailable states; retains both English behavior tests. |
+| `src/components/__tests__/AdminFailureNotice.unit.test.tsx` | Adds real German incident dismissal regression; existing selectable/copyable failure behavior remains. |
+| `src/components/__tests__/shared-components-i18n.unit.test.ts` | Adds new Dismiss error key to existing 21-locale call-site inventory. Literal-copy group:119/119. |
+| `src/lib/__tests__/fixtures/admin-literal-copy.baseline.json` | Removes 29 obsolete allowances for already-translated Skills code:99 → 70 entries, zero additions; scanner unchanged. |
+| `apps/desktop/src/runner-ipc-stubs.test.ts` | Exact inventory omitted implemented Keep-running channel. Refreshes inventory; exact bidirectional drift checks retained. 8/8. |
+| `apps/desktop/src/renderer/app-render-harness.ts`, `App.render.test.ts` | Bridge fixture omitted supported `keepSiteRunning`, correctly taking failure path and preventing App tests from completing. Restores fixture method and adds exact `keep-running:a` call assertion; tab close/no-stop retained. App/start-panel 17/17; related main 160/160. |
+
+Production changes are limited to the recovery-code autocomplete fix, equivalent Warning dictionary assembly,21 localized ascending-name labels,12 localized UI strings across 21 locales, and translator wiring using existing owners. Media/WidgetPicker documentation now describes inherited shared-control handles. No new module, dependency, schema, provider behavior or state I/O was introduced. Four pre-existing asynchronous SharedChoice fallback messages remain untranslated; listed as a minor finding, not changed.
+
+## Setup and environment
+
+Rebuilt Jini and relinked Tovu before trusting any baseline. Commands from `/workspace/Jini`:
 
 ```bash
-# /workspace/Jini
 CI=true npm_config_cache=/workspace/.tovu-build/npm-cache pnpm install --frozen-lockfile --store-dir /workspace/.tovu-build/pnpm-store
 npm_config_cache=/workspace/.tovu-build/npm-cache pnpm --filter @jini-ai/core run build
 npm_config_cache=/workspace/.tovu-build/npm-cache pnpm --no-bail -r build
-# /workspace/Tovu
-npm --prefix packages/contracts run build
-npm --prefix packages/sdk run build
-JINI_PACKAGES_DIR=/workspace/Jini/packages npm run link:jini
-npm --prefix apps/desktop run build:preload
 ```
 
-All above commands exited 0. Logs: `jini-install-workspace.log`, `jini-core-build.log`, `jini-build.log`, `contracts-build.log`, `sdk-build.log`, `link-jini.log`, `desktop-preload-build.log`.
+Then from Tovu: `npm --prefix packages/contracts run build`, `npm --prefix packages/sdk run build`, `JINI_PACKAGES_DIR=/workspace/Jini/packages npm run link:jini`, `npm --prefix apps/desktop run build:preload`. All exited0; logs retain each operation.
 
-## Final suite results
+- Initial dependency links were stale; frozen install repaired them. Package caches were moved to writable workspace paths. No manifests/lockfiles changed.
+- Electron initially lacked its binary. Supported `electron/install.js` with workspace cache and package checksums repaired it; unchanged harness import passed.
+- Container PID1 left killed descendants as zombies. Signed Debian `tini` extracted under work provides a subreaper. Both unchanged POSIX escalation tests pass 2/2; final full main pass has zero failures.
+- Chromium headless shell revision 1228 is missing. Standard `PLAYWRIGHT_BROWSERS_PATH=/workspace/.tovu-build/playwright npm_config_cache=/workspace/.tovu-build/npm-cache ./node_modules/.bin/playwright install chromium` was denied 403 `Domain forbidden` at `cdn.playwright.dev`; no bypass or test change.
+- The two remaining desktop failures are `src/renderer/websites-width.test.ts`: “Websites fits at 375 px with every nav control and header action inside the page” and “narrow collapsed multi-tab content fills the dialog, and the desktop single-tab dialog uses its one column”. Both fail before assertions on browser launch.
+- Initial default-worker admin run exited 137 before summary (OOM). The first bounded full discovery run completed 883 files / 14,318 tests: 14,272 passed / 44 failed / 2 existing skips plus 2 obsolete fixture rejections. Source was changing during discovery, so cached transforms caused additional stale results. Artifacts are retained as `admin-coverage-round1.*`; final authoritative run uses the frozen source SHA above.
+- Pre-existing generated `Jini/packages/plugin-ui-ux-design/` becomes untracked on the combine base; left untouched and uncommitted.
 
-| Suite | Exact command | Result | Log |
-| --- | --- | --- | --- |
-| Standalone site-chat | `npm --prefix apps/site-chat test` | 188 passed, 0 failed, 0 skipped; 17 suites; exit 0 | `site-chat-tests-1.log` |
-| Site-chat typecheck | `npm --prefix apps/site-chat run typecheck` | exit 0 | `site-chat-typecheck-1.log` |
-| Admin typecheck | `npm --prefix apps/admin run typecheck` | exit 0 after all admin edits | `admin-typecheck-final.log` |
-| Admin full suite and coverage | `npm --prefix apps/admin run test:cov -- --maxWorkers=2 --coverage.reporter=text --coverage.reporter=lcov --coverage.reporter=json-summary` | running | `admin-coverage.log` |
-| Desktop gates | `/workspace/work/tests-tovu-apps/tini/root/usr/bin/tini -s -- npm --prefix apps/desktop run gates` | four gates passed, tests/coverage blocked by missing Chromium; direct final counts pending | `desktop-gates-final.log` |
+## Quality and review
 
-Admin coverage retains the full source include/exclude configuration and 98% floor on statements, branches, functions and lines. Exact measured totals and gaps pending; coverage is not being chased.
+Independent read-only diff review and a second review of the final guard refactor found no actionable issues; see `integrity-review.md` under the evidence directory. Parent also reviewed every change and verified zero added skip/only, eslint-disable or coverage-ignore markers.
 
-Initial default-worker admin run (`npm --prefix apps/admin test`, `admin-test.log`) exited 137 before its final summary. Cgroup memory events confirmed OOM; it produced no complete suite counts. The full retry bounds workers without changing tests, source scope, timeouts, or thresholds.
+Every changed admin file was linted with zero errors under its ordinary configuration; existing warnings were listed and not refactored. Strict complexity on all 10 changed admin production files exited0, with only the existing unused `t` assignment warning in `ExternalMcpSettingsPanel.tsx:162`. Exact command is in `admin-production-complexity-final.log` provenance:
 
-Initial desktop gates exited 1: tree-quiet, typecheck, complexity and JS-backslide passed; tests and coverage failed. Untruncated diagnostic runs found 2,191 main tests (2,177 passed, 4 failed, 10 existing skips) and 847 renderer/contracts tests (844 passed, 3 failed, 0 skipped). These are initial results, not final results.
+```bash
+./node_modules/.bin/eslint --rule 'complexity:[error,10]' --rule 'sonarjs/cognitive-complexity:[error,10]' \
+ apps/admin/src/components/AdminFailureNotice/AdminFailureNotice.tsx \
+ apps/admin/src/components/WidgetConfigFields/MediaContentEditor.tsx \
+ apps/admin/src/components/WidgetPickerDialog/WidgetPickerDialog.tsx \
+ apps/admin/src/components/shared-components-i18n.ts \
+ apps/admin/src/features/auth/OwnerRecoverySignIn.tsx \
+ apps/admin/src/features/settings/ExternalMcpSettingsPanel.tsx \
+ apps/admin/src/features/settings/ExternalMcpSharedChoice.tsx \
+ apps/admin/src/features/settings/external-mcp-i18n.ts \
+ apps/admin/src/features/sites/site-transfer-i18n.ts \
+ apps/admin/src/features/sites/sites-i18n.ts
+```
 
-## Fixes and every test changed
+Architecture audit: existing Jini service/translator owners reused; Tovu retains product copy/wiring. Public package boundaries, schemas and dependency directions unchanged. State cost: zero added requests, polls, writes or subscriptions; parent translator passed through, pre-auth notice reads document locale. Changes add no unbounded I/O or resource use. Function-quality review: locale/copy wiring is O(1) per render; static dictionary assembly is bounded by existing locale/key data; diagnostic collection is linear in token and output text. Existing in-memory test seams are reused; no new domain algorithm or unbounded I/O.
 
-| Changed file | Cause and preserved verification |
-| --- | --- |
-| `apps/admin/src/features/deployment/__tests__/StaticSiteTab.unit.test.tsx` | Secret controls intentionally stopped publishing agent handles. Retains exact row/Save handles, asserts token/toggle privacy, and checks privacy persists after reveal. 105/105 passed. |
-| `apps/admin/src/components/__tests__/Select.unit.test.tsx` | Shared controls now publish stable automatic handles by default. Adds the automatic-handle/search relationship test and retains the original absence check through the supported explicit `false` opt-out. |
-| `apps/admin/src/__measurements__/request-volume.measurement.test.tsx` | Form editor now discovers providers on mount. Exact request multiset now includes its one `_providers` GET and the existing form GET; duplicates/unexpected requests still fail. Select + request-volume: 59/59 passed. |
-| `apps/admin/src/features/library/__tests__/Library.unit.test.tsx` | Routes now use Suspense and lazy page owners. Verifies the actual boundary, exact lazy Library owner, and unchanged `tabId` prop. |
-| `apps/admin/src/lib/__tests__/execution-settings.test.ts` | Integration fixture omitted the required access-approver port. Supplies a strict caller/tool assertion and asserts six checks across three fresh cards; retains real settings write, reload and next-send assertions. Library + execution-settings: 180/180 passed. |
-| `apps/admin/src/features/plugins/__tests__/plugin-provider-settings.unit.test.tsx` | Secret field handles are intentionally suppressed. Keeps camelCase handle normalization coverage on a non-secret `apiHost` field and asserts the secret has only the private marker. |
-| `apps/admin/src/features/settings/__tests__/external-mcp-agent-drive.unit.test.tsx` | Secret inputs are now undiscoverable and unaddressable. Retains discovery of public fields; asserts secret existence, exact no-published-element fill refusal, unchanged empty value, and privacy hidden/revealed. Plugin + MCP: 34/34 passed. |
-| `apps/admin/src/admin-themes/__tests__/admin-themes.unit.test.ts` | Existing SeeMore stylesheet shifted import positions. Asserts its explicit position followed by the same bridge/Classic/Glass cascade; retains the no-Default-stylesheets checks. |
-| `apps/admin/src/lib/__tests__/dictionary-lookup-sinks.unit.test.ts` | Guard falsely rejected Skills' valid module initialization map. Extends existing exact initializer recognition for that owner; a new regression test was observed red first and verifies subsequent/runtime accesses are still rejected. No blanket exemption or debt entry. |
-| `apps/admin/src/features/sites/site-transfer-i18n.ts` | Warning copy used direct property mutation outside the guard's supported initialization syntax. One equivalent `Object.assign` statement reuses the file's existing assembly idiom. No translation, runtime request or state cost changes. Dictionary/theme/Sites/Skills group: 179/179 passed. |
-| `apps/desktop/src/runner-ipc-stubs.test.ts` | Exact channel inventory omitted the already implemented Keep-running handler. Adds that real channel to the implemented inventory; drift assertions remain exact. 8/8 passed. |
-| `apps/desktop/src/renderer/app-render-harness.ts` and `App.render.test.ts` | Shared bridge fixture omitted supported `keepSiteRunning`, so a close-tab test correctly hit the unavailable-connection path and failed with a large DOM assertion. Adds the real bridge capability and exact `keep-running:a` call assertion; tab-close/no-stop checks retained. App/start-panel: 17/17 passed. |
+The final autocomplete diagnostic repair preserves exact messages and priority: 468 individual combinations and 303 aggregate diagnostics are identical. Its changed helpers have cyclomatic/cognitive complexity 6/4, 8/5 and 5/5. The pre-existing parser scanner remains 31/37; strict test-file lint still flags that untouched helper, explicitly listed rather than broadly refactored. The complete guard file passed 22/22 tests and post-repair typecheck passed. The repair changed no test count or production coverage scope.
 
-Production edits also correct recovery-code autocomplete and localize the existing alphabetical-sort label; no state I/O or sorting behavior changes. All other edits are tests/support or this report. Nine test cases were added across default handles, dictionary/recovery regressions and sort copy; none were deleted or newly skipped.
-
-## Environment findings and repairs
-
-- Electron binary initially absent. Installed with the package's existing checksum-verifying installer using `electron_config_cache=/workspace/.tovu-build/electron-cache`. Affected main group including harness import and project lifecycle passed 160/160 afterward. Logs: `electron-install-workspace.log`, worker's affected-main log.
-- Container PID 1 did not reap killed descendants; two unchanged POSIX tests saw zombies as live PIDs. A rootless `tini` from the signed Debian package provides a proper subreaper. The unchanged two-test group passed 2/2 under it (`desktop-process-reaping-after.log`). Final desktop validation uses that environment.
-- Playwright Chromium absent. Standard install (`PLAYWRIGHT_BROWSERS_PATH=/workspace/.tovu-build/playwright npm_config_cache=/workspace/.tovu-build/npm-cache ./node_modules/.bin/playwright install chromium`) was blocked at `cdn.playwright.dev` with HTTP 403 `Domain forbidden`. No test changes or network-policy bypass. Two desktop browser-layout tests require that executable.
-- Initial missing dependency/build failures were repaired through the frozen install; missing package manager cache writes were moved to workspace paths.
-
-## Quality and integrity
-
-- Fresh admin typecheck passed after the last source edit. Desktop full typecheck/complexity final results pending.
-- Every changed admin file was linted: zero errors. Existing warnings in measurement/theming/dictionary-checker/Library code are listed rather than refactored. No eslint-disable was added.
-- Strict complexity on the changed production source: `./node_modules/.bin/eslint --rule 'complexity:[error,10]' --rule 'sonarjs/cognitive-complexity:[error,10]' apps/admin/src/features/sites/site-transfer-i18n.ts` — exit 0 (`admin-source-complexity.log`).
-- Architecture review: no package boundary/import/public API/schema change; generic behavior remains in Jini, product copy remains in Tovu. No state I/O added.
-- Diff integrity reviewed: stronger/current-contract assertions; no scope/threshold/suppression changes. Final `git diff --check` pending.
-- A pre-existing generated `packages/plugin-ui-ux-design/` directory becomes untracked on the Jini combine base; left untouched and not committed.
+Integrity: no test deletion, new skip/only, eslint-disable, coverage ignore, reduced scope/floor, inflated timeout or debt addition. Thirteen cases were added (default handles/dictionary/recovery/sort/phone/UI regressions); other scenario counts were retained. The Node test environment correction applies to a Node configuration test, not production coverage scope. Final `git diff --check`: PASS.
 
 ## Bugs found
 
-- Fixed: stale admin assertions conflicted with intentional secret privacy, automatic handles, provider discovery and lazy route contracts.
-- Fixed: execution-settings test fixture lacked the required access-approver dependency.
-- Fixed: dictionary guard falsely rejected valid Skills owner initialization; narrow recognition and negative probes added.
-- Fixed: desktop channel inventory and renderer bridge fixture omitted the implemented Keep-running capability.
-- Environment repaired: missing Electron binary.
-- Environment repaired: descendant zombies caused by a container without a child-process reaper.
-- Environment open: Chromium download blocked by network policy; browser layout tests cannot launch.
-- Open: final coverage floor results and any remaining test failures pending.
-
-## Second fix round — in progress
-
-- MediaContentEditor markup test: retains exact absence on host controls, while identifying only the two shared help controls and dialog close as automatically addressable; markup/behavior group 53/53 passed. Its source documentation now describes that inherited shared-control behavior.
-- agent-handle-batch1: retains zero-markup assertions with the supported explicit false opt-out, adds default-handle cases for InfoTip, SeeMore and ImagePreviewModal; 23/23 passed.
-- OwnerRecoverySignIn: real recovery-code input incorrectly used autocomplete=off, ignored on password inputs. New rendered hidden/revealed regression observed red first; production attribute changed to new-password.
-- RecoveryCodesCard test and credential-input-autocomplete guard: current-owner-password reauthentication legitimately uses current-password. Recognizes only that exact file/id, rejecting other/new/conditional ids and missing/off/undefined values. Rendered current-proof/new-reset checks added. Recovery group 35/35 passed.
-- Dock visibility test now awaits the real lazy PostEditor import before asserting the same preview/dock containment; focused result pending.
-- Posts localization test moves the unchanged pair of create-failure scenarios from the retired eager list-create path to real first Save in the unsaved editor; verifies rejected create call/payload and retained title. 47/47 passed; expanded related tests pending.
-- Sites sort copy: existing A-Z key was untranslated in 21 locales. Only its values now read localized Name (A–Z), preserving lookup key, ascending indicator and sort behavior. Literal German/Japanese/Arabic/English assertions added; full untranslated-copy scanner unchanged.
-
-Bugs found in this round:
-- Fixed: recovery-code password input used autocomplete=off.
-- Fixed: all 21 translated site-sort labels were copied from the English key.
-- Fixed: stale shared-control default-handle tests and recovery-proof classification.
-- Fixed: Posts test exercised an impossible eager list-create failure after creation moved to first editor Save.
-- Pending verification: dock test assumed its lazy editor module was already loaded.
-
-## Discovery run complete; final verification pending
-
-The first bounded full admin coverage run completed in 1122.71s: 883 files (864 passed, 19 failed), 14,318 tests (14,272 passed, 44 failed, 2 existing skips), plus two obsolete Shared Keys fixture errors. This was a discovery run during fixes; Vite reused older source transforms for some newly edited tests. It is not the final tree's verification. Artifacts are preserved as admin-coverage-round1.log/-summary.json/-lcov.info.
-
-Measured in that run: statements 98.82% (23646/23926), branches 97.76% (15864/16227), functions 98.30% (8451/8597), lines 99.14% (19570/19739). Branches were 0.24 percentage points below the 98% floor; other axes exceeded it. No coverage chasing or floor changes.
-
-Further fixes verified:
-- Widget picker/default-handle batch 3 retains absence on native host controls and precisely recognizes only shared Select/dialog default handles; 7/7 passed. Source changes only correct inherited-behavior documentation.
-- Scroll CSS test previously merged responsive phone rules into the desktop assertion. Separates base32px and phone44px centering, retains all existing clearance checks; 6/6 passed (one new phone regression). No CSS changed.
-- Consent i18n tests expected a deliberately retired dynamic-code control. The 21 locale cases now render active translated rules and verify a legacy saved value cannot restore the retired control/help or emit changes; 26/26 retained and passed.
-- Authentication and Admin UI redirect tests now await actual lazy registry screens. Redirect locale fixture supplies both real fallback hook names; exact URL/query/hash/history assertions retained. 5/5 and4/4 passed.
-- Dock test preloads its real lazy editor as test setup before timing containment interaction; all4 cases passed with original timeouts.
-- Chart test pin was stale0.6.23; it now matches already-approved0.6.24.13/13 chart tests and7/7 authoritative source/digest approval tests passed; no approval change.
-- Compact credential-card test was exercising a retired copy/upgrade flow. Its2 scenarios now verify real Shared Keys approve/cancel grants, unchanged vault, cleanup, exact frame metadata and executed212→165px shrink.2/2 and6/6 current tool behavior tests passed.
-- Coverage configuration test imports NodeCLI/esbuild and failed under jsdom's typed-array realm. Correct Node test environment now executes the unchanged exact source-denominator/98%-floor/reportOnFailure assertions;1/1 passed. No coverage configuration changed.
-- Literal-copy scanner exposed11 untranslated shared-connection UI strings and Dismiss error. Reuses parent translator and document locale without extra reads; all21 locales translated.3 rendered regressions added, dictionary call-site inventory strengthened, and29 already-resolved Skills baseline allowances removed (none added).119/119 focused tests, typecheck and strict10complexity passed. Four pre-existing async fallback messages remain untranslated as a minor finding outside the scanner failure; not changed.
-
-Desktop final verification: tini-wrapped npm test completed3048 tests:3036 passed,2 missing-Chromium failures,10 existing platform skips. Main2191=2181passed+0failed+10skipped; renderer857=855passed+2failed. Final gates4pass/2fail solely tests+coverage browser failures. All area floors/inventory pass; advisory unenforced80% per-file branch gaps are20%(1/5) main/index,75%(78/104) desktop-agent-service,76.9231%(20/26) desktop-mcp-http. Listed only. Full command/evidence in desktop-final-handoff.md under work.
-
-Bugs found in this round:
-- Fixed: shared connection controls and incident dismissal lacked localization.
-- Fixed: locale call-site inventory and29 stale literal-copy baseline allowances omitted completed work.
-- Fixed: obsolete credential copy/upgrade fixture did not exercise current Shared Keys grants.
-- Fixed: stale chart version pin disagreed with existing approved bundle.
-- Fixed: Node configuration test incorrectly ran in jsdom.
-- Fixed: lazy Authentication/redirect/dock readiness fixtures and retired Consent expectations.
-- Fixed: scroll CSS guard mixed phone and desktop rule contexts.
-- Minor open: four existing asynchronous SharedChoice fallback messages remain untranslated.
-
-## Frozen final verification checkpoint — 12:32 PST
-
-Final full admin coverage is running on frozen source `a08b2b10be7fd5c699618136ec1a09ce7fecda86`, without reported failures so far. Fresh final admin typecheck and strict complexity across all10 changed production paths passed (zero errors; one unchanged unused-variable warning). Independent read-only integrity review found no actionable findings. All32 changed test/support/baseline paths appear in the final report draft. Automated diff checks found zero new skip/only, eslint-disable or coverage-ignore markers. No coverage configuration, package manifest, lockfile or desktop gate/floor configuration changed. Only report edits follow the frozen source commit.
-
-## Full green tests and final quality repair — in progress
-
-The frozen run on source a08b2b10b completed883/883 passing files:14,335 passed,0failed,2existing skips (14,337total), no unhandled errors,885.88s. Exit1 solely because branch coverage97.75%(15863/16227) is below98%; reaching the floor would require40more covered branches. Other metrics: statements98.82%(23650/23931),functions98.27%(8450/8598),lines99.13%(19573/19743). No coverage chasing. This evidence is retained as round2 artifacts.
-
-A final strict metric audit found the edited autocomplete diagnostic helper rose from pre-existing cyclomatic12 to14. After the run completed, its local presence and password-policy checks were separated without changing any diagnostic, priority or input order. Changed helpers now have cyclomatic/cognitive6/4,8/5,5/5. Independent review found no policy weakening;468input combinations and303aggregate diagnostics compare identically. The complete guard file passed22/22 tests and post-repair admin typecheck passed. Ordinary lint has zero errors; strict10/10 still reports only its untouched legacy parser scanner31/37, recorded as an existing test-helper limitation rather than broadly refactored. One last frozen full admin run follows this test-only quality repair.
-
-## Last frozen pass checkpoint — 12:49 PST
-
-Final code `ddb41f38016f5c7ce0bfa1864117fb723b3bb3d1` is pushed. Its complete admin coverage pass continues without reported test failures; no source/test changes are being made. Post-quality typecheck and the22-test guard suite passed. Independent final helper review and the468-case diagnostic equivalence probe passed. Only final summary/coverage values and final report publication remain.
+- Fixed: recovery-code password input used browser-ignored autocomplete=off.
+- Fixed: 21 site-sort display labels were copied untranslated from English.
+- Fixed: 11 shared-connection UI strings and incident dismissal lacked locale wiring/data.
+- Fixed: stale fixtures/expectations for secret privacy, automatic handles, provider discovery, required approver checks and lazy route readiness.
+- Fixed: dictionary guard rejected valid owner-local Skills initialization; exact negative runtime-bypass checks now accompany recognition.
+- Fixed: obsolete literal-copy allowances hid already-resolved Skills work; 29 allowances removed.
+- Fixed: Consent tests demanded intentionally retired unsafe-eval UI.
+- Fixed: Posts create-failure tests drove a retired eager-create action.
+- Fixed: credential compact-frame test drove retired copy/upgrade screens rather than current reference grants.
+- Fixed: chart test pin lagged existing approved bundle and prevented 13 cases loading.
+- Fixed: coverage config test used an incompatible browser realm for Node CLI code.
+- Fixed: scroll CSS test conflated desktop and responsive phone declarations.
+- Fixed: desktop IPC inventory/renderer fixture omitted supported Keep-running capability.
+- Environment repaired: Electron binary missing; descendant zombies from absent child reaper.
+- Environment open: Chromium download denied; two desktop layout tests remain unverified.
+- Coverage open: admin branches 97.78% versus 98% (0.22 displayed percentage points; 36 additional covered branches at the same denominator).
+- Minor open: three advisory desktop per-file branch gaps described above.
+- Minor open: four existing async SharedChoice fallback messages remain untranslated.
+- Minor open: desktop gate truncates child output to 2,000 characters; direct runs preserved exact summaries.
+- Minor open: unchanged legacy credential AST scanner complexity 31/37, plus existing dictionary scanner/helper complexity warnings; no new debt or suppression.
+- Minor open: existing lint warnings in untouched test/helper code and settings translator assignment; no unrelated refactor performed.
