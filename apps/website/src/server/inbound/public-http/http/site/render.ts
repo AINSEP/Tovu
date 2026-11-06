@@ -3343,7 +3343,7 @@ ${assets.body}
  *  {@link renderSite}'s own complexity, no change to the accepted call shape (an inline object type
  *  and a structurally-identical named interface are the same type to every existing caller). */
 export interface RenderSiteRequired {
-  renderAssets?: (required: { scripts: readonly DeclaredScript[] }) => Promise<DocumentAssets>;
+  renderAssets?: (required: { scripts: readonly DeclaredScript[]; static?: true }) => Promise<DocumentAssets>;
   transformBody?: (required: { html: string }) => Promise<string>;
   scripts?: readonly DeclaredScript[];
   /**
@@ -3525,17 +3525,19 @@ function fallbackSiteBody(ctx: SiteRenderContext, route: SiteRenderContext["rout
  * either (this was a live bug: a static-tier home page never showed the widget even with
  * `site.assistant.public_enabled` on, since `pageShell`'s own injection never ran for this branch).
  */
-function renderStaticTierHomePage(
+async function renderStaticTierHomePage(
   theme: DiscoveredTheme,
   route: SiteRenderContext["route"],
   staticMenus: RenderSiteRequired["staticMenus"],
   extraHead: string | undefined,
-  siteAssistantEnabled: SiteChatSelection
-): string | undefined {
+  siteAssistantEnabled: SiteChatSelection,
+  renderAssets: RenderSiteRequired['renderAssets']
+): Promise<string | undefined> {
   if (theme.manifest.tier !== "static" || route !== "home") return undefined;
   const staticHtml = renderStaticPage({ theme, pageId: "index", menus: staticMenus });
   if (!staticHtml) return undefined;
-  return injectSiteAssistantIntoStaticPage(injectExtraHeadIntoStaticPage(staticHtml, extraHead), siteAssistantEnabled);
+  const assets = await renderAssets?.({ scripts: [], static: true });
+  return injectSiteAssistantIntoStaticPage(injectExtraHeadIntoStaticPage(staticHtml, (extraHead ?? '') + (assets?.head ?? '')), siteAssistantEnabled);
 }
 
 /** Templated (LiquidJS) tier body — resolves the route to a `.liquid` template, renders it inside its
@@ -3612,12 +3614,13 @@ export async function renderSite(required: RenderSiteRequired): Promise<string> 
     return finishManagedDocument({ required, title, body });
   }
 
-  const staticHomePage = renderStaticTierHomePage(
+  const staticHomePage = await renderStaticTierHomePage(
     theme,
     route,
     required.staticMenus,
     required.extraHead,
-    required.siteAssistantEnabled ?? false
+    required.siteAssistantEnabled ?? false,
+    required.renderAssets
   );
   if (staticHomePage !== undefined) return staticHomePage;
 

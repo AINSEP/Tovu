@@ -4,6 +4,8 @@ import test from 'node:test';
 import { createRouteDeps } from '../app.js';
 import { startTestServer } from '#src/server/__tests__/helpers/http-test-server';
 import { consentFixture } from '#src/features/consent/__tests__/fixture';
+import { renderSite } from '#src/server/inbound/public-http/http/site/render';
+import { siteConsentDocumentAssets } from '#src/server/inbound/public-http/middleware/site-cookie-consent';
 
 /**
  * @file The assistant's own-site screenshots render through `routeDeps.createSiteApp({ consentAudit })`,
@@ -14,9 +16,9 @@ import { consentFixture } from '#src/features/consent/__tests__/fixture';
 
 async function homeHtml(t: test.TestContext, optional: { consentAudit?: true }, { publishConsent = true, themeId = 'none', removeTag = false, oldTag = false, inspect }: { publishConsent?: boolean; themeId?: string; removeTag?: boolean; oldTag?: boolean; inspect?: (baseUrl: string, deps: ReturnType<typeof createRouteDeps>) => Promise<void> } = {}): Promise<string> {
   const deps = createRouteDeps();
-  if (removeTag) deps.themes = deps.themes.map(theme => ({ ...theme, pages: Object.fromEntries(Object.entries(theme.pages).map(([id, html]) => [id, html.replace('<script src="/_consent/load.js" defer data-jini-consent-loader></script>', '')])) }));
+  if (removeTag) deps.themes = deps.themes.map(theme => ({ ...theme, pages: Object.fromEntries(Object.entries(theme.pages).map(([id, html]) => [id, html.replace('<script src="/_consent/load.js" defer data-jini-consent-loader></script>', '').replace('</body>', '<script>window.authoredConsentProbe=1;</script></body>')])) }));
   if (oldTag) deps.themes = deps.themes.map(theme => ({ ...theme, pages: Object.fromEntries(Object.entries(theme.pages).map(([id, html]) => [id, html.replace('</head>', '<script src="/_consent/load.js" defer data-jini-consent-loader></script></head>')])) }));
-  // The renderer owns the unstyled page shell. An authored static theme owns its document bytes.
+  // The renderer owns the unstyled shell; static themes receive only a conditional loader.
   deps.presentationRepo.findByWorkspaceId = async () => ({ workspaceId: deps.workspaceId, activeThemeId: themeId, updatedAt: '2026-11-05T00:00:00.000Z' });
   // The in-memory root has no attached banner plugin; the site composition supplies this port.
   deps.cookieConsent = { regionResolvers: async () => [] };
@@ -51,13 +53,19 @@ test('a screenshot site app (consentAudit) renders the same page without the coo
 
 for (const themeId of ['tovu-theme', 'tovu-starter']) {
   test(`${themeId}: the server adds consent to an existing static copy without an authored tag`, async t => {
-    const html = await homeHtml(t, {}, { themeId, removeTag: true, inspect: async baseUrl => {
+    const html = await homeHtml(t, {}, { themeId, removeTag: true, inspect: async (baseUrl, deps) => {
       for (const page of ['/about', '/missing-page']) {
         const response = await fetch(baseUrl + page);
-        assert.match(await response.text(), /src="\/_consent\/load\.js"/);
+        const body = await response.text();
+        assert.match(body, /src="\/_consent\/load\.js"/);
+        assert.ok(body.includes('<script>window.authoredConsentProbe=1;</script>'), 'authored scripts retain their bytes');
       }
+      const alternateHome = await renderSite({ theme: deps.themes.find(theme => theme.manifest.id === themeId)!, route: 'home', siteTitle: 'Static home', posts: [],
+        renderAssets: input => siteConsentDocumentAssets({ deps, request: {} as import('express').Request, ...input }) });
+      assert.equal((alternateHome.match(/src="\/_consent\/load\.js"/g) ?? []).length, 1, 'the standalone home renderer also adds one loader');
     } });
     assert.equal((html.match(/src="\/_consent\/load\.js"/g) ?? []).length, 1);
+    assert.doesNotMatch(html, /id="jini-consent-config"/, 'the static document carries only the loader');
   });
   test(`${themeId}: consent off adds no loader to a static page`, async t => {
     assert.doesNotMatch(await homeHtml(t, {}, { themeId, publishConsent: false }), /_consent\/|data-jini-consent/);
