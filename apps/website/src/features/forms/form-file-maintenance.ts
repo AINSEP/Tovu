@@ -133,9 +133,13 @@ async function storedPageReferences({ read, keys }: { read: (offset: number) => 
   for (let offset = 0; ; offset += 100) {
     const rows = await read(offset);
     for (const row of rows) {
-      if (row.json && retainedJsonReferencesAttachment({ json: row.json, keys })) return true;
-      if (row.first && retainedJsonReferencesAttachment({ json: row.first, keys })) return true;
+      if (storedRowReferences({ ...row, keys })) return true;
     }
     if (rows.length < 100) return false;
   }
+}
+
+/** Inspect both stored JSON columns; absent/empty columns carry no reference. Corrupt JSON throws. */
+function storedRowReferences({ json, first, keys }: { json: string | null; first?: string | null; keys: string[] }): boolean {
+  return [json, first].some(value => Boolean(value && retainedJsonReferencesAttachment({ json: value, keys })));
 }
