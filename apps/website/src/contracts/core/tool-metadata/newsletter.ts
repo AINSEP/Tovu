@@ -34,6 +34,7 @@ export const toolMetadata = {
       keywords: "email campaign newsletter blast send announcement compose draft write create new",
       queries: [
         "Can you draft a new email newsletter?",
+        "Draft an announcement newsletter about a menu, product, or event update.",
         "How do I start a new campaign — will it send automatically?",
         "I want to create a newsletter draft I can edit later.",
         "Can you set up a new campaign in draft status?",
