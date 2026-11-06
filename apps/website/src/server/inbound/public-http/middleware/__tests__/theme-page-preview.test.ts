@@ -74,6 +74,15 @@ test("static page route: a real page renders with Cache-Control: no-store, no se
   assert.match(await res.text(), /<html/i);
 });
 
+test("static preview routes run a theme's scripts apart from the site's own origin", async (t) => {
+  const { baseUrl } = await bootSite(t);
+  for (const url of ["/theme-explore/tovu-starter/index", "/theme-explore/tovu-starter/partial/nav"]) {
+    const res = await fetch(baseUrl + url);
+    assert.equal(res.status, 200, url);
+    assert.equal(res.headers.get("content-security-policy"), "sandbox allow-scripts allow-forms", url);
+  }
+});
+
 test("static page route: unknown theme, unknown page and a non-static theme are each refused with their own message", async (t) => {
   const { baseUrl } = await bootSite(t);
 

@@ -190,7 +190,7 @@ test("v2 tree, one public media copy per item, no secrets and full content round
 // import quarantined it and fell back to the starter theme.
 test("a theme named overrides and the site's theme overrides both round-trip without colliding", async t => {
   const theme = '{"id":"overrides","name":"Overrides","version":"1.0.0","tier":"static"}';
-  const h = await fixture(t, { activeThemeId: "static/overrides", siteFiles: {
+  const h = await fixture(t, { activeThemeId: "overrides", siteFiles: {
     "themes/static/overrides/theme.json": theme,
     "themes/static/overrides/index.html": "<main>overrides theme</main>",
     "themes/static/overrides/tokens.json": "{}",
@@ -211,7 +211,7 @@ test("a theme named overrides and the site's theme overrides both round-trip wit
   assert.equal(fs.readFileSync(path.join(dir, ".import-quarantine/overrides/custom.css"), "utf8"), "body{color:red}");
   const restored = new Database(path.join(dir, "content.db"), { readonly: true });
   try {
-    assert.deepEqual(restored.prepare("SELECT active_theme_id FROM presentation_settings").all(), [{ active_theme_id: "static/overrides" }]);
+    assert.deepEqual(restored.prepare("SELECT active_theme_id FROM presentation_settings").all(), [{ active_theme_id: readTemplate({ templateId: "starter" }).seed.presentation.activeThemeId }], "the imported theme stays installed but off");
   } finally { restored.close(); }
 });
 
