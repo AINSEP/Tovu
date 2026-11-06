@@ -343,8 +343,9 @@ for (const separatelyConfigured of [false, true]) test(`a signed-in connection r
     await saveExternalMcpServer({ repo: ctx.deps.mcp.repo as InMemoryExternalMcpServerRepo, sealer: new AesGcmSecretSealer(keyring), keyring, clock: ctx.deps.clock }, {
       workspaceId: ctx.deps.workspaceId, serverId: 'media', label: 'media-fixture · media', transport: 'streamable_http', authMode: 'oauth', enabled: false,
       command: '', url: 'https://mcp.media.example/mcp', args: '', allowedToolNames: '', writeAllowedToolNames: '', oauth: { grant: 'authorization_code' },
-      principalId: 'operator', provisionedByPluginId: separatelyConfigured ? null : 'media-fixture' });
+      principalId: 'operator', provisionedByPluginId: separatelyConfigured ? undefined : 'media-fixture' });
     const signedOut = await ctx.deps.mcp.repo.findByServerId({ workspaceId: ctx.deps.workspaceId, serverId: 'media' });
+    assert.equal(signedOut?.provisionedByPluginId, separatelyConfigured ? null : 'media-fixture');
     await ctx.deps.mcp.repo.upsert({ ...signedOut!, oauthStatus: 'connected' });
     await agentPluginActivations.setAgentPluginActivation({ workspaceRoot, pluginId: 'media-fixture', enabled: true, actor: 'operator' });
 

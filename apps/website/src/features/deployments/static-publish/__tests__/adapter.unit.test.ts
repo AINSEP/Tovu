@@ -927,6 +927,5 @@ test('publishStaticSite carries the export cookie preferences warning through a 
     config: { target: 'vercel' }, projectName: 'fixture',
   });
   assert.equal(result.ok, true);
-  if (result.ok === false) throw new Error('fixture publish failed');
   assert.equal(result.consentWarning, consentWarning);
 });
