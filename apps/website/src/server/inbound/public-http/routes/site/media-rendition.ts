@@ -48,9 +48,9 @@ const PRIVATE_NO_STORE = "private, no-store";
 /** Replacement preserves ids and authored URLs, including their old source-hash query.
  *  Current and retired slugs can also resolve to changed bytes after replacement or name reuse.
  *  These routes always resolve the live source rather than a historical content snapshot, so
- *  even a matching `v` cannot promise immutable bytes. Require validation before every reuse;
+ *  even a matching `v` cannot promise immutable bytes. Limit reuse to sixty seconds;
  *  the existing ETag lets an unchanged asset return 304. Never used for a gated outcome. */
-const REVALIDATING_PUBLIC = "public, no-cache";
+const REVALIDATING_PUBLIC = "public, max-age=60";
 
 /**
  * The ONE writer for every 404 either public media route emits.
@@ -136,7 +136,7 @@ const READABLE_BODY_FORMATS: ReadonlySet<string> = new Set(["doc", "html"]);
  *  three call sites that ask this question (live-referrer candidacy, the public-referrer shortcut,
  *  and opaque-body classification) share one definition of "gated" instead of three inline
  *  `resolvePostMemberAccess(...).visibility` reads that could drift apart. */
-function isGatedEntry(entry: PostRecord): boolean {
+function isGatedEntry(entry: Pick<PostRecord, "memberAccessJson">): boolean {
   return resolvePostMemberAccess(entry.memberAccessJson).visibility !== "public";
 }
 
@@ -252,8 +252,8 @@ function classifyEntry(entry: PostRecord, aliases: ReadonlySet<string>, savedWid
 
 /** The outcome of one full pass over the workspace's entries for a single asset. */
 interface AssetReferenceScan {
-  readonly referencing: PostRecord[];
-  readonly opaqueGated: PostRecord[];
+  readonly referencing: Array<Pick<PostRecord, "memberAccessJson">>;
+  readonly opaqueGated: Array<Pick<PostRecord, "memberAccessJson">>;
 }
 
 /**
@@ -281,9 +281,29 @@ async function scanEntriesForAsset(
   const entries = await deps.postRepo.list({ workspaceId: deps.workspaceId });
   const savedWidgets = await loadSavedWidgetConfigs(deps, entries);
   const classified = entries.map((entry) => ({ entry, relation: classifyEntry(entry, aliases, savedWidgets) }));
-  const pick = (want: EntryRelation): PostRecord[] =>
-    classified.filter((candidate) => candidate.relation === want).map((candidate) => candidate.entry);
+  const pick = (want: EntryRelation): Array<Pick<PostRecord, "memberAccessJson">> =>
+    classified.filter((candidate) => candidate.relation === want).map(({ entry }) => ({ memberAccessJson: entry.memberAccessJson }));
   return { referencing: pick("referrer"), opaqueGated: pick("opaque") };
+}
+
+// Cache only the access settings, never entry bodies or a visitor's entitlement decision.
+const assetReferenceScans = new WeakMap<MediaRenditionRouteDeps['postRepo'], Map<string, { expiresAt: number; value: Promise<AssetReferenceScan> }>>();
+
+/** One shared scan per asset per sixty seconds; at most 256 assets per repository stay resident.
+ * Failed reads are not retained. Session checks below still run for every gated request.
+ * @complexity O(p) on a miss; O(a) for the asset's aliases on a hit. */
+async function cachedAssetReferences(deps: MediaRenditionRouteDeps, aliases: ReadonlySet<string>): Promise<AssetReferenceScan> {
+  let cache = assetReferenceScans.get(deps.postRepo);
+  if (!cache) { cache = new Map(); assetReferenceScans.set(deps.postRepo, cache); }
+  const key = JSON.stringify([deps.workspaceId, ...[...aliases].sort()]);
+  const now = deps.clock.nowMs();
+  const cached = cache.get(key);
+  if (cached && cached.expiresAt > now) return cached.value;
+  if (cache.size >= 256) cache.delete(cache.keys().next().value!);
+  const value = scanEntriesForAsset(deps, aliases);
+  cache.set(key, { expiresAt: now + 60_000, value });
+  try { return await value; }
+  catch (error) { cache.delete(key); throw error; }
 }
 
 type SavedWidgetRow = Awaited<ReturnType<NonNullable<MediaRenditionRouteDeps["entryRepo"]>["listByWorkspace"]>>[number];
@@ -440,7 +460,7 @@ async function resolveMediaAccessDecision(
   const { aliases, media } = await resolveAssetAliases(deps, assetId);
   // Documents and submitted files are private even when their id/slug is guessed or embedded in published content.
   if (media?.kind === "document" || media?.source.private) return { gated: true, allowed: false, record: media };
-  const { referencing, opaqueGated } = await scanEntriesForAsset(deps, aliases);
+  const { referencing, opaqueGated } = await cachedAssetReferences(deps, aliases);
   if (referencing.some((entry) => !isGatedEntry(entry))) {
     return { gated: false, allowed: true, record: media };
   }
@@ -478,6 +498,40 @@ function readRenditionRouteParams(req: Request): { assetId: string; transformSpe
   };
 }
 
+/** Source and stored rendition identities identify the deterministic served representation,
+ * including SVG sanitization, without reloading bytes for a conditional request. */
+async function publicRenditionTag({ deps, media, transformName, version }: {
+  deps: MediaRenditionRouteDeps; media: MediaRecord | null; transformName: string; version: number;
+}): Promise<string | null> {
+  if (!media || media.status !== 'active') return null;
+  const input = { workspaceId: deps.workspaceId, assetId: media.id, transformName, version };
+  if (!await deps.transformDefinitionRepo.findByNameVersion({ workspaceId: deps.workspaceId, name: transformName, version })) return null;
+  const stored = await deps.assetRenditionRepo.findOne(input);
+  if (!stored && media.source.contentType !== 'image/svg+xml') return null;
+  const identity = JSON.stringify([media.source.sha256, transformName, version, stored?.storageKey ?? 'svg']);
+  return `"${createHash('sha256').update(identity).digest('hex')}"`;
+}
+
+/** GET validators use weak comparison and accept a list or wildcard, as If-None-Match requires. */
+function matchesRenditionTag(req: Request, etag: string): boolean {
+  return String(req.headers['if-none-match'] ?? '').split(',').some(value => {
+    const candidate = value.trim();
+    return candidate === '*' || candidate.replace(/^W\//, '') === etag.replace(/^W\//, '');
+  });
+}
+
+/** Access is resolved before validators: a gated request can never reuse public evidence. */
+async function sendNotModifiedRendition({ deps, req, res, access, transformName, version }: {
+  deps: MediaRenditionRouteDeps; req: Request; res: Response;
+  access: { gated: boolean; record: MediaRecord | null }; transformName: string; version: number;
+}): Promise<boolean> {
+  if (access.gated || !req.headers['if-none-match']) return false;
+  const etag = await publicRenditionTag({ deps, media: access.record, transformName, version });
+  if (!etag || !matchesRenditionTag(req, etag)) return false;
+  res.status(304).set(CACHE_CONTROL_HEADER, REVALIDATING_PUBLIC).set('ETag', etag).end();
+  return true;
+}
+
 /**
  * Resolves the access gate, fetches (or generates) the rendition, and writes the final HTTP
  * response — every outcome branch {@link registerMediaRenditionRoute}'s handler previously held
@@ -508,6 +562,8 @@ async function sendMediaRenditionResult(
       sendMediaNotFound(res, "rendition not found");
       return;
     }
+
+    if (await sendNotModifiedRendition({ deps, req, res, access, transformName, version })) return;
 
     const result = await resolveMediaRendition({
       deps: {
@@ -553,12 +609,11 @@ async function sendMediaRenditionResult(
       res.set("X-Content-Type-Options", "nosniff");
       res.set("Content-Security-Policy", SVG_CONTENT_SECURITY_POLICY);
     }
-    // Express's send owns If-None-Match (lists, weak comparison and 304); hash the served bytes
-    // as well as source/rendition identity so this is a strong validator even for sanitized SVG.
+    // Prefer source/rendition identities; legacy sources without stored evidence still hash bytes.
     if (!access.gated) {
       const identity = `${access.record?.source.sha256}:${transformName}:${version}:`;
-      const digest = createHash("sha256").update(identity).update(result.bytes).digest("hex");
-      res.set("ETag", `"${digest}"`);
+      const etag = await publicRenditionTag({ deps, media: access.record, transformName, version });
+      res.set("ETag", etag ?? `"${createHash("sha256").update(identity).update(result.bytes).digest("hex")}"`);
     }
     res
       .status(200)
@@ -578,7 +633,7 @@ function renditionCacheControl({ access }: { access: { gated: boolean } }, _opti
   // public/shared cache would be served this same cached response.
   //
   // Ids, matching versions and editable/reusable slugs all serve the live source. Header
-  // selection adds no reads; revalidation does revisit the existing access scan and byte read.
+  // selection adds no reads; access evidence is refreshed within sixty seconds.
   if (access.gated) return PRIVATE_NO_STORE;
   return REVALIDATING_PUBLIC;
 }

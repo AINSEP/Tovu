@@ -37,7 +37,7 @@ test("authored media URLs revalidate on reuse and return replaced bytes under th
   const cached = await Promise.all(renditionUrls.map(async authoredUrl => {
     const before = await fetch(authoredUrl);
     assert.equal(before.status, 200);
-    assert.equal(before.headers.get("cache-control"), "public, no-cache");
+    assert.equal(before.headers.get("cache-control"), "public, max-age=60");
     const etag = before.headers.get("etag")!;
     assert.match(etag, /^"[^"\r\n]+"$/);
     return { authoredUrl, etag, body: await before.text() };
@@ -52,7 +52,7 @@ test("authored media URLs revalidate on reuse and return replaced bytes under th
   for (const { authoredUrl, etag, body } of cached) {
     const after = await fetch(authoredUrl, { cache: "no-cache", headers: { "If-None-Match": etag } });
     assert.equal(after.status, 200);
-    assert.equal(after.headers.get("cache-control"), "public, no-cache");
+    assert.equal(after.headers.get("cache-control"), "public, max-age=60");
     const newEtag = after.headers.get("etag")!;
     assert.notEqual(newEtag, etag);
     const replacementBody = await after.text();
@@ -60,7 +60,7 @@ test("authored media URLs revalidate on reuse and return replaced bytes under th
     assert.match(replacementBody, /<circle r="7"/);
     const unchanged = await fetch(authoredUrl, { cache: "no-cache", headers: { "If-None-Match": newEtag } });
     assert.equal(unchanged.status, 304);
-    assert.equal(unchanged.headers.get("cache-control"), "public, no-cache");
+    assert.equal(unchanged.headers.get("cache-control"), "public, max-age=60");
     assert.equal(unchanged.headers.get("etag"), newEtag);
     assert.equal(await unchanged.text(), "");
   }
@@ -77,7 +77,7 @@ test("replacing bytes keeps a bare id revalidating, changes its strong ETag and 
   const { deps, media, url } = await fixture(t);
   const before = await fetch(url);
   assert.equal(before.status, 200);
-  assert.equal(before.headers.get("cache-control"), "public, no-cache");
+  assert.equal(before.headers.get("cache-control"), "public, max-age=60");
   const oldEtag = before.headers.get("etag")!;
   assert.match(oldEtag, /^"[^"\r\n]+"$/);
   const oldBody = await before.text();
@@ -92,7 +92,7 @@ test("replacing bytes keeps a bare id revalidating, changes its strong ETag and 
   assert.notEqual(newPublicUrl, oldPublicUrl);
   const after = await fetch(url, { cache: "no-cache", headers: { "If-None-Match": oldEtag } });
   assert.equal(after.status, 200);
-  assert.equal(after.headers.get("cache-control"), "public, no-cache");
+  assert.equal(after.headers.get("cache-control"), "public, max-age=60");
   assert.notEqual(after.headers.get("etag"), oldEtag);
   const newBody = await after.text();
   assert.notEqual(newBody, oldBody);
@@ -100,26 +100,26 @@ test("replacing bytes keeps a bare id revalidating, changes its strong ETag and 
   const unchanged = await fetch(url, { cache: "no-cache", headers: { "If-None-Match": after.headers.get("etag")! } });
   assert.equal(unchanged.status, 304);
   assert.equal(unchanged.headers.get("etag"), after.headers.get("etag"));
-  assert.equal(unchanged.headers.get("cache-control"), "public, no-cache");
+  assert.equal(unchanged.headers.get("cache-control"), "public, max-age=60");
   assert.equal(await unchanged.text(), "");
   const stale = await fetch(`${url}?v=${media.source.sha256.slice(0, 12)}`);
   assert.equal(stale.status, 200);
-  assert.equal(stale.headers.get("cache-control"), "public, no-cache");
+  assert.equal(stale.headers.get("cache-control"), "public, max-age=60");
 });
 
 // All live-source URL spellings must revalidate, while retaining Express's conditional GET handling.
 test("current and stale id versions and slugs all revalidate while preserving validators", async t => {
   const { media, url, baseUrl } = await fixture(t);
-  for (const [tail, expected] of [[`?v=${media.source.sha256.slice(0, 12)}`, "public, no-cache"],
-    ["?v=obsolete", "public, no-cache"], ["?v=", "public, no-cache"],
-    [`?v=${media.source.sha256.slice(0, 12)}&v=${media.source.sha256.slice(0, 12)}`, "public, no-cache"]]) {
+  for (const [tail, expected] of [[`?v=${media.source.sha256.slice(0, 12)}`, "public, max-age=60"],
+    ["?v=obsolete", "public, max-age=60"], ["?v=", "public, max-age=60"],
+    [`?v=${media.source.sha256.slice(0, 12)}&v=${media.source.sha256.slice(0, 12)}`, "public, max-age=60"]]) {
     const response = await fetch(url + tail);
     assert.equal(response.status, 200);
     assert.equal(response.headers.get("cache-control"), expected);
   }
   const slugUrl = `${baseUrl}/m/${media.slug}/public.v1/image.webp?v=${media.source.sha256.slice(0, 12)}`;
   const response = await fetch(slugUrl);
-  assert.equal(response.headers.get("cache-control"), "public, no-cache");
+  assert.equal(response.headers.get("cache-control"), "public, max-age=60");
   const conditional = await fetch(slugUrl, { cache: "no-cache", headers: { "If-None-Match": `"other", W/${response.headers.get("etag")}` } });
   assert.equal(conditional.status, 304);
   assert.equal(await conditional.text(), "");
@@ -128,12 +128,16 @@ test("current and stale id versions and slugs all revalidate while preserving va
 // Guards access.gated precedence and sendMediaNotFound: a validator must not bypass authorization.
 test("a current version and matching validator never bypass a members-only gate", async t => {
   const { deps, media, url } = await fixture(t);
+  let now = deps.clock.nowMs();
+  deps.clock = { ...deps.clock, nowMs: () => now };
   const publicResponse = await fetch(url);
   const etag = publicResponse.headers.get("etag")!;
   await deps.postRepo.save({ id: "members", workspaceId: deps.workspaceId, slug: "members", title: "Members",
     status: "published", kind: "post", bodyFormat: "doc", bodyHtml: null, updatedAt: media.updatedAt, version: 1,
     bodyJson: { type: "doc", content: [{ type: "image", attrs: { assetId: media.id, transformName: "public" } }] },
     memberAccessJson: JSON.stringify({ visibility: "members" }) });
+  // Access evidence shares the public response's bounded sixty-second freshness.
+  now += 60_000;
   const denied = await fetch(`${url}?v=${media.source.sha256.slice(0, 12)}`, { cache: "no-cache", headers: { "If-None-Match": etag } });
   assert.equal(denied.status, 404);
   assert.equal(denied.headers.get("cache-control"), "private, no-store");
