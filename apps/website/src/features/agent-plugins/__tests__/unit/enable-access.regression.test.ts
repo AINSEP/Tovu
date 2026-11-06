@@ -48,6 +48,20 @@ test('a changed endpoint refuses before disclosing or granting a different sourc
   await assert.rejects(previewAgentPluginEnableAccess({ workspaceId: 'ws', pluginId: 'images', servers, repo: f.repo }), /points somewhere else/);
 });
 
+test('a newly provisioned source cannot receive an approval issued for a different endpoint', async () => {
+  const f = await fixture();
+  const initial: Readonly<Record<string, McpServerConfig>> = { fresh: { ...servers.media!, url: 'https://first.example.test/mcp' } as McpServerConfig };
+  const preview = await previewAgentPluginEnableAccess({ workspaceId: 'ws', pluginId: 'images', servers: initial, repo: f.repo });
+  await f.repo.upsert({ ...await f.row(), id: 'fresh-record', serverId: 'fresh', url: 'https://second.example.test/mcp', allowedToolNames: '[]' });
+  const changed: Readonly<Record<string, McpServerConfig>> = { fresh: { ...initial.fresh!, url: 'https://second.example.test/mcp' } as McpServerConfig };
+  const apply = createApplyConnectDefaults({ ...f, workspaceId: 'ws', agentPluginLayout: resolveAgentPluginLayout({ siteDir: '/unused' }),
+    resolveServers: async () => changed, isPluginOffByOperator: async () => false, enablePlugin: async () => true,
+    notifyRosterChanged: async () => {},
+  }, { approvedEnable: { principalId: 'owner', accessKey: preview.key } });
+  await assert.rejects(apply('fresh'), /changed after approval/);
+  assert.equal((await f.repo.findByServerId({ workspaceId: 'ws', serverId: 'fresh' }))?.enabled, false);
+});
+
 test('a combined grant cannot exceed the existing external-MCP tool-list limit', async () => {
   const f = await fixture();
   await f.repo.upsert({ ...await f.row(), allowedToolNames: JSON.stringify(Array.from({ length: 64 }, (_, i) => `existing_${i}`)) });
@@ -109,3 +123,69 @@ test('already signed-in connect declines without granting or calling the sign-in
   assert.equal(cards, 1); assert.equal(calls, 0); assert.equal((await f.row()).enabled, false);
   assert.equal(result.status, 'not-connected');
 });
+
+for (const change of ['tools', 'writes', 'endpoint', 'removed'] as const) {
+  test(`retained-session approval refuses an installed declaration changed while open: ${change}`, async () => {
+    const { runAgentPluginConnect } = await import('../../connect-tool.js');
+    const { createSurfaceExchangeStore } = await import('@jini-ai/daemon/surface-exchanges');
+    const f = await fixture();
+    await f.repo.upsert({ ...await f.row(), oauthStatus: 'connected', allowedToolNames: '[]' });
+    const original = structuredClone(servers);
+    let current: Readonly<Record<string, McpServerConfig>> = original;
+    const surfaceExchanges = createSurfaceExchangeStore({ scheduler: { schedule: () => () => {} }, clock: f.clock,
+      idGenerator: { newId: () => 'access-exchange' }, defaultChannel: 'mcp-ui' });
+    const promise = runAgentPluginConnect({
+      routeDeps: { workspaceId: 'ws', agentPluginLayout: resolveAgentPluginLayout({ siteDir: '/unused' }),
+        authorize: async () => ({ allowed: true, reason: '' }), isPluginEnabled: async () => true,
+        credentials: { loadSafe: async () => [] }, mcp: { repo: f.repo, saveServer: async () => { throw new Error('existing source only'); } },
+        externalMcpOAuth: { beginConnect: async () => { throw new Error('must reuse sign-in'); }, isValidationError: () => false },
+        resolveInstalledPlugin: async () => ({ servers: current }),
+      },
+      surfaces: { surfaceExchanges, assertAccessApprover: async () => {} } as never,
+      ctx: { executionId: 'exec', principal: { id: 'owner' }, run: { id: 'run' }, input: {}, signal: new AbortController().signal }, pluginId: 'images',
+    }, { emitSurface: async () => {
+      const config = original.media as Exclude<McpServerConfig, { type: 'stdio' }>;
+      if (change === 'removed') current = {};
+      if (change === 'endpoint') current = { media: { ...config, url: 'https://other.example.test/mcp' } };
+      if (change === 'tools') current = { media: { ...config, tovuDefaultTools: { allow: ['more'], write: [] } } };
+      if (change === 'writes') current = { media: { ...config, tovuDefaultTools: { allow: ['models', 'generate'], write: ['models'] } } };
+      surfaceExchanges.deliver({ exchangeId: 'access-exchange', principalId: 'owner', params: { decision: 'confirm' } }, { toolId: 'agent_plugin_connect' });
+    } });
+    await assert.rejects(promise, /changed|points somewhere else/);
+    assert.equal((await f.row()).enabled, false);
+    assert.deepEqual(JSON.parse((await f.row()).allowedToolNames!), []);
+  });
+}
+
+for (const separate of [false, true]) {
+  test(`retained OAuth refuses or declines before any provisioning: separate connection ${separate}`, async () => {
+    const { runAgentPluginConnect } = await import('../../connect-tool.js');
+    const { createSurfaceExchangeStore } = await import('@jini-ai/daemon/surface-exchanges');
+    const f = await fixture();
+    await f.repo.upsert({ ...await f.row(), oauthStatus: 'connected', allowedToolNames: '[]', provisionedByPluginId: separate ? null : 'images' });
+    let upserts = 0; let saves = 0; let cards = 0;
+    const originalUpsert = f.repo.upsert.bind(f.repo);
+    f.repo.upsert = async row => { upserts++; return originalUpsert(row); };
+    const surfaceExchanges = createSurfaceExchangeStore({ scheduler: { schedule: () => () => {} }, clock: f.clock,
+      idGenerator: { newId: () => 'access-exchange' }, defaultChannel: 'mcp-ui' });
+    const promise = runAgentPluginConnect({
+      routeDeps: { workspaceId: 'ws', agentPluginLayout: resolveAgentPluginLayout({ siteDir: '/unused' }),
+        authorize: async () => ({ allowed: true, reason: '' }), isPluginEnabled: async () => true,
+        credentials: { loadSafe: async () => [] }, mcp: { repo: f.repo, saveServer: async () => { saves++; throw new Error('no provisioning before approval'); } },
+        externalMcpOAuth: { beginConnect: async () => { throw new Error('no sign-in before approval'); }, isValidationError: () => false },
+        resolveInstalledPlugin: async () => ({ servers: { ...servers, pending: { type: 'streamable-http', url: 'https://pending.example.test/mcp', tovuAuthMode: 'oauth' } } }),
+      },
+      surfaces: { surfaceExchanges, assertAccessApprover: async () => {} } as never,
+      ctx: { executionId: 'exec', principal: { id: 'owner' }, run: { id: 'run' }, input: {}, signal: new AbortController().signal }, pluginId: 'images',
+    }, { emitSurface: async () => {
+      cards++; assert.equal(saves, 0); assert.equal(upserts, 0);
+      surfaceExchanges.deliver({ exchangeId: 'access-exchange', principalId: 'owner', params: { decision: 'cancel' } }, { toolId: 'agent_plugin_connect' });
+    } });
+    if (separate) await assert.rejects(promise, /external_mcp_save/);
+    else assert.equal((await promise).status, 'not-connected');
+    assert.equal(cards, separate ? 0 : 1);
+    assert.equal(saves, 0); assert.equal(upserts, 0);
+    assert.equal((await f.row()).provisionedByPluginId, separate ? null : 'images');
+    assert.equal(await f.repo.findByServerId({ workspaceId: 'ws', serverId: 'pending' }), null);
+  });
+}

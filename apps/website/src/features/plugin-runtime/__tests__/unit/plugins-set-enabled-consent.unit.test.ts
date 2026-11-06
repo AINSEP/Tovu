@@ -215,7 +215,7 @@ for (const family of ['site-runtime', 'agent-plugin'] as const) {
     let grants = 0;
     const registration = buildPluginsRegistrations({ ...h.deps, nativeApprovalMemory: {
       has: async () => false, grant: async () => { grants++; },
-    } }, surfaces).find(tool => tool.descriptor.id === 'plugins_set_enabled')!;
+    } }, { ...surfaces, assertAccessApprover: async () => {} } as never).find(tool => tool.descriptor.id === 'plugins_set_enabled')!;
     const pluginId = family === 'site-runtime' ? PLUGIN_ID : 'higgsfield';
     const pending = registration.handler(context({ family, pluginId, enabled: true }, controller.signal), { emitSurface: surfaces.emitSurface });
     await new Promise<void>(resolve => setImmediate(resolve));

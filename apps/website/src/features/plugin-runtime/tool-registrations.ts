@@ -816,10 +816,15 @@ async function prepareSetEnabled(routeDeps: PluginsToolDeps, required: { readonl
   const consent = await siteConsentFor(routeDeps, { request, identity });
   // Consent gap (2026-10-12): the assistant can seal its own package. Always require owner
   // consent, including unchanged versions with a previous capability approval.
-  const inactive = request.family === AGENT_PLUGIN_FAMILY ? await requireAgentPluginHost(routeDeps).inactivePluginIds?.({}, {}) : undefined;
-  const previousEnabled = request.family === AGENT_PLUGIN_FAMILY ? (inactive ? !inactive.has(request.pluginId) : null)
-    : (await routeDeps.pluginActivationRepo.getActivation({ workspaceId: routeDeps.workspaceId, pluginId: request.pluginId }))?.enabled ?? false;
+  const previousEnabled = await previousPluginEnabled({ deps: routeDeps, request });
   return { request, identity, refusal, confirm: true, capabilities: consent.capabilities, added: consent.added, previousEnabled };
+}
+
+/** Read only the selected family, once, for the previous access value shown on the card. */
+async function previousPluginEnabled({ deps, request }: { deps: PluginsToolDeps; request: SetEnabledRequest }, _options = {}): Promise<boolean | null> {
+  if (request.family !== AGENT_PLUGIN_FAMILY) return (await deps.pluginActivationRepo.getActivation({ workspaceId: deps.workspaceId, pluginId: request.pluginId }))?.enabled ?? false;
+  const inactive = await requireAgentPluginHost(deps).inactivePluginIds?.({}, {});
+  return inactive ? !inactive.has(request.pluginId) : null;
 }
 
 /** Re-reads an enable's identity after consent; a different key means the human approved something
@@ -1053,9 +1058,7 @@ export function describeEnableApproval({ subject, scope }: { subject: EnableConf
     toolId: PLUGINS_SET_ENABLED_TOOL_ID, errorCode: "PLUGINS",
     title: `Enable ${subject.label ?? subject.pluginId}?`,
     description: `This turns on the ${copy.noun} "${subject.pluginId}" for this workspace.`,
-    ...(scope ? { access: { resources: [{ id: `plugin:${subject.family}:${subject.pluginId}`, label: subject.label ?? subject.pluginId,
-      scope, previous: { enabled: subject.previousEnabled ?? null }, proposed: { enabled: true, family: subject.family, capabilities: subject.adds ?? [] }, revision: subject.revision ?? null },
-      ...(subject.resources ?? []).map(resource => ({ ...resource, scope }))] } } : {}),
+    ...(scope ? { access: { resources: pluginEnableAccessResources({ subject, scope }) } } : {}),
     details: [{ label: "Plugin", value: subject.pluginId }, { label: "Kind", value: copy.noun },
       ...(subject.version === undefined ? [] : [{ label: "Version", value: subject.version }]),
       ...(subject.adds?.length ? [{ label: "Adds", value: subject.adds.join(", ") }] : []),
@@ -1064,4 +1067,11 @@ export function describeEnableApproval({ subject, scope }: { subject: EnableConf
     // Cancelling posts back and resolves the parked call immediately, rather than stranding it.
     cancelLabel: "Cancel",
   };
+}
+
+/** Translate the frozen domain proposal into the common access disclosure. */
+function pluginEnableAccessResources({ subject, scope }: { subject: EnableConfirmationSubject; scope: AccessApprovalResource['scope'] }, _options = {}): readonly AccessApprovalResource[] {
+  return [{ id: `plugin:${subject.family}:${subject.pluginId}`, label: subject.label ?? subject.pluginId,
+    scope, previous: { enabled: subject.previousEnabled ?? null }, proposed: { enabled: true, family: subject.family, capabilities: subject.adds ?? [] }, revision: subject.revision ?? null },
+    ...(subject.resources ?? []).map(resource => ({ ...resource, scope }))];
 }

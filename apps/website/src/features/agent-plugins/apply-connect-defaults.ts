@@ -128,7 +128,7 @@ export function createApplyConnectDefaults(deps: ApplyConnectDefaultsDeps, optio
     // early exit: an operator's "off" landing after it is caught again under the activations lock.
     if (await enablePlugin({ workspaceId: deps.workspaceId, pluginId, actor: CONNECT_DEFAULTS_ACTOR }) === false) return;
     const approved = approvedSource({ key: options.approvedEnable?.accessKey, connectionId: serverId });
-    if (approved && (JSON.stringify(approved.grant) !== JSON.stringify(grant) || (approved.expected === null && JSON.stringify(approved.current) !== JSON.stringify(storedAgentPluginGrants({ row }))))) throw new ToolInputError({ message: 'The plugin declaration changed after approval. Request the access change again. Nothing was granted.' });
+    assertApprovedSource({ approved, grant, current: storedAgentPluginGrants({ row }), url: row.url });
     const expected = approved?.expected ?? externalMcpAccessSnapshot({ record: row });
     // Direct repo write, the same reason `federate-mcp.ts`'s adoption gives: every other field
     // (url, auth, the token this sign-in just stored) must stay exactly as it is.
@@ -142,11 +142,22 @@ export function createApplyConnectDefaults(deps: ApplyConnectDefaultsDeps, optio
 /** Only the detached host-produced snapshot authorizes a chat-triggered widening.
  * The effect compares its admission and previous grants atomically in the repository. */
 function approvedSource({ key, connectionId }: { key: string | undefined; connectionId: string }, _options = {}): {
-  expected: ExternalMcpAccessSnapshot | null; current: ReturnType<typeof storedAgentPluginGrants>; grant: { enabled: boolean; allow: readonly string[]; write: readonly string[] };
+  url: string; expected: ExternalMcpAccessSnapshot | null; current: ReturnType<typeof storedAgentPluginGrants>; grant: { enabled: boolean; allow: readonly string[]; write: readonly string[] };
 } | undefined {
   if (key === undefined) return undefined;
-  const sources = JSON.parse(key) as { connectionId: string; expected: ExternalMcpAccessSnapshot | null; current: ReturnType<typeof storedAgentPluginGrants>; grant: { enabled: boolean; allow: readonly string[]; write: readonly string[] } | null }[];
+  const sources = JSON.parse(key) as { connectionId: string; url: string; expected: ExternalMcpAccessSnapshot | null; current: ReturnType<typeof storedAgentPluginGrants>; grant: { enabled: boolean; allow: readonly string[]; write: readonly string[] } | null }[];
   const source = sources.find(source => source.connectionId === connectionId);
   if (!source?.grant) throw new ToolInputError({ message: `The approved card did not grant access to '${connectionId}'. Request the access change again.` });
-  return { expected: source.expected, current: source.current, grant: source.grant };
+  return { url: source.url, expected: source.expected, current: source.current, grant: source.grant };
+}
+
+/** New sources must still have the empty access displayed before provisioning.
+ * Existing sources additionally use the approved atomic repository snapshot. */
+function assertApprovedSource({ approved, grant, current, url }: {
+  approved: ReturnType<typeof approvedSource>; grant: ReturnType<typeof storedAgentPluginGrants>; current: ReturnType<typeof storedAgentPluginGrants>; url: string;
+}, _options = {}): void {
+  if (!approved) return;
+  const sameGrant = JSON.stringify(approved.grant) === JSON.stringify(grant);
+  const sameNewSource = approved.expected !== null || JSON.stringify(approved.current) === JSON.stringify(current);
+  if (!sameGrant || !sameNewSource || approved.url !== url) throw new ToolInputError({ message: 'The plugin declaration or access changed after approval. Request the access change again. Nothing was granted.' });
 }

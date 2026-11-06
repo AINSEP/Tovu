@@ -130,7 +130,7 @@ export function harness(options: HarnessOptions = {}) {
   };
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const tool = (id: string): ToolRegistration => {
-    const found = buildPluginsRegistrations(deps, { surfaceExchanges }).find((registration) => registration.descriptor.id === id);
+    const found = buildPluginsRegistrations(deps, { surfaceExchanges, assertAccessApprover: async () => {} } as never).find((registration) => registration.descriptor.id === id);
     assert.ok(found, `expected '${id}' to be wired`);
     return found;
   };

@@ -685,6 +685,7 @@ test("server-composed approval memory cannot replace the owner card when enablin
     clock: deps.clock, conversationIdForRun: ({ runId, principalId }) => runId === "run-1" && principalId === PRINCIPAL_ID ? "chat-1" : undefined });
   const approvalIdentityForRun = async () => ({ key: "trusted-host-identity", label: "Host provenance port" });
   const composed = createRouteDeps({ nativeApprovalMemory, approvalIdentityForRun });
+  await composed.principalRepo.save({ workspaceId: WORKSPACE_ID, id: PRINCIPAL_ID, kind: 'user', displayName: 'Approval test user', status: 'active', createdAt: '2026-11-05T00:00:00.000Z' });
   assert.equal(composed.nativeApprovalMemory, nativeApprovalMemory);
   assert.equal(composed.approvalIdentityForRun, approvalIdentityForRun);
   let version = "1.0.0";

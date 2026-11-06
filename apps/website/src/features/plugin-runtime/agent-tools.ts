@@ -291,6 +291,9 @@ export const pluginAgentToolCatalog: AgentToolDefinition[] = [
  */
 
 
-/** Explicit plugin-family contract shared by the catalog and approval adapter. */
+/** Which plugin system a `plugins_set_enabled` call is about. Explicit, never inferred — the two
+ * systems share the word "plugin" and nothing else, and guessing between them has already produced
+ * real work in the wrong directory. The catalog owns this contract; approval presentation consumes it. */
 export type PluginFamily = 'site-runtime' | 'agent-plugin';
+/** The tool id the common access card asks the Host to call back. Single source of truth for both halves. */
 export const PLUGINS_SET_ENABLED_TOOL_ID = 'plugins_set_enabled';
