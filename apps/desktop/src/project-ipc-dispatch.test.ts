@@ -78,6 +78,7 @@ function fixture({ t }: { t: TestContext }) {
     siteScanRoots: [path.join(root, "websites")],
     recentSiteDirs: () => [],
     ctx: {},
+    importSiteArchive: async () => { throw new Error("unused"); },
   };
   registerSiteIpcHandlers(deps);
   return {

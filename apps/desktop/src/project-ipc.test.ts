@@ -12,7 +12,7 @@ import os from "node:os";
 import path from "node:path";
 
 import { SITE_IPC_CHANNELS as CONTRACT_SITE_IPC_CHANNELS } from "./contracts/project.ts";
-import { SITE_IPC_CHANNELS, buildSiteRecord, siteRecordLifecycle, importSharedSiteDiscovery, handleList, handleAddSite, handleCreate, planNewSiteDir, handleDelete, handleOpenExternal, handleStart, handleStop, handleRename, handleGetPreview, handleLocate, handleTokenSignInPlugins, rescanSites, registerSiteIpcHandlers } from "./project-ipc.ts";
+import { SITE_IPC_CHANNELS, buildSiteRecord, siteRecordLifecycle, importSharedSiteDiscovery, handleList, handleAddSite, handleImportArchive, handleCreate, planNewSiteDir, handleDelete, handleOpenExternal, handleStart, handleStop, handleRename, handleGetPreview, handleLocate, handleTokenSignInPlugins, rescanSites, registerSiteIpcHandlers } from "./project-ipc.ts";
 import { createSiteTransitions } from "./site-transitions.ts";
 import type { ProjectIpcDeps } from "./project-ipc.ts";
 import { SITE_ORIGIN, sitesFilePath, trackSite, readTrackedSites, writeTrackedSites } from "./tracked-sites.ts";
@@ -2597,4 +2597,67 @@ test('tab Keep running after a failed Stop restores memory limits and crash reco
   await h.next();
   assert.equal(h.boots(), 2);
   assert.equal(h.lifecycle.has({ siteId: h.siteDir }), true, 'automatic restarts retain the idle hold');
+});
+
+/** `handleImportArchive` with a fake importer: it "made" an existing fixture site, as the CLI child would. */
+function importDeps(pickedPath: string | null, imported: { dir: string; warnings?: string[] } | Error) {
+  const asked: unknown[] = [];
+  const { deps } = addSiteDeps(pickedPath, {
+    importSiteArchive: async (input: unknown) => {
+      asked.push(input);
+      if (imported instanceof Error) throw imported;
+      return { dir: imported.dir, name: path.basename(imported.dir), siteId: "id-x", warnings: imported.warnings ?? [] };
+    },
+  } as never);
+  return { deps: deps as Parameters<typeof handleImportArchive>[1], asked };
+}
+
+test("handleImportArchive records the imported site as one this app made, with the importer's notices", async () => {
+  const siteDir = siteFixture("shop");
+  const { deps, asked } = importDeps("/picked/shop.tovu.zip", { dir: siteDir, warnings: ["Plugin kept switched off."] });
+  const record = await handleImportArchive({ pick: true }, deps) as Awaited<ReturnType<typeof handleImportArchive>> & { id: string; warnings: string[]; deleteErasesFiles: boolean };
+  assert.deepEqual(asked, [{ source: { file: "/picked/shop.tovu.zip" }, repoRoot: "/repo", cliMode: "source" }]);
+  assert.equal(record.id, siteDir);
+  assert.deepEqual(record.warnings, ["Plugin kept switched off."]);
+  assert.equal(readTrackedSites(deps.projectsPath)[0]!.origin, "created");
+  assert.equal(record.deleteErasesFiles, true, "an imported copy is this app's own, so deleting it may erase it");
+});
+
+test("handleImportArchive: a cancelled picker imports nothing", async () => {
+  const { deps, asked } = importDeps(null, { dir: siteFixture() });
+  assert.equal(await handleImportArchive({ pick: true }, deps), null);
+  assert.deepEqual(asked, []);
+  assert.deepEqual(readTrackedSites(deps.projectsPath), []);
+});
+
+test("handleImportArchive passes a share link through untouched and a dropped .zip by its path", async () => {
+  const { deps, asked } = importDeps(null, { dir: siteFixture("linked") });
+  await handleImportArchive({ url: "https://files.example.com/a.tovu.zip" }, deps);
+  assert.deepEqual((asked[0] as { source: unknown }).source, { url: "https://files.example.com/a.tovu.zip" });
+  await handleImportArchive({ file: "/drop/b.ZIP" }, { ...deps, importSiteArchive: async (input: unknown) => { asked.push(input); return { dir: siteFixture("dropped"), name: "dropped", siteId: "i", warnings: [] }; } });
+  assert.deepEqual((asked[1] as { source: unknown }).source, { file: "/drop/b.ZIP" });
+});
+
+test("handleImportArchive refuses a wrong file, a relative path and an empty request in plain words, importing nothing", async () => {
+  const { deps, asked } = importDeps(null, { dir: siteFixture() });
+  await assert.rejects(handleImportArchive({ file: "/drop/notes.txt" }, deps), /not a \.tovu\.zip file/);
+  await assert.rejects(handleImportArchive({ file: "relative.zip" }, deps), /Use the Choose button instead/);
+  await assert.rejects(handleImportArchive({}, deps), /needs a file or a share link/);
+  await assert.rejects(handleImportArchive(undefined, deps), /needs a file or a share link/);
+  assert.deepEqual(asked, []);
+});
+
+test("handleImportArchive: an importer that refuses leaves nothing tracked and its words intact", async () => {
+  const { deps } = importDeps("/picked/x.zip", new Error("ZIP size or SHA-256 mismatch."));
+  await assert.rejects(handleImportArchive({ pick: true }, deps), { message: "ZIP size or SHA-256 mismatch." });
+  assert.deepEqual(readTrackedSites(deps.projectsPath), []);
+});
+
+test("handleImportArchive gives a second import with the same name its own display name", async () => {
+  const first = importDeps("/p/a.zip", { dir: siteFixture("same") });
+  const one = await handleImportArchive({ pick: true }, first.deps) as { displayName: string };
+  const second = { ...first.deps, importSiteArchive: async () => ({ dir: siteFixture("same-2"), name: "same", siteId: "i2", warnings: [] }),
+    readSiteName: () => "same" };
+  const two = await handleImportArchive({ pick: true }, second as never) as { displayName: string };
+  assert.notEqual(one.displayName, two.displayName);
 });

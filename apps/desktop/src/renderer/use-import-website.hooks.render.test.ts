@@ -14,7 +14,7 @@ import type { SiteAdminPage } from './import-site-entry.js';
 
 function setup(t: { after: (fn: () => void) => void }, createSite: (input: { displayName: string }) => Promise<ReturnType<typeof site> | undefined>) {
   const opened: Array<{ id: string; adminPage: SiteAdminPage }> = [];
-  const hook = renderHook(t, () => useImportWebsite({ createSite, openSite: (input) => { opened.push(input); } }));
+  const hook = renderHook(t, () => useImportWebsite({ createSite, openSite: (input) => { opened.push(input); }, onArchiveImported: () => {} }));
   return { hook, opened };
 }
 

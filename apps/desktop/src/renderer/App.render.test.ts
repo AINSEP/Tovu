@@ -379,3 +379,61 @@ test('App: Import never opens or starts a site, whether sites exist or not', asy
   assert.equal(app.container.querySelector('webview'), null, 'no site guest was loaded');
   assert.deepEqual(starts, [], 'no site was started');
 });
+
+/** Types into the Import page's address field the way a person does. */
+async function typeAddress(app: Awaited<ReturnType<typeof renderApp>>, value: string) {
+  const input = app.container.querySelector<HTMLInputElement>('input[inputmode="url"]')!;
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(dom.window.HTMLInputElement.prototype, 'value')!.set!.call(input, value);
+    input.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+  });
+  await settle();
+}
+
+test('App: an old address error does not hide the error of the folder just tried', async (t) => {
+  const app = await renderApp(t, { addSite: () => Promise.reject(new Error('That folder is not a Tovu site.')) });
+  await app.click(app.byText('Import'));
+  await typeAddress(app, 'not an address');
+  await app.click(app.byText('Import website'));
+  assert.match(app.container.querySelector('.onboarding__error')?.textContent ?? '', /full website address/);
+  await app.click(app.byText('Choose folder…'));
+  assert.match(app.container.querySelector('.onboarding__error')?.textContent ?? '', /That folder is not a Tovu site\./);
+});
+
+test('App: a chosen .tovu.zip opens the new site and shows the toast with the importer\'s notices', async (t) => {
+  const asked: unknown[] = [];
+  const app = await renderApp(t, {
+    importSiteArchive: async (source: unknown) => { asked.push(source); return { ...site('new', { displayName: 'Portable' }), warnings: ['Plugin kept switched off.'] }; },
+  } as never);
+  await app.click(app.byText('Import'));
+  await app.click(app.byText('Choose file…'));
+  assert.deepEqual(asked, [{ pick: true }]);
+  assert.ok(app.all('[role="tab"]').some((tab) => tab.getAttribute('aria-selected') === 'true' && /Portable/.test(tab.textContent ?? '')), 'the new site opens in its own tab');
+  assert.match(app.text(), /New website created: Portable/);
+  assert.match(app.text(), /Plugin kept switched off\./);
+});
+
+test('App: a refused archive says why in plain words, makes no tab and stays on the page', async (t) => {
+  const app = await renderApp(t, {
+    importSiteArchive: () => Promise.reject(new Error("Error invoking remote method 'x': That file is not a usable .tovu.zip. No website was created.")),
+  } as never);
+  await app.click(app.byText('Import'));
+  await app.click(app.byText('Choose file…'));
+  assert.match(app.container.querySelector('.onboarding__error')?.textContent ?? '', /That file is not a usable \.tovu\.zip/);
+  assert.equal(app.all('[role="tab"]').length, 1);
+  assert.equal(app.container.querySelector('.main__title')?.textContent, 'Import a website');
+});
+
+test('App: a share link goes to the archive importer, a live address to Create', async (t) => {
+  const asked: unknown[] = [];
+  const created: string[] = [];
+  const app = await renderApp(t, {
+    importSiteArchive: async (source: unknown) => { asked.push(source); return { ...site('shared'), warnings: [] }; },
+    createSite: async (input: { displayName: string }) => { created.push(input.displayName); return site('live', { displayName: input.displayName }); },
+  } as never);
+  await app.click(app.byText('Import'));
+  await typeAddress(app, 'https://files.example.com/shop.tovu.zip');
+  await app.click(app.byText('Import website'));
+  assert.deepEqual(asked, [{ url: 'https://files.example.com/shop.tovu.zip' }]);
+  assert.deepEqual(created, [], 'a share link makes no site through Create');
+});

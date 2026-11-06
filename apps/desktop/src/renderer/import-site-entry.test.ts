@@ -55,3 +55,12 @@ test('a tab asked for the import page loads the admin on it; the public site ign
     'https://localhost:3000/admin/import-export?tab=import',
   );
 });
+
+test('isShareLink: only an address whose path ends in .zip is a share link', async () => {
+  const { isShareLink } = await import('./import-site-entry.js');
+  assert.equal(isShareLink({ address: 'https://files.example.com/shop.tovu.zip' }), true);
+  assert.equal(isShareLink({ address: 'https://files.example.com/SHOP.TOVU.ZIP?token=abc' }), true, 'case and a query do not matter');
+  assert.equal(isShareLink({ address: 'https://example.com/' }), false);
+  assert.equal(isShareLink({ address: 'https://example.com/zip' }), false);
+  assert.equal(isShareLink({ address: 'https://example.com/a.zip/page' }), false);
+});

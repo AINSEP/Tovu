@@ -25,9 +25,9 @@ async function renderArea(t: TestContext, props: Props = {}) {
   let closed = 0;
   const view = mount({ t, element: createElement(MainArea, {
     appearanceOpen: false, onCloseAppearance: () => { closed++; }, showSitesHome: true, activeId: 'projects',
-    isCreating: false, active: findSection('projects'), lastCreated: null, projectsLoading: false, loadError: null,
+    isCreating: false, isImporting: false, active: findSection('projects'), lastCreated: null, projectsLoading: false, loadError: null,
     projects: [], onCreateWebsite: () => {}, onOpenProject: () => {}, onDeleteProject: async () => {}, onSiteUpdated: () => {},
-    onRescan: async () => {}, rescanning: false, rescanError: null, onAddSite: async () => {}, adding: false, addError: null,
+    onRescan: async () => {}, rescanning: false, rescanError: null, onImport: () => {},
     useFolders: useFakeFolders,
     ...props,
   }) });

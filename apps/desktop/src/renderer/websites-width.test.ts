@@ -47,7 +47,7 @@ test('Websites fits at 375px with every nav control and header action inside the
   }) });
   const headerView = harness.mount({ t, element: createElement(MainHeader, {
     activeId: 'projects', isCreating: false, activeLabel: 'Websites', onCreateWebsite() {}, onRescan: async () => {},
-    rescanning: false, onAddSite: async () => {}, adding: false, useFolders: harness.useFakeFolders,
+    rescanning: false, onImport() {}, useFolders: harness.useFakeFolders,
   }) });
   await harness.settle();
   assert.equal(navView.container.querySelector('.topnav__version')?.textContent, '0.1.13-preview-long-version');
