@@ -142,7 +142,7 @@ test("static selection snapshots roster, active identity and time, captures sequ
   assert.equal(new Set(directories).size, 2);
   const { existsSync } = await import("node:fs");
   for (const directory of directories) assert.equal(existsSync(directory), false);
-  assert.deepEqual(await backend.staticOptions({}), { activeThemeId: "zoran-poster", themes: [{ themeId: "zoran-poster", name: "poster" }, { themeId: "zoran-editorial", name: "editorial" }] });
+  assert.deepEqual(await backend.staticOptions({}), { activeThemeId: "zoran-poster", themes: [{ themeId: "zoran-poster", name: "Poster" }, { themeId: "zoran-editorial", name: "Editorial" }] });
 });
 
 test("static backend refuses unknown selections before rendering and unusable captures without creating a ZIP", async t => {
@@ -205,3 +205,15 @@ for (const publicUrl of [undefined, "https://download.example"]) {
     }
   });
 }
+
+
+test("static options show installed display titles while keeping theme IDs", async () => {
+  const backend = createSiteShareBackend({ registry: {} as SiteShareRegistry, site: "site",
+    prepare: async () => content(), zip: zipFolderFiles, delivery: async () => undefined,
+    staticSite: { now: () => new Date(), context: async () => ({ name: "Site", slug: "studio", theme: "Poster Display", themeId: "studio-poster" }),
+      themes: () => [{ themeId: "studio-poster", title: "Poster Display" }, { themeId: "poster", title: "Another Poster" }] },
+  });
+  assert.deepEqual(await backend.staticOptions!({}), { activeThemeId: "studio-poster", themes: [
+    { themeId: "studio-poster", name: "Poster Display" }, { themeId: "poster", name: "Another Poster" },
+  ] });
+});
