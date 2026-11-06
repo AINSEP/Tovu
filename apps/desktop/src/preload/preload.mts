@@ -99,6 +99,7 @@ contextBridge.exposeInMainWorld(
     getAppVersion: () => ipcRenderer.invoke(RUNNER_APP_VERSION_CHANNEL),
     getIdleSiteSleepMinutes: () => ipcRenderer.invoke(IDLE_SITE_SLEEP_CHANNELS.read),
     setIdleSiteSleepMinutes: (minutes: IdleSiteSleepMinutes) => ipcRenderer.invoke(IDLE_SITE_SLEEP_CHANNELS.write, minutes),
+    keepSiteRunning: ({ id }: { id: string }, _options = {}) => ipcRenderer.invoke(SITE_IPC_CHANNELS.keepRunning, { id }),
     reportOpenSiteTabs: ({ siteIds }: { siteIds: readonly string[] }, _options = {}) => ipcRenderer.invoke(SITE_PRESENCE_CHANNEL, { siteIds }),
     getMaximumLiveSiteViews: () => ipcRenderer.invoke(SITE_VIEW_PREFERENCE_CHANNELS.read),
     setMaximumLiveSiteViews: (maximum: number) => ipcRenderer.invoke(SITE_VIEW_PREFERENCE_CHANNELS.write, maximum),

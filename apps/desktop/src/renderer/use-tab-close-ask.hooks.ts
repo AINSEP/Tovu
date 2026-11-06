@@ -7,7 +7,7 @@
 import { useEffect, useState } from 'react';
 import type { SiteRecord } from '../contracts/project.js';
 import { desktopCopy, runtimeLocale } from '../desktop-i18n.js';
-import { runnerInventoryBridge } from './runner-api.js';
+import { runnerInventoryBridge, type BridgeLookup } from './runner-api.js';
 import { dismissOnEscape } from './site-shell-policy.js';
 import { externalStopConfirm, performPowerAction, powerControl } from './use-site-power.hooks.js';
 
@@ -41,7 +41,8 @@ export function tabCloseCopy(
 
 /**
  * Holds which tab is asking. A failed stop keeps the tab and the ask, with main's reason, so the
- * operator can retry or keep the site running.
+ * operator can retry or keep the site running. Each async answer owns its request, so another
+ * tab's newer prompt survives. Keep running first confirms main holds idle sleep, then closes.
  * @param input.closeTab the tab hook's plain close. @param input.onSiteUpdated applies main's record.
  * @param options.getBridge the bridge port, read at press time.
  * @returns The site asked about (or `null`), its state, and the answers.
@@ -53,17 +54,16 @@ export function useTabCloseAsk(
     closeTab: (id: string) => void;
     onSiteUpdated: (record: SiteRecord) => void;
   },
-  { getBridge = runnerInventoryBridge }: { getBridge?: () => Parameters<typeof performPowerAction>[2] } = {},
+  { getBridge = runnerInventoryBridge }: { getBridge?: BridgeLookup<'startSite' | 'stopSite' | 'keepSiteRunning'> } = {},
 ) {
-  const [askingId, setAskingId] = useState<string | null>(null);
-  const [stopping, setStopping] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [request, setRequest] = useState<{ id: string; stopping: boolean; error: string | null } | null>(null);
+  const { id: askingId, stopping, error } = request ?? { id: null, stopping: false, error: null };
   const asking = projects.find((project) => project.id === askingId) ?? null;
 
-  const cancel = () => setAskingId(null);
+  const cancel = () => setRequest(null);
   useEffect(() => {
     if (askingId === null) return undefined;
-    const onEscape = (event: KeyboardEvent) => dismissOnEscape({ event, dismiss: () => setAskingId(null), busy: stopping });
+    const onEscape = (event: KeyboardEvent) => dismissOnEscape({ event, dismiss: () => setRequest(null), busy: stopping });
     document.addEventListener('keydown', onEscape, true);
     return () => document.removeEventListener('keydown', onEscape, true);
   }, [askingId, stopping]);
@@ -74,28 +74,38 @@ export function useTabCloseAsk(
       closeTab(id);
       return;
     }
-    setError(null);
-    setAskingId(id);
+    setRequest({ id, stopping: false, error: null });
   };
 
-  const keepRunning = () => {
-    if (askingId !== null) closeTab(askingId);
-    setAskingId(null);
+  const keepRunning = async () => {
+    if (request === null || request.stopping) return;
+    const pending = { ...request, stopping: true, error: null };
+    setRequest(pending);
+    try {
+      const bridge = getBridge();
+      if (!bridge?.keepSiteRunning) throw new Error('Could not keep the site running: the desktop connection is unavailable. The tab is still open.');
+      await bridge.keepSiteRunning({ id: request.id });
+      closeTab(request.id);
+      setRequest(current => current === pending ? null : current);
+    } catch (failure) {
+      const error = failure instanceof Error ? failure.message : String(failure);
+      setRequest(current => current === pending ? { ...pending, stopping: false, error } : current);
+    }
   };
 
   const stopAndClose = async () => {
-    if (askingId === null || stopping) return;
-    setStopping(true);
-    setError(null);
-    const result = await performPowerAction('stop', askingId, getBridge());
-    setStopping(false);
+    if (request === null || request.stopping) return;
+    const pending = { ...request, stopping: true, error: null };
+    setRequest(pending);
+    const result = await performPowerAction('stop', request.id, getBridge());
     if (result.error !== undefined) {
-      setError(result.error);
+      setRequest(current => current === pending ? { ...pending, stopping: false, error: result.error } : current);
       return;
     }
     onSiteUpdated(result.record);
-    closeTab(askingId);
-    setAskingId(null);
+    closeTab(request.id);
+    // An answer belongs to its request, even if another tab has opened a newer prompt.
+    setRequest(current => current === pending ? null : current);
   };
 
   return { asking, stopping, error, requestClose, keepRunning, stopAndClose, cancel };

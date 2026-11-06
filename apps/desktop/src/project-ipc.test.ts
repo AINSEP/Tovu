@@ -2306,6 +2306,7 @@ function b2LifecycleHarness(t: { after(fn: () => void): void }) {
   };
   return { lifecycle, deps, openSites, siteDir, invoke, record, pending, snapshot, drain,
     report: (sender: { getURL(): string; isDestroyed(): boolean }) => registered.get(SITE_PRESENCE_CHANNEL)!({ sender }, { siteIds: [siteDir] }),
+    keepRunning: (sender: { getURL(): string; isDestroyed(): boolean }, id = siteDir) => registered.get(SITE_IPC_CHANNELS.keepRunning)!({ sender }, { id }),
     server: () => openSites.get(siteDir)!.server, boots: () => boots,
     setMinutes: (value: number) => { minutes = value; }, advance: (ms: number) => { now += ms; },
     failBoot: (error?: Error) => { bootError = error; },
@@ -2525,4 +2526,43 @@ test('site registration accepts frozen deps and passes its runtime to record bui
   const records = registered.get(SITE_IPC_CHANNELS.list)!({});
   assert.equal(records.find((row: { id: string }) => row.id === siteDir)?.status, 'starting');
   assert.equal(Object.hasOwn(deps, 'siteRuntime'), false, 'registration state belongs to the registration, not its caller');
+});
+
+
+test('tab Keep running holds only that site through idle time and releases on explicit Stop', async t => {
+  const h = b2LifecycleHarness(t);
+  const sender = { isDestroyed: () => false, getURL: () => new URL('../dist/renderer/index.html', import.meta.url).href };
+  let requests = 0;
+  h.server().stopIfIdle = async () => { requests++; return false; };
+  h.keepRunning(sender);
+  assert.equal(h.lifecycle.has({ siteId: h.siteDir }), true);
+  assert.equal(h.lifecycle.has({ siteId: '/sites/other' }), false);
+  h.advance(6000000); await h.lifecycle.maintain({ snapshot: h.snapshot() });
+  assert.equal(requests, 0, 'closed tabs must not allow an explicit Keep running site to sleep');
+  await h.invoke(SITE_IPC_CHANNELS.stop);
+  assert.equal(h.lifecycle.has({ siteId: h.siteDir }), false, 'explicit Stop releases the per-site choice');
+});
+
+test('tab Keep running rejects untrusted senders and untracked sites', t => {
+  const h = b2LifecycleHarness(t);
+  const sender = { isDestroyed: () => false, getURL: () => new URL('../dist/renderer/index.html', import.meta.url).href };
+  assert.throws(() => h.keepRunning({ ...sender, getURL: () => 'https://untrusted.example' }), /desktop window/i);
+  assert.throws(() => h.keepRunning(sender, '/sites/unknown'), /tracked site/i);
+  assert.equal(h.lifecycle.has({ siteId: h.siteDir }), false);
+});
+
+
+test('tab Keep running survives automatic RSS restart but manual Start releases it', async t => {
+  const h = b2LifecycleHarness(t);
+  const sender = { isDestroyed: () => false, getURL: () => new URL('../dist/renderer/index.html', import.meta.url).href };
+  const old = h.server();
+  old.stopIfIdle = async () => { old.die(89); return true; };
+  h.keepRunning(sender);
+  await h.lifecycle.maintain({ snapshot: h.snapshot(1_500_000_000) });
+  h.advance(120000);
+  await h.lifecycle.maintain({ snapshot: h.snapshot(1_500_000_000) }); await h.drain();
+  assert.equal(h.boots(), 1, 'the hold does not disable sustained RSS recovery');
+  assert.equal(h.lifecycle.has({ siteId: h.siteDir }), true, 'automatic replacement keeps the explicit choice');
+  await h.invoke(SITE_IPC_CHANNELS.start);
+  assert.equal(h.lifecycle.has({ siteId: h.siteDir }), false, 'manual Start begins a fresh choice');
 });

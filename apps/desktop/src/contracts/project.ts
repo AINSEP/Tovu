@@ -248,6 +248,7 @@ export const SITE_IPC_CHANNELS = {
    *   renderer polls on an interval, so a card can be a click behind main's truth.
    */
   stop: 'runner:sites:stop',
+  keepRunning: 'runner:sites:keep-running',
   /** Irreversible: stops the process, removes the install dir, drops the row. Returns nothing. */
   delete: 'runner:sites:delete',
   /**

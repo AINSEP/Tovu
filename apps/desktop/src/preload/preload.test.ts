@@ -142,6 +142,7 @@ async function assertEveryRunnerMethod({ exposed, invokes, listeners, frameCalls
     ["getAppVersion", [], [RUNNER_APP_VERSION_CHANNEL]],
     ["getIdleSiteSleepMinutes", [], [SLEEP.read]],
     ["setIdleSiteSleepMinutes", [5], [SLEEP.write, 5]],
+    ["keepSiteRunning", [{ id: "/sites/a" }], [SITE.keepRunning, { id: "/sites/a" }]],
     ["reportOpenSiteTabs", [{ siteIds: ['a', 'b'] }], [SITE_PRESENCE_CHANNEL, { siteIds: ['a', 'b'] }]],
     ["getResources", [{ panelOpen: true }, {}], [RUNNER_RESOURCES_GET_CHANNEL, { panelOpen: true }]],
     ["checkForUpdates", [], [RUNNER_APP_CHECK_FOR_UPDATES_CHANNEL]],

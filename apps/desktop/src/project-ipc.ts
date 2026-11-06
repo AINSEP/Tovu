@@ -54,6 +54,7 @@ const SITE_IPC_CHANNELS = Object.freeze({
   openExternal: "runner:sites:open-external",
   start: "runner:sites:start",
   stop: "runner:sites:stop",
+  keepRunning: "runner:sites:keep-running",
   rescan: "runner:sites:rescan",
   listFolders: "runner:sites:folders:list",
   addFolder: "runner:sites:folders:add",
@@ -184,6 +185,7 @@ interface SiteRuntime {
   status?: "starting" | "sleeping" | "failed";
   detail?: string;
   lastPresentAt: number;
+  keepAwake?: boolean;
   rss?: { pid: number; since: number };
   restartAfterExit?: OpenSiteEntry["server"];
 }
@@ -1513,6 +1515,7 @@ function registerSiteIpcHandlers<TCtx>(deps: ProjectIpcDeps<TCtx>, options: Site
     const state = states.get(siteDir);
     if (!state) return;
     state.cancelRetry?.(); state.cancelRetry = undefined; state.cancelled = true;
+    state.keepAwake = false;
     state.restartAfterExit = undefined; state.status = undefined; state.detail = undefined;
     if (forget) states.delete(siteDir);
   }
@@ -1671,7 +1674,7 @@ function registerSiteIpcHandlers<TCtx>(deps: ProjectIpcDeps<TCtx>, options: Site
   let keptAwake = false;
   const presence = createSitePresence({ allowed: deps.isPresenceShell ?? (() => false),
     trackedIds: () => new Set(readTrackedSites(deps.projectsPath).map(row => row.siteDir)),
-  }, { hasSiteWindow: siteId => keptAwake || Boolean(deps.openSites.get(siteId)?.window), onRelease: notePresence });
+  }, { hasSiteWindow: siteId => keptAwake || Boolean(states.get(siteId)?.keepAwake) || Boolean(deps.openSites.get(siteId)?.window), onRelease: notePresence });
   deps.ipcMain.handle(SITE_PRESENCE_CHANNEL, ({ sender }, input: { siteIds?: unknown } | undefined) => {
     notePresence();
     presence.replace({ sender, siteIds: input?.siteIds });
@@ -1702,6 +1705,15 @@ function registerSiteIpcHandlers<TCtx>(deps: ProjectIpcDeps<TCtx>, options: Site
   deps.ipcMain.handle(SITE_IPC_CHANNELS.stop, (_event, id) => {
     cancel({ siteDir: id });
     return handleStop(id, { ...deps, siteRuntime: states });
+  });
+  deps.ipcMain.handle(SITE_IPC_CHANNELS.keepRunning, ({ sender }, input: { id?: unknown } | undefined) => {
+    if (sender.isDestroyed() || !deps.isPresenceShell?.(sender)) throw new Error('Keep running is only available from the desktop window.');
+    const siteDir = input?.id;
+    if (typeof siteDir !== 'string' || !readTrackedSites(deps.projectsPath).some(site => site.siteDir === siteDir)) {
+      throw new Error('Keep running needs a tracked site.');
+    }
+    // Preserve the choice across automatic recovery; Stop/delete/manual Start release it in cancel.
+    stateFor({ siteDir }).keepAwake = true;
   });
   deps.ipcMain.handle(SITE_IPC_CHANNELS.rescan, () => rescanSites({ ...deps, siteRuntime: states }));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.setHome, async () => {

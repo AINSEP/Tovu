@@ -88,6 +88,8 @@ export interface RunnerInventoryBridge {
    *  folder — a new id, since a record's id is its folder. Rejects with an operator-facing reason;
    *  surface it verbatim. See `SITE_IPC_CHANNELS.locate`. */
   locateSite: (id: string) => Promise<SiteRecord>;
+  /** Keep this site awake after its tab closes until Stop, manual Start, deletion or app exit. */
+  keepSiteRunning?: (input: { id: string }, options?: {}) => Promise<void>;
   startSite: (id: string) => Promise<SiteRecord>;
   stopSite: (id: string) => Promise<SiteRecord>;
   /** Irreversible. Resolves with nothing — the project it names no longer exists. */
