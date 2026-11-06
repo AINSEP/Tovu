@@ -37,8 +37,9 @@ export function registerCommerceHttp({ app, deps }: { app: Express; deps: RouteD
   app.use(async (req, res, next) => {
     // Order APIs keep their own member and write admission, including reads during drain.
     if (req.path.startsWith("/api/commerce/v1/")) { storefront(req, res, next); return; }
+    // The router below ignores one trailing slash, so this gate must too or the route is never reached.
     const productPath = req.path === "/products" || req.path.startsWith("/products/");
-    if (!productPath && !["/commerce/return", "/commerce/cancel", "/commerce/checkout.js"].includes(req.path)) { next(); return; }
+    if (!productPath && !["/commerce/return", "/commerce/cancel", "/commerce/checkout.js"].includes(req.path.replace(/\/$/, ""))) { next(); return; }
     try {
       const status = await deps.commerce!.storefrontStatus();
       if (!status.active) { next(); return; }

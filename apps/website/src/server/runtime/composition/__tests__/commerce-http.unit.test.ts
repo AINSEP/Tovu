@@ -103,3 +103,32 @@ test('the order API keeps the host proxy settings: each forwarded buyer has an o
   assert.equal(passed.headers.get('x-powered-by'), null);
   assert.deepEqual(await passed.json(), { sameApp: true }, 'a fall-through continues on the host app');
 });
+
+test('a trailing slash reaches the same storefront and order routes as the plain path', async t => {
+  const { createRouteDeps } = await import('#src/server/runtime/composition/app');
+  const app = express();
+  registerCommerceHttp({ app, deps: { ...createRouteDeps(), commerce: {
+    storefrontStatus: async () => ({ active: true, ready: true, reason: null }),
+    status: async () => ({ active: true, ready: true, reason: null }),
+  } } as unknown as RouteDeps });
+  app.use((_req, res) => res.status(418).send('CMS fallback'));
+  const server = app.listen(0, '127.0.0.1');
+  t.after(() => new Promise<void>(resolve => { server.closeAllConnections(); server.close(() => resolve()); }));
+  await new Promise<void>(resolve => server.once('listening', resolve));
+  const address = server.address(); assert.ok(address && typeof address !== 'string');
+  const statusOf = async (method: string, path: string, query = '') => {
+    const response = await fetch(`http://127.0.0.1:${address.port}${path}${query}`, { method });
+    await response.text();
+    return response.status;
+  };
+  const orders = '/api/commerce/v1/workspaces/workspace/orders';
+  for (const [method, path, query] of [
+    ['GET', '/commerce/return', '?orderId=order'], ['GET', '/commerce/cancel', '?orderId=order'],
+    ['GET', '/commerce/checkout.js', ''], ['GET', `${orders}/order`, ''],
+    ['POST', orders, ''], ['POST', `${orders}/order/pay`, ''],
+  ] as const) {
+    const plain = await statusOf(method, path, query);
+    assert.notEqual(plain, 418, `${method} ${path} must reach its route`);
+    assert.equal(await statusOf(method, `${path}/`, query), plain, `${method} ${path}/`);
+  }
+});
