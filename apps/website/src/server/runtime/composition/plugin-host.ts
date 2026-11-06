@@ -16,6 +16,7 @@ import { setAgentPluginEnabled } from '#src/features/agent-plugins/set-enabled';
 import { runAgentPluginUninstall, type AgentPluginUninstallToolDeps } from '#src/features/agent-plugins/uninstall-tool';
 import { provisionAgentPluginMcpServers, resolveAgentPluginMcpServers } from '#src/features/agent-plugins/federate-mcp';
 import { grantDeclaredToolsToSignedInRows } from '#src/features/agent-plugins/grant-signed-in-defaults';
+import { recordAgentPluginAccessDeclined } from '#src/features/agent-plugins/apply-connect-defaults';
 import { previewAgentPluginEnableAccess } from '#src/features/agent-plugins/enable-access';
 
 /** Preserve best-effort diagnostics for background provisioning; an approved card must instead
@@ -156,6 +157,7 @@ export function createTovuPluginHost(
       workspaceId: deps.workspaceId, pluginId, repo: deps.mcp.repo,
       servers: await (optional.resolveMcpServers ?? resolveAgentPluginMcpServers)({ agentPluginLayout: deps.agentPluginLayout, workspaceId: deps.workspaceId, pluginId }),
     }),
+    recordDeclinedAccess: async ({ accessKey }) => recordAgentPluginAccessDeclined({ repo: deps.mcp.repo, clock: deps.clock, workspaceId: deps.workspaceId, accessKey }),
     listInstalled,
     assertWritable: async () => (deps.assertAgentPluginActivationsWritable ?? agentPluginActivations.assertAgentPluginActivationsWritable)({ workspaceRoot: resolveWorkspaceRoot() }),
     setEnabled: async (input: Parameters<AgentPluginHostCapability["setEnabled"]>[0]) => {

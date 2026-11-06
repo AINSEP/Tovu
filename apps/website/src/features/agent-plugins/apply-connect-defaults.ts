@@ -28,7 +28,7 @@ import type { ExternalMcpAccessSnapshot, ExternalMcpServerRecord } from '../exte
  */
 import type { AgentPluginMcpPort } from "./service-ports.js";
 import type { Clock as ClockPort } from "@jini-ai/core/primitives";
-import { storedAgentPluginGrants, validatedAgentPluginToolGrant } from './enable-access.js';
+import { previewAgentPluginEnableAccess, storedAgentPluginGrants, validatedAgentPluginToolGrant } from './enable-access.js';
 
 // activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
 import { agentPluginActivations } from "./activation-effects.js";
@@ -37,10 +37,10 @@ import type { McpServerConfig } from "./mcp-metadata.js";
 import type { AgentPluginLayout } from "./layout.js";
 import { setAgentPluginEnabled } from "./set-enabled.js";
 
-/** Recorded as the plugin activation's `updatedBy` and the row's write-grant attribution: the grant
- *  came from the plugin's declaration, at a sign-in, not from a Settings save. */
 export const CONNECT_DECLINED_ACTOR = "system:connect-declined";
 
+/** Recorded as the plugin activation's `updatedBy` and the row's write-grant attribution: the grant
+ *  came from the plugin's declaration, at a sign-in, not from a Settings save. */
 const CONNECT_DEFAULTS_ACTOR = "system:connect-defaults";
 
 /** `activation.ts`'s seeder actor: its disabled record is the default, not an operator decision. */
@@ -106,7 +106,7 @@ async function readConnectGrant({ deps, serverId, resolveServers, approvedEnable
 
 /** Existing choices and nonempty selections stay until a fresh access approval. O(n) list bytes. */
 function allowsAutomaticConnectGrant(row: ExternalMcpServerRecord): boolean {
-  return row.writeGrantsUpdatedByPrincipalId !== CONNECT_DECLINED_ACTOR &&
+  return row.writeGrantsUpdatedByPrincipalId === null &&
     isEmptyJsonList(row.allowedToolNames) && isEmptyJsonList(row.writeAllowedToolNames);
 }
 
@@ -128,7 +128,7 @@ export function createApplyConnectDefaults(deps: ApplyConnectDefaultsDeps, optio
     const prepared = await readConnectGrant({ deps, serverId, resolveServers, approvedEnable: options.approvedEnable !== undefined });
     if (!prepared) return;
     const { row, pluginId, grant } = prepared;
-    const approved = approvedSource({ key: options.approvedEnable?.accessKey, connectionId: serverId });
+    const approved = approvedSource({ key: options.approvedEnable?.accessKey, connectionId: serverId, pluginId });
     assertApprovedSource({ approved, grant, current: storedAgentPluginGrants({ row }), url: row.url, expected: externalMcpAccessSnapshot({ record: row }) });
     // A sign-in is not an "on" switch: an operator's explicit plugin-off stays off, exactly as on
     // the saved-token path (`switch-on-saved-token.ts`). The sign-in itself still completes.
@@ -155,14 +155,16 @@ function assertApprovedSnapshot(approved: { readonly accessKey: string } | undef
 
 /** Only the detached host-produced snapshot authorizes a chat-triggered widening.
  * The effect compares its admission and previous grants atomically in the repository. */
-function approvedSource({ key, connectionId }: { key: string | undefined; connectionId: string }, _options = {}): {
+function approvedSource({ key, connectionId, pluginId }: { key: string | undefined; connectionId: string; pluginId: string }, _options = {}): {
   url: string; expected: ExternalMcpAccessSnapshot | null; current: ReturnType<typeof storedAgentPluginGrants>; grant: { enabled: boolean; allow: readonly string[]; write: readonly string[] };
 } | undefined {
   if (key === undefined) return undefined;
   const sources = JSON.parse(key) as { connectionId: string; url: string; expected: ExternalMcpAccessSnapshot | null; current: ReturnType<typeof storedAgentPluginGrants>; grant: { enabled: boolean; allow: readonly string[]; write: readonly string[] } | null }[];
   const source = sources.find(source => source.connectionId === connectionId);
   if (!source?.grant) throw new ToolInputError({ message: `The approved card did not grant access to '${connectionId}'. Request the access change again.` });
-  return { url: source.url, expected: source.expected, current: source.current, grant: source.grant };
+  // Provisioning associates an operator-owned row after approval without changing its source or access.
+  const expected = source.expected ? { ...source.expected, provisionedByPluginId: source.expected.provisionedByPluginId ?? pluginId } : null;
+  return { url: source.url, expected, current: source.current, grant: source.grant };
 }
 
 /** New sources must still have the empty access displayed before provisioning.
@@ -175,4 +177,22 @@ function assertApprovedSource({ approved, grant, current, url, expected }: {
   const sameNewSource = approved.expected !== null || JSON.stringify(approved.current) === JSON.stringify(current);
   const sameExistingSource = approved.expected === null || JSON.stringify(approved.expected) === JSON.stringify(expected);
   if (!sameGrant || !sameNewSource || !sameExistingSource || approved.url !== url) throw new ToolInputError({ message: 'The plugin declaration or access changed after approval. Request the access change again. Nothing was granted.' });
+}
+
+
+/** Remember a declined proposal without replacing an earlier grant's attribution or credentials.
+ * Existing decisions already prevent automatic defaults; only an unattributed source needs a marker.
+ * @throws The existing conditional writer's source-changed error if a displayed row changed.
+ * @complexity One conditional point write per eligible displayed source; O(s*(a+w)) grant bytes.
+ */
+export async function recordAgentPluginAccessDeclined({ repo, clock, workspaceId, accessKey }: {
+  repo: ApplyConnectDefaultsDeps['repo']; clock: ClockPort; workspaceId: string; accessKey: string;
+}, _options = {}): Promise<void> {
+  const sources = JSON.parse(accessKey) as Awaited<ReturnType<typeof previewAgentPluginEnableAccess>>['snapshots'];
+  for (const source of sources) {
+    if (!source.grant || !source.expected || source.expected.writeGrantsUpdatedByPrincipalId !== null) continue;
+    await applyExternalMcpAccess({ repo, clock, workspaceId, serverId: source.connectionId, expected: source.expected,
+      principalId: CONNECT_DECLINED_ACTOR,
+      access: { enabled: source.current.enabled, allowedToolNames: source.current.allow, writeAllowedToolNames: source.current.write } });
+  }
 }

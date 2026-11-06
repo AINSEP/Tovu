@@ -5,11 +5,11 @@ import { type AgentToolSideEffect, type DerivedRiskByToolId, type AgentToolDefin
 import { createSystemClock } from "@jini-ai/core/primitives";
 import { approvalToolHandler, notConfirmedResult } from "../../contracts/core/human-confirm.js";
 import { previewAgentPluginEnableAccess } from "./enable-access.js";
-import { CONNECT_DECLINED_ACTOR } from "./apply-connect-defaults.js";
+import { recordAgentPluginAccessDeclined } from "./apply-connect-defaults.js";
 import { applyExternalMcpAccess } from "../external-mcp/external-mcp-store.js";
 import type { UUID } from "@jini-ai/core/primitives";
 import { requireToolPermission, type AuthorizeFn } from "@jini-ai/cms/core";
-import { ToolInputError, type ToolExecutionOptions, type ToolExecutionContext } from "@jini-ai/core";
+import { ToolInputError, redactSecrets, type ToolExecutionOptions, type ToolExecutionContext } from "@jini-ai/core";
 
 import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { resolveExternalMcpOAuthStatus } from "../../contracts/core/external-mcp-auth.js";
@@ -310,10 +310,9 @@ export type AgentPluginConnectOptions = ToolExecutionOptions & {
 };
 
 export interface AgentPluginConnectResult {
-  readonly status: "connected" | "waiting-for-sign-in" | "not-connected" | "partially-connected";
+  readonly status: "connected" | "waiting-for-sign-in" | "not-connected";
   readonly cancelled?: boolean;
   readonly note?: string;
-  readonly grantedConnectionIds?: readonly string[];
   readonly connectionRef?: string;
   readonly reason?: string;
   readonly message?: string;
@@ -452,7 +451,10 @@ async function connectAndReviewMcp(
   const { routeDeps, surfaces, ctx, pluginId, server, servers } = input;
   const reviewed = await approveSignedInAccess({ routeDeps, surfaces, ctx, pluginId,
     servers: { [server.serverKey]: servers[server.serverKey]! } }, optional);
-  return reviewed.approved ? result : reviewed.result;
+  if (reviewed.approved) return result;
+  const lifecycle = reviewed.result.reason
+    ? ` The access review ${reviewed.result.reason === 'expired' ? 'expired' : 'ended with the run'}. Do not retry or reopen it automatically. Wait for a new explicit request.` : '';
+  return { ...reviewed.result, note: `Your sign-in was saved. No additional tool access was granted.${lifecycle}` };
 }
 
 /** Inspect retained sign-ins before any provisioning; the access preview checks source ownership. */
@@ -487,47 +489,29 @@ async function approveSignedInAccess({ routeDeps, surfaces, ctx, pluginId, serve
       const current = await currentSignedInAccess({ routeDeps, pluginId, servers });
       if (current.preview.key !== prepared.key) throw new ToolInputError({ message: 'The plugin access changed while this card was open. Request the access change again. Nothing was granted.' });
       const granted: string[] = [];
-      let applying = '';
       try {
         for (const source of prepared.snapshots) {
           if (!source.grant || !source.expected) continue;
-          if (bound.signal.aborted) return interruptedConnectAccess(granted);
-          applying = source.connectionId;
+          if (bound.signal.aborted) throw new ToolInputError({ message: 'The run ended. Other connections were not changed.' });
           await applyExternalMcpAccess({ repo: routeDeps.mcp.repo, clock: createSystemClock(),
             workspaceId: routeDeps.workspaceId, serverId: source.connectionId, expected: source.expected,
             access: { enabled: source.grant.enabled, allowedToolNames: source.grant.allow, writeAllowedToolNames: source.grant.write }, principalId: bound.principal.id });
           granted.push(source.connectionId);
         }
-        applying = 'assistant tool list';
         await routeDeps.mcp.notifyRosterChanged?.({}, {});
       } catch (error) {
         if (granted.length === 0) throw error;
-        return { approved: false, result: { status: 'partially-connected', reason: 'access-incomplete', grantedConnectionIds: granted,
-          note: `Access was saved for ${granted.join(', ')}, but ${applying} could not finish updating. Ask to connect the plugin again to finish.` } };
+        const detail = redactSecrets({ input: error instanceof Error ? error.message : String(error) }).replace('Nothing was changed by this approval.', 'That connection was left unchanged.');
+        throw new ToolInputError({ message: `Access was saved for ${granted.join(', ')}. The remaining access update did not finish. ${detail} Ask to connect the plugin again to finish.` });
       }
       return { approved: true };
     },
   }, { ask: ({ prepared }) => prepared.resources.length > 0, declined: async ({ reason, prepared }) => {
-    if (reason === 'declined') {
-      for (const source of prepared?.snapshots ?? []) {
-        if (!source.grant || !source.expected) continue;
-        // Record the choice in existing attribution; keep the exact displayed access and credentials.
-        await applyExternalMcpAccess({ repo: routeDeps.mcp.repo, clock: createSystemClock(), workspaceId: routeDeps.workspaceId,
-          serverId: source.connectionId, expected: source.expected, principalId: CONNECT_DECLINED_ACTOR,
-          access: { enabled: source.current.enabled, allowedToolNames: source.current.allow, writeAllowedToolNames: source.current.write } });
-      }
-    }
+    if (reason === 'declined' && prepared) await recordAgentPluginAccessDeclined({ repo: routeDeps.mcp.repo,
+      clock: createSystemClock(), workspaceId: routeDeps.workspaceId, accessKey: prepared.key });
     return { approved: false, result: { status: 'not-connected', ...notConfirmedResult({ confirmed: false, reason }) } };
   } });
   return await handler(ctx, optional) as { approved: true } | { approved: false; result: AgentPluginConnectResult };
-}
-
-/** Report durable progress if a run ends between independent source grants. O(g) result bytes. */
-function interruptedConnectAccess(granted: readonly string[]): { approved: false; result: AgentPluginConnectResult } {
-  const outcome = notConfirmedResult({ confirmed: false, reason: 'abandoned' });
-  if (granted.length === 0) return { approved: false, result: { status: 'not-connected', ...outcome } };
-  return { approved: false, result: { status: 'partially-connected', ...outcome, grantedConnectionIds: granted,
-    note: `Access was saved for ${granted.join(', ')} before the run ended. Other connections were not changed.` } };
 }
 
 /** Re-resolve the installed declarations: a closed-over manifest is not a fresh approval check. */

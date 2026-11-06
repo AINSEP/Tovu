@@ -77,6 +77,8 @@ export interface AgentPluginHostCapability {
   inactivePluginIds?(required: Record<string, never>, optional?: Record<string, never>): Promise<ReadonlySet<string>>;
   /** Point-read preview binds the plugin enable card to its external source and exact grants. */
   previewEnableAccess?(required: { pluginId: string }, optional?: Record<string, never>): Promise<{ readonly key: string; readonly resources?: readonly Omit<AccessApprovalResource, 'scope'>[] }>;
+  /** Persist a declined source proposal through the same connection decision owner. */
+  recordDeclinedAccess?(required: { accessKey: string }, optional?: Record<string, never>): Promise<void>;
   listInstalled(required: Record<string, never>, optional?: Record<string, never>): Promise<readonly InstalledAgentPlugin[]>;
   assertWritable(required: Record<string, never>, optional?: Record<string, never>): Promise<void>;
   setEnabled(required: AgentPluginEnableInput, optional?: Record<string, never>): Promise<SetAgentPluginEnabledResult>;

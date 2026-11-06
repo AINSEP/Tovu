@@ -930,8 +930,13 @@ export function buildPluginsRegistrations(routeDeps: PluginsToolDeps, surfaces: 
     }, { flag: "changed", ask: ({ prepared }) => prepared.request.enabled && prepared.refusal === undefined && prepared.confirm,
       // Turning a plugin back on is a new escalation. A remembered version approval must not
       // silently turn it on after the owner switched it off.
-      declined: ({ reason, prepared }) => ({ changed: false, family: prepared?.request.family,
-        pluginId: prepared?.request.pluginId, restartRequired: false, ...notConfirmedResult({ confirmed: false, reason }) }),
+      declined: async ({ reason, prepared }) => {
+        if (reason === 'declined' && prepared?.request.family === AGENT_PLUGIN_FAMILY && prepared.identity?.accessKey) {
+          await requireAgentPluginHost(routeDeps).recordDeclinedAccess?.({ accessKey: prepared.identity.accessKey });
+        }
+        return { changed: false, family: prepared?.request.family,
+          pluginId: prepared?.request.pluginId, restartRequired: false, ...notConfirmedResult({ confirmed: false, reason }) };
+      },
     }),
 
     /**

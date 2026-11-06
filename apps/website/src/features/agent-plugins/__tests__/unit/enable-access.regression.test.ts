@@ -240,6 +240,7 @@ async function retainedCall({ separate = false, second = false, action = 'confir
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: { schedule: ({ callback }) => { expire = callback; return () => {}; } }, clock: f.clock,
     idGenerator: { newId: () => 'retained-exchange' }, defaultChannel: 'mcp-ui' });
   let cards = 0;
+  let failure: unknown;
   const result = await runAgentPluginConnect({ routeDeps: {
     workspaceId: 'ws', agentPluginLayout: resolveAgentPluginLayout({ siteDir: '/unused' }), authorize: async () => ({ allowed: true, reason: '' }),
     isPluginEnabled: async () => true, credentials: { loadSafe: async () => [] }, resolveInstalledPlugin: async () => ({ servers: declarations }),
@@ -259,8 +260,8 @@ async function retainedCall({ separate = false, second = false, action = 'confir
       else if (action === 'abandoned') controller.abort();
       else surfaceExchanges.deliver({ exchangeId: 'retained-exchange', principalId: 'owner', params: { decision: action } }, { toolId: 'agent_plugin_connect' });
     },
-  });
-  return { f, cards, result };
+  }).catch(error => { failure = error; return undefined; });
+  return { f, cards, result: result!, failure };
 }
 
 for (const token of [false, true]) test(`matching separately configured credential uses the access card: token ${token}`, async () => {
@@ -278,12 +279,12 @@ for (const action of ['expired', 'abandoned'] as const) test(`unanswered access 
   assert.notEqual((await f.row()).writeGrantsUpdatedByPrincipalId, 'system:connect-declined');
 });
 test('a later source failure reports the access already saved', async () => {
-  const { f, result } = await retainedCall({ second: true, failSecond: true });
-  assert.equal(result.status, 'partially-connected');
-  assert.deepEqual(result.grantedConnectionIds, ['media']);
+  const { f, failure } = await retainedCall({ second: true, failSecond: true });
+  assert.ok(failure instanceof Error);
+  assert.match(failure.message, /Access was saved for media/);
   assert.equal((await f.row()).enabled, true);
   assert.equal((await f.repo.findByServerId({ workspaceId: 'ws', serverId: 'other' }))!.enabled, false);
-  assert.doesNotMatch(result.note!, /Nothing was changed/i);
+  assert.doesNotMatch((failure as Error).message, /Nothing was changed/i);
 });
 
 test('a new explicit connection request can replace a saved declined choice', async () => {
@@ -293,14 +294,13 @@ test('a new explicit connection request can replace a saved declined choice', as
 });
 
 test('an interrupted multi-source approval reports its completed source', async () => {
-  const { f, result } = await retainedCall({ second: true, abortAfterFirst: true });
-  assert.equal(result.status, 'partially-connected');
-  assert.equal(result.reason, 'abandoned');
-  assert.equal(result.cancelled, false);
-  assert.deepEqual(result.grantedConnectionIds, ['media']);
+  const { f, failure } = await retainedCall({ second: true, abortAfterFirst: true });
+  assert.ok(failure instanceof Error);
+  assert.match(failure.message, /Access was saved for media/);
+  assert.match(failure.message, /run ended/);
   assert.equal((await f.row()).enabled, true);
   assert.equal((await f.repo.findByServerId({ workspaceId: 'ws', serverId: 'other' }))!.enabled, false);
-  assert.doesNotMatch(result.note!, /Nothing was changed/i);
+  assert.doesNotMatch((failure as Error).message, /Nothing was changed/i);
 });
 
 test('a new sign-in after a saved choice can complete its access review in the same call', async () => {
@@ -309,4 +309,25 @@ test('a new sign-in after a saved choice can complete its access review in the s
   assert.equal(cards, 3, 'waiting, connection outcome and access review');
   assert.equal((await f.row()).enabled, true);
   assert.equal((await f.row()).writeGrantsUpdatedByPrincipalId, 'owner');
+});
+
+
+test('declining access after a new sign-in reports the retained account', async () => {
+  const { f, result } = await retainedCall({ reauth: true, action: 'cancel', declinedBefore: true });
+  assert.equal((await f.row()).oauthStatus, 'connected');
+  assert.equal((await f.row()).enabled, false);
+  assert.match(result.note!, /sign-in.*saved|account.*connected/i);
+  assert.doesNotMatch(result.note!, /Nothing was changed/);
+});
+
+
+for (const action of ['expired', 'abandoned'] as const) test(`new sign-in retains the no-retry instruction after ${action}`, async () => {
+  const { f, result } = await retainedCall({ reauth: true, action, declinedBefore: true });
+  assert.equal((await f.row()).oauthStatus, 'connected');
+  assert.equal((await f.row()).enabled, false);
+  assert.equal(result.reason, action);
+  assert.match(result.note!, /sign-in was saved/);
+  assert.match(result.note!, /Do not retry.*automatically/);
+  assert.match(result.note!, /new explicit request/);
+  assert.doesNotMatch(result.note!, /nothing was changed/i);
 });

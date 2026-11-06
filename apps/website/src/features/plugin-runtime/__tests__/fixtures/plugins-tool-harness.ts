@@ -93,6 +93,7 @@ export function harness(options: HarnessOptions = {}) {
   const agentHost: AgentPluginHostCapability = {
     ...(options.agentHost?.inactivePluginIds ? { inactivePluginIds: options.agentHost.inactivePluginIds } : {}),
     ...(options.agentHost?.previewEnableAccess ? { previewEnableAccess: options.agentHost.previewEnableAccess } : {}),
+    ...(options.agentHost?.recordDeclinedAccess ? { recordDeclinedAccess: options.agentHost.recordDeclinedAccess } : {}),
     listInstalled: async () => { events.push("listInstalled"); return (await options.agentHost?.listInstalled?.({}, {})) ?? [installedAgentPlugin()]; },
     assertWritable: async () => { events.push("assertWritable"); await options.agentHost?.assertWritable?.({}, {}); },
     setEnabled: async (input) => { events.push(`setEnabled:${input.enabled}`); return (await options.agentHost?.setEnabled?.(input, {})) ?? { pluginId: input.pluginId, enabled: input.enabled }; },
