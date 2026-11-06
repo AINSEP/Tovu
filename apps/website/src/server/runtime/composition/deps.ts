@@ -2348,7 +2348,7 @@ async function composeSiteRouteDeps(
     externalMcpOAuthDevices,
     // See `routes/types.ts`'s `derivedPublicOrigin` doc; computed above with the plugin connection seams.
     derivedPublicOrigin,
-    ...(process.env.TOVU_PUBLIC_URL ? { passkeyOrigin: process.env.TOVU_PUBLIC_URL } : {}),
+    passkeyOrigin: process.env.TOVU_PUBLIC_URL,
     ...agentPluginConnections,
     // Same shared sealer/keyring once more — see the note above the BYOK repo.
     executionSettingsReady,

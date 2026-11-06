@@ -88,13 +88,14 @@ async function handleRecovery({ req, res, action, admission }: { req: Request; r
     }
     const deps = await recoveryDeps(admission);
     await admitOwner({ req, action, admission, ownerId: deps.seededOwnerPrincipalId });
-    const input = { ...(action === 'issue' && typeof req.body?.code === 'string' ? { code: req.body.code } : {}), workspaceId: admission.deps.workspaceId, principalId: deps.seededOwnerPrincipalId,
-      password: typeof req.body?.password === 'string' ? req.body.password : '' };
+    const field = (key: 'password' | 'code') => typeof req.body?.[key] === 'string' ? req.body[key] as string : '';
+    const input = { workspaceId: admission.deps.workspaceId, principalId: deps.seededOwnerPrincipalId,
+      password: field('password'), code: field('code') };
     if (action === 'issue') {
       res.json(await issueRecoveryCodes({ deps, input }, {}));
       return;
     }
-    if (action === 'recover') await recoverOwner({ deps, input: { ...input, code: typeof req.body?.code === 'string' ? req.body.code : '' } }, {});
+    if (action === 'recover') await recoverOwner({ deps, input }, {});
     else await resetOwnerPassword({ deps, input }, {});
     res.status(204).send();
   } catch (error) { recoveryFailure({ res, error, action }); }

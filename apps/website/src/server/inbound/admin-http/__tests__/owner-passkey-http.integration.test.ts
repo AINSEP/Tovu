@@ -1,3 +1,4 @@
+import { createSettingsPrincipalLookup } from '#src/features/settings/index';
 import '../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
@@ -24,7 +25,10 @@ test('real HTTP/browser TOTP enrollment and passkey registration/login withhold 
     idGen: { newId: () => randomUUID() }, permissionGrants: createPermissionGrantRegistry(),
     ownerCredentials: { username: 'synthetic-owner', password: 'synthetic-password' } });
   await identity.identityReady;
-  const deps = { ...original, ...identity, workspaceId: 'synthetic-http-site', clock };
+  const repo = identity.principalRepo;
+  const principalRepo = { ...createSettingsPrincipalLookup({ repo }),
+    findById: repo.findById.bind(repo), list: repo.list.bind(repo), save: repo.save.bind(repo) };
+  const deps = { ...original, ...identity, principalRepo, workspaceId: 'synthetic-http-site', clock };
   const identityRequire = createRequire(import.meta.resolve('@jini-ai/user-management/server'));
   const bundle = await readFile(resolve(dirname(identityRequire.resolve('@simplewebauthn/browser')), '../dist/bundle/index.umd.min.js'));
   const { generate } = identityRequire('otplib') as { generate(input: { secret: string; epoch: number }): Promise<string> };
