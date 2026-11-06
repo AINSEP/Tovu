@@ -38,14 +38,14 @@ before(() => {
       supabase: {
         type: "streamable-http",
         url: "https://mcp.supabase.com/mcp",
-        tovuTokenAuth: { helpUrl: "https://supabase.com/dashboard/account/tokens", probeUrl: "https://api.supabase.com/v1/projects" },
+        tokenAuth: { helpUrl: "https://supabase.com/dashboard/account/tokens", probeUrl: "https://api.supabase.com/v1/projects" },
       },
     },
   });
   writePlugin("plain", "plain", { mcpServers: { plain: { type: "streamable-http", url: "https://example.com/mcp" } } });
   // Retired ids are never seeded, so never offered.
   writePlugin("tovu-deploy-fly", "tovu-deploy-fly", {
-    mcpServers: { fly: { type: "streamable-http", url: "https://fly.example/mcp", tovuTokenAuth: { helpUrl: "https://fly.example/t", probeUrl: "https://fly.example/p" } } },
+    mcpServers: { fly: { type: "streamable-http", url: "https://fly.example/mcp", tokenAuth: { helpUrl: "https://fly.example/t", probeUrl: "https://fly.example/p" } } },
   });
   fs.mkdirSync(path.join(root, "no-manifest"));
 });
@@ -106,7 +106,7 @@ test("bundled plugins: read by manifest name; retired and manifest-less dirs are
   assert.equal(await resolveBundledAgentPlugin({ bundledSourceRoot: root })("nope"), null);
 });
 
-test("the token sign-in list over bundled plugins offers only plugins that declare tovuTokenAuth", async () => {
+test("the token sign-in list over bundled plugins offers only plugins that declare tokenAuth", async () => {
   const plugins = await listTokenSignInPlugins("new-site", () => listBundledAgentPluginServers({ bundledSourceRoot: root }));
   assert.deepEqual(plugins, [{ pluginId: "supabase", displayName: "Supabase", helpUrl: "https://supabase.com/dashboard/account/tokens" }]);
 });

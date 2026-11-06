@@ -1,49 +1,21 @@
+import { readAgentPluginMetadata } from "@jini-ai/agent-plugins/manifest";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import type { AgentPluginPathsPort } from "./service-ports.js";
-import { evaluateHostSignals, selectCoreHostSignalDeclaration, type HostSignal, type HostSignalDeclaration, type HostSignals } from "../../contracts/core/host-signals.js";
+import { evaluateHostSignals, selectCoreHostSignalDeclaration, type HostSignalDeclaration, type HostSignals } from "../../contracts/core/host-signals.js";
 import { bundledContributionSources } from "./bundled-contribution-sources.js";
 
-/** JSON objects only, including the manifest's optional extension containers. */
-function record(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-/** Diagnostic copy is a single bounded line, never an environment value. */
-function diagnosticText(value: unknown): value is string {
-  return typeof value === "string" && value.trim().length > 0 && value.length <= 2048 && !/[\x00-\x1f\x7f]/.test(value);
-}
-
-/** Accept only known boolean facts and a finite positive safe hop count. No truthy coercion. */
-function validFacts(value: unknown): value is HostSignal["facts"] {
-  if (!record(value)) return false;
-  return Object.entries(value).every(([key, fact]) => {
-    if (key === "hosted" || key === "nativeToolsRestricted") return typeof fact === "boolean";
-    return key === "trustProxyHops" && Number.isSafeInteger(fact) && (fact as number) > 0;
-  });
-}
-
-/** Invalid env names or labels cannot become host hints. @complexity O(1). */
-function validSignal(value: unknown): value is HostSignal {
-  if (!record(value)) return false;
-  if (typeof value.env !== "string" || !/^[A-Z_][A-Z0-9_]*$/.test(value.env)) return false;
-  if (!validFacts(value.facts)) return false;
-  return value.label === undefined || diagnosticText(value.label);
-}
-
 /**
- * Parse the existing extensions.tovu convention; a malformed declaration contributes nothing.
+ * Read Jini's validated portable extension; malformed declarations contribute nothing.
  * @param required Parsed JSON manifest, never executable plugin code.
  * @returns Validated hints, or undefined for absent/invalid metadata. Never throws for JSON input.
  * @complexity O(s) for s declared signals; no I/O.
  * @example parseHostSignalDeclaration({ manifest: JSON.parse(text) });
  */
 export function parseHostSignalDeclaration({ manifest }: { manifest: unknown }, _optional = {}): HostSignalDeclaration | undefined {
-  if (!record(manifest) || !record(manifest.extensions) || !record(manifest.extensions.tovu)) return undefined;
-  const extension = manifest.extensions.tovu;
-  if (!Array.isArray(extension.hostSignals) || !extension.hostSignals.every(validSignal)) return undefined;
-  if (extension.deploymentAdvice !== undefined && !diagnosticText(extension.deploymentAdvice)) return undefined;
-  return { signals: extension.hostSignals, ...(extension.deploymentAdvice === undefined ? {} : { deploymentAdvice: extension.deploymentAdvice as string }) };
+  const { metadata } = readAgentPluginMetadata({ value: manifest });
+  if (metadata.hostSignals === undefined) return undefined;
+  return { signals: metadata.hostSignals, ...(metadata.deploymentAdvice === undefined ? {} : { deploymentAdvice: metadata.deploymentAdvice }) };
 }
 
 interface ReaderPorts {

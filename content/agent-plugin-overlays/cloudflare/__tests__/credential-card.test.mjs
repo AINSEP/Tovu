@@ -8,7 +8,7 @@ import { agentPluginSourceDir } from '../../../../development/test-support/agent
 // cloudflare ships from @jini-ai/agent-plugins/cloudflare: read it where Tovu takes it from.
 const PLUGIN_DIR = agentPluginSourceDir({ pluginId: 'cloudflare' });
 
-const card = (target = 'cloudflare') => JSON.parse(readFileSync(path.join(PLUGIN_DIR, 'plugin.json'), 'utf8')).extensions.tovu.credentialCards.find(c => c.target === target);
+const card = (target = 'cloudflare') => JSON.parse(readFileSync(path.join(PLUGIN_DIR, 'plugin.json'), 'utf8')).extensions.jini.credentialCards.find(c => c.target === target);
 for (const [target, kind, title, permissions, helpUrl] of [
   ['cloudflare-workers', 'publish-host', 'Connect Cloudflare Workers', /Workers Scripts → Edit/, 'https://dash.cloudflare.com/profile/api-tokens'],
   ['cloudflare-pages', 'publish-host', 'Connect Cloudflare Pages', /Cloudflare Pages → Edit/, 'https://dash.cloudflare.com/profile/api-tokens'],

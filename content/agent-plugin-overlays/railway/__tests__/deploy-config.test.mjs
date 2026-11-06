@@ -48,9 +48,9 @@ test("tovu deploy config --target railway tells the operator to set Tovu's runti
 test("railway is a seeded-disabled package with its config and deploy-ops descriptors, modules and skill packed", async () => {
   const manifest = JSON.parse(await readFile(path.join(PLUGIN_DIR, "plugin.json"), "utf8"));
   assert.equal(manifest.name, "railway");
-  assert.equal(manifest.extensions.tovu.id, "tovu/railway");
-  assert.equal(manifest.extensions.tovu.displayName, "Railway");
-  assert.deepEqual(manifest.extensions.tovu.provides, ["deploy-config:railway", "deploy-ops:railway"]);
+  assert.equal(manifest.extensions.jini.id, "tovu/railway");
+  assert.equal(manifest.extensions.jini.displayName, "Railway");
+  assert.deepEqual(manifest.extensions.jini.provides, ["deploy-config:railway", "deploy-ops:railway"]);
   assert.deepEqual(JSON.parse(await readFile(path.join(PLUGIN_DIR, "mcp.json"), "utf8")).mcpServers, {});
   const registry = await loadDeployConfigGeneratorsFromSource({ pluginId: "railway", packageRoot: PLUGIN_DIR });
   assert.deepEqual(registry.refusals, []);

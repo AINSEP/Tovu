@@ -1,8 +1,9 @@
+import { readAgentPluginPortableExtension } from "@jini-ai/agent-plugins/manifest";
 /**
  * @file Trusted-replacement supersession, declared by the replacing plugin and read generically.
  *
  * A bundled plugin that replaces older packages names them in its own `plugin.json` under
- * `extensions.tovu.supersedes`:
+ * `extensions.jini.supersedes`:
  *
  * ```json
  * "supersedes": {
@@ -59,9 +60,7 @@ function parseJson(text: string): unknown {
   try { return JSON.parse(text); } catch { return undefined; }
 }
 function declaredSupersedes(manifest: unknown): unknown {
-  const extensions = isRecord(manifest) ? manifest.extensions : undefined;
-  const tovu = isRecord(extensions) ? extensions.tovu : undefined;
-  return isRecord(tovu) ? tovu.supersedes : undefined;
+  return readAgentPluginPortableExtension({ value: manifest })?.supersedes;
 }
 
 /** The manifest's declaration, or `undefined` when it has none or any part is malformed — a

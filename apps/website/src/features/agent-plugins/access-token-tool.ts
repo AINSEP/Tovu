@@ -21,7 +21,7 @@ import { describeSavedTokenSwitch, switchOnSavedTokenConnection, type SwitchOnSa
 
 /**
  * @file `agent_plugin_set_access_token` — the generic access-token fallback for an Agent Plugin whose
- * remote server declares `tovuTokenAuth { helpUrl, probeUrl }` in its `mcp.json` (`manifest.ts`).
+ * remote server declares `tokenAuth { helpUrl, probeUrl }` in its `mcp.json` (`manifest.ts`).
  * Used when `agent_plugin_connect`'s sign-in cannot start.
  *
  * Moved here on 2026-09-29 from `features/supabase-connect/` (SPEC-052's `supabase_set_access_token`),
@@ -85,7 +85,7 @@ export interface TokenAuthTarget {
   readonly pluginId: string;
   readonly displayName: string;
   readonly connectionId: string;
-  readonly config: RemoteMcpServerConfig & { readonly tovuTokenAuth: AgentPluginTokenAuth };
+  readonly config: RemoteMcpServerConfig & { readonly tokenAuth: AgentPluginTokenAuth };
 }
 
 function hostOf(url: string | null): string | null {
@@ -118,7 +118,7 @@ export async function requireTargetRow(
 }
 
 /**
- * Resolves the plugin's one server declaring `tovuTokenAuth`, provisioning its row (idempotent, the
+ * Resolves the plugin's one server declaring `tokenAuth`, provisioning its row (idempotent, the
  * same call `agent_plugin_connect` makes) so a first-time fallback needs no earlier step.
  *
  * @throws {ToolInputError} Not installed; no or several token-auth servers.
@@ -134,7 +134,7 @@ export async function resolveTarget(
   if (!plugin) throw new ToolInputError({ message: `agent_plugin_set_access_token: '${pluginId}' is not an installed Agent Plugin in this workspace.` });
 
   const declared = Object.entries(plugin.servers).flatMap(([serverKey, config]) =>
-    config.type !== "stdio" && config.tovuTokenAuth ? [{ serverKey, config: config as TokenAuthTarget["config"] }] : [],
+    config.type !== "stdio" && config.tokenAuth ? [{ serverKey, config: config as TokenAuthTarget["config"] }] : [],
   );
   if (declared.length === 0) throw new ToolInputError({ message: `agent_plugin_set_access_token: '${pluginId}' declares no access-token sign-in.` });
   if (declared.length > 1) throw new ToolInputError({ message: `agent_plugin_set_access_token: '${pluginId}' declares more than one access-token sign-in.` });
@@ -222,7 +222,7 @@ async function saveSubmittedAccessToken(
   catch (err) { if (err instanceof CredentialInputError) { return { saved: false, reason: 'invalid', message: credentialText({ id: err.rule, locale }) }; } throw err; }
 
   const token = (submitted as string).trim();
-  const probe = await probeToken({ probeUrl: target.config.tovuTokenAuth.probeUrl, token, credentials: routeDeps.credentials });
+  const probe = await probeToken({ probeUrl: target.config.tokenAuth.probeUrl, token, credentials: routeDeps.credentials });
   signal.throwIfAborted();
   if (probe === "invalid") return { saved: false, reason: "invalid", message: translateCredentialMessage({ message: MESSAGES.tokenInvalid, locale }) };
   if (probe === "refused") {
@@ -278,7 +278,7 @@ export async function saveAgentPluginToken(
       const credentialCard = await routeDeps.credentials.find({ workspaceId: routeDeps.workspaceId, saveKind: "agent-plugin-token", target: pluginId });
       return { target, principalId: ctx.principal.id, locale, credentialCard };
     },
-    form: ({ prep }) => buildAgentPluginAccessTokenForm({ credentials: routeDeps.credentials, pluginDisplayName: prep.target.displayName, helpUrl: prep.target.config.tovuTokenAuth.helpUrl, credentialCard: prep.credentialCard }),
+    form: ({ prep }) => buildAgentPluginAccessTokenForm({ credentials: routeDeps.credentials, pluginDisplayName: prep.target.displayName, helpUrl: prep.target.config.tokenAuth.helpUrl, credentialCard: prep.credentialCard }),
     save: ({ values, prep, signal }) => saveSubmittedAccessToken({ values, routeDeps, ...prep, signal }),
     result: ({ prep, run }) => accessTokenResult({ run, locale: prep.locale }),
     outcome: ({ prep, run }) => {

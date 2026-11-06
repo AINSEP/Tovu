@@ -1,6 +1,6 @@
 /**
  * @file Plain text -> paragraph/list blocks, for author prose that arrives as one JSON string
- * (`plugin.json` `description`/`extensions.tovu.summary`, a skill's frontmatter `description`).
+ * (`plugin.json` `description`/`extensions.jini.summary`, a skill's frontmatter `description`).
  * Rendered as one `<p>` with `white-space: normal` that prose collapsed into a single wall of text
  * however the author broke it. Text only: the blocks hold strings that React escapes on render, so
  * nothing here can turn into markup.

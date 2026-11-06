@@ -17,12 +17,12 @@ test('OAuth and token fallback target the hosted service without inline secrets'
   const server = config.mcpServers.supabase;
   assert.equal(server.type, 'streamable-http');
   assert.equal(new URL(server.url).origin, 'https://mcp.supabase.com');
-  assert.equal(server.tovuAuthMode, 'oauth');
-  assert.equal(server.tovuTokenAuth.helpUrl, 'https://supabase.com/dashboard/account/tokens');
-  assert.equal(server.tovuTokenAuth.probeUrl, 'https://api.supabase.com/v1/projects');
+  assert.equal(server.authMode, 'oauth');
+  assert.equal(server.tokenAuth.helpUrl, 'https://supabase.com/dashboard/account/tokens');
+  assert.equal(server.tokenAuth.probeUrl, 'https://api.supabase.com/v1/projects');
   assert.equal(server.headers, undefined);
   assert.equal(server.env, undefined);
-  const skill = await readFile(path.join(PLUGIN_ROOT, 'skills/supabase/SKILL.md'), 'utf8');
+  const skill = await readFile(new URL('../GUIDANCE.md', import.meta.url), 'utf8') + '\n' + await readFile(path.join(PLUGIN_ROOT, 'skills/supabase/SKILL.md'), 'utf8');
   assert.match(skill, /agent_plugin_connect/);
   assert.match(skill, /Never show a key or password/);
   const recovery = await readFile(path.join(PLUGIN_ROOT, 'skills/supabase/references/failure-modes.md'), 'utf8');

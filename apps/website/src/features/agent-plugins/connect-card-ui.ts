@@ -57,7 +57,7 @@ export function buildAgentPluginConnectCard(spec: AgentPluginConnectCardSpec, _o
 
 /**
  * The masked access-token form `agent_plugin_set_access_token` shows (`access-token-tool.ts`), for a
- * plugin whose server declares `tovuTokenAuth`; its tokens page comes from the plugin metadata.
+ * plugin whose server declares `tokenAuth`; its tokens page comes from the plugin metadata.
  *
  * Its one field is the only place the token exists outside the sealed ciphertext it becomes: it is
  * posted straight to the tool-calls route, never through chat. Never pre-filled — every render starts

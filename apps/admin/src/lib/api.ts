@@ -2320,10 +2320,10 @@ export interface AdminAgentPlugin {
   requiredBy?: string[];
   archiveDigest?: string;
   pluginId: string;
-  /** `plugin.json`'s `extensions.tovu.displayName`; `null` (or absent, from a server predating the
+  /** `plugin.json`'s `extensions.jini.displayName`; `null` (or absent, from a server predating the
    *  field) means title-case `pluginId` instead. */
   displayName?: string | null;
-  /** `plugin.json`'s `extensions.tovu.summary` — the plain-language explainer the row shows in place
+  /** `plugin.json`'s `extensions.jini.summary` — the plain-language explainer the row shows in place
    *  of `description` (which is written for the assistant); `null`/absent means show `description`. */
   summary?: string | null;
   version: string | null;

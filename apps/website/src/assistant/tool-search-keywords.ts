@@ -1,3 +1,4 @@
+import { readAgentPluginMetadata } from "@jini-ai/agent-plugins/manifest";
 import { nativeToolMetadata } from '../contracts/core/tool-metadata/index.js';
 import type { ToolMetadata } from '@jini-ai/core';
 import { createSearchEnricher } from '@jini-ai/registry/tool-catalog-builder';
@@ -31,7 +32,7 @@ export function readBundledToolKeywords(required: { sourceRoot: string }, option
     try {
       const readText = optional.readText ?? ((file: string) => readFileSync(file, 'utf8'));
       const manifest = JSON.parse(readText(path.join(source.packageRoot, 'plugin.json')));
-      appendToolKeywords({ keywords, declaration: manifest?.extensions?.tovu?.toolKeywords });
+      appendToolKeywords({ keywords, declaration: readAgentPluginMetadata({ value: manifest }).metadata.toolKeywords });
     } catch { /* Optional search data never prevents tool catalog construction. */ }
   }
   return keywords;

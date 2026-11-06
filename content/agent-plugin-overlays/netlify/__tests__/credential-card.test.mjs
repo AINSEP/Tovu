@@ -8,7 +8,7 @@ import { agentPluginSourceDir } from '../../../../development/test-support/agent
 // netlify ships from @jini-ai/agent-plugins/netlify: read it where Tovu takes it from.
 const PLUGIN_DIR = agentPluginSourceDir({ pluginId: 'netlify' });
 
-const card = (target = 'netlify') => JSON.parse(readFileSync(path.join(PLUGIN_DIR, 'plugin.json'), 'utf8')).extensions.tovu.credentialCards.find(c => c.target === target);
+const card = (target = 'netlify') => JSON.parse(readFileSync(path.join(PLUGIN_DIR, 'plugin.json'), 'utf8')).extensions.jini.credentialCards.find(c => c.target === target);
 for (const [target, kind, title, permissions, helpUrl] of [
   ['netlify', 'publish-host', 'Connect Netlify', /SSO/, 'https://app.netlify.com/user/applications#personal-access-tokens'],
 ]) test(`netlify/${target}: correct title, destination, key page and minimum access guidance`, () => {

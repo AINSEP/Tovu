@@ -22,7 +22,7 @@ test("unknown host maturity is ignored with a warning, without reflecting arbitr
   for (const maturity of ['beta', '', null, 42, {}, ['untested']]) {
     const warnings: string[] = [];
     assert.equal(readPluginMaturity({ manifest: { extensions: { tovu: { maturity } } } }, { warn: message => warnings.push(message) }), undefined);
-    assert.deepEqual(warnings, ['[agent-plugins] Unknown extensions.tovu.maturity ignored; expected "untested" or "soon".']);
+    assert.deepEqual(warnings, ['[agent-plugins] Unknown extensions.jini.maturity ignored; expected "untested" or "soon".']);
   }
 });
 

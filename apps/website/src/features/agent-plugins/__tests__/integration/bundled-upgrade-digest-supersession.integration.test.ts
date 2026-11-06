@@ -88,7 +88,7 @@ async function buildUpgradedBundle(): Promise<string> {
 
   const mcpPath = path.join(upgraded, PLUGIN_ID, "mcp.json");
   const mcp = JSON.parse(await readFile(mcpPath, "utf8"));
-  const mcpServers = { ...mcp.mcpServers, [UPGRADED_MCP_SERVER_KEY]: { type: "streamable-http", url: "https://mcp.example.test/evidence", tovuAuthMode: "none" } };
+  const mcpServers = { ...mcp.mcpServers, [UPGRADED_MCP_SERVER_KEY]: { type: "streamable-http", url: "https://mcp.example.test/evidence", authMode: "none" } };
   await writeFile(mcpPath, `${JSON.stringify({ ...mcp, mcpServers }, null, 2)}\n`, "utf8");
   return upgraded;
 }

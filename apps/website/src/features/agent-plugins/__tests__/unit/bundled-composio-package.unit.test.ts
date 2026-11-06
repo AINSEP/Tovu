@@ -45,7 +45,7 @@ test("mcp.json declares Composio Connect over OAuth, auto-admitted (no secret, n
   if (!parsed.ok) return;
   assert.deepEqual(parsed.config.serverIds, ["composio"]);
   const server = parsed.config.servers.composio;
-  assert.deepEqual(server, { type: "streamable-http", url: "https://connect.composio.dev/mcp", tovuAuthMode: "oauth" });
+  assert.deepEqual(server, { type: "streamable-http", url: "https://connect.composio.dev/mcp", authMode: "oauth" });
   if (server) assert.equal(classifyAgentPluginMcpServerTrust(server), "auto-admit");
 });
 

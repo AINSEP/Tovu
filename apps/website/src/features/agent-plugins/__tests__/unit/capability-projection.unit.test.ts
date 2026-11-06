@@ -172,3 +172,19 @@ test("readInstalledMcpServers returns {} for malformed JSON — fail-open, same 
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test('installed legacy MCP metadata warns the host while keeping its working connection', async t => {
+  const root = await mkdtemp(path.join(tmpdir(), 'portable-mcp-warning-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await writeFile(path.join(root, 'plugin.json'), JSON.stringify({
+    $schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json', name: 'example', version: '1.0.0', extensions: { jini: { id: 'publisher/example' } },
+  }));
+  await writeFile(path.join(root, 'mcp.json'), JSON.stringify({
+    $schema: 'https://agent-plugins.org/schemas/1.0.0/mcp.schema.json',
+    mcpServers: { remote: { type: 'streamable-http', url: 'https://example.test/mcp', tovuAuthMode: 'oauth' } },
+  }));
+  const warnings = t.mock.method(console, 'warn', () => {});
+  const servers = await readInstalledMcpServers(root);
+  assert.deepEqual(servers.remote, { type: 'streamable-http', url: 'https://example.test/mcp', authMode: 'oauth' });
+  assert.ok(warnings.mock.calls.some(call => String(call.arguments[0]).includes('2027-05-06')));
+});

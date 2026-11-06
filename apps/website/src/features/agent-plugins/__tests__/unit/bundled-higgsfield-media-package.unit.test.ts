@@ -101,8 +101,8 @@ test("mcp.json declares the real higgsfield connection, auto-admitted per classi
   // The declared defaults the first sign-in grants (apply-connect-defaults.ts): enabling and signing
   // in is enough to generate (owner, 2026-11-02).
   assert.deepEqual(server, {
-    type: "streamable-http", url: "https://mcp.higgsfield.ai/mcp", tovuAuthMode: "oauth",
-    tovuDefaultTools: {
+    type: "streamable-http", url: "https://mcp.higgsfield.ai/mcp", authMode: "oauth",
+    defaultTools: {
       allow: ["generate_image", "generate_video", "models_explore", "job_status", "jobs_wait", "show_generations", "reveal_generation", "show_generation_by_ids"],
       write: ["generate_image", "generate_video", "reveal_generation"],
       read: ["models_explore", "job_status", "jobs_wait", "show_generations", "show_generation_by_ids"],

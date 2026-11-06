@@ -117,7 +117,7 @@ export function createTovuAgentPluginLifecycle(required: { layout: AgentPluginLa
     ...createNodeAgentPluginEffects({}, optional),
     // Boot chooses the site root before binding this owner; requests keep that same layout.
     layout: ownerLayout(required.layout),
-    productName: "Tovu", extensionNamespace: "tovu", bundledArchiveMagic: "TOVUPKG1\n",
+    productName: "Tovu", extensionNamespace: "jini", bundledArchiveMagic: "TOVUPKG1\n",
     seededEnabledPluginIds: BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED,
     retiredBundledPlugins: RETIRED_BUNDLED_AGENT_PLUGINS,
     deliveryMode: resolveAgentPluginDeliveryMode(), formatPluginToolPointer,

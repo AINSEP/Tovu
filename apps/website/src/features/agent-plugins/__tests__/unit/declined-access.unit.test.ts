@@ -9,7 +9,7 @@ import { previewAgentPluginEnableAccess } from '../../enable-access.js';
 import { resolveAgentPluginLayout } from '../../layout.js';
 import type { McpServerConfig } from '../../mcp-metadata.js';
 
-const servers: Readonly<Record<string, McpServerConfig>> = { media: { type: 'streamable-http', url: 'https://media.example.test/mcp', tovuAuthMode: 'oauth', tovuDefaultTools: { allow: ['models', 'generate'], write: ['generate'] } } };
+const servers: Readonly<Record<string, McpServerConfig>> = { media: { type: 'streamable-http', url: 'https://media.example.test/mcp', authMode: 'oauth', defaultTools: { allow: ['models', 'generate'], write: ['generate'] } } };
 async function fixture() {
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();

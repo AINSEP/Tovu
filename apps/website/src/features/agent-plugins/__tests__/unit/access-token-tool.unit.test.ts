@@ -24,7 +24,7 @@ import type { PluginCredentialCard } from "../../../../contracts/core/plugin-cre
 
 /**
  * @file `agent_plugin_set_access_token`, the generic access-token fallback any Agent Plugin gets by
- * declaring `tovuTokenAuth` on a remote server in its `mcp.json`. Moved here from
+ * declaring `tokenAuth` on a remote server in its `mcp.json`. Moved here from
  * `features/supabase-connect/` (SPEC-052's Supabase-only `supabase_set_access_token`) on 2026-09-29;
  * the Supabase specifics (tokens page, probe URL) now come from the plugin's own declaration.
  *
@@ -49,8 +49,8 @@ const SUPABASE_SERVERS: Readonly<Record<string, McpServerConfig>> = {
   supabase: {
     type: "streamable-http",
     url: "https://mcp.supabase.com/mcp",
-    tovuAuthMode: "oauth",
-    tovuTokenAuth: { helpUrl: TOKENS_PAGE, probeUrl: PROBE_URL },
+    authMode: "oauth",
+    tokenAuth: { helpUrl: TOKENS_PAGE, probeUrl: PROBE_URL },
   },
 };
 
@@ -171,14 +171,14 @@ test("a plugin that is not installed is refused before any form or network call"
   assert.equal(env.surfaceExchanges.size(), 0);
 });
 
-test("a plugin whose servers declare no tovuTokenAuth is refused: there is no token form for it", async () => {
-  const env = await setup({ servers: { supabase: { type: "streamable-http", url: "https://mcp.supabase.com/mcp", tovuAuthMode: "oauth" } } });
+test("a plugin whose servers declare no tokenAuth is refused: there is no token form for it", async () => {
+  const env = await setup({ servers: { supabase: { type: "streamable-http", url: "https://mcp.supabase.com/mcp", authMode: "oauth" } } });
   await assert.rejects(call(env.tools.get(SET_TOKEN), { emitSurface: async () => undefined }), /declares no access-token sign-in/);
   assert.equal(env.surfaceExchanges.size(), 0);
 });
 
 test("a plugin declaring two access-token sign-ins is refused rather than guessing which one the token is for", async () => {
-  const env = await setup({ servers: { ...SUPABASE_SERVERS, second: { type: "streamable-http", url: "https://second.example.com/mcp", tovuAuthMode: "oauth", tovuTokenAuth: { helpUrl: TOKENS_PAGE, probeUrl: PROBE_URL } } } });
+  const env = await setup({ servers: { ...SUPABASE_SERVERS, second: { type: "streamable-http", url: "https://second.example.com/mcp", authMode: "oauth", tokenAuth: { helpUrl: TOKENS_PAGE, probeUrl: PROBE_URL } } } });
   await assert.rejects(call(env.tools.get(SET_TOKEN), { emitSurface: async () => undefined }), /'supabase' declares more than one access-token sign-in\./);
   assert.equal(env.surfaceExchanges.size(), 0);
   assert.equal(env.http.requests.length, 0);

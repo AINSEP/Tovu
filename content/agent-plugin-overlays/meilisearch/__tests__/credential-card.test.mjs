@@ -8,7 +8,7 @@ import { agentPluginSourceDir } from '../../../../development/test-support/agent
 // Moved from content/agent-plugins/meilisearch (D-W): the plugin ships as @jini-ai/agent-plugins/meilisearch; this Tovu-bound test reads it from there.
 const PLUGIN_ROOT = agentPluginSourceDir({ pluginId: 'meilisearch' });
 
-const card = (target = 'meilisearch') => JSON.parse(readFileSync(path.join(PLUGIN_ROOT, 'plugin.json'), 'utf8')).extensions.tovu.credentialCards.find(c => c.target === target);
+const card = (target = 'meilisearch') => JSON.parse(readFileSync(path.join(PLUGIN_ROOT, 'plugin.json'), 'utf8')).extensions.jini.credentialCards.find(c => c.target === target);
 for (const [target, kind, title, permissions, helpUrl] of [
   ['meilisearch', 'api', 'Connect Meilisearch', /indexes.create.*documents.add.*settings.update.*tasks.get/, undefined],
 ]) test(`meilisearch/${target}: correct title, destination, key page and minimum access guidance`, () => {

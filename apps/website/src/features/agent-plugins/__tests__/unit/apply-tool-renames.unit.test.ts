@@ -18,7 +18,7 @@ import { resolveAgentPluginLayout } from "../../layout.js";
 import { forceRemove } from "../fixtures/force-remove.js";
 
 /**
- * @file `apply-tool-renames.ts` — a plugin's declared `tovuRenamedTools` rewrite the saved tool lists
+ * @file `apply-tool-renames.ts` — a plugin's declared `renamedTools` rewrite the saved tool lists
  * of the rows that plugin provisioned, at boot, so a vendor rename (Supabase `get_logs` ->
  * `query_logs`, 2026-09-29) never leaves a selection naming a tool the server stopped offering.
  * Runs against the real in-memory store, so a pass here means the row the daemon reads changed.
@@ -33,7 +33,7 @@ const NOW = "2026-09-29T12:00:00.000Z";
 const DECLARED: McpServerConfig = {
   type: "streamable-http",
   url: URL_,
-  tovuRenamedTools: { get_logs: "query_logs" },
+  renamedTools: { get_logs: "query_logs" },
 };
 
 async function makeHarness(row: {

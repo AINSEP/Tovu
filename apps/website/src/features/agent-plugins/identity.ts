@@ -3,36 +3,37 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { readPluginIdentity, type PluginIdentity } from '@jini-ai/core/plugin-directory';
+import { readAgentPluginPortableExtension } from '@jini-ai/agent-plugins/manifest';
 import type { InstalledAgentPlugin } from '@jini-ai/agent-plugins/lifecycle';
 
 /** Tovu host metadata; absence keeps the plugin's normal presentation and behavior. */
 export type PluginMaturity = 'untested' | 'soon';
 
-/** Read only Tovu's extension; unknown values warn without rejecting a usable plugin.
+/** Read the selected portable extension; unknown values warn without rejecting a usable plugin.
  * @returns A supported maturity or undefined. @complexity O(1).
  */
 export function readPluginMaturity({ manifest }: { manifest: unknown }, options: { warn?: (message: string) => void } = {}): PluginMaturity | undefined {
-  // Optional chaining reads nothing from null and yields undefined for primitives and arrays.
-  const maturity = (manifest as { extensions?: { tovu?: { maturity?: unknown } } } | null | undefined)?.extensions?.tovu?.maturity;
+  // The portable reader preserves old installed copies when the new namespace is absent.
+  const maturity = readAgentPluginPortableExtension({ value: manifest })?.maturity;
   if (maturity === undefined) return undefined;
   if (maturity === 'untested' || maturity === 'soon') return maturity;
-  (options.warn ?? console.warn)('[agent-plugins] Unknown extensions.tovu.maturity ignored; expected "untested" or "soon".');
+  (options.warn ?? console.warn)('[agent-plugins] Unknown extensions.jini.maturity ignored; expected "untested" or "soon".');
   return undefined;
 }
 
 /** Provider plugin ids follow the same grammar as a credential card's `saveTarget`. */
 const PROVIDER_PLUGIN_ID = /^[a-z0-9][a-z0-9._-]{0,99}$/;
 
-/** `extensions.tovu.providerPlugin`: the provider plugin this agent plugin is the assistant face of
+/** `extensions.jini.providerPlugin`: the provider plugin this agent plugin is the assistant face of
  *  (owner 2026-10-25: one vendor, one plugin). The provider plugin's switch turns both faces on and
  *  off (`provider-plugin-link.ts`), and the agent plugin owns that provider's settings card.
  *  Unknown shapes warn and read as no link, so a typo never links to a wrong plugin.
  * @complexity O(1). */
 export function readProviderPluginLink({ manifest }: { manifest: unknown }, options: { warn?: (message: string) => void } = {}): string | undefined {
-  const link = (manifest as { extensions?: { tovu?: { providerPlugin?: unknown } } } | null | undefined)?.extensions?.tovu?.providerPlugin;
+  const link = readAgentPluginPortableExtension({ value: manifest })?.providerPlugin;
   if (link === undefined) return undefined;
   if (typeof link === 'string' && PROVIDER_PLUGIN_ID.test(link)) return link;
-  (options.warn ?? console.warn)('[agent-plugins] Invalid extensions.tovu.providerPlugin ignored; expected a plugin id.');
+  (options.warn ?? console.warn)('[agent-plugins] Invalid extensions.jini.providerPlugin ignored; expected a plugin id.');
   return undefined;
 }
 
@@ -52,7 +53,8 @@ export async function readInstalledAgentPluginIdentity(
   let manifest: Readonly<Record<string, unknown>>;
   try { manifest = JSON.parse(await readText(path.join(plugin.packageRoot, 'plugin.json'))); }
   catch { throw new Error('The installed plugin identity manifest could not be read.'); }
-  const identity = readPluginIdentity({ manifest, name: plugin.pluginId, namespace: 'tovu' });
+  const extension = readAgentPluginPortableExtension({ value: manifest });
+  const identity = readPluginIdentity({ manifest: { ...manifest, extensions: { jini: extension } }, name: plugin.pluginId, namespace: 'jini' });
   const maturity = readPluginMaturity({ manifest });
   const providerPlugin = readProviderPluginLink({ manifest });
   return { ...identity, ...(maturity ? { maturity } : {}), ...(providerPlugin ? { providerPlugin } : {}) };

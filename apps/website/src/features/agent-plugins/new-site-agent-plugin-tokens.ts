@@ -16,7 +16,7 @@ import { listTokenSignInPlugins, type TokenCheckOutcome, type TokenSignInPlugin 
  * (`cli/commands/init.ts`, which the desktop app's "Create website" runs). Added 2026-09-29 so the
  * desktop create form offers the same optional "Connect services" step as the admin's.
  *
- * Generic: keyed by plugin id; a plugin qualifies by declaring `tovuTokenAuth` (`token-sign-in.ts`).
+ * Generic: keyed by plugin id; a plugin qualifies by declaring `tokenAuth` (`token-sign-in.ts`).
  * Nothing here ever returns or logs a token.
  */
 

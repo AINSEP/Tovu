@@ -77,8 +77,8 @@ for (const host of HOST_PLUGINS) {
     const parsed = parseAgentPluginManifest({ value: manifest });
     assert.equal(parsed.ok && parsed.manifest.name, host.pluginId);
     assert.deepEqual(parsed.ok ? parsed.warnings : ["unreachable"], []);
-    const tovu = (manifest as { extensions: { tovu: { id: string; displayName: string; provides: string[] } } }).extensions.tovu;
-    assert.deepEqual([tovu.id, tovu.provides], [`tovu/${host.pluginId}`, [...TARGETS.filter(target => target.pluginId === host.pluginId).map(target => `deploy-target:${target.id}`), ...(EXTRA_PROVIDES[host.pluginId] ?? [])]]);
+    const metadata = (manifest as { extensions: { jini: { id: string; displayName: string; provides: string[] } } }).extensions.jini;
+    assert.deepEqual([metadata.id, metadata.provides], [`tovu/${host.pluginId}`, [...TARGETS.filter(target => target.pluginId === host.pluginId).map(target => `deploy-target:${target.id}`), ...(EXTRA_PROVIDES[host.pluginId] ?? [])]]);
     const mcp = parseAgentPluginMcpConfig({ value: await readPackageJson("mcp.json", packageRoot) });
     assert.deepEqual(mcp.ok ? mcp.config.serverIds : ["unreachable"], []);
     assert.match(await readFile(path.join(packageRoot, "skills", host.pluginId, "SKILL.md"), "utf8"), new RegExp(`^---\nname: ${host.pluginId}\n`));

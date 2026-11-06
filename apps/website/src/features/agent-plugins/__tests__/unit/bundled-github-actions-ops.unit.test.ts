@@ -18,7 +18,7 @@ const PACKAGE_ROOT = agentPluginSourceDir({ pluginId: "github" });
 
 test("the github plugin contributes the github-actions ops platform and declares it", async () => {
   const manifest = JSON.parse(await readFile(path.join(PACKAGE_ROOT, "plugin.json"), "utf8"));
-  assert.deepEqual(manifest.extensions.tovu.provides, ["source-control", "site-backup", "deploy-ops:github-actions"]);
+  assert.deepEqual(manifest.extensions.jini.provides, ["source-control", "site-backup", "deploy-ops:github-actions"]);
   const registry = await loadDeployOpsRegistryFromSource({ pluginId: "github", packageRoot: PACKAGE_ROOT });
   assert.deepEqual(registry.refusals, []);
   assert.deepEqual(registry.list().map(item => item.descriptor.id), ["github-actions"]);

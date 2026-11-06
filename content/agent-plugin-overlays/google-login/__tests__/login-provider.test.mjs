@@ -28,9 +28,9 @@ test('the bundled Google preset pins the identity protocol without API permissio
 
 test('Google Login is discoverable as a bundled opt-in member provider and marked soon', () => {
   assert.equal(manifest.name, 'google-login');
-  assert.equal(manifest.extensions.tovu.id, 'tovu/google-login');
-  assert.equal(manifest.extensions.tovu.maturity, 'soon');
-  assert.deepEqual(manifest.extensions.tovu.provides, ['member-login:google']);
+  assert.equal(manifest.extensions.jini.id, 'tovu/google-login');
+  assert.equal(manifest.extensions.jini.maturity, 'soon');
+  assert.deepEqual(manifest.extensions.jini.provides, ['member-login:google']);
   assert.deepEqual(manifest.keywords, ['google-login', 'sign-in-with-google', 'member-login', 'oidc']);
   assert.equal(BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED.has('google-login'), false);
   const sources = bundledContributionSources({

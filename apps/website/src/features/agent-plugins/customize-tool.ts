@@ -36,7 +36,7 @@ export async function prepareCustomizedAgentPluginArchive({ deps, ctx }: { deps:
   const sources = installed.filter(plugin => plugin.pluginId === pluginId);
   if (sources.length !== 1) throw new ToolInputError({ message: `Source '${pluginId}' must identify exactly one installed Agent Plugin.` });
   try {
-    return await zipCustomizedAgentPluginFolder({ path: sources[0]!.packageRoot, maxBytes: maxAgentPluginInstallArchiveBytes(), name: requireString({ input, key: 'newId' }), identityNamespace: 'tovu',
+    return await zipCustomizedAgentPluginFolder({ path: sources[0]!.packageRoot, maxBytes: maxAgentPluginInstallArchiveBytes(), name: requireString({ input, key: 'newId' }), identityNamespace: 'jini',
       edit: { path: requireString({ input, key: 'path' }), oldString: requireString({ input, key: 'oldString' }), newString: requireString({ input, key: 'newString' }, { allowEmpty: true }) } });
   } catch (error) {
     if (error instanceof FolderZipError) throw new ToolInputError({ message: error.message });

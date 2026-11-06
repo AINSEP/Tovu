@@ -18,6 +18,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { readAgentPluginMetadata } from "@jini-ai/agent-plugins/manifest";
 import { agentPluginSourceDir } from "../../../development/test-support/agent-plugin-source.mjs";
 
 import {
@@ -56,7 +57,7 @@ test("desktop payload ships the Fly host-signal declaration as unchanged plain d
   stagePayloadFiles({ repoRoot, outDir });
   const staged = fs.readFileSync(path.join(outDir, "dist/content/agent-plugins/fly/plugin.json"), "utf8");
   assert.equal(staged, sourceManifest);
-  assert.deepEqual(JSON.parse(staged).extensions.tovu.hostSignals, [
+  assert.deepEqual(readAgentPluginMetadata({ value: JSON.parse(staged) }).metadata.hostSignals, [
     { env: "FLY_APP_NAME", facts: { hosted: true, trustProxyHops: 1, nativeToolsRestricted: true }, label: "Fly.io (FLY_APP_NAME)" },
     { env: "FLY_MACHINE_ID", facts: { nativeToolsRestricted: true } },
     { env: "FLY_ALLOC_ID", facts: { nativeToolsRestricted: true } },

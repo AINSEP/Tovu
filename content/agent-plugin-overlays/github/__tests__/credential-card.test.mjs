@@ -8,7 +8,7 @@ import { agentPluginSourceDir } from '../../../../development/test-support/agent
 // Moved from content/agent-plugins/github (D-W): the plugin ships as @jini-ai/agent-plugins/github; this Tovu-bound test reads it from there.
 const PLUGIN_ROOT = agentPluginSourceDir({ pluginId: 'github' });
 
-const card = (target = 'github') => JSON.parse(readFileSync(path.join(PLUGIN_ROOT, 'plugin.json'), 'utf8')).extensions.tovu.credentialCards.find(c => c.target === target);
+const card = (target = 'github') => JSON.parse(readFileSync(path.join(PLUGIN_ROOT, 'plugin.json'), 'utf8')).extensions.jini.credentialCards.find(c => c.target === target);
 for (const [target, kind, title, permissions, helpUrl] of [
   ['github', 'api', 'Connect GitHub', /Contents.*Workflows.*Actions/, 'https://github.com/settings/personal-access-tokens/new'],
   ['github-source-control', 'source-control', 'Connect GitHub for source control', /Contents.*Read and write/, 'https://github.com/settings/personal-access-tokens/new'],

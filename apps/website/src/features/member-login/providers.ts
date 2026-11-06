@@ -2,6 +2,7 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { readAgentPluginPortableExtension } from "@jini-ai/agent-plugins/manifest";
 import { bundledContributionSources } from "../agent-plugins/bundled-contribution-sources.js";
 import { loadPluginContributionsFromSource, type LoadPluginContributions,
   type PluginContributionDefinition } from "../agent-plugins/lifecycle.js";
@@ -85,7 +86,7 @@ export async function loadBundledLoginProviders(required: { sourceRoot: string }
   const items: LoginProvider[] = [];
   for (const plugin of bundledContributionSources({ sourceRoot: required.sourceRoot, filename: LOGIN_PROVIDERS_FILENAME })) {
     const manifest = JSON.parse(await readFile(path.join(plugin.packageRoot, "plugin.json"), "utf8"));
-    if (manifest.extensions?.tovu?.id !== `tovu/${plugin.pluginId}`) continue;
+    if (readAgentPluginPortableExtension({ value: manifest })?.id !== `tovu/${plugin.pluginId}`) continue;
     const loaded = await loadPluginContributionsFromSource({ plugin, definition: contribution });
     items.push(...loaded.items);
   }

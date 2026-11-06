@@ -29,7 +29,7 @@ test("software-engineering seeds OFF, explicit enablement delivers its skill/ove
   t.after(async () => { await source.dispose(); await forceRemove(siteDir); });
   const manifest = JSON.parse(await readFile(path.join(PACKAGE_ROOT, "plugin.json"), "utf8"));
   assert.equal(parseAgentPluginManifest({ value: manifest }).ok, true);
-  assert.equal(manifest.extensions.tovu.displayName, "Tovu Software Engineering");
+  assert.equal(manifest.extensions.jini.displayName, "Software Engineering");
   assert.equal(BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED.has(PLUGIN_ID), false);
   const layout = resolveAgentPluginLayout({ siteDir }, { env: {} });
   const lifecycle = createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: source.root, hostOverlaysDir: overlayRoot });

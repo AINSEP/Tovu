@@ -24,7 +24,7 @@ import { agentPluginActivations } from "../../activation-effects.js";
 import { forceRemove } from "../fixtures/force-remove.js";
 
 /**
- * @file `apply-connect-defaults.ts` — S-G2: a plugin's declared `tovuDefaultTools` are granted on the
+ * @file `apply-connect-defaults.ts` — S-G2: a plugin's declared `defaultTools` are granted on the
  * operator's FIRST successful sign-in, through the real OAuth service's `onConnected` port and the
  * real in-memory store, so a pass here means the row the daemon reads actually changed.
  */
@@ -50,8 +50,8 @@ const DECLARED: Readonly<Record<string, McpServerConfig>> = {
   supabase: {
     type: "streamable-http",
     url: URL_,
-    tovuAuthMode: "oauth",
-    tovuDefaultTools: { allow: ["list_projects", "create_project"], write: ["create_project"] },
+    authMode: "oauth",
+    defaultTools: { allow: ["list_projects", "create_project"], write: ["create_project"] },
   },
 };
 

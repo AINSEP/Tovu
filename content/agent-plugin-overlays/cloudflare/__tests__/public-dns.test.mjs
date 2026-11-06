@@ -10,7 +10,7 @@ import { processComposedBundledSourceRoot } from '../../../../apps/website/src/f
 const PLUGIN_DIR = agentPluginSourceDir({ pluginId: 'cloudflare' });
 
 test("Cloudflare owns the diagnostic DNS URL as data available before activation", async () => {
-  const declaration = JSON.parse(readFileSync(path.join(PLUGIN_DIR, "plugin.json"), "utf8")).extensions.tovu.publicDnsResolver;
+  const declaration = JSON.parse(readFileSync(path.join(PLUGIN_DIR, "plugin.json"), "utf8")).extensions.jini.publicDnsResolver;
   assert.deepEqual(declaration, { url: "https://cloudflare-dns.com/dns-query", format: "dns-json" });
   // Exactly one shipped plugin may declare it: read the whole bundle the build composes.
   const url = readBundledPublicDnsResolverUrl({ sourceRoot: await processComposedBundledSourceRoot() });

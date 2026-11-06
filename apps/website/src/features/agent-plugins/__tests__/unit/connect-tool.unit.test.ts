@@ -49,7 +49,7 @@ const WORKSPACE_ID = "77777777-7777-4777-8777-777777777777";
 const PRINCIPAL_ID = "principal-1";
 const CLOCK = { nowMs: () => Date.parse("2026-09-27T00:00:00.000Z"), nowIso: () => "2026-09-27T00:00:00.000Z" };
 
-const OAUTH_SERVER: McpServerConfig = { type: "streamable-http", url: "https://mcp.example.com/mcp", tovuAuthMode: "oauth" };
+const OAUTH_SERVER: McpServerConfig = { type: "streamable-http", url: "https://mcp.example.com/mcp", authMode: "oauth" };
 
 function makeStoreDeps() {
   const repo = new InMemoryExternalMcpServerRepo();
@@ -193,8 +193,8 @@ function baseDeps(store: ReturnType<typeof makeStoreDeps>, overrides: Partial<Ag
 }
 
 const TOKEN_SERVER: McpServerConfig = {
-  type: "streamable-http", url: "https://mcp.example.com/mcp", tovuAuthMode: "none",
-  tovuTokenAuth: { helpUrl: "https://example.com/keys", probeUrl: "https://api.example.com/account" },
+  type: "streamable-http", url: "https://mcp.example.com/mcp", authMode: "none",
+  tokenAuth: { helpUrl: "https://example.com/keys", probeUrl: "https://api.example.com/account" },
 };
 
 test("connect_token_only_uses_plugin_card_without_oauth", async () => {
@@ -254,7 +254,7 @@ test("token-only connect reuses a stored credential without prompting or changin
 for (const decision of ['confirm', 'cancel'] as const) {
   test(`a retained access token uses one fixed access card without replacing credentials: ${decision}`, async () => {
     const store = makeStoreDeps();
-    const server = { ...TOKEN_SERVER, tovuDefaultTools: { allow: ['list_items', 'write_item'], write: ['write_item'] } };
+    const server = { ...TOKEN_SERVER, defaultTools: { allow: ['list_items', 'write_item'], write: ['write_item'] } };
     await provisionAgentPluginMcpServers(mcpTestPort(store), { workspaceId: WORKSPACE_ID, pluginId: 'widget-store', servers: { widget: server }, principalId: PRINCIPAL_ID });
     await saveExternalMcpServer(store, { workspaceId: WORKSPACE_ID, serverId: 'widget', transport: 'streamable_http', authMode: 'static_env', enabled: false,
       command: '', url: TOKEN_SERVER.url, args: '', allowedToolNames: '', writeAllowedToolNames: '', accessToken: 'fixture-account-token', principalId: PRINCIPAL_ID });
@@ -284,7 +284,7 @@ test("oauth_with_token_fallback_still_starts_oauth", async () => {
   const oauth = fakeOAuth(store.repo, "https://mcp.example.com/authorize");
   const deps = baseDeps(store, {
     waitTimeoutMs: 0,
-    resolveInstalledPlugin: async () => ({ servers: { widget: { ...TOKEN_SERVER, tovuAuthMode: "oauth" } } }),
+    resolveInstalledPlugin: async () => ({ servers: { widget: { ...TOKEN_SERVER, authMode: "oauth" } } }),
     externalMcpOAuth: { ...oauth, beginConnect: async input => { starts += 1; return oauth.beginConnect(input); } },
   });
   const surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) };
@@ -340,7 +340,7 @@ test("agent_plugin_connect: an OAuth server provisioning skipped (legacy sse) is
   const emissions: SurfaceEmission[] = [];
   const deps = baseDeps(store, {
     externalMcpOAuth: counting,
-    resolveInstalledPlugin: async () => ({ servers: { widget: { type: "sse", url: "https://mcp.example.com/sse", tovuAuthMode: "oauth" } } }),
+    resolveInstalledPlugin: async () => ({ servers: { widget: { type: "sse", url: "https://mcp.example.com/sse", authMode: "oauth" } } }),
   });
 
   await assert.rejects(
@@ -501,7 +501,7 @@ test("agent_plugin_connect: denied permission provisions no row and emits no car
 for (const credential of ["oauth", "static-token"] as const) {
   test(`agent_plugin_connect: an already saved ${credential} starts no sign-in and preserves the row`, async () => {
     const store = makeStoreDeps();
-    const server: McpServerConfig = { ...OAUTH_SERVER, tovuTokenAuth: { helpUrl: "https://mcp.example.com/tokens", probeUrl: "https://mcp.example.com/probe" } };
+    const server: McpServerConfig = { ...OAUTH_SERVER, tokenAuth: { helpUrl: "https://mcp.example.com/tokens", probeUrl: "https://mcp.example.com/probe" } };
     await provisionAgentPluginMcpServers(mcpTestPort(store), { workspaceId: WORKSPACE_ID, pluginId: "widget-store", servers: { widget: server }, principalId: PRINCIPAL_ID });
     const row = (await store.repo.findByServerId({ workspaceId: WORKSPACE_ID, serverId: "widget" }))!;
     if (credential === "oauth") {
@@ -535,7 +535,7 @@ for (const credential of ["oauth", "static-token"] as const) {
 // common access card, without starting a second sign-in.
 test("agent_plugin_connect: an already signed-in OAuth row gets the plugin's declared default tools, after one access approval and with no new sign-in", async () => {
   const store = makeStoreDeps();
-  const server: McpServerConfig = { ...OAUTH_SERVER, tovuDefaultTools: { allow: ["list_things", "make_thing"], write: ["make_thing"] } };
+  const server: McpServerConfig = { ...OAUTH_SERVER, defaultTools: { allow: ["list_things", "make_thing"], write: ["make_thing"] } };
   await provisionAgentPluginMcpServers(mcpTestPort(store), { workspaceId: WORKSPACE_ID, pluginId: "widget-store", servers: { widget: server }, principalId: PRINCIPAL_ID });
   await flipRowConnected(store.repo, "widget");
   let rosterNotifications = 0;
@@ -603,7 +603,7 @@ test("agent_plugin_connect resolves the installed package without an injected re
 
 test("agent_plugin_connect: signed-in servers recover their tools while another server still needs sign-in", { timeout: 5_000 }, async t => {
   const store = makeStoreDeps();
-  const servers = { widget: { ...OAUTH_SERVER, tovuDefaultTools: { allow: ["list_things"], write: [] } }, other: { ...OAUTH_SERVER, url: "https://other.example.com/mcp" } };
+  const servers = { widget: { ...OAUTH_SERVER, defaultTools: { allow: ["list_things"], write: [] } }, other: { ...OAUTH_SERVER, url: "https://other.example.com/mcp" } };
   await provisionAgentPluginMcpServers(mcpTestPort(store), { workspaceId: WORKSPACE_ID, pluginId: "widget-store", servers, principalId: PRINCIPAL_ID });
   await flipRowConnected(store.repo, "widget");
   let accessCards = 0;
@@ -730,7 +730,7 @@ for (const mode of ["provisioning-refused", "ownership-changed"] as const) {
     const store = makeStoreDeps();
     const otherUrl = "https://other.example/mcp";
     await provisionAgentPluginMcpServers(mcpTestPort(store), { workspaceId: WORKSPACE_ID, pluginId: mode === "ownership-changed" ? "widget-store" : "other-plugin", principalId: PRINCIPAL_ID,
-      servers: { widget: mode === "ownership-changed" ? OAUTH_SERVER : { type: "streamable-http", url: otherUrl, tovuAuthMode: "oauth" } },
+      servers: { widget: mode === "ownership-changed" ? OAUTH_SERVER : { type: "streamable-http", url: otherUrl, authMode: "oauth" } },
     });
     if (mode === "ownership-changed") {
       // Provisioning sees its own row; the subsequent read sees another plugin's replacement.

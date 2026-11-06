@@ -230,3 +230,25 @@ test('broken unrelated manifests are skipped and the composed DNS resolver reads
   const unavailable = createBundledPublicDnsResolver({ client: clientReturning({ Status: 0 }).client, sourceRoot });
   await assert.rejects(unavailable.query({ domain: 'example.com', type: 'A' }), { name: 'ToolInputError' });
 });
+
+for (const namespace of ["jini", "tovu"]) {
+  test(`public resolver accepts ${namespace} metadata without executing a plugin`, t => {
+    const endpoint = { format: "dns-json", url: "https://resolver.example.test/query" };
+    const root = resolverSources(t, [undefined]);
+    writeFileSync(path.join(root, "example-0/plugin.json"), JSON.stringify({ extensions: { [namespace]: { publicDnsResolver: endpoint } } }));
+    assert.equal(readBundledPublicDnsResolverUrl({ sourceRoot: root }), endpoint.url);
+  });
+}
+
+test("portable resolver metadata takes precedence and malformed portable data cannot fall back", t => {
+  const root = resolverSources(t, [undefined]);
+  const legacy = { publicDnsResolver: { format: "dns-json", url: "https://legacy.example.test/query" } };
+  const current = { publicDnsResolver: { format: "dns-json", url: "https://current.example.test/query" } };
+  const manifestPath = path.join(root, "example-0/plugin.json");
+  writeFileSync(manifestPath, JSON.stringify({ extensions: { jini: current, tovu: legacy } }));
+  assert.equal(readBundledPublicDnsResolverUrl({ sourceRoot: root }), current.publicDnsResolver.url);
+  for (const jini of [null, {}, { publicDnsResolver: null }]) {
+    writeFileSync(manifestPath, JSON.stringify({ extensions: { jini, tovu: legacy } }));
+    assert.throws(() => readBundledPublicDnsResolverUrl({ sourceRoot: root }), { name: "ToolInputError" });
+  }
+});

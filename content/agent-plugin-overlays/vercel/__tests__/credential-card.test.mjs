@@ -8,7 +8,7 @@ import { agentPluginSourceDir } from '../../../../development/test-support/agent
 // vercel ships from @jini-ai/agent-plugins/vercel: read it where Tovu takes it from.
 const PLUGIN_DIR = agentPluginSourceDir({ pluginId: 'vercel' });
 
-const card = (target = 'vercel') => JSON.parse(readFileSync(path.join(PLUGIN_DIR, 'plugin.json'), 'utf8')).extensions.tovu.credentialCards.find(c => c.target === target);
+const card = (target = 'vercel') => JSON.parse(readFileSync(path.join(PLUGIN_DIR, 'plugin.json'), 'utf8')).extensions.jini.credentialCards.find(c => c.target === target);
 for (const [target, kind, title, permissions, helpUrl] of [
   ['vercel', 'publish-host', 'Connect Vercel', /team.*scope/i, 'https://vercel.com/account/tokens'],
 ]) test(`vercel/${target}: correct title, destination, key page and minimum access guidance`, () => {

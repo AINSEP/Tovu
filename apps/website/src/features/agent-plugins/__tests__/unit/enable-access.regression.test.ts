@@ -11,7 +11,7 @@ import { previewAgentPluginEnableAccess, validatedAgentPluginToolGrant } from '.
 import { resolveAgentPluginLayout } from '../../layout.js';
 import type { McpServerConfig } from '../../mcp-metadata.js';
 
-const servers: Readonly<Record<string, McpServerConfig>> = { media: { type: 'streamable-http', url: 'https://media.example.test/mcp', tovuAuthMode: 'oauth', tovuDefaultTools: { allow: ['models', 'generate'], write: ['generate'] } } };
+const servers: Readonly<Record<string, McpServerConfig>> = { media: { type: 'streamable-http', url: 'https://media.example.test/mcp', authMode: 'oauth', defaultTools: { allow: ['models', 'generate'], write: ['generate'] } } };
 async function fixture() {
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
@@ -169,8 +169,8 @@ for (const change of ['tools', 'writes', 'endpoint', 'removed'] as const) {
       const config = original.media as Exclude<McpServerConfig, { type: 'stdio' }>;
       if (change === 'removed') current = {};
       if (change === 'endpoint') current = { media: { ...config, url: 'https://other.example.test/mcp' } };
-      if (change === 'tools') current = { media: { ...config, tovuDefaultTools: { allow: ['more'], write: [] } } };
-      if (change === 'writes') current = { media: { ...config, tovuDefaultTools: { allow: ['models', 'generate'], write: ['models'] } } };
+      if (change === 'tools') current = { media: { ...config, defaultTools: { allow: ['more'], write: [] } } };
+      if (change === 'writes') current = { media: { ...config, defaultTools: { allow: ['models', 'generate'], write: ['models'] } } };
       surfaceExchanges.deliver({ exchangeId: 'access-exchange', principalId: 'owner', params: { decision: 'confirm' } }, { toolId: 'agent_plugin_connect' });
     } });
     await assert.rejects(promise, /changed|points somewhere else/);
@@ -195,7 +195,7 @@ for (const separate of [false, true]) {
         authorize: async () => ({ allowed: true, reason: '' }), isPluginEnabled: async () => true,
         credentials: { loadSafe: async () => [] }, mcp: { repo: f.repo, applyAccess: f.applyAccess, saveServer: async () => { saves++; throw new Error('no provisioning before approval'); } },
         externalMcpOAuth: { beginConnect: async () => { throw new Error('no sign-in before approval'); }, isValidationError: () => false },
-        resolveInstalledPlugin: async () => ({ servers: { ...servers, pending: { type: 'streamable-http', url: 'https://pending.example.test/mcp', tovuAuthMode: 'oauth' } } }),
+        resolveInstalledPlugin: async () => ({ servers: { ...servers, pending: { type: 'streamable-http', url: 'https://pending.example.test/mcp', authMode: 'oauth' } } }),
       },
       surfaces: { surfaceExchanges, assertAccessApprover: async () => {} } as never,
       ctx: { executionId: 'exec', principal: { id: 'owner' }, run: { id: 'run' }, input: {}, signal: new AbortController().signal }, pluginId: 'images',
@@ -223,7 +223,7 @@ async function retainedCall({ separate = false, second = false, action = 'confir
     accessToken: 'fixture-only-token', principalId: 'owner',
   });
   await f.repo.upsert({ ...await f.row(), oauthStatus: token ? null : reauth ? 'needs_reauth' : 'connected', provisionedByPluginId: separate ? null : 'images', ...(declinedBefore ? { writeGrantsUpdatedByPrincipalId: 'system:connect-declined' } : {}) });
-  const declarations = { media: { ...servers.media!, ...(token ? { tovuAuthMode: undefined, tovuTokenAuth: { helpUrl: 'https://media.example.test/tokens', probeUrl: 'https://media.example.test/probe' } } : {}) },
+  const declarations = { media: { ...servers.media!, ...(token ? { authMode: undefined, tokenAuth: { helpUrl: 'https://media.example.test/tokens', probeUrl: 'https://media.example.test/probe' } } : {}) },
     ...(second ? { other: { ...servers.media! } } : {}) } as Readonly<Record<string, McpServerConfig>>;
   if (second) await f.repo.upsert({ ...await f.row(), serverId: 'other' });
   const controller = new AbortController();

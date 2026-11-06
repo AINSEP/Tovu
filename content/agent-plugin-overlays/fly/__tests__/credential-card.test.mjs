@@ -8,7 +8,7 @@ import { agentPluginSourceDir } from '../../../../development/test-support/agent
 // fly ships from @jini-ai/agent-plugins/fly: read it where Tovu takes it from.
 const PLUGIN_DIR = agentPluginSourceDir({ pluginId: 'fly' });
 
-const card = (target = 'fly') => JSON.parse(readFileSync(path.join(PLUGIN_DIR, 'plugin.json'), 'utf8')).extensions.tovu.credentialCards.find(c => c.target === target);
+const card = (target = 'fly') => JSON.parse(readFileSync(path.join(PLUGIN_DIR, 'plugin.json'), 'utf8')).extensions.jini.credentialCards.find(c => c.target === target);
 for (const [target, kind, title, permissions, helpUrl] of [
   ['fly', 'api', 'Connect Fly.io', /scoped.*app|app.*scoped/i, undefined],
 ]) test(`fly/${target}: correct title, destination, key page and minimum access guidance`, () => {
@@ -32,7 +32,7 @@ test('every credential card parses its task purposes', () => {
     {
       "providerId": "fly",
       "usedFor": [
-        "Deploys your Tovu server and checks its status and logs",
+        "Deploys your application server and checks its status and logs",
         "Manages the app's running servers",
         "Creates and manages apps when you grant access to the organization"
       ]

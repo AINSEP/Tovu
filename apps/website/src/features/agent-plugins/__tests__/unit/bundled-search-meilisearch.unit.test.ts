@@ -47,8 +47,8 @@ test("plugin.json parses under the Agent Plugins v1.0.0 validator with no warnin
   assert.equal(parsed.ok, true);
   assert.equal(parsed.ok && parsed.manifest.name, "meilisearch");
   assert.deepEqual(parsed.ok ? parsed.warnings : ["unreachable"], []);
-  const manifest = value as { description: string; extensions: { tovu: { provides: string[] } } };
-  assert.deepEqual(manifest.extensions.tovu.provides, ["site-search"]);
+  const manifest = value as { description: string; extensions: { jini: { provides: string[] } } };
+  assert.deepEqual(manifest.extensions.jini.provides, ["site-search"]);
   assert.match(manifest.description, /PUBLIC content only/);
 });
 

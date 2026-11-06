@@ -14,7 +14,7 @@ import { AGENT_PLUGINS_SCREEN, switchOnSavedTokenConnection, type SwitchOnSavedT
  *
  * Two callers, both at boot (`server/runtime/boot/bootstrap.ts`):
  * - {@link importAgentPluginAccessTokensFromEnv}: a plugin's `mcp.json` may name an old env var
- *   (`tovuTokenAuth.importFromEnv`) whose token is copied over. Added 2026-09-29 when the Supabase
+ *   (`tokenAuth.importFromEnv`) whose token is copied over. Added 2026-09-29 when the Supabase
  *   env preset (`TOVU_SUPABASE_MCP_*`) was retired in favour of the Supabase plugin.
  * - create-site onboarding's pending tokens (`composition/pending-agent-plugin-tokens.ts`).
  *
@@ -114,7 +114,7 @@ export interface ImportAgentPluginAccessTokensFromEnvDeps extends ImportAgentPlu
 function envDeclarations(plugins: readonly InstalledAgentPluginServers[]) {
   return plugins.flatMap(({ pluginId, servers, bundled }) =>
     bundled === true
-      ? Object.values(servers).flatMap((config) => (config.type !== "stdio" && config.tovuTokenAuth ? [{ pluginId, url: config.url, auth: config.tovuTokenAuth }] : []))
+      ? Object.values(servers).flatMap((config) => (config.type !== "stdio" && config.tokenAuth ? [{ pluginId, url: config.url, auth: config.tokenAuth }] : []))
       : [],
   );
 }

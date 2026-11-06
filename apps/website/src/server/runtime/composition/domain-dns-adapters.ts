@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { readAgentPluginPortableExtension } from "@jini-ai/agent-plugins/manifest";
 import { bundledContributionSources } from "#src/features/agent-plugins/bundled-contribution-sources";
 import { isIP } from "node:net";
 import { ToolInputError } from "@jini-ai/core";
@@ -161,9 +162,9 @@ export function readBundledPublicDnsResolverUrl(required: { readonly sourceRoot:
 
 /** Validate endpoint data while leaving request bounds, parsing and egress in the resolver. */
 function publicDnsDeclarationUrl({ manifest }: { readonly manifest: unknown }, _optional = {}): string | undefined {
-  const declaration = (manifest as { extensions?: { tovu?: { publicDnsResolver?: { format?: unknown; url?: unknown } } } } | null)?.extensions?.tovu?.publicDnsResolver;
+  const declaration = readAgentPluginPortableExtension({ value: manifest })?.publicDnsResolver;
   if (declaration === undefined) return undefined;
-  return dnsJsonEndpointUrl({ declaration });
+  return dnsJsonEndpointUrl({ declaration: declaration as { format?: unknown; url?: unknown } | null });
 }
 
 /** A shipped resolver must be an HTTPS dns-json endpoint without credentials or URL state. */

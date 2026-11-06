@@ -1,3 +1,4 @@
+import { readAgentPluginMetadata } from "@jini-ai/agent-plugins/manifest";
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
@@ -58,7 +59,7 @@ test('shipped tool words enrich both legacy and registered search without plugin
   let declarations = 0;
   for (const source of sources) {
     const manifest = JSON.parse(readFileSync(path.join(source.packageRoot, 'plugin.json'), 'utf8'));
-    for (const [id, words] of Object.entries(manifest.extensions?.tovu?.toolKeywords ?? {})) {
+    for (const [id, words] of Object.entries(readAgentPluginMetadata({ value: manifest }).metadata.toolKeywords ?? {})) {
       declarations++;
       assert.equal(typeof words, 'string', `${source.pluginId}: ${id}`);
       assert.ok(Object.hasOwn(nativeToolMetadata.byId, id), `${source.pluginId}: ${id}`);
@@ -71,4 +72,15 @@ test('shipped tool words enrich both legacy and registered search without plugin
     }
   }
   assert.ok(declarations > 0, 'the contract must exercise real shipped declarations');
+});
+
+
+test('portable search metadata takes precedence while older copies remain readable', () => {
+  const readText = () => JSON.stringify({ extensions: {
+    jini: { toolKeywords: { credential_save: 'portable-provider' } },
+    tovu: { toolKeywords: { credential_save: 'stale-provider' } },
+  } });
+  const sources = () => [{ pluginId: 'example', packageRoot: '/shipped/example' }];
+  const keywords = readBundledToolKeywords({ sourceRoot: '/shipped' }, { sources, readText });
+  assert.deepEqual({ ...keywords }, { credential_save: 'portable-provider' });
 });

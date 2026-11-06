@@ -59,9 +59,9 @@ test("tovu deploy config --target render carries Tovu's runtime mode and the loc
 test("render is a seeded-disabled package with its config and deploy-ops descriptors, modules and skill packed", async () => {
   const manifest = JSON.parse(await readFile(path.join(PLUGIN_DIR, "plugin.json"), "utf8"));
   assert.equal(manifest.name, "render");
-  assert.equal(manifest.extensions.tovu.id, "tovu/render");
-  assert.equal(manifest.extensions.tovu.displayName, "Render");
-  assert.deepEqual(manifest.extensions.tovu.provides, ["deploy-config:render", "deploy-ops:render"]);
+  assert.equal(manifest.extensions.jini.id, "tovu/render");
+  assert.equal(manifest.extensions.jini.displayName, "Render");
+  assert.deepEqual(manifest.extensions.jini.provides, ["deploy-config:render", "deploy-ops:render"]);
   assert.deepEqual(JSON.parse(await readFile(path.join(PLUGIN_DIR, "mcp.json"), "utf8")).mcpServers, {});
   const registry = await loadDeployConfigGeneratorsFromSource({ pluginId: "render", packageRoot: PLUGIN_DIR });
   assert.deepEqual(registry.refusals, []);

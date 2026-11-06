@@ -58,7 +58,7 @@ async function readSkill() {
 
 test("mcp.json declares Resend's hosted token-authenticated server, auto-provisioned as 'resend'", async () => {
   const server = await readServer();
-  assert.deepEqual({ type: server.type, url: server.url, tovuAuthMode: server.tovuAuthMode }, { type: "streamable-http", url: MCP_URL, tovuAuthMode: "none" });
+  assert.deepEqual({ type: server.type, url: server.url, tovuAuthMode: server.authMode }, { type: "streamable-http", url: MCP_URL, tovuAuthMode: "none" });
   assert.equal(server.headers, undefined, "a key in a header would never be sealed; it goes through the token form");
   assert.equal(classifyAgentPluginMcpServerTrust(server), "auto-admit");
   const plan = planAgentPluginMcpFederation({ servers: { resend: server } });
@@ -69,11 +69,11 @@ test("mcp.json declares Resend's hosted token-authenticated server, auto-provisi
 test("the account key points at Resend's API keys page and probes an endpoint a Sending access key cannot read", async () => {
   const server = await readServer();
   // GET /domains: 200 for Full access, 401 restricted_api_key for Sending access (refused before saving).
-  assert.deepEqual(server.tovuTokenAuth, { helpUrl: "https://resend.com/api-keys", probeUrl: "https://api.resend.com/domains" });
+  assert.deepEqual(server.tokenAuth, { helpUrl: "https://resend.com/api-keys", probeUrl: "https://api.resend.com/domains" });
 });
 
 test("default tools: within the cap, read and write partition allow, and the happy path is granted", async () => {
-  const { allow, write, read } = (await readServer()).tovuDefaultTools;
+  const { allow, write, read } = (await readServer()).defaultTools;
   assert.ok(allow.length <= 64);
   assert.equal(new Set(allow).size, allow.length);
   assert.deepEqual([...read, ...write].sort(), [...allow].sort());
@@ -84,7 +84,7 @@ test("default tools: within the cap, read and write partition allow, and the hap
 });
 
 test("default tools leave out removals, mass sends, and anything that would put a new secret in the chat", async () => {
-  const { allow } = (await readServer()).tovuDefaultTools;
+  const { allow } = (await readServer()).defaultTools;
   for (const name of allow) {
     assert.doesNotMatch(name, /^(?:remove|batch-remove)-/, `${name}: removals cannot be undone and get no confirm card`);
   }
@@ -94,7 +94,7 @@ test("default tools leave out removals, mass sends, and anything that would put 
 });
 
 test("every granted tool that mails a person asks the person first", async () => {
-  const { allow } = (await readServer()).tovuDefaultTools;
+  const { allow } = (await readServer()).defaultTools;
   const sends = allow.filter((name) => name.startsWith("send-"));
   assert.deepEqual(sends.sort(), ["send-batch-emails", "send-email"]);
   for (const remoteName of sends) {
@@ -233,7 +233,7 @@ test("resend_account_connection_is_key_based", async () => {
 
 test("every mcp__resend__ tool SKILL.md names is granted by default", async () => {
   const skill = await readSkill();
-  const { allow } = (await readServer()).tovuDefaultTools;
+  const { allow } = (await readServer()).defaultTools;
   const named = [...skill.matchAll(/mcp__resend__([a-z-]+)/g)].map((match) => match[1]).filter((name) => !name.endsWith("-"));
   assert.ok(named.length > 0);
   for (const name of named) assert.ok(allow.includes(name), `SKILL.md names mcp__resend__${name}, which is not granted`);

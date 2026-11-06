@@ -15,15 +15,15 @@ test('browser sign-in and operator read trust are declared without a token', asy
   assert.equal(parseAgentPluginManifest({ value: manifest }).ok, true);
   assert.equal(parseAgentPluginMcpConfig({ value: config }, { pluginManifest: manifest }).ok, true);
   assert.deepEqual(config.mcpServers.higgsfield, { type: 'streamable-http', url: 'https://mcp.higgsfield.ai/mcp' });
-  const metadata = manifest.extensions.tovu.mcpServers.higgsfield;
-  assert.equal(metadata.tovuAuthMode, 'oauth');
-  assert.deepEqual(metadata.tovuDefaultTools.read, ['models_explore', 'job_status', 'jobs_wait', 'show_generations', 'show_generation_by_ids']);
+  const metadata = manifest.extensions.jini.mcpServers.higgsfield;
+  assert.equal(metadata.authMode, 'oauth');
+  assert.deepEqual(metadata.defaultTools.read, ['models_explore', 'job_status', 'jobs_wait', 'show_generations', 'show_generation_by_ids']);
   // Owner 2026-11-02: enabling the plugin and signing in must be enough to generate, so the sign-in
   // grants these declared tools, generators included (apply-connect-defaults.ts).
-  assert.ok(metadata.tovuDefaultTools.allow.includes('generate_image'), 'the sign-in allowlists generation');
-  assert.ok(metadata.tovuDefaultTools.allow.includes('jobs_wait'), 'the sign-in allowlists job polling');
-  assert.ok(metadata.tovuDefaultTools.write.includes('generate_image'), 'the sign-in grants may-write to the image generator');
-  const skill = await readFile(path.join(PLUGIN_ROOT, 'skills/higgsfield-media/SKILL.md'), 'utf8');
+  assert.ok(metadata.defaultTools.allow.includes('generate_image'), 'the sign-in allowlists generation');
+  assert.ok(metadata.defaultTools.allow.includes('jobs_wait'), 'the sign-in allowlists job polling');
+  assert.ok(metadata.defaultTools.write.includes('generate_image'), 'the sign-in grants may-write to the image generator');
+  const skill = await readFile(new URL('../GUIDANCE.md', import.meta.url), 'utf8') + '\n' + await readFile(path.join(PLUGIN_ROOT, 'skills/higgsfield-media/SKILL.md'), 'utf8');
   assert.match(skill, /agent_plugin_connect/);
   assert.match(skill, /media_import_from_url/);
   assert.match(skill, /Never store credentials/);

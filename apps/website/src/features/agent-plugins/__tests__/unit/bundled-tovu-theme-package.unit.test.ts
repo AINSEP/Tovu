@@ -168,7 +168,7 @@ test("site-import hands its theme step to tovu-theme and keeps no duplicate-and-
   const theme = JSON.parse(await readFile(path.join(PLUGINS_ROOT, "tovu-theme", "plugin.json"), "utf8"));
   // The hand-off resolves by capability: site-import asks for `theme-authoring` and its
   // "match a reference site" procedure; tovu-theme provides both, and Tovu's overlay names it.
-  assert.ok(theme.extensions.tovu.provides.includes("theme-authoring"));
+  assert.ok(theme.extensions.jini.provides.includes("theme-authoring"));
   assert.match(skill, /provides\s+`theme-authoring`/);
   assert.match(extraction, /"match a reference site" procedure/);
   assert.match(await themeSkill(), /# Part C — Match a reference site/);
@@ -319,7 +319,7 @@ test("Tovuize reuses local Media and shared Page mapping with matching family sh
   assert.match(mapping, /do not run site-import's public-URL/);
   const plugin = JSON.parse(await readFile(path.join(PLUGINS_ROOT, "tovu-theme", "plugin.json"), "utf8"));
   assert.equal(plugin.name, "tovu-theme");
-  assert.equal(plugin.extensions.tovu.id, "tovu/tovu-theme");
+  assert.equal(plugin.extensions.jini.id, "tovu/tovu-theme");
   // f871c3ec2 shipped default motion as plugin 1.1.1; 1.1.2 starts new designs from structure only.
-  assert.equal(plugin.version, "1.1.2");
+  assert.equal(plugin.version, "1.1.3");
 });

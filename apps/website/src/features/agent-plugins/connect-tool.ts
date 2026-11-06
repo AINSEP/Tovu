@@ -146,9 +146,9 @@ export function titleCaseFromPluginId(pluginId: string): string {
     .join(" ");
 }
 
-/** Only a remote server can carry `tovuAuthMode` (`manifest.ts`); a stdio entry never needs a sign-in. */
+/** Only a remote server can carry `authMode` (`manifest.ts`); a stdio entry never needs a sign-in. */
 function isOAuthServer(config: McpServerConfig): config is RemoteMcpServerConfig {
-  return config.type !== "stdio" && config.tovuAuthMode === "oauth";
+  return config.type !== "stdio" && config.authMode === "oauth";
 }
 
 /**
@@ -340,7 +340,7 @@ async function connectWithoutOAuth(
   { saveToken, ...optional }: AgentPluginConnectOptions = {},
 ): Promise<AgentPluginConnectResult> {
   const tokens = Object.entries(servers).filter((entry): entry is [string, RemoteMcpServerConfig] =>
-    entry[1].type !== "stdio" && entry[1].tovuTokenAuth !== undefined);
+    entry[1].type !== "stdio" && entry[1].tokenAuth !== undefined);
   if (tokens.length === 0) return connectDeclaredApiConnectionOrRefuse(routeDeps, surfaces, ctx, pluginId, optional);
   if (tokens.length > 1) throw new ToolInputError({ message: `agent_plugin_connect: '${pluginId}' declares more than one access-token sign-in.` });
   const [serverKey, config] = tokens[0]!;

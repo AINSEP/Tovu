@@ -9,7 +9,7 @@ import type { McpServerConfig } from "./mcp-metadata.js";
 /**
  * @file Which installed Agent Plugins can be connected with a pasted access token, and a check of one
  * token before anything is saved — for create-site onboarding, which offers "connect <plugin> now"
- * next to the site's name. Generic: a plugin qualifies by declaring `tovuTokenAuth` on exactly one
+ * next to the site's name. Generic: a plugin qualifies by declaring `tokenAuth` on exactly one
  * remote server in its `mcp.json`; the tokens page and the probe URL both come from there.
  */
 
@@ -17,14 +17,14 @@ import type { McpServerConfig } from "./mcp-metadata.js";
 export interface TokenSignInPlugin {
   readonly pluginId: string;
   readonly displayName: string;
-  /** Where the person creates a token (the plugin's own `tovuTokenAuth.helpUrl`). */
+  /** Where the person creates a token (the plugin's own `tokenAuth.helpUrl`). */
   readonly helpUrl: string;
 }
 
 /** The plugin's one token-auth declaration, or `null` for none or more than one (the same rule
  *  `agent_plugin_set_access_token` refuses on). */
 function soleTokenAuth(servers: Readonly<Record<string, McpServerConfig>>): AgentPluginTokenAuth | null {
-  const declared = Object.values(servers).flatMap((config) => (config.type !== "stdio" && config.tovuTokenAuth ? [config.tovuTokenAuth] : []));
+  const declared = Object.values(servers).flatMap((config) => (config.type !== "stdio" && config.tokenAuth ? [config.tokenAuth] : []));
   // Exactly one element was just checked, so `declared[0]` is present; the cast only narrows the
   // index type (no fallback branch can ever run).
   return declared.length === 1 ? (declared[0] as AgentPluginTokenAuth) : null;

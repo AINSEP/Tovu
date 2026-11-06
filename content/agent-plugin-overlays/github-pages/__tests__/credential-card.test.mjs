@@ -8,7 +8,7 @@ import { agentPluginSourceDir } from '../../../../development/test-support/agent
 // github-pages ships from @jini-ai/agent-plugins/github-pages: read it where Tovu takes it from.
 const PLUGIN_DIR = agentPluginSourceDir({ pluginId: 'github-pages' });
 
-const card = (target = 'github-pages') => JSON.parse(readFileSync(path.join(PLUGIN_DIR, 'plugin.json'), 'utf8')).extensions.tovu.credentialCards.find(c => c.target === target);
+const card = (target = 'github-pages') => JSON.parse(readFileSync(path.join(PLUGIN_DIR, 'plugin.json'), 'utf8')).extensions.jini.credentialCards.find(c => c.target === target);
 for (const [target, kind, title, permissions, helpUrl] of [
   ['github-pages', 'publish-host', 'Connect GitHub Pages', /Contents and Pages.*Read and write/, 'https://github.com/settings/personal-access-tokens/new'],
 ]) test(`github-pages/${target}: correct title, destination, key page and minimum access guidance`, () => {

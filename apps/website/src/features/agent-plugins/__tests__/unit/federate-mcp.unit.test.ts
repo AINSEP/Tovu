@@ -35,7 +35,7 @@ import type { McpServerConfig } from "../../mcp-metadata.js";
 
 const STDIO_SERVER: McpServerConfig = { type: "stdio", command: "./server/index.js" };
 const REMOTE_SERVER: McpServerConfig = { type: "streamable-http", url: "https://mcp.example.com/mcp" };
-const OAUTH_SERVER: McpServerConfig = { type: "streamable-http", url: "https://mcp.higgsfield.ai/mcp", tovuAuthMode: "oauth" };
+const OAUTH_SERVER: McpServerConfig = { type: "streamable-http", url: "https://mcp.higgsfield.ai/mcp", authMode: "oauth" };
 const SSE_SERVER: McpServerConfig = { type: "sse", url: "https://mcp.example.com/sse" };
 const HEADERED_SERVER: McpServerConfig = { type: "streamable-http", url: "https://mcp.example.com/mcp", headers: { "X-Tenant": "acme" } };
 
@@ -143,7 +143,7 @@ test("planAgentPluginMcpFederation: a remote streamable-http server is planned, 
   assert.equal(plan.toUpsert[0]?.connectionId, "remote");
 });
 
-test("planAgentPluginMcpFederation: tovuAuthMode: 'oauth' on the server carries through to authMode", () => {
+test("planAgentPluginMcpFederation: authMode: 'oauth' on the server carries through to authMode", () => {
   const plan = planAgentPluginMcpFederation({ servers: { higgsfield: OAUTH_SERVER } });
   assert.equal(plan.toUpsert[0]?.authMode, "oauth");
 });
@@ -273,7 +273,7 @@ test("provisionAgentPluginMcpServers: the SAME plugin enabling twice reports alr
 
 test("provisionAgentPluginMcpServers: the SAME plugin's untouched row is re-provisioned at the plugin's NEW url, dropping its old sign-in state", async () => {
   const deps = makeDeps();
-  const oldServer: McpServerConfig = { type: "streamable-http", url: "https://mcp.higgsfield.ai/mcp", tovuAuthMode: "oauth" };
+  const oldServer: McpServerConfig = { type: "streamable-http", url: "https://mcp.higgsfield.ai/mcp", authMode: "oauth" };
   const newServer: McpServerConfig = { ...oldServer, url: "https://mcp.higgsfield.ai/mcp?features=a,b" };
   const input = { workspaceId: "ws-1", pluginId: "some-plugin", principalId: "principal-1" };
   await provisionAgentPluginMcpServers(deps, { ...input, servers: { remote: oldServer } });
@@ -298,7 +298,7 @@ test("provisionAgentPluginMcpServers: a disabled row holding a saved access toke
   const deps = makeDeps();
   const server: McpServerConfig = {
     ...OAUTH_SERVER,
-    tovuTokenAuth: { helpUrl: "https://example.com/tokens", probeUrl: "https://example.com/probe" },
+    tokenAuth: { helpUrl: "https://example.com/tokens", probeUrl: "https://example.com/probe" },
   };
   const input = { workspaceId: "ws-1", pluginId: "some-plugin", principalId: "principal-1", servers: { remote: server } };
   await provisionAgentPluginMcpServers(deps, input);
@@ -643,7 +643,7 @@ test("resolveAgentPluginReadOnlyRemoteNames: a bundled plugin's reviewed read na
   await withPluginsDir(async () => {
     const layout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() });
     const read = (workspaceId: string, url: string) => resolveAgentPluginReadOnlyRemoteNames({ agentPluginLayout: layout, workspaceId, pluginId: "widget", serverId: "main", url });
-    const extensions = { tovu: { mcpServers: { main: { tovuDefaultTools: { write: [], read: ["list_things"] } } } } };
+    const extensions = { tovu: { mcpServers: { main: { defaultTools: { write: [], read: ["list_things"] } } } } };
     const seeded = await installMcpPlugin("ws-1", "widget", { main: REMOTE_SERVER }, extensions);
     await recordBundledAgentPluginDigests({ workspaceRoot: layout.forWorkspace("ws-1").root, seeded: [{ pluginId: "widget", archiveDigest: seeded.archiveDigest }] });
     assert.deepEqual([...await read("ws-1", "https://mcp.example.com/mcp")], ["list_things"]);
@@ -657,7 +657,7 @@ test("findAgentPluginMcpServerDefaults matches stored identity and exact endpoin
   const defaults = { write: ["create_thing"], read: ["list_things"] };
   const servers: Record<string, McpServerConfig> = {
     helper: STDIO_SERVER,
-    "Main Server": { ...REMOTE_SERVER, tovuDefaultTools: defaults },
+    "Main Server": { ...REMOTE_SERVER, defaultTools: defaults },
     plain: REMOTE_SERVER,
   };
   assert.deepEqual(findAgentPluginMcpServerDefaults(servers, { serverId: "main-server", url: REMOTE_SERVER.url }), defaults);

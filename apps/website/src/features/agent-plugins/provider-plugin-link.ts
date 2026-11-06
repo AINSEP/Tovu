@@ -8,7 +8,7 @@ import { listInstalledPlugins, preferBundledAgentPluginDigests, readBundledAgent
  * @file One vendor, one plugin (owner 2026-10-25): a provider plugin (the Plugins screen, its Settings
  * card, the code that sends events) and the agent plugin that is its assistant face (the chat key card
  * and know-how) are switched by ONE switch — the provider plugin's. The agent plugin declares the link
- * in its own manifest (`extensions.tovu.providerPlugin`, read by `identity.ts`); core names no vendor.
+ * in its own manifest (`extensions.jini.providerPlugin`, read by `identity.ts`); core names no vendor.
  *
  * Why the face follows rather than both toggling each other: the provider plugin's activation row is
  * already the durable, permission-gated, approval-recorded decision (`setPluginEnabled`), and its

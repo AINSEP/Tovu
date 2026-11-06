@@ -9,7 +9,7 @@ import { listInstalledAgentPluginServers, type InstalledAgentPluginServers, type
  * @file Carries saved tool selections across a vendor's tool rename, so an operator never has to
  * re-tick a tool the server now offers under a new name.
  *
- * A plugin's `mcp.json` declares the rename on the server entry (`tovuRenamedTools: { "get_logs":
+ * A plugin's `mcp.json` declares the rename on the server entry (`renamedTools: { "get_logs":
  * "query_logs" }`, parsed by `manifest.ts`). At boot, every row that plugin provisioned has each old
  * name in `allowedToolNames` and `writeAllowedToolNames` replaced by the new one. Added 2026-09-29
  * when Supabase renamed `get_logs` to `query_logs` and the saved dev row kept asking for a tool the
@@ -105,18 +105,18 @@ async function applyServerToolRenames(
   _options = {},
 ): Promise<boolean> {
   const { deps, pluginId, serverKey, config, log } = input;
-  if (config.type === "stdio" || !config.tovuRenamedTools) return false;
+  if (config.type === "stdio" || !config.renamedTools) return false;
   const serverId = deriveAgentPluginConnectionId(serverKey);
   if (serverId === null) return false;
   const result = { changed: false };
   try {
     const row = await deps.externalMcpServerRepo.findByServerId({ workspaceId: deps.workspaceId, serverId });
     if (!row) return false;
-    const renamed = renameRowTools({ row, renames: config.tovuRenamedTools, clock: deps.clock, pluginId, url: config.url });
+    const renamed = renameRowTools({ row, renames: config.renamedTools, clock: deps.clock, pluginId, url: config.url });
     if (!renamed) return false;
     await deps.externalMcpServerRepo.upsert(renamed);
     result.changed = true;
-    const renames = Object.entries(config.tovuRenamedTools).map(([from, to]) => `${from} -> ${to}`).join(", ");
+    const renames = Object.entries(config.renamedTools).map(([from, to]) => `${from} -> ${to}`).join(", ");
     log.info(`[agent-plugins] '${serverId}': renamed saved tools to follow the '${pluginId}' plugin (${renames}).`);
     return true;
   } catch (err) {

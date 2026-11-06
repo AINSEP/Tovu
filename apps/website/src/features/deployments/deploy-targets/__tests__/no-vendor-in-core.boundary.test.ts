@@ -94,6 +94,21 @@ test("manifest canonical IDs and literal aliases do not depend on plugin activat
   assert.throws(() => loadVendorRules({ vocabulary: {} }, { repoRoot }), /Duplicate plugin name/);
 });
 
+test("portable vendor aliases take precedence while legacy-only manifests retain boundary detection", t => {
+  const { repoRoot, write } = fixture(t);
+  const file = "content/agent-plugins/vendor/plugin.json";
+  const check = (extensions: Record<string, unknown>, expected: Record<string, number>) => {
+    write(file, JSON.stringify({ name: "probe-vendor", extensions }));
+    const fixtureRules = loadVendorRules({ vocabulary: {} }, { repoRoot });
+    assert.deepEqual(countVendors({ text: "portable.example portable.example legacy.example", rules: fixtureRules }), expected);
+  };
+  check({ jini: { vendorAliases: ["portable.example"] }, tovu: { vendorAliases: ["legacy.example"] } }, { "probe-vendor": 2 });
+  check({ jini: { vendorAliases: [] }, tovu: { vendorAliases: ["legacy.example"] } }, {});
+  check({ tovu: { vendorAliases: ["legacy.example"] } }, { "probe-vendor": 1 });
+  write(file, JSON.stringify({ name: "probe-vendor", extensions: { jini: { vendorAliases: [7] }, tovu: { vendorAliases: ["legacy.example"] } } }));
+  assert.throws(() => loadVendorRules({ vocabulary: {} }, { repoRoot }), /vendorAliases/);
+});
+
 test("deploy hosts, source-control IDs and dormant deployment symbols retain detection everywhere", () => {
   assert.deepEqual(count("env.FLY_APP_NAME || env.FLY_MACHINE_ID || env.FLY_ALLOC_ID"), { fly: 3 });
   for (const text of ["fly.io flyctl fly.toml machines.dev flyv1", "railway netlify vercel", "pages.dev workers.dev", "github_pages github pages githubpages github.io", "s3-compatible amazonaws backblaze wasabi digitaloceanspaces"]) {

@@ -78,8 +78,8 @@ for (const { pluginId, packageRoot } of packages) {
       if (existsSync(path.join(packageRoot, filename))) assert.ok(parsed.descriptors.some(card => card.saveKind === 'api'), `${pluginId}: operations and token schemes need a card`);
     }
     const mcp = path.join(packageRoot, 'mcp.json');
-    if (existsSync(mcp)) for (const config of Object.values(JSON.parse(readFileSync(mcp, 'utf8')).mcpServers) as Array<{ tovuTokenAuth?: unknown; tovuAuthMode?: string }>) {
-      if (config.tovuTokenAuth) assert.ok(parsed.descriptors.some(c => c.saveKind === 'agent-plugin-token'), `${pluginId}: token fallback needs a card`);
+    if (existsSync(mcp)) for (const config of Object.values(JSON.parse(readFileSync(mcp, 'utf8')).mcpServers) as Array<{ tokenAuth?: unknown; authMode?: string }>) {
+      if (config.tokenAuth) assert.ok(parsed.descriptors.some(c => c.saveKind === 'agent-plugin-token'), `${pluginId}: token fallback needs a card`);
     }
   });
 }

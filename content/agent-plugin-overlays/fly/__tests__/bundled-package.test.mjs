@@ -279,9 +279,9 @@ test("fly-server.md never tells the assistant to handle a secret value itself", 
 test("Fly owns ops, config and FlyV1 scheme with no static publish target, and seeds disabled", async () => {
   const { BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED } = await import("../../../../apps/website/src/features/agent-plugins/bundled-catalog.ts");
   const manifest = JSON.parse(await readPackageFile("plugin.json"));
-  assert.equal(manifest.extensions.tovu.id, "tovu/fly");
-  assert.equal(manifest.extensions.tovu.displayName, "Fly.io");
-  assert.deepEqual(manifest.extensions.tovu.provides, ["deploy-ops:fly", "deploy-config:fly", "credential-scheme:fly-io"]);
+  assert.equal(manifest.extensions.jini.id, "tovu/fly");
+  assert.equal(manifest.extensions.jini.displayName, "Fly.io");
+  assert.deepEqual(manifest.extensions.jini.provides, ["deploy-ops:fly", "deploy-config:fly", "credential-scheme:fly-io"]);
   assert.deepEqual(JSON.parse(await readPackageFile("tovu-deploy-ops.json")).platforms.map((entry) => entry.id), ["fly"]);
   assert.deepEqual(JSON.parse(await readPackageFile("tovu-deploy-configs.json")).generators.map((entry) => entry.id), ["fly"]);
   const packed = await packAgentPluginDirectory(PACKAGE_ROOT);

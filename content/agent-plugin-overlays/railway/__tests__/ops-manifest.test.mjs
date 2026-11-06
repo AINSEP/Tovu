@@ -18,7 +18,7 @@ test("Railway manifest loads the contained deploy adapter with only its GraphQL 
 });
 test("Railway advertises deployment ops and keeps the 'soon' maturity flag and its existing token guidance", async () => {
   const plugin = JSON.parse(await readFile(path.join(PLUGIN_DIR, "plugin.json"), "utf8"));
-  const tovu = plugin.extensions.tovu;
+  const tovu = plugin.extensions.jini;
   assert.deepEqual(tovu.provides, ["deploy-config:railway", "deploy-ops:railway"]);
   assert.equal(tovu.maturity, "soon");
   const card = tovu.credentialCards[0];

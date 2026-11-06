@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { readAgentPluginMetadata } from "@jini-ai/agent-plugins/manifest";
 
 import { stripComments } from "#src/platform/db/kernel/__tests__/raw-sqlite-scan";
 import { SELECTED_AGENT_PLUGIN_PACKAGES } from "#src/features/agent-plugins/bundled-catalog";
@@ -77,8 +78,9 @@ function manifestVocabulary({ file }: { file: string }, { io = fs }: Pick<DiskOp
   if (!io.existsSync(file)) return null;
   const manifest = JSON.parse(io.readFileSync(file, "utf8"));
   if (typeof manifest.name !== "string" || !/^[a-z0-9][a-z0-9-]*$/.test(manifest.name)) throw new TypeError(`Invalid plugin name: ${file}`);
-  const declared = manifest.extensions?.tovu?.vendorAliases;
-  return { id: manifest.name, aliases: aliasesOf({ value: declared === undefined ? [] : declared }) };
+  const parsed = readAgentPluginMetadata({ value: manifest });
+  if (parsed.warnings.some(warning => warning.includes("Invalid agent-plugin vendorAliases"))) throw new TypeError("vendorAliases must be an array of nonblank literal strings");
+  return { id: manifest.name, aliases: [...(parsed.metadata.vendorAliases ?? [])] };
 }
 
 /** Validate supplemental vocabulary against the manifest owner; never override a bundled vendor. */

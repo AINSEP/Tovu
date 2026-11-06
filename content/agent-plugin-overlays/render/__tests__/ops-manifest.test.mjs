@@ -19,7 +19,7 @@ test("Render manifest loads its contained module and fixed API host", async () =
 });
 test("Render keeps the 'soon' maturity flag and its owners probe parses on its owned API card", async () => {
   const raw = await readFile(path.join(PLUGIN_DIR, "plugin.json"), "utf8");
-  const tovu = JSON.parse(raw).extensions.tovu;
+  const tovu = JSON.parse(raw).extensions.jini;
   assert.equal(tovu.maturity, "soon"); assert.ok(tovu.provides.includes("deploy-ops:render"));
   assert.equal(tovu.credentialCards[0].probeUrl, "https://api.render.com/v1/owners?limit=1");
   const parsed = parsePluginCredentialCards({ raw }); assert.equal(parsed.ok, true);

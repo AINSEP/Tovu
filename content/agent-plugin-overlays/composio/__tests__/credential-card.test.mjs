@@ -8,7 +8,7 @@ import { agentPluginSourceDir } from '../../../../development/test-support/agent
 // Moved from content/agent-plugins/composio (D-W): the plugin ships as @jini-ai/agent-plugins/composio; this Tovu-bound test reads it from there.
 const PLUGIN_ROOT = agentPluginSourceDir({ pluginId: 'composio' });
 
-const card = (target = 'composio') => JSON.parse(readFileSync(path.join(PLUGIN_ROOT, 'plugin.json'), 'utf8')).extensions.tovu.credentialCards.find(c => c.target === target);
+const card = (target = 'composio') => JSON.parse(readFileSync(path.join(PLUGIN_ROOT, 'plugin.json'), 'utf8')).extensions.jini.credentialCards.find(c => c.target === target);
 for (const [target, kind, title, permissions, helpUrl] of [
   ['composio', 'oauth', 'Connect Composio', /Browser sign-in only/, undefined],
 ]) test(`composio/${target}: correct title, destination, key page and minimum access guidance`, () => {

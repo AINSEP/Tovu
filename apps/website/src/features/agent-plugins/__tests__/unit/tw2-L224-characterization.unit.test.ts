@@ -29,7 +29,8 @@ test("MCP adapter retains stdio, optional remote fields, declared invalid ids an
   assert.equal(Object.getPrototypeOf(result.config.servers), null);
   assert.deepEqual(result.config.serverIds, ["stdio", "full", "__proto__", "invalid"]);
   assert.deepEqual(result.config.servers.stdio, servers.stdio);
-  assert.deepEqual(result.config.servers.full, servers.full);
+  assert.deepEqual(result.config.servers.full, { type: "streamable-http", url: "https://example.com/mcp", headers: { Accept: "application/json" },
+    authMode: metadata.tovuAuthMode, defaultTools: metadata.tovuDefaultTools, tokenAuth: metadata.tovuTokenAuth, renamedTools: metadata.tovuRenamedTools });
   assert.deepEqual(result.config.servers.__proto__, servers.__proto__);
   assert.equal(Object.hasOwn(result.config.servers, "invalid"), false);
   assert.deepEqual(parseAgentPluginMcpConfig({ value: null }), { ok: false, errors: ["mcp.json must be a JSON object"] });

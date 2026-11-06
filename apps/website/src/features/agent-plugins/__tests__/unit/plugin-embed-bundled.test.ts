@@ -25,7 +25,7 @@ test("T1: render each bundled export through the real slot filler and fragment v
     const manifestPath = path.join(root, entry.name, "plugin.json");
     const raw = await readFile(manifestPath, "utf8").catch(error => { if (error.code === "ENOENT") return "null"; throw error; });
     const value = JSON.parse(raw);
-    if (!value?.extensions?.tovu?.exports) continue;
+    if (!value?.extensions?.jini?.exports) continue;
     const parsed = parseAgentPluginManifest({ value });
     assert.ok(parsed.ok, `${entry.name}: invalid export manifest`);
     if (!parsed.ok) continue;

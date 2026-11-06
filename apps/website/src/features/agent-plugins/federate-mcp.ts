@@ -78,7 +78,7 @@ import { listInstalledPlugins } from "./lifecycle.js";
  *    never reach an existing site, and `apply-connect-defaults.ts` (which grants defaults only when
  *    the row's url equals the declared one) would never fire there. Any sign-in state on such a row
  *    was minted for the old endpoint and is dropped with it. A saved access token on a server that
- *    declares `tovuTokenAuth` counts as the declared auth mode, so it is only dropped when the url
+ *    declares `tokenAuth` counts as the declared auth mode, so it is only dropped when the url
  *    itself changes. A row that is enabled or has any tool
  *    granted is the operator's, and stays byte-identical as above.
  *
@@ -96,7 +96,7 @@ import { listInstalledPlugins } from "./lifecycle.js";
  *    execution. The operator ticks tools in Settings → External MCP's picker, which already lets
  *    them choose from a live, server-advertised list (`probe.ts`) rather than guessing names. The one
  *    other writer is the operator's own first sign-in, which grants the plugin's declared
- *    `tovuDefaultTools` to a still-empty row (`apply-connect-defaults.ts`) — the sign-in, not this
+ *    `defaultTools` to a still-empty row (`apply-connect-defaults.ts`) — the sign-in, not this
  *    file, is what authorizes.
  *
  * ---------------------------------------------------------------------------
@@ -135,7 +135,7 @@ import { listInstalledPlugins } from "./lifecycle.js";
  * 2026-09-10 — see `manifest.ts`'s header). Guessing "oauth" for every remote server would attempt
  * RFC 8414 discovery against a plugin's server even when it needs no auth at all, failing where a
  * plain connection would have worked. `"none"` is the safe default; a plugin author who KNOWS their
- * server requires OAuth (Higgsfield's own `mcp.json` does) sets the `tovuAuthMode` extension
+ * server requires OAuth (Higgsfield's own `mcp.json` does) sets the `authMode` extension
  * (`manifest.ts`) to say so explicitly.
  */
 
@@ -188,7 +188,7 @@ export interface PlannedAgentPluginMcpUpsert {
   readonly serverKey: string;
   readonly url: string;
   readonly authMode: "oauth" | "none";
-  /** The server declares `tovuTokenAuth`, so a `static_env` row holding a saved access token is one
+  /** The server declares `tokenAuth`, so a `static_env` row holding a saved access token is one
    *  of its declared sign-ins, not a changed auth mode. */
   readonly acceptsAccessToken: boolean;
 }
@@ -248,7 +248,7 @@ function classifyAgentPluginMcpServerForFederation(
 
   return {
     kind: "upsert",
-    planned: { connectionId, serverKey, url: config.url, authMode: config.tovuAuthMode ?? "none", acceptsAccessToken: config.tovuTokenAuth !== undefined },
+    planned: { connectionId, serverKey, url: config.url, authMode: config.authMode ?? "none", acceptsAccessToken: config.tokenAuth !== undefined },
   };
 }
 
@@ -329,7 +329,7 @@ export function findAgentPluginMcpServerDefaults(
 ): AgentPluginDefaultTools | null {
   for (const [serverKey, config] of Object.entries(servers)) {
     if (config.type === "stdio" || deriveAgentPluginConnectionId(serverKey) !== row.serverId) continue;
-    return config.url === row.url ? config.tovuDefaultTools ?? null : null;
+    return config.url === row.url ? config.defaultTools ?? null : null;
   }
   return null;
 }

@@ -22,7 +22,7 @@ import { processComposedBundledSourceRoot } from "../../../../apps/website/src/f
 // fly ships from @jini-ai/agent-plugins/fly: the bundle the build composes is the bundled source root.
 const sourceRoot = await processComposedBundledSourceRoot();
 const shippedManifest = readFileSync(path.join(agentPluginSourceDir({ pluginId: "fly" }), "plugin.json"), "utf8");
-const extension = JSON.parse(shippedManifest).extensions.tovu;
+const extension = JSON.parse(shippedManifest).extensions.jini;
 
 test("Fly's host declaration is plain manifest data, synchronously readable before activation", () => {
   assert.deepEqual(extension.hostSignals, [

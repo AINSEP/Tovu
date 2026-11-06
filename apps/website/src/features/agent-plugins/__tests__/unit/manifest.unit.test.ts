@@ -161,7 +161,7 @@ test("mcp.json: the non-spec tovuAuthMode extension passes through on a remote s
   } });
   assert.equal(result.ok, true);
   if (!result.ok) return;
-  assert.equal((result.config.servers.remote as { tovuAuthMode?: string }).tovuAuthMode, "oauth");
+  assert.equal((result.config.servers.remote as { authMode?: string }).authMode, "oauth");
 });
 
 test("mcp.json: tovuDefaultTools on a remote server passes through when write is a subset of allow", () => {
@@ -177,7 +177,7 @@ test("mcp.json: tovuDefaultTools on a remote server passes through when write is
   } });
   assert.equal(result.ok, true);
   if (!result.ok) return;
-  assert.deepEqual((result.config.servers.remote as { tovuDefaultTools?: unknown }).tovuDefaultTools, {
+  assert.deepEqual((result.config.servers.remote as { defaultTools?: unknown }).defaultTools, {
     allow: ["list_things", "make_thing"],
     write: ["make_thing"],
     read: [],
@@ -190,12 +190,12 @@ function parseTokenAuth(tovuTokenAuth: unknown) {
     mcpServers: { remote: { type: "streamable-http", url: "https://mcp.example.com/mcp", tovuTokenAuth } },
   } });
   assert.equal(result.ok, true);
-  return result.ok ? (result.config.servers.remote as { tovuTokenAuth?: unknown } | undefined) : undefined;
+  return result.ok ? (result.config.servers.remote as { tokenAuth?: unknown } | undefined) : undefined;
 }
 
 test("mcp.json: tovuTokenAuth with https helpUrl and probeUrl passes through", () => {
   const auth = { helpUrl: "https://example.com/tokens", probeUrl: "https://api.example.com/v1/me" };
-  assert.deepEqual(parseTokenAuth(auth)?.tovuTokenAuth, auth);
+  assert.deepEqual(parseTokenAuth(auth)?.tokenAuth, auth);
 });
 
 test("mcp.json: tovuTokenAuth with a non-https or missing URL excludes the server, so a token is never probed in the clear", () => {
@@ -216,12 +216,12 @@ function parseRenamedTools(tovuRenamedTools: unknown) {
     mcpServers: { remote: { type: "streamable-http", url: "https://mcp.example.com/mcp", tovuRenamedTools } },
   } });
   assert.equal(result.ok, true);
-  return result.ok ? (result.config.servers.remote as { tovuRenamedTools?: unknown } | undefined) : undefined;
+  return result.ok ? (result.config.servers.remote as { renamedTools?: unknown } | undefined) : undefined;
 }
 
 test("mcp.json: tovuRenamedTools mapping valid old names to valid new names passes through", () => {
   const renames = { get_logs: "query_logs", list_things: "list_items" };
-  assert.deepEqual(parseRenamedTools(renames)?.tovuRenamedTools, renames);
+  assert.deepEqual(parseRenamedTools(renames)?.renamedTools, renames);
 });
 
 test("mcp.json: tovuRenamedTools that is malformed, renames a tool to itself, chains, or has over 64 entries excludes the server", () => {

@@ -14,7 +14,7 @@ import type { AgentPluginMcpPort } from "./service-ports.js";
  * @file "Plugin on + account connected" grants the plugin's declared tools, whichever of the two
  * happens LAST — not only when the sign-in happens last.
  *
- * `apply-connect-defaults.ts` grants a plugin's declared `tovuDefaultTools` (allowlist and "may
+ * `apply-connect-defaults.ts` grants a plugin's declared `defaultTools` (allowlist and "may
  * write") when the operator's sign-in finishes, and `agent_plugin_connect` re-runs that grant for an
  * already signed-in row. Both are sign-in moments. Bug 2026-11-04 (jared-floyd, Higgsfield Media):
  * the owner turned the plugin on and signed in, yet the connection stayed off with zero tools, and

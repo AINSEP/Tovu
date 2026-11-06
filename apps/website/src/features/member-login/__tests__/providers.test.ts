@@ -1,4 +1,6 @@
 import path from "node:path";
+import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createPluginContributionLoader } from "@jini-ai/agent-plugins/lifecycle";
@@ -57,3 +59,28 @@ for (const invalid of [{ pkce: "plain" }, { signingAlgorithm: "HS256" }, { clien
     assert.equal(parseLoginProviders({ raw: file({ ...provider, ...invalid } as typeof provider) }).ok, false);
   });
 }
+
+for (const namespace of ["jini", "tovu"]) {
+  test(`bundled login presets retain stable identity through ${namespace} metadata`, async t => {
+    const root = await mkdtemp(path.join(tmpdir(), "portable-login-provider-"));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    const pluginRoot = path.join(root, "google-login");
+    await mkdir(pluginRoot);
+    await writeFile(path.join(pluginRoot, "plugin.json"), JSON.stringify({ extensions: { [namespace]: { id: "tovu/google-login" } } }));
+    await writeFile(path.join(pluginRoot, "tovu-login-providers.json"), file());
+    const pins = await loadBundledLoginProviders({ sourceRoot: root });
+    assert.equal(pins.length, 1);
+    assert.equal(pins[0]?.issuer, provider.issuer);
+    assert.equal(pins[0]?.pluginId, "google-login");
+  });
+}
+
+test("portable identity takes precedence over an unrelated legacy login identity", async t => {
+  const root = await mkdtemp(path.join(tmpdir(), "portable-login-precedence-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const pluginRoot = path.join(root, "google-login");
+  await mkdir(pluginRoot);
+  await writeFile(path.join(pluginRoot, "plugin.json"), JSON.stringify({ extensions: { jini: { id: "another/google-login" }, tovu: { id: "tovu/google-login" } } }));
+  await writeFile(path.join(pluginRoot, "tovu-login-providers.json"), file());
+  assert.deepEqual(await loadBundledLoginProviders({ sourceRoot: root }), []);
+});

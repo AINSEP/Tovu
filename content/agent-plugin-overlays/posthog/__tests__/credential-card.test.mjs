@@ -24,7 +24,7 @@ test('posthog: one provider-settings card that saves the analytics-posthog provi
   assert.match(card.helpUrl, /^https:\/\//);
   assert.equal(card.baseUrl, '', 'the provider plugin owns every destination');
   assert.equal(card.fields, undefined, 'the provider plugin declares the fields');
-  assert.equal(JSON.parse(raw).extensions.tovu.displayName, 'PostHog');
+  assert.equal(JSON.parse(raw).extensions.jini.displayName, 'PostHog');
 });
 
 test('posthog: the skill opens that card, checks provider_status first, and never takes a key in chat', () => {

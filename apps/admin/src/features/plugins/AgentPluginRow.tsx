@@ -189,7 +189,7 @@ function DetailChips({ label, values, ownId }: { label: string; values: readonly
 export function AgentPluginRow(props: AgentPluginRowProps) {
   const { plugin, t, locale, expanded, busy, onToggleExpanded, stateControl, onInspect, manage, uninstallNoteId, agentHandleBase } = props;
   const displayName = agentPluginDisplayName(plugin);
-  // The owner-facing explainer (`extensions.tovu.summary`) when the package wrote one; else the
+  // The owner-facing explainer (`extensions.jini.summary`) when the package wrote one; else the
   // spec `description`, which is written for the assistant and can be dense with tool ids.
   const blurb = plugin.summary?.trim() || plugin.description;
   const Glyph = AGENT_PLUGIN_GLYPHS[agentPluginGlyphKind(plugin)];

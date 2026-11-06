@@ -78,7 +78,7 @@ test('Tovu-only routing lives here: backups and share links go to site_import_ba
 test('the capability hand-off resolves to the Tovu plugins that provide it', async () => {
   const guidance = (await overlayTexts())[0].text;
   const theme = JSON.parse(await readFile(path.join(contentRoot, 'tovu-theme/plugin.json'), 'utf8'));
-  assert.ok(theme.extensions.tovu.provides.includes('theme-authoring'));
+  assert.ok(theme.extensions.jini.provides.includes('theme-authoring'));
   assert.match(guidance, /provides\s+`theme-authoring` is Tovu Theme: call `agent_plugin_tovu_theme`/);
   assert.match(guidance, /provides `ui-design` is UI\/UX Design: call\s+`agent_plugin_ui_ux_design/);
 });

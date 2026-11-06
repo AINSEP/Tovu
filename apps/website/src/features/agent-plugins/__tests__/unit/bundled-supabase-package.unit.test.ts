@@ -58,12 +58,12 @@ test("mcp.json declares exactly one streamable-http OAuth server at Supabase's a
   // `assert.ok` is an assertion function, so this line alone narrows `server` to a remote config.
   assert.ok(server && server.type !== "stdio");
   assert.deepEqual(
-    { type: server.type, url: server.url, tovuAuthMode: server.tovuAuthMode },
-    { type: "streamable-http", url: FEATURES_URL, tovuAuthMode: "oauth" },
+    { type: server.type, url: server.url, authMode: server.authMode },
+    { type: "streamable-http", url: FEATURES_URL, authMode: "oauth" },
   );
   // Granted on the first sign-in (`apply-connect-defaults.ts`). SQL writes stay out of `write` until
   // the confirm-before-destructive-SQL step (plan S-G3) exists.
-  const defaults = server.tovuDefaultTools;
+  const defaults = server.defaultTools;
   assert.ok(defaults);
   const allow = defaults.allow;
   assert.ok(allow);
@@ -87,7 +87,7 @@ test("mcp.json offers the access-token fallback: Supabase's tokens page, probed 
   assert.ok(parsed.ok);
   const server = parsed.config.servers.supabase;
   assert.ok(server && server.type !== "stdio");
-  assert.deepEqual(server.tovuTokenAuth, {
+  assert.deepEqual(server.tokenAuth, {
     helpUrl: "https://supabase.com/dashboard/account/tokens",
     probeUrl: "https://api.supabase.com/v1/projects",
     // 2026-09-29: the retired env preset's token is copied onto this plugin's row at boot.
@@ -110,9 +110,9 @@ test("mcp.json carries saved selections across Supabase's get_logs -> query_logs
   assert.ok(parsed.ok);
   const server = parsed.config.servers.supabase;
   assert.ok(server && server.type !== "stdio");
-  assert.deepEqual(server.tovuRenamedTools, { get_logs: "query_logs" });
-  assert.ok(server.tovuDefaultTools?.allow?.includes("query_logs"));
-  assert.equal(server.tovuDefaultTools?.allow?.includes("get_logs"), false);
+  assert.deepEqual(server.renamedTools, { get_logs: "query_logs" });
+  assert.ok(server.defaultTools?.allow?.includes("query_logs"));
+  assert.equal(server.defaultTools?.allow?.includes("get_logs"), false);
 });
 
 test("plugin.json's keywords reach someone who just says they need a database", async () => {

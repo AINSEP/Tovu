@@ -19,7 +19,7 @@ const PROBE_URL = "https://api.supabase.com/v1/projects";
 const tokenServer = (probeUrl = PROBE_URL): RemoteMcpServerConfig => ({
   type: "streamable-http",
   url: "https://mcp.supabase.com/mcp",
-  tovuTokenAuth: { helpUrl: "https://supabase.com/dashboard/account/tokens", probeUrl },
+  tokenAuth: { helpUrl: "https://supabase.com/dashboard/account/tokens", probeUrl },
 });
 const plainServer: McpServerConfig = { type: "streamable-http", url: "https://example.com/mcp" };
 
@@ -84,7 +84,7 @@ test("the sign-in list names each token plugin once, sorted by id, with its toke
   const listed = await listTokenSignInPlugins("ws-list", async (workspaceId): Promise<readonly InstalledAgentPluginServers[]> => {
     assert.equal(workspaceId, "ws-list");
     return [
-      { pluginId: "zeta-db", servers: { z: { ...tokenServer(), tovuTokenAuth: { helpUrl: "https://zeta.example/t", probeUrl: "https://zeta.example/p" } } } },
+      { pluginId: "zeta-db", servers: { z: { ...tokenServer(), tokenAuth: { helpUrl: "https://zeta.example/t", probeUrl: "https://zeta.example/p" } } } },
       { pluginId: "plain", servers: { plain: plainServer } },
       { pluginId: "supabase", servers: { supabase: tokenServer() } },
       { pluginId: "twice", servers: { a: tokenServer(), b: tokenServer() } },

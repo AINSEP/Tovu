@@ -8,7 +8,7 @@ import { agentPluginSourceDir } from '../../../../development/test-support/agent
 // Moved from content/agent-plugins/supabase (D-W): the plugin ships as @jini-ai/agent-plugins/supabase; this Tovu-bound test reads it from there.
 const PLUGIN_ROOT = agentPluginSourceDir({ pluginId: 'supabase' });
 
-const card = (target = 'supabase') => JSON.parse(readFileSync(path.join(PLUGIN_ROOT, 'plugin.json'), 'utf8')).extensions.tovu.credentialCards.find(c => c.target === target);
+const card = (target = 'supabase') => JSON.parse(readFileSync(path.join(PLUGIN_ROOT, 'plugin.json'), 'utf8')).extensions.jini.credentialCards.find(c => c.target === target);
 for (const [target, kind, title, permissions, helpUrl] of [
   ['supabase', 'agent-plugin-token', 'Connect Supabase with an access token', /Management API.*Project Settings.*Database.*Migrations/, 'https://supabase.com/dashboard/account/tokens'],
 ]) test(`supabase/${target}: correct title, destination, key page and minimum access guidance`, () => {

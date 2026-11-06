@@ -90,7 +90,9 @@ async function readInstalledMcpConfig(packageRoot: string): Promise<AgentPluginM
     // Missing/malformed extensions cannot supply read trust; transport discovery still works.
   }
   const result = parseAgentPluginMcpConfig({ value: parsedJson }, { pluginManifest: manifest });
-  return result.ok ? result.config : null;
+  if (!result.ok) return null;
+  for (const warning of result.warnings ?? []) console.warn(`[agent-plugins] ${warning}`);
+  return result.config;
 }
 
 /**

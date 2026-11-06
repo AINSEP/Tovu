@@ -2,7 +2,7 @@ import { ToolInputError } from '@jini-ai/core';
 import { externalMcpAccessSnapshot } from '../../contracts/core/external-mcp-access.js';
 import type { ExternalMcpAccessSnapshot, ExternalMcpServerRecord } from '../external-mcp/contracts.js';
 /**
- * @file Grants a plugin's declared default tools (`mcp.json`'s `tovuDefaultTools`, parsed by
+ * @file Grants a plugin's declared default tools (`mcp.json`'s `defaultTools`, parsed by
  * `manifest.ts`) on the operator's FIRST successful sign-in to a server that plugin provisioned — so
  * connecting is the only step, with no trip to Settings to tick tools. An explicit enable card
  * calls the same owner with its listed grants, even when sign-in will happen afterwards.
