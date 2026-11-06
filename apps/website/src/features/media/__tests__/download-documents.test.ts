@@ -10,12 +10,13 @@ import { downloadDocuments } from './download-documents.fixture.js';
 const archiveReader = createDocumentArchiveReader({});
 test('download-only: all seven formats accept valid bytes and reject wrong/renamed bytes', async () => {
   const documents = await downloadDocuments({});
+  const oversized = Buffer.alloc(50 * 1024 * 1024 + 1);
   for (const [extension, bytes] of Object.entries(documents)) {
     const result = await validateDocumentIngress({ filename: `valid.${extension}`, bytes }, { archiveReader });
     assert.match(result.contentType, /^application\//);
     await assert.rejects(validateDocumentIngress({ filename: `fake.${extension}`, bytes: Buffer.from('ordinary text') }, { archiveReader }));
     await assert.rejects(validateDocumentIngress({ filename: `renamed.${extension}`, bytes: documents[extension === 'rtf' ? 'xlsx' : 'rtf']! }, { archiveReader }));
-    await assert.rejects(validateDocumentIngress({ filename: `large.${extension}`, bytes: Buffer.alloc(10 * 1024 * 1024 + 1) }, { archiveReader }), /10 MiB/);
+    await assert.rejects(validateDocumentIngress({ filename: `large.${extension}`, bytes: oversized }, { archiveReader }), { message: 'document must be non-empty and at most 50 MiB' });
   }
   await assert.rejects(validateDocumentIngress({ filename: 'renamed.pptx', bytes: documents.xlsx! }, { archiveReader }), /package XML|required PowerPoint/);
   await assert.rejects(validateDocumentIngress({ filename: 'renamed.xlsx', bytes: documents.pptx! }, { archiveReader }), /package XML|required Excel/);
