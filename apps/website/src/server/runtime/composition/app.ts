@@ -451,6 +451,15 @@ function createLazyProxy<T extends object>(factory: () => T): T {
   });
 }
 
+/** Preserve optional plugin-runtime overrides without turning absent values into explicit options.
+ * @complexity O(1), no I/O. */
+function inMemoryPluginRuntimeOptions({ options }: { options: CreateRouteDepsOptions }, _optional = {}) {
+  return {
+    ...(options.installDir === undefined ? {} : { installDir: options.installDir }),
+    ...(options.pluginFailureThreshold === undefined ? {} : { failureThreshold: options.pluginFailureThreshold }),
+  };
+}
+
 /** In-memory route deps seeded from `./seed`. Default for tests/dev. */
 export function createRouteDeps(options: CreateRouteDepsOptions = {}): NewsletterRouteDeps & ByokToolSurfaceDeps {
   // TOVU_DB=memory can still serve public routes; anonymous audit traffic shares this bounded sink.
@@ -484,10 +493,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     declaredContentTypes: deferDeclaredContentTypePorts({
       build: () => createDeclaredContentTypePorts({ repo: contentTypeRepo, clock, ids: idGen, outbox }),
     }),
-    ...(options.installDir === undefined ? {} : { installDir: options.installDir }),
-    ...(options.pluginFailureThreshold === undefined
-      ? {}
-      : { failureThreshold: options.pluginFailureThreshold }),
+    ...inMemoryPluginRuntimeOptions({ options }),
   });
   // Composition root: the in-memory root keeps the same env-driven owner login as `deps.ts`.
   const identity = createInMemoryIdentityRouteDeps({ workspaceId: seededWorkspace.id, clock, idGen, permissionGrants: createAppPermissionGrants({}), ownerCredentials: resolveOwnerCredentials({ env: process.env }) });
@@ -1986,6 +1992,14 @@ function registerAdminSpa({ app, routeDeps }: { app: Express; routeDeps: RouteDe
   });
 }
 
+/** Mount the public browser bundle at the configured built-output location.
+ * @complexity O(1) route registration. */
+function registerSiteChatBundle({ app }: { app: Express }, _optional = {}): void {
+  registerSiteChatStatic(app, {
+    distDir: process.env.TOVU_SITE_CHAT_DIST ?? resolveAppDistDir("site-chat"),
+  });
+}
+
 /** Install intake before every route only when the serving process supplies its graceful stop.
  * Share the routes' finalizer by ledger identity: creating another watch owner could park mid-chat.
  * @complexity O(1) wiring; each idle probe uses up to two bounded existence reads.
@@ -2433,9 +2447,7 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // ADR-054 Task 2/3 — the built public site-chat bundle (apps/site-chat/dist) at /site-chat.
   // Distinct static mount from the admin SPA above: a single self-mounting script, not an app with
   // client-side routing, so `site-chat-static.ts` has no `index.html` SPA fallback to serve.
-  registerSiteChatStatic(app, {
-    distDir: process.env.TOVU_SITE_CHAT_DIST ?? resolveAppDistDir("site-chat"),
-  });
+  registerSiteChatBundle({ app });
   registerSiteChatComparisonRoutes({ app, deps: routeDeps });
 
   // SPIKE — `static`-tier theme preview builds at /theme-preview/<theme-id>/<dark|light>/...; see

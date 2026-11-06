@@ -744,8 +744,8 @@ function createSiteDisplayNameSource(dbPath: string, siteDir?: string): SiteDisp
 
 /** Resolve the served site's key candidates and retain its root for vault contribution discovery.
  * @complexity O(1), one site-metadata read; never reads or creates key material. */
-function compositionSiteKeySources({ dbPath, runtimeMode, siteDir }: {
-  dbPath: string; runtimeMode: ReturnType<typeof resolveRuntimeMode>; siteDir: string | undefined;
+function compositionSiteKeySources({ dbPath, runtimeMode, siteBinding }: {
+  dbPath: string; runtimeMode: ReturnType<typeof resolveRuntimeMode>; siteBinding: CreateSiteRouteDepsOverrides["siteBinding"] | undefined;
 }, _options = {}) {
   // site-key plan §A3a: both site-key-backed keyrings below need this site's own ordered source
   // list (per-site file first in local mode, mirroring `ensureSiteKey`'s own writer-side ordering —
@@ -755,7 +755,7 @@ function compositionSiteKeySources({ dbPath, runtimeMode, siteDir }: {
   // resolves no `siteKeyId` and therefore no per-site candidate. The database may now be outside
   // that root; its parent must never establish the key's identity.
   // Site keys/config/themes remain at the site root when SQLite is stored elsewhere.
-  const siteDirForKeyring = dbPath !== ":memory:" ? resolveSiteDirForDatabase({ dbPath, siteDir }) : undefined;
+  const siteDirForKeyring = dbPath !== ":memory:" ? resolveSiteDirForDatabase({ dbPath, siteDir: siteBinding?.dir }) : undefined;
   const siteKeyIdForKeyring = siteDirForKeyring ? resolveSiteKeyId({ siteDir: siteDirForKeyring }) : undefined;
   const sources = siteKeySources({
     mode: runtimeMode,
@@ -1797,7 +1797,7 @@ async function composeSiteRouteDeps(
   // returns, only when it is first read.
   const runtimeMode = resolveRuntimeMode();
 
-  const { siteDirForKeyring, sources: siteKeySourcesList } = compositionSiteKeySources({ dbPath, runtimeMode, siteDir: overrides.siteBinding?.dir });
+  const { siteDirForKeyring, sources: siteKeySourcesList } = compositionSiteKeySources({ dbPath, runtimeMode, siteBinding: overrides.siteBinding });
 
   // SPEC-011 (Newsletter) Stage 5 wiring — hoisted for the same reason `server/app.ts`'s identical
   // hoisting comment explains: `newsletterSubscriberDirectory` must read the SAME member rows the
@@ -1928,10 +1928,16 @@ async function composeSiteRouteDeps(
   // third `EnvOrFileKeyring` instance).
   // Local rows retain their original ownership; only shared owner rows require site grants.
   // The owner store is opened before this reader (owner 2026-10-25).
-  const customProject = credentialProject(projectVault, vault => new CustomCredentialVaultRepo({ vault }));
-  const customCredentialSetRepo = new SqliteCustomCredentialSetRepo(kernel, customProject.project && projectStore
-    ? { project: { ...customProject.project, inventoryRepo: new CustomCredentialVaultRepo({ vault: projectStore.vault.repo }) } }
-    : customProject);
+  const customCredentialSetRepo = compositionCustomCredentials();
+
+  /** Bind site credentials to the optional project inventory without changing local ownership.
+   * @complexity O(1) adapter construction; no repository reads. */
+  function compositionCustomCredentials() {
+    const customProject = credentialProject(projectVault, vault => new CustomCredentialVaultRepo({ vault }));
+    return new SqliteCustomCredentialSetRepo(kernel, customProject.project && projectStore
+      ? { project: { ...customProject.project, inventoryRepo: new CustomCredentialVaultRepo({ vault: projectStore.vault.repo }) } }
+      : customProject);
+  }
   const providerPlugins = await providerPluginBoot({ overrides })({
     processRole: overrides.storeRole === 'client' ? 'daemon' : 'server',
     runtime: pluginRuntime,
@@ -1947,13 +1953,19 @@ async function composeSiteRouteDeps(
     await pluginRuntime.dispose({});
   });
   let bindSharedApiOAuth: ((input: { keyId: string; use: boolean }) => Promise<void>) | undefined;
-  const projectKeys = projectStore ? createProjectKeys({ vault: projectStore.vault.repo, attachments: projectStore.attachments,
-    describeOAuth: createSharedOAuthLabels({ scope: projectStore.vault, clock }),
-    siteId: projectSiteId, siteName: resolvedSiteBinding.name, providerUsage: input => providerConfigSource.usage(input), reapply: input => providerPlugins.reapply(input),
-    transaction: input => projectStore.transaction(input), inventory: projectStore.inventory ? () => projectStore.inventory!({}) : undefined, references: projectKeyReferences, bindOAuth: input => {
-      if (!bindSharedApiOAuth) throw new Error("Shared connections are not available yet. Reopen this saved connection and try again.");
-      return bindSharedApiOAuth(input);
-    } }) : undefined;
+  const projectKeys = compositionProjectKeys();
+
+  /** Build the shared-key service only for an attached project; binding remains late-bound.
+   * @complexity O(1) service construction; I/O occurs only through later service operations. */
+  function compositionProjectKeys() {
+    return projectStore ? createProjectKeys({ vault: projectStore.vault.repo, attachments: projectStore.attachments,
+      describeOAuth: createSharedOAuthLabels({ scope: projectStore.vault, clock }),
+      siteId: projectSiteId, siteName: resolvedSiteBinding.name, providerUsage: input => providerConfigSource.usage(input), reapply: input => providerPlugins.reapply(input),
+      transaction: input => projectStore.transaction(input), inventory: projectStore.inventory ? () => projectStore.inventory!({}) : undefined, references: projectKeyReferences, bindOAuth: input => {
+        if (!bindSharedApiOAuth) throw new Error("Shared connections are not available yet. Reopen this saved connection and try again.");
+        return bindSharedApiOAuth(input);
+      } }) : undefined;
+  }
   onStoreClose(watchProviderRevisions({ read: () => projectStore?.providerRevisions({ siteId: projectSiteId }) ?? Promise.resolve([]),
     readSite: () => siteProviderRevisions({ kernel: kernel as unknown as StorageKernel<unknown>, workspaceId }),
     reapply: input => providerPlugins.reapply(input) }));
@@ -2346,11 +2358,7 @@ async function composeSiteRouteDeps(
       keyring: siteAssistantSecretKeyring,
       clock,
       devices: externalMcpOAuthDevices,
-      ...(projectStore && projectSiteId ? { shared: { owner: createSharedOAuthOwnerStorage({ scope: projectStore.vault, clock }),
-        bindings: createSiteOAuthBindings({ workspaceId, repo: siteReferenceRepo,
-          vault: createApiConnectionVault({ repo: siteReferenceRepo, keyring: siteAssistantSecretKeyring, sealer: siteAssistantSecretSealer, clock, workspaceId }) }),
-        attachments: projectStore.attachments, transaction: projectStore.transaction, siteId: projectSiteId, siteName: resolvedSiteBinding.name,
-        ownerPrincipalId: identity.ownerPrincipalId, inventory: projectStore.inventory ? () => projectStore.inventory!({}) : undefined } } : {}),
+      ...compositionSharedOAuth(),
       onConnected: createApplyConnectDefaults({ agentPluginLayout, workspaceId, repo: externalMcpServerRepo, clock, notifyRosterChanged: notifyExternalMcpRosterChanged }),
     }),
     externalMcpOAuthDevices,
@@ -2865,12 +2873,28 @@ async function composeSiteRouteDeps(
     isPluginActive: async ({ pluginId }) => (await agentPluginLifecycle.resolveAgentPluginActivation({ workspaceRoot: agentPluginLayout.root, pluginId })).verdict === "active",
   }), { storage: kernel, settingsReady: siteTitleReady });
 
-  const commerceBinding = composeCommerce({ kernel: kernel as unknown as StorageKernel<unknown>,
-    workspaceId, siteId: projectSiteId || workspaceId, workspaceRoot: agentPluginLayout.forWorkspace(workspaceId).root,
-    workerOwner: (overrides.storeRole ?? 'owner') === 'owner', workerDirectory: dbPath === ':memory:' ? resolvedSiteBinding.dir : dirname(dbPath),
-    settingsRepo, settingsReady: siteTitleReady, providerConfig: providerConfigSource, providers: providerPlugins,
-    httpClient: { send: ({ request }, options) => createDefaultHttpClient(SINGLE_HOP_HTTPS_EGRESS_POLICY, { observability }).send(request, options) }, clock, idGen,
-  });
+  /** Bind OAuth to the optional project transaction owner; no service exists without a site id.
+   * @complexity O(1) service construction; no network or storage calls. */
+  function compositionSharedOAuth() {
+    return projectStore && projectSiteId ? { shared: { owner: createSharedOAuthOwnerStorage({ scope: projectStore.vault, clock }),
+        bindings: createSiteOAuthBindings({ workspaceId, repo: siteReferenceRepo,
+          vault: createApiConnectionVault({ repo: siteReferenceRepo, keyring: siteAssistantSecretKeyring, sealer: siteAssistantSecretSealer, clock, workspaceId }) }),
+        attachments: projectStore.attachments, transaction: projectStore.transaction, siteId: projectSiteId, siteName: resolvedSiteBinding.name,
+        ownerPrincipalId: identity.ownerPrincipalId, inventory: projectStore.inventory ? () => projectStore.inventory!({}) : undefined } } : {};
+  }
+
+  const commerceBinding = compositionCommerce();
+
+  /** Assemble the commerce runtime with this process's existing site and worker ownership.
+   * @complexity O(1) composition; the commerce service owns subsequent bounded work. */
+  function compositionCommerce() {
+    return composeCommerce({ kernel: kernel as unknown as StorageKernel<unknown>,
+      workspaceId, siteId: projectSiteId || workspaceId, workspaceRoot: agentPluginLayout.forWorkspace(workspaceId).root,
+      workerOwner: (overrides.storeRole ?? 'owner') === 'owner', workerDirectory: dbPath === ':memory:' ? resolvedSiteBinding.dir : dirname(dbPath),
+      settingsRepo, settingsReady: siteTitleReady, providerConfig: providerConfigSource, providers: providerPlugins,
+      httpClient: { send: ({ request }, options) => createDefaultHttpClient(SINGLE_HOP_HTTPS_EGRESS_POLICY, { observability }).send(request, options) }, clock, idGen,
+    });
+  }
   routeDeps.commerce = commerceBinding.commerce;
   routeDeps.commerceCatalog = commerceBinding.commerceCatalog;
   onStoreClose(() => commerceBinding.close());
