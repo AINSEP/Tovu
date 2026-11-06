@@ -13,7 +13,7 @@ const serverModule = readFileSync(new URL("../../../runtime/composition/modules/
 test("server executable plugin tools share the server's confirmation store", () => {
   assert.match(serverSurface, /surfaces:\s*\{\s*surfaceExchanges\s*\}/);
   assert.match(serverSurface, /surfaceExchanges,\s*\n\s*executeMetaTool/);
-  assert.match(serverModule, /surfaces:\s*\{\s*surfaceExchanges:\s*resolvedToolSurface\.surfaceExchanges\s*\}/);
+  assert.match(serverModule, /surfaces:\s*\{\s*surfaceExchanges:\s*resolvedToolSurface\.surfaceExchanges,\s*assertAccessApprover:\s*createAccessApprover\(routeDeps\)\s*\}/);
   assert.match(serverModule, /registry\.register\(automaticPluginRuns\.loadRegistration\)/);
   const daemon = daemonSource.statements.map(statement => statement.getText(daemonSource)).join("\n");
   assert.equal(daemon.includes("attachAssistantToolExtensions"), false);
