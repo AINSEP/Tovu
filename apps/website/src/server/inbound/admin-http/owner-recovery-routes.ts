@@ -1,3 +1,4 @@
+import { ownerMfaDepsFrom } from './owner-mfa-deps.js';
 import { isLocalAdminRequest } from './local-admin-request.js';
 import { resolveSiteConsentOrigin } from '../public-http/middleware/site-consent.js';
 import type { Express, Request, Response } from 'express';
@@ -44,11 +45,12 @@ function recoveryFailure({ res, error, action }: { res: Response; error: unknown
 async function recoveryDeps({ deps }: Pick<Admission, 'deps'>): Promise<OwnerRecoveryDeps> {
   await deps.identityReady;
   if (!deps.recoveryCodes) throw new Error('Durable recovery storage is not configured');
-  return { auth: identityServiceDepsFrom(deps), codes: deps.recoveryCodes, seededOwnerPrincipalId: await deps.ownerPrincipalId };
+  return { ...(deps.mfaStore ? { mfa: await ownerMfaDepsFrom({ deps }) } : {}), auth: identityServiceDepsFrom(deps), codes: deps.recoveryCodes, seededOwnerPrincipalId: await deps.ownerPrincipalId };
 }
 
 /** Reset requires this request's private launch proof as well as local transport and owner session.
- * No cookie alone proves possession of the launcher's capability.
+ * No cookie alone proves possession of the launcher's capability. An enrolled owner can recover
+ * with that private proof without first obtaining the MFA-gated normal session.
  * @complexity O(h) in request header names; no I/O.
  */
 function acceptsDesktopReset({ req, admission }: { req: Request; admission: Admission }): boolean {
@@ -61,7 +63,7 @@ function acceptsDesktopReset({ req, admission }: { req: Request; admission: Admi
  * @complexity O(1), one session admission plus already-resolved owner identity.
  */
 async function admitOwner({ req, action, admission, ownerId }: { req: Request; action: Action; admission: Admission; ownerId: string }): Promise<void> {
-  if (action === 'recover') return;
+  if (action === 'recover' || (action === 'reset' && acceptsDesktopReset({ req, admission }))) return;
   const caller = await admission.authenticate(req);
   if (!caller || caller.id !== ownerId || (action === 'reset' && !acceptsDesktopReset({ req, admission }))) {
     throw new OwnerRequiredError({ message: 'Sign in as the site owner to use this recovery action. On desktop, reopen the site to restore your owner session.' });
@@ -86,7 +88,7 @@ async function handleRecovery({ req, res, action, admission }: { req: Request; r
     }
     const deps = await recoveryDeps(admission);
     await admitOwner({ req, action, admission, ownerId: deps.seededOwnerPrincipalId });
-    const input = { workspaceId: admission.deps.workspaceId, principalId: deps.seededOwnerPrincipalId,
+    const input = { ...(action === 'issue' && typeof req.body?.code === 'string' ? { code: req.body.code } : {}), workspaceId: admission.deps.workspaceId, principalId: deps.seededOwnerPrincipalId,
       password: typeof req.body?.password === 'string' ? req.body.password : '' };
     if (action === 'issue') {
       res.json(await issueRecoveryCodes({ deps, input }, {}));

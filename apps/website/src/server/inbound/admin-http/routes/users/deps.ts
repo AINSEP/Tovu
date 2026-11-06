@@ -55,6 +55,7 @@ export type UsersRouteDeps = Pick<
   | "rolePolicyRepo"
   | "principalRoleRepo"
   | "principalPolicyRepo"
+  | "mfaStore"
   | "passwordHasher"
   /** SPEC-006 0.6.0 — `disable.ts`'s seeded-owner guard (REQ-11). */
   | "ownerPrincipalId"
@@ -70,7 +71,7 @@ export type UsersRouteRegistrar = (app: Express, deps: UsersRouteDeps) => void;
 
 type IdentityServiceRouteDeps = Pick<UsersRouteDeps,
   "transactions" | "userRepo" | "sessionRepo" | "roleRepo" | "policyRepo" | "policyPermissionRepo" |
-  "rolePolicyRepo" | "principalRoleRepo" | "principalPolicyRepo" | "passwordHasher" | "clock" | "idGen" | "tokens"
+  "rolePolicyRepo" | "principalRoleRepo" | "principalPolicyRepo" | "mfaStore" | "passwordHasher" | "clock" | "idGen" | "tokens"
 > & { principalRepo: IdentityRepos["principals"] };
 
 /** Assemble the `IdentityRepos` bag identity functions expect from `RouteDeps`'s flat fields. */
@@ -93,6 +94,7 @@ export function identityReposFrom(deps: IdentityServiceRouteDeps): IdentityRepos
 export function identityServiceDepsFrom(deps: IdentityServiceRouteDeps & Partial<Pick<UsersRouteDeps, "outbox" | "isInTrash" | "ownerPrincipalId">>): AuthServiceDeps {
   return {
     repos: identityReposFrom(deps),
+    ...(deps.mfaStore ? { mfaStore: deps.mfaStore } : {}),
     hasher: deps.passwordHasher,
     clock: { nowMs: () => Date.parse(deps.clock.nowIso()) },
     idGen: deps.idGen,
