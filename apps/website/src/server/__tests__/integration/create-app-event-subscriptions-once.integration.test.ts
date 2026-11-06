@@ -96,7 +96,7 @@ test("one form submission event sends one notify email after the site app was re
   const sentTo: string[] = [];
   deps.mailer.send = async (message) => {
     sentTo.push(message.to.email);
-    return { ok: true, providerMessageId: `sent-${sentTo.length}` };
+    return { ok: true, providerMessageId: `sent-${sentTo.length}`, acceptedAt: new Date(deps.clock.nowMs()).toISOString() };
   };
   createApp(deps);
   deps.createSiteApp();
