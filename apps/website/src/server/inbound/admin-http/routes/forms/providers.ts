@@ -7,7 +7,7 @@ import type { FormsRouteRegistrar } from "./deps.js";
  * Registered before the form-id route so the discovery name cannot resolve as a form slug.
  * @complexity O(p) time/space for registered providers and their bounded public descriptions. */
 export const registerAdminFormsProvidersRoute: FormsRouteRegistrar = (app, deps) => {
-  app.get("/api/admin/v1/workspaces/:workspaceId/forms/providers", async (req, res) => {
+  app.get("/api/admin/v1/workspaces/:workspaceId/forms/_providers", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
       return;
@@ -21,7 +21,7 @@ export const registerAdminFormsProvidersRoute: FormsRouteRegistrar = (app, deps)
       }
       res.json({ data: describeFormCollectionProviders({ providers: deps.formCollectionProviders?.() ?? createFormCollectionRegistry({}) }) });
     } catch (error) {
-      sendAdminFailure({ res, error }, { operation: "routes/forms/providers", code: "INTERNAL_ERROR" });
+      sendAdminFailure({ res, error }, { operation: "routes/forms/_providers", code: "INTERNAL_ERROR" });
     }
   });
 };

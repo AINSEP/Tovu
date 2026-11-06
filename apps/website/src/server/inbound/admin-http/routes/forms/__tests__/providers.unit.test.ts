@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createFormCollectionRegistry } from '@jini-ai/cms/forms';
 import { registerAdminFormsProvidersRoute } from '../providers.js';
+import { registerAdminFormsGetRoute } from '../get-by-id.js';
 import { dispatchJsonRequest } from '#src/server/__tests__/helpers/in-process-http';
 import express from 'express';
 import type { FormsRouteDeps, FormsRouteRegistrar } from '../deps.js';
@@ -19,14 +20,14 @@ function fixture(register: FormsRouteRegistrar, overrides: Record<string, unknow
 
 test('forms providers: authorization failures stay private', async () => {
   const { app } = fixture(registerAdminFormsProvidersRoute, { authorize: async () => { throw new Error('private credential'); } });
-  assertAdminResponse({ actual: await dispatchJsonRequest(app, 'GET', `${BASE}/forms/providers`), expected: { status: 500, body: { error: 'internal error', code: 'INTERNAL_ERROR' } } }, {
+  assertAdminResponse({ actual: await dispatchJsonRequest(app, 'GET', `${BASE}/forms/_providers`), expected: { status: 500, body: { error: 'internal error', code: 'INTERNAL_ERROR' } } }, {
     failure: { message: 'The form operation could not be completed.', action: 'Check the result before repeating this operation. Copy details and report this problem.', step: 'form operation' },
   });
 });
 test('forms providers: denied permission never reads provider settings', async () => {
   let reads = 0;
   const { app } = fixture(registerAdminFormsProvidersRoute, { authorize: async () => ({ allowed: false, reason: 'no_grant' }), formCollectionProviders: () => { reads++; return createFormCollectionRegistry({}); } });
-  const response = await dispatchJsonRequest(app, 'GET', `${BASE}/forms/providers`);
+  const response = await dispatchJsonRequest(app, 'GET', `${BASE}/forms/_providers`);
   assert.equal(response.status, 403);
   assert.equal((response.body as { code: string }).code, 'FORBIDDEN');
   assert.equal(reads, 0);
@@ -34,7 +35,7 @@ test('forms providers: denied permission never reads provider settings', async (
 test('forms providers: workspace isolation precedes authorization', async () => {
   let calls = 0;
   const { app } = fixture(registerAdminFormsProvidersRoute, { authorize: async () => { calls++; return { allowed: true }; } });
-  assert.deepEqual(await dispatchJsonRequest(app, 'GET', '/api/admin/v1/workspaces/other/forms/providers'), { status: 404, body: { error: 'workspace was not found' } });
+  assert.deepEqual(await dispatchJsonRequest(app, 'GET', '/api/admin/v1/workspaces/other/forms/_providers'), { status: 404, body: { error: 'workspace was not found' } });
   assert.equal(calls, 0);
 });
 test('forms providers: missing workspace parameter remains isolated', async () => {
@@ -61,10 +62,24 @@ test('admin lists provider-owned settings and unavailable descriptions from its 
     plan: () => ({ kind: 'unavailable', code: 'provider_unavailable', message: 'Fixture only' }),
   } } });
   const { app } = fixture(registerAdminFormsProvidersRoute, { formCollectionProviders: () => providers });
-  const response = await dispatchJsonRequest(app, 'GET', `${BASE}/forms/providers`);
+  const response = await dispatchJsonRequest(app, 'GET', `${BASE}/forms/_providers`);
   assert.equal(response.status, 200);
   const rows = (response.body as { data: Array<{ id: string; available: boolean; fields: unknown[] }> }).data;
   assert.deepEqual(rows.find(row => row.id === 'fourth_provider')?.fields, [{ key: 'public_url', label: 'Public URL', type: 'url' }]);
   assert.equal(rows.find(row => row.id === 'broken')?.available, false);
   assert.doesNotMatch(JSON.stringify(response.body), /private detail/);
+});
+
+
+test('provider discovery does not intercept an existing form named providers', async () => {
+  const stored = { id: 'form-1', workspaceId: 'workspace-local', name: 'Providers', slug: 'providers', fields: [], status: 'active', notify: { enabled: false, recipients: [] }, createdAt: '2026-11-05T00:00:00Z', updatedAt: '2026-11-05T00:00:00Z', version: 1 };
+  const { app } = fixture((app, deps) => { registerAdminFormsProvidersRoute(app, deps); registerAdminFormsGetRoute(app, deps); }, {
+    formDefinitionRepo: { findBySlug: async ({ slug }: { slug: string }) => slug === stored.slug ? stored : null, findById: async () => null },
+  });
+  const form = await dispatchJsonRequest(app, 'GET', `${BASE}/forms/providers`);
+  assert.equal(form.status, 200);
+  assert.equal((form.body as { data: { slug: string } }).data.slug, 'providers');
+  const discovery = await dispatchJsonRequest(app, 'GET', `${BASE}/forms/_providers`);
+  assert.equal(discovery.status, 200);
+  assert.ok(Array.isArray((discovery.body as { data: unknown }).data));
 });
