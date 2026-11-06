@@ -191,7 +191,9 @@ test("mail_set_provider discloses fixed scoped lanes and verifies the human befo
     assert.deepEqual(checks, ["owner"]);
     assert.equal(f.selected.length, 0);
     const html = (emission.payload.resource as { resource: { text: string } }).resource.text;
-    for (const text of ["core.mail.provider", "before", "smtp", "owner", "ws", "revision", "7"]) assert.ok(html.includes(text), text);
+    for (const text of ["Mail provider", "before", "smtp", "Transactional and bulk mail"]) assert.ok(html.includes(text), text);
+    // The card names the resource; the exact principal and revision remain bound to the write below.
+    assert.doesNotMatch(html, /core\.mail\.provider|"(?:personId|siteId|revision)"\s*:/);
     await f.answer("mail_set_provider").emitSurface!(emission);
   } });
   assert.deepEqual(checks, ["owner", "owner"]);
