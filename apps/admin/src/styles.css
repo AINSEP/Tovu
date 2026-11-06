@@ -6653,6 +6653,16 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
   :is(.admin-content, .jini-dialog) :is(button, [role="button"]):not([role="switch"]) { min-width: 44px; }
   :is(.admin-content, .jini-dialog) :is(input[type="checkbox"], input[type="radio"]) { width: 20px; height: 20px; }
 
+  /* The chrome outside `.admin-content` the floor above cannot reach, plus the 15px text link and the
+     18px radio labels inside it (measured at 390px, 2026-11-05). The link and the label grow their hit
+     area, not their look: padding a matching negative margin cancels, and an invisible overlay that
+     also covers the radio beside the label. */
+  .admin-topbar-toggle, .cms-nav-close { width: 44px; height: 44px; }
+  .cms-item, .cms-logout { min-height: 44px; }
+  .admin-content a.link-button { display: inline-block; padding-block: 15px; margin-block: -15px; }
+  .site-db-option-name { position: relative; }
+  .site-db-option-name::after { content: ""; position: absolute; inset: -13px 0 -13px -32px; }
+
   /* OB-1 (also Settings Privacy): a touch-synthesized hover must not leave an inactive tab
      looking pressed. The active underline and keyboard focus outline still convey state. */
   .settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-nav-item,
