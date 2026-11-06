@@ -24,7 +24,8 @@ test('the release journey creates an admitted site attempt before catalog discov
   const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
   registerDurableRunStartRoute({ app: daemon, lifecycle, onStarted: () => {}, store: deps.chatRunLedger.durable! });
   const resolvedPortRef = { current: 0 };
-  registerRunRoutes({ app: daemon, deps: { lifecycle }, adapter: { resolvedPortRef, env: {} } });
+  registerRunRoutes({ app: daemon, deps: { lifecycle }, adapter: { resolvedPortRef, env: {},
+    allowedOriginsEnvVar: 'JINI_ALLOWED_ORIGINS', webPortEnvVar: 'JINI_WEB_PORT', bindHostEnvVar: 'JINI_BIND_HOST' } });
   registerRunActiveContextRoute(daemon, createRunActiveContextStore());
   const daemonUrl = await startTestServer(daemon, t);
   resolvedPortRef.current = Number(new URL(daemonUrl).port);
@@ -48,8 +49,8 @@ test('the release journey creates an admitted site attempt before catalog discov
     if (previousSites === undefined) delete state.__assistantGateSites;
     else state.__assistantGateSites = previousSites;
   });
-  // Only the Electron IPC boundary is replaced. The actual journey callback, HTTP session,
-  // site routes, daemon routes, durable store and catalog admission all execute unchanged.
+  // Evaluate locally instead of Electron IPC. The journey callback, HTTP session, site/daemon
+  // routes, durable store and admissions are real; this test stops before CLI execution.
   const app = { evaluate: async (fn: () => unknown) => fn() } as unknown as ElectronApplication;
   const [accepted] = await acceptRuns({ app, count: 1 });
   assert.ok(accepted?.runId);
