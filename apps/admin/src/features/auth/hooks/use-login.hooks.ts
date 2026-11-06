@@ -31,7 +31,7 @@ export interface LoginDependencies {
 }
 
 export interface LoginController {
-  mfa?: { code: string; setCode: (code: string) => void; cancel: () => void };
+  mfa?: { pendingToken: string; code: string; setCode: (code: string) => void; cancel: () => void };
   username: string;
   setUsername: (username: string) => void;
   password: string;
@@ -40,6 +40,19 @@ export interface LoginController {
   failure?: UserFacingError | null;
   busy: boolean;
   submit: (e: React.FormEvent) => Promise<void>;
+}
+
+/** Keep safe server refusals, correlate unexpected failures without copying a submitted proof.
+ * @complexity O(diagnostic length), no effects or retained credentials.
+ */
+function loginFailure(err: unknown, secrets: string[]): UserFacingError | null {
+  if (err instanceof ApiError && [400, 401, 429].includes(err.status)) return null;
+  const errorId = err instanceof ApiError && typeof err.body?.errorId === "string" ? err.body.errorId : undefined;
+  // Anonymous copy never contains a transport exception or backend diagnosis, even redacted.
+  return formatUserFacingError({ message: "Sign-in could not finish.",
+    action: "Try signing in again. If it still fails, copy details and report this problem.",
+    step: "auth-login", cause: "The sign-in request did not finish. Its error ID identifies the server report." },
+  { errorId, exactSecrets: secrets.filter(Boolean) });
 }
 
 /**
@@ -54,14 +67,7 @@ export function useLogin({ onLogin }: LoginHookProps, { port }: LoginDependencie
     setFailure(null);
     try { return await execute(); }
     catch (err) {
-      if (!(err instanceof ApiError && [400, 401, 429].includes(err.status))) {
-        // Anonymous copy never contains a transport exception or backend diagnosis, even redacted.
-        setFailure(formatUserFacingError({ message: "Sign-in could not finish.",
-          action: "Try signing in again. If it still fails, copy details and report this problem.",
-          step: "auth-login", cause: "The sign-in request did not finish. Its error ID identifies the server report." },
-        { errorId: err instanceof ApiError && typeof err.body?.errorId === "string" ? err.body.errorId : undefined,
-          exactSecrets: secrets.filter(Boolean) }));
-      }
+      setFailure(loginFailure(err, secrets));
       throw err instanceof Error ? err : new Error("Sign-in could not finish. Try signing in again.");
     }
   }

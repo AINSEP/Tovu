@@ -16,10 +16,43 @@ type Action = 'enroll' | 'confirm' | 'remove';
  */
 function failure(res: Response, error: unknown): void {
   const expected = error instanceof IdentityValidationError || error instanceof OwnerRequiredError;
-  res.status(error instanceof OwnerRequiredError ? 403 : expected ? 400 : 503).json({
+  let status = 503;
+  if (expected) status = 400;
+  if (error instanceof OwnerRequiredError) status = 403;
+  res.status(status).json({
     error: expected ? error.message : 'Authenticator settings could not be saved. Try again, then copy the problem details if it continues.',
     code: expected ? 'MFA_REFUSED' : 'MFA_UNAVAILABLE', details: { operation: 'owner-authenticator' },
   });
+}
+
+/** Reject cross-origin or machine credentials before any secret lookup. O(1), bounded headers. */
+async function admit({ req, res, admission }: { req: Request; res: Response; admission: Admission }): Promise<string | null> {
+  if (!acceptsRequest(req)) {
+    res.status(403).json({ error: 'Open this site’s security settings and submit the authenticator action there.', code: 'MFA_ORIGIN_REFUSED' });
+    return null;
+  }
+  const caller = await admission.authenticate(req);
+  const ownerId = await admission.deps.ownerPrincipalId;
+  if (caller?.kind !== 'session' || caller.principal.id !== ownerId) {
+    throw new OwnerRequiredError({ message: 'Sign in as the site owner to change this authenticator.' });
+  }
+  const rate = await admission.limiter.check({ key: resolveClientIp(req) });
+  if (rate.allowed) return ownerId;
+  res.setHeader('Retry-After', String(rate.retryAfterSeconds));
+  res.status(429).json({ error: 'Too many authenticator attempts. Wait a minute and try again.', code: 'RATE_LIMIT_EXCEEDED' });
+  return null;
+}
+
+/** Match the existing recovery origin policy before accepting an explicit JSON action. */
+function acceptsRequest(req: Request): boolean {
+  if (!req.is('application/json') || req.get('sec-fetch-site') === 'cross-site') return false;
+  const origin = req.get('origin');
+  return !origin || origin === resolveSiteConsentOrigin({ request: req });
+}
+
+/** Read only scalar text from the JSON boundary; malformed values are refused by Jini. */
+function bodyText(req: Request, key: string): string {
+  return typeof req.body?.[key] === 'string' ? req.body[key] : '';
 }
 
 /** Explicit owner action only; Jini owns password/factor proof and atomic state changes.
@@ -28,33 +61,18 @@ function failure(res: Response, error: unknown): void {
 async function handle({ req, res, action, admission }: { req: Request; res: Response; action: Action; admission: Admission }): Promise<void> {
   res.setHeader('Cache-Control', 'no-store');
   try {
-    if (!req.is('application/json') || req.get('sec-fetch-site') === 'cross-site' ||
-      (req.get('origin') && req.get('origin') !== resolveSiteConsentOrigin({ request: req }))) {
-      res.status(403).json({ error: 'Open this site’s security settings and submit the authenticator action there.', code: 'MFA_ORIGIN_REFUSED' });
-      return;
-    }
-    const caller = await admission.authenticate(req);
-    const ownerId = await admission.deps.ownerPrincipalId;
-    if (caller?.kind !== 'session' || caller.principal.id !== ownerId) {
-      throw new OwnerRequiredError({ message: 'Sign in as the site owner to change this authenticator.' });
-    }
-    const rate = await admission.limiter.check({ key: resolveClientIp(req) });
-    if (!rate.allowed) {
-      res.setHeader('Retry-After', String(rate.retryAfterSeconds));
-      res.status(429).json({ error: 'Too many authenticator attempts. Wait a minute and try again.', code: 'RATE_LIMIT_EXCEEDED' });
-      return;
-    }
+    const ownerId = await admit({ req, res, admission });
+    if (!ownerId) return;
     const deps = await ownerMfaDepsFrom(admission);
     const input = { workspaceId: admission.deps.workspaceId, principalId: ownerId,
-      password: typeof req.body?.password === 'string' ? req.body.password : '',
-      code: typeof req.body?.code === 'string' ? req.body.code : '' };
+      password: bodyText(req, 'password'), code: bodyText(req, 'code') };
     if (action === 'enroll') {
       const user = await admission.deps.userRepo.findByPrincipalId(input);
       res.json(await beginOwnerEnrollment({ deps, input: { ...input, label: user?.username ?? 'Owner', issuer: 'Tovu' } }, {}));
       return;
     }
     if (action === 'confirm') await confirmOwnerEnrollment({ deps, input: { ...input,
-      pendingToken: typeof req.body?.pendingToken === 'string' ? req.body.pendingToken : '' } }, {});
+      pendingToken: bodyText(req, 'pendingToken') } }, {});
     else await removeOwnerFactor({ deps, input }, {});
     res.status(204).send();
   } catch (error) { failure(res, error); }

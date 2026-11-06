@@ -12,6 +12,7 @@ function bootResponse({ cookie = "" }: { cookie?: string }, _options = {}) {
   const { res, capture } = createCapturingResponse();
   const cookies: Array<{ name: string; value: string; options: unknown }> = [];
   const cleared: string[] = [];
+  res.setHeader = () => res;
   res.req = { headers: { cookie }, socket: { localPort: 303 } } as Request;
   res.cookie = (name: string, value: string, options?: unknown) => {
     cookies.push({ name, value, options });
