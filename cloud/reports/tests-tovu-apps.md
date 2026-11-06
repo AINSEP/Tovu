@@ -1,10 +1,10 @@
 # tests-tovu-apps
 
-Status: in progress. Started 2026-11-06 19:49 UTC; hard cap 21:49 UTC.
+Status: in progress. Started 2026-11-06 11:49 PST (19:49 UTC); hard cap 13:49 PST (21:49 UTC).
 
 ## Revisions and scope
 
-- Tovu branch `cloud/tests-tovu-apps`, tested code revision `adaf83ea8` (final publication revision pending).
+- Tovu branch `cloud/tests-tovu-apps`, frozen source revision `a08b2b10be7fd5c699618136ec1a09ce7fecda86` (final publication revision pending).
 - Tovu base `b34b9cb7ada1783698eea8ec83bb3d6913fc63c4` (`origin/cloud/combine`).
 - Jini branch `cloud/tests-tovu-apps`, unchanged code revision `3a41ec5b678e7445dce1f23d5fe08735cdd4e2b8` (`origin/cloud/combine`); no Jini source changes or push needed.
 - Pushed Tovu checkpoints: `3497f4f58`, `5da64e73a`, `adaf83ea8`.
@@ -136,3 +136,7 @@ Bugs found in this round:
 - Fixed: lazy Authentication/redirect/dock readiness fixtures and retired Consent expectations.
 - Fixed: scroll CSS guard mixed phone and desktop rule contexts.
 - Minor open: four existing asynchronous SharedChoice fallback messages remain untranslated.
+
+## Frozen final verification checkpoint — 12:32 PST
+
+Final full admin coverage is running on frozen source `a08b2b10be7fd5c699618136ec1a09ce7fecda86`, without reported failures so far. Fresh final admin typecheck and strict complexity across all10 changed production paths passed (zero errors; one unchanged unused-variable warning). Independent read-only integrity review found no actionable findings. All32 changed test/support/baseline paths appear in the final report draft. Automated diff checks found zero new skip/only, eslint-disable or coverage-ignore markers. No coverage configuration, package manifest, lockfile or desktop gate/floor configuration changed. Only report edits follow the frozen source commit.
