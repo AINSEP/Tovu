@@ -298,6 +298,7 @@ import { InMemorySiteStatusRepo } from "#src/features/database/repo.memory";
 import { NoopContentTypeIndexProvisioner } from "#src/features/content-types/index";
 import { SqliteContentTypeRepo } from "#src/features/content-types/repo.sqlite";
 import { SqliteEntryRepo } from "#src/features/entries/repo.sqlite";
+import { invalidateMediaAccessEvidence } from "#src/features/media/access-evidence";
 import { SqliteWidgetRegionBindingRepo } from "#src/features/widgets/repo.sqlite";
 import { buildWidgetsDeps } from "#src/features/widgets/deps";
 import { adoptLegacyTrashedWidgets, restoreWidgetPriorStatus } from "@jini-ai/cms/widgets";
@@ -1619,7 +1620,10 @@ async function composeSiteRouteDeps(
     repo: trashRepo,
     adapters: trashAdapters,
     idGen: { newId: () => randomUUID() },
-    transaction: ({ work }) => trashTransaction(work),
+    // Trash flips post and widget markers through the kernel, past the repositories that clear media
+    // access evidence on a save. Cleared after commit, so a read during the transaction cannot keep old
+    // evidence. Cost: O(256) map clear per Trash action, then one rescan per asset on its next request.
+    transaction: ({ work }) => trashTransaction(work).finally(() => invalidateMediaAccessEvidence({ owner: postRepo })),
     entityPolicy: ({ entityType }) => (trashAdapters).has(entityType)
   }, {
     retentionDays: TRASH_RETENTION_DAYS,
