@@ -230,6 +230,7 @@ function toDeliveryStatusView(row: FormDeliveryStatusRow): FormDeliveryStatusRow
 /** Binds host persistence and the audited command gateway for the Forms policy adapter. */
 function formsDeps(routeDeps: FormsToolDeps) {
   return {
+    formCollectionProviders: routeDeps.formCollectionProviders,
     executeCommand: routeDeps.executeCommand,
     repo: routeDeps.formDefinitionRepo,
     clock: routeDeps.clock,

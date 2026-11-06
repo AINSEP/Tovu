@@ -1075,3 +1075,30 @@ test('malformed provider metadata cannot replace a readable fallback label', asy
     assert.equal(description?.available, false);
   } finally { await providers.dispose({}); delete SETTINGS['forms-malformed']; }
 });
+
+
+test('form provider stays listed after its first initialization fails and recovers on reapply', async () => {
+  let ready = false;
+  SETTINGS['forms-recover'] = [];
+  const { runtime } = fakeRuntime({ installed: ['forms-recover'], factories: {
+    'forms-recover': { contract: 'form_collection', id: 'recover', factory: () => {
+      if (!ready) throw new Error('temporary initialization failure');
+      return { port: {
+        describe: () => ({ label: 'Recovered forms', fields: [], answers: 'Remote inbox', validation: 'Remote checks', frameOrigins: [] }),
+        plan: () => ({ kind: 'post', action: 'https://forms.example.test/submit', external: true, capabilities: { answers: 'Remote', validation: 'Remote', spamProtection: 'Remote' } }),
+      }, dispose() {} };
+    } },
+  } });
+  const providers = await bootProviderPlugins({ runtime, config: configOf({}), serviceName: 'tovu', site: SITE, ...consentAlways }, { warn: quiet });
+  try {
+    const before = describeFormCollectionProviders({ providers: providers.formCollectionProviders!() }).find(item => item.id === 'recover');
+    assert.equal(before?.label, 'recover');
+    assert.equal(before?.available, false);
+    assert.match(before?.message ?? '', /unavailable/i);
+    ready = true;
+    assert.equal(await providers.reapply({ pluginId: 'forms-recover' }), 'now');
+    const after = describeFormCollectionProviders({ providers: providers.formCollectionProviders!() }).find(item => item.id === 'recover');
+    assert.equal(after?.label, 'Recovered forms');
+    assert.equal(after?.available, true);
+  } finally { await providers.dispose({}); delete SETTINGS['forms-recover']; }
+});

@@ -467,6 +467,8 @@ export async function bootProviderPlugins(required: BootProviderPluginsRequired,
     leases.set(slot.contract, [...(leases.get(slot.contract) ?? []), gatedPort({ slot, contract: slot.contract, testProbe })]);
   }
   await Promise.all([...new Set(slots.map(slot => slot.pluginId))].map(pluginId => reapply({ pluginId })));
+  // Declared collection choices remain visible even when their first initialization failed.
+  formCollectionRegistry = formRegistryFor({ slots, testProbe });
   const product = await bootProductTelemetryFromEnv({ env: optional.env, processRole: required.processRole }, { warn, ...optional.productTelemetry });
   const { shutdownGenerations, siteTracker, ...ports } = composePorts({ leases, consent: required.consent, consentRevision: required.consentRevision, site: required.site, warn, product });
   tracker = ports.tracker;

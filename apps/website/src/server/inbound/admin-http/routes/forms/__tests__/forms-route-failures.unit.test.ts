@@ -11,6 +11,7 @@ import { registerAdminFormsGetSubmissionRoute } from '../get-submission.js';
 import { registerAdminFormsListSubmissionsRoute } from '../list-submissions.js';
 import { registerAdminFormsListRoute } from '../list.js';
 import { registerAdminFormsUpdateRoute } from '../update.js';
+import { createFormCollectionRegistry } from "@jini-ai/cms/forms";
 import { DuplicateCommandError } from '@jini-ai/cms/core';
 import { WS, BASE, INTERNAL_CODE, fixture, invokeRouteDirectly, testRouteFailureMatrix, type RouteFailureCase } from '#src/server/__tests__/helpers/admin-route-failures';
 
@@ -205,4 +206,35 @@ test('submission detail exposes permanent email failures without provider messag
   const response = await dispatchJsonRequest(app, 'GET', `${BASE}/forms/form/submissions/sub`);
   assert.equal(response.status, 200); assert.deepEqual(response.body.data.notificationDelivery, { failed: 1, pending: 0 });
   assert.deepEqual(calls, [{ workspaceId: WS, submissionId: 'sub' }]);
+});
+
+
+test('form editor rejects provider settings before creating or replacing a saved definition', async () => {
+  const providers = createFormCollectionRegistry({});
+  providers.contribute({ pluginId: 'fixture', definition: { id: 'remote', provider: {
+    plan: ({ config }) => config.url === 'https://forms.example.test/accepted'
+      ? { kind: 'embed', url: config.url, title: 'Remote', capabilities: { answers: 'Remote', validation: 'Remote', spamProtection: 'Remote' } }
+      : { kind: 'unavailable', code: 'invalid_configuration', message: 'Enter the public form link supplied by your form provider.' },
+  } } });
+  const { app, deps } = fixture((app, deps) => {
+    registerAdminFormsCreateRoute(app, deps);
+    registerAdminFormsAuthoringRoute(app, deps);
+    registerAdminFormsUpdateRoute(app, deps);
+  }, { formCollectionProviders: () => providers });
+  const body = { name: 'Contact', slug: 'contact', fields: [{ id: 'message', type: 'text', label: 'Message', required: false }] };
+  const invalid = { id: 'remote', config: { url: 'invalid' } };
+  const refused = await dispatchJsonRequest(app, 'POST', `${BASE}/forms`, { ...body, provider: invalid });
+  assert.equal(refused.status, 400);
+  assert.match((refused.body as { error: string }).error, /Enter the public form link/);
+  assert.deepEqual(await deps.formDefinitionRepo.list({ workspaceId: WS }), []);
+  const provider = { id: 'remote', config: { url: 'https://forms.example.test/accepted' } };
+  const created = await dispatchJsonRequest(app, 'POST', `${BASE}/forms`, { ...body, provider });
+  assert.equal(created.status, 201);
+  const id = (created.body as { data: { id: string } }).data.id;
+  for (const suffix of ['', '/authoring']) {
+    const updated = await dispatchJsonRequest(app, 'PUT', `${BASE}/forms/${id}${suffix}`, { provider: invalid });
+    assert.equal(updated.status, 400);
+    assert.match((updated.body as { error: string }).error, /Enter the public form link/);
+    assert.deepEqual((await deps.formDefinitionRepo.findById({ workspaceId: WS, id }))?.provider, provider);
+  }
 });
