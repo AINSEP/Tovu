@@ -15,7 +15,7 @@ test('disabled commerce lets published product and commerce paths reach the CMS'
   await new Promise<void>(resolve => server.once('listening', resolve));
   const address = server.address(); assert.ok(address && typeof address !== 'string');
   for (const path of ['/products', '/products/example', '/commerce/return', '/commerce/cancel', '/commerce/checkout.js']) {
-    const response = await fetch(`http://127.0.0.1:${address.port}${path}`);
+    const response: Response = await fetch(`http://127.0.0.1:${address.port}${path}`);
     assert.equal(response.status, 200); assert.equal(await response.text(), 'Published CMS page');
   }
 });
@@ -40,7 +40,7 @@ test('a product request shares readiness and configured origin through guard, po
   t.after(() => new Promise<void>(resolve => { server.closeAllConnections(); server.close(() => resolve()); }));
   await new Promise<void>(resolve => server.once('listening', resolve));
   const address = server.address(); assert.ok(address && typeof address !== 'string');
-  const response = await fetch(`http://127.0.0.1:${address.port}/products/book`);
+  const response: Response = await fetch(`http://127.0.0.1:${address.port}/products/book`);
   assert.equal(response.status, 200); assert.match(await response.text(), /Open shop to buy/);
   assert.equal(statusReads, 1); assert.equal(originReads, 0); assert.equal(pointReads, 1); assert.equal(listReads, 0);
 });
@@ -59,7 +59,7 @@ test('signed-out payment return uses the active theme shell and remains private'
   t.after(() => new Promise<void>(resolve => { server.closeAllConnections(); server.close(() => resolve()); }));
   await new Promise<void>(resolve => server.once('listening', resolve));
   const address = server.address(); assert.ok(address && typeof address !== 'string');
-  const response = await fetch(`http://127.0.0.1:${address.port}/commerce/return?orderId=order`);
+  const response: Response = await fetch(`http://127.0.0.1:${address.port}/commerce/return?orderId=order`);
   assert.equal(response.status, 401); assert.match(response.headers.get('content-type') ?? '', /text\/html/);
   assert.equal(response.headers.get('cache-control'), 'no-store');
   const html = await response.text();
@@ -77,7 +77,7 @@ test('order API routes remain mounted while storefront paths are disabled', asyn
   t.after(() => new Promise<void>(resolve => { server.closeAllConnections(); server.closeAllConnections(); server.close(() => resolve()); }));
   await new Promise<void>(resolve => server.once('listening', resolve));
   const address = server.address(); assert.ok(address && typeof address !== 'string');
-  const response = await fetch(`http://127.0.0.1:${address.port}/api/commerce/v1/workspaces/workspace/orders/order`);
+  const response: Response = await fetch(`http://127.0.0.1:${address.port}/api/commerce/v1/workspaces/workspace/orders/order`);
   assert.equal(response.status, 401);
   assert.deepEqual(await response.json(), { error: 'Sign in as a shop member to view or pay for your order.', code: 'MEMBER_SIGN_IN_REQUIRED' });
 });
@@ -117,7 +117,7 @@ test('a trailing slash reaches the same storefront and order routes as the plain
   await new Promise<void>(resolve => server.once('listening', resolve));
   const address = server.address(); assert.ok(address && typeof address !== 'string');
   const statusOf = async (method: string, path: string, query = '') => {
-    const response = await fetch(`http://127.0.0.1:${address.port}${path}${query}`, { method });
+    const response: Response = await fetch(`http://127.0.0.1:${address.port}${path}${query}`, { method });
     await response.text();
     return response.status;
   };
@@ -130,5 +130,30 @@ test('a trailing slash reaches the same storefront and order routes as the plain
     const plain = await statusOf(method, path, query);
     assert.notEqual(plain, 418, `${method} ${path} must reach its route`);
     assert.equal(await statusOf(method, `${path}/`, query), plain, `${method} ${path}/`);
+  }
+});
+
+
+test('case variants reach commerce handlers instead of a published CMS fallback', async t => {
+  const { createRouteDeps } = await import('#src/server/runtime/composition/app');
+  const app = express();
+  registerCommerceHttp({ app, deps: { ...createRouteDeps(), commerce: {
+    storefrontStatus: async () => ({ active: true, ready: true, reason: null }),
+    status: async () => ({ active: true, ready: true, reason: null }),
+  } } as unknown as RouteDeps });
+  app.use((_req, res) => res.status(418).send('CMS fallback'));
+  const server = app.listen(0, '127.0.0.1');
+  t.after(() => new Promise<void>(resolve => { server.closeAllConnections(); server.close(() => resolve()); }));
+  await new Promise<void>(resolve => server.once('listening', resolve));
+  const address = server.address(); assert.ok(address && typeof address !== 'string');
+  for (const route of ['/commerce/return', '/commerce/cancel', '/commerce/checkout.js', '/products', '/api/commerce/v1/workspaces/workspace/orders/order']) {
+    const plain: Response = await fetch(`http://127.0.0.1:${address.port}${route}`);
+    await plain.text();
+    assert.notEqual(plain.status, 418);
+    for (const path of [route.toUpperCase(), `${route.toUpperCase()}/`]) {
+      const variant: Response = await fetch(`http://127.0.0.1:${address.port}${path}`);
+      await variant.text();
+      assert.equal(variant.status, plain.status, path);
+    }
   }
 });
