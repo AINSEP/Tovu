@@ -37,7 +37,7 @@ test('private source metadata survives the durable media adapter', async () => {
   db.$client.close();
 });
 
-test('legacy files are made private before public serving, including submissions already in Trash', async () => {
+test('filename-only legacy evidence keeps files unchanged and warns, including submissions in Trash', async () => {
   const { protectExistingFormFiles } = await import('../protect-existing-files.js');
   const siteDir = await mkdtemp(join(tmpdir(), 'forms-protect-'));
   const db = openContentDb(':memory:'); const kernel = contentKernel(db); const at = '2026-11-04T00:00:00.000Z';
@@ -46,15 +46,20 @@ test('legacy files are made private before public serving, including submissions
   const dataJson = JSON.stringify({ photo: { mediaId: 'm', filename: 'photo.png', contentType: 'image/png', byteSize: 8 } });
   db.$client.prepare(`INSERT INTO form_submissions (id,workspace_id,form_definition_id,data_json,submitted_at,deleted_at,version) VALUES ('s','w','f',?,?,?,1)`).run(dataJson,at,at);
   await kernel.run(db => db.insertInto('media').values({ id: 'm', workspace_id: 'w', kind: 'media', original_filename: 's-photo.png', title: 'Photo', slug: 'photo', alt: '', caption: '', credit: '', source_sha256: 'hash', source_metadata_json: '{"contentType":"image/png"}', status: 'active', created_at: at, updated_at: at, version: 1, width: null, height: null, css_class: null, html_attributes: null }).execute());
-  await protectExistingFormFiles({ kernel, workspaceId: 'w', siteDir });
+  const warnings: string[] = [];
+  await protectExistingFormFiles({ kernel, workspaceId: 'w', siteDir }, { warn: message => { warnings.push(message); } });
+  assert.equal(warnings.length, 1);
+  assert.match(warnings[0]!, /attachment-owner-mismatch/);
+  assert.equal(await readFile(join(siteDir, '.form-files-protected-v1'), 'utf8'), 'complete\n');
   const row = await kernel.run(db => db.selectFrom('media').select('source_metadata_json').where('id', '=', 'm').executeTakeFirstOrThrow());
-  assert.deepEqual(JSON.parse(row.source_metadata_json!), { contentType: 'image/png', private: true });
-  await protectExistingFormFiles({ kernel, workspaceId: 'w', siteDir });
+  assert.deepEqual(JSON.parse(row.source_metadata_json!), { contentType: 'image/png' });
+  await protectExistingFormFiles({ kernel: { run: () => assert.fail('completed attempt must not rescan permanent unknowns') } as never, workspaceId: 'w', siteDir });
+  assert.equal(warnings.length, 1);
   await rm(siteDir, { recursive: true, force: true });
   db.$client.close();
 });
 
-test('protection warns for corrupt or mismatched legacy rows and records completion without refusing boot', async () => {
+test('protection keeps known-private files, warns for unknown legacy ownership and records the attempted pass', async () => {
   const { protectExistingFormFiles } = await import('../protect-existing-files.js');
   const db = openContentDb(':memory:'); const kernel = contentKernel(db);
   const siteDir = await mkdtemp(join(tmpdir(), 'forms-protect-')); const warnings: string[] = [];
@@ -64,7 +69,7 @@ test('protection warns for corrupt or mismatched legacy rows and records complet
     db.$client.prepare(`INSERT INTO form_definitions (id,workspace_id,name,slug,fields_json,notify_json,status,created_at,updated_at,version) VALUES ('f','w','F','f','[]','{}','active',?,?,1)`).run(at,at);
     for (const [id, data] of [['bad', '{secret'], ['mismatch', JSON.stringify({ photo: { mediaId: 'm' } })], ['zgood', JSON.stringify({ photo: { mediaId: 'good' } })]]) db.$client.prepare(`INSERT INTO form_submissions (id,workspace_id,form_definition_id,data_json,submitted_at,version) VALUES (?,'w','f',?,?,1)`).run(id,data,at);
     await kernel.run(db => db.insertInto('media').values({ id: 'm', workspace_id: 'w', kind: 'media', original_filename: 'editorial.png', title: 'Photo', slug: 'photo', alt: '', caption: '', credit: '', source_sha256: 'hash', source_metadata_json: '{}', status: 'active', created_at: at, updated_at: at, version: 1, width: null, height: null, css_class: null, html_attributes: null }).execute());
-    await kernel.run(db => db.insertInto('media').values({ id: 'good', workspace_id: 'w', kind: 'media', original_filename: 'zgood-photo.png', title: '', slug: 'good', alt: '', caption: '', credit: '', source_sha256: 'good-hash', source_metadata_json: '{}', status: 'active', created_at: at, updated_at: at, version: 1, width: null, height: null, css_class: null, html_attributes: null }).execute());
+    await kernel.run(db => db.insertInto('media').values({ id: 'good', workspace_id: 'w', kind: 'media', original_filename: 'zgood-photo.png', title: '', slug: 'good', alt: '', caption: '', credit: '', source_sha256: 'good-hash', source_metadata_json: '{"private":true}', status: 'active', created_at: at, updated_at: at, version: 1, width: null, height: null, css_class: null, html_attributes: null }).execute());
     await protectExistingFormFiles({ kernel, workspaceId: 'w', siteDir }, { warn: message => { warnings.push(message); } });
     assert.equal(warnings.length, 2); assert.equal(warnings.join(' ').includes('{secret'), false);
     assert.equal(await readFile(join(siteDir, '.form-files-protected-v1'), 'utf8'), 'complete\n');
@@ -72,7 +77,8 @@ test('protection warns for corrupt or mismatched legacy rows and records complet
     assert.deepEqual(JSON.parse(source.source_metadata_json!), {});
     const good = await kernel.run(db => db.selectFrom('media').select('source_metadata_json').where('id', '=', 'good').executeTakeFirstOrThrow());
     assert.deepEqual(JSON.parse(good.source_metadata_json!), { private: true });
-    await protectExistingFormFiles({ kernel: { run: () => assert.fail('completed protection must not scan rows') } as never, workspaceId: 'w', siteDir });
+    await protectExistingFormFiles({ kernel: { run: () => assert.fail('completed attempt must not rescan permanent unknowns') } as never, workspaceId: 'w', siteDir });
+    assert.equal(warnings.length, 2);
   } finally { db.$client.close(); await rm(siteDir, { recursive: true, force: true }); }
 });
 
@@ -121,7 +127,7 @@ test('transient legacy stamp failures keep the marker absent and retry automatic
     db.$client.prepare('INSERT OR IGNORE INTO workspaces (id,name,slug,created_at) VALUES (?,?,?,?)').run('w','w','w',at);
     db.$client.prepare(`INSERT INTO form_definitions (id,workspace_id,name,slug,fields_json,notify_json,status,created_at,updated_at,version) VALUES ('f','w','F','f','[]','{}','active',?,?,1)`).run(at,at);
     db.$client.prepare(`INSERT INTO form_submissions (id,workspace_id,form_definition_id,data_json,submitted_at,version) VALUES ('s','w','f',?,?,1)`).run(JSON.stringify({ file: { mediaId: 'm' } }),at);
-    await kernel.run(db => db.insertInto('media').values({ id: 'm', workspace_id: 'w', kind: 'media', original_filename: 's-photo.png', title: '', slug: 'photo', alt: '', caption: '', credit: '', source_sha256: 'hash', source_metadata_json: '{}', status: 'active', created_at: at, updated_at: at, version: 1, width: null, height: null, css_class: null, html_attributes: null }).execute());
+    await kernel.run(db => db.insertInto('media').values({ id: 'm', workspace_id: 'w', kind: 'media', original_filename: 's-photo.png', title: '', slug: 'photo', alt: '', caption: '', credit: '', source_sha256: 'hash', source_metadata_json: '{"private":true}', status: 'active', created_at: at, updated_at: at, version: 1, width: null, height: null, css_class: null, html_attributes: null }).execute());
     const unavailable = new Proxy(kernel, { get: (target, key) => key === 'transaction' ? async () => { throw new Error('transient secret'); } : Reflect.get(target, key) });
     await protectExistingFormFiles({ kernel: unavailable, workspaceId: 'w', siteDir }, { warn: message => { warnings.push(message); } });
     assert.equal(warnings.length, 1); assert.equal(warnings[0]!.includes('transient secret'), false);

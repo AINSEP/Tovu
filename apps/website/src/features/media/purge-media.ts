@@ -15,7 +15,7 @@ export async function purgeMedia(
   return purgeSharedMedia({ deps: {
     ...deps,
     referenceCheck: { findReferences: async ({ workspaceId, media }) => {
-      const usage = await findMediaWhereUsed({ deps, input: { workspaceId, mediaId: media.id, slug: media.slug } });
+      const usage = await findMediaWhereUsed({ deps, input: { workspaceId, mediaId: media.id, slug: media.slug } }, { includeTrashed: true });
       return usage.references.map(ref => `${ref.sourceEntryId}:${ref.fieldPath}`);
     } },
   }, input }, optional);
