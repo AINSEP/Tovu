@@ -98,8 +98,8 @@ test('pull characterization: missing principal falls back before authorization',
   const body = response.body as any;
   assert.deepEqual(response, { status: 500, body: {
     code: 'INTERNAL_ERROR', errorId: body.errorId,
-    error: `The form submission pull could not be completed. Check the result before repeating this operation. Copy details and report this problem. (error ${body.errorId})`,
+    error: `The form submission pull could not be completed. Check the result before repeating this operation. Report this error ID. (error ${body.errorId})`,
   } });
-  assert.match(body.errorId, /^[0-9a-f-]{36}$/);
+  assert.match(body.errorId, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
   assert.equal(authorizations, 0);
 });
