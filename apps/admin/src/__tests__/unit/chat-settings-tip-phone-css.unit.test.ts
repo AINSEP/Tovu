@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { resolve } from "node:path";
 import { parse } from "postcss";
 import { expect, it } from "vitest";
@@ -12,7 +13,9 @@ import { expect, it } from "vitest";
  * gear's heading) rather than one per option, so those selectors replace the per-option ones.
  */
 
-const css = readFileSync(resolve(process.cwd(), "src/styles/assistant.css"), "utf8");
+// Dialog rules are shipped by Jini; dock help-target rules remain host-owned.
+const sharedCss = createRequire(import.meta.url).resolve("@jini-ai/chat/react/styles/chat-settings.css");
+const css = readFileSync(resolve(process.cwd(), "src/styles/assistant.css"), "utf8") + readFileSync(sharedCss, "utf8");
 
 /** Declarations of `selector` inside the at-rule whose params equal `params`, last one winning. */
 function declarationsIn(params: string, selector: string): Record<string, string> {
