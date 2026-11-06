@@ -11,7 +11,7 @@ import { createSiteChatAssetReadiness, renderLazySiteChatMarkup, type SiteChatSe
 // The leaf, not the site-dir barrel: this file runs inside the 64 MB theme render workers, and the
 // barrel's site-registry/repair/new-site members load the database (`worker-import-graph.test.ts`).
 import { resolveAppDistDir } from "#src/platform/site-dir/product-root";
-import { renderHtmlForm, renderHtmlFormBody } from "@jini-ai/cms/forms/html-render";
+import { renderHtmlForm, renderHtmlFormBody, renderFormSchemaHash } from "@jini-ai/cms/forms/html-render";
 import type { JsonObject, JsonValue } from "@jini-ai/core/primitives";
 import type { PublicPostRecord as PostRecord } from "#src/features/post/contracts";
 import { MAX_SLUG_LENGTH, SLUG_FORMAT_PATTERN } from "#src/features/post/rendering";
@@ -2388,8 +2388,12 @@ const DEFAULT_CONTACT_FORM_SUCCESS_MESSAGE = "Thanks — your message has been s
 /** Preserve authored HTML only in HTML mode for a native collection plan.
  * @complexity O(1) time/space; strings are reused, no I/O.
  * @overallScore 97 — Recommended: HTML sanitization remains the authoring write boundary's responsibility. */
-function collectionHtmlOptions({ props }: { props: JsonObject }): { html?: string; className: string } {
-  return { ...(props.mode === "html" && typeof props.html === "string" ? { html: props.html } : {}), className: FORM_CLASS };
+function formSchemaOptions({ props }: { props: JsonObject }): { schemaHash?: string } {
+  return typeof props.schemaHash === "string" ? { schemaHash: props.schemaHash } : {};
+}
+
+function collectionHtmlOptions({ props }: { props: JsonObject }): { html?: string; className: string; schemaHash?: string } {
+  return { ...formSchemaOptions({ props }), ...(props.mode === "html" && typeof props.html === "string" ? { html: props.html } : {}), className: FORM_CLASS };
 }
 
 /** Render the resolved collection plan for native external forms or the existing built-in form shell.
@@ -2414,6 +2418,7 @@ function renderWidgetContactForm(props: JsonObject): string {
     fields: fieldDescriptors,
   }, {
     ...(typeof props.html === "string" ? { html: props.html } : {}),
+    ...formSchemaOptions({ props }),
     successMessage: str(props.successMessage) || DEFAULT_CONTACT_FORM_SUCCESS_MESSAGE,
     className: FORM_CLASS,
   }), fieldDescriptors) + rangeReadout;
@@ -2429,7 +2434,7 @@ function renderWidgetContactForm(props: JsonObject): string {
     successSlot +
     `<form class="widget ${FORM_CLASS} widget-contact-form" toolname="form_${escapeHtml(slug.replace(/[^A-Za-z0-9_.-]/g, '_').slice(0, 123))}" tooldescription="${escapedSlug}" method="post"${fieldDescriptors.some(field => field && String(field.type) === "file") ? ' enctype="multipart/form-data"' : ""} action="/forms/${escapedSlug}/submit" data-form-slug="${escapedSlug}" ${legacyAttrs}>` +
     errorSlot +
-    fields +
+    fields + renderFormSchemaHash(formSchemaOptions({ props })) +
     `<div hidden aria-hidden="true"><input type="text" name="_hp" tabindex="-1" autocomplete="off"></div>` +
     `</form>` +
     rangeReadout
