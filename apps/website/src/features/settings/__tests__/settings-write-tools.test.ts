@@ -695,3 +695,31 @@ test("a host's extra denied namespace is refused, and with no injected writer th
   assert.deepEqual(await handler("settings_set_value", { namespace: "core.site", key: "title", value: "  Trimmed title  " }),
     { key: "core.site.title", scope: "workspace", previous: null, value: "Trimmed title", revisionSeq: 1 });
 });
+
+for (const toolId of ['settings_set_value', 'settings_clear_value']) test(`${toolId} carries the card revision through the host writer`, async () => {
+  const f = fixture('core.execution', 'mode');
+  const transaction = f.settingsRepo.transaction.bind(f.settingsRepo);
+  let injectEdit = true;
+  f.settingsRepo.transaction = async callback => {
+    if (injectEdit) {
+      injectEdit = false;
+      await set({ deps: { repo: f.settingsRepo, clock: f.deps.clock, ids: f.deps.idGen, principals: f.deps.principalRepo, authorize: f.deps.authorize },
+        input: { namespace: 'core.execution', key: 'mode', scope: 'workspace', value: 'concurrent edit', workspaceId: 'ws-1', authWorkspaceId: 'ws-1', callerPrincipalId: 'caller' } });
+    }
+    return transaction(callback);
+  };
+  let cards = 0;
+  await assert.rejects(f.call(toolId, { namespace: 'core.execution', key: 'mode', ...(toolId === 'settings_set_value' ? { value: 'approved edit' } : {}) }, {
+    emitSurface: async emission => {
+      cards++;
+      assert.deepEqual(await f.settingsRepo.listRevisions({ settingId: 'setting-1' }), []);
+      const html = (emission.payload as { resource: { resource: { text: string } } }).resource.resource.text;
+      assert.match(html, /<dt>Revision<\/dt><dd>0<\/dd>/);
+      assert.match(html, /<dt>Person ID<\/dt><dd>caller<\/dd>/);
+      f.surfaceExchanges.deliver({ exchangeId: 'exchange-1', principalId: 'caller', params: { decision: 'confirm' } }, { toolId });
+    },
+  }), /setting changed before the approved change/);
+  assert.equal(cards, 1);
+  assert.equal((await f.settingsRepo.getWorkspaceValue({ workspaceId: 'ws-1', settingId: 'setting-1' }))?.valueJson, 'concurrent edit');
+  assert.equal((await f.settingsRepo.listRevisions({ settingId: 'setting-1' })).length, 1);
+});
