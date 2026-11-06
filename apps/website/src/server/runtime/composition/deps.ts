@@ -1,3 +1,4 @@
+import { publicPageSecurityHeaders } from "#src/features/theme/public-page-security-headers";
 import { createSharedOAuthOwnerStorage, createSharedOAuthLabels } from "#src/features/api-connections/shared-owner";
 import { createSiteOAuthBindings } from "#src/features/project-keys/site-references";
 import { createFormCollectionRegistry } from "@jini-ai/cms/forms";
@@ -2359,6 +2360,7 @@ async function composeSiteRouteDeps(
     siteTitleReady,
     siteConsentReady,
     consentStore: createSiteConsentStore({ kernel, workspaceId }),
+    publicPageSecurityHeaders: () => publicPageSecurityHeaders({ formCollectionProviders: () => formCollectionProviders() }),
     ...compositionConsentOptions({ workspaceId, loadContributions: agentPluginLifecycle.loadPluginContributions }, { env: process.env }),
     mailFeedbackRoute: createSiteMailFeedbackRoute({ db: kernel, workspaceId, credentials: { repo: customCredentialSetRepo, sealer: siteAssistantSecretSealer },
       loadAdapters: () => loadMailAdapterRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions }) }),

@@ -122,3 +122,35 @@ test('automatic declarations use ordinary delivery before context; only optional
     } finally { dom.window.close(); }
   } finally { await f.close(); }
 });
+
+
+test('embed delivery accessor uses the published snapshot with no page-time policy reads', async () => {
+  for (const enabled of [true, false]) {
+    const f = await fixture(enabled);
+    try {
+      assert.equal(f.deps.cookieConsent!.embedConsentOff?.(), !enabled);
+      assert.equal(f.deps.cookieConsent!.embedConsentOff?.(), !enabled);
+      assert.deepEqual(f.counts(), { reads: 0, regionReads: 0, draftReads: 0 });
+    } finally { await f.close(); }
+  }
+});
+
+test('embed delivery remains inert while policy refresh is pending or fails', async () => {
+  let fail = false;
+  let release: (() => void) | undefined;
+  const consent: import('#src/contracts/headless/index').SiteCookieConsentDeps = { regionResolvers: async () => [] };
+  const deps = { cookieConsent: consent, workspaceId: 'pending-embed-policy', siteConsentReady: Promise.resolve(), siteBinding: { dir: '/tmp/pending-embed-policy' }, clock: { nowMs: Date.now },
+    consentStore: { readPublished: async () => { if (fail) throw new Error('fixture unavailable'); await new Promise<void>(resolve => { release = resolve; }); return { id: 'published', actorId: 'fixture', createdAt: '2026-11-05', config: { ...SITE_CONSENT_DEFAULTS, enabled: false, privacyPolicyUrl: '/privacy' } }; } },
+  } as unknown as RouteDeps;
+  applySiteCookieConsent({ app: express(), deps, consent }, { client: { src: '/_consent/fixture.js', body: Buffer.from('') } });
+  assert.equal(consent.embedConsentOff?.(), false);
+  await new Promise<void>(resolve => setImmediate(resolve));
+  release!();
+  await new Promise<void>(resolve => setImmediate(resolve));
+  assert.equal(consent.embedConsentOff?.(), true);
+  fail = true;
+  const refresh = consent.refresh!();
+  assert.equal(consent.embedConsentOff?.(), false);
+  await assert.rejects(refresh, /fixture unavailable/);
+  assert.equal(consent.embedConsentOff?.(), false);
+});

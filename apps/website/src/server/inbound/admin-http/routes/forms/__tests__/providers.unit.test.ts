@@ -3,10 +3,52 @@ import test from 'node:test';
 import { createFormCollectionRegistry } from '@jini-ai/cms/forms';
 import { registerAdminFormsProvidersRoute } from '../providers.js';
 import { dispatchJsonRequest } from '#src/server/__tests__/helpers/in-process-http';
-import { BASE, fixture, testRouteFailureMatrix } from '#src/server/__tests__/helpers/admin-route-failures';
+import express from 'express';
+import type { FormsRouteDeps, FormsRouteRegistrar } from '../deps.js';
+import { createCapturingResponse } from '#src/server/__tests__/helpers/http-test-server';
+import { assertAdminResponse } from '#src/server/inbound/admin-http/http/__tests__/assert-admin-response';
 
-testRouteFailureMatrix([{ name: 'forms providers', register: registerAdminFormsProvidersRoute, method: 'GET', path: `${BASE}/forms/providers`, coded: true,
-  failure: { message: 'The form operation could not be completed.', action: 'Check the result before repeating this operation. Copy details and report this problem.', step: 'form operation' } }]);
+const BASE = '/api/admin/v1/workspaces/workspace-local';
+function fixture(register: FormsRouteRegistrar, overrides: Record<string, unknown> = {}) {
+  const deps = { workspaceId: 'workspace-local', authorize: async () => ({ allowed: true, reason: 'fixture' }), ...overrides } as FormsRouteDeps;
+  const app = express();
+  app.use((_req, res, next) => { res.locals.principal = { id: 'owner' }; next(); });
+  register(app, deps);
+  return { app, deps };
+}
+
+test('forms providers: authorization failures stay private', async () => {
+  const { app } = fixture(registerAdminFormsProvidersRoute, { authorize: async () => { throw new Error('private credential'); } });
+  assertAdminResponse({ actual: await dispatchJsonRequest(app, 'GET', `${BASE}/forms/providers`), expected: { status: 500, body: { error: 'internal error', code: 'INTERNAL_ERROR' } } }, {
+    failure: { message: 'The form operation could not be completed.', action: 'Check the result before repeating this operation. Copy details and report this problem.', step: 'form operation' },
+  });
+});
+test('forms providers: denied permission never reads provider settings', async () => {
+  let reads = 0;
+  const { app } = fixture(registerAdminFormsProvidersRoute, { authorize: async () => ({ allowed: false, reason: 'no_grant' }), formCollectionProviders: () => { reads++; return createFormCollectionRegistry({}); } });
+  const response = await dispatchJsonRequest(app, 'GET', `${BASE}/forms/providers`);
+  assert.equal(response.status, 403);
+  assert.equal((response.body as { code: string }).code, 'FORBIDDEN');
+  assert.equal(reads, 0);
+});
+test('forms providers: workspace isolation precedes authorization', async () => {
+  let calls = 0;
+  const { app } = fixture(registerAdminFormsProvidersRoute, { authorize: async () => { calls++; return { allowed: true }; } });
+  assert.deepEqual(await dispatchJsonRequest(app, 'GET', '/api/admin/v1/workspaces/other/forms/providers'), { status: 404, body: { error: 'workspace was not found' } });
+  assert.equal(calls, 0);
+});
+test('forms providers: missing workspace parameter remains isolated', async () => {
+  let calls = 0;
+  const { app } = fixture(registerAdminFormsProvidersRoute, { authorize: async () => { calls++; return { allowed: true }; } });
+  const layer = (app as unknown as { _router: { stack: { route?: { stack: { handle: (req: unknown, res: unknown) => Promise<void> }[] } }[] } })._router.stack.find(item => item.route);
+  const { res, capture } = createCapturingResponse();
+  await layer!.route!.stack[0]!.handle({ params: {} }, res);
+  assert.equal(capture.statusCode, 404);
+  assert.deepEqual(capture.jsonBody, { error: 'workspace was not found' });
+  assert.equal(calls, 0);
+});
+
+
 
 test('admin lists provider-owned settings and unavailable descriptions from its current registry', async () => {
   const providers = createFormCollectionRegistry({});
