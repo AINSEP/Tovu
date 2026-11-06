@@ -1,9 +1,9 @@
 /** @file Composition for `@jini-ai/cookie-consent`: the one engine switch and the server analytics gate.
  * P4 cleanup: the old engine goes, `selectCookieConsent` always returns the deps and the env switch is deleted. */
 import type { Request } from 'express';
-import type { RegionResolver } from '@jini-ai/cookie-consent';
+import type { RawContribution, RegionResolver } from '@jini-ai/cookie-consent';
 import type { LoadPluginContributions } from '#src/features/agent-plugins/lifecycle';
-import { loadSiteRegionResolvers } from '#src/features/consent/region-plugins';
+import { loadSiteConsentBridges, loadSiteRegionResolvers } from '#src/features/consent/region-plugins';
 import type { RouteDeps } from '#src/server/routes/types';
 import { readSiteAnalyticsProof, siteReceiptAllowsAnalytics, type SiteCookieConsentDeps } from '../../inbound/public-http/middleware/site-cookie-consent.js';
 
@@ -26,7 +26,13 @@ export function selectCookieConsent(
   const ingress = env.TOVU_CONSENT_INGRESS?.trim() || undefined;
   const legacyHeader = env.TOVU_CONSENT_REGION_HEADER?.trim() || undefined;
   let cached: { at: number; value: Promise<readonly RegionResolver[]> } | undefined;
+  let bridges: { at: number; value: Promise<readonly RawContribution[]> } | undefined;
   return {
+    browserPlugins: () => {
+      if (bridges && nowMs() - bridges.at < REGION_TTL_MS) return bridges.value;
+      bridges = { at: nowMs(), value: loadSiteConsentBridges({ workspaceId, loadContributions }) };
+      return bridges.value;
+    },
     regionResolvers: () => {
       if (cached && nowMs() - cached.at < REGION_TTL_MS) return cached.value;
       cached = { at: nowMs(), value: loadSiteRegionResolvers({ workspaceId, loadContributions }, { ingress, legacyHeader }) };

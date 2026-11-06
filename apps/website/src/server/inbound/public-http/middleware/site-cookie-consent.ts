@@ -69,7 +69,7 @@ export function siteConsentPlugins({ deps }: { deps: RouteDeps }, _optional = {}
 export async function renderSiteBanner({ deps, request, clientSrc }: { deps: RouteDeps; request: Request; clientSrc: string }, _optional = {}): Promise<SiteRenderedBanner> {
   const config = await readSiteConsentPolicy({ deps }, { cssBlocks: false });
   const live = !isStaticExportRequest(request);
-  const plugins = live ? siteConsentPlugins({ deps }).map(item => item.adapter) : [];
+  const plugins = live ? [...siteConsentPlugins({ deps }).map(item => item.adapter), ...(await deps.cookieConsent?.browserPlugins?.() ?? [])] : [];
   const { banner, options } = toSiteCookieConsent({ config, policy: config.policyVersion }, { plugins });
   return { ...renderBanner(banner, { ...options, clientSrc, evidence: live ? { mode: 'durable', endpoint: CONSENT_ENDPOINT } : { mode: 'local' } }), mode: banner.mode };
 }

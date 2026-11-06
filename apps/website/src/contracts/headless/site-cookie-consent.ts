@@ -4,6 +4,8 @@ import type { ConsentState, RawContribution, RegionResolver } from '@jini-ai/coo
 export interface SiteCookieConsentDeps {
   /** This site's region readers (configured ingress plugin + legacy header); empty = strict. */
   regionResolvers: () => Promise<readonly RegionResolver[]>;
+  /** Data-only modules from active plugins; the browser mounts them through the shared registry. */
+  browserPlugins?: () => Promise<readonly RawContribution[]>;
 }
 /** A same-origin plugin handler (the PostHog adapter's SDK, adapter module and collector). */
 export interface ConsentPluginHttp {
