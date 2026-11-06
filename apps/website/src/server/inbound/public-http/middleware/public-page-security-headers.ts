@@ -39,13 +39,12 @@ function isAdminPath(path: string): boolean {
  * (theme assets do); report-only and enforced policies are independent headers. `headers` is a
  * parameter only so a test can prove a changed set reaches the response; production uses the default.
  *
- * @complexity O(1).
+ * @complexity O(h) for h headers, plus the injected declaration projection; no I/O.
  */
-export function createPublicPageSecurityHeaders(headers?: SecurityHeaderSet) {
-  let entries: [string, string][] | undefined;
+export function createPublicPageSecurityHeaders(headers?: SecurityHeaderSet, { readHeaders = () => headers ?? defaultSecurityHeaders({}) }: { readHeaders?: () => SecurityHeaderSet } = {}) {
   return function publicPageSecurityHeaders(req: Request, res: Response, next: NextFunction): void {
     if (!isAdminPath(req.path)) {
-      entries ??= Object.entries(headers ?? defaultSecurityHeaders({}));
+      const entries = Object.entries(readHeaders());
       for (const [name, value] of entries) res.setHeader(name, value);
     }
     next();
@@ -54,6 +53,6 @@ export function createPublicPageSecurityHeaders(headers?: SecurityHeaderSet) {
 
 export const publicPageSecurityHeaders = createPublicPageSecurityHeaders();
 
-export function applyPublicPageSecurityHeaders(app: Express): void {
-  app.use(publicPageSecurityHeaders);
+export function applyPublicPageSecurityHeaders(app: Express, { readHeaders }: { readHeaders?: () => SecurityHeaderSet } = {}): void {
+  app.use(createPublicPageSecurityHeaders(undefined, { readHeaders }));
 }

@@ -1020,7 +1020,7 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
       const credential = await credentialSource.isConfigured({ workspaceId: deps.workspaceId, target, ...toolCredentialChoice({ raw }) });
 
       const inspected = plan.ok && credential.configured ? await inspectStaticPublish({
-        deps: { credentialSource, loadDeployTargets: deps.loadDeployTargets, tracker: deps.tracker, observability: deps.observability, hostKit: deps.hostKit, formDestination: deps.formDestination },
+        deps: { credentialSource, loadDeployTargets: deps.loadDeployTargets, tracker: deps.tracker, observability: deps.observability, hostKit: deps.hostKit, formDestination: deps.formDestination, publicPageSecurityHeaders: deps.publicPageSecurityHeaders },
         input: { workspaceId: deps.workspaceId, config, projectName: typeof raw.projectName === "string" ? raw.projectName : "",
           ...toolCredentialChoice({ raw }) },
       }) : {};
@@ -1132,7 +1132,7 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
         return { published: false, cancelled: false, code: "ALREADY_RUNNING", jobId: getPublishJobSnapshot({ workspaceId: deps.workspaceId, jobId: active.jobId! })?.jobId, message: "A publish is already running. Call deployment_get_static_publish_status with this jobId (or {} for the latest job on this site). Do not start another publish." };
       }
       const job = startPublishRun(
-        { credentialSource, loadDeployTargets: deployTargetsLoader(deps), buildTarget: deps.buildTarget, tracker: deps.tracker, observability: deps.observability, hostKit: deps.hostKit, formDestination: deps.formDestination },
+        { credentialSource, loadDeployTargets: deployTargetsLoader(deps), buildTarget: deps.buildTarget, tracker: deps.tracker, observability: deps.observability, hostKit: deps.hostKit, formDestination: deps.formDestination, publicPageSecurityHeaders: deps.publicPageSecurityHeaders },
         { requestId: ctx.executionId, productEvent: { userId: ctx.principal.id, source: "assistant" }, workspaceId: deps.workspaceId, publishOutputRootDir: deps.publishOutputRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, config, projectName,
           ...toolCredentialChoice({ raw }) },
         { nowIso: () => clockNowIso({ clock: deps.clock }) },

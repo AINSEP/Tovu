@@ -22,11 +22,11 @@ export interface PublicThemeResources {
 
 /**
  * Format Tovu's report-only policy using declared theme origins; this never creates an enforced CSP.
- * @param required Theme-owned resource origins. Embed hosts remain an owner-approved core exception.
+ * @param required Theme-owned resource origins. Core embed exceptions and provider frame declarations extend only their own directives.
  * @returns The same header set for live pages, publishing and static exports. No I/O or mutation.
  * @complexity O(r) declared resource URLs; URL parsing rejects malformed data.
  */
-export function createPublicPageSecurityHeaderSet({ resources }: { resources: PublicThemeResources }, _optional = {}): SecurityHeaderSet {
+export function createPublicPageSecurityHeaderSet({ resources }: { resources: PublicThemeResources }, { frameOrigins = [] }: { frameOrigins?: readonly string[] } = {}): SecurityHeaderSet {
   const origins = (urls: readonly string[]) => [...new Set(urls.map(url => new URL(url).origin))].join(' ');
   const csp = [
     "default-src 'self'",
@@ -35,7 +35,7 @@ export function createPublicPageSecurityHeaderSet({ resources }: { resources: Pu
     `script-src 'self' 'unsafe-inline' ${origins([...resources.scripts, PAGE_EMBED_ORIGINS.script])}`,
     `style-src 'self' 'unsafe-inline' ${origins(resources.styles)}`.trimEnd(),
     `font-src 'self' data: ${origins(resources.fonts)}`.trimEnd(),
-    `frame-src 'self' https://www.youtube-nocookie.com https://www.youtube.com https://player.vimeo.com ${PAGE_EMBED_ORIGINS.frame}`,
+    `frame-src 'self' ${[...new Set(['https://www.youtube-nocookie.com', 'https://www.youtube.com', 'https://player.vimeo.com', PAGE_EMBED_ORIGINS.frame, ...frameOrigins.filter(isDeclaredFrameOrigin)])].join(' ')}`,
     "connect-src 'self'",
     "object-src 'none'",
     "base-uri 'self'",
@@ -46,4 +46,12 @@ export function createPublicPageSecurityHeaderSet({ resources }: { resources: Pu
     "Referrer-Policy": "strict-origin-when-cross-origin",
     "Content-Security-Policy-Report-Only": csp,
   });
+}
+
+/** Plugin declarations add exact HTTP(S) origins, never CSP syntax or a URL path. */
+function isDeclaredFrameOrigin(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return (url.protocol === 'https:' || url.protocol === 'http:') && url.origin === value;
+  } catch { return false; }
 }

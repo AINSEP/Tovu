@@ -202,7 +202,7 @@ async function httpPublishPreview(required: {
   const plan = planStaticPublish(registry, config);
   const credential = await credentialSource.isConfigured({ workspaceId: deps.workspaceId, target: config.target });
   const inspected = plan.ok && credential.configured ? await inspectStaticPublish({
-    deps: { credentialSource, loadDeployTargets: deps.loadDeployTargets, tracker: deps.tracker, observability: deps.observability, formDestination: deps.formDestination },
+    deps: { credentialSource, loadDeployTargets: deps.loadDeployTargets, tracker: deps.tracker, observability: deps.observability, formDestination: deps.formDestination, publicPageSecurityHeaders: deps.publicPageSecurityHeaders },
     input: { workspaceId: deps.workspaceId, config, projectName: typeof query.projectName === "string" ? query.projectName : "", ...credentialChoice({ value: query.credentialId }) },
   }) : {};
   return { target: config.target, valid: plan.ok, validationError: plan.ok ? null : plan.message,
@@ -292,7 +292,7 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
       // settles, so a poller can never observe a stale "running" snapshot after the promise has
       // actually settled.
       const snapshot = startPublishRun(
-        { credentialSource, loadDeployTargets: deps.loadDeployTargets, tracker: deps.tracker, observability: deps.observability, formDestination: deps.formDestination },
+        { credentialSource, loadDeployTargets: deps.loadDeployTargets, tracker: deps.tracker, observability: deps.observability, formDestination: deps.formDestination, publicPageSecurityHeaders: deps.publicPageSecurityHeaders },
         {
           productEvent: { userId: principal.id, source: "admin" },
           workspaceId: deps.workspaceId,
