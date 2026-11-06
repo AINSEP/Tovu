@@ -26,14 +26,16 @@ test('draft saves preserve published enforcement; stale editors and stale public
   assert.deepEqual(await createSiteConsentStore({ kernel: contentKernel(f.db), workspaceId: 'other' }).read({}), { draft: null, published: null });
 });
 
-test('dry run reuses the engine categories and gate without saving receipts, scripts or settings', async t => {
+test('readiness validates declarations and reports unmanaged warnings without changing receipts or settings', async t => {
   const f = consentFixture({ t });
   const before = await f.store.read({});
   const result = await f.service.readiness({ principalId: 'owner', config: f.config });
   assert.equal(result.ready, true);
   assert.deepEqual(result.categories.map(item => item.id), ['necessary', 'functional', 'analytics', 'marketing']);
-  assert.ok(result.detected.some(item => item.category === 'marketing' && item.source === 'https://tracker.example/pixel.js'));
-  assert.ok(result.detected.some(item => item.category === 'functional' && item.tag === 'script'));
+  assert.deepEqual(result.declarations, []);
+  assert.ok(result.warnings.some(item => item.code === 'UNMANAGED_CONTENT' && item.source === 'https://tracker.example/pixel.js'));
+  assert.ok(result.warnings.some(item => item.tag === 'script'));
+  assert.ok(result.warnings.some(item => item.attributes?.includes('onclick')));
   assert.ok(!JSON.stringify(result).includes('secret=redact'));
   assert.deepEqual(await f.store.read({}), before);
   f.ports.renderPage = async () => ({ html: '', ok: true, truncated: true });
@@ -61,7 +63,6 @@ test('cookie-consent reports dropped CSS as preview warnings and still publishes
   const f = consentFixture({ t });
   f.ports.cookieConsent = true;
   // The service's page gate is an injected effect; CSS diagnostics still use the real Jini renderer.
-  f.ports.consentGate = ({ html }) => html;
   const good = '#jini-consent h2 { font-size: 16px; }';
   const config = { ...f.config, customCss: good + '\n#jini-consent [data-x] { color: #000000; }' };
   const clean = await f.service.preview({ principalId: 'owner', config: { ...f.config, customCss: good } });
@@ -240,9 +241,14 @@ test('preview is read-only and local paths cannot address APIs, traverse or esca
   const preview = await f.service.preview({ principalId: 'owner', config: f.config });
   assert.match(preview.html, /jini-consent/); assert.equal(preview.sandbox, '');
   assert.deepEqual(await f.store.read({}), { draft: null, published: null });
-  for (const path of ['https://attacker.example', '//attacker.example', '/api/admin/v1/settings', '/%2e%2e/admin', '/a/../admin']) await assert.rejects(f.service.readiness({ principalId: 'owner', path }));
+  for (const path of ['https://attacker.example', '//attacker.example', '/api/admin/v1/settings', '/%2e%2e/admin', '/a/../admin']) {
+    await assert.rejects(f.service.readiness({ principalId: 'owner', path }));
+    await assert.rejects(f.service.preview({ principalId: 'owner', path }));
+  }
   f.ports.renderPage = async () => ({ html: '', ok: false, truncated: false });
-  await assert.rejects(f.service.preview({ principalId: 'owner' }));
+  const standalone = await f.service.preview({ principalId: 'owner' });
+  assert.match(standalone.html, /jini-consent/);
+  assert.ok(!standalone.html.includes('tracker.example'));
 });
 
 test('the editor always offers automatic regions and never offers global opt-out', async t => {
@@ -261,13 +267,15 @@ test('readiness never invents a placement: a policy without one is refused, a na
   assert.equal((await f.service.readiness({ principalId: 'owner' })).placement, 'top-bar');
 });
 
-test('preview refuses to return HTML when the engine gate cannot process the page', async t => {
+test('standalone banner preview never calls the page renderer; unavailable page evidence blocks readiness', async t => {
   const f = consentFixture({ t });
-  f.ports.consentGate = () => { throw new Error('cannot normalize'); };
-  await assert.rejects(f.service.preview({ principalId: 'owner', config: f.config }), { message: 'The consent engine could not safely render the preview.' });
+  f.ports.renderPage = async () => { throw new Error('private unavailable page'); };
+  const preview = await f.service.preview({ principalId: 'owner', config: f.config });
+  assert.match(preview.html, /jini-consent/);
+  assert.ok(!preview.html.includes('private unavailable page'));
   const readiness = await f.service.readiness({ principalId: 'owner', config: f.config });
   assert.equal(readiness.ready, false);
-  assert.ok(readiness.blockingProblems.some(problem => problem.code === 'GATE_FAILED'));
+  assert.ok(readiness.blockingProblems.some(problem => problem.code === 'RENDER_FAILED'));
 });
 
 test('the store refuses a head that points at a missing or oversized revision, and an oversized draft', async t => {
@@ -315,4 +323,39 @@ test('deployment lets default-only consent export; a published policy still refu
   f.ports.defaultOnly = async () => { throw new Error('ledger unreadable'); };
   f.ports.store = { ...f.store, read: async () => ({ draft: null, published: null }) };
   assert.equal((await f.service.deploymentCheck({ principalId: 'owner', permission: 'system.publish' }))?.blockingProblems[0]?.code, 'CONSENT_UNAVAILABLE');
+});
+
+test('publication refresh follows the committed publication and never runs for a refused publication', async t => {
+  const f = consentFixture({ t });
+  const draft = await f.service.saveDraft({ principalId: 'owner', config: f.config, expectedDraftId: null });
+  let refreshed = 0;
+  f.ports.published = async () => {
+    assert.equal((await f.store.readPublished({}))?.id, draft.revision.id);
+    refreshed++;
+  };
+  await assert.rejects(f.service.publish({ principalId: 'owner', draftId: 'stale-draft', expectedPublishedId: null }), SiteConsentConflict);
+  assert.equal(refreshed, 0);
+  await f.service.publish({ principalId: 'owner', draftId: draft.revision.id, expectedPublishedId: null });
+  assert.equal(refreshed, 1);
+});
+
+test('readiness separates invalid active declarations from nonblocking unmanaged-content warnings', async t => {
+  const f = consentFixture({ t });
+  f.ports.declarationEvidence = async () => ({ scripts: [{ src: '/declared.js', consent: ['unknown'] }], runtimeSlot: false,
+    problems: ['Active plugin declaration was refused.'] });
+  const result = await f.service.readiness({ principalId: 'owner', config: f.config });
+  assert.equal(result.ready, false);
+  assert.equal(result.blockingProblems.filter(problem => problem.code === 'INVALID_SCRIPT_DECLARATION').length, 2);
+  assert.ok(result.warnings.some(warning => warning.code === 'MISSING_RUNTIME_SLOT'));
+  assert.ok(result.warnings.some(warning => warning.code === 'UNMANAGED_CONTENT'));
+});
+
+test('missing declaration collection is an explicit readiness blocker, never a green empty inventory', async t => {
+  const f = consentFixture({ t });
+  delete f.ports.declarationEvidence;
+  const result = await f.service.readiness({ principalId: 'owner', config: f.config });
+  assert.equal(result.ready, false);
+  assert.deepEqual(result.blockingProblems.map(problem => problem.code), ['DECLARATIONS_UNAVAILABLE']);
+  assert.deepEqual(result.declarations, []);
+  assert.deepEqual(result.warnings, []);
 });

@@ -143,7 +143,7 @@ describe('CookieConsent: preview', () => {
 
 describe('CookieConsent: overview', () => {
   it('re-checks readiness after each publication', async () => {
-    const readiness = vi.fn(() => Promise.resolve({ ready: true, enabled: true, blockingProblems: [], detected: [], truncated: false, limitations: [] }));
+    const readiness = vi.fn(() => Promise.resolve({ ready: true, enabled: true, blockingProblems: [], declarations: [], warnings: [], truncated: false, limitations: [] }));
     renderPage(fakeConsentPort({ get: () => Promise.resolve(withDraft), readiness, publish: () => Promise.resolve({ published: true as const, revisionId: 'd1' }) }), 'overview');
     await waitFor(() => expect(publishButton()).toBeEnabled());
     const before = readiness.mock.calls.length;
@@ -155,7 +155,7 @@ describe('CookieConsent: overview', () => {
 
 describe('ConsentOverviewTab', () => {
   const base: ConsentOverviewTabProps = { liveEnabled: false, hasUnpublished: false, readiness: null, readinessError: null, t };
-  const readiness = (overrides: Partial<NonNullable<ConsentOverviewTabProps['readiness']>> = {}) => ({ ready: true, enabled: false, blockingProblems: [], detected: [], truncated: false, limitations: [], ...overrides });
+  const readiness = (overrides: Partial<NonNullable<ConsentOverviewTabProps['readiness']>> = {}) => ({ ready: true, enabled: false, blockingProblems: [], declarations: [], warnings: [], truncated: false, limitations: [], ...overrides });
 
   it('says when the banner is off and nothing has been checked yet', () => {
     render(<ConsentOverviewTab {...base} />);
@@ -168,7 +168,7 @@ describe('ConsentOverviewTab', () => {
   it('says when the banner is on, flags unpublished changes, and reports a failed check', () => {
     render(<ConsentOverviewTab {...base} liveEnabled hasUnpublished readinessError="Couldn't check readiness." />);
     expect(screen.getByText('On')).toBeInTheDocument();
-    expect(screen.getByText('Visitors choose before optional cookies run.')).toBeInTheDocument();
+    expect(screen.getByText('Declared optional scripts wait for the required consent. Review unmanaged content separately.')).toBeInTheDocument();
     expect(screen.getByText('You have changes that are not live yet.')).toBeInTheDocument();
     expect(screen.getByRole('alert')).toHaveTextContent("Couldn't check readiness.");
     expect(screen.queryByText('Checking…')).toBeNull();
@@ -188,19 +188,21 @@ describe('ConsentOverviewTab', () => {
   it('says nothing blocks and nothing waits, on a clean page', () => {
     render(<ConsentOverviewTab {...base} readiness={readiness()} />);
     expect(screen.getByText('Nothing blocks the banner.')).toBeInTheDocument();
-    expect(screen.getByText('Nothing on the home page waits for consent.')).toBeInTheDocument();
+    expect(screen.getByText('No script declarations were found in this sample.')).toBeInTheDocument();
     expect(screen.queryByText('Only the first 200 items were checked.')).toBeNull();
   });
 
-  it('counts what waits per category, names unknown categories as-is, and notes truncation', () => {
-    const detected = [
-      { tag: 'script', category: 'marketing', source: 'a' }, { tag: 'iframe', category: 'marketing', source: 'b' },
-      { tag: 'script', category: 'analytics', source: null }, { tag: 'script', category: 'custom', source: null },
-    ];
-    render(<ConsentOverviewTab {...base} readiness={readiness({ detected, truncated: true })} />);
-    expect(screen.getByText("On the home page, these wait for a visitor's choice:")).toBeInTheDocument();
-    const rows = within(screen.getByRole('region', { name: 'Waits for consent' })).getAllByRole('listitem').map(item => item.textContent);
-    expect(rows).toEqual(['Analytics1', 'Marketing2', 'custom1']);
+  it('lists declarations and separately labelled unmanaged gaps without claiming protection', () => {
+    const declarations = [{ src: '/stats.js', consent: ['analytics', 'marketing'] }, { src: 'https://example.test/always.js' }];
+    const warnings = [{ code: 'UNMANAGED_CONTENT', message: 'An authored raw script remains unmanaged.', source: '/stats.js' },
+      { code: 'MISSING_RUNTIME_SLOT', message: 'This theme has no runtime loading slot.' }];
+    render(<ConsentOverviewTab {...base} readiness={readiness({ declarations, warnings, truncated: true })} />);
+    const rows = within(screen.getByRole('region', { name: 'Declared scripts' })).getAllByRole('listitem').map(item => item.textContent);
+    expect(rows).toEqual(['/stats.js — analytics, marketing', 'https://example.test/always.js — Automatic']);
+    const gaps = within(screen.getByRole('region', { name: 'Unmanaged content' }));
+    expect(gaps.getByText('An authored raw script remains unmanaged.')).toBeInTheDocument();
+    expect(gaps.getByText('This theme has no runtime loading slot.')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Waits for consent' })).toBeNull();
     expect(screen.getByText('Only the first 200 items were checked.')).toBeInTheDocument();
   });
 });

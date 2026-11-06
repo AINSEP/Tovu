@@ -1,67 +1,68 @@
-/** @file Read-only projection of Jini's denied-visitor gate, never a second classifier. */
-import { CONSENT_CATEGORIES, type ConsentConfig } from '@jini-ai/cms/consent';
-import { gateConsentHtml } from '@jini-ai/cms/consent/html';
+/** Admin-only declaration diagnostics. Sampled HTML is inspected, never converted or returned rewritten. */
+import { CATEGORIES, type DeclaredScript } from '@jini-ai/cookie-consent';
+import { validateScripts } from '@jini-ai/cookie-consent/policy';
 import { parse, type DefaultTreeAdapterMap } from 'parse5';
 import type { ConsentProblem } from './validation.js';
 
 type Node = DefaultTreeAdapterMap['childNode'];
-export interface ConsentInventoryItem { tag: string; category: string; source: string | null; attributes?: string[] }
+export interface ConsentWarning extends ConsentProblem { source?: string | null; tag?: string; attributes?: string[] }
+export interface ConsentDeclarationEvidence { scripts: unknown; runtimeSlot: boolean; problems?: readonly string[] }
+const LIMIT = 200;
 
-/** Remove query/fragment values and URL credentials from diagnostic source labels. O(url length). */
-function sourceLabel({ value }: { value: string | undefined }, _options = {}): string | null {
+/** Diagnostics never disclose URL credentials, query values, fragments or inline code. */
+function sourceLabel(value: string | undefined): string | null {
   if (!value) return null;
   try { const url = new URL(value, 'https://site.invalid'); return `${url.origin === 'https://site.invalid' ? '' : url.origin}${url.pathname}`.slice(0, 500); }
   catch { return '[invalid resource URL]'; }
 }
 
-/** Project one engine payload; templates contribute only their first element, not its subtree. */
-function inventoryItem({ node }: { node: DefaultTreeAdapterMap['element'] }, _options = {}): ConsentInventoryItem | null {
-  const attrs = new Map(node.attrs.map(attr => [attr.name, attr.value]));
-  if (node.tagName === 'template') {
-    if (!attrs.has('data-jini-consent-script') && !attrs.has('data-jini-consent-resource')) return null;
-    const child = (node as DefaultTreeAdapterMap['template']).content.childNodes.find((item): item is DefaultTreeAdapterMap['element'] => 'tagName' in item);
-    if (!child) return null;
-    const source = child.attrs.find(attr => ['src', 'href', 'data', 'poster'].includes(attr.name))?.value;
-    return { tag: child.tagName, category: attrs.get('data-category') ?? 'blocked', source: sourceLabel({ value: source }) };
-  }
-  const payload = attrs.get('data-jini-consent-attributes');
-  return payload ? { tag: node.tagName, category: attrs.get('data-jini-consent-category') ?? 'blocked', source: null, attributes: Object.keys(JSON.parse(payload)) } : null;
+function executableScript(node: DefaultTreeAdapterMap['element'], attrs: Map<string, string>): boolean {
+  if (node.tagName !== 'script' || attrs.has('data-jini-declared-script')) return false;
+  if (/^\/_consent\/(?:client-[\w-]+\.min\.js|extensions\.min\.js)$/.test(attrs.get('src') ?? '')) return false;
+  return ['', 'module', 'text/javascript', 'application/javascript'].includes((attrs.get('type') ?? '').toLowerCase());
 }
 
-/** Projects engine-created inert templates/attribute payloads, capped at 200 entries.
- * It neither interprets authored category labels nor executes scripts. O(n) gated HTML bytes. */
-export function consentGateInventory({ html }: { html: string }, _options = {}): { items: ConsentInventoryItem[]; truncated: boolean } {
+function unmanaged(node: DefaultTreeAdapterMap['element']): ConsentWarning | null {
+  const attrs = new Map(node.attrs.map(attr => [attr.name, attr.value]));
+  const handlers = node.attrs.filter(attr => /^on[a-z]+$/i.test(attr.name)).map(attr => attr.name);
+  if (!executableScript(node, attrs) && handlers.length === 0) return null;
+  return { code: 'UNMANAGED_CONTENT', message: 'Executable page content is outside declared-script consent. Review its authoring before moving this site.',
+    tag: node.tagName, source: sourceLabel(attrs.get('src')), ...(handlers.length ? { attributes: handlers } : {}) };
+}
+
+/** Templates are inert authored content, not a promise that their future descendants are controlled. */
+function unmanagedWarnings(html: string, available: number): { warnings: ConsentWarning[]; truncated: boolean } {
   const nodes: Node[] = [...parse(html).childNodes];
-  const items: ConsentInventoryItem[] = [];
-  let truncated = false;
+  const warnings: ConsentWarning[] = [];
   while (nodes.length) {
     const node = nodes.pop()!;
-    const item = 'tagName' in node && inventoryItem({ node });
-    if (item) {
-      if (items.length === 200) { truncated = true; break; }
-      items.push(item);
+    if (!('tagName' in node)) continue;
+    const warning = unmanaged(node);
+    if (warning) {
+      if (warnings.length === available) return { warnings, truncated: true };
+      warnings.push(warning);
     }
-    if ('tagName' in node && node.tagName !== 'template') nodes.push(...node.childNodes);
+    if (node.tagName !== 'template') nodes.push(...node.childNodes);
   }
-  return { items, truncated };
+  return { warnings, truncated: false };
 }
 
-/** The engine gate a dry run renders through (a seam so the fail-closed path is testable). */
-export type ConsentDryRunGate = typeof gateConsentHtml;
+const declarationOverflow = (scripts: unknown, limit: number) => Array.isArray(scripts) && scripts.length > limit;
 
-/** A bounded rendered sample; failures are blocking evidence, never a green readiness result.
- * @param options.gate the engine gate (default `gateConsentHtml`); injectable so the fail-closed path is testable.
- * @example consentDryRun({ html, config })
- * @complexity O(n) time/space for at most 1 MB of rendered HTML. */
-export function consentDryRun({ html, config }: { html: string; config: ConsentConfig }, options: { gate?: ConsentDryRunGate } = {}) {
-  const problems: ConsentProblem[] = [];
-  const gate = options.gate ?? gateConsentHtml;
-  try {
-    const gated = gate({ html, config: { ...config, enabled: true }, record: null, regionMode: 'opt-in', gpc: false, endpoint: '/api/site-consent' });
-    const inventory = consentGateInventory({ html: gated });
-    if (inventory.truncated) problems.push({ code: 'INVENTORY_TRUNCATED', message: 'More than 200 gated items. Inspect a smaller page sample.' });
-    return { ...inventory, gatedHtml: gated, problems, categories: CONSENT_CATEGORIES.map(id => ({ id, required: id === 'necessary', editable: false })) };
-  } catch {
-    return { items: [], gatedHtml: null, truncated: false, categories: CONSENT_CATEGORIES.map(id => ({ id, required: id === 'necessary', editable: false })), problems: [{ code: 'GATE_FAILED', message: 'The consent engine could not safely process this page. Optional content stays blocked.' }] };
-  }
+/** Validate declarations and label gaps separately. No allowance simulation or page rewriting.
+ * @complexity O(sample bytes + declarations), at most 1 MB and 200 returned diagnostic entries. */
+export function consentDeclarationReadiness({ html, scripts, runtimeSlot, problems: evidenceProblems = [] }: { html: string } & ConsentDeclarationEvidence, _options = {}) {
+  const declarationLimit = runtimeSlot ? LIMIT : LIMIT - 1;
+  const input = Array.isArray(scripts) ? scripts.slice(0, declarationLimit) : scripts;
+  const checked = validateScripts({ scripts: input });
+  const declarations: DeclaredScript[] = checked.scripts.map(script => ({ ...script, src: sourceLabel(script.src)! }));
+  const problems: ConsentProblem[] = [...evidenceProblems, ...checked.problems].map(message => ({ code: 'INVALID_SCRIPT_DECLARATION', message }));
+  const categories = CATEGORIES.map(id => ({ id, required: id === 'necessary', editable: false }));
+  if (Buffer.byteLength(html, 'utf8') > 1_000_000) return { declarations, warnings: [] as ConsentWarning[], categories, truncated: true,
+    problems: [...problems, { code: 'PAGE_UNAVAILABLE', message: 'The page exceeds the 1 MB audit limit.' }] };
+  const inventory = unmanagedWarnings(html, LIMIT - declarations.length - (runtimeSlot ? 0 : 1));
+  if (!runtimeSlot) inventory.warnings.unshift({ code: 'MISSING_RUNTIME_SLOT', message: 'This full-document theme has no supported runtime loading slot. Review the theme before moving this site.' });
+  const truncated = inventory.truncated || declarationOverflow(scripts, declarationLimit);
+  if (truncated) problems.push({ code: 'INVENTORY_TRUNCATED', message: 'More than 200 diagnostic entries. Inspect a smaller page sample.' });
+  return { declarations, warnings: inventory.warnings, categories, problems, truncated };
 }

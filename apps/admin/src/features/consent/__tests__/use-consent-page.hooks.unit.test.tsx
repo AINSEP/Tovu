@@ -252,7 +252,7 @@ describe('useConsentPreview', () => {
 });
 
 describe('useConsentReadiness', () => {
-  const ready: ConsentReadiness = { ready: true, enabled: false, blockingProblems: [], detected: [], truncated: false, limitations: [] };
+  const ready: ConsentReadiness = { ready: true, enabled: false, blockingProblems: [], declarations: [], warnings: [], truncated: false, limitations: [] };
 
   it('loads readiness and reloads when `refresh` changes', async () => {
     const readiness = vi.fn(() => Promise.resolve(ready));

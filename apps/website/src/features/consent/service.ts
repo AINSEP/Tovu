@@ -10,7 +10,7 @@ import { consentConfigProblems, parseConsentConfig, type ConsentProblem } from '
 import { CONSENT_CATEGORIES, CONSENT_MAX_AGE_MS, CONSENT_MAX_CSS_LENGTH, CONSENT_CSS_SELECTORS } from '@jini-ai/cms/consent';
 import { SITE_CONSENT_BANNER_MODES, SITE_CONSENT_DEFAULT_CSS, SITE_CONSENT_DEFAULTS, SITE_CONSENT_PLACEMENTS, SITE_CONSENT_TEXT_LIMITS, withSiteConsentDefaultCss } from './config.js';
 import { consentPagePath } from './request.js';
-import { consentDryRun, type ConsentDryRunGate } from './readiness.js';
+import { consentDeclarationReadiness, type ConsentDeclarationEvidence } from './readiness.js';
 import { renderSiteConsentPreview } from './cookie-consent.js';
 
 export interface ConsentServicePorts {
@@ -28,11 +28,24 @@ export interface ConsentServicePorts {
   renderPage(required: { path: string }, optional?: Record<string, never>): Promise<{ html: string; ok: boolean; truncated: boolean }>;
   /** Inspect the live receipt backend without saving a visitor choice; errors block readiness. */
   receiptStorage(required: Record<string, never>, optional?: Record<string, never>): Promise<ConsentReceiptStorageHealth>;
-  /** The engine consent gate used by dry runs; omitted means the real `gateConsentHtml`. */
-  consentGate?: ConsentDryRunGate;
+  /** Admin-only evidence from the active source declarations and document construction capability. */
+  declarationEvidence?(required: { path: string }, optional?: object): Promise<ConsentDeclarationEvidence>;
+  /** Refresh construction-time publication after the durable store has committed. */
+  published?(): Promise<void>;
   /** Set when `@jini-ai/cookie-consent` serves the site: banner modes are editable, a bad CSS rule is
    * dropped alone instead of blocking, and static exports carry the banner. P4 coexistence keeps this opt-in until the legacy engine is retired. */
   cookieConsent?: boolean;
+}
+
+/** Missing declaration collection is failed evidence, never an empty protected source list. */
+async function declarationDiagnostics({ ports, path, html }: { ports: ConsentServicePorts; path: string; html: string }) {
+  if (!ports.declarationEvidence) return {
+    declarations: [], warnings: [], truncated: false,
+    categories: CONSENT_CATEGORIES.map(id => ({ id, required: id === 'necessary', editable: false })),
+    problems: [{ code: 'DECLARATIONS_UNAVAILABLE', message: 'Script declarations could not be collected. Readiness cannot be established.' }],
+  };
+  const evidence = await ports.declarationEvidence({ path });
+  return consentDeclarationReadiness({ html, ...evidence });
 }
 
 /** Unsaved input takes precedence over the draft, then the effective published/legacy policy.
@@ -41,7 +54,7 @@ function sampleConsentConfig({ state, proposed }: { state: SiteConsentState & { 
   return withSiteConsentDefaultCss({ config: parseConsentConfig({ value: proposed === undefined ? state.draft?.config ?? state.effective : proposed }) });
 }
 
-/** Readiness and preview require the same complete bounded page evidence. */
+/** Readiness requires complete bounded page evidence; banner preview is independent. */
 function isCompleteConsentPage({ page }: { page: { ok: boolean; truncated: boolean } }, _options = {}): boolean {
   return page.ok && !page.truncated;
 }
@@ -111,28 +124,24 @@ export function createSiteConsentService({ ports }: { ports: ConsentServicePorts
     try {
       const page = await ports.renderPage({ path });
       if (!isCompleteConsentPage({ page })) blockingProblems.push({ code: 'PAGE_UNAVAILABLE', message: 'The rendered page is unavailable or exceeds the 1 MB audit limit.' });
-      const dryRun = consentDryRun({ html: page.html, config }, { gate: ports.consentGate });
+      const dryRun = await declarationDiagnostics({ ports, path, html: page.html });
       blockingProblems.push(...dryRun.problems);
-      return { ...metadata, ready: blockingProblems.length === 0, categories: dryRun.categories, detected: dryRun.items, truncated: dryRun.truncated || page.truncated,
+      return { ...metadata, ready: blockingProblems.length === 0, categories: dryRun.categories, declarations: dryRun.declarations, warnings: dryRun.warnings, truncated: dryRun.truncated || page.truncated,
         limitations: ['One server-rendered page sample; dynamic requests, server cookies and legal compliance require separate review.'] };
     } catch {
       blockingProblems.push({ code: 'RENDER_FAILED', message: 'The page could not be rendered safely. Readiness cannot be established.' });
-      return { ...metadata, ready: false, categories: CONSENT_CATEGORIES.map(id => ({ id, required: id === 'necessary', editable: false })), detected: [], truncated: false, limitations: ['Rendered evidence unavailable.'] };
+      return { ...metadata, ready: false, categories: CONSENT_CATEGORIES.map(id => ({ id, required: id === 'necessary', editable: false })), declarations: [], warnings: [], truncated: false, limitations: ['Rendered evidence unavailable.'] };
     }
   };
-  /** Render the real gated page into an inert iframe document for the separate admin UI.
-   * Returned HTML must only be used in a sandbox without scripts, forms or same-origin access.
-   * The cookie-consent renderer also returns dropped-style warnings, separate from blockers. */
+  /** A separate scriptless banner preview; no page content is parsed or represented as protected. */
   const preview = async ({ principalId, path = '/', config: proposed }: { principalId: string; path?: string; config?: unknown }, _optional = {}) => {
     const state = await read({ principalId });
     const config = sampleConsentConfig({ state, proposed });
-    path = consentPagePath({ path });
-    const page = await ports.renderPage({ path });
-    if (!isCompleteConsentPage({ page })) throw new ToolInputError({ message: 'Preview requires one complete rendered page of at most 1 MB.' });
-    const result = consentDryRun({ html: page.html, config }, { gate: ports.consentGate });
-    if (result.gatedHtml === null) throw new ToolInputError({ message: 'The consent engine could not safely render the preview.' });
-    const diagnostics = ports.cookieConsent ? { warnings: renderSiteConsentPreview({ config, policy: config.policyVersion }).problems.map(problem => ({ ...problem, field: 'appearance' })) } : {};
-    return { html: result.gatedHtml, blockingProblems: [...await problems({ config }), ...result.problems], ...diagnostics, sandbox: '', revisionId: state.draft?.id ?? state.published?.id ?? null };
+    consentPagePath({ path });
+    const rendered = renderSiteConsentPreview({ config, policy: config.policyVersion });
+    const html = `<!doctype html><html ${rendered.htmlAttrs}><head><meta charset="utf-8">${rendered.head}</head><body>${rendered.body}</body></html>`;
+    const diagnostics = ports.cookieConsent ? { warnings: rendered.problems.map(problem => ({ ...problem, field: 'appearance' })) } : {};
+    return { html, blockingProblems: await problems({ config }), ...diagnostics, sandbox: '', revisionId: state.draft?.id ?? state.published?.id ?? null };
   };
   /** Append an immutable draft; the legacy engine blocks invalid CSS, cookie-consent drops it. */
   const saveDraft = async ({ principalId, config: value, expectedDraftId }: { principalId: string; config: unknown; expectedDraftId: string | null }, _optional = {}) => {
@@ -152,6 +161,7 @@ export function createSiteConsentService({ ports }: { ports: ConsentServicePorts
     const blockingProblems = await problems({ config });
     if (blockingProblems.length) throw new ToolInputError({ message: blockingProblems.map(problem => problem.message).join(' ') });
     await store.publish({ draftId, expectedPublishedId });
+    await ports.published?.();
     return { published: true, revisionId: draftId };
   };
   const staticDeploymentRefusal = async ({ config }: { config: ConsentConfig }, _options = {}) => {

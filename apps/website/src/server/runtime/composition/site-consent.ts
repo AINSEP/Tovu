@@ -10,7 +10,7 @@ import { readSiteConsentAuthoringSettings, resolveSiteConsentActivation } from '
 import { fetchPublishedPage, resolveSameOriginPath } from '#src/features/site-inspection/published-page';
 import type { RouteDeps } from '#src/server/routes/types';
 import { CONSENT_RECEIPTS_DIR_NAME, createPrivacyPageCheck } from '../../inbound/public-http/middleware/site-consent.js';
-import { cookieConsentPreviewGate } from '../../inbound/public-http/middleware/site-cookie-consent.js';
+import { NO_THEME_ID, resolveActiveTheme } from '#src/features/theme/active-theme';
 
 /** Reuse the existing local-render owner (bounded reads, timeout, finally-close, no external URL).
  * @example bindSiteConsentService({ deps })
@@ -27,7 +27,14 @@ export function siteConsentPorts({ deps }: { deps: RouteDeps }, _options = {}): 
     workspaceId: deps.workspaceId, authorize: deps.authorize, store: deps.consentStore,
     ready: deps.siteConsentReady, clock: deps.clock, ids: deps.idGen,
     trustedRegion: Boolean(deps.consentTrustedRegionHeader),
-    ...(deps.cookieConsent ? { cookieConsent: true, consentGate: cookieConsentPreviewGate } : {}),
+    ...(deps.cookieConsent ? { cookieConsent: true } : {}),
+    published: async () => { await deps.cookieConsent?.refresh?.(); },
+    declarationEvidence: async () => {
+      const theme = resolveActiveTheme(deps, await deps.resolveActiveThemeId());
+      const plugins = await deps.cookieConsent?.scriptDeclarations?.() ?? { scripts: [], problems: [] };
+      if (!theme || theme === NO_THEME_ID) return { scripts: plugins.scripts, problems: plugins.problems, runtimeSlot: true };
+      return { scripts: [...(theme.manifest.scripts ?? []), ...plugins.scripts], problems: plugins.problems, runtimeSlot: theme.manifest.tier !== 'static' };
+    },
     readLegacy: async () => readSiteConsentAuthoringSettings({ settingsRepo: deps.settingsRepo, workspaceId: deps.workspaceId }),
     defaultOnly: async () => (await resolveSiteConsentActivation({ settingsRepo: deps.settingsRepo, workspaceId: deps.workspaceId })).source === 'default',
     privacyPageExists: createPrivacyPageCheck({ deps }),

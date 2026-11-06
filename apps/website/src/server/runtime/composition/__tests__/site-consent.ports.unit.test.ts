@@ -109,3 +109,22 @@ test('privacy defaults wait for the dependency literal, then bind title, owner, 
   assert.equal((await siteConsentPorts({ deps }).readLegacy({})).privacyPolicyUrl, '/privacy');
   await ensureSiteConsentPrivacy({ deps: Promise.resolve(deps) }); assert.equal(html.length, 1);
 });
+
+test('declaration evidence merges active theme and plugin declarations and preserves refusal diagnostics', async () => {
+  const scripts = [{ src: '/theme-assets/site/stats.js', consent: ['analytics'] }];
+  const ports = portsFor({ themes: [{ status: 'valid', manifest: { id: 'site', tier: 'static', scripts } }],
+    resolveActiveThemeId: async () => 'site',
+    cookieConsent: { scriptDeclarations: async () => ({ scripts: [{ src: '/plugin-menu.js' }], problems: ['Plugin declaration was refused.'] }) } });
+  assert.deepEqual(await ports.declarationEvidence!({ path: '/' }), {
+    scripts: [...scripts, { src: '/plugin-menu.js' }], runtimeSlot: false, problems: ['Plugin declaration was refused.'],
+  });
+});
+
+test('theme-off declarations use the managed shell and publication refresh is forwarded', async () => {
+  let refreshed = 0;
+  const ports = portsFor({ themes: [], resolveActiveThemeId: async () => 'none',
+    cookieConsent: { refresh: async () => { refreshed++; } } });
+  assert.deepEqual(await ports.declarationEvidence!({ path: '/' }), { scripts: [], problems: [], runtimeSlot: true });
+  await ports.published!();
+  assert.equal(refreshed, 1);
+});
