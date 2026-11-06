@@ -46,7 +46,7 @@ export function siteGrantedSealer({ allowed, sealer }: {
   allowed: (input: { credentialId: string }) => Promise<boolean>; sealer: SecretSealerPort;
 }, _options = {}): SecretSealerPort {
   return {
-    seal: input => sealer.seal(input),
+    seal: ({ plaintext, key, aad }) => sealer.seal({ plaintext, key, aad }),
     open: async (input, options = {}) => {
       const identity = selectedIdentity({ aad: options.aad });
       const access = { credentialId: identity.id };
