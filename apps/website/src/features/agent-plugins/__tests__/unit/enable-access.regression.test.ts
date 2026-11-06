@@ -211,8 +211,8 @@ for (const separate of [false, true]) {
   });
 }
 
-async function retainedCall({ separate = false, second = false, action = 'confirm', token = false, failSecond = false, declinedBefore = false }: {
-  separate?: boolean; second?: boolean; action?: 'confirm' | 'cancel' | 'expired' | 'abandoned'; token?: boolean; failSecond?: boolean; declinedBefore?: boolean;
+async function retainedCall({ separate = false, second = false, action = 'confirm', token = false, failSecond = false, declinedBefore = false, abortAfterFirst = false, reauth = false }: {
+  separate?: boolean; second?: boolean; action?: 'confirm' | 'cancel' | 'expired' | 'abandoned'; token?: boolean; failSecond?: boolean; declinedBefore?: boolean; abortAfterFirst?: boolean; reauth?: boolean;
 } = {}) {
   const { runAgentPluginConnect } = await import('../../connect-tool.js');
   const { createSurfaceExchangeStore } = await import('@jini-ai/daemon/surface-exchanges');
@@ -222,14 +222,19 @@ async function retainedCall({ separate = false, second = false, action = 'confir
     url: 'https://media.example.test/mcp', command: '', args: '', allowedToolNames: 'existing', writeAllowedToolNames: '',
     accessToken: 'fixture-only-token', principalId: 'owner',
   });
-  await f.repo.upsert({ ...await f.row(), oauthStatus: token ? null : 'connected', provisionedByPluginId: separate ? null : 'images', ...(declinedBefore ? { writeGrantsUpdatedByPrincipalId: 'system:connect-declined' } : {}) });
-  const declarations = { media: { ...servers.media!, ...(token ? { tovuAuthMode: undefined, tovuTokenAuth: { label: 'Access token' } } : {}) },
+  await f.repo.upsert({ ...await f.row(), oauthStatus: token ? null : reauth ? 'needs_reauth' : 'connected', provisionedByPluginId: separate ? null : 'images', ...(declinedBefore ? { writeGrantsUpdatedByPrincipalId: 'system:connect-declined' } : {}) });
+  const declarations = { media: { ...servers.media!, ...(token ? { tovuAuthMode: undefined, tovuTokenAuth: { helpUrl: 'https://media.example.test/tokens', probeUrl: 'https://media.example.test/probe' } } : {}) },
     ...(second ? { other: { ...servers.media! } } : {}) } as Readonly<Record<string, McpServerConfig>>;
   if (second) await f.repo.upsert({ ...await f.row(), id: 'second-record', serverId: 'other' });
   const controller = new AbortController();
-  if (failSecond) {
+  if (failSecond || abortAfterFirst) {
     const update = f.repo.updateAccessIfCurrent.bind(f.repo);
-    f.repo.updateAccessIfCurrent = async input => input.serverId === 'other' ? false : update(input);
+    f.repo.updateAccessIfCurrent = async input => {
+      if (failSecond && input.serverId === 'other') return false;
+      const applied = await update(input);
+      if (applied && abortAfterFirst && input.serverId === 'media') controller.abort();
+      return applied;
+    };
   }
   let expire = () => {};
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: { schedule: ({ callback }) => { expire = callback; return () => {}; } }, clock: f.clock,
@@ -239,12 +244,17 @@ async function retainedCall({ separate = false, second = false, action = 'confir
     workspaceId: 'ws', agentPluginLayout: resolveAgentPluginLayout({ siteDir: '/unused' }), authorize: async () => ({ allowed: true, reason: '' }),
     isPluginEnabled: async () => true, credentials: { loadSafe: async () => [] }, resolveInstalledPlugin: async () => ({ servers: declarations }),
     mcp: { repo: f.repo, saveServer: async () => { throw new Error('must retain stored connection'); } },
-    externalMcpOAuth: { beginConnect: async () => { throw new Error('must reuse existing sign-in'); }, isValidationError: () => false },
+    externalMcpOAuth: { beginConnect: async () => {
+      if (!reauth) throw new Error('must reuse existing sign-in');
+      await f.repo.upsert({ ...await f.row(), oauthStatus: 'connected' });
+      return { kind: 'redirect_required', authorizationUrl: 'https://media.example.test/authorize', expiresAt: '2026-11-04T12:10:00Z' };
+    }, isValidationError: () => false },
   }, surfaces: { surfaceExchanges, assertAccessApprover: async () => {} } as never,
   ctx: { executionId: 'exec', principal: { id: 'owner' }, run: { id: 'run' }, input: {}, signal: controller.signal }, pluginId: 'images' }, {
     saveToken: async () => { throw new Error('must not ask for a stored token again'); },
-    emitSurface: async () => {
+    emitSurface: async emission => {
       cards++;
+      if (reauth && !JSON.stringify(emission).includes('Allow access for')) return;
       if (action === 'expired') expire();
       else if (action === 'abandoned') controller.abort();
       else surfaceExchanges.deliver({ exchangeId: 'retained-exchange', principalId: 'owner', params: { decision: action } }, { toolId: 'agent_plugin_connect' });
@@ -279,5 +289,24 @@ test('a later source failure reports the access already saved', async () => {
 test('a new explicit connection request can replace a saved declined choice', async () => {
   const { f, result } = await retainedCall({ declinedBefore: true });
   assert.equal(result.status, 'connected');
+  assert.equal((await f.row()).writeGrantsUpdatedByPrincipalId, 'owner');
+});
+
+test('an interrupted multi-source approval reports its completed source', async () => {
+  const { f, result } = await retainedCall({ second: true, abortAfterFirst: true });
+  assert.equal(result.status, 'partially-connected');
+  assert.equal(result.reason, 'abandoned');
+  assert.equal(result.cancelled, false);
+  assert.deepEqual(result.grantedConnectionIds, ['media']);
+  assert.equal((await f.row()).enabled, true);
+  assert.equal((await f.repo.findByServerId({ workspaceId: 'ws', serverId: 'other' }))!.enabled, false);
+  assert.doesNotMatch(result.note!, /Nothing was changed/i);
+});
+
+test('a new sign-in after a saved choice can complete its access review in the same call', async () => {
+  const { f, cards, result } = await retainedCall({ reauth: true, declinedBefore: true });
+  assert.equal(result.status, 'connected');
+  assert.equal(cards, 3, 'waiting, connection outcome and access review');
+  assert.equal((await f.row()).enabled, true);
   assert.equal((await f.row()).writeGrantsUpdatedByPrincipalId, 'owner');
 });

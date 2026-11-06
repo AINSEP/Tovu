@@ -438,7 +438,21 @@ export async function runAgentPluginConnect(
   }
 
   const credentialCard = await findPluginOAuthCard(routeDeps, pluginId);
-  return waitAtMcpSignInCard({ routeDeps, surfaces, ctx, pluginId, server, externalMcpOAuth, credentialCard }, optional);
+  return connectAndReviewMcp({ routeDeps, surfaces, ctx, pluginId, server, externalMcpOAuth, credentialCard, servers: plugin.servers }, optional);
+}
+
+/** Complete sign-in before reviewing defaults still missing from a prior access choice.
+ * @complexity The existing bounded sign-in wait, then two source previews and conditional writes. */
+async function connectAndReviewMcp(
+  input: Parameters<typeof waitAtMcpSignInCard>[0] & { servers: Readonly<Record<string, McpServerConfig>> },
+  optional: ToolExecutionOptions = {},
+): Promise<AgentPluginConnectResult> {
+  const result = await waitAtMcpSignInCard(input, optional);
+  if (result.status !== 'connected') return result;
+  const { routeDeps, surfaces, ctx, pluginId, server, servers } = input;
+  const reviewed = await approveSignedInAccess({ routeDeps, surfaces, ctx, pluginId,
+    servers: { [server.serverKey]: servers[server.serverKey]! } }, optional);
+  return reviewed.approved ? result : reviewed.result;
 }
 
 /** Inspect retained sign-ins before any provisioning; the access preview checks source ownership. */
