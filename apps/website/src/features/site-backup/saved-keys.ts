@@ -11,6 +11,15 @@ function passwordAad({ shareId, workspaceId }: { shareId: string; workspaceId: s
   // Tuple encoding cannot alias IDs containing separators, and the domain prevents vault reuse.
   return JSON.stringify(["tovu-share-password", 1, workspaceId, shareId]);
 }
+/** An imported site never inherits authority from a portable key payload or reference. No sealer
+ * involved, so a host with no site of its own (`tovu import-local`) reports the same notice.
+ * @complexity O(1), no I/O.
+ */
+export const leaveSavedKeysOut: SiteSavedKeysPort["restore"] = async (_input, options = {}) => {
+  options.signal?.throwIfAborted();
+  return { notices: ["Saved keys were left out. Use a saved key to approve fresh access on the imported site."] };
+};
+
 /** The retired transport validated the complete bounded payload before opening a recipient,
  * used host-owned definitions instead of archive-supplied schemas, and committed settings/keys
  * together. Even that cannot authorize a new site: both capture and automatic restore are closed.
@@ -29,10 +38,6 @@ export function createSiteSavedKeys(deps: SiteSavedKeysDeps, _options: Record<st
       if (input.workspaceId !== deps.workspaceId) throw new Error("Saved keys workspace mismatch");
       return { password: await deps.sealer.open({ sealed: input.sealedPassword }, { aad: passwordAad(input) }) };
     },
-    async restore(_input, options = {}) {
-      options.signal?.throwIfAborted();
-      // An imported site never inherits authority from a portable key payload or reference.
-      return { notices: ["Saved keys were left out. Use a saved key to approve fresh access on the imported site."] };
-    },
+    restore: leaveSavedKeysOut,
   };
 }
