@@ -13,7 +13,7 @@ import { ForbiddenError } from "@jini-ai/cms/core";
 import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
 import { InMemoryExternalMcpServerRepo } from "../../features/external-mcp/external-mcp-store.memory.js";
-import { ExternalMcpValidationError, openExternalMcpOAuthPayload, readEnabledExternalMcpConfigs, saveExternalMcpServer } from "../../features/external-mcp/external-mcp-store.js";
+import { ExternalMcpValidationError, externalMcpAdmissionRevision, openExternalMcpOAuthPayload, readEnabledExternalMcpConfigs, saveExternalMcpServer } from "../../features/external-mcp/external-mcp-store.js";
 import { type ExternalMcpServerRecord } from "../../features/external-mcp/contracts.js";
 import type { ExternalMcpOAuthService } from "../../features/external-mcp/contracts.js";
 import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
@@ -79,6 +79,21 @@ function fakeDeps(options: { allow?: boolean; externalMcpOAuth?: ExternalMcpOAut
   });
 
   return { deps, authorizeCalls, repo, sealer };
+}
+
+/** Grant workflows start from a connected source whose exact advertised tools are known. */
+async function connectedGrantSource({ deps, serverId, url, names }: {
+  deps: ExternalMcpToolDeps; serverId: string; url: string; names: readonly string[];
+}): Promise<ExternalMcpServerRecord> {
+  await saveExternalMcpServer({ repo: deps.externalMcpServerRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock }, {
+    workspaceId: WORKSPACE_ID, principalId: PRINCIPAL_ID, serverId, transport: 'streamable_http', authMode: 'none', enabled: true,
+    url, command: '', args: '', allowedToolNames: '', writeAllowedToolNames: '',
+  });
+  const record = await deps.externalMcpServerRepo.findByServerId({ workspaceId: WORKSPACE_ID, serverId });
+  assert.ok(record);
+  const revision = externalMcpAdmissionRevision(record);
+  deps.externalMcpKnownToolNames = input => input.serverId === serverId && input.admissionRevision === revision ? names : null;
+  return record;
 }
 
 function externalMcpRegistrations(deps: ExternalMcpToolDeps): Map<string, ToolRegistration> {
@@ -375,6 +390,7 @@ test("workflow: save a new streamable_http server via the confirmation form, the
 
 test("workflow: a write grant fixed in the proposal survives the credential form and is visible in a fresh list", async () => {
   const { deps } = fakeDeps();
+  await connectedGrantSource({ deps, serverId: 'higgsfield', url: 'https://higgsfield.example/mcp', names: ['generate_image', 'reveal_generation', 'models_explore'] });
   const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const registrations = new Map(buildExternalMcpRegistrations(deps, { assertAccessApprover: async () => {}, surfaceExchanges: exchanges }).map((r) => [r.descriptor.id, r]));
   const saveTool = registrations.get("external_mcp_save")!;
@@ -425,6 +441,7 @@ test("workflow: omitting writeAllowedToolNames on the form still saves with no w
 
 test("an invalid write grant (a tool not in allowedToolNames) is reported as { saved: false, reason: 'invalid', field: 'writeAllowedToolNames' }, not thrown, and nothing is saved", async () => {
   const { deps } = fakeDeps();
+  const original = await connectedGrantSource({ deps, serverId: 'bad-write-grant', url: 'https://example.test/mcp', names: ['generate_image', 'delete_everything'] });
   const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const registrations = new Map(buildExternalMcpRegistrations(deps, { assertAccessApprover: async () => {}, surfaceExchanges: exchanges }).map((r) => [r.descriptor.id, r]));
   const saveTool = registrations.get("external_mcp_save")!;
@@ -445,7 +462,8 @@ test("an invalid write grant (a tool not in allowedToolNames) is reported as { s
   assert.equal(result.field, "writeAllowedToolNames");
 
   const listed = (await call(registrations.get("external_mcp_list")!, { input: {} })) as { servers: unknown[] };
-  assert.equal(listed.servers.length, 0, "the rejected save must not have created a row");
+  assert.equal(listed.servers.length, 1, "the rejected save must not create an additional row");
+  assert.deepEqual(await deps.externalMcpServerRepo.findByServerId({ workspaceId: WORKSPACE_ID, serverId: 'bad-write-grant' }), original, 'the rejected save must preserve the complete existing connection');
 });
 
 test("cancelling the form saves nothing", async () => {
