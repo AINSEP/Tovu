@@ -14,9 +14,9 @@ import {
 
 /**
  * @file Permanent deletion versus durable delivery, through the real site composition: purging a
- * submission (or its whole form) from the Trash blanks the answers frozen into its delivery jobs'
- * outbox rows and fails the jobs that have not finished, so nothing delivers them afterwards.
- * Copies a destination already received stay there; only Tovu's own frozen copies are scrubbed.
+ * submission (or its whole form) from the Trash fails unfinished reference jobs, so nothing
+ * delivers them afterwards. New jobs never hold answers; queued legacy copies are scrubbed.
+ * Copies a destination already received stay there.
  */
 
 const T0 = "2030-01-01T00:00:00.000Z";
@@ -79,7 +79,7 @@ describe("form delivery after a permanent delete", () => {
     }
   });
 
-  test("purging a submission blanks its frozen answers and fails its unfinished job, which never delivers", async () => {
+  test("purging a submission leaves no outbox answers and fails its unfinished reference job, which never delivers", async () => {
     const answer = "purge-me@example.com";
     const submissionId = await pullOne("remote-1", { email: answer, message: "private words" });
     destinations.script({ adapterId: PUSH_B, submissionId, results: [{ ok: false, error: { code: "rate-limited", retryable: true } }] });
@@ -90,8 +90,9 @@ describe("form delivery after a permanent delete", () => {
     assert.deepEqual(await rowsMentioning(answer), [], "no outbox row keeps the answer");
     assert.deepEqual(await rowsMentioning("private words"), []);
     const jobs = await deliveryJobs({ kernel: site.kernel, submissionId });
-    assert.deepEqual(jobs.map((row) => [row.job.binding.bindingId, row.status, row.job.snapshot.submission.answers]),
-      [["binding-a", "delivered", {}], ["binding-b", "failed", {}]]);
+    assert.deepEqual(jobs.map((row) => [row.job.binding.bindingId, row.status, "submissionRef" in row.job ? row.job.submissionRef : row.job.snapshot]),
+      [["binding-a", "delivered", { submissionId, formId: FORM_ID }], ["binding-b", "failed", { submissionId, formId: FORM_ID }]]);
+    assert.ok(jobs.every(row => !Object.hasOwn(row.job, "snapshot")));
     const status = await site.deps.formDeliveryStatus!.forSubmission({ workspaceId: site.deps.workspaceId, submissionId });
     assert.deepEqual(status.map((row) => [row.bindingId, row.status, row.errorCode]), [["binding-a", "completed", null], ["binding-b", "failed", "delivery-failed"]]);
 
@@ -108,7 +109,9 @@ describe("form delivery after a permanent delete", () => {
     await purge("form", FORM_ID);
 
     assert.deepEqual(await rowsMentioning(answer), []);
-    assert.deepEqual((await deliveryJobs({ kernel: site.kernel, submissionId })).map((row) => [row.status, row.job.snapshot.submission.answers]),
-      [["failed", {}], ["failed", {}]]);
+    const jobs = await deliveryJobs({ kernel: site.kernel, submissionId });
+    assert.deepEqual(jobs.map((row) => [row.status, "submissionRef" in row.job ? row.job.submissionRef : row.job.snapshot]),
+      [["failed", { submissionId, formId: FORM_ID }], ["failed", { submissionId, formId: FORM_ID }]]);
+    assert.ok(jobs.every(row => !Object.hasOwn(row.job, "snapshot")));
   });
 });

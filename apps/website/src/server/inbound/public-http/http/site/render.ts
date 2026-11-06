@@ -9,6 +9,7 @@ import type { PluginExportRender } from "@jini-ai/cms/widgets/html";
 import { renderThemeFontLinks } from "#src/features/theme/font-links";
 import { renderMediaRawHtml } from "#src/features/widgets/media-html";
 import { existsSync } from "node:fs";
+import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { createSiteChatAssetReadiness, renderLazySiteChatMarkup, type SiteChatSelection } from "./site-chat-markup.js";
 // The leaf, not the site-dir barrel: this file runs inside the 64 MB theme render workers, and the
@@ -2405,6 +2406,9 @@ function collectionHtmlOptions({ props }: { props: JsonObject }): { html?: strin
 function renderWidgetContactForm(props: JsonObject): string {
   const slug = str(props.slug);
   if (!slug) return renderWidgetPlaceholder();
+  // Allocate at the occurrence boundary: the same resolved IR can appear in several embeds or
+  // regions, even repeatedly in one region. No answer data or process-wide counter is retained.
+  const idPrefix = `widget-contact-${randomUUID()}`;
   // HTML mode is Builder's look plus author refinements, not "unstyled": the same baseline and
   // `tovu-form` hook let the active theme's form rules apply, and author CSS still wins over both.
   // The slider value readout ships only with forms that have a range field.
@@ -2413,7 +2417,7 @@ function renderWidgetContactForm(props: JsonObject): string {
   if (props.collectionPlan) return FORM_BASELINE_STYLE + renderFormCollection({
     slug, fields: fieldDescriptors, plan: props.collectionPlan as unknown as FormCollectionPlan,
     hooks: { field: "data-tovu-field", form: "data-tovu-form", success: "data-tovu-form-success", error: "data-tovu-form-error" },
-  }, collectionHtmlOptions({ props })) + rangeReadout;
+  }, { ...collectionHtmlOptions({ props }), idPrefix }) + rangeReadout;
   // Both modes show the length caps the submit route enforces (owner 2026-10-25, spam protection).
   if (props.mode === "html") return FORM_BASELINE_STYLE + stampFormFieldMaxLengths(renderHtmlForm({
     slug, action: `/forms/${encodeURIComponent(slug)}/submit`,
@@ -2422,11 +2426,12 @@ function renderWidgetContactForm(props: JsonObject): string {
   }, {
     ...(typeof props.html === "string" ? { html: props.html } : {}),
     ...formSchemaOptions({ props }),
+    idPrefix,
     successMessage: str(props.successMessage) || DEFAULT_CONTACT_FORM_SUCCESS_MESSAGE,
     className: FORM_CLASS,
   }), fieldDescriptors) + rangeReadout;
   const escapedSlug = escapeHtml(slug);
-  const fieldOptions = { submitLabel: "Send", idPrefix: "widget-contact", fieldClass: "widget-form-field", errorClass: "widget-form-field-error" };
+  const fieldOptions = { submitLabel: "Send", idPrefix, fieldClass: "widget-form-field", errorClass: "widget-form-field-error" };
   const fields = stampFormFieldMaxLengths(renderHtmlFormBody({ fields: fieldDescriptors, hooks: { field: "data-tovu-field" } }, fieldOptions), fieldDescriptors);
   const successMessage = escapeHtml(str(props.successMessage) || DEFAULT_CONTACT_FORM_SUCCESS_MESSAGE);
   const legacyAttrs = `data-contact-form-slug="${escapedSlug}"`;

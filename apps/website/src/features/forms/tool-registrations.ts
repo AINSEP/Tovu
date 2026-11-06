@@ -118,14 +118,13 @@ function isFormsShapeRejection({ error }: { error: unknown }): boolean {
 }
 
 /** What a Forms tool returns to the model — see {@link toFormDefinitionView}. */
-interface FormDefinitionToolView {
+interface FormDefinitionToolView extends FormAuthoring {
   id: string;
   name: string;
   slug: string;
   status: FormDefinitionStatus;
   fields: FieldDescriptor[];
   notify: NotifyConfig;
-  provider?: FormProviderSelection;
 }
 
 /**
@@ -145,6 +144,7 @@ interface FormDefinitionToolView {
  * @overallScore 100
  */
 function toFormDefinitionView(record: FormDefinitionRecord): FormDefinitionToolView {
+  const authoring = record as FormDefinitionRecord & FormAuthoring;
   return {
     id: record.id,
     name: record.name,
@@ -152,7 +152,9 @@ function toFormDefinitionView(record: FormDefinitionRecord): FormDefinitionToolV
     status: record.status,
     fields: record.fields.map((field) => ({ ...field })),
     notify: { enabled: record.notify.enabled, recipients: [...record.notify.recipients] },
-    ...((record as FormDefinitionRecord & FormAuthoring).provider ? { provider: (record as FormDefinitionRecord & FormAuthoring).provider } : {}),
+    ...(authoring.mode === undefined ? {} : { mode: authoring.mode }),
+    ...(authoring.html === undefined ? {} : { html: authoring.html }),
+    ...(authoring.provider ? { provider: authoring.provider } : {}),
   };
 }
 
