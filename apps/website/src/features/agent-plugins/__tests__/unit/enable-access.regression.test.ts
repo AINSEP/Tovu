@@ -82,3 +82,30 @@ for (const damaged of ['{', '{}', '["read",3]', 'false']) {
 test('declared tool arrays are validated as names rather than split as comma-separated text', () => {
   assert.throws(() => validatedAgentPluginToolGrant({ current: { enabled: false, allow: [], write: [] }, declared: { allow: ['read,write'], write: [] } }, { reason: 'owner-enable' }), /not a valid MCP tool name/);
 });
+
+// A retained sign-in is authentication, not fresh permission to widen access from chat.
+test('already signed-in connect declines without granting or calling the sign-in defaults hook', async () => {
+  const { runAgentPluginConnect } = await import('../../connect-tool.js');
+  const { createSurfaceExchangeStore } = await import('@jini-ai/daemon/surface-exchanges');
+  const f = await fixture();
+  await f.repo.upsert({ ...await f.row(), oauthStatus: 'connected', allowedToolNames: '[]' });
+  let calls = 0; let cards = 0;
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: { schedule: () => () => {} }, clock: f.clock,
+    idGenerator: { newId: () => 'access-exchange' }, defaultChannel: 'mcp-ui' });
+  const result = await runAgentPluginConnect({
+    routeDeps: { workspaceId: 'ws', agentPluginLayout: resolveAgentPluginLayout({ siteDir: '/unused' }),
+      authorize: async () => ({ allowed: true, reason: '' }), isPluginEnabled: async () => true,
+      credentials: { loadSafe: async () => [] }, mcp: { repo: f.repo, saveServer: async () => { throw new Error('existing source only'); } },
+      externalMcpOAuth: { beginConnect: async () => { throw new Error('must reuse sign-in'); }, isValidationError: () => false },
+      resolveInstalledPlugin: async () => ({ servers }),
+    },
+    surfaces: { surfaceExchanges, assertAccessApprover: async () => {} } as never,
+    ctx: { executionId: 'exec', principal: { id: 'owner' }, run: { id: 'run' }, input: { pluginId: 'images' }, signal: new AbortController().signal },
+    pluginId: 'images',
+  }, { onConnected: async () => { calls++; }, emitSurface: async () => {
+    cards++; assert.equal((await f.row()).enabled, false); assert.equal(calls, 0);
+    surfaceExchanges.deliver({ exchangeId: 'access-exchange', principalId: 'owner', params: { decision: 'cancel' } }, { toolId: 'agent_plugin_connect' });
+  } });
+  assert.equal(cards, 1); assert.equal(calls, 0); assert.equal((await f.row()).enabled, false);
+  assert.equal(result.status, 'not-connected');
+});

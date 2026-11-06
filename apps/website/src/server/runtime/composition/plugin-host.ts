@@ -171,7 +171,7 @@ export function createTovuPluginHost(
             notifyRosterChanged: () => deps.mcp.notifyRosterChanged({}, {}), warn: message => warn(redactSecrets({ input: message })) },
           pluginId,
           servers,
-        }, { skipServerKeys: result.failed.map(failure => failure.serverKey), ...(execution.approvedEnable ? { approvedEnable: { principalId } } : {}) });
+        }, { skipServerKeys: result.failed.map(failure => failure.serverKey), ...(execution.approvedEnable ? { approvedEnable: { principalId, accessKey: execution.approvedEnableKey } } : {}) });
       } catch (error) {
         if (execution.approvedEnable) throw new ToolInputError({ message: redactSecrets({ input: `The plugin is on, but its approved connections could not be loaded. Request plugins_set_enabled again to retry. Details: ${error instanceof Error ? error.message : String(error)}` }) });
         warn(redactSecrets({ input: `Plugin '${pluginId}': MCP provisioning could not run — ${error instanceof Error ? error.message : String(error)}` }));
