@@ -3774,7 +3774,8 @@
     "fs_write_files",
     "image_transform",
     "files_copy",
-    "theme_duplicate"
+    "theme_duplicate",
+    "commerce_resolve_unknown"
   ],
   "secretForms": {
     "credential_save": {
@@ -3874,7 +3875,8 @@
     "fs_write_files",
     "image_transform",
     "files_copy",
-    "theme_duplicate"
+    "theme_duplicate",
+    "commerce_resolve_unknown"
   ],
   "exchangeOnlyIds": [
     "members_delete",
@@ -3941,7 +3943,8 @@
     "fs_write_files",
     "image_transform",
     "files_copy",
-    "theme_duplicate"
+    "theme_duplicate",
+    "commerce_resolve_unknown"
   ],
   "chatPermanentDeletes": {
     "defaultEnabled": false,
