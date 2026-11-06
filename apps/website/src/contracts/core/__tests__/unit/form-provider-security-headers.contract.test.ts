@@ -42,3 +42,19 @@ test('current provider declarations reach live middleware and static headers wit
   assert.doesNotMatch(capture()['Content-Security-Policy-Report-Only']!, /frames.example.test/, 'a retired or broken provider must not keep cached origins');
   assert.doesNotMatch(publicPageSecurityHeaders({})['Content-Security-Policy-Report-Only']!, /frames.example.test/, 'one registry must not leak into another app');
 });
+
+
+test('unchanged provider origins reuse the header set and live changes replace it', () => {
+  const providers = createFormCollectionRegistry({});
+  const read = () => publicPageSecurityHeaders({ formCollectionProviders: () => providers });
+  const first = read();
+  assert.strictEqual(read(), first);
+  providers.contribute({ pluginId: 'embed', definition: { id: 'embed', provider: {
+    describe: () => ({ label: 'Embed', fields: [], answers: 'Remote', validation: 'Remote', frameOrigins: ['https://frames.example.test'] }),
+    plan: () => ({ kind: 'unavailable', code: 'invalid_configuration', message: 'Choose a form.' }),
+  } } });
+  const second = read();
+  assert.notStrictEqual(second, first);
+  assert.match(second['Content-Security-Policy-Report-Only']!, /frames.example.test/);
+  assert.strictEqual(read(), second);
+});

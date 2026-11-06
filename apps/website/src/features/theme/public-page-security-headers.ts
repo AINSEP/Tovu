@@ -21,6 +21,7 @@ export function readPublicThemeResources(required: { resourceFile: string }, opt
 
 let resources: PublicThemeResources | undefined;
 let headers: SecurityHeaderSet | undefined;
+const providerHeaders = new WeakMap<FormCollectionRegistry, { signature: string; headers: SecurityHeaderSet }>();
 
 /** Load product-owned resource data on first use, then reuse it. Read/parse failures propagate
  * at use rather than import and are not cached. @complexity O(b) file bytes once, then O(1). */
@@ -31,12 +32,19 @@ export function publicThemeResources(_required: Record<string, never>, _optional
   return resources;
 }
 
-/** Theme resources are cached, while app-scoped provider declarations are read fresh on each call.
- * @complexity O(p × d + r) for provider descriptions and declared origins; no new I/O after theme loading. */
+/** Reuse headers until the app-scoped provider origins change. Descriptions stay live so a retired
+ * lease immediately withdraws its origins. @complexity O(p × d) to check declarations; header construction
+ * runs only on change, with one cached set per registry and no new I/O after theme loading. */
 export function publicPageSecurityHeaders({ formCollectionProviders }: { formCollectionProviders?: () => FormCollectionRegistry }, _optional: Record<string, never> = {}): SecurityHeaderSet {
   if (formCollectionProviders) {
-    const frameOrigins = describeFormCollectionProviders({ providers: formCollectionProviders() }).filter(provider => provider.available).flatMap(provider => provider.frameOrigins);
-    return createPublicPageSecurityHeaderSet({ resources: publicThemeResources({}) }, { frameOrigins });
+    const providers = formCollectionProviders();
+    const frameOrigins = describeFormCollectionProviders({ providers }).filter(provider => provider.available).flatMap(provider => provider.frameOrigins);
+    const signature = JSON.stringify(frameOrigins);
+    const cached = providerHeaders.get(providers);
+    if (cached?.signature === signature) return cached.headers;
+    const next = createPublicPageSecurityHeaderSet({ resources: publicThemeResources({}) }, { frameOrigins });
+    providerHeaders.set(providers, { signature, headers: next });
+    return next;
   }
   headers ??= createPublicPageSecurityHeaderSet({ resources: publicThemeResources({}) });
   return headers;

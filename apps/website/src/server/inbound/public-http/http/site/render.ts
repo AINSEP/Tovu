@@ -2393,6 +2393,10 @@ const DEFAULT_CONTACT_FORM_SUCCESS_MESSAGE = "Thanks — your message has been s
  * @complexity O(1) time/space; strings are reused, no I/O.
  * @overallScore 97 — Recommended: HTML sanitization remains the authoring write boundary's responsibility. */
 
+function formSchemaOptions({ props }: { props: JsonObject }): { schemaHash?: string } {
+  return typeof props.schemaHash === "string" ? { schemaHash: props.schemaHash } : {};
+}
+
 function collectionHtmlOptions({ props }: { props: JsonObject }): { html?: string; className: string } {
   return { ...(props.mode === "html" && typeof props.html === "string" ? { html: props.html } : {}), className: FORM_CLASS };
 }
@@ -2422,7 +2426,7 @@ function renderWidgetContactForm(props: JsonObject): string {
     fields: fieldDescriptors,
   }, {
     ...(typeof props.html === "string" ? { html: props.html } : {}),
-    ...(typeof props.schemaHash === "string" ? { schemaHash: props.schemaHash } : {}),
+    ...formSchemaOptions({ props }),
     idPrefix,
     successMessage: str(props.successMessage) || DEFAULT_CONTACT_FORM_SUCCESS_MESSAGE,
     className: FORM_CLASS,

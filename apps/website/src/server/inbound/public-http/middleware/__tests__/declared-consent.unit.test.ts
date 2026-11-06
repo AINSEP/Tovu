@@ -4,6 +4,8 @@ import express from 'express';
 import { once } from 'node:events';
 import { applyRenderThemeOverride } from '../render-theme-override.js';
 import { applySiteCookieConsent, siteConsentDocumentAssets, readSiteVisitorConsent, readSiteAnalyticsProof, siteReceiptAllowsAnalytics } from '../site-cookie-consent.js';
+import { InMemorySettingsRepo, set } from '@jini-ai/core/settings';
+import { ensureSiteConsentDefinitions, SITE_CONSENT_NAMESPACE } from '#src/features/consent/settings';
 import { SITE_CONSENT_DEFAULTS } from '#src/features/consent/config';
 import type { RouteDeps } from '#src/server/routes/types';
 import { dispatchJsonRequest } from '#src/server/__tests__/helpers/in-process-http';
@@ -276,4 +278,29 @@ test('a stalled policy read cannot hold the page response open', { timeout: 1000
   assert.equal(page.status, 200);
   assert.match((page.body as { head: string }).head, /ordinary.js/);
   assert.doesNotMatch((page.body as { head: string }).head, /optional.js/);
+});
+
+
+test('an owner settings write before first publication refreshes an off construction snapshot', async () => {
+  const settingsRepo = new InMemorySettingsRepo();
+  let now = 0, id = 0;
+  const clock = { nowMs: () => now, nowIso: () => new Date(now).toISOString() };
+  const ids = { newId: () => `setting-${++id}` };
+  const principals = { findActiveById: async ({ id }: { id: string }) => ({ id }) };
+  const authorize = async () => ({ allowed: true as const, reason: 'fixture owner' });
+  await ensureSiteConsentDefinitions({ settingsRepo, clock, ids, principals }, { systemPrincipalId: 'system' });
+  const consent = { regionResolvers: async () => [] };
+  const deps = { settingsRepo, workspaceId: 'legacy-settings', clock, cookieConsent: consent, siteConsentReady: Promise.resolve(),
+    consentStore: { readPublished: async () => null }, siteBinding: { dir: '/tmp/legacy-settings' },
+  } as unknown as RouteDeps;
+  const app = express();
+  applySiteCookieConsent({ app, deps, consent }, { client: { src: '/_consent/fixture.js', body: Buffer.from('') } });
+  await deps.cookieConsent!.refresh!();
+  app.get('/assets', async (_req, res) => res.json(await res.locals.siteConsentAssets({ scripts: [] })));
+  assert.equal(((await dispatchJsonRequest(app, 'GET', '/assets')).body as { body: string }).body, '');
+  await set({ deps: { repo: settingsRepo, clock, ids, principals, authorize }, input: {
+    namespace: SITE_CONSENT_NAMESPACE, key: 'enabled', value: true, scope: 'workspace', workspaceId: deps.workspaceId, callerPrincipalId: 'owner',
+  } });
+  now = 60_000;
+  assert.match(((await dispatchJsonRequest(app, 'GET', '/assets')).body as { body: string }).body, /id="jini-consent"/);
 });

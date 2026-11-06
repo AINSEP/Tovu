@@ -1,3 +1,4 @@
+import { describeFormCollectionProviders } from '@jini-ai/cms/forms';
 import { createLipayFake } from "@jini-ai/commerce/payments/testkit";
 import assert from "node:assert/strict";
 import { createHash } from 'node:crypto';
@@ -1001,6 +1002,9 @@ test('stateless form collection provider is trusted, selected and retired withou
   assert.equal(calls.inputs.length, 1);
   runtime.providerContributions.detach({ pluginId: 'forms-example' });
   assert.equal(port?.describe?.(), undefined, 'retired leases do not expose stale settings');
+  const unavailable = describeFormCollectionProviders({ providers: providers.formCollectionProviders!() }).find(provider => provider.id === 'example');
+  assert.equal(unavailable?.label, 'Example');
+  assert.match(unavailable?.message ?? '', /plugin.*(disabled|unavailable).*enable/i);
   assert.deepEqual(port?.plan({ slug: 'contact', config: {} }), { kind: 'unavailable', code: 'provider_unavailable', message: 'This form cannot send answers because its selected form provider is unavailable.' });
   await providers.dispose({});
   assert.equal(calls.disposed, 1);
@@ -1023,4 +1027,34 @@ test('payment providers use the shared host and disappear on detach', async () =
     runtime.providerContributions.detach({ pluginId: 'payments-example' });
     assert.deepEqual(providers.paymentProviders({}), []);
   } finally { await providers.dispose({}); }
+});
+
+
+test('enabling a form provider after boot updates the same live host', async () => {
+  const installed: string[] = [];
+  const calls: Calls = { inputs: [], disposed: 0 };
+  SETTINGS['forms-late'] = [];
+  const { runtime, requested } = fakeRuntime({ installed, factories: {
+    'forms-late': { contract: 'form_collection', id: 'late', factory: fakeFactory({ calls, port: {
+      describe: () => ({ label: 'Late forms', fields: [], answers: 'Remote inbox', validation: 'Remote checks', frameOrigins: [] }),
+      plan: () => ({ kind: 'unavailable', code: 'invalid_configuration', message: 'Choose a public form.' }),
+    } }) },
+  } });
+  const providers = await bootProviderPlugins({ runtime, config: configOf({}), serviceName: 'tovu', site: SITE, ...consentAlways }, { warn: quiet });
+  try {
+    assert.equal(providers.formCollectionProviders!().has({ id: 'late' }), false);
+    installed.push('forms-late');
+    const load = runtime.loadProviderPlugins.bind(runtime);
+    let refuse = true;
+    runtime.loadProviderPlugins = input => refuse ? Promise.resolve([]) : load(input);
+    assert.equal((await providers.reapply({ pluginId: 'forms-late' }) as { appliesAt: string }).appliesAt, 'failed');
+    assert.equal(providers.formCollectionProviders!().has({ id: 'late' }), false, 'refused admission must not publish a selectable provider');
+    refuse = false;
+    assert.equal(await providers.reapply({ pluginId: 'forms-late' }), 'now');
+    assert.equal(providers.formCollectionProviders!().has({ id: 'late' }), true);
+    assert.equal(describeFormCollectionProviders({ providers: providers.formCollectionProviders!() }).find(item => item.id === 'late')?.available, true);
+    assert.equal(await providers.reapply({ pluginId: 'forms-late' }), 'now');
+    assert.equal(calls.inputs.length, 1, 'repeated refresh must not initialize a second provider');
+    assert.deepEqual(requested, [['forms-late']]);
+  } finally { await providers.dispose({}); delete SETTINGS['forms-late']; }
 });

@@ -157,7 +157,7 @@ export interface BootProviderPluginsOptional {
 
 type ProviderSlotContract = ProviderContract | "payments";
 type ProviderSlot = { pluginId: string; contract: ProviderSlotContract; id: string;
-  declaration: PluginProviderDeclaration; lease?: PluginProviderLease; retirement: AbortController; input?: string; initializationObserved?: boolean };
+  declaration: PluginProviderDeclaration; label?: string; lease?: PluginProviderLease; retirement: AbortController; input?: string; initializationObserved?: boolean };
 /** An absent input is already inert; a configured input must also retain a current generation. */
 function unchangedSlot({ slot, signature }: { slot: ProviderSlot; signature: string | undefined }, _optional = {}): boolean {
   if (signature !== slot.input) return false;
@@ -242,11 +242,14 @@ function gatedConsentAdapter({ slot }: { slot: ProviderSlot }, _optional = {}): 
 
 /** Form collection follows the same guarded leases as other contracts, in an isolated domain registry.
  * @complexity O(p) time/space for declared collection providers; no I/O.
- * @overallScore 97 — Recommended: registry inventory is fixed at boot; leases can retire or reapply. */
+ * Existing leases can retire or reapply; newly enabled collection providers join this inventory. */
 function formRegistryFor({ slots, testProbe }: { slots: readonly ProviderSlot[]; testProbe: ReturnType<typeof createTelemetryTestProbe> }): FormCollectionRegistry {
   const registry = createFormCollectionRegistry({});
   for (const slot of slots.filter(slot => slot.contract === "form_collection")) {
-    registry.contribute({ pluginId: slot.pluginId, definition: { id: slot.id, provider: gatedPort({ slot, contract: "form_collection", testProbe }) as FormCollectionProvider } });
+    const provider = gatedPort({ slot, contract: "form_collection", testProbe }) as FormCollectionProvider;
+    // Retain the public name after retirement; the disabled selection still needs readable guidance.
+    try { slot.label = provider.describe?.()?.label ?? slot.label; } catch { /* unavailable metadata keeps its last known name */ }
+    registry.contribute({ pluginId: slot.pluginId, definition: { id: slot.id, label: slot.label, provider } });
   }
   return registry;
 }
@@ -332,6 +335,7 @@ export async function bootProviderPlugins(required: BootProviderPluginsRequired,
   const slots: ProviderSlot[] = (await required.runtime.listProviderPlugins({})).flatMap(({ pluginId, providers }) =>
     providers.filter(declaration => KNOWN_CONTRACTS.has(declaration.contract)).map(declaration => ({ pluginId,
       contract: declaration.contract as ProviderSlotContract, id: declaration.id, declaration, retirement: new AbortController() })));
+  let formCollectionRegistry = createFormCollectionRegistry({});
   const loaded = new Set<string>();
   const host = createPluginProviderHost({ contributions: required.runtime.providerContributions, contracts: PROVIDER_CONTRACTS }, {
     initializeTimeoutMs: timeoutMs,
@@ -406,19 +410,36 @@ export async function bootProviderPlugins(required: BootProviderPluginsRequired,
     if (!admitted.includes(pluginId)) throw new Error("ProviderUnavailable");
     loaded.add(pluginId);
   }
+  /** Re-read only on a newly enabled plugin; stateless collection declarations join the existing host.
+   * @complexity O(p + s) manifest metadata once per new plugin, with no per-request reads. */
+  async function selectSlots({ pluginId }: { pluginId: string }): Promise<ProviderSlot[]> {
+    let selected = slots.filter(slot => slot.pluginId === pluginId);
+    if (selected.length === 0) {
+      // The runtime already applies enabled-plugin changes here. Collection providers are stateless,
+      // so admit their new declarations through the same loader and host rather than requiring reboot.
+      const plugin = (await required.runtime.listProviderPlugins({})).find(item => item.pluginId === pluginId);
+      selected = (plugin?.providers ?? []).filter(declaration => declaration.contract === 'form_collection').map(declaration => ({
+        pluginId, contract: 'form_collection' as const, id: declaration.id, declaration, retirement: new AbortController(),
+      }));
+      slots.push(...selected);
+    }
+    return selected;
+  }
   /** Apply one saved snapshot, retiring every selected lease on failure and logging only its class.
    * @returns Live-apply timing; missing slots and closed hosts require restart; initialization/admission failures carry safe guidance.
    * @complexity O(s * f + r) slot settings/registrations plus bounded provider load and initialization.
    */
   async function apply({ pluginId }: { pluginId: string }, _optional = {}): Promise<import("@jini-ai/plugins/host").PluginProviderApplyResult> {
     if (closed) return "restart";
-    const selected = slots.filter(slot => slot.pluginId === pluginId);
-    if (selected.length === 0) return "restart";
+    let selected: ProviderSlot[] = [];
     try {
+      selected = await selectSlots({ pluginId });
+      if (selected.length === 0) return "restart";
       const saved = await required.config.read({ pluginId });
       const restartBrowser = selected.some(slot => browserNeedsRestart({ slot, saved }));
       await ensureLoaded({ pluginId, selected, saved });
       await applySlots({ selected, saved });
+      if (selected.some(slot => slot.contract === "form_collection")) formCollectionRegistry = formRegistryFor({ slots, testProbe });
       return restartBrowser ? 'restart' : 'now';
     } catch (error) {
       for (const slot of selected) initialization({ slot, outcome: 'failure', reasonClass: 'initialization_failed' });
@@ -451,7 +472,6 @@ export async function bootProviderPlugins(required: BootProviderPluginsRequired,
   for (const event of initializations) tracker.capture({ name: event.name, userId: event.userId }, { properties: event.properties });
   initializations.length = 0;
   let disposal: Promise<void> | undefined;
-  const formCollectionRegistry = formRegistryFor({ slots, testProbe });
   return { ...ports, formCollectionProviders: () => formCollectionRegistry,
     paymentProviders: () => slots.flatMap(slot => {
       if (slot.contract !== "payments" || !slot.lease?.isCurrent({})) return [];

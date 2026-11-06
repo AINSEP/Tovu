@@ -145,7 +145,7 @@ async function collectorDecision(
 export async function readSiteVisitorConsent({ deps, req }: { deps: RouteDeps; req: Request }, _optional = {}) {
   try {
     const snapshot = await documentPolicy({ consent: deps.cookieConsent });
-    if (deps.cookieConsent && documentStates.has(deps.cookieConsent) && !snapshot) return readConsent({ cookieHeader: '', policy: '', regionMode: 'opt-in' });
+    if (unavailableDocumentPolicy({ consent: deps.cookieConsent, config: snapshot })) return readConsent({ cookieHeader: '', policy: '', regionMode: 'opt-in' });
     if (snapshot && siteBannerMode({ config: snapshot }) === 'off') return readConsent({ cookieHeader: '', policy: snapshot.policyVersion, regionMode: 'opt-in' }, {
       ...requestPrivacy({ deps, req }), anonymous: true,
     });
@@ -168,7 +168,7 @@ async function readSiteConsentPolicyVersion({ deps }: { deps: RouteDeps }, _opti
  * or withdrawn receipt id never delivers. @complexity O(1): one policy read and one receipt read. */
 export async function siteReceiptAllowsAnalytics({ deps, proof }: { deps: RouteDeps; proof: { receiptId: string; policyVersion: string } }, _optional = {}): Promise<boolean> {
   const snapshot = await documentPolicy({ consent: deps.cookieConsent });
-  if (deps.cookieConsent && documentStates.has(deps.cookieConsent) && !snapshot) return false;
+  if (unavailableDocumentPolicy({ consent: deps.cookieConsent, config: snapshot })) return false;
   if (snapshot && siteBannerMode({ config: snapshot }) === 'off') return false;
   const policy = snapshot?.policyVersion ?? await readSiteConsentPolicyVersion({ deps });
   if (proof.policyVersion !== policy) return false;
@@ -205,6 +205,17 @@ type DocumentState = {
 const documentStates = new WeakMap<SiteCookieConsentDeps, DocumentState>();
 const EXTENSION_SRC = '/_consent/extensions.min.js';
 
+/** A mounted site's failed snapshot must not fall back to another immediate store read. */
+function unavailableDocumentPolicy({ consent, config }: { consent?: SiteCookieConsentDeps; config: ConsentConfig | null }): boolean {
+  return Boolean(consent && documentStates.has(consent) && !config);
+}
+
+/** The declaration owner is independent of policy availability, so ordinary scripts can still run. */
+async function documentDeclarations({ consent }: { consent?: SiteCookieConsentDeps }): Promise<readonly DeclaredScript[]> {
+  if (!consent) return [];
+  return (await documentStates.get(consent)?.scripts)?.scripts ?? [];
+}
+
 /** One read per minute per mounted site, including a retry after an unavailable publication. */
 async function documentPolicy({ consent }: { consent?: SiteCookieConsentDeps }): Promise<ConsentConfig | null> {
   const state = consent && documentStates.get(consent);
@@ -227,10 +238,9 @@ async function readDocumentPolicy({ deps }: { deps: RouteDeps }): Promise<Consen
 export async function siteConsentDocumentAssets({ deps, request, scripts }: { deps: Pick<RouteDeps, 'cookieConsent' | 'consentAdapters'>; request: Request; scripts: readonly DeclaredScript[] }, _optional = {}): Promise<DocumentAssets> {
   const consent = deps.cookieConsent;
   const config = await documentPolicy({ consent });
-  const declared = consent && await documentStates.get(consent)?.scripts;
-  const allScripts = [...scripts, ...declared?.scripts ?? []];
+  const allScripts = [...scripts, ...await documentDeclarations({ consent })];
   if (request.res?.locals.tovuRenderThemeIdOverride) return { head: renderScriptAssets({ scripts: allScripts.filter(script => script.consent === undefined) }), body: '' };
-  if (!config) return { head: renderScriptAssets({ scripts: allScripts.filter(script => script.consent === undefined) }), body: '' };
+  if (!config || !consent) return { head: renderScriptAssets({ scripts: allScripts.filter(script => script.consent === undefined) }), body: '' };
   if (siteBannerMode({ config }) === 'off') return { head: renderScriptAssets({ scripts: allScripts }), body: '' };
   const live = !isStaticExportRequest(request);
   const plugins = await documentPlugins({ deps, live });
@@ -245,8 +255,8 @@ export async function siteConsentDocumentAssets({ deps, request, scripts }: { de
 /** JSON declaration URLs are invisible to an HTML crawler. No live collectors enter an export. */
 export async function siteConsentExportAssets({ deps }: { deps: Pick<RouteDeps, 'cookieConsent'> }, _optional = {}): Promise<readonly string[]> {
   const config = await documentPolicy({ consent: deps.cookieConsent });
-  const declared = deps.cookieConsent && await documentStates.get(deps.cookieConsent)?.scripts;
-  const local = declared?.scripts.filter(script => script.src.startsWith('/') && (config || script.consent === undefined)).map(script => script.src) ?? [];
+  const declared = await documentDeclarations({ consent: deps.cookieConsent });
+  const local = declared.filter(script => script.src.startsWith('/') && (config || script.consent === undefined)).map(script => script.src);
   if (!config || siteBannerMode({ config }) === 'off') return local;
   return [documentStates.get(deps.cookieConsent!)!.client.src, EXTENSION_SRC, ...local];
 }

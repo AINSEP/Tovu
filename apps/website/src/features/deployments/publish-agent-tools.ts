@@ -1020,7 +1020,7 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
       const credential = await credentialSource.isConfigured({ workspaceId: deps.workspaceId, target, ...toolCredentialChoice({ raw }) });
 
       const inspected = plan.ok && credential.configured ? await inspectStaticPublish({
-        deps: { credentialSource, loadDeployTargets: deps.loadDeployTargets, tracker: deps.tracker, observability: deps.observability, hostKit: deps.hostKit, formDestination: deps.formDestination, publicPageSecurityHeaders: deps.publicPageSecurityHeaders },
+        deps: { credentialSource, loadDeployTargets: deps.loadDeployTargets, tracker: deps.tracker, observability: deps.observability, hostKit: deps.hostKit, formDestination: deps.formDestination },
         input: { workspaceId: deps.workspaceId, config, projectName: typeof raw.projectName === "string" ? raw.projectName : "",
           ...toolCredentialChoice({ raw }) },
       }) : {};

@@ -1,4 +1,3 @@
-import { publicPageSecurityHeaders as readPublicPageSecurityHeaders } from "#src/features/theme/public-page-security-headers";
 import { createFormAttachmentPurgeHooks } from "@jini-ai/cms/forms";
 import { statfs } from "node:fs/promises";
 import { registerCommerceHttp, registerCommerceWebhooks } from "./commerce-http.js";
@@ -1950,7 +1949,7 @@ function applyPublicMiddleware(
   applySiteServingGate(app, { siteStatusRepo: routeDeps.siteStatusRepo, workspaceId: routeDeps.workspaceId });
   // nosniff + Referrer-Policy + a report-only CSP on every non-admin response, set before any
   // public route runs. See `public-page-security-headers.ts`.
-  applyPublicPageSecurityHeaders(app, { readHeaders: () => readPublicPageSecurityHeaders({ formCollectionProviders: routeDeps.formCollectionProviders }) });
+  applyPublicPageSecurityHeaders(app, { readHeaders: routeDeps.publicPageSecurityHeaders });
   // Redirect page aliases before consent/preview middleware can render or set a visitor cookie.
   applyCanonicalSiteHostRedirect({ app, originRegistry: routeDeps.originRegistry, workspaceId: routeDeps.workspaceId, runtimeMode: routeDeps.seoDeps.runtimeMode });
   if (options.themeIdOverride === undefined) applyThemePreviewSwitcher({ app, deps: routeDeps });
