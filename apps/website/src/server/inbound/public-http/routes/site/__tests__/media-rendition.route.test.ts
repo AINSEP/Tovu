@@ -136,3 +136,24 @@ test('private submitted photos deny anonymous originals and renditions by id and
     assert.equal(response.status, 404); assert.equal(response.headers.get('cache-control'), 'private, no-store');
   }
 });
+
+
+test('distinct asset misses share one reference index and content writes invalidate it', async t => {
+  const { deps, baseUrl } = await boot(t);
+  const first = await upload(deps, { bytes: SVG, filename: 'first.svg', contentType: 'image/svg+xml' });
+  const second = await upload(deps, { bytes: SVG, filename: 'second.svg', contentType: 'image/svg+xml' });
+  const listings = t.mock.method(deps.postRepo, 'list');
+  const url = (id: string) => `${baseUrl}/m/${id}/public.v1/image.webp`;
+  assert.equal((await fetch(url(first.id))).status, 200);
+  const afterFirst = listings.mock.callCount();
+  assert.ok(afterFirst > 0);
+  assert.equal((await fetch(url(second.id))).status, 200);
+  assert.equal(listings.mock.callCount(), afterFirst, 'a distinct asset miss must not list every post again');
+  assert.equal((await fetch(url(second.slug))).status, 200);
+  assert.equal(listings.mock.callCount(), afterFirst, 'a slug alias reuses the same index');
+  await deps.postRepo.save(post(deps, { id: 'gated-second', slug: 'gated-second', memberAccessJson: MEMBERS_ONLY, featuredMediaId: second.id }));
+  assert.equal((await fetch(url(second.id))).status, 404, 'updated gating applies on the next request');
+  assert.equal(listings.mock.callCount(), afterFirst + 1);
+  assert.equal((await fetch(url(first.id))).status, 200, 'the unrelated asset stays public');
+  assert.equal(listings.mock.callCount(), afterFirst + 1);
+});

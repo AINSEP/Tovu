@@ -518,13 +518,17 @@ test("recovery restore: confirm reached without a session principal (requireAdmi
 test("recovery restore: execute surfaces a throwing instance-authorization port as 500 INTERNAL_ERROR before any lock is taken", async (t) => {
   const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const logged = t.mock.method(console, "error", () => {});
   deps.gatedMutations.gatewayDeps.authorizeInstance = async () => {
-    throw new Error("instance authorizer offline");
+    throw new Error("instance authorizer offline token=RECOVERY_CANARY_90872");
   };
 
   const res = await postJson(baseUrl, cookie, "execute", { confirmationToken: "tok", restorePointId: "rp-1" });
   assert.equal(res.status, 500);
-  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The restore result could not be confirmed.", action: "Check recovery status before starting another restore. Copy details and report this problem.", step: "Execute restore" } });
+  const body = await res.json();
+  assert.equal(JSON.stringify(body).includes("RECOVERY_CANARY_90872"), false);
+  assert.equal(JSON.stringify(logged.mock.calls.map(call => call.arguments)).includes("RECOVERY_CANARY_90872"), false);
+  assertAdminResponse({ actual: body, expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The restore result could not be confirmed.", action: "Check recovery status before starting another restore. Copy details and report this problem.", step: "Execute restore" } });
 });
 
 test("sendRecoveryError: a contract-valid payload with no message falls back to its code as the error text", () => {

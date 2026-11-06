@@ -181,3 +181,24 @@ test("GET /llms.txt: a post-read failure is caught and reported as a plain-text 
   assert.match(res.headers.get("content-type") ?? "", /text\/plain/);
   assert.equal(await res.text(), "internal error");
 });
+
+
+for (const description of ["Field notes from the garden.", undefined]) {
+  test(`GET /llms.txt uses the site's title and ${description ? 'configured summary' : 'no fabricated summary'}`, async t => {
+    const base = createRouteDeps();
+    await Promise.all([base.siteTitleReady, base.seoReady]);
+    const deps: SeoRouteDeps = { ...base, postRepo: new InMemoryPostRepo([]), siteDisplayName: { read: () => "Garden Journal" } };
+    deps.seoDeps = createSeoDeps({ deps }, {});
+    const settings = await deps.seoDeps.settings.getSeoSettings({ workspaceId: deps.workspaceId });
+    deps.seoDeps.settings.getSeoSettings = async () => ({ ...settings, defaultDescription: description });
+    const app = express();
+    registerLlmsTxtRoute(app, deps);
+    const url = await startTestServer(app, t);
+    const response = await fetch(`${url}/llms.txt`);
+    assert.equal(response.status, 200);
+    const body = await response.text();
+    assert.ok(body.startsWith('# Garden Journal\n'));
+    assert.equal(body.includes('> Field notes from the garden.'), !!description);
+    assert.doesNotMatch(body, /# Tovu|content platform you own|nothing that phones home/);
+  });
+}

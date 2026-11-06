@@ -5,7 +5,9 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import sharp from "sharp";
-import type { ToolExecutionContext } from "@jini-ai/core";
+import type { BatchResult, ToolExecutionContext } from "@jini-ai/core";
+import { applyBatchInputs } from "#src/assistant/batch-tool-inputs";
+import { executeRegisteredTool } from "#src/assistant/__tests__/fixtures/execute-registered-tool";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { SharpImageTransformer } from "@jini-ai/cms/media/node";
@@ -86,6 +88,21 @@ test("every registered media-producing tool returns the same inline image previe
       type: "image", mimeType: "image/webp", data: Buffer.from(expected.bytes).toString("base64"), title: "preview", href: saved.publicUrl,
     });
     assert.ok(saved.publicUrl, "the inline preview links to the saved file");
+    // Exercise production's generic batch wrapper through the real executor. The trace records
+    // the known preview gap; this does not certify image omission as the desired chat behavior.
+    const registration = applyBatchInputs({ registrations: [tool] })[0]!;
+    const batch = await executeRegisteredTool({ registration, input: { items: [input, input] } }, { principalId: 'owner' });
+    assert.equal(batch.status, 'completed');
+    const output = batch.output as BatchResult;
+    assert.equal(output.succeeded, 2);
+    const itemContents = output.results.map(row => (row.result as { content: Array<Record<string, unknown>> }).content);
+    for (const content of itemContents) {
+      const stored = JSON.parse(content.find(block => block.type === 'text')!.text as string).media;
+      assert.equal(stored.sha256, media.source.sha256);
+      assert.ok(stored.publicUrl);
+    }
+    const batchImages = itemContents.flat().filter(block => block.type === 'image').length;
+    t.diagnostic(`C30 ${tool.descriptor.id}: single image blocks=1; two-item batch image blocks=${batchImages}; saved media results=2`);
   });
 });
 

@@ -91,7 +91,7 @@ export interface AdminPostEnvelope {
   post: AdminPost;
 }
 
-export interface ContentPost {
+interface ContentPostFields {
   author?: string | null;
   showAuthor?: boolean;
   id: string;
@@ -99,9 +99,13 @@ export interface ContentPost {
   kind: HeadlessEntryKind;
   title: string;
   slug: string;
-  bodyJson: Record<string, unknown>;
   updatedAt: string;
 }
+
+/** Document responses retain their original shape; HTML responses carry their actual body. */
+export type ContentPost =
+  | (ContentPostFields & { bodyFormat?: "doc"; bodyJson: Record<string, unknown>; bodyHtml?: null })
+  | (ContentPostFields & { bodyFormat: "html"; bodyJson: null; bodyHtml: string });
 
 /**
  * ADR-020 capability tier, mirrored locally from `features/theme`'s `ThemeTier` for the same

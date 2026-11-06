@@ -194,8 +194,9 @@ export function createSiteShareBackend(required: {
     hasWork: () => active !== null,
     async staticOptions() {
       if (!required.staticSite) throw new SiteShareRefusal({ code: "UNAVAILABLE", message: "Static exporter is unavailable in this context." });
-      const { activeThemeId, themes } = staticRoster({ ports: required.staticSite, context: await required.staticSite.context() });
-      return { activeThemeId, themes: activeThemeId === NO_THEME_ID ? [{ themeId: NO_THEME_ID, name: "Current site" }] : themes };
+      const { activeThemeId, roster } = staticRoster({ ports: required.staticSite, context: await required.staticSite.context() });
+      return { activeThemeId, themes: activeThemeId === NO_THEME_ID ? [{ themeId: NO_THEME_ID, name: "Current site" }]
+        : roster.map(theme => ({ themeId: theme.themeId, name: theme.title })) };
     },
     async create(input, options = {}) {
       input.signal.throwIfAborted();

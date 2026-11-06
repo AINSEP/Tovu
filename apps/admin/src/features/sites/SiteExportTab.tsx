@@ -92,6 +92,7 @@ function ExportList({ controller, t }: { controller: SiteExportController; t: Tr
       empty={<div className="sites-empty"><p className="sites-empty-lead">{t("No exports yet.")}</p></div>}
       rowDetail={(share, index) => exportCredentialDetail({ share, index, controller, t })}
       columns={[
+        { key: "type", header: t("Type"), cell: (share) => share.file.endsWith(".tovu.zip") ? t("Tovu backup") : t("Static site") },
         { key: "date", header: t("Date"), cellClassName: "site-transfer-num", cell: (share) => formatTimestamp({ iso: share.createdAt }, { timeZone: "local" }) },
         { key: "size", header: t("Size"), cellClassName: "site-transfer-num", cell: (share) => formatTransferBytes(share.bytes) },
         { key: "link", header: t("Link"), cell: (share) => <ShareLinkCell share={share} t={t} /> },

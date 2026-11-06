@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createRequire } from 'node:module';
+import { createRequire, syncBuiltinESMExports } from 'node:module';
+import crypto from 'node:crypto';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import * as yauzl from 'yauzl';
@@ -62,4 +63,37 @@ test('the same packaged plan delivers ordinarily in explicit consent-off mode', 
   assert.ok(html.includes(`<iframe src="${publicUrl}?embedded=true"`));
   assert.match(html, /If this form does not open, open it on Google or contact the site owner\./);
   assert.ok(downloadForms({ html, page: '/contact' }).html.includes(html));
+});
+
+
+test('two static form exports agree when time and occurrence identifiers are controlled', async t => {
+  t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-11-05T00:00:00Z').getTime() });
+  t.mock.method(crypto, 'randomUUID', () => '00000000-0000-4000-8000-000000000001');
+  syncBuiltinESMExports();
+  t.after(() => { t.mock.restoreAll(); syncBuiltinESMExports(); });
+  const plan = (await provider()).plan({ slug: 'contact', config: { url: publicUrl } });
+  const exportOnce = async () => {
+    const native = renderWidgetIr({ componentId: 'contact-form', props: { slug: 'native', fields: [
+      { id: 'message', type: 'textarea', label: 'Message', required: true },
+    ] } });
+    const html = downloadForms({ html: exportHtml({ html: `<!doctype html><html><head></head><body>${native}${widget(plan)}</body></html>` }), page: '/contact' }).html;
+    const archive = await buildStaticSiteZip({ copy: {
+      filename: 'repeat-static.zip', siteSlug: 'fixture',
+      metadata: { exportedAt: new Date().toISOString(), theme: 'fixture', routes: ['/contact'], failed: { routes: [], assets: [] }, skipped: { routes: [], assets: [], references: [] } },
+      files: [{ path: 'contact/index.html', content: Buffer.from(html) }],
+    }, zip: zipFolderFiles });
+    const files = new Map<string, string>();
+    for await (const entry of createShareArchiveReader({ yauzl }).entries({ archive })) {
+      if (entry.kind !== 'file') continue;
+      const chunks: Buffer[] = [];
+      for await (const chunk of entry.openReadStream({})) chunks.push(Buffer.from(chunk));
+      files.set(entry.entryPath, Buffer.concat(chunks).toString());
+    }
+    return files;
+  };
+  const first = await exportOnce(), second = await exportOnce();
+  assert.deepEqual(second, first);
+  const page = [...first].find(([name]) => name.endsWith('/contact/index.html'))?.[1];
+  assert.ok(page?.includes('widget-contact-00000000-0000-4000-8000-000000000001'));
+  assert.ok(page?.includes(publicUrl));
 });
