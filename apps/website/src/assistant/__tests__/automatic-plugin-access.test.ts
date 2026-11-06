@@ -34,8 +34,9 @@ test('automatic plugin access verifies the active person before disclosure and a
     assert.match(html, /data-mcpui-action="auto" data-agent-private disabled/);
     assert.match(html, /var DWELL_MS = 1500/);
     assert.match(html, /Access details/);
-    assert.match(html, /core\.interface\.chatAgentPlugins/);
-    assert.match(html, /&quot;revision&quot;: &quot;4&quot;/);
+    // Disclosure shows the offered change, while scope/revision remain bound in the approval plan.
+    assert.match(html, /checkedPluginsOnly/);
+    assert.doesNotMatch(html, /core\.interface\.chatAgentPlugins|&quot;revision&quot;/);
   } });
   assert.deepEqual(result, { action: 'auto', selected: ['offered'] });
   assert.deepEqual(events, ['verify', 'card', 'verify', 'receipt']);

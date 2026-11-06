@@ -150,7 +150,7 @@ test("export with only failed assets reports an incomplete export and closes the
     exportSite: async () => ({ outputDir: "/tmp/export",
       routes: { succeeded: [{ path: "/", kind: "page", outputFile: "index.html", data: "<html></html>" }], failed: [] },
       assets: { succeeded: [], failed: [{ url: "/missing.png", reason: "not found" }] },
-      skippedManifestEntries: [], unreferencedThemeFiles: [],
+      skippedManifestEntries: [], unreferencedThemeFiles: [], droppedReferences: [],
     }),
   }), error => {
     assert.equal((error as Error).name, "ExportIncompleteError");
