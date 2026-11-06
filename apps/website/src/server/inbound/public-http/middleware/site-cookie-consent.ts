@@ -256,13 +256,15 @@ export function applySiteCookieConsent({ app, deps, consent }: { app: Express; d
     const declarations = consent.scriptDeclarations?.() ?? Promise.resolve({ scripts: [], problems: [] });
     documentScripts.set(consent, declarations);
     const [config] = await Promise.all([pending, declarations]);
-    documentEmbedDelivery.set(consent, siteBannerMode({ config }) === 'off');
+    if (documentPolicies.get(consent) === pending) documentEmbedDelivery.set(consent, siteBannerMode({ config }) === 'off');
   };
   consent.refresh = refresh;
   consent.embedConsentOff = () => documentEmbedDelivery.get(consent) === true;
   consent.exportAssets = () => siteConsentExportAssets({ deps });
   documentClients.set(consent, client);
-  app.use((req, res, next) => {
+  app.use(async (req, res, next) => {
+    // Resolve the cached publication before widget rendering; consent-off pages have no activation runtime.
+    await documentPolicies.get(consent)?.catch(() => undefined);
     res.locals.siteConsentAssets = (required: { scripts: readonly DeclaredScript[] }) => siteConsentDocumentAssets({ deps, request: req, scripts: required.scripts });
     next();
   });

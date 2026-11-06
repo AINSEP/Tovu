@@ -13,7 +13,7 @@ import { createToolRegistry } from "@jini-ai/core";
 import { createInMemoryEventLog, createRunLifecycle, createToolExecutor } from "@jini-ai/daemon";
 import { delegatedToolExecuteRoute } from "@jini-ai/daemon/http";
 import { executeCommand, InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
-import { createFormCollectionRegistry, InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "@jini-ai/cms/forms";
+import { createFormCollectionRegistry, InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo, type FormAuthoring } from "@jini-ai/cms/forms";
 import { buildFormsRegistrations, type FormsToolDeps } from "../tool-registrations.js";
 
 function providerFixture({ allow = true }: { allow?: boolean } = {}) {
@@ -53,10 +53,11 @@ test('assistant discovers a fourth provider and saves its public configuration w
   const created = await call('forms_create_definition', { name: 'Contact', slug: 'contact', fields: [{ id: 'name', label: 'Name', type: 'text', required: false }], provider: selected });
   assert.equal(created.ok, true, JSON.stringify(created));
   const definition = (await deps.formDefinitionRepo.list({ workspaceId: 'ws' }))[0]!;
-  assert.deepEqual(definition.provider, selected);
+  assert.deepEqual((definition as typeof definition & FormAuthoring).provider, selected);
   const rejected = await call('forms_update_definition', { formId: definition.id, provider: { id: 'fourth_provider', config: { apiKey: 'private' } } });
   assert.equal(rejected.ok, false);
-  assert.deepEqual((await deps.formDefinitionRepo.list({ workspaceId: 'ws' }))[0]!.provider, selected);
+  const unchanged = (await deps.formDefinitionRepo.list({ workspaceId: 'ws' }))[0]!;
+  assert.deepEqual((unchanged as typeof unchanged & FormAuthoring).provider, selected);
 });
 
 test('provider discovery enforces forms management permission', async () => {
