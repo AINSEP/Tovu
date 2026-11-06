@@ -19,6 +19,7 @@ for (const owned of [true, false, 'no-database'] as const) {
     await deps.bus.publish({ id: 'cleanup-job', name: 'form.attachment.cleanup', workspaceId: deps.workspaceId,
       aggregateId: 'media-1', occurredAt: '2026-11-04T00:00:00.000Z',
       payload: { workspaceId: deps.workspaceId, sha256: 'fixture-hash' } });
-    assert.deepEqual(effects, owned === 'no-database' ? [] : owned ? ['owner-probe'] : ['owner-probe', 'delete-bytes', 'remove-blob']);
+    // Unowned media still requires the exact storage-key/rendition ownership probe before deletion.
+    assert.deepEqual(effects, owned === 'no-database' ? [] : owned ? ['owner-probe'] : ['owner-probe', 'owner-probe', 'delete-bytes', 'remove-blob']);
   });
 }
