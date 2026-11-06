@@ -1,11 +1,12 @@
+// Host integration: the contracts prepare build must not require unreleased Jini test APIs.
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
 import test from 'node:test';
-import { ADMIN_FAILURE_VOCABULARY } from '../admin-failure-copy.js';
+import { ADMIN_FAILURE_VOCABULARY } from '../../../../../../../packages/contracts/src/admin-failure-copy.js';
 import { describeRequestFailure } from '@jini-ai/core';
 
 test('every existing admin route family has approved nouns', () => {
-  const routes = new URL('../../../../apps/website/src/server/inbound/admin-http/routes/', import.meta.url);
+  const routes = new URL('../routes/', import.meta.url);
   for (const entry of readdirSync(routes, { withFileTypes: true })) {
     if (!entry.isDirectory() || entry.name.startsWith('__')) continue;
     assert.ok(Object.hasOwn(ADMIN_FAILURE_VOCABULARY.nouns, entry.name), `Missing route family wording: ${entry.name}`);
@@ -29,7 +30,7 @@ test('reading publishing history is not described as an uncertain send', () => {
 });
 
 test('actual static admin route families have approved nouns, including directory aliases', () => {
-  const root = new URL('../../../../apps/website/src/server/inbound/admin-http/', import.meta.url);
+  const root = new URL('../', import.meta.url);
   for (const path of readdirSync(root, { recursive: true, encoding: 'utf8' })) {
     if (!path.endsWith('.ts') || path.includes('__tests__') || path.endsWith('.test.ts')) continue;
     const source = readFileSync(new URL(path, root), 'utf8');
