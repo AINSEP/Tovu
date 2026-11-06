@@ -2409,7 +2409,7 @@ function renderWidgetContactForm(props: JsonObject): string {
   if (props.collectionPlan) return FORM_BASELINE_STYLE + renderFormCollection({
     slug, fields: fieldDescriptors, plan: props.collectionPlan as unknown as FormCollectionPlan,
     hooks: { field: "data-tovu-field", form: "data-tovu-form", success: "data-tovu-form-success", error: "data-tovu-form-error" },
-  }, collectionHtmlOptions({ props })) + rangeReadout;
+  }, { ...collectionHtmlOptions({ props }), consentOff: props.collectionConsentOff === true }) + rangeReadout;
   // Both modes show the length caps the submit route enforces (owner 2026-10-25, spam protection).
   if (props.mode === "html") return FORM_BASELINE_STYLE + stampFormFieldMaxLengths(renderHtmlForm({
     slug, action: `/forms/${encodeURIComponent(slug)}/submit`,

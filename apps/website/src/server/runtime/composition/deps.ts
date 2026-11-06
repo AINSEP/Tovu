@@ -1755,6 +1755,7 @@ async function composeSiteRouteDeps(
     navMenuReadModel: createNavMenuReadModel({ menuRepo, bindingRepo: navLocationBindingRepo }),
     formDefinitionRepo: { findById: formDefinitionRepo.findById.bind(formDefinitionRepo), findBySlug: formDefinitionRepo.findBySlug.bind(formDefinitionRepo) },
     formCollectionProviders: () => formCollectionProviders(),
+    formEmbedConsentOff: () => routeDeps.cookieConsent?.embedConsentOff?.() === true,
     contentTypes: contentTypeRepo,
   });
   const commentsModule = createCommentsModule({

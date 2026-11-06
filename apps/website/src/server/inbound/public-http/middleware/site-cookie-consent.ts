@@ -192,6 +192,7 @@ export async function readSiteAnalyticsProof({ deps, req }: { deps: RouteDeps; r
 
 /** One published construction snapshot per mounted site, refreshed by publication. No per-page reads. */
 const documentPolicies = new WeakMap<SiteCookieConsentDeps, Promise<ConsentConfig>>();
+const documentEmbedDelivery = new WeakMap<SiteCookieConsentDeps, boolean>();
 const documentScripts = new WeakMap<SiteCookieConsentDeps, Promise<{ scripts: readonly DeclaredScript[]; problems: readonly string[] }>>();
 const documentClients = new WeakMap<SiteCookieConsentDeps, { body: Buffer; src: string }>();
 const EXTENSION_SRC = '/_consent/extensions.min.js';
@@ -233,6 +234,7 @@ function mountContext({ app, deps, consent }: { app: Express; deps: RouteDeps; c
     try {
       const config = await readSiteConsentPolicy({ deps }, { cssBlocks: false });
       documentPolicies.set(consent, Promise.resolve(config));
+      documentEmbedDelivery.set(consent, siteBannerMode({ config }) === 'off');
       const enabled = siteBannerMode({ config }) !== 'off';
       if (enabled) {
         documentScripts.set(consent, consent.scriptDeclarations?.() ?? Promise.resolve({ scripts: [], problems: [] }));
@@ -250,11 +252,14 @@ export function applySiteCookieConsent({ app, deps, consent }: { app: Express; d
   const refresh = async () => {
     const pending = readSiteConsentPolicy({ deps }, { cssBlocks: false });
     documentPolicies.set(consent, pending);
+    documentEmbedDelivery.set(consent, false);
     const declarations = consent.scriptDeclarations?.() ?? Promise.resolve({ scripts: [], problems: [] });
     documentScripts.set(consent, declarations);
-    await Promise.all([pending, declarations]);
+    const [config] = await Promise.all([pending, declarations]);
+    documentEmbedDelivery.set(consent, siteBannerMode({ config }) === 'off');
   };
   consent.refresh = refresh;
+  consent.embedConsentOff = () => documentEmbedDelivery.get(consent) === true;
   consent.exportAssets = () => siteConsentExportAssets({ deps });
   documentClients.set(consent, client);
   app.use((req, res, next) => {
