@@ -32,6 +32,8 @@ export const toolMetadata = {
   },
   // The only tool that creates a theme: copies one into a new folder (owner-approved 2026-10-08).
   "theme_duplicate": {
+    title: "Copy a theme",
+    summary: "This creates a new theme copy and can make it the site's active theme.",
     guidanceCapabilities: [THEME_AUTHORING, "ui-design"],
     search: {
       keywords: "theme duplicate copy clone fork new theme from existing create make start redesign variant based on scaffold",
