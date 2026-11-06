@@ -1,3 +1,5 @@
+import { TotpSettings } from "@jini-ai/user-management/react";
+import { ownerMfaPort } from "../../lib/owner-mfa-api";
 import { RecoveryCodesCard } from "./RecoveryCodesCard";
 import { agentHandle } from "@jini-ai/agentic";
 
@@ -180,6 +182,7 @@ export function Security(props: SecurityProps) {
           </p>
         </div>
       </div>
+      <TotpSettings port={ownerMfaPort} translate={key => t({ locale, key })} />
       <RecoveryCodesCard t={key => t({ locale, key })} />
       <TabBar
         ariaLabel={t({ locale: locale, key: "Secrets" })}

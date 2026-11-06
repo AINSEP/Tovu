@@ -23,7 +23,7 @@ export interface LoginProps {
 }
 
 export function Login({ onLogin, useLoginHook = useWiredLogin }: LoginProps) {
-  const { username, setUsername, password, setPassword, error, failure, busy, submit } = useLoginHook({ onLogin });
+  const { username, setUsername, password, setPassword, error, failure, busy, submit, mfa } = useLoginHook({ onLogin });
   const locale = useWiredAdminLocale();
   const t = (key: string): string => translateAuth({ locale: locale, key: key });
 
@@ -32,6 +32,10 @@ export function Login({ onLogin, useLoginHook = useWiredLogin }: LoginProps) {
       <form className="login-card" onSubmit={submit}>
         <h1>Tovu</h1>
         <p>{t("Sign in to your workspace")}</p>
+        {mfa ? <label>
+          {t("Authenticator code")}
+          <input autoComplete="one-time-code" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} data-agent-private="" value={mfa.code} onChange={event => mfa.setCode(event.target.value)} autoFocus />
+        </label> : <>
         <label>
           {t("Username")}
           <input autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} autoFocus />
@@ -41,8 +45,10 @@ export function Login({ onLogin, useLoginHook = useWiredLogin }: LoginProps) {
           <label htmlFor="login-password">{t("Password")}</label>
           <SecretInput label={t("Password")} locale={locale} id="login-password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
         </div>
+        </>}
         {failure ? <ErrorNotice failure={failure} t={t} className="login-error" /> : error ? <div className="login-error">{error}</div> : null}
-        <button disabled={busy}>{busy ? t("Signing in…") : t("Sign in")}</button>
+        <button disabled={busy}>{busy ? t("Signing in…") : mfa ? t("Verify code") : t("Sign in")}</button>
+        {mfa ? <button type="button" disabled={busy} onClick={mfa.cancel}>{t("Cancel")}</button> : null}
       </form>
       <OwnerRecoverySignIn t={t} />
     </div>

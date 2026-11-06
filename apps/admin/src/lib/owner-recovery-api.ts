@@ -7,7 +7,7 @@ import { requestOnce } from './api';
 export interface OwnerRecoveryStatus { isOwner: boolean; available: boolean; desktopOwnerReset: boolean }
 export interface OwnerRecoveryPort {
   status(): Promise<OwnerRecoveryStatus>;
-  issue(input: { password: string }): Promise<{ codes: string[] }>;
+  issue(input: { password: string; code?: string }): Promise<{ codes: string[] }>;
   reset(input: { password: string }): Promise<void>;
   recover(input: { code: string; password: string }): Promise<void>;
 }

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLogin as useJiniLogin } from "@jini-ai/user-management/react";
 import { formatUserFacingError, type UserFacingError } from "@jini-ai/core";
 import { ApiError } from "@/lib/api";
 
@@ -30,6 +31,7 @@ export interface LoginDependencies {
 }
 
 export interface LoginController {
+  mfa?: { code: string; setCode: (code: string) => void; cancel: () => void };
   username: string;
   setUsername: (username: string) => void;
   password: string;
@@ -47,36 +49,27 @@ export interface LoginController {
  * @complexity Time/space: O(1) — one credential round trip per submit, no iteration.
  */
 export function useLogin({ onLogin }: LoginHookProps, { port }: LoginDependencies): LoginController {
-  const [username, setUsername] = useState("admin");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
   const [failure, setFailure] = useState<UserFacingError | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    setError(null);
+  async function observed<T>(execute: () => Promise<T>, secrets: string[]): Promise<T> {
     setFailure(null);
-    try {
-      const { user } = await port.login({ username, password });
-      onLogin(user);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Sign-in could not finish. Try signing in again.");
-      if (!(err instanceof ApiError && (err.status === 401 || err.status === 429))) {
+    try { return await execute(); }
+    catch (err) {
+      if (!(err instanceof ApiError && [400, 401, 429].includes(err.status))) {
         // Anonymous copy never contains a transport exception or backend diagnosis, even redacted.
         setFailure(formatUserFacingError({ message: "Sign-in could not finish.",
           action: "Try signing in again. If it still fails, copy details and report this problem.",
           step: "auth-login", cause: "The sign-in request did not finish. Its error ID identifies the server report." },
         { errorId: err instanceof ApiError && typeof err.body?.errorId === "string" ? err.body.errorId : undefined,
-          exactSecrets: [password].filter(Boolean) }));
+          exactSecrets: secrets.filter(Boolean) }));
       }
-    } finally {
-      setBusy(false);
+      throw err instanceof Error ? err : new Error("Sign-in could not finish. Try signing in again.");
     }
   }
-
-  return { username, setUsername, password, setPassword, error, failure, busy, submit };
+  const controller = useJiniLogin({ onLogin, translate: text => text,
+    port: { login: input => observed(() => port.login(input), [input.password]),
+      ...(port.completeMfa ? { completeMfa: (input: { pendingToken: string; code: string }) =>
+        observed(() => port.completeMfa!(input), [input.code, input.pendingToken]) } : {}) } }, { initialUsername: "admin" });
+  return { ...controller, failure };
 }
 
 /**
