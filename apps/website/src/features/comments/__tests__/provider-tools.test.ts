@@ -21,7 +21,8 @@ function fixture() {
         providerId = input.providerId; revision++; writes++;
       } },
   } as unknown as CommentsToolDeps;
-  const registrations = buildCommentsRegistrations(deps, { surfaceExchanges });
+  const surfaces = { surfaceExchanges, assertAccessApprover: async () => {} };
+  const registrations = buildCommentsRegistrations(deps, surfaces);
   const call = (id: string, input: unknown = {}, options: ToolExecutionOptions = {}) => {
     const tool = registrations.find(item => item.descriptor.id === id); assert.ok(tool);
     const ctx: ToolExecutionContext = { executionId: 'exec', principal: { id: 'owner' }, run: { id: 'run' }, input, signal: new AbortController().signal };
@@ -29,6 +30,8 @@ function fixture() {
   };
   const answer = (decision: 'confirm' | 'cancel' | 'typed', before?: () => void): ToolExecutionOptions => ({ emitSurface: async emission => {
     assert.match(JSON.stringify(emission), /Pending stored comments/);
+    assert.match(JSON.stringify(emission), /core.comments.provider/);
+    assert.match(JSON.stringify(emission), /Resource/);
     assert.match(JSON.stringify(emission), /3/);
     before?.();
     surfaceExchanges.deliver({ exchangeId: `exchange-${exchanges}`, principalId: 'owner', params: decision === 'typed' ? { __typedAnswer: 'yes' } : { decision } }, { toolId: 'comments_set_provider' });

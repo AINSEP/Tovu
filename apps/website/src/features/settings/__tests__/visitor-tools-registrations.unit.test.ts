@@ -15,8 +15,8 @@ async function harness(t: TestContext) {
   t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 0 });
   const store = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: { nowMs: () => Date.now() }, idGenerator: { newId: () => `visitor-card-${++cardId}` }, defaultChannel: "mcp-ui" }, { idleTtlMs: 100, maxLifetimeMs: 1000 });
   // An unrelated saved plugin-escalation grant is deliberately present; this adapter must never use it.
-  const deps = { visitorToolsManagement: f.service, nativeApprovalMemory: { has: async () => { memoryCalls++; return true; }, grant: async () => { memoryCalls++; } } };
-  const surfaces = { surfaceExchanges: store };
+  const deps = { workspaceId: f.input.workspaceId, visitorToolsManagement: f.service, nativeApprovalMemory: { has: async () => { memoryCalls++; return true; }, grant: async () => { memoryCalls++; } } };
+  const surfaces = { surfaceExchanges: store, assertAccessApprover: async () => {} };
   const registrations = buildVisitorToolsRegistrations({ deps, surfaces });
   const context = (input: unknown): ToolExecutionContext => ({ executionId: "execution-1", principal: { id: "owner" }, run: { id: "run-1" }, signal: controller.signal, input });
   const handler = (id: string) => registrations.find(r => r.descriptor.id === id)!.handler;
@@ -45,7 +45,7 @@ test("exactly four closed category tools expose metadata and the configure callb
   assert.equal(nativeToolMetadata.redeemableIds.has("visitor_tool_configure"), true);
   const contribution = contributeVisitorTools();
   assert.equal(contribution.domain, "visitor-tools");
-  const contributed = contribution.build({ visitorToolsManagement: h.service } as Parameters<typeof contribution.build>[0], h.surfaces);
+  const contributed = contribution.build({ workspaceId: h.input.workspaceId, visitorToolsManagement: h.service } as Parameters<typeof contribution.build>[0], h.surfaces);
   assert.deepEqual(await contributed[0].handler(h.context({})), await h.list());
   assert.deepEqual(await h.handler("visitor_tools_list")(h.context({})), await h.list());
   assert.equal(h.store.size(), 0);
@@ -86,10 +86,13 @@ test("every external enable and above-default increase shows one fresh, non-reme
       assert.match(html, /Uses credential/);
       assert.match(html, /Shares fields/);
       assert.match(html, /name, price/);
-      assert.match(html, input.mode === "ask" ? /Off → Ask/ : /Ask → Auto/);
+      assert.match(html, /Resource/);
+      assert.match(html, /owner/);
+      assert.match(html, input.mode === "ask" ? /Off/ : /Ask/);
+      assert.match(html, input.mode === "ask" ? /Ask/ : /Auto/);
     }
-    if (input.toolId === "list_categories") assert.match(html, /30\/hour → 31\/hour/);
-    if (input.toolId === "site") assert.match(html, /1,000\/day → 1,001\/day/);
+    if (input.toolId === "list_categories") { assert.match(html, /30\/hour/); assert.match(html, /31\/hour/); }
+    if (input.toolId === "site") { assert.match(html, /1,000\/day/); assert.match(html, /1,001\/day/); }
     assert.doesNotMatch(html, /sourceRevision|returnedFields|perIpPerHour|perSitePerDay/);
     assert.deepEqual(held.answer("confirm"), { ok: true });
     const result = await held.pending;
@@ -188,9 +191,22 @@ test("deferred save/delete check permissions and refuse unknown fields without w
   }
   for (const input of [{}, { toolId: 1 }, { toolId: " " }]) await assert.rejects(h.handler("visitor_tool_delete")(h.context(input)), ToolInputError);
   await assert.rejects(h.handler("visitor_tools_list")(h.context({ bogus: true })), ToolInputError);
-  const unwired = buildVisitorToolsRegistrations({ deps: {}, surfaces: h.surfaces });
+  const unwired = buildVisitorToolsRegistrations({ deps: { workspaceId: h.input.workspaceId }, surfaces: h.surfaces });
   await assert.rejects(unwired[0].handler(h.context({})), /unavailable in this server/);
-  const broken = buildVisitorToolsRegistrations({ deps: { visitorToolsManagement: { ...h.service, list: async () => { throw new Error("storage down"); } } }, surfaces: h.surfaces });
+  const broken = buildVisitorToolsRegistrations({ deps: { workspaceId: h.input.workspaceId, visitorToolsManagement: { ...h.service, list: async () => { throw new Error("storage down"); } } }, surfaces: h.surfaces });
   await assert.rejects(broken[0].handler(h.context({})), /storage down/);
   assert.equal(await h.repo.maxRevisionSeq(), before);
+});
+
+
+test("visitor access refuses a deactivated person after the click without changing policy", async t => {
+  const h = await harness(t);
+  const before = await h.repo.maxRevisionSeq();
+  const held = await h.hold({ toolId: "plugin_catalog", mode: "auto" });
+  h.surfaces.assertAccessApprover = async () => { throw new ToolInputError({ message: "The approving person is no longer active." }); };
+  const rejected = assert.rejects(held.pending, /no longer active/);
+  held.answer("confirm");
+  await rejected;
+  assert.equal(await h.repo.maxRevisionSeq(), before);
+  assert.equal(h.store.size(), 0);
 });
