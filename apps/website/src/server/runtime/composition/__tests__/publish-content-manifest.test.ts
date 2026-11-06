@@ -126,7 +126,12 @@ for (const fixture of APPLY_FIXTURES) {
         createdAt: at, updatedAt: at,
       });
       await site.presentation.save({ workspaceId: WORKSPACE_ID, activeThemeId: "paper", updatedAt: at });
-      site.themes.push({ status: "valid", errors: [], css: ".registry-fixture { color: black; }", manifest: { id: "registry-theme", tier: "static" }, dir: "/themes/static/registry-theme" } as DiscoveredTheme);
+      site.themes.push({
+        status: "valid", errors: [], css: ".registry-fixture { color: black; }",
+        manifest: { id: "registry-theme", name: "Registry theme", version: "1.0.0", engine: 1, tier: "static" },
+        dir: "/themes/static/registry-theme", source: "site", tokens: {}, tokensLight: {}, templates: {},
+        liquidTemplates: {}, handlebarsTemplates: {}, pages: {}, partials: {},
+      } satisfies DiscoveredTheme);
       const forms = new SqliteFormDefinitionRepo(site.db);
       const widget = { entries: site.entries, contentTypes: site.contentTypes, forms,
         entryRefs: new SqliteEntryRefsRepo(site.db), bindings: new SqliteWidgetRegionBindingRepo(site.db) };

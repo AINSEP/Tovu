@@ -42,7 +42,14 @@ mock.module("#src/features/agent-plugins/grant-signed-in-defaults", { namedExpor
 } });
 const { buildBootModules, bundledAgentPluginBootWarnings } = await import("../bootstrap.js");
 // Only the bundled prepare step runs; its collaborators are replaced above.
-const bundledDeps = { mcp: { applyAccess: async () => { assert.fail("boot reporting must not grant real connection access"); } }, workspaceId: "test-workspace", agentPluginLayout: { forWorkspace: (_workspaceId: string) => ({ root: "/workspace" }) } };
+const unusedMcpPort = async () => assert.fail("boot reporting must not access real connections");
+const mcp: NewsletterRouteDeps["mcp"] = {
+  repo: { findByServerId: unusedMcpPort, upsert: unusedMcpPort, deleteByServerId: unusedMcpPort, updateAccessIfCurrent: unusedMcpPort },
+  applyAccess: unusedMcpPort, saveServer: unusedMcpPort,
+  classifyError: () => assert.fail("boot reporting must not classify connection errors"),
+  notifyRosterChanged: unusedMcpPort,
+};
+const bundledDeps = { mcp, workspaceId: "test-workspace", agentPluginLayout: { forWorkspace: (_workspaceId: string) => ({ root: "/workspace" }) } };
 const deps = bundledDeps as NewsletterRouteDeps;
 
 function resetWarningInputs(): void {
