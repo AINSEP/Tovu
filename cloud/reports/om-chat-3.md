@@ -10,3 +10,12 @@ Validation:
 - Complexity ceiling 9: final run pending after extracting the attachment option wiring from the dispatch callback.
 
 Open: selected-agent test-route adoption and its focused test; final typecheck/lint/build results.
+
+Checkpoint: ce0e198d75ee023631d7ba3a4a6949b225df72b8 committed locally; push attempted but blocked by the desktop pre-push gates in a clean checkout lacking dependencies. Full desktop tests/coverage are required by the hook but excluded by this job's focused-test instruction; awaiting user clarification before running them. No hook/check bypass was used.
+
+The Test agent route now passes only the requested agent ID to Jini discovery, preserving its forced refresh and existing unknown/unavailable responses.
+- Focused route test: red after refreshed dependencies (expected agentIds, received whole-inventory request); green 2 passed.
+- Desktop focused tests: 20 passed.
+- Existing static registration owner test: 1 passed.
+- Desktop main-process typecheck passed after rebuilding stale dependencies; website typecheck currently exposes stale chat declaration outputs, refresh in progress.
+- Desktop changed code complexity ceiling 9 passed; changed website route complexity ceiling 10 passed.
