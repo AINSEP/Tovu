@@ -16,3 +16,9 @@ O02 fixed: history Type column uses the established `.tovu.zip` backup filename 
 Tests: `node --import tsx --test --experimental-test-module-mocks apps/website/src/features/site-backup/__tests__/share-backend.unit.test.ts` — 12 pass after red (11 pass, 1 fail).
 Tests: `npm --prefix apps/admin run test -- src/features/sites/__tests__/SiteExportTab.history.unit.test.tsx` — 2 pass after red (1 pass, 1 fail).
 Baseline: `pnpm -r build` in Jini fails in provider-plugins (fix-round scope). Remaining-package build fails in chat on existing test import of @jini-ai/ui-kit/react. Contracts rebuilt and local Jini links refreshed.
+
+O04 fixed: llms.txt uses the shared site-title resolver and configured SEO description; absent descriptions stay absent. `node --import tsx --import ./development/test-support/composed-bundle-env.ts --test --experimental-test-module-mocks apps/website/src/server/inbound/public-http/routes/site/__tests__/llms.route.test.ts` — 10 pass after 2 focused identity failures on the base.
+O05 fixed: HTML content DTO carries bodyFormat/html and null bodyJson; document responses stay byte-compatible. Reuses the existing body validator; private/admin fields stay excluded. `node --import tsx --test apps/website/src/server/inbound/public-http/http/shared/__tests__/post.test.ts apps/website/src/server/http/__tests__/headless-contracts.test.ts` — 9 pass after the new HTML case failed.
+
+- O04: llms.txt describes the platform rather than the site.
+- O05: HTML content responses omit bodyHtml.

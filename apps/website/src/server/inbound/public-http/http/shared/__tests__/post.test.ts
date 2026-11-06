@@ -74,3 +74,14 @@ test("both headless DTOs refuse storage-only email templates", () => {
   assert.throws(() => toHeadlessPost(template), PostNotFoundError);
   assert.throws(() => toHeadlessContentPost(template), PostNotFoundError);
 });
+
+
+test("public HTML pages include their HTML body without leaking document or admin data", () => {
+  const html = "<main>Ada &amp; team</main>";
+  const result = toHeadlessContentPost({ ...post, bodyFormat: "html", bodyHtml: html, ext: { private: { secret: "hidden" } } });
+  assert.equal((result as unknown as { bodyHtml: string }).bodyHtml, html);
+  assert.equal((result as unknown as { bodyFormat: string }).bodyFormat, "html");
+  assert.equal(result.bodyJson, null);
+  assert.equal("ext" in result, false);
+  assert.equal("workspaceId" in result, false);
+});
