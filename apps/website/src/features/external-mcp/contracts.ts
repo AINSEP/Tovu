@@ -99,12 +99,33 @@ export interface ExternalMcpServerRecord {
   updatedAt: ISODateTime;
 }
 
+/** Exact source identity and prior grants approved by one human card; no credential bytes. */
+export interface ExternalMcpAccessSnapshot {
+  readonly admissionRevision: string;
+  readonly enabled: boolean;
+  readonly allowedToolNames: string | null;
+  readonly writeAllowedToolNames: string | null;
+  readonly provisionedByPluginId: string | null;
+}
+
+/** A conditional access-only write. Credential and connection configuration are never replaced. */
+export interface ExternalMcpAccessUpdate {
+  readonly workspaceId: UUID;
+  readonly serverId: string;
+  readonly expected: ExternalMcpAccessSnapshot;
+  readonly access: { readonly enabled: boolean; readonly allowedToolNames: string; readonly writeAllowedToolNames: string };
+  readonly principalId: string;
+  readonly nowIso: ISODateTime;
+}
+
 /** Workspace-scoped persistence (ADR-007 §1). Multi-row per workspace, so list/upsert/delete rather
  *  than a single-row find/upsert. */
 export interface ExternalMcpServerRepoPort {
   listByWorkspaceId(workspaceId: UUID): Promise<ExternalMcpServerRecord[]>;
   findByServerId(input: { workspaceId: UUID; serverId: string }): Promise<ExternalMcpServerRecord | null>;
   upsert(record: ExternalMcpServerRecord): Promise<void>;
+  /** Compare the approved snapshot and update access atomically, preserving credential columns. */
+  updateAccessIfCurrent(required: ExternalMcpAccessUpdate, optional?: Record<string, never>): Promise<boolean>;
   deleteByServerId(input: { workspaceId: UUID; serverId: string }): Promise<boolean>;
   /**
    * Atomically claims the OAuth refresh lease for one row, iff nobody holds an unexpired one.
