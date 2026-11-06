@@ -10,7 +10,7 @@ import path from "node:path";
 import test from "node:test";
 
 import { publishJobRecoveryMessage, type DeployFile, type DeployPublishInput, type DeployPublishResult, type DeployTarget } from "@jini-ai/devops/deploy";
-import { ToolInputError, type SurfaceEmitter, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
+import { ToolInputError, type SurfaceEmitter, type SurfaceEmission, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
@@ -100,12 +100,13 @@ function fakeDeps(
 }
 
 const fixtureStatusTools = new WeakMap<ToolRegistration, ToolRegistration>();
+const fixturePublishExchanges = new WeakMap<ToolRegistration, SurfaceExchangeStore>();
 
 function buildRegistrations(deps: StaticPublishToolDeps, surfaceExchanges: SurfaceExchangeStore): Map<string, ToolRegistration> {
   const registrations = new Map(credentialSaveFixtureRegistrations({ registrations: buildStaticPublishRegistrations(deps, { surfaceExchanges }), adapters: { publishHost: buildPublishHostCredentialHandler({ deps, surfaces: { surfaceExchanges } }) } }).map((r) => [r.descriptor.id, r]));
   const execute = registrations.get("deployment_execute_static_publish");
   const status = registrations.get("deployment_get_static_publish_status");
-  if (execute && status) fixtureStatusTools.set(execute, status);
+  if (execute && status) { fixtureStatusTools.set(execute, status); fixturePublishExchanges.set(execute, surfaceExchanges); }
   return registrations;
 }
 
@@ -1902,17 +1903,40 @@ test("submit: a non-Error thrown by the credential write step still returns a sa
   assert.equal(JSON.stringify(result).includes(VALID_FORM_SUBMISSION.secretAccessKey), false);
 });
 
- test("n06: repository write runs without a confirmation channel", async (t) => {
+ test("n06: repository write runs after human approval and never before it", async (t) => {
   const captured: {value: DeployFile[] | null} = {value: null};
   const {deps} = fakeDeps({credentialSource: {async resolve() {return {ok: true, token: "fake"};}, async isConfigured() {return {configured: true};}}, buildTarget: () => fakeDeployTarget(captured)});
   const store = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-  const result = await call(tool(buildRegistrations(deps, store), "deployment_execute_static_publish"), {input: {target: "github-pages", owner: "octo", repo: "demo", projectName: "release"}}) as {published: boolean; reachable: boolean; url: string};
+  // Approval moved from the assembly wrapper to this prepared domain handler. Keep the full
+  // publication assertions and answer through its real channel instead of calling it headless.
+  let approvals = 0;
+  const approvedStore: SurfaceExchangeStore = { ...store, deliver: (...args) => {
+    approvals++;
+    assert.equal(captured.value, null, 'no provider effect before human approval');
+    return store.deliver(...args);
+  } };
+  const result = await call(tool(buildRegistrations(deps, approvedStore), "deployment_execute_static_publish"), {input: {target: "github-pages", owner: "octo", repo: "demo", projectName: "release"}, emitSurface: async () => undefined}) as {published: boolean; reachable: boolean; url: string};
+  assert.equal(approvals, 1);
   assert.equal(result.published, true, JSON.stringify(result));
   assert.equal(result.reachable, true);
   assert.equal(result.url, "https://example.test/published");
   assert.notEqual(captured.value, null);
   assert.equal(store.size(), 0);
 });
+
+/** Provider/outcome assertions consume outcome surfaces; answer the separately tested approval. */
+function fixturePublishEmitter({ registration, principalId, emitSurface }: {
+  registration: ToolRegistration; principalId: string; emitSurface: SurfaceEmitter | undefined;
+}): SurfaceEmitter | undefined {
+  const publishExchanges = fixturePublishExchanges.get(registration);
+  if (!emitSurface || !publishExchanges) return emitSurface;
+  return async (surface: SurfaceEmission) => {
+    const html = (surface.payload.resource as { resource: { text: string } }).resource.text;
+    const match = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`));
+    if (!match) return emitSurface(surface);
+    assert.equal(publishExchanges.deliver({ exchangeId: match[1]!, principalId, params: { decision: 'confirm' } }, { toolId: registration.descriptor.id }).ok, true);
+  };
+}
 
 /** Supplies the fixture emitter through the canonical handler options, including headless calls. */
 /** Existing outcome assertions now follow the public job-status contract. The Job C test below
@@ -1922,7 +1946,8 @@ async function invokeFixtureHandler(
   context: import("@jini-ai/core").ToolExecutionContext & { emitSurface?: import("@jini-ai/core").SurfaceEmitter },
 ) {
   const { emitSurface, ...required } = context;
-  const result = await registration.handler(required, emitSurface ? { emitSurface } : {});
+  const effectEmitter = fixturePublishEmitter({ registration, principalId: required.principal.id, emitSurface });
+  const result = await registration.handler(required, effectEmitter ? { emitSurface: effectEmitter } : {});
   const accepted = result as { accepted?: boolean; jobId?: string } | undefined;
   if (!accepted?.accepted || !accepted.jobId) return result;
   const status = fixtureStatusTools.get(registration);
@@ -2240,7 +2265,11 @@ test('static publish returns a job before export finishes, survives call abort, 
   const controller = new AbortController();
   const context = { executionId: 'job-start', principal: { id: PRINCIPAL_ID }, run: { id: 'run-job' }, input: { target: 'vercel', projectName: 'demo' }, signal: controller.signal };
   try {
-    const accepted = await execute.handler(context) as { jobId: string; status: string; published: boolean };
+    const approve: SurfaceEmitter = async surface => {
+      const exchangeId = exchangeIdFromSurface(surface);
+      assert.equal(fixturePublishExchanges.get(execute)!.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: { decision: 'confirm' } }, { toolId: execute.descriptor.id }).ok, true);
+    };
+    const accepted = await execute.handler(context, { emitSurface: approve }) as { jobId: string; status: string; published: boolean };
     assert.ok(accepted.jobId);
     assert.equal(accepted.status, 'running');
     assert.equal(accepted.published, false);
@@ -2249,7 +2278,7 @@ test('static publish returns a job before export finishes, survives call abort, 
     const running = await call(status, { input: { jobId: accepted.jobId } }) as { status: string; progress: { phase: string } };
     assert.equal(running.status, 'running');
     assert.equal(running.progress.phase, 'exporting');
-    const retry = await execute.handler({ ...context, signal: new AbortController().signal }) as { jobId: string; code: string };
+    const retry = await execute.handler({ ...context, signal: new AbortController().signal }, { emitSurface: approve }) as { jobId: string; code: string };
     assert.equal(retry.jobId, accepted.jobId);
     assert.equal(retry.code, 'ALREADY_RUNNING');
     setAllow(false);

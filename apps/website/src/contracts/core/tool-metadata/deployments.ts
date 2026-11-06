@@ -15,7 +15,7 @@ export const toolMetadata = {
       keywords: "deploy push ship go live make it live publish the site hosting static host custom domain apex www dns",
       queries: ["Publish the site.", "Publish the site to production hosting.", "Deploy this website and make it live.", "Push my site live on my static host."],
     },
-    approval: { class: 'publish', confirmation: 'policy' },
+    approval: { class: 'publish', confirmation: 'plan' },
   },
   "deployment_generate_bucket_hosting_setup": {
     search: {

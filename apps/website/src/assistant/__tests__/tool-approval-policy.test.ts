@@ -80,7 +80,9 @@ test('permanent deletes and actions that leave this site refuse without a human 
     ['theme_set_active',{themeId:'ground'}],
   ];
   for (const [id,input] of calls) {
-    const f=fixture(id); const result=await f.executor.execute({toolId:id,principal:{id:'owner'},run:{id:'run'},input});
+    // Static publishing now owns its prepared plan; exercise policy transport here with an explicit policy fixture.
+    const descriptor: Partial<ToolRegistration['descriptor']> = id === 'deployment_execute_static_publish' ? { metadata: { approval: { class: 'publish', confirmation: 'policy' } } } : {};
+    const f=fixture(id, {}, descriptor); const result=await f.executor.execute({toolId:id,principal:{id:'owner'},run:{id:'run'},input});
     assert.equal(result.status,'failed',id); assert.equal(f.calls(),0,id);
   }
 });
@@ -204,7 +206,8 @@ test('generic approval input uses the shared structured renderer and escapes unt
 test('deployment approval shows catalog title and summary with technical input only behind Details', async () => {
   const { toolMetadata } = await import('../../contracts/core/tool-metadata/deployments.js');
   const toolId = 'deployment_execute_static_publish';
-  const f = fixture(toolId, {}, { metadata: toolMetadata[toolId] });
+  // Test the generic renderer separately from the domain-owned preparation/approval path.
+  const f = fixture(toolId, {}, { metadata: { ...toolMetadata[toolId], approval: { class: 'publish', confirmation: 'policy' } } });
   const card = await cardFor(f, toolId, { target: 'vercel', projectName: 'zoran-new' });
   try {
     assert.match(card.html, /<h1[^>]*>Publish static site\?<\/h1>/);

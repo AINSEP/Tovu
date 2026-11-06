@@ -83,6 +83,11 @@ function buildRealStaticPublishToolExecutor(
   // createSiteApp captures this original object. Mount the production consent routes before
   // copying the fixture's other dependencies, so authored loader assets export through them.
   baseRouteDeps.cookieConsent = { regionResolvers: async () => [] };
+  // These file-export assertions exercise a legacy authored loader asset. Shipped static themes
+  // now omit the tag, so the fixture explicitly supplies the authored reference it is testing.
+  baseRouteDeps.themes = baseRouteDeps.themes.map(theme => ({ ...theme, pages: Object.fromEntries(
+    Object.entries(theme.pages).map(([id, html]) => [id, html.replace('</head>', '<script src="/_consent/load.js" defer data-jini-consent-loader></script></head>')]),
+  ) }));
   const routeDeps = { ...baseRouteDeps, authorize: async () => ({ allowed: true as const, reason: "matched" }), workspaceId: WORKSPACE_ID };
   const deps: StaticPublishToolDeps = {
     ...routeDeps,
@@ -147,7 +152,7 @@ test("deployment_execute_static_publish waits for one human approval over HTTP b
   } });
 
   assert.equal(executed.status, "completed", `the approved call must complete: ${JSON.stringify(executed)}`);
-  assert.equal(approvalCards, 1, "exactly one approval mechanism asks for this publish");
+  assert.equal(approvalCards, 1, `exactly one approval mechanism asks for this publish: ${JSON.stringify(executed)}`);
   assert.equal(routeExecutions, 0, "the human answer resumes the parked call without starting another");
   const accepted = executed.output as { accepted: boolean; jobId: string };
   assert.equal(accepted.accepted, true);

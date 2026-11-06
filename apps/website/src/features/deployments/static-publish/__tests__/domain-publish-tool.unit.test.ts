@@ -4,10 +4,19 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import type { ToolExecutionContext, SurfaceEmission } from '@jini-ai/core';
+import { createToolRegistry, type ToolExecutionContext, type SurfaceEmission } from '@jini-ai/core';
+import { createToolExecutor } from '@jini-ai/daemon';
+import express from 'express';
+import { applyToolApprovalPolicy } from '#src/assistant/tool-approval-policy';
+import { registerMcpUiToolCallsRoute, MCP_UI_TOOL_CALLS_PATH } from '#src/assistant/mcp-ui-tool-calls-route';
+import { RUN_PRINCIPAL_HEADER } from '#src/assistant/daemon-access';
+import { startTestServer } from '#src/server/__tests__/helpers/http-test-server';
+import { buildStaticPublishRegistrations } from '../../publish-agent-tools.js';
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from '@jini-ai/daemon/surface-exchanges';
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
 import { createRouteDeps } from '#src/server/runtime/composition/app';
+import { deploymentRefusal } from '#src/features/consent/service';
+import { bindSiteConsentService } from '#src/server/runtime/composition/site-consent';
 import { buildGatewayDeps } from '#src/contracts/core/gated-mutations/composition';
 import { InMemoryTokenStore, type TokenStorePort } from '#src/contracts/core/gated-mutations/token';
 import { domainPublishTool } from '../domain-publish-tool.js';
@@ -20,7 +29,7 @@ import type { DeployTargetInspection, DeployTargetRegistry, LoadedDeployTarget }
 
 /** Real approval exchange + gateway, with typed registry/export/provider ports; no live account. */
 async function setup(options: { tokenState?: 'expired' | 'redeemed' | 'foreign' | 'fault'; publish?: 'ready' | 'link-delayed' | 'throws'; inventory?: 'unknown' | 'silent';
-  headers?: Readonly<Record<string, string>>; anonymous?: boolean; exportGate?: Promise<void>; onSettled?: () => void } = {}) {
+  headers?: Readonly<Record<string, string>>; anonymous?: boolean; exportGate?: Promise<void>; onSettled?: () => void; noPreview?: boolean } = {}) {
   const base = createRouteDeps();
   const root = await mkdtemp(path.join(tmpdir(), 'domain-publish-test-'));
   const historyStore = new InMemoryPublishHistoryStore();
@@ -28,7 +37,8 @@ async function setup(options: { tokenState?: 'expired' | 'redeemed' | 'foreign' 
   let exports = 0;
   let publishes = 0;
   let publishedHeaders: unknown;
-  const authorize = async () => ({ allowed: true, reason: 'test' });
+  let allowed = true;
+  const authorize = async () => ({ allowed, reason: allowed ? 'test' : 'insufficient_permission' });
   const tokenOwner = new InMemoryTokenStore();
   const tokens: TokenStorePort = {
     save: record => tokenOwner.save(record),
@@ -56,16 +66,20 @@ async function setup(options: { tokenState?: 'expired' | 'redeemed' | 'foreign' 
         publishes++;
         publishedHeaders = input.responseHeaders;
         const approval = input.metadata?.domainApproval as StaticPublishInput['domainApproval'];
-        assert.ok(approval);
-        assert.equal(await approval.authorize({ fingerprint: 'reviewed', accountId: 'acct' }), true);
+        if (options.noPreview) assert.equal(approval, undefined);
+        else {
+          assert.ok(approval);
+          assert.equal(await approval.authorize({ fingerprint: 'reviewed', accountId: 'acct' }), true);
+        }
         if (options.publish === 'throws') throw new Error('provider refused the upload');
         return { targetId: 'fixture', url: 'https://hosting.test', status: options.publish ?? 'link-delayed', statusMessage: 'www.example.com certificate pending',
           providerMetadata: { hostnames: [{ hostname: 'example.com', status: 'ready' }, { hostname: 'www.example.com', status: 'pending' }] } };
       } }),
     },
   };
+  if (options.noPreview) delete target.module.preview;
   const registry: DeployTargetRegistry = { list: () => [target], get: id => id === 'fixture' ? target : undefined, refusals: [] };
-  const deps: StaticPublishToolDeps = { ...base, authorize, credentialSource, loadDeployTargets: async () => registry,
+  const deps: StaticPublishToolDeps = { ...base, authorize, siteConsent: bindSiteConsentService({ deps: { ...base, authorize } }), credentialSource, loadDeployTargets: async () => registry,
     publishOutputRootDir: root, publishHistoryStore: historyStore,
     ...(options.headers ? { publicPageSecurityHeaders: () => options.headers! } : {}),
     gatedMutations: { gatewayDeps: buildGatewayDeps({ clock: base.clock, idGen: base.idGen, authorize, tokens }) },
@@ -82,7 +96,7 @@ async function setup(options: { tokenState?: 'expired' | 'redeemed' | 'foreign' 
     return { published: true, reachable: result.ok === true, target: result.targetId, url: result.url, status: result.status,
       ...(result.ok === 'partial' ? { message: result.message } : {}), providerMetadata: result.providerMetadata };
   };
-  return { publishedHeaders: () => publishedHeaders, start: handler, handler: followJob, ctx, surfaceExchanges, deps, credentialSource, historyStore, counts: () => ({ exports, publishes }), change: () => { changed = true; }, cleanup: () => rm(root, { recursive: true, force: true }) };
+  return { deny: () => { allowed = false; }, publishedHeaders: () => publishedHeaders, start: handler, handler: followJob, ctx, surfaceExchanges, deps, credentialSource, historyStore, counts: () => ({ exports, publishes }), change: () => { changed = true; }, cleanup: () => rm(root, { recursive: true, force: true }) };
 }
 
 function exchangeId(surface: SurfaceEmission): string {
@@ -253,4 +267,122 @@ test('approved domain publish carries the site security headers to hosting', asy
     assert.equal(result.published, true);
     assert.deepEqual(f.publishedHeaders(), headers);
   } finally { await f.cleanup(); }
+});
+
+
+for (const noPreview of [false, true]) test(`assembled custom-domain publish (provider preview ${!noPreview}) asks once over HTTP and starts the approved provider job`, async t => {
+  const f = await setup({ noPreview });
+  t.after(() => f.cleanup());
+  const registry = createToolRegistry({});
+  for (const registration of buildStaticPublishRegistrations(f.deps, { surfaceExchanges: f.surfaceExchanges })) {
+    registry.register(applyToolApprovalPolicy({ registration, surfaces: { surfaceExchanges: f.surfaceExchanges } }));
+  }
+  const executor = createToolExecutor({ registry });
+  let routeExecutions = 0;
+  const app = express();
+  app.use(express.json());
+  registerMcpUiToolCallsRoute(app, { surfaceExchanges: f.surfaceExchanges, toolExecutor: {
+    ...executor, execute: (...args) => { routeExecutions++; return executor.execute(...args); },
+  } });
+  const baseUrl = await startTestServer(app, t);
+  let approvalCards = 0;
+  const executed = await executor.execute({ principal: f.ctx.principal, run: f.ctx.run,
+    toolId: 'deployment_execute_static_publish', input: { target: 'fixture', projectName: 'demo', customDomain: 'example.com', credentialId: 'chosen' },
+  }, { emitSurface: async surface => {
+    const html = (surface.payload.resource as { resource: { text: string } }).resource.text;
+    const match = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`));
+    if (!match) return;
+    approvalCards++;
+    assert.deepEqual(f.counts(), { exports: 0, publishes: 0 });
+    const response = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
+      method: 'POST', headers: { 'content-type': 'application/json', [RUN_PRINCIPAL_HEADER]: f.ctx.principal.id },
+      body: JSON.stringify({ toolName: 'deployment_execute_static_publish', params: { [SURFACE_EXCHANGE_ID_PARAM]: match[1], decision: 'confirm' } }),
+    });
+    assert.equal(response.status, 202);
+    assert.deepEqual(await response.json(), { delivered: true });
+  } });
+  assert.equal(executed.status, 'completed', JSON.stringify(executed));
+  const accepted = executed.output as { accepted: boolean; jobId: string };
+  assert.equal(accepted.accepted, true);
+  assert.equal((await finalJob(f.deps.workspaceId, accepted.jobId)).ok, 'partial');
+  assert.deepEqual(f.counts(), { exports: 1, publishes: 1 });
+  assert.equal(routeExecutions, 0, 'the answer resumes the parked call');
+  assert.equal(approvalCards, 1, 'one card approves the publish and its exact domain changes');
+});
+
+
+for (const noPreview of [false, true]) test(`assembled publish (provider preview ${!noPreview}) cannot publish after cancel or without a human channel`, async t => {
+  const f = await setup({ noPreview });
+  t.after(() => f.cleanup());
+  const registry = createToolRegistry({});
+  for (const registration of buildStaticPublishRegistrations(f.deps, { surfaceExchanges: f.surfaceExchanges })) {
+    registry.register(applyToolApprovalPolicy({ registration, surfaces: { surfaceExchanges: f.surfaceExchanges } }));
+  }
+  const executor = createToolExecutor({ registry });
+  const request = { principal: f.ctx.principal, run: f.ctx.run, toolId: 'deployment_execute_static_publish',
+    input: { target: 'fixture', projectName: 'demo', customDomain: 'example.com', credentialId: 'chosen' } };
+  const headless = await executor.execute(request);
+  assert.equal(headless.status, 'failed');
+  assert.match(headless.status === 'failed' ? headless.error ?? '' : '', /NO_CONFIRMATION_CHANNEL/);
+  let approvalCards = 0;
+  const cancelled = await executor.execute(request, { emitSurface: async surface => {
+    approvalCards++;
+    const html = (surface.payload.resource as { resource: { text: string } }).resource.text;
+    const match = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`));
+    assert.ok(match);
+    assert.equal(f.surfaceExchanges.deliver({ exchangeId: match[1]!, principalId: f.ctx.principal.id, params: { decision: 'cancel' } }, { toolId: request.toolId }).ok, true);
+  } });
+  assert.equal(cancelled.status, 'completed');
+  assert.deepEqual(cancelled.output, { published: false, cancelled: true, note: 'The user cancelled. Nothing was changed.' });
+  assert.equal(approvalCards, 1);
+  assert.deepEqual(f.counts(), { exports: 0, publishes: 0 });
+});
+
+
+test('ordinary publish rechecks permission when it resumes after the human card', async t => {
+  const f = await setup({ noPreview: true });
+  t.after(() => f.cleanup());
+  const registry = createToolRegistry({});
+  for (const registration of buildStaticPublishRegistrations(f.deps, { surfaceExchanges: f.surfaceExchanges })) {
+    registry.register(applyToolApprovalPolicy({ registration, surfaces: { surfaceExchanges: f.surfaceExchanges } }));
+  }
+  const executor = createToolExecutor({ registry });
+  const executed = await executor.execute({ principal: f.ctx.principal, run: f.ctx.run, toolId: 'deployment_execute_static_publish',
+    input: { target: 'fixture', projectName: 'demo', credentialId: 'chosen' },
+  }, { emitSurface: async surface => {
+    const html = (surface.payload.resource as { resource: { text: string } }).resource.text;
+    const match = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`));
+    assert.ok(match);
+    f.deny();
+    assert.equal(f.surfaceExchanges.deliver({ exchangeId: match[1]!, principalId: f.ctx.principal.id, params: { decision: 'confirm' } }, { toolId: 'deployment_execute_static_publish' }).ok, true);
+  } });
+  assert.equal(executed.status, 'failed', JSON.stringify(executed));
+  assert.match(executed.error ?? '', /not authorized.*deployments\.publish/);
+  assert.deepEqual(f.counts(), { exports: 0, publishes: 0 });
+});
+
+
+test('ordinary publish rechecks consent readiness when it resumes after the human card', async t => {
+  const f = await setup({ noPreview: true });
+  t.after(() => f.cleanup());
+  let blocked = false;
+  const refusal = deploymentRefusal({ problems: [{ code: 'CONSENT_UNAVAILABLE', message: 'Consent changed while the card was open.' }] });
+  const deps: StaticPublishToolDeps = { ...f.deps, siteConsent: { deploymentCheck: async input => blocked ? refusal : f.deps.siteConsent!.deploymentCheck(input) } };
+  const registry = createToolRegistry({});
+  for (const registration of buildStaticPublishRegistrations(deps, { surfaceExchanges: f.surfaceExchanges })) {
+    registry.register(applyToolApprovalPolicy({ registration, surfaces: { surfaceExchanges: f.surfaceExchanges } }));
+  }
+  const executor = createToolExecutor({ registry });
+  const executed = await executor.execute({ principal: f.ctx.principal, run: f.ctx.run, toolId: 'deployment_execute_static_publish',
+    input: { target: 'fixture', projectName: 'demo', credentialId: 'chosen' },
+  }, { emitSurface: async surface => {
+    const html = (surface.payload.resource as { resource: { text: string } }).resource.text;
+    const match = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`));
+    assert.ok(match);
+    blocked = true;
+    assert.equal(f.surfaceExchanges.deliver({ exchangeId: match[1]!, principalId: f.ctx.principal.id, params: { decision: 'confirm' } }, { toolId: 'deployment_execute_static_publish' }).ok, true);
+  } });
+  assert.equal(executed.status, 'completed', JSON.stringify(executed));
+  assert.deepEqual(executed.output, { published: false, cancelled: false, ...refusal });
+  assert.deepEqual(f.counts(), { exports: 0, publishes: 0 });
 });
