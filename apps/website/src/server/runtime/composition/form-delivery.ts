@@ -60,6 +60,11 @@ export function composeFormDelivery(
     bus: required.bus,
     plan: (input) => planFormDeliveries({ deps: planner, ...input }),
     deliver: required.deliver,
+    readSubmission: async ({ workspaceId, submissionId, formId }) => {
+      const submission = await required.formSubmissionRepo.findById({ workspaceId, id: submissionId });
+      if (!submission || submission.formDefinitionId !== formId) return null;
+      return { id: submission.id, answers: submission.data, submittedAt: submission.submittedAt };
+    },
   });
 }
 

@@ -65,7 +65,7 @@ async function composed(
 const received = (submissionId: string, formId: string): DomainEvent => ({ id: `evt-${submissionId}`, name: "form.submission.received", workspaceId: W,
   occurredAt: T0, aggregateId: submissionId, payload: { submissionId, formDefinitionId: formId } });
 
-test("the frozen job carries the form's fields with labels and types and the stored answers, never the source IP", async () => {
+test("the stored job carries labelled form metadata and a source reference, never answers or source IP", async () => {
   const { bus, recorded } = await composed(await seededForms());
 
   await bus.publish(received("sub-1", "form-1"));
@@ -74,14 +74,17 @@ test("the frozen job carries the form's fields with labels and types and the sto
   const [plan] = recorded;
   assert.deepEqual([plan!.workspaceId, plan!.submissionId, plan!.formId], [W, "sub-1", "form-1"]);
   assert.deepEqual(plan!.jobs.map((job) => [job.id, job.name, job.workspaceId, job.occurredAt]), [["job-1", "form.submission.delivery", W, T0]]);
-  assert.deepEqual(plan!.jobs[0]!.payload.snapshot, {
+  assert.deepEqual(plan!.jobs[0]!.payload, {
+    binding: { bindingId: "b1", adapterId: "rows", connectionRef: "conn-1", enabled: true, config: { table: "leads" } },
     form: { slug: "contact", fields: [
       { name: "email", required: true, maxLength: 254, label: "Email", type: "email" },
       { name: "message", required: false, label: "Message", type: "textarea" },
     ] },
-    submission: { id: "sub-1", answers: { email: "visitor@example.com", message: "Hello" }, submittedAt: T0 },
+    submissionRef: { submissionId: "sub-1", formId: "form-1" },
+    idempotencyKey: '["sub-1","b1"]',
   });
   assert.ok(!JSON.stringify(plan).includes(SOURCE_IP), "the source IP is in no part of the plan");
+  assert.ok(!JSON.stringify(plan).includes("visitor@example.com"), "answers remain in the source row only");
 });
 
 test("a submission named under a form it does not belong to records an empty plan", async () => {
@@ -114,5 +117,22 @@ test("each child job reaches deliver with its own workspace and the frozen job",
 
   await bus.publish(job!);
 
-  assert.deepEqual(delivered, [{ workspaceId: W, job: job!.payload }]);
+  assert.equal(delivered.length, 1);
+  assert.equal(delivered[0]!.workspaceId, W);
+  assert.deepEqual(delivered[0]!.job.snapshot.submission, { id: "sub-1", answers: { email: "visitor@example.com", message: "Hello" }, submittedAt: T0 });
+  assert.deepEqual(delivered[0]!.job.binding, job!.payload.binding);
+  assert.equal(delivered[0]!.job.idempotencyKey, job!.payload.idempotencyKey);
+});
+
+test("a source removed after planning stops delivery with no provider call", async () => {
+  const forms = await seededForms();
+  const findById = forms.formSubmissionRepo.findById.bind(forms.formSubmissionRepo);
+  let gone = false;
+  let delivered = 0;
+  const { bus, recorded } = await composed({ ...forms, formSubmissionRepo: { findById: input => gone ? Promise.resolve(null) : findById(input) } },
+    { deliver: async () => { delivered++; } });
+  await bus.publish(received("sub-1", "form-1"));
+  gone = true;
+  await assert.rejects(bus.publish(recorded[0]!.jobs[0]!), { message: "delivery-failed", retryable: false });
+  assert.equal(delivered, 0);
 });
