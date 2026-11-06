@@ -2284,7 +2284,7 @@ test('static publish returns a job before export finishes, survives call abort, 
     assert.match(recovery, /dpl_new/);
     assert.match(recovery, /https:\/\/new.test/);
     assert.match(recovery, /deployment_get_static_publish_status/);
-    const otherCall = disclosure.describeInternalError({ ...interrupted, executionId: 'another-call-in-same-run',
+    const otherCall = disclosure.describeInternalError({ ...interrupted,
       recoveryMessage: publishJobRecoveryMessage({ statusToolId: 'deployment_get_static_publish_status' }) });
     assert.match(otherCall, /Publish job status could not be confirmed for this call/);
     assert.match(otherCall, /Deployment: unknown/);

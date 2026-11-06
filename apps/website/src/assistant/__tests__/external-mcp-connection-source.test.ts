@@ -30,6 +30,7 @@ function repoWhoseListThrows(error: Error): ExternalMcpServerRepoPort {
     findByServerId: (input) => inner.findByServerId(input),
     upsert: (record) => inner.upsert(record),
     deleteByServerId: (input) => inner.deleteByServerId(input),
+    updateAccessIfCurrent: (input) => inner.updateAccessIfCurrent(input),
     tryClaimOAuthRefreshLease: (input) => inner.tryClaimOAuthRefreshLease(input),
     releaseOAuthRefreshLease: (input) => inner.releaseOAuthRefreshLease(input),
   };

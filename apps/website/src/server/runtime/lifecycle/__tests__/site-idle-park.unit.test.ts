@@ -5,7 +5,7 @@ import type { Request, Response } from "express";
 import { createSiteIdlePark } from "../site-idle-park.js";
 import { SITE_SLEEP_EXIT_CODE } from "#src/assistant/daemon-exit-codes";
 
-function fixture({ hasActiveRuns = async () => false, activeCount = () => 0, hasBackgroundWork = async () => false } = {}) {
+function fixture({ hasActiveRuns = async () => false, activeCount = () => 0, hasBackgroundWork = async () => false }: Partial<Pick<Parameters<typeof createSiteIdlePark>[0], 'hasActiveRuns' | 'activeCount' | 'hasBackgroundWork'>> = {}) {
   const stops: number[] = [];
   const park = createSiteIdlePark({ hasActiveRuns, activeCount, hasBackgroundWork, stop: ({ exitCode }) => { stops.push(exitCode); } });
   function request() {
@@ -60,7 +60,7 @@ test("errors and concurrent probes are busy; fencing precedes shutdown and preve
   park = createSiteIdlePark({ hasActiveRuns: async () => false, hasBackgroundWork: async () => false, activeCount: () => 0,
     stop: ({ exitCode }) => {
       const res = { status: () => res, json: () => res };
-      park.middleware({} as Request, res as Response, () => assert.fail('fence must precede stop'));
+      park.middleware({} as Request, res as unknown as Response, () => assert.fail('fence must precede stop'));
       calls.push(exitCode);
     },
   });

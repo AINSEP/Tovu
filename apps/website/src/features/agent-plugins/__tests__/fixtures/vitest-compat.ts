@@ -271,5 +271,8 @@ export function installNetworkGuard(): void {
     reached.push(url);
     throw new Error(`network guard: unstubbed fetch to ${url}`);
   }) as typeof fetch;
-  beforeEach(t => onTeardown({ t, step: () => assert.deepEqual(reached.splice(0), [], "no test may reach the real network") }));
+  beforeEach(t => {
+    assert.ok('after' in t, 'network guard requires a test teardown context');
+    onTeardown({ t, step: () => assert.deepEqual(reached.splice(0), [], "no test may reach the real network") });
+  });
 }

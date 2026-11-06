@@ -65,7 +65,7 @@ test("B raw upload and setup routes reject unauthorized principals, machine cred
 test("import routes preserve principal/source contracts and sanitize failures across endpoints", async t => {
   const calls: unknown[] = [];
   let allowed = true, available = true, failure: unknown;
-  const view = { importId: "00000000-0000-4000-8000-000000000001", source: { url: "https://share.example/site.zip" }, newSiteId: null, newSiteName: null, state: "needs-owner" as const, status: "needs-owner" as const, createdAt: "2026-10-19", instructions: "Choose an owner password" };
+  const view = { importId: "00000000-0000-4000-8000-000000000001", source: { url: "https://share.example/site.zip" }, newSiteId: null, newSiteName: null, state: "needs-owner" as const, status: "needs-owner" as const, createdAt: "2026-10-19", instructions: "Choose an owner password", credentialWarnings: [] };
   const backend: SiteImportBackend = {
     list: async input => { calls.push(input); if (failure) throw failure; return [view]; },
     get: input => { calls.push(input); if (failure) throw failure; return view; },
@@ -195,7 +195,7 @@ test("a client that aborts mid-body during owner setup cancels the backend signa
   const { request } = await import("node:http");
   let entered!: () => void, cancelled!: () => void;
   const started = new Promise<void>(resolve => { entered = resolve; }), aborted = new Promise<void>(resolve => { cancelled = resolve; });
-  const backend: SiteImportBackend = { ...unexpectedBackend, get: () => ({ importId: "00000000-0000-4000-8000-000000000001", source: { url: "https://share.example/site.zip" }, newSiteId: null, newSiteName: null, state: "needs-owner", status: "needs-owner", createdAt: "2026-10-19", instructions: "Choose an owner password" }),
+  const backend: SiteImportBackend = { ...unexpectedBackend, get: () => ({ importId: "00000000-0000-4000-8000-000000000001", source: { url: "https://share.example/site.zip" }, newSiteId: null, newSiteName: null, state: "needs-owner", status: "needs-owner", createdAt: "2026-10-19", instructions: "Choose an owner password", credentialWarnings: [] }),
     completeOwner: async (_input, options) => {
       const signal = options?.signal; assert.ok(signal);
       entered();

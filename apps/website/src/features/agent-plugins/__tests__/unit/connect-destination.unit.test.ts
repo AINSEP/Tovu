@@ -6,7 +6,7 @@ import { chooseApiConnectionDestination } from '../../connect-destination.js';
 function fixture() {
   let id = 0;
   const timers = new Set<() => void>();
-  const exchanges = createSurfaceExchangeStore({ clock: { nowMs: () => 0, nowIso: () => '2026-11-05T00:00:00Z' },
+  const exchanges = createSurfaceExchangeStore({ clock: { nowMs: () => 0 },
     idGenerator: { newId: () => `destination-${++id}` }, defaultChannel: 'mcp-ui',
     scheduler: { schedule: ({ callback }) => { timers.add(callback); return () => { timers.delete(callback); }; } } });
   const ctx = { executionId: 'execution', principal: { id: 'owner' }, run: { id: 'run' }, input: {}, signal: new AbortController().signal };

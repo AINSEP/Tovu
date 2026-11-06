@@ -50,12 +50,11 @@ function closeServer(server: ReturnType<typeof createServer>) {
 async function startThemelessServer() {
   return startServer({
     presentationRepo: new InMemoryPresentationSettingsRepo({}, { initialRows: [NO_THEME_SETTINGS] }),
-    store: {
+    commerceCatalog: {
       listProducts: async () => [{
         id: "themeless-product", slug: "themeless-canvas-tote", title: "Themeless Canvas Tote",
         price: 2700, stock: 5, version: 1,
       }],
-      checkout: async () => ({ ok: false, reason: "not-found", retries: 0 }),
     },
   });
 }

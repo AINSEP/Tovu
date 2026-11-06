@@ -47,6 +47,7 @@ test("a configured provider selection: content and chat kernels are decorated wi
   let disposed = 0;
   const diagnostics: Error[] = [];
   const deps = await siteDeps(t, { bootProviderPlugins: async () => ({ observability: port, tracker: createTracker({ observability: port }),
+    paymentProviders: () => [],
     telemetryStatus: () => [], sendTelemetryTest: async ({ error }) => { diagnostics.push(error); return { providers: [] }; },
     aiTraceSink: undefined, reapply: async () => "now", appliesAt: () => "now", dispose: async () => { disposed += 1; } }) });
 

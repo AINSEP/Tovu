@@ -57,7 +57,7 @@ test("boot owner and verification refusals disclose equivalent explanations and 
   t.mock.method(console, "error", () => {});
   const principal = deps.principalRepo.findById.bind(deps.principalRepo);
   let missingOwner = true;
-  t.mock.method(deps.principalRepo, "findById", async input => missingOwner ? null : principal(input));
+  t.mock.method(deps.principalRepo, "findById", async (input: Parameters<typeof principal>[0]) => missingOwner ? null : principal(input));
   t.mock.method(deps.sessionRepo, "findByTokenHash", async () => null);
   const bodies: Array<{ error: string; errorId: string; details: { failure: Record<string, string> } }> = [];
   for (const missing of [true, false]) {

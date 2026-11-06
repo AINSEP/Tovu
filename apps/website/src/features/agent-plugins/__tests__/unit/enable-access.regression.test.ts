@@ -68,7 +68,7 @@ test('a newly provisioned source cannot receive an approval issued for a differe
   const f = await fixture();
   const initial: Readonly<Record<string, McpServerConfig>> = { fresh: { ...servers.media!, url: 'https://first.example.test/mcp' } as McpServerConfig };
   const preview = await previewAgentPluginEnableAccess({ workspaceId: 'ws', pluginId: 'images', servers: initial, repo: f.repo });
-  await f.repo.upsert({ ...await f.row(), id: 'fresh-record', serverId: 'fresh', url: 'https://second.example.test/mcp', allowedToolNames: '[]' });
+  await f.repo.upsert({ ...await f.row(), serverId: 'fresh', url: 'https://second.example.test/mcp', allowedToolNames: '[]' });
   const changed: Readonly<Record<string, McpServerConfig>> = { fresh: { ...initial.fresh!, url: 'https://second.example.test/mcp' } as McpServerConfig };
   let activations = 0;
   const apply = createApplyConnectDefaults({ ...f, workspaceId: 'ws', agentPluginLayout: resolveAgentPluginLayout({ siteDir: '/unused' }),
@@ -225,7 +225,7 @@ async function retainedCall({ separate = false, second = false, action = 'confir
   await f.repo.upsert({ ...await f.row(), oauthStatus: token ? null : reauth ? 'needs_reauth' : 'connected', provisionedByPluginId: separate ? null : 'images', ...(declinedBefore ? { writeGrantsUpdatedByPrincipalId: 'system:connect-declined' } : {}) });
   const declarations = { media: { ...servers.media!, ...(token ? { tovuAuthMode: undefined, tovuTokenAuth: { helpUrl: 'https://media.example.test/tokens', probeUrl: 'https://media.example.test/probe' } } : {}) },
     ...(second ? { other: { ...servers.media! } } : {}) } as Readonly<Record<string, McpServerConfig>>;
-  if (second) await f.repo.upsert({ ...await f.row(), id: 'second-record', serverId: 'other' });
+  if (second) await f.repo.upsert({ ...await f.row(), serverId: 'other' });
   const controller = new AbortController();
   if (failSecond || abortAfterFirst) {
     const update = f.repo.updateAccessIfCurrent.bind(f.repo);

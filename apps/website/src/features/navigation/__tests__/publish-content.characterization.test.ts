@@ -95,8 +95,10 @@ test("precheck(): exact reason strings", async () => {
   assert.equal(await handler.precheck(entity("menu-empty", { ...state, slug: "empty" })), null);
   // The slug sentence drops "menu " and "at this destination" (plan §2.3); the owner-facing rewrite in
   // `ui/report-rows.ts` matches both, so only the shared core is pinned.
+  const collisionRefusal = await handler.precheck(entity("menu-new", { ...state, slug: "header-nav" }));
+  assert.ok(typeof collisionRefusal === "string");
   assert.match(
-    (await handler.precheck(entity("menu-new", { ...state, slug: "header-nav" }))) ?? "",
+    collisionRefusal,
     /^(?:menu )?slug 'header-nav' is already held by a different menu \('menu-header-nav'\)/
   );
   const badDoc = { type: "menu", version: 1, items: [{ id: "", label: "Bad", target: { kind: "url", href: "/ok" } }] };

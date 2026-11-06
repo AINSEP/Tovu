@@ -1103,6 +1103,7 @@ function repoWhoseUpsertRejects(inner: ExternalMcpServerRepoPort, error: Error):
     findByServerId: (input) => inner.findByServerId(input),
     upsert: () => Promise.reject(error),
     deleteByServerId: (input) => inner.deleteByServerId(input),
+    updateAccessIfCurrent: (input) => inner.updateAccessIfCurrent(input),
     tryClaimOAuthRefreshLease: (input) => inner.tryClaimOAuthRefreshLease(input),
     releaseOAuthRefreshLease: (input) => inner.releaseOAuthRefreshLease(input),
   };

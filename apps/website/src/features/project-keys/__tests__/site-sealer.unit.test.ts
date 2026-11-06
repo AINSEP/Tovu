@@ -29,7 +29,7 @@ test('a site receives only an active owner key handle and cannot derive owner ke
   },
     derive: async () => { derivations++; return new Uint8Array(32); },
     deriveSigningSecret: async () => { derivations++; return new Uint8Array(32); } } });
-  assert.deepEqual(await keyring.activeKey({}), { keyId: 'v1' });
+  assert.deepEqual(await keyring.activeKey(), { keyId: 'v1' });
   await assert.rejects(keyring.derive({ workspaceId: 'project', purpose: 'secrets', info: 'anything' }));
   assert.equal(derivations, 0);
 });

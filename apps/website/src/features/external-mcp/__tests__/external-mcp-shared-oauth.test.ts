@@ -11,7 +11,8 @@ import { createExternalMcpOAuthService, createDeviceAuthorizationStore } from '.
 import { InMemoryExternalMcpServerRepo } from '../external-mcp-store.memory.js';
 import { openExternalMcpOAuthPayload, readEnabledExternalMcpConfigs, toResolvedFederatedConnections, saveExternalMcpServer } from '../external-mcp-store.js';
 import { createTovuOAuthGuard } from '../../../platform/oauth/endpoint-safety.js';
-import type { OAuthProviderDescriptor } from '@jini-ai/oauth';
+import type { OAuthFetch, OAuthProviderDescriptor } from '@jini-ai/oauth';
+import type { ExternalMcpOAuthGrant } from '../contracts.js';
 
 const provider: OAuthProviderDescriptor = { providerId: 'fixture', label: 'Synthetic provider', supportedGrants: ['authorization_code', 'device_code'],
   authorizationEndpoint: 'https://auth.example/authorize', tokenEndpoint: 'https://auth.example/token', deviceAuthorizationEndpoint: 'https://auth.example/device',
@@ -37,7 +38,7 @@ async function harness() {
   const requests: URLSearchParams[] = [];
   let tokens = 0;
   let onRefresh: (() => Promise<void>) | undefined;
-  const fetchFn = async ({ url }: { url: string | URL }, init?: RequestInit) => {
+  const fetchFn: OAuthFetch = async ({ url }, init) => {
     const params = new URLSearchParams(String(init?.body));
     requests.push(params);
     if (String(url).endsWith('/device')) return new Response(JSON.stringify({ device_code: 'private-device', user_code: 'USER', verification_uri: 'https://auth.example/verify', expires_in: 600, interval: 1 }));
@@ -45,14 +46,14 @@ async function harness() {
     tokens++;
     return new Response(JSON.stringify({ access_token: `access-${tokens}`, refresh_token: `refresh-${tokens}`, token_type: 'Bearer', expires_in: 3600, scope: 'read' }), { headers: { 'content-type': 'application/json' } });
   };
-  async function site(siteId: string, clientId = 'original-client', grant = 'authorization_code') {
+  async function site(siteId: string, clientId = 'original-client', grant: ExternalMcpOAuthGrant = 'authorization_code') {
     const repo = new InMemoryExternalMcpServerRepo();
     const keyring = new InMemoryKeyring();
     const sealer = new AesGcmSecretSealer(keyring);
     const siteVaultRepo = new InMemoryVaultRepo({});
     const bindings = createSiteOAuthBindings({ repo: siteVaultRepo, workspaceId: 'workspace-local', vault: createApiConnectionVault({ repo: siteVaultRepo, workspaceId: 'workspace-local', keyring, sealer, clock }) });
     await saveExternalMcpServer({ repo, keyring, sealer, clock }, { workspaceId: 'workspace-local', serverId: 'server', label: 'Shared fixture', transport: 'streamable_http',
-      authMode: 'oauth', enabled: true, url: 'https://resource.example/mcp', command: '', args: '', allowedToolNames: 'read', principalId: 'owner',
+      authMode: 'oauth', enabled: true, url: 'https://resource.example/mcp', command: '', args: '', allowedToolNames: 'read', writeAllowedToolNames: '', principalId: 'owner',
       oauth: { providerId: provider.providerId, grant, clientId, clientSecret: `${clientId}-secret`, scopes: 'read' } });
     const service = createExternalMcpOAuthService({ workspaceId: 'workspace-local', repo, keyring, sealer, clock,
       devices: createDeviceAuthorizationStore(), lookupProvider: id => id === 'provider-b' ? { ...provider, providerId: id, tokenEndpoint: 'https://other-auth.example/token' } : provider, httpPorts: { guard: createTovuOAuthGuard({}), fetchFn },
@@ -127,7 +128,7 @@ test('owner check, copied binding and a changed resource cannot grant a saved co
 });
 
 test('shared redirect and device completions stay stopped after local disconnect', async () => {
-  for (const grant of ['authorization_code', 'device_code']) {
+  for (const grant of ['authorization_code', 'device_code'] as const) {
     const h = await harness();
     const a = await h.site('site-a', 'original-client', grant);
     const start = await a.service.beginConnect({ serverId: 'server', destination: 'shared', redirectUri, browserBinding: 'proof', actorId: 'owner' });
@@ -238,7 +239,7 @@ test('production config mapping keeps two shared MCP suppliers distinct at the s
   await signIn(a);
   await saveExternalMcpServer({ repo: a.repo, sealer: a.sealer, keyring: a.keyring, clock: h.clock }, {
     workspaceId: 'workspace-local', serverId: 'server-b', label: 'Second account', transport: 'streamable_http', authMode: 'oauth', enabled: true,
-    url: 'https://resource.example/mcp', command: '', args: '', allowedToolNames: 'read', principalId: 'owner',
+    url: 'https://resource.example/mcp', command: '', args: '', allowedToolNames: 'read', writeAllowedToolNames: '', principalId: 'owner',
     oauth: { providerId: provider.providerId, grant: 'authorization_code', clientId: 'second-client', clientSecret: 'second-secret', scopes: 'read' },
   });
   await signIn(a, 'server-b');
