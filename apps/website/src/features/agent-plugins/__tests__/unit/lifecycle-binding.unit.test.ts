@@ -149,6 +149,20 @@ test("a disabled plugin gets the owner's refusal and no overlay", async t => {
   }
 });
 
+test('explicit read-only discovery loads an off plugin and its host guidance while pinned runs stay refused', async t => {
+  const { lifecycle, workspace } = await installedNotes(t);
+  await explicitRootAgentPluginActivations.setAgentPluginActivation({ workspaceRoot: workspace.root, pluginId: 'notes', enabled: false, actor: 'owner' });
+  const result = await lifecycle.resolveAgentPluginGuidance({ pluginRefIds: ['notes'], workspaceLayout: workspace },
+    { deliveryMode: 'inject', allowInactiveGuidance: true });
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.match(result.promptPrefix, /installed, off/);
+  assert.match(result.promptPrefix, /tools are unavailable/);
+  assert.match(result.promptPrefix, /HOST RULES/);
+  assert.match(result.promptPrefix, /Write things down/);
+  assert.equal((await lifecycle.resolveAgentPluginRefs(['notes'], workspace, 'inject')).ok, false);
+});
+
 test("a plugin without an overlay keeps the owner's prefix unchanged", async t => {
   const bare = await installedNotes(t, { overlay: false });
   const result = await bare.lifecycle.resolveAgentPluginRefs(['notes'], bare.workspace, 'inject');
