@@ -12,13 +12,30 @@ import { registerInstalledAgentPluginTools } from '../../tool-registrations.js';
 import { selectedPluginSourceRoot } from '../fixtures/bundled-source-root.js';
 import { forceRemove } from '../fixtures/force-remove.js';
 
-const pluginIds = ['higgsfield-media', 'resend', 'supabase', 'composio', 'github-pages', 'meilisearch', 'google-workspace'];
+const pluginIds = ['higgsfield-media', 'resend', 'supabase', 'composio', 'github-pages', 'meilisearch', 'google-workspace',
+  'github', 'site-compliance', 'wordpress', 'opentelemetry', 'posthog', 'sentry', 'commerce',
+  'formspree', 'google-forms', 'cloudflare', 'netlify', 'vercel', 's3-compatible', 'fly', 'railway', 'render'];
 const overlayRoot = path.resolve(import.meta.dirname, '../../../../../../../content/agent-plugin-overlays');
 const requiredTools: Record<string, readonly string[]> = {
   'higgsfield-media': ['agent_plugin_connect', 'media_import_from_url'],
-  resend: ['agent_plugin_connect'], supabase: ['agent_plugin_connect'],
+  resend: ['agent_plugin_connect', 'system_get_mail_status', 'mail_set_provider', 'mail_send_test'], supabase: ['agent_plugin_connect'],
   composio: ['agent_plugin_connect'], 'github-pages': ['credential_save'], meilisearch: ['credential_save', 'Tovu Search — Meilisearch'],
   'google-workspace': ['_tovu_submission_id', '_tovu_submitted_at', 'TOVU_GOOGLE_PICKER_BROWSER_KEY', 'TOVU_GOOGLE_PICKER_APP_ID'],
+  github: ['site_backup_plan', 'site_backup_push', 'source_control_get_capabilities', 'source_control_execute_commit'],
+  'site-compliance': ['site_get_profile', 'site_collect_page_evidence'],
+  wordpress: ['dns_plan', 'dns_instructions', 'dns_verify'],
+  opentelemetry: ['provider_status', 'plugins_set_enabled', 'project_key_use', 'site_restart'],
+  posthog: ['provider_status', 'plugins_set_enabled', 'project_key_use', 'site_restart'],
+  sentry: ['provider_status', 'plugins_set_enabled', 'project_key_use', 'site_restart'],
+  commerce: ['provider_status', 'commerce_get_status', 'commerce_create_product', 'commerce_create_price', 'settings_list_definitions', 'settings_set_value'],
+  formspree: ['forms_update_definition'], 'google-forms': ['forms_update_definition'],
+  cloudflare: ['deployment_get_static_publish_capabilities', 'deployment_preview_static_publish', 'deployment_execute_static_publish'],
+  netlify: ['deployment_get_static_publish_capabilities', 'deployment_preview_static_publish', 'deployment_execute_static_publish'],
+  vercel: ['deployment_get_static_publish_capabilities', 'deployment_preview_static_publish', 'deployment_execute_static_publish'],
+  's3-compatible': ['deployment_get_static_publish_capabilities', 'deployment_preview_static_publish', 'deployment_execute_static_publish'],
+  fly: ['credential_save', 'TOVU_SITE_KEY'],
+  railway: ['deployment_ops_list_targets', 'deployment_ops_deploy', 'deployment_ops_logs', 'deployment_ops_wait'],
+  render: ['deployment_ops_list_targets', 'deployment_ops_deploy', 'deployment_ops_status', 'deployment_ops_wait'],
 };
 
 /** Exercise actual gated tool output and pointer/injection delivery, not an isolated file read. */

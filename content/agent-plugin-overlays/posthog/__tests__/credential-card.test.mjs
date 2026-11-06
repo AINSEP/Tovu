@@ -28,8 +28,9 @@ test('posthog: one provider-settings card that saves the analytics-posthog provi
 });
 
 test('posthog: the skill opens that card, checks provider_status first, and never takes a key in chat', () => {
-  const skill = readFileSync(path.join(root, 'skills/posthog/SKILL.md'), 'utf8');
-  assert.match(skill, /^---\nname: posthog\ndescription: .+\n---\n/);
+  const portableSkill = readFileSync(path.join(root, 'skills/posthog/SKILL.md'), 'utf8');
+  const skill = portableSkill + '\n' + readFileSync(new URL('../GUIDANCE.md', import.meta.url), 'utf8');
+  assert.match(portableSkill, /^---\nname: posthog\ndescription: .+\n---\n/);
   assert.ok(skill.includes('credential_save {kind:"plugin-provider", target:"posthog"}'));
   assert.ok(skill.includes('provider_status {pluginId:"analytics-posthog"}'));
   assert.match(skill, /Never ask for (a|the) .+ in chat/);

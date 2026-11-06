@@ -25,6 +25,6 @@ test('OAuth and token fallback target the hosted service without inline secrets'
   const skill = await readFile(new URL('../GUIDANCE.md', import.meta.url), 'utf8') + '\n' + await readFile(path.join(PLUGIN_ROOT, 'skills/supabase/SKILL.md'), 'utf8');
   assert.match(skill, /agent_plugin_connect/);
   assert.match(skill, /Never show a key or password/);
-  const recovery = await readFile(path.join(PLUGIN_ROOT, 'skills/supabase/references/failure-modes.md'), 'utf8');
+  const recovery = await readFile(new URL('../GUIDANCE.md', import.meta.url), 'utf8') + '\n' + await readFile(path.join(PLUGIN_ROOT, 'skills/supabase/references/failure-modes.md'), 'utf8');
   assert.match(recovery, /credential_save/);
 });

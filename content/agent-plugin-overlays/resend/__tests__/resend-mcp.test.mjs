@@ -53,7 +53,8 @@ async function readServer() {
 }
 
 async function readSkill() {
-  return readFile(path.join(PACKAGE_ROOT, "skills/resend/SKILL.md"), "utf8");
+  return (await readFile(new URL("../GUIDANCE.md", import.meta.url), "utf8")) + "\n"
+    + await readFile(path.join(PACKAGE_ROOT, "skills/resend/SKILL.md"), "utf8");
 }
 
 test("mcp.json declares Resend's hosted token-authenticated server, auto-provisioned as 'resend'", async () => {

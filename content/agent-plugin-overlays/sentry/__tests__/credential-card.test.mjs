@@ -28,8 +28,9 @@ test('sentry: one provider-settings card that saves the observability-sentry pro
 });
 
 test('sentry: the skill opens that card, checks provider_status first, and never takes a key in chat', () => {
-  const skill = readFileSync(path.join(root, 'skills/sentry/SKILL.md'), 'utf8');
-  assert.match(skill, /^---\nname: sentry\ndescription: .+\n---\n/);
+  const portableSkill = readFileSync(path.join(root, 'skills/sentry/SKILL.md'), 'utf8');
+  const skill = portableSkill + '\n' + readFileSync(new URL('../GUIDANCE.md', import.meta.url), 'utf8');
+  assert.match(portableSkill, /^---\nname: sentry\ndescription: .+\n---\n/);
   assert.ok(skill.includes('credential_save {kind:"plugin-provider", target:"sentry"}'));
   assert.ok(skill.includes('provider_status {pluginId:"observability-sentry"}'));
   assert.match(skill, /Never ask for (a|the) .+ in chat/);

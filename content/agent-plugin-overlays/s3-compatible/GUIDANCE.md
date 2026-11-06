@@ -13,3 +13,11 @@ Open the plugin’s **Connect S3-compatible storage** card with `credential_save
 | `Failed to upload '...' ... HTTP 404` | The bucket does not exist at that endpoint. | Check the bucket name, region and endpoint. |
 | `... Tovu-managed object manifest ...` | The host could not read or update its list of published files, so it stopped rather than guess. | Retry once; if it repeats, check the key can read and write the bucket. |
 | `Concurrent publish detected ...` | Another publish changed the bucket at the same time. | Publish again. |
+
+
+## Host operations for skills/s3-compatible/SKILL.md
+
+The steps are the same for every host: `deployment_get_static_publish_capabilities` shows whether a
+credential is saved, `deployment_preview_static_publish` comes first, and `deployment_execute_static_publish`
+publishes once the person confirms. `ok: "partial"` means not reachable yet: never call it failed or live.
+This file is what is particular to S3-compatible storage.

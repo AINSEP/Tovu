@@ -21,5 +21,3 @@ For a coding agent or the operator's terminal: `tovu deploy config --target fly 
 ## Host details for skills/fly/SKILL.md
 
 Open **Connect Fly.io** with `credential_save {kind:"plugin-provider",target:"fly"}` for a new key. The card explains app-scoped deploy tokens and saves the `fly.io` credential with both API origins. In the Fly dashboard select the real app or organization, then **Tokens**; there is no universal app token-creation URL to guess. Only if the person explicitly asks to replace the saved key, rotate the existing row through `credential_save {kind:"api",target:"fly.io"}`.
-
-Production runtime: set `TOVU_RUNTIME_MODE=production` (`fly.toml` and `docker-compose.yml` already do).

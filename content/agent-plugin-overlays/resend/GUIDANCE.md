@@ -59,3 +59,22 @@ existing sending key." Then tell the person:
   access. Explain the failure and needed access. Only after an
   explicit replacement request, use `credential_save { kind: "api", target: "Tovu Mail — Resend API" }`.
 - `rate_limit_exceeded`, HTTP 5xx, `TRANSPORT_ERROR`: temporary. The host retries these.
+
+
+## Host operations for skills/resend/SKILL.md
+
+- `system_get_mail_status`: is mail set up, which provider, is the domain ready.
+- `mail_set_provider`: switch the site between Resend, SMTP and none.
+- `mail_send_test`: prove the site's mail works end to end.
+- `dns_*`: add or check the DNS records on the site's own domain.
+
+- **Domains**: `list-domains`, `get-domain`, `create-domain`, `update-domain`, `verify-domain`, and
+  the domain-claim tools. `create-domain` returns the DNS records; add them with the host's `dns_*`
+  tools when the site's DNS is managed by the host, otherwise show them to the person. Then call
+  `verify-domain`.
+- **Broadcasts**: draft, update, compose and cancel. Sending a broadcast is not switched on by
+  default (see below); the site's own newsletter goes through the host.
+- **Contacts, segments, topics, contact properties, templates**: list, read, create, update.
+- **Emails**: one-off emails the person asks for (`send-email`, `send-batch-emails`, which ask the
+  person to confirm first), reading sent and received emails, cancelling a scheduled one.
+- **Logs, usage, suppressions, webhooks, API keys**: read only.

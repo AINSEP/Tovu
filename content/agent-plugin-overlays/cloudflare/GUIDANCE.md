@@ -39,3 +39,12 @@ Needs **Account → D1 → Edit** on the saved token; preview names it when miss
 forms are not supported yet; preview says so.
 The receiver is form destination `cloudflare-d1` (co-hosted on Workers); the site's `core.forms`
 `receiver` setting keeps it on with `auto` (the default) and turns it off with `none`.
+
+
+## Host operations for skills/cloudflare/SKILL.md
+
+Use `deployment_get_static_publish_capabilities` → `deployment_preview_static_publish` →
+`deployment_execute_static_publish`. Prefer **Workers** (`cloudflare-workers`) for a **new** destination.
+Keep **Pages** (`cloudflare-pages`) for existing Pages history/bindings or an explicit Pages choice.
+A plugin upgrade never moves an existing site between products. Use `lastPublish` and the exact
+`resourceName` from its config. Never guess a workers.dev account subdomain.
