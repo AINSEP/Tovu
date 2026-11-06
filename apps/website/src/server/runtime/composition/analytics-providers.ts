@@ -1,6 +1,5 @@
 import type { Request } from "express";
 import type { Clock as ClockPort, UUID } from "@jini-ai/core/primitives";
-import { readRequestAnalyticsProof } from "@jini-ai/cms/consent/express";
 
 import { loadAnalyticsProviders } from "#src/features/agent-plugins/analytics-provider-registry";
 import type { LoadPluginContributions } from "#src/features/agent-plugins/lifecycle";
@@ -9,15 +8,13 @@ import { ANALYTICS_PROVIDERS_TTL_MS, cacheAnalyticsProviders, createAnalyticsFor
 import type { AnalyticsIngestRouteDeps } from "#src/features/analytics/jini-adapters";
 import type { HttpClientPort } from "#src/platform/http/ports";
 import type { RouteDeps } from "#src/server/routes/types";
-import { createSiteConsentPorts } from "../../inbound/public-http/middleware/site-consent.js";
 import { readSiteVisitorConsent } from "../../inbound/public-http/middleware/site-cookie-consent.js";
 
 /**
  * @file Composition glue for analytics vendor forwarding (`.cloud-coord/analytics-DESIGN.md`):
  * `buildAnalyticsProviders` is what the real root (`deps.ts`) puts on `RouteDeps`, and
  * `analyticsProviderRouteDeps` is what `createApp` adds to the public beacon route. The consent
- * decision is the consent engine's own per-request reader over the SAME ports the consent
- * middleware mounts — not a second gate.
+ * decision uses the same published consent owner as the public runtime.
  */
 
 /**
@@ -72,17 +69,13 @@ export function analyticsProviderRouteDeps(
 ): Pick<AnalyticsIngestRouteDeps, "forwarders" | "hooks"> {
   const providers = routeDeps.analyticsProviders;
   if (!providers) return {};
-  const trustedRegionHeader = routeDeps.consentTrustedRegionHeader;
-  const consentPorts = createSiteConsentPorts({ deps: routeDeps }, trustedRegionHeader ? { trustedRegionHeader } : {});
   return {
     forwarders: createAnalyticsForwarding<unknown>({
       workspaceId: routeDeps.workspaceId,
       config: routeDeps.analyticsConfig,
       loadProviders: providers.load,
-      consentAllowsAnalytics: async ({ request }) => routeDeps.cookieConsent
-        // These general forwarders have no anonymous-level contract; only full analytics may use them.
-        ? (await readSiteVisitorConsent({ deps: routeDeps, req: request as Request })).analyticsLevel === 'full'
-        : Boolean(await readRequestAnalyticsProof({ ports: consentPorts, request: request as Request })),
+      // These general forwarders have no anonymous-level contract.
+      consentAllowsAnalytics: async ({ request }) => (await readSiteVisitorConsent({ deps: routeDeps, req: request as Request })).analyticsLevel === 'full',
       resolveCredential: providers.resolveCredential,
       httpClient: providers.httpClient,
     }),

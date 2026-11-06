@@ -4,7 +4,7 @@ import { getEffective, set } from '@jini-ai/core/settings';
 import { ensureSitePrivacyDefaults } from '#src/features/consent/ensure-privacy-defaults';
 import { SITE_CONSENT_NAMESPACE } from '#src/features/consent/config';
 import { resolveSiteTitle } from '#src/features/settings/site-title';
-import { readConsentReceiptStorage } from '@jini-ai/cms/consent/node';
+import { readConsentReceiptStorage } from '@jini-ai/cookie-consent/node';
 import { createSiteConsentService } from '#src/features/consent/service';
 import { readSiteConsentAuthoringSettings, resolveSiteConsentActivation } from '#src/features/consent/settings';
 import { fetchPublishedPage, resolveSameOriginPath } from '#src/features/site-inspection/published-page';
@@ -27,7 +27,6 @@ export function siteConsentPorts({ deps }: { deps: RouteDeps }, _options = {}): 
     workspaceId: deps.workspaceId, authorize: deps.authorize, store: deps.consentStore,
     ready: deps.siteConsentReady, clock: deps.clock, ids: deps.idGen,
     trustedRegion: Boolean(deps.consentTrustedRegionHeader),
-    ...(deps.cookieConsent ? { cookieConsent: true } : {}),
     published: async () => { await deps.cookieConsent?.refresh?.(); },
     declarationEvidence: async () => {
       const theme = resolveActiveTheme(deps, await deps.resolveActiveThemeId());

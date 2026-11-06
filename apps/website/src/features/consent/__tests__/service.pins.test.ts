@@ -61,7 +61,7 @@ test('readiness preserves receipt failure evidence, page status, metadata and re
     assert.equal(result.placement, 'bottom-right');
     assert.equal(result.regionMode, 'auto');
     assert.equal(result.delivery, 'live');
-    assert.equal(result.staticSupported, false);
+    assert.equal(result.staticSupported, true);
     assert.equal(result.sampleOnly, true);
     assert.deepEqual(result.sampledPaths, ['/privacy']);
     assert.equal(result.limitations.length, 1);

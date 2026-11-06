@@ -1,5 +1,4 @@
-/** @file Composition for `@jini-ai/cookie-consent`: the one engine switch and the server analytics gate.
- * P4 cleanup: the old engine goes, `selectCookieConsent` always returns the deps and the env switch is deleted. */
+/** @file Composition for declared-script consent and the server analytics gate. */
 import type { Request } from 'express';
 import type { RawContribution, RegionResolver } from '@jini-ai/cookie-consent';
 import type { LoadPluginContributions } from '#src/features/agent-plugins/lifecycle';
@@ -12,17 +11,15 @@ import { readSiteAnalyticsProof, siteReceiptAllowsAnalytics, type SiteCookieCons
 const REGION_TTL_MS = 60_000;
 
 /**
- * THE switch. `TOVU_CONSENT_ENGINE=cookie-consent` selects the new engine; anything else keeps the old
- * one. `TOVU_CONSENT_INGRESS` names the host plugin in front of this server (e.g. `cloudflare`); only
+ * `TOVU_CONSENT_INGRESS` names the host plugin in front of this server (e.g. `cloudflare`); only
  * its region readers are trusted. `TOVU_CONSENT_REGION_HEADER` (older setting) still works as one
  * more trusted header. Neither set = strict for everyone (Fly, Electron).
  * @complexity O(1); region readers load lazily.
  */
-export function selectCookieConsent(
+export function createSiteCookieConsentDeps(
   { workspaceId, loadContributions }: { workspaceId: string; loadContributions: LoadPluginContributions },
   { env = process.env, nowMs = Date.now }: { env?: NodeJS.ProcessEnv; nowMs?: () => number } = {},
-): SiteCookieConsentDeps | undefined {
-  if (env.TOVU_CONSENT_ENGINE?.trim() !== 'cookie-consent') return undefined;
+): SiteCookieConsentDeps {
   const ingress = env.TOVU_CONSENT_INGRESS?.trim() || undefined;
   const legacyHeader = env.TOVU_CONSENT_REGION_HEADER?.trim() || undefined;
   let cached: { at: number; value: Promise<readonly RegionResolver[]> } | undefined;

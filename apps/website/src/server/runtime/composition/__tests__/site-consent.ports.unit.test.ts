@@ -29,6 +29,8 @@ test("readiness uses the required consent gate; region trust follows the configu
   assert.equal(ports.trustedRegion, false);
   assert.equal(portsFor({ siteConsentReady, consentTrustedRegionHeader: "x-region" }).trustedRegion, true);
   assert.equal(ports.workspaceId, "ws-1");
+  assert.equal("cookieConsent" in ports, false);
+  assert.equal("cookieConsent" in portsFor({ cookieConsent: {} }), false);
 });
 
 test("receipt storage reports the site's receipt directory health, creating it on first check", async (t) => {

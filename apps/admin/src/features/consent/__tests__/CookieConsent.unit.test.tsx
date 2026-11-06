@@ -309,9 +309,9 @@ describe('CookieConsent: Reset to default', () => {
   });
 });
 
-describe('CookieConsent: dynamic code exception', () => {
-  it('autosaves the generic switch and reloads the published value', async () => {
-    let current = { ...CONSENT_CONFIG, allowUnsafeEval: false };
+describe('CookieConsent: retired dynamic code compatibility', () => {
+  it('omits the retired switch while normal edits preserve its published legacy value', async () => {
+    let current = { ...CONSENT_CONFIG, allowUnsafeEval: true };
     let published = { ...current };
     const saveDraft = vi.fn(async ({ config }: Parameters<ConsentRevisionsPort['saveDraft']>[0]) => {
       current = { ...config, allowUnsafeEval: config.allowUnsafeEval === true };
@@ -322,18 +322,20 @@ describe('CookieConsent: dynamic code exception', () => {
       publish: async () => { published = { ...current }; return { published: true, revisionId: 'd2' }; },
     });
     const view = renderPage(port, 'rules');
-    const toggle = await screen.findByRole('switch', { name: 'Allow dynamic code (unsafe-eval)' });
-    expect(toggle).toHaveAttribute('aria-checked', 'false');
-    fireEvent.click(toggle);
-    await waitFor(() => expect(saveDraft).toHaveBeenCalledWith(expect.objectContaining({ config: expect.objectContaining({ allowUnsafeEval: true }) })));
+    expect(await screen.findByRole('switch', { name: 'Enable cookie consent on this site' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.queryByRole('switch', { name: 'Allow dynamic code (unsafe-eval)' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'About dynamic code' })).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Policy version'), { target: { value: '2' } });
+    await waitFor(() => expect(saveDraft).toHaveBeenCalledWith(expect.objectContaining({ config: expect.objectContaining({ policyVersion: '2', allowUnsafeEval: true }) })));
     await waitFor(() => expect(publishButton()).toBeEnabled());
     fireEvent.click(publishButton());
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Live.'));
+    expect(published.allowUnsafeEval).toBe(true);
     view.unmount();
     renderPage(port, 'rules');
-    const reloaded = await screen.findByRole('switch', { name: 'Allow dynamic code (unsafe-eval)' });
-    expect(reloaded).toHaveAttribute('aria-checked', 'true');
-    fireEvent.click(reloaded);
-    await waitFor(() => expect(saveDraft).toHaveBeenLastCalledWith(expect.objectContaining({ config: expect.objectContaining({ allowUnsafeEval: false }) })));
+    expect(await screen.findByLabelText('Policy version')).toHaveValue('2');
+    expect(screen.queryByRole('switch', { name: 'Allow dynamic code (unsafe-eval)' })).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Region mode'), { target: { value: 'opt-out' } });
+    await waitFor(() => expect(saveDraft).toHaveBeenLastCalledWith(expect.objectContaining({ config: expect.objectContaining({ regionMode: 'opt-out', allowUnsafeEval: true }) })));
   });
 });

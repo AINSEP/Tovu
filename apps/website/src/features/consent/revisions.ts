@@ -1,5 +1,5 @@
 /** @file Site policy snapshots; Jini owns enforcement, Tovu owns site publication state. */
-import type { ConsentConfig } from '@jini-ai/cms/consent';
+import type { ConsentConfig } from '@jini-ai/cookie-consent';
 
 export interface SiteConsentRevision {
   id: string;

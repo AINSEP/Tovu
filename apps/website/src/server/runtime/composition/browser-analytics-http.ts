@@ -1,10 +1,10 @@
 /** @file Same-origin provider delivery, admitted by the site's existing consent owner. */
 import express, { type Express, type Request, type Response } from 'express';
 import { getEffective } from '@jini-ai/core/settings';
-import { readRequestBrowserAnalyticsMode } from '@jini-ai/cms/consent/express';
+import { readSiteVisitorConsent } from '../../inbound/public-http/middleware/site-cookie-consent.js';
 import type { RouteDeps } from '#src/server/routes/types';
 import { createRateLimiter, resolveClientIp } from '#src/contracts/core/rate-limit/rate-limit';
-import { createSiteConsentPorts, resolveSiteConsentOrigin } from '../../inbound/public-http/middleware/site-consent.js';
+import { resolveSiteConsentOrigin } from '../../inbound/public-http/middleware/site-consent.js';
 import { currentCredential } from '../../inbound/admin-http/dev-auth.js';
 import { TELEMETRY_CONSENT } from './telemetry-consent.js';
 
@@ -14,13 +14,12 @@ function sameOrigin({ request }: { request: Request }, _options = {}): boolean {
   catch { return false; }
 }
 
-/** Assets are inert until imported by the bridge. Collection needs an explicit visitor choice;
+/** Assets are inert until imported by the bridge. Site collection requires full analytics permission;
  * admin collection follows the operator setting, independently of the public banner. O(1) reads. */
 export function applyBrowserAnalyticsHttp({ app, deps }: { app: Express; deps: RouteDeps }, _options = {}): void {
-  const ports = createSiteConsentPorts({ deps }, { trustedRegionHeader: deps.consentTrustedRegionHeader });
   const limiter = createRateLimiter({ profile: { windowSeconds: 60, max: 120, burst: 20 }, clock: deps.clock });
   app.use('/_jini/browser-analytics', express.raw({ type: () => true, limit: '256kb' }), async (request, response, next) => {
-    const surface = request.path.split('/')[2];
+    const surface = request.path.split('/')[1];
     if (surface !== 'site' && surface !== 'admin') { next(); return; }
     response.setHeader('Cache-Control', 'private, no-store');
     try {
@@ -28,7 +27,7 @@ export function applyBrowserAnalyticsHttp({ app, deps }: { app: Express; deps: R
       const contribution = deps.browserAnalytics?.({ surface }).find(item => item.http && fullPath.startsWith(item.http.path + '/'));
       if (!contribution?.http) { response.status(404).end(); return; }
       if (request.method !== 'GET') {
-        const allowed = await collectionAllowed({ request, deps, ports, surface });
+        const allowed = await collectionAllowed({ request, deps, surface });
         if (!allowed) { response.status(403).end(); return; }
         if (!(await limiter.check({ key: resolveClientIp(request) })).allowed) { response.status(429).end(); return; }
       }
@@ -37,12 +36,14 @@ export function applyBrowserAnalyticsHttp({ app, deps }: { app: Express; deps: R
   });
 }
 
-/** No cookie or proof crosses the provider port. Failed receipt/setting reads deny delivery. O(1). */
-async function collectionAllowed({ request, deps, ports, surface }: {
-  request: Request; deps: RouteDeps; ports: ReturnType<typeof createSiteConsentPorts>; surface: 'site' | 'admin';
+/** No cookie or proof crosses the provider port. Failed policy/setting reads deny delivery. O(1). */
+async function collectionAllowed({ request, deps, surface }: {
+  request: Request; deps: RouteDeps; surface: 'site' | 'admin';
 }, _options = {}): Promise<boolean> {
   if (!sameOrigin({ request })) return false;
-  if (surface === 'site') return await readRequestBrowserAnalyticsMode({ ports, request }) !== 'pending';
+  // Generic browser contributions cannot enforce anonymous restrictions; explicit anonymous
+  // adapters use the consent plugin collector, which carries their server-owned analytics level.
+  if (surface === 'site') return (await readSiteVisitorConsent({ deps, req: request })).analyticsLevel === 'full';
   if ((await currentCredential(deps, request))?.kind !== 'session') return false;
   return (await getEffective({ repo: deps.settingsRepo }, { ...TELEMETRY_CONSENT, scopeContext: { workspaceId: deps.workspaceId } }))?.value === true;
 }

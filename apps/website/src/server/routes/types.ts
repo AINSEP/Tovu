@@ -874,8 +874,7 @@ export interface SettingsDeps {
   consentStore?: import('#src/features/consent/revisions').SiteConsentStore;
   siteConsent?: import('#src/features/consent/service').SiteConsentService;
   consentTrustedRegionHeader?: string;
-  /** THE consent-engine switch (TOVU_CONSENT_ENGINE=cookie-consent): present = `@jini-ai/cookie-consent`
-   * serves public pages, absent = the old cms engine. P4 cleanup removes the old engine and this switch. */
+  /** Declared-script consent bindings; absent only in minimal hosts/test compositions. */
   cookieConsent?: import('#src/contracts/headless/index').SiteCookieConsentDeps;
   /** Cookie-consent adapters of the analytics plugins attached to this site (none when no plugin is). */
   consentAdapters?: (required: { base: string }) => readonly import('#src/contracts/headless/index').ConsentPluginContribution[];

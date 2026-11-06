@@ -46,11 +46,11 @@ test('readiness validates declarations and reports unmanaged warnings without ch
   assert.ok(!JSON.stringify(failed).includes('private file path'));
 });
 
-test('invalid customization remains a draft and cannot replace the valid published policy', async t => {
+test('invalid privacy linkage remains a draft and cannot replace the valid published policy', async t => {
   const f = consentFixture({ t });
   const valid = await f.service.saveDraft({ principalId: 'owner', config: f.config, expectedDraftId: null });
   await f.service.publish({ principalId: 'owner', draftId: valid.revision.id, expectedPublishedId: null });
-  const invalid = await f.service.saveDraft({ principalId: 'owner', config: { ...f.config, customCss: '#jini-consent button:first-child { display:none }' }, expectedDraftId: valid.revision.id });
+  const invalid = await f.service.saveDraft({ principalId: 'owner', config: { ...f.config, privacyPolicyUrl: 'javascript:tracking()' }, expectedDraftId: valid.revision.id });
   assert.ok(invalid.blockingProblems.length > 0);
   await assert.rejects(f.service.publish({ principalId: 'owner', draftId: invalid.revision.id, expectedPublishedId: valid.revision.id }));
   assert.equal((await f.store.read({})).published?.id, valid.revision.id);
@@ -59,10 +59,9 @@ test('invalid customization remains a draft and cannot replace the valid publish
   assert.ok(missing.blockingProblems.some(problem => problem.code === 'PRIVACY_PAGE_MISSING'));
 });
 
-test('cookie-consent reports dropped CSS as preview warnings and still publishes; the legacy engine blocks it', async t => {
+test('the single consent implementation drops only bad CSS and returns nonblocking preview warnings', async t => {
   const f = consentFixture({ t });
-  f.ports.cookieConsent = true;
-  // The service's page gate is an injected effect; CSS diagnostics still use the real Jini renderer.
+  // Preview diagnostics use the real compiler; the valid companion rule must survive a refused rule.
   const good = '#jini-consent h2 { font-size: 16px; }';
   const config = { ...f.config, customCss: good + '\n#jini-consent [data-x] { color: #000000; }' };
   const clean = await f.service.preview({ principalId: 'owner', config: { ...f.config, customCss: good } });
@@ -76,10 +75,10 @@ test('cookie-consent reports dropped CSS as preview warnings and still publishes
   assert.deepEqual(draft.blockingProblems, []);
   await f.service.publish({ principalId: 'owner', draftId: draft.revision.id, expectedPublishedId: null });
   assert.equal((await f.store.read({})).published?.id, draft.revision.id);
-  f.ports.cookieConsent = false;
-  assert.ok((await f.service.preview({ principalId: 'owner', config })).blockingProblems.some(problem => problem.field === 'appearance'));
-  assert.equal((await f.service.preview({ principalId: 'owner', config })).warnings, undefined);
-  await assert.rejects(f.service.publish({ principalId: 'owner', draftId: draft.revision.id, expectedPublishedId: draft.revision.id }));
+  assert.ok(!preview.html.includes('[data-x]'));
+  assert.match(preview.html, /font-size:\s*16px/);
+  assert.deepEqual((await f.service.preview({ principalId: 'owner', config })).blockingProblems, []);
+  assert.deepEqual((await f.service.preview({ principalId: 'owner', config })).warnings, preview.warnings);
 });
 
 test('every service operation authorizes before reading state or performing effects', async t => {
@@ -96,16 +95,17 @@ test('every service operation authorizes before reading state or performing effe
   assert.deepEqual(await f.store.read({}), { draft: null, published: null });
 });
 
-test('deployment refuses enabled, incomplete and unavailable consent, with two actionable choices', async t => {
+test('deployment accepts valid local evidence while incomplete and unavailable policies retain actionable refusals', async t => {
   const f = consentFixture({ t });
   assert.equal(await f.service.deploymentCheck({ principalId: 'owner', permission: 'system.publish' }), null);
   f.ports.readLegacy = async () => ({ ...f.config, privacyPolicyUrl: '' });
-  assert.ok((await f.service.deploymentCheck({ principalId: 'owner', permission: 'system.publish' }))?.blockingProblems.some(problem => problem.code === 'PRIVACY_LINK_REQUIRED'));
+  const incomplete = await f.service.deploymentCheck({ principalId: 'owner', permission: 'system.publish' });
+  assert.ok(incomplete?.blockingProblems.some(problem => problem.code === 'PRIVACY_LINK_REQUIRED'));
+  assert.equal(incomplete?.code, 'CONSENT_REVIEW_REQUIRED');
+  assert.deepEqual(incomplete?.choices.map(choice => choice.id), ['fix-now', 'publish-without-banner']);
   const saved = await f.service.saveDraft({ principalId: 'owner', config: f.config, expectedDraftId: null });
   await f.service.publish({ principalId: 'owner', draftId: saved.revision.id, expectedPublishedId: null });
-  const blocked = await f.service.deploymentCheck({ principalId: 'owner', permission: 'system.publish' });
-  assert.equal(blocked?.code, 'CONSENT_REVIEW_REQUIRED');
-  assert.deepEqual(blocked?.choices.map(choice => choice.id), ['fix-now', 'publish-without-banner']);
+  assert.equal(await f.service.deploymentCheck({ principalId: 'owner', permission: 'system.publish' }), null);
   f.ports.store = undefined;
   assert.equal((await f.service.deploymentCheck({ principalId: 'owner', permission: 'system.publish' }))?.blockingProblems[0]?.code, 'CONSENT_UNAVAILABLE');
 });
@@ -253,6 +253,7 @@ test('preview is read-only and local paths cannot address APIs, traverse or esca
 
 test('the editor always offers automatic regions and never offers global opt-out', async t => {
   const f = consentFixture({ t });
+  assert.deepEqual((await f.service.read({ principalId: 'owner' })).editor.bannerModes, ['jini', 'headless', 'off']);
   assert.deepEqual((await f.service.read({ principalId: 'owner' })).editor.regionModes, ['opt-in', 'auto']);
   f.ports.trustedRegion = true;
   assert.deepEqual((await f.service.read({ principalId: 'owner' })).editor.regionModes, ['opt-in', 'auto']);
@@ -312,13 +313,15 @@ test('global opt-out is refused instead of hiding Reject in EU, UK and unknown c
   }
 });
 
-test('deployment lets default-only consent export; a published policy still refuses even with no owner flag', async t => {
+test('deployment supports default-only and valid published consent while still validating publication without an owner flag', async t => {
   const f = consentFixture({ t });
   f.ports.readLegacy = async () => ({ ...f.config, privacyPolicyUrl: '' });
   f.ports.defaultOnly = async () => true;
   assert.equal(await f.service.deploymentCheck({ principalId: 'owner', permission: 'system.publish' }), null);
   const saved = await f.service.saveDraft({ principalId: 'owner', config: f.config, expectedDraftId: null });
   await f.service.publish({ principalId: 'owner', draftId: saved.revision.id, expectedPublishedId: null });
+  assert.equal(await f.service.deploymentCheck({ principalId: 'owner', permission: 'system.publish' }), null);
+  await contentKernel(f.db).execute(sql`UPDATE site_consent_revisions SET config_json = ${JSON.stringify({ ...f.config, privacyPolicyUrl: '' })} WHERE id = ${saved.revision.id}`);
   assert.equal((await f.service.deploymentCheck({ principalId: 'owner', permission: 'system.publish' }))?.code, 'CONSENT_REVIEW_REQUIRED');
   f.ports.defaultOnly = async () => { throw new Error('ledger unreadable'); };
   f.ports.store = { ...f.store, read: async () => ({ draft: null, published: null }) };

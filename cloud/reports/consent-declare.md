@@ -6,3 +6,5 @@ Step 2 adds active-plugin browser bridge declarations, with a separate browser c
 Steps 3–5 in progress. Legacy deletion waits for replacement consumers.
 
 Checkpoint: pushed fd2cf6835 and 00261f060 to cloud/consent-declare. Replacement middleware tests4/4 pass: unchanged page bytes, zero off-mode consent reads/runtime, one published-only context read, native withdrawal control. Managed document slot tests2/2 pass. Theme, comments, plugin declaration and export tests pass. Step4 diagnostics and standalone preview in progress. Rebuilt Jini and relinked; rebuilt Tovu contracts to resolve stale generated exports.
+
+Checkpoint: step5 in progress. Replacement consumers passed before removing the CMS HTML engine. Receipt/privacy/origin/rate checks retained; parse5 retained. Shared region subdivision regression fixed with failing test first. Final rebuild/relink/typechecks and report inventory in progress.

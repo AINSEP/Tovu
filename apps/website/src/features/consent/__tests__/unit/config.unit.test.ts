@@ -2,7 +2,7 @@
  * withSiteConsentDefaultCss: the default banner style that fills an empty Custom CSS. */
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { compileConsentCss } from '@jini-ai/cms/consent';
+import { compileConsentCss } from '@jini-ai/cookie-consent/render';
 import { SITE_CONSENT_DEFAULT_CSS, SITE_CONSENT_DEFAULTS, siteConsentLinkProblem, withSiteConsentDefaultCss } from '../../config.js';
 
 const SITE_OR_HTTPS = 'Use a page on this site, like /privacy, or an https:// address.';

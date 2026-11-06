@@ -1,6 +1,6 @@
 /** Analytics-owned host contracts shared by ingestion and HTTP adapters. */
 import type { Tracker } from '@jini-ai/diagnostics/observability';
-import type { ConsentAnalyticsProof } from '@jini-ai/cms/consent';
+import type { ConsentAnalyticsProof } from '@jini-ai/cookie-consent';
 import type { BrowserAnalyticsContribution } from '@jini-ai/analytics/product';
 
 /** Composition-bound public analytics ports. Missing consent or identity generation denies capture. */
