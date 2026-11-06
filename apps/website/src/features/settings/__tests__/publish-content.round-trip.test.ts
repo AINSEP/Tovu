@@ -109,7 +109,7 @@ async function workspaceValue(site: Site, settingId: string): Promise<JsonValue 
 }
 
 function theme(tier: string, id: string): DiscoveredTheme {
-  return { status: "valid", manifest: { id }, dir: `/themes/${tier}/${id}` } as unknown as DiscoveredTheme;
+  return { status: "valid", manifest: { id }, dir: `/themes/${tier}/${id}`, css: "body { color: #222; }" } as unknown as DiscoveredTheme;
 }
 
 async function sites() {

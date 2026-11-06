@@ -2,9 +2,9 @@ import { ASSISTANT_PERMANENT_DELETES_NAMESPACE, ASSISTANT_PERMANENT_DELETES_WRIT
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { Express, Request, Response } from "express";
-import type { ToolExecutionContext, ToolExecutionOptions } from "@jini-ai/core";
+import { ToolInputError, type ToolExecutionContext, type ToolExecutionOptions } from "@jini-ai/core";
 import type { ToolExecutor } from "@jini-ai/daemon";
-import { InMemorySettingsRepo, type SettingDefinitionRecord } from "@jini-ai/core/settings";
+import { InMemorySettingsRepo, SettingsRevisionConflictError, type SettingDefinitionRecord } from "@jini-ai/core/settings";
 import { createNativeApprovalMemory } from "../../../contracts/core/native-approval-memory.js";
 import { createInMemoryConversationToolApprovalStore } from "../../../assistant/external-mcp-tool-approval-adapters.js";
 import type { SettingsToolDeps } from "../tool-registrations.js";
@@ -714,11 +714,19 @@ for (const toolId of ['settings_set_value', 'settings_clear_value']) test(`${too
       cards++;
       assert.deepEqual(await f.settingsRepo.listRevisions({ settingId: 'setting-1' }), []);
       const html = (emission.payload as { resource: { resource: { text: string } } }).resource.resource.text;
-      assert.match(html, /<dt>Revision<\/dt><dd>0<\/dd>/);
-      assert.match(html, /<dt>Person ID<\/dt><dd>caller<\/dd>/);
+      assert.match(html, /<dt>Setting<\/dt><dd>core\.execution\.mode<\/dd>/);
+      assert.doesNotMatch(html, /<dt>Revision<\/dt>/);
+      assert.doesNotMatch(html, /<dt>Person ID<\/dt>/);
       f.surfaceExchanges.deliver({ exchangeId: 'exchange-1', principalId: 'caller', params: { decision: 'confirm' } }, { toolId });
     },
-  }), /setting changed before the approved change/);
+  }), (error: unknown) => {
+    assert.ok(error instanceof ToolInputError);
+    assert.match(error.message, /setting changed before the approved change/);
+    assert.ok(error.cause instanceof SettingsRevisionConflictError);
+    assert.equal(error.cause.expectedRevisionSeq, 0);
+    assert.equal(error.cause.actualRevisionSeq, 1);
+    return true;
+  });
   assert.equal(cards, 1);
   assert.equal((await f.settingsRepo.getWorkspaceValue({ workspaceId: 'ws-1', settingId: 'setting-1' }))?.valueJson, 'concurrent edit');
   assert.equal((await f.settingsRepo.listRevisions({ settingId: 'setting-1' })).length, 1);
