@@ -7,8 +7,8 @@ export interface SiteCookieConsentDeps {
   /** Refresh the construction-time published snapshot after an owner publication. */
   refresh?: () => Promise<void>;
   exportAssets?: () => Promise<readonly string[]>;
-  /** Warn when a static copy was rendered before any policy loaded successfully. */
-  exportWarning?: () => string | undefined;
+  /** Asked once per export, before it renders: a warning when no policy has ever loaded successfully. */
+  exportWarning?: () => Promise<string | undefined>;
   /** This site's region readers (configured ingress plugin + legacy header); empty = strict. */
   regionResolvers: () => Promise<readonly RegionResolver[]>;
   /** Data-only modules from active plugins; the browser mounts them through the shared registry. */

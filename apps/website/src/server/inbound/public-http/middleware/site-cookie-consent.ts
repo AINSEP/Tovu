@@ -198,12 +198,13 @@ export async function readSiteAnalyticsProof({ deps, req }: { deps: RouteDeps; r
   return receiptId ? { receiptId, policyVersion: state.policy } : undefined;
 }
 
-/** One published construction snapshot per mounted site, refreshed by publication. No per-page reads. */
+/** One published construction snapshot per site (per consent deps), shared by every app built over
+ * them: an export, an inspection or a theme override never resets what live visitors are served.
+ * Refreshed by publication. No per-page reads. */
 type DocumentState = {
   policy?: ConsentConfig;
-  exportWarning?: string;
   pending?: Promise<void>;
-  scripts: Promise<{ scripts: readonly DeclaredScript[]; problems: readonly string[] }>;
+  scripts: Promise<readonly DeclaredScript[]>;
   client?: { body: Buffer; src: string };
   nextReadAt: number;
   now: () => number;
@@ -221,7 +222,7 @@ function unavailableDocumentPolicy({ consent, config }: { consent?: SiteCookieCo
 /** The declaration owner is independent of policy availability, so ordinary scripts can still run. */
 async function documentDeclarations({ consent }: { consent?: SiteCookieConsentDeps }): Promise<readonly DeclaredScript[]> {
   if (!consent) return [];
-  return (await documentStates.get(consent)?.scripts)?.scripts ?? [];
+  return await documentStates.get(consent)?.scripts ?? [];
 }
 
 /** One read per minute per mounted site, including a retry after an unavailable publication. */
@@ -230,10 +231,15 @@ async function documentPolicy({ consent }: { consent?: SiteCookieConsentDeps }):
   if (!state) return null;
   if (state.now() >= state.nextReadAt) void state.refresh?.().catch(() => undefined);
   if (state.policy) return state.policy;
+  await briefPendingRead({ state });
+  return state.policy ?? null;
+}
+
+/** Wait at most 250 ms for a read in flight; with none, resolve at once. A late success still lands. */
+async function briefPendingRead({ state }: { state: DocumentState }): Promise<void> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   try { await Promise.race([state.pending?.catch(() => undefined), new Promise(resolve => { timer = setTimeout(resolve, 250); })]); }
   finally { clearTimeout(timer); }
-  return state.policy ?? null;
 }
 
 /** Document construction consumes data, never a completed response body. */
@@ -241,7 +247,6 @@ export async function siteConsentDocumentAssets({ deps, request, scripts }: { de
   const consent = deps.cookieConsent;
   const config = await documentPolicy({ consent });
   const allScripts = [...scripts, ...await documentDeclarations({ consent })];
-  if (consent && !config && isStaticExportRequest(request)) documentStates.get(consent)!.exportWarning = 'Cookie preferences could not be loaded. This published copy has no cookie banner.';
   if (request.res?.locals.tovuRenderThemeIdOverride) return { head: renderScriptAssets({ scripts: allScripts.filter(script => script.consent === undefined) }), body: '' };
   if (!config || !consent) return { head: renderScriptAssets({ scripts: allScripts.filter(script => script.consent === undefined) }), body: '' };
   if (siteBannerMode({ config }) === 'off') return { head: renderScriptAssets({ scripts: allScripts }), body: '' };
@@ -313,36 +318,57 @@ function mountStaticThemeLoader({ app, deps }: { app: Express; deps: RouteDeps }
   });
 }
 
-/** Routes and a construction-time snapshot only; no page-response capture or cookie work. */
-export function applySiteCookieConsent({ app, deps, consent }: { app: Express; deps: RouteDeps; consent: SiteCookieConsentDeps }, { client = loadClient() }: { client?: { body: Buffer; src: string } } = {}): void {
-  const state: DocumentState = { client, scripts: Promise.resolve({ scripts: [], problems: [] }), nextReadAt: Infinity, now: () => deps.clock.nowMs() };
+/** Read the policy and plugin declarations together. Each keeps its last good value on failure.
+ * @complexity O(1): one policy read and one declaration load at a time. */
+function refreshDocumentState({ state, deps, consent }: { state: DocumentState; deps: RouteDeps; consent: SiteCookieConsentDeps }): Promise<void> {
+  if (state.pending) return state.pending;
+  state.nextReadAt = state.now() + 60_000;
+  const policy = readSiteConsentPolicy({ deps }).then(config => { state.policy = config; }, error => {
+    console.warn('[consent] Cookie preferences could not refresh. The last loaded preferences remain in use; a later request will try again.');
+    throw error;
+  });
+  const lastGoodScripts = state.scripts;
+  state.scripts = (consent.scriptDeclarations?.() ?? Promise.resolve({ scripts: [] })).then(loaded => loaded.scripts, () => {
+    console.warn('[consent] Plugin scripts could not refresh. The last loaded scripts remain in use; a later request will try again.');
+    return lastGoodScripts;
+  });
+  state.pending = Promise.allSettled([policy, state.scripts]).then(([read]) => {
+    if (read.status === 'rejected') throw read.reason;
+  }).finally(() => { state.pending = undefined; });
+  return state.pending;
+}
+
+/** The site's snapshot, created by its first app build; later builds add routes and read nothing. */
+function siteDocumentState({ deps, consent, client }: { deps: RouteDeps; consent: SiteCookieConsentDeps; client: () => DocumentState['client'] }): DocumentState {
+  const existing = documentStates.get(consent);
+  if (existing) return existing;
+  const state: DocumentState = { client: client(), scripts: Promise.resolve([]), nextReadAt: Infinity, now: () => deps.clock.nowMs() };
   documentStates.set(consent, state);
-  const refresh = (): Promise<void> => {
-    if (state.pending) return state.pending;
-    state.nextReadAt = state.now() + 60_000;
-    const policy = readSiteConsentPolicy({ deps }).then(config => { state.policy = config; }, error => {
-      console.warn('[consent] Cookie preferences could not refresh. The last loaded preferences remain in use; a later request will try again.');
-      throw error;
-    });
-    state.scripts = consent.scriptDeclarations?.() ?? Promise.resolve({ scripts: [], problems: [] });
-    state.pending = Promise.allSettled([policy, state.scripts]).then(results => {
-      const failure = results.find((result): result is PromiseRejectedResult => result.status === 'rejected');
-      if (failure) throw failure.reason;
-    }).finally(() => { state.pending = undefined; });
-    return state.pending;
-  };
+  const refresh = () => refreshDocumentState({ state, deps, consent });
   consent.refresh = refresh;
   state.refresh = refresh;
-  consent.embedConsentOff = () => { const config = documentStates.get(consent)?.policy; return Boolean(config && siteBannerMode({ config }) === 'off'); };
+  consent.embedConsentOff = () => Boolean(state.policy && siteBannerMode({ config: state.policy }) === 'off');
   consent.exportAssets = () => siteConsentExportAssets({ deps });
-  consent.exportWarning = () => state.exportWarning;
+  // Answered for one export run, before it renders. A good policy is never cleared, so no later page
+  // can lose its banner when this finds one; a run starts from a fresh read, as it always has.
+  consent.exportWarning = async () => {
+    void refresh().catch(() => undefined);
+    await briefPendingRead({ state });
+    return state.policy ? undefined : 'Cookie preferences could not be loaded. This published copy has no cookie banner.';
+  };
+  void refresh().catch(() => undefined);
+  return state;
+}
+
+/** Routes and a construction-time snapshot only; no page-response capture or cookie work. */
+export function applySiteCookieConsent({ app, deps, consent }: { app: Express; deps: RouteDeps; consent: SiteCookieConsentDeps }, { client: suppliedClient }: { client?: { body: Buffer; src: string } } = {}): void {
+  const { client } = siteDocumentState({ deps, consent, client: () => suppliedClient ?? loadClient() });
   app.use(async (req, res, next) => {
     // Resolve the cached publication before widget rendering; consent-off pages have no activation runtime.
     await documentPolicy({ consent });
     res.locals.siteConsentAssets = (required: { scripts: readonly DeclaredScript[] }) => siteConsentDocumentAssets({ deps, request: req, scripts: required.scripts });
     next();
   });
-  void refresh().catch(() => undefined);
   if (client) app.get(client.src, (_req, res) => { res.type('text/javascript').set('Cache-Control', 'public, max-age=31536000, immutable').send(client.body); });
   const resolve = createRequire(import.meta.url).resolve;
   try {

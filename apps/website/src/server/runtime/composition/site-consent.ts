@@ -35,7 +35,9 @@ export function siteConsentPorts({ deps }: { deps: RouteDeps }, _options = {}): 
     published: async () => { await deps.cookieConsent?.refresh?.(); },
     declarationEvidence: async ({ path }) => {
       const theme = resolveActiveTheme(deps, await deps.resolveActiveThemeId());
-      const plugins = await deps.cookieConsent?.scriptDeclarations?.() ?? { scripts: [], problems: [] };
+      const plugins = await deps.cookieConsent?.scriptDeclarations?.().catch(() => ({
+        scripts: [], problems: ['Active plugin script declarations could not be read; optional plugin scripts will remain stopped.'],
+      })) ?? { scripts: [], problems: [] };
       const page = await publishedPageSlot({ deps, path });
       const active = theme && theme !== NO_THEME_ID ? theme : null;
       return { scripts: [...(active?.manifest.scripts ?? []), ...plugins.scripts], problems: [...plugins.problems, ...page.problems],

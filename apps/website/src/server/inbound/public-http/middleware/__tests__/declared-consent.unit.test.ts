@@ -207,7 +207,7 @@ test('embed delivery follows resolved policy while unrelated script declarations
   assert.deepEqual(page, { status: 200, body: { consentOff: true } });
 });
 
-test('repeated mounts share the latest policy and an older refresh cannot change embed delivery', async () => {
+test('repeated mounts share one snapshot and its one read; publication reaches every app', async () => {
   let reads = 0;
   let releaseFirst: (() => void) | undefined;
   const consent: import('#src/contracts/headless/index').SiteCookieConsentDeps = { regionResolvers: async () => [] };
@@ -219,19 +219,22 @@ test('repeated mounts share the latest policy and an older refresh cannot change
     } },
   } as unknown as RouteDeps;
   const firstApp = express();
+  const secondApp = express();
   const client = { src: '/_consent/fixture.js', body: Buffer.from('') };
   applySiteCookieConsent({ app: firstApp, deps, consent }, { client });
   await new Promise<void>(resolve => setImmediate(resolve));
-  applySiteCookieConsent({ app: express(), deps, consent }, { client });
+  applySiteCookieConsent({ app: secondApp, deps, consent }, { client });
   await new Promise<void>(resolve => setImmediate(resolve));
-  assert.equal(consent.embedConsentOff?.(), true);
+  assert.equal(reads, 1, 'a second build shares the read in flight');
+  assert.equal(consent.embedConsentOff?.(), false);
   releaseFirst!();
-  await new Promise<void>(resolve => setImmediate(resolve));
-  firstApp.get('/embed-policy', (_req, res) => res.json({ consentOff: consent.embedConsentOff?.() }));
+  await consent.refresh!();
+  await consent.refresh!();
+  for (const app of [firstApp, secondApp]) app.get('/embed-policy', (_req, res) => res.json({ consentOff: consent.embedConsentOff?.() }));
   assert.deepEqual(await dispatchJsonRequest(firstApp, 'GET', '/embed-policy'), { status: 200, body: { consentOff: true } });
+  assert.deepEqual(await dispatchJsonRequest(secondApp, 'GET', '/embed-policy'), { status: 200, body: { consentOff: true } });
   assert.equal(reads, 2);
 });
-
 
 /** Mutable publication and declarations exercise the real mounted construction hook. */
 async function changingFixture({ preview = false, failAtBoot = false } = {}) {
@@ -367,7 +370,7 @@ test('slow initial readiness does not discard a late successful policy', { timeo
   applySiteCookieConsent({ app, deps, consent }, { client: { src: '/_consent/fixture.js', body: Buffer.from('') } });
   const request = { header: () => '1' } as unknown as import('express').Request;
   assert.equal((await siteConsentDocumentAssets({ deps, request, scripts: [] })).body, '');
-  assert.match(consent.exportWarning!()!, /no cookie banner/);
+  assert.match(await consent.exportWarning!() ?? '', /no cookie banner/);
   release();
   await new Promise<void>(resolve => setImmediate(resolve));
   assert.match((await siteConsentDocumentAssets({ deps, request, scripts: [] })).body, /id="jini-consent"/);
@@ -425,7 +428,7 @@ test('a declaration failure does not release a still-running policy read for ano
   assert.equal(consent.embedConsentOff?.(), true);
 });
 
-test('a fresh export app does not retain the previous app unavailable-policy warning', async () => {
+test('a later export run does not retain the previous run unavailable-policy warning', async () => {
   let ready!: () => void;
   const consent: import('#src/contracts/headless/index').SiteCookieConsentDeps = { regionResolvers: async () => [] };
   const deps = { cookieConsent: consent, workspaceId: 'export-warning-reset', siteConsentReady: new Promise<void>(resolve => { ready = resolve; }), clock: { nowMs: Date.now }, siteBinding: { dir: '/tmp/export-warning-reset' },
@@ -433,12 +436,66 @@ test('a fresh export app does not retain the previous app unavailable-policy war
   } as unknown as RouteDeps;
   const client = { src: '/_consent/fixture.js', body: Buffer.from('') };
   applySiteCookieConsent({ app: express(), deps, consent }, { client });
-  await siteConsentDocumentAssets({ deps, request: { header: () => '1' } as unknown as import('express').Request, scripts: [] });
-  assert.match(consent.exportWarning!()!, /no cookie banner/);
+  assert.match(await consent.exportWarning!() ?? '', /no cookie banner/);
   ready();
   applySiteCookieConsent({ app: express(), deps, consent }, { client });
   await consent.refresh!();
-  assert.equal(consent.exportWarning!(), undefined);
+  assert.equal(await consent.exportWarning!(), undefined);
+});
+
+function goodPolicyFixture(workspaceId: string, extra: Partial<import('#src/contracts/headless/index').SiteCookieConsentDeps> = {}) {
+  let failing = false, reads = 0;
+  const consent: import('#src/contracts/headless/index').SiteCookieConsentDeps = { regionResolvers: async () => [], ...extra };
+  const deps = { cookieConsent: consent, workspaceId, siteConsentReady: Promise.resolve(), clock: { nowMs: Date.now }, siteBinding: { dir: `/tmp/${workspaceId}` },
+    consentStore: { readPublished: async () => { reads++; if (failing) throw new Error('fixture unavailable'); return { id: 'good', config: { ...SITE_CONSENT_DEFAULTS, enabled: true, privacyPolicyUrl: '/privacy' } }; } },
+  } as unknown as RouteDeps;
+  const mount = () => {
+    const app = express();
+    applySiteCookieConsent({ app, deps, consent }, { client: { src: '/_consent/fixture.js', body: Buffer.from('') } });
+    app.get('/assets', async (_req, res) => res.json(await res.locals.siteConsentAssets({ scripts: [] })));
+    return app;
+  };
+  return { consent, deps, mount, reads: () => reads, fail: (value: boolean) => { failing = value; } };
+}
+
+test('another app build for the same site keeps the live policy when the store then fails', { timeout: 2000 }, async t => {
+  t.mock.method(console, 'warn', () => {});
+  const f = goodPolicyFixture('rebuilt-site');
+  const live = f.mount();
+  await f.consent.refresh!();
+  f.fail(true);
+  const exportApp = f.mount();
+  await new Promise<void>(resolve => setImmediate(resolve));
+  assert.match(((await dispatchJsonRequest(live, 'GET', '/assets')).body as { body: string }).body, /id="jini-consent"/);
+  assert.match(((await dispatchJsonRequest(exportApp, 'GET', '/assets')).body as { body: string }).body, /id="jini-consent"/);
+  assert.equal(f.reads(), 1, 'an app build reads nothing for a site that already has its snapshot');
+});
+
+test('an export warning is answered for that run from the policy it will render with', { timeout: 2000 }, async t => {
+  t.mock.method(console, 'warn', () => {});
+  const f = goodPolicyFixture('export-run-warning');
+  f.fail(true);
+  f.mount();
+  assert.match(await f.consent.exportWarning!() ?? '', /no cookie banner/);
+  f.fail(false);
+  assert.equal(await f.consent.exportWarning!(), undefined, 'a run starts from a fresh read');
+  f.fail(true);
+  assert.equal(await f.consent.exportWarning!(), undefined, 'a failed read keeps the last good policy, so the copy has its banner');
+});
+
+test('a failed plugin declaration load keeps the last good scripts and does not fail a refresh', { timeout: 2000 }, async t => {
+  t.mock.method(console, 'warn', () => {});
+  let failing = false;
+  const f = goodPolicyFixture('declaration-last-good', { scriptDeclarations: async () => {
+    if (failing) throw new Error('fixture contribution failure');
+    return { scripts: [{ src: '/ordinary.js' }], problems: [] };
+  } });
+  const app = f.mount();
+  await f.consent.refresh!();
+  failing = true;
+  await f.consent.refresh!();
+  const assets = (await dispatchJsonRequest(app, 'GET', '/assets')).body as { head: string; body: string };
+  assert.match(assets.head + assets.body, /ordinary\.js/);
 });
 
 test('the authored loader keeps declared optional scripts in client configuration until approval', async () => {

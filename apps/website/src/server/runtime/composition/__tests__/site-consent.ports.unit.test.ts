@@ -122,6 +122,14 @@ test('declaration evidence merges active theme and plugin declarations and prese
   });
 });
 
+test('a failed plugin declaration load stays a readiness problem, not a thrown check', async () => {
+  const ports = portsFor({ themes: [], resolveActiveThemeId: async () => null,
+    cookieConsent: { scriptDeclarations: async () => { throw new Error('fixture contribution failure'); } } });
+  const evidence = await ports.declarationEvidence!({ path: '/' });
+  assert.deepEqual(evidence.scripts, []);
+  assert.deepEqual(evidence.problems, ['Active plugin script declarations could not be read; optional plugin scripts will remain stopped.']);
+});
+
 test('theme-off declarations use the managed shell and publication refresh is forwarded', async () => {
   let refreshed = 0;
   const ports = portsFor({ themes: [], resolveActiveThemeId: async () => 'none',

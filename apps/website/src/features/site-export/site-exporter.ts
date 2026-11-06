@@ -567,10 +567,12 @@ export async function exportSite({ routeDeps, outputDir, clean, basePath, includ
   // Sitemaps require absolute loc values; RSS requires an absolute channel link. With no public
   // identity omit both, including stale copies in a reused output directory (the CLI default).
   const omitted = publicOrigin ? [] : ["/sitemap.xml", "/feed.xml"];
+  const siteApp = themeId === undefined ? routeDeps.createSiteApp() : routeDeps.createSiteApp({ themeId });
+  const consentWarning = await routeDeps.cookieConsent?.exportWarning?.();
   const report = await runExport({
     outputDir: path.resolve(outputDir),
     manifest: { build: async () => ({ ...manifest, routes: manifest.routes.filter(route => !omitted.includes(route.path)) }) },
-    app: createNodeAppFactory({ createApp: () => themeId === undefined ? routeDeps.createSiteApp() : routeDeps.createSiteApp({ themeId }) }, {}),
+    app: createNodeAppFactory({ createApp: () => siteApp }, {}),
     writer: { ...writer, prepare: async (required, optional) => {
       await writer.prepare(required, optional);
       for (const file of omitted) await rm(path.join(required.outputDir, file.slice(1)), { force: true });
@@ -601,7 +603,7 @@ export async function exportSite({ routeDeps, outputDir, clean, basePath, includ
       ...listingRoutes({ hrefs: extractListingPageHrefs({ html }), kind: "listing-page" }),
     ],
   }, { ...(clean !== undefined ? { clean } : {}), ...(outputBasePath !== undefined ? { basePath: outputBasePath } : {}) });
-  return finishExportReport({ report, outputDir, publicOrigin, publicUrl, basePath, themeCount, consentWarning: routeDeps.cookieConsent?.exportWarning?.() });
+  return finishExportReport({ report, outputDir, publicOrigin, publicUrl, basePath, themeCount, consentWarning });
 }
 
 /** Return publication diagnostics after the exporter has closed its fresh app session. */

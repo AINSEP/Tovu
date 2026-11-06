@@ -116,16 +116,13 @@ export async function loadSiteConsentBridges(
 }
 
 
-/** Declared assets come from active plugins only. Refusals remain data for readiness/admin diagnostics.
+/** Declared assets come from active plugins only. Refusals remain data for readiness/admin diagnostics;
+ * a failed load rejects, so the snapshot owner can keep its last good scripts.
  * O(declarations), no module execution or script-body/content reads. */
 export async function loadSiteConsentScripts(
   { workspaceId, loadContributions }: { workspaceId: string; loadContributions: LoadPluginContributions },
   _optional = {},
 ): Promise<{ scripts: DeclaredScript[]; problems: readonly string[] }> {
-  try {
-    const loaded = await loadContributions({ workspaceId, definition: regionContribution }, { requireActive: true });
-    return { scripts: loaded.items.flatMap(({ entry }) => entry.kind === 'declared-scripts' ? entry.scripts as DeclaredScript[] : []), problems: loaded.refusals };
-  } catch {
-    return { scripts: [], problems: ['Active plugin script declarations could not be read; optional plugin scripts will remain stopped.'] };
-  }
+  const loaded = await loadContributions({ workspaceId, definition: regionContribution }, { requireActive: true });
+  return { scripts: loaded.items.flatMap(({ entry }) => entry.kind === 'declared-scripts' ? entry.scripts as DeclaredScript[] : []), problems: loaded.refusals };
 }

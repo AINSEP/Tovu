@@ -114,3 +114,8 @@ test('active plugin declarations preserve all consent purposes and return refusa
   assert.ok(loaded.problems.some(reason => reason.includes('relative')));
   assert.ok(loaded.problems.every(reason => !reason.includes('/plugins/bad.js')));
 });
+
+test('a failed declaration load rejects, so its owner can keep the last good scripts', async () => {
+  const loadContributions = (async () => { throw new Error('fixture contribution failure'); }) as unknown as Parameters<typeof loadSiteConsentScripts>[0]['loadContributions'];
+  await assert.rejects(loadSiteConsentScripts({ workspaceId: 'w', loadContributions }));
+});
