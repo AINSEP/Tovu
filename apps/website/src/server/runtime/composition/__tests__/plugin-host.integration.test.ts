@@ -325,7 +325,7 @@ test('MCP provisioning logs each server and reason while preserving activation s
   assert.equal(warnings[1], "Plugin 'github': MCP provisioning could not run — manifest unavailable");
 });
 
-test('bug 2026-11-04: a chat enable of a plugin whose account is already signed in turns its connection on with exactly the declared tools', async t => {
+for (const separatelyConfigured of [false, true]) test(`a signed-in connection receives the reviewed plugin defaults: operator source ${separatelyConfigured}`, async t => {
   const ctx = await fixture(t);
   const allow = ['generate_image', 'models_explore', 'job_status'];
   const write = ['generate_image'];
@@ -343,15 +343,20 @@ test('bug 2026-11-04: a chat enable of a plugin whose account is already signed 
     await saveExternalMcpServer({ repo: ctx.deps.mcp.repo as InMemoryExternalMcpServerRepo, sealer: new AesGcmSecretSealer(keyring), keyring, clock: ctx.deps.clock }, {
       workspaceId: ctx.deps.workspaceId, serverId: 'media', label: 'media-fixture · media', transport: 'streamable_http', authMode: 'oauth', enabled: false,
       command: '', url: 'https://mcp.media.example/mcp', args: '', allowedToolNames: '', writeAllowedToolNames: '', oauth: { grant: 'authorization_code' },
-      principalId: 'operator', provisionedByPluginId: 'media-fixture' });
+      principalId: 'operator', provisionedByPluginId: separatelyConfigured ? null : 'media-fixture' });
     const signedOut = await ctx.deps.mcp.repo.findByServerId({ workspaceId: ctx.deps.workspaceId, serverId: 'media' });
     await ctx.deps.mcp.repo.upsert({ ...signedOut!, oauthStatus: 'connected' });
     await agentPluginActivations.setAgentPluginActivation({ workspaceRoot, pluginId: 'media-fixture', enabled: true, actor: 'operator' });
 
-    await ctx.host.getHostCapability({ capability: 'agent-plugin-lifecycle' })!.provisionMcp({ pluginId: 'media-fixture', principalId: 'operator' });
+    const agentPlugins = ctx.host.getHostCapability({ capability: 'agent-plugin-lifecycle' })!;
+    const preview = await agentPlugins.previewEnableAccess!({ pluginId: 'media-fixture' });
+    await agentPlugins.provisionMcp({ pluginId: 'media-fixture', principalId: 'operator' },
+      separatelyConfigured ? { approvedEnable: true, approvedEnableKey: preview.key } : {});
 
     const row = await ctx.deps.mcp.repo.findByServerId({ workspaceId: ctx.deps.workspaceId, serverId: 'media' });
     assert.deepEqual([row?.enabled, JSON.parse(row?.allowedToolNames ?? '[]'), JSON.parse(row?.writeAllowedToolNames ?? '[]')], [true, allow, write]);
+    assert.equal(row?.provisionedByPluginId, 'media-fixture');
+    if (separatelyConfigured) assert.equal(row?.writeGrantsUpdatedByPrincipalId, 'operator');
     assert.deepEqual(ctx.warnings, []);
   } finally {
     // The installer freezes the package tree read-only, so the fixture's plain `rm` cannot remove it.

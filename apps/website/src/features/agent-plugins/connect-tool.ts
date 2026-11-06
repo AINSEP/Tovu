@@ -452,8 +452,9 @@ async function connectAndReviewMcp(
   const reviewed = await approveSignedInAccess({ routeDeps, surfaces, ctx, pluginId,
     servers: { [server.serverKey]: servers[server.serverKey]! } }, optional);
   if (reviewed.approved) return result;
+  const reviewEnd = reviewed.result.reason === 'expired' ? 'expired' : 'ended with the run';
   const lifecycle = reviewed.result.reason
-    ? ` The access review ${reviewed.result.reason === 'expired' ? 'expired' : 'ended with the run'}. Do not retry or reopen it automatically. Wait for a new explicit request.` : '';
+    ? ` The access review ${reviewEnd}. Do not retry or reopen it automatically. Wait for a new explicit request.` : '';
   return { ...reviewed.result, note: `Your sign-in was saved. No additional tool access was granted.${lifecycle}` };
 }
 
@@ -501,7 +502,7 @@ async function approveSignedInAccess({ routeDeps, surfaces, ctx, pluginId, serve
         await routeDeps.mcp.notifyRosterChanged?.({}, {});
       } catch (error) {
         if (granted.length === 0) throw error;
-        const detail = redactSecrets({ input: error instanceof Error ? error.message : String(error) }).replace('Nothing was changed by this approval.', 'That connection was left unchanged.');
+        const detail = redactSecrets({ input: String(error) }).replace('Nothing was changed by this approval.', 'That connection was left unchanged.');
         throw new ToolInputError({ message: `Access was saved for ${granted.join(', ')}. The remaining access update did not finish. ${detail} Ask to connect the plugin again to finish.` });
       }
       return { approved: true };

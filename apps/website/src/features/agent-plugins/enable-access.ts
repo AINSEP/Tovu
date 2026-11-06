@@ -48,7 +48,7 @@ async function previewSource({ workspaceId, pluginId, source, servers, repo }: {
   const current = storedAgentPluginGrants({ row });
   const declared = findAgentPluginMcpServerDefaults(servers, { serverId: source.connectionId, url: source.url });
   const grant = declared ? validatedAgentPluginToolGrant({ current, declared }, { reason: 'owner-enable' }) : null;
-  const snapshot = { connectionId: source.connectionId, url: source.url, revision: row ? externalMcpAdmissionRevision(row) : null, expected: row ? externalMcpAccessSnapshot({ record: row }) : null, current, declared, grant };
+  const snapshot = { pluginId, connectionId: source.connectionId, url: source.url, revision: row ? externalMcpAdmissionRevision(row) : null, expected: row ? externalMcpAccessSnapshot({ record: row }) : null, current, declared, grant };
   const resource: Omit<AccessApprovalResource, 'scope'> | null = grant ? { id: source.connectionId, label: `External MCP source: ${redactSecrets({ input: source.url }, { redactPii: false })}`, previous: current, proposed: grant, revision: snapshot.revision } : null;
   return { snapshot, resource };
 }

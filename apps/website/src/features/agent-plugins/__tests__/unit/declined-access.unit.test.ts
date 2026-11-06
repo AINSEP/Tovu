@@ -3,10 +3,9 @@ import test from 'node:test';
 import { InMemoryKeyring } from '../../../webhooks/keyring.memory.js';
 import { AesGcmSecretSealer } from '../../../webhooks/secret-sealer.aesgcm.js';
 import { InMemoryExternalMcpServerRepo } from '../../../external-mcp/external-mcp-store.memory.js';
-import { externalMcpAdmissionRevision, saveExternalMcpServer } from '../../../external-mcp/external-mcp-store.js';
-import { createExternalMcpConnectionGate } from '../../../external-mcp/external-mcp-oauth.js';
+import { saveExternalMcpServer } from '../../../external-mcp/external-mcp-store.js';
 import { createApplyConnectDefaults } from '../../apply-connect-defaults.js';
-import { previewAgentPluginEnableAccess, validatedAgentPluginToolGrant } from '../../enable-access.js';
+import { previewAgentPluginEnableAccess } from '../../enable-access.js';
 import { resolveAgentPluginLayout } from '../../layout.js';
 import type { McpServerConfig } from '../../mcp-metadata.js';
 
@@ -55,4 +54,28 @@ for (const existingApprover of [null, 'prior-owner']) test(`a declined review pr
   await apply('media');
   assert.equal(activations, 0);
   assert.equal((await f.row()).enabled, false);
+});
+
+
+test('approval cannot adopt the reviewed operator source into a different plugin', async () => {
+  const f = await fixture();
+  await f.repo.upsert({ ...await f.row(), provisionedByPluginId: null });
+  const preview = await previewAgentPluginEnableAccess({ workspaceId: 'ws', pluginId: 'images', servers, repo: f.repo });
+  await f.repo.upsert({ ...await f.row(), provisionedByPluginId: 'different-plugin' });
+  const apply = createApplyConnectDefaults({ ...f, workspaceId: 'ws', agentPluginLayout: resolveAgentPluginLayout({ siteDir: '/unused' }),
+    resolveServers: async () => servers, isPluginOffByOperator: async () => false, enablePlugin: async () => true, notifyRosterChanged: async () => {},
+  }, { approvedEnable: { principalId: 'owner', accessKey: preview.key } });
+  await assert.rejects(apply('media'), /changed after approval/);
+  assert.equal((await f.row()).enabled, false);
+});
+
+test('a declined proposal keeps the approver of the live write list', async () => {
+  const f = await fixture();
+  await f.repo.upsert({ ...await f.row(), writeAllowedToolNames: '["existing"]', writeGrantsUpdatedByPrincipalId: 'prior-owner', writeGrantsUpdatedAt: '2026-11-01T12:00:00Z' });
+  const preview = await previewAgentPluginEnableAccess({ workspaceId: 'ws', pluginId: 'images', servers, repo: f.repo });
+  const { recordAgentPluginAccessDeclined } = await import('../../apply-connect-defaults.js');
+  await recordAgentPluginAccessDeclined({ repo: f.repo, clock: f.clock, workspaceId: 'ws', accessKey: preview.key });
+  assert.deepEqual((await f.row()).writeAllowedToolNames, '["existing"]');
+  assert.equal((await f.row()).writeGrantsUpdatedByPrincipalId, 'prior-owner');
+  assert.equal((await f.row()).writeGrantsUpdatedAt, '2026-11-01T12:00:00Z');
 });

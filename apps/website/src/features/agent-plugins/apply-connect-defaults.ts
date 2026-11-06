@@ -159,9 +159,10 @@ function approvedSource({ key, connectionId, pluginId }: { key: string | undefin
   url: string; expected: ExternalMcpAccessSnapshot | null; current: ReturnType<typeof storedAgentPluginGrants>; grant: { enabled: boolean; allow: readonly string[]; write: readonly string[] };
 } | undefined {
   if (key === undefined) return undefined;
-  const sources = JSON.parse(key) as { connectionId: string; url: string; expected: ExternalMcpAccessSnapshot | null; current: ReturnType<typeof storedAgentPluginGrants>; grant: { enabled: boolean; allow: readonly string[]; write: readonly string[] } | null }[];
+  const sources = JSON.parse(key) as { pluginId: string; connectionId: string; url: string; expected: ExternalMcpAccessSnapshot | null; current: ReturnType<typeof storedAgentPluginGrants>; grant: { enabled: boolean; allow: readonly string[]; write: readonly string[] } | null }[];
   const source = sources.find(source => source.connectionId === connectionId);
   if (!source?.grant) throw new ToolInputError({ message: `The approved card did not grant access to '${connectionId}'. Request the access change again.` });
+  if (source.pluginId !== pluginId) throw new ToolInputError({ message: 'The connection owner changed after approval. Request the access change again. Nothing was granted.' });
   // Provisioning associates an operator-owned row after approval without changing its source or access.
   const expected = source.expected ? { ...source.expected, provisionedByPluginId: source.expected.provisionedByPluginId ?? pluginId } : null;
   return { url: source.url, expected, current: source.current, grant: source.grant };
