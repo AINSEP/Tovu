@@ -1,53 +1,31 @@
-# security-release — desktop gates
+# security-release — assistant catalog admission
 
-Status: complete — six local gates pass. Tovu `cloud/security-release` only; no main push, tag, publication or deployment.
+Status: complete; packaged macOS verification remains pending. Tovu `cloud/security-release` only. No tag, publication, deployment or main push. Jini and published packages unchanged.
 
-## Repairs
+The 403 came from Tovu's live-attempt/principal authorization on the private tool catalog. The journey supplied a valid site bearer over loopback, without a browser Origin, but posted only a prompt: no persisted conversation/message binding meant no accepted site-owned attempt existed. The refusal was correct; the caller bypassed the durable acceptance path used by staff chat. CLI discovery, PATH and the fixture shebang had not been reached.
 
-- Split locale resolution and the resource-sample decision into small helpers, preserving existing behavior and constants. Both requested functions now meet the complexity ceiling of 9.
-- Restored missing lifecycle dependencies in three VM fixture scenarios and added notification assertions while retaining all teardown assertions.
-- Made staging inventory cover all three existing release paths. Updated two exact resource-display expectations to the intentional decimal-GB contract already covered by dedicated tests.
-- Added locale and invalid/unavailable resource-observation cases. No tests, rules, timeouts, floors, skips or debt entries were weakened or added to bypass a check.
+The smallest fix changes only the release caller: create a real authenticated chat, then send its conversation/message identity through the existing run acceptance route. All child-PID, session, no-key reason, concurrency, ownership and cleanup assertions remain. No refusal, retry, timeout, rule or threshold changed. No production route changed.
 
-## Findings and environment
+## Proof
 
-The untruncated baseline found nine main-process failures. Four came from stale fixture/inventory assumptions; the others involved missing Electron, container orphan reaping and subprocess timeouts. An initial renderer pass then exposed two stale resource-format expectations and two missing-browser failures.
+A failing-first regression invokes the actual journey callback over real HTTP site and daemon routes, session/bearer guards, durable acceptance/store and catalog authorization. Electron IPC and CLI execution are outside this test; the actual callback and HTTP admissions execute. Before the fix, the catalog returned the exact live-attempt 403. After the fix, the actual daemon catalog client discovers tools. Wrong bearers, unknown attempts, another principal and cancellation remain refused. **16 focused checks pass, zero skipped.**
 
-Installed the locked Electron runtime with its normal checksum verification; its unchanged import test passes. The unchanged process-reaping assertions pass under temporary `tini -s`, providing the child reaping this container's init lacks. The unchanged subprocess probes pass in isolation. A typing error in an added edge-case fixture was corrected to use the supported unavailable-snapshot contract.
-
-Exception: the network policy blocks Playwright's Chromium 149 download. Local browser tests use the installed Debian Chromium **155.0.8059.79**, selected through a scratch browser-cache symlink. Both unchanged layout tests pass. This is a local browser-version difference, not evidence that the pinned CI browser ran.
-
-## Validation
-
-`npm run gates`: **6 PASS, 0 FAIL, 0 DISABLED** — tree-quiet, tests, typecheck, coverage, complexity and js-backslide. Coverage passes its existing floors after both suites pass. The ten existing platform skips remain unchanged. Focused source/fixture checks: 169 pass; renderer checks: 50 pass; browser layout checks: 2 pass. Gate settings, coverage floors and complexity debt remain unchanged. Strict complexity passes 247 files at 9/9, with three existing grandfathered entries and zero new entries.
-
-Commands run from `apps/desktop` after sourcing `/workspace/.tovu-build/env.sh`:
+Commands from the repository root after sourcing `/workspace/.tovu-build/env.sh`:
 
 ```sh
-npm test
-node --experimental-test-module-mocks --import ./scripts/resolve-ts-ext.ts --test src/desktop-i18n.test.ts src/project-ipc.test.ts src/main-agent-runtime-wiring.test.ts src/main-shutdown-wiring.test.ts src/packaging-selection.test.ts
-node --import tsx --test src/renderer/App.render.test.ts src/renderer/SiteGrid.jsdom.test.ts src/renderer/ResourcesPanel.render.test.ts
-node --import tsx --test src/renderer/websites-width.test.ts
-node scripts/check-complexity.ts
-PLAYWRIGHT_BROWSERS_PATH=/workspace/work/security-release/desktop-gates/playwright-cache npm_config_cache=/workspace/work/security-release/desktop-gates/npm-cache /workspace/work/security-release/desktop-gates/tools/usr/bin/tini -s -- npm run gates
-```
-
-The renderer/browser probes also used the same scratch browser-cache variable and `tini -s`. Untruncated logs remain in `/workspace/work/security-release/desktop-gates`. From the repository root:
-
-```sh
-/workspace/work/security-release/tools/gitleaks git . --log-opts='e327c07c8..HEAD' --redact
+node --import tsx --test --test-isolation=none development/scripts/__tests__/desktop-assistant-admission.integration.test.ts development/scripts/__tests__/desktop-assistant-evidence.unit.test.ts development/scripts/__tests__/desktop-assistant-release-gate.unit.test.ts apps/website/src/server/runtime/composition/modules/__tests__/assistant-tool-exec-principal.integration.test.ts
+node_modules/.bin/tsc -p tsconfig.json --noEmit
+node_modules/.bin/tsc -p development/tsconfig.e2e.json
+node_modules/.bin/tsc -p /workspace/work/security-release/catalog-admission/focused-tsconfig.json
+node_modules/.bin/eslint --no-inline-config --rule 'complexity:[error,10]' --rule 'sonarjs/cognitive-complexity:[error,10]' development/e2e/desktop/_assistant-release-gate.ts
+/workspace/work/security-release/tools/gitleaks git . --log-opts='8ea4f216b..HEAD' --redact
 git diff --check
-git diff --quiet be3d549b42be3a0c6bedc80f152004bc2abd29d2 HEAD -- apps/desktop/quality-gates.json apps/desktop/coverage-floors.json apps/desktop/complexity-debt.json
 ```
 
-## SHAs and package state
+Typechecks and secret/whitespace checks pass. The scratch typecheck adds the three affected reporting/admission test files to the existing strict E2E configuration, using the repository's Node types. A test adapter's initially omitted required configuration names were corrected; no casts or suppressions were added for that error.
 
-Implementation checkpoints on `cloud/security-release`:
+Lint exception: strict harness lint reports the existing SSE reader's cognitive complexity of 11 and nesting warning. The exact same violations occur when linting the starting commit through stdin; they are unchanged by this fix. No debt list or configuration was changed. The new regression has no strict lint errors.
 
-- `ebac4f26985acf521e8bdd0f8e6e7f8cc34a49c1`
-- `0c8e5d99549c0449d0ce04811b88bc471bd61f58`
-- `4728311fb25058b6db04c4340ad425dc52323fba` — final tested source tip.
+The packaged arm64 journeys were not rerun here. The real-route reproduction proves this admission failure and its correction; it does not claim a full packaged-app pass. Run the same two journeys on macOS with the patched harness to verify later CLI/process stages. The previous incomplete Electron probe's uncommitted DISPLAY adjustment was restored; the workspace is clean after final commits.
 
-The final response provides the subsequent documentation-only report commit SHA. Final range secret scan and whitespace validation pass. Checkpoint pushes bypassed the pre-push hook; the actual six-gate command above ran independently, with no hook changes.
-
-Desktop remains **0.1.30**. The 12 published Jini packages remain **0.6.23**, with no dependency, lockfile or Jini repository changes in this step. The full package list and registry-integrity evidence remain in the [previous report](https://github.com/AINSEP/Tovu/blob/be3d549b42be3a0c6bedc80f152004bc2abd29d2/cloud/reports/security-release.md).
+Behavioral fix checkpoint pushed: `6ec62bfbdf774a7147b3aad19e1438ed89dcb503`. The final response gives the subsequent test-typing/report SHA. Previous investigation: [report](https://github.com/AINSEP/Tovu/blob/8ea4f216bf7f3a799a6bf1e01620e9f6ad3482a4/cloud/reports/security-release.md).

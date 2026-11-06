@@ -13,7 +13,7 @@ type GuestSession = { fetch(input: string, init?: RequestInit): Promise<Response
 type GuestContents = { getType(): string; getURL(): string; session: GuestSession };
 type SiteContext = { origin: string; session: GuestSession; runId?: string };
 type ExecutionState = typeof globalThis & { __assistantGateSites?: SiteContext[] };
-type Evidence = { childPid?: number; sessionId?: string; reason?: string };
+type Evidence = { childPid?: number; sessionId?: string; reason?: string; errorFrame?: unknown };
 const NO_KEY_REASON = 'Release gate: no model key was provided. Supply a model key to generate a reply.';
 
 /** One bounded, read-only query per fixture, at most two small rows; never changes the default ID. */
@@ -57,16 +57,24 @@ async function openSites({ launch, names }: { launch: DesktopLaunch; names: read
   }
 }
 
-/** Exactly one authenticated activation and run POST per site; each response has a 90s deadline. */
-async function acceptRuns({ app, count }: { app: ElectronApplication; count: number }, _optional = {}) {
+/** One authenticated activation, chat creation and run acceptance per site; each has a 90s deadline. */
+export async function acceptRuns({ app, count }: { app: ElectronApplication; count: number }, _optional = {}) {
   const accepted = await app.evaluate(async () => Promise.all(((globalThis as ExecutionState).__assistantGateSites ?? []).map(async site => {
     const activation = await site.session.fetch(`${site.origin}/api/frontend-sessions/activate`, {
       method: 'POST', credentials: 'include', signal: AbortSignal.timeout(90_000) });
     const ready = activation.status;
     await activation.body?.cancel();
+    // Use staff chat's durable acceptance path: catalog admission must never trust an unbound run.
+    const chatResponse = await site.session.fetch(`${site.origin}/api/assistant/chats`, { method: 'POST', credentials: 'include',
+      signal: AbortSignal.timeout(90_000), headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ firstMessage: 'Release scope check.' }) });
+    const chat = await chatResponse.json() as { conversation?: { id: string } };
+    if (chatResponse.status !== 201 || !chat.conversation?.id) throw new Error(`Chat creation returned HTTP ${chatResponse.status}. Inspect the desktop trace.`);
+    const conversationId = chat.conversation.id;
+    const assistantMessageId = crypto.randomUUID();
     const response = await site.session.fetch(`${site.origin}/api/runs`, { method: 'POST', credentials: 'include',
       signal: AbortSignal.timeout(90_000), headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ agentId: 'claude', contextRef: JSON.stringify({ prompt: 'Release scope check.' }) }) });
+      body: JSON.stringify({ agentId: 'claude', contextRef: JSON.stringify({ prompt: 'Release scope check.', conversationId, assistantMessageId }) }) });
     const body = await response.json() as { run?: { id: string } };
     site.runId = body.run?.id;
     return { origin: site.origin, ready, status: response.status, runId: site.runId };
@@ -85,7 +93,7 @@ async function acceptRuns({ app, count }: { app: ElectronApplication; count: num
 /** Read one SSE subscription per run (90s / 256 KiB cap). Parsing stays in the packaged main
  * process: it cannot dynamic-import the checkout's harness helpers. No run/history polling.
  */
-async function executionEvidence({ app }: { app: ElectronApplication }, _optional = {}): Promise<Evidence[]> {
+export async function executionEvidence({ app }: { app: ElectronApplication }, _optional = {}): Promise<Evidence[]> {
   return app.evaluate(async () => {
     type Frame = { kind?: string; payload?: { type?: string; childPid?: number; sessionId?: string; message?: string; error?: { code?: string } } };
     // These small helpers must travel inside evaluate: the packaged main process has no harness imports.
@@ -103,6 +111,8 @@ async function executionEvidence({ app }: { app: ElectronApplication }, _optiona
       const event = parseFrame(frame);
       if (!event?.payload) return;
       recordStatus(event.payload, evidence);
+      // Preserve the daemon's actual failure without treating it as successful CLI evidence.
+      if (event.kind === 'error') evidence.errorFrame = event;
       if (event.kind === 'error' && event.payload.error?.code === 'RELEASE_GATE_NO_MODEL_KEY') evidence.reason = event.payload.message;
       if (event.kind === 'end') throw new Error(`Run ended before CLI scope evidence: ${JSON.stringify(evidence)}`);
     }
