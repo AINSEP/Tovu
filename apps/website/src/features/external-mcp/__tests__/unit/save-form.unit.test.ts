@@ -330,7 +330,7 @@ test("a stdio connection still gets the hints that tell it to supply its own end
 
 test("explicit prefill values, including empty strings, win over every stored value", () => {
   const input: ExternalMcpSaveInput = {
-    id: "srv-1", transport: "streamable_http", label: "", command: "node", args: "",
+    id: "srv-1", transport: "streamable_http", enabled: false, label: "", command: "node", args: "",
     url: "https://new.example/mcp", allowedToolNames: "", writeAllowedToolNames: "",
     authMode: "oauth", accessTokenEnvName: "NEW_TOKEN", oauthProviderId: "new-provider",
     oauthGrant: "authorization_code", oauthClientId: "new-client", oauthScopes: "",
@@ -372,7 +372,7 @@ for (const override of [undefined, "", "replacement"]) test(`prefill applies ${S
   const input: ExternalMcpSaveInput = { ...BASE_INPUT, ...overrides };
   const before = structuredClone(existing);
   assert.deepEqual(mergeExternalMcpSavePrefill(input, existing), {
-    id: BASE_INPUT.id, transport: BASE_INPUT.transport,
+    id: BASE_INPUT.id, transport: BASE_INPUT.transport, enabled: true,
     ...Object.fromEntries(Object.entries(fallback).map(([key, value]) => [key, override ?? value])),
   });
   assert.deepEqual(existing, before);
@@ -405,4 +405,10 @@ test("save cards disclose site-wide access, local OS execution and the tool allo
   const hosted = buildExternalMcpSaveForm({ save: { ...BASE_INPUT, transport: "streamable_http" }, isUpdate: true });
   assert.match(hosted.description!, /Saved for the whole site/);
   assert.equal(hosted.details?.some(detail => detail.label === "Local access"), false);
+});
+
+test("save prefill preserves disabled state and an explicit toggle wins", () => {
+  const existing = existingView({ enabled: false });
+  assert.equal(mergeExternalMcpSavePrefill(BASE_INPUT, existing).enabled, false);
+  assert.equal(mergeExternalMcpSavePrefill({ ...BASE_INPUT, enabled: true }, existing).enabled, true);
 });

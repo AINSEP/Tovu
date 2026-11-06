@@ -53,7 +53,7 @@ function buildRealExternalMcpToolExecutor(surfaceExchanges: SurfaceExchangeStore
   };
 
   const registry = createToolRegistry({});
-  for (const registration of buildExternalMcpRegistrations(deps, { surfaceExchanges })) {
+  for (const registration of buildExternalMcpRegistrations(deps, { assertAccessApprover: async () => {}, surfaceExchanges })) {
     registry.register(registration);
   }
   const toolExecutor = createToolExecutor({ registry });

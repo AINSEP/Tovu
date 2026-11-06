@@ -7,6 +7,7 @@ import type { SurfaceEmission, ToolExecutionContext } from '@jini-ai/core';
 import { buildExternalMcpRegistrations } from '../tool-registrations.js';
 import { InMemoryExternalMcpServerRepo } from '../external-mcp-store.memory.js';
 import { buildExternalMcpSaveForm } from '../save-form.js';
+import { externalMcpAccessSnapshot } from '../external-mcp-store.js';
 import type { ExternalMcpServerRecord } from '../contracts.js';
 import type { ExternalMcpToolDeps } from '../deps.js';
 
@@ -21,23 +22,26 @@ function source(): ExternalMcpServerRecord {
     oauthStatus: null, oauthExpiresAt: null, oauthTokenEnvName: null, oauthRefreshLeaseUntil: null,
     sealedOAuth: null, aadVersion: 1, oauthAadVersion: 1, createdAt: now, updatedAt: now };
 }
-async function fixture({ knownNames = ['read', 'write'] }: { knownNames?: readonly string[] | null } = {}) {
+async function fixture({ knownNames = ['read', 'write'], configuration = false }: { knownNames?: readonly string[] | null; configuration?: boolean } = {}) {
   const repo = new InMemoryExternalMcpServerRepo();
-  const original = source(); await repo.upsert(original);
+  const original = { ...source(), ...(configuration ? { url: 'https://example.test/mcp', args: '[]' } : {}) }; await repo.upsert(original);
   const controller = new AbortController();
   let permission = true;
+  let approver = true;
+  let checks = 0;
   const surfaces = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: { newId: () => 'access-exchange' }, defaultChannel: 'mcp-ui' }),
-    assertAccessApprover: async () => {} };
+    assertAccessApprover: async () => { checks += 1; if (!approver) throw new Error('Signed-in access approver revoked'); } };
   const deps = { workspaceId: key.workspaceId, clock: { nowMs: () => Date.parse(now) }, externalMcpServerRepo: repo,
-    externalMcpKnownToolNames: () => knownNames,
+    externalMcpKnownToolNames: ({ admissionRevision }: { admissionRevision: string }) => admissionRevision === externalMcpAccessSnapshot({ record: original }).admissionRevision ? knownNames : null,
     authorize: async () => ({ allowed: permission, reason: permission ? 'matched' : 'revoked' }) } as unknown as ExternalMcpToolDeps;
   const handler = buildExternalMcpRegistrations(deps, surfaces).find(entry => entry.descriptor.id === 'external_mcp_save')!.handler;
   const emissions: SurfaceEmission[] = [];
   const ctx: ToolExecutionContext = { executionId: 'execution', principal: { id: 'person' }, run: { id: 'chat' }, signal: controller.signal,
     input: { id: key.serverId, enabled: true, allowedToolNames: 'read, write', writeAllowedToolNames: 'write' } };
+  if (configuration) Object.assign(ctx.input as Record<string, unknown>, { transport: 'streamable_http', label: 'Updated source' });
   const invoke = () => handler(ctx, { emitSurface: async emission => { emissions.push(emission); } });
   const answer = (params: Record<string, unknown>, principalId = 'person') => surfaces.surfaceExchanges.deliver({ exchangeId: 'access-exchange', principalId, params }, { toolId: 'external_mcp_save' });
-  return { repo, original, ctx, controller, emissions, invoke, answer, revoke: () => { permission = false; } };
+  return { repo, original, ctx, controller, emissions, invoke, answer, revoke: () => { permission = false; }, revokeApprover: () => { approver = false; }, forgetCatalog: () => { knownNames = null; }, checks: () => checks, surfaces };
 }
 
 test('existing MCP access uses one fixed card and only the approved proposal is applied', async t => {
@@ -106,4 +110,65 @@ test('credential setup discloses fixed grant lists without editable access field
   assert.ok(form.fields.some(field => field.name === 'accessToken'), 'credential entry stays available');
   assert.ok(form.fields.every(field => field.name !== 'allowedToolNames' && field.name !== 'writeAllowedToolNames'));
   const disclosure = JSON.stringify(form.details); assert.match(disclosure, /read, write/); assert.match(disclosure, /May write/);
+});
+
+for (const reason of ['catalog', 'approver'] as const) test(`configuration details still require current ${reason} before a card`, async t => {
+  const f = await fixture({ configuration: true, knownNames: reason === 'catalog' ? null : ['read', 'write'] });
+  t.after(() => f.controller.abort());
+  if (reason === 'approver') f.revokeApprover();
+  const pending = f.invoke(); void pending.catch(() => {}); await turn();
+  if (f.emissions.length > 0) f.controller.abort();
+  await assert.rejects(pending, /verified|approver|signed-in/i);
+  assert.equal(f.emissions.length, 0);
+  assert.deepEqual(await f.repo.findByServerId(key), f.original);
+});
+
+for (const reason of ['catalog', 'approver', 'permission', 'source'] as const) test(`configuration save rechecks ${reason} after the card`, async t => {
+  const f = await fixture({ configuration: true }); t.after(() => f.controller.abort());
+  const pending = f.invoke(); await turn();
+  assert.equal(f.emissions.length, 1);
+  let expected = f.original;
+  if (reason === 'catalog') f.forgetCatalog();
+  if (reason === 'approver') f.revokeApprover();
+  if (reason === 'permission') f.revoke();
+  if (reason === 'source') { expected = { ...expected, url: 'https://other.example.test/mcp' }; await f.repo.upsert(expected); }
+  f.answer({ url: f.original.url, label: 'Updated source' });
+  const result = await pending as { saved: boolean; message?: string };
+  assert.equal(result.saved, false);
+  assert.match(result.message ?? '', /changed|current|permission|verified|signed-in|approval/i);
+  assert.deepEqual(await f.repo.findByServerId(key), expected);
+});
+
+test('configuration approval keeps an explicitly disabled source disabled', async t => {
+  const f = await fixture({ configuration: true }); t.after(() => f.controller.abort());
+  Object.assign(f.ctx.input as Record<string, unknown>, { enabled: false, allowedToolNames: '', writeAllowedToolNames: '' });
+  const pending = f.invoke(); await turn();
+  assert.equal(f.emissions.length, 1);
+  assert.match(JSON.stringify(f.emissions[0]), /Disabled/);
+  f.answer({ url: f.original.url, label: 'Updated source', enabled: true });
+  assert.equal((await pending as { saved: boolean }).saved, true);
+  assert.equal((await f.repo.findByServerId(key))!.enabled, false);
+  assert.equal(f.checks(), 2);
+});
+
+test('a configuration card cannot transfer known grants to a different target', async t => {
+  const f = await fixture({ configuration: true }); t.after(() => f.controller.abort());
+  const pending = f.invoke(); await turn();
+  assert.equal(f.emissions.length, 1);
+  f.answer({ url: 'https://other.example.test/mcp', label: 'Updated source' });
+  assert.equal((await pending as { saved: boolean }).saved, false);
+  assert.deepEqual(await f.repo.findByServerId(key), f.original);
+});
+
+test('a disabled source without a catalog points to its usable connection settings', async t => {
+  const f = await fixture({ knownNames: null }); t.after(() => f.controller.abort());
+  const pending = f.invoke();
+  await assert.rejects(pending, error => {
+    assert.ok(error instanceof Error);
+    assert.match(error.message, /Settings → External MCP/);
+    assert.match(error.message, /enable|turn on/i);
+    assert.doesNotMatch(error.message, /external_mcp_get_admissions|external_mcp_probe_connection/);
+    return true;
+  });
+  assert.equal(f.emissions.length, 0);
 });

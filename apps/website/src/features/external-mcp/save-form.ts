@@ -37,6 +37,7 @@ export const EXTERNAL_MCP_SAVE_TOOL_ID = "external_mcp_save";
 export interface ExternalMcpSaveInput {
   id: string;
   label?: string;
+  enabled?: boolean;
   transport: string;
   command?: string;
   args?: string;
@@ -76,6 +77,7 @@ export function mergeExternalMcpSavePrefill(
   const prefill: ExternalMcpSaveInput = {
     id: input.id,
     label: existing.label,
+    enabled: existing.enabled,
     transport: input.transport,
     command: existing.command,
     args: existing.args.join(" "),
@@ -260,7 +262,8 @@ export function buildExternalMcpSaveFormFields(input: ExternalMcpSaveInput, isUp
  */
 function fixedAccessDetails(save: ExternalMcpSaveInput) {
   return [{ label: "Allowed tools", value: save.allowedToolNames || "None" },
-    { label: "May write", value: save.writeAllowedToolNames || "None" }];
+    { label: "May write", value: save.writeAllowedToolNames || "None" },
+    ...(save.enabled === false ? [{ label: "Connection access", value: "Disabled" }] : [])];
 }
 
 /**
