@@ -549,14 +549,15 @@ it.each(["needs-owner", "ready"] as const)("shows edited-code warnings on the wa
 });
 
 describe("export row notices", () => {
-  it("puts every notice of an export on one warning sign in its row, without duplicates", () => {
+  it("shows every notice of an export once in its detail line, not on the Status column", () => {
     const notice = "No domain was given, so sitemap.xml and feed.xml were left out.";
     render(<SiteExportTab t={t} useExport={() => exportController({ shares: [share({ notes: ["Published content only."], notices: [notice, "Published content only."] }), share({ shareId: "plain" })] })} />);
-    const signs = screen.getAllByRole("button", { name: "Warning" });
-    expect(signs).toHaveLength(1);
-    expect(document.getElementById(signs[0]!.getAttribute("aria-describedby")!)?.textContent).toBe(`Published content only.\n${notice}`);
-    expect(signs[0]!.closest("tr")?.textContent).toContain("Active");
-    expect(signs[0]!.closest("td")?.querySelector(".notice")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Warning" })).toBeNull();
+    const details = document.querySelectorAll(".list-table-detail");
+    expect(details).toHaveLength(1);
+    expect(within(details[0] as HTMLElement).getAllByText("Published content only.")).toHaveLength(1);
+    expect(within(details[0] as HTMLElement).getByText(notice)).toBeTruthy();
+    expect(document.querySelector(".site-transfer-status .notice")).toBeNull();
   });
 });
 

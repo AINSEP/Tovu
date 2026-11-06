@@ -20,6 +20,17 @@ export function credentialSummary({ subject, warnings, t }: { subject: "export" 
   return count === 1 ? t("This export may contain credentials in 1 file.") : interpolate({ template: t("This export may contain credentials in {count} files."), vars: { count } });
 }
 
+/** Each file once, with every kind of credential it may hold: warnings arrive one per file and kind. */
+function warningsByFile({ warnings }: { warnings: readonly CredentialWarning[] }, _options = {}): [string, string[]][] {
+  const files = new Map<string, string[]>();
+  for (const { path, kind } of warnings) {
+    const kinds = files.get(path) ?? [];
+    if (!kinds.includes(kind)) kinds.push(kind);
+    files.set(path, kinds);
+  }
+  return [...files];
+}
+
 /** A collapsed list of each file and what it may contain; native details keeps keyboard and screen-reader behavior. */
 export function CredentialWarningList({ warnings, t }: { warnings: readonly CredentialWarning[]; t: Translate }) {
   if (!warnings.length) return null;
@@ -27,10 +38,10 @@ export function CredentialWarningList({ warnings, t }: { warnings: readonly Cred
     <details className="site-transfer-credential-files">
       <summary>{t("Show files")}</summary>
       <ul>
-        {warnings.map(warning => (
-          <li key={`${warning.path}\n${warning.kind}`}>
-            <code className="site-transfer-credential-path">{warning.path}</code>
-            <span className="site-transfer-credential-kind">{warning.kind}</span>
+        {warningsByFile({ warnings }).map(([path, kinds]) => (
+          <li key={path}>
+            <code className="site-transfer-credential-path">{path}</code>
+            {kinds.map(kind => <span key={kind} className="site-transfer-credential-kind">{kind}</span>)}
           </li>
         ))}
       </ul>

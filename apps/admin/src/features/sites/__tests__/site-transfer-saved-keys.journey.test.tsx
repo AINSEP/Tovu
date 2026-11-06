@@ -94,7 +94,9 @@ it("keeps export omissions visible without retrieving any key password", async (
   const calls = service({ revealFails: true });
   exportScreen();
   fireEvent.click(screen.getByRole("button", { name: "Export Tovu site" }));
-  await waitFor(() => expect(signedNotices(document.body)).toContain(omission));
+  // An export's notices are in its detail line under the row, not on the Status column's sign.
+  await waitFor(() => expect(document.querySelector(".list-table-detail")?.textContent).toContain(omission));
+  expect(document.querySelector(".site-transfer-status .site-transfer-notice-tip")).toBeNull();
   expect(calls.some(call => call.path.endsWith("/password"))).toBe(false);
   expect(screen.queryByDisplayValue(archivePassword)).toBeNull();
 }, 10000);

@@ -100,7 +100,7 @@ function ExportList({ controller, t }: { controller: SiteExportController; t: Tr
           header: t("Status"),
           cell: (share) => {
             const view = shareStatusView(share.status, t);
-            return <span className="site-transfer-status"><span className={view.className}>{view.label}</span><TransferNoticeTip notices={exportRowNotices({ share, gate: controller.credentialGate(share), t })} t={t} /></span>;
+            return <span className="site-transfer-status"><span className={view.className}>{view.label}</span></span>;
           },
         },
         { key: "actions", headerLabel: t("Actions"), cell: (share, index) => <ShareActions share={share} index={index} controller={controller} t={t} /> },
@@ -110,7 +110,7 @@ function ExportList({ controller, t }: { controller: SiteExportController; t: Tr
 }
 
 /**
- * The row's warning sign: the export's own notices, plus where credentials may be. A gate's warnings
+ * The row's notices, drawn in its detail line: the export's own, plus where credentials may be. A gate's warnings
  * win over the listed ones, since a 409 can name files the row's last list never had.
  * @complexity O(n) notices and warnings.
  */
@@ -131,9 +131,11 @@ function exportRowNotices({ share, gate, t }: { share: SiteShare; gate: Credenti
 function exportCredentialDetail({ share, index, controller, t }: { share: SiteShare; index: number; controller: SiteExportController; t: Translate }, _options = {}) {
   const gate = controller.credentialGate(share);
   const warnings = gate?.warnings ?? share.credentialWarnings ?? [];
-  if (!gate && !warnings.length) return null;
+  const notices = exportRowNotices({ share, gate, t });
+  if (!gate && !warnings.length && !notices.length) return null;
   return (
     <div className="site-transfer-detail" role={gate?.message ? "alert" : undefined}>
+      {notices.map(notice => <p key={notice} className="site-transfer-detail-message">{notice}</p>)}
       {gate?.message ? <p className="site-transfer-detail-message">{gate.message}</p> : null}
       {gate ? <ExportAcknowledge share={share} gate={gate} index={index} controller={controller} t={t} /> : null}
       <CredentialWarningList warnings={warnings} t={t} />
