@@ -334,7 +334,12 @@ export function buildFormsRegistrations(routeDeps: FormsToolDeps): ToolRegistrat
         permission: "admin.forms.manage",
       }, { entityType: "form_definition" });
       const definitions = await routeDeps.formDefinitionRepo.list({ workspaceId: routeDeps.workspaceId });
-      return { definitions: definitions.map(toFormDefinitionView) };
+      return { definitions: definitions.map(record => {
+        const view = toFormDefinitionView(record);
+        // Collection discovery stays compact; single-definition writes retain their full HTML.
+        delete view.html;
+        return view;
+      }) };
     },
     forms_create_definition: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });

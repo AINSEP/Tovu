@@ -1,6 +1,6 @@
 import { createFormsAdmissionMiddleware } from "./forms-admission.js";
 import { captureVisitorEvent, visitorAnalyticsProvenance } from "../../visitor-analytics.js";
-import { FormSubmissionValidationError, FormRateLimitExceededError, FormDefinitionNotFoundError, FormSubmissionTooFastError, type SubmissionAttempts } from "@jini-ai/cms/forms";
+import { FormSubmissionValidationError, FormSchemaChangedError, FormAttachmentSpaceError, FormRateLimitExceededError, FormDefinitionNotFoundError, FormSubmissionTooFastError, type SubmissionAttempts } from "@jini-ai/cms/forms";
 import type { VisitorAnalyticsDeps } from "../../visitor-analytics.js";
 import { parseFormMultipartMiddleware } from "./forms-multipart.js";
 import { RESERVED_SEGMENTS } from "#src/platform/routing/index";
@@ -85,6 +85,8 @@ export function registerFormsSubmitRoute(app: Express, deps: RegisterFormsSubmit
  * @complexity O(1). */
 function formFailureProperties({ error }: { error: unknown }, _optional = {}): Record<string, string | number> {
   if (error instanceof FormSubmissionValidationError) return { reason: "validation", invalidFieldCount: error.fieldErrors.length };
+  if (error instanceof FormSchemaChangedError) return { reason: "schema_changed", invalidFieldCount: 0 };
+  if (error instanceof FormAttachmentSpaceError) return { reason: "attachment_space", invalidFieldCount: 0 };
   if (error instanceof FormRateLimitExceededError) return { reason: "rate_limited", invalidFieldCount: 0 };
   if (error instanceof FormDefinitionNotFoundError) return { reason: "unavailable", invalidFieldCount: 0 };
   return { reason: "internal", invalidFieldCount: 0 };

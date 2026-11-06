@@ -5,7 +5,7 @@ import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo, type FormAuthor
 import { executeCommand, InMemoryChangeSetRepo } from "../../../contracts/core/commands/index.js";
 import { buildFormsRegistrations, type FormsToolDeps } from "../tool-registrations.js";
 
-test("definition tools expose stored HTML and Builder authoring without inventing legacy metadata", async () => {
+test("definition listing omits stored HTML while retaining authoring metadata", async () => {
   const formDefinitionRepo = new InMemoryFormDefinitionRepo();
   const base = {
     workspaceId: "ws", fields: [], notify: { enabled: false, recipients: [] }, status: "active" as const,
@@ -27,9 +27,8 @@ test("definition tools expose stored HTML and Builder authoring without inventin
   assert.ok(tool);
   const context: ToolExecutionContext = { executionId: "exec", principal: { id: "owner" }, run: { id: "run" }, input: {}, signal: new AbortController().signal };
   const result = await tool.handler(context);
-  assert.deepEqual(result, { definitions: records.map(({ id, name, slug, status, fields, notify, mode, html }) => ({
+  assert.deepEqual(result, { definitions: records.map(({ id, name, slug, status, fields, notify, mode }) => ({
     id, name, slug, status, fields, notify,
     ...(mode === undefined ? {} : { mode }),
-    ...(html === undefined ? {} : { html }),
   })) });
 });

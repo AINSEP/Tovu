@@ -8,7 +8,7 @@ import test from "node:test";
 import express from "express";
 
 import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
-import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "@jini-ai/cms/forms";
+import { FormSchemaChangedError, FormAttachmentSpaceError, InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "@jini-ai/cms/forms";
 import { FORMS_SUBMIT_PROFILE } from "#src/features/forms/rate-limit-profile";
 import { formSubmissionAttemptsFor } from "#src/features/forms/index";
 import { injectFormAttemptTokens } from "../../inbound/public-http/http/site/form-render.js";
@@ -1059,3 +1059,30 @@ test("form analytics captures only a committed submission, never honeypots or du
     eventId: "id-4", formId: "def-1", formSlug: "contact", deliveryMode: "live",
   } }]);
 });
+
+
+for (const [reason, error] of [
+  ['schema_changed', new FormSchemaChangedError({ fields: [], schemaHash: 'new', draft: {} as never })],
+  ['attachment_space', new FormAttachmentSpaceError({ fields: [], answers: {} })],
+] as const) {
+  test(`form refusal analytics classifies ${reason} without exposing submitted answers`, { timeout: 5000 }, async t => {
+    const events: ProductEvent[] = [];
+    let captured!: () => void;
+    const delivered = new Promise<void>(resolve => { captured = resolve; });
+    const repo = new InMemoryFormDefinitionRepo();
+    const definitionRepo = new Proxy(repo, { get(target, prop, receiver) {
+      if (prop === 'findBySlug') return async () => { throw error; };
+      return Reflect.get(target, prop, receiver);
+    } });
+    const { server, baseUrl } = await startTestApp({ definitionRepo, allowVisitorAnalytics: async () => true,
+      productAnalytics: { capture: event => { events.push(event); captured(); }, identify: () => {} } });
+    t.after(() => new Promise<void>(resolve => { server.closeAllConnections(); server.close(() => resolve()); }));
+    const response = await fetch(`${baseUrl}/forms/contact/submit`, { method: 'POST',
+      headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: 'private answer' }) });
+    assert.ok(response.status >= 400);
+    await delivered;
+    assert.equal(events.length, 1);
+    assert.equal(events[0]!.name, 'form_submit_failed');
+    assert.deepEqual(events[0]!.properties, { reason, invalidFieldCount: 0 });
+  });
+}
