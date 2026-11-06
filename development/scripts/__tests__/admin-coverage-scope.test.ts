@@ -1,13 +1,16 @@
 import assert from "node:assert/strict";
+import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
-import { loadConfigFromFile } from "vite";
+
+const adminRequire = createRequire(new URL("../../../apps/admin/package.json", import.meta.url));
+const { loadConfigFromFile } = await import(adminRequire.resolve("vite"));
 
 async function coverageThresholds(args: string[]) {
   const savedArgv = process.argv;
   process.argv = [...savedArgv.slice(0, 2), "run", "--coverage", ...args];
   try {
-    const loaded = await loadConfigFromFile({ command: "serve", mode: "test" }, fileURLToPath(new URL("./vitest.config.ts", import.meta.url)));
+    const loaded = await loadConfigFromFile({ command: "serve", mode: "test" }, fileURLToPath(new URL("../../../apps/admin/vitest.config.ts", import.meta.url)));
     assert.ok(loaded, "the shipped Vitest config loads");
     return (loaded.config as { test?: { coverage?: { thresholds?: unknown } } }).test?.coverage?.thresholds;
   } finally {
