@@ -14,6 +14,11 @@ import { consentFixture } from '#src/features/consent/__tests__/fixture';
 
 async function homeHtml(t: test.TestContext, optional: { consentAudit?: true }, { publishConsent = true }: { publishConsent?: boolean } = {}): Promise<string> {
   const deps = createRouteDeps();
+  // The renderer owns the unstyled page shell. An authored static theme owns its document bytes.
+  deps.presentationRepo.findByWorkspaceId = async () => ({ workspaceId: deps.workspaceId, activeThemeId: 'none', updatedAt: '2026-11-05T00:00:00.000Z' });
+  // The in-memory root has no attached banner plugin; the site composition supplies this port.
+  deps.cookieConsent = { regionResolvers: async () => [] };
+  await deps.siteConsentReady;
   if (publishConsent) {
     // The product default is off (owner, 2026-11-02), so the owner's published policy turns it on.
     const consent = consentFixture({ t });

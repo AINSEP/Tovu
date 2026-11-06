@@ -261,16 +261,13 @@ export async function siteConsentExportAssets({ deps }: { deps: Pick<RouteDeps, 
   return [documentStates.get(deps.cookieConsent!)!.client.src, EXTENSION_SRC, ...local];
 }
 
-/** Public context reads publication only, once, and keeps visitor-dependent state out of HTML caches. */
-function mountContext({ app, deps, consent }: { app: Express; deps: RouteDeps; consent: SiteCookieConsentDeps }, _optional = {}): void {
+/** Public context shares the site's publication retry window and keeps visitor state out of HTML caches. */
+function mountContext({ app, consent }: { app: Express; consent: SiteCookieConsentDeps }, _optional = {}): void {
   app.get(`${CONSENT_ENDPOINT}/context`, async (req, res) => {
     res.set('Cache-Control', 'private, no-store');
     try {
-      const config = await readDocumentPolicy({ deps });
-      documentStates.get(consent)!.policy = Promise.resolve(config);
-      documentStates.get(consent)!.consentOff = siteBannerMode({ config }) === 'off';
-      documentStates.get(consent)!.nextReadAt = deps.clock.nowMs() + 60_000;
-      documentStates.get(consent)!.scripts = consent.scriptDeclarations?.() ?? Promise.resolve({ scripts: [], problems: [] });
+      const config = await documentPolicy({ consent });
+      if (!config) throw new Error('Cookie preferences are not available.');
       const enabled = siteBannerMode({ config }) !== 'off';
       if (enabled) {
         const hint = await resolveRegion({ resolvers: await consent.regionResolvers(), request: { header: name => req.get(name) ?? null, ip: req.ip ?? null } });
@@ -278,7 +275,7 @@ function mountContext({ app, deps, consent }: { app: Express; deps: RouteDeps; c
         clearLegacyCookie({ req, res });
       }
       res.json({ enabled, policy: config.policyVersion, regionMode: config.regionMode === 'opt-in' ? 'opt-in' : 'auto' });
-    } catch { console.error('[consent] public context unavailable'); res.status(503).json({ error: 'Cookie preferences could not be loaded. Please reload to try again.' }); }
+    } catch { console.error('[consent] public context unavailable'); res.status(503).json({ error: 'Cookie preferences could not be loaded. Wait a minute, then reload to try again.' }); }
   });
 }
 
@@ -287,13 +284,12 @@ export function applySiteCookieConsent({ app, deps, consent }: { app: Express; d
   const state: DocumentState = { client, consentOff: false, scripts: Promise.resolve({ scripts: [], problems: [] }), nextReadAt: Infinity, now: () => deps.clock.nowMs() };
   documentStates.set(consent, state);
   const refresh = async () => {
-    state.consentOff = false;
     state.nextReadAt = state.now() + 60_000;
     const pending: Promise<ConsentConfig> = readDocumentPolicy({ deps }).then(config => {
       if (documentStates.get(consent)?.policy === pending) documentStates.get(consent)!.consentOff = siteBannerMode({ config }) === 'off';
       return config;
     }, error => {
-      if (state.policy === pending) state.policy = undefined;
+      if (state.policy === pending) { state.policy = undefined; state.consentOff = false; }
       console.warn('[consent] Cookie preferences could not be loaded. Declared optional scripts stay paused; a later request will try again.');
       throw error;
     });
@@ -319,7 +315,7 @@ export function applySiteCookieConsent({ app, deps, consent }: { app: Express; d
   app.get(EXTENSION_SRC, (_req, res) => {
     res.type('text/javascript').set('Cache-Control', 'public, max-age=60').send(extension);
   });
-  mountContext({ app, deps, consent });
+  mountContext({ app, consent });
   mountReceipts({ app, deps });
   mountPluginHttp({ app, deps });
 }

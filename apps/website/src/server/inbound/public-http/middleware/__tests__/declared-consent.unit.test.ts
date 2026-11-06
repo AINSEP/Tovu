@@ -55,14 +55,14 @@ test('consent off emits no consent runtime and page requests perform no consent 
   } finally { await f.close(); }
 });
 
-test('one no-store context request reads publication only and resolves region once', async () => {
+test('one no-store context request reuses publication and resolves region once', async () => {
   const f = await fixture(true);
   try {
     const response = await fetch(`${f.url}/_consent/context`);
     assert.equal(response.status, 200);
     assert.match(response.headers.get('cache-control')!, /no-store/);
     assert.deepEqual(await response.json(), { enabled: true, policy: '1:published', regionMode: 'auto' });
-    assert.deepEqual(f.counts(), { reads: 1, regionReads: 1, draftReads: 0 });
+    assert.deepEqual(f.counts(), { reads: 0, regionReads: 1, draftReads: 0 });
   } finally { await f.close(); }
 });
 
@@ -139,7 +139,7 @@ test('embed delivery accessor uses the published snapshot with no page-time poli
   }
 });
 
-test('embed delivery remains inert while policy refresh is pending or fails', async () => {
+test('embed delivery preserves the last resolved mode while refreshing and becomes inert on failure', async () => {
   let fail = false;
   let release: (() => void) | undefined;
   const consent: import('#src/contracts/headless/index').SiteCookieConsentDeps = { regionResolvers: async () => [] };
@@ -157,9 +157,35 @@ test('embed delivery remains inert while policy refresh is pending or fails', as
   assert.equal(consent.embedConsentOff?.(), true);
   fail = true;
   const refresh = consent.refresh!();
-  assert.equal(consent.embedConsentOff?.(), false);
+  assert.equal(consent.embedConsentOff?.(), true);
   await assert.rejects(refresh, /fixture unavailable/);
   assert.equal(consent.embedConsentOff?.(), false);
+});
+
+test('a refresh during document rendering keeps off-mode embeds active when the final assets omit the banner', async () => {
+  let release: (() => void) | undefined;
+  let pause = false;
+  const consent: import('#src/contracts/headless/index').SiteCookieConsentDeps = { regionResolvers: async () => [] };
+  const deps = { cookieConsent: consent, workspaceId: 'render-refresh-policy', siteConsentReady: Promise.resolve(), siteBinding: { dir: '/tmp/render-refresh-policy' }, clock: { nowMs: Date.now },
+    consentStore: { readPublished: async () => {
+      if (pause) await new Promise<void>(resolve => { release = resolve; });
+      return { id: 'published', actorId: 'fixture', createdAt: '2026-11-05', config: { ...SITE_CONSENT_DEFAULTS, enabled: false, privacyPolicyUrl: '/privacy' } };
+    } },
+  } as unknown as RouteDeps;
+  const app = express();
+  applySiteCookieConsent({ app, deps, consent }, { client: { src: '/_consent/fixture.js', body: Buffer.from('') } });
+  await consent.refresh!();
+  app.get('/render', async (_req, res) => {
+    pause = true;
+    const pending = consent.refresh!();
+    await new Promise<void>(resolve => setImmediate(resolve));
+    const embedActive = consent.embedConsentOff?.();
+    release!();
+    await pending;
+    const assets = await res.locals.siteConsentAssets({ scripts: [] });
+    res.json({ embedActive, bannerPresent: assets.body.includes('jini-consent') });
+  });
+  assert.deepEqual(await dispatchJsonRequest(app, 'GET', '/render'), { status: 200, body: { embedActive: true, bannerPresent: false } });
 });
 
 test('embed delivery follows resolved policy while unrelated script declarations are pending', async () => {
@@ -240,6 +266,24 @@ test('a failed construction policy retries after one minute and keeps ordinary d
   f.set({ now: 60_000 });
   const recovered = await dispatchJsonRequest(f.app, 'GET', '/assets');
   assert.match((recovered.body as { body: string }).body, /id="jini-consent"/);
+  assert.equal(f.counts().reads, 2);
+});
+
+test('context requests share the failed-policy retry window and recover at the minute boundary', async () => {
+  const f = await changingFixture({ failAtBoot: true });
+  assert.equal(f.counts().reads, 1);
+  const first = await dispatchJsonRequest(f.app, 'GET', '/_consent/context');
+  const second = await dispatchJsonRequest(f.app, 'GET', '/_consent/context');
+  assert.equal(first.status, 503);
+  assert.equal(second.status, 503);
+  assert.equal(f.counts().reads, 1);
+  f.set({ failing: false, enabled: true, now: 59_999 });
+  assert.equal((await dispatchJsonRequest(f.app, 'GET', '/_consent/context')).status, 503);
+  assert.equal(f.counts().reads, 1);
+  f.set({ now: 60_000 });
+  const recovered = await dispatchJsonRequest(f.app, 'GET', '/_consent/context');
+  assert.equal(recovered.status, 200);
+  assert.equal((recovered.body as { enabled: boolean }).enabled, true);
   assert.equal(f.counts().reads, 2);
 });
 

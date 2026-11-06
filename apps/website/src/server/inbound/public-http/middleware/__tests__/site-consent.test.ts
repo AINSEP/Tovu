@@ -163,10 +163,12 @@ test('an explicit US grant without a valid durable receipt remains denied', asyn
   }
 });
 
-test('public context storage failures return 503 without disclosing stored details', async t => {
+test('public context storage failures at the refresh boundary return 503 without disclosing stored details', async t => {
   const f = await policyFixture({ t });
   const { base } = await mounted({ t, deps: f.deps });
   f.deps.consentStore = { ...f.store, readPublished: async () => { throw new Error('private stored revision path'); } };
+  const nextRefresh = f.deps.clock.nowMs() + 60_000;
+  f.deps.clock.nowMs = () => nextRefresh;
   const response = await fetch(base + '/_consent/context');
   assert.equal(response.status, 503);
   assert.equal(response.headers.get('cache-control'), 'private, no-store');
