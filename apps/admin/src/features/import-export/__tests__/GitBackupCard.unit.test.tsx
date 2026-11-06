@@ -97,7 +97,8 @@ describe("GitBackupCard", () => {
     expect(commit.getAttribute("href")).toBe("https://github.com/me/site-backups/commit/abc");
     expect(commit.getAttribute("rel")).toBe("noopener noreferrer");
     expect(screen.getByText("Backed up to me/site-backups.")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Back up again" }));
+    const doneDriver = createDomPageDriver({ root: screen.getByRole("button", { name: "Back up again" }).closest("section")!, pages: {} });
+    await act(async () => { await doneDriver.click({ handle: "import-export-git-backup-again" }); });
     expect((screen.getByLabelText("Owner") as HTMLInputElement).value).toBe("  me ");
   });
 
@@ -147,7 +148,8 @@ describe("GitBackupCard", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Cancel" }));
     fireEvent.click(screen.getByRole("button", { name: "Plan backup" }));
     expect((await screen.findByRole("alert")).textContent).toBe("me/site-backups is public.");
-    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+    const retryDriver = createDomPageDriver({ root: screen.getByRole("button", { name: "Try again" }).closest("section")!, pages: {} });
+    await act(async () => { await retryDriver.click({ handle: "import-export-git-backup-retry" }); });
     fireEvent.submit(screen.getByRole("button", { name: "Plan backup" }).closest("form")!);
     expect((await screen.findByRole("alert")).textContent).toBe("You do not have permission to back up this site.");
     expect(plans.map((input) => input.credential)).toEqual(["GitLab", "GitLab", "GitLab"]);
