@@ -19,7 +19,7 @@ const OWNERS: ReadonlyArray<readonly [Record<string, unknown>, readonly string[]
   [publishOrder, ["publishOrderComparator", "sortPublishReportRows"]],
   [criteria, ["applyPublishCriteria", "decodePublishCriteriaFromQuery", "encodePublishCriteriaToQuery", "parsePublishContentToolInput", "PUBLISH_CONTENT_CAPABILITY", "PUBLISH_CRITERIA_QUERY_PARAM"]],
   [sections, ["PUBLISH_SECTIONS", "publishEntityTypeLabel", "publishEntityTypePluralLabel", "publishSectionById", "publishSectionForEntityTypes"]],
-  [phase, ["canConfirmPlan", "canRequestPlan", "confirmationTokenFor", "planOnScreen"]],
+  [phase, ["canConfirmPlan", "canRequestPlan", "confirmationTokenFor", "planOnScreen", "reportOnScreen"]],
   [replan, ["overwriteReplanIsConsistent", "preparePublishConfirmation", "PublishPlanDriftError"]],
 ];
 
