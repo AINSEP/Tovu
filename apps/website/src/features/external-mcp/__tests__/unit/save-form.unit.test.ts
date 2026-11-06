@@ -6,6 +6,7 @@ import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/prim
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 import type { ExternalMcpServerView } from "../../contracts.js";
+import { parseArgs } from "../../external-mcp-store.js";
 
 import { buildExternalMcpSaveForm, buildExternalMcpSaveFormFields, mergeExternalMcpSavePrefill, type ExternalMcpSaveInput } from "../../save-form.js";
 
@@ -411,4 +412,13 @@ test("save prefill preserves disabled state and an explicit toggle wins", () => 
   const existing = existingView({ enabled: false });
   assert.equal(mergeExternalMcpSavePrefill(BASE_INPUT, existing).enabled, false);
   assert.equal(mergeExternalMcpSavePrefill({ ...BASE_INPUT, enabled: true }, existing).enabled, true);
+});
+
+
+test("unchanged argument prefills preserve empty arguments alongside literal equals and Windows paths", () => {
+  const args = ["", "--name=x", "C:\\Users\\John Smith\\server", ""];
+  const before = existingView({ args });
+  const prefill = mergeExternalMcpSavePrefill(BASE_INPUT, before);
+  assert.deepEqual(parseArgs(prefill.args!), args);
+  assert.deepEqual(before.args, args, "prefill does not mutate the stored view");
 });

@@ -33,7 +33,7 @@ import type { RouteDeps } from "#src/server/routes/types";
  * - `POST …/system/mail-providers/:providerId/activate` — switches BOTH lanes after re-checking the
  *   provider; the click is the person's explicit confirmation. `settings.workspace.write`.
  */
-export type AdminMailProviderDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "clock" | "idGen" | "customCredentialSetRepo" | "siteAssistantSecretSealer" | "siteAssistantSecretKeyring">
+export type AdminMailProviderDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "clock" | "idGen" | "customCredentialSetRepo" | "siteAssistantSecretSealer" | "siteAssistantSecretKeyring" | "ownerPrincipalId">
   & Partial<Pick<RouteDeps, "mailProviderControl" | "projectKeys">>;
 
 const BASE_PATH = "/api/admin/v1/workspaces/:workspaceId/system/mail-providers";
@@ -94,11 +94,11 @@ export function registerAdminMailProviderRoutes(app: Express, deps: AdminMailPro
   }
 
   /** One route: authorize, run, answer 200 with the result or the mapped refusal. */
-  const route = (permission: string, run: (required: { req: Request; principalId: string }) => Promise<unknown>) => async (req: Request, res: Response) => {
+  const route = (permission: string, run: (required: { req: Request; res: Response; principalId: string }) => Promise<unknown>) => async (req: Request, res: Response) => {
     try {
       const principalId = await authorized(req, res, permission);
       if (principalId === null) return;
-      res.status(200).json(await run({ req, principalId }));
+      res.status(200).json(await run({ req, res, principalId }));
     } catch (err) {
       sendError(res, err);
     }
@@ -108,9 +108,13 @@ export function registerAdminMailProviderRoutes(app: Express, deps: AdminMailPro
   app.get(BASE_PATH, route("admin.forms.manage", () => readMailProviderConfigurations({ control: deps.mailProviderControl })));
   app.get(`${BASE_PATH}/:providerId/credential`, route("custom-credentials.write", ({ req }) =>
     planMailProviderCredential({ control: deps.mailProviderControl, providerId: providerId(req) })));
-  app.put(`${BASE_PATH}/:providerId/credential`, route("custom-credentials.write", async ({ req }) => ({
-    provider: await saveMailProviderCredential({ control: deps.mailProviderControl, credentials, workspaceId: deps.workspaceId, providerId: providerId(req), input: readCredentialInput(req.body) }, { projectKeys: deps.projectKeys }),
-  })));
+  app.put(`${BASE_PATH}/:providerId/credential`, route("custom-credentials.write", async ({ req, res, principalId }) => {
+    // Match the custom-credentials route: only the owner's human session can replace a shared key.
+    const ownerSession = res.locals.authCredentialKind === "session" && principalId === await deps.ownerPrincipalId;
+    return { provider: await saveMailProviderCredential({ control: deps.mailProviderControl,
+      credentials: { ...credentials, allowSharedKeyReplacement: ownerSession }, workspaceId: deps.workspaceId,
+      providerId: providerId(req), input: readCredentialInput(req.body) }, { projectKeys: deps.projectKeys }) };
+  }));
   app.post(`${BASE_PATH}/:providerId/activate`, route("settings.workspace.write", ({ req, principalId }) =>
     activateMailProvider({ control: deps.mailProviderControl, providerId: providerId(req), principalId })));
 }

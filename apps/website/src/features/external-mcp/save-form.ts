@@ -81,7 +81,7 @@ export function mergeExternalMcpSavePrefill(
     transport: input.transport,
     command: existing.command,
     // Quoted the way `parseArgs` reads them, so an unchanged card saves the same arguments.
-    args: existing.args.map((arg) => (/\s/.test(arg) ? `"${arg}"` : arg)).join(" "),
+    args: existing.args.map((arg) => (arg === "" || /\s/.test(arg) ? `"${arg}"` : arg)).join(" "),
     url: existing.url ?? undefined,
     allowedToolNames: existing.allowedToolNames.join(", "),
     writeAllowedToolNames: existing.writeAllowedToolNames.join(", "),

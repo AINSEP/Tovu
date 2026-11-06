@@ -56,14 +56,14 @@ export function createSiteMailer(required: SiteMailerRequired, options: { durabl
    * @complexity O(p) provider ids, two lane checks and at most one settings write. */
   const clearPluginSelection = async ({ providerIds, principalId }: { providerIds: ReadonlySet<string>; principalId: string }): Promise<void> => {
     await ready();
-    const setting = await readMailProviderSetting({ settingsRepo: settings.repo, workspaceId });
-    if (!setting) return;
+    const { setting, revisionSeq } = await readMailProviderSelection({ settingsRepo: settings.repo, workspaceId });
     const value = {
       transactional: providerIds.has(setting.transactional ?? "") ? null : setting.transactional,
       bulk: providerIds.has(setting.bulk ?? "") ? null : setting.bulk,
     };
     if (value.transactional === setting.transactional && value.bulk === setting.bulk) return;
-    await writeMailProviderSetting({ deps: { ...settings.deps, repo: settings.repo, authorize: settings.authorize }, workspaceId, callerPrincipalId: principalId, value });
+    // A provider chosen after this snapshot belongs to the newer writer, even in the other lane.
+    await writeMailProviderSetting({ deps: { ...settings.deps, repo: settings.repo, authorize: settings.authorize }, workspaceId, callerPrincipalId: principalId, value }, { expectedRevisionSeq: revisionSeq });
   };
   /** Bind the plugin toggle to this site's mail settings, using plugin ownership rather than ids.
    * @complexity O(a) loaded adapters; one lifecycle write and at most one settings write. */

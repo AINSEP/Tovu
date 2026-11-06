@@ -281,3 +281,24 @@ test("mail provider access card refuses an intervening selection at the real set
   assert.deepEqual(await readMailProviderSetting({ settingsRepo, workspaceId: WS }), { transactional: "concurrent", bulk: "concurrent" });
   assert.equal(surfaceExchanges.size(), 0);
 });
+
+
+test("disable cleanup refuses a concurrent provider selection rather than overwriting its lanes", async () => {
+  const { required, release, settingsRepo } = await rig(); release(); await required.settingsReady;
+  const deps = { ...required.settings.deps, repo: settingsRepo, authorize: required.settings.authorize };
+  await writeMailProviderSetting({ deps, workspaceId: WS, callerPrincipalId: "owner", value: { transactional: "first_adapter", bulk: "other_adapter" } });
+  required.resolve.loadMailAdapters = async () => ({ refusals: [], list: mailAdapters });
+  const site = createSiteMailer(required, { setAgentPluginEnabled: async input => ({ pluginId: input.pluginId, enabled: input.enabled, warnings: [] }) });
+  await site.ready;
+  let changed = false;
+  required.settings.authorize = async () => {
+    if (!changed) {
+      changed = true;
+      await writeMailProviderSetting({ deps, workspaceId: WS, callerPrincipalId: "owner", value: { transactional: "new_provider", bulk: "new_provider" } });
+    }
+    return { allowed: true, reason: "test" };
+  };
+  await assert.rejects(site.setAgentPluginEnabled(PLUGIN_TOGGLE), /Setting revision changed/);
+  assert.equal(changed, true, "the other writer runs after the cleanup snapshot");
+  assert.deepEqual(await readMailProviderSetting({ settingsRepo, workspaceId: WS }), { transactional: "new_provider", bulk: "new_provider" });
+});
