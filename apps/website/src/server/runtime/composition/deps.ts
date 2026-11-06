@@ -2651,7 +2651,10 @@ async function composeSiteRouteDeps(
     // composition and the load/setup/attach sequence.
     pluginActivationRepo,
     discoverPlugins: pluginRuntime.discoverPlugins,
-    onPluginEnabled: pluginRuntime.onPluginEnabled,
+    onPluginEnabled: async pluginId => {
+      await pluginRuntime.onPluginEnabled(pluginId);
+      await providerPlugins.reapply({ pluginId });
+    },
     onPluginDisabled: pluginRuntime.onPluginDisabled,
     listPluginConflicts: pluginRuntime.listPluginConflicts,
     removePlugin,

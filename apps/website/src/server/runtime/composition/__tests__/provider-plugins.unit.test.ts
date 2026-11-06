@@ -1058,3 +1058,20 @@ test('enabling a form provider after boot updates the same live host', async () 
     assert.deepEqual(requested, [['forms-late']]);
   } finally { await providers.dispose({}); delete SETTINGS['forms-late']; }
 });
+
+test('malformed provider metadata cannot replace a readable fallback label', async () => {
+  const calls: Calls = { inputs: [], disposed: 0 };
+  SETTINGS['forms-malformed'] = [];
+  const { runtime } = fakeRuntime({ installed: ['forms-malformed'], factories: {
+    'forms-malformed': { contract: 'form_collection', id: 'malformed', factory: fakeFactory({ calls, port: {
+      describe: () => ({ label: 77, fields: [], answers: '', validation: '', frameOrigins: [] }),
+      plan: () => ({ kind: 'unavailable', code: 'invalid_configuration', message: 'Choose a public form.' }),
+    } }) },
+  } });
+  const providers = await bootProviderPlugins({ runtime, config: configOf({}), serviceName: 'tovu', site: SITE, ...consentAlways }, { warn: quiet });
+  try {
+    const description = describeFormCollectionProviders({ providers: providers.formCollectionProviders!() }).find(item => item.id === 'malformed');
+    assert.equal(description?.label, 'malformed');
+    assert.equal(description?.available, false);
+  } finally { await providers.dispose({}); delete SETTINGS['forms-malformed']; }
+});

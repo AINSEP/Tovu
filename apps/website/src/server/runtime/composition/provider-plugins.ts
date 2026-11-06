@@ -248,7 +248,10 @@ function formRegistryFor({ slots, testProbe }: { slots: readonly ProviderSlot[];
   for (const slot of slots.filter(slot => slot.contract === "form_collection")) {
     const provider = gatedPort({ slot, contract: "form_collection", testProbe }) as FormCollectionProvider;
     // Retain the public name after retirement; the disabled selection still needs readable guidance.
-    try { slot.label = provider.describe?.()?.label ?? slot.label; } catch { /* unavailable metadata keeps its last known name */ }
+    try {
+      const label = provider.describe?.()?.label;
+      if (typeof label === 'string') slot.label = label;
+    } catch { /* unavailable metadata keeps its last known name */ }
     registry.contribute({ pluginId: slot.pluginId, definition: { id: slot.id, label: slot.label, provider } });
   }
   return registry;
