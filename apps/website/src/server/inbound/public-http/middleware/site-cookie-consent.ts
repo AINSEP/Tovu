@@ -250,13 +250,15 @@ function mountContext({ app, deps, consent }: { app: Express; deps: RouteDeps; c
 /** Routes and a construction-time snapshot only; no page-response capture or cookie work. */
 export function applySiteCookieConsent({ app, deps, consent }: { app: Express; deps: RouteDeps; consent: SiteCookieConsentDeps }, { client = loadClient() }: { client?: { body: Buffer; src: string } } = {}): void {
   const refresh = async () => {
-    const pending = readSiteConsentPolicy({ deps }, { cssBlocks: false });
-    documentPolicies.set(consent, pending);
     documentEmbedDelivery.set(consent, false);
+    const pending: Promise<ConsentConfig> = readSiteConsentPolicy({ deps }, { cssBlocks: false }).then(config => {
+      if (documentPolicies.get(consent) === pending) documentEmbedDelivery.set(consent, siteBannerMode({ config }) === 'off');
+      return config;
+    });
+    documentPolicies.set(consent, pending);
     const declarations = consent.scriptDeclarations?.() ?? Promise.resolve({ scripts: [], problems: [] });
     documentScripts.set(consent, declarations);
-    const [config] = await Promise.all([pending, declarations]);
-    if (documentPolicies.get(consent) === pending) documentEmbedDelivery.set(consent, siteBannerMode({ config }) === 'off');
+    await Promise.all([pending, declarations]);
   };
   consent.refresh = refresh;
   consent.embedConsentOff = () => documentEmbedDelivery.get(consent) === true;
