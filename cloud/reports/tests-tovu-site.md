@@ -946,3 +946,8 @@ Stable report-preparation checkpoint: root production/E2E and test closeout type
 ## Coordinator checkpoint at 21:23 UTC
 
 The later plugin preview fixture passes 2/2 after awaiting the existing production plugin-readiness gate; no fake worker or runtime change. Publishing anonymous-copy fixtures pass 46/46 across three files. Site anonymous-copy fixtures pass 12/12 across two files. Their six previously pending audit rows are now focused-green; exact commands/rationale will be reconciled in the final report from `plugin-preview-handoff.txt`, `publishing-anonymous-copy-handoff.md` and `sites-anonymous-handoff.md`. No timeout, security assertion, rule or allowance changed. Full CI remains active, with no official final totals yet.
+
+
+## Coordinator checkpoint at 21:33 UTC (in progress)
+
+Full root CI remains active; latest recorded partial snapshot is 191 failures across 101 files at about 29,600 entries, including repaired fixtures and three interrupted stuck workers. Root production/E2E and test typechecks passed; root complexity remains one error and 2,807 warnings. Later focused additions: daemon session VM 14/0, real daemon boot 2/0, executable wiring 1/0, workspace diagnostics 10/0, OAuth/copy parity 22/0, unchanged form-layout browser suite 4/0 on system Chromium155. The component-catalog integration remains unchanged and unresolved because its old proxy-only fixture lacks current accepted-run authority. Remaining new failure groups are being diagnosed under the hard cap; no final total or clean full-suite pass is claimed.
