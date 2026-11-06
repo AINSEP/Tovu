@@ -57,7 +57,7 @@ function descriptorJson(adapters: readonly Record<string, unknown>[]): string {
 }
 
 const FIXTURE_FILES = {
-  [MAIL_ADAPTERS_FILENAME]: descriptorJson([{ id: "fixture-mail", label: "Fixture Mail", module: "adapters/fixture.mjs", credentialLabel: "Fixture Mail Key" }]),
+  [MAIL_ADAPTERS_FILENAME]: descriptorJson([{ id: "fixture_mail", label: "Fixture Mail", module: "adapters/fixture.mjs", credentialLabel: "Fixture Mail Key" }]),
   "adapters/fixture.mjs": FIXTURE_MODULE,
 };
 
@@ -109,7 +109,7 @@ test("lists an adapter from an enabled, Tovu-bundled plugin and builds a working
     assert.deepEqual(registry.refusals, []);
     assert.deepEqual(
       registry.list().map((adapter) => [adapter.descriptor.id, adapter.descriptor.credentialLabel, adapter.pluginId]),
-      [["fixture-mail", "Fixture Mail Key", "fixture-mail"]],
+      [["fixture_mail", "Fixture Mail Key", "fixture-mail"]],
     );
     const mailer = registry.list()[0]!.module.create({ credential: { token: "tok", baseUrl: "https://x.test" }, kit: { httpClient: { send: async () => ({ status: 200, headers: {}, bodyText: "" }) } } });
     const result = await mailer.send(
@@ -150,7 +150,7 @@ test("a module without create() is refused, and a module path escaping the plugi
   await withWorkspace(async (workspaceRoot) => {
     const digest = await installPackage("fixture-mail", {
       [MAIL_ADAPTERS_FILENAME]: descriptorJson([
-        { id: "no-create", label: "No Create", module: "adapters/empty.mjs", credentialLabel: "A" },
+        { id: "no_create", label: "No Create", module: "adapters/empty.mjs", credentialLabel: "A" },
         { id: "escapes", label: "Escapes", module: "../x.mjs", credentialLabel: "B" },
       ]),
       "adapters/empty.mjs": "export default {};\n",
@@ -161,7 +161,7 @@ test("a module without create() is refused, and a module path escaping the plugi
 
     assert.deepEqual(registry.list(), []);
     assert.deepEqual(registry.refusals, [
-      "mail adapter 'no-create' from 'fixture-mail' was not loaded: its module has no create() function",
+      "mail adapter 'no_create' from 'fixture-mail' was not loaded: its module has no create() function",
       "mail adapter 'escapes' from 'fixture-mail' was not loaded: module path '../x.mjs' escapes the plugin root",
     ]);
   });
@@ -189,9 +189,9 @@ test("throwing modules and malformed descriptors are refused while healthy mail 
     const registry = await loadMailAdapterRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }) }, { bundledSourceRoot: bundledAgentPluginsDir() }).loadPluginContributions });
     assert.deepEqual(registry.refusals, [
       "mail adapters from 'malformed-mail' were not loaded: tovu-mail-adapters.json is invalid: not valid JSON",
-      "mail adapter 'fixture-mail' from 'throwing-mail' was not loaded: fixture import failed",
+      "mail adapter 'fixture_mail' from 'throwing-mail' was not loaded: fixture import failed",
     ]);
-    assert.deepEqual(registry.list().map(adapter => [adapter.pluginId, adapter.descriptor.id]), [["healthy-mail", "fixture-mail"]]);
+    assert.deepEqual(registry.list().map(adapter => [adapter.pluginId, adapter.descriptor.id]), [["healthy-mail", "fixture_mail"]]);
     const mailer = registry.list()[0]!.module.create({ credential: { token: "survived", baseUrl: "https://x.test" }, kit: { httpClient: { send: async () => ({ status: 200, headers: {}, bodyText: "" }) } } });
     assert.deepEqual(await mailer.send(
       { workspaceId: WORKSPACE_ID, to: { email: "a@example.com" }, from: { email: "b@example.com" }, subject: "s", text: "t" },
@@ -208,7 +208,7 @@ test("parseMailAdaptersFile refuses every malformed top-level shape and descript
   assert.deepEqual(parseMailAdaptersFile(JSON.stringify({ schemaVersion: 1, adapters: ["entry"] })), { ok: false, reason: "adapters[0] must be an object" });
   const entry = { id: "a", label: "A", module: "a.mjs", credentialLabel: "A key" };
   for (const id of [7, "a".repeat(65), "Not-Lower", "double--dash"]) {
-    assert.deepEqual(parseMailAdaptersFile(descriptorJson([{ ...entry, id }])), { ok: false, reason: "adapters[0].id must be a lowercase hyphenated id" }, String(id));
+    assert.deepEqual(parseMailAdaptersFile(descriptorJson([{ ...entry, id }])), { ok: false, reason: "adapters[0].id must match ^[a-z][a-z0-9_]{0,63}$" }, String(id));
   }
   for (const label of [undefined, "   ", "x".repeat(101)]) {
     assert.deepEqual(parseMailAdaptersFile(descriptorJson([{ ...entry, label }])), { ok: false, reason: "adapters[0].label must be a non-empty string" });
