@@ -2555,10 +2555,14 @@ export function bodyFitsKeepalive(body: string): boolean {
 }
 
 export function buildFetchInit(init: RequestInit = {}): RequestInit {
+  const callerHeaders = init.headers ?? {};
+  // Header names are case-insensitive: a caller's lowercase "content-type" beside this default's
+  // capitalised key would be sent as two values joined with a comma, which the server refuses.
+  const callerSetsType = new Headers(callerHeaders).has("content-type");
   return {
     credentials: "same-origin",
     ...init,
-    headers: { "Content-Type": "application/json", ...(init.headers ?? {}) },
+    headers: callerSetsType ? callerHeaders : { "Content-Type": "application/json", ...callerHeaders },
   };
 }
 
