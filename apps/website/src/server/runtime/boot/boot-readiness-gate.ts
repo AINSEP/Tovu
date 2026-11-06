@@ -7,6 +7,7 @@ import { inspectSiteKeyMaterial } from "#src/features/webhooks/index";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 import { warnOnBootReadinessGaps } from "./boot-readiness-warnings.js";
 import { bootLocalOwnerSignIn } from "./local-owner-signin.js";
+import { startupSecretEnvironment } from "./startup-secrets.js";
 
 const READINESS_REMEDIES: Readonly<Record<string, string>> = {
   "dev-secret-placeholder": "Analytics uses a development seed. Set ANALYTICS_ROOT_KEY_SEED to a private, stable value in the deployment environment.",
@@ -35,7 +36,7 @@ function readinessWarning({ failure }: { failure: BootRefusalFailure }): string 
  */
 export async function runProductionReadinessGateOrExit(): Promise<void> {
   const mode = resolveRuntimeMode();
-  const env = process.env;
+  const env = startupSecretEnvironment({ env: process.env });
   // Warnings first and in EVERY mode: the "deployed but not in production mode" warning exists
   // precisely for the boots the production assessment below returns early on. Never refuses or throws.
   warnOnBootReadinessGaps();
