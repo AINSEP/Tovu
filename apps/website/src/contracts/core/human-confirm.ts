@@ -18,9 +18,9 @@
  */
 import { requireChatDeleteGrant, type ChatDeleteSurfaceDeps } from "./chat-delete-grant.js";
 import { nativeToolMetadata } from './tool-metadata/index.js';
-import { createApprovalHandler, createBatchApprovalHandler, type ApprovalSteps, type HumanConfirmer, type RememberedApprovalPort } from "@jini-ai/core";
+import { createApprovalHandler, createBatchApprovalHandler, type ApprovalSteps, type AccessApprovalDescription, type HumanConfirmer, type RememberedApprovalPort } from "@jini-ai/core";
 import { ToolInputError, type ToolExecutionContext, type ToolExecutionOptions, type ToolHandler } from "@jini-ai/core";
-import { buildConfirmationSurface, type SurfaceDetail, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
+import { accessApprovalDetails, buildConfirmationSurface, type SurfaceDetail, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
 
 import {
   askOnce,
@@ -32,6 +32,8 @@ import {
 export interface HumanConfirmSpec {
   /** The calling tool's own id — the click is routed back to it, so it must be allowlisted. */
   readonly toolId: string;
+  /** Fixed access changes, rendered through the common card and always approved afresh. */
+  readonly access?: AccessApprovalDescription;
   /** Prefix for the refusal code when no human can be asked, e.g. `"WEBHOOKS"`. */
   readonly errorCode: string;
   readonly title: string;
@@ -84,6 +86,7 @@ export async function requireHumanConfirm(
   { emitSurface }: ToolExecutionOptions = {},
 ): Promise<HumanConfirmOutcome> {
   await requireChatDeleteGrant({ surfaces, toolId: spec.toolId, principalId: ctx.principal.id });
+  if (spec.access) await requireAccessApprover({ surfaces, ctx, toolId: spec.toolId });
   if (!emitSurface) {
     throw new ToolInputError({ message: `${spec.errorCode}_NO_CONFIRMATION_CHANNEL: ${spec.toolId}: this execution context has no interactive ` +
         "confirmation channel (no emitSurface), so a human cannot approve this action here. Nothing was changed." });
@@ -104,6 +107,7 @@ export async function requireHumanConfirm(
     const answer = await askOnce({ exchange, emission: { channel: "mcp-ui", payload: { resource } } });
     const outcome = classifyConfirmationAnswer({ answer });
     if (!outcome.confirmed || answer.status !== "received") return outcome;
+    if (spec.access) await requireAccessApprover({ surfaces, ctx, toolId: spec.toolId });
     // A revoke while the human reads the card takes effect before the domain effect resumes.
     await requireChatDeleteGrant({ surfaces, toolId: spec.toolId, principalId: ctx.principal.id });
     const choice = answer.params[HUMAN_CONFIRM_CHOICE_PARAM];
@@ -112,6 +116,15 @@ export async function requireHumanConfirm(
   } finally {
     ctx.signal.removeEventListener("abort", closeOnAbort);
   }
+}
+
+/** Re-read the active person before disclosure and before resuming the domain writer.
+ * Domain writers retain their own current permission and revision checks. */
+async function requireAccessApprover({ surfaces, ctx, toolId }: {
+  surfaces: ChatDeleteSurfaceDeps; ctx: ToolExecutionContext; toolId: string;
+}, _optional = {}): Promise<void> {
+  if (!surfaces.assertAccessApprover) throw new ToolInputError({ message: `${toolId}: this chat cannot verify the person approving access. Nothing was changed. Reopen the chat in your signed-in admin session.` });
+  await surfaces.assertAccessApprover({ toolId, principalId: ctx.principal.id });
 }
 
 /**
@@ -193,7 +206,12 @@ export function approvalToolHandler<TPrepared>(
 ): ToolHandler {
   const steps: ApprovalSteps<TPrepared, HumanConfirmSpec> = {
     prepare,
-    describe: async ({ ctx, prepared }) => ({ ask: ask({ prepared }), description: await describe({ ctx, prepared }), rememberKey: rememberKey?.({ prepared }) }),
+    describe: async ({ ctx, prepared }) => {
+      const description = await describe({ ctx, prepared });
+      return description.access
+        ? { kind: 'access', ask: true, description, access: description.access }
+        : { ask: ask({ prepared }), description, rememberKey: rememberKey?.({ prepared }) };
+    },
     askHuman: ({ ctx, description }, options) => requireHumanConfirm({ ctx, surfaces, spec: description }, options),
     run,
     notConfirmed: declined ?? (({ reason }) => ({ [flag]: false, ...notConfirmedResult({ confirmed: false, reason }) })),
@@ -244,7 +262,7 @@ function renderHumanConfirmation(
     // Redemption acknowledges receipt; the held-open tool still owns execution and its outcome.
     text: { done: "Response received." },
     ...(description ? { description } : {}),
-    details: spec.details,
+    details: spec.access ? [...accessApprovalDetails({ access: spec.access }), ...spec.details] : spec.details,
     ...(spec.detailDisclosure ? { detailDisclosure: spec.detailDisclosure } : {}),
     ...(spec.warning ? { warning: spec.warning } : {}),
     danger: spec.danger ?? false,
