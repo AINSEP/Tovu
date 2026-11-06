@@ -723,3 +723,22 @@ for (const toolId of ['settings_set_value', 'settings_clear_value']) test(`${too
   assert.equal((await f.settingsRepo.getWorkspaceValue({ workspaceId: 'ws-1', settingId: 'setting-1' }))?.valueJson, 'concurrent edit');
   assert.equal((await f.settingsRepo.listRevisions({ settingId: 'setting-1' })).length, 1);
 });
+
+
+test('the executor binds protected settings approval to the authenticated caller', async () => {
+  const { executeRegisteredTool } = await import('../../../assistant/__tests__/fixtures/execute-registered-tool.js');
+  const f = fixture('core.instructions', 'custom');
+  const registration = f.registrations.find(row => row.descriptor.id === 'settings_set_value')!;
+  const result = await executeRegisteredTool({ registration, input: { namespace: 'core.instructions', key: 'custom', value: 'approved text' } }, {
+    principalId: 'caller', emitSurface: async () => {
+      const wrong = f.surfaceExchanges.deliver({ exchangeId: 'exchange-1', principalId: 'another-user', params: { decision: 'confirm' } }, { toolId: 'settings_set_value' });
+      assert.deepEqual(wrong, { ok: false, reason: 'binding-mismatch' });
+      assert.deepEqual(await f.settingsRepo.listRevisions({ settingId: 'setting-1' }), []);
+      assert.deepEqual(f.surfaceExchanges.deliver({ exchangeId: 'exchange-1', principalId: 'caller', params: { decision: 'confirm' } }, { toolId: 'settings_set_value' }), { ok: true });
+    },
+  });
+  assert.equal(result.status, 'completed');
+  const revisions = await f.settingsRepo.listRevisions({ settingId: 'setting-1' });
+  assert.equal(revisions.length, 1);
+  assert.equal(revisions[0]!.actor, 'caller');
+});

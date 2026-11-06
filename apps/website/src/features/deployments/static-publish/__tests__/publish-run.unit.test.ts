@@ -412,3 +412,20 @@ for (const failure of ["returned", "thrown"] as const) {
     assert.equal(await history.getLast({ workspaceId: input.workspaceId, target: "vercel" }), null);
   });
 }
+
+
+test('an unexpected manual publish failure never exposes secret shapes in its polled snapshot', async () => {
+  const routeDeps = testRouteDeps();
+  const deps: StaticPublishDeps = { credentialSource: fakeCredentialSource(), loadDeployTargets: routeDeps.loadDeployTargets, buildTarget: () => fakeDeployTarget() };
+  const history = new InMemoryPublishHistoryStore();
+  const failure = new Error('operation id failed password=PUBLISH_CANARY_90872');
+  const input = { ...githubInput(routeDeps), idGen: idGenFailingInsidePublish(failure), exportSiteBound: async () => assert.fail('must not export') };
+  await assert.rejects(runPublishForTest(deps, input, clock, history), error => {
+    assert.ok(error instanceof Error);
+    assert.match(error.message, /operation id failed/);
+    assert.equal(error.message.includes('PUBLISH_CANARY_90872'), false);
+    return true;
+  });
+  assert.equal(getPublishRunSnapshot().status, 'errored');
+  assert.equal(JSON.stringify(getPublishRunSnapshot()).includes('PUBLISH_CANARY_90872'), false);
+});
