@@ -207,7 +207,7 @@ test('[sqlite] configuration before provider keys recovers when the current leas
   await f.saveProvider(); f.attach();
   assert.equal((await runtime.commerce.activate()).ready, true);
   assert.equal((await runtime.commerce.status()).ready, true);
-  const statusTool = runtime.commerce.toolRegistrations({ authorize: async () => ({ allowed: true, reason: 'fixture-owner' }) })
+  const statusTool = runtime.commerce.toolRegistrations({ authorize: async () => ({ allowed: true, reason: 'fixture-owner' }), askHuman: async () => ({ confirmed: false, reason: 'declined' }) })
     .find(registration => registration.descriptor.id === 'commerce_get_status');
   assert.ok(statusTool);
   const status = await statusTool.handler({ executionId: 'status', input: {}, principal: { id: 'fixture-owner' },

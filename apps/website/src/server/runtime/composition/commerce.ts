@@ -1,10 +1,10 @@
 import type { ToolRegistration } from '@jini-ai/core';
 import type { AuthorizeFn } from '@jini-ai/cms/core';
 import { buildRegistrations as buildCommerceStatusTools, buildCommerceCatalogRegistrations } from '@jini-ai/commerce/tools';
-import { buildCommerceResolutionRegistrations } from '@jini-ai/commerce/payments/tools';
+import { buildCommerceResolutionRegistrations, type CommerceResolutionToolsRequired } from '@jini-ai/commerce/payments/tools';
 import { createCommerceWorker } from './commerce-worker.js';
 import { commerceConfigurationKey, readCommerceDrain, selectCommerceDrain } from './commerce-drain.js';
-import { tableExists, withKernelSessionLock, type StorageKernel } from '@jini-ai/db/kernel';
+import { tableExists, withKernelSessionLock, kernelSessionPoolMax, type StorageKernel } from '@jini-ai/db/kernel';
 import type { Clock, HttpClientPort, IdGenerator } from '@jini-ai/core/primitives';
 import type { SettingsRepoPort } from '@jini-ai/core/settings';
 import { createCommerceServer, CommerceUnavailableError, createOrderPaymentProjector, readOwnedCommerceOrder, type PayOrderDeps } from '@jini-ai/commerce';
@@ -12,7 +12,7 @@ import { commerceOrderRepoFor, commerceOrderPaymentRepoFor, commercePriceProvide
   commerceProductRepoFor, commerceStorefrontFor } from '@jini-ai/commerce/repo';
 import { createPaymentsService, createPaymentsOperator, createKernelProviderRegistry, createProviderContexts,
   createWebhookReceiver, createInboxWorker, createOutboxRelay, paymentError, type KernelProviderRegistry,
-  type PaymentScope, type ProviderContextPort, type WebhookReceiver } from '@jini-ai/commerce/payments/kernel';
+  LedgerConstraintError, type PaymentsAlertPort, type PaymentScope, type ProviderContextPort, type WebhookReceiver } from '@jini-ai/commerce/payments/kernel';
 import { migrateCommercePayments, sqlPaymentsLedger } from '@jini-ai/commerce/payments/ledger/sql';
 import { migrateCommerceDatabase } from '#src/platform/db/migrations/index';
 import { createAgentPluginEnabledReader } from '#src/features/agent-plugins/activation-effects';
@@ -28,8 +28,8 @@ export interface CommerceRuntime {
   pay: CommerceServer['pay'];
   readOrder: CommerceServer['readOrder'];
   activate: CommerceServer['activate'];
-  toolRegistrations(required: { authorize: AuthorizeFn }): ToolRegistration[];
-  status(): Promise<{ active: boolean; ready: boolean; reason: string | null; webhookUrl?: string | null; checkoutOrigin?: string | null }>;
+  toolRegistrations(required: { authorize: AuthorizeFn; askHuman: CommerceResolutionToolsRequired['askHuman'] }): ToolRegistration[];
+  status(): Promise<{ active: boolean; ready: boolean; reason: string | null; webhookUrl?: string | null; checkoutOrigin?: string | null; needsAttention?: string[] }>;
   checkoutOrigin(): Promise<string | null>;
   resolveReceiver(): WebhookReceiver | null;
 }
@@ -84,10 +84,15 @@ export function composeCommerce(required: ComposeCommerceRequired, optional: { w
   const ledger = sqlPaymentsLedger(required);
   const catalog = commerceStorefrontFor(required);
   let schema: Promise<void> | undefined;
+  let paymentSchema: Promise<unknown> | undefined;
   let binding: Binding | undefined;
   let closed = false;
   let storageReady = false;
   let catalogReady = false;
+  const storageProbe = Promise.all([tableExists(required.kernel, 'commerce_payments'), tableExists(required.kernel, 'commerce_products')])
+    .then(([payments, products]) => { storageReady = payments; catalogReady = products; });
+  const poolProblem = required.kernel.transport === 'node-postgres' && (kernelSessionPoolMax({ kernel: required.kernel }) ?? 2) < 2
+    ? 'Checkout is paused because payment settlement requires a PostgreSQL pool with at least 2 connections.' : null;
   let configurationProblem: string | null = null;
   let configurationChecked = false;
   let warnedConfiguration: string | null = null;
@@ -96,8 +101,12 @@ export function composeCommerce(required: ComposeCommerceRequired, optional: { w
     if (problem === warnedConfiguration || !await isActive()) return;
     warnedConfiguration = problem; warn(problem);
   }
+  const ensurePaymentSchema = async () => {
+    paymentSchema ??= migrateCommercePayments({ kernel: required.kernel });
+    try { await paymentSchema; } catch (error) { paymentSchema = undefined; throw error; }
+  };
   const ensureSchema = async () => {
-    schema ??= migrateCommerceDatabase({ kernel: required.kernel }).then(() => migrateCommercePayments({ kernel: required.kernel })).then(() => { storageReady = true; catalogReady = true; });
+    schema ??= migrateCommerceDatabase({ kernel: required.kernel }).then(ensurePaymentSchema).then(() => { storageReady = true; catalogReady = true; });
     try { await schema; } catch (error) { schema = undefined; throw error; }
   };
   // Inbox application and durable projection need no currently selected merchant configuration.
@@ -108,17 +117,30 @@ export function composeCommerce(required: ComposeCommerceRequired, optional: { w
   } }, now: () => required.clock.nowMs(), newId: () => required.idGen.newId(),
     grants: { mint: async (): Promise<string> => { throw new Error('Refunds, capture and void are unavailable in one-time checkout.'); }, redeem: async () => false } };
   const alerted = new Set<string>();
-  const alerts = { raise: async ({ alert }: { alert: { kind: string } }) => {
-    if (alerted.has(alert.kind)) return;
-    alerted.add(alert.kind); warn(`Payment settlement needs attention (${alert.kind}); inspect recorded payment, inbox and projection state before retrying.`);
+  const alerts: PaymentsAlertPort = { raise: async ({ alert }) => {
+    const key = JSON.stringify([alert.kind, alert.paymentId ?? alert.detail]);
+    if (alerted.has(key)) return;
+    if (alerted.size >= 1000) alerted.delete(alerted.values().next().value!);
+    alerted.add(key); warn(`Payment settlement needs attention: ${JSON.stringify(alert)}`);
   } };
   const sharedPayments = createPaymentsService(sharedDeps, { alerts });
   const settle = { orders, orderPayments, payments: sharedPayments, alerts, clock: required.clock };
   const inbox = createInboxWorker(sharedDeps, { alerts });
   const projector = createOrderPaymentProjector({ deps: settle });
   const relay = createOutboxRelay({ ledger, now: sharedDeps.now, publish: { publish: async ({ message }) => {
-    // Domain mismatches have raised their alert; only thrown storage/alert faults redeliver.
-    await projector.handle({ message });
+    // Acknowledgement follows durable failure evidence; thrown storage/alert faults redeliver.
+    const outcome = await projector.handle({ message });
+    if (outcome !== 'blocked' && outcome !== 'not_succeeded') return;
+    try {
+      await ledger.transaction({ fn: tx => tx.insertQuarantine({ entry: { id: `commerce-projection:${message.id}`,
+        workspaceId: message.workspaceId, mode: message.mode, paymentId: message.aggregateId, subject: 'order-projection',
+        reason: outcome, evidenceJson: JSON.stringify(message.payload), createdAt: sharedDeps.now() } }) });
+    } catch (error) {
+      // A publish acknowledgement may fail after this insert; the same message keeps one record.
+      if (!(error instanceof LedgerConstraintError && error.kind === 'unique' && error.table === 'commerce_quarantine')) throw error;
+    }
+    await alerts.raise({ alert: { kind: 'fulfillment-blocked', workspaceId: message.workspaceId, mode: message.mode,
+      paymentId: message.aggregateId, detail: `order ${message.payload.reference}: ${outcome}` } });
   } } });
   const operator = createPaymentsOperator(sharedDeps, { alerts });
   let lastReconcile = 0;
@@ -129,6 +151,7 @@ export function composeCommerce(required: ComposeCommerceRequired, optional: { w
   async function resolve(): Promise<Binding | null> {
     if (closed) return null;
     await required.settingsReady;
+    await storageProbe;
     const configured = await readCommerceConfiguration(required);
     if (reusable(configured) && binding) { await binding.server.activate(); return binding; }
     const selection = selectCommerceDrain({ configured, previous: binding?.config ?? null,
@@ -172,6 +195,7 @@ export function composeCommerce(required: ComposeCommerceRequired, optional: { w
     return binding;
   }
   async function readyServer(current: Binding | null): Promise<CommerceServer> {
+    if (poolProblem) throw new CommerceUnavailableError(poolProblem);
     if (!current) throw new CommerceUnavailableError('The store owner needs to configure a payment account and deployed HTTPS site before checkout can accept payments.');
     const problem = await current.problem();
     if (problem) throw new CommerceUnavailableError(problem);
@@ -186,7 +210,7 @@ export function composeCommerce(required: ComposeCommerceRequired, optional: { w
         || (await tx.listPendingOutbox({ limit: 1 })).length > 0 });
     }, run: async () => {
       if (await isActive()) await ensureSchema();
-      else await migrateCommercePayments({ kernel: required.kernel });
+      else await ensurePaymentSchema();
       await resolve(); // Refresh original-scope drain selection even when there is no provider I/O.
       await inbox.runOnce({ limit: 25 });
       const projected = catalogReady ? await relay.runOnce({ limit: 25 }) : { stopped: false };
@@ -198,15 +222,31 @@ export function composeCommerce(required: ComposeCommerceRequired, optional: { w
     } }, required.kernel.transport === 'node-postgres' ? { withOwnership: run => withKernelSessionLock({ kernel: required.kernel, key: JSON.stringify(['commerce:settlement-worker', required.workspaceId, required.siteId]), run }) } : {});
   async function warm(): Promise<void> {
     try {
+      // Probe only these two tables in either activation mode, including removed settings after restart.
+      await storageProbe;
       if (await isActive()) { const current = await resolve(); if (current) await current.server.activate(); }
-      else {
-        // Probe only these two tables; default-off boot never inventories unrelated CMS metadata.
-        storageReady = await tableExists(required.kernel, 'commerce_payments');
-        catalogReady = await tableExists(required.kernel, 'commerce_products');
-        if (storageReady) await migrateCommercePayments({ kernel: required.kernel });
-      }
+      else if (storageReady) await ensurePaymentSchema();
       if (storageReady) { await resolve(); await worker.kick(); }
     } catch { warn('Commerce is unavailable; the rest of the site remains online.'); }
+  }
+  /** Four bounded scans on demand, plus at most twenty quarantined-payment lookups; never polls. */
+  async function needsAttention(): Promise<string[]> {
+    if (!storageReady) return [];
+    const result = new Set<string>();
+    await ledger.transaction({ fn: async tx => {
+      for (const mode of ['test', 'live'] as const) {
+        const scope = { workspaceId: required.workspaceId, mode };
+        const payments = await tx.listUnknownPayments({ updatedBefore: Number.MAX_SAFE_INTEGER,
+          unconfirmedBefore: sharedDeps.now() - 25 * 60 * 60_000, limit: 10 }, { scope });
+        for (const row of payments) if (row.siteId === required.siteId) result.add(row.reference);
+        const quarantine = await tx.listQuarantine(scope, { unresolvedOnly: true, limit: 10 });
+        for (const row of quarantine) {
+          const payment = row.paymentId ? await tx.getPayment({ ...scope, id: row.paymentId }) : null;
+          if (payment?.siteId === required.siteId) result.add(payment.reference);
+        }
+      }
+    } });
+    return [...result].slice(0, 10);
   }
   const warming = warm();
   const commerce: CommerceRuntime = {
@@ -229,24 +269,26 @@ export function composeCommerce(required: ComposeCommerceRequired, optional: { w
       readOrder: async input => readOwnedCommerceOrder({ deps: { workspaceId: required.workspaceId, siteId: required.siteId, orders, orderPayments, payments: sharedPayments }, input }),
       activate: async () => { const status = await (await checkoutServer()).activate(); if (status.ready) { void worker.kick(); } return status; },
       status: async () => { try { const current = await resolve();
-        if (!current) return { active: await isActive(), ready: false, reason: 'Commerce has no configured payment account and deployed HTTPS site.' };
+        const attention = await needsAttention();
+        if (!current) return { active: await isActive(), ready: false, reason: 'Commerce has no configured payment account and deployed HTTPS site.', needsAttention: attention };
         const status = await current.server.status();
-        const problem = status.active ? await current.problem() : null;
+        const problem = status.active ? poolProblem ?? await current.problem() : null;
         const webhookUrl = `${new URL(current.config.publicOrigin).origin}/api/payments/webhooks/${encodeURIComponent(required.siteId)}/${current.config.providerId}/${current.config.mode}`;
         const checkoutOrigin = new URL(current.config.publicOrigin).origin;
-        return problem ? { ...status, ready: false, reason: problem, webhookUrl, checkoutOrigin } : { ...status, webhookUrl, checkoutOrigin }; }
+        return problem ? { ...status, ready: false, reason: problem, webhookUrl, checkoutOrigin, needsAttention: attention } : { ...status, webhookUrl, checkoutOrigin, needsAttention: attention }; }
         catch { return { active: false, ready: false, reason: 'Commerce configuration could not be read; checkout is unavailable while the site remains online.' }; } },
       checkoutOrigin: async () => { const current = await resolve(); return current ? new URL(current.config.publicOrigin).origin : null; },
       resolveReceiver: () => storageReady && !closed ? binding?.receiver ?? null : null,
-      toolRegistrations: ({ authorize }) => [
+      toolRegistrations: ({ authorize, askHuman }) => [
         ...buildCommerceStatusTools({ workspaceId: required.workspaceId, authorize, commerce,
           paymentRuntime: { listProviders: () => providers.list().map(({ provider }) => ({ id: provider.id, displayName: provider.displayName,
             capabilities: { refunds: provider.capabilities.refunds, tokenization: false, recurring: false,
               confirmation: provider.capabilities.confirmation, currencies: provider.capabilities.currencies, webhooks: true } })) } }),
-        ...buildCommerceResolutionRegistrations({ workspaceId: required.workspaceId, authorize, operator, targetFor: async ({ orderId }) => {
+        ...buildCommerceResolutionRegistrations({ workspaceId: required.workspaceId, authorize, askHuman, operator, targetFor: async ({ orderId }) => {
+          if (!await tableExists(required.kernel, 'commerce_order_payments')) return null;
           const row = await orderPayments.findByOrder({ workspaceId: required.workspaceId, orderId });
           if (!row?.paymentId || row.workspaceId !== required.workspaceId || row.siteId !== required.siteId) return null;
-          return { paymentId: row.paymentId, scope: { workspaceId: row.workspaceId, siteId: row.siteId,
+          return { paymentId: row.paymentId, amount: row.amount, scope: { workspaceId: row.workspaceId, siteId: row.siteId,
             providerId: row.providerId, providerAccountId: row.providerAccountId, mode: row.mode } };
         } }),
         ...buildCommerceCatalogRegistrations({ workspaceId: required.workspaceId, authorize, commerce, products, prices, clock: required.clock, idGen: required.idGen }),

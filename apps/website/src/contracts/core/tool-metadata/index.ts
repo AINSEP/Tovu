@@ -1,3 +1,4 @@
+import { toolMetadata as commerce } from './commerce.js';
 import { toolMetadata as consent } from './consent.js';
 import { projectToolMetadata } from '@jini-ai/core';
 import type { ToolApprovalPolicy } from './approval-policy.js';
@@ -72,6 +73,7 @@ export const nativeToolMetadata = projectToolMetadata<ToolApprovalPolicy>({ doma
   { domain: 'assistant', tools: assistant },
   { domain: 'change-sets', tools: change_sets },
   { domain: 'comments', tools: comments },
+  { domain: 'commerce', tools: commerce },
   { domain: 'consent', tools: consent },
   { domain: 'content-duplication', tools: content_duplication },
   { domain: 'content-read', tools: content_read },
