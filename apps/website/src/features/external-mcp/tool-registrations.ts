@@ -498,7 +498,9 @@ function requireKnownMcpSave({ routeDeps, record, input }: {
     return;
   }
   const candidate = mcpSaveTarget({ record, input });
-  const targetChanged = candidate.url !== record.url || candidate.command !== record.command;
+  // With `npx` or `node` the arguments choose the program, so they are the target too. Credentials are not.
+  const stdioArgsChanged = candidate.transport === 'stdio' && candidate.args !== (record.args ?? '[]');
+  const targetChanged = candidate.url !== record.url || candidate.command !== record.command || stdioArgsChanged;
   const previous = targetChanged ? { enabled: false, allowedToolNames: [], writeAllowedToolNames: [] }
     : { enabled: record.enabled, ...readExternalMcpToolGrants(record, { strict: true }) };
   requireKnownMcpAccess({ routeDeps, record: targetChanged ? candidate : record, previous, access });

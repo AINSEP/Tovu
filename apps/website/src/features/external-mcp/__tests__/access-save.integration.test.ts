@@ -6,9 +6,9 @@ import { createSystemClock } from '@jini-ai/core/primitives';
 import { ToolInputError, type SurfaceEmission, type ToolExecutionContext } from '@jini-ai/core';
 import { buildExternalMcpRegistrations } from '../tool-registrations.js';
 import { InMemoryExternalMcpServerRepo } from '../external-mcp-store.memory.js';
-import { buildExternalMcpSaveForm } from '../save-form.js';
+import { buildExternalMcpSaveForm, mergeExternalMcpSavePrefill } from '../save-form.js';
 import { externalMcpAccessSnapshot } from '../external-mcp-store.js';
-import type { ExternalMcpServerRecord } from '../contracts.js';
+import type { ExternalMcpServerRecord, ExternalMcpServerView } from '../contracts.js';
 import type { ExternalMcpToolDeps } from '../deps.js';
 
 const now = '2026-11-06T04:00:00.000Z';
@@ -22,9 +22,10 @@ function source(): ExternalMcpServerRecord {
     oauthStatus: null, oauthExpiresAt: null, oauthTokenEnvName: null, oauthRefreshLeaseUntil: null,
     sealedOAuth: null, aadVersion: 1, oauthAadVersion: 1, createdAt: now, updatedAt: now };
 }
-async function fixture({ knownNames = ['read', 'write'], configuration = false }: { knownNames?: readonly string[] | null; configuration?: boolean } = {}) {
+async function fixture({ knownNames = ['read', 'write'], configuration = false, stdio = false }: { knownNames?: readonly string[] | null; configuration?: boolean; stdio?: boolean } = {}) {
   const repo = new InMemoryExternalMcpServerRepo();
-  const original = { ...source(), ...(configuration ? { url: 'https://example.test/mcp', args: '[]' } : {}) }; await repo.upsert(original);
+  const original = { ...source(), ...(configuration ? { url: 'https://example.test/mcp', args: '[]' } : {}),
+    ...(stdio ? { transport: 'stdio' as const, url: null, command: 'npx', args: '["-y","server a"]' } : {}) }; await repo.upsert(original);
   const controller = new AbortController();
   let permission = true;
   let approver = true;
@@ -38,7 +39,7 @@ async function fixture({ knownNames = ['read', 'write'], configuration = false }
   const emissions: SurfaceEmission[] = [];
   const ctx: ToolExecutionContext = { executionId: 'execution', principal: { id: 'person' }, run: { id: 'chat' }, signal: controller.signal,
     input: { id: key.serverId, enabled: true, allowedToolNames: 'read, write', writeAllowedToolNames: 'write' } };
-  if (configuration) Object.assign(ctx.input as Record<string, unknown>, { transport: 'streamable_http', label: 'Updated source' });
+  if (configuration) Object.assign(ctx.input as Record<string, unknown>, { transport: stdio ? 'stdio' : 'streamable_http', label: 'Updated source' });
   const invoke = () => handler(ctx, { emitSurface: async emission => { emissions.push(emission); } });
   const answer = (params: Record<string, unknown>, principalId = 'person') => surfaces.surfaceExchanges.deliver({ exchangeId: 'access-exchange', principalId, params }, { toolId: 'external_mcp_save' });
   return { repo, original, ctx, controller, emissions, invoke, answer, revoke: () => { permission = false; }, revokeApprover: () => { approver = false; }, forgetCatalog: () => { knownNames = null; }, checks: () => checks, surfaces };
@@ -158,6 +159,27 @@ test('a configuration card cannot transfer known grants to a different target', 
   f.answer({ url: 'https://other.example.test/mcp', label: 'Updated source' });
   assert.equal((await pending as { saved: boolean }).saved, false);
   assert.deepEqual(await f.repo.findByServerId(key), f.original);
+});
+
+test('a card cannot keep known grants when a stdio connection changes its arguments', async t => {
+  const f = await fixture({ configuration: true, stdio: true }); t.after(() => f.controller.abort());
+  const pending = f.invoke(); await turn();
+  f.answer({ command: 'npx', args: '-y other-server', label: 'Updated source' });
+  assert.equal((await pending as { saved: boolean }).saved, false);
+  assert.deepEqual(await f.repo.findByServerId(key), f.original);
+});
+
+test('the card shows stored stdio arguments so an unchanged save, such as a token rotation, keeps target and grants', async t => {
+  const prefilled = mergeExternalMcpSavePrefill({ id: key.serverId, transport: 'stdio' }, { args: ['-y', 'server a'], allowedToolNames: [], writeAllowedToolNames: [], oauth: { scopes: [] } } as unknown as ExternalMcpServerView);
+  assert.equal(prefilled.args, '-y "server a"');
+  const f = await fixture({ configuration: true, stdio: true }); t.after(() => f.controller.abort());
+  const pending = f.invoke(); await turn();
+  f.answer({ command: 'npx', args: prefilled.args, label: 'Updated source' });
+  assert.equal((await pending as { saved: boolean }).saved, true);
+  const saved = await f.repo.findByServerId(key);
+  assert.equal(saved!.args, f.original.args);
+  assert.equal(saved!.allowedToolNames, '["read","write"]');
+  assert.equal(saved!.writeAllowedToolNames, '["write"]');
 });
 
 test('a disabled source without a catalog points to its usable connection settings', async t => {
