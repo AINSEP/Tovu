@@ -84,11 +84,17 @@ it("withholds key export and reveal from a non-owner even with a saved encrypted
   expect(calls.some(call => call.path.endsWith("/password"))).toBe(false);
 }, 10000);
 
+/** Notices live in a warning sign's tooltip, which is the sign's accessible description. */
+function signedNotices(root: HTMLElement): string {
+  return within(root).queryAllByRole("button", { name: "Warning" })
+    .map(sign => document.getElementById(sign.getAttribute("aria-describedby") ?? "")?.textContent ?? "").join("\n");
+}
+
 it("keeps export omissions visible without retrieving any key password", async () => {
   const calls = service({ revealFails: true });
   exportScreen();
   fireEvent.click(screen.getByRole("button", { name: "Export Tovu site" }));
-  expect(await screen.findByText(omission)).toBeVisible();
+  await waitFor(() => expect(signedNotices(document.body)).toContain(omission));
   expect(calls.some(call => call.path.endsWith("/password"))).toBe(false);
   expect(screen.queryByDisplayValue(archivePassword)).toBeNull();
 }, 10000);
@@ -120,8 +126,8 @@ it("keeps the saved keys password separate, submits it as a form field, and reta
   first.unmount();
   importScreen();
   const table = await screen.findByRole("table", { name: "Past imports" });
-  expect(await within(table).findByText(omission)).toBeVisible();
-  expect(within(table).getByText("Saved keys were left out: incorrect password.")).toBeVisible();
+  await waitFor(() => expect(signedNotices(table)).toContain(omission));
+  expect(signedNotices(table)).toContain("Saved keys were left out: incorrect password.");
 }, 10000);
 
 it.each([true, false])("allows owner setup without a saved keys password (bundle present: %s)", async carriesKeys => {
