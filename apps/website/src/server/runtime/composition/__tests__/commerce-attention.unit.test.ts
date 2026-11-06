@@ -122,7 +122,7 @@ test('blocked and not-succeeded projections remain quarantined after acknowledge
 function observedKernel(base: ComposeCommerceRequired['kernel'], observe: (method: string, table: string) => void) {
   return { ...base, run: (fn: Parameters<typeof base.run>[0]) => base.run(db => fn(new Proxy(db, {
     get(target, key) {
-      if (key === 'selectFrom' || key === 'insertInto') return (table: string) => {
+      if (key === 'selectFrom' || key === 'insertInto' || key === 'updateTable') return (table: string) => {
         observe(key, table); return (target[key] as (table: string) => unknown).call(target, table);
       };
       const value = Reflect.get(target, key); return typeof value === 'function' ? value.bind(target) : value;
@@ -215,4 +215,21 @@ test('a one-connection PostgreSQL pool refuses checkout before any order or paym
   await assert.rejects(runtime.commerce.pay({ memberId: 'buyer', orderId: 'order' }), /pool.*at least 2/);
   assert.deepEqual(await f.kernel.query(sql`SELECT * FROM commerce_orders`), []);
   assert.deepEqual(await f.kernel.query(sql`SELECT * FROM commerce_payments`), []);
+});
+
+
+test('retry after a publish acknowledgement fault keeps one quarantine record', async t => {
+  const f = await fixture(t);
+  const paid = await f.order();
+  await f.kernel.execute(sql`UPDATE commerce_orders SET total_amount_cents=1300,status='pending' WHERE id=${paid.order.id}`);
+  await f.activation(false); await f.stop();
+  const kernel = observedKernel(f.kernel, (method, table) => {
+    if (method === 'updateTable' && table === 'commerce_outbox') throw new Error('fixture acknowledgement unavailable');
+  });
+  await f.boot({ workerOwner: true, kernel }).close();
+  assert.equal((await f.ledger.transaction({ fn: tx => tx.listPendingOutbox({ limit: 10 }) })).length, 1);
+  assert.equal((await f.ledger.transaction({ fn: tx => tx.listQuarantine({ workspaceId: 'workspace', mode: 'test' }) })).length, 1);
+  await f.boot({ workerOwner: true }).close();
+  assert.deepEqual(await f.ledger.transaction({ fn: tx => tx.listPendingOutbox({ limit: 10 }) }), []);
+  assert.equal((await f.ledger.transaction({ fn: tx => tx.listQuarantine({ workspaceId: 'workspace', mode: 'test' }) })).length, 1);
 });

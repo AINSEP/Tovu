@@ -178,11 +178,10 @@ for (const dialect of ['sqlite', 'pglite'] as const) {
     await f.reopen();
     runtime = f.boot(false);
     await eventually(async () => { await runtime.commerce.status(); return runtime.commerce.resolveReceiver(); }, receiver => receiver !== null);
-    assert.equal(await runtime.commerce.checkoutOrigin(), 'https://other.example.test', 'abandoned requires_action sessions do not block merchant changes');
+    assert.equal(await runtime.commerce.checkoutOrigin(), configuration.publicOrigin, 'an unexpired old-account session keeps its merchant drain even across a mode change');
     const receiver = runtime.commerce.resolveReceiver()!;
     const wrongMode = await receiver.resolveEndpoint({ path: { siteId: 'site', providerId: 'stripe', endpointId: 'live' } });
-    assert.equal(wrongMode.ok, true, 'the configured mode remains an accepted webhook endpoint');
-    if (wrongMode.ok) assert.equal(wrongMode.endpoint.scope.providerAccountId, 'acct_other');
+    assert.equal(wrongMode.ok, false, 'a blocked merchant change must not select a new account endpoint');
     const endpoint = await receiver.resolveEndpoint({ path: { siteId: 'site', providerId: 'stripe', endpointId: 'test' } });
     assert.ok(endpoint.ok);
     if (endpoint.ok) assert.equal(endpoint.endpoint.scope.providerAccountId, configuration.accountId, 'open payments preserve their own webhook account');

@@ -238,7 +238,7 @@ export function composeCommerce(required: ComposeCommerceRequired, optional: { w
         const scope = { workspaceId: required.workspaceId, mode };
         const payments = await tx.listUnknownPayments({ updatedBefore: Number.MAX_SAFE_INTEGER,
           unconfirmedBefore: sharedDeps.now() - 25 * 60 * 60_000, limit: 10 }, { scope });
-        for (const row of payments) if (row.siteId === required.siteId) result.add(row.reference);
+        payments.filter(row => row.siteId === required.siteId).forEach(row => result.add(row.reference));
         const quarantine = await tx.listQuarantine(scope, { unresolvedOnly: true, limit: 10 });
         for (const row of quarantine) {
           const payment = row.paymentId ? await tx.getPayment({ ...scope, id: row.paymentId }) : null;
