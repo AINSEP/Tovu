@@ -118,7 +118,7 @@ test('declaration evidence merges active theme and plugin declarations and prese
     resolveActiveThemeId: async () => 'site',
     cookieConsent: { scriptDeclarations: async () => ({ scripts: [{ src: '/plugin-menu.js' }], problems: ['Plugin declaration was refused.'] }) } });
   assert.deepEqual(await ports.declarationEvidence!({ path: '/' }), {
-    scripts: [...scripts, { src: '/plugin-menu.js' }], runtimeSlot: false, problems: ['Plugin declaration was refused.'],
+    scripts: [...scripts, { src: '/plugin-menu.js' }], runtimeSlot: true, problems: ['Plugin declaration was refused.'],
   });
 });
 
@@ -184,14 +184,16 @@ test('an actual published bare Page with unavailable body format never claims a 
   assert.deepEqual(result.problems?.map(problem => typeof problem === 'string' ? problem : problem.code), ['PUBLISHED_PAGE_FORMAT_UNAVAILABLE']);
 });
 
-test('an authored loading tag provides the static theme runtime slot', async () => {
+test('static theme loading is server-owned for copies with or without an authored tag', async () => {
   const ports = portsFor({ themes: [{ status: 'valid', manifest: { id: 'tagged', tier: 'static' }, pages: { index: '<html><head><script src="/_consent/load.js" defer data-jini-consent-loader></script></head><body>Page</body></html>' } }], resolveActiveThemeId: async () => 'tagged' });
   assert.equal((await ports.declarationEvidence!({ path: '/' })).runtimeSlot, true);
+  const untagged = portsFor({ themes: [{ status: 'valid', manifest: { id: 'untagged', tier: 'static' }, pages: { index: '<html><head></head><body>Page</body></html>' } }], resolveActiveThemeId: async () => 'untagged' });
+  assert.equal((await untagged.declarationEvidence!({ path: '/' })).runtimeSlot, true);
 });
 
-test('comments, inert templates and wrong loader URLs do not claim a static runtime slot', async () => {
+test('static loading eligibility does not inspect comments, templates or authored URLs', async () => {
   for (const html of ['<!-- data-jini-consent-loader -->', '<template><script src="/_consent/load.js" data-jini-consent-loader></script></template>', '<script src="/different.js" data-jini-consent-loader></script>']) {
     const ports = portsFor({ themes: [{ status: 'valid', manifest: { id: 'invalid-slot', tier: 'static' }, pages: { index: html } }], resolveActiveThemeId: async () => 'invalid-slot' });
-    assert.equal((await ports.declarationEvidence!({ path: '/' })).runtimeSlot, false);
+    assert.equal((await ports.declarationEvidence!({ path: '/' })).runtimeSlot, true);
   }
 });

@@ -5,7 +5,6 @@ import { ensureSitePrivacyDefaults } from '#src/features/consent/ensure-privacy-
 import { SITE_CONSENT_NAMESPACE } from '#src/features/consent/config';
 import { resolveSiteTitle } from '#src/features/settings/site-title';
 import { readConsentReceiptStorage } from '@jini-ai/cookie-consent/node';
-import { hasConsentLoadingTag } from '#src/features/consent/readiness';
 import { createSiteConsentService } from '#src/features/consent/service';
 import { readSiteConsentAuthoringSettings, resolveSiteConsentActivation } from '#src/features/consent/settings';
 import { fetchPublishedPage, resolveSameOriginPath } from '#src/features/site-inspection/published-page';
@@ -41,7 +40,7 @@ export function siteConsentPorts({ deps }: { deps: RouteDeps }, _options = {}): 
       const page = await publishedPageSlot({ deps, path });
       const active = theme && theme !== NO_THEME_ID ? theme : null;
       return { scripts: [...(active?.manifest.scripts ?? []), ...plugins.scripts], problems: [...plugins.problems, ...page.problems],
-        runtimeSlot: page.slot ?? themeConsentRuntimeSlot({ theme: active }) };
+        runtimeSlot: page.slot ?? true };
     },
     readLegacy: async () => readSiteConsentAuthoringSettings({ settingsRepo: deps.settingsRepo, workspaceId: deps.workspaceId }),
     defaultOnly: async () => (await resolveSiteConsentActivation({ settingsRepo: deps.settingsRepo, workspaceId: deps.workspaceId })).source === 'default',
@@ -56,13 +55,6 @@ export function siteConsentPorts({ deps }: { deps: RouteDeps }, _options = {}): 
       return { html: page.body ?? '', ok: page.ok, truncated: page.truncated };
     },
   };
-}
-
-/** Readiness checks authored source, never completed page responses. */
-function themeConsentRuntimeSlot({ theme }: { theme: ReturnType<typeof resolveActiveTheme> | null }): boolean {
-  if (!theme || theme === NO_THEME_ID || theme.manifest.tier !== 'static') return true;
-  const documents = Object.values(theme.pages ?? {});
-  return documents.length > 0 && documents.every(html => hasConsentLoadingTag({ html }));
 }
 
 /** Admin inspection only: one published-row lookup; stored full documents keep their authored bytes.

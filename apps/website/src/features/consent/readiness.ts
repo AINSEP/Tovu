@@ -53,21 +53,6 @@ function unmanagedWarnings(html: string, available: number): { warnings: Consent
   return { warnings, truncated: false };
 }
 
-/** Source-only slot evidence for authored themes; comments and inert template contents do not load code.
- * @complexity O(source bytes), using the same HTML parser as the admin declaration inspection. */
-export function hasConsentLoadingTag({ html }: { html: string }, _options = {}): boolean {
-  const nodes: Node[] = [...parse(html).childNodes];
-  while (nodes.length) {
-    const node = nodes.pop()!;
-    if (!('tagName' in node) || node.tagName === 'template') continue;
-    const attrs = new Map(node.attrs.map(attr => [attr.name, attr.value]));
-    if (node.tagName === 'script' && attrs.has('data-jini-consent-loader') && attrs.get('src') === '/_consent/load.js' &&
-      ['', 'module', 'text/javascript', 'application/javascript'].includes((attrs.get('type') ?? '').toLowerCase())) return true;
-    nodes.push(...node.childNodes);
-  }
-  return false;
-}
-
 const declarationOverflow = (scripts: unknown, limit: number) => Array.isArray(scripts) && scripts.length > limit;
 
 /** Validate declarations and label gaps separately. No allowance simulation or page rewriting.

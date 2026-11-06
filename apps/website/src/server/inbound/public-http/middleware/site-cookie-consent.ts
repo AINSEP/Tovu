@@ -299,6 +299,7 @@ function mountContext({ app, consent }: { app: Express; consent: SiteCookieConse
  * are inspected or changed; the browser installs only this server-owned contribution. */
 function mountStaticThemeLoader({ app, deps }: { app: Express; deps: RouteDeps }): void {
   app.get(CONSENT_LOADER_SRC, async (req, res) => {
+    try {
     const theme = deps.resolveActiveThemeId ? resolveActiveTheme(deps, await deps.resolveActiveThemeId()) : null;
     const scripts = theme && theme !== NO_THEME_ID ? theme.manifest.scripts ?? [] : [];
     const assets = await siteConsentDocumentAssets({ deps, request: req, scripts });
@@ -315,6 +316,10 @@ function mountStaticThemeLoader({ app, deps }: { app: Express; deps: RouteDeps }
         for(const attr of node.attributes)script.setAttribute(attr.name,attr.value);
         script.async=false;document.body.append(script);}
     })();`);
+    } catch {
+      console.error('[consent] static loader unavailable');
+      res.status(503).type('text/javascript').set('Cache-Control', 'no-store').send('/* Cookie preferences could not be loaded. Wait a minute, then reload to try again. */');
+    }
   });
 }
 
