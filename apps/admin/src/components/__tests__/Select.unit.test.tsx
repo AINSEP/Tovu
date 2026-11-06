@@ -544,9 +544,22 @@ describe("Select dropdown-hook injection", () => {
 });
 
 describe("agentHandle", () => {
-  it("omits data-agent-element on the trigger and search input when agentHandle is not passed", async () => {
+  // Shared controls now generate stable handles by default; false is the explicit opt-out.
+  it("publishes an automatic trigger handle and its related search handle when none is passed", async () => {
     const user = userEvent.setup();
     render(<ControlledSelect options={MANY_OPTIONS} />);
+    const trigger = screen.getByRole("combobox", { name: "Pick one" });
+    const handle = trigger.getAttribute("data-agent-element");
+    expect(handle).toMatch(/^ui-[a-z0-9-]+$/);
+
+    await user.click(trigger);
+    expect(trigger).toHaveAttribute("data-agent-element", handle);
+    expect(screen.getByPlaceholderText("Search…")).toHaveAttribute("data-agent-element", `${handle}-search`);
+  });
+
+  it("omits data-agent-element on the trigger and search input when agentHandle is false", async () => {
+    const user = userEvent.setup();
+    render(<Select value="" onChange={vi.fn()} options={MANY_OPTIONS} aria-label="Pick one" agentHandle={false} />);
     expect(screen.getByRole("combobox", { name: "Pick one" })).not.toHaveAttribute("data-agent-element");
 
     await user.click(screen.getByRole("combobox", { name: "Pick one" }));
