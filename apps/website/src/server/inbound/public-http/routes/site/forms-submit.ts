@@ -5,7 +5,7 @@ import type { VisitorAnalyticsDeps } from "../../visitor-analytics.js";
 import { parseFormMultipartMiddleware } from "./forms-multipart.js";
 import { RESERVED_SEGMENTS } from "#src/platform/routing/index";
 import express, { type Express } from "express";
-import { createFormSubmitHandler } from "@jini-ai/cms/forms/express";
+import { createFormSubmitHandler, type CreateFormSubmitHandlerRequired } from "@jini-ai/cms/forms/express";
 import { submitForm, type SubmitFormDeps } from "#src/features/forms/index";
 import { siteRelativeTargetReason } from "@jini-ai/cms/redirects";
 import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
@@ -55,9 +55,28 @@ export interface RegisterFormsSubmitRouteDeps extends VisitorAnalyticsDeps {
  * file) is unaffected — Express dispatches to whichever parser matches the request's actual
  * `Content-Type`, so mounting both here is additive, never a double-parse of the same request. */
 export function registerFormsSubmitRoute(app: Express, deps: RegisterFormsSubmitRouteDeps): void {
-  app.post("/forms/:slug/submit", createFormsAdmissionMiddleware({ workspaceId: deps.workspaceId, clock: deps.submitForm.clock }), express.urlencoded({ extended: false, limit: "1mb", parameterLimit: 2002 }), express.raw({ type: "multipart/form-data", limit: "12mb" }), parseFormMultipartMiddleware, (request, response) => createFormSubmitHandler({
+  const resultDeps: Omit<CreateFormSubmitHandlerRequired, "submit"> = {
     workspaceId: deps.workspaceId,
     definitionRepo: deps.submitForm.definitionRepo,
+    resolveClientIp,
+    isHttpsRequest,
+    resultCodec: {
+      encodeResultQuery: encodeFormSubmissionResultQuery,
+      clearResultQueryParams: clearFormSubmissionResultQueryParams,
+      encodeFlashCookie: encodeFormFlashCookieValue,
+      flashCookieName: FORM_FLASH_COOKIE_NAME,
+    },
+    targetRefusalReason: target => siteRelativeTargetReason({ target, reservedSegments: RESERVED_SEGMENTS }, {}),
+  };
+  const admission = createFormsAdmissionMiddleware({ workspaceId: deps.workspaceId, clock: deps.submitForm.clock }, {
+    // Refuse before parsing, while retaining the same safe native-form result negotiation.
+    onHtmlRefusal: ({ request, response, retryAfterSeconds }) => createFormSubmitHandler({
+      ...resultDeps,
+      submit: async () => { throw new FormRateLimitExceededError({ message: `Too many form requests. Wait ${retryAfterSeconds} seconds, then send the form again.`, retryAfterSeconds }); },
+    }, {})(request, response),
+  });
+  app.post("/forms/:slug/submit", admission, express.urlencoded({ extended: false, limit: "1mb", parameterLimit: 2002 }), express.raw({ type: "multipart/form-data", limit: "12mb" }), parseFormMultipartMiddleware, (request, response) => createFormSubmitHandler({
+    ...resultDeps,
     submit: async ({ input }) => {
       const analyticsProvenance = await visitorAnalyticsProvenance({ deps, request });
       try { return await submitForm({ deps: deps.submitForm, input }, { analyticsProvenance, attempts: deps.formSubmissionAttempts }); }
@@ -69,15 +88,6 @@ export function registerFormsSubmitRoute(app: Express, deps: RegisterFormsSubmit
         throw error;
       }
     },
-    resolveClientIp,
-    isHttpsRequest,
-    resultCodec: {
-      encodeResultQuery: encodeFormSubmissionResultQuery,
-      clearResultQueryParams: clearFormSubmissionResultQueryParams,
-      encodeFlashCookie: encodeFormFlashCookieValue,
-      flashCookieName: FORM_FLASH_COOKIE_NAME,
-    },
-    targetRefusalReason: target => siteRelativeTargetReason({ target, reservedSegments: RESERVED_SEGMENTS }, {}),
   }, {})(request, response));
 }
 
