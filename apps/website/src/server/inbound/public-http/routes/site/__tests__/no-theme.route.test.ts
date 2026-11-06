@@ -48,13 +48,15 @@ function closeServer(server: ReturnType<typeof createServer>) {
 }
 
 async function startThemelessServer() {
+  const product = {
+    id: "themeless-product", slug: "themeless-canvas-tote", title: "Themeless Canvas Tote",
+    price: 2700, stock: 5, version: 1,
+  };
   return startServer({
     presentationRepo: new InMemoryPresentationSettingsRepo({}, { initialRows: [NO_THEME_SETTINGS] }),
     commerceCatalog: {
-      listProducts: async () => [{
-        id: "themeless-product", slug: "themeless-canvas-tote", title: "Themeless Canvas Tote",
-        price: 2700, stock: 5, version: 1,
-      }],
+      listProducts: async () => [product],
+      findProduct: async ({ idOrSlug }) => idOrSlug === product.id || idOrSlug === product.slug ? product : null,
     },
   });
 }
