@@ -12,7 +12,8 @@ import { commerceOrderRepoFor, commerceOrderPaymentRepoFor, commercePriceProvide
   commerceProductRepoFor, commerceStorefrontFor } from '@jini-ai/commerce/repo';
 import { createPaymentsService, createPaymentsOperator, createKernelProviderRegistry, createProviderContexts,
   createWebhookReceiver, createInboxWorker, createOutboxRelay, paymentError, type KernelProviderRegistry,
-  LedgerConstraintError, type PaymentsAlertPort, type PaymentScope, type ProviderContextPort, type WebhookReceiver } from '@jini-ai/commerce/payments/kernel';
+  LedgerConstraintError, type LedgerTx, type LedgerKeyScope, type QuarantineRecord,
+  type PaymentsAlertPort, type PaymentScope, type ProviderContextPort, type WebhookReceiver } from '@jini-ai/commerce/payments/kernel';
 import { migrateCommercePayments, sqlPaymentsLedger } from '@jini-ai/commerce/payments/ledger/sql';
 import { migrateCommerceDatabase } from '#src/platform/db/migrations/index';
 import { createAgentPluginEnabledReader } from '#src/features/agent-plugins/activation-effects';
@@ -134,7 +135,7 @@ export function composeCommerce(required: ComposeCommerceRequired, optional: { w
     try {
       await ledger.transaction({ fn: tx => tx.insertQuarantine({ entry: { id: `commerce-projection:${message.id}`,
         workspaceId: message.workspaceId, mode: message.mode, paymentId: message.aggregateId, subject: 'order-projection',
-        reason: outcome, evidenceJson: JSON.stringify(message.payload), createdAt: sharedDeps.now() } }) });
+        reason: outcome, evidenceJson: JSON.stringify({ ...message.payload, siteId: required.siteId }), createdAt: sharedDeps.now() } }) });
     } catch (error) {
       // A publish acknowledgement may fail after this insert; the same message keeps one record.
       if (!(error instanceof LedgerConstraintError && error.kind === 'unique' && error.table === 'commerce_quarantine')) throw error;
@@ -229,6 +230,16 @@ export function composeCommerce(required: ComposeCommerceRequired, optional: { w
       if (storageReady) { await resolve(); await worker.kick(); }
     } catch { warn('Commerce is unavailable; the rest of the site remains online.'); }
   }
+  async function quarantinedOrder({ tx, scope, row }: { tx: LedgerTx; scope: LedgerKeyScope; row: QuarantineRecord }): Promise<string | null> {
+    const payment = row.paymentId ? await tx.getPayment({ ...scope, id: row.paymentId }) : null;
+    if (payment) return payment.siteId === required.siteId ? payment.reference : null;
+    if (row.subject !== 'order-projection') return null;
+    // Only this host's projection quarantine carries a trusted site identity.
+    try {
+      const evidence = JSON.parse(row.evidenceJson) as { siteId?: unknown; reference?: unknown };
+      return evidence.siteId === required.siteId && typeof evidence.reference === 'string' ? evidence.reference : null;
+    } catch { return null; }
+  }
   /** Four bounded scans on demand, plus at most twenty quarantined-payment lookups; never polls. */
   async function needsAttention(): Promise<string[]> {
     if (!storageReady) return [];
@@ -241,8 +252,8 @@ export function composeCommerce(required: ComposeCommerceRequired, optional: { w
         payments.filter(row => row.siteId === required.siteId).forEach(row => result.add(row.reference));
         const quarantine = await tx.listQuarantine(scope, { unresolvedOnly: true, limit: 10 });
         for (const row of quarantine) {
-          const payment = row.paymentId ? await tx.getPayment({ ...scope, id: row.paymentId }) : null;
-          if (payment?.siteId === required.siteId) result.add(payment.reference);
+          const orderId = await quarantinedOrder({ tx, scope, row });
+          if (orderId) result.add(orderId);
         }
       }
     } });

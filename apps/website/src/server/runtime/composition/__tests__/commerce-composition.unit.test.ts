@@ -153,6 +153,12 @@ test('activated SQL checkout binds original merchant scope, blocks foreign membe
 
   runtime = composeCommerce({ ...ports, workerOwner: true });
   await eventually(async () => runtime!.commerce.resolveReceiver() !== null);
+  const statusTool = runtime.commerce.toolRegistrations({ authorize: async () => ({ allowed: true, reason: 'fixture-owner' }),
+    askHuman: async () => ({ confirmed: false, reason: 'declined' }) }).find(tool => tool.descriptor.id === 'commerce_get_status')!;
+  const attention = await statusTool.handler({ executionId: 'attention', input: {}, principal: { id: 'fixture-owner' },
+    run: { id: 'run' }, signal: new AbortController().signal }) as { checkout: { needsAttention: string[] } };
+  assert.ok(attention.checkout.needsAttention.includes(blockedOrder.order.id), 'a blocked event without a payment row still lists its shop-owned order');
+
   await eventually(async () => { try { await access(path.join(directory, 'commerce-worker.lock')); return false; } catch { return true; } });
   const receiver = runtime.commerce.resolveReceiver()!;
   const endpoint = await receiver.resolveEndpoint({ path: { siteId: 'site', providerId: 'lipay', endpointId: 'test' } });

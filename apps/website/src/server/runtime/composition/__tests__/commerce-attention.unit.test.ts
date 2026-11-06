@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
-import { createContributionRegistry } from '@jini-ai/core';
+import { createContributionRegistry, type ToolContributor, type DerivedToolContributor } from '@jini-ai/core';
+import type { AssistantSurfaceDeps } from '@jini-ai/daemon/surface-exchanges';
+import type { AssistantToolRegistryDeps } from '#src/assistant/tool-registrations';
 import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/core/primitives';
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from '@jini-ai/daemon/surface-exchanges';
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
@@ -165,12 +167,12 @@ test('the real commerce card shows stored facts and decline writes no payment st
   const f = await fixture(t);
   const paid = await f.order();
   await f.kernel.execute(sql`UPDATE commerce_payments SET intent_status='unknown',status='unknown' WHERE id=${paid.payment!.id}`);
-  const contributions = { contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: { domain: string } }) => contribution.domain }),
-    derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: { domain: string } }) => contribution.domain }) };
-  installFirstPartyToolContributors({ contributions } as never);
-  const contributor = contributions.contributors.list({}).find(value => value.domain === 'commerce') as { build: (deps: unknown, surfaces: unknown) => Array<{ descriptor: { id: string }; handler: (ctx: unknown, options: unknown) => Promise<unknown> }> };
+  const contributions = { contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: ToolContributor<AssistantToolRegistryDeps, AssistantSurfaceDeps> }) => contribution.domain }),
+    derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: DerivedToolContributor<AssistantToolRegistryDeps, AssistantSurfaceDeps> }) => contribution.domain }) };
+  installFirstPartyToolContributors({ contributions });
+  const contributor = contributions.contributors.list({}).find(value => value.domain === 'commerce')!;
   const store = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' });
-  const tools = contributor.build({ authorize, commerce: f.runtime().commerce }, { surfaceExchanges: store });
+  const tools = contributor.build({ authorize, commerce: f.runtime().commerce } as never, { surfaceExchanges: store });
   const tool = tools.find(value => value.descriptor.id === 'commerce_resolve_unknown')!;
   assert.equal(nativeToolMetadata.redeemableIds.has(tool.descriptor.id), true);
   const snapshot = () => f.kernel.query(sql`SELECT * FROM commerce_payments WHERE id=${paid.payment!.id}`);
@@ -178,7 +180,7 @@ test('the real commerce card shows stored facts and decline writes no payment st
   let emitted!: (html: string) => void;
   const emission = new Promise<string>(resolve => { emitted = resolve; });
   const pending = tool.handler({ ...context, input: { orderId: paid.order.id, outcome: 'succeeded', reason: 'Verified at provider.' } }, {
-    emitSurface: async (surface: { payload: { resource: { resource: { text: string } } } }) => emitted(surface.payload.resource.resource.text),
+    emitSurface: async surface => emitted((surface.payload as { resource: { resource: { text: string } } }).resource.resource.text),
   });
   const html = await Promise.race([emission, pending.then(result => { throw new Error(`resolution completed without card: ${JSON.stringify(result)}`); })]);
   for (const fact of [paid.order.id, paid.payment!.id, 'USD 12.00', 'test', 'succeeded']) assert.ok(html.includes(fact), fact);
