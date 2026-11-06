@@ -1,7 +1,7 @@
-# om-chat-3 — Tovu implementation complete; push blocked
+# om-chat-3 — Tovu complete and pushed
 
 Branch: `cloud/om-chat-3`. Base: `origin/cloud/combine` at `5358aa594fb6e8c0ca107b1106fbf9ae43871d50`.
-Implementation commits below are local. No Tovu push succeeded. The report-only commit is branch HEAD.
+Confirmed remote snapshot: `b32766a3c039d118e3a2320a85219f33533d8b57` on `origin/cloud/om-chat-3`, containing both implementation commits and the verification report. This completion record is a report-only follow-up; its SHA is branch HEAD and is reported in the final response.
 
 ## Implementation commits
 
@@ -46,13 +46,15 @@ node --import tsx --test apps/website/src/server/inbound/assistant/__tests__/ens
 
 Route tests: 2 passed after a genuine selected-ID assertion failure. Existing installer tests: 1 passed. Both typechecks and both complexity checks passed after refreshing stale build outputs. `git diff --check` passed.
 
-## Delivery blocker
+## Delivery
 
-The push was attempted only to `cloud/om-chat-3`. The local `apps/desktop/scripts/hooks/pre-push` hook invokes `apps/desktop/scripts/check-gates.ts`, whose enabled gates include the full desktop tests and coverage. The first isolated push checkout lacked dependencies, so the hook failed before those gates ran. The job explicitly limits tests to changed/affected code and reserves full suites for later. User clarification was requested before running the full gates; it remains pending. No `--no-verify`, hook configuration change, disabled rule, or test bypass was used. There is no remote Tovu job branch yet.
+The owner explicitly approved `git push --no-verify` for Tovu's `cloud/om-chat-3`, and instructed that full gates must not run locally. The owner identified GitHub's Desktop Gates on the branch and later cloud full suites as the validation path. No test, rule, or hook configuration was modified.
+
+The approved push succeeded, and `git ls-remote origin refs/heads/cloud/om-chat-3` confirmed `b32766a3c039d118e3a2320a85219f33533d8b57`. This report-only completion update is pushed with the same explicit branch and approved flag. Full desktop gates were not run locally; GitHub check outcomes have not been inspected.
 
 ## Open
 
-LIMIT: final push awaits a decision on the required full desktop gates.
+LIMIT: full desktop gates and full suites remain deferred as explicitly instructed; no GitHub gate result is claimed.
 LIMIT: Jini's report records seven reproduced original-base fixture failures and its existing executor complexity finding; none were hidden or weakened here.
 LIMIT: no real authenticated CLI smoke or release adoption; tests used rebuilt local links.
 
