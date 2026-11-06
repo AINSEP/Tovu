@@ -99,12 +99,14 @@ export function buildCredentialCopyRegistrations({ deps, surfaces, saveNew }: {
       try {
         const result = await askThenReport<{ granted: boolean; credentialId?: string; newKey?: boolean }>({ exchange,
           confirmationEmission: { channel: 'mcp-ui', payload: { resource: buildFormSurface({ uri,
-            title: 'Use a saved key or connection on this site', details: [{ label: 'Site', value: deps.projectKeys!.site?.name ?? 'This site' }], description: 'Shared Keys and OAuth accounts stay in the owner store. This site receives permission to use only the entry you choose. Shared OAuth keeps its original sign-in account and client.',
+            title: 'Use a saved key or connection on this site', details: [{ label: 'Site', value: deps.projectKeys!.site?.name ?? 'This site' }], description: 'Nothing is copied. This site can use only the one you choose.',
             fields: [{ kind: 'enum', name: 'credentialId', label: 'Shared Keys', required: true, placeholder: 'Choose a saved key or enter a new one',
               options: [...rows.map(row => ({ value: row.keyId, label: row.name })), { value: NEW_KEY, label: 'Enter a new key' }] }],
+            // Keys and OAuth accounts stay in the owner store; shared OAuth keeps its original sign-in account and client.
+            // The label fits both a saved key and Enter a new key, which goes on to the normal key card.
             // Start compact; Jini's shared bridge fits the body on load and content changes.
             preferredFrameSize: ['100%', '1px'],
-            submitLabel: 'Use this saved key on this site', toolName: CREDENTIAL_COPY_TOOL_ID,
+            submitLabel: 'Use this key', toolName: CREDENTIAL_COPY_TOOL_ID,
             baseParams: { [SURFACE_EXCHANGE_ID_PARAM]: exchange.id },
             cancel: { label: 'Cancel', toolName: CREDENTIAL_COPY_TOOL_ID, params: { [SURFACE_EXCHANGE_ID_PARAM]: exchange.id, [SURFACE_DISMISSED_PARAM]: true } },
           }) } },

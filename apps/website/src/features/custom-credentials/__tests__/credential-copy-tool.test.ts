@@ -37,7 +37,8 @@ test('one owner card approves only its selected reference; metadata stays out of
   const result = await f.tool.handler(f.ctx, { emitSurface: async emission => {
     cards++;
     const text = JSON.stringify(emission);
-    assert.match(text, /Use this saved key on this site/);
+    assert.match(text, /Use this key/, 'one label fits a saved key and Enter a new key');
+    assert.doesNotMatch(text, /owner store/, 'plain words, not storage jargon');
     assert.match(text, /Shared Keys/);
     assert.equal(f.deliver({ credentialId: 'key-a' }, 'another-owner').ok, false);
     assert.equal(f.deliver({ credentialId: 'key-a' }).ok, true);
