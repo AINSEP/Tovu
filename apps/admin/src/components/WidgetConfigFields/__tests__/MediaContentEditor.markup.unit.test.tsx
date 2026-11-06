@@ -78,10 +78,26 @@ describe("agent handles", () => {
     expect(agentElements()).toEqual(expect.arrayContaining(["w-insert-media", "w-html"]));
   });
 
-  it("emits no agent markup without a base", () => {
+  it("omits editor-owned handles without a base while shared controls retain their default handles", () => {
     const { vm } = fakeController({ showColumns: true, picker: "items" });
-    renderEditor(vm);
-    expect(agentElements()).toEqual([]);
+    const { container } = renderEditor(vm);
+    // Shared controls default to mounted-instance handles; omitting this editor's base only
+    // suppresses the controls it names itself, rather than opting its descendants out.
+    const sharedControls: Element[] = [
+      screen.getByRole("button", { name: "e.g. 1, 4/3, 16/9" }),
+      screen.getByRole("button", { name: "data-*, aria-*, class, id, style. Unsafe ones are dropped." }),
+      within(screen.getByRole("dialog")).getByRole("button", { name: "Close" }),
+    ];
+    const handles = sharedControls.map(control => control.getAttribute("data-agent-element"));
+    for (const handle of handles) expect(handle).toMatch(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
+    expect(new Set(handles).size).toBe(3);
+    expect(Array.from(document.querySelectorAll("[data-agent-element]"))).toEqual(sharedControls);
+    const editorControls = Array.from(container.querySelectorAll("button,input,textarea,select,[role=button],[role=tab],[role=radio]"))
+      .filter(control => !sharedControls.includes(control));
+    expect(editorControls).toContain(screen.getByLabelText("Columns"));
+    for (const control of editorControls) {
+      expect(control.getAttributeNames().filter(name => name.startsWith("data-agent-"))).toEqual([]);
+    }
   });
 });
 
