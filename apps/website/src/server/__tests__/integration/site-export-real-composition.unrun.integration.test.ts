@@ -154,7 +154,7 @@ for (const dialect of SITE_DIALECTS) {
     );
 
     const llms = read(outputDir, "llms.txt");
-    assert.ok(llms.startsWith("# Tovu\n"), llms);
+    assert.ok(llms.startsWith(`# Unrun ${dialect} site\n`), llms);
     assert.ok(llms.includes("Unrun Export About"), llms);
     assert.equal(llms.includes("Unrun Export Draft"), false);
     const robots = read(outputDir, "robots.txt");
