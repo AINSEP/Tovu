@@ -11,6 +11,10 @@ import { createLastWindowQuitPrompt, lastWindowQuitDialog, quitSiteCounts } from
 interface FakeWindow {
   emitClose(): boolean;
   emitClosed(): void;
+  close(): void;
+  minimize(): void;
+  closeCalls: number;
+  minimizes: number;
   on(event: "close", listener: (event: { preventDefault(): void }) => void): unknown;
   on(event: "closed", listener: () => void): unknown;
 }
@@ -19,7 +23,9 @@ interface FakeWindow {
 function fakeWindow(): FakeWindow {
   const close: ((event: { preventDefault(): void }) => void)[] = [];
   const closed: (() => void)[] = [];
-  return {
+  const window: FakeWindow = {
+    closeCalls: 0,
+    minimizes: 0,
     on(event: "close" | "closed", listener: never) {
       if (event === "close") close.push(listener);
       else closed.push(listener);
@@ -30,27 +36,37 @@ function fakeWindow(): FakeWindow {
       return !prevented;
     },
     emitClosed() { for (const listener of closed) listener(); },
+    // Like Electron's: asks the same `close` listeners, so a repeat ask would show up here.
+    close() { window.closeCalls += 1; if (window.emitClose()) window.emitClosed(); },
+    minimize() { window.minimizes += 1; },
   };
+  return window;
 }
 
 /** The prompt over fake ports. `answers` holds each open box's resolver, for the test to settle. */
-function harness({ servers = [{}] }: { servers?: { external?: boolean }[] } = {}) {
+function harness({ servers = [{}], platform = "darwin" }: { servers?: { external?: boolean }[]; platform?: string } = {}) {
   const shown: { parent: FakeWindow; options: MessageBoxOptions }[] = [];
   const answers: { resolve(answer: { response: number }): void; reject(error: Error): void }[] = [];
   const errors: string[] = [];
   let quits = 0;
+  let kept = 0;
   const prompt = createLastWindowQuitPrompt<FakeWindow>({ ports: {
     openServers: () => servers,
+    platform,
     locale: () => "en-US",
     showMessageBox: (parent, options) => {
       shown.push({ parent, options });
       return new Promise((resolve, reject) => answers.push({ resolve, reject }));
     },
     quit: () => { quits += 1; },
+    keepSitesRunning: () => { kept += 1; },
     logError: (message) => errors.push(message),
   } });
-  return { prompt, shown, answers, errors, quits: () => quits };
+  return { prompt, shown, answers, errors, quits: () => quits, kept: () => kept };
 }
+
+/** The box's answers, in button order. */
+const [QUIT, KEEP_RUNNING, CANCEL] = [0, 1, 2];
 
 /** Lets the prompt's promise chain run after a fake box settles. */
 const settled = () => new Promise((resolve) => setImmediate(resolve));
@@ -72,16 +88,80 @@ test("Quit quits once; Cancel keeps the window and a later close asks again", as
   h.prompt.watch({ window });
 
   window.emitClose();
-  h.answers[0]!.resolve({ response: 1 });
+  h.answers[0]!.resolve({ response: CANCEL });
   await settled();
   assert.equal(h.quits(), 0, "Cancel does not quit");
+  assert.equal(h.kept(), 0, "Cancel leaves idle sleep alone");
 
   assert.equal(window.emitClose(), false, "the window stays open and the next close asks again");
   assert.equal(h.shown.length, 2);
-  h.answers[1]!.resolve({ response: 0 });
+  h.answers[1]!.resolve({ response: QUIT });
   await settled();
   assert.equal(h.quits(), 1);
+  assert.equal(window.closeCalls + window.minimizes, 0, "the ordinary quit closes the windows, not this box");
 });
+
+test("macOS: Keep running closes the window without asking again, and the app stays in the Dock", async () => {
+  const h = harness({ platform: "darwin" });
+  const window = fakeWindow();
+  h.prompt.watch({ window });
+  window.emitClose();
+  h.answers[0]!.resolve({ response: KEEP_RUNNING });
+  await settled();
+  assert.equal(window.closeCalls, 1);
+  assert.equal(window.minimizes, 0);
+  assert.equal(h.shown.length, 1, "the close it runs is not asked about again");
+  assert.equal(h.quits(), 0, "the sites keep running, so nothing quits");
+  assert.equal(h.kept(), 1, "idle sleep must not stop them later");
+
+  const reopened = fakeWindow();
+  h.prompt.watch({ window: reopened });
+  assert.equal(reopened.emitClose(), false, "a window reopened from the Dock asks again");
+  assert.equal(h.shown.length, 2);
+});
+
+test("macOS: a page that vetoes the Keep running close does not lose the next ask", async () => {
+  const h = harness({ platform: "darwin" });
+  const window = fakeWindow();
+  window.close = () => { window.closeCalls += 1; window.emitClose(); };
+  h.prompt.watch({ window });
+  window.emitClose();
+  h.answers[0]!.resolve({ response: KEEP_RUNNING });
+  await settled();
+  assert.equal(window.closeCalls, 1);
+  assert.equal(window.emitClose(), false, "the window is still open, so closing it asks");
+  assert.equal(h.shown.length, 2);
+});
+
+for (const platform of ["win32", "linux"]) {
+  test(`${platform}: Keep running minimizes, because a closed last window would end the app`, async () => {
+    const h = harness({ platform });
+    const window = fakeWindow();
+    h.prompt.watch({ window });
+    window.emitClose();
+    h.answers[0]!.resolve({ response: KEEP_RUNNING });
+    await settled();
+    assert.equal(window.minimizes, 1);
+    assert.equal(window.closeCalls, 0, "window-all-closed would quit and stop every site");
+    assert.equal(h.quits(), 0);
+    assert.equal(h.kept(), 1);
+
+    assert.equal(window.emitClose(), false, "the way out: closing it again asks again");
+    h.answers[1]!.resolve({ response: QUIT });
+    await settled();
+    assert.equal(h.quits(), 1, "and Quit really quits");
+  });
+
+  test(`${platform}: Cancel neither minimizes nor closes`, async () => {
+    const h = harness({ platform });
+    const window = fakeWindow();
+    h.prompt.watch({ window });
+    window.emitClose();
+    h.answers[0]!.resolve({ response: CANCEL });
+    await settled();
+    assert.equal(window.minimizes + window.closeCalls + h.quits() + h.kept(), 0);
+  });
+}
 
 test("with no running site the close goes through untouched, as it did before this ask", () => {
   const h = harness({ servers: [] });
@@ -171,9 +251,9 @@ test("a box that fails is logged, leaves the window open, and does not wedge the
 test("the box's buttons: Quit first, Escape cancels, plain buttons on Windows", () => {
   const options = lastWindowQuitDialog({ locale: "en", stops: 3, keeps: 0 });
   assert.equal(options.type, "question");
-  assert.deepEqual(options.buttons, ["Quit", "Cancel"]);
-  assert.equal(options.defaultId, 0);
-  assert.equal(options.cancelId, 1);
+  assert.deepEqual(options.buttons, ["Quit", "Keep running in background", "Cancel"]);
+  assert.equal(options.defaultId, QUIT);
+  assert.equal(options.cancelId, CANCEL);
   assert.equal(options.noLink, true);
   assert.equal(options.title, "Tovu");
   assert.equal("detail" in options, false, "no empty second line when every site stops");
@@ -184,13 +264,15 @@ test("the box follows the app's locale", () => {
   const options = lastWindowQuitDialog({ locale: "ru-RU", stops: 21, keeps: 5 });
   assert.equal(options.message, "Выйти из Tovu и остановить работающие сайты (21)?");
   assert.equal(options.detail, "Сайты, запущенные не этим приложением, продолжат работать (5).");
-  assert.deepEqual(options.buttons, ["Выйти", "Отмена"]);
+  assert.deepEqual(options.buttons, ["Выйти", "Оставить работать в фоне", "Отмена"]);
 });
 
 test("main wires the ask to both app window kinds, never a capture window, and to every quit", () => {
   const source = readFileSync(new URL("../index.ts", import.meta.url), "utf8");
   assert.equal(source.match(/trackWindow: trackAppWindow/g)?.length, 2, "admin windows and the sites home window");
   assert.match(source, /if \(!SELFTEST\) lastWindowQuit\.watch\(\{ window \}\)/, "nobody is there to answer a self-test");
+  assert.match(source, /platform: process\.platform,\n  locale: \(\) => app\.getLocale\(\)/, "Keep running follows the real platform");
+  assert.match(source, /keepSitesRunning: \(\) => siteLifecycle\?\.keepAwake\(\)/, "Keep running turns idle sleep off");
   assert.match(source, /startCaptureBridge: \(\) => startDesktopCaptureBridge\(\{ createWindow: \(options\) => new BrowserWindow\(options\), capturePool \}\)/,
     "hidden capture windows must not count as open windows");
   const beforeQuit = source.slice(source.indexOf('\napp.on("before-quit", '));

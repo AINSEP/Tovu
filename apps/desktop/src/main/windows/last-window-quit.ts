@@ -4,6 +4,12 @@
  * (Windows, Linux) or leaves them running behind a Dock icon (macOS). `main.ts` passes the native
  * box, the open servers and `app.quit` in, so every rule here runs under plain node with fakes.
  *
+ * **Why Keep running minimizes on Windows and Linux.** macOS keeps an app alive with no windows, so
+ * there the window closes and the Dock icon reopens it. Elsewhere a closed last window fires
+ * `window-all-closed`, which quits and stops every site, and this app has no tray. A hidden window
+ * would leave no way back; a minimized one stays on the taskbar, and closing it asks again, so Quit
+ * is always reachable. It also needs no icon, menu or Linux tray support the way a tray would.
+ *
  * **Why it latches on `before-quit`, not on `quitPhase`.** Every quit route (Cmd+Q, menu Quit, a
  * signal, Restart to update, this box's own Quit) reaches `before-quit` before any window closes,
  * so none of them may meet this box. `quitPhase` cannot say so: it stays `"idle"` when there was
@@ -22,6 +28,8 @@ import { desktopCopy } from "../../desktop-i18n.ts";
 interface QuitPromptWindow {
   on(event: "close", listener: (event: { preventDefault(): void }) => void): unknown;
   on(event: "closed", listener: () => void): unknown;
+  close(): void;
+  minimize(): void;
 }
 
 /** The slice of a `tovu serve` handle counted here: `external` marks one this app only attached to. */
@@ -33,12 +41,16 @@ interface CountedServer {
 interface LastWindowQuitPorts<W> {
   /** Every server `before-quit`'s drain would call `stop()` on. */
   openServers: () => readonly CountedServer[];
+  /** `process.platform`. */
+  platform: string;
   /** `app.getLocale()`, read when the box opens. */
   locale: () => string;
   /** `dialog.showMessageBox`, parented so it is a sheet on macOS and modal to the window on Windows. */
   showMessageBox: (window: W, options: MessageBoxOptions) => Promise<{ response: number }>;
   /** `app.quit()`: the same graceful drain Cmd+Q runs. */
   quit: () => void;
+  /** Keep running in background: idle sleep must not stop these sites later. */
+  keepSitesRunning: () => void;
   logError: (message: string) => void;
 }
 
@@ -51,7 +63,8 @@ interface LastWindowQuitPrompt<W> {
 }
 
 const QUIT_BUTTON = 0;
-const CANCEL_BUTTON = 1;
+const KEEP_RUNNING_BUTTON = 1;
+const CANCEL_BUTTON = 2;
 
 /**
  * What a quit does to the open servers: stopping an attached one only ends this app's watch on it
@@ -74,7 +87,7 @@ function lastWindowQuitDialog({ locale, stops, keeps }: { locale: string; stops:
     title: "Tovu",
     message: (stops === 1 ? copy.quitOne : copy.quitMany).replace("{count}", String(stops)),
     ...(keeps > 0 ? { detail: (keeps === 1 ? copy.keepsOne : copy.keepsMany).replace("{count}", String(keeps)) } : {}),
-    buttons: [copy.quit, copy.cancel],
+    buttons: [copy.quit, copy.keepInBackground, copy.cancel],
     defaultId: QUIT_BUTTON,
     cancelId: CANCEL_BUTTON,
     // Windows would otherwise turn "Quit", which it does not recognise as a common button, into a
@@ -85,7 +98,8 @@ function lastWindowQuitDialog({ locale, stops, keeps }: { locale: string; stops:
 
 /**
  * Binds the ask to its ports. A close is held first and answered later, because `close` can only be
- * prevented synchronously; Quit then runs the ordinary quit, so nothing here stops a site.
+ * prevented synchronously; Quit then runs the ordinary quit, so nothing here stops a site, and
+ * Keep running leaves them all as they are.
  * @returns The ask. @complexity O(1) per close, plus O(n) open servers when it asks.
  */
 function createLastWindowQuitPrompt<W extends QuitPromptWindow>(
@@ -93,8 +107,20 @@ function createLastWindowQuitPrompt<W extends QuitPromptWindow>(
   _optional = {},
 ): LastWindowQuitPrompt<W> {
   const windows = new Set<W>();
+  // One-shot: a page's `beforeunload` can veto the close Keep running starts, and the next must ask.
+  const released = new WeakSet<W>();
   let quitStarted = false;
   let openBox: AbortController | null = null;
+
+  function keepRunning({ window }: { window: W }): void {
+    ports.keepSitesRunning();
+    if (ports.platform !== "darwin") {
+      window.minimize();
+      return;
+    }
+    released.add(window);
+    window.close();
+  }
 
   function ask({ window, stops, keeps }: { window: W; stops: number; keeps: number }): void {
     const box = new AbortController();
@@ -103,6 +129,7 @@ function createLastWindowQuitPrompt<W extends QuitPromptWindow>(
       .then(({ response }) => {
         openBox = null;
         if (response === QUIT_BUTTON) ports.quit();
+        if (response === KEEP_RUNNING_BUTTON) keepRunning({ window });
       })
       .catch((error: unknown) => {
         openBox = null;
@@ -111,7 +138,7 @@ function createLastWindowQuitPrompt<W extends QuitPromptWindow>(
   }
 
   function onClose({ window, event }: { window: W; event: { preventDefault(): void } }): void {
-    if (quitStarted) return;
+    if (quitStarted || released.delete(window)) return;
     // While the box is open the answer decides; the close that opened it is already held.
     if (openBox) {
       event.preventDefault();

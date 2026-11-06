@@ -31,6 +31,18 @@ test('the external-Stop confirm is translated in every locale and keeps `npm run
   }
 });
 
+test('the tab close ask is translated in every locale and names the site', () => {
+  const english = desktopCopy({ locale: 'en' }).tabClose;
+  assert.deepEqual(english, { stopToo: 'Stop {name} too?', keepRunning: 'Keep running' });
+  for (const locale of ['es', 'de', 'it', 'zh-CN', 'zh-TW', 'ar', 'fa', 'ru', 'ja', 'id', 'pt-BR', 'ko', 'pl', 'hu', 'fr', 'uk', 'tr', 'th', 'hi', 'ur', 'bn']) {
+    const copy = desktopCopy({ locale }).tabClose;
+    assert.ok(copy.stopToo.includes('{name}'), `${locale} names the site`);
+    assert.ok(copy.keepRunning, `${locale}.tabClose.keepRunning`);
+    assert.notEqual(copy.stopToo, english.stopToo, `${locale}.tabClose.stopToo`);
+    assert.notEqual(copy.keepRunning, english.keepRunning, `${locale}.tabClose.keepRunning`);
+  }
+});
+
 test('the last-window quit ask is translated in every locale and keeps its count', () => {
   const english = desktopCopy({ locale: 'en' }).lastWindowQuit;
   assert.equal(english.quitMany, 'Quit Tovu and stop {count} running sites?');

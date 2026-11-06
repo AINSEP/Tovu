@@ -197,6 +197,8 @@ interface SiteLifecycleOptions {
 export interface ProjectSiteLifecycle extends SitePresence<PresenceSender & { getURL(): string }> {
   onServerExit(input: { siteDir: string; exit: ServerExitLike; server: OpenSiteEntry["server"] }, options?: {}): void;
   maintain(input: { snapshot: ResourcesSnapshot }, options?: {}): Promise<void>;
+  /** Keep running in background: no idle sleep until this launch ends. Memory restarts still run. */
+  keepAwake(): void;
   manualStart(input: { siteDir: string }, options?: {}): void;
   cancel(input: { siteDir: string; forget?: boolean }, options?: {}): void;
   onBootFailure(input: { siteDir: string; error: unknown }, options?: {}): void;
@@ -1665,9 +1667,11 @@ function registerSiteIpcHandlers<TCtx>(deps: ProjectIpcDeps<TCtx>, options: Site
     const idle = minutes > 0 && at - state.lastPresentAt >= minutes * 60_000;
     if (restart || idle) await parkSite({ siteDir, state, server: entry.server, restart });
   }
+  // With no window left nothing reports presence, so ten idle minutes would stop the sites the user kept.
+  let keptAwake = false;
   const presence = createSitePresence({ allowed: deps.isPresenceShell ?? (() => false),
     trackedIds: () => new Set(readTrackedSites(deps.projectsPath).map(row => row.siteDir)),
-  }, { hasSiteWindow: siteId => Boolean(deps.openSites.get(siteId)?.window), onRelease: notePresence });
+  }, { hasSiteWindow: siteId => keptAwake || Boolean(deps.openSites.get(siteId)?.window), onRelease: notePresence });
   deps.ipcMain.handle(SITE_PRESENCE_CHANNEL, ({ sender }, input: { siteIds?: unknown } | undefined) => {
     notePresence();
     presence.replace({ sender, siteIds: input?.siteIds });
@@ -1730,7 +1734,7 @@ function registerSiteIpcHandlers<TCtx>(deps: ProjectIpcDeps<TCtx>, options: Site
   deps.ipcMain.handle(SITE_IPC_CHANNELS.preview, (_event, id) => handleGetPreview(id, deps));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.locate, (_event, id) => handleLocate(id, { ...deps, siteRuntime: states }));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.tokenSignInPlugins, () => handleTokenSignInPlugins(deps));
-  return { ...presence, onServerExit, manualStart, cancel,
+  return { ...presence, keepAwake: () => { keptAwake = true; }, onServerExit, manualStart, cancel,
     onBootFailure({ siteDir, error }, _options = {}) {
       recordFailure({ siteDir, state: stateFor({ siteDir }), detail: siteFailureDetails({ error }) });
     },

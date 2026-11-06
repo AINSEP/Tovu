@@ -119,6 +119,41 @@ test('App: the nav badges running sites, inert links do nothing, and an agent na
   assert.match(app.container.querySelector('webview')?.getAttribute('src') ?? '', /\/admin\/.*import/, 'on its Import page');
 });
 
+test('App: closing a running site\'s tab asks; Keep running leaves it running, Stop stops it, and a stopped site just closes', async (t) => {
+  const stops: string[] = [];
+  const app = await renderApp(t, {
+    listSites: async () => [site('a', { status: 'running', port: 4100 })],
+    stopSite: async (id: string) => { stops.push(id); return site(id, { status: 'stopped' }); },
+  });
+  const ask = () => app.container.querySelector('[role="alertdialog"]');
+  const button = (label: string) => [...(ask()?.querySelectorAll('button') ?? [])].find(item => item.textContent === label);
+
+  await openFirstSite(app);
+  await app.click(app.byLabel('Close Site a'));
+  assert.equal(ask()?.getAttribute('aria-label'), 'Stop Site a too?');
+  assert.equal(app.all('[role="tab"]').length, 2, 'the tab waits for the answer');
+
+  await app.click(button('Cancel'));
+  assert.equal(ask(), null);
+  assert.equal(app.all('[role="tab"]').length, 2, 'Cancel keeps the tab');
+
+  await app.click(app.byLabel('Close Site a'));
+  await app.click(button('Keep running'));
+  assert.equal(app.container.querySelector('[aria-label="Close Site a"]'), null, 'the tab is gone');
+  assert.deepEqual(stops, [], 'Keep running stops nothing');
+
+  await openFirstSite(app);
+  await app.click(app.byLabel('Close Site a'));
+  await app.click(button('Stop'));
+  assert.deepEqual(stops, ['a']);
+  assert.equal(app.container.querySelector('[aria-label="Close Site a"]'), null);
+
+  await openFirstSite(app);
+  await app.click(app.byLabel('Close Site a'));
+  assert.equal(ask(), null, 'the stopped site has nothing to ask');
+  assert.equal(app.container.querySelector('[aria-label="Close Site a"]'), null);
+});
+
 test('T3: navigating away from Websites and back preserves the open admin webview', async (t) => {
   const app = await renderApp(t, {
     listSites: async () => [site('a', { status: 'running', port: 4100 })],

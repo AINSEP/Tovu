@@ -15,6 +15,8 @@ import {
   useRunnerNavigation,
   useSectionNav,
 } from './App.hooks.js';
+import { useTabCloseAsk } from './use-tab-close-ask.hooks.js';
+import { TabCloseAsk } from './app/TabCloseAsk.js';
 import { chromeVisibility } from './expanded-mode.js';
 import { useAddSite } from './use-add-site.hooks.js';
 import { resolveImportSiteTarget } from './import-site-entry.js';
@@ -146,6 +148,7 @@ export function App({
       stopCreating,
     });
 
+  const tabClose = useTabCloseAsk({ projects, closeTab: closeProjectTab, onSiteUpdated: applySiteRecord });
   const runningCount = countRunningSites(projects);
   const active = findSection(activeId);
   useProductScreen({ screen: appScreen({ appearanceOpen, showSitesHome, isCreating, activeId }) });
@@ -173,11 +176,13 @@ export function App({
           activeTab={selectedTab}
           onSelectSitesHome={() => setActiveTab(null)}
           onSelectTab={setActiveTab}
-          onCloseTab={closeProjectTab}
+          onCloseTab={tabClose.requestClose}
         />
       )}
 
       <main className="main">
+        <TabCloseAsk project={tabClose.asking} stopping={tabClose.stopping} error={tabClose.error}
+          onStop={() => void tabClose.stopAndClose()} onKeepRunning={tabClose.keepRunning} onCancel={tabClose.cancel} />
         {/* Re-adding a tracked site opens its tab; keep that confirmation visible there too.
             Folder failures belong to the websites view and must not carry into site tabs. */}
         {tabNotice !== undefined && <p className="projects-feedback" role="status">{tabNotice}</p>}

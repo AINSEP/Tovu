@@ -2226,6 +2226,10 @@ webview { display: flex; }
 .card__confirm { z-index: 5; overflow-y: auto; }
 .card__confirmtitle, .card__confirmbody, .card__confirmerror { overflow-wrap: anywhere; }
 .projects-feedback { margin: 0.5rem 1.25rem 1rem; padding: 0.75rem 1rem; border: 1px solid var(--warning); border-radius: var(--r-md); color: var(--warning); background: var(--surface); overflow-wrap: anywhere; }
+.tab-close-ask { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem; }
+.tab-close-ask__text { flex: 1 1 12rem; min-width: 0; overflow-wrap: anywhere; }
+.tab-close-ask__text p { margin: 0; }
+.tab-close-ask__actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .onboarding__form, .onboarding-card, .onboarding-section, .create-field { min-width: 0; }
 /* Inputs sized to what they hold, not the card (owner 2026-10-11 design checklist: ~28–36rem). */
 .create-field input { min-width: 0; max-width: min(32rem, 100%); }

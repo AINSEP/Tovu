@@ -2433,6 +2433,16 @@ test('B2 below-cap, missing, stale, invalid and replacement PID samples reset su
   }
 });
 
+test('Keep running in background holds idle sleep for the launch, but the memory restart still runs', async t => {
+  const h = b2LifecycleHarness(t); let requests = 0;
+  h.server().stopIfIdle = async () => { requests++; return false; };
+  h.lifecycle.keepAwake();
+  h.advance(600000); await h.lifecycle.maintain({ snapshot: h.snapshot() }, {});
+  h.advance(6000000); await h.lifecycle.maintain({ snapshot: h.snapshot() }, {});
+  assert.equal(requests, 0, 'the user chose to keep it running, so ten idle minutes must not sleep it');
+  assert.equal(h.record().status, 'running');
+});
+
 test('B2 Start racing idle shutdown waits for confirmed exit through the site serializer', async t => {
   const h = b2LifecycleHarness(t), old = h.server();
   let entered!: () => void, release!: () => void;

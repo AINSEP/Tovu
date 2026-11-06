@@ -10,7 +10,8 @@ export interface DesktopCopy {
    *  caller; text between backticks renders as code. */
   stopConfirm: { title: string; devBody: string; otherBody: string; confirm: string; confirming: string };
   /** The native ask before the last window closes. `{count}` is filled by the caller. */
-  lastWindowQuit: { quitOne: string; quitMany: string; keepsOne: string; keepsMany: string; quit: string; cancel: string };
+  lastWindowQuit: { quitOne: string; quitMany: string; keepsOne: string; keepsMany: string; quit: string; keepInBackground: string; cancel: string };
+  tabClose: { stopToo: string; keepRunning: string };
 }
 const COPY: Record<string, readonly [string, string, string, string, string]> = {
   en: ['Settings', 'Automatically update Tovu', 'Could not save update preference', 'Restart', 'Restarting…'],
@@ -88,6 +89,32 @@ const STOP_CONFIRM_COPY: Record<string, readonly [string, string, string, string
   bn: ['{name} বন্ধ করবেন?', 'এটি `npm run dev` বন্ধ করবে, অ্যাডমিন ডেভেলপমেন্ট সার্ভারসহ।', 'এটি {app}-এ এই সাইট চালানো সার্ভারটি বন্ধ করবে।', 'বন্ধ করুন', 'বন্ধ হচ্ছে…'],
 };
 
+/** [stopToo, keepRunning, keepInBackground]: the tab close ask and the last-window box's third answer. */
+const KEEP_RUNNING_COPY: Record<string, readonly [string, string, string]> = {
+  en: ['Stop {name} too?', 'Keep running', 'Keep running in background'],
+  es: ['¿Detener también {name}?', 'Seguir en ejecución', 'Seguir en segundo plano'],
+  de: ['{name} auch stoppen?', 'Weiterlaufen lassen', 'Im Hintergrund weiterlaufen lassen'],
+  it: ['Arrestare anche {name}?', 'Lascia in esecuzione', 'Lascia in esecuzione in background'],
+  'zh-CN': ['同时停止 {name}？', '继续运行', '在后台继续运行'],
+  'zh-TW': ['同時停止 {name}？', '繼續執行', '在背景繼續執行'],
+  ar: ['هل تريد إيقاف {name} أيضًا؟', 'متابعة التشغيل', 'متابعة التشغيل في الخلفية'],
+  fa: ['{name} هم متوقف شود؟', 'ادامهٔ اجرا', 'ادامهٔ اجرا در پس‌زمینه'],
+  ru: ['Остановить и {name}?', 'Оставить работать', 'Оставить работать в фоне'],
+  ja: ['{name} も停止しますか？', '実行したままにする', 'バックグラウンドで実行を続ける'],
+  id: ['Hentikan {name} juga?', 'Biarkan berjalan', 'Biarkan berjalan di latar belakang'],
+  'pt-BR': ['Parar {name} também?', 'Manter em execução', 'Manter em execução em segundo plano'],
+  ko: ['{name}도 중지할까요?', '계속 실행', '백그라운드에서 계속 실행'],
+  pl: ['Zatrzymać też {name}?', 'Pozostaw uruchomioną', 'Pozostaw działającą w tle'],
+  hu: ['Leállítod ezt is: {name}?', 'Fusson tovább', 'Fusson tovább a háttérben'],
+  fr: ['Arrêter aussi {name} ?', 'Laisser en cours', 'Laisser en cours en arrière-plan'],
+  uk: ['Також зупинити {name}?', 'Залишити запущеним', 'Залишити працювати у фоні'],
+  tr: ['{name} da durdurulsun mu?', 'Çalışmaya devam etsin', 'Arka planda çalışmaya devam etsin'],
+  th: ['หยุด {name} ด้วยไหม', 'ให้ทำงานต่อ', 'ให้ทำงานต่อในเบื้องหลัง'],
+  hi: ['{name} को भी रोकें?', 'चलने दें', 'बैकग्राउंड में चलने दें'],
+  ur: ['{name} کو بھی روکیں؟', 'چلنے دیں', 'پس منظر میں چلنے دیں'],
+  bn: ['{name}-ও বন্ধ করবেন?', 'চালু রাখুন', 'ব্যাকগ্রাউন্ডে চালু রাখুন'],
+};
+
 /** [quitOne, quitMany, keepsOne, keepsMany, quit, cancel] — owner 2026-11-05 wrote the English question.
  *  `quitMany`/`keepsMany` fill any count above 1, so languages whose noun form changes with the
  *  number (ar, pl, ru, uk) put the count in brackets instead of beside the noun. */
@@ -146,7 +173,9 @@ export function desktopCopy({ locale }: { locale: string }, _optionalArgs = {}):
   const [invalid, empty, incomplete, unreadable, add, start] = SITE_ERROR_COPY[key] ?? SITE_ERROR_COPY.en!;
   const [title, devBody, otherBody, confirm, confirming] = STOP_CONFIRM_COPY[key] ?? STOP_CONFIRM_COPY.en!;
   const [quitOne, quitMany, keepsOne, keepsMany, quit, cancel] = LAST_WINDOW_QUIT_COPY[key] ?? LAST_WINDOW_QUIT_COPY.en!;
+  const [stopToo, keepRunning, keepInBackground] = KEEP_RUNNING_COPY[key] ?? KEEP_RUNNING_COPY.en!;
   return { settings, automaticUpdates, saveUpdateError, restart, restarting, siteErrors: { invalid, empty, incomplete, unreadable, add, start },
     stopConfirm: { title, devBody, otherBody, confirm, confirming },
-    lastWindowQuit: { quitOne, quitMany, keepsOne, keepsMany, quit, cancel } };
+    lastWindowQuit: { quitOne, quitMany, keepsOne, keepsMany, quit, keepInBackground, cancel },
+    tabClose: { stopToo, keepRunning } };
 }

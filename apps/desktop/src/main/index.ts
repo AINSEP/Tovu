@@ -499,9 +499,11 @@ function readSiteName(siteDir: string): string { return readSiteNameIn({ siteDir
 /** The ask before the last app window closes with sites running — see `last-window-quit.ts`. */
 const lastWindowQuit = createLastWindowQuitPrompt<BrowserWindow>({ ports: {
   openServers: () => [...openSites.values()].map((entry) => entry.server),
+  platform: process.platform,
   locale: () => app.getLocale(),
   showMessageBox: (window, options) => dialog.showMessageBox(window, options),
   quit: () => app.quit(),
+  keepSitesRunning: () => siteLifecycle?.keepAwake(),
   logError: (message) => console.error(message),
 } });
 
