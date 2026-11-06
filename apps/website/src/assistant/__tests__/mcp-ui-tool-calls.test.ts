@@ -241,6 +241,8 @@ const EXPECTED_ALLOWLIST = [
   "fs_write_files",
   "files_copy",
   "image_transform",
+  // ae1691994: a plan card records a verified payment outcome. Exchange-only: a click answers the parked call.
+  "commerce_resolve_unknown",
 ];
 
 test("SECURITY-CRITICAL: the allowlist is exactly this set — widening it cannot happen silently", () => {
@@ -258,6 +260,11 @@ test("file-batch callbacks can only answer parked exchanges, never start fresh w
     assert.equal(isMcpUiToolCallPermitted(id, false), false, id);
     assert.equal(isMcpUiToolCallPermitted(id, true), true, id);
   }
+});
+
+test("a verified payment outcome can only answer its parked card, never run from a fresh callback", () => {
+  assert.equal(isMcpUiToolCallPermitted("commerce_resolve_unknown", false), false);
+  assert.equal(isMcpUiToolCallPermitted("commerce_resolve_unknown", true), true);
 });
 
 test("SECURITY-CRITICAL: isMcpUiToolCallAllowed admits a tool id if and ONLY if it is on that set", () => {
