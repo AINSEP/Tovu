@@ -41,8 +41,9 @@ test('text that is neither a local path nor a parseable URL gets the same fix se
 test('the default banner CSS passes the engine policy unchanged and sets no colors, so the theme colors stay', () => {
   const { css, problems } = compileConsentCss({ css: SITE_CONSENT_DEFAULT_CSS, tokens: {} });
   assert.deepEqual(problems, []);
-  assert.ok(css.includes('#jini-consent[data-has-record="false"]{padding:16px;border-radius:14px}'));
-  assert.ok(css.includes('#jini-consent[data-has-record="false"] button{border-radius:8px}'));
+  assert.ok(css.includes('#jini-consent{padding:16px;border-radius:14px}'));
+  assert.ok(css.includes('#jini-consent button{border-radius:8px}'));
+  assert.ok(css.includes('#jini-consent a{border-radius:6px}'));
   assert.doesNotMatch(SITE_CONSENT_DEFAULT_CSS, /(^|[^-])color\s*:/m);
 });
 

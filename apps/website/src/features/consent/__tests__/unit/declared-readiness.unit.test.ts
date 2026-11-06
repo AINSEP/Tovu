@@ -30,3 +30,12 @@ test('diagnostic source redaction does not mutate the authored declaration', () 
   assert.equal(script.src, 'https://user:password@example.test/a.js?private=1#private');
   assert.deepEqual(result.problems, []);
 });
+
+test('live iframe, object and embed sources are unmanaged; inert frames and templates remain inert', () => {
+  const html = '<iframe src="https://user:password@example.test/frame?private=1#private"></iframe><object data="/document.pdf?private=1"></object><embed src="/embedded.bin?private=1"><iframe data-src="https://example.test/inert"></iframe><template><iframe src="https://example.test/later"></iframe></template>';
+  const result = consentDeclarationReadiness({ html, scripts: [], runtimeSlot: true });
+  assert.deepEqual(result.warnings.map(item => item.tag).sort(), ['embed', 'iframe', 'object']);
+  assert.deepEqual(result.warnings.map(item => item.source).sort(), ['/document.pdf', '/embedded.bin', 'https://example.test/frame']);
+  assert.ok(result.warnings.every(item => item.code === 'UNMANAGED_CONTENT' && !('category' in item)));
+  assert.ok(!JSON.stringify(result).includes('private'));
+});

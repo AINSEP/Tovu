@@ -2071,6 +2071,7 @@ async function renderBarePage(deps: RouteDeps, post: PostRecord): Promise<string
     buildExtraHead(deps, "post", siteTitle, post),
   ]);
   return renderBareEntryDocument({
+    documentAssets: await deps.documentAssets?.({ scripts: [] }),
     post,
     siteTitle,
     extraHead,

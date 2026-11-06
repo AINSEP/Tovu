@@ -96,7 +96,29 @@ test('disabled sites deliver ordinary plugin scripts from activation data withou
     const assets = await response.json() as { head: string; body: string };
     assert.match(assets.head, /data-jini-declared-script src="\/plugin-menu.js"/);
     assert.doesNotMatch(assets.head, /_consent/);
+    assert.deepEqual(await f.deps.cookieConsent!.exportAssets!(), ['/plugin-menu.js']);
     assert.equal(reads, 0);
     assert.deepEqual(f.counts(), { reads: 0, regionReads: 0, draftReads: 0 });
+  } finally { await f.close(); }
+});
+
+test('automatic declarations use ordinary delivery before context; only optional scripts stay JSON', async () => {
+  const f = await fixture(true, async () => ({ scripts: [
+    { src: '/menu.js' }, { src: 'https://example.com/automatic.js' },
+    { src: '/essential.js', consent: ['necessary'] }, { src: '/stats.js', consent: ['analytics'] },
+  ], problems: [] }));
+  try {
+    const response = await fetch(`${f.url}/assets`);
+    const assets = await response.json() as { head: string; body: string };
+    const { JSDOM } = await import('jsdom');
+    const dom = new JSDOM(`<html><head>${assets.head}</head><body>${assets.body}</body></html>`);
+    try {
+      assert.ok(dom.window.document.querySelector('script[data-jini-declared-script][src="/menu.js"]'));
+      assert.ok(dom.window.document.querySelector('script[src="https://example.com/automatic.js"]'));
+      assert.ok(dom.window.document.querySelector('script[src="/essential.js"]'));
+      assert.equal(dom.window.document.querySelector('script[src="/stats.js"]'), null);
+      const config = JSON.parse(dom.window.document.getElementById('jini-consent-config')!.textContent!);
+      assert.deepEqual(config.scripts, [{ src: '/stats.js', consent: ['analytics'] }]);
+    } finally { dom.window.close(); }
   } finally { await f.close(); }
 });

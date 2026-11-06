@@ -6,7 +6,7 @@ import type { ConsentProblem } from './validation.js';
 
 type Node = DefaultTreeAdapterMap['childNode'];
 export interface ConsentWarning extends ConsentProblem { source?: string | null; tag?: string; attributes?: string[] }
-export interface ConsentDeclarationEvidence { scripts: unknown; runtimeSlot: boolean; problems?: readonly string[] }
+export interface ConsentDeclarationEvidence { scripts: unknown; runtimeSlot: boolean; problems?: readonly (string | ConsentProblem)[] }
 const LIMIT = 200;
 
 /** Diagnostics never disclose URL credentials, query values, fragments or inline code. */
@@ -25,9 +25,15 @@ function executableScript(node: DefaultTreeAdapterMap['element'], attrs: Map<str
 function unmanaged(node: DefaultTreeAdapterMap['element']): ConsentWarning | null {
   const attrs = new Map(node.attrs.map(attr => [attr.name, attr.value]));
   const handlers = node.attrs.filter(attr => /^on[a-z]+$/i.test(attr.name)).map(attr => attr.name);
-  if (!executableScript(node, attrs) && handlers.length === 0) return null;
+  const resource = liveEmbeddedSource(node.tagName, attrs);
+  if (!executableScript(node, attrs) && handlers.length === 0 && resource === undefined) return null;
   return { code: 'UNMANAGED_CONTENT', message: 'Executable page content is outside declared-script consent. Review its authoring before moving this site.',
-    tag: node.tagName, source: sourceLabel(attrs.get('src')), ...(handlers.length ? { attributes: handlers } : {}) };
+    tag: node.tagName, source: sourceLabel(resource ?? attrs.get('src')), ...(handlers.length ? { attributes: handlers } : {}) };
+}
+
+function liveEmbeddedSource(tag: string, attrs: Map<string, string>): string | undefined {
+  if (tag === 'object') return attrs.get('data');
+  return ['iframe', 'embed'].includes(tag) ? attrs.get('src') : undefined;
 }
 
 /** Templates are inert authored content, not a promise that their future descendants are controlled. */
@@ -56,12 +62,12 @@ export function consentDeclarationReadiness({ html, scripts, runtimeSlot, proble
   const input = Array.isArray(scripts) ? scripts.slice(0, declarationLimit) : scripts;
   const checked = validateScripts({ scripts: input });
   const declarations: DeclaredScript[] = checked.scripts.map(script => ({ ...script, src: sourceLabel(script.src)! }));
-  const problems: ConsentProblem[] = [...evidenceProblems, ...checked.problems].map(message => ({ code: 'INVALID_SCRIPT_DECLARATION', message }));
+  const problems: ConsentProblem[] = [...evidenceProblems, ...checked.problems].map(problem => typeof problem === 'string' ? { code: 'INVALID_SCRIPT_DECLARATION', message: problem } : problem);
   const categories = CATEGORIES.map(id => ({ id, required: id === 'necessary', editable: false }));
   if (Buffer.byteLength(html, 'utf8') > 1_000_000) return { declarations, warnings: [] as ConsentWarning[], categories, truncated: true,
     problems: [...problems, { code: 'PAGE_UNAVAILABLE', message: 'The page exceeds the 1 MB audit limit.' }] };
   const inventory = unmanagedWarnings(html, LIMIT - declarations.length - (runtimeSlot ? 0 : 1));
-  if (!runtimeSlot) inventory.warnings.unshift({ code: 'MISSING_RUNTIME_SLOT', message: 'This full-document theme has no supported runtime loading slot. Review the theme before moving this site.' });
+  if (!runtimeSlot) inventory.warnings.unshift({ code: 'MISSING_RUNTIME_SLOT', message: 'This full-document page or theme has no supported runtime loading slot. Review its authoring before moving this site.' });
   const truncated = inventory.truncated || declarationOverflow(scripts, declarationLimit);
   if (truncated) problems.push({ code: 'INVENTORY_TRUNCATED', message: 'More than 200 diagnostic entries. Inspect a smaller page sample.' });
   return { declarations, warnings: inventory.warnings, categories, problems, truncated };

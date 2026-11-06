@@ -29,6 +29,7 @@ async function policyFixture({ t }: { t: test.TestContext }) {
   const deps = {
     workspaceId: 'ws', consentStore: f.store, siteConsentReady: Promise.resolve(), siteBinding: { dir: directory },
     clock: { nowMs: () => Date.parse('2026-10-26T12:00:00.000Z'), nowIso: () => '2026-10-26T12:00:00.000Z' },
+    postRepo: { findBySlug: async () => null },
     authorize: f.ports.authorize, idGen: f.ports.ids, themes: [], resolveActiveThemeId: async () => 'none',
     observability: createNoopObservabilityPort({}), cookieConsent: { regionResolvers: async () => [] },
   } as unknown as RouteDeps;
@@ -185,7 +186,8 @@ test('raw public metadata, conditional validators and stored page bytes are neve
     assert.equal(response.headers.get('set-cookie'), null);
     const etag = response.headers.get('etag');
     assert.ok(etag);
-    for (const headers of [{ 'if-none-match': etag }, { 'if-modified-since': modified }]) {
+    const validators: Record<string, string>[] = [{ 'if-none-match': etag }, { 'if-modified-since': modified }];
+    for (const headers of validators) {
       const conditional = await fetch(base + route, { headers, cache: 'no-cache' });
       assert.equal(conditional.status, 304);
       assert.equal(conditional.headers.get('etag'), etag);

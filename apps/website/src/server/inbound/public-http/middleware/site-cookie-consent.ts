@@ -219,9 +219,10 @@ export async function siteConsentDocumentAssets({ deps, request, scripts }: { de
 /** JSON declaration URLs are invisible to an HTML crawler. No live collectors enter an export. */
 export async function siteConsentExportAssets({ deps }: { deps: Pick<RouteDeps, 'cookieConsent'> }, _optional = {}): Promise<readonly string[]> {
   const policy = deps.cookieConsent && documentPolicies.get(deps.cookieConsent);
-  if (!policy || siteBannerMode({ config: await policy }) === 'off') return [];
+  if (!policy) return [];
   const declared = await documentScripts.get(deps.cookieConsent!);
   const local = declared?.scripts.filter(script => script.src.startsWith('/')).map(script => script.src) ?? [];
+  if (siteBannerMode({ config: await policy }) === 'off') return local;
   return [documentClients.get(deps.cookieConsent!)!.src, EXTENSION_SRC, ...local];
 }
 
