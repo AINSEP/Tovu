@@ -199,6 +199,7 @@ function gatedPort({ slot, contract, testProbe }: { slot: ProviderSlot; contract
   const names = Object.keys(noop).filter(name => typeof noop[name] === "function");
   // Keep the optional hook available before attachment; every call follows the current slot.
   if (contract === "product_analytics") names.push("captureAiGeneration", "browserAnalytics");
+  if (contract === "form_collection") names.push("describe");
   const browserCache = new Map<string, { lease: unknown; contribution: unknown }>();
   const gated = Object.fromEntries(names.map((name) => [name, (...args: unknown[]) => {
     const lease = slot.lease;

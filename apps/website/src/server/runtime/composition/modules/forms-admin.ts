@@ -4,6 +4,7 @@ import { registerAdminFormsDeleteSubmissionRoute } from "#src/server/inbound/adm
 import type { FormsRouteDeps } from "#src/server/inbound/admin-http/routes/forms/deps";
 import { registerAdminFormsGetRoute } from "#src/server/inbound/admin-http/routes/forms/get-by-id";
 import { registerAdminFormsGetSubmissionRoute } from "#src/server/inbound/admin-http/routes/forms/get-submission";
+import { registerAdminFormsProvidersRoute } from "#src/server/inbound/admin-http/routes/forms/providers";
 import { registerAdminFormsListRoute } from "#src/server/inbound/admin-http/routes/forms/list";
 import { registerAdminFormsListSubmissionsRoute } from "#src/server/inbound/admin-http/routes/forms/list-submissions";
 import { registerAdminFormsPullSubmissionsRoute } from "#src/server/inbound/admin-http/routes/forms/pull-submissions";
@@ -28,6 +29,7 @@ export function createFormsAdminModule(deps: FormsRouteDeps): ServerModuleHandle
     registerRoutes: (app) => {
       registerAdminFormsListRoute(app, deps);
       registerAdminFormsCreateRoute(app, deps);
+      registerAdminFormsProvidersRoute(app, deps);
       registerAdminFormsGetRoute(app, deps);
       registerAdminFormsUpdateRoute(app, deps);
       registerAdminFormsAuthoringRoute(app, deps);

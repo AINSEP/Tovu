@@ -2552,6 +2552,7 @@ async function composeSiteRouteDeps(
     // ship one). `formsRateLimiter` is one process-lifetime counter store, matching
     // `server/app.ts`'s hermetic-test composition's identical construction.
     formDefinitionRepo,
+    formCollectionProviders: () => formCollectionProviders(),
     formSubmissionRepo,
     formSubmissionAttempts: formSubmissionAttemptsFor({ submissionRepo: formSubmissionRepo }),
     removeFormSubmission: removeEntityWithoutBlocker({ remove: bindRemoveEntity({

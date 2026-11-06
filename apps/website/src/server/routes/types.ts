@@ -755,6 +755,8 @@ export interface WebhooksDeps {
  * structural to avoid a back-edge into the composition root.
  */
 export interface FormsDeps {
+  /** Current app-scoped collection providers, shared by admin and assistant discovery. */
+  formCollectionProviders?: () => import("@jini-ai/cms/forms").FormCollectionRegistry;
   executeCommand: typeof import("@jini-ai/cms/core").executeCommand;
   formDefinitionRepo: FormDefinitionRepoPort;
   formSubmissionRepo: FormSubmissionRepoPort;
