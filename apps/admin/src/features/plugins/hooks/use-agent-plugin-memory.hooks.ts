@@ -21,7 +21,7 @@ function memoryStatusMessage({ pluginId, status, error, listing, t }: {
   return null;
 }
 
-export function useAgentPluginMemory(required: { pluginId: string; port: AgentPluginMemoryPort; t: Translate }, _optional = {}) {
+export function useAgentPluginMemory(required: { pluginId: string; port: AgentPluginMemoryPort; t: Translate }, _optional?: Record<string, never>) {
   const { pluginId, port, t } = required;
   const fieldId = useId();
   const key = useMemo(() => ["agent-plugins", "memory", pluginId] as const, [pluginId]);

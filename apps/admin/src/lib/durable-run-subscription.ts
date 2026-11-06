@@ -38,6 +38,14 @@ function requestDurableProjection({ request, runId, messageId, recover, etag }: 
   });
 }
 
+/** Status-only outcomes do not advance the projection checkpoint. */
+function durableReadRefusal(response: Response): null | "gone" | undefined {
+  if (response.status === 304) return null;
+  if (response.status === 404) return "gone";
+  if (!response.ok) return null;
+  return undefined;
+}
+
 /** Browser adapters only: active run streams are never visibility-paused. Ports permit DI fakes
  * without replacing modules; native disconnects retain Jini's existing recovery/backoff behavior.
  */
@@ -59,9 +67,8 @@ export function browserDurableSubscriptionPorts(_required = {}, {
       const etag = checkpointKey === key ? checkpointEtag : undefined;
       const response = await requestDurableProjection({ request, runId, messageId, recover, etag });
       if (recover) { checkpointKey = undefined; checkpointEtag = undefined; }
-      if (response.status === 304) return null;
-      if (response.status === 404) return "gone";
-      if (!response.ok) return null;
+      const refused = durableReadRefusal(response);
+      if (refused !== undefined) return refused;
       if (!recover) { checkpointKey = key; checkpointEtag = response.headers.get('ETag'); }
       const payload = await response.json() as { message: ChatMessage };
       return payload.message;

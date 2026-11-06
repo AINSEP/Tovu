@@ -15,6 +15,11 @@ interface SkillFilesDependencies {
 
 const identity: Translate = key => key;
 
+/** A missing or removed selection returns to the skill instructions instead of showing stale bytes. */
+function skillSelectedPath({ loaded, selectedPath }: { loaded: PackageFilesRead | null; selectedPath: string }): string {
+  return loaded?.listing?.files.some(file => file.relativePath === selectedPath) ? selectedPath : "SKILL.md";
+}
+
 /** Mirrors the plugin files hook's stale-read guard; defaults to the skill's instructions. */
 export function useSkillFiles({ toolId, read, t }: SkillFilesDependencies) {
   const [selection, setSelection] = useState<{ toolId: string | null; path: string } | null>(null);
@@ -32,7 +37,7 @@ export function useSkillFiles({ toolId, read, t }: SkillFilesDependencies) {
   const loaded: PackageFilesRead | null = readResult?.error ? { ...readResult, error: t(readResult.error) } : readResult;
   const failure = query.error ? skillFailure({ error: query.error, message: "Could not load skill files.", t }) : null;
   const selectedPath = selection?.toolId === toolId ? selection.path : "SKILL.md";
-  const validPath = loaded?.listing?.files.some(file => file.relativePath === selectedPath) ? selectedPath : "SKILL.md";
+  const validPath = skillSelectedPath({ loaded, selectedPath });
   return {
     ...packageFilesViewState(loaded, validPath, skillCopy),
     failure,

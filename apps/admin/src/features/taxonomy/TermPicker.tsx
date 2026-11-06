@@ -6,6 +6,11 @@ import type { AdminTaxonomyWithTerms } from "@/lib/api";
 import { useWiredTermPicker, type TermPickerController } from "./hooks/use-term-picker.hooks";
 import { useTermListReveal } from "./hooks/use-term-list-reveal.hooks";
 
+/** Keep the add-term guard shared by the row's loading, pending and blank-name states. */
+function termCreationDisabled({ loading, picker, id }: { loading: boolean; picker: TermPickerController; id: string }): boolean {
+  return loading || picker.creating(id) || !picker.newTermName(id).trim();
+}
+
 /**
  * @file The Categories & Tags box the post, page and collection-entry editors mount (design-spec.md
  * §1.6) — markup only. The boxes start ticked for the terms the content holds, and Save makes it hold
@@ -119,7 +124,7 @@ export function TermPicker(props: {
                       type="button"
                       className="btn-secondary"
                       onClick={() => void picker.addTerm(id)}
-                      disabled={loading || picker.creating(id) || !picker.newTermName(id).trim()}
+                      disabled={termCreationDisabled({ loading, picker, id })}
                       {...agentHandle({ handle: addButtonHandles[groupIndex]! }, {
                         role: "button",
                         label: `Tick the typed "${taxonomy.name}" term, creating it if it does not exist yet`,

@@ -185,16 +185,19 @@ function resolveThemesActiveTabId(
 function withThemeDefaults(controller: ThemesController) {
   return {
     ...controller,
-    themeTiers: controller.themeTiers ?? {},
-    themeNames: controller.themeNames ?? {},
-    themePreviewImages: controller.themePreviewImages ?? {},
+    ...themeMetadataDefaults(controller),
     rescanning: controller.rescanning ?? false,
     rescanNotice: controller.rescanNotice ?? null,
     duplicatingTheme: controller.duplicatingTheme ?? null,
     duplicateNotice: controller.duplicateNotice ?? null,
-    themeBuiltIn: controller.themeBuiltIn ?? {},
     trashNotice: controller.trashNotice ?? null,
   };
+}
+
+/** Theme-card metadata defaults stay separate from operation-progress defaults. */
+function themeMetadataDefaults(controller: ThemesController) {
+  return { themeTiers: controller.themeTiers ?? {}, themeNames: controller.themeNames ?? {},
+    themePreviewImages: controller.themePreviewImages ?? {}, themeBuiltIn: controller.themeBuiltIn ?? {} };
 }
 
 /** The tab list for `TabBar` — one tab per configured {@link ThemeTabGroup}, each with its theme

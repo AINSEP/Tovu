@@ -3,7 +3,7 @@ import { act, cleanup, render, renderHook, waitFor } from "@testing-library/reac
 import { afterEach, expect, it } from "vitest";
 import { useFetchMutation } from "@jini-ai/ui/fetch-query";
 import type { ChartProvider } from "@jini-ai/ui/charts";
-import { FetchQueryProvider } from "@/lib/fetch-query/provider";
+import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { publishSettingsRefresh, resetSettingsRefreshBus } from "@/lib/settings-refresh-bus";
 import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
 import { createFakeChartRegistryPort } from "../chart-registry-dependencies.hooks";
