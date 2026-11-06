@@ -10,7 +10,7 @@
     "dark",
     "light"
   ],
-  "defaultMode": "dark",
+  "defaultMode": "light",
   "pages": [
     "index"
   ],
