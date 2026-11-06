@@ -1958,8 +1958,7 @@ function applyPublicMiddleware(
       && (await visitorPageTargets.list({})).some(page => page.path === path) });
   // Consent contributes assets during document construction. Audit renders omit that runtime;
   // admin readiness reports unmanaged content without transforming the sampled page.
-  if (options.consentAudit) { /* no consent on the audit render */ }
-  else if (routeDeps.cookieConsent) applySiteCookieConsent({ app, deps: routeDeps, consent: routeDeps.cookieConsent });
+  if (!options.consentAudit && routeDeps.cookieConsent) applySiteCookieConsent({ app, deps: routeDeps, consent: routeDeps.cookieConsent });
 
   applyBrowserAnalyticsHttp({ app, deps: routeDeps });
 

@@ -2185,7 +2185,7 @@ export async function renderGenericPostPage(
     // lands (`render.ts`'s `renderPostBody`, shared by the declarative/templated/handlebars tiers).
     resolveAssignedTermsForRender(deps, post),
   ]);
-  const html = await renderSite({
+  return renderSite({
     renderAssets: deps.documentAssets,
     transformBody: ({ html }) => renderCommentsMarkers({ html, providers: deps.commentsProviders, siteId: deps.workspaceId,
       entry: { id: post.id, slug: post.slug, title: post.title, status: post.status, canonicalUrl: postPublicPath({ slug: post.slug }) },
@@ -2204,7 +2204,6 @@ export async function renderGenericPostPage(
     extraHead,
     siteAssistantEnabled,
   });
-  return html;
 }
 
 /**
