@@ -4,7 +4,17 @@ import { formatUserFacingError } from "@jini-ai/core";
 import { AdminFailureNotice } from "../AdminFailureNotice/AdminFailureNotice";
 import { adminFailureChannel } from "@/lib/admin-failure-channel";
 
-afterEach(() => { adminFailureChannel.reset(); vi.restoreAllMocks(); });
+afterEach(() => { adminFailureChannel.reset(); vi.restoreAllMocks(); document.documentElement.lang = ""; });
+
+it("dismisses an incident through the translated German action", () => {
+  document.documentElement.lang = "de";
+  const failure = formatUserFacingError({ message: "Pages could not be loaded.", action: "Try loading them again.", step: "Loading pages", cause: "offline" }, { errorId: "translated-incident" });
+  adminFailureChannel.publish({ failure });
+  render(<AdminFailureNotice />);
+  fireEvent.click(screen.getByRole("button", { name: "Fehlermeldung schließen" }));
+  expect(screen.queryByText(failure.message)).toBeNull();
+  expect(adminFailureChannel.getSnapshot()).toBeNull();
+});
 
 it("retains a polite failure with copyable details until dismissed", async () => {
   const writeText = vi.fn().mockRejectedValue(new Error("clipboard denied"));

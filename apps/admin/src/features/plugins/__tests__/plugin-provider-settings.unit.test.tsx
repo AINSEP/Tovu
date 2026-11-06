@@ -171,16 +171,19 @@ describe("PluginProviderSettingsDialog", () => {
     await waitFor(() => expect(screen.queryByText(UNREADABLE_NOTICE)).toBeNull());
   });
 
-  it("a camelCase field name still gets a valid agent handle (lowercase words joined by hyphens)", async () => {
+  it("normalizes non-secret camelCase field handles and keeps secret fields private", async () => {
     const posthog = card({ pluginId: "analytics-posthog", fields: [
-      { name: "host", label: "PostHog host", secret: false, required: true, saved: false },
+      { name: "apiHost", label: "PostHog host", secret: false, required: true, saved: false },
       { name: "apiKey", label: "Project API key", secret: true, required: true, saved: false },
     ] });
     const port = createFakePluginsPort({ providerSettings: { "analytics-posthog": posthog } });
     const useSettings = (pluginId: string) => usePluginProviderSettings({ pluginId, port, t });
     render(<PluginProviderSettingsDialog plugin={{ id: "analytics-posthog", name: "PostHog" }} agentHandleBase="plugins-row-analytics-posthog" onClose={() => {}} onSaved={() => {}} useSettings={useSettings} />);
     const apiKey = await findControl(/Project API key/);
-    expect(apiKey.getAttribute("data-agent-element")).toBe("plugins-row-analytics-posthog-setting-api-key");
+    expect(control(/PostHog host/).getAttribute("data-agent-element")).toBe("plugins-row-analytics-posthog-setting-api-host");
+    // Secrets deliberately strip addressing, even when a manifest supplies a camelCase name.
+    expect(apiKey.getAttributeNames().filter(name => name.startsWith("data-agent-"))).toEqual(["data-agent-private"]);
+    expect(apiKey.getAttribute("data-agent-private")).toBe("");
   });
 
   it("no notice when nothing was saved the retired way", async () => {

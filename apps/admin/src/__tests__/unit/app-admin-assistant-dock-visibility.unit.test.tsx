@@ -9,6 +9,8 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { App } from "../../App";
 import { appShellApiBody } from "../app-shell-api.fixture";
 import { api } from "../../lib/api";
+// Load the real lazy route before timing the preview-containment interaction.
+import "../../features/posts";
 
 /**
  * @file `TOVU_ADMIN_ASSISTANT=off` is a real server-side disable (`admin-assistant-enabled.ts`) —

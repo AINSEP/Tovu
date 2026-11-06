@@ -397,7 +397,11 @@ describe("saveExecutionConfig — the ADR-028 §6 boundary, and the write-only c
       status: "active" as const, aliasOfNamespace: null, aliasOfKey: null, coercionTag: null,
       createdAt: "2026-10-01T00:00:00.000Z", updatedAt: "2026-10-01T00:00:00.000Z",
     })) });
-    const surfaces = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: { newId: () => "selection-card" }, defaultChannel: "mcp-ui" }) };
+    // Access cards now verify the signed-in approver before disclosure and after confirmation.
+    const assertAccessApprover = vi.fn(async ({ principalId, toolId }: { principalId: string; toolId: string }) => {
+      expect({ principalId, toolId }).toEqual({ principalId: "caller", toolId: "settings_set_value" });
+    });
+    const surfaces = { assertAccessApprover, surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: { newId: () => "selection-card" }, defaultChannel: "mcp-ui" }) };
     const levels = [{ id: "high", label: "High" }, { id: "medium", label: "Medium" }];
     const deps = { workspaceId: "ws-1", settingsRepo: repo, settingsReady: Promise.resolve(), settingsUiTabsReady: Promise.resolve(),
       clock: { nowMs: () => Date.parse("2026-10-01T00:00:00.000Z") }, idGen: { newId: () => "unused" },
@@ -435,6 +439,7 @@ describe("saveExecutionConfig — the ADR-028 §6 boundary, and the write-only c
       });
     }
     expect(cards).toBe(3);
+    expect(assertAccessApprover).toHaveBeenCalledTimes(6);
     expect(startRun).toHaveBeenCalledTimes(1);
     expect({ agentId: startRun.mock.calls[0]![0].agentId, context: startRun.mock.calls[0]![0].context }).toEqual(activeInput);
     expect(activeInput).toEqual({ agentId: "old-agent", context: { model: "old-model", reasoning: "high" } });

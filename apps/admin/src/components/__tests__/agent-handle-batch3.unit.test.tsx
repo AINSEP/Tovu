@@ -81,16 +81,20 @@ describe("MediaPickerDialog agentHandle", () => {
 });
 
 describe("WidgetPickerDialog agentHandle", () => {
-  it("omits data-agent-* on the new-title field, config field, and both dialogs' actions when not passed", async () => {
+  it("omits host handles without a base while the shared Select and dialog close remain addressable", async () => {
     vi.spyOn(api, "listWidgets").mockResolvedValue({ widgets: [EXISTING_WIDGET] });
     render(<WidgetPickerDialog widgetType="text" onUseExisting={vi.fn()} onCreateNew={vi.fn()} onCancel={vi.fn()} />);
     expect(screen.getByLabelText("Title")).not.toHaveAttribute(AGENT_ELEMENT);
     expect(screen.getByLabelText("Text")).not.toHaveAttribute(AGENT_ELEMENT);
     expect(screen.getByRole("button", { name: "Cancel" })).not.toHaveAttribute(AGENT_ELEMENT);
     expect(screen.getByRole("button", { name: "Create and place" })).not.toHaveAttribute(AGENT_ELEMENT);
-    expect(await screen.findByRole("combobox", { name: /existing text widgets/i })).not.toHaveAttribute(AGENT_ELEMENT);
+    const existingSelect = await screen.findByRole("combobox", { name: /existing text widgets/i });
+    const close = screen.getByRole("button", { name: "Close" });
+    expect(existingSelect.getAttribute(AGENT_ELEMENT)).toMatch(/^ui-[a-z0-9-]+$/);
+    expect(close.getAttribute(AGENT_ELEMENT)).toMatch(/^kit-[a-z0-9-]+-dialog-close$/);
     expect(screen.getByRole("button", { name: "Use this widget" })).not.toHaveAttribute(AGENT_ELEMENT);
     for (const element of document.body.querySelectorAll("*")) {
+      if (element === existingSelect || element === close) continue;
       expect(element.getAttributeNames().filter((name) => name.startsWith("data-agent-"))).toEqual([]);
     }
   });
@@ -136,9 +140,9 @@ describe("WidgetPickerDialog agentHandle", () => {
 });
 
 describe("WidgetAddControl agentHandle", () => {
-  it("omits data-agent-* on the type Select and the trigger when agentHandle is not passed", () => {
+  it("keeps the shared type Select automatically addressable while omitting the host trigger handle without a base", () => {
     render(<WidgetAddControl triggerLabel="Insert widget" onResolved={vi.fn()} />);
-    expect(screen.getByRole("combobox", { name: "Widget type" })).not.toHaveAttribute(AGENT_ELEMENT);
+    expect(screen.getByRole("combobox", { name: "Widget type" }).getAttribute(AGENT_ELEMENT)).toMatch(/^ui-[a-z0-9-]+$/);
     expect(screen.getByRole("button", { name: "Insert widget" })).not.toHaveAttribute(AGENT_ELEMENT);
   });
 

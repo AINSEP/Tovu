@@ -29,8 +29,9 @@ import { ExternalMcpSettingsPanel } from "../ExternalMcpSettingsPanel";
  *    `authModeGuess` are synced in an effect, not derived in the same render), so whether the
  *    newly-applicable fields have mounted by the agent's next call is a timing question.
  * 2. `page.fill` reaches React state, not just the DOM node.
- * 3. `page.fill` REFUSES the OAuth client secret, with its exact message — the human/agent split
- *    the owner wants comes for free rather than needing to be built.
+ * 3. The OAuth client secret is absent from agent discovery and `page.fill` cannot address it,
+ *    including after the human reveals it. Secrets now stay private rather than publishing a
+ *    handle and relying only on a field-type fill refusal.
  *
  * ## What this does NOT prove
  *
@@ -108,7 +109,8 @@ describe("driving the reactive External MCP add form through page.* verbs", () =
 
     const afterAuth = await findElements(driver);
     expect(afterAuth).toContain("mcp-add-field-oauth-client-id");
-    expect(afterAuth).toContain("mcp-add-field-oauth-client-secret");
+    expect(afterAuth).not.toContain("mcp-add-field-oauth-client-secret");
+    expect(screen.getByLabelText(/^Client secret/)).toHaveAttribute("type", "password");
     expect(afterAuth).toContain("mcp-add-field-oauth-token-endpoint");
   });
 
@@ -143,7 +145,7 @@ describe("driving the reactive External MCP add form through page.* verbs", () =
     });
   });
 
-  it("page.fill REFUSES the OAuth client secret even though it carries a handle", async () => {
+  it("page.fill cannot address the private OAuth client secret, hidden or revealed", async () => {
     const driver = await openAddForm();
     await executePageCapability({ driver, capabilityId: "page.select_option", input: {
       handle: "mcp-add-field-auth-mode",
@@ -151,23 +153,19 @@ describe("driving the reactive External MCP add form through page.* verbs", () =
     } });
     await driver.settle?.({});
 
-    // Exact text, not just "it threw": a bare `.toThrow()` would also pass for an unresolved or
-    // ambiguous handle, which is the opposite of the property being claimed.
-    await expect(
-      executePageCapability({ driver, capabilityId: "page.fill", input: {
-        handle: "mcp-add-field-oauth-client-secret",
-        text: "hunter2",
-      } }),
-      // `SourceConfigField` renders `kind: "password"` as a real `type="password"` input while
-      // hidden, so the refusal is the type-based one. Its "Show" toggle flips it to `type="text"`,
-      // and the name-based rule ("...secret...") catches it there — refused either way, but this
-      // asserts the message actually produced rather than the one assumed.
-    ).rejects.toThrow(
-      'refusing to fill "mcp-add-field-oauth-client-secret": this field type can never be filled by an agent',
-    );
-
-    // And the value really is still empty — the refusal is not cosmetic.
-    expect((screen.getByLabelText(/^Client secret/) as HTMLInputElement).value).toBe("");
+    const secret = screen.getByLabelText(/^Client secret/) as HTMLInputElement;
+    const user = userEvent.setup();
+    // Prove the control exists, then pin the stronger privacy contract's exact addressing error.
+    for (const type of ["password", "text"]) {
+      expect(secret).toHaveAttribute("type", type);
+      expect(secret.getAttributeNames().filter(name => name.startsWith("data-agent-"))).toEqual(["data-agent-private"]);
+      expect(await findElements(driver)).not.toContain("mcp-add-field-oauth-client-secret");
+      await expect(executePageCapability({ driver, capabilityId: "page.fill", input: {
+        handle: "mcp-add-field-oauth-client-secret", text: "hunter2",
+      } })).rejects.toThrow('no element published as "mcp-add-field-oauth-client-secret" on this page');
+      expect(secret.value).toBe("");
+      if (type === "password") await user.click(screen.getByRole("button", { name: "Show Client secret" }));
+    }
   });
 
   it("publishes the submit button, so the agent can complete the flow it started", async () => {

@@ -142,6 +142,7 @@ test('App: closing a running site\'s tab asks; Keep running leaves it running, S
   await app.click(app.byLabel('Close Site a'));
   await app.click(button('Keep running'));
   assert.equal(app.container.querySelector('[aria-label="Close Site a"]'), null, 'the tab is gone');
+  assert.deepEqual(app.calls.filter(call => call.startsWith('keep-running:')), ['keep-running:a']);
   assert.deepEqual(stops, [], 'Keep running stops nothing');
 
   await openFirstSite(app);

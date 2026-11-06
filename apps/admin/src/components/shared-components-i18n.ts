@@ -43,6 +43,7 @@ import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
  */
 export const SHARED_COMPONENTS_DICT: Record<string, Record<string, string>> = {
   es: {
+    "Dismiss error": "Descartar error",
     "Show {label}": "Mostrar {label}",
     "Hide {label}": "Ocultar {label}",
     "Preview": "Vista previa",
@@ -204,6 +205,7 @@ export const SHARED_COMPONENTS_DICT: Record<string, Record<string, string>> = {
     "Custom for this post": "Personalizado para esta entrada",
   },
   id: {
+    "Dismiss error": "Tutup galat",
     "Show {label}": "Tampilkan {label}",
     "Hide {label}": "Sembunyikan {label}",
     "Preview": "Pratinjau",
@@ -365,6 +367,7 @@ export const SHARED_COMPONENTS_DICT: Record<string, Record<string, string>> = {
     "Custom for this post": "Khusus untuk pos ini",
   },
   de: {
+    "Dismiss error": "Fehlermeldung schließen",
     "Show {label}": "{label} anzeigen",
     "Hide {label}": "{label} ausblenden",
     "Preview": "Vorschau",
@@ -526,6 +529,7 @@ export const SHARED_COMPONENTS_DICT: Record<string, Record<string, string>> = {
     "Custom for this post": "Eigener Inhalt für diesen Beitrag",
   },
   "zh-CN": {
+    "Dismiss error": "关闭错误提示",
     "Show {label}": "显示{label}",
     "Hide {label}": "隐藏{label}",
     "Preview": "预览",
@@ -687,6 +691,7 @@ export const SHARED_COMPONENTS_DICT: Record<string, Record<string, string>> = {
     "Custom for this post": "为此文章自定义",
   },
   "zh-TW": {
+    "Dismiss error": "關閉錯誤提示",
     "Show {label}": "顯示{label}",
     "Hide {label}": "隱藏{label}",
     "Preview": "預覽",
@@ -848,6 +853,7 @@ export const SHARED_COMPONENTS_DICT: Record<string, Record<string, string>> = {
     "Custom for this post": "為此文章自訂",
   },
   "pt-BR": {
+    "Dismiss error": "Dispensar erro",
     "Show {label}": "Mostrar {label}",
     "Hide {label}": "Ocultar {label}",
     "Preview": "Prévia",
@@ -1009,6 +1015,7 @@ export const SHARED_COMPONENTS_DICT: Record<string, Record<string, string>> = {
     "Custom for this post": "Personalizado para este post",
   },
   ru: {
+    "Dismiss error": "Закрыть сообщение об ошибке",
     "Show {label}": "Показать: {label}",
     "Hide {label}": "Скрыть: {label}",
     "Preview": "Предпросмотр",
@@ -1170,6 +1177,7 @@ export const SHARED_COMPONENTS_DICT: Record<string, Record<string, string>> = {
     "Custom for this post": "Своё для этой записи",
   },
   fa: {
+    "Dismiss error": "بستن پیام خطا",
     "Show {label}": "نمایش {label}",
     "Hide {label}": "پنهان کردن {label}",
     "Preview": "پیش‌نمایش",
@@ -1331,6 +1339,7 @@ export const SHARED_COMPONENTS_DICT: Record<string, Record<string, string>> = {
     "Custom for this post": "سفارشی برای این نوشته",
   },
   ar: {
+    "Dismiss error": "إغلاق رسالة الخطأ",
     "Show {label}": "إظهار {label}",
     "Hide {label}": "إخفاء {label}",
     "Preview": "معاينة",
@@ -1492,6 +1501,7 @@ export const SHARED_COMPONENTS_DICT: Record<string, Record<string, string>> = {
     "Custom for this post": "مخصص لهذه التدوينة",
   },
   ja: {
+    "Dismiss error": "エラーを閉じる",
     "Show {label}": "{label}を表示",
     "Hide {label}": "{label}を隠す",
     "Preview": "プレビュー",
@@ -1653,6 +1663,7 @@ export const SHARED_COMPONENTS_DICT: Record<string, Record<string, string>> = {
     "Custom for this post": "この投稿用にカスタマイズ",
   },
   ko: {
+    "Dismiss error": "오류 닫기",
     "Show {label}": "{label} 표시",
     "Hide {label}": "{label} 숨기기",
     "Preview": "미리보기",
@@ -1814,6 +1825,7 @@ export const SHARED_COMPONENTS_DICT: Record<string, Record<string, string>> = {
     "Custom for this post": "이 게시물 전용",
   },
   pl: {
+    "Dismiss error": "Zamknij komunikat błędu",
     "Show {label}": "Pokaż: {label}",
     "Hide {label}": "Ukryj: {label}",
     "Preview": "Podgląd",
@@ -1975,6 +1987,7 @@ export const SHARED_COMPONENTS_DICT: Record<string, Record<string, string>> = {
     "Custom for this post": "Własna dla tego wpisu",
   },
   hu: {
+    "Dismiss error": "Hibaüzenet bezárása",
     "Show {label}": "{label} megjelenítése",
     "Hide {label}": "{label} elrejtése",
     "Preview": "Előnézet",
@@ -2136,6 +2149,7 @@ export const SHARED_COMPONENTS_DICT: Record<string, Record<string, string>> = {
     "Custom for this post": "Egyedi ehhez a bejegyzéshez",
   },
   fr: {
+    "Dismiss error": "Fermer le message d’erreur",
     "Show {label}": "Afficher : {label}",
     "Hide {label}": "Masquer : {label}",
     "Preview": "Aperçu",
@@ -2297,6 +2311,7 @@ export const SHARED_COMPONENTS_DICT: Record<string, Record<string, string>> = {
     "Custom for this post": "Personnalisé pour cet article",
   },
   uk: {
+    "Dismiss error": "Закрити повідомлення про помилку",
     "Show {label}": "Показати: {label}",
     "Hide {label}": "Приховати: {label}",
     "Preview": "Попередній перегляд",
@@ -2458,6 +2473,7 @@ export const SHARED_COMPONENTS_DICT: Record<string, Record<string, string>> = {
     "Custom for this post": "Свій для цього допису",
   },
   tr: {
+    "Dismiss error": "Hata iletisini kapat",
     "Show {label}": "{label} göster",
     "Hide {label}": "{label} gizle",
     "Preview": "Önizleme",
@@ -2619,6 +2635,7 @@ export const SHARED_COMPONENTS_DICT: Record<string, Record<string, string>> = {
     "Custom for this post": "Bu yazıya özel",
   },
   th: {
+    "Dismiss error": "ปิดข้อความข้อผิดพลาด",
     "Show {label}": "แสดง{label}",
     "Hide {label}": "ซ่อน{label}",
     "Preview": "ตัวอย่าง",
@@ -2780,6 +2797,7 @@ export const SHARED_COMPONENTS_DICT: Record<string, Record<string, string>> = {
     "Custom for this post": "กำหนดเองสำหรับโพสต์นี้",
   },
   it: {
+    "Dismiss error": "Chiudi il messaggio di errore",
     "Show {label}": "Mostra {label}",
     "Hide {label}": "Nascondi {label}",
     "Preview": "Anteprima",
@@ -2941,6 +2959,7 @@ export const SHARED_COMPONENTS_DICT: Record<string, Record<string, string>> = {
     "Custom for this post": "Personalizzato per questo articolo",
   },
   hi: {
+    "Dismiss error": "त्रुटि संदेश बंद करें",
     "Show {label}": "{label} दिखाएँ",
     "Hide {label}": "{label} छिपाएँ",
     "Preview": "पूर्वावलोकन",
@@ -3102,6 +3121,7 @@ export const SHARED_COMPONENTS_DICT: Record<string, Record<string, string>> = {
     "Custom for this post": "इस पोस्ट के लिए कस्टम",
   },
   ur: {
+    "Dismiss error": "خرابی کا پیغام بند کریں",
     "Show {label}": "{label} دکھائیں",
     "Hide {label}": "{label} چھپائیں",
     "Preview": "پیش منظر",
@@ -3263,6 +3283,7 @@ export const SHARED_COMPONENTS_DICT: Record<string, Record<string, string>> = {
     "Custom for this post": "اس پوسٹ کے لیے حسب منشا",
   },
   bn: {
+    "Dismiss error": "ত্রুটির বার্তা বন্ধ করুন",
     "Show {label}": "{label} দেখান",
     "Hide {label}": "{label} লুকান",
     "Preview": "প্রাকদর্শন",

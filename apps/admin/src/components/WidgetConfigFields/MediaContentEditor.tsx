@@ -35,7 +35,8 @@ import { useWidgetPreview } from "./WidgetPreview.hooks";
  * `<base>-layout-<layout>`, `<base>-columns`, `<base>-aspect-ratio`, `<base>-choose`,
  * `<base>-slug`, `<base>-slug-add`, `<base>-css-class`, `<base>-attribute-add`, `<base>-html`,
  * `<base>-insert-media`, `<base>-picker-add`. Item rows are reorderable and their slugs editable,
- * so they carry no per-row handle (no stable id to key one on). Omit for no `data-agent-*` markup.
+ * so they carry no per-row handle (no stable id to key one on). Omit for no host handles;
+ * shared help and dialog controls retain their own automatic handles.
  */
 
 const TABS: ReadonlyArray<{ id: MediaContentMode; label: string }> = [{ id: "media", label: "Media" }, { id: "html", label: "Raw HTML" }];

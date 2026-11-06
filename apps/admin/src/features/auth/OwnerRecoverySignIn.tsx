@@ -28,7 +28,7 @@ export function OwnerRecoverySignIn({ recover = ownerRecoveryPort.recover, t = i
     <p>{t('Use a saved recovery code to reset your password and remove authenticators and passkeys. Without a code, ask the host operator to recover this site.')}</p>
     <form onSubmit={submit}>
       <label htmlFor="owner-recovery-code">{t('Recovery code')}</label>
-      <SecretInput id="owner-recovery-code" label={t('Recovery code')} autoComplete="off" maxLength={64} value={code} onChange={event => setCode(event.target.value)} {...{ [AGENT_PRIVATE_ATTRIBUTE]: '' }} />
+      <SecretInput id="owner-recovery-code" label={t('Recovery code')} autoComplete="new-password" maxLength={64} value={code} onChange={event => setCode(event.target.value)} {...{ [AGENT_PRIVATE_ATTRIBUTE]: '' }} />
       <label htmlFor="owner-recovery-password">{t('New password')}</label>
       <SecretInput id="owner-recovery-password" label={t('New password')} autoComplete="new-password" maxLength={512} value={password} onChange={event => setPassword(event.target.value)} {...{ [AGENT_PRIVATE_ATTRIBUTE]: '' }} />
       <label htmlFor="owner-recovery-confirm">{t('Confirm new password')}</label>

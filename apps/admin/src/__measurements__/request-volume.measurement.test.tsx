@@ -420,7 +420,8 @@ describe("forms", () => {
     const { useWiredFormEditor } = await import("./forms-harness");
     const { result } = renderHook(() => useWiredFormEditor({ formId: "f1", tab: "fields" }), { wrapper });
     await waitFor(() => expect(result.current.form).not.toBeNull());
-    await expectRequests(calls, [`GET ${WORKSPACE}/forms/f1`]);
+    // The editor discovers provider choices as well as loading the saved form.
+    await expectRequests(calls, [`GET ${WORKSPACE}/forms/_providers`, `GET ${WORKSPACE}/forms/f1`]);
     logRow("forms", "editor open (detail panel)", calls);
     expect(calls.length).toBeGreaterThan(0);
   });

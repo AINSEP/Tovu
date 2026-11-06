@@ -114,7 +114,8 @@ describe("admin theme cascade", () => {
 
   it("imports the bridge, Classic and Glass, without Jini Default stylesheets", () => {
     const imports = [...read(resolve(SRC, "styles.css")).matchAll(/@import '([^']+)'/g)].map((match) => match[1]);
-    expect(imports.slice(2, 5)).toEqual(["./styles/admin-theme-bridge.css", "./admin-themes/classic/admin.css", "./admin-themes/glass/admin.css"]);
+    // The host's SeeMore styles now precede the unchanged theme cascade.
+    expect(imports.slice(2, 6)).toEqual(["./styles/see-more.css", "./styles/admin-theme-bridge.css", "./admin-themes/classic/admin.css", "./admin-themes/glass/admin.css"]);
     expect(imports.some((path) => path?.includes("themes/default"))).toBe(false);
     const chatImports = [...read(resolve(SRC, "styles/assistant.css")).matchAll(/@import '([^']+)'/g)].map((match) => match[1]);
     expect(chatImports.some((path) => path?.includes("themes/default"))).toBe(false);
