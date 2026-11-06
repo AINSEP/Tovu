@@ -33,7 +33,7 @@ test("Trash hide and restore clear the media access evidence once they commit", 
   await createPost({ deps: { repo: deps.postRepo, clock: deps.clock }, input: { workspaceId, id: "gated-post", title: "Gated", slug: "gated-post", kind: "post" } });
   const post = await deps.postRepo.findById({ workspaceId, id: "gated-post" });
   const cache = getMediaAccessEvidenceCache({ postRepo: deps.postRepo });
-  const remember = () => cache.set("asset", { expiresAt: Number.MAX_SAFE_INTEGER, value: Promise.resolve({ referencing: [], opaqueGated: [] }) });
+  const remember = () => cache.set("asset", { expiresAt: Number.MAX_SAFE_INTEGER, value: Promise.resolve({ byAsset: new Map(), opaqueGated: new Set() }) });
   const target = { workspaceId, entityType: POST_ENTITY_TYPE, entityId: "gated-post", at: new Date().toISOString() };
 
   remember();

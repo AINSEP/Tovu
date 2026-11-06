@@ -22,3 +22,10 @@ O05 fixed: HTML content DTO carries bodyFormat/html and null bodyJson; document 
 
 - O04: llms.txt describes the platform rather than the site.
 - O05: HTML content responses omit bodyHtml.
+
+O08 fixed: a shared workspace reverse index replaces per-asset whole-post-list scans. A distinct asset/alias miss reads matching access records from the index; a cold/expired workspace snapshot lists/posts/scans once. Existing post/widget/Trash invalidation still drops derived evidence. No entry bodies or visitor decisions are retained. Opaque gated referrers preserve the existing fail-closed behavior, including alias deduplication.
+Cost: previously A distinct misses × all post bodies/scan work per 60 seconds; now one snapshot refresh × all post bodies plus O(alias + matching refs + opaque gates) per asset. Cache retains O(authored references + opaque gates) access metadata, at most 256 workspace indexes per repo. Cold snapshot refresh still requires one source listing; there is no new persisted reference table.
+Tests: `node --import tsx --import ./development/test-support/composed-bundle-env.ts --test --experimental-test-module-mocks apps/website/src/server/inbound/public-http/routes/site/__tests__/media-rendition.route.test.ts apps/website/src/features/trash/__tests__/post-trash-media-evidence.integration.test.ts` — 13 pass; new distinct-asset test failed before fix (2 lists instead of 1).
+Affected gating: same Node command with `apps/website/src/server/__tests__/media-rendition-gating-bypass.test.ts apps/website/src/server/__tests__/media-rendition-route.test.ts apps/website/src/server/__tests__/media-original-video-route.test.ts` — 62 pass. Scoped ESLint passes.
+
+- O08: distinct asset cache misses repeat the complete post scan.

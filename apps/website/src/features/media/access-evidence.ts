@@ -6,7 +6,13 @@ export interface AssetReferenceScan {
   readonly opaqueGated: Array<Pick<PostRecord, 'memberAccessJson'>>;
 }
 
-type ScanCache = Map<string, { expiresAt: number; value: Promise<AssetReferenceScan> }>;
+/** Derived reverse index: access metadata only, no retained post bodies or visitor decisions. */
+export interface AssetReferenceIndex {
+  readonly byAsset: Map<string, Set<Pick<PostRecord, 'memberAccessJson'>>>;
+  readonly opaqueGated: Set<Pick<PostRecord, 'memberAccessJson'>>;
+}
+
+type ScanCache = Map<string, { expiresAt: number; value: Promise<AssetReferenceIndex> }>;
 const postCaches = new WeakMap<object, ScanCache>();
 const widgetCaches = new WeakMap<object, Set<ScanCache>>();
 
@@ -25,7 +31,7 @@ export function getMediaAccessEvidenceCache({ postRepo, entryRepo }: { postRepo:
 
 /** A content write drops derived access settings before the next conditional request.
  * Clearing also detaches pending scans: their completion never re-inserts old evidence.
- * @complexity O(c) for the owner's caches, each bounded to 256 entries; no storage I/O. */
+ * @complexity O(c) for the owner's caches, each bounded to 256 workspace indexes; no storage I/O. */
 export function invalidateMediaAccessEvidence({ owner }: { owner: object }, _optional = {}): void {
   postCaches.get(owner)?.clear();
   for (const cache of widgetCaches.get(owner) ?? []) cache.clear();

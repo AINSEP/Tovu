@@ -1,4 +1,4 @@
-import { getMediaAccessEvidenceCache, type AssetReferenceScan } from '#src/features/media/access-evidence';
+import { getMediaAccessEvidenceCache, type AssetReferenceScan, type AssetReferenceIndex } from '#src/features/media/access-evidence';
 import { collectReferencedMediaKeys, collectPlacedWidgetMediaKeys } from "#src/features/publish-content/media-references";
 import { parseWidgetInstancePayload } from "@jini-ai/cms/widgets";
 import { readRequestCookie } from "#src/server/http/request-cookie";
@@ -229,30 +229,23 @@ function isLiveReferrerCandidate(entry: PostRecord): boolean {
   return entry.status === "published" || isGatedEntry(entry);
 }
 
-/** What one entry is to the asset being requested. `"opaque"` is the fail-closed case: a live,
- *  gated entry whose body this scan could NOT fully read, so "it does not reference this asset"
- *  is an assumption rather than a finding. */
-type EntryRelation = "referrer" | "opaque" | "irrelevant";
-
-/** Whether `scan` references the asset under ANY of its spellings — see {@link resolveAssetAliases}
- *  for why one asset has more than one. @complexity O(a) in the (at most two) aliases. */
-function referencesAnyAlias(scan: EntryAssetScan, aliases: ReadonlySet<string>): boolean {
-  for (const alias of aliases) {
-    if (scan.ids.has(alias)) return true;
-  }
-  return false;
-}
-
-function classifyEntry(entry: PostRecord, aliases: ReadonlySet<string>, savedWidgets?: ReadonlyMap<string, Record<string, unknown>>): EntryRelation {
-  if (!isLiveReferrerCandidate(entry)) return "irrelevant";
+/** Index each live entry once per workspace snapshot, sharing one access record across all
+ * aliases so a post mentioned by id and slug cannot be double-counted. Unreadable gated bodies
+ * remain fail-closed for assets they do not explicitly reference. */
+function indexEntryAssets(index: AssetReferenceIndex, entry: PostRecord, savedWidgets?: ReadonlyMap<string, Record<string, unknown>>): void {
+  if (!isLiveReferrerCandidate(entry)) return;
   const scan = scanEntryAssets(entry, savedWidgets);
-  if (referencesAnyAlias(scan, aliases)) return "referrer";
-  if (!scan.readable && isGatedEntry(entry)) return "opaque";
-  return "irrelevant";
+  const access = { memberAccessJson: entry.memberAccessJson };
+  for (const key of scan.ids) {
+    let references = index.byAsset.get(key);
+    if (!references) { references = new Set(); index.byAsset.set(key, references); }
+    references.add(access);
+  }
+  if (!scan.readable && isGatedEntry(entry)) index.opaqueGated.add(access);
 }
 
 /**
- * Finds every live entry (post OR page, `"doc"` OR `"html"`) that embeds `assetId` — the derivation
+ * Indexes every live entry (post OR page, `"doc"` OR `"html"`) by the assets it embeds — the derivation
  * this route uses in place of a hand-maintained asset->entry foreign key. There is no such column
  * anywhere in this codebase (`MediaRecord`, `@jini-ai/cms/media`, carries no post/owner reference at
  * all); deriving the relationship from the one place it's actually authored (an entry's own body) is
@@ -264,40 +257,50 @@ function classifyEntry(entry: PostRecord, aliases: ReadonlySet<string>, savedWid
  * (`repo.sqlite.ts:98` selects on `workspaceId` alone), so Pages have always come back from it
  * alongside posts. The axis that actually hid content from this scan was `bodyFormat`, not `kind`.
  *
- * @complexity O(p) over the workspace's entries, each behind an already-in-memory body scan (no
+ * @complexity O(p + r) over entries p and references r, once per workspace snapshot (no
  * additional I/O per entry) — the same `postRepo.list` + linear scan shape `buildSitemap`'s
  * `computeSitemapEntries` and `pages.ts`'s `filterVisiblePosts` already use at this codebase's
  * disclosed single-workspace scale.
  */
-async function scanEntriesForAsset(
-  deps: Pick<MediaRenditionRouteDeps, "postRepo" | "workspaceId" | "entryRepo">,
-  aliases: ReadonlySet<string>
-): Promise<AssetReferenceScan> {
+async function buildAssetReferenceIndex(
+  deps: Pick<MediaRenditionRouteDeps, "postRepo" | "workspaceId" | "entryRepo">
+): Promise<AssetReferenceIndex> {
   const entries = await deps.postRepo.list({ workspaceId: deps.workspaceId });
   const savedWidgets = await loadSavedWidgetConfigs(deps, entries);
-  const classified = entries.map((entry) => ({ entry, relation: classifyEntry(entry, aliases, savedWidgets) }));
-  const pick = (want: EntryRelation): Array<Pick<PostRecord, "memberAccessJson">> =>
-    classified.filter((candidate) => candidate.relation === want).map(({ entry }) => ({ memberAccessJson: entry.memberAccessJson }));
-  return { referencing: pick("referrer"), opaqueGated: pick("opaque") };
+  const index: AssetReferenceIndex = { byAsset: new Map(), opaqueGated: new Set() };
+  for (const entry of entries) indexEntryAssets(index, entry, savedWidgets);
+  return index;
 }
 
-/** One shared scan per asset per sixty seconds; at most 256 assets per repository stay resident.
+/** One shared reverse index per workspace per sixty seconds, invalidated by post/widget writes.
+ * A cold/expired workspace rebuild lists posts once; distinct asset misses only query the index.
  * Failed reads are not retained. Session checks below still run for every gated request.
- * @complexity O(p) on a miss; O(a) for the asset's aliases on a hit. */
-async function cachedAssetReferences(deps: MediaRenditionRouteDeps, aliases: ReadonlySet<string>): Promise<AssetReferenceScan> {
+ * @complexity O(p + r) per workspace refresh; no source bodies retained in the cache. */
+async function cachedReferenceIndex(deps: MediaRenditionRouteDeps): Promise<AssetReferenceIndex> {
   const cache = getMediaAccessEvidenceCache({ postRepo: deps.postRepo, entryRepo: deps.entryRepo });
-  const key = JSON.stringify([deps.workspaceId, ...[...aliases].sort()]);
+  const key = deps.workspaceId;
   const now = deps.clock.nowMs();
   const cached = cache.get(key);
   if (cached && cached.expiresAt > now) return cached.value;
   if (cache.size >= 256) cache.delete(cache.keys().next().value!);
-  const value = scanEntriesForAsset(deps, aliases);
+  const value = buildAssetReferenceIndex(deps);
   cache.set(key, { expiresAt: now + 60_000, value });
   try { return await value; }
   catch (error) {
     if (cache.get(key)?.value === value) cache.delete(key);
     throw error;
   }
+}
+
+/** Alias lookups share a record Set: unreadable referrers are not also counted as opaque gates.
+ * @complexity O(a + r + o), aliases a, matching references r and opaque gated entries o; no I/O. */
+async function cachedAssetReferences(deps: MediaRenditionRouteDeps, aliases: ReadonlySet<string>): Promise<AssetReferenceScan> {
+  const index = await cachedReferenceIndex(deps);
+  const referencing = new Set<Pick<PostRecord, "memberAccessJson">>();
+  for (const alias of aliases) {
+    for (const access of index.byAsset.get(alias) ?? []) referencing.add(access);
+  }
+  return { referencing: [...referencing], opaqueGated: [...index.opaqueGated].filter(access => !referencing.has(access)) };
 }
 
 type SavedWidgetRow = Awaited<ReturnType<NonNullable<MediaRenditionRouteDeps["entryRepo"]>["listByWorkspace"]>>[number];
