@@ -192,7 +192,7 @@ test("both active-theme settings writers signal a new preview revision", async (
   );
   const first = readThemePreviewRefresh({ themesDir });
   assert.ok(first);
-  let patch: (...args: any[]) => Promise<void> = async () => {
+  let patch: (...args: any[]) => Promise<void> = async (..._args: any[]) => {
     throw new Error("missing handler");
   };
   registerAdminPresentationPatchRoute(

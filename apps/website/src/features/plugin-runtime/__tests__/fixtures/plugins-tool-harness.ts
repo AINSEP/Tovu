@@ -164,7 +164,7 @@ function cardHtml(surface: SurfaceEmission): string {
 export async function answerCard(
   { tool, surfaceExchanges, input, decision, signal }: { tool: ToolRegistration; surfaceExchanges: SurfaceExchangeStore; input: unknown; decision: "confirm" | "cancel"; signal?: AbortSignal },
 ): Promise<{ html: string; outcome: Promise<unknown> }> {
-  let raised: (html: string) => void = () => undefined;
+  let raised: (html: string) => void = (_html: string) => undefined;
   const card = new Promise<string>((resolve) => { raised = resolve; });
   const outcome = Promise.resolve(tool.handler(context(input, signal), {
     emitSurface: async (surface) => { raised(cardHtml(surface)); },

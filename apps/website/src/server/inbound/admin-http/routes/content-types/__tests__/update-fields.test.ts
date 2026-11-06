@@ -12,7 +12,7 @@ import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests
 test("update-fields HTTP characterization", async (t) => {
   // Replace only the write port: keep the real parser and error constructors so instanceof
   // mappings, including compatibility errors the current writer never returns, stay pinned.
-  let write: typeof contentTypes.updateContentTypeFields = async () => {
+  let write: typeof contentTypes.updateContentTypeFields = async (_required) => {
     throw new Error("unexpected write");
   };
   t.mock.module("#src/features/content-types/index", {

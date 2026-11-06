@@ -101,8 +101,9 @@ test("registry starts empty, explicitly registers an example, replaces by id and
   assert.deepEqual(registry.list({}).filter((item) => item.providerId.startsWith("b05-registry-")), [replacement, second]);
   assert.throws(() => registry.register({ descriptor: { ...replacement, supportedGrants: [] } }), { code: "OAUTH_INVALID_REQUEST" });
   assert.deepEqual(registry.get({ providerId: "b05-registry-a" }), replacement);
-  const snapshot = [...registry.list({})];
+  const snapshot = registry.list({});
   snapshot.length = 0;
+  assert.deepEqual(registry.list({}).filter((item) => item.providerId.startsWith("b05-registry-")), [replacement, second]);
   assert.deepEqual(createOAuthProviderRegistry({ guard }).list({}), []);
   assert.deepEqual(registry.get({ providerId: "b05-registry-b" }), second);
   assert.throws(() => registry.get({ providerId: "b05-unregistered" }), {

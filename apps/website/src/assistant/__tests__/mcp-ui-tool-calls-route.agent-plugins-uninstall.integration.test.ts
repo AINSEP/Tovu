@@ -145,7 +145,7 @@ for (const { decision, expectUninstalled } of DECISIONS) {
       const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
       const toolExecutor = buildToolExecutor(surfaceExchanges);
 
-      let resolveEmission: (emission: SurfaceEmission) => void = () => undefined;
+      let resolveEmission: (emission: SurfaceEmission) => void = (_emission: SurfaceEmission) => undefined;
       const firstEmission = new Promise<SurfaceEmission>((resolve) => {
         resolveEmission = resolve;
       });
