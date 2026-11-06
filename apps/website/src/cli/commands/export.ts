@@ -110,7 +110,7 @@ export interface RunExportCommandOptional {
  *
  * @throws whatever `bootSiteDir` throws (`SiteDirInvalidError`, `SiteNewerThanRuntimeError`,
  *   `SiteCorruptError`), `ExportOutputNotEmptyError` (non-empty `--out` without `--clean`), or
- *   `ExportIncompleteError` (the export ran but at least one route failed to render) —
+ *   `ExportIncompleteError` (the export ran but at least one route or asset failed) —
  *   `cli/main.ts` maps each to the correct exit code.
  * @complexity O(1) beyond `bootSiteDir`'s and `exportSite`'s own bounded costs.
  */
@@ -169,9 +169,9 @@ export async function runExportCommand(input: RunExportCommandInput, optional: R
 
     const report = await (optional.exportSite ?? exportSite)({ routeDeps, outputDir, clean: input.clean ?? false, basePath: input.basePath, publicUrl: input.publicUrl });
     printExportReport(report);
-    if (report.routes.failed.length > 0) {
+    if (report.routes.failed.length > 0 || report.assets.failed.length > 0) {
       throw new ExportIncompleteError(
-        `export finished with ${report.routes.failed.length} failed route(s) — see stderr above`
+        `export finished with ${report.routes.failed.length} failed route(s) and ${report.assets.failed.length} failed asset(s) — see stderr above`
       );
     }
   } finally {

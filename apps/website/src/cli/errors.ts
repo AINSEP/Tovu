@@ -39,8 +39,8 @@ export class PortInUseError extends Error {
   }
 }
 
-/** `EXPORT_INCOMPLETE` (exit 6) — `tovu export` ran to completion but at least one route failed to
- *  render (`cli/commands/export.ts`'s own error, thrown AFTER the honest report has already been
+/** `EXPORT_INCOMPLETE` (exit 6) — `tovu export` ran to completion but at least one route or asset
+ *  failed (`cli/commands/export.ts`'s own error, thrown AFTER the honest report has already been
  *  printed) — a genuinely distinct outcome from a crash (`INTERNAL`) or a bad argument
  *  (`VALIDATION`): the export partially succeeded and wrote everything it could. */
 export class ExportIncompleteError extends Error {
