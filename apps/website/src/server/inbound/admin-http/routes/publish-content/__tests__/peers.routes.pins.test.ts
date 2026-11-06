@@ -69,10 +69,10 @@ test("a missing principal (requireAdminSession did not run) is the fixed 500 on 
   const app = routeApp(registerPublishContentPeerRoutes, routeDeps({ publishContentPeerRepo: new InMemoryPublishContentPeerRepo() }));
   const server = await startTestServer(app, t);
   for (const [method, path, failure] of [
-    ["GET", PEERS, {"message":"The publishing destinations could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load publishing destinations","discloseDetails":false}],
-    ["POST", PEERS, {"message":"The publishing destination operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"publishing destination operation","discloseDetails":false}],
-    ["PATCH", `${PEERS}/p`, {"message":"The publishing destination save could not be completed.","action":"Check whether your changes were saved before repeating the save. Copy details and report this problem.","step":"Save publishing destination","discloseDetails":false}],
-    ["DELETE", `${PEERS}/p`, {"message":"The publishing destination removal could not be confirmed.","action":"Check the list before repeating the removal. Copy details and report this problem.","step":"Remove publishing destination","discloseDetails":false}],
+    ["GET", PEERS, {"message":"The publishing destinations could not be loaded.","action":"Try loading them again. If it still fails, Report this error ID.","step":"Load publishing destinations","discloseDetails":false}],
+    ["POST", PEERS, {"message":"The publishing destination operation could not be completed.","action":"Check the result before repeating this operation. Report this error ID.","step":"publishing destination operation","discloseDetails":false}],
+    ["PATCH", `${PEERS}/p`, {"message":"The publishing destination save could not be completed.","action":"Check whether your changes were saved before repeating the save. Report this error ID.","step":"Save publishing destination","discloseDetails":false}],
+    ["DELETE", `${PEERS}/p`, {"message":"The publishing destination removal could not be confirmed.","action":"Check the list before repeating the removal. Report this error ID.","step":"Remove publishing destination","discloseDetails":false}],
   ] as const) {
     const response = await fetch(`${server}${path}`, { method, headers: { "x-principal": "none" } });
     assert.equal(response.status, 500, `${method} ${path}`);
