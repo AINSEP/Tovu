@@ -122,6 +122,7 @@ test("each child job reaches deliver with its own workspace and the frozen job",
   assert.deepEqual(delivered[0]!.job.snapshot.submission, { id: "sub-1", answers: { email: "visitor@example.com", message: "Hello" }, submittedAt: T0 });
   assert.deepEqual(delivered[0]!.job.binding, job!.payload.binding);
   assert.equal(delivered[0]!.job.idempotencyKey, job!.payload.idempotencyKey);
+  assert.deepEqual(delivered[0]!.job.snapshot.form, "submissionRef" in job!.payload ? job!.payload.form : job!.payload.snapshot.form);
 });
 
 test("a source removed after planning stops delivery with no provider call", async () => {

@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 
 import type { DomainEvent } from "@jini-ai/cms/core";
-import { FORM_DELIVERY_EVENT, type FormDeliveryJob, type FormDeliveryResult } from "@jini-ai/cms/forms";
+import { FORM_DELIVERY_EVENT, type FormDeliveryJob, type FormDeliveryQueuedJob, type FormDeliveryResult } from "@jini-ai/cms/forms";
 import { set, type AuthorizeFn, type SettingsWriteServiceDeps } from "@jini-ai/core/settings";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { removeFrozenPackageTree } from "#src/features/agent-plugins/lifecycle";
@@ -259,10 +259,10 @@ export async function outboxRows(required: { kernel: ContentKernel }): Promise<O
 }
 
 /** The delivery child jobs of one submission, by binding id. */
-export async function deliveryJobs(required: { kernel: ContentKernel; submissionId: string }): Promise<(OutboxRow & { readonly job: FormDeliveryJob })[]> {
+export async function deliveryJobs(required: { kernel: ContentKernel; submissionId: string }): Promise<(OutboxRow & { readonly job: FormDeliveryQueuedJob })[]> {
   const rows = await outboxRows(required);
   return rows.filter((row) => row.event.name === FORM_DELIVERY_EVENT && row.event.aggregateId === required.submissionId)
-    .map((row) => ({ ...row, job: (JSON.parse(row.eventJson) as DomainEvent<FormDeliveryJob>).payload }))
+    .map((row) => ({ ...row, job: (JSON.parse(row.eventJson) as DomainEvent<FormDeliveryQueuedJob>).payload }))
     .sort((left, right) => left.job.binding.bindingId.localeCompare(right.job.binding.bindingId));
 }
 

@@ -8,8 +8,9 @@ import { readFormDeliveryBindings } from "#src/features/settings/index";
 /**
  * @file Binds Jini's durable form delivery (`@jini-ai/cms/forms`: plan once per submission, one
  * outbox child job per selected binding) to this site: bindings come from the
- * `core.forms/deliveryBindings` setting, the frozen snapshot from the forms repos, and each
- * attempt goes to `deliver` (the form-destinations deliverer). Nothing subscribes until `start`,
+ * `core.forms/deliveryBindings` setting, frozen form metadata from the forms repos, and each
+ * referenced attempt reads its scoped submission before `deliver` (the form-destinations
+ * deliverer). Nothing subscribes until `start`,
  * which the integrations module calls once per bus.
  */
 
@@ -41,7 +42,8 @@ class DeliverySourceGoneError extends Error {
  * line, instead of Jini's planner throwing: a throw fails the whole event, so the bus would re-run
  * its other subscribers (the notification email, the webhook) on every retry, for nothing.
  * @param optional.warn where that line goes (default `console.warn`).
- * @complexity O(1) to build; planning is O(bindings × formIds) per submission.
+ * @complexity O(1) to build; planning is O(bindings × formIds) per submission; each referenced
+ *   attempt adds one indexed submission read, with no answer copy in the outbox.
  */
 export function composeFormDelivery(
   required: FormDeliveryCompositionDeps,

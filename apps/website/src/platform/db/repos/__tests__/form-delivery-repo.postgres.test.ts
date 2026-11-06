@@ -67,11 +67,13 @@ test("postgres: two pulls racing for one receiver admit exactly one; the other i
   assert.deepEqual(await Promise.all([winner, loser]), [{ claimed: true }, { claimed: false, reason: "already-running" }]);
 });
 
-/** The outbox row of `jobId`: status, last error and the frozen answers. */
+/** The outbox row of `jobId`: status, last error and its answer-free source reference. */
 async function jobRow(kernel: ContentKernel, jobId: string) {
   const row = await kernel.run(db => db.selectFrom("outbox_events").select(["status", "last_error", "event_json"]).where("id", "=", jobId).executeTakeFirstOrThrow());
-  const answers = (JSON.parse(row.event_json) as { payload: { snapshot: { submission: { answers: unknown } } } }).payload.snapshot.submission.answers;
-  return [row.status, row.last_error, answers];
+  const { payload } = JSON.parse(row.event_json) as { payload: Record<string, unknown> };
+  assert.equal(Object.hasOwn(payload, "snapshot"), false);
+  assert.equal(JSON.stringify(payload).includes("a@example.com"), false);
+  return [row.status, row.last_error, payload.submissionRef];
 }
 
 // F9C: the outcome of an attempt in flight during the purge used to set the purged job back to
@@ -97,6 +99,6 @@ test("postgres: a purge during an in-flight attempt is final; the attempt's outc
   await outbox.markFailed({ id: "pg-purge-job-1", error: "rate-limited", nextAttemptAt: "2026-10-20T12:01:00.000Z", nextStatus: "pending" });
   await outbox.markDelivered({ id: "pg-purge-job-2" });
   assert.deepEqual([await jobRow(first, "pg-purge-job-1"), await jobRow(first, "pg-purge-job-2")],
-    [["failed", "delivery-failed", {}], ["failed", "delivery-failed", {}]]);
+    [["failed", "delivery-failed", { submissionId: "s1", formId: "f1" }], ["failed", "delivery-failed", { submissionId: "s1", formId: "f1" }]]);
   assert.deepEqual(await outbox.claimPending({ batchSize: 10, nowIso: "2099-01-01T00:00:00.000Z" }), []);
 });

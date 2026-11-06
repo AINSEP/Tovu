@@ -46,7 +46,9 @@ test("hidden inputs and undeclared controls are left alone", () => {
 test("a too_long error names the field's limit; a control without maxlength keeps the plain copy", () => {
   const html = renderWidgetIr({ componentId: "contact-form", props: { slug: "contact", fields: FIELDS } });
   const updated = injectFormSubmissionResultIntoHtml(html, { kind: "validation", slug: "contact", fieldErrors: [{ field: "message", reason: "too_long" }] });
-  assert.ok(updated.includes('id="widget-contact-message-error">Please keep Message to 2000 characters or fewer.</div>'));
+  const errorId = html.match(/ id="(widget-contact-[0-9a-f-]{36}-message-error)"/)?.[1];
+  assert.ok(errorId);
+  assert.ok(updated.includes(`id="${errorId}">Please keep Message to 2000 characters or fewer.</div>`));
   const plain = '<form><input name="topic" aria-label="Topic"></form>';
   assert.deepEqual(formValidationMessages({ formHtml: plain, locale: "en", errors: [{ field: "topic", reason: "too_long" }] }), [{ field: "topic", message: "Please shorten Topic." }]);
   const fr = '<form lang="fr"><input name="nom" aria-label="Nom" maxlength="100"></form>';
