@@ -2,6 +2,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { AGENT_DEFS, createNativeAgentRuntime, type DetectedAgent } from "@jini-ai/agent-runtime";
+import { modelReasoningOptions } from "@jini-ai/agent-runtime/model-selection";
 import { createAssistantAgentInventory, type AssistantAgentDefs } from "../agents.js";
 
 /** Keeps PATH absent; the injected probe supplies data without launching any native CLI. */
@@ -119,5 +120,39 @@ test("with no detector and no test prober, the inventory delegates to the runtim
       assert.match(agent.diagnostic ?? "", /\S/, `${agent.id} must explain why it is unavailable`);
     }
     assert.ok(runtime.state.detections.size > 0, "the runtime's own detector recorded its detections");
+  } finally { await inventory.dispose({}); }
+});
+
+test("site inventory retains per-model effort metadata and suffix ownership for the shared picker", async () => {
+  const base = AGENT_DEFS.find(def => def.id === "codex");
+  assert.ok(base);
+  const high = [{ id: "high", label: "High" }];
+  const advertised = [{ id: "default", label: "Default" }, { id: "low", label: "Low" }, ...high];
+  const models = [
+    { id: "narrowed", label: "Narrowed", reasoning: high },
+    { id: "empty", label: "Empty", reasoning: [] },
+    { id: "inherited", label: "Inherited" },
+  ];
+  const defs: AssistantAgentDefs = [
+    { ...base, id: "effort", reasoningOptions: advertised, fallbackModels: models },
+    { ...base, id: "suffix", reasoningInModelId: { levels: high }, fallbackModels: models },
+  ];
+  const runtime = createNativeAgentRuntime({ env: { PATH: "/missing", HOME: "/missing" } });
+  const inventory = createAssistantAgentInventory({ runtime, defs,
+    detector: async () => defs.map(def => ({ ...def, available: false, models: def.fallbackModels, modelsSource: "fallback" }) as DetectedAgent) });
+  try {
+    const initial = await inventory.listAssistantAgents();
+    const settled = await inventory.listAssistantAgents({}, { waitForProbe: true });
+    for (const agents of [initial, settled]) {
+      const [effort, suffix] = agents;
+      assert.ok(effort && suffix);
+      assert.deepEqual(effort.models, models);
+      assert.equal(Object.hasOwn(effort, "reasoningInModelId"), false);
+      assert.deepEqual(modelReasoningOptions({ agent: effort, model: effort.models?.[0] }), [advertised[0], ...high]);
+      assert.deepEqual(modelReasoningOptions({ agent: effort, model: effort.models?.[1] }), [advertised[0]]);
+      assert.deepEqual(modelReasoningOptions({ agent: effort, model: effort.models?.[2] }), advertised);
+      assert.deepEqual(suffix.reasoningInModelId, { levels: high });
+      assert.deepEqual(modelReasoningOptions({ agent: suffix, model: suffix.models?.[0] }), []);
+    }
   } finally { await inventory.dispose({}); }
 });

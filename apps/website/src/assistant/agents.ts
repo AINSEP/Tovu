@@ -134,6 +134,7 @@ function optionalSummaryFields({ def, modelResult }: {
     ...(catalog ? { modelCatalog: catalog } : {}),
     ...(defaultModelResolution ? { defaultModelResolution } : {}),
     ...(def.supportsConcreteModelSelection !== undefined ? { supportsConcreteModelSelection: def.supportsConcreteModelSelection } : {}),
+    ...(def.reasoningInModelId ? { reasoningInModelId: def.reasoningInModelId } : {}),
   };
 }
 

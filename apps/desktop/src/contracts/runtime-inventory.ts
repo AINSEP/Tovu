@@ -6,6 +6,8 @@
 export type RunnerAgentOption = {
   id: string;
   label: string;
+  /** Optional model-specific levels; an empty list suppresses inherited levels. */
+  reasoning?: readonly RunnerAgentOption[];
 };
 
 export interface RunnerAgentSummary {
@@ -16,6 +18,7 @@ export interface RunnerAgentSummary {
   authStatus?: 'ok' | 'missing' | 'unknown';
   models: readonly RunnerAgentOption[];
   reasoningOptions: readonly RunnerAgentOption[];
+  reasoningInModelId?: { readonly levels: readonly RunnerAgentOption[] };
   supportsCustomModel?: boolean;
   diagnostic?: string;
 }

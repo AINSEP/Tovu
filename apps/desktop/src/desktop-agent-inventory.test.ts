@@ -6,6 +6,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import type { RuntimeAgentDef } from "@jini-ai/agent-runtime";
+import { modelReasoningOptions } from "@jini-ai/agent-runtime/model-selection";
 
 import { createAgentInventory, summarizeAgent, type AgentRuntimePorts } from "./desktop-agent-inventory.ts";
 
@@ -127,4 +128,31 @@ test("a stale failed probe never clears the newer probe a rescan cached meanwhil
   await assert.rejects(stale, /first probe failed/);
   assert.equal(list({ rescan: false }), fresh, "the newer probe stays cached");
   assert.equal(calls, 2, "and no third probe was started");
+});
+
+test("inventory metadata preserves model effort choices and suffix ownership for the shared picker", async () => {
+  const high = [{ id: "high", label: "High" }];
+  const advertised = [{ id: "default", label: "Default" }, { id: "low", label: "Low" }, ...high];
+  const models = [
+    { id: "narrowed", label: "Narrowed", reasoning: high, description: "not picker metadata" },
+    { id: "empty", label: "Empty", reasoning: [] },
+    { id: "inherited", label: "Inherited" },
+  ];
+  const summary = await summarizeAgent(def("effort", { reasoningOptions: advertised }),
+    ports({ probeModels: async () => ({ models }) }));
+  assert.deepEqual(summary.models, [
+    { id: "narrowed", label: "Narrowed", reasoning: high },
+    { id: "empty", label: "Empty", reasoning: [] },
+    { id: "inherited", label: "Inherited" },
+  ]);
+  assert.equal(Object.hasOwn(summary.models[2]!, "reasoning"), false);
+  assert.equal(Object.hasOwn(summary, "reasoningInModelId"), false);
+  assert.deepEqual(modelReasoningOptions({ agent: summary, model: summary.models[0] }), [advertised[0], ...high]);
+  assert.deepEqual(modelReasoningOptions({ agent: summary, model: summary.models[1] }), [advertised[0]]);
+  assert.deepEqual(modelReasoningOptions({ agent: summary, model: summary.models[2] }), advertised);
+
+  const suffix = await summarizeAgent(def("suffix", { reasoningInModelId: { levels: high } }),
+    ports({ probeModels: async () => ({ models: [models[0]!] }) }));
+  assert.deepEqual(suffix.reasoningInModelId, { levels: high });
+  assert.deepEqual(modelReasoningOptions({ agent: suffix, model: suffix.models[0] }), []);
 });
