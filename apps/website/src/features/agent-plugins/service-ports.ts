@@ -35,7 +35,9 @@ export interface AgentPluginPreferencesPort {
   locale(input: { workspaceId: string; principalId: string }, options?: Record<string, never>): Promise<string>;
   /** Anything but the stored Ask or Off preference (including no value) resolves to Auto. */
   mode(input: { workspaceId: string; principalId: string }, options?: Record<string, never>): Promise<ChatAgentPlugins>;
-  saveAuto(input: { workspaceId: string; principalId: string }, options?: Record<string, never>): Promise<void>;
+  /** Effective mode plus the addressed personal layer's revision, fixed before the approval. */
+  snapshot(input: { workspaceId: string; principalId: string }, options?: Record<string, never>): Promise<{ mode: ChatAgentPlugins; revisionSeq: number }>;
+  saveAuto(input: { workspaceId: string; principalId: string; expectedRevisionSeq?: number }, options?: Record<string, never>): Promise<void>;
 }
 
 /** Declared API connections; the host retains OAuth clients, browser binding and token custody. */
