@@ -1,3 +1,4 @@
+import { notifyExternalMcpRosterChanged } from "#src/assistant/external-mcp-roster-change";
 import { composeAgentPluginMcp } from "#src/server/runtime/composition/agent-plugin-service-ports";
 import assert from "node:assert/strict";
 
@@ -28,7 +29,7 @@ export function buildPluginsUninstallRegistration(deps: AgentPluginUninstallTool
   const unused = (name: string) => () => {
     throw new Error(`${name} must not be called by the agent-plugin family's uninstall branch`);
   };
-  const pluginsDeps: PluginsToolDeps & TovuPluginHostDeps = {
+  const pluginsDeps: PluginsToolDeps & TovuPluginHostDeps = { notifyRosterChanged: notifyExternalMcpRosterChanged,
     authorize: deps.authorize,
     workspaceId: deps.workspaceId,
     agentPluginLayout: deps.agentPluginLayout,

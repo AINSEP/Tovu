@@ -2,7 +2,7 @@
 import { ToolInputError, redactSecrets, type AccessApprovalResource } from '@jini-ai/core';
 import { planAgentPluginToolGrant, type AgentPluginToolGrant, type AgentPluginDeclaredTools } from '@jini-ai/agent-plugins/lifecycle';
 import type { ExternalMcpServerRecord } from '../external-mcp/contracts.js';
-import { externalMcpAccessSnapshot, externalMcpAdmissionRevision, ExternalMcpValidationError, readExternalMcpToolGrants, validateExternalMcpToolNames } from '../external-mcp/external-mcp-store.js';
+import { externalMcpAccessSnapshot, externalMcpAdmissionRevision, ExternalMcpValidationError, readExternalMcpToolGrants, validateExternalMcpToolNames } from '../../contracts/core/external-mcp-access.js';
 import type { AgentPluginMcpPort } from './service-ports.js';
 import { findAgentPluginMcpServerDefaults, planAgentPluginMcpFederation, type PlannedAgentPluginMcpUpsert } from './federate-mcp.js';
 import type { McpServerConfig } from './mcp-metadata.js';

@@ -1,3 +1,4 @@
+import { notifyExternalMcpRosterChanged } from "#src/assistant/external-mcp-roster-change";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import { createNoopTracker } from "@jini-ai/diagnostics/observability";
 import assert from "node:assert/strict";
@@ -23,7 +24,7 @@ const FILES_PATH = "/api/admin/v1/workspaces/:workspaceId/plugins/:pluginId/file
 
 function fakeDeps(overrides: Partial<PluginsRouteDeps> = {}) {
   const calls = { discover: 0, remove: 0, readFiles: 0 };
-  const deps: PluginsRouteDeps = {
+  const deps: PluginsRouteDeps = { notifyRosterChanged: notifyExternalMcpRosterChanged,
     tracker: createNoopTracker({}),
     workspaceId: WS,
     authorize: async () => ({ allowed: true, reason: "ok" }),

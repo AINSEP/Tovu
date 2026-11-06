@@ -3,7 +3,7 @@ import test from 'node:test';
 import { InMemoryKeyring } from '../../../webhooks/keyring.memory.js';
 import { AesGcmSecretSealer } from '../../../webhooks/secret-sealer.aesgcm.js';
 import { InMemoryExternalMcpServerRepo } from '../../../external-mcp/external-mcp-store.memory.js';
-import { saveExternalMcpServer } from '../../../external-mcp/external-mcp-store.js';
+import { applyExternalMcpAccess, saveExternalMcpServer } from '../../../external-mcp/external-mcp-store.js';
 import { createApplyConnectDefaults } from '../../apply-connect-defaults.js';
 import { previewAgentPluginEnableAccess } from '../../enable-access.js';
 import { resolveAgentPluginLayout } from '../../layout.js';
@@ -19,7 +19,7 @@ async function fixture() {
     authMode: 'oauth', enabled: false, command: '', args: '', allowedToolNames: 'existing', writeAllowedToolNames: '',
     principalId: 'owner', provisionedByPluginId: 'images', oauth: { grant: 'authorization_code' },
   });
-  return { repo, keyring, clock, row: async () => (await repo.findByServerId({ workspaceId: 'ws', serverId: 'media' }))! };
+  return { repo, keyring, clock, applyAccess: (input: Omit<Parameters<typeof applyExternalMcpAccess>[0], "repo" | "clock">) => applyExternalMcpAccess({ ...input, repo, clock }), row: async () => (await repo.findByServerId({ workspaceId: 'ws', serverId: 'media' }))! };
 }
 
 test('one approved operator source stays approved through its expected plugin adoption', async () => {
@@ -42,7 +42,7 @@ for (const existingApprover of [null, 'prior-owner']) test(`a declined review pr
   await f.repo.upsert({ ...await f.row(), allowedToolNames: '[]', writeGrantsUpdatedByPrincipalId: existingApprover });
   const preview = await previewAgentPluginEnableAccess({ workspaceId: 'ws', pluginId: 'images', servers, repo: f.repo });
   const { recordAgentPluginAccessDeclined } = await import('../../apply-connect-defaults.js');
-  await recordAgentPluginAccessDeclined({ repo: f.repo, clock: f.clock, workspaceId: 'ws', accessKey: preview.key });
+  await recordAgentPluginAccessDeclined({ applyAccess: f.applyAccess, workspaceId: 'ws', accessKey: preview.key });
   const after = await f.row();
   assert.equal(after.writeGrantsUpdatedByPrincipalId, existingApprover ?? 'system:connect-declined');
   assert.equal(after.enabled, false);
@@ -74,7 +74,7 @@ test('a declined proposal keeps the approver of the live write list', async () =
   await f.repo.upsert({ ...await f.row(), writeAllowedToolNames: '["existing"]', writeGrantsUpdatedByPrincipalId: 'prior-owner', writeGrantsUpdatedAt: '2026-11-01T12:00:00Z' });
   const preview = await previewAgentPluginEnableAccess({ workspaceId: 'ws', pluginId: 'images', servers, repo: f.repo });
   const { recordAgentPluginAccessDeclined } = await import('../../apply-connect-defaults.js');
-  await recordAgentPluginAccessDeclined({ repo: f.repo, clock: f.clock, workspaceId: 'ws', accessKey: preview.key });
+  await recordAgentPluginAccessDeclined({ applyAccess: f.applyAccess, workspaceId: 'ws', accessKey: preview.key });
   assert.deepEqual((await f.row()).writeAllowedToolNames, '["existing"]');
   assert.equal((await f.row()).writeGrantsUpdatedByPrincipalId, 'prior-owner');
   assert.equal((await f.row()).writeGrantsUpdatedAt, '2026-11-01T12:00:00Z');

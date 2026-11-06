@@ -1,3 +1,5 @@
+import { ToolAccessLoweringError } from "../contracts/core/tool-access-change.js";
+export { ToolAccessLoweringError } from "../contracts/core/tool-access-change.js";
 import type { ToolAccessChange } from '@jini-ai/daemon';
 /**
  * @file A keyed, last-wins fan-out for "the external-MCP roster changed" — the seam that lets every
@@ -26,12 +28,6 @@ import type { ToolAccessChange } from '@jini-ai/daemon';
 /** A registered reaction to a roster change. Return shape varies by runtime (`FederationReloadResult`,
  *  `triggerFederationReload`'s `{ok}` shape, or nothing at all) — `notifyExternalMcpRosterChanged`
  *  only needs to know when each one settles, never what it settled with. */
-/** A durable OFF decision stands even when cleanup fails; never report an unconfirmed stop. */
-export class ToolAccessLoweringError extends Error {
-  readonly code = 'TOOL_ACCESS_STOP_FAILED';
-  constructor() { super("Tool access changed, but affected answers could not be confirmed stopped."); }
-}
-
 export type ExternalMcpRosterChangeListener = (lowered?: ToolAccessChange) => unknown;
 
 /** Bounds one `notifyExternalMcpRosterChanged()` call. Matches

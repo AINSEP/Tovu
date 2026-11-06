@@ -1,3 +1,4 @@
+import { applyExternalMcpAccess } from "../../../external-mcp/external-mcp-store.js";
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { answerCard, harness } from '../fixtures/plugins-tool-harness.js';
@@ -73,14 +74,14 @@ test('a declined enable remains a choice when a seeded-off plugin signs in later
   });
   const h = harness({ layout: agentPluginLayout, confirmEnable: () => true, agentHost: {
     previewEnableAccess: async () => previewAgentPluginEnableAccess({ workspaceId: WORKSPACE_ID, pluginId: input.pluginId, servers, repo }),
-    recordDeclinedAccess: async ({ accessKey }) => recordAgentPluginAccessDeclined({ repo, clock, workspaceId: WORKSPACE_ID, accessKey }),
+    recordDeclinedAccess: async ({ accessKey }) => recordAgentPluginAccessDeclined({ applyAccess: input => applyExternalMcpAccess({ ...input, repo, clock }), workspaceId: WORKSPACE_ID, accessKey }),
   } });
   const cancelled = await answerCard({ tool: h.tool('plugins_set_enabled'), surfaceExchanges: h.surfaceExchanges, input, decision: 'cancel' });
   assert.equal((await cancelled.outcome as { changed: boolean }).changed, false);
   const row = (await repo.findByServerId({ workspaceId: WORKSPACE_ID, serverId: 'media' }))!;
   await repo.upsert({ ...row, oauthStatus: 'connected' });
   let activations = 0;
-  await createApplyConnectDefaults({ repo, clock, workspaceId: WORKSPACE_ID, agentPluginLayout, resolveServers: async () => servers,
+  await createApplyConnectDefaults({ repo, applyAccess: input => applyExternalMcpAccess({ ...input, repo, clock }), clock, workspaceId: WORKSPACE_ID, agentPluginLayout, resolveServers: async () => servers,
     enablePlugin: async () => { activations++; return true; }, notifyRosterChanged: async () => {},
   })('media');
   assert.equal(activations, 0);

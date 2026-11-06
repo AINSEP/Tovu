@@ -157,12 +157,12 @@ export function createTovuPluginHost(
       workspaceId: deps.workspaceId, pluginId, repo: deps.mcp.repo,
       servers: await (optional.resolveMcpServers ?? resolveAgentPluginMcpServers)({ agentPluginLayout: deps.agentPluginLayout, workspaceId: deps.workspaceId, pluginId }),
     }),
-    recordDeclinedAccess: async ({ accessKey }) => recordAgentPluginAccessDeclined({ repo: deps.mcp.repo, clock: deps.clock, workspaceId: deps.workspaceId, accessKey }),
+    recordDeclinedAccess: async ({ accessKey }) => recordAgentPluginAccessDeclined({ applyAccess: deps.mcp.applyAccess, workspaceId: deps.workspaceId, accessKey }),
     listInstalled,
     assertWritable: async () => (deps.assertAgentPluginActivationsWritable ?? agentPluginActivations.assertAgentPluginActivationsWritable)({ workspaceRoot: resolveWorkspaceRoot() }),
     setEnabled: async (input: Parameters<AgentPluginHostCapability["setEnabled"]>[0]) => {
-      const result = await (deps.setAgentPluginEnabled ?? setAgentPluginEnabled)({ ...input, agentPluginLayout: deps.agentPluginLayout });
-      if (!result.enabled) await deps.mcp.notifyRosterChanged({}, {});
+      const result = await (deps.setAgentPluginEnabled ?? (input => setAgentPluginEnabled(input, { notifyRosterChanged: options => deps.mcp.notifyRosterChanged(options ?? {}) })))({ ...input, agentPluginLayout: deps.agentPluginLayout });
+      if (!result.enabled && deps.setAgentPluginEnabled) await deps.mcp.notifyRosterChanged({ lowered: { pluginIds: [input.pluginId] } }, {});
       return result;
     },
     /** Provisioning must use the same two owners as the admin toggle. A failed connection never
@@ -176,7 +176,7 @@ export function createTovuPluginHost(
         // Same as the admin toggle: an account signed in while the plugin was off gets the plugin's
         // declared tools now (bug 2026-11-04, `grant-signed-in-defaults.ts`).
         await grantDeclaredToolsToSignedInRows({
-          deps: { workspaceId: deps.workspaceId, agentPluginLayout: deps.agentPluginLayout, repo: deps.mcp.repo, clock: deps.clock,
+          deps: { workspaceId: deps.workspaceId, agentPluginLayout: deps.agentPluginLayout, repo: deps.mcp.repo, applyAccess: deps.mcp.applyAccess, clock: deps.clock,
             notifyRosterChanged: () => deps.mcp.notifyRosterChanged({}, {}), warn: message => warn(redactSecrets({ input: message })) },
           pluginId,
           servers,

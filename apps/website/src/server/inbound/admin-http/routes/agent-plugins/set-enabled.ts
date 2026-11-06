@@ -159,7 +159,7 @@ async function provisionAgentPluginMcpServersBestEffort(
     // An account signed in while the plugin was off gets the plugin's declared tools now: switching
     // on is the moment "on + connected" first holds (bug 2026-11-04, `grant-signed-in-defaults.ts`).
     await grantDeclaredToolsToSignedInRows({
-      deps: { workspaceId: deps.workspaceId, agentPluginLayout: deps.agentPluginLayout, repo: deps.mcp.repo, clock: deps.clock, notifyRosterChanged: () => deps.mcp.notifyRosterChanged({}, {}) },
+      deps: { workspaceId: deps.workspaceId, agentPluginLayout: deps.agentPluginLayout, repo: deps.mcp.repo, applyAccess: deps.mcp.applyAccess, clock: deps.clock, notifyRosterChanged: () => deps.mcp.notifyRosterChanged({}, {}) },
       pluginId: input.pluginId,
       servers,
     }, { skipServerKeys: result.failed.map((failure) => failure.serverKey) });
@@ -298,7 +298,7 @@ export const registerAgentPluginSetEnabledRoute: AgentPluginsRouteRegistrar = (a
       } else {
         // Keep the durable OFF switch effective in discovery too; surviving OAuth rows keep
         // their credentials, while the existing reload withdraws their tools and guidance.
-        await deps.mcp.notifyRosterChanged({}, {});
+        await deps.mcp.notifyRosterChanged({ lowered: { pluginIds: [pluginId] } }, {});
       }
 
       sendUpdatedRow(res, candidate, written.enabled, written.warnings);

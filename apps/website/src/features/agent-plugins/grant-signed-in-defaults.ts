@@ -46,6 +46,7 @@ export interface GrantSignedInDefaultsDeps {
   readonly workspaceId: string;
   readonly agentPluginLayout: AgentPluginLayout;
   readonly repo: AgentPluginMcpPort["repo"];
+  readonly applyAccess: AgentPluginMcpPort["applyAccess"];
   readonly clock: ClockPort;
   /** The assistant's roster-reload port, so a granted row's tools load without a restart. */
   readonly notifyRosterChanged: () => Promise<void>;
@@ -67,7 +68,7 @@ interface GrantDeclaredToolsOptions {
  * @complexity O(1) construction, no I/O.
  */
 function connectGrantFor({ deps, options }: { deps: GrantSignedInDefaultsDeps; options: GrantDeclaredToolsOptions }): (serverId: string) => Promise<void> {
-  return deps.onConnected ?? createApplyConnectDefaults({ workspaceId: deps.workspaceId, agentPluginLayout: deps.agentPluginLayout, repo: deps.repo, clock: deps.clock, notifyRosterChanged: deps.notifyRosterChanged }, options.approvedEnable ? { approvedEnable: options.approvedEnable } : {});
+  return deps.onConnected ?? createApplyConnectDefaults({ workspaceId: deps.workspaceId, agentPluginLayout: deps.agentPluginLayout, repo: deps.repo, applyAccess: deps.applyAccess, clock: deps.clock, notifyRosterChanged: deps.notifyRosterChanged }, options.approvedEnable ? { approvedEnable: options.approvedEnable } : {});
 }
 
 /** Run the existing grant owner for one eligible row, then report its actual durable change.

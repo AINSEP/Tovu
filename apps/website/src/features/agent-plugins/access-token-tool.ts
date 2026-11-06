@@ -57,7 +57,7 @@ export type AgentPluginTokenTargetDeps = Pick<
 export interface AgentPluginAccessTokenToolDeps
   extends AgentPluginConnectToolDeps, AgentPluginTokenTargetDeps,
     Pick<SwitchOnSavedTokenDeps, "onConnected" | "isPluginOffByOperator" | "switchPluginOn" | "notifyRosterChanged"> {
-  readonly mcp: Pick<AgentPluginMcpPort, "repo" | "saveServer" | "classifyError">;
+  readonly mcp: Pick<AgentPluginMcpPort, "repo" | "applyAccess" | "saveServer" | "classifyError">;
   readonly credentials: PluginCredentialsPort;
   readonly preferences: Pick<AgentPluginPreferencesPort, "locale">;
 }

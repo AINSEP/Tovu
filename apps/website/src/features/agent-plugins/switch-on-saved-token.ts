@@ -37,7 +37,7 @@ export type SavedTokenSwitchOutcome =
 export interface SwitchOnSavedTokenDeps {
   readonly workspaceId: string;
   readonly agentPluginLayout: AgentPluginLayout;
-  readonly mcp: Pick<AgentPluginMcpPort, "repo">;
+  readonly mcp: Pick<AgentPluginMcpPort, "repo" | "applyAccess">;
   readonly clock: ClockPort;
   readonly notifyRosterChanged: () => Promise<void>;
   /** Injected for tests. Defaults to `createApplyConnectDefaults`, the sign-in's own `onConnected`. */
@@ -63,7 +63,7 @@ export async function switchOnSavedTokenConnection(
   const isOff = deps.isPluginOffByOperator ?? ((pluginId: string) => defaultIsPluginOffByOperator({ ...deps, pluginId }));
   if (await isOff(target.pluginId)) return { state: "plugin-off-by-operator" };
 
-  const onConnected = deps.onConnected ?? createApplyConnectDefaults({ agentPluginLayout: deps.agentPluginLayout, workspaceId: deps.workspaceId, repo: deps.mcp.repo, clock: deps.clock, notifyRosterChanged: deps.notifyRosterChanged });
+  const onConnected = deps.onConnected ?? createApplyConnectDefaults({ agentPluginLayout: deps.agentPluginLayout, workspaceId: deps.workspaceId, repo: deps.mcp.repo, applyAccess: deps.mcp.applyAccess, clock: deps.clock, notifyRosterChanged: deps.notifyRosterChanged });
   await onConnected(target.connectionId);
 
   const row = await deps.mcp.repo.findByServerId({ workspaceId: deps.workspaceId, serverId: target.connectionId });

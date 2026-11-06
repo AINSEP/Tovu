@@ -3,7 +3,7 @@ import test from 'node:test';
 import { InMemoryKeyring } from '../../../webhooks/keyring.memory.js';
 import { AesGcmSecretSealer } from '../../../webhooks/secret-sealer.aesgcm.js';
 import { InMemoryExternalMcpServerRepo } from '../../../external-mcp/external-mcp-store.memory.js';
-import { externalMcpAdmissionRevision, saveExternalMcpServer } from '../../../external-mcp/external-mcp-store.js';
+import { externalMcpAdmissionRevision, applyExternalMcpAccess, saveExternalMcpServer } from '../../../external-mcp/external-mcp-store.js';
 import { createExternalMcpConnectionGate } from '../../../external-mcp/external-mcp-oauth.js';
 import { grantDeclaredToolsToSignedInRows } from '../../grant-signed-in-defaults.js';
 import { createApplyConnectDefaults } from '../../apply-connect-defaults.js';
@@ -21,7 +21,7 @@ async function fixture() {
     authMode: 'oauth', enabled: false, command: '', args: '', allowedToolNames: 'existing', writeAllowedToolNames: '',
     principalId: 'owner', provisionedByPluginId: 'images', oauth: { grant: 'authorization_code' },
   });
-  return { repo, keyring, clock, row: async () => (await repo.findByServerId({ workspaceId: 'ws', serverId: 'media' }))! };
+  return { repo, keyring, clock, applyAccess: (input: Omit<Parameters<typeof applyExternalMcpAccess>[0], "repo" | "clock">) => applyExternalMcpAccess({ ...input, repo, clock }), row: async () => (await repo.findByServerId({ workspaceId: 'ws', serverId: 'media' }))! };
 }
 
 test('the owner card predicts the same exact access that the existing grant owner applies, before sign-in', async () => {
@@ -127,7 +127,7 @@ test('already signed-in connect declines without granting or calling the sign-in
   const result = await runAgentPluginConnect({
     routeDeps: { workspaceId: 'ws', agentPluginLayout: resolveAgentPluginLayout({ siteDir: '/unused' }),
       authorize: async () => ({ allowed: true, reason: '' }), isPluginEnabled: async () => true,
-      credentials: { loadSafe: async () => [] }, mcp: { repo: f.repo, saveServer: async () => { throw new Error('existing source only'); } },
+      credentials: { loadSafe: async () => [] }, mcp: { repo: f.repo, applyAccess: f.applyAccess, saveServer: async () => { throw new Error('existing source only'); } },
       externalMcpOAuth: { beginConnect: async () => { throw new Error('must reuse sign-in'); }, isValidationError: () => false },
       resolveInstalledPlugin: async () => ({ servers }),
     },
@@ -141,7 +141,7 @@ test('already signed-in connect declines without granting or calling the sign-in
   assert.equal(cards, 1); assert.equal(calls, 0); assert.equal((await f.row()).enabled, false);
   assert.equal(result.status, 'not-connected');
   assert.equal((result as { cancelled?: boolean }).cancelled, true);
-  await grantDeclaredToolsToSignedInRows({ deps: { workspaceId: 'ws', agentPluginLayout: resolveAgentPluginLayout({ siteDir: '/unused' }), repo: f.repo, clock: f.clock, notifyRosterChanged: async () => {}, onConnected: async () => { calls++; } }, pluginId: 'images', servers });
+  await grantDeclaredToolsToSignedInRows({ deps: { workspaceId: 'ws', agentPluginLayout: resolveAgentPluginLayout({ siteDir: '/unused' }), repo: f.repo, applyAccess: f.applyAccess, clock: f.clock, notifyRosterChanged: async () => {}, onConnected: async () => { calls++; } }, pluginId: 'images', servers });
   assert.equal(calls, 0, 'a later automatic grant respects the saved choice');
   assert.equal((await f.row()).writeGrantsUpdatedByPrincipalId, 'system:connect-declined');
 });
@@ -159,7 +159,7 @@ for (const change of ['tools', 'writes', 'endpoint', 'removed'] as const) {
     const promise = runAgentPluginConnect({
       routeDeps: { workspaceId: 'ws', agentPluginLayout: resolveAgentPluginLayout({ siteDir: '/unused' }),
         authorize: async () => ({ allowed: true, reason: '' }), isPluginEnabled: async () => true,
-        credentials: { loadSafe: async () => [] }, mcp: { repo: f.repo, saveServer: async () => { throw new Error('existing source only'); } },
+        credentials: { loadSafe: async () => [] }, mcp: { repo: f.repo, applyAccess: f.applyAccess, saveServer: async () => { throw new Error('existing source only'); } },
         externalMcpOAuth: { beginConnect: async () => { throw new Error('must reuse sign-in'); }, isValidationError: () => false },
         resolveInstalledPlugin: async () => ({ servers: current }),
       },
@@ -193,7 +193,7 @@ for (const separate of [false, true]) {
     const promise = runAgentPluginConnect({
       routeDeps: { workspaceId: 'ws', agentPluginLayout: resolveAgentPluginLayout({ siteDir: '/unused' }),
         authorize: async () => ({ allowed: true, reason: '' }), isPluginEnabled: async () => true,
-        credentials: { loadSafe: async () => [] }, mcp: { repo: f.repo, saveServer: async () => { saves++; throw new Error('no provisioning before approval'); } },
+        credentials: { loadSafe: async () => [] }, mcp: { repo: f.repo, applyAccess: f.applyAccess, saveServer: async () => { saves++; throw new Error('no provisioning before approval'); } },
         externalMcpOAuth: { beginConnect: async () => { throw new Error('no sign-in before approval'); }, isValidationError: () => false },
         resolveInstalledPlugin: async () => ({ servers: { ...servers, pending: { type: 'streamable-http', url: 'https://pending.example.test/mcp', tovuAuthMode: 'oauth' } } }),
       },
@@ -244,7 +244,7 @@ async function retainedCall({ separate = false, second = false, action = 'confir
   const result = await runAgentPluginConnect({ routeDeps: {
     workspaceId: 'ws', agentPluginLayout: resolveAgentPluginLayout({ siteDir: '/unused' }), authorize: async () => ({ allowed: true, reason: '' }),
     isPluginEnabled: async () => true, credentials: { loadSafe: async () => [] }, resolveInstalledPlugin: async () => ({ servers: declarations }),
-    mcp: { repo: f.repo, saveServer: async () => { throw new Error('must retain stored connection'); } },
+    mcp: { repo: f.repo, applyAccess: f.applyAccess, saveServer: async () => { throw new Error('must retain stored connection'); } },
     externalMcpOAuth: { beginConnect: async () => {
       if (!reauth) throw new Error('must reuse existing sign-in');
       await f.repo.upsert({ ...await f.row(), oauthStatus: 'connected' });
