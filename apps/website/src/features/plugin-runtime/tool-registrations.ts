@@ -306,7 +306,6 @@ interface PluginApprovalIdentity {
   readonly version?: string;
   readonly label: string;
   readonly discovery?: readonly PluginDiscoveryRecord[];
-  readonly accessDetails?: readonly { readonly label: string; readonly value: string }[];
   readonly accessKey?: string;
   readonly accessResources?: readonly Omit<AccessApprovalResource, 'scope'>[];
 }
@@ -323,7 +322,6 @@ export async function pluginApprovalIdentity(
   let label: string | undefined;
   let discovery: readonly PluginDiscoveryRecord[] | undefined;
   let schema: Readonly<Record<string, unknown>> = {};
-  let accessDetails: PluginApprovalIdentity['accessDetails'];
   let accessKey: string | undefined;
   let accessResources: PluginApprovalIdentity['accessResources'];
   if (request.family === AGENT_PLUGIN_FAMILY) {
@@ -333,7 +331,7 @@ export async function pluginApprovalIdentity(
     // Every installed digest participates, independent of discovery ordering.
     revision = JSON.stringify(installed.map(plugin => [plugin.version ?? null, plugin.archiveDigest]).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b))));
     const access = await requireAgentPluginHost(routeDeps).previewEnableAccess?.({ pluginId: request.pluginId }, {});
-    if (access) { revision = JSON.stringify([revision, access.key]); accessDetails = access.details; accessKey = access.key; accessResources = access.resources; }
+    if (access) { revision = JSON.stringify([revision, access.key]); accessKey = access.key; accessResources = access.resources; }
     version = installed.map(plugin => plugin.version).filter((value): value is string => value !== undefined).sort().join(", ");
   } else {
     discovery = structuredClone(await routeDeps.discoverPlugins());
@@ -348,7 +346,7 @@ export async function pluginApprovalIdentity(
       remoteName: PLUGINS_SET_ENABLED_TOOL_ID, origin: { kind: "roster", admissionRevision: revision },
       declaredAnnotations: undefined, description: "Enable this plugin identity", inputSchema: schema },
   });
-  return { key: fingerprint, version, label: label ?? request.pluginId, discovery, accessDetails, accessKey, accessResources };
+  return { key: fingerprint, version, label: label ?? request.pluginId, discovery, accessKey, accessResources };
 }
 
 /** A fresh `uninstallPlugin` request. Discovery is re-read on every call, so the post-confirmation write never resolves

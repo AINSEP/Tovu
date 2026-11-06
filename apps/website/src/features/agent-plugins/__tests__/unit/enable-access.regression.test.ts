@@ -5,6 +5,7 @@ import { AesGcmSecretSealer } from '../../../webhooks/secret-sealer.aesgcm.js';
 import { InMemoryExternalMcpServerRepo } from '../../../external-mcp/external-mcp-store.memory.js';
 import { externalMcpAdmissionRevision, saveExternalMcpServer } from '../../../external-mcp/external-mcp-store.js';
 import { createExternalMcpConnectionGate } from '../../../external-mcp/external-mcp-oauth.js';
+import { grantDeclaredToolsToSignedInRows } from '../../grant-signed-in-defaults.js';
 import { createApplyConnectDefaults } from '../../apply-connect-defaults.js';
 import { previewAgentPluginEnableAccess, validatedAgentPluginToolGrant } from '../../enable-access.js';
 import { resolveAgentPluginLayout } from '../../layout.js';
@@ -20,13 +21,14 @@ async function fixture() {
     authMode: 'oauth', enabled: false, command: '', args: '', allowedToolNames: 'existing', writeAllowedToolNames: '',
     principalId: 'owner', provisionedByPluginId: 'images', oauth: { grant: 'authorization_code' },
   });
-  return { repo, clock, row: async () => (await repo.findByServerId({ workspaceId: 'ws', serverId: 'media' }))! };
+  return { repo, keyring, clock, row: async () => (await repo.findByServerId({ workspaceId: 'ws', serverId: 'media' }))! };
 }
 
 test('the owner card predicts the same exact access that the existing grant owner applies, before sign-in', async () => {
   const f = await fixture();
   const preview = await previewAgentPluginEnableAccess({ workspaceId: 'ws', pluginId: 'images', servers, repo: f.repo });
-  assert.deepEqual(preview.details.map(detail => detail.value), ['media — https://media.example.test/mcp', 'existing, models, generate', 'generate']);
+  assert.equal(preview.resources[0]!.label, 'External MCP source: https://media.example.test/mcp');
+  assert.deepEqual(preview.resources[0]!.proposed, { enabled: true, allow: ['existing', 'models', 'generate'], write: ['generate'] });
   let reloads = 0;
   const apply = createApplyConnectDefaults({ ...f, workspaceId: 'ws', agentPluginLayout: resolveAgentPluginLayout({ siteDir: '/unused' }),
     resolveServers: async () => servers, isPluginOffByOperator: async () => false, enablePlugin: async () => true,
@@ -39,7 +41,7 @@ test('the owner card predicts the same exact access that the existing grant owne
   assert.deepEqual(JSON.parse(row.writeAllowedToolNames!), ['generate']);
   assert.equal(row.writeGrantsUpdatedByPrincipalId, 'owner');
   assert.equal(reloads, 1);
-  assert.equal((await previewAgentPluginEnableAccess({ workspaceId: 'ws', pluginId: 'images', servers, repo: f.repo })).details.length, 0);
+  assert.equal((await previewAgentPluginEnableAccess({ workspaceId: 'ws', pluginId: 'images', servers, repo: f.repo })).resources.length, 0);
 });
 
 test('an approved enable missing its access snapshot refuses before activation or grant writes', async () => {
@@ -132,12 +134,16 @@ test('already signed-in connect declines without granting or calling the sign-in
     surfaces: { surfaceExchanges, assertAccessApprover: async () => {} } as never,
     ctx: { executionId: 'exec', principal: { id: 'owner' }, run: { id: 'run' }, input: { pluginId: 'images' }, signal: new AbortController().signal },
     pluginId: 'images',
-  }, { onConnected: async () => { calls++; }, emitSurface: async () => {
+  }, { emitSurface: async () => {
     cards++; assert.equal((await f.row()).enabled, false); assert.equal(calls, 0);
     surfaceExchanges.deliver({ exchangeId: 'access-exchange', principalId: 'owner', params: { decision: 'cancel' } }, { toolId: 'agent_plugin_connect' });
   } });
   assert.equal(cards, 1); assert.equal(calls, 0); assert.equal((await f.row()).enabled, false);
   assert.equal(result.status, 'not-connected');
+  assert.equal((result as { cancelled?: boolean }).cancelled, true);
+  await grantDeclaredToolsToSignedInRows({ deps: { workspaceId: 'ws', agentPluginLayout: resolveAgentPluginLayout({ siteDir: '/unused' }), repo: f.repo, clock: f.clock, notifyRosterChanged: async () => {}, onConnected: async () => { calls++; } }, pluginId: 'images', servers });
+  assert.equal(calls, 0, 'a later automatic grant respects the saved choice');
+  assert.equal((await f.row()).writeGrantsUpdatedByPrincipalId, 'system:connect-declined');
 });
 
 for (const change of ['tools', 'writes', 'endpoint', 'removed'] as const) {
@@ -197,11 +203,81 @@ for (const separate of [false, true]) {
       cards++; assert.equal(saves, 0); assert.equal(upserts, 0);
       surfaceExchanges.deliver({ exchangeId: 'access-exchange', principalId: 'owner', params: { decision: 'cancel' } }, { toolId: 'agent_plugin_connect' });
     } });
-    if (separate) await assert.rejects(promise, /external_mcp_save/);
-    else assert.equal((await promise).status, 'not-connected');
-    assert.equal(cards, separate ? 0 : 1);
+    assert.equal((await promise).status, 'not-connected');
+    assert.equal(cards, 1);
     assert.equal(saves, 0); assert.equal(upserts, 0);
     assert.equal((await f.row()).provisionedByPluginId, separate ? null : 'images');
     assert.equal(await f.repo.findByServerId({ workspaceId: 'ws', serverId: 'pending' }), null);
   });
 }
+
+async function retainedCall({ separate = false, second = false, action = 'confirm', token = false, failSecond = false, declinedBefore = false }: {
+  separate?: boolean; second?: boolean; action?: 'confirm' | 'cancel' | 'expired' | 'abandoned'; token?: boolean; failSecond?: boolean; declinedBefore?: boolean;
+} = {}) {
+  const { runAgentPluginConnect } = await import('../../connect-tool.js');
+  const { createSurfaceExchangeStore } = await import('@jini-ai/daemon/surface-exchanges');
+  const f = await fixture();
+  if (token) await saveExternalMcpServer({ repo: f.repo, keyring: f.keyring, clock: f.clock, sealer: new AesGcmSecretSealer(f.keyring) }, {
+    workspaceId: 'ws', serverId: 'media', label: 'Media', transport: 'streamable_http', authMode: 'static_env', enabled: false,
+    url: 'https://media.example.test/mcp', command: '', args: '', allowedToolNames: 'existing', writeAllowedToolNames: '',
+    accessToken: 'fixture-only-token', principalId: 'owner',
+  });
+  await f.repo.upsert({ ...await f.row(), oauthStatus: token ? null : 'connected', provisionedByPluginId: separate ? null : 'images', ...(declinedBefore ? { writeGrantsUpdatedByPrincipalId: 'system:connect-declined' } : {}) });
+  const declarations = { media: { ...servers.media!, ...(token ? { tovuAuthMode: undefined, tovuTokenAuth: { label: 'Access token' } } : {}) },
+    ...(second ? { other: { ...servers.media! } } : {}) } as Readonly<Record<string, McpServerConfig>>;
+  if (second) await f.repo.upsert({ ...await f.row(), id: 'second-record', serverId: 'other' });
+  const controller = new AbortController();
+  if (failSecond) {
+    const update = f.repo.updateAccessIfCurrent.bind(f.repo);
+    f.repo.updateAccessIfCurrent = async input => input.serverId === 'other' ? false : update(input);
+  }
+  let expire = () => {};
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: { schedule: ({ callback }) => { expire = callback; return () => {}; } }, clock: f.clock,
+    idGenerator: { newId: () => 'retained-exchange' }, defaultChannel: 'mcp-ui' });
+  let cards = 0;
+  const result = await runAgentPluginConnect({ routeDeps: {
+    workspaceId: 'ws', agentPluginLayout: resolveAgentPluginLayout({ siteDir: '/unused' }), authorize: async () => ({ allowed: true, reason: '' }),
+    isPluginEnabled: async () => true, credentials: { loadSafe: async () => [] }, resolveInstalledPlugin: async () => ({ servers: declarations }),
+    mcp: { repo: f.repo, saveServer: async () => { throw new Error('must retain stored connection'); } },
+    externalMcpOAuth: { beginConnect: async () => { throw new Error('must reuse existing sign-in'); }, isValidationError: () => false },
+  }, surfaces: { surfaceExchanges, assertAccessApprover: async () => {} } as never,
+  ctx: { executionId: 'exec', principal: { id: 'owner' }, run: { id: 'run' }, input: {}, signal: controller.signal }, pluginId: 'images' }, {
+    saveToken: async () => { throw new Error('must not ask for a stored token again'); },
+    emitSurface: async () => {
+      cards++;
+      if (action === 'expired') expire();
+      else if (action === 'abandoned') controller.abort();
+      else surfaceExchanges.deliver({ exchangeId: 'retained-exchange', principalId: 'owner', params: { decision: action } }, { toolId: 'agent_plugin_connect' });
+    },
+  });
+  return { f, cards, result };
+}
+
+for (const token of [false, true]) test(`matching separately configured credential uses the access card: token ${token}`, async () => {
+  const { f, cards, result } = await retainedCall({ separate: true, token });
+  assert.equal(cards, 1); assert.equal(result.status, 'connected');
+  assert.equal((await f.row()).enabled, true);
+  assert.equal((await f.row()).provisionedByPluginId, 'images');
+  assert.deepEqual(JSON.parse((await f.row()).allowedToolNames!), ['existing', 'models', 'generate']);
+});
+for (const action of ['expired', 'abandoned'] as const) test(`unanswered access card reports ${action} without a declined record`, async () => {
+  const { f, cards, result } = await retainedCall({ action });
+  assert.equal(cards, 1); assert.equal(result.status, 'not-connected');
+  assert.equal(result.cancelled, false); assert.equal(result.reason, action);
+  assert.equal((await f.row()).enabled, false);
+  assert.notEqual((await f.row()).writeGrantsUpdatedByPrincipalId, 'system:connect-declined');
+});
+test('a later source failure reports the access already saved', async () => {
+  const { f, result } = await retainedCall({ second: true, failSecond: true });
+  assert.equal(result.status, 'partially-connected');
+  assert.deepEqual(result.grantedConnectionIds, ['media']);
+  assert.equal((await f.row()).enabled, true);
+  assert.equal((await f.repo.findByServerId({ workspaceId: 'ws', serverId: 'other' }))!.enabled, false);
+  assert.doesNotMatch(result.note!, /Nothing was changed/i);
+});
+
+test('a new explicit connection request can replace a saved declined choice', async () => {
+  const { f, result } = await retainedCall({ declinedBefore: true });
+  assert.equal(result.status, 'connected');
+  assert.equal((await f.row()).writeGrantsUpdatedByPrincipalId, 'owner');
+});

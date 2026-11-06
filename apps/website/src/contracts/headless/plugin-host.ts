@@ -76,7 +76,7 @@ export interface AgentPluginHostCapability {
   /** Read the activation owner's off records once for a model-facing catalog request. */
   inactivePluginIds?(required: Record<string, never>, optional?: Record<string, never>): Promise<ReadonlySet<string>>;
   /** Point-read preview binds the plugin enable card to its external source and exact grants. */
-  previewEnableAccess?(required: { pluginId: string }, optional?: Record<string, never>): Promise<{ readonly key: string; readonly details: readonly { readonly label: string; readonly value: string }[]; readonly resources?: readonly Omit<AccessApprovalResource, 'scope'>[] }>;
+  previewEnableAccess?(required: { pluginId: string }, optional?: Record<string, never>): Promise<{ readonly key: string; readonly resources?: readonly Omit<AccessApprovalResource, 'scope'>[] }>;
   listInstalled(required: Record<string, never>, optional?: Record<string, never>): Promise<readonly InstalledAgentPlugin[]>;
   assertWritable(required: Record<string, never>, optional?: Record<string, never>): Promise<void>;
   setEnabled(required: AgentPluginEnableInput, optional?: Record<string, never>): Promise<SetAgentPluginEnabledResult>;

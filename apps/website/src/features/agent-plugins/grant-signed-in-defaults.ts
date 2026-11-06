@@ -2,7 +2,7 @@ import type { Clock as ClockPort } from "@jini-ai/core/primitives";
 import { ToolInputError, redactSecrets } from '@jini-ai/core';
 
 import { agentPluginActivations } from "./activation-effects.js";
-import { createApplyConnectDefaults } from "./apply-connect-defaults.js";
+import { CONNECT_DECLINED_ACTOR, createApplyConnectDefaults } from "./apply-connect-defaults.js";
 import { hasStoredAgentPluginCredential } from "./connect-tool.js";
 import { deriveAgentPluginConnectionId } from "./federate-mcp.js";
 import { listInstalledAgentPluginServers, type InstalledAgentPluginServers, type TokenImportLog } from "./import-access-token.js";
@@ -76,6 +76,7 @@ function connectGrantFor({ deps, options }: { deps: GrantSignedInDefaultsDeps; o
 async function grantConnection({ deps, pluginId, connectionId, onConnected, options }: { deps: GrantSignedInDefaultsDeps; pluginId: string; connectionId: string; onConnected: (serverId: string) => Promise<void>; options: GrantDeclaredToolsOptions }): Promise<boolean> {
   const row = await deps.repo.findByServerId({ workspaceId: deps.workspaceId, serverId: connectionId });
   if (!row || !eligibleGrantRow({ row, pluginId, approvedEnable: options.approvedEnable !== undefined })) return false;
+  if (!options.approvedEnable && row.writeGrantsUpdatedByPrincipalId === CONNECT_DECLINED_ACTOR) return false;
   if (options.onlyNeverGranted && row.writeGrantsUpdatedByPrincipalId !== null) return false;
   await onConnected(connectionId);
   const after = await deps.repo.findByServerId({ workspaceId: deps.workspaceId, serverId: connectionId });

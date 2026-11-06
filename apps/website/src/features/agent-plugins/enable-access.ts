@@ -36,8 +36,9 @@ export function validatedAgentPluginToolGrant(
 function assertPluginSource({ row, pluginId, source }: { row: ExternalMcpServerRecord | null; pluginId: string; source: PlannedAgentPluginMcpUpsert }): void {
   if (!row) return;
   const declaredSignIn = row.authMode === source.authMode || (source.acceptsAccessToken && row.authMode === 'static_env');
-  if (row.provisionedByPluginId === pluginId && row.url === source.url && row.transport === 'streamable_http' && declaredSignIn) return;
-  throw new ToolInputError({ message: `The '${source.connectionId}' connection was configured separately or points somewhere else. Review it with external_mcp_save before enabling this plugin.` });
+  const matchesOwner = row.provisionedByPluginId === null || row.provisionedByPluginId === pluginId;
+  if (matchesOwner && row.url === source.url && row.transport === 'streamable_http' && declaredSignIn) return;
+  throw new ToolInputError({ message: `The '${source.connectionId}' connection was configured separately or points somewhere else. Open Settings → External MCP and review this connection’s address before connecting the plugin again. Its saved sign-in was kept.` });
 }
 
 /** One indexed row lookup, with the same Jini grant decision used by the writer. O(a+w). */
@@ -48,13 +49,8 @@ async function previewSource({ workspaceId, pluginId, source, servers, repo }: {
   const declared = findAgentPluginMcpServerDefaults(servers, { serverId: source.connectionId, url: source.url });
   const grant = declared ? validatedAgentPluginToolGrant({ current, declared }, { reason: 'owner-enable' }) : null;
   const snapshot = { connectionId: source.connectionId, url: source.url, revision: row ? externalMcpAdmissionRevision(row) : null, expected: row ? externalMcpAccessSnapshot({ record: row }) : null, current, declared, grant };
-  const details = grant ? [
-    { label: 'External MCP source', value: redactSecrets({ input: `${source.connectionId} — ${source.url}` }, { redactPii: false }) },
-    { label: 'Tools', value: grant.allow.join(', ') || 'None' },
-    { label: 'May write', value: grant.write.join(', ') || 'None' },
-  ] : [];
   const resource: Omit<AccessApprovalResource, 'scope'> | null = grant ? { id: source.connectionId, label: `External MCP source: ${redactSecrets({ input: source.url }, { redactPii: false })}`, previous: current, proposed: grant, revision: snapshot.revision } : null;
-  return { snapshot, details, resource };
+  return { snapshot, resource };
 }
 
 /** Read only this plugin's declared rows before and after approval. No credentials enter the
@@ -67,17 +63,15 @@ async function previewSource({ workspaceId, pluginId, source, servers, repo }: {
 export async function previewAgentPluginEnableAccess(
   { workspaceId, pluginId, servers, repo }: { workspaceId: string; pluginId: string; servers: Readonly<Record<string, McpServerConfig>>; repo: AgentPluginMcpPort['repo'] },
   _options = {},
-): Promise<{ key: string; details: readonly { label: string; value: string }[]; resources: readonly Omit<AccessApprovalResource, 'scope'>[] }> {
+) {
   const planned = planAgentPluginMcpFederation({ servers });
   if (planned.skipped.length) throw new ToolInputError({ message: `The plugin connection cannot be enabled here: ${planned.skipped.map(entry => `${entry.serverKey}: ${entry.reason}`).join('; ')}` });
   const snapshots = [];
   const resources: Omit<AccessApprovalResource, 'scope'>[] = [];
-  const details: { label: string; value: string }[] = [];
   for (const source of planned.toUpsert) {
     const preview = await previewSource({ workspaceId, pluginId, source, servers, repo });
     snapshots.push(preview.snapshot);
-    details.push(...preview.details);
     if (preview.resource) resources.push(preview.resource);
   }
-  return { key: JSON.stringify(snapshots), details, resources };
+  return { key: JSON.stringify(snapshots), snapshots, resources };
 }

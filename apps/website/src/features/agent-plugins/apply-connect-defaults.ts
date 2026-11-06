@@ -1,6 +1,6 @@
 import { ToolInputError } from '@jini-ai/core';
 import { applyExternalMcpAccess, externalMcpAccessSnapshot } from '../external-mcp/external-mcp-store.js';
-import type { ExternalMcpAccessSnapshot } from '../external-mcp/contracts.js';
+import type { ExternalMcpAccessSnapshot, ExternalMcpServerRecord } from '../external-mcp/contracts.js';
 /**
  * @file Grants a plugin's declared default tools (`mcp.json`'s `tovuDefaultTools`, parsed by
  * `manifest.ts`) on the operator's FIRST successful sign-in to a server that plugin provisioned — so
@@ -39,6 +39,8 @@ import { setAgentPluginEnabled } from "./set-enabled.js";
 
 /** Recorded as the plugin activation's `updatedBy` and the row's write-grant attribution: the grant
  *  came from the plugin's declaration, at a sign-in, not from a Settings save. */
+export const CONNECT_DECLINED_ACTOR = "system:connect-declined";
+
 const CONNECT_DEFAULTS_ACTOR = "system:connect-defaults";
 
 /** `activation.ts`'s seeder actor: its disabled record is the default, not an operator decision. */
@@ -94,12 +96,18 @@ async function readConnectGrant({ deps, serverId, resolveServers, approvedEnable
   if (!row) return null;
   const pluginId = row.provisionedByPluginId;
   if (!pluginId) return null;
-  if (!approvedEnable && (!isEmptyJsonList(row.allowedToolNames) || !isEmptyJsonList(row.writeAllowedToolNames))) return null;
+  if (!approvedEnable && !allowsAutomaticConnectGrant(row)) return null;
   const defaults = findAgentPluginMcpServerDefaults(await resolveServers({ workspaceId: deps.workspaceId, pluginId }), row);
   // A read-only declaration is classification, not permission to change sign-in grants.
   if (!defaults?.allow) return null;
   const grant = validatedAgentPluginToolGrant({ current: storedAgentPluginGrants({ row }), declared: defaults }, { reason: approvedEnable ? 'owner-enable' : 'sign-in' });
   return grant ? { row, pluginId, grant } : null;
+}
+
+/** Existing choices and nonempty selections stay until a fresh access approval. O(n) list bytes. */
+function allowsAutomaticConnectGrant(row: ExternalMcpServerRecord): boolean {
+  return row.writeGrantsUpdatedByPrincipalId !== CONNECT_DECLINED_ACTOR &&
+    isEmptyJsonList(row.allowedToolNames) && isEmptyJsonList(row.writeAllowedToolNames);
 }
 
 /**

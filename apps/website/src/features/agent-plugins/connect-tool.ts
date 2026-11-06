@@ -3,9 +3,10 @@ import type { AgentPluginMcpPort, AgentPluginOAuthPort, AgentPluginApiConnection
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { type AgentToolSideEffect, type DerivedRiskByToolId, type AgentToolDefinition } from "@jini-ai/core";
 import { createSystemClock } from "@jini-ai/core/primitives";
-import { approvalToolHandler } from "../../contracts/core/human-confirm.js";
+import { approvalToolHandler, notConfirmedResult } from "../../contracts/core/human-confirm.js";
 import { previewAgentPluginEnableAccess } from "./enable-access.js";
-import { createApplyConnectDefaults } from "./apply-connect-defaults.js";
+import { CONNECT_DECLINED_ACTOR } from "./apply-connect-defaults.js";
+import { applyExternalMcpAccess } from "../external-mcp/external-mcp-store.js";
 import type { UUID } from "@jini-ai/core/primitives";
 import { requireToolPermission, type AuthorizeFn } from "@jini-ai/cms/core";
 import { ToolInputError, type ToolExecutionOptions, type ToolExecutionContext } from "@jini-ai/core";
@@ -299,9 +300,6 @@ async function resolvePendingOAuthServers(
 
 /** The injected adapter calls the existing token-card lifecycle without a runtime import cycle. */
 export type AgentPluginConnectOptions = ToolExecutionOptions & {
-  /** Compatibility callback for sign-in integrations. Retained sessions never call it: their
-   * access can change only through the exact fresh approval plan below. */
-  readonly onConnected?: (serverId: string) => Promise<void>;
   readonly saveToken?: (
     input: { readonly ctx: ToolExecutionContext; readonly pluginId: string },
     optional?: ToolExecutionOptions,
@@ -312,7 +310,10 @@ export type AgentPluginConnectOptions = ToolExecutionOptions & {
 };
 
 export interface AgentPluginConnectResult {
-  readonly status: "connected" | "waiting-for-sign-in" | "not-connected";
+  readonly status: "connected" | "waiting-for-sign-in" | "not-connected" | "partially-connected";
+  readonly cancelled?: boolean;
+  readonly note?: string;
+  readonly grantedConnectionIds?: readonly string[];
   readonly connectionRef?: string;
   readonly reason?: string;
   readonly message?: string;
@@ -325,7 +326,9 @@ function hasReusablePluginCredential(
   { row, pluginId, url }: { row: ExternalMcpServerRecord | null; pluginId: string; url: string },
   _optional = {},
 ): boolean {
-  return row !== null && row.provisionedByPluginId === pluginId && row.url === url && hasStoredAgentPluginCredential(row);
+  if (!row) return false;
+  const reusableOwner = row.provisionedByPluginId === null || row.provisionedByPluginId === pluginId;
+  return reusableOwner && row.url === url && hasStoredAgentPluginCredential(row);
 }
 
 /** Connect a token-only declaration through the existing card, or retain the API-connection path.
@@ -351,7 +354,9 @@ async function connectWithoutOAuth(
   ctx.signal.throwIfAborted();
   if (hasReusablePluginCredential({ row, pluginId, url: config.url })) {
     const approved = await approveSignedInAccess({ routeDeps, surfaces, ctx, pluginId, servers: { [serverKey]: config } }, optional);
-    return approved ? { status: 'connected' } : { status: 'not-connected', reason: 'access-not-approved' };
+    if (!approved.approved) return approved.result;
+    await provisionAgentPluginMcpServers(routeDeps.mcp, { workspaceId: routeDeps.workspaceId, pluginId, servers: { [serverKey]: config }, principalId: ctx.principal.id });
+    return { status: 'connected' };
   }
   if (!saveToken) throw new ToolInputError({ message: `agent_plugin_connect: use the plugin's secure key card with credential_save; no token-card adapter is wired here.` });
   const result = await saveToken({ ctx, pluginId }, optional);
@@ -410,9 +415,8 @@ export async function runAgentPluginConnect(
   // A retained session may need new access, but declining that card must not provision other
   // sources or adopt an operator's independently configured credential-bearing connection.
   const signedIn = await retainedOAuthServers({ routeDeps, servers: plugin.servers, oauthServerKeys });
-  if (!await approveSignedInAccess({ routeDeps, surfaces, ctx, pluginId, servers: signedIn }, optional)) {
-    return { status: 'not-connected', reason: 'access-not-approved' };
-  }
+  const access = await approveSignedInAccess({ routeDeps, surfaces, ctx, pluginId, servers: signedIn }, optional);
+  if (!access.approved) return access.result;
 
   const provisioned = await provisionAgentPluginMcpServers(
     routeDeps.mcp,
@@ -456,7 +460,7 @@ async function retainedOAuthServers({ routeDeps, servers, oauthServerKeys }: {
 async function approveSignedInAccess({ routeDeps, surfaces, ctx, pluginId, servers }: {
   routeDeps: AgentPluginConnectToolDeps; surfaces: AssistantSurfaceDeps; ctx: ToolExecutionContext;
   pluginId: string; servers: Readonly<Record<string, McpServerConfig>>;
-}, optional: ToolExecutionOptions = {}): Promise<boolean> {
+}, optional: ToolExecutionOptions = {}): Promise<{ approved: true } | { approved: false; result: AgentPluginConnectResult }> {
   const preview = () => previewAgentPluginEnableAccess({ workspaceId: routeDeps.workspaceId, pluginId, servers, repo: routeDeps.mcp.repo });
   const handler = approvalToolHandler({ surfaces,
     prepare: preview,
@@ -468,19 +472,48 @@ async function approveSignedInAccess({ routeDeps, surfaces, ctx, pluginId, serve
       await assertPluginCanConnect({ routeDeps, pluginId });
       const current = await currentSignedInAccess({ routeDeps, pluginId, servers });
       if (current.preview.key !== prepared.key) throw new ToolInputError({ message: 'The plugin access changed while this card was open. Request the access change again. Nothing was granted.' });
-      const apply = createApplyConnectDefaults({ workspaceId: routeDeps.workspaceId, repo: routeDeps.mcp.repo,
-        agentPluginLayout: routeDeps.agentPluginLayout, clock: createSystemClock(), resolveServers: async () => current.servers,
-        enablePlugin: async () => true, isPluginOffByOperator: async () => false,
-        notifyRosterChanged: async () => { await routeDeps.mcp.notifyRosterChanged?.({}, {}); },
-      }, { approvedEnable: { principalId: bound.principal.id, accessKey: prepared.key } });
-      for (const resource of prepared.resources) {
-        if (bound.signal.aborted) return { approved: false };
-        await apply(resource.id);
+      const granted: string[] = [];
+      let applying = '';
+      try {
+        for (const source of prepared.snapshots) {
+          if (!source.grant || !source.expected) continue;
+          if (bound.signal.aborted) return interruptedConnectAccess(granted);
+          applying = source.connectionId;
+          await applyExternalMcpAccess({ repo: routeDeps.mcp.repo, clock: createSystemClock(),
+            workspaceId: routeDeps.workspaceId, serverId: source.connectionId, expected: source.expected,
+            access: { enabled: source.grant.enabled, allowedToolNames: source.grant.allow, writeAllowedToolNames: source.grant.write }, principalId: bound.principal.id });
+          granted.push(source.connectionId);
+        }
+        applying = 'assistant tool list';
+        await routeDeps.mcp.notifyRosterChanged?.({}, {});
+      } catch (error) {
+        if (granted.length === 0) throw error;
+        return { approved: false, result: { status: 'partially-connected', reason: 'access-incomplete', grantedConnectionIds: granted,
+          note: `Access was saved for ${granted.join(', ')}, but ${applying} could not finish updating. Ask to connect the plugin again to finish.` } };
       }
       return { approved: true };
     },
-  }, { ask: ({ prepared }) => prepared.resources.length > 0, declined: () => ({ approved: false }) });
-  return (await handler(ctx, optional) as { approved: boolean }).approved;
+  }, { ask: ({ prepared }) => prepared.resources.length > 0, declined: async ({ reason, prepared }) => {
+    if (reason === 'declined') {
+      for (const source of prepared?.snapshots ?? []) {
+        if (!source.grant || !source.expected) continue;
+        // Record the choice in existing attribution; keep the exact displayed access and credentials.
+        await applyExternalMcpAccess({ repo: routeDeps.mcp.repo, clock: createSystemClock(), workspaceId: routeDeps.workspaceId,
+          serverId: source.connectionId, expected: source.expected, principalId: CONNECT_DECLINED_ACTOR,
+          access: { enabled: source.current.enabled, allowedToolNames: source.current.allow, writeAllowedToolNames: source.current.write } });
+      }
+    }
+    return { approved: false, result: { status: 'not-connected', ...notConfirmedResult({ confirmed: false, reason }) } };
+  } });
+  return await handler(ctx, optional) as { approved: true } | { approved: false; result: AgentPluginConnectResult };
+}
+
+/** Report durable progress if a run ends between independent source grants. O(g) result bytes. */
+function interruptedConnectAccess(granted: readonly string[]): { approved: false; result: AgentPluginConnectResult } {
+  const outcome = notConfirmedResult({ confirmed: false, reason: 'abandoned' });
+  if (granted.length === 0) return { approved: false, result: { status: 'not-connected', ...outcome } };
+  return { approved: false, result: { status: 'partially-connected', ...outcome, grantedConnectionIds: granted,
+    note: `Access was saved for ${granted.join(', ')} before the run ended. Other connections were not changed.` } };
 }
 
 /** Re-resolve the installed declarations: a closed-over manifest is not a fresh approval check. */
