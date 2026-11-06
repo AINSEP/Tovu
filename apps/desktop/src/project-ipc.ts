@@ -1356,6 +1356,11 @@ async function stopSiteServer(id: string, deps: Pick<ProjectIpcDeps, "openSites"
     // By pid, never by site dir alone: a live SIBLING app instance can hold its own row for this same
     // site, and a close by site dir would take that one too (D-07). A failed Stop keeps this row.
     deps.recordSiteClosed(deps.registryPath, id, { pid: openEntry.server.pid });
+  }, error => {
+    // Stop could not confirm exit. Keep this live child supervised so Keep running can retain
+    // its normal memory and crash recovery, rather than losing it from the lifecycle entirely.
+    if (!deps.openSites.has(id)) deps.openSites.set(id, openEntry);
+    throw error;
   });
   // openSites no longer exposes this child, so Quit must find its drain in the existing tracker.
   deps.pendingTeardowns?.track({ promise: teardown });
@@ -1713,7 +1718,12 @@ function registerSiteIpcHandlers<TCtx>(deps: ProjectIpcDeps<TCtx>, options: Site
       throw new Error('Keep running needs a tracked site.');
     }
     // Preserve the choice across automatic recovery; Stop/delete/manual Start release it in cancel.
-    stateFor({ siteDir }).keepAwake = true;
+    const state = stateFor({ siteDir });
+    if (state.cancelled) {
+      // A failed Stop revoked the old intent. Replace it so queued work stays revoked while
+      // this explicit choice restores memory limits and crash recovery for the live site.
+      states.set(siteDir, { ...state, cancelled: false, keepAwake: true, starting: undefined });
+    } else state.keepAwake = true;
   });
   deps.ipcMain.handle(SITE_IPC_CHANNELS.rescan, () => rescanSites({ ...deps, siteRuntime: states }));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.setHome, async () => {

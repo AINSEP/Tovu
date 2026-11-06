@@ -988,6 +988,7 @@ test("Stop withdraws this window's own attachment BEFORE signalling the external
   await handleStop(site, deps);
   assert.deepEqual(calls.filter((call) => !call.startsWith("launcherOf")).map((call) => call.split(":")[0]), ["detach", "stop"]);
   assert.equal(deps.openSites.has(site), false);
+  assert.deepEqual(closed, [[site, 999]], "the detached child releases only its own crash-safety row");
 });
 
 test("an external Stop that fails surfaces main's sentence and keeps the lease", async (t) => {
@@ -2414,19 +2415,29 @@ test('B2 restart policy uses raw RSS across footprint and fallback display chang
   assert.equal(stops, 0, 'a large display estimate cannot trigger the raw RSS cap');
 });
 
+/** Each sample mutation exercises a distinct reason to restart the sustained-RSS observation. */
+function resetRssSample({ reset, snapshot, h }: {
+  reset: string; snapshot: ResourcesSnapshot; h: ReturnType<typeof b2LifecycleHarness>;
+}) {
+  switch (reset) {
+    case 'below': snapshot.sites = h.snapshot(1_499_999_999).sites; return;
+    case 'missing': snapshot.sites = []; return;
+    case 'stale': snapshot.sampledAt -= 30001; return;
+    case 'pid': h.server().pid += 1; snapshot.sites = h.snapshot(1_500_000_000).sites; return;
+    case 'nan': snapshot.sites = h.snapshot(Number.NaN).sites; return;
+    case 'infinite': snapshot.sites = h.snapshot(Number.POSITIVE_INFINITY).sites; return;
+    case 'unavailable': snapshot.status = 'unavailable'; return;
+    default: assert.fail(`Unknown RSS reset fixture: ${reset}`);
+  }
+}
+
 test('B2 below-cap, missing, stale, invalid and replacement PID samples reset sustained RSS', async t => {
   for (const reset of ['below', 'missing', 'stale', 'pid', 'nan', 'infinite', 'unavailable'] as const) {
     const h = b2LifecycleHarness(t); h.setMinutes(0); let requests = 0;
     h.server().stopIfIdle = async () => { requests++; return false; };
     await h.lifecycle.maintain({ snapshot: h.snapshot(1_500_000_000) }, {}); h.advance(120000);
     const snapshot = h.snapshot(1_500_000_000);
-    if (reset === 'below') snapshot.sites = h.snapshot(1_499_999_999).sites;
-    if (reset === 'missing') snapshot.sites = [];
-    if (reset === 'stale') snapshot.sampledAt -= 30001;
-    if (reset === 'pid') { h.server().pid += 1; snapshot.sites = h.snapshot(1_500_000_000).sites; }
-    if (reset === 'nan') snapshot.sites = h.snapshot(Number.NaN).sites;
-    if (reset === 'infinite') snapshot.sites = h.snapshot(Number.POSITIVE_INFINITY).sites;
-    if (reset === 'unavailable') snapshot.status = 'unavailable';
+    resetRssSample({ reset, snapshot, h });
     await h.lifecycle.maintain({ snapshot }, {}); assert.equal(requests, 0, reset);
     await h.lifecycle.maintain({ snapshot: h.snapshot(1_500_000_000) }, {});
     h.advance(119999); await h.lifecycle.maintain({ snapshot: h.snapshot(1_500_000_000) }, {});
@@ -2565,4 +2576,25 @@ test('tab Keep running survives automatic RSS restart but manual Start releases 
   assert.equal(h.lifecycle.has({ siteId: h.siteDir }), true, 'automatic replacement keeps the explicit choice');
   await h.invoke(SITE_IPC_CHANNELS.start);
   assert.equal(h.lifecycle.has({ siteId: h.siteDir }), false, 'manual Start begins a fresh choice');
+});
+
+test('tab Keep running after a failed Stop restores memory limits and crash recovery', async t => {
+  const h = b2LifecycleHarness(t);
+  const sender = { isDestroyed: () => false, getURL: () => new URL('../dist/renderer/index.html', import.meta.url).href };
+  const old = h.server();
+  await h.lifecycle.maintain({ snapshot: h.snapshot() });
+  old.stop = async () => { throw new Error('The site did not stop.'); };
+  await assert.rejects(h.invoke(SITE_IPC_CHANNELS.stop), /did not stop/);
+  assert.equal(h.openSites.get(h.siteDir)?.server, old, 'a failed Stop keeps the live child supervised');
+  h.keepRunning(sender);
+  old.stopIfIdle = async () => { old.die(89); return true; };
+  await h.lifecycle.maintain({ snapshot: h.snapshot(1_500_000_000) });
+  h.advance(120000);
+  await h.lifecycle.maintain({ snapshot: h.snapshot(1_500_000_000) }); await h.drain();
+  assert.equal(h.boots(), 1, 'Keep running restores the sustained RSS restart');
+  h.server().die(1);
+  assert.equal(h.pending()[0]?.delayMs, 1000, 'Keep running restores automatic crash recovery');
+  await h.next();
+  assert.equal(h.boots(), 2);
+  assert.equal(h.lifecycle.has({ siteId: h.siteDir }), true, 'automatic restarts retain the idle hold');
 });
