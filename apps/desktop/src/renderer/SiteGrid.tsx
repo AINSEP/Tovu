@@ -126,7 +126,7 @@ export function SiteGrid({
   const locate = useLocate(onSiteUpdated);
   const { prefs, onPrefsChange } = useListPrefs();
   const list = useSiteListView({
-    items: projects.map((project) => ({ id: project.id, name: project.displayName, createdAt: project.createdAt, project })),
+    items: projects.map((project) => ({ id: project.id, name: project.displayName, createdAt: project.createdAt, running: project.status === 'running', project })),
     prefs,
     onPrefsChange,
   });

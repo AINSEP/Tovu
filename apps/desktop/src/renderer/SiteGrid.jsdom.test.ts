@@ -680,6 +680,14 @@ test('Hide takes the site off the list and Show in list brings it back, leaving 
   assert.equal(list.chip(/^Hidden/), undefined);
 });
 
+test('a running site stays on the list even when it is hidden or not among the newest', (t) => {
+  const stored = JSON.stringify({ sort: 'recent', pinned: [], hidden: ['/sites/s1'] });
+  const projects = [...dated(2, 3, 4, 5, 6, 7, 8).map((p) => p), site('/sites/s1', { displayName: 'S1', status: 'running', createdAt: '2026-01-01T00:00:00.000Z' })];
+  const list = renderList(t, projects, memoryStorage({ [SITE_LIST_STORAGE_KEY]: stored }).storage);
+  assert.ok(list.names().includes('S1'), 'hidden and oldest, but running');
+  assert.equal(list.chip(/^Hidden/), undefined, 'a running site is not counted as hidden');
+});
+
 test('every site hidden says so and points at Hidden, instead of showing an empty page', (t) => {
   const list = renderList(t, dated(1), memoryStorage().storage);
   const empty = () => list.host.querySelector('.site-list__empty');
