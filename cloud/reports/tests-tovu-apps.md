@@ -4,7 +4,7 @@ Status: in progress. Started 2026-11-06 11:49 PST (19:49 UTC); hard cap 13:49 PS
 
 ## Revisions and scope
 
-- Tovu branch `cloud/tests-tovu-apps`, frozen source revision `a08b2b10be7fd5c699618136ec1a09ce7fecda86` (final publication revision pending).
+- Tovu branch `cloud/tests-tovu-apps`, frozen source revision `ddb41f38016f5c7ce0bfa1864117fb723b3bb3d1` (final publication revision pending).
 - Tovu base `b34b9cb7ada1783698eea8ec83bb3d6913fc63c4` (`origin/cloud/combine`).
 - Jini branch `cloud/tests-tovu-apps`, unchanged code revision `3a41ec5b678e7445dce1f23d5fe08735cdd4e2b8` (`origin/cloud/combine`); no Jini source changes or push needed.
 - Pushed Tovu checkpoints: `3497f4f58`, `5da64e73a`, `adaf83ea8`.
@@ -146,3 +146,7 @@ Final full admin coverage is running on frozen source `a08b2b10be7fd5c699618136e
 The frozen run on source a08b2b10b completed883/883 passing files:14,335 passed,0failed,2existing skips (14,337total), no unhandled errors,885.88s. Exit1 solely because branch coverage97.75%(15863/16227) is below98%; reaching the floor would require40more covered branches. Other metrics: statements98.82%(23650/23931),functions98.27%(8450/8598),lines99.13%(19573/19743). No coverage chasing. This evidence is retained as round2 artifacts.
 
 A final strict metric audit found the edited autocomplete diagnostic helper rose from pre-existing cyclomatic12 to14. After the run completed, its local presence and password-policy checks were separated without changing any diagnostic, priority or input order. Changed helpers now have cyclomatic/cognitive6/4,8/5,5/5. Independent review found no policy weakening;468input combinations and303aggregate diagnostics compare identically. The complete guard file passed22/22 tests and post-repair admin typecheck passed. Ordinary lint has zero errors; strict10/10 still reports only its untouched legacy parser scanner31/37, recorded as an existing test-helper limitation rather than broadly refactored. One last frozen full admin run follows this test-only quality repair.
+
+## Last frozen pass checkpoint — 12:49 PST
+
+Final code `ddb41f38016f5c7ce0bfa1864117fb723b3bb3d1` is pushed. Its complete admin coverage pass continues without reported test failures; no source/test changes are being made. Post-quality typecheck and the22-test guard suite passed. Independent final helper review and the468-case diagnostic equivalence probe passed. Only final summary/coverage values and final report publication remain.
