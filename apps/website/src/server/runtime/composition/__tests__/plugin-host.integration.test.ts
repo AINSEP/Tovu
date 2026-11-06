@@ -179,7 +179,11 @@ test('search_tools indexes a site plugin keyword and provides capability', async
 
 
 // Shared plugins published by Jini carry Jini's publisher id; every other bundled plugin is Tovu's.
-const JINI_PUBLISHED_IDENTITIES: ReadonlyMap<string, string> = new Map([['ui-ux-design', 'jini/ui-ux-design'], ['charts-recharts', 'jini/charts-recharts-agent'], ['slide-design', 'jini/slide-design']]);
+const JINI_PUBLISHED_IDENTITIES: ReadonlyMap<string, string> = new Map([
+  ['ui-ux-design', 'jini/ui-ux-design'], ['charts-recharts', 'jini/charts-recharts-agent'], ['slide-design', 'jini/slide-design'],
+  ['commerce', 'jini/commerce'], ['stripe', 'jini/stripe'], ['software-engineering', 'jini/software-engineering'],
+  ['formspree', 'jini/formspree-agent'], ['google-forms', 'jini/google-forms-agent'],
+]);
 
 test('every bundled agent and site package declares a distinct publisher identity and discovery terms', async (t) => {
   // The shipped bundle: Tovu's content/agent-plugins plus each selected @jini-ai/agent-plugins/<id>.
