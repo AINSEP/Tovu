@@ -7,7 +7,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { cardOpenClass, cardOpenProps, closeMenuThen, databaseLabel, isCardOpenKey, isCardOpenable } from "./SiteGrid.hooks.js";
+import { cardOpenClass, cardOpenProps, closeMenuThen, databaseLabel, duplicateDisplayNames, isCardOpenKey, isCardOpenable, siteCardTone } from "./SiteGrid.hooks.js";
 import type { SiteRecord } from "../contracts/project.js";
 
 /** Stand-ins for the two DOM nodes involved. Identity is all `isCardOpenKey` compares, so plain
@@ -105,4 +105,18 @@ test("databaseLabel names the provisioned database, an operator's own label, or 
   assert.equal(databaseLabel(withDatabase({ kind: "supabase" } as SiteRecord["database"])), "Supabase");
   assert.equal(databaseLabel(withDatabase({ kind: "custom", label: "Neon" } as SiteRecord["database"])), "Neon");
   assert.equal(databaseLabel(withDatabase({ kind: "custom" } as SiteRecord["database"])), "Custom DB provider");
+});
+
+test("siteCardTone: running is green, both transitions are busy, a failure warns, the rest are neutral", () => {
+  assert.equal(siteCardTone("running"), "running");
+  assert.equal(siteCardTone("starting"), "busy");
+  assert.equal(siteCardTone("stopping"), "busy");
+  assert.equal(siteCardTone("failed"), "warning");
+  assert.equal(siteCardTone("stopped"), "neutral");
+});
+
+test("duplicateDisplayNames: only names more than one site has", () => {
+  const projects = ["Bakery", "Cafe", "Bakery", "Bakery"].map((displayName) => ({ displayName }));
+  assert.deepEqual([...duplicateDisplayNames({ projects })], ["Bakery"]);
+  assert.deepEqual([...duplicateDisplayNames({ projects: [] })], []);
 });

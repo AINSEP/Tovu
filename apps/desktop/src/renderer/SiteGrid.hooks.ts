@@ -231,6 +231,20 @@ export function closeMenuThen(setOpen: (open: boolean) => void): (act: () => voi
 }
 
 /**
+ * A name is a label, never site identity. Keep unrelated cards and expose their parent paths.
+ * @returns The display names more than one site has. @complexity O(n) in `projects`.
+ */
+export function duplicateDisplayNames({ projects }: { projects: readonly Pick<SiteRecord, 'displayName'>[] }, _options = {}): Set<string> {
+  const seenNames = new Set<string>();
+  const duplicateNames = new Set<string>();
+  for (const project of projects) {
+    if (seenNames.has(project.displayName)) duplicateNames.add(project.displayName);
+    seenNames.add(project.displayName);
+  }
+  return duplicateNames;
+}
+
+/**
  * The status dot's tone. Both transitions are busy, not only the boot: a stop takes as long as its
  * drain does. A failure is a warning, as it was on the card before the shared frame.
  * @returns The tone for this status. @complexity O(1) time and space.

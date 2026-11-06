@@ -50,7 +50,7 @@ import { useSiteActions } from './use-site-actions.hooks.js';
 import { codeSpans, externalStopConfirm, powerControl, useSitePower } from './use-site-power.hooks.js';
 import { useSiteLocate } from './use-site-locate.hooks.js';
 import { useSitePreview } from './use-site-preview.hooks.js';
-import { cardOpenClass, cardOpenProps, siteCardTone, cardOverlay, closeMenuThen, databaseLabel, deleteActionCopy, isCardOpenable, type CardOverlayMode, type DeleteActionCopy } from './SiteGrid.hooks.js';
+import { cardOpenClass, cardOpenProps, duplicateDisplayNames, siteCardTone, cardOverlay, closeMenuThen, databaseLabel, deleteActionCopy, isCardOpenable, type CardOverlayMode, type DeleteActionCopy } from './SiteGrid.hooks.js';
 import { STATUS_LABEL } from './site-status.js';
 import { siteCardStatus, sitePortPresentation } from './site-port.rules.js';
 import type { SiteRecord } from '../contracts/project.js';
@@ -130,13 +130,7 @@ export function SiteGrid({
     prefs,
     onPrefsChange,
   });
-  // A name is a label, never site identity. Keep unrelated cards and expose their parent paths.
-  const seenNames = new Set<string>();
-  const duplicateNames = new Set<string>();
-  for (const project of projects) {
-    if (seenNames.has(project.displayName)) duplicateNames.add(project.displayName);
-    seenNames.add(project.displayName);
-  }
+  const duplicateNames = duplicateDisplayNames({ projects });
 
   return (
     <>
