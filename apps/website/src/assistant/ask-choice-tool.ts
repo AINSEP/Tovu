@@ -2,7 +2,7 @@ import { toolMetadata } from '../contracts/core/tool-metadata/assistant.js';
 import { randomUUID } from "node:crypto";
 import { MID_RUN_USER_MESSAGE_EVENT_NAME, questionAnswerLabel, questionAnswerText, SURFACE_QUESTION_META_KEY, type AcceptedChatInput } from '@jini-ai/chat/core';
 
-import { buildFormSurface, type SurfaceField, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
+import { accessApprovalDetails, buildConfirmationSurface, buildFormSurface, type SurfaceField, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
 import { ToolInputError, createApprovalHandler, buildDomainRegistrations, decorateWithSchema, type AccessApprovalDescription, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { ASK_CHOICE_INPUT_SCHEMA, askChoice, createAskChoiceTool, createAskChoiceAnswerTicketStore, type AskChoiceForm, type AskChoiceQuestion, type AskChoiceExchangeStore, type AskChoiceMessages, type AskChoicePresentation } from "@jini-ai/mcp/tools/ask-choice";
 
@@ -478,9 +478,10 @@ export async function askAgentPluginChoice(
 /** Preserve the existing form, receipt correlation and offered-option validator under approval.
  * @complexity O(m + s) for offered matches and selections; one principal-bound exchange.
  */
-async function askAutomaticPluginAccess({ surfaces, principalId, emitSurface, signal, question, matches }: {
+async function askAutomaticPluginAccess({ surfaces, principalId, emitSurface, signal, question, matches, access }: {
   surfaces: AssistantSurfaceDeps; principalId: string; emitSurface: import('@jini-ai/core').SurfaceEmitter;
   signal: AbortSignal; question: AskChoiceQuestion; matches: readonly { id: string; name: string }[];
+  access: AccessApprovalDescription;
 }, _options = {}): Promise<Record<string, unknown>> {
   const exchange = askChoiceExchanges({ surfaces }).open({ toolId: ASK_CHOICE_TOOL_ID, principalId, emit: ({ emission }) => emitSurface(emission) });
   // Consent has no model tool call. Keep its display question and answer in the existing transcript
@@ -489,12 +490,36 @@ async function askAutomaticPluginAccess({ surfaces, principalId, emitSurface, si
   let surfaceUri: string | undefined;
   const answer = await askChoice({ exchange, question, toolId: ASK_CHOICE_TOOL_ID, principalId, signal, messages: askChoiceMessages,
     presentation: { render: (input, options = {}) => {
-      const ui = buildAskChoiceFormSurface(input, options);
+      const ui = buildAutomaticPluginAccessSurface({ ...input, access }, options);
       surfaceUri = ui.resource.uri;
       return { ...ui, resource: { ...ui.resource, _meta: { ...ui.resource._meta, [SURFACE_QUESTION_META_KEY]: displayQuestion } } };
     } },
   });
   return { ...answer, exchangeId: exchange.id, surfaceUri, displayQuestion };
+}
+
+/** Keep the existing checklist layout while using the common human-only, visible-dwell controls.
+ * Fixed access coordinates remain available in a collapsed disclosure above the choices.
+ * @complexity O(m) markup for m offered matches; the common renderer owns click security.
+ */
+function buildAutomaticPluginAccessSurface(
+  { toolName, principalId, question, baseParams, access }: Omit<AskChoiceForm, 'cancelParams'> & { access: AccessApprovalDescription },
+  { cancelParams }: Pick<AskChoiceForm, 'cancelParams'> = {},
+): ReturnType<typeof buildConfirmationSurface> {
+  const select = question.multiSelect!;
+  return buildConfirmationSurface({
+    uri: `ui://tovu/ask-choice/${principalId}/${Date.now()}` as UIResourceUri,
+    title: question.title, description: question.description,
+    detailDisclosure: { label: 'Access details', details: accessApprovalDetails({ access }) },
+    choicesLabel: select.label,
+    choices: select.options.map(option => ({ id: option.value, label: option.label, checked: true })),
+    choicesParam: 'selections',
+    confirm: { label: 'Use', toolName, params: { ...baseParams, __choiceAction: 'use' } },
+    alternatives: [{ id: 'auto', label: "Don't ask again", toolName, params: { ...baseParams, __choiceAction: 'auto' } }],
+    cancel: { label: 'Skip', toolName, params: cancelParams ?? {} },
+    text: { done: 'Response received.' },
+    app: { appName: 'tovu-ask-choice', appVersion: '1' }, preferredFrameSize: ['100%', '420px'],
+  });
 }
 
 /** Record one real answer against its card; no copy of the offered plugin guidance is persisted.

@@ -51,14 +51,15 @@ async function fixture(t: TestContext, { pluginId = 'synthetic-author', count = 
   const principalRepo = Object.assign(principalRecords, createSettingsPrincipalLookup({ repo: principalRecords }));
   const settingsUiTabsReady = ensureAdminInterfaceSettingDefinitions({ settingsRepo, clock, ids: idGen, principals: { findActiveById: async ({ id }) => ({ id }) } }, { systemPrincipalId: 'system' });
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' });
+  const preferences = composeAgentPluginPreferences({ settings: { repo: settingsRepo, clock, ids: idGen,
+    principals: createSettingsPrincipalLookup({ repo: principalRepo }), authorize: async () => ({ allowed: true, reason: 'test' }) } });
   const runs = createAutomaticPluginRuns({ askAgentPluginChoice, deps: { workspaceId, agentPluginLayout: layout, siteTitleReady: settingsUiTabsReady,
-    preferences: composeAgentPluginPreferences({ settings: { repo: settingsRepo, clock, ids: idGen,
-      principals: createSettingsPrincipalLookup({ repo: principalRepo }), authorize: async () => ({ allowed: true, reason: 'test' }) } }),
+    preferences,
   }, surfaces: { surfaceExchanges, assertAccessApprover: createAccessApprover({ principalRepo, workspaceId }) } });
   const published: Parameters<AutomaticPluginRun['publish']>[0][] = [];
   const context: AutomaticPluginRun = { principal: { id: 'alice' }, conversationId: 'chat', state: { decision: null, excluded: [] }, query: 'Design holography', pinned: [], signal: new AbortController().signal, emitSurface: async () => { assert.fail('Auto must not ask'); }, publish: async value => { published.push(value); } };
   await settingsUiTabsReady;
-  return { runs, context, published, workspaceId, workspace, layout, pluginId, principalRepo, settingsRepo, clock, idGen, surfaceExchanges };
+  return { runs, context, published, workspaceId, workspace, layout, pluginId, principalRepo, settingsRepo, clock, idGen, surfaceExchanges, preferences };
 }
 
 test('Auto preflight suggests metadata only; the first guarded write still loads real guidance once', async t => {
@@ -609,4 +610,30 @@ test('automatic plugin access rechecks the real active person after the answer',
   assert.equal(cards, 1);
   assert.equal(f.published.length, 0);
   f.runs.forget({ runId: 'revoked-person' });
+});
+
+test('a real Auto CAS failure after the post-card read retains no consent on the same controller', async t => {
+  const f = await fixture(t);
+  await f.principalRepo.save({ id: 'alice', workspaceId: f.workspaceId, kind: 'user', displayName: 'Alice', status: 'active', createdAt: f.clock.nowIso() });
+  const writeMode = (value: 'ask' | 'off') => set({ deps: { repo: f.settingsRepo, clock: f.clock, ids: f.idGen,
+    principals: createSettingsPrincipalLookup({ repo: f.principalRepo }), authorize: async () => ({ allowed: true, reason: 'test' }) },
+    input: { namespace: 'core.interface', key: 'chatAgentPlugins', scope: 'user', workspaceId: f.workspaceId, principalId: 'alice', callerPrincipalId: 'alice', authWorkspaceId: f.workspaceId, value } });
+  await writeMode('ask');
+  const saveAuto = f.preferences.saveAuto;
+  f.preferences.saveAuto = async input => { await writeMode('off'); await saveAuto(input); };
+  let cards = 0;
+  const context = { ...f.context, emitSurface: async (emission: Parameters<AutomaticPluginRun['emitSurface']>[0]) => {
+    if (emission.channel !== 'mcp-ui') return;
+    cards++;
+    const html = (emission.payload.resource as { resource: { text: string } }).resource.text;
+    const exchangeId = html.match(/__exchangeId"\s*:\s*"([^"]+)"/)?.[1];
+    assert.ok(exchangeId);
+    assert.equal(f.surfaceExchanges.deliver({ exchangeId, principalId: 'alice', params: { __choiceAction: 'auto', selections: [f.pluginId] } }, { toolId: ASK_CHOICE_TOOL_ID }).ok, true);
+  } };
+  await assert.rejects(f.runs.start({ runId: 'cas-retry', context }), /revision changed/);
+  await assert.rejects(f.runs.start({ runId: 'cas-retry', context }), /preference changed/);
+  assert.equal(await f.preferences.mode({ workspaceId: f.workspaceId, principalId: 'alice' }), 'off');
+  assert.equal(cards, 1, 'Off does not reopen a card');
+  assert.equal(f.published.length, 0, 'rejected access is never published as used');
+  f.runs.forget({ runId: 'cas-retry' });
 });

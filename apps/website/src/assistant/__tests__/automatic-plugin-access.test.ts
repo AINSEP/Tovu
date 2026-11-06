@@ -30,6 +30,12 @@ test('automatic plugin access verifies the active person before disclosure and a
     assert.match(html, /Don't ask again|Don&#39;t ask again/);
     assert.match(html, /Auto/);
     assert.match(html, /this site/);
+    assert.match(html, /data-mcpui-action="confirm" data-agent-private disabled/);
+    assert.match(html, /data-mcpui-action="auto" data-agent-private disabled/);
+    assert.match(html, /var DWELL_MS = 1500/);
+    assert.match(html, /Access details/);
+    assert.match(html, /core\.interface\.chatAgentPlugins/);
+    assert.match(html, /&quot;revision&quot;: &quot;4&quot;/);
   } });
   assert.deepEqual(result, { action: 'auto', selected: ['offered'] });
   assert.deepEqual(events, ['verify', 'card', 'verify', 'receipt']);
