@@ -1,4 +1,4 @@
-import { cpSync, existsSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { cp, mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -73,7 +73,11 @@ let processRootSync: string | undefined;
  */
 export function processComposedBundledSourceRootSync(): string {
   if (processRootSync !== undefined) return processRootSync;
-  const root = mkdtempSync(path.join(tmpdir(), "tovu-composed-bundle-"));
+  // Production bundles live under the host package; its installed peers must also resolve
+  // from copied fixture modules. Keep the disposable copy in that same dependency ancestry.
+  const cacheRoot = path.join(REPO_ROOT, 'node_modules', '.cache');
+  mkdirSync(cacheRoot, { recursive: true });
+  const root = mkdtempSync(path.join(cacheRoot, "tovu-composed-bundle-"));
   cpSync(path.join(REPO_ROOT, "content", "agent-plugins"), root, { recursive: true });
   for (const pluginId of SELECTED_AGENT_PLUGIN_PACKAGES.keys()) cpSync(agentPluginSourceDir({ pluginId }), path.join(root, pluginId), { recursive: true });
   process.once("exit", () => rmSync(root, { recursive: true, force: true }));
