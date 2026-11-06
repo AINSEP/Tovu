@@ -168,16 +168,16 @@ function fieldNames(input: ExternalMcpSaveInput, isUpdate: boolean): string[] {
   return buildExternalMcpSaveFormFields(input, isUpdate).map((f) => f.name);
 }
 
-test("stdio, create: id, label, command, args, allowedToolNames, writeAllowedToolNames, env and static token fields — in that order, no oauth fields", () => {
-  assert.deepEqual(fieldNames({ id: "srv-1", transport: "stdio" }, false), ["id", "label", "command", "args", "allowedToolNames", "writeAllowedToolNames", "env", "accessToken", "accessTokenEnvName"]);
+test("stdio, create: id, label, command, args, env and static token fields — in that order, no oauth fields", () => {
+  assert.deepEqual(fieldNames({ id: "srv-1", transport: "stdio" }, false), ["id", "label", "command", "args", "env", "accessToken", "accessTokenEnvName"]);
 });
 
 test("stdio, update: id field is omitted", () => {
-  assert.deepEqual(fieldNames({ id: "srv-1", transport: "stdio" }, true), ["label", "command", "args", "allowedToolNames", "writeAllowedToolNames", "env", "accessToken", "accessTokenEnvName"]);
+  assert.deepEqual(fieldNames({ id: "srv-1", transport: "stdio" }, true), ["label", "command", "args", "env", "accessToken", "accessTokenEnvName"]);
 });
 
 test("streamable_http transport: url field instead of command/args, and no env field", () => {
-  assert.deepEqual(fieldNames({ id: "srv-1", transport: "streamable_http" }, false), ["id", "label", "url", "allowedToolNames", "writeAllowedToolNames", "accessToken"]);
+  assert.deepEqual(fieldNames({ id: "srv-1", transport: "streamable_http" }, false), ["id", "label", "url", "accessToken"]);
 });
 
 test("oauth + stdio: oauth core fields, then the stdio-only token-env field, then the endpoint fields", () => {
@@ -186,8 +186,6 @@ test("oauth + stdio: oauth core fields, then the stdio-only token-env field, the
     "label",
     "command",
     "args",
-    "allowedToolNames",
-    "writeAllowedToolNames",
     "env",
     "oauthProviderId",
     "oauthGrant",
@@ -204,7 +202,7 @@ test("oauth + stdio: oauth core fields, then the stdio-only token-env field, the
 test("oauth + streamable_http: no oauthTokenEnvName field (stdio-only)", () => {
   const names = fieldNames({ id: "srv-1", transport: "streamable_http", authMode: "oauth" }, false);
   assert.ok(!names.includes("oauthTokenEnvName"));
-  assert.deepEqual(names, ["id", "label", "url", "allowedToolNames", "writeAllowedToolNames", "oauthProviderId", "oauthGrant", "oauthClientId", "oauthClientSecret", "oauthScopes", "oauthAuthorizationEndpoint", "oauthTokenEndpoint", "oauthDeviceAuthorizationEndpoint"]);
+  assert.deepEqual(names, ["id", "label", "url", "oauthProviderId", "oauthGrant", "oauthClientId", "oauthClientSecret", "oauthScopes", "oauthAuthorizationEndpoint", "oauthTokenEndpoint", "oauthDeviceAuthorizationEndpoint"]);
 });
 
 test("a provided value pre-fills the field; an omitted value leaves no `value` key at all", () => {
@@ -215,15 +213,12 @@ test("a provided value pre-fills the field; an omitted value leaves no `value` k
   assert.equal("value" in command, false);
 });
 
-test("writeAllowedToolNames: a provided value pre-fills the field; an omitted value leaves no `value` key", () => {
-  const withValue = buildExternalMcpSaveFormFields({ id: "srv-1", transport: "stdio", writeAllowedToolNames: "tool_a" }, false).find(
-    (f) => f.name === "writeAllowedToolNames",
-  ) as { value?: string };
-  const withoutValue = buildExternalMcpSaveFormFields({ id: "srv-1", transport: "stdio" }, false).find((f) => f.name === "writeAllowedToolNames") as {
-    value?: string;
-  };
-  assert.equal(withValue.value, "tool_a");
-  assert.equal("value" in withoutValue, false);
+test("writeAllowedToolNames: the proposed value is disclosed read-only; omission grants no write access", () => {
+  const withValue = buildExternalMcpSaveForm({ save: { id: "srv-1", transport: "stdio", writeAllowedToolNames: "tool_a" }, isUpdate: false });
+  const withoutValue = buildExternalMcpSaveForm({ save: { id: "srv-1", transport: "stdio" }, isUpdate: false });
+  assert.equal(withValue.details?.find(detail => detail.label === "May write")?.value, "tool_a");
+  assert.equal(withoutValue.details?.find(detail => detail.label === "May write")?.value, "None");
+  assert.equal(withValue.fields.some(field => field.name === "writeAllowedToolNames"), false);
 });
 
 test("env field's hint differs between create and update", () => {
@@ -357,8 +352,8 @@ test("static_env explicitly selects token entry and none omits credential fields
     assert.equal((fields.find(field => field.name === "accessTokenEnvName") as { value: string }).value, "API_TOKEN");
   }
   const form = buildExternalMcpSaveForm({ save: { ...BASE_INPUT, authMode: "none" }, isUpdate: false }, {});
-  assert.deepEqual(form.details, [{ label: "Connection type", value: "Local command (stdio)" }, { label: "Credentials", value: "None needed" }, { label: "Local access", value: "Saving lets chats start the command below on this computer as your OS user." }]);
-  assert.deepEqual(form.fields.map(field => field.name), ["id", "label", "command", "args", "allowedToolNames", "writeAllowedToolNames", "env"]);
+  assert.deepEqual(form.details, [{ label: "Connection type", value: "Local command (stdio)" }, { label: "Credentials", value: "None needed" }, { label: "Allowed tools", value: "None" }, { label: "May write", value: "None" }, { label: "Local access", value: "Saving lets chats start the command below on this computer as your OS user." }]);
+  assert.deepEqual(form.fields.map(field => field.name), ["id", "label", "command", "args", "env"]);
 });
 
 // L155 pins: the merge's complete field contract, including explicit blank clears.
@@ -391,9 +386,10 @@ test("common form fields preserve blank prefills, required flags, order and perm
       { kind: "string", name: "id", label: "ID", required: true, value: "server", hint: "Lowercase letters, digits and dashes." },
       { kind: "string", name: "label", label: "Display name", value: "" },
     ]);
-    assert.deepEqual(fields.filter(field => ["allowedToolNames", "writeAllowedToolNames"].includes(field.name)), [
-      { kind: "string", name: "allowedToolNames", label: "Allowed tools", value: "", hint: "Comma-separated. The assistant can call only these tools." },
-      { kind: "string", name: "writeAllowedToolNames", label: "May write", value: "", hint: "Comma-separated, and must also be listed above under Allowed tools — a name here that isn't is rejected on save. Leave blank to grant no write access." },
+    assert.deepEqual(fields.filter(field => ["allowedToolNames", "writeAllowedToolNames"].includes(field.name)), []);
+    const form = buildExternalMcpSaveForm({ save: { id: "server", transport, allowedToolNames: "read", writeAllowedToolNames: "" }, isUpdate: false });
+    assert.deepEqual(form.details?.filter(detail => ["Allowed tools", "May write"].includes(detail.label)), [
+      { label: "Allowed tools", value: "read" }, { label: "May write", value: "None" },
     ]);
     if (transport === "streamable_http") assert.deepEqual(fields[2], { kind: "string", name: "url", label: "URL", required: true, value: "", placeholder: "https://…" });
   }
@@ -401,10 +397,11 @@ test("common form fields preserve blank prefills, required flags, order and perm
 
 
 test("save cards disclose site-wide access, local OS execution and the tool allowlist", () => {
-  const local = buildExternalMcpSaveForm({ save: { ...BASE_INPUT, command: "node" }, isUpdate: false });
+  const local = buildExternalMcpSaveForm({ save: { ...BASE_INPUT, command: "node", allowedToolNames: "read" }, isUpdate: false });
   assert.match(local.description!, /Saved for the whole site: every chat and agent can use it, with approvals/);
   assert.ok(local.details?.some(detail => detail.value === "Saving lets chats start node on this computer as your OS user."));
-  assert.equal(local.fields.find(field => field.name === "allowedToolNames")?.hint, "Comma-separated. The assistant can call only these tools.");
+  assert.deepEqual(local.details?.find(detail => detail.label === "Allowed tools"), { label: "Allowed tools", value: "read" });
+  assert.equal(local.fields.some(field => field.name === "allowedToolNames"), false);
   const hosted = buildExternalMcpSaveForm({ save: { ...BASE_INPUT, transport: "streamable_http" }, isUpdate: true });
   assert.match(hosted.description!, /Saved for the whole site/);
   assert.equal(hosted.details?.some(detail => detail.label === "Local access"), false);

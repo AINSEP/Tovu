@@ -247,11 +247,13 @@ export function buildCommentsRegistrations(
         await providerPermission({ principalId: ctx.principal.id });
         const current = await providerRegistry().active({ siteId: routeDeps.workspaceId });
         if (current.revision !== expectedRevision) throw new ToolInputError({ message: 'Comments provider changed; read it again.' });
-        return { providerId: input.providerId as string | null, expectedRevision,
+        return { providerId: input.providerId as string | null, previousProviderId: current.providerId, expectedRevision,
           pendingCount: await routeDeps.commentRepo.countByStatus({ workspaceId: routeDeps.workspaceId, status: 'pending' }) };
       },
-      describe: ({ prepared }) => ({ toolId: 'comments_set_provider', errorCode: 'COMMENTS', title: 'Change the comments provider?',
-        details: [{ label: 'Provider', value: prepared.providerId ?? 'Disabled' }, { label: 'Pending stored comments', value: String(prepared.pendingCount) }],
+      describe: ({ ctx, prepared }) => ({ toolId: 'comments_set_provider', errorCode: 'COMMENTS', title: 'Change the comments provider?',
+        access: { resources: [{ id: 'core.comments.provider', label: 'Provider', scope: { personId: ctx.principal.id, siteId: routeDeps.workspaceId },
+          previous: prepared.previousProviderId ?? 'Disabled', proposed: prepared.providerId ?? 'Disabled', revision: String(prepared.expectedRevision) }] },
+        details: [{ label: 'Pending stored comments', value: String(prepared.pendingCount) }],
         warning: 'Switching or disabling hides public stored comments. Stored data and the readable moderation queue are preserved.', confirmLabel: 'Change provider' }),
       run: async ({ ctx, prepared }) => {
         await providerPermission({ principalId: ctx.principal.id });

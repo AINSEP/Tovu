@@ -1,7 +1,7 @@
 import { renderHumanApproval } from "../../../../__tests__/support/render-human-approval.js";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { describeEnableApproval } from "../../set-enabled-confirmation-ui.js";
+import { describeEnableApproval } from "../../tool-registrations.js";
 
 // Adapter contract (F1.1/F2.5/F2.6): run the real renderer, then read its actual action payload.
 for (const family of ["agent-plugin", "site-runtime"] as const) {

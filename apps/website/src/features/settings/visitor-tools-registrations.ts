@@ -1,5 +1,5 @@
 /** Admin assistant adapter; no public executor or generic settings path enters these handlers. */
-import { buildDomainRegistrations, indexCatalogById, ToolInputError, type DerivedRiskByToolId, type ToolRegistration } from "@jini-ai/core";
+import { buildDomainRegistrations, indexCatalogById, ToolInputError, type AccessApprovalResource, type DerivedRiskByToolId, type ToolRegistration } from "@jini-ai/core";
 import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import type { ToolContributor } from "@jini-ai/core";
 import { approvalToolHandler } from "../../contracts/core/human-confirm.js";
@@ -9,7 +9,7 @@ import type { VisitorToolsManagementPort, PreparedVisitorToolsChange } from "../
 import { visitorToolsAgentCatalog } from "./visitor-tools-agent-tools.js";
 import { VisitorToolsRevisionConflictError } from "./visitor-tools-write.js";
 
-export interface VisitorToolsToolDeps { readonly visitorToolsManagement?: VisitorToolsManagementPort }
+export interface VisitorToolsToolDeps { readonly workspaceId: string; readonly visitorToolsManagement?: VisitorToolsManagementPort }
 /** Derived from current handlers: only configure writes. T4 must change save/delete risk with its implementation. */
 export const visitorToolsDerivedRisk: DerivedRiskByToolId = new Map([
   ["visitor_tools_list", "none"], ["visitor_tool_configure", "mutates-durable-state"], ["visitor_tool_save", "none"], ["visitor_tool_delete", "none"],
@@ -24,33 +24,35 @@ async function toolResult({ run }: { run: () => Promise<unknown> }, _options = {
   }
 }
 
-/** Plain disclosure rows for one tool; source revisions remain bound by apply's catalog comparison. */
-function changeDetails({ tool, previous, next }: PreparedVisitorToolsChange["changes"][number], _options = {}) {
-  const names = { off: "Off", ask: "Ask", auto: "Auto" };
-  const details = [{ label: tool.title, value: `${names[previous.mode]} → ${names[next.mode]}` }];
-  if (previous.limits.perIpPerHour !== next.limits.perIpPerHour) details.push({ label: "Per visitor",
-    value: `${previous.limits.perIpPerHour.toLocaleString("en-US")}/hour → ${next.limits.perIpPerHour.toLocaleString("en-US")}/hour` });
-  if (previous.limits.perSitePerDay !== next.limits.perSitePerDay) details.push({ label: "Whole site",
-    value: `${previous.limits.perSitePerDay.toLocaleString("en-US")}/day → ${next.limits.perSitePerDay.toLocaleString("en-US")}/day` });
-  if (tool.publication) details.push(
+/** Source publication disclosures stay attached to the fixed proposal, outside editable grants. */
+function publicationDetails({ tool }: PreparedVisitorToolsChange["changes"][number], _options = {}) {
+  return tool.publication ? [
     { label: "Sends requests to", value: tool.publication.endpoint },
     { label: "Uses credential", value: tool.publication.credentialId },
     { label: "Shares fields", value: tool.publication.returnedFields.join(", ") },
-  );
-  return details;
+  ] : [];
 }
 
-/** Disclosure binds the card to every affected tool, its mode, quota and source-owned publication. */
-function describeChange({ prepared }: { prepared: PreparedVisitorToolsChange }, _options = {}) {
-  return { toolId: "visitor_tool_configure", errorCode: "VISITOR_TOOLS", title: "Change public visitor tool access?",
-    description: "This changes what anonymous visitors may access. Your confirmation applies only to these changes and is never remembered.",
-    details: prepared.changes.flatMap(change => changeDetails(change)), confirmLabel: "Confirm public access" };
+/** Human labels keep policy implementation fields out of the approval display. */
+function accessValue({ choice }: { choice: PreparedVisitorToolsChange["changes"][number]["next"] }, _options = {}) {
+  const names = { off: "Off", ask: "Ask", auto: "Auto" };
+  return { Mode: names[choice.mode], "Per visitor": `${choice.limits.perIpPerHour.toLocaleString("en-US")}/hour`,
+    "Whole site": `${choice.limits.perSitePerDay.toLocaleString("en-US")}/day` };
+}
+
+/** Both the settings revision and source-owned contract remain bound by apply's comparison. */
+function accessResource({ change, prepared, personId, siteId }: {
+  change: PreparedVisitorToolsChange["changes"][number]; prepared: PreparedVisitorToolsChange; personId: string; siteId: string;
+}, _options = {}): AccessApprovalResource {
+  return { id: change.tool.id, label: change.tool.title, scope: { personId, siteId },
+    previous: accessValue({ choice: change.previous }), proposed: accessValue({ choice: change.next }),
+    revision: `${prepared.revisionSeq}:${change.tool.sourceRevision}` };
 }
 
 /** Build the reviewed four-tool catalog with the shared approval engine and an always-fresh card.
  * @throws ToolInputError for invalid input/uncomposed roots; permission/storage errors propagate.
  * @complexity O(1) registration; service operations are bounded to 128 tools.
- * @example buildVisitorToolsRegistrations({ deps: {visitorToolsManagement}, surfaces: {surfaceExchanges} });
+ * @example buildVisitorToolsRegistrations({ deps: {workspaceId, visitorToolsManagement}, surfaces: {surfaceExchanges} });
  */
 export function buildVisitorToolsRegistrations({ deps, surfaces }: {
   deps: VisitorToolsToolDeps; surfaces: AssistantSurfaceDeps;
@@ -61,7 +63,11 @@ export function buildVisitorToolsRegistrations({ deps, surfaces }: {
   };
   const configure = approvalToolHandler({ surfaces,
     prepare: ({ ctx }) => service().prepare({ callerPrincipalId: ctx.principal.id, input: ctx.input }),
-    describe: describeChange,
+    describe: ({ ctx, prepared }) => ({ toolId: "visitor_tool_configure", errorCode: "VISITOR_TOOLS", title: "Change public visitor tool access?",
+      description: "This changes what anonymous visitors may access. Your confirmation applies only to these changes and is never remembered.",
+      details: prepared.changes.flatMap(change => publicationDetails(change)), confirmLabel: "Confirm public access",
+      ...(prepared.requiresApproval ? { access: { resources: prepared.changes.map(change => accessResource({ change, prepared, personId: ctx.principal.id, siteId: deps.workspaceId })) } } : {}),
+    }),
     run: ({ ctx, prepared }) => service().apply({ callerPrincipalId: ctx.principal.id, prepared }),
   }, { ask: ({ prepared }) => prepared.requiresApproval, remembered: undefined, flag: "changed" });
   return buildDomainRegistrations({ domain: "visitor-tools", catalogModule: "features/settings/visitor-tools-agent-tools.ts", metadata: toolMetadata,

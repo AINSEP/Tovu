@@ -1,4 +1,6 @@
-import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
+import { ToolInputError } from '@jini-ai/core';
+import { applyExternalMcpAccess, externalMcpAccessSnapshot } from '../external-mcp/external-mcp-store.js';
+import type { ExternalMcpAccessSnapshot } from '../external-mcp/contracts.js';
 /**
  * @file Grants a plugin's declared default tools (`mcp.json`'s `tovuDefaultTools`, parsed by
  * `manifest.ts`) on the operator's FIRST successful sign-in to a server that plugin provisioned — so
@@ -107,16 +109,19 @@ async function readConnectGrant({ deps, serverId, resolveServers, approvedEnable
  * failing the sign-in.
  * @complexity O(s) in the plugin's declared server count, plus one row write and one activation write.
  */
-export function createApplyConnectDefaults(deps: ApplyConnectDefaultsDeps, options: { readonly approvedEnable?: { readonly principalId: string } } = {}): (serverId: string) => Promise<void> {
+export function createApplyConnectDefaults(deps: ApplyConnectDefaultsDeps, options: { readonly approvedEnable?: { readonly principalId: string; readonly accessKey: string } } = {}): (serverId: string) => Promise<void> {
   const resolveServers = deps.resolveServers ?? ((input: { workspaceId: string; pluginId: string }) => resolveAgentPluginMcpServers({ ...input, agentPluginLayout: deps.agentPluginLayout }));
   const enablePlugin =
     deps.enablePlugin ?? ((input: { workspaceId: string; pluginId: string }) => switchPluginOnUnlessOperatorOff({ ...input, agentPluginLayout: deps.agentPluginLayout }));
   const isOff = deps.isPluginOffByOperator ?? ((pluginId: string) => isPluginOffByOperator({ workspaceId: deps.workspaceId, agentPluginLayout: deps.agentPluginLayout, pluginId }));
 
   return async (serverId) => {
+    assertApprovedSnapshot(options.approvedEnable);
     const prepared = await readConnectGrant({ deps, serverId, resolveServers, approvedEnable: options.approvedEnable !== undefined });
     if (!prepared) return;
     const { row, pluginId, grant } = prepared;
+    const approved = approvedSource({ key: options.approvedEnable?.accessKey, connectionId: serverId });
+    assertApprovedSource({ approved, grant, current: storedAgentPluginGrants({ row }), url: row.url, expected: externalMcpAccessSnapshot({ record: row }) });
     // A sign-in is not an "on" switch: an operator's explicit plugin-off stays off, exactly as on
     // the saved-token path (`switch-on-saved-token.ts`). The sign-in itself still completes.
     if (await isOff(pluginId)) return;
@@ -125,18 +130,41 @@ export function createApplyConnectDefaults(deps: ApplyConnectDefaultsDeps, optio
     // write is the step that makes a retry a no-op, so it goes last. The check above is only a cheap
     // early exit: an operator's "off" landing after it is caught again under the activations lock.
     if (await enablePlugin({ workspaceId: deps.workspaceId, pluginId, actor: CONNECT_DEFAULTS_ACTOR }) === false) return;
-    const nowIso = clockNowIso({ clock: deps.clock });
+    const expected = approved?.expected ?? externalMcpAccessSnapshot({ record: row });
     // Direct repo write, the same reason `federate-mcp.ts`'s adoption gives: every other field
     // (url, auth, the token this sign-in just stored) must stay exactly as it is.
-    await deps.repo.upsert({
-      ...row,
-      enabled: true,
-      allowedToolNames: JSON.stringify(grant.allow),
-      writeAllowedToolNames: JSON.stringify(grant.write),
-      writeGrantsUpdatedByPrincipalId: options.approvedEnable?.principalId ?? CONNECT_DEFAULTS_ACTOR,
-      writeGrantsUpdatedAt: nowIso,
-      updatedAt: nowIso,
-    });
+    await applyExternalMcpAccess({ repo: deps.repo, clock: deps.clock, workspaceId: deps.workspaceId, serverId,
+      expected, access: { enabled: true, allowedToolNames: grant.allow, writeAllowedToolNames: grant.write },
+      principalId: options.approvedEnable?.principalId ?? CONNECT_DEFAULTS_ACTOR });
     await deps.notifyRosterChanged();
   };
+}
+
+/** Approval-bearing callers cannot fall back to an unbound sign-in grant. */
+function assertApprovedSnapshot(approved: { readonly accessKey: string } | undefined): void {
+  if (approved && !approved.accessKey) throw new ToolInputError({ message: 'The approved access snapshot is missing. Request the access change again. Nothing was granted.' });
+}
+
+/** Only the detached host-produced snapshot authorizes a chat-triggered widening.
+ * The effect compares its admission and previous grants atomically in the repository. */
+function approvedSource({ key, connectionId }: { key: string | undefined; connectionId: string }, _options = {}): {
+  url: string; expected: ExternalMcpAccessSnapshot | null; current: ReturnType<typeof storedAgentPluginGrants>; grant: { enabled: boolean; allow: readonly string[]; write: readonly string[] };
+} | undefined {
+  if (key === undefined) return undefined;
+  const sources = JSON.parse(key) as { connectionId: string; url: string; expected: ExternalMcpAccessSnapshot | null; current: ReturnType<typeof storedAgentPluginGrants>; grant: { enabled: boolean; allow: readonly string[]; write: readonly string[] } | null }[];
+  const source = sources.find(source => source.connectionId === connectionId);
+  if (!source?.grant) throw new ToolInputError({ message: `The approved card did not grant access to '${connectionId}'. Request the access change again.` });
+  return { url: source.url, expected: source.expected, current: source.current, grant: source.grant };
+}
+
+/** New sources must still have the empty access displayed before provisioning.
+ * Existing sources additionally use the approved atomic repository snapshot. */
+function assertApprovedSource({ approved, grant, current, url, expected }: {
+  approved: ReturnType<typeof approvedSource>; grant: ReturnType<typeof storedAgentPluginGrants>; current: ReturnType<typeof storedAgentPluginGrants>; url: string | null; expected: ExternalMcpAccessSnapshot;
+}, _options = {}): void {
+  if (!approved) return;
+  const sameGrant = JSON.stringify(approved.grant) === JSON.stringify(grant);
+  const sameNewSource = approved.expected !== null || JSON.stringify(approved.current) === JSON.stringify(current);
+  const sameExistingSource = approved.expected === null || JSON.stringify(approved.expected) === JSON.stringify(expected);
+  if (!sameGrant || !sameNewSource || !sameExistingSource || approved.url !== url) throw new ToolInputError({ message: 'The plugin declaration or access changed after approval. Request the access change again. Nothing was granted.' });
 }

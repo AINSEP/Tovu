@@ -12,13 +12,15 @@ const details = [
 test('one enable card lists source, tools and writes before applying the approved grant', async () => {
   const grants: unknown[] = [];
   const h = harness({ confirmEnable: () => true, agentHost: {
-    previewEnableAccess: async () => ({ key: 'revision-1', details }),
+    previewEnableAccess: async () => ({ key: 'revision-1', details, resources: [{ id: 'media', label: details[0]!.value, previous: { enabled: false, allow: [], write: [] }, proposed: { enabled: true, allow: ['models', 'generate'], write: ['generate'] }, revision: 'source-1' }] }),
     provisionMcp: async (_input, options) => { grants.push(options); },
   } });
   const { html, outcome } = await answerCard({ tool: h.tool('plugins_set_enabled'), surfaceExchanges: h.surfaceExchanges, input, decision: 'confirm' });
-  for (const detail of details) assert.ok(html.includes(detail.value));
+  assert.ok(html.includes(details[0]!.value));
+  assert.ok(html.includes('models')); assert.ok(html.includes('generate'));
+  assert.ok(html.includes('source-1')); assert.ok(html.includes('owner-under-test'));
   assert.equal((await outcome as { changed: boolean }).changed, true);
-  assert.deepEqual(grants, [{ approvedEnable: true }]);
+  assert.deepEqual(grants, [{ approvedEnable: true, approvedEnableKey: 'revision-1' }]);
 });
 
 test('cancel never grants and changed source configuration requires another approval', async () => {

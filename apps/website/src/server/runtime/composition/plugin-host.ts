@@ -26,6 +26,12 @@ function reportProvisioningFailures({ pluginId, failed, approved, warn }: { plug
   if (approved && failed.length) throw new ToolInputError({ message: redactSecrets({ input: `Plugin '${pluginId}' could not create these connections: ${failed.map(failure => `${failure.serverKey}: ${failure.reason}`).join('; ')}. Request plugins_set_enabled again to retry.` }) });
 }
 
+/** An approved grant must carry the exact snapshot displayed by its host preview. */
+function requireApprovedAccessKey(key: string | undefined): string {
+  if (!key) throw new ToolInputError({ message: 'The approved access snapshot is missing. Request plugins_set_enabled again. Nothing was provisioned or granted.' });
+  return key;
+}
+
 export interface TovuPluginHostDeps extends AgentPluginUninstallToolDeps {
   readonly discoverPlugins: () => Promise<readonly PluginDiscoveryRecord[]>;
   readonly pluginActivationRepo: PluginActivationRepoPort;
@@ -161,6 +167,7 @@ export function createTovuPluginHost(
      * rolls back a successful activation; report fixed diagnostics without credential material. */
     provisionMcp: async ({ pluginId, principalId }: { pluginId: string; principalId: string }, execution = {}) => {
       try {
+        const approvedEnable = execution.approvedEnable ? { principalId, accessKey: requireApprovedAccessKey(execution.approvedEnableKey) } : undefined;
         const servers = await (optional.resolveMcpServers ?? resolveAgentPluginMcpServers)({ agentPluginLayout: deps.agentPluginLayout, workspaceId: deps.workspaceId, pluginId });
         const result = await (optional.provisionMcpServers ?? provisionAgentPluginMcpServers)(deps.mcp, { workspaceId: deps.workspaceId, pluginId, servers, principalId });
         reportProvisioningFailures({ pluginId, failed: result.failed, approved: execution.approvedEnable === true, warn });
@@ -171,7 +178,7 @@ export function createTovuPluginHost(
             notifyRosterChanged: () => deps.mcp.notifyRosterChanged({}, {}), warn: message => warn(redactSecrets({ input: message })) },
           pluginId,
           servers,
-        }, { skipServerKeys: result.failed.map(failure => failure.serverKey), ...(execution.approvedEnable ? { approvedEnable: { principalId } } : {}) });
+        }, { skipServerKeys: result.failed.map(failure => failure.serverKey), ...(approvedEnable ? { approvedEnable } : {}) });
       } catch (error) {
         if (execution.approvedEnable) throw new ToolInputError({ message: redactSecrets({ input: `The plugin is on, but its approved connections could not be loaded. Request plugins_set_enabled again to retry. Details: ${error instanceof Error ? error.message : String(error)}` }) });
         warn(redactSecrets({ input: `Plugin '${pluginId}': MCP provisioning could not run — ${error instanceof Error ? error.message : String(error)}` }));

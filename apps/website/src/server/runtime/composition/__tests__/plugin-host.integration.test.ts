@@ -449,11 +449,24 @@ test('an approved enable reports the failed server and redacted reason to the ow
     provisionMcpServers: async () => ({ provisioned: [], alreadyProvisioned: [], adopted: [], skipped: [],
       failed: [{ serverKey: 'repository', reason: `provider refused credential ${token}` }] }),
   });
-  await assert.rejects(host.getHostCapability({ capability: 'agent-plugin-lifecycle' })!.provisionMcp({ pluginId: 'github', principalId: 'owner' }, { approvedEnable: true }), error => {
+  const agentPlugins = host.getHostCapability({ capability: 'agent-plugin-lifecycle' })!;
+  const preview = await agentPlugins.previewEnableAccess!({ pluginId: 'github' });
+  await assert.rejects(agentPlugins.provisionMcp({ pluginId: 'github', principalId: 'owner' }, { approvedEnable: true, approvedEnableKey: preview.key }), error => {
     assert.ok(error instanceof Error);
     assert.match(error.message, /repository.*provider refused/);
     assert.match(error.message, /plugins_set_enabled/);
     assert.equal(error.message.includes(token), false);
     return true;
   });
+});
+
+test('an approved enable missing its snapshot cannot provision connections', async t => {
+  const ctx = await fixture(t);
+  let provisions = 0;
+  const host = createTovuPluginHost({ deps: ctx.deps }, {
+    warn: () => {}, resolveMcpServers: async () => ({}),
+    provisionMcpServers: async () => { provisions++; return { provisioned: [], alreadyProvisioned: [], adopted: [], skipped: [], failed: [] }; },
+  });
+  await assert.rejects(host.getHostCapability({ capability: 'agent-plugin-lifecycle' })!.provisionMcp({ pluginId: 'github', principalId: 'owner' }, { approvedEnable: true }), /approved access snapshot is missing/);
+  assert.equal(provisions, 0);
 });

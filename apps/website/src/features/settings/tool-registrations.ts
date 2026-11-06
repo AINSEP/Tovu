@@ -35,7 +35,7 @@ import { ASSISTANT_SUBAGENTS_NAMESPACE, ASSISTANT_SUBAGENTS_WRITE_REASON } from 
  */
 import type { ToolContributor } from "@jini-ai/core";
 import type { ToolExecutionOptions, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
-import { buildSettingsRegistrations as buildCmsSettingsRegistrations, settingsDerivedRisk, type AgentSettingWriteRule } from "@jini-ai/core/settings";
+import { buildSettingsRegistrations as buildCmsSettingsRegistrations, AGENT_WRITE_CONFIRMATION_SETTINGS, settingsDerivedRisk, type AgentSettingWriteRule } from "@jini-ai/core/settings";
 import { approvalToolHandler } from "#src/contracts/core/human-confirm";
 import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { DEDICATED_SETTINGS_WRITERS, set } from "./site-title-write.js";
@@ -67,6 +67,7 @@ export const MAIL_SETTINGS_WRITE_DENIALS: readonly AgentSettingWriteRule[] = [
  * Credentials are not settings: core.execution intentionally omits byok.apiKey; provider
  * credentials, OAuth state and external-MCP grants use their own repositories. */
 export const TOVU_CONFIRMATION_SETTINGS: readonly AgentSettingWriteRule[] = [
+  ...AGENT_WRITE_CONFIRMATION_SETTINGS,
   ...ASSISTANT_EXECUTION_APPROVAL_SETTINGS.filter(rule => rule.key !== "localCli.agentId"),
   ...CHAT_EXECUTION_KEYS.map(key => ({ namespace: "core.execution", key, reason: "Changes your chat agent, model or thinking effort for the next turn" })),
   { namespace: ADMIN_INTERFACE_NAMESPACE, key: CHAT_AGENT_PLUGINS_KEY, reason: "Changes your Agent plugins mode (Auto / Ask first / Off)" },
@@ -74,16 +75,9 @@ export const TOVU_CONFIRMATION_SETTINGS: readonly AgentSettingWriteRule[] = [
   ...FORM_ROUTING_SETTINGS,
 ];
 
-/** Personal grants in `core.interface` that a saved approval must never cover. Agent plugins
- * opt-in belongs to the person: a saved plugin grant must never let prompt injection silently flip
- * Ask first to Auto (or clear its override). Claude in Chrome likewise: the assistant must not
- * silently grant itself control of the owner's real, logged-in Chrome.
- * @complexity O(1). */
-const ALWAYS_ASK_INTERFACE_KEYS: ReadonlySet<string> = new Set([CHAT_AGENT_PLUGINS_KEY, USE_CLAUDE_IN_CHROME_KEY]);
-function isAlwaysAskInterfaceSetting({ namespace, key }: { namespace: string; key: string }, _options = {}): boolean {
-  return namespace === ADMIN_INTERFACE_NAMESPACE && ALWAYS_ASK_INTERFACE_KEYS.has(key);
-}
-
+/** Personal grants belong to the person: a saved plugin grant must never silently flip Ask first
+ * to Auto, clear an Off override, or grant control of the person's logged-in Chrome. Every access
+ * change below uses a fresh common card, including execution settings and privacy/instructions. */
 /** Wires the generic cms tools to the host's authenticated card transport and title validator.
  * Card parameters carry only a decision, never replacement setting coordinates or values.
  * @complexity O(t) registration construction; one bounded card exchange per protected write. */
@@ -98,29 +92,29 @@ export function buildSettingsRegistrations(routeDeps: SettingsToolDeps, surfaces
     confirmationSettings: TOVU_CONFIRMATION_SETTINGS,
     // `options` carries the transport's emitSurface; without it the card has no way to reach a human.
     // Declared optional so this still type-checks against a @jini-ai/cms whose confirmWrite takes one argument.
-    confirmWrite: async ({ ctx, toolId, namespace, key, scope, previous, value, reason }, options?: ToolExecutionOptions) => {
+    confirmWrite: async ({ ctx, toolId, namespace, key, scope, previous, expectedRevisionSeq, value, reason }, options?: ToolExecutionOptions) => {
       const request = { ctx, toolId, namespace, key, scope, value };
       const selectionSnapshot = await prepareChatExecutionWrite({ deps: routeDeps, request });
-      // Personal grants always ask; see `ALWAYS_ASK_INTERFACE_KEYS` for why.
-      const alwaysAsk = isAlwaysAskInterfaceSetting({ namespace, key }) || namespace === FORMS_NAMESPACE || selectionSnapshot !== null;
-      // Reuse the invoking plugin's canonical enable grant. Escalation consent applies once to
-      // that admitted identity/version/digest; it never replaces fresh per-write scope permissions.
+      // Enabling a plugin does not approve later setting changes; preserve its admitted identity
+      // across the fresh card while the settings owner retains authorization and revision checks.
       const handler = approvalToolHandler({ surfaces,
         prepare: async ({ ctx: snapshot }) => {
           const identity = await routeDeps.approvalIdentityForRun?.({ ctx: snapshot });
-          return { rememberKey: identity?.key, identity };
+          return { identityKey: identity?.key, identity };
         },
         describe: ({ prepared }) => {
-          let confirmationNote: string;
-          if (alwaysAsk) confirmationNote = ". This change requires your confirmation every time.";
-          else confirmationNote = prepared.identity ? ". This escalation approval is saved for this plugin identity, version and digest. It also covers enabling this plugin and the six assistant execution settings; every action still checks its current permissions." : "";
           return { toolId, errorCode: "SETTINGS",
             title: toolId === "settings_set_value" ? "Change this assistant setting?" : "Clear this assistant setting override?",
-            description: reason + confirmationNote,
+            description: reason + ". This change requires your confirmation every time.",
+            access: { resources: [{
+              id: `${namespace}.${key}:${scope}`, label: `${namespace}.${key}`,
+              scope: { personId: ctx.principal.id, siteId: routeDeps.workspaceId },
+              previous, proposed: toolId === "settings_clear_value" ? "Fall back to the next layer or default" : value ?? null,
+              revision: String(expectedRevisionSeq),
+            }] },
             details: [...(prepared.identity ? [{ label: "Plugin", value: prepared.identity.label },
               ...(prepared.identity.version ? [{ label: "Plugin version", value: prepared.identity.version }] : [])] : []), { label: "Setting", value: `${namespace}.${key}` }, { label: "Scope", value: scope },
-              ...(selectionSnapshot !== null ? [{ label: "Resulting chat selection", value: JSON.parse(selectionSnapshot) }] : []),
-              { label: "New value", previous, value: toolId === "settings_clear_value" ? "Fall back to the next layer or default" : value ?? null }],
+              ...(selectionSnapshot !== null ? [{ label: "Resulting chat selection", value: JSON.parse(selectionSnapshot) }] : [])],
             confirmLabel: "Confirm change",
           };
         },
@@ -130,11 +124,9 @@ export function buildSettingsRegistrations(routeDeps: SettingsToolDeps, surfaces
           // different selection if another picker changes it while this card is held open.
           const currentSelection = await prepareChatExecutionWrite({ deps: routeDeps, request: { ...request, ctx: snapshot } });
           const currentKey = (await routeDeps.approvalIdentityForRun?.({ ctx: snapshot }))?.key;
-          return { confirmed: !snapshot.signal.aborted && currentKey === prepared.rememberKey && currentSelection === selectionSnapshot };
+          return { confirmed: !snapshot.signal.aborted && currentKey === prepared.identityKey && currentSelection === selectionSnapshot };
         },
-      }, { remembered: alwaysAsk ? undefined : routeDeps.nativeApprovalMemory, rememberKey: ({ prepared }) => prepared.rememberKey,
-        declined: () => ({ confirmed: false }),
-      });
+      }, { declined: () => ({ confirmed: false }) });
       // No credentials enter this description; they use the secret-card engine and separate stores.
       const result = await handler(ctx, options) as { confirmed: boolean; key?: string };
       return result.confirmed;

@@ -8,7 +8,8 @@ import { resolveOperatorLocale } from '../settings/index.js';
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireNoInput, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import type { UUID } from "@jini-ai/core/primitives";
-import { ToolInputError } from "@jini-ai/core";
+import { ToolInputError, redactSecrets } from "@jini-ai/core";
+import { approvalToolHandler } from "../../contracts/core/human-confirm.js";
 
 import {
   askThenReport,
@@ -26,9 +27,9 @@ import type { ToolContributor } from "@jini-ai/core";
 // tool-catalog-manifest.ts` may), and `npm run check:boundaries` confirms this import adds no new
 // violation. `external-mcp-store.ts`/`external-mcp-oauth.ts` own this domain's actual read/write
 // logic; nothing here re-implements it.
-import { ExternalMcpValidationError, listExternalMcpServerViews, readEnabledExternalMcpConfigs, saveExternalMcpServer } from "./external-mcp-store.js";
+import { applyExternalMcpAccess, externalMcpAccessSnapshot, parseAllowedToolNames, parseWriteAllowedToolNames, readExternalMcpToolGrants, ExternalMcpValidationError, listExternalMcpServerViews, readEnabledExternalMcpConfigs, saveExternalMcpServer } from "./external-mcp-store.js";
 import { notifyExternalMcpRosterChanged } from "../../assistant/mcp-services.js";
-import { type SaveExternalMcpOAuthInput, type SaveExternalMcpServerInput } from "./contracts.js";
+import { type ExternalMcpServerRecord, type SaveExternalMcpOAuthInput, type SaveExternalMcpServerInput } from "./contracts.js";
 import type { ExternalMcpToolDeps } from "./deps.js";
 import { externalMcpAgentToolCatalog, EXTERNAL_MCP_MANAGE_PERMISSION } from "./agent-tools.js";
 import { buildExternalMcpSaveForm, mergeExternalMcpSavePrefill, EXTERNAL_MCP_SAVE_TOOL_ID, type ExternalMcpSaveInput } from "./save-form.js";
@@ -364,7 +365,8 @@ async function saveSubmittedExternalMcpConfiguration(
   if (values.id !== undefined && values.id !== save.id) {
     throw new ExternalMcpValidationError("The server ID must match the connection form. Nothing was saved.", "id");
   }
-  const params = { ...values, id: save.id, transport: save.transport, authMode: save.authMode };
+  const params = { ...values, id: save.id, transport: save.transport, authMode: save.authMode,
+    allowedToolNames: save.allowedToolNames ?? "", writeAllowedToolNames: save.writeAllowedToolNames ?? "" };
   const saveInput = buildSaveExternalMcpServerInputFromFormParams(params, routeDeps.workspaceId, principalId);
   signal.throwIfAborted();
   const server = await saveExternalMcpServer(
@@ -426,11 +428,103 @@ function externalMcpSaveResult({ run, locale }: { run: SecretCardRun<Record<stri
     : "The connection form was closed because the run ended. Nothing was saved." };
 }
 
+/** Access-only proposals name an existing source and cannot alter its endpoint or credentials.
+ * @complexity O(k) in the fixed input-key list; no effects.
+ */
+function isExternalMcpAccessInput(input: Record<string, unknown>): boolean {
+  const fields = ['id', 'transport', 'enabled', 'allowedToolNames', 'writeAllowedToolNames'];
+  return Object.keys(input).every(key => fields.includes(key)) &&
+    ['enabled', 'allowedToolNames', 'writeAllowedToolNames'].some(key => Object.hasOwn(input, key));
+}
+
+/** Reuse management authorization both before disclosing the source and immediately before apply. */
+async function authorizeMcpAccess({ routeDeps, principalId, id }: { routeDeps: ExternalMcpToolDeps; principalId: string; id: string }): Promise<void> {
+  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }),
+    workspaceId: routeDeps.workspaceId, principalId, permission: EXTERNAL_MCP_MANAGE_PERMISSION },
+  { entityType: EXTERNAL_MCP_ENTITY_TYPE, entityId: id });
+}
+
+/** Redact existing credential-bearing endpoint/command shapes before placing them on a card.
+ * The unredacted admission fingerprint stays private to the conditional writer.
+ * @complexity O(t) source-label/target bytes; no I/O.
+ */
+function externalMcpAccessSubject({ record, id }: { record: ExternalMcpServerRecord; id: string }) {
+  return { label: redactSecrets({ input: record.label ?? id }, { redactPii: false }),
+    target: redactSecrets({ input: record.url ?? `${record.command ?? ""} ${record.args ?? ""}` }, { redactPii: false }) };
+}
+
+/** New permissions must name tools actually advertised by this exact admitted endpoint.
+ * Existing grants may still be removed or disabled without starting optional remote discovery.
+ * @throws ToolInputError before a card/write if any new name is absent from the identity-bound cache.
+ * @complexity O(a+w+t) in bounded proposed/current lists and the existing cached tool names; no I/O.
+ */
+function requireKnownMcpAccess({ routeDeps, record, previous, access }: {
+  routeDeps: ExternalMcpToolDeps; record: ExternalMcpServerRecord;
+  previous: { enabled: boolean; allowedToolNames: readonly string[]; writeAllowedToolNames: readonly string[] };
+  access: { enabled: boolean; allowedToolNames: readonly string[]; writeAllowedToolNames: readonly string[] };
+}): void {
+  const enabling = !previous.enabled && access.enabled;
+  const newNames = enabling ? [...access.allowedToolNames, ...access.writeAllowedToolNames]
+    : [...access.allowedToolNames.filter(name => !previous.allowedToolNames.includes(name)),
+      ...access.writeAllowedToolNames.filter(name => !previous.writeAllowedToolNames.includes(name))];
+  if (newNames.length === 0) return;
+  const known = routeDeps.externalMcpKnownToolNames?.({ serverId: record.serverId, admissionRevision: externalMcpAccessSnapshot({ record }).admissionRevision });
+  const names = new Set(known ?? []);
+  if (!newNames.every(name => names.has(name))) throw new ToolInputError({ message: `The '${record.serverId}' connection has no verified tool listing for this proposed access. Request its live connection tool listing with external_mcp_get_admissions or external_mcp_probe_connection, then request access again using only known tools. Nothing was changed.` });
+}
+
+/** Fixed access proposal through the same human-only exchange as other privilege changes.
+ * Preparation reads one source; the accepted effect conditionally updates only its access columns.
+ * @complexity O(a+w) bounded lists; two permission checks, one preview and one conditional update.
+ */
+function externalMcpAccessHandler({ routeDeps, surfaces }: { routeDeps: ExternalMcpToolDeps; surfaces: AssistantSurfaceDeps }): ToolHandler {
+  return approvalToolHandler({ surfaces,
+    prepare: async ({ ctx }) => {
+      const input = requireInputRecord({ input: ctx.input });
+      const id = requireString({ input, key: 'id' }).trim().toLowerCase();
+      await authorizeMcpAccess({ routeDeps, principalId: ctx.principal.id, id });
+      const record = await routeDeps.externalMcpServerRepo.findByServerId({ workspaceId: routeDeps.workspaceId, serverId: id });
+      if (!record) throw new ToolInputError({ message: `The '${id}' connection no longer exists. Request its connection setup before changing access. Nothing was changed.` });
+      const transport = optionalStringField(input, 'transport');
+      if (transport !== undefined && transport !== record.transport) throw new ToolInputError({ message: `The '${id}' connection uses a different transport. Request its current configuration before changing access. Nothing was changed.` });
+      if (input.enabled !== undefined && typeof input.enabled !== 'boolean') throw new ToolInputError({ message: "'enabled' must be true or false. Nothing was changed." });
+      const previous = { enabled: record.enabled, ...readExternalMcpToolGrants(record, { strict: true }) };
+      const allowed = optionalStringField(input, 'allowedToolNames');
+      const write = optionalStringField(input, 'writeAllowedToolNames');
+      const access = { enabled: input.enabled as boolean | undefined ?? record.enabled,
+        allowedToolNames: allowed === undefined ? previous.allowedToolNames : parseAllowedToolNames(allowed),
+        writeAllowedToolNames: write === undefined ? previous.writeAllowedToolNames : parseWriteAllowedToolNames(write) };
+      const allowedSet = new Set(access.allowedToolNames);
+      if (access.writeAllowedToolNames.some(name => !allowedSet.has(name))) throw new ToolInputError({ message: 'Every tool allowed to write must also appear in allowedToolNames. Nothing was changed.' });
+      requireKnownMcpAccess({ routeDeps, record, previous, access });
+      return { id, ...externalMcpAccessSubject({ record, id }), expected: externalMcpAccessSnapshot({ record }), previous, access };
+    },
+    describe: ({ ctx, prepared }) => ({ toolId: EXTERNAL_MCP_SAVE_TOOL_ID, errorCode: 'EXTERNAL_MCP',
+      title: 'Change this connection’s access?', description: 'Only the listed source and tool grants change. Stored credentials stay in place.',
+      details: [{ label: 'Source target', value: prepared.target }], confirmLabel: 'Approve access', access: { resources: [{ id: prepared.id, label: prepared.label,
+        scope: { personId: ctx.principal.id, siteId: routeDeps.workspaceId }, revision: prepared.expected.admissionRevision,
+        previous: prepared.previous, proposed: prepared.access }] } }),
+    run: async ({ ctx, prepared }) => {
+      await authorizeMcpAccess({ routeDeps, principalId: ctx.principal.id, id: prepared.id });
+      ctx.signal.throwIfAborted();
+      await applyExternalMcpAccess({ repo: routeDeps.externalMcpServerRepo, clock: routeDeps.clock,
+        workspaceId: routeDeps.workspaceId, serverId: prepared.id, expected: prepared.expected, access: prepared.access, principalId: ctx.principal.id });
+      const lowers = !prepared.access.enabled || prepared.previous.allowedToolNames.some(name => !prepared.access.allowedToolNames.includes(name)) ||
+        prepared.previous.writeAllowedToolNames.some(name => !prepared.access.writeAllowedToolNames.includes(name));
+      if (lowers) await notifyExternalMcpRosterChanged({ lowered: { serverIds: [prepared.id] } });
+      else void notifyExternalMcpRosterChanged();
+      return { saved: true, server: { serverId: prepared.id, ...prepared.access } };
+    },
+  }, { flag: 'saved' });
+}
+
 /** Bind the domain form/save ports to Jini's one lifecycle owner.
  * @complexity O(s + f) during preparation in server views and fixed form fields, plus store/probe I/O.
  */
 function externalMcpSaveHandler({ routeDeps, surfaces }: { routeDeps: ExternalMcpToolDeps; surfaces: AssistantSurfaceDeps }, _optional = {}): ToolHandler {
+  const accessHandler = externalMcpAccessHandler({ routeDeps, surfaces });
   return async (ctx, optional = {}) => {
+    if (isExternalMcpAccessInput(requireInputRecord({ input: ctx.input }))) return accessHandler(ctx, optional);
     // Per-call metadata only: concurrent cards must not share a locale or validation field.
     // The engine owns redaction; this allowlist retains the domain's documented invalid/error shape.
     let validationField: string | undefined;
@@ -622,6 +716,6 @@ export function buildExternalMcpRegistrations(routeDeps: ExternalMcpToolDeps, su
  * `server/runtime/composition/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not
  * by importing this module. See this file's header for what was unreachable before this existed.
  */
-export function contributeExternalMcpTools({ probe }: { probe?: (deps: ExternalMcpToolDeps, serverId: string) => Promise<{ ok: boolean; body: Readonly<Record<string, unknown>> }> } = {}, _optional = {}): ToolContributor<ExternalMcpToolDeps, AssistantSurfaceDeps> {
-  return { domain: "external-mcp", build: (deps, surfaces) => buildExternalMcpRegistrations({ ...deps, ...(probe ? { externalMcpProbe: ({ serverId }: { serverId: string }) => probe(deps, serverId) } : {}) }, surfaces), risk: externalMcpDerivedRisk };
+export function contributeExternalMcpTools({ probe, knownToolNames }: { probe?: (deps: ExternalMcpToolDeps, serverId: string) => Promise<{ ok: boolean; body: Readonly<Record<string, unknown>> }>; knownToolNames?: ExternalMcpToolDeps["externalMcpKnownToolNames"] } = {}, _optional = {}): ToolContributor<ExternalMcpToolDeps, AssistantSurfaceDeps> {
+  return { domain: "external-mcp", build: (deps, surfaces) => buildExternalMcpRegistrations({ ...deps, ...(knownToolNames ? { externalMcpKnownToolNames: knownToolNames } : {}), ...(probe ? { externalMcpProbe: ({ serverId }: { serverId: string }) => probe(deps, serverId) } : {}) }, surfaces), risk: externalMcpDerivedRisk };
 }
