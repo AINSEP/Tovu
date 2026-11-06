@@ -1,3 +1,4 @@
+import { MAX_DOCUMENT_BYTES } from "@jini-ai/cms/media";
 import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
 import fs from "node:fs";
@@ -70,7 +71,7 @@ test("media must have a size-aware store", async t => {
   const h = await preparation(t);
   await assert.rejects(prepareShareContent({ ...h.ports, sanitize: async () => h.enrich({ ...h.projection, media: [{ storageKey: "blob" }] }), blobStore: { get: async () => assert.fail("unbounded media must not be fetched") } }), { code: "UNBOUNDED_MEDIA" });
 });
-for (const size of [0, 10 * 1024 * 1024 + 1]) test(`Library document size ${size} refuses before reading bytes`, async t => {
+for (const size of [0, MAX_DOCUMENT_BYTES + 1]) test(`Library document size ${size} refuses before reading bytes`, async t => {
   const h = await preparation(t);
   await assert.rejects(prepareShareContent({ ...h.ports, sanitize: async () => h.enrich({ ...h.projection, media: [{ storageKey: "doc" }], documents: [{ storageKey: "doc", sha256: "0".repeat(64), originalFilename: "x.pdf" }] }), blobStore: { sizeOf: async () => size, get: async () => assert.fail("invalid document must not be fetched") } }), { code: "INVALID_DOCUMENT" });
 });

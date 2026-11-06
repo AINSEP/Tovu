@@ -11,7 +11,7 @@ import { resolveChatAttachmentBytes, type ChatAttachmentLookup } from './promote
  * Jini owns validation,
  * private blob ingestion and attribution; storage failures retain the normal redaction path.
  * @returns Private document metadata, never a public URL. @throws ToolInputError on policy refusal.
- * @complexity O(bytes) time/space, bounded by Jini's 10 MiB document policy.
+ * @complexity O(bytes) time/space, bounded by Jini's 50 MiB document policy.
  * @example await saveLibraryDocument({ deps, bytes, name: 'BRAND.md', principalId }, { archiveReader }); */
 export async function saveLibraryDocument({ deps, bytes, name, principalId }: {
   deps: MediaToolDeps & { tracker?: Tracker }; bytes: Uint8Array; name: string; principalId: string;
@@ -36,7 +36,7 @@ function generatedDocument({ input }: { input: Record<string, unknown> }, _optio
   const name = requireString({ input, key: 'name' });
   const content = requireString({ input, key: 'content' });
   if (!/\.(md|txt)$/i.test(name)) throw new ToolInputError({ message: 'Generated documents need a .md or .txt name' });
-  if (Buffer.byteLength(content, 'utf8') > MAX_DOCUMENT_BYTES) throw new ToolInputError({ message: 'document must be non-empty and at most 10 MiB' });
+  if (Buffer.byteLength(content, 'utf8') > MAX_DOCUMENT_BYTES) throw new ToolInputError({ message: 'document must be non-empty and at most 50 MiB' });
   return { name, bytes: Buffer.from(content, 'utf8') };
 }
 
@@ -53,14 +53,14 @@ export function buildLibrarySaveAttachmentTool(required: {
   return {
     descriptor: {
       id: 'library_save_attachment', metadata: toolMetadata.library_save_attachment,
-      description: 'Save a document to this site\'s private, assistant-only Library so it survives chat cleanup. Supply EITHER attachmentRef from this exact message (use chat_list_pending_attachments), OR name plus content for generated Markdown/plain text, e.g. {name:"BRAND.md",content:"# Brand\\n..."}. Generated text needs a .md/.txt plain filename and a non-empty UTF-8 body. Both modes cap at 10 MiB. Attachments accept .md, .txt, .pdf, .docx, .csv, .json, .doc, .xls, .rtf, .xlsx, .pptx, .pages, .key. For picked-folder/site documents use files_copy with destination:{kind:"library"}. Documents are never published; other attachments remain temporary.',
+      description: 'Save a document to this site\'s private, assistant-only Library so it survives chat cleanup. Supply EITHER attachmentRef from this exact message (use chat_list_pending_attachments), OR name plus content for generated Markdown/plain text, e.g. {name:"BRAND.md",content:"# Brand\\n..."}. Generated text needs a .md/.txt plain filename and a non-empty UTF-8 body. Both modes cap at 50 MiB. Attachments accept .md, .txt, .pdf, .docx, .csv, .json, .doc, .xls, .rtf, .xlsx, .pptx, .pages, .key. For picked-folder/site documents use files_copy with destination:{kind:"library"}. Documents are never published; other attachments remain temporary.',
       inputSchema: { type: 'object', additionalProperties: false, oneOf: [
         { required: ['attachmentRef'], not: { anyOf: [{ required: ['name'] }, { required: ['content'] }] } },
         { required: ['name', 'content'], not: { required: ['attachmentRef'] } },
       ], properties: {
         attachmentRef: { type: 'string', minLength: 1, description: 'The attachment:<id> ref from this current message; paths and old-message refs are refused.' },
         name: { type: 'string', minLength: 1, maxLength: 255, description: 'Generated document filename, e.g. BRAND.md or notes.txt; no folder paths.' },
-        content: { type: 'string', minLength: 1, maxLength: MAX_DOCUMENT_BYTES, description: 'Generated Markdown or plain text; at most 10 MiB encoded as UTF-8.' },
+        content: { type: 'string', minLength: 1, maxLength: MAX_DOCUMENT_BYTES, description: 'Generated Markdown or plain text; at most 50 MiB encoded as UTF-8.' },
       } },
     },
     policy: { authorize: () => 'allow' },

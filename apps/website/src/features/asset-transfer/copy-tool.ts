@@ -26,11 +26,11 @@ const catalog: AgentToolDefinition = {
   description: "Copy/import assets without Bash cp or Python. sources:[{root:'picked'|'site'|'theme'|'media',path,themeId?,glob?}|{root:'url',url,path?}]. " +
     "For a folder, glob filters paths relative to that folder (e.g. '**/*.{png,woff2}'); directory structure is preserved. No glob means one file. " +
     "destination:{kind:'theme',themeId,path:'assets'} | {kind:'site',path:'public/images'} | {kind:'media'} | {kind:'library'}. path is a destination folder for site/theme only. " +
-    "Save documents from picked/site/theme files to the private, assistant-only Library with kind:'library'; never publishes them. Supports the Library document allow-list (.md, .txt, .pdf, .docx, etc.), at most 10 MiB/document; filesystem .key files (including Keynote) are refused by the secret guard. Folder paths are flattened to filenames. URL sources remain image/font imports and cannot target Library. For generated text use library_save_attachment {name,content}. " +
+    "Save documents from picked/site/theme files to the private, assistant-only Library with kind:'library'; never publishes them. Supports the Library document allow-list (.md, .txt, .pdf, .docx, etc.), at most 50 MiB/document; filesystem .key files (including Keynote) are refused by the secret guard. Folder paths are flattened to filenames. URL sources remain image/font imports and cannot target Library. For generated text use library_save_attachment {name,content}. " +
     "overwrite:'skip' (default), 'overwrite' or 'rename' for site/theme paths; media and Library documents are always added as new items. " +
     "Returns written/skipped paths, private documents, media URLs or theme status. Theme/media/Library edits use their existing permissions; site files use fs_write_files batch approval. Never writes to picked folders: use fs_write_files. " +
     "All sources are checked before writing; secrets, symlinks, escapes and truncated folder listings are refused. URLs use the existing SSRF-guarded image/font fetch. " +
-    `Caps: ${FILES_COPY_LIMITS.maxFiles} files, ${FILES_COPY_LIMITS.maxFileBytes} bytes/asset (Library: 10 MiB/document), ${FILES_COPY_LIMITS.maxTotalBytes} bytes total; site writer additionally caps 2 MiB/file and 10 MiB/batch.`,
+    `Caps: ${FILES_COPY_LIMITS.maxFiles} files, ${FILES_COPY_LIMITS.maxFileBytes} bytes/asset, ${FILES_COPY_LIMITS.maxTotalBytes} bytes total (Library: 50 MiB/file and 50 MiB/batch); site writer additionally caps 2 MiB/file and 10 MiB/batch.`,
   sideEffects: "mutates-durable-state", authorization: { permission: FS_FILES_READ_PERMISSION },
   inputSchema: { type: "object", additionalProperties: false, required: ["sources", "destination"], properties: {
     sources: { type: "array", minItems: 1, maxItems: FILES_COPY_LIMITS.maxFiles, items: { type: "object", additionalProperties: false, required: ["root"], properties: {
@@ -84,7 +84,8 @@ async function readLocal({ deps, ctx, source, maxBytes }: { deps: AssetToolDeps;
   for (const path of paths) {
     const bytes = await readLocalFile({ rootPath, relativePath: folder === "." ? path : `${folder}/${path}`, maxBytes });
     total += bytes.length;
-    if (total > FILES_COPY_LIMITS.maxTotalBytes) throw new ToolInputError({ message: "Folder glob exceeds the total byte cap" });
+    // A Library batch must admit one document at its allowed per-file maximum.
+    if (total > Math.max(FILES_COPY_LIMITS.maxTotalBytes, maxBytes)) throw new ToolInputError({ message: "Folder glob exceeds the total byte cap" });
     files.push({ path, bytes });
   }
   return files;
@@ -142,7 +143,8 @@ async function readGroup({ deps, ctx, raw, kind, maxFileBytes }: { deps: AssetTo
 function appendFiles({ files, group, prefix }: { files: AssetFile[]; group: AssetFile[]; prefix: string }, { maxFileBytes = FILES_COPY_LIMITS.maxFileBytes }: { maxFileBytes?: number } = {}): void {
   for (const file of group) files.push({ ...file, path: prefix ? `${prefix}/${file.path}` : file.path });
   const total = files.reduce((sum, file) => sum + file.bytes.length, 0);
-  if (files.length > FILES_COPY_LIMITS.maxFiles || total > FILES_COPY_LIMITS.maxTotalBytes || group.some((file) => file.bytes.length > maxFileBytes)) throw new ToolInputError({ message: "Copy exceeds file-count or byte caps; split the selection" });
+  // Retain other destinations' aggregate cap while admitting one maximum-size Library document.
+  if (files.length > FILES_COPY_LIMITS.maxFiles || total > Math.max(FILES_COPY_LIMITS.maxTotalBytes, maxFileBytes) || group.some((file) => file.bytes.length > maxFileBytes)) throw new ToolInputError({ message: "Copy exceeds file-count or byte caps; split the selection" });
 }
 
 /** Register one generic copy tool; site writes reuse the existing approval exchange.

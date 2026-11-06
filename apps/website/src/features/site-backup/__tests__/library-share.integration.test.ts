@@ -320,7 +320,7 @@ for (const variant of ["oversize", "wrong-signature", "secret-sentinel", "destin
     : variant === "secret-sentinel" ? Buffer.from("Document secret: ghp_" + "x".repeat(36)) : Buffer.from("Valid private text");
   const doc = addDocument(h, "guarded", bytes);
   const errors = {
-    oversize: /10 MiB/, "wrong-signature": /PDF signature/, "secret-sentinel": /credential-shaped/,
+    oversize: /50 MiB/, "wrong-signature": /PDF signature/, "secret-sentinel": /credential-shaped/,
     // v2 carries no rendition bytes, so the forged rendition's recipient key fails its hash before any destination move.
     "destination-collision": /Referenced media is missing or failed its hash/, "forged-cross-owner": /database/i,
   };

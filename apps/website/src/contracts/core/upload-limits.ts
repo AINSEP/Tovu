@@ -1,13 +1,7 @@
 /**
- * @file Tovu-local override of `@jini-ai/cms/media`'s `DEFAULT_MAX_UPLOAD_BYTES` (10 MiB).
- *
- * Owner policy: set the media upload cap to 50 MiB for larger video uploads. Kept
- * as a Tovu-local constant rather than editing the Jini
- * package's shared default — `@jini-ai/cms` has other consumers, and widening its default would be
- * a cross-repo publish, not a same-repo, reversible change. Call sites pass this as `uploadMedia`'s
- * `optional.maxUploadBytes` override.
- *
- * Lives in `contracts/core` because publishing caps files at the same size; shared neutral policy
- * avoids a publish-content -> media module cycle. `features/media/index.ts` still re-exports it.
+ * Owner policy: 50 MiB for media uploads, including Library documents. Reuse Jini's document
+ * limit so upload validation and text extraction agree. Call sites pass it as uploadMedia's
+ * maxUploadBytes override; Jini's default for other consumers' image/video uploads stays 10 MiB.
+ * Lives in contracts/core to avoid a publish-content -> media module cycle.
  */
-export const TOVU_MAX_UPLOAD_BYTES = 50 * 1024 * 1024; // 50 MiB
+export { MAX_DOCUMENT_BYTES as TOVU_MAX_UPLOAD_BYTES } from "@jini-ai/cms/media";
