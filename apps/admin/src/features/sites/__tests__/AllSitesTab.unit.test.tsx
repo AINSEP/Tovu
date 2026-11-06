@@ -96,7 +96,7 @@ describe("the site list's choices", () => {
   it("shows the newest six first by default, and the rest under All sites with its count", async () => {
     render(<Page sites={eight} />);
     expect(names()).toEqual(["s8", "s7", "s6", "s5", "s4", "s3"]);
-    await userEvent.click(screen.getByRole("button", { name: "All sites (8)" }));
+    await userEvent.click(screen.getByRole("button", { name: "Show all (8)" }));
     expect(names()).toHaveLength(8);
   });
 

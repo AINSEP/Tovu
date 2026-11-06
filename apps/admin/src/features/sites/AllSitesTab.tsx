@@ -303,7 +303,7 @@ function SitesGrid({ sites, snapshot, switchingEnabled, activatingName, onActiva
         copy={{
           views: t("Which sites to show"),
           pinnedRecent: t("Recent + Pinned"),
-          all: interpolate({ template: t("All sites ({count})"), vars: { count: String(list.allCount) } }),
+          all: interpolate({ template: t("Show all ({count})"), vars: { count: String(list.allCount) } }),
           hidden: interpolate({ template: t("Hidden ({count})"), vars: { count: String(list.hiddenCount) } }),
           sortBy: t("Sort by"),
           recent: t("Most recent"),
