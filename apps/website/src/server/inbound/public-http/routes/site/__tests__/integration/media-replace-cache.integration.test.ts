@@ -128,16 +128,12 @@ test("current and stale id versions and slugs all revalidate while preserving va
 // Guards access.gated precedence and sendMediaNotFound: a validator must not bypass authorization.
 test("a current version and matching validator never bypass a members-only gate", async t => {
   const { deps, media, url } = await fixture(t);
-  let now = deps.clock.nowMs();
-  deps.clock = { ...deps.clock, nowMs: () => now };
   const publicResponse = await fetch(url);
   const etag = publicResponse.headers.get("etag")!;
   await deps.postRepo.save({ id: "members", workspaceId: deps.workspaceId, slug: "members", title: "Members",
     status: "published", kind: "post", bodyFormat: "doc", bodyHtml: null, updatedAt: media.updatedAt, version: 1,
     bodyJson: { type: "doc", content: [{ type: "image", attrs: { assetId: media.id, transformName: "public" } }] },
     memberAccessJson: JSON.stringify({ visibility: "members" }) });
-  // Access evidence shares the public response's bounded sixty-second freshness.
-  now += 60_000;
   const denied = await fetch(`${url}?v=${media.source.sha256.slice(0, 12)}`, { cache: "no-cache", headers: { "If-None-Match": etag } });
   assert.equal(denied.status, 404);
   assert.equal(denied.headers.get("cache-control"), "private, no-store");

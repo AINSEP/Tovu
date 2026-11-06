@@ -1,3 +1,4 @@
+import { getMediaAccessEvidenceCache, type AssetReferenceScan } from '#src/features/media/access-evidence';
 import { collectReferencedMediaKeys, collectPlacedWidgetMediaKeys } from "#src/features/publish-content/media-references";
 import { parseWidgetInstancePayload } from "@jini-ai/cms/widgets";
 import { readRequestCookie } from "#src/server/http/request-cookie";
@@ -250,12 +251,6 @@ function classifyEntry(entry: PostRecord, aliases: ReadonlySet<string>, savedWid
   return "irrelevant";
 }
 
-/** The outcome of one full pass over the workspace's entries for a single asset. */
-interface AssetReferenceScan {
-  readonly referencing: Array<Pick<PostRecord, "memberAccessJson">>;
-  readonly opaqueGated: Array<Pick<PostRecord, "memberAccessJson">>;
-}
-
 /**
  * Finds every live entry (post OR page, `"doc"` OR `"html"`) that embeds `assetId` — the derivation
  * this route uses in place of a hand-maintained asset->entry foreign key. There is no such column
@@ -286,15 +281,11 @@ async function scanEntriesForAsset(
   return { referencing: pick("referrer"), opaqueGated: pick("opaque") };
 }
 
-// Cache only the access settings, never entry bodies or a visitor's entitlement decision.
-const assetReferenceScans = new WeakMap<MediaRenditionRouteDeps['postRepo'], Map<string, { expiresAt: number; value: Promise<AssetReferenceScan> }>>();
-
 /** One shared scan per asset per sixty seconds; at most 256 assets per repository stay resident.
  * Failed reads are not retained. Session checks below still run for every gated request.
  * @complexity O(p) on a miss; O(a) for the asset's aliases on a hit. */
 async function cachedAssetReferences(deps: MediaRenditionRouteDeps, aliases: ReadonlySet<string>): Promise<AssetReferenceScan> {
-  let cache = assetReferenceScans.get(deps.postRepo);
-  if (!cache) { cache = new Map(); assetReferenceScans.set(deps.postRepo, cache); }
+  const cache = getMediaAccessEvidenceCache({ postRepo: deps.postRepo, entryRepo: deps.entryRepo });
   const key = JSON.stringify([deps.workspaceId, ...[...aliases].sort()]);
   const now = deps.clock.nowMs();
   const cached = cache.get(key);
@@ -303,7 +294,10 @@ async function cachedAssetReferences(deps: MediaRenditionRouteDeps, aliases: Rea
   const value = scanEntriesForAsset(deps, aliases);
   cache.set(key, { expiresAt: now + 60_000, value });
   try { return await value; }
-  catch (error) { cache.delete(key); throw error; }
+  catch (error) {
+    if (cache.get(key)?.value === value) cache.delete(key);
+    throw error;
+  }
 }
 
 type SavedWidgetRow = Awaited<ReturnType<NonNullable<MediaRenditionRouteDeps["entryRepo"]>["listByWorkspace"]>>[number];
