@@ -33,7 +33,7 @@ function render(t: TestContext, props: Partial<ImportWebsiteProps> = {}) {
 
 test('ImportWebsite: two sources under their own headings, explained by tooltips and not loose paragraphs', (t) => {
   const view = render(t);
-  assert.deepEqual(view.all('h3').map((h) => h.textContent), ['A folder on this computer', 'A live website']);
+  assert.deepEqual(view.all('h3').map((h) => h.textContent), ['Drop a folder or .tovu.zip file', 'A share link or live website']);
   assert.equal(view.container.querySelectorAll('.info-tip').length, 3, 'one beside the title, one per source');
   assert.equal(view.container.querySelectorAll('p:not(.onboarding__eyebrow)').length, 0, 'no loose explanation text');
   assert.ok(view.byText('Choose folder…'));
@@ -52,7 +52,7 @@ test('ImportWebsite: each button reaches its own source, and Cancel goes back', 
 
 test('ImportWebsite: working disables both sources and says so on the button that was pressed', (t) => {
   const importing = render(t, { address: 'example.com', importing: true });
-  assert.equal(importing.byText('Creating…')?.hasAttribute('disabled'), true);
+  assert.equal(importing.byText('Importing…')?.hasAttribute('disabled'), true);
   assert.equal(importing.byText('Choose folder…')?.hasAttribute('disabled'), true);
   assert.equal(importing.container.querySelector('input')?.hasAttribute('disabled'), true);
   const adding = render(t, { adding: true });

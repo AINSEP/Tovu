@@ -121,6 +121,10 @@ contextBridge.exposeInMainWorld(
      *  otherwise returns the record and alreadyTracked flag. Rejects unusable folders with an
      *  actionable message. See `SITE_IPC_CHANNELS.addSite`. */
     addSite: () => ipcRenderer.invoke(SITE_IPC_CHANNELS.addSite),
+    /** The same verb for a folder dropped on the Import page, whose path the drop already gave. */
+    addDroppedSite: (input: { folder: string }) => ipcRenderer.invoke(SITE_IPC_CHANNELS.addSite, input),
+    /** .tovu.zip or share link to a new site. See `SITE_IPC_CHANNELS.importArchive`. */
+    importSiteArchive: (input: import("../contracts/project.js").ImportArchiveInput) => ipcRenderer.invoke(SITE_IPC_CHANNELS.importArchive, input),
     planNewDir: (input: { name: string }) => ipcRenderer.invoke(SITE_IPC_CHANNELS.planNewDir, input),
     createSite: (input: CreateSiteInput) => ipcRenderer.invoke(SITE_IPC_CHANNELS.create, input),
     /** The services "+ Create website" can offer a token field for. See `SITE_IPC_CHANNELS.tokenSignInPlugins`. */

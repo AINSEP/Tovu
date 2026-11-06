@@ -44,9 +44,9 @@ export function useAddSite({ setProjects }: { setProjects: Dispatch<SetStateActi
   { onAlreadyTracked, onAdded, getBridge = runnerInventoryBridge }: {
     onAlreadyTracked?: (id: string) => void;
     /** Every added site, new or already tracked: the Import page opens its tab. */
-    onAdded?: (id: string) => void;
+    onAdded?: (added: SiteRecord & { alreadyTracked?: boolean }) => void;
     /** Reads this window's preload bridge at click time (absent outside a real desktop window). */
-    getBridge?: () => Pick<RunnerInventoryBridge, 'addSite'> | undefined;
+    getBridge?: () => Pick<RunnerInventoryBridge, 'addSite' | 'addDroppedSite'> | undefined;
   } = {},
 ): {
   adding: boolean;
@@ -55,6 +55,8 @@ export function useAddSite({ setProjects }: { setProjects: Dispatch<SetStateActi
   addDetails: string | null;
   addNotice: { siteId: string; message: string } | null;
   addSite: () => Promise<void>;
+  /** The same add, for a folder dropped on the Import page. */
+  addDroppedFolder: (folder: string) => Promise<void>;
   clearAddError: () => void;
 } {
   const [adding, setAdding] = useState(false);
@@ -64,7 +66,7 @@ export function useAddSite({ setProjects }: { setProjects: Dispatch<SetStateActi
 
   const clearAddError = useCallback(() => { setAddError(null); setAddDetails(null); setAddNotice(null); }, []);
 
-  const addSite = useCallback(async () => {
+  const add = useCallback(async (folder?: string) => {
     setAddNotice(null);
     const bridge = getBridge();
     if (bridge === undefined) {
@@ -75,10 +77,10 @@ export function useAddSite({ setProjects }: { setProjects: Dispatch<SetStateActi
     setAddError(null);
     setAddDetails(null);
     try {
-      const added = await bridge.addSite();
-      if (added === null) return;
+      const added = folder === undefined ? await bridge.addSite() : await bridge.addDroppedSite?.({ folder });
+      if (!added) return;
       setProjects((current) => mergeAddedSite(current, added));
-      onAdded?.(added.id);
+      onAdded?.(added);
       const message = addedSiteMessage({ added });
       setAddError(message);
       setAddNotice(message ? { siteId: added.id, message } : null);
@@ -92,7 +94,8 @@ export function useAddSite({ setProjects }: { setProjects: Dispatch<SetStateActi
     }
   }, [setProjects, onAlreadyTracked, onAdded, getBridge]);
 
-  return { adding, addError, addDetails, addNotice, addSite, clearAddError };
+  const addSite = useCallback(() => add(), [add]);
+  return { adding, addError, addDetails, addNotice, addSite, addDroppedFolder: add, clearAddError };
 }
 
 /**

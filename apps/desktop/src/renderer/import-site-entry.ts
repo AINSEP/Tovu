@@ -49,6 +49,15 @@ export function websiteAddress({ text }: { text: string }, _optional: Record<str
   }
 }
 
+/**
+ * Whether an address is a share link rather than a live website. Every Tovu share is a file named
+ * `<site>.tovu.zip` on whichever host holds it, and no live page has that path.
+ * @complexity O(n) in the address length.
+ */
+export function isShareLink({ address }: { address: string }, _optional: Record<string, never> = {}): boolean {
+  return new URL(address).pathname.toLowerCase().endsWith('.zip');
+}
+
 /** A site name for a new site made from a website address: its host without `www.`. */
 export function siteNameFromAddress({ address }: { address: string }, _optional: Record<string, never> = {}): string {
   return new URL(address).hostname.replace(/^www\./, '');

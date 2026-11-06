@@ -119,6 +119,13 @@ export interface TokenSignInPlugin {
 }
 
 /** `createSite`'s answer: the new record, plus what happened to any tokens given with it. */
+/** See `SITE_IPC_CHANNELS.importArchive`. */
+export type ImportArchiveInput = { file: string } | { url: string } | { pick: true };
+export interface ImportedSiteRecord extends SiteRecord {
+  /** The importer's notices: what was kept off or left out. Plain sentences, safe to show. */
+  warnings: readonly string[];
+}
+
 export interface CreatedSiteRecord extends SiteRecord {
   /** `saved`: applied when the site first starts. `failed`: the site was made but the tokens could
    *  not be stored; connect from the site's assistant instead. Absent when no token was given. */
@@ -202,8 +209,8 @@ export const SITE_IPC_CHANNELS = {
    * opposite deal — it takes an empty folder and runs `tovu init` into it — so the two cannot be
    * one channel, however similar the dialog looks.
    *
-   * Takes no argument: main owns the existing-folder dialog, so the renderer
-   * never names a filesystem path and main has nothing to validate on arrival.
+   * With no argument main owns the existing-folder dialog. A folder dropped on the Import page
+   * arrives as `{ folder }`, the one path the renderer names, read off the drop itself.
    *
    * @returns the new `SiteRecord`, so the grid can render the card without a second `list`
    *   round trip.
@@ -212,6 +219,14 @@ export const SITE_IPC_CHANNELS = {
    *   verbatim rather than paraphrasing it.
    */
   addSite: 'runner:sites:add-site',
+  /**
+   * The Import page's archive sources: `{ file }` (a dropped .tovu.zip), `{ url }` (a share link) or
+   * `{ pick: true }` (main's file dialog). Makes a NEW site through `tovu import-local`; a refused
+   * archive rejects with the importer's own sentence and leaves nothing behind.
+   *
+   * @returns the new `SiteRecord` plus the importer's notices, or `null` when the dialog was cancelled.
+   */
+  importArchive: 'runner:sites:import-archive',
   /**
    * Change a site's display name — `config.json`'s `name`, which is where `readSiteName`
    * (`main.ts`) gets every card's `displayName`. Real (`project-ipc.ts`'s `handleRename`).

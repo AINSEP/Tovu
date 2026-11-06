@@ -155,6 +155,7 @@ import { registerSiteIpcHandlers, rescanSites, type ProjectSiteLifecycle } from 
 import { createSiteFolders } from "../site-folders.ts";
 import { discoverDesktopSites, startDesktopSiteDiscovery } from "../site-discovery.ts";
 import { addSitePointer } from "../add-site-pointer.ts";
+import { importSiteArchive } from "../site-archive-import.ts";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { resolveDesktopRoots } from "../packaged-paths.ts";
 import { readWindowBounds, writeWindowBounds } from "../window-bounds-store.ts";
@@ -920,6 +921,7 @@ function buildProjectDeps(sitesCtx: SitesHomeCtx) {
     // "Add Tovu Website" — pointer-only, and deliberately NOT `adoptSiteDir`, which inits an
     // empty folder. See `add-site-pointer.ts`'s header and `handleAddSite`.
     addSitePointer,
+    importSiteArchive,
     openSiteServer: (siteDir: string, ctx: SitesHomeCtx) => siteBackend.openSiteServer({ siteDir, ctx }),
     recordSiteClosed,
     // How `handleDelete` sees a SIBLING app instance's open sites before erasing a directory —

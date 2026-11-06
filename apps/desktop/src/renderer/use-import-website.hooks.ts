@@ -1,24 +1,27 @@
 /**
- * @file The Import page's "live website address" source: the typed address, the busy flag, and a
+ * @file The Import page's address and archive sources: the typed address, the busy flag, and a
  * failure with the details to copy. The folder source reuses `useAddSite` (it already is "point at
- * a folder"); this hook adds only what the address needs.
+ * a folder"); this hook adds only what the other sources need.
  *
  * A live website is imported by the site's own assistant plugin, which works inside a site. So the
  * address makes a NEW site first (the same call as Create website) and the page then opens that
  * site's tab on its Import tab with the address typed in. Nothing else is opened or started.
- * An archive (share link or .tovu.zip) is not offered here: its importer needs a running site
- * server to call, and this app has no site-less way to run it.
+ * An archive (share link or .tovu.zip) is finished by main with no site involved, so it just
+ * resolves with the new site.
  */
 import { useCallback, useState } from 'react';
 
-import type { SiteRecord } from '../contracts/project.js';
+import type { ImportArchiveInput, ImportedSiteRecord, SiteRecord } from '../contracts/project.js';
 import { copyableDetails } from './import-error-details.js';
-import { siteNameFromAddress, websiteAddress, type SiteAdminPage } from './import-site-entry.js';
+import { isShareLink, siteNameFromAddress, websiteAddress, type SiteAdminPage } from './import-site-entry.js';
+import { runnerInventoryBridge, type BridgeLookup } from './runner-api.js';
 import { humanSiteError } from './site-shell-policy.js';
 
 export interface ImportFailure { message: string; details: string }
 
 const CREATE_FAILED = "Couldn't create a website for that address.";
+const ARCHIVE_FAILED = "Couldn't import that website. No website was created.";
+const NO_ARCHIVE_BRIDGE: ImportFailure = { message: "This version of the app can't import that. Update Tovu and try again.", details: '' };
 /** A folder path in the message: the person gets the plain sentence, the path stays in the details. */
 const HAS_PATH = /(?:^|[\s'"(])(?:\/[\w.~][^\s]*|[A-Za-z]:\\)/;
 
@@ -27,6 +30,12 @@ const BAD_ADDRESS: ImportFailure = {
   details: '',
 };
 
+/** A rejection as the page shows it: the importer's sentence, or the plain one if it names a path. */
+function importFailure({ error, fallback }: { error: unknown; fallback: string }): ImportFailure {
+  const message = humanSiteError({ error, fallback });
+  return { message: HAS_PATH.test(message) ? fallback : message, details: copyableDetails({ error }) };
+}
+
 /**
  * @param required.createSite makes the site (`useProjectMutations().handleCreate`); resolves the new record.
  * @param required.openSite opens the new site's tab on the given admin page.
@@ -34,17 +43,22 @@ const BAD_ADDRESS: ImportFailure = {
  * @complexity O(1) per call, plus one site creation.
  */
 export function useImportWebsite(
-  { createSite, openSite }: {
+  { createSite, openSite, onArchiveImported }: {
     createSite: (input: { displayName: string }) => Promise<SiteRecord | undefined>;
     openSite: (input: { id: string; adminPage: SiteAdminPage }) => void;
+    /** A .tovu.zip or share link became this site. */
+    onArchiveImported: (site: ImportedSiteRecord) => void;
   },
-  _optional: Record<string, never> = {},
+  { getBridge = runnerInventoryBridge }: { getBridge?: BridgeLookup<'importSiteArchive'> } = {},
 ): {
   address: string;
   setAddress: (address: string) => void;
   importing: boolean;
   failure: ImportFailure | null;
   importLive: () => Promise<void>;
+  importArchive: (source: ImportArchiveInput) => Promise<void>;
+  /** Shows a message the page itself decided, such as a wrong file type dropped. */
+  refuse: (message: string) => void;
   clearFailure: () => void;
 } {
   const [address, setAddressState] = useState('');
@@ -53,10 +67,29 @@ export function useImportWebsite(
 
   const setAddress = useCallback((next: string) => { setAddressState(next); setFailure(null); }, []);
   const clearFailure = useCallback(() => setFailure(null), []);
+  const refuse = useCallback((message: string) => setFailure({ message, details: '' }), []);
+
+  const importArchive = useCallback(async (source: ImportArchiveInput) => {
+    const bridge = getBridge();
+    if (bridge?.importSiteArchive === undefined) { setFailure(NO_ARCHIVE_BRIDGE); return; }
+    setImporting(true);
+    setFailure(null);
+    try {
+      const imported = await bridge.importSiteArchive(source);
+      if (imported === null) return;
+      setAddressState('');
+      onArchiveImported(imported);
+    } catch (error) {
+      setFailure(importFailure({ error, fallback: ARCHIVE_FAILED }));
+    } finally {
+      setImporting(false);
+    }
+  }, [getBridge, onArchiveImported]);
 
   const importLive = useCallback(async () => {
     const liveAddress = websiteAddress({ text: address });
     if (liveAddress === null) { setFailure(BAD_ADDRESS); return; }
+    if (isShareLink({ address: liveAddress })) { await importArchive({ url: liveAddress }); return; }
     setImporting(true);
     setFailure(null);
     try {
@@ -65,14 +98,13 @@ export function useImportWebsite(
       setAddressState('');
       openSite({ id: created.id, adminPage: { page: 'import', liveAddress } });
     } catch (error) {
-      const message = humanSiteError({ error, fallback: CREATE_FAILED });
-      setFailure({ message: HAS_PATH.test(message) ? CREATE_FAILED : message, details: copyableDetails({ error }) });
+      setFailure(importFailure({ error, fallback: CREATE_FAILED }));
     } finally {
       setImporting(false);
     }
-  }, [address, createSite, openSite]);
+  }, [address, createSite, openSite, importArchive]);
 
-  return { address, setAddress, importing, failure, importLive, clearFailure };
+  return { address, setAddress, importing, failure, importLive, importArchive, refuse, clearFailure };
 }
 
 /**

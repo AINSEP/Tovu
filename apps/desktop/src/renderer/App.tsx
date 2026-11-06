@@ -18,7 +18,9 @@ import {
 import { useTabCloseAsk } from './use-tab-close-ask.hooks.js';
 import { TabCloseAsk } from './app/TabCloseAsk.js';
 import { chromeVisibility } from './expanded-mode.js';
-import { useAddSite } from './use-add-site.hooks.js';
+import { mergeAddedSite, useAddSite } from './use-add-site.hooks.js';
+import { useSiteToast } from './use-site-toast.hooks.js';
+import { SiteToast } from './SiteToast.js';
 import { useImportWebsite } from './use-import-website.hooks.js';
 import { useFindInPage } from './use-find-in-page.hooks.js';
 import { useZoom } from './use-zoom.hooks.js';
@@ -126,12 +128,16 @@ export function App({
       stopCreating,
     });
 
-  // The Import page's two sources. Both end the same way: the new site's tab opens and the page closes.
+  const siteToast = useSiteToast({ lastCreated });
+  // The Import page's sources. All end the same way: the new site's tab opens and the page closes.
   const openImported = (id: string, adminPage?: SiteAdminPage) => { openProjectTab(id, { adminPage }); stopImporting(); };
-  const { adding, addError, addDetails, addNotice, addSite, clearAddError } = useAddSite({ setProjects }, { onAdded: (id) => openImported(id) });
+  const { adding, addError, addDetails, addNotice, addSite, addDroppedFolder, clearAddError } = useAddSite({ setProjects }, {
+    onAdded: (added) => { siteToast.announceAdded(added); openImported(added.id); },
+  });
   const liveImport = useImportWebsite({
     createSite: ({ displayName }) => handleCreate({ displayName, database: { kind: 'sqlite' } }),
     openSite: ({ id, adminPage }) => openImported(id, adminPage),
+    onArchiveImported: (site) => { setProjects((current) => mergeAddedSite(current, site)); siteToast.announceImported(site); openImported(site.id); },
   });
 
   const { expanded, toggleExpanded } = useExpanded(showSiteTab);
@@ -219,7 +225,10 @@ export function App({
           shown={showImportPage}
           onBack={stopImporting}
           adding={adding}
-          onChooseFolder={addSite}
+          onChooseFolder={() => { liveImport.clearFailure(); return addSite(); }}
+          onDropFolder={(folder) => { liveImport.clearFailure(); return addDroppedFolder(folder); }}
+          onImportArchive={liveImport.importArchive}
+          onRefuse={liveImport.refuse}
           address={liveImport.address}
           onAddressChange={liveImport.setAddress}
           importing={liveImport.importing}
@@ -245,6 +254,8 @@ export function App({
           adminPages={adminPages}
         />
       </main>
+
+      <SiteToast toast={siteToast.toast} onDismiss={siteToast.dismiss} />
 
       {/* NO chat FAB on this page, deliberately, and this comment is the whole reason.
 

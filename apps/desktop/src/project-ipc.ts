@@ -36,6 +36,7 @@ import { removeSiteTree } from "./remove-site-tree.ts";
 import { uniqueSiteName, duplicateSiteNameError } from "./site-name-policy.ts";
 import { siteNameError } from "./contracts/site-name.ts";
 import type { SiteFoldersPort } from "./site-folders.ts";
+import type { SiteArchiveSource } from "./site-archive-import.ts";
 import type { SiteRecord } from "./contracts/project.ts";
 import type { ExternalSiteStopper } from "./external-site-stop.ts";
 import { registerIdleSiteSleepIpc } from "./site-view-preference.ts";
@@ -62,6 +63,7 @@ const SITE_IPC_CHANNELS = Object.freeze({
   setHome: "runner:sites:home:set",
   saveSettings: "runner:sites:settings:save",
   addSite: "runner:sites:add-site",
+  importArchive: "runner:sites:import-archive",
   rename: "runner:sites:rename",
   preview: "runner:sites:preview",
   locate: "runner:sites:locate",
@@ -290,7 +292,8 @@ interface OpenDialogOptions {
   title: string;
   message?: string;
   buttonLabel: string;
-  properties: Array<"openDirectory" | "createDirectory">;
+  properties: Array<"openDirectory" | "createDirectory" | "openFile">;
+  filters?: Array<{ name: string; extensions: string[] }>;
 }
 
 /** Electron's `dialog.showOpenDialog` resolution — the subset read here. */
@@ -747,6 +750,19 @@ async function handleCreate(
     });
   };
   const siteDir = await withDirectoryFileLock({ lockPath: `${target}.creation.lock`, run: adopt }, { staleMs: Infinity });
+  return withCreatedTokens(recordCreatedSite({ siteDir, displayName }, deps), init.output);
+}
+
+/**
+ * What every site this app made gets: its catalog row with the identity `tovu` just stamped, its
+ * shared-registry entry, and its display name. Create and Import both end here.
+ * @throws {Error} when the catalog entry cannot be read back.
+ * @complexity O(n) in tracked rows.
+ */
+function recordCreatedSite(
+  { siteDir, displayName }: { siteDir: string; displayName: string },
+  deps: Pick<ProjectIpcDeps, "projectsPath" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "siteFolders" | "sharedSites" | "siteRuntime">,
+) {
   // Read AFTER `adoptSiteDir`, because before it there is no site there to have an identity: this is
   // the id `tovu init` just stamped into `.site-meta.json`. Recording it here is the only moment
   // this app can honestly say "the site at this path is one I made" — every later reader is looking
@@ -764,7 +780,7 @@ async function handleCreate(
   rememberSiteAlias({ projectsPath: deps.projectsPath, siteDir, displayNameAlias });
   const tracked = readTrackedSites(deps.projectsPath).find((row) => row.siteDir === siteDir);
   if (!tracked) throw new Error("The website was created, but its desktop catalog entry is missing. Use Add Tovu Website to add the folder again.");
-  return withCreatedTokens(buildSiteRecord({ ...tracked, displayNameAlias }, deps), init.output);
+  return buildSiteRecord({ ...tracked, displayNameAlias }, deps);
 }
 
 /** Validate creation before planning the destination; return the existing cleaned token contract.
@@ -825,23 +841,16 @@ async function handleTokenSignInPlugins(deps: Pick<ProjectIpcDeps, "repoRoot" | 
  *   complete Tovu site — either way an operator-facing message that names the fix.
  * @complexity O(n) in the tracked-project count, plus one classification.
  */
-async function handleAddSite(deps: Pick<ProjectIpcDeps, "dialog" | "addSitePointer" | "projectsPath" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "sharedSites" | "siteRuntime">) {
-  const picked = await deps.dialog.showOpenDialog({
-    title: "Choose your Tovu website's folder",
-    message: "Pick a folder that already contains a Tovu website. Nothing in it will be changed.",
-    buttonLabel: "Add website",
-    // No `createDirectory`: a folder the operator makes in this dialog is
-    // empty by definition, and an empty folder is precisely what this verb refuses. Offering the
-    // button would invite the one mistake the refusal then has to explain.
-    properties: ["openDirectory"],
-  });
-  if (picked.canceled || picked.filePaths.length === 0) {
-    // Cancelling is a completed choice, not an IPC failure to log or display.
-    return null;
-  }
+async function handleAddSite(
+  deps: Pick<ProjectIpcDeps, "dialog" | "addSitePointer" | "projectsPath" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "sharedSites" | "siteRuntime">,
+  input: { folder?: unknown } = {},
+) {
+  // A dropped folder arrives with its path; everything else goes through main's own dialog.
+  const folder = input.folder === undefined ? await pickSiteFolder(deps) : droppedPath({ value: input.folder });
+  if (folder === null) return null;
 
-  const { siteDir, alreadyTracked } = deps.addSitePointer({ siteDir: picked.filePaths[0]!, projectsPath: deps.projectsPath }, { workspace: deps.sharedSites });
-  if (deps.sharedSites) shareSiteDirectories({ workspace: deps.sharedSites, dirs: [siteDir], createdBy: "Desktop", allowRelocation: true }); // just checked `filePaths.length === 0` above, so index 0 exists
+  const { siteDir, alreadyTracked } = deps.addSitePointer({ siteDir: folder, projectsPath: deps.projectsPath }, { workspace: deps.sharedSites });
+  if (deps.sharedSites) shareSiteDirectories({ workspace: deps.sharedSites, dirs: [siteDir], createdBy: "Desktop", allowRelocation: true });
   const row = readTrackedSites(deps.projectsPath).find((entry) => entry.siteDir === siteDir)!; // addSitePointer just tracked this exact siteDir above, so a row for it always exists
   // Read back rather than synthesized: an already-tracked folder keeps its ORIGINAL `createdAt` and
   // origin, and a fabricated row would report today's date and reorder the operator's grid.
@@ -854,6 +863,60 @@ async function handleAddSite(deps: Pick<ProjectIpcDeps, "dialog" | "addSitePoint
   const record = buildSiteRecord(row, deps);
   rememberSiteName({ projectsPath: deps.projectsPath, siteDir, displayName: record.displayName });
   return { ...record, alreadyTracked };
+}
+
+/** Main's folder dialog; `null` when cancelled, which is a completed choice, not a failure to show. */
+async function pickSiteFolder(deps: Pick<ProjectIpcDeps, "dialog">): Promise<string | null> {
+  const picked = await deps.dialog.showOpenDialog({
+    title: "Choose your Tovu website's folder",
+    message: "Pick a folder that already contains a Tovu website. Nothing in it will be changed.",
+    buttonLabel: "Add website",
+    // No `createDirectory`: a folder the operator makes in this dialog is
+    // empty by definition, and an empty folder is precisely what this verb refuses. Offering the
+    // button would invite the one mistake the refusal then has to explain.
+    properties: ["openDirectory"],
+  });
+  return picked.canceled || picked.filePaths.length === 0 ? null : picked.filePaths[0]!;
+}
+
+/** A path the renderer read off a drop. What it holds is checked by the verb it goes to. */
+function droppedPath({ value }: { value: unknown }): string {
+  if (typeof value !== "string" || !path.isAbsolute(value)) throw new Error("That drop did not include a location on this computer. Use the Choose button instead.");
+  return value;
+}
+
+/** Which archive to import; `null` when the dialog was cancelled. Remote input is checked by the importer. */
+async function archiveSource(
+  { input }: { input: { file?: unknown; url?: unknown; pick?: unknown } | null | undefined },
+  deps: Pick<ProjectIpcDeps, "dialog">,
+): Promise<SiteArchiveSource | null> {
+  if (typeof input?.url === "string") return { url: input.url };
+  if (input?.file !== undefined) {
+    const file = droppedPath({ value: input.file });
+    if (!/\.zip$/i.test(file)) throw new Error("That is not a .tovu.zip file. Export a website from Tovu to get one.");
+    return { file };
+  }
+  if (input?.pick !== true) throw new Error("Import needs a file or a share link.");
+  const picked = await deps.dialog.showOpenDialog({ title: "Choose a .tovu.zip file", buttonLabel: "Import website",
+    properties: ["openFile"], filters: [{ name: "Tovu website", extensions: ["zip"] }] });
+  return picked.canceled || picked.filePaths.length === 0 ? null : { file: picked.filePaths[0]! };
+}
+
+/**
+ * A .tovu.zip or share link becomes a new tracked site: `importSiteArchive` makes it, or rolls it
+ * back and rejects with the reason, and it then ends the way Create does.
+ * @returns the new record and the importer's notices; `null` when the dialog was cancelled.
+ * @complexity One child process, then {@link recordCreatedSite}.
+ */
+async function handleImportArchive(
+  input: Parameters<typeof archiveSource>[0]["input"],
+  deps: Pick<ProjectIpcDeps, "dialog" | "importSiteArchive" | "cliMode" | "projectsPath" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "siteFolders" | "sharedSites" | "siteRuntime">,
+) {
+  const source = await archiveSource({ input }, deps);
+  if (source === null) return null;
+  const imported = await deps.importSiteArchive({ source, repoRoot: deps.repoRoot, cliMode: deps.cliMode });
+  const displayName = uniqueSiteName({ name: deps.readSiteName(imported.dir), names: otherSiteNames({ deps, siteDir: imported.dir }) });
+  return { ...recordCreatedSite({ siteDir: imported.dir, displayName }, deps), warnings: imported.warnings };
 }
 
 /**
@@ -1752,7 +1815,8 @@ function registerSiteIpcHandlers<TCtx>(deps: ProjectIpcDeps<TCtx>, options: Site
     return deps.siteFolders.remove({ root: input.root });
   });
   deps.ipcMain.handle(SITE_IPC_CHANNELS.rename, (_event, input) => handleRename(input, { ...deps, siteRuntime: states }));
-  deps.ipcMain.handle(SITE_IPC_CHANNELS.addSite, () => handleAddSite({ ...deps, siteRuntime: states }));
+  deps.ipcMain.handle(SITE_IPC_CHANNELS.addSite, (_event, input) => handleAddSite({ ...deps, siteRuntime: states }, input ?? {}));
+  deps.ipcMain.handle(SITE_IPC_CHANNELS.importArchive, (_event, input) => handleImportArchive(input, { ...deps, siteRuntime: states }));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.preview, (_event, id) => handleGetPreview(id, deps));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.locate, (_event, id) => handleLocate(id, { ...deps, siteRuntime: states }));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.tokenSignInPlugins, () => handleTokenSignInPlugins(deps));
@@ -1811,6 +1875,8 @@ interface ProjectIpcDeps<TCtx = unknown> {
   pendingTeardowns?: { track(required: { promise: PromiseLike<unknown> }): Promise<void> };
   adoptSiteDir: (input: AdoptSiteDirInput) => Promise<string>;
   addSitePointer: AddSitePointerLike;
+  /** `site-archive-import.ts`'s real runner. */
+  importSiteArchive: typeof import("./site-archive-import.ts").importSiteArchive;
   /** Injected for tests; defaults to `agent-plugin-tokens.ts`'s CLI-backed lister. */
   listTokenSignInPlugins?: (input: { repoRoot: string; cliMode?: "source" | "compiled" }) => Promise<TokenSignInPlugin[]>;
   // `classifySiteDirSafely`'s verdicts, spelled out because `site-dir-store.ts` does not export its
@@ -1850,6 +1916,7 @@ export {
   handleList,
   handleAddSite,
   handleCreate,
+  handleImportArchive,
   handleDelete,
   handleOpenExternal,
   handleStart,
