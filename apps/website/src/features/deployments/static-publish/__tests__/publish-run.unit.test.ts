@@ -418,7 +418,7 @@ test('an unexpected manual publish failure never exposes secret shapes in its po
   const routeDeps = testRouteDeps();
   const deps: StaticPublishDeps = { credentialSource: fakeCredentialSource(), loadDeployTargets: routeDeps.loadDeployTargets, buildTarget: () => fakeDeployTarget() };
   const history = new InMemoryPublishHistoryStore();
-  const failure = new Error('operation id failed password=PUBLISH_CANARY_90872');
+  const failure = new Error('operation id failed token=PUBLISH_CANARY_90872');
   const input = { ...githubInput(routeDeps), idGen: idGenFailingInsidePublish(failure), exportSiteBound: async () => assert.fail('must not export') };
   await assert.rejects(runPublishForTest(deps, input, clock, history), error => {
     assert.ok(error instanceof Error);

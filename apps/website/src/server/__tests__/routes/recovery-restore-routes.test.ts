@@ -520,7 +520,7 @@ test("recovery restore: execute surfaces a throwing instance-authorization port 
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const logged = t.mock.method(console, "error", () => {});
   deps.gatedMutations.gatewayDeps.authorizeInstance = async () => {
-    throw new Error("instance authorizer offline password=RECOVERY_CANARY_90872");
+    throw new Error("instance authorizer offline token=RECOVERY_CANARY_90872");
   };
 
   const res = await postJson(baseUrl, cookie, "execute", { confirmationToken: "tok", restorePointId: "rp-1" });

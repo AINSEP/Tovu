@@ -56,3 +56,6 @@ C30 confirmed residual gap: all six individual producers return image previews, 
 - C30: batch media production drops every inline preview image block; individual calls retain previews.
 
 - C25: fresh copied Cloudflare payload cannot resolve its CMS dependency; both Cloudflare deploy targets disappear.
+
+C26 follow-up trace: existing deterministic monotonic/sleep ports cover the remaining clock claim. `file-lock.test.ts -t 'monotonicMs'` passes the clock-separation case; `-t 'beyond 125 seconds|finite waiters'` passes3 controlled-clock cases, including 225 seconds of simulated live-owner waiting and finite timeout without wall-clock sleeping. Combined with prior85 boundaries, no lock defect reproduced.
+Final document cache boundary probes pass: third-entry eviction, combined50MiB cap, and a late timed-out extraction cannot poison the cache (paging10 pass). Invalid read offsets leave filenames unchanged (target19 pass).
