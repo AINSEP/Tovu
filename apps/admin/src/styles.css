@@ -6581,7 +6581,7 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
   table.list-table > tbody > tr > td:first-child:has(input[type="checkbox"]) + td {
     order: 0; flex: 1 1 0; font-weight: 600; color: var(--fg);
   }
-  table.list-table > tbody > tr > td:first-child:has(input[type="checkbox"]) { flex: 0 0 auto; }
+  table.list-table > tbody > tr:not(.list-table-detail) > td:first-child:has(input[type="checkbox"]) { flex: 0 0 auto; }
   table.list-table > tbody > tr > td:last-child:not(:first-child):has(button, a, select) {
     order: 1; margin-left: auto; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px;
   }
