@@ -21,7 +21,7 @@ function fixture(register: FormsRouteRegistrar, overrides: Record<string, unknow
 test('forms providers: authorization failures stay private', async () => {
   const { app } = fixture(registerAdminFormsProvidersRoute, { authorize: async () => { throw new Error('private credential'); } });
   assertAdminResponse({ actual: await dispatchJsonRequest(app, 'GET', `${BASE}/forms/_providers`), expected: { status: 500, body: { error: 'internal error', code: 'INTERNAL_ERROR' } } }, {
-    failure: { message: 'The form operation could not be completed.', action: 'Check the result before repeating this operation. Copy details and report this problem.', step: 'form operation' },
+    failure: { message: 'The forms could not be loaded.', action: 'Try loading them again. If it still fails, copy details and report this problem.', step: 'Load forms' },
   });
 });
 test('forms providers: denied permission never reads provider settings', async () => {
