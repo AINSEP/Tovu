@@ -193,7 +193,10 @@ test("a recording of exactly the cap is accepted, and one sample more is refused
 // REGRESSION: fails if non-finite Float32Array samples or sparse array holes bypass validation.
 test("non-finite typed samples and sparse holes are refused before reaching recognition", async () => {
   const { calls, transcribe } = registerRecording();
-  for (const samples of [new Float32Array([Number.NaN]), new Float32Array([Infinity]), new Array(1)]) {
+  const sparseSamples: number[] = [];
+  sparseSamples.length = 1;
+  assert.equal(Object.hasOwn(sparseSamples, 0), false);
+  for (const samples of [new Float32Array([Number.NaN]), new Float32Array([Infinity]), sparseSamples]) {
     await rejectsWith(() => transcribe(TRUSTED_EVENT, samples, 16000), SAMPLES_REFUSED);
   }
   assert.deepEqual(calls, []);

@@ -11,7 +11,7 @@ function harness() {
   const timers = new Map<number, { work: () => void; at: number }>();
   const targets = new Map<string, PreviewTarget>([[SITE, { port: 8123, partition: "persist:site" }]]);
   const captures: Array<PreviewTarget & { siteDir: string }> = [];
-  let capture: (input: PreviewTarget & { siteDir: string }) => Promise<boolean> = async () => true;
+  let capture: (input: PreviewTarget & { siteDir: string }) => Promise<boolean> = async (_input) => true;
   const scheduler = createSitePreviewScheduler<number>({ ports: {
     current: ({ siteDir }) => targets.get(siteDir),
     capture: (input) => { captures.push(input); return capture(input); },
