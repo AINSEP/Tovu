@@ -11,6 +11,7 @@ import { createSurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';
 import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/core/primitives';
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
 import { createToolRegistry } from '@jini-ai/core';
+import { createAccessApprover } from '../tool-registrations.js';
 import { createToolExecutor } from '@jini-ai/daemon';
 import { AWAITING_ANSWER_NOTICE, createDurableRecovery, type DurableRun, type DurableRunStore, type RecoveryPorts } from '@jini-ai/chat/server/durable-runs';
 import { createTempSiteLayoutFixture } from '#src/__tests__/fixtures/site-layout-context';
@@ -53,7 +54,7 @@ async function fixture(t: TestContext, { pluginId = 'synthetic-author', count = 
   const runs = createAutomaticPluginRuns({ askAgentPluginChoice, deps: { workspaceId, agentPluginLayout: layout, siteTitleReady: settingsUiTabsReady,
     preferences: composeAgentPluginPreferences({ settings: { repo: settingsRepo, clock, ids: idGen,
       principals: createSettingsPrincipalLookup({ repo: principalRepo }), authorize: async () => ({ allowed: true, reason: 'test' }) } }),
-  }, surfaces: { surfaceExchanges } });
+  }, surfaces: { surfaceExchanges, assertAccessApprover: createAccessApprover({ principalRepo, workspaceId }) } });
   const published: Parameters<AutomaticPluginRun['publish']>[0][] = [];
   const context: AutomaticPluginRun = { principal: { id: 'alice' }, conversationId: 'chat', state: { decision: null, excluded: [] }, query: 'Design holography', pinned: [], signal: new AbortController().signal, emitSurface: async () => { assert.fail('Auto must not ask'); }, publish: async value => { published.push(value); } };
   await settingsUiTabsReady;
@@ -560,4 +561,52 @@ test('load_agent_plugin reads a supporting file after load without any per-plugi
   assert.match(result.guidance, /Read-only permission reference/);
   assert.doesNotMatch(result.guidance, /agent_plugin_synthetic_author/);
   assert.equal(f.published.length, 1);
+});
+
+for (const action of ['use', 'auto'] as const) test(`pending plugin ${action} cannot override a newer personal Off preference`, async t => {
+  const f = await fixture(t);
+  await f.principalRepo.save({ id: 'alice', workspaceId: f.workspaceId, kind: 'user', displayName: 'Alice', status: 'active', createdAt: f.clock.nowIso() });
+  const writeMode = (value: 'ask' | 'off') => set({ deps: { repo: f.settingsRepo, clock: f.clock, ids: f.idGen,
+    principals: createSettingsPrincipalLookup({ repo: f.principalRepo }), authorize: async () => ({ allowed: true, reason: 'test' }) },
+    input: { namespace: 'core.interface', key: 'chatAgentPlugins', scope: 'user', workspaceId: f.workspaceId, principalId: 'alice', callerPrincipalId: 'alice', authWorkspaceId: f.workspaceId, value } });
+  await writeMode('ask');
+  let cards = 0;
+  await assert.rejects(f.runs.start({ runId: 'stale-personal-choice', context: { ...f.context, emitSurface: async emission => {
+    if (emission.channel !== 'mcp-ui') return;
+    cards++;
+    const html = (emission.payload.resource as { resource: { text: string } }).resource.text;
+    const exchangeId = html.match(/__exchangeId"\s*:\s*"([^"]+)"/)?.[1];
+    assert.ok(exchangeId);
+    await writeMode('off');
+    assert.equal(f.surfaceExchanges.deliver({ exchangeId, principalId: 'alice', params: { __choiceAction: action, selections: [f.pluginId] } }, { toolId: ASK_CHOICE_TOOL_ID }).ok, true);
+  } } }), /changed/);
+  const mode = await getEffective({ repo: f.settingsRepo }, { namespace: 'core.interface', key: 'chatAgentPlugins', scopeContext: { workspaceId: f.workspaceId, principalId: 'alice' } });
+  assert.equal(mode?.value, 'off');
+  assert.equal(cards, 1);
+  assert.equal(f.published.length, 0);
+  f.runs.forget({ runId: 'stale-personal-choice' });
+});
+
+test('automatic plugin access rechecks the real active person after the answer', async t => {
+  const f = await fixture(t);
+  const person = { id: 'alice', workspaceId: f.workspaceId, kind: 'user' as const, displayName: 'Alice', status: 'active' as const, createdAt: f.clock.nowIso() };
+  await f.principalRepo.save(person);
+  await set({ deps: { repo: f.settingsRepo, clock: f.clock, ids: f.idGen,
+    principals: createSettingsPrincipalLookup({ repo: f.principalRepo }), authorize: async () => ({ allowed: true, reason: 'test' }) },
+    input: { namespace: 'core.interface', key: 'chatAgentPlugins', scope: 'user', workspaceId: f.workspaceId, principalId: 'alice', callerPrincipalId: 'alice', authWorkspaceId: f.workspaceId, value: 'ask' } });
+  let cards = 0;
+  await assert.rejects(f.runs.start({ runId: 'revoked-person', context: { ...f.context, emitSurface: async emission => {
+    if (emission.channel !== 'mcp-ui') return;
+    cards++;
+    const html = (emission.payload.resource as { resource: { text: string } }).resource.text;
+    const exchangeId = html.match(/__exchangeId"\s*:\s*"([^"]+)"/)?.[1];
+    assert.ok(exchangeId);
+    await f.principalRepo.save({ ...person, status: 'disabled' });
+    assert.equal(f.surfaceExchanges.deliver({ exchangeId, principalId: 'alice', params: { __choiceAction: 'auto', selections: [f.pluginId] } }, { toolId: ASK_CHOICE_TOOL_ID }).ok, true);
+  } } }), /active, signed-in person/);
+  const mode = await getEffective({ repo: f.settingsRepo }, { namespace: 'core.interface', key: 'chatAgentPlugins', scopeContext: { workspaceId: f.workspaceId, principalId: 'alice' } });
+  assert.equal(mode?.value, 'ask');
+  assert.equal(cards, 1);
+  assert.equal(f.published.length, 0);
+  f.runs.forget({ runId: 'revoked-person' });
 });

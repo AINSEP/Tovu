@@ -2,7 +2,7 @@
 import { createAutomaticAgentPluginUse, readChatAgentPluginState, type AutomaticAgentPluginPorts, type ChatAgentPluginState, type ChatAgentPlugins } from '@jini-ai/agent-plugins/lifecycle';
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, optionalString, ToolInputError, type AgentToolDefinition, type AgentToolSideEffect, type Principal, type SurfaceEmitter } from '@jini-ai/core';
 import type { PrepareToolGuidance } from '@jini-ai/daemon';
-import type { AssistantSurfaceDeps } from '@jini-ai/daemon/surface-exchanges';
+import type { ChatDeleteSurfaceDeps } from '../../contracts/core/chat-delete-grant.js';
 import { loadAgentPluginSearchCandidates, type AgentPluginSearchToolDeps } from './tool-registrations.js';
 import { formatPluginToolPointer } from './bundled-catalog.js';
 import type { PluginMaturity } from './identity.js';
@@ -12,13 +12,14 @@ import { toolMetadata } from '../../contracts/core/tool-metadata/agent-plugins.j
 
 /** Only the ports read by automatic plugin guidance and its settings write. */
 export interface AutomaticPluginDeps extends AgentPluginSearchToolDeps {
-  preferences: Pick<AgentPluginPreferencesPort, 'mode' | 'saveAuto'>;
+  preferences: Pick<AgentPluginPreferencesPort, 'mode' | 'snapshot' | 'saveAuto'>;
   siteTitleReady: Promise<void>;
 }
 
 /** The feature's consent port; the assistant supplies its principal-bound exchange adapter. */
 export type AskAgentPluginChoice = (required: {
-  surfaces: AssistantSurfaceDeps; principalId: string; emitSurface: SurfaceEmitter; signal: AbortSignal;
+  surfaces: ChatDeleteSurfaceDeps; principalId: string; emitSurface: SurfaceEmitter; signal: AbortSignal;
+  workspaceId: string; conversationId: string; preferenceRevisionSeq: number; selected: readonly string[];
   matches: Parameters<AutomaticAgentPluginPorts['ask']>[0]['matches'];
 }, optional?: Record<string, never>) => ReturnType<AutomaticAgentPluginPorts['ask']>;
 
@@ -42,7 +43,7 @@ export interface AutomaticPluginRun {
  * @returns start/forget, the read-only guidance loader and the tool preparation hook.
  * @complexity O(1) identity lookup; one controller per live turn, one late answer per chat.
  */
-export function createAutomaticPluginRuns({ deps, surfaces, askAgentPluginChoice }: { deps: AutomaticPluginDeps; surfaces: AssistantSurfaceDeps; askAgentPluginChoice: AskAgentPluginChoice }, _options = {}) {
+export function createAutomaticPluginRuns({ deps, surfaces, askAgentPluginChoice }: { deps: AutomaticPluginDeps; surfaces: ChatDeleteSurfaceDeps; askAgentPluginChoice: AskAgentPluginChoice }, _options = {}) {
   type Entry = { turnId: string; controller: ReturnType<typeof createAutomaticAgentPluginUse>; context: AutomaticPluginRun; abort: AbortController; pending: boolean; attempts: Set<string>; maturities: Map<string, PluginMaturity | undefined> };
   const turns = new Map<string, Entry>();
   const runs = new Map<string, Entry>();
@@ -97,6 +98,7 @@ export function createAutomaticPluginRuns({ deps, surfaces, askAgentPluginChoice
   function createEntry({ mode, context, turnId, runId }: { mode: ChatAgentPlugins; context: AutomaticPluginRun; turnId: string; runId: string }): Entry {
     const abort = new AbortController();
     const maturities = new Map<string, PluginMaturity | undefined>();
+    let approvedPreferenceRevisionSeq: number | undefined;
     let entry: Entry;
     const controller = createAutomaticAgentPluginUse({ mode, state: readChatAgentPluginState({ value: context.state }), ports: {
       formatPluginToolPointer,
@@ -111,7 +113,11 @@ export function createAutomaticPluginRuns({ deps, surfaces, askAgentPluginChoice
       ask: async ({ matches }) => {
         entry.pending = true;
         try {
-          return await askAgentPluginChoice({ surfaces, principalId: context.principal.id,
+          const preference = await deps.preferences.snapshot({ workspaceId: deps.workspaceId, principalId: context.principal.id });
+          if (preference.mode !== 'ask') throw new ToolInputError({ message: 'Your Agent Plugins preference changed before this card opened. Nothing was changed. Start a new request using your current preference.' });
+          const answer = await askAgentPluginChoice({ surfaces, principalId: context.principal.id,
+            workspaceId: deps.workspaceId, conversationId: context.conversationId, preferenceRevisionSeq: preference.revisionSeq,
+            selected: context.state.decision?.selected ?? [],
             // A retry can replace this attempt while the card is open; its receipt belongs to the
             // current transcript emitter, just like the later plugin-state publication below.
             emitSurface: async emission => {
@@ -120,9 +126,15 @@ export function createAutomaticPluginRuns({ deps, surfaces, askAgentPluginChoice
               if (emission.channel === 'user_message' && !entry.attempts.size) return;
               await entry.context.emitSurface(emission);
             }, signal: abort.signal, matches });
+          if (answer.action !== 'skip') {
+            const current = await deps.preferences.snapshot({ workspaceId: deps.workspaceId, principalId: context.principal.id });
+            if (current.mode !== preference.mode || current.revisionSeq !== preference.revisionSeq) throw new ToolInputError({ message: 'Your Agent Plugins preference changed while this card was open. Nothing was changed by this answer. Start a new request using your current preference.' });
+            approvedPreferenceRevisionSeq = preference.revisionSeq;
+          }
+          return answer;
         } finally { entry.pending = false; }
       },
-      saveAuto: () => deps.preferences.saveAuto({ workspaceId: deps.workspaceId, principalId: context.principal.id }),
+      saveAuto: () => deps.preferences.saveAuto({ workspaceId: deps.workspaceId, principalId: context.principal.id, expectedRevisionSeq: approvedPreferenceRevisionSeq }),
       publish: async value => {
         if (abort.signal.aborted) return;
         if (!entry.attempts.size) lateAnswers.set(chatKey(context), value.state);

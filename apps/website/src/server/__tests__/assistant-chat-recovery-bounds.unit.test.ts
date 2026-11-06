@@ -68,7 +68,8 @@ for (const outcome of ["answered", "expired", "dead"] as const) {
     ));
     let cards = 0;
     let receipts = 0;
-    const choice = askAgentPluginChoice({ surfaces: { surfaceExchanges: exchanges }, principalId: "owner",
+    const choice = askAgentPluginChoice({ surfaces: { surfaceExchanges: exchanges, assertAccessApprover: async () => {} }, principalId: "owner",
+      workspaceId: "site", conversationId: "chat", preferenceRevisionSeq: 0, selected: [],
       signal: abort.signal, matches: [{ id: "synthetic", name: "Synthetic", why: "Matches the task" }],
       emitSurface: async emission => {
         if (emission.channel === "mcp-ui") cards++;

@@ -3,10 +3,12 @@ import { randomUUID } from "node:crypto";
 import { MID_RUN_USER_MESSAGE_EVENT_NAME, questionAnswerLabel, questionAnswerText, SURFACE_QUESTION_META_KEY, type AcceptedChatInput } from '@jini-ai/chat/core';
 
 import { buildFormSurface, type SurfaceField, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
-import { ToolInputError, buildDomainRegistrations, decorateWithSchema, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { ToolInputError, createApprovalHandler, buildDomainRegistrations, decorateWithSchema, type AccessApprovalDescription, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { ASK_CHOICE_INPUT_SCHEMA, askChoice, createAskChoiceTool, createAskChoiceAnswerTicketStore, type AskChoiceForm, type AskChoiceQuestion, type AskChoiceExchangeStore, type AskChoiceMessages, type AskChoicePresentation } from "@jini-ai/mcp/tools/ask-choice";
 
 import { askChoiceToolResult } from "./ask-choice-ui-resource.js";
+import { requireAccessApprover } from "../contracts/core/human-confirm.js";
+import type { ChatDeleteSurfaceDeps } from "../contracts/core/chat-delete-grant.js";
 import { askOnce, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 
 /**
@@ -415,21 +417,71 @@ export function buildAskChoiceRegistrations(
   } }));
 }
 
-/** Ask the same principal-bound choice exchange for automatic plugin use. Only real form actions
- * can select Auto; typed/model-authored answers and dismissal mean Skip. No preference is written here.
- * @complexity O(m * s) time, O(m + s) space for m offered matches and s selections, plus exchange I/O.
+/** Ask the same principal-bound choice exchange through the common fresh-access lifecycle.
+ * The form keeps its checkbox/actions and transcript receipt; no preference is written here.
+ * @throws ToolInputError when the active person cannot be verified or the disclosure is too large.
+ * @complexity O(m + s) disclosure space for m matches and s selections, plus bounded identity reads.
  */
 export async function askAgentPluginChoice(
-  { surfaces, principalId, emitSurface, signal, matches }: {
-    surfaces: AssistantSurfaceDeps; principalId: string; emitSurface: import('@jini-ai/core').SurfaceEmitter;
+  required: {
+    surfaces: ChatDeleteSurfaceDeps; principalId: string; emitSurface: import('@jini-ai/core').SurfaceEmitter;
     signal: AbortSignal; matches: readonly { id: string; name: string; why: string }[];
+    workspaceId: string; conversationId: string; preferenceRevisionSeq: number; selected: readonly string[];
   }, _options = {},
 ): Promise<{ action: 'use' | 'skip' | 'auto'; selected: readonly string[] }> {
-  const question: AskChoiceQuestion = { title: 'Agent plugins', description: 'Use these installed plugins for this chat?', submitLabel: 'Use',
-    multiSelect: { label: 'Matching plugins', value: matches.map(match => match.id),
-      options: matches.map(match => ({ value: match.id, label: `${match.name} — ${match.why}` })) },
-    actions: [{ id: 'use', label: 'Use' }, { id: 'auto', label: "Don't ask again" }],
-  };
+  const { surfaces, principalId, signal, emitSurface, matches, selected, workspaceId, conversationId, preferenceRevisionSeq } = required;
+  const input = { matches, selected, workspaceId, conversationId, preferenceRevisionSeq };
+  const skipped = { action: 'skip' as const, selected: [] as readonly string[] };
+  let accepted: { action: 'use' | 'auto'; selected: readonly string[] } | undefined;
+  const handler = createApprovalHandler({
+    // Jini detaches this input before any identity lookup or human wait.
+    prepare: async ({ ctx }) => ctx.input as typeof input,
+    describe: ({ prepared }) => {
+      const scope = { personId: principalId, siteId: prepared.workspaceId, chatId: prepared.conversationId };
+      const access: AccessApprovalDescription = { resources: [
+        { id: 'agent-plugins:chat', label: 'Matching plugins', scope, previous: prepared.selected,
+          proposed: { checkedPluginsOnly: prepared.matches }, revision: null },
+        { id: 'core.interface.chatAgentPlugins', label: "Don't ask again", scope: { personId: principalId, siteId: prepared.workspaceId },
+          previous: 'ask', proposed: { use: 'ask', auto: 'auto' }, revision: String(prepared.preferenceRevisionSeq) },
+      ] };
+      const question: AskChoiceQuestion = { title: 'Agent plugins',
+        description: "Use these installed plugins for this chat? Don't ask again sets your Agent Plugins preference to Auto for this site.", submitLabel: 'Use',
+        multiSelect: { label: 'Matching plugins', value: prepared.matches.map(match => match.id),
+          options: prepared.matches.map(match => ({ value: match.id, label: `${match.name} — ${match.why}` })) },
+        actions: [{ id: 'use', label: 'Use' }, { id: 'auto', label: "Don't ask again" }],
+      };
+      return { kind: 'access', ask: true, access, description: { access, question, matches: prepared.matches } };
+    },
+    askHuman: async ({ description }) => {
+      const verify = () => requireAccessApprover({ surfaces, principalId, toolId: ASK_CHOICE_TOOL_ID, access: description.access });
+      await verify();
+      const answer = await askAutomaticPluginAccess({ surfaces, principalId, signal, emitSurface, ...description });
+      // Only validated form actions can change policy. Typed/model-authored replies mean Skip.
+      if (answer.submitted !== true || !Array.isArray(answer.selections) || (answer.action !== 'use' && answer.action !== 'auto')) {
+        await emitPluginChoiceReceipt({ answer, emitSurface });
+        return { confirmed: false, reason: 'declined' };
+      }
+      await verify();
+      accepted = { action: answer.action, selected: answer.selections as string[] };
+      await emitPluginChoiceReceipt({ answer, emitSurface });
+      return { confirmed: true };
+    },
+    run: async () => accepted!,
+    notConfirmed: () => skipped,
+  });
+  // This preflight has no model tool invocation. These coordinates correlate its existing
+  // logical chat; authority comes only from the active-person port and the domain writers.
+  return await handler({ executionId: `agent-plugins:${input.conversationId}`, principal: { id: principalId },
+    run: { id: input.conversationId }, input, signal }) as Awaited<ReturnType<typeof askAgentPluginChoice>>;
+}
+
+/** Preserve the existing form, receipt correlation and offered-option validator under approval.
+ * @complexity O(m + s) for offered matches and selections; one principal-bound exchange.
+ */
+async function askAutomaticPluginAccess({ surfaces, principalId, emitSurface, signal, question, matches }: {
+  surfaces: AssistantSurfaceDeps; principalId: string; emitSurface: import('@jini-ai/core').SurfaceEmitter;
+  signal: AbortSignal; question: AskChoiceQuestion; matches: readonly { id: string; name: string }[];
+}, _options = {}): Promise<Record<string, unknown>> {
   const exchange = askChoiceExchanges({ surfaces }).open({ toolId: ASK_CHOICE_TOOL_ID, principalId, emit: ({ emission }) => emitSurface(emission) });
   // Consent has no model tool call. Keep its display question and answer in the existing transcript
   // receipt path, keyed by the actual resource, so refresh cannot revive its buttons.
@@ -442,13 +494,19 @@ export async function askAgentPluginChoice(
       return { ...ui, resource: { ...ui.resource, _meta: { ...ui.resource._meta, [SURFACE_QUESTION_META_KEY]: displayQuestion } } };
     } },
   });
+  return { ...answer, exchangeId: exchange.id, surfaceUri, displayQuestion };
+}
+
+/** Record one real answer against its card; no copy of the offered plugin guidance is persisted.
+ * @complexity O(s) selected labels; one existing transcript emission, no settings writes.
+ */
+async function emitPluginChoiceReceipt({ answer, emitSurface }: {
+  answer: Record<string, unknown>; emitSurface: import('@jini-ai/core').SurfaceEmitter;
+}, _options = {}): Promise<void> {
+  const displayQuestion = answer.displayQuestion as { title: string; options: { value: string; label: string }[] };
   const answerText = questionAnswerText({ answer, input: displayQuestion });
-  if (surfaceUri !== undefined && answerText !== undefined) {
-    const receipt: AcceptedChatInput = { id: `answer:${exchange.id}`, surfaceUri, answerText,
-      text: questionAnswerLabel({ input: displayQuestion, text: answerText }) };
-    await emitSurface({ channel: MID_RUN_USER_MESSAGE_EVENT_NAME, payload: { ...receipt } });
-  }
-  // Only a validated form action can change plugin policy; typed answers and dismissal mean Skip.
-  if (answer.submitted !== true || !Array.isArray(answer.selections) || (answer.action !== 'use' && answer.action !== 'auto')) return { action: 'skip', selected: [] };
-  return { action: answer.action, selected: answer.selections as string[] };
+  if (typeof answer.surfaceUri !== 'string' || answerText === undefined) return;
+  const receipt: AcceptedChatInput = { id: `answer:${answer.exchangeId}`, surfaceUri: answer.surfaceUri, answerText,
+    text: questionAnswerLabel({ input: displayQuestion, text: answerText }) };
+  await emitSurface({ channel: MID_RUN_USER_MESSAGE_EVENT_NAME, payload: { ...receipt } });
 }
