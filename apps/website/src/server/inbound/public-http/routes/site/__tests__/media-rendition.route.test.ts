@@ -53,7 +53,7 @@ test("a public post's featured image keeps the asset ungated with bare-id revali
   await deps.postRepo.save(post(deps, { id: "p2", slug: "gated", memberAccessJson: MEMBERS_ONLY, featuredMediaId: media.id }));
   const response = await fetch(`${baseUrl}/m/${media.id}/public.v1/hero.webp`);
   assert.equal(response.status, 200);
-  assert.equal(response.headers.get("cache-control"), "public, max-age=60, must-revalidate");
+  assert.equal(response.headers.get("cache-control"), "public, no-cache");
 });
 
 test("a library document is never served on the rendition route, even unreferenced", async t => {
