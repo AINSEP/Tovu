@@ -10,6 +10,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { createNativeAgentRuntime } from "@jini-ai/agent-runtime";
+import { assistantCliPermissions } from "../../website/src/contracts/core/assistant-native-fallbacks.ts";
 import type { ToolDescriptor, ToolRegistry } from "@jini-ai/core";
 import type { createAgentExecutor } from "@jini-ai/daemon";
 
@@ -199,12 +200,15 @@ test("a turn with full CLI access gets the full overlay, and attachments, model 
   });
   const { runId } = await h.chat.startTurn({ prompt: "look", agentId: "claude" }, {
     model: "opus", reasoning: "high", chatId: "chat-7", attachmentPaths: ["/tmp/a/one.png", "/tmp/a/two.png", "/tmp/b/three.png"],
+    imageContents: [{ mimeType: "image/png", data: "cGl4ZWxz" }], readOnlyExtraDirs: ["/reference"],
   });
   await h.chat.lifecycle.waitForTerminal({ runId });
   assert.equal(h.runs[0]!.overlay, DESKTOP_SYSTEM_OVERLAY);
   assert.equal(h.runs[0]!.options.model, "opus");
   assert.equal(h.runs[0]!.options.reasoning, "high");
   assert.deepEqual(h.runs[0]!.options.imagePaths, ["/tmp/a/one.png", "/tmp/a/two.png", "/tmp/b/three.png"]);
+  assert.deepEqual(h.runs[0]!.options.imageContents, [{ mimeType: "image/png", data: "cGl4ZWxz" }]);
+  assert.deepEqual(h.runs[0]!.options.readOnlyExtraDirs, ["/reference"]);
   assert.deepEqual(h.runs[0]!.options.extraAllowedDirs, ["/tmp/a", "/tmp/b"], "each attachment folder once");
 });
 
@@ -356,4 +360,33 @@ test("a failed start whose own fallback finish also fails is swallowed, after re
   // Let the harness close a run that never terminalized.
   finish.mock.restore();
   await h.chat.lifecycle.finish({ runId, status: "failed", code: null, signal: null, resumable: false });
+});
+
+
+test("Antigravity installs its static connector before a desktop turn and refuses an unapproved install", async t => {
+  const installed: unknown[] = [];
+  const h = await harness(t, {
+    readFullCliAccess: async () => assistantCliPermissions({ enabled: true, capabilities: { userMcp: true } }),
+    readLoginShellEnvironment: async () => ({}),
+    installOwnedJsonAgent: async input => { installed.push(input); },
+    mcpServeScript: "/app/bridge.js",
+    env: { HOME: "/fixture-home" },
+    run: async (required, lifecycle) => {
+      assert.equal(installed.length, 1, "registration completes before executor dispatch");
+      await lifecycle.finish({ runId: required.runId, status: "succeeded", code: 0, signal: null, resumable: false });
+    },
+  });
+  const { runId } = await h.chat.startTurn({ prompt: "hello", agentId: "antigravity" });
+  await h.chat.lifecycle.waitForTerminal({ runId });
+  assert.deepEqual(installed, [{ agentId: "antigravity", allowed: true,
+    spec: { command: process.execPath, args: ["/app/bridge.js"], env: { ELECTRON_RUN_AS_NODE: "1" } },
+    ctx: { home: "/fixture-home", platform: process.platform, serverName: "jini" } }]);
+  assert.doesNotMatch(JSON.stringify(installed), /JINI_DAEMON_TOKEN|JINI_RUN_ID|JINI_DAEMON_URL/);
+
+  const blocked = await harness(t, {
+    readFullCliAccess: async () => false,
+    installOwnedJsonAgent: async input => { assert.equal(input.allowed, false); throw new Error("Personal MCP access has not been approved."); },
+  });
+  await assert.rejects(blocked.chat.startTurn({ prompt: "hello", agentId: "antigravity" }), /not been approved/);
+  assert.equal(blocked.runs.length, 0);
 });
