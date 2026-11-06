@@ -43,7 +43,7 @@ function incidentCause({ status, errorId }: { status: number; errorId?: string }
  * @overallScore 98 — the server owns approved explanation accuracy; no raw legacy text is disclosed here.
  */
 export function publishAdminFailure(
-  { body, path, method = "GET", status, generation }: { body: unknown; path: string; method?: string; status: number; generation: number },
+  { body, path, method, status, generation }: { body: unknown; path: string; method?: string; status: number; generation: number },
   _options = {},
 ): void {
   const decoded = decodeApiError({ body });

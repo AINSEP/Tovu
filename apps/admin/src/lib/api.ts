@@ -2717,7 +2717,7 @@ async function request<T>(path: string, init?: RequestInit, onOk?: (res: Respons
     // Only the final unexpected failure is shared; callers keep their original error and body.
     try {
       if (error instanceof ApiError && (error.status === 0 || error.status >= 500)) {
-        publishAdminFailure({ body: error.body, path, method: init?.method, status: error.status, generation });
+        publishAdminFailure({ body: error.body, path, method: init?.method ?? "GET", status: error.status, generation });
       }
     } catch { /* Notice effects must never replace the original request rejection. */ }
     throw error;
