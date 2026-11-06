@@ -512,3 +512,17 @@ test('the authored loader keeps declared optional scripts in client configuratio
     } finally { dom.window.close(); }
   } finally { await f.close(); }
 });
+
+test('a failed active-theme read returns plain words from the loader without leaking details', async t => {
+  const f = await fixture(true);
+  t.mock.method(console, 'error', () => {});
+  f.deps.resolveActiveThemeId = async () => { throw new Error('private-theme-path'); };
+  try {
+    const response = await fetch(`${f.url}/_consent/load.js`);
+    assert.equal(response.status, 503);
+    assert.match(response.headers.get('cache-control')!, /no-store/);
+    const body = await response.text();
+    assert.match(body, /Cookie preferences could not be loaded/);
+    assert.doesNotMatch(body, /private-theme-path/);
+  } finally { await f.close(); }
+});
