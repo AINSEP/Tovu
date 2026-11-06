@@ -6,6 +6,7 @@ import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper
 import type { AdminSitesSnapshot } from "@/lib/api";
 import { CreateSiteOnboarding } from "../CreateSiteOnboarding";
 import { AllSitesTab } from "../AllSitesTab";
+import { staticListPrefs } from "./site-list-prefs.fixture";
 import { createFakeSitesPort } from "../hooks/sites-dependencies.hooks";
 import { useSites } from "../hooks/use-sites.hooks";
 import type { SitesPort } from "../hooks/sites-port.hooks";
@@ -23,7 +24,7 @@ function Harness({ port }: { port: SitesPort }) {
     <CreateSiteOnboarding controller={controller} onCancel={() => {}} />
     <AllSitesTab sites={[]} snapshot={snapshot} switchingEnabled activatingName={null}
       createdName={controller.createdName} createdAdminLogin={controller.createdAdminLogin}
-      onActivate={() => {}} t={(key) => key} />
+      onActivate={() => {}} listPrefs={staticListPrefs()} t={(key) => key} />
   </>;
 }
 

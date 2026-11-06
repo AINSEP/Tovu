@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { useInvalidate } from "@jini-ai/ui/fetch-query";
 import { Sites } from "../Sites";
+import { staticListPrefs } from "./site-list-prefs.fixture";
 import { ImportExport } from "../../import-export";
 import { useSites } from "../hooks/use-sites.hooks";
 import { createFakeSitesPort } from "../hooks/sites-dependencies.hooks";
@@ -37,7 +38,7 @@ describe("Sites request lifecycle", () => {
       {/* Export moved to Import & Export (owner, 2026-10-25), and its Publish button was removed
           the same day; both screens mount side by side here so a site-list refresh is still shown
           not to re-read them. */}
-      <Sites useSitesHook={() => useSites(port, t)} tabId="all" />
+      <Sites useListPrefsHook={staticListPrefs} useSitesHook={() => useSites(port, t)} tabId="all" />
       <ImportExport tabId="export" useTranslate={() => t} useTransferTranslate={() => t} useSitesAvailable={() => true} />
       <RefreshList />
     </FetchQueryProvider>);

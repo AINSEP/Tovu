@@ -1,4 +1,5 @@
 @import '@jini-ai/ui/admin-widgets.css';
+@import '@jini-ai/ui/site-card.css';
 /* Keep Tovu's link colour and text size when widgets are imported directly from Jini. */
 @import './styles/see-more.css';
 
@@ -6283,9 +6284,6 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
   display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-start; gap: var(--space-2);
 }
 .site-card-actions > :is(button, a) { height: 37px; padding: 0 0.9rem; display: inline-flex; align-items: center; }
-.site-card-open { gap: 0.35em; text-decoration: none; }
-.site-card-menu { margin-left: auto; display: inline-flex; }
-.site-card-menu .row-menu-trigger { width: 37px; height: 37px; border-color: var(--border); border-radius: var(--r-sm); }
 .site-card-head:has(.status-error) { background: var(--danger-bg); border-bottom-color: transparent; }
 .site-card-select {
   display: inline-flex; align-items: center; gap: var(--space-2); margin-top: var(--space-2);
@@ -6298,21 +6296,15 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
   .site-card { min-height: 0; }
 }
 
-/* Sites — card preview (2026-10-08, owner: "the desktop app shows a picture of each site").
- * A fixed 16:10 band on top of every card — the capture's own 1280×800 shape — so cards keep equal
- * heights whether or not a capture exists yet. `object-fit: cover` anchored top-left: a site's
- * header and hero are what identify it. The placeholder is a quiet surface with the folder's
- * initial, never a broken-image glyph (`useSiteCardPreview` swaps a failed load for it). */
-.site-card-preview {
-  position: relative; aspect-ratio: 16 / 10; flex: none; overflow: hidden;
-  background: var(--surface-2); border-bottom: 1px solid var(--border);
-}
-.site-card-preview img {
-  display: block; width: 100%; height: 100%; object-fit: cover; object-position: top left;
-}
-.site-card-preview-placeholder {
-  position: absolute; inset: 0; display: grid; place-items: center;
-  font-family: var(--font-mono); font-size: var(--text-xl); font-weight: 700; color: var(--faint);
+/* Sites — the shared card's controls (2026-11-06). The card's layout is Jini's `site-card.css`; what
+ * is left here is sizing this app's own buttons and `RowMenu` to it: compact for a pointer like the
+ * desktop card's, 44 px for a finger. */
+.jini-site-card__menu .row-menu-trigger { width: 26px; height: 26px; border-color: var(--border); border-radius: var(--r-sm); }
+.jini-site-card__actions > :is(button, a) { height: 32px; padding: 0 0.75rem; display: inline-flex; align-items: center; font-size: var(--text-sm); }
+.jini-site-card .site-card-open { margin-left: auto; gap: 0.35em; text-decoration: none; }
+@media (pointer: coarse), (max-width: 480px) {
+  .jini-site-card__menu .row-menu-trigger { width: 44px; height: 44px; }
+  .jini-site-card__actions > :is(button, a) { height: 44px; }
 }
 
 /* ------------------------------------------------------------------------

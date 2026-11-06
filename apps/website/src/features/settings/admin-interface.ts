@@ -48,6 +48,9 @@ export const ADMIN_THEME_KEY = "adminTheme";
 /** Per-admin-theme colours; Classic retains core.appearance.accentColor's scalar contract. */
 export const ADMIN_THEME_ACCENTS_KEY = "adminThemeAccents";
 
+/** The Sites list's sort, pins and hidden sites; mirrored by the admin's `use-site-list-prefs.hooks.ts`. */
+export const SITE_LIST_KEY = "sitesList";
+
 const PER_OPERATOR_SCOPES = SCOPE_BIT.user | SCOPE_BIT.workspace;
 
 export interface EnsureAdminInterfaceSettingDefinitionsInput {
@@ -77,6 +80,7 @@ export async function ensureAdminInterfaceSettingDefinitions(
       { key: REPLY_LENGTH_KEY, schema: { type: "enum", values: ["short", "normal", "detailed"] }, defaultValue: "normal", scopes: PER_OPERATOR_SCOPES },
       { key: USE_CLAUDE_IN_CHROME_KEY, schema: { type: "boolean" }, defaultValue: true, scopes: PER_OPERATOR_SCOPES },
       { key: ADMIN_THEME_KEY, schema: { type: "string" }, defaultValue: "classic", scopes: PER_OPERATOR_SCOPES },
+      { key: SITE_LIST_KEY, schema: { type: "json" }, defaultValue: {}, scopes: PER_OPERATOR_SCOPES },
     ],
     systemPrincipalId: input.systemPrincipalId,
   });
