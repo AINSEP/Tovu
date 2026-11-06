@@ -307,6 +307,6 @@ const WARNING_LABEL: Record<string, string> = {
   "zh-TW": "警告",
 };
 
-for (const [locale, value] of Object.entries(WARNING_LABEL)) SITE_TRANSFER_DICT[locale]!.Warning = value;
+for (const [locale, value] of Object.entries(WARNING_LABEL)) Object.assign(SITE_TRANSFER_DICT[locale], { Warning: value });
 
 export const t = createDictionaryTranslator({ featureDictionary: SITE_TRANSFER_DICT }, { commonDictionary: COMMON_I18N });
