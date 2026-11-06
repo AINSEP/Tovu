@@ -1,3 +1,4 @@
+import { describeFormCollectionProviders, type FormCollectionRegistry } from '@jini-ai/cms/forms';
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { resolveProductRoot } from "../../platform/site-dir/product-root.js";
@@ -30,9 +31,13 @@ export function publicThemeResources(_required: Record<string, never>, _optional
   return resources;
 }
 
-/** Reuse the frozen report-only header set after first use; resource errors propagate.
- * @complexity O(r) declared resource URLs once, then O(1). */
-export function publicPageSecurityHeaders(_required: Record<string, never>, _optional: Record<string, never> = {}): SecurityHeaderSet {
+/** Theme resources are cached, while app-scoped provider declarations are read fresh on each call.
+ * @complexity O(p × d + r) for provider descriptions and declared origins; no new I/O after theme loading. */
+export function publicPageSecurityHeaders({ formCollectionProviders }: { formCollectionProviders?: () => FormCollectionRegistry }, _optional: Record<string, never> = {}): SecurityHeaderSet {
+  if (formCollectionProviders) {
+    const frameOrigins = describeFormCollectionProviders({ providers: formCollectionProviders() }).filter(provider => provider.available).flatMap(provider => provider.frameOrigins);
+    return createPublicPageSecurityHeaderSet({ resources: publicThemeResources({}) }, { frameOrigins });
+  }
   headers ??= createPublicPageSecurityHeaderSet({ resources: publicThemeResources({}) });
   return headers;
 }

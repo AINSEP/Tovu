@@ -1,3 +1,4 @@
+import { publicPageSecurityHeaders } from "#src/features/theme/public-page-security-headers";
 import { createSharedOAuthOwnerStorage, createSharedOAuthLabels } from "#src/features/api-connections/shared-owner";
 import { createSiteOAuthBindings } from "#src/features/project-keys/site-references";
 import { createFormCollectionRegistry } from "@jini-ai/cms/forms";
@@ -1760,6 +1761,7 @@ async function composeSiteRouteDeps(
     navMenuReadModel: createNavMenuReadModel({ menuRepo, bindingRepo: navLocationBindingRepo }),
     formDefinitionRepo: { findById: formDefinitionRepo.findById.bind(formDefinitionRepo), findBySlug: formDefinitionRepo.findBySlug.bind(formDefinitionRepo) },
     formCollectionProviders: () => formCollectionProviders(),
+    formEmbedConsentOff: () => routeDeps.cookieConsent?.embedConsentOff?.() === true,
     contentTypes: contentTypeRepo,
   });
   const commentsModule = createCommentsModule({
@@ -2363,6 +2365,7 @@ async function composeSiteRouteDeps(
     siteTitleReady,
     siteConsentReady,
     consentStore: createSiteConsentStore({ kernel, workspaceId }),
+    publicPageSecurityHeaders: () => publicPageSecurityHeaders({ formCollectionProviders: () => formCollectionProviders() }),
     ...compositionConsentOptions({ workspaceId, loadContributions: agentPluginLifecycle.loadPluginContributions }, { env: process.env }),
     mailFeedbackRoute: createSiteMailFeedbackRoute({ db: kernel, workspaceId, credentials: { repo: customCredentialSetRepo, sealer: siteAssistantSecretSealer },
       loadAdapters: () => loadMailAdapterRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions }) }),
@@ -2557,6 +2560,7 @@ async function composeSiteRouteDeps(
     // ship one). `formsRateLimiter` is one process-lifetime counter store, matching
     // `server/app.ts`'s hermetic-test composition's identical construction.
     formDefinitionRepo,
+    formCollectionProviders: () => formCollectionProviders(),
     formSubmissionRepo,
     formSubmissionAttempts: formSubmissionAttemptsFor({ submissionRepo: formSubmissionRepo }),
     removeFormSubmission: removeEntityWithoutBlocker({ remove: bindRemoveEntity({

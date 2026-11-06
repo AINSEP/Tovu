@@ -192,6 +192,7 @@ export async function readSiteAnalyticsProof({ deps, req }: { deps: RouteDeps; r
 
 /** One published construction snapshot per mounted site, refreshed by publication. No per-page reads. */
 const documentPolicies = new WeakMap<SiteCookieConsentDeps, Promise<ConsentConfig>>();
+const documentEmbedDelivery = new WeakMap<SiteCookieConsentDeps, boolean>();
 const documentScripts = new WeakMap<SiteCookieConsentDeps, Promise<{ scripts: readonly DeclaredScript[]; problems: readonly string[] }>>();
 const documentClients = new WeakMap<SiteCookieConsentDeps, { body: Buffer; src: string }>();
 const EXTENSION_SRC = '/_consent/extensions.min.js';
@@ -233,6 +234,7 @@ function mountContext({ app, deps, consent }: { app: Express; deps: RouteDeps; c
     try {
       const config = await readSiteConsentPolicy({ deps }, { cssBlocks: false });
       documentPolicies.set(consent, Promise.resolve(config));
+      documentEmbedDelivery.set(consent, siteBannerMode({ config }) === 'off');
       const enabled = siteBannerMode({ config }) !== 'off';
       if (enabled) {
         documentScripts.set(consent, consent.scriptDeclarations?.() ?? Promise.resolve({ scripts: [], problems: [] }));
@@ -248,16 +250,23 @@ function mountContext({ app, deps, consent }: { app: Express; deps: RouteDeps; c
 /** Routes and a construction-time snapshot only; no page-response capture or cookie work. */
 export function applySiteCookieConsent({ app, deps, consent }: { app: Express; deps: RouteDeps; consent: SiteCookieConsentDeps }, { client = loadClient() }: { client?: { body: Buffer; src: string } } = {}): void {
   const refresh = async () => {
-    const pending = readSiteConsentPolicy({ deps }, { cssBlocks: false });
+    documentEmbedDelivery.set(consent, false);
+    const pending: Promise<ConsentConfig> = readSiteConsentPolicy({ deps }, { cssBlocks: false }).then(config => {
+      if (documentPolicies.get(consent) === pending) documentEmbedDelivery.set(consent, siteBannerMode({ config }) === 'off');
+      return config;
+    });
     documentPolicies.set(consent, pending);
     const declarations = consent.scriptDeclarations?.() ?? Promise.resolve({ scripts: [], problems: [] });
     documentScripts.set(consent, declarations);
     await Promise.all([pending, declarations]);
   };
   consent.refresh = refresh;
+  consent.embedConsentOff = () => documentEmbedDelivery.get(consent) === true;
   consent.exportAssets = () => siteConsentExportAssets({ deps });
   documentClients.set(consent, client);
-  app.use((req, res, next) => {
+  app.use(async (req, res, next) => {
+    // Resolve the cached publication before widget rendering; consent-off pages have no activation runtime.
+    await documentPolicies.get(consent)?.catch(() => undefined);
     res.locals.siteConsentAssets = (required: { scripts: readonly DeclaredScript[] }) => siteConsentDocumentAssets({ deps, request: req, scripts: required.scripts });
     next();
   });

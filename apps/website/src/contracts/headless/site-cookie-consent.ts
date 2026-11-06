@@ -2,6 +2,8 @@ import type { ConsentState, DeclaredScript, RawContribution, RegionResolver } fr
 
 /** The one switch's payload: present = this engine serves the site. */
 export interface SiteCookieConsentDeps {
+  /** Published construction snapshot only; missing/pending/failed policy keeps embeds inert. */
+  embedConsentOff?: () => boolean;
   /** Refresh the construction-time published snapshot after an owner publication. */
   refresh?: () => Promise<void>;
   exportAssets?: () => Promise<readonly string[]>;

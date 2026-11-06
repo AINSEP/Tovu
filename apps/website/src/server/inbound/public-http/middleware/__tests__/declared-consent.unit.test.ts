@@ -5,6 +5,7 @@ import { once } from 'node:events';
 import { applySiteCookieConsent, siteConsentDocumentAssets, readSiteVisitorConsent, readSiteAnalyticsProof, siteReceiptAllowsAnalytics } from '../site-cookie-consent.js';
 import { SITE_CONSENT_DEFAULTS } from '#src/features/consent/config';
 import type { RouteDeps } from '#src/server/routes/types';
+import { dispatchJsonRequest } from '#src/server/__tests__/helpers/in-process-http';
 
 async function fixture(enabled: boolean, scriptDeclarations?: import('#src/contracts/headless/index').SiteCookieConsentDeps['scriptDeclarations']) {
   let reads = 0;
@@ -121,4 +122,82 @@ test('automatic declarations use ordinary delivery before context; only optional
       assert.deepEqual(config.scripts, [{ src: '/stats.js', consent: ['analytics'] }]);
     } finally { dom.window.close(); }
   } finally { await f.close(); }
+});
+
+
+test('embed delivery accessor uses the published snapshot with no page-time policy reads', async () => {
+  for (const enabled of [true, false]) {
+    const f = await fixture(enabled);
+    try {
+      assert.equal(f.deps.cookieConsent!.embedConsentOff?.(), !enabled);
+      assert.equal(f.deps.cookieConsent!.embedConsentOff?.(), !enabled);
+      assert.deepEqual(f.counts(), { reads: 0, regionReads: 0, draftReads: 0 });
+    } finally { await f.close(); }
+  }
+});
+
+test('embed delivery remains inert while policy refresh is pending or fails', async () => {
+  let fail = false;
+  let release: (() => void) | undefined;
+  const consent: import('#src/contracts/headless/index').SiteCookieConsentDeps = { regionResolvers: async () => [] };
+  const deps = { cookieConsent: consent, workspaceId: 'pending-embed-policy', siteConsentReady: Promise.resolve(), siteBinding: { dir: '/tmp/pending-embed-policy' }, clock: { nowMs: Date.now },
+    consentStore: { readPublished: async () => { if (fail) throw new Error('fixture unavailable'); await new Promise<void>(resolve => { release = resolve; }); return { id: 'published', actorId: 'fixture', createdAt: '2026-11-05', config: { ...SITE_CONSENT_DEFAULTS, enabled: false, privacyPolicyUrl: '/privacy' } }; } },
+  } as unknown as RouteDeps;
+  const app = express();
+  applySiteCookieConsent({ app, deps, consent }, { client: { src: '/_consent/fixture.js', body: Buffer.from('') } });
+  app.get('/embed-policy', (_req, res) => res.json({ consentOff: consent.embedConsentOff?.() }));
+  const waitingPage = dispatchJsonRequest(app, 'GET', '/embed-policy');
+  assert.equal(consent.embedConsentOff?.(), false);
+  await new Promise<void>(resolve => setImmediate(resolve));
+  release!();
+  assert.deepEqual(await waitingPage, { status: 200, body: { consentOff: true } });
+  assert.equal(consent.embedConsentOff?.(), true);
+  fail = true;
+  const refresh = consent.refresh!();
+  assert.equal(consent.embedConsentOff?.(), false);
+  await assert.rejects(refresh, /fixture unavailable/);
+  assert.equal(consent.embedConsentOff?.(), false);
+});
+
+test('embed delivery follows resolved policy while unrelated script declarations are pending', async () => {
+  let release: (() => void) | undefined;
+  const consent: import('#src/contracts/headless/index').SiteCookieConsentDeps = {
+    regionResolvers: async () => [],
+    scriptDeclarations: async () => { await new Promise<void>(resolve => { release = resolve; }); return { scripts: [], problems: [] }; },
+  };
+  const deps = { cookieConsent: consent, workspaceId: 'slow-declarations', siteConsentReady: Promise.resolve(), siteBinding: { dir: '/tmp/slow-declarations' }, clock: { nowMs: Date.now },
+    consentStore: { readPublished: async () => ({ id: 'published', actorId: 'fixture', createdAt: '2026-11-05', config: { ...SITE_CONSENT_DEFAULTS, enabled: false, privacyPolicyUrl: '/privacy' } }) },
+  } as unknown as RouteDeps;
+  const app = express();
+  applySiteCookieConsent({ app, deps, consent }, { client: { src: '/_consent/fixture.js', body: Buffer.from('') } });
+  app.get('/embed-policy', (_req, res) => res.json({ consentOff: consent.embedConsentOff?.() }));
+  await new Promise<void>(resolve => setImmediate(resolve));
+  const page = await dispatchJsonRequest(app, 'GET', '/embed-policy');
+  release!();
+  assert.deepEqual(page, { status: 200, body: { consentOff: true } });
+});
+
+test('repeated mounts share the latest policy and an older refresh cannot change embed delivery', async () => {
+  let reads = 0;
+  let releaseFirst: (() => void) | undefined;
+  const consent: import('#src/contracts/headless/index').SiteCookieConsentDeps = { regionResolvers: async () => [] };
+  const deps = { cookieConsent: consent, workspaceId: 'remounted-policy', siteConsentReady: Promise.resolve(), siteBinding: { dir: '/tmp/remounted-policy' }, clock: { nowMs: Date.now },
+    consentStore: { readPublished: async () => {
+      const first = ++reads === 1;
+      if (first) await new Promise<void>(resolve => { releaseFirst = resolve; });
+      return { id: first ? 'old' : 'latest', actorId: 'fixture', createdAt: '2026-11-05', config: { ...SITE_CONSENT_DEFAULTS, enabled: first, privacyPolicyUrl: '/privacy' } };
+    } },
+  } as unknown as RouteDeps;
+  const firstApp = express();
+  const client = { src: '/_consent/fixture.js', body: Buffer.from('') };
+  applySiteCookieConsent({ app: firstApp, deps, consent }, { client });
+  await new Promise<void>(resolve => setImmediate(resolve));
+  applySiteCookieConsent({ app: express(), deps, consent }, { client });
+  await new Promise<void>(resolve => setImmediate(resolve));
+  assert.equal(consent.embedConsentOff?.(), true);
+  releaseFirst!();
+  await new Promise<void>(resolve => setImmediate(resolve));
+  firstApp.get('/embed-policy', (_req, res) => res.json({ consentOff: consent.embedConsentOff?.() }));
+  assert.deepEqual(await dispatchJsonRequest(firstApp, 'GET', '/embed-policy'), { status: 200, body: { consentOff: true } });
+  assert.equal(reads, 2);
 });

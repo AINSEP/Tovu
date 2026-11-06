@@ -1,3 +1,4 @@
+import { createFormCollectionRegistry, describeFormCollectionProviders, type FormCollectionRegistry } from "@jini-ai/cms/forms";
 import type { FormAuthoring, FormProviderSelection } from "@jini-ai/cms/forms";
 import { toolMetadata } from '../../contracts/core/tool-metadata/forms.js';
 /**
@@ -65,6 +66,8 @@ const CATALOG_BY_ID = indexCatalogById({ catalog: formsAgentToolCatalog });
  * `RouteDeps` object, with the CMS command executor supplied by composition.
  */
 export interface FormsToolDeps {
+  /** Same app-scoped collection registry as the admin provider listing. */
+  formCollectionProviders?: () => FormCollectionRegistry;
   executeCommand: FormCommandExecutorPort;
   authorize: AuthorizeFn;
   workspaceId: string;
@@ -88,6 +91,7 @@ export interface FormsToolDeps {
 export const formsDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
   // -> formDefinitionRepo.list: one unfiltered read, no write of any kind.
   ["forms_list_definitions", "none"],
+  ["forms_list_providers", "none"],
   // -> createFormDefinition (write-service.ts): executeCommand -> repo.create + change-set + outbox.
   ["forms_create_definition", "mutates-durable-state"],
   // -> updateFormDefinition (write-service.ts): executeCommand -> repo.update + change-set + outbox.
@@ -313,6 +317,15 @@ const FORMS_MODEL_FACING_ERRORS: readonly ModelFacingErrorRule[] = [
 
 export function buildFormsRegistrations(routeDeps: FormsToolDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
+    forms_list_providers: async (ctx) => {
+      await requireToolPermission({
+        authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }),
+        workspaceId: routeDeps.workspaceId,
+        principalId: ctx.principal.id,
+        permission: "admin.forms.manage",
+      }, { entityType: "form_definition" });
+      return { providers: describeFormCollectionProviders({ providers: routeDeps.formCollectionProviders?.() ?? createFormCollectionRegistry({}) }) };
+    },
     forms_list_definitions: async (ctx) => {
       await requireToolPermission({
         authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }),

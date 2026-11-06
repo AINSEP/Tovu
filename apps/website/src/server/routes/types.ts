@@ -755,6 +755,8 @@ export interface WebhooksDeps {
  * structural to avoid a back-edge into the composition root.
  */
 export interface FormsDeps {
+  /** Current app-scoped collection providers, shared by admin and assistant discovery. */
+  formCollectionProviders?: () => import("@jini-ai/cms/forms").FormCollectionRegistry;
   executeCommand: typeof import("@jini-ai/cms/core").executeCommand;
   formDefinitionRepo: FormDefinitionRepoPort;
   formSubmissionRepo: FormSubmissionRepoPort;
@@ -1654,6 +1656,8 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * exports into — never re-reads `process.env` itself.
    */
   publishOutputRootDir: string;
+  /** Current public security headers, including app-scoped collection frame declarations. */
+  publicPageSecurityHeaders?: () => import("#src/contracts/core/public-page-security-headers").SecurityHeaderSet;
   /**
    * This workspace's plugin-contributed deploy targets (`deploy-targets/registry.ts`): the one place
    * the publish route and the static-publish agent tools learn which targets exist and which config

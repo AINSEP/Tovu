@@ -103,3 +103,11 @@ test('receiver manifest includes effective number and temporal bounds while exte
   assert.equal(form!.fields[1]!.max, '2026-12-31');
   assert.deepEqual(buildFormDestinationManifest({ definitions: [{ ...waitlist, provider: { id: 'formspree', config: { endpoint: 'https://formspree.io/f/abcd' } } }] }), []);
 });
+
+test('hosted embed collection creates no built-in receiver destination and retains the pending delivery schema', () => {
+  const google = { ...waitlist, provider: { id: 'google_forms', config: { url: 'https://docs.google.com/forms/d/e/dummy/viewform' } } };
+  assert.deepEqual(buildFormDestinationManifest({ definitions: [google] }), []);
+  const pendingDelivery = buildFormDeliveryForm({ definition: google });
+  assert.equal(pendingDelivery.slug, waitlist.slug);
+  assert.equal(pendingDelivery.fields.length, waitlist.fields.length);
+});
