@@ -1,5 +1,5 @@
 /** Member HTTP boundary only: identity and scope come from the host; Jini owns orders and money. */
-import type { Express, Request, Response } from "express";
+import type { IRouter, Request, Response } from "express";
 import { CommerceCheckoutValidationError, CommerceOrderNotFoundError, CommercePriceNotFoundError,
   CommerceProductNotFoundError, commerceBuyerStatus, toCommerceBuyerOrder, type CommerceOrderView } from "@jini-ai/commerce";
 import { escapeHtml } from "#src/platform/html/escape";
@@ -143,7 +143,7 @@ function failure({ res, error }: { res: Response; error: unknown }): void {
 /** Purchase/resume and read-only return routes. One limiter per mounted app, never per request.
  * @complexity O(1) setup and bounded point I/O per request; domain effects are delegated to Jini.
  */
-export function registerCommerceRoutes({ app, deps }: { app: Express; deps: CommerceHttpDeps }, _optional = {}): void {
+export function registerCommerceRoutes({ app, deps }: { app: IRouter; deps: CommerceHttpDeps }, _optional = {}): void {
   const limiter = createRateLimiter({ profile: OUTBOUND_CALL_PER_IP, clock: deps.clock });
   app.post(ORDERS, async (req, res) => {
     try {

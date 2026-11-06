@@ -21,7 +21,9 @@ export function registerCommerceWebhooks({ app, deps }: { app: Express; deps: Ro
  */
 export function registerCommerceHttp({ app, deps }: { app: Express; deps: RouteDeps }, _optional = {}): void {
   if (!deps.commerce) return;
-  const storefront = express();
+  // A router, not a second Express app: an app called directly gets its own defaults, so behind a
+  // proxy every buyer would share the proxy's address and one rate budget. Requests stay on the host app.
+  const storefront = express.Router();
   registerCommerceRoutes({ app: storefront, deps: { ...deps, renderCommercePage: async ({ res, title, body }) => {
     const [themeId, siteTitle] = await Promise.all([resolveRenderThemeId(res, deps), resolveSiteTitleForRender(deps)]);
     const resolved = resolveActiveTheme(deps, themeId);

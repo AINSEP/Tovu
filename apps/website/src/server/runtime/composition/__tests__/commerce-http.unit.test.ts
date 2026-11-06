@@ -81,3 +81,25 @@ test('order API routes remain mounted while storefront paths are disabled', asyn
   assert.equal(response.status, 401);
   assert.deepEqual(await response.json(), { error: 'Sign in as a shop member to view or pay for your order.', code: 'MEMBER_SIGN_IN_REQUIRED' });
 });
+
+test('the order API keeps the host proxy settings: each forwarded buyer has an own rate budget', async t => {
+  const app = express();
+  app.set('trust proxy', 1);
+  app.disable('x-powered-by');
+  registerCommerceHttp({ app, deps: { workspaceId: 'workspace', clock: { nowMs: () => Date.parse('2026-11-05T00:00:00.000Z'), nowIso: () => '2026-11-05T00:00:00.000Z' }, commerce: {
+    storefrontStatus: async () => ({ active: false, ready: false, reason: null }),
+  } } as unknown as RouteDeps });
+  app.use((req, res) => res.json({ sameApp: req.app === app }));
+  const server = app.listen(0, '127.0.0.1');
+  t.after(() => new Promise<void>(resolve => { server.closeAllConnections(); server.close(() => resolve()); }));
+  await new Promise<void>(resolve => server.once('listening', resolve));
+  const address = server.address(); assert.ok(address && typeof address !== 'string');
+  const order = (client: string) => fetch(`http://127.0.0.1:${address.port}/api/commerce/v1/workspaces/workspace/orders/order`, { headers: { 'X-Forwarded-For': client } });
+  let status = 0;
+  for (let request = 0; request < 200 && status !== 429; request += 1) status = (await order('203.0.113.1')).status;
+  assert.equal(status, 429, 'the first buyer spends their own budget');
+  assert.equal((await order('203.0.113.2')).status, 401, 'another buyer behind the same proxy is not limited');
+  const passed = await fetch(`http://127.0.0.1:${address.port}/api/commerce/v1/unrouted`);
+  assert.equal(passed.headers.get('x-powered-by'), null);
+  assert.deepEqual(await passed.json(), { sameApp: true }, 'a fall-through continues on the host app');
+});

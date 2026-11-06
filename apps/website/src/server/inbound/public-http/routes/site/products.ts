@@ -65,7 +65,7 @@ async function findStorefrontProduct({ deps, id, readiness }: { deps: CommerceSi
  * theme's own `products`/`product` templates. Registered BEFORE the `/:slug` catch-all, same
  * reasoning as `registerStoreRoutes`.
  */
-export const registerProductRoutes = (app: import("express").Express, deps: CommerceSiteAdapterDeps): void => {
+export const registerProductRoutes = (app: import("express").IRouter, deps: CommerceSiteAdapterDeps): void => {
   app.get("/products", async (req, res) => {
     try {
       const products = await resolveStorefrontProducts(deps, { readiness: res.locals?.commerceStatus });
