@@ -147,7 +147,7 @@ test("sendDeleteWorkspaceError logs a non-Error throw and an Error without a sta
     sendDeleteWorkspaceError(res, err);
     assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: "internal error" } } }, { failure: {"message":"The workspace removal could not be confirmed.","action":"Check the list before repeating the removal. Copy details and report this problem.","step":"Remove workspace"} });
   }
-  assertAdminDiagnostics({ calls: logged, operation: "[routes/workspace/delete]", diagnostics: [/^plain string failure$/, /^stackless failure$/] });
+  assertAdminDiagnostics({ calls: logged, operation: "[routes/workspace/delete]", diagnostics: [/^plain string failure$/, /^Error: stackless failure$/] });
 });
 
 test("an authorization backend failure on the delete route is answered by the opaque 500 mapping, not thrown", async (t) => {
