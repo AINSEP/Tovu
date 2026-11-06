@@ -6,6 +6,7 @@ import type { MfaFactor, MfaPending, MfaStore } from '@jini-ai/user-management/s
 import { createRouteDeps } from '../../../runtime/composition/app.js';
 import { createCapturingResponse, extractRouteHandler } from '../../../__tests__/helpers/http-test-server.js';
 import { registerAuthRoutes } from '../dev-auth.js';
+import { registerAdminUserResetPasswordRoute } from '../routes/users/reset-password.js';
 import { ownerMfaDepsFrom } from '../owner-mfa-deps.js';
 
 /** The real HTTP handlers + Jini verifier, with only persistence held in a deterministic fixture. */
@@ -63,4 +64,28 @@ test('password login waits for a valid TOTP and consumes the pending proof befor
   assert.equal(replay.capture.statusCode, 400);
   assert.equal(saved.mock.callCount(), 1);
   assert.deepEqual(replay.cookies, []);
+
+  // A password reset must revoke every password-created challenge, including passkey branches.
+  const pendingAgain = response();
+  await extractRouteHandler(app, 'post', '/api/admin/v1/auth/login')(request({ username: 'admin', password: 'tovu-dev' }), pendingAgain.res);
+  const oldPending = (pendingAgain.capture.jsonBody as { pendingToken: string }).pendingToken;
+  assert.equal(typeof oldPending, 'string');
+  await deps.mfaStore.savePending({ ...scope, purpose: 'passkey-login', tokenHash: 'passkey-proof-hash',
+    expiresAt: 359000, attempts: 0, sealedSecret: '{"challenge":"not-a-secret"}' });
+  assert.equal(proofs.size, 2);
+  registerAdminUserResetPasswordRoute(app, deps);
+  const reset = response();
+  reset.res.send = () => reset.res;
+  reset.res.locals.principal = await deps.principalRepo.findById({ workspaceId: scope.workspaceId, id: scope.principalId });
+  await extractRouteHandler(app, 'post', '/api/admin/v1/workspaces/:workspaceId/users/:principalId/reset-password')({
+    ...request({ password: 'changed-password' }), params: scope,
+  }, reset.res);
+  assert.equal(reset.capture.statusCode, 204);
+  assert.equal(proofs.size, 0);
+  assert.ok(factor, 'ordinary password reset preserves the enrolled factor');
+  const afterReset = response();
+  await extractRouteHandler(app, 'post', '/api/admin/v1/auth/mfa/login')(request({ pendingToken: oldPending, code: '287082' }), afterReset.res);
+  assert.equal(afterReset.capture.statusCode, 400);
+  assert.equal(saved.mock.callCount(), 1);
+  assert.deepEqual(afterReset.cookies, []);
 });
