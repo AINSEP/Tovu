@@ -3,6 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { nowIso, type Clock } from "@jini-ai/core/primitives";
+import { firstExportFailure } from '@jini-ai/devops/static-export/failure-summary';
 /**
  * @file The static-site export run's process-local single-flight state, extracted out of
  * `server/routes/admin/system/export-site.ts` (2026-08-15) so a SECOND caller — the
@@ -88,9 +89,7 @@ export interface ExportRunSnapshot {
   outputDir: string | null;
   /** Present only once `status` is `"completed"`. */
   basePath?: string;
-  /** Present only once `status` is `"completed"`. Mirrors `cli/commands/export.ts`'s own
-   *  completeness definition: only a failed ROUTE flips this false; asset failures are still
-   *  reported in full via `failedAssets` but never flip `ok`. */
+  /** Present only once `status` is `"completed"`. Failed routes or assets make the copy incomplete. */
   ok?: boolean;
   counts?: ExportRunCounts;
   failedRoutes?: { path: string; kind: string; reason: string }[];
@@ -147,7 +146,7 @@ function summarizeCompletedReport(report: ExportRunReportLike): Pick<
 > {
   return {
     ...(report.basePath !== undefined ? { basePath: report.basePath } : {}),
-    ok: report.routes.failed.length === 0,
+    ok: firstExportFailure({ report }) === undefined,
     counts: {
       routesSucceeded: report.routes.succeeded.length,
       routesFailed: report.routes.failed.length,

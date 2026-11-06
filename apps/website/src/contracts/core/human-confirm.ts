@@ -20,7 +20,8 @@ import { requireChatDeleteGrant, type ChatDeleteSurfaceDeps } from "./chat-delet
 import { nativeToolMetadata } from './tool-metadata/index.js';
 import { createApprovalHandler, createBatchApprovalHandler, type ApprovalSteps, type AccessApprovalDescription, type HumanConfirmer, type RememberedApprovalPort } from "@jini-ai/core";
 import { ToolInputError, type ToolExecutionContext, type ToolExecutionOptions, type ToolHandler } from "@jini-ai/core";
-import { accessApprovalDetails, buildConfirmationSurface, type SurfaceDetail, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
+import { accessApprovalDetails, buildConfirmationSurface, toolApprovalPresentation, type SurfaceDetail, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
+import { approvalText } from './approval-i18n.js';
 
 import {
   askOnce,
@@ -52,6 +53,24 @@ export interface HumanConfirmSpec {
    * forged answer can never widen what the person was offered.
    */
   readonly alternatives?: readonly HumanConfirmAlternative[];
+}
+
+/** Shared operator-language presentation for policy approvals and domain-owned tool plans. */
+export function toolApprovalConfirmation({ descriptor, input, locale, details = [], danger = false }: {
+  descriptor: Parameters<typeof toolApprovalPresentation>[0]['descriptor']; input: unknown; locale: string;
+  details?: readonly SurfaceDetail[]; danger?: boolean;
+}, _options = {}): HumanConfirmSpec {
+  const toolId = descriptor.id;
+  const presentation = toolApprovalPresentation({ descriptor }, { text: ({ key }) => approvalText({ locale, key }) });
+  return {
+    toolId, errorCode: 'TOOL_APPROVAL', title: presentation.title,
+    ...(presentation.summary ? { description: presentation.summary } : {}), details, danger,
+    detailDisclosure: { label: approvalText({ locale, key: 'Details' }), details: [
+      { label: approvalText({ locale, key: 'Input' }), value: input ?? {}, labels: presentation.labels,
+        description: `${approvalText({ locale, key: 'Technical name' })}: ${toolId}` },
+    ] },
+    confirmLabel: presentation.confirmLabel, cancelLabel: approvalText({ locale, key: 'Cancel' }),
+  };
 }
 
 /** One extra affirmative button — see {@link HumanConfirmSpec.alternatives}. */

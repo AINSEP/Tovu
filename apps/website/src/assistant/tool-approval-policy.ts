@@ -1,10 +1,9 @@
 import { applyApprovalPolicy, isNonArrayRecord, type ApprovalContextPort, type ToolRegistration, type ToolExecutionContext, type ToolExecutionOptions } from '@jini-ai/core';
-import { requireHumanConfirm, notConfirmedResult, type HumanConfirmSpec, type HumanConfirmOutcome } from '../contracts/core/human-confirm.js';
+import { requireHumanConfirm, notConfirmedResult, toolApprovalConfirmation, type HumanConfirmSpec, type HumanConfirmOutcome } from '../contracts/core/human-confirm.js';
 import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { TOOL_APPROVAL_POLICY, ASSISTANT_EXECUTION_APPROVAL_SETTINGS, type ToolApprovalClass, type ToolApprovalPolicy } from '../contracts/headless/index.js';
 import { approvalClassAsks, directPageAction, toolApprovalPolicyFor } from './assistant-tool-approval-policy.js';
-import { approvalText } from '../contracts/core/approval-i18n.js';
-import { toolApprovalPresentation, type SurfaceDetail } from '@jini-ai/ui/mcp-ui/surfaces';
+import type { SurfaceDetail } from '@jini-ai/ui/mcp-ui/surfaces';
 
 /** Classification is an owner-reviewed action policy, separate from read-only admission and auth.
  * Jini owns the generic registration wrapper; retain the CMS table in Tovu.
@@ -58,20 +57,8 @@ export function applyToolApprovalPolicy(
       let locale = 'en';
       try { locale = await localeFor(ctx); } catch { /* Copy failure must never bypass a safety gate. */ }
       const disclosed = disclose ? await disclose({ ctx }) : [];
-      const presentation = toolApprovalPresentation({ descriptor: registration.descriptor }, {
-        text: ({ key }) => approvalText({ locale, key }),
-      });
-      return {
-      toolId, errorCode: 'TOOL_APPROVAL', title: presentation.title,
-      ...(presentation.summary ? { description: presentation.summary } : {}),
-      details: disclosed,
-      detailDisclosure: { label: approvalText({ locale, key: 'Details' }), details: [
-        { label: approvalText({ locale, key: 'Input' }), value: ctx.input ?? {}, labels: presentation.labels,
-          description: `${approvalText({ locale, key: 'Technical name' })}: ${toolId}` },
-      ] },
-      danger: actionClass === 'trash' || actionClass === 'delete' || actionClass === 'restore-over-existing',
-      confirmLabel: presentation.confirmLabel, cancelLabel: approvalText({ locale, key: 'Cancel' }),
-      };
+      return toolApprovalConfirmation({ descriptor: registration.descriptor, input: ctx.input, locale, details: disclosed,
+        danger: actionClass === 'trash' || actionClass === 'delete' || actionClass === 'restore-over-existing' });
     },
     askHuman: createToolHumanConfirmer({ surfaces }),
     notConfirmed: ({ reason }) => ({ executed: false, ...notConfirmedResult({ confirmed: false, reason }) }),
