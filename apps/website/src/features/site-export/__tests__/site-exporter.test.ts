@@ -168,6 +168,20 @@ function withOneSampleProduct(deps: ReturnType<typeof createRouteDeps>): void {
   deps.createSiteApp = () => createCommerceSiteTestApp(commerceDeps);
 }
 
+/** Authored documents receive shared consent markup through the real loading script. */
+function assertConstructedConsent({ html, loader, enabled }: { html: string; loader: string; enabled: boolean }): void {
+  const dom = new JSDOM(html, { runScripts: "outside-only" });
+  try {
+    dom.window.eval(loader);
+    assert.equal(dom.window.document.querySelectorAll("#jini-consent").length, enabled ? 1 : 0,
+      "the authored loader honors the owner's banner choice");
+    if (!enabled) return;
+    const config = JSON.parse(dom.window.document.querySelector("#jini-consent-config")!.textContent!);
+    assert.deepEqual(config.evidence, { mode: "durable", endpoint: "/_consent" });
+    assert.equal(config.context, "/_consent/context");
+  } finally { dom.window.close(); }
+}
+
 /**
  * Static-export chat-widget gap (2026-09-27, owner decision): a static export/static-publish
  * ships no `/api/site-assistant/chat` endpoint for the visitor-chat bubble to call, so an exported
@@ -257,17 +271,7 @@ test("live site: a request carrying the static-export marker gets no widget AND 
       assert.equal(live.headers.get("cache-control"), liveCacheControl,
         `${route}: shared consent markup stays cacheable; live comments stay private`);
       assert.doesNotMatch(live.headers.get("vary") ?? "", /Cookie|Sec-GPC/);
-      const dom = new JSDOM(liveHtml, { runScripts: "outside-only" });
-      try {
-        dom.window.eval(consentSource);
-        assert.equal(dom.window.document.querySelectorAll("#jini-consent").length, consentEnabled ? 1 : 0,
-          `${route}: the authored loader honors the owner's banner choice`);
-        if (consentEnabled) {
-          const config = JSON.parse(dom.window.document.querySelector("#jini-consent-config")!.textContent!);
-          assert.deepEqual(config.evidence, { mode: "durable", endpoint: "/_consent" });
-          assert.equal(config.context, "/_consent/context");
-        }
-      } finally { dom.window.close(); }
+      assertConstructedConsent({ html: liveHtml, loader: consentSource, enabled: consentEnabled });
 
       const marked = await fetch(`${baseUrl}${route}`, { headers: { "x-tovu-static-export": "1" } });
       assert.doesNotMatch(await marked.text(), /site-assistant/, `${route}: the marked request must carry no widget`);

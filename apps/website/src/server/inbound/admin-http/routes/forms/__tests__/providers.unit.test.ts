@@ -8,10 +8,11 @@ import express from 'express';
 import type { FormsRouteDeps, FormsRouteRegistrar } from '../deps.js';
 import { createCapturingResponse } from '#src/server/__tests__/helpers/http-test-server';
 import { assertAdminResponse } from '#src/server/inbound/admin-http/http/__tests__/assert-admin-response';
+import { createRouteDeps } from '#src/server/runtime/composition/app';
 
 const BASE = '/api/admin/v1/workspaces/workspace-local';
 function fixture(register: FormsRouteRegistrar, overrides: Record<string, unknown> = {}) {
-  const deps = { workspaceId: 'workspace-local', authorize: async () => ({ allowed: true, reason: 'fixture' }), ...overrides } as FormsRouteDeps;
+  const deps: FormsRouteDeps = { ...createRouteDeps(), workspaceId: 'workspace-local', authorize: async () => ({ allowed: true, reason: 'fixture' }), ...overrides };
   const app = express();
   app.use((_req, res, next) => { res.locals.principal = { id: 'owner' }; next(); });
   register(app, deps);

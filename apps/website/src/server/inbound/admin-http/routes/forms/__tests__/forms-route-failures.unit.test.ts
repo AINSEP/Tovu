@@ -203,6 +203,6 @@ test('submission detail exposes permanent email failures without provider messag
     formDeliveryStatus: { notificationSummary: async (input: unknown) => { calls.push(input); return { failed: 1, pending: 0 }; } },
   });
   const response = await dispatchJsonRequest(app, 'GET', `${BASE}/forms/form/submissions/sub`);
-  assert.equal(response.status, 200); assert.deepEqual(response.body.data.notificationDelivery, { failed: 1, pending: 0 });
+  assert.equal(response.status, 200); assert.deepEqual((response.body as { data: { notificationDelivery: { failed: number; pending: number } } }).data.notificationDelivery, { failed: 1, pending: 0 });
   assert.deepEqual(calls, [{ workspaceId: WS, submissionId: 'sub' }]);
 });

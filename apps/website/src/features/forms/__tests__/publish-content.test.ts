@@ -4,7 +4,7 @@ import test from "node:test";
 import { makeSite, registerOnly, roundTrip, packAll, plan, applyReport, WORKSPACE_ID } from "#src/features/publish-content/__tests__/round-trip-harness";
 import { contributeFormPublish } from "../publish-content.js";
 import { InMemoryFormDefinitionRepo } from "@jini-ai/cms/forms";
-import type { FormDefinitionRecord } from "@jini-ai/cms/forms";
+import type { FormDefinitionRecord, HtmlFormDefinitionRecord } from "@jini-ai/cms/forms";
 
 function form(overrides: Partial<FormDefinitionRecord> = {}): FormDefinitionRecord {
   return {
@@ -100,7 +100,8 @@ test('HTML form transfers markup and hashes HTML-only changes while recipients s
   const landed = await destRepo.findBySlug({ workspaceId: WORKSPACE_ID, slug: 'contact' });
   assert.equal((landed as typeof authored).html, html);
   assert.deepEqual(landed!.notify.recipients, []);
-  await sourceRepo.update({ ...authored, html: html + '<p>New consent wording.</p>' });
+  const updated: HtmlFormDefinitionRecord = { ...authored, html: html + '<p>New consent wording.</p>' };
+  await sourceRepo.update(updated);
   const [changed] = await packAll(source);
   assert.notEqual(changed!.contentHash, packed!.contentHash);
 });

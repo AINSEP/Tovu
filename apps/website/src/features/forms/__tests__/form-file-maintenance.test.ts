@@ -77,7 +77,11 @@ test('cleanup failure leaves a proven orphan private and reports it for a later 
   const f = await fixture();
   try {
     await f.prove();
-    const media = { ...f.media, renditionRepo: { ...f.media.renditionRepo, listByAsset: f.media.renditionRepo.listByAsset.bind(f.media.renditionRepo), removeByAsset: async () => { throw new Error('secret'); } } } as typeof f.media;
+    const renditionRepo = new Proxy(f.media.renditionRepo, { get(target, key) {
+      if (key === 'removeByAsset') return async () => { throw new Error('secret'); };
+      const value = Reflect.get(target, key); return typeof value === 'function' ? value.bind(target) : value;
+    } });
+    const media = { ...f.media, renditionRepo };
     const result = await runFormFileMaintenance({ ...f, media }, { apply: true });
     assert.equal(result.results[0]!.reason, 'cleanup-failed');
     assert.equal((await f.media.mediaRepo.findById({ workspaceId: 'w', id: 'm' }))!.source.private, true);
