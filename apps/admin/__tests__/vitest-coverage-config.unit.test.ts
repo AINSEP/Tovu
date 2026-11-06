@@ -1,3 +1,5 @@
+// @vitest-environment node
+// This Node configuration imports Vitest's CLI/esbuild; jsdom's typed-array realm is incompatible.
 import { expect, test, vi } from "vitest";
 
 // Coverage policy is independent of React transform plugins; avoid starting a second Vite pipeline.

@@ -9,6 +9,8 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { App } from "../../App";
 import { appShellApiBody } from "../app-shell-api.fixture";
 import { api } from "../../lib/api";
+// Load the real lazy route before timing the preview-containment interaction.
+import "../../features/posts";
 
 /**
  * @file `TOVU_ADMIN_ASSISTANT=off` is a real server-side disable (`admin-assistant-enabled.ts`) —
@@ -156,8 +158,6 @@ it("keeps the assistant dock mounted, outside the expanded post-preview's contai
   window.history.replaceState(null, "", "/admin/posts/p1");
   const { container } = render(<App />);
   await waitFor(() => expect(container.querySelector("main")).not.toBeNull());
-  // The post screen is lazy now; wait for its real module before checking preview containment.
-  await vi.dynamicImportSettled();
   await waitFor(() => expect(screen.getByRole("tab", { name: "Preview" })).toBeInTheDocument());
 
   fireEvent.click(screen.getByRole("tab", { name: "Preview" }));

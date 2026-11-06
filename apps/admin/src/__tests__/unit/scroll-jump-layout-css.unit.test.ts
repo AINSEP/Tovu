@@ -7,8 +7,9 @@ import { effectiveDeclarationsFor } from "./css-declarations.test-helper";
 /**
  * Host CSS contract for 0132bd6f0 / caee43ecb. jsdom has no layout engine, so these guards
  * pin the positioning and scroll clearance that keep the last row out from under the controls.
- * A vertical stack above the FAB exceeded the reserved 88px; the shared 32px buttons must sit
+ * A vertical stack above the FAB exceeded the reserved 88px; the shared 32px desktop buttons must sit
  * beside it. The spacer must remain when the dock opens, because the jump buttons remain too.
+ * Phone buttons have a 44px touch target and their own centering override.
  */
 const root = resolve(process.cwd(), "src");
 const stylesheet = readFileSync(resolve(root, "styles.css"), "utf8");
@@ -18,7 +19,9 @@ const closedLayout = ".admin-layout:not(:has(.admin-chat-dock.is-open))";
 
 describe("admin scroll jump host layout", () => {
   it("anchors a horizontal pair beside the FAB within the reserved bottom band", () => {
-    const column = effectiveDeclarationsFor(stylesheet, ".admin-main-col");
+    // The helper folds every matching rule together; keep phone overrides out of this base check.
+    const baseRules = parse(stylesheet).nodes.filter(node => node.type === "rule").map(node => node.toString()).join("\n");
+    const column = effectiveDeclarationsFor(baseRules, ".admin-main-col");
     expect(column).toContain("position: relative;");
     expect(column).toContain("--jini-scroll-jump-direction: row;");
     expect(column).toContain("--jini-scroll-jump-right: calc(var(--admin-chat-fab-inset, 20px) + var(--admin-chat-fab-size, 56px) + 10px);");
@@ -27,6 +30,15 @@ describe("admin scroll jump host layout", () => {
     expect(fabTokens).toContain("--admin-chat-fab-size: 56px;");
     expect(fabTokens).toContain("--admin-chat-fab-inset: 20px;");
     expect(effectiveDeclarationsFor(bridgeStyles, ":root")).toContain("--assistant-clearance: 88px;");
+  });
+
+  it("centers the phone's larger touch targets beside the same FAB", () => {
+    const blocks: string[] = [];
+    parse(stylesheet).walkAtRules("media", rule => {
+      if (rule.params === "(max-width: 640px)") blocks.push(rule.toString());
+    });
+    expect(effectiveDeclarationsFor(blocks.join("\n"), ".admin-main-col"))
+      .toContain("--jini-scroll-jump-bottom: calc(var(--admin-chat-fab-inset, 20px) + (var(--admin-chat-fab-size, 56px) - 44px) / 2 + env(safe-area-inset-bottom, 0px));");
   });
 
   it("moves the pair into the content column's corner when the open dock hides the FAB", () => {

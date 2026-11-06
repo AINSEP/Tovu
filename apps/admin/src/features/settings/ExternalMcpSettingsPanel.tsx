@@ -367,7 +367,7 @@ function ExternalMcpSourceRow(props: {
       </div>
       <ExternalMcpConnectStatus state={signIn.state} tDrift={tDrift} onCancel={signIn.cancel} />
       {source.fields["authMode"] === "oauth" && source.fields["transport"] !== "stdio" && <ExternalMcpSharedChoice serverId={source.id} busy={signIn.state.phase !== "idle"}
-        signIn={() => void signIn.connect({ destination: "shared" })} onChanged={() => void list.reload()} />}
+        signIn={() => void signIn.connect({ destination: "shared" })} onChanged={() => void list.reload()} t={tDrift} />}
 
       {toolsOpen ? (
         <ExternalMcpToolsModal

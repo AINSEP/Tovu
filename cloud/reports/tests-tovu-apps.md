@@ -107,3 +107,32 @@ Bugs found in this round:
 - Fixed: stale shared-control default-handle tests and recovery-proof classification.
 - Fixed: Posts test exercised an impossible eager list-create failure after creation moved to first editor Save.
 - Pending verification: dock test assumed its lazy editor module was already loaded.
+
+## Discovery run complete; final verification pending
+
+The first bounded full admin coverage run completed in 1122.71s: 883 files (864 passed, 19 failed), 14,318 tests (14,272 passed, 44 failed, 2 existing skips), plus two obsolete Shared Keys fixture errors. This was a discovery run during fixes; Vite reused older source transforms for some newly edited tests. It is not the final tree's verification. Artifacts are preserved as admin-coverage-round1.log/-summary.json/-lcov.info.
+
+Measured in that run: statements 98.82% (23646/23926), branches 97.76% (15864/16227), functions 98.30% (8451/8597), lines 99.14% (19570/19739). Branches were 0.24 percentage points below the 98% floor; other axes exceeded it. No coverage chasing or floor changes.
+
+Further fixes verified:
+- Widget picker/default-handle batch 3 retains absence on native host controls and precisely recognizes only shared Select/dialog default handles; 7/7 passed. Source changes only correct inherited-behavior documentation.
+- Scroll CSS test previously merged responsive phone rules into the desktop assertion. Separates base32px and phone44px centering, retains all existing clearance checks; 6/6 passed (one new phone regression). No CSS changed.
+- Consent i18n tests expected a deliberately retired dynamic-code control. The 21 locale cases now render active translated rules and verify a legacy saved value cannot restore the retired control/help or emit changes; 26/26 retained and passed.
+- Authentication and Admin UI redirect tests now await actual lazy registry screens. Redirect locale fixture supplies both real fallback hook names; exact URL/query/hash/history assertions retained. 5/5 and4/4 passed.
+- Dock test preloads its real lazy editor as test setup before timing containment interaction; all4 cases passed with original timeouts.
+- Chart test pin was stale0.6.23; it now matches already-approved0.6.24.13/13 chart tests and7/7 authoritative source/digest approval tests passed; no approval change.
+- Compact credential-card test was exercising a retired copy/upgrade flow. Its2 scenarios now verify real Shared Keys approve/cancel grants, unchanged vault, cleanup, exact frame metadata and executed212→165px shrink.2/2 and6/6 current tool behavior tests passed.
+- Coverage configuration test imports NodeCLI/esbuild and failed under jsdom's typed-array realm. Correct Node test environment now executes the unchanged exact source-denominator/98%-floor/reportOnFailure assertions;1/1 passed. No coverage configuration changed.
+- Literal-copy scanner exposed11 untranslated shared-connection UI strings and Dismiss error. Reuses parent translator and document locale without extra reads; all21 locales translated.3 rendered regressions added, dictionary call-site inventory strengthened, and29 already-resolved Skills baseline allowances removed (none added).119/119 focused tests, typecheck and strict10complexity passed. Four pre-existing async fallback messages remain untranslated as a minor finding outside the scanner failure; not changed.
+
+Desktop final verification: tini-wrapped npm test completed3048 tests:3036 passed,2 missing-Chromium failures,10 existing platform skips. Main2191=2181passed+0failed+10skipped; renderer857=855passed+2failed. Final gates4pass/2fail solely tests+coverage browser failures. All area floors/inventory pass; advisory unenforced80% per-file branch gaps are20%(1/5) main/index,75%(78/104) desktop-agent-service,76.9231%(20/26) desktop-mcp-http. Listed only. Full command/evidence in desktop-final-handoff.md under work.
+
+Bugs found in this round:
+- Fixed: shared connection controls and incident dismissal lacked localization.
+- Fixed: locale call-site inventory and29 stale literal-copy baseline allowances omitted completed work.
+- Fixed: obsolete credential copy/upgrade fixture did not exercise current Shared Keys grants.
+- Fixed: stale chart version pin disagreed with existing approved bundle.
+- Fixed: Node configuration test incorrectly ran in jsdom.
+- Fixed: lazy Authentication/redirect/dock readiness fixtures and retired Consent expectations.
+- Fixed: scroll CSS guard mixed phone and desktop rule contexts.
+- Minor open: four existing asynchronous SharedChoice fallback messages remain untranslated.
