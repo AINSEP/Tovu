@@ -1,3 +1,6 @@
+import { PasskeySignIn } from '@jini-ai/user-management/react';
+import { ownerPasskeySignInPort } from '../../lib/owner-passkey-api';
+import { api } from '../../lib/api';
 import { OwnerRecoverySignIn } from "./OwnerRecoverySignIn";
 import { ErrorNotice } from "@jini-ai/ui/panel-kit";
 import type { AdminUser } from "../../lib/api";
@@ -50,6 +53,8 @@ export function Login({ onLogin, useLoginHook = useWiredLogin }: LoginProps) {
         <button disabled={busy}>{busy ? t("Signing in…") : mfa ? t("Verify code") : t("Sign in")}</button>
         {mfa ? <button type="button" disabled={busy} onClick={mfa.cancel}>{t("Cancel")}</button> : null}
       </form>
+      {mfa ? <PasskeySignIn port={ownerPasskeySignInPort} pendingToken={mfa.pendingToken} translate={t}
+        onComplete={async () => { const result = await api.me(); onLogin(result.user); }} /> : null}
       <OwnerRecoverySignIn t={t} />
     </div>
   );

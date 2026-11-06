@@ -1,3 +1,4 @@
+import { registerOwnerPasskeyRoutes } from './owner-passkey-routes.js';
 import { ownerMfaDepsFrom } from "./owner-mfa-deps.js";
 import { registerOwnerMfaRoutes } from "./owner-mfa-routes.js";
 import { registerOwnerRecoveryRoutes } from "./owner-recovery-routes.js";
@@ -591,6 +592,16 @@ export function registerAuthRoutes(app: Express, deps: RouteDeps,
 
   registerOwnerMfaRoutes({ app, deps, limiter: loginRateLimiter,
     authenticate: req => currentCredential(deps, req, { localOwnerSignIn }) });
+  registerOwnerPasskeyRoutes({ app, deps, limiter: loginRateLimiter,
+    authenticate: req => currentCredential(deps, req, { localOwnerSignIn }),
+    signedIn: async (req, res, result) => {
+      await revokeRequestSessions({ deps, req });
+      setSessionCookie(res, result.rawToken, result.session.expiresAt);
+      const user = await deps.userRepo.findByPrincipalId({ workspaceId: deps.workspaceId, principalId: result.principal.id });
+      signalAdminSignIn({ deps, principalId: result.principal.id, port: onAdminSignIn });
+      res.json({ user: { id: result.principal.id, username: user?.username ?? result.principal.displayName } });
+    },
+  });
 
   app.post("/api/admin/v1/auth/login", async (req, res) => {
     try {

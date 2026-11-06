@@ -449,6 +449,8 @@ export interface CredentialsDeps {
    * env var.
    */
   derivedPublicOrigin?: string;
+  /** Trusted configured external origin for passkeys; never derived from request headers. */
+  passkeyOrigin?: string;
   /**
    * 2026-08-15 — the `source_control_credential_sets` repo backing the admin Source Control page's
    * connect/replace form (`routes/admin/system/source-control-credentials.ts`). Real
