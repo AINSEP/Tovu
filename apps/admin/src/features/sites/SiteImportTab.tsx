@@ -167,7 +167,8 @@ function ImportProgress({ controller, t }: { controller: SiteImportController; t
   if (current.state === "ready") {
     return (
       <div className="notice site-transfer-done" role="status">
-        <span className="site-transfer-status">{interpolate({ template: t("{name} is ready."), vars: { name } })}<TransferNoticeTip notices={importRowNotices({ item: current, t })} t={t} /></span>
+        <span className="site-transfer-status">{interpolate({ template: t("{name} is ready."), vars: { name } })}</span>
+        <CurrentImportNotices item={current} t={t} />
         {current.adminUrl ? (
           <a className="btn-primary" href={current.adminUrl} target="_blank" rel="noreferrer"
             {...agentHandle({ handle: "sites-import-open" }, { role: "link", label: "Open the imported site's admin" })}>
@@ -196,6 +197,7 @@ function OwnerStep({ controller, name, t }: { controller: SiteImportController; 
           <h3 className="onboarding-section-title">{interpolate({ template: t("Choose a password for {name}"), vars: { name } })}</h3>
           <p className="onboarding-section-lead">{t("The site opens once it has an owner password. Username: admin")}</p>
         </div>
+        <CurrentImportNotices item={controller.current} t={t} />
         <div className="field">
           <label className="field-label" htmlFor="sites-import-owner-password">{t("Password")}</label>
           <SecretInput label={t("Password")} id="sites-import-owner-password" autoComplete="new-password" maxLength={512} value={controller.password}
@@ -265,6 +267,19 @@ function importRowNotices({ item, t }: { item: SiteImport; t: Translate }, _opti
   const warnings = item.warnings ?? [];
   if (!item.credentialWarnings?.length) return warnings;
   return [...warnings, credentialSummary({ subject: "import", warnings: item.credentialWarnings, t })];
+}
+
+/** What the import just made warns about, before its row reaches the list; never blocks its setup. */
+function CurrentImportNotices({ item, t }: { item: SiteImport | null | undefined; t: Translate }) {
+  if (!item) return null;
+  const notices = importRowNotices({ item, t });
+  if (!notices.length) return null;
+  return (
+    <div className="site-transfer-detail">
+      <TransferNoticeTip notices={notices} t={t} />
+      <CredentialWarningList warnings={item.credentialWarnings ?? []} t={t} />
+    </div>
+  );
 }
 
 function ImportAction({ item, index, controller, t }: { item: SiteImport; index: number; controller: SiteImportController; t: Translate }) {

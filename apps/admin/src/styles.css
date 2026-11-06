@@ -1898,6 +1898,11 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 }
 .sortable-column-header:hover, .sortable-column-header:focus-visible { color: var(--fg); opacity: 1; }
 .list-table tbody tr:last-child td { border-bottom: none; }
+/* DataTable's `rowDetail`: the record and its full-width line read as one row. */
+.list-table tbody tr:has(+ .list-table-detail) td { border-bottom: none; }
+.list-table .list-table-detail > td { padding-block-start: 0; }
+.list-table tbody tr:has(+ .list-table-detail:hover),
+.list-table tbody tr:hover + .list-table-detail { background: var(--surface-2); }
 .list-table tbody tr:hover { background: var(--surface-2); }
 /* Row actions default to a quiet/secondary treatment instead of inheriting the bare `button`
    rule's filled-primary orange. A table of N rows each carrying a row action (`/admin/users`:
@@ -6574,6 +6579,10 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
 
   table.list-table > tbody > tr { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 12px 14px; border-bottom: 1px solid var(--border); }
   table.list-table > tbody > tr:last-child { border-bottom: none; }
+  /* A record and its `rowDetail` line are one card. */
+  table.list-table > tbody > tr:has(+ .list-table-detail) { border-bottom: none; padding-bottom: 6px; }
+  table.list-table > tbody > tr.list-table-detail { padding-block: 0 4px; }
+  table.list-table > tbody > tr.list-table-detail > td:first-child { flex: 0 0 100%; font-weight: inherit; color: inherit; }
   /* Forces the meta cells onto their own line(s) under the title + actions. A flex item via its
      own `order`: it lands after the actions slot (also order 1, earlier in source). */
   table.list-table > tbody > tr::after { content: ""; order: 1; flex: 0 0 100%; height: 0; }

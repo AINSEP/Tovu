@@ -3,6 +3,7 @@ import { CredentialWarningList, TransferNoticeTip, credentialSummary } from "./C
 import type { CredentialGate } from "./hooks/use-share-credential-gate.hooks";
 import { DataTable } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/agentic";
+import { InfoTip } from "@jini-ai/ui/admin-widgets";
 import { ErrorNotice, formatTimestamp, type Translate } from "@jini-ai/ui/panel-kit";
 import { siteShareNotices, type SiteShare } from "./hooks/site-transfer-dependencies.hooks";
 import { useWiredSiteExport, type SiteExportController } from "./hooks/use-site-transfer.hooks";
@@ -26,8 +27,12 @@ export function SiteExportTab({ t, useExport = useWiredSiteExport }: SiteExportT
   const exporting = controller.exporting || controller.exportingStatic;
   return (
     <section className="site-transfer" aria-label={t("Export Site")}>
-      <p className="onboarding-section-lead site-transfer-lead">{t("Makes a .tovu.zip copy of this site that another Tovu can import.")}</p>
-      <p className="site-transfer-lead">{t("Images are exported as web-optimized copies.")}</p>
+      <p className="onboarding-section-lead site-transfer-lead">
+        {t("Makes a .tovu.zip copy of this site that another Tovu can import.")}
+        {/* A bubble, not inline copy: opening it must not push the export rows down. */}
+        <InfoTip label={t("Images are exported as web-optimized copies.")} agentHandle="sites-export-info" />
+        <TransferNoticeTip notices={controller.zipOnly ? [t("No link host is set up, so exports are zip downloads only. Set up storage to get a share link.")] : []} t={t} />
+      </p>
       <div className="site-export-actions">
         <button
           type="button"
@@ -45,9 +50,6 @@ export function SiteExportTab({ t, useExport = useWiredSiteExport }: SiteExportT
       <ExportFailureNotice controller={controller} t={t} />
       {controller.passwordError ? <div className="notice error" role="alert">{controller.passwordError}</div> : null}
       <ExportPassword controller={controller} t={t} />
-      {controller.zipOnly ? (
-        <div className="notice">{t("No link host is set up, so exports are zip downloads only. Set up storage to get a share link.")}</div>
-      ) : null}
       <ExportList controller={controller} t={t} />
     </section>
   );
@@ -88,7 +90,7 @@ function ExportList({ controller, t }: { controller: SiteExportController; t: Tr
       rowKey={(share) => share.shareId}
       label={t("Exports")}
       empty={<div className="sites-empty"><p className="sites-empty-lead">{t("No exports yet.")}</p></div>}
-      rowDetail={(share, index) => <ExportCredentialDetail share={share} index={index} controller={controller} t={t} />}
+      rowDetail={(share, index) => exportCredentialDetail({ share, index, controller, t })}
       columns={[
         { key: "date", header: t("Date"), cellClassName: "site-transfer-num", cell: (share) => formatTimestamp({ iso: share.createdAt }, { timeZone: "local" }) },
         { key: "size", header: t("Size"), cellClassName: "site-transfer-num", cell: (share) => formatTransferBytes(share.bytes) },
@@ -98,7 +100,7 @@ function ExportList({ controller, t }: { controller: SiteExportController; t: Tr
           header: t("Status"),
           cell: (share) => {
             const view = shareStatusView(share.status, t);
-            return <span className="site-transfer-status"><span className={view.className}>{view.label}</span><TransferNoticeTip notices={exportRowNotices({ share, t })} t={t} /></span>;
+            return <span className="site-transfer-status"><span className={view.className}>{view.label}</span><TransferNoticeTip notices={exportRowNotices({ share, gate: controller.credentialGate(share), t })} t={t} /></span>;
           },
         },
         { key: "actions", headerLabel: t("Actions"), cell: (share, index) => <ShareActions share={share} index={index} controller={controller} t={t} /> },
@@ -107,28 +109,34 @@ function ExportList({ controller, t }: { controller: SiteExportController; t: Tr
   );
 }
 
-/** The row's warning sign: the export's own notices, plus where credentials may be. @complexity O(n) notices. */
-function exportRowNotices({ share, t }: { share: SiteShare; t: Translate }, _options = {}): readonly string[] {
+/**
+ * The row's warning sign: the export's own notices, plus where credentials may be. A gate's warnings
+ * win over the listed ones, since a 409 can name files the row's last list never had.
+ * @complexity O(n) notices and warnings.
+ */
+function exportRowNotices({ share, gate, t }: { share: SiteShare; gate: CredentialGate | null; t: Translate }, _options = {}): readonly string[] {
   const notices = siteShareNotices({ share });
-  if (!share.needsAcknowledgement && !share.credentialWarnings?.length) return notices;
-  return [...notices, credentialSummary({ subject: "export", warnings: share.credentialWarnings ?? [], t })];
+  const warnings = gate?.warnings.length ? gate.warnings : share.credentialWarnings ?? [];
+  if (!gate && !share.needsAcknowledgement && !warnings.length) return notices;
+  return [...notices, credentialSummary({ subject: "export", warnings, t })];
 }
 
 /**
  * The full-width line under an export with credential warnings: "Show files" has the row's whole
  * width instead of the narrow Status column. The one checkbox records "I understand" and then enables
  * Download zip and Copy link; deliberately no agent handle, acknowledging is the user's own act. The
- * line stays once the checkbox has gone, so Revoke and "I understand" never move the rows below.
+ * line stays once the checkbox has gone, so Revoke and "I understand" never move the rows below. A plain
+ * function, not a component: DataTable draws a row for any element, and an export with nothing to say gets none.
  */
-function ExportCredentialDetail({ share, index, controller, t }: { share: SiteShare; index: number; controller: SiteExportController; t: Translate }) {
+function exportCredentialDetail({ share, index, controller, t }: { share: SiteShare; index: number; controller: SiteExportController; t: Translate }, _options = {}) {
   const gate = controller.credentialGate(share);
   const warnings = gate?.warnings ?? share.credentialWarnings ?? [];
   if (!gate && !warnings.length) return null;
   return (
     <div className="site-transfer-detail" role={gate?.message ? "alert" : undefined}>
       {gate?.message ? <p className="site-transfer-detail-message">{gate.message}</p> : null}
-      <CredentialWarningList warnings={warnings} t={t} />
       {gate ? <ExportAcknowledge share={share} gate={gate} index={index} controller={controller} t={t} /> : null}
+      <CredentialWarningList warnings={warnings} t={t} />
     </div>
   );
 }
@@ -159,6 +167,19 @@ function ExportPasswordRevealAction({ share, controller, t }: { share: SiteShare
     data-agent-private="">
     {controller.revealingId === share.shareId ? t("Revealing…") : t("Reveal password")}
   </button>;
+}
+
+/**
+ * Revoke takes this row's buttons away. Holding the row and its detail line at their height, for this
+ * visit, keeps the next row's Revoke from sliding under a second click, in the table and on phone cards.
+ * @complexity O(1).
+ */
+function holdRowHeight({ control }: { control: HTMLElement }, _options = {}): void {
+  const row = control.closest("tr");
+  const detail = row?.nextElementSibling;
+  for (const line of [row, detail?.classList.contains("list-table-detail") ? detail : null]) {
+    if (line instanceof HTMLElement) line.style.height = `${line.getBoundingClientRect().height}px`;
+  }
 }
 
 /** Copy link, Download zip and Revoke for an active export; nothing for a revoked or failed one.
@@ -200,7 +221,7 @@ function ShareActions({ share, index, controller, t }: { share: SiteShare; index
         type="button"
         className="btn-danger"
         disabled={controller.revokingId !== null}
-        onClick={() => void controller.revoke(share)}
+        onClick={event => { holdRowHeight({ control: event.currentTarget }); void controller.revoke(share); }}
         {...agentHandle({ handle: `sites-export-${index + 1}-revoke` }, { role: "button", label: "Revoke this export so its link stops working" })}
       >
         {revoking ? t("Revoking…") : t("Revoke")}

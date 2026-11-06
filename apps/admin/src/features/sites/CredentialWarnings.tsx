@@ -46,7 +46,7 @@ export function TransferNoticeTip({ notices, t }: { notices: readonly string[]; 
   if (!notices.length) return null;
   return (
     <span className="site-transfer-notice-tip">
-      <InfoTip icon={<SiteFlagIcon />} triggerLabel={t("Warning")} label={notices.join("\n")} agentHandle={false} />
+      <InfoTip icon={<SiteFlagIcon size={16} />} triggerLabel={t("Warning")} label={notices.join("\n")} agentHandle={false} />
     </span>
   );
 }
