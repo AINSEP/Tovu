@@ -163,17 +163,26 @@ test('an explicit US grant without a valid durable receipt remains denied', asyn
   }
 });
 
-test('public context storage failures at the refresh boundary return 503 without disclosing stored details', async t => {
+test('public context retains its last published policy after a refresh fails without disclosing stored details', async t => {
   const f = await policyFixture({ t });
   const { base } = await mounted({ t, deps: f.deps });
-  f.deps.consentStore = { ...f.store, readPublished: async () => { throw new Error('private stored revision path'); } };
+  let reads = 0;
+  f.deps.consentStore = { ...f.store, readPublished: async () => { reads++; throw new Error('private stored revision path'); } };
   const nextRefresh = f.deps.clock.nowMs() + 60_000;
   f.deps.clock.nowMs = () => nextRefresh;
   const response = await fetch(base + '/_consent/context');
-  assert.equal(response.status, 503);
+  assert.equal(response.status, 200);
   assert.equal(response.headers.get('cache-control'), 'private, no-store');
   assert.equal(response.headers.get('set-cookie'), null);
-  assert.ok(!(await response.text()).includes('private stored revision path'));
+  const body = await response.text();
+  assert.ok(!body.includes('private stored revision path'));
+  assert.deepEqual(JSON.parse(body), { enabled: true, policy: f.policy, regionMode: 'auto' });
+  await assert.rejects(f.deps.cookieConsent!.refresh!(), /private stored revision path/);
+  assert.equal(reads, 2, 'the elapsed-window refresh and explicit retry both reached the failing store');
+  const retained = await fetch(base + '/_consent/context');
+  assert.equal(retained.status, 200);
+  assert.deepEqual(await retained.json(), { enabled: true, policy: f.policy, regionMode: 'auto' });
+  assert.equal(reads, 2, 'requests inside the retry window keep the snapshot without extra store reads');
 });
 
 test('raw public metadata, conditional validators and stored page bytes are never rewritten', async t => {

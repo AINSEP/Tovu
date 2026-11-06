@@ -18,7 +18,6 @@ import type { RedirectRecord } from "@jini-ai/cms/redirects";
 import { registerTransform, uploadMedia } from "#src/features/media/index";
 import { setPublicAssistantSettings, setSiteAssistantCredential } from "#src/assistant/index";
 import { startTestServer } from "../../../server/__tests__/helpers/http-test-server.js";
-import { assertConsentBannerPage } from "#src/server/__tests__/helpers/default-consent-page";
 import { createCommerceSiteTestApp } from "#src/server/inbound/public-http/routes/site/__tests__/commerce-site-app";
 import { useSiteChatBuild } from "#src/server/inbound/public-http/http/site/__tests__/site-chat.fixture";
 import { exportSite, firstExportFailure, redirectOutcomeFor } from "../site-exporter.js";
@@ -39,6 +38,8 @@ const PUBLIC_URL = "https://export.example.test";
 function createRouteDeps() {
   const deps = createSeededRouteDeps();
   deps.originRegistry.canonicalOrigin = async () => ({ scheme: "https", host: "export.example.test", source: "workspace-setting", verifiedAt: "2026-10-30T00:00:00Z" });
+  // The in-memory root has no attached banner plugin; production composition supplies this port.
+  deps.cookieConsent = { regionResolvers: async () => [] };
   return deps;
 }
 
@@ -157,9 +158,10 @@ async function enablePublicAssistant(deps: ReturnType<typeof createRouteDeps>): 
 /** The seeded demo workspace has no storefront products, which would leave `products.ts`'s two
  *  handlers out of both the crawl and these widget tests — one sample-store product brings them in. */
 function withOneSampleProduct(deps: ReturnType<typeof createRouteDeps>): void {
-  const commerceDeps = Object.assign(deps, { store: {
-    listProducts: async () => [{ id: "prod-widget-1", slug: "widget-mug", title: "Widget Mug", price: 1200, stock: 3, version: 1 }],
-    checkout: async () => ({ ok: false as const, reason: "not-found" as const, retries: 0 }),
+  const product = { id: "prod-widget-1", slug: "widget-mug", title: "Widget Mug", price: 1200, stock: 3, version: 1 };
+  const commerceDeps = Object.assign(deps, { commerceCatalog: {
+    listProducts: async () => [product],
+    findProduct: async ({ idOrSlug }: { idOrSlug: string }) => idOrSlug === product.id || idOrSlug === product.slug ? product : null,
   } });
   // Product routes are an opt-in adapter now. Use its existing test composition for both live
   // requests and the export crawl, so this retained coverage does not re-enable production commerce.
@@ -217,9 +219,9 @@ test("exportSite: the site-assistant widget is OFF in a static export even when 
  * be stored by a shared cache under the plain URL — ordinary pages without live comments are
  * `public, max-age=60` with no `Vary`, so one crafted request would strip the widget from every
  * visitor behind that cache for minutes. Live comment surfaces already require private/no-store
- * so moderation takes effect on the next request. c5e98fea6 also makes the default consent HTML
- * visitor-specific (receipt/region/GPC). Keep the owner-OFF arm to prove the marker itself prevents
- * caching even when consent does not. Covers all four handlers that resolve the switch.
+ * so moderation takes effect on the next request. Consent construction is now identical for every
+ * visitor; its browser client resolves receipt/region/GPC separately. Keep both owner-choice arms
+ * to prove the marker prevents caching independently of consent. Covers all four switch handlers.
  */
 test("live site: a request carrying the static-export marker gets no widget AND a never-store Cache-Control", async (t) => {
   useSiteChatBuild({ test: t, ready: true });
@@ -233,6 +235,9 @@ test("live site: a request carrying the static-export marker gets no widget AND 
       value: consentEnabled, scope: "workspace", workspaceId: deps.workspaceId, callerPrincipalId: await deps.ownerPrincipalId } });
     withOneSampleProduct(deps);
     const baseUrl = await startTestServer(deps.createSiteApp(), t);
+    const consentLoader = await fetch(`${baseUrl}/_consent/load.js`);
+    assert.equal(consentLoader.status, 200);
+    const consentSource = await consentLoader.text();
 
     const slugRoute = (await listPublishedSlugPaths(deps))[0];
     assert.ok(slugRoute, "the seeded fixture must publish at least one /:slug page");
@@ -249,12 +254,20 @@ test("live site: a request carrying the static-export marker gets no widget AND 
       assert.match(liveHtml, /src="\/site-chat\/site-assistant-loader\.js"/, `${route}: live must ship the lazy loader`);
       assert.doesNotMatch(liveHtml, /(?:src|href)="\/site-chat\/site-assistant(?:-vanilla)?\.(?:js|css)"/, `${route}: widget assets load on demand`);
       assert.equal(liveHtml.includes("data-comments-surface"), comments, `${route}: the fixture must exercise its declared comment surface`);
-      assert.equal(live.headers.get("cache-control"), consentEnabled ? "private, no-store" : liveCacheControl,
-        `${route}: visitor-specific consent and live comments stay private; owner-OFF public pages stay cacheable`);
-      if (consentEnabled) {
-        assert.equal(live.headers.get("vary"), "Cookie, Sec-GPC");
-        assertConsentBannerPage({ html: liveHtml });
-      } else assert.doesNotMatch(liveHtml, /id="jini-consent"/);
+      assert.equal(live.headers.get("cache-control"), liveCacheControl,
+        `${route}: shared consent markup stays cacheable; live comments stay private`);
+      assert.doesNotMatch(live.headers.get("vary") ?? "", /Cookie|Sec-GPC/);
+      const dom = new JSDOM(liveHtml, { runScripts: "outside-only" });
+      try {
+        dom.window.eval(consentSource);
+        assert.equal(dom.window.document.querySelectorAll("#jini-consent").length, consentEnabled ? 1 : 0,
+          `${route}: the authored loader honors the owner's banner choice`);
+        if (consentEnabled) {
+          const config = JSON.parse(dom.window.document.querySelector("#jini-consent-config")!.textContent!);
+          assert.deepEqual(config.evidence, { mode: "durable", endpoint: "/_consent" });
+          assert.equal(config.context, "/_consent/context");
+        }
+      } finally { dom.window.close(); }
 
       const marked = await fetch(`${baseUrl}${route}`, { headers: { "x-tovu-static-export": "1" } });
       assert.doesNotMatch(await marked.text(), /site-assistant/, `${route}: the marked request must carry no widget`);
