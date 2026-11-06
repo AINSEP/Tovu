@@ -50,15 +50,24 @@ test("read-only declarations preserve the absence of sign-in defaults", () => {
   assert.equal(parseDefaults({ read: ["inspect"], write: ["create"] }), undefined);
 });
 
-test("bundled Higgsfield declares only the two evidenced read tools and no sign-in allow defaults", async () => {
+test("bundled Higgsfield declares the reviewed sign-in grants and independent read trust", async () => {
   const raw = JSON.parse(await readFile(path.join(agentPluginSourceDir({ pluginId: "higgsfield-media" }), "mcp.json"), "utf8"));
   assert.deepEqual(Object.keys(raw.mcpServers.higgsfield).sort(), ["type", "url"]);
   const manifest = JSON.parse(await readFile(path.join(agentPluginSourceDir({ pluginId: "higgsfield-media" }), "plugin.json"), "utf8"));
-  assert.deepEqual(manifest.extensions.tovu.mcpServers.higgsfield.tovuDefaultTools, { read: ["models_explore", "job_status"] });
+  assert.deepEqual(manifest.extensions.tovu.mcpServers.higgsfield.tovuDefaultTools, {
+    allow: ['generate_image', 'generate_video', 'models_explore', 'job_status', 'jobs_wait', 'show_generations', 'reveal_generation', 'show_generation_by_ids'],
+    write: ['generate_image', 'generate_video', 'reveal_generation'],
+    read: ['models_explore', 'job_status', 'jobs_wait', 'show_generations', 'show_generation_by_ids'],
+  });
   const parsed = parseAgentPluginMcpConfig({ value: raw }, { pluginManifest: manifest });
   assert.equal(parsed.ok, true);
   if (!parsed.ok) throw new Error("invalid bundle");
   assert.equal(remote(parsed.config.servers.higgsfield)?.tovuAuthMode, "oauth");
+  assert.deepEqual(remote(parsed.config.servers.higgsfield)?.tovuDefaultTools, {
+    allow: ['generate_image', 'generate_video', 'models_explore', 'job_status', 'jobs_wait', 'show_generations', 'reveal_generation', 'show_generation_by_ids'],
+    write: ['generate_image', 'generate_video', 'reveal_generation'],
+    read: ['models_explore', 'job_status', 'jobs_wait', 'show_generations', 'show_generation_by_ids'],
+  });
 });
 
 
