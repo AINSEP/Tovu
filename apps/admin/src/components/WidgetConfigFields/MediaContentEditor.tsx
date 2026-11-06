@@ -35,7 +35,8 @@ import { useWidgetPreview } from "./WidgetPreview.hooks";
  * `<base>-layout-<layout>`, `<base>-columns`, `<base>-aspect-ratio`, `<base>-choose`,
  * `<base>-slug`, `<base>-slug-add`, `<base>-css-class`, `<base>-attribute-add`, `<base>-html`,
  * `<base>-insert-media`, `<base>-picker-add`. Item rows are reorderable and their slugs editable,
- * so they carry no per-row handle (no stable id to key one on). Omit for no `data-agent-*` markup.
+ * so they carry no per-row handle (no stable id to key one on). Omit the base to leave editor-owned
+ * controls untagged; shared help triggers and dialog controls keep their default instance handles.
  */
 
 const TABS: ReadonlyArray<{ id: MediaContentMode; label: string }> = [{ id: "media", label: "Media" }, { id: "html", label: "Raw HTML" }];
@@ -206,9 +207,9 @@ function MediaItemRowView({ row, index, vm, t }: { row: MediaItemRow; index: num
         onChange={(event) => vm.updateItem(index, { slug: event.target.value.trim() })} />
       {/* Clearing alt/caption omits the key, so the library's own text is used at render time
           (contract); the placeholder shows that fallback. */}
-      <input className="media-content-editor__alt" value={row.item.alt ?? ""} placeholder={row.asset?.alt || t("Alt text")}
+      <input className="media-content-editor__alt" value={row.item.alt ?? ""} placeholder={mediaTextPlaceholder({ row, field: "alt", t })}
         aria-label={`${t("Alt text")} ${n}`} onChange={(event) => vm.updateItem(index, { alt: event.target.value || undefined })} />
-      <input className="media-content-editor__caption" value={row.item.caption ?? ""} placeholder={row.asset?.caption || t("Caption")}
+      <input className="media-content-editor__caption" value={row.item.caption ?? ""} placeholder={mediaTextPlaceholder({ row, field: "caption", t })}
         aria-label={`${t("Caption")} ${n}`} onChange={(event) => vm.updateItem(index, { caption: event.target.value || undefined })} />
       <RowActions index={index} vm={vm} t={t} />
       {row.problem ? <p className="field-error media-content-editor__row-error">{rowProblemText(row.problem, row.item.slug, t)}</p> : null}
@@ -367,4 +368,9 @@ function LibraryPicker({ vm, t, base }: { vm: MediaContentEditorController; t: T
       </div>
     </Dialog>
   );
+}
+
+/** Empty item overrides fall back to the asset text before the translated field hint. */
+function mediaTextPlaceholder({ row, field, t }: { row: MediaItemRow; field: "alt" | "caption"; t: Translate }): string {
+  return row.asset?.[field] || t(field === "alt" ? "Alt text" : "Caption");
 }

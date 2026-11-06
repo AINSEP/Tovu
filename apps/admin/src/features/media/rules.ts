@@ -350,7 +350,7 @@ export function parseMediaHtmlAttributes(text: string): ParsedMediaHtmlAttribute
     consumed = match.index + match[0].length;
 
     const name = match[1]!.toLowerCase();
-    const value = match[2] ?? match[3] ?? match[4] ?? "";
+    const value = mediaAttributeTokenValue(match);
     const rejection = classifyMediaHtmlAttributeToken(name, value);
     if (rejection) {
       errors.push(rejection);
@@ -750,4 +750,9 @@ export function mediaRowMenuItems(
  *  `activeIndex` is `null` (closed). */
 export function resolveLightboxItem(items: AdminMedia[], activeIndex: number | null): AdminMedia | null {
   return activeIndex !== null ? items[activeIndex] ?? null : null;
+}
+
+/** The tokenizer captures double-quoted, single-quoted and unquoted values separately. */
+function mediaAttributeTokenValue(match: RegExpExecArray): string {
+  return match[2] ?? match[3] ?? match[4] ?? "";
 }
