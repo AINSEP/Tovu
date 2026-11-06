@@ -43,7 +43,7 @@ test('App: Locate replaces a missing-folder card with the found site at once', a
   });
   assert.match(app.text(), /Folder moved or not a site/);
   await app.click(app.byLabel('Locate the folder for Site gone'));
-  assert.deepEqual(app.all('article.card').map((card) => card.querySelector('.card__name')?.textContent), ['Site found']);
+  assert.deepEqual(app.all('article.card').map((card) => card.querySelector('.jini-site-card__name')?.textContent), ['Site found']);
   assert.doesNotMatch(app.text(), /Folder moved or not a site/);
 });
 

@@ -12,7 +12,7 @@
  *
  * **Second revision, same day.** The owner moved the controls again after seeing that layout: the
  * ⋮ to the card's top-right, level with the site name, and Start/Stop directly beneath it. The
- * card body is two columns now (`.card__info` and `.card__actions`). Everything above still holds —
+ * card body is two columns now (`.card__info` and `.jini-site-card__actions`). Everything above still holds —
  * nothing about what either control DOES changed — and `LAYOUT_*` below adds the three geometric
  * claims that only a laid-out window can settle, read from `getBoundingClientRect` rather than from
  * pixels: a screenshot cannot tell a right-aligned column from one that merely looks flush.
@@ -24,7 +24,7 @@
  *
  * **Fourth revision, same day.** The status moved under the ⋮ on the right and "SQLite" sits
  * directly under the name; `.card__info` is gone (the head is a 2x2 grid). `powerBelowMenu` became
- * `statusUnderMenu`, and the text-column box became the `.card__details` and `.card__meta` boxes.
+ * `statusUnderMenu`, and the text-column box became the `.jini-site-card__details` and `.jini-site-card__meta` boxes.
  *
  * Not part of `npm test`: it launches a real Electron app and a real site server, so it is opt-in
  * and slow. Run it after touching `src/renderer/use-site-power.hooks.ts`, `src/renderer/SiteGrid.tsx`,
@@ -102,20 +102,20 @@ const cardState = (win: Page): Promise<CardState | null> =>
       className: card.className,
       // Which site this card is actually about. Read so the run can prove, BEFORE it clicks Start,
       // that the card it is driving is the scratch site it seeded — see `CARD_IS_SEEDED_SITE`.
-      name: text('.card__name'),
-      status: text('.state') ?? '',
+      name: text('.jini-site-card__name'),
+      status: text('.jini-site-card__status') ?? '',
       port: text('.card__port'),
       power: power ? { label: (power.textContent ?? '').trim(), disabled: power.disabled, visible: visible(power) } : null,
       // The one control the owner asked to be visible without hovering, now that delete no longer
       // sits beside it. Read WITHOUT any pointer over the card, which is the whole claim being
       // checked.
       menuVisible: visible(card.querySelector('.card__menubutton')),
-      menuInTile: has('.card__tile .card__menu'),
+      menuInTile: has('.jini-site-card__tile .card__menu'),
       // Must be absent at the TOP level of the card — delete lives only inside the closed ⋮ menu.
       trashOnCard: has('.card__delete'),
-      actionsInBody: has('.card__body .card__actions'),
+      actionsInBody: has('.jini-site-card__body .jini-site-card__actions'),
       // The owner's layout, as boxes.
-      layout: { name: box('.card__name'), menu: box('.card__menubutton'), power: box('.card__power'), details: box('.card__details'), status: box('.card__meta') },
+      layout: { name: box('.jini-site-card__name'), menu: box('.card__menubutton'), power: box('.card__power'), details: box('.jini-site-card__details'), status: box('.jini-site-card__meta') },
       error: text('.card__actionerror'),
     };
   });

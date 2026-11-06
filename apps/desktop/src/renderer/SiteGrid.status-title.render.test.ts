@@ -29,7 +29,7 @@ test('SiteGrid: the running address is in the status title, never in the card co
     ['stopped', undefined, 'Stopped.'], ['running', 4100, 'Running at http://localhost:4100'],
   ] as const) {
     const card = await renderCard(t, site('a', { status, port } as Partial<SiteRecord>));
-    assert.equal(card.querySelector('.state')?.getAttribute('title'), title, `${status}/${port}`);
+    assert.equal(card.querySelector('.jini-site-card__status')?.getAttribute('title'), title, `${status}/${port}`);
     assert.doesNotMatch(card.textContent ?? '', /4100/, `${status}/${port} must not print the port`);
     assert.equal(card.querySelector('.card__port'), null);
   }
@@ -38,8 +38,8 @@ test('SiteGrid: the running address is in the status title, never in the card co
 test('SiteGrid: Sleeping keeps the neutral card state and a Start control', async t => {
   const card = await renderCard(t, site('a', { status: 'sleeping', port: 0 }));
   assert.ok(card.classList.contains('is-sleeping'));
-  assert.equal(card.querySelector('.state')?.textContent?.trim(), 'Sleeping');
-  assert.equal(card.querySelector('.state')?.getAttribute('title'), 'Sleeping.');
+  assert.equal(card.querySelector('.jini-site-card__status')?.textContent?.trim(), 'Sleeping');
+  assert.equal(card.querySelector('.jini-site-card__status')?.getAttribute('title'), 'Sleeping.');
   assert.ok(card.querySelector('[aria-label="Start Site a"]'));
 });
 

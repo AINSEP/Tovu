@@ -141,8 +141,8 @@ test('a stopped card opens on click and Enter, shows its details, and Start reac
   const [card] = grid.cards();
   assert.equal(card!.getAttribute('role'), 'button');
   assert.match(card!.className, /is-stopped/);
-  assert.ok(card!.querySelector('svg.card__placeholder'), 'no capture yet: the neutral placeholder');
-  assert.equal(card!.querySelector('.card__details')!.textContent, 'SQLite · Tovu 1.4.0');
+  assert.ok(card!.querySelector('svg.jini-site-card__placeholder'), 'no capture yet: the neutral placeholder');
+  assert.equal(card!.querySelector('.jini-site-card__details')!.textContent, 'SQLite · Tovu 1.4.0');
   assert.equal(card!.querySelector('.card__parent'), null);
   grid.click(card!);
   act(() => { card!.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); });
@@ -197,8 +197,8 @@ test('a running card shows its capture, failure line and details; the menu offer
   const failed = site('/sites/failed', { status: 'failed', statusDetail: 'the server exited (code 1)' });
   const grid = renderGrid(t, [running, failed], fakes);
   const [card, failedCard] = grid.cards();
-  assert.equal(card!.querySelector('img.card__preview')!.getAttribute('src'), 'blob:capture');
-  assert.equal(card!.querySelector('.state')!.getAttribute('title'), 'Running in Web at http://localhost:4321');
+  assert.equal(card!.querySelector('img.jini-site-card__preview')!.getAttribute('src'), 'blob:capture');
+  assert.equal(card!.querySelector('.jini-site-card__status')!.getAttribute('title'), 'Running in Web at http://localhost:4321');
   // Owner 2026-10-13: "Running in Web (port N)" is noise in the card's copy; it is the status title.
   assert.equal(card!.querySelector('.card__detail'), null, 'a site another app runs shows no detail line');
   assert.doesNotMatch(card!.textContent!, /port 52612/);
@@ -383,7 +383,7 @@ test('the default hooks render a card outside the desktop app without a bridge',
   t.after(() => { act(() => root.unmount()); host.remove(); });
   act(() => root.render(createElement(SiteGrid, { projects: [site('/sites/plain')], onOpen: () => {}, onDelete: async () => {} })));
   assert.equal(host.querySelectorAll('article.card').length, 1);
-  assert.ok(host.querySelector('svg.card__placeholder'), 'no bridge, no capture: the placeholder');
+  assert.ok(host.querySelector('svg.jini-site-card__placeholder'), 'no bridge, no capture: the placeholder');
 });
 
 // ---- Layout and wiring the source-text tests used to pin, now asserted on the rendered card ----
@@ -395,20 +395,20 @@ test('every control sits in the card body: the head reads name, ⋮, SQLite, sta
   // what the DOM owns is where each control is and the order it is in.
   const grid = renderGrid(t, [site('/sites/a')]);
   const [card] = grid.cards();
-  assert.equal(card!.querySelector('.card__tile')!.querySelectorAll('button, .card__menu').length, 0, 'no action control may sit on the screenshot');
-  const head = card!.querySelector('.card__body > .card__head')!;
+  assert.equal(card!.querySelector('.jini-site-card__tile')!.querySelectorAll('button, .card__menu').length, 0, 'no action control may sit on the screenshot');
+  const head = card!.querySelector('.jini-site-card__body > .jini-site-card__head')!;
   // Grid auto-placement fills row 1 then row 2, so the DOM order IS the layout — and the reading and
   // Tab order, which is why the ⋮ comes second rather than last.
-  assert.deepEqual([...head.children].slice(0, 4).map((child) => child.className), ['card__namewrap', 'card__menu', 'card__details', 'card__meta']);
+  assert.deepEqual([...head.children].slice(0, 4).map((child) => child.className), ['jini-site-card__namewrap', 'card__menu', 'jini-site-card__details', 'jini-site-card__meta']);
   assert.equal(card!.querySelector('.card__info'), null, 'the old left-hand text column is gone');
-  const actions = card!.querySelector('.card__body > .card__actions')!;
+  const actions = card!.querySelector('.jini-site-card__body > .jini-site-card__actions')!;
   assert.equal(head.nextElementSibling, actions, 'the button row sits under the head');
   assert.equal(actions.getAttribute('role'), 'group');
   assert.equal(actions.getAttribute('aria-label'), 'Actions for Bakery', 'the row is a labelled group, not a bare div with handlers on it');
   assert.deepEqual([...actions.querySelectorAll('button')].map((button) => button.getAttribute('aria-label')), ['Start Bakery', 'Restart Bakery'],
     'the ⋮ no longer lives in the button row, and Start/Stop renders before Restart');
   assert.ok(grid.button(card!, 'Restart Bakery').classList.contains('card__restart'));
-  assert.equal(card!.querySelector('h3.card__name')!.getAttribute('title'), 'Bakery', 'D-28: a card name exposes its full text');
+  assert.equal(card!.querySelector('h3.jini-site-card__name')!.getAttribute('title'), 'Bakery', 'D-28: a card name exposes its full text');
   assert.equal(card!.querySelector('.card__missing'), null, 'a present folder shows no missing-folder line');
 });
 
@@ -431,12 +431,12 @@ test('the tile shows the capture usePreview returns for the card\'s own id and v
   fakes.hooks.usePreview = (input) => { asked.push(input); return input.id === '/sites/live' ? 'blob:capture' : null; };
   const grid = renderGrid(t, [site('/sites/live', { status: 'running', port: 3000, previewVersion: 7 }), site('/sites/idle', { port: 3001 })], fakes);
   assert.deepEqual(asked.slice(0, 2), [{ id: '/sites/live', previewVersion: 7 }, { id: '/sites/idle', previewVersion: null }]);
-  const [live, idle] = grid.cards().map((card) => card.querySelector('.card__tile')!);
+  const [live, idle] = grid.cards().map((card) => card.querySelector('.jini-site-card__tile')!);
   // An empty alt is deliberate here (not a missing one): a screen-reader user already has the card's
   // own name and status text right below the tile, and announcing "image" or a fabricated
   // description of a screenshot the operator cannot act on would be noise, not information.
-  assert.equal(live!.querySelector('img.card__preview')!.getAttribute('alt'), '');
-  assert.equal(idle!.querySelector('svg.card__placeholder')!.getAttribute('aria-hidden'), 'true');
+  assert.equal(live!.querySelector('img.jini-site-card__preview')!.getAttribute('alt'), '');
+  assert.equal(idle!.querySelector('svg.jini-site-card__placeholder')!.getAttribute('aria-hidden'), 'true');
   assert.deepEqual([live!.textContent, idle!.textContent], ['', ''], 'the tile must not fall back to the port');
 });
 
@@ -450,7 +450,7 @@ test('a card wears the status the power hook decided, not the polled one, and it
   const grid = renderGrid(t, [project], fakes);
   const [card] = grid.cards();
   assert.match(card!.className, /\bis-stopping\b/);
-  assert.equal(card!.querySelector('.state')!.textContent, STATUS_LABEL.stopping);
+  assert.equal(card!.querySelector('.jini-site-card__status')!.textContent, STATUS_LABEL.stopping);
   const stop = grid.button(card!, 'Stopping… Bakery');
   assert.equal(stop.disabled, true, 'a busy control must be inert, not merely dimmed');
   assert.equal(stop.getAttribute('aria-busy'), 'true');
@@ -523,7 +523,7 @@ test('Enter or Space on the card opens it; the same key on anything inside the c
   press(card!, ' ');
   press(card!, 'Escape');
   assert.deepEqual(grid.opened, ['/sites/a'], 'Space opens, any other key does nothing');
-  const name = card!.querySelector('.card__name')!;
+  const name = card!.querySelector('.jini-site-card__name')!;
   press(name, 'Enter');
   press(name, ' ');
   assert.deepEqual(grid.opened, ['/sites/a'], 'a key that bubbles up from inside the card is not the card\'s own key');

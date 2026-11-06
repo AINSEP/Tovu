@@ -1364,6 +1364,16 @@ webview { display: flex; }
 
 /* ---------- project grid ---------- */
 
+/* The list's toolbar and its empty line sit on the same left and right edge as the cards below. */
+.jini-site-list-toolbar { padding-inline: 1.75rem; }
+.site-list__empty { margin: 0 0 1rem; padding-inline: 1.75rem; color: var(--muted); font-size: 0.8125rem; }
+/* Same chevron as `.sites-settings__select`; Jini's toolbar leaves it to the host. */
+.jini-site-list-toolbar__sort select {
+  background: var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") right 0.5rem center / 14px no-repeat;
+  appearance: none;
+  cursor: pointer;
+}
+
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(214px, 100%), 1fr));
@@ -1391,90 +1401,38 @@ webview { display: flex; }
 .card.is-openable:hover { border-color: var(--border-strong); box-shadow: var(--shadow-md); }
 .card.is-openable:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 
-.card__tile {
-  position: relative;
-  display: grid;
-  place-items: center;
-  aspect-ratio: 16 / 10;
-  background: var(--sunken);
-  border-bottom: 1px solid var(--border);
-}
+/* The card's frame, its tile, head, status and button row are in Jini's `@jini-ai/ui/site-card.css`
+   since 2026-11-06, shared with the web admin. The comments below keep why those rules are what they are. */
 
 /* Until a site has been captured (or when a capture fails), a neutral page glyph stands in for the
    preview. Not the port: the owner (2026-10-13) read a bare "3000" as noise, not an address. */
-.card__placeholder {
-  width: 3rem;
-  height: auto;
-  color: var(--faint);
-  opacity: 0.6;
-}
 
-/* `.card__tile`'s `aspect-ratio: 16 / 10` above (not a fixed height) keeps every card's thumbnail
+/* The tile's `aspect-ratio: 16 / 10` (not a fixed height) keeps every card's thumbnail
    the same shape before either the real image or the placeholder has painted, so the grid
    doesn't reflow when a capture loads in — same reasoning as the admin's own `.theme-card-preview`
    (`apps/admin/src/styles.css`). `object-position: top` rather than the default `center`: a
    full-page capture cropped to this ratio shows only its top fraction, and the hero is what a
    thumbnail should be recognized by, not whatever section happens to fall at the vertical middle. */
-.card__preview {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: top;
-}
 
 
 /* TWO ROWS: the head (name | ⋮, SQLite | status), then the button row (Start/Stop left, Restart
    right). The owner's 2026-10-06 layout — Start/Stop under the "SQLite" line rather than stacked
    under the ⋮, and tight under it. */
-.card__body {
-  flex: 1;
-  padding: 0.75rem 0.875rem 0.875rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
 
 /* A 2x2 GRID: name | ⋮ on row 1, "SQLite" | status on row 2 — the owner's layout (2026-10-06): the ⋮
    on the site name's own row, the status right-aligned under it, one row fewer than a status line
    of its own. Auto-placement fills it in DOM order (`SiteCard`). `minmax(0, 1fr)` is load-bearing:
    a bare `1fr` track refuses to shrink below its content, so a long site name would push the ⋮ off
-   the card's right edge instead of ellipsizing the way `.card__name` asks to. */
-.card__head {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  column-gap: 0.75rem;
-  row-gap: 0.3125rem;
-  align-items: center;
-}
+   the card's right edge instead of ellipsizing the way the name asks to. */
 /* Anything the head says beyond its four cells spans both columns, below row 2. */
 .card__detail, .card__draft, .card__actionerror, .card__missing { grid-column: 1 / -1; }
 
-.card__name {
-  margin: 0;
-  font-size: 0.875rem;
-  font-weight: 500;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 100%;
-}
-
 /* Duplicate labels need visible locations; the full path remains available on hover. */
-.card__namewrap { min-width: 0; }
 .card__parent {
   margin: 0.25rem 0 0;
   font-size: 0.75rem;
   color: var(--faint);
   overflow-wrap: anywhere;
-}
-
-.card__meta {
-  margin: 0;
-  justify-self: end;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.75rem;
 }
 
 .card__uptime {
@@ -1497,7 +1455,6 @@ webview { display: flex; }
   text-align: right;
   color: var(--faint);
 }
-.card.is-failed .state { color: var(--warning); }
 
 .card__draft {
   justify-self: start;
@@ -1509,13 +1466,6 @@ webview { display: flex; }
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-}
-
-.card__details {
-  margin: 0;
-  color: var(--faint);
-  font-family: var(--font-mono);
-  font-size: 0.6875rem;
 }
 
 /*
@@ -1533,13 +1483,6 @@ webview { display: flex; }
  * owner's words) rather than pinned to the card's foot. `:empty` hides it for a status with no
  * button at all (provisioning/blocked), so it adds no gap.
  */
-.card__actions {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 0.375rem;
-}
-.card__actions:empty { display: none; }
 /* Restart sits at the row's right edge whether or not Start/Stop is beside it. */
 .card__restart { margin-left: auto; }
 
@@ -1680,21 +1623,11 @@ webview { display: flex; }
 .state { display: inline-flex; align-items: center; gap: 0.375rem; color: var(--faint); }
 .state__dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 
-.card.is-running .state { color: var(--primary); }
-.card.is-running .state__dot { box-shadow: 0 0 0 3px var(--primary-ring); }
 /* Both transitions, not only the boot: a stop takes as long as its drain does, and a card that
    showed `Running` throughout it would be reporting the state the operator just ended. */
-.card.is-starting .state,
-.card.is-stopping .state { color: var(--warning); }
-.card.is-starting .state__dot,
-.card.is-stopping .state__dot { animation: pulse 1.4s ease-in-out infinite; }
 
 @keyframes pulse { 50% { opacity: 0.3; } }
 
-@media (prefers-reduced-motion: reduce) {
-  .card.is-starting .state__dot,
-  .card.is-stopping .state__dot { animation: none; }
-}
 
 /* ---------- add project ---------- */
 
@@ -2289,7 +2222,7 @@ webview { display: flex; }
 .tabstrip-frame .tabstrip::-webkit-scrollbar-thumb { background: var(--muted); border-radius: 3px; }
 .tabstrip-arrow { flex: none; width: 24px; border: 0; border-bottom: 2px solid var(--fg); background: var(--surface); color: var(--fg); font-size: 1.25rem; cursor: pointer; }
 .tabstrip-arrow:disabled { opacity: 0.3; cursor: default; }
-.card__actions { flex-wrap: wrap; }
+.jini-site-card__actions { flex-wrap: wrap; }
 .card__confirm { z-index: 5; overflow-y: auto; }
 .card__confirmtitle, .card__confirmbody, .card__confirmerror { overflow-wrap: anywhere; }
 .projects-feedback { margin: 0.5rem 1.25rem 1rem; padding: 0.75rem 1rem; border: 1px solid var(--warning); border-radius: var(--r-md); color: var(--warning); background: var(--surface); overflow-wrap: anywhere; }

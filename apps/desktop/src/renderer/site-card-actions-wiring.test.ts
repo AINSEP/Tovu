@@ -28,10 +28,14 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const css = fs.readFileSync(path.join(import.meta.dirname, 'app.css'), 'utf8');
+const appCss = fs.readFileSync(path.join(import.meta.dirname, 'app.css'), 'utf8');
+/** The frame's rules moved to Jini's stylesheet when the card became the shared `SiteCard`. */
+const sharedCss = fs.readFileSync(fileURLToPath(import.meta.resolve('@jini-ai/ui/site-card.css')), 'utf8');
+const css = `${sharedCss}\n${appCss}`;
 
-/** The body of the first `selector {…}` rule in `app.css`. */
+/** The body of the first `selector {…}` rule in either stylesheet, Jini's first. */
 function rule(selector: string): string {
   const start = css.indexOf(`${selector} {`);
   assert.notEqual(start, -1, `${selector} must have a rule`);
@@ -43,24 +47,24 @@ test('the card head is a 2x2 grid — name | ⋮ on row 1, SQLite | status on ro
   // below, but moved the status ("● Stopped") to the RIGHT, under the ⋮, with "SQLite" directly
   // under the name on the left — one row fewer. That is a property of the head's GRID, so it is
   // asserted on the head's rule here, and on the DOM order that fills it in `SiteGrid.jsdom.test.ts`.
-  const head = rule('.card__head');
+  const head = rule('.jini-site-card__head');
   assert.match(head, /display:\s*grid/);
   // `minmax(0, 1fr)`, not `1fr`: a bare `1fr` track refuses to shrink below a long name's width and
   // shoves the ⋮ off the card's right edge.
   assert.match(head, /grid-template-columns:\s*minmax\(0,\s*1fr\)\s+auto/, 'text column left (shrinkable), ⋮/status column right');
-  assert.match(rule('.card__meta'), /justify-self:\s*end/, 'the status is right-aligned under the ⋮');
+  assert.match(rule('.jini-site-card__meta'), /justify-self:\s*end/, 'the status is right-aligned under the ⋮');
   // Anything else the head says (a failure reason, "Provisioning setup", a refused start, a
   // missing folder) spans both columns below row 2 rather than squeezing into one.
-  assert.match(css, /\.card__detail,\s*\.card__draft,\s*\.card__actionerror,\s*\.card__missing\s*\{\s*grid-column:\s*1 \/ -1;/);
+  assert.match(css, /\.jini-site-card__head > :nth-child\(n \+ 5\)\s*\{\s*grid-column:\s*1 \/ -1;/);
 });
 
 test('Start/Stop sits on its own row UNDER the text, with Restart on that same row at the right edge', () => {
   // Third revision (2026-10-06): the owner moved Start/Stop out from under the ⋮ to the left, under
   // the "SQLite" line, and Restart onto that same row, aligned right. The body stacks the head above
   // the button row; the button row is a ROW, not the column it was.
-  assert.match(rule('.card__body'), /flex-direction:\s*column/, 'the button row sits below the head, not beside it');
-  assert.match(rule('.card__actions'), /flex-direction:\s*row/, 'Start/Stop and Restart share one row');
-  for (const override of css.matchAll(/\.card__actions\s*\{([^}]*)\}/g)) {
+  assert.match(rule('.jini-site-card__body'), /flex-direction:\s*column/, 'the button row sits below the head, not beside it');
+  assert.match(rule('.jini-site-card__actions'), /flex-direction:\s*row/, 'Start/Stop and Restart share one row');
+  for (const override of css.matchAll(/\.jini-site-card__actions\s*\{([^}]*)\}/g)) {
     assert.doesNotMatch(override[1]!, /flex-direction:\s*(?!row\b)[\w-]+/, 'a later or media-query rule must not stack Start above Restart');
   }
   assert.match(rule('.card__restart'), /margin-left:\s*auto/, 'Restart is pushed to the right edge even when it is alone on the row');

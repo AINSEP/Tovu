@@ -12,6 +12,11 @@ import { namePasteHandler } from '../contracts/site-name.js';
  * made it read as a third, distinct option when it was really a duplicate of one. The header row is
  * now the single place those actions live: Rescan, then add-an-existing-website, then create.
  *
+ * **The card's frame is Jini's `SiteCard`, shared with the web admin's Sites page (2026-11-06).** This
+ * file fills its slots, so what each control does stays here; the layout rules below are that
+ * component's now. `useSiteListView` picks which cards show and in what order, `useSiteListPrefs`
+ * remembers the choices. Hiding only takes a card off the list, the site stays on disk.
+ *
  * The tile was also the de-facto empty state, so removing it alone would have left an operator with
  * no websites looking at nothing at all. `ProjectsBody` (`App.tsx`) renders an explicit empty state
  * instead — this grid is only ever asked to draw cards.
@@ -24,7 +29,7 @@ import { namePasteHandler } from '../contracts/site-name.js';
  * The layout is the owner's, after four rounds: the ⋮ level with the site name at the card's right
  * edge, "SQLite" under the name and the status ("● Stopped") under the ⋮, then Start/Stop on its
  * own row at the left with Restart on that same row at the right edge. So the body is two rows —
- * `.card__head` (a 2x2 grid: name | ⋮, SQLite | status) and `CardActions` (the ⏻ and Restart buttons) —
+ * the head (a 2x2 grid: name | ⋮, SQLite | status) and `CardActions` (the ⏻ and Restart buttons) —
  * which is what lets the ⋮ share a line with the name without either one being positioned on top of
  * the other. (Before 2026-10-06 Start/Stop and Restart were stacked under the ⋮ in a right-hand
  * column, and the status sat on its own line under the name.)
@@ -37,13 +42,15 @@ import { namePasteHandler } from '../contracts/site-name.js';
  * the header's "Create website" fill — while the site is on (owner 2026-10-30). Nothing is reachable two ways, which is the rule that keeps the column readable as it
  * grows.
  */
+import { SiteCard as SiteCardFrame, SiteCardPin, SiteCardStatus, SiteListToolbar, useSiteListView, type SiteListController } from '@jini-ai/ui/site-card';
 import { useDeleteConfirmation, useDismissibleDropdown } from './App.hooks.js';
+import { useSiteListPrefs } from './use-site-list-prefs.hooks.js';
 import { useSiteRename, renameInputKeyDown, showsInvalidNameHint } from './use-site-rename.hooks.js';
 import { useSiteActions } from './use-site-actions.hooks.js';
 import { codeSpans, externalStopConfirm, powerControl, useSitePower } from './use-site-power.hooks.js';
 import { useSiteLocate } from './use-site-locate.hooks.js';
 import { useSitePreview } from './use-site-preview.hooks.js';
-import { cardOpenClass, cardOpenProps, cardOverlay, closeMenuThen, databaseLabel, deleteActionCopy, isCardOpenable, type CardOverlayMode, type DeleteActionCopy } from './SiteGrid.hooks.js';
+import { cardOpenClass, cardOpenProps, siteCardTone, cardOverlay, closeMenuThen, databaseLabel, deleteActionCopy, isCardOpenable, type CardOverlayMode, type DeleteActionCopy } from './SiteGrid.hooks.js';
 import { STATUS_LABEL } from './site-status.js';
 import { siteCardStatus, sitePortPresentation } from './site-port.rules.js';
 import type { SiteRecord } from '../contracts/project.js';
@@ -81,6 +88,7 @@ export function SiteGrid({
   usePower = useSitePower,
   useLocate = useSiteLocate,
   usePreview = useSitePreview,
+  useListPrefs = useSiteListPrefs,
 }: {
   projects: readonly SiteRecord[];
   onOpen: (id: string) => void;
@@ -105,6 +113,8 @@ export function SiteGrid({
   /** Each card's preview-capture URL. Defaults to the bridge-backed `useSitePreview`; injectable for
    *  the same reason as the others, so a test can render a card with a capture. */
   usePreview?: typeof useSitePreview;
+  /** This window's sort, pins and hidden sites. Injectable for the same reason as the others. */
+  useListPrefs?: typeof useSiteListPrefs;
 }) {
   const { pendingId, deletingId, deleteError, requestDelete, cancelDelete, confirmDelete } =
     useDeleteState(onDelete);
@@ -114,6 +124,12 @@ export function SiteGrid({
   // `runPowerToggle`.
   const power = usePower(onSiteUpdated, { onStarted: onOpen });
   const locate = useLocate(onSiteUpdated);
+  const { prefs, onPrefsChange } = useListPrefs();
+  const list = useSiteListView({
+    items: projects.map((project) => ({ id: project.id, name: project.displayName, createdAt: project.createdAt, project })),
+    prefs,
+    onPrefsChange,
+  });
   // A name is a label, never site identity. Keep unrelated cards and expose their parent paths.
   const seenNames = new Set<string>();
   const duplicateNames = new Set<string>();
@@ -123,11 +139,15 @@ export function SiteGrid({
   }
 
   return (
-    <div className="grid">
-      {projects.map((project) => (
+    <>
+      <SiteListToolbar list={list} copy={siteListCopy(list)} />
+      {list.visible.length === 0 && <p className="site-list__empty">Every website is hidden. Open Hidden to bring one back.</p>}
+      <div className="grid">
+      {list.visible.map(({ project }) => (
         <SiteCard
           key={project.id}
           project={project}
+          list={list}
           showParent={duplicateNames.has(project.displayName)}
           overlay={cardOverlay(project.id, pendingId, rename.renamingId, power.confirmingStopId ?? null)}
           deleting={deletingId === project.id}
@@ -143,12 +163,30 @@ export function SiteGrid({
           usePreview={usePreview}
         />
       ))}
-    </div>
+      </div>
+    </>
   );
 }
 
+/** Every word on the list's toolbar. @complexity O(1). */
+function siteListCopy(list: Pick<SiteListController<unknown>, 'allCount' | 'hiddenCount'>) {
+  return {
+    views: 'Which websites to show',
+    pinnedRecent: 'Recent + Pinned',
+    all: `All websites (${list.allCount})`,
+    hidden: `Hidden (${list.hiddenCount})`,
+    sortBy: 'Sort by',
+    recent: 'Most recent',
+    oldest: 'Oldest',
+    name: 'A-Z',
+  };
+}
+
+type SiteCardList = Pick<SiteListController<unknown>, 'isPinned' | 'togglePin' | 'isHidden' | 'toggleHidden'>;
+
 function SiteCard({
   project,
+  list,
   showParent,
   overlay,
   deleting,
@@ -164,6 +202,7 @@ function SiteCard({
   usePreview = useSitePreview,
 }: {
   project: SiteRecord;
+  list: SiteCardList;
   showParent: boolean;
   overlay: CardOverlayMode;
   deleting: boolean;
@@ -210,70 +249,53 @@ function SiteCard({
   }
   const parentFolder = siteCardParentFolder({ installDir: project.installDir });
 
+  // The inline panel owns the card; its actions must not share space with the menu trigger, and the
+  // card is inert under it.
+  const pinned = list.isPinned(project.id);
+  const pinLabel = `${pinned ? 'Unpin' : 'Pin'} ${project.displayName}`;
+  const menu = overlay === null ? (
+    <>
+      <SiteCardPin pinned={pinned} label={pinLabel} onToggle={() => list.togglePin(project.id)} />
+      <SiteCardMenu
+        project={project}
+        status={status}
+        copy={copy}
+        hidden={list.isHidden(project.id)}
+        onToggleHidden={() => list.toggleHidden(project.id)}
+        onRename={() => rename.startRename(project)}
+        onRequestDelete={onRequestDelete}
+        actions={actions}
+      />
+    </>
+  ) : null;
+
+  // A capture exists once main has seen this site running, in this app or another one, this run or a
+  // prior one. Until then, and as the fallback if a capture failed, the tile is a neutral placeholder,
+  // never the port: owner 2026-10-13, "shouldn't I see a preview of the actual site where it says
+  // 3000?" The address lives in the status line's title. The tile's fixed aspect ratio means the image
+  // landing causes no layout jump. See `use-site-preview.hooks.ts` and `site-preview-store.ts` for why
+  // the record carries only a version token, never bytes.
+  //
+  // The head is a 2x2 grid: name | ⋮ on row 1, "SQLite" | status on row 2. Grid auto-placement fills
+  // it in DOM order, so the slot order IS the layout, and also the reading and Tab order, which is
+  // why the ⋮ comes second rather than last.
   return (
-    <article className={`card is-${status} ${cardOpenClass({ openable })}`} {...openProps}>
-      <div className="card__tile">
-        {/* A capture exists once main has seen this site running, in this app or another one, this
-            run or a prior one. Until then — and as the fallback if a capture failed — the tile is a
-            neutral placeholder, never the port: owner 2026-10-13, "shouldn't I see a preview of the
-            actual site where it says 3000?" The address lives in the status line's title. The tile's
-            fixed aspect ratio means the image landing causes no layout jump. See
-            `use-site-preview.hooks.ts` and `site-preview-store.ts` for why the record carries only a
-            version token, never bytes. */}
-        {previewUrl ? (
-          <img className="card__preview" src={previewUrl} alt="" />
-        ) : (
-          <svg className="card__placeholder" viewBox="0 0 48 36" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-            <rect x="1" y="1" width="46" height="34" rx="4" />
-            <path d="M1 9h46M7 5h.01M11 5h.01M15 5h.01M9 17h30M9 23h20" strokeLinecap="round" />
-          </svg>
-        )}
-      </div>
-      <div className="card__body">
-        {/* The head is a 2x2 grid (`.card__head`): name | ⋮ on row 1, "SQLite" | status on row 2.
-            Grid auto-placement fills it in DOM order, so the order below IS the layout — and it is
-            also the reading and Tab order, which is why the ⋮ comes second rather than last. */}
-        <div className="card__head">
-          <div className="card__namewrap">
-            <h3 className="card__name" title={project.displayName}>{project.displayName}</h3>
-            {showParent && <p className="card__parent" title={project.installDir}>{parentFolder}</p>}
-          </div>
-          {/* The inline panel owns the card; its actions must not share space with the menu trigger. */}
-          {overlay === null && <SiteCardMenu
-            project={project}
-            status={status}
-            copy={copy}
-            onRename={() => rename.startRename(project)}
-            onRequestDelete={onRequestDelete}
-            actions={actions}
-          />}
-          <p className="card__details">
-            {databaseLabel(project)}
-            {project.templateVersion && <> · Tovu {project.templateVersion}</>}
-          </p>
-          <p className="card__meta">
-            <span className="state" title={statusCopy.title}>
-              <span className="state__dot" aria-hidden="true" />
-              {STATUS_LABEL[status]}
-            </span>
-          </p>
-          {/* Everything below spans both columns (`grid-column: 1 / -1`). The failure reason left the
-              status line when the status moved into the narrow right column: unbounded text there
-              would squeeze the name's column to nothing. "Running in Web (port N)" is not shown here
-              any more — it moved into the status's title; see `siteCardStatus`. */}
-          {statusCopy.detail && (
-            <p className="card__detail" title={statusCopy.detail}>
-              {statusCopy.detail}
-            </p>
-          )}
-          {project.status === 'provisioning' && <span className="card__draft">Provisioning setup</span>}
-          {/* Main's own sentence, verbatim, when a start or a stop was refused. In the body rather
-              than an overlay: nothing is pending, the card is still openable, and the failure is one
-              fact about it rather than a question to answer. */}
-          {powerError && <p className="card__actionerror">{powerError}</p>}
-          <ResourceSiteFigure project={project} />
-          <MissingFolderNotice project={project} locate={locate} />
-        </div>
+    <SiteCardFrame
+      name={project.displayName}
+      className={`card is-${status} ${cardOpenClass({ openable })}`}
+      {...openProps}
+      previewSrc={previewUrl}
+      nameDetail={showParent ? <p className="card__parent" title={project.installDir}>{parentFolder}</p> : null}
+      menu={menu}
+      details={(
+        <>
+          {databaseLabel(project)}
+          {project.templateVersion && <> · Tovu {project.templateVersion}</>}
+        </>
+      )}
+      status={<SiteCardStatus label={STATUS_LABEL[status]} tone={siteCardTone(status)} title={statusCopy.title} />}
+      notes={<SiteCardNotes project={project} detail={statusCopy.detail} powerError={powerError} locate={locate} />}
+      actions={(
         <CardActions
           project={project}
           status={status}
@@ -281,20 +303,40 @@ function SiteCard({
           locate={locate}
           onRequestDelete={onRequestDelete}
         />
-      </div>
+      )}
+      overlay={(
+        <CardOverlays
+          project={project}
+          overlay={overlay}
+          rename={rename}
+          copy={copy}
+          deleting={deleting}
+          deleteError={deleteError}
+          power={power}
+          onCancelDelete={onCancelDelete}
+          onConfirmDelete={onConfirmDelete}
+        />
+      )}
+    />
+  );
+}
 
-      <CardOverlays
-        project={project}
-        overlay={overlay}
-        rename={rename}
-        copy={copy}
-        deleting={deleting}
-        deleteError={deleteError}
-        power={power}
-        onCancelDelete={onCancelDelete}
-        onConfirmDelete={onConfirmDelete}
-      />
-    </article>
+/** What the card says beyond the head's four cells. Each spans both columns, via Jini's head rule. */
+function SiteCardNotes({ project, detail, powerError, locate }: { project: SiteRecord; detail: string | null | undefined; powerError: string | null | undefined; locate: SiteLocate }) {
+  return (
+    <>
+      {/* The failure reason left the status line when the status moved into the narrow right column:
+          unbounded text there would squeeze the name's column to nothing. "Running in Web (port N)"
+          is not shown here any more — it moved into the status's title; see `siteCardStatus`. */}
+      {detail && <p className="card__detail" title={detail}>{detail}</p>}
+      {project.status === 'provisioning' && <span className="card__draft">Provisioning setup</span>}
+      {/* Main's own sentence, verbatim, when a start or a stop was refused. In the body rather
+          than an overlay: nothing is pending, the card is still openable, and the failure is one
+          fact about it rather than a question to answer. */}
+      {powerError && <p className="card__actionerror">{powerError}</p>}
+      <ResourceSiteFigure project={project} />
+      <MissingFolderNotice project={project} locate={locate} />
+    </>
   );
 }
 
@@ -464,7 +506,7 @@ function CardActions({
 
   return (
     <div
-      className="card__actions"
+      className="jini-site-card__actions"
       role="group"
       aria-label={`Actions for ${project.displayName}`}
       onClick={(event) => event.stopPropagation()}
@@ -567,13 +609,15 @@ function CardActions({
  * has not caught up yet, and a menu offering "Open in browser" for a site that is mid-stop would
  * hand the browser a port about to close. See `use-site-power.hooks.ts`.
  *
- * @complexity O(1) — one hook, two fixed entries (Rename, Delete/Remove) plus one conditional
+ * @complexity O(1) — one hook, three fixed entries (Rename, Hide, Delete/Remove) plus one conditional
  *   (Open in browser).
  */
 function SiteCardMenu({
   project,
   status,
   copy,
+  hidden,
+  onToggleHidden,
   onRename,
   onRequestDelete,
   actions,
@@ -581,6 +625,8 @@ function SiteCardMenu({
   project: SiteRecord;
   status: SiteRecord['status'];
   copy: DeleteActionCopy;
+  hidden: boolean;
+  onToggleHidden: () => void;
   onRename: () => void;
   onRequestDelete: (id: string) => void;
   actions: SiteActions;
@@ -630,6 +676,9 @@ function SiteCardMenu({
               Open in browser
             </button>
           )}
+          <button type="button" role="menuitem" className="card__menuitem" onClick={choose(onToggleHidden)}>
+            {hidden ? 'Show in list' : 'Hide from list'}
+          </button>
           {/* Always present, and last: the destructive entry belongs at the bottom of the list,
               separated from the safe entries above it by nothing but that position — the same
               convention every native app menu uses for its own Delete item. */}
