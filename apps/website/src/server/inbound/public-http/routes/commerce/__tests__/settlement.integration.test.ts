@@ -9,7 +9,7 @@ import test from "node:test";
 import { pathToFileURL } from "node:url";
 import express from "express";
 import { sql } from "kysely";
-import { createCommerceServer, createOrderPaymentProjector, type CommerceOrderView } from "@jini-ai/commerce";
+import { createCommerceServer, createOrderPaymentProjector, type CommerceBuyerOrder } from "@jini-ai/commerce";
 import { commerceOrderPaymentRepoFor, commerceOrderRepoFor, commercePriceProviderRefRepoFor,
   commercePriceRepoFor, commerceProductRepoFor } from "@jini-ai/commerce/repo";
 import { createInboxWorker, createKernelProviderRegistry, createMemoryGrantStore, createOutboxRelay,
@@ -36,7 +36,7 @@ type Dialect = "sqlite" | "pglite" | "postgres";
 async function kernelFor(t: test.TestContext, dialect: Dialect) {
   if (dialect === "sqlite") return openMemorySqliteKernel<unknown>();
   if (dialect === "pglite") return openPgliteKernel<unknown>();
-  const connection = new URL(process.env.COMMERCE_PG_URL ?? `postgresql://${encodeURIComponent(process.env.PGUSER ?? "la")}@/postgres`);
+  const connection = new URL(process.env.COMMERCE_PG_URL ?? `postgresql://${encodeURIComponent(process.env.PGUSER ?? "la")}@localhost/postgres`);
   if (!process.env.COMMERCE_PG_URL) {
     connection.searchParams.set("host", process.env.PGHOST ?? "/tmp");
     if (process.env.PGPORT) connection.searchParams.set("port", process.env.PGPORT);
@@ -155,7 +155,7 @@ async function fixture(t: test.TestContext, dialect: Dialect) {
   const deliver = ({ raw, signature }: ReturnType<typeof signed>) => fetch(`${base}/api/payments/webhooks/site/stripe/test`, {
     method: "POST", headers: { "content-type": "application/json", "stripe-signature": signature }, body: raw,
   });
-  return { kernel, ledger, payments, paymentDeps, settle, requests, request, signed, deliver,
+  return { kernel, ledger, payments, orderPayments, paymentDeps, settle, requests, request, signed, deliver,
     worker: createInboxWorker(paymentDeps), advance: () => { now += 1000; },
     pending: () => ledger.transaction({ fn: tx => tx.listPendingOutbox({ limit: 10 }) }) };
 }
@@ -170,12 +170,18 @@ for (const dialect of ["sqlite", "pglite", "postgres"] as const) {
     const payPath = `${ordersPath}/${placed.order.id}/pay`;
     const firstResponse = await f.request(payPath, {});
     assert.equal(firstResponse.status, 200);
-    const first = await firstResponse.json() as CommerceOrderView;
+    const first = await firstResponse.json() as CommerceBuyerOrder;
     assert.equal(first.payment?.status, "requires_action");
     assert.deepEqual(first.payment?.amount, total);
+    assert.ok(first.payment);
+    assert.deepEqual(Object.keys(first.payment).sort(), ["amount", "captured", "next", "refunded", "status"],
+      "buyer data must expose only the public payment fields and checkout action");
+    const association = await f.orderPayments.findByOrder({ workspaceId: scope.workspaceId, orderId: placed.order.id });
+    assert.ok(association?.paymentId);
     const repeated = await f.request(payPath, {});
     assert.equal(repeated.status, 200);
-    assert.equal(((await repeated.json()) as CommerceOrderView).payment?.id, first.payment?.id);
+    assert.deepEqual(((await repeated.json()) as CommerceBuyerOrder).payment, first.payment);
+    assert.equal((await f.orderPayments.findByOrder({ workspaceId: scope.workspaceId, orderId: placed.order.id }))?.paymentId, association.paymentId);
     assert.equal(f.requests.length, 1, "duplicate clicks must reuse the saved intent");
     assert.equal((await f.request(payPath, {}, "foreign")).status, 404);
     for (const page of ["return", "cancel"]) {
@@ -191,17 +197,17 @@ for (const dialect of ["sqlite", "pglite", "postgres"] as const) {
     assert.equal((await f.worker.runOnce({ limit: 10 })).applied, 1);
     assert.deepEqual(await f.pending(), []);
     const stillPending = await f.request(`${ordersPath}/${placed.order.id}`);
-    assert.equal(((await stillPending.json()) as CommerceOrderView).order.status, "pending", "completed is not paid");
+    assert.equal(((await stillPending.json()) as CommerceBuyerOrder).order.status, "pending", "completed is not paid");
     f.advance();
     const paid = f.signed({ id: "evt_paid", type: "checkout.session.async_payment_succeeded", paid: true });
     assert.equal((await f.deliver(paid)).status, 200);
     assert.deepEqual(await (await f.deliver(paid)).json(), { received: 0, duplicates: 1, ignored: false });
     assert.equal((await f.worker.runOnce({ limit: 10 })).applied, 1);
-    assert.equal((await f.payments.getPayment({ scope, paymentId: first.payment!.id }))?.status, "succeeded");
+    assert.equal((await f.payments.getPayment({ scope, paymentId: association.paymentId }))?.status, "succeeded");
     const [outbox] = await f.pending();
     assert.ok(outbox);
     const awaitingProjection = await f.request(`${ordersPath}/${placed.order.id}`);
-    assert.equal(((await awaitingProjection.json()) as CommerceOrderView).order.status, "pending");
+    assert.equal(((await awaitingProjection.json()) as CommerceBuyerOrder).order.status, "pending");
     const projector = createOrderPaymentProjector({ deps: f.settle });
     const crashRelay = createOutboxRelay({ ledger: f.ledger, now: f.paymentDeps.now, publish: { publish: async ({ message }) => {
       await projector.handle({ message });
@@ -209,7 +215,7 @@ for (const dialect of ["sqlite", "pglite", "postgres"] as const) {
     } } });
     assert.deepEqual(await crashRelay.runOnce({ limit: 10 }), { published: 0, stopped: true });
     const projected = await f.request(`${ordersPath}/${placed.order.id}`);
-    assert.deepEqual([((await projected.json()) as CommerceOrderView).order.status, (await f.pending())[0]?.id], ["paid", outbox.id]);
+    assert.deepEqual([((await projected.json()) as CommerceBuyerOrder).order.status, (await f.pending())[0]?.id], ["paid", outbox.id]);
     // Recreate the SQL adapter and consumer after the crash; no in-memory dedupe can hide a second write.
     const restartedLedger = sqlPaymentsLedger({ kernel: f.kernel });
     const restartedPayments = createPaymentsService({ ...f.paymentDeps, ledger: restartedLedger });
@@ -221,7 +227,7 @@ for (const dialect of ["sqlite", "pglite", "postgres"] as const) {
     assert.deepEqual(await (await f.deliver(paid)).json(), { received: 0, duplicates: 1, ignored: false });
     assert.equal((await f.worker.runOnce({ limit: 10 })).seen, 0);
     const final = await f.request(`${ordersPath}/${placed.order.id}`);
-    const result = await final.json() as CommerceOrderView;
+    const result = await final.json() as CommerceBuyerOrder;
     assert.deepEqual([result.order.status, result.order.version, result.payment?.status, f.requests.length], ["paid", 2, "succeeded", 1]);
   });
 }

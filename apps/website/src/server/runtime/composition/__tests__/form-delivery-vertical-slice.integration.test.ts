@@ -5,6 +5,7 @@ import path from "node:path";
 import { after, before, describe, test } from "node:test";
 
 import type { DomainEvent } from "@jini-ai/cms/core";
+import { deliverFormJob } from "@jini-ai/cms/forms";
 import { DEFAULT_OUTBOX_CLAIM_LEASE_MS } from "@jini-ai/infra/events/outbox";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { processOutbox } from "#src/contracts/core/events/index";
@@ -110,8 +111,17 @@ describe("form delivery vertical slice: pull → plan → two destinations throu
     first.jobIdB = jobs[1]!.id;
     for (const { job } of jobs) {
       assert.equal(job.idempotencyKey, JSON.stringify([first.submissionId, job.binding.bindingId]));
-      assert.deepEqual(job.snapshot.submission, { id: first.submissionId, answers: { email: "ada@example.com", message: "Hello from remote-1" }, submittedAt: "2026-10-20T09:00:00.000Z" });
-      assert.deepEqual(job.snapshot.form.fields.map((field) => [field.name, field.label, field.type]), [["email", "Email", "email"], ["message", "Message", "textarea"]]);
+      let deliveries = 0;
+      await deliverFormJob({ job, workspaceId: site.deps.workspaceId, readSubmission: async ({ workspaceId, submissionId, formId }) => {
+        const submission = await site.deps.formSubmissionRepo.findById({ workspaceId, id: submissionId });
+        assert.equal(submission?.formDefinitionId, formId);
+        return submission && { id: submission.id, answers: submission.data, submittedAt: submission.submittedAt };
+      }, deliver: async hydrated => {
+        deliveries++;
+        assert.deepEqual(hydrated.snapshot.submission, { id: first.submissionId, answers: { email: "ada@example.com", message: "Hello from remote-1" }, submittedAt: "2026-10-20T09:00:00.000Z" });
+        assert.deepEqual(hydrated.snapshot.form.fields.map((field) => [field.name, field.label, field.type]), [["email", "Email", "email"], ["message", "Message", "textarea"]]);
+      } });
+      assert.equal(deliveries, 1);
     }
     assert.deepEqual(jobs.map(({ job }) => job.binding.config), [{ table: "leads" }, { sheet: "Leads" }]);
     assert.deepEqual(await plannedSubmissions({ kernel: site.kernel }), [first.submissionId]);

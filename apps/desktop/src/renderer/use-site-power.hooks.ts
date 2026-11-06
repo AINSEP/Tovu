@@ -75,9 +75,9 @@ export function externalStopConfirm(
 ) {
   if (!project.externalUrl || !project.externalLauncher) return null;
   const copy = desktopCopy({ locale }).stopConfirm;
-  const body = project.externalLauncher === 'npm-run-dev' ? copy.devBody : copy.otherBody.replace('{app}', project.runningApp ?? 'Tovu');
+  const body = project.externalLauncher === 'npm-run-dev' ? copy.devBody : copy.otherBody.replace('{app}', () => project.runningApp ?? 'Tovu');
   return {
-    confirmTitle: copy.title.replace('{name}', project.displayName),
+    confirmTitle: copy.title.replace('{name}', () => project.displayName),
     confirmBody: body,
     confirmButtonLabel: copy.confirm,
     confirmButtonBusyLabel: copy.confirming,

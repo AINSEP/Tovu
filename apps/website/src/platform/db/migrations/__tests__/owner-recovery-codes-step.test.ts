@@ -4,8 +4,9 @@ import { sql } from 'kysely';
 import { eachDialect } from '../../kernel/__tests__/dialect-matrix.js';
 import { listColumns } from '../../kernel/dialect.js';
 import { CONTENT_MIGRATIONS, runMigrations } from '../index.js';
+import type { StorageKernel } from '../../kernel/port.js';
 
-for (const adapter of eachDialect({ tables: ['owner_recovery_codes'], make: kernel => kernel })) {
+for (const adapter of eachDialect({ tables: ['owner_recovery_codes'], make: kernel => kernel as StorageKernel<unknown> })) {
   test(`[${adapter.name}] recovery migration adds only scoped hashes, enforces uniqueness, and applies once`, async t => {
     const kernel = adapter.make();
     if (adapter.dialect === 'sqlite') t.after(() => kernel.close());

@@ -35,11 +35,13 @@ export function registerCommerceHttp({ app, deps }: { app: Express; deps: RouteD
   });
   registerProductRoutes(storefront, deps);
   app.use(async (req, res, next) => {
+    // Match the router's case-insensitive paths without changing requested IDs or slugs.
+    const requestPath = req.path.toLowerCase();
     // Order APIs keep their own member and write admission, including reads during drain.
-    if (req.path.startsWith("/api/commerce/v1/")) { storefront(req, res, next); return; }
+    if (requestPath.startsWith("/api/commerce/v1/")) { storefront(req, res, next); return; }
     // The router below ignores one trailing slash, so this gate must too or the route is never reached.
-    const productPath = req.path === "/products" || req.path.startsWith("/products/");
-    if (!productPath && !["/commerce/return", "/commerce/cancel", "/commerce/checkout.js"].includes(req.path.replace(/\/$/, ""))) { next(); return; }
+    const productPath = requestPath === "/products" || requestPath.startsWith("/products/");
+    if (!productPath && !["/commerce/return", "/commerce/cancel", "/commerce/checkout.js"].includes(requestPath.replace(/\/$/, ""))) { next(); return; }
     try {
       const status = await deps.commerce!.storefrontStatus();
       if (!status.active) { next(); return; }

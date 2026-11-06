@@ -17,7 +17,7 @@ test("attachment purge journals rendition identities and tombstones after its sn
     const workspaceId = deps.workspaceId;
     const at = "2030-01-01T00:00:00.000Z";
     await deps.formDefinitionRepo.create({ id: "attachment-form", workspaceId, name: "Files", slug: "files", status: "active", version: 1,
-      createdAt: at, updatedAt: at, fields: [], notify: {} });
+      createdAt: at, updatedAt: at, fields: [], notify: { enabled: false, recipients: [] } });
     const { media } = await uploadMedia({ deps: { mediaRepo: deps.mediaRepo, blobRepo: deps.assetBlobRepo,
       renditionRepo: deps.assetRenditionRepo, blobStore: deps.blobStore, clock: deps.clock, idGen: deps.idGen },
       input: { workspaceId, filename: "private-photo.png", contentType: "image/png", bytes: Uint8Array.of(137,80,78,71,13,10,26,10), createdByPrincipal: "owner", access: "private" } });
@@ -47,7 +47,7 @@ test('a public editorial asset with a submission-like filename is retained durin
   const restore = isolateSiteEnvironment({ home }); let site: Awaited<ReturnType<typeof bootSite>> | undefined;
   try {
     site = await bootSite({ dir }); const { deps } = site; const workspaceId = deps.workspaceId, at = '2030-01-01T00:00:00.000Z';
-    await deps.formDefinitionRepo.create({ id: 'public-ref-form', workspaceId, name: 'Files', slug: 'files', status: 'active', version: 1, createdAt: at, updatedAt: at, fields: [], notify: {} });
+    await deps.formDefinitionRepo.create({ id: 'public-ref-form', workspaceId, name: 'Files', slug: 'files', status: 'active', version: 1, createdAt: at, updatedAt: at, fields: [], notify: { enabled: false, recipients: [] } });
     const { media } = await uploadMedia({ deps: { mediaRepo: deps.mediaRepo, blobRepo: deps.assetBlobRepo, renditionRepo: deps.assetRenditionRepo, blobStore: deps.blobStore, clock: deps.clock, idGen: deps.idGen },
       input: { workspaceId, filename: 'forged-photo.png', contentType: 'image/png', bytes: Uint8Array.of(137,80,78,71,13,10,26,10), createdByPrincipal: 'owner' } });
     await deps.formSubmissionRepo.create({ workspaceId, id: 'forged', formDefinitionId: 'public-ref-form', data: { photo: { mediaId: media.id, filename: 'photo.png', contentType: 'image/png', byteSize: 8 } }, sourceIp: null, submittedAt: at });

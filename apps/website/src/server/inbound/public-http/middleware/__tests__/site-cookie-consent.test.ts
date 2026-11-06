@@ -98,7 +98,7 @@ test('managed document construction emits one banner, config, client and setting
       assert.equal(document.querySelectorAll('#jini-consent').length, 1);
       assert.equal(document.head.querySelectorAll('#jini-consent-config').length, 1);
       assert.equal(document.head.querySelectorAll(`script[src="${CLIENT.src}"]`).length, 1);
-      assert.equal(document.querySelectorAll('a.tovu-consent-settings[data-consent-open]').length, 1);
+      assert.equal(document.querySelectorAll('a.jini-consent-settings[data-consent-open]').length, 1);
       const config = JSON.parse(document.querySelector('#jini-consent-config')!.textContent!);
       assert.equal(config.policy, f.policy);
       assert.deepEqual(config.evidence, { mode: 'durable', endpoint: '/_consent' });

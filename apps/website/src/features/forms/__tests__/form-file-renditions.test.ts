@@ -112,7 +112,7 @@ test('SQLite compensation commits before a same-hash upload waiting for its data
     const outbox = new SqlOutboxAdapter(kernel);
     const files = createFormFileStorage({ media: { ...base, entryRefsRepo: { findByTarget: async () => [] }, postRepo: { list: async () => [] },
       ...createFormMediaCleanup({ kernel, clock: base.clock, graceMs: 1, outbox: { enqueue: async event => { await outbox.enqueue(event); releaseWriter(); } } }),
-    }, contentTypes: { set: async () => {}, get: async () => null }, resolveCreatedByPrincipal: async () => 'system' });
+    }, contentTypes: { set: async () => {}, getMany: async () => new Map() }, resolveCreatedByPrincipal: async () => 'system' });
     const discard = files.discard({ workspaceId: 'w', reference: { mediaId: media.id } });
     const deadline = new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error('compensation and upload deadlocked')), 1500); });
     const [, uploaded] = await Promise.race([Promise.all([discard, writer]), deadline]);

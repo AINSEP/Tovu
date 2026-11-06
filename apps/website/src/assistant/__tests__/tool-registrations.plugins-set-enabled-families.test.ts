@@ -394,7 +394,7 @@ test("t91 §7.2: ENABLING on a corrupt activations file returns activations-unre
     const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
     const tool = setEnabledTool(deps, surfaceExchanges);
     const emitted: unknown[] = [];
-    let dialogRaised: (surface: unknown) => void = () => undefined;
+    let dialogRaised: (surface: unknown) => void = (_surface: unknown) => undefined;
     const dialog = new Promise<unknown>((resolve) => {
       dialogRaised = resolve;
     });
@@ -700,6 +700,7 @@ test("server-composed approval memory cannot replace the owner card when enablin
   // retaining a live approval-memory port that must never bypass the enable handler's card.
   const registrations = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: {
     ...composed, ...deps, nativeApprovalMemory, conversationToolApprovals: store,
+    clock: { ...deps.clock, nowIso: () => NOW },
   } as RegistryDepsWithoutLimiter }), { surfaceExchanges: surfaces }, { contributions: daemonContributions });
   const tool = registrations.find((registration) => registration.descriptor.id === SET_ENABLED);
   assert.ok(tool);

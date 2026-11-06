@@ -18,6 +18,7 @@ test("all share routes including static export require authentication, site-back
   const registry = new SiteShareRegistry({ directory: path.join(directory, ".hidden", "shares") });
   const operation = async (input: unknown) => { calls++; inputs.push(input); return { ok: true }; };
   deps.siteShareBackend = { registry, staticOptions: operation as never, create: operation, revoke: operation as never, list: async () => { calls++; return []; },
+    acknowledge: async () => assert.fail("these share routes must not acknowledge credential warnings"),
     revealPassword: async () => assert.fail("these share routes must not reveal passwords") };
   const app = createApp(deps);
   const base = await startTestServer(app, t);

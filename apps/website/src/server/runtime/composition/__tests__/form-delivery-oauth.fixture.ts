@@ -1,6 +1,6 @@
 import type { DomainEvent, OutboxPort, OutboxRecord } from "@jini-ai/cms/core";
-import { FORM_DELIVERY_EVENT, InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo, type FormDeliveryBinding, type FormDeliveryJob, type FormDeliveryPlan,
-  type FormDeliveryPlanPort } from "@jini-ai/cms/forms";
+import { FORM_DELIVERY_EVENT, InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo, type FormDeliveryBinding, type FormDeliveryPlan,
+  type FormDeliveryPlanPort, type FormDeliveryQueuedJob } from "@jini-ai/cms/forms";
 import type { HttpClientPort } from "@jini-ai/core/primitives";
 import { createAdminSurfaceActionDispatcher, defineAdminSurfaceContribution, type AdminSurfaceActionOutcome } from "@jini-ai/agent-plugins/admin-surfaces";
 import { InMemorySettingsRepo, type AuthorizeFn } from "@jini-ai/core/settings";
@@ -86,11 +86,11 @@ export class ObservedOutbox implements OutboxPort {
 }
 
 /** One delivery child job and its ledger state. */
-export interface DeliveryJobView extends OutboxRowView { readonly job: FormDeliveryJob }
+export interface DeliveryJobView extends OutboxRowView { readonly job: FormDeliveryQueuedJob }
 
 /** Plan-once storage that enqueues the plan's child jobs, keyed by (workspace, submission); each
  * enqueued job is also kept typed by its outbox id in `jobs`. */
-function enqueueingPlans(outbox: ObservedOutbox, jobs: Map<string, FormDeliveryJob>): FormDeliveryPlanPort {
+function enqueueingPlans(outbox: ObservedOutbox, jobs: Map<string, FormDeliveryQueuedJob>): FormDeliveryPlanPort {
   const stored = new Map<string, FormDeliveryPlan>();
   return {
     async once({ workspaceId, submissionId, build }) {
@@ -175,7 +175,7 @@ export async function createOAuthDeliverySite(required: {
     fields: [{ id: "email", label: "Email", type: "email", required: true }, { id: "message", label: "Message", type: "textarea", required: false }] });
   const bus = new InMemoryEventBus();
   const outbox = new ObservedOutbox();
-  const jobs = new Map<string, FormDeliveryJob>();
+  const jobs = new Map<string, FormDeliveryQueuedJob>();
   // Saved custom credentials use the site-assistant sealer types, as in the site composition.
   const customKeyring = new CustomCredentialKeyring();
   const customSealer = new CustomCredentialSealer(customKeyring);

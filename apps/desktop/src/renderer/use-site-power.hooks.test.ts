@@ -238,6 +238,14 @@ test('an npm run dev site gets the owner\'s confirm copy; another app gets one n
   assert.equal(externalStopConfirm({ project: DEV_SITE }, { locale: 'de' })?.confirmTitle, 'Tovu Dev stoppen?');
 });
 
+test('Stop confirmation inserts site and app names as literal text', () => {
+  const displayName = "$& $` $' $$";
+  const runningApp = "$& $` $' $$";
+  const confirm = externalStopConfirm({ project: { ...DEV_SITE, displayName, externalLauncher: 'other', runningApp } }, { locale: 'en' });
+  assert.equal(confirm?.confirmTitle, `Stop ${displayName}?`);
+  assert.equal(confirm?.confirmBody, `This stops the server running this site in ${runningApp}.`);
+});
+
 test('codeSpans renders backticked text as code and drops empty parts', () => {
   assert.deepEqual(codeSpans('This stops `npm run dev`, including it.'), [
     { text: 'This stops ', code: false }, { text: 'npm run dev', code: true }, { text: ', including it.', code: false },

@@ -281,7 +281,8 @@ test("precheck() rejects a slug already held by a different menu", async () => {
   const handler = contributeMenusPublish().build(makePublishDeps({ menuRepo }));
 
   const reason = await handler.precheck(packedEntity("menu-incoming", menuState({ slug: "header-nav" })));
-  assert.match(reason ?? "", /already held by a different menu/);
+  assert.ok(typeof reason === "string");
+  assert.match(reason, /already held by a different menu/);
 });
 
 test("precheck() reports the tree validator's own message for an invalid doc", async () => {

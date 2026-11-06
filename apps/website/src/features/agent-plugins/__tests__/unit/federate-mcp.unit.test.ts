@@ -101,6 +101,7 @@ function repoWhoseLookupRejects(inner: ExternalMcpServerRepoPort, serverId: stri
     findByServerId: (input) => (input.serverId === serverId ? Promise.reject(error) : inner.findByServerId(input)),
     upsert: (record) => inner.upsert(record),
     deleteByServerId: (input) => inner.deleteByServerId(input),
+    updateAccessIfCurrent: (input) => inner.updateAccessIfCurrent(input),
     tryClaimOAuthRefreshLease: (input) => inner.tryClaimOAuthRefreshLease(input),
     releaseOAuthRefreshLease: (input) => inner.releaseOAuthRefreshLease(input),
   };

@@ -1,4 +1,5 @@
 import { createFormAttachmentPurgeHooks } from "@jini-ai/cms/forms";
+import { startupSecretEnvironment } from "../boot/startup-secrets.js";
 import { statfs } from "node:fs/promises";
 import { registerCommerceHttp, registerCommerceWebhooks } from "./commerce-http.js";
 import { getExportRunSnapshot } from '../../../features/deployments/export-run.js';
@@ -496,7 +497,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     ...inMemoryPluginRuntimeOptions({ options }),
   });
   // Composition root: the in-memory root keeps the same env-driven owner login as `deps.ts`.
-  const identity = createInMemoryIdentityRouteDeps({ workspaceId: seededWorkspace.id, clock, idGen, permissionGrants: createAppPermissionGrants({}), ownerCredentials: resolveOwnerCredentials({ env: process.env }) });
+  const identity = createInMemoryIdentityRouteDeps({ workspaceId: seededWorkspace.id, clock, idGen, permissionGrants: createAppPermissionGrants({}), ownerCredentials: resolveOwnerCredentials({ env: startupSecretEnvironment({ env: process.env }) }) });
   // Keep the host repository ABI while binding the active/workspace-scoped settings lookup.
   const settingsPrincipals = {
     ...createSettingsPrincipalLookup({ repo: identity.principalRepo }),

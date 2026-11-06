@@ -181,7 +181,8 @@ test("precheck() rejects a loop with the exact chokepoint message text", async (
 test("precheck() reports a message rather than throwing when redirectsWriteDeps is absent", async () => {
   const handler = contributeRedirectPublish().build(makePublishDeps(undefined));
   const reason = await handler.precheck(packedEntity("exact:/x", {}));
-  assert.match(reason ?? "", /no redirect port wired/);
+  assert.ok(typeof reason === "string");
+  assert.match(reason, /no redirect port wired/);
 });
 
 // ---------------------------------------------------------------------------
@@ -342,8 +343,10 @@ test("apply() preserves a concurrent natural-key redirect edit and rejects a rep
 test("precheck() names a malformed natural key instead of validating fields", async () => {
   const handler = contributeRedirectPublish().build(makePublishDeps(makeWriteDeps()));
   const reason = await handler.precheck(packedEntity("no-colon", { matchType: "exact", fromPattern: "/x", toTarget: "/y", statusCode: 301 }));
-  assert.match(reason ?? "", /no-colon/);
-  assert.match(reason ?? "", /matchType:fromPattern/);
+  assert.ok(typeof reason === "string");
+  assert.match(reason, /no-colon/);
+  assert.ok(typeof reason === "string");
+  assert.match(reason, /matchType:fromPattern/);
 });
 
 test("apply() refuses a malformed natural key loudly before any write", async () => {

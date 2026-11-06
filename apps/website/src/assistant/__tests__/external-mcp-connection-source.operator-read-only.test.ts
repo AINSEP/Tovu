@@ -156,6 +156,7 @@ test("a roster read rejecting with a non-Error value logs it and resolves to no 
   const deps = await harness();
   const repo = { ...deps.repo, listByWorkspaceId: () => Promise.reject("locked"), findByServerId: deps.repo.findByServerId.bind(deps.repo),
     upsert: deps.repo.upsert.bind(deps.repo), deleteByServerId: deps.repo.deleteByServerId.bind(deps.repo),
+    updateAccessIfCurrent: deps.repo.updateAccessIfCurrent.bind(deps.repo),
     tryClaimOAuthRefreshLease: deps.repo.tryClaimOAuthRefreshLease.bind(deps.repo), releaseOAuthRefreshLease: deps.repo.releaseOAuthRefreshLease.bind(deps.repo) };
   const source = createStoredExternalMcpConnectionSource(testSiteLayoutContext({ ...siteLayouts.deps, ...deps, repo, workspaceId, log: "[t05]" }));
   assert.deepEqual(await source.resolve(), []);

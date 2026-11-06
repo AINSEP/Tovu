@@ -207,6 +207,7 @@ test("AGENT_PLUGIN_SET_ENABLED: production composition captures one event per ac
       siteBinding: { dir, name: "toggle-fixture", dirOverridden: true, switcherCompatible: false },
       onStoreOpened: store => { close = () => store.close(); },
       bootProviderPlugins: async () => ({ observability: createNoopObservabilityPort({}), tracker, aiTraceSink: undefined,
+        paymentProviders: () => [],
         telemetryStatus: () => [], sendTelemetryTest: async () => ({ providers: [] }),
         reapply: async () => "now", appliesAt: () => "now", dispose: async () => {} }),
     });

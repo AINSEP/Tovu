@@ -1,5 +1,6 @@
 /** Private spawning-main capability. Never a stored credential or a CLI launch setting. */
 import { FEDERATED_CONNECTION_DEFAULTS, type ResolvedFederatedConnection, type McpBearerTokenSupplier } from "@jini-ai/mcp/federation";
+import { startupSecretEnvironment } from "../server/runtime/boot/startup-secrets.js";
 
 export const DESKTOP_MCP_ID = "tovu-desktop";
 export const DESKTOP_MCP_HANDOFF_ENV = "TOVU_DESKTOP_MCP_HANDOFF_TOKEN";
@@ -58,5 +59,24 @@ export function createDesktopMcpRuntime({ env }: { env: NodeJS.ProcessEnv }, _op
   };
 }
 
-// One process-local owner. Imports precede daemon/CLI launches; capabilities leave process.env here.
-export const desktopMcpRuntime = createDesktopMcpRuntime({ env: process.env }, {});
+let processRuntime: DesktopMcpRuntime | undefined;
+
+/** Imports precede startup IPC; capture only when boot consumers first need the private runtime.
+ * @complexity O(e) environment copy on first use, O(1) thereafter; no I/O or persistence.
+ */
+function runtimeForProcess(): DesktopMcpRuntime {
+  if (!processRuntime) {
+    processRuntime = createDesktopMcpRuntime({ env: startupSecretEnvironment({ env: process.env }) });
+    delete process.env.TOVU_DESKTOP_MCP_URL;
+  }
+  return processRuntime;
+}
+
+// One process-local owner; the stable supplier can be wired before startup IPC completes.
+export const desktopMcpRuntime: DesktopMcpRuntime = {
+  get handoffToken() { return runtimeForProcess().handoffToken; },
+  get owned() { return runtimeForProcess().owned; },
+  bearerToken: required => runtimeForProcess().bearerToken(required),
+  connection: (required, optional) => runtimeForProcess().connection(required, optional),
+  accept: (required, optional) => runtimeForProcess().accept(required, optional),
+};

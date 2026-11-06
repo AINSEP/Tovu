@@ -4,7 +4,7 @@ import { EventEmitter } from "node:events";
 import type { Serializable } from "node:child_process";
 import type { Request, Response } from "express";
 import { fetchAgentDaemon } from "../../composition/modules/assistant-daemon-client.js";
-import { activateAssistantDaemon, prepareAssistantPageBinding } from "../../../../../../admin/src/lib/assistant-daemon-activation.ts";
+import { activateAssistantDaemon, prepareAssistantPageBinding } from "../../../../../../admin/src/lib/assistant-daemon-activation.js";
 import { ensureToolExecToken } from "#src/assistant/daemon-access";
 import { publishDaemonPluginEvent } from "../../composition/modules/assistant-tool-exec.js";
 import { createHttpRunDaemonClient } from "../../composition/modules/assistant-run-finalizer.js";

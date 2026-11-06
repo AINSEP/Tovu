@@ -22,14 +22,20 @@ test('Library documents and their blobs are absent from publish output; forged a
   let reads = 0; deps.blobStore.get = async () => { reads++; throw new Error('private bytes must not be fetched'); };
   const entity: PackedEntity = { entityType: 'media', id: doc.id, schemaVersion: 1, contentHash: 'forged', hashVersion: 1,
     requiredBlobs: [doc.source.sha256], state: { ...doc } };
-  assert.match((await handler.precheck(entity))!, /documents cannot be published/i);
+  const documentRefusal = await handler.precheck(entity);
+  assert.ok(typeof documentRefusal === "string");
+  assert.match(documentRefusal, /documents cannot be published/i);
   await assert.rejects(handler.apply({ entity, expectedVersion: doc.version, principalId: 'owner', idempotencyKey: 'private-apply' }));
   // Removing the discriminant cannot turn a destination document into public media either.
   const forged = { ...entity, state: { ...entity.state, kind: 'media' } };
-  assert.match((await handler.precheck(forged))!, /documents cannot be published/i);
+  const forgedRefusal = await handler.precheck(forged);
+  assert.ok(typeof forgedRefusal === "string");
+  assert.match(forgedRefusal, /documents cannot be published/i);
   await assert.rejects(handler.apply({ entity: forged, expectedVersion: doc.version, principalId: 'owner', idempotencyKey: 'private-downgrade' }));
   const disguised = { ...forged, id: 'new-public-id', state: { ...forged.state, id: 'new-public-id', slug: 'new-public-id' } };
-  assert.match((await handler.precheck(disguised))!, /documents cannot be published/i);
+  const disguisedRefusal = await handler.precheck(disguised);
+  assert.ok(typeof disguisedRefusal === "string");
+  assert.match(disguisedRefusal, /documents cannot be published/i);
   await assert.rejects(handler.apply({ entity: disguised, expectedVersion: undefined, principalId: 'owner', idempotencyKey: 'private-new-id' }));
   await assert.rejects(duplicateMediaAsset(deps, { principalId: 'owner', id: doc.id, overrides: {} }));
   assert.equal(reads, 0);

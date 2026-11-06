@@ -152,8 +152,10 @@ test("precheck(): exact reason strings", async () => {
   const page = contributePagePublish().build(deps);
   const state = (slug: unknown) => ({ title: "X", slug, kind: "post", status: "published", bodyFormat: "doc" });
 
+  const unwiredRefusal = await contributePostPublish().build(makeSite({})).precheck(entity("post", "x", state("x")));
+  assert.ok(typeof unwiredRefusal === "string");
   assert.match(
-    (await contributePostPublish().build(makeSite({})).precheck(entity("post", "x", state("x")))) ?? "",
+    unwiredRefusal,
     /^post entity 'x' cannot be prechecked — no post (repo|port) wired for this deps bag$/
   );
   assert.equal(await post.precheck(entity("post", "p-new", state("fresh"))), null);
