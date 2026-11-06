@@ -240,3 +240,44 @@ for (const mode of ["local", "production"] as const) {
     }
   });
 }
+
+
+test("provider selection snapshot binds the approved revision, including an intervening same-value write", async () => {
+  const { required, release, settingsRepo } = await rig(); release();
+  const mailer = createSiteMailer(required);
+  await mailer.selectProvider({ id: "smtp", principalId: "owner" });
+  const snapshot = await mailer.readProviderSelection();
+  assert.deepEqual(snapshot.setting, { transactional: "smtp", bulk: "smtp" });
+  assert.ok(snapshot.revisionSeq > 0);
+  await mailer.selectProvider({ id: "smtp", principalId: "owner" });
+  await assert.rejects(mailer.selectProvider({ id: "different", principalId: "owner", expectedRevisionSeq: snapshot.revisionSeq }), /Setting revision changed/);
+  assert.deepEqual(await readMailProviderSetting({ settingsRepo, workspaceId: WS }), snapshot.setting);
+  const current = await mailer.readProviderSelection();
+  assert.ok(current.revisionSeq > snapshot.revisionSeq);
+  await mailer.selectProvider({ id: "different", principalId: "owner", expectedRevisionSeq: current.revisionSeq });
+  assert.deepEqual(await readMailProviderSetting({ settingsRepo, workspaceId: WS }), { transactional: "different", bulk: "different" });
+});
+
+
+test("mail provider access card refuses an intervening selection at the real settings writer", async () => {
+  const { createSurfaceExchangeStore } = await import("@jini-ai/daemon/surface-exchanges");
+  const { buildMailStatusRegistrations } = await import("#src/features/mail-status/tool-registrations");
+  const { required, release, settingsRepo } = await rig(); release();
+  const mailer = createSiteMailer(required);
+  await mailer.selectProvider({ id: "old", principalId: "owner" });
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: { schedule: () => () => {} }, clock: { nowMs: () => 1 },
+    idGenerator: { newId: () => "mail-card" }, defaultChannel: "mcp-ui" });
+  const registration = buildMailStatusRegistrations({ workspaceId: WS, mailer: mailer.mailer,
+    authorize: async () => ({ allowed: true, reason: "fixture" }),
+    mailProviderControl: { check: async () => ({ ok: true, label: "Requested" }), select: mailer.selectProvider, readSelection: mailer.readProviderSelection },
+  }, { surfaceExchanges, assertAccessApprover: async () => {} }).find(r => r.descriptor.id === "mail_set_provider")!;
+  await assert.rejects(registration.handler({ executionId: "mail-test", principal: { id: "owner" }, run: { id: "run" }, input: { providerId: "requested" }, signal: new AbortController().signal }, {
+    emitSurface: async () => {
+      assert.deepEqual(await readMailProviderSetting({ settingsRepo, workspaceId: WS }), { transactional: "old", bulk: "old" });
+      await mailer.selectProvider({ id: "concurrent", principalId: "owner" });
+      assert.equal(surfaceExchanges.deliver({ exchangeId: "mail-card", principalId: "owner", params: { decision: "confirm" } }, { toolId: "mail_set_provider" }).ok, true);
+    },
+  }), /mail provider selection changed while this card was open/);
+  assert.deepEqual(await readMailProviderSetting({ settingsRepo, workspaceId: WS }), { transactional: "concurrent", bulk: "concurrent" });
+  assert.equal(surfaceExchanges.size(), 0);
+});

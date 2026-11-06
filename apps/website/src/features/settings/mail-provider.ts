@@ -1,5 +1,5 @@
 import type { JsonValue } from "@jini-ai/core/primitives";
-import { ensureSettingDefinitions, getEffective, SCOPE_BIT, type EnsureSettingDefinitionsDeps, type SetValueRequired, type SettingsRepoPort } from "@jini-ai/core/settings";
+import { ensureSettingDefinitions, getEffective, resolveDefinitionRaw, DefinitionNotFoundError, SCOPE_BIT, type EnsureSettingDefinitionsDeps, type SetValueRequired, type SettingsRepoPort, type SettingsValueWriteOptions } from "@jini-ai/core/settings";
 import type { MailProviderSetting } from "@jini-ai/platform/mail";
 
 import { set } from "./site-title-write.js";
@@ -69,19 +69,38 @@ export async function readMailProviderSetting(
   return parseMailProviderSetting({ value: found.value });
 }
 
+/** Read the exact workspace layer once so displayed lanes and revision describe the same row.
+ * @returns The current lanes and addressed revision (zero when never stored).
+ * @throws When definitions are unavailable or the settings ledger cannot be read.
+ * @complexity One definition lookup and one addressed value read; O(1) space.
+ */
+export async function readMailProviderSelection(
+  required: { settingsRepo: SettingsRepoPort; workspaceId: string },
+  _optional: Record<string, never> = {},
+): Promise<{ setting: MailProviderSetting; revisionSeq: number }> {
+  const definition = await resolveDefinitionRaw({ repo: required.settingsRepo }, {
+    namespace: MAIL_PROVIDER_NAMESPACE, key: MAIL_PROVIDER_KEY, workspaceId: required.workspaceId,
+  });
+  if (!definition) throw new DefinitionNotFoundError("Mail provider settings are unavailable. Nothing was changed. Try again after this site finishes starting.");
+  const row = await required.settingsRepo.getWorkspaceValue({ workspaceId: required.workspaceId, settingId: definition.settingId });
+  return { setting: parseMailProviderSetting({ value: row?.state === "set" ? row.valueJson : undefined }), revisionSeq: row?.seq ?? 0 };
+}
+
 /**
  * Writes both lanes through the host settings chokepoint (authorization is the caller's `deps`).
- * @complexity One settings write.
+ * An approved snapshot uses the settings ledger's existing transactional revision guard.
+ * @throws {SettingsRevisionConflictError} If the addressed setting changed after approval preparation.
+ * @complexity One settings write and, when guarded, one addressed-layer read in its transaction.
  */
 export async function writeMailProviderSetting(
   required: { deps: SetValueRequired["deps"]; workspaceId: string; callerPrincipalId: string; value: MailProviderSetting },
-  _optional: Record<string, never> = {}
+  optional: SettingsValueWriteOptions = {}
 ): Promise<void> {
   await set({ deps: required.deps, input: {
     namespace: MAIL_PROVIDER_NAMESPACE, key: MAIL_PROVIDER_KEY, scope: "workspace", workspaceId: required.workspaceId,
     authWorkspaceId: required.workspaceId, callerPrincipalId: required.callerPrincipalId,
     value: { transactional: required.value.transactional, bulk: required.value.bulk },
-  } });
+  } }, optional);
 }
 
 /** Parses a stored test mode; anything unrecognised is `off`. Pure. @complexity O(1). */
