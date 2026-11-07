@@ -1,0 +1,145 @@
+{
+  "refusals": {
+    "notInstalled": {
+      "message": "agent_plugin_set_access_token: 'acme' is not an installed Agent Plugin in this workspace.",
+      "emittedSurfaces": 0,
+      "probeRequests": 0,
+      "openExchanges": 0
+    },
+    "noTokenAuth": {
+      "message": "agent_plugin_set_access_token: 'acme' declares no access-token sign-in.",
+      "emittedSurfaces": 0,
+      "probeRequests": 0,
+      "openExchanges": 0
+    },
+    "twoTokenSignIns": {
+      "message": "agent_plugin_set_access_token: 'acme' declares more than one access-token sign-in.",
+      "emittedSurfaces": 0,
+      "probeRequests": 0,
+      "openExchanges": 0
+    },
+    "tokenInInput": {
+      "message": "agent_plugin_set_access_token takes only a pluginId. The token is pasted into the form, never passed here.",
+      "emittedSurfaces": 0,
+      "probeRequests": 0,
+      "openExchanges": 0
+    },
+    "missingPluginId": {
+      "message": "agent_plugin_set_access_token: pluginId is required.",
+      "emittedSurfaces": 0,
+      "probeRequests": 0,
+      "openExchanges": 0
+    }
+  },
+  "saved": {
+    "cards": [
+      {
+        "uri": "ui://tovu/secret-card/credential_save/exchange-1",
+        "mimeType": "text/html;profile=mcp-app",
+        "sha256": "f8ac79ce826e28f53e59cbbb752d5d1425e803c7dd760b7f83f866659b639c04",
+        "markup": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:; form-action 'none'; base-uri 'none'\">\n<title>Connect Acme with an access token</title>\n</head>\n<body>\n<main class=\"mcpui-surface\">\n<h1 class=\"mcpui-title\">Connect Acme with an access token</h1>\n<p class=\"mcpui-description\">Create a personal access token at https://acme.test/account/tokens, then paste it below. Tovu checks it with Acme and seals it the moment you submit. The assistant never sees it, and it is never written to the chat.</p>\n<form id=\"mcpui-form\" novalidate>\n<fieldset class=\"mcpui-fields\">\n<div class=\"mcpui-field\">\n<label class=\"mcpui-label\" for=\"mcpui-field-token\">Acme access token<span class=\"mcpui-required\" aria-hidden=\"true\">*</span></label>\n<span class=\"mcpui-hint\" id=\"mcpui-field-token-hint\">Pasted here only. Never shown to the assistant.</span>\n<div class=\"mcpui-secret\"><input class=\"mcpui-input\" type=\"password\" id=\"mcpui-field-token\" name=\"token\" required aria-describedby=\"mcpui-field-token-hint\" autocomplete=\"new-password\" spellcheck=\"false\"><button type=\"button\" class=\"mcpui-secret-toggle\" data-mcpui-secret-toggle=\"mcpui-field-token\" data-mcpui-show-secret=\"Show Acme access token\" data-mcpui-hide-secret=\"Hide Acme access token\" aria-label=\"Show Acme access token\" aria-controls=\"mcpui-field-token\" aria-pressed=\"false\"><svg class=\"mcpui-secret-icon-show\" aria-hidden=\"true\" focusable=\"false\" viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/></svg><svg class=\"mcpui-secret-icon-hide\" aria-hidden=\"true\" focusable=\"false\" viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M9.9 4.24A9.1 9.1 0 0 1 12 4c6.5 0 10 7 10 7a17.8 17.8 0 0 1-2.16 3.19M6.6 6.6C3.9 8.4 2 12 2 12s3.5 7 10 7a9.7 9.7 0 0 0 5.4-1.6M14.12 14.12a3 3 0 1 1-4.24-4.24\"/><path d=\"M2 2l20 20\"/></svg></button></div>\n</div>\n</fieldset>\n<div class=\"mcpui-actions\">\n  <button type=\"button\" class=\"mcpui-button mcpui-button-primary\" data-mcpui-action=\"submit\" data-agent-element=\"mcpui-action-submit\" data-agent-role=\"button\" data-agent-label=\"Save token\">Save token</button>\n  <button type=\"button\" class=\"mcpui-button\" data-mcpui-action=\"cancel\" data-agent-element=\"mcpui-action-cancel\" data-agent-role=\"button\" data-agent-label=\"Cancel\">Cancel</button>\n</div>\n</form>\n<p class=\"mcpui-status\" id=\"mcpui-status\" role=\"status\" aria-live=\"polite\" data-state=\"idle\"></p>\n</main>\n</body>\n</html>"
+      },
+      {
+        "uri": "ui://tovu/secret-card/credential_save/exchange-1",
+        "mimeType": "text/html;profile=mcp-app",
+        "sha256": "121589a6e43370ea16dd71d2f3c36f1abd2ddd55d971073b79d5c028b4169305",
+        "markup": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:; form-action 'none'; base-uri 'none'\">\n<title>Token saved</title>\n</head>\n<body>\n<main class=\"mcpui-surface\">\n<h1 class=\"mcpui-title\">Token saved</h1>\n<dl class=\"mcpui-details mcpui-details-outcome\">\n  <div class=\"mcpui-outcome-row\"><dt>Connection</dt><dd>Acme</dd></div>\n</dl>\n<p class=\"mcpui-status\" id=\"mcpui-status\" role=\"status\" aria-live=\"polite\" data-state=\"done\">Token saved. The &#39;acme&#39; connection stays off because an operator changed its settings. To use it, switch it on in Add-Ons → Integrations → External MCP.</p>\n</main>\n</body>\n</html>"
+      }
+    ],
+    "result": {
+      "saved": true,
+      "next": "Token saved. The 'acme' connection stays off because an operator changed its settings. To use it, switch it on in Add-Ons → Integrations → External MCP."
+    },
+    "counters": {
+      "emittedSurfaces": 2,
+      "probeRequests": [
+        {
+          "method": "GET",
+          "url": "https://api.acme.test/v1/projects"
+        }
+      ],
+      "openExchangesAfter": 0
+    }
+  },
+  "rejected401": {
+    "cards": [
+      {
+        "uri": "ui://tovu/secret-card/credential_save/exchange-1",
+        "mimeType": "text/html;profile=mcp-app",
+        "sha256": "f8ac79ce826e28f53e59cbbb752d5d1425e803c7dd760b7f83f866659b639c04",
+        "markup": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:; form-action 'none'; base-uri 'none'\">\n<title>Connect Acme with an access token</title>\n</head>\n<body>\n<main class=\"mcpui-surface\">\n<h1 class=\"mcpui-title\">Connect Acme with an access token</h1>\n<p class=\"mcpui-description\">Create a personal access token at https://acme.test/account/tokens, then paste it below. Tovu checks it with Acme and seals it the moment you submit. The assistant never sees it, and it is never written to the chat.</p>\n<form id=\"mcpui-form\" novalidate>\n<fieldset class=\"mcpui-fields\">\n<div class=\"mcpui-field\">\n<label class=\"mcpui-label\" for=\"mcpui-field-token\">Acme access token<span class=\"mcpui-required\" aria-hidden=\"true\">*</span></label>\n<span class=\"mcpui-hint\" id=\"mcpui-field-token-hint\">Pasted here only. Never shown to the assistant.</span>\n<div class=\"mcpui-secret\"><input class=\"mcpui-input\" type=\"password\" id=\"mcpui-field-token\" name=\"token\" required aria-describedby=\"mcpui-field-token-hint\" autocomplete=\"new-password\" spellcheck=\"false\"><button type=\"button\" class=\"mcpui-secret-toggle\" data-mcpui-secret-toggle=\"mcpui-field-token\" data-mcpui-show-secret=\"Show Acme access token\" data-mcpui-hide-secret=\"Hide Acme access token\" aria-label=\"Show Acme access token\" aria-controls=\"mcpui-field-token\" aria-pressed=\"false\"><svg class=\"mcpui-secret-icon-show\" aria-hidden=\"true\" focusable=\"false\" viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/></svg><svg class=\"mcpui-secret-icon-hide\" aria-hidden=\"true\" focusable=\"false\" viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M9.9 4.24A9.1 9.1 0 0 1 12 4c6.5 0 10 7 10 7a17.8 17.8 0 0 1-2.16 3.19M6.6 6.6C3.9 8.4 2 12 2 12s3.5 7 10 7a9.7 9.7 0 0 0 5.4-1.6M14.12 14.12a3 3 0 1 1-4.24-4.24\"/><path d=\"M2 2l20 20\"/></svg></button></div>\n</div>\n</fieldset>\n<div class=\"mcpui-actions\">\n  <button type=\"button\" class=\"mcpui-button mcpui-button-primary\" data-mcpui-action=\"submit\" data-agent-element=\"mcpui-action-submit\" data-agent-role=\"button\" data-agent-label=\"Save token\">Save token</button>\n  <button type=\"button\" class=\"mcpui-button\" data-mcpui-action=\"cancel\" data-agent-element=\"mcpui-action-cancel\" data-agent-role=\"button\" data-agent-label=\"Cancel\">Cancel</button>\n</div>\n</form>\n<p class=\"mcpui-status\" id=\"mcpui-status\" role=\"status\" aria-live=\"polite\" data-state=\"idle\"></p>\n</main>\n</body>\n</html>"
+      },
+      {
+        "uri": "ui://tovu/secret-card/credential_save/exchange-1",
+        "mimeType": "text/html;profile=mcp-app",
+        "sha256": "4222e70a260ba24e5a704c458d1f5d02d6d54382815f0b9770e9044f334e7c50",
+        "markup": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:; form-action 'none'; base-uri 'none'\">\n<title>Token not saved</title>\n</head>\n<body>\n<main class=\"mcpui-surface\">\n<h1 class=\"mcpui-title\">Token not saved</h1>\n<dl class=\"mcpui-details mcpui-details-outcome\">\n  <div class=\"mcpui-outcome-row\"><dt>Connection</dt><dd>Acme</dd></div>\n</dl>\n<p class=\"mcpui-status\" id=\"mcpui-status\" role=\"status\" aria-live=\"polite\" data-state=\"failed\">This token was refused for this purpose.</p>\n</main>\n</body>\n</html>"
+      }
+    ],
+    "result": {
+      "saved": false,
+      "reason": "refused",
+      "message": "This token was refused for this purpose."
+    },
+    "counters": {
+      "emittedSurfaces": 2,
+      "probeRequests": [
+        {
+          "method": "GET",
+          "url": "https://api.acme.test/v1/projects"
+        }
+      ],
+      "openExchangesAfter": 0
+    }
+  },
+  "unavailable503": {
+    "cards": [
+      {
+        "uri": "ui://tovu/secret-card/credential_save/exchange-1",
+        "mimeType": "text/html;profile=mcp-app",
+        "sha256": "f8ac79ce826e28f53e59cbbb752d5d1425e803c7dd760b7f83f866659b639c04",
+        "markup": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:; form-action 'none'; base-uri 'none'\">\n<title>Connect Acme with an access token</title>\n</head>\n<body>\n<main class=\"mcpui-surface\">\n<h1 class=\"mcpui-title\">Connect Acme with an access token</h1>\n<p class=\"mcpui-description\">Create a personal access token at https://acme.test/account/tokens, then paste it below. Tovu checks it with Acme and seals it the moment you submit. The assistant never sees it, and it is never written to the chat.</p>\n<form id=\"mcpui-form\" novalidate>\n<fieldset class=\"mcpui-fields\">\n<div class=\"mcpui-field\">\n<label class=\"mcpui-label\" for=\"mcpui-field-token\">Acme access token<span class=\"mcpui-required\" aria-hidden=\"true\">*</span></label>\n<span class=\"mcpui-hint\" id=\"mcpui-field-token-hint\">Pasted here only. Never shown to the assistant.</span>\n<div class=\"mcpui-secret\"><input class=\"mcpui-input\" type=\"password\" id=\"mcpui-field-token\" name=\"token\" required aria-describedby=\"mcpui-field-token-hint\" autocomplete=\"new-password\" spellcheck=\"false\"><button type=\"button\" class=\"mcpui-secret-toggle\" data-mcpui-secret-toggle=\"mcpui-field-token\" data-mcpui-show-secret=\"Show Acme access token\" data-mcpui-hide-secret=\"Hide Acme access token\" aria-label=\"Show Acme access token\" aria-controls=\"mcpui-field-token\" aria-pressed=\"false\"><svg class=\"mcpui-secret-icon-show\" aria-hidden=\"true\" focusable=\"false\" viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/></svg><svg class=\"mcpui-secret-icon-hide\" aria-hidden=\"true\" focusable=\"false\" viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M9.9 4.24A9.1 9.1 0 0 1 12 4c6.5 0 10 7 10 7a17.8 17.8 0 0 1-2.16 3.19M6.6 6.6C3.9 8.4 2 12 2 12s3.5 7 10 7a9.7 9.7 0 0 0 5.4-1.6M14.12 14.12a3 3 0 1 1-4.24-4.24\"/><path d=\"M2 2l20 20\"/></svg></button></div>\n</div>\n</fieldset>\n<div class=\"mcpui-actions\">\n  <button type=\"button\" class=\"mcpui-button mcpui-button-primary\" data-mcpui-action=\"submit\" data-agent-element=\"mcpui-action-submit\" data-agent-role=\"button\" data-agent-label=\"Save token\">Save token</button>\n  <button type=\"button\" class=\"mcpui-button\" data-mcpui-action=\"cancel\" data-agent-element=\"mcpui-action-cancel\" data-agent-role=\"button\" data-agent-label=\"Cancel\">Cancel</button>\n</div>\n</form>\n<p class=\"mcpui-status\" id=\"mcpui-status\" role=\"status\" aria-live=\"polite\" data-state=\"idle\"></p>\n</main>\n</body>\n</html>"
+      },
+      {
+        "uri": "ui://tovu/secret-card/credential_save/exchange-1",
+        "mimeType": "text/html;profile=mcp-app",
+        "sha256": "bb83508f2066e186f4f634d458e84d5e2f552a7edbc79c6b261a61a74e5f8cf1",
+        "markup": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:; form-action 'none'; base-uri 'none'\">\n<title>Token not saved</title>\n</head>\n<body>\n<main class=\"mcpui-surface\">\n<h1 class=\"mcpui-title\">Token not saved</h1>\n<dl class=\"mcpui-details mcpui-details-outcome\">\n  <div class=\"mcpui-outcome-row\"><dt>Connection</dt><dd>Acme</dd></div>\n</dl>\n<p class=\"mcpui-status\" id=\"mcpui-status\" role=\"status\" aria-live=\"polite\" data-state=\"failed\">Acme is unavailable right now. Try again shortly.</p>\n</main>\n</body>\n</html>"
+      }
+    ],
+    "result": {
+      "saved": false,
+      "reason": "unavailable",
+      "message": "Acme is unavailable right now. Try again shortly."
+    },
+    "counters": {
+      "emittedSurfaces": 2,
+      "probeRequests": [
+        {
+          "method": "GET",
+          "url": "https://api.acme.test/v1/projects"
+        }
+      ],
+      "openExchangesAfter": 0
+    }
+  },
+  "dismissed": {
+    "cards": [
+      {
+        "uri": "ui://tovu/secret-card/credential_save/exchange-1",
+        "mimeType": "text/html;profile=mcp-app",
+        "sha256": "f8ac79ce826e28f53e59cbbb752d5d1425e803c7dd760b7f83f866659b639c04",
+        "markup": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:; form-action 'none'; base-uri 'none'\">\n<title>Connect Acme with an access token</title>\n</head>\n<body>\n<main class=\"mcpui-surface\">\n<h1 class=\"mcpui-title\">Connect Acme with an access token</h1>\n<p class=\"mcpui-description\">Create a personal access token at https://acme.test/account/tokens, then paste it below. Tovu checks it with Acme and seals it the moment you submit. The assistant never sees it, and it is never written to the chat.</p>\n<form id=\"mcpui-form\" novalidate>\n<fieldset class=\"mcpui-fields\">\n<div class=\"mcpui-field\">\n<label class=\"mcpui-label\" for=\"mcpui-field-token\">Acme access token<span class=\"mcpui-required\" aria-hidden=\"true\">*</span></label>\n<span class=\"mcpui-hint\" id=\"mcpui-field-token-hint\">Pasted here only. Never shown to the assistant.</span>\n<div class=\"mcpui-secret\"><input class=\"mcpui-input\" type=\"password\" id=\"mcpui-field-token\" name=\"token\" required aria-describedby=\"mcpui-field-token-hint\" autocomplete=\"new-password\" spellcheck=\"false\"><button type=\"button\" class=\"mcpui-secret-toggle\" data-mcpui-secret-toggle=\"mcpui-field-token\" data-mcpui-show-secret=\"Show Acme access token\" data-mcpui-hide-secret=\"Hide Acme access token\" aria-label=\"Show Acme access token\" aria-controls=\"mcpui-field-token\" aria-pressed=\"false\"><svg class=\"mcpui-secret-icon-show\" aria-hidden=\"true\" focusable=\"false\" viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/></svg><svg class=\"mcpui-secret-icon-hide\" aria-hidden=\"true\" focusable=\"false\" viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M9.9 4.24A9.1 9.1 0 0 1 12 4c6.5 0 10 7 10 7a17.8 17.8 0 0 1-2.16 3.19M6.6 6.6C3.9 8.4 2 12 2 12s3.5 7 10 7a9.7 9.7 0 0 0 5.4-1.6M14.12 14.12a3 3 0 1 1-4.24-4.24\"/><path d=\"M2 2l20 20\"/></svg></button></div>\n</div>\n</fieldset>\n<div class=\"mcpui-actions\">\n  <button type=\"button\" class=\"mcpui-button mcpui-button-primary\" data-mcpui-action=\"submit\" data-agent-element=\"mcpui-action-submit\" data-agent-role=\"button\" data-agent-label=\"Save token\">Save token</button>\n  <button type=\"button\" class=\"mcpui-button\" data-mcpui-action=\"cancel\" data-agent-element=\"mcpui-action-cancel\" data-agent-role=\"button\" data-agent-label=\"Cancel\">Cancel</button>\n</div>\n</form>\n<p class=\"mcpui-status\" id=\"mcpui-status\" role=\"status\" aria-live=\"polite\" data-state=\"idle\"></p>\n</main>\n</body>\n</html>"
+      }
+    ],
+    "result": {
+      "saved": false,
+      "reason": "cancelled"
+    },
+    "counters": {
+      "emittedSurfaces": 1,
+      "probeRequests": [],
+      "openExchangesAfter": 0
+    }
+  }
+}

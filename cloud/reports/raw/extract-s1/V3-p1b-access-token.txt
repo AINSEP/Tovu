@@ -1,0 +1,19 @@
+# cwd /home/user/Tovu; TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node --import tsx --import ./development/test-support/composed-bundle-env.ts --test --experimental-test-module-mocks --test-concurrency=1 apps/website/src/assistant/__tests__/moved-tools.access-token.golden.test.ts (run twice, no write flag; golden generated once from unmoved code)
+✔ agent_plugin_set_access_token (credential_save, agent-plugin-token): text, real cards, outcomes and counters match the golden recorded before any move (36.783189ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2328.767456
+✔ agent_plugin_set_access_token (credential_save, agent-plugin-token): text, real cards, outcomes and counters match the golden recorded before any move (56.2223ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2341.829523
