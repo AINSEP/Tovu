@@ -363,3 +363,15 @@ Both are existing behavior explicitly reproduced in the unchanged registry test 
 Verification and report completed 2026-11-07 12:51:02 PST (20:51:02 UTC). Time used: **53 min 37 s**, below the two-hour cap. All six items are done; final delivery follows the report push.
 
 IMPORT-FIX DONE
+
+## Review fixes
+
+Follow-up started 2026-11-07 13:09:14 PST (21:09:14 UTC); cap 14:09:14 PST. Same `cloud/import-fix` branches. Records below describe this follow-up only.
+
+### 1 — done
+
+Native form grouping and inert input hints are normalized only in the form check; original HTML is retained. The real `formHtmlStarter` output (radio group and URL field) stays active. Handler-bearing and custom-scheme-link forms remain disabled. Page checks are unchanged.
+
+Command: `bash /workspace/work/run-tovu-file.sh --test-name-pattern='starter radio' apps/website/src/features/site-backup/__tests__/import-restore.unit.test.ts`. Red: 0/1; mutation allowing the handler attribute: 0/1; restored policy and whole changed file: 45/45 green. No-emit `tsc -p /workspace/work/tsconfig-item1.json --noEmit`: exit 0. Initial bare admin-package import was unavailable at the website root (`ERR_MODULE_NOT_FOUND`); the test uses the real module from the existing admin installation.
+
+Cost: one additional bounded form DOM normalization/serialization per imported HTML form, O(HTML bytes), no additional I/O.

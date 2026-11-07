@@ -1,3 +1,4 @@
+import { formHtmlStarter } from "../../../../../admin/node_modules/@jini-ai/admin/dist/forms/html-rules.js";
 /**
  * Pins the staged-import restore: which files reach the live site, which go to the unserved
  * `.import-quarantine/` tree, and the active-theme fallback. Real temp folders and a real SQLite
@@ -349,4 +350,31 @@ test("the containment guard refuses a path that escapes the root even if the pat
   const h = harness(t), noPolicy = (_required: { path: string }): void => undefined;
   assert.throws(() => writeExclusive({ root: h.dir, relative: "../escaped", bytes: Buffer.from("x") }, { validatePath: noPolicy }), { message: "Import path escaped staging" });
   assert.equal(fs.existsSync(path.join(h.dir, "../escaped")), false);
+});
+
+
+test("import keeps starter radio and URL form markup active while authored behavior stays off", async t => {
+  const starter = formHtmlStarter({ fields: [
+    { id: "choice", type: "radio", label: "Choice", required: true, options: [{ value: "one", label: "One" }] },
+    { id: "website", type: "url", label: "Website", required: false },
+  ] });
+  assert.match(starter, /<fieldset>/);
+  assert.match(starter, /inputmode="url"/);
+  const html = starter + '<select><optgroup label="Group"><option>One</option></optgroup></select><input maxlength="20" pattern="\\d+" accept="image/*" readonly spellcheck="false" autocapitalize="none">';
+  const h = await restore(t, {}, { before: h => {
+    const db = new Database(path.join(h.root, "database/content.db"));
+    try {
+      for (const [id, body] of [["starter", html], ["handler", starter.replace("<input", '<input onclick="example()"')], ["link", starter + '<a href="javascript:example()">More</a>']]) {
+        db.prepare("INSERT INTO form_definitions VALUES (?, ?, ?, 'active')").run(id, id, JSON.stringify({ mode: "html", html: body, fields: [] }));
+      }
+    } finally { db.close(); }
+  } });
+  const db = new Database(h.dbPath);
+  try {
+    assert.deepEqual(db.prepare("SELECT id, status FROM form_definitions ORDER BY id").all(), [
+      { id: "handler", status: "disabled" }, { id: "link", status: "disabled" }, { id: "starter", status: "active" },
+    ]);
+    assert.equal(JSON.parse((db.prepare("SELECT fields_json FROM form_definitions WHERE id='starter'").get() as { fields_json: string }).fields_json).html, html);
+    assert.equal(stagedImportWarnings({ root: h.root }).length, 2);
+  } finally { db.close(); }
 });

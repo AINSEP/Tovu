@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { parseFragment, type DefaultTreeAdapterMap } from "parse5";
+import { parseFragment, serialize, type DefaultTreeAdapterMap } from "parse5";
 import type { StorageKernel } from "#src/platform/db/kernel/port";
 import type { ContentDatabase } from "#src/platform/db/content-database.generated";
 import { NO_THEME_ID } from "#src/features/theme/active-theme";
@@ -51,6 +51,25 @@ export function pageBodyMayRunScript(required: { html: string }): boolean {
   let dropped = false;
   sanitizePageHtml({ html: required.html }, { reportDrops: ({ dropped: drops }) => { dropped ||= Object.keys(drops).some(drop => !INERT_DROPS.has(drop)); } });
   return dropped || attributeHoldsMarkup(parseFragment(required.html));
+}
+
+/** Native form grouping and input hints are inert; check behavior without changing stored HTML. */
+function formBodyMayRunScript(required: { html: string }, _optional = {}): boolean {
+  const root = parseFragment(required.html);
+  const pending = root.childNodes.map(node => ({ node, depth: 0 }));
+  const tags = new Set(["fieldset", "legend", "optgroup"]);
+  const attrs = new Set(["maxlength", "pattern", "accept", "inputmode", "spellcheck", "autocapitalize", "readonly"]);
+  while (pending.length) {
+    const { node, depth } = pending.pop()!;
+    if (!("tagName" in node)) continue;
+    if (depth >= 128) return true;
+    if (node.namespaceURI === "http://www.w3.org/1999/xhtml") {
+      if (tags.has(node.tagName)) node.tagName = node.nodeName = "div";
+      node.attrs = node.attrs.filter(attr => attr.namespace || attr.prefix || !attrs.has(attr.name));
+    }
+    pending.push(...[...node.childNodes, ...("content" in node ? node.content.childNodes : [])].map(node => ({ node, depth: depth + 1 })));
+  }
+  return pageBodyMayRunScript({ html: serialize(root) });
 }
 
 function attributeHoldsMarkup(root: DefaultTreeAdapterMap["documentFragment"]): boolean {
@@ -126,7 +145,7 @@ export async function keepImportedCodeOff(required: { dbPath: string; fallback: 
     const forms = await db.run(query => query.selectFrom("form_definitions").select(["id", "name", "fields_json"]).where("status", "=", "active").execute());
     for (const form of forms) {
       const fields = JSON.parse(form.fields_json);
-      if (fields.mode !== "html" || !pageBodyMayRunScript({ html: fields.html ?? "" })) continue;
+      if (fields.mode !== "html" || !formBodyMayRunScript({ html: fields.html ?? "" })) continue;
       // Disabled forms do not resolve at markers; keep the authored envelope byte-for-byte.
       await db.run(query => query.updateTable("form_definitions").set({ status: "disabled" }).where("id", "=", form.id).execute());
       formNotices.push(`Form '${String(form.name).slice(0, MAX_NOTICE_TITLE)}' (ID ${form.id}) holds its own code, so it was imported disabled. Enable it in Forms if you trust this file.`);
