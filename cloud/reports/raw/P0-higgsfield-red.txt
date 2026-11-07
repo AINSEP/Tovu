@@ -1,0 +1,30 @@
+✔ plugin.json parses under the Agent Plugins v1.0.0 validator (6.736485ms)
+✔ plugin.json's keywords carry the vocabulary an operator would actually search for (1.487634ms)
+✔ mcp.json declares the real higgsfield connection, auto-admitted per classifyAgentPluginMcpServerTrust (2.348579ms)
+✔ the eponymous skill folder exists — run-start injection resolves skills/<pluginId>/SKILL.md by that exact name (0.930282ms)
+✔ the package packs through the real installer's own packer, references included (5.489648ms)
+✔ SKILL.md points at every reference file that exists — an unreferenced reference is never read (1.715326ms)
+✔ SKILL.md says EARLY and plainly that generate_image returns a job id, not an image (1.117ms)
+✔ SKILL.md forbids sync:true AND carries the two numbers that make it unarguable (1.713586ms)
+✔ SKILL.md documents the TWO-list write grant and quotes the exact refusal line (1.300371ms)
+✔ host guidance: a sign-in needs no restart; only widening a running connection does (1.40238ms)
+✖ SKILL.md forbids inventing a cause for an absent or refused federated tool (3.795083ms)
+✔ SKILL.md records the plan gate's exact string and defers model facts to the account; the reference keeps the observed table (3.076213ms)
+✔ SKILL.md says the auth is OAuth — never an API key — and that Tovu mints its own client (0.802817ms)
+✖ SKILL.md is honest that the cold start leaves chat — the enable step, and TOVU_PUBLIC_URL (2.262711ms)
+✔ plugin.json's keywords also reach an operator who says 'photo' or 'illustration' (2.573451ms)
+✖ SKILL.md forbids the two wrong recoveries — silent media_generate_asset, and re-attaching by hand (1.498695ms)
+✔ delivered failure guidance maps every observed failure string to a real cause (3.683327ms)
+✔ delivered failure guidance routes an expired OAuth token to the one tool that can surface it (2.263749ms)
+✔ no file in the package carries credential material (10.840993ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 16
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 517.029505
+  AssertionError [ERR_ASSERTION]: the file must say this actually happened, not merely that it would be bad
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /plugins_set_enabled/. Input:
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /media_generate_asset/. Input:

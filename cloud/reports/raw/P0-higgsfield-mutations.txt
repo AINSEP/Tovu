@@ -1,0 +1,18 @@
+== mutation 1: SKILL.md 'once invented' -> 'once made up'
+ℹ fail 1
+ℹ pass 18
+✖ SKILL.md forbids inventing a cause for an absent or refused federated tool (3.00255ms)
+✖ failing tests:
+== mutation 2: GUIDANCE.md drop plugins_set_enabled name
+ℹ fail 1
+ℹ pass 18
+✖ SKILL.md is honest that the cold start leaves chat — the enable step, and TOVU_PUBLIC_URL (6.702328ms)
+✖ failing tests:
+== mutation 3: GUIDANCE.md drop media_generate_asset names
+ℹ fail 1
+ℹ pass 18
+✖ SKILL.md forbids the two wrong recoveries — silent media_generate_asset, and re-attaching by hand (4.607652ms)
+✖ failing tests:
+== restored
+ℹ fail 0
+ℹ pass 19

@@ -255,7 +255,7 @@ test("SKILL.md is honest that the cold start leaves chat — the enable step, an
   // bundled markdown file; what is asserted here is the positive replacement for THIS package, and
   // the family argument specifically, because `plugins_set_enabled` without it targets the OTHER
   // plugin system and silently does nothing for a bundled Agent Plugin.
-  assert.match(skill, /plugins_set_enabled/);
+  assert.match(await readHostGuidance(), /plugins_set_enabled/);
   assert.match(skill, /family: "agent-plugin"/);
   assert.match(skill, /confirmation dialog/i);
   // The admin screen stays a legitimate second route, and the plugin's own `agent_plugin_*` tool
@@ -302,7 +302,7 @@ test("SKILL.md forbids the two wrong recoveries — silent media_generate_asset,
 
   // media_generate_asset is a DIFFERENT vendor on a DIFFERENT credential and costs real money;
   // substituting it silently answers a question the operator did not ask.
-  assert.match(skill, /media_generate_asset/);
+  assert.match(await readHostGuidance(), /media_generate_asset/);
   assert.match(skill, /costs real money|spends money/i);
 
   // The download-and-re-upload dance was the pre-media_import_from_url workaround. It is obsolete,
