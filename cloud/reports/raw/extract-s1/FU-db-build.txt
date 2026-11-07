@@ -1,0 +1,8 @@
+## build
+
+> @jini-ai/db@0.6.19 build
+> tsc -p tsconfig.build.json
+
+exit 0
+## tsc --noEmit
+exit 0

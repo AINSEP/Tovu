@@ -227,3 +227,23 @@ Delete Jini's unused `packages/server/src/lifecycle` copy. Raw output: `cloud/re
 - `packages/daemon/docs/call-shape-sweep.tsv` rows for `server/src/lifecycle/*` are historical sweep data.
 
 **Errors:** none. **Not done:** nothing in scope. Tovu's own lifecycle untouched.
+
+## Follow-up (R1)
+
+Added one `@agent-note` doc-comment tag to each of the three Jini db contracts (doc comments only, no code change). Raw output: `cloud/reports/raw/extract-s1/FU-*.txt`.
+
+- `declareDataModule` (`data-module.ts`): `dbPath` must name the file behind `db`; `":memory:"`, `""` or a memory URI skips the snapshot, journal and headroom check with no error; another file's path still snapshots `db` but beside that file and sizes headroom from that file. Points at `PluginProvenance` for the identity check.
+- `PluginProvenance` (`plugin-identity.ts`): stored once in `_plugin_identity`, never updated; later declares compare all three fields by strict string equality; a change is refused as `consent-required` unless both sides carry the same `signature`.
+- `recoverIncompleteDataModuleMigrations` (`migration-recovery.ts`): run right after opening, before anything reads or migrates; on SQLite `restoreSnapshots` closes the connection under `store` before copying any snapshot, restores over the same `dbPath` the declares used, caller reopens.
+
+**Claims that differ from the brief once checked in code**
+- "Changing provenance refuses adoption at boot": the identity check runs only when a declare has DDL to apply (the no-op path returns before preflight). A changed provenance is accepted silently while the schema is unchanged and refused (`IDENTITY_ADOPTION_REQUIRES_CONSENT`) on the next declare that creates or alters a table. The row is also minted on the first declare that applies DDL, not on every first declare. `signature` is compared too, and a matching signature on both sides allows a changed URL or publisher.
+- "Another path silently skips the snapshot, journal and headroom check": only memory paths skip. A different real file path keeps all three, but the snapshot (taken from `db` itself) lands beside the wrong file and headroom measures the wrong file (0 bytes if missing, so it always passes).
+- Recovery ordering: confirmed as written; recovery itself does not close the connection, the `restoreSnapshots` callback does. Postgres/PGlite never calls it.
+
+**Checks (equal to the Z2 record by name)**
+- `@jini-ai/db` `build` exit 0, `tsc -p tsconfig.json --noEmit` exit 0 (`FU-db-build.txt`).
+- `pnpm guard`: `R2-deep-path` (1), `R10-chatpane-public-surface` (1); HW1 17, HW2 16, HW3 135, HW4 1, HW8 49, all 0 new. Identical to `Z2-final-guard.txt` apart from timings.
+- Layers 0. Isolation 0 failing (audit `SI-c` 9, `SI-d` 7). `guard:plugins` clean.
+
+**Commits.** Jini `35c4961a`. Tovu: this report commit.
