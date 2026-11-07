@@ -9,12 +9,13 @@ Started 2026-11-07 19:52:36 UTC. Caps: 4 h (23:52 UTC), 1.5M tokens (sum of fina
 | UTC | Batch | Token tally (k) | Reds |
 |---|---|---|---|
 | 19:52 | start, branches created | 0 | - |
-| 21:23 | Z2 done, follow-up for R1 starting | 1,091 (agents) + coordinator | none new |
-| 21:19 | V3 done, Z2 starting | 989 (agents) + coordinator | none new (Tovu `tsconfig.tests.json` 12 errors already there) |
-| 20:58 | V2 done, V3 starting | 680 (agents) + coordinator | `sign-in-card.unit.test.ts` 5x `AbortSignal.any` (already failing before V2) |
-| 20:43 | review done, V2 starting | 508 (agents) + coordinator | none new |
-| 20:37 | V1 done, review starting | 350 (agents) + coordinator | `plugin-host-bundled-identity` (already failing on the V0 tip) |
 | 20:20 | V0 done, V1 starting | 206 (V0) + coordinator | none new (baseline: R2-deep-path, R10-chatpane-public-surface) |
+| 20:37 | V1 done, review starting | 350 (agents) + coordinator | `plugin-host-bundled-identity` (already failing on the V0 tip) |
+| 20:43 | review done, V2 starting | 508 (agents) + coordinator | none new |
+| 20:58 | V2 done, V3 starting | 680 (agents) + coordinator | `sign-in-card.unit.test.ts` 5x `AbortSignal.any` (already failing before V2) |
+| 21:19 | V3 done, Z2 starting | 989 (agents) + coordinator | none new (Tovu `tsconfig.tests.json` 12 errors already there) |
+| 21:23 | Z2 done, follow-up for R1 starting | 1,091 (agents) + coordinator | none new |
+| 21:27 | follow-up done, session closed | 1,190 (agents) + ~115 coordinator = ~1,305 | none new |
 
 ## Batches
 
@@ -26,7 +27,7 @@ Started 2026-11-07 19:52:36 UTC. Caps: 4 h (23:52 UTC), 1.5M tokens (sum of fina
 | V2 | 172 by harness count (agent's own estimate 95) | Jini `bf3fbf58`, `39cf677f`; Tovu `f2888904` | passed: tripwire held (`SurfaceCardsPort<Resource>`, generic in the resource) |
 | V3 | 309 by harness count, over the 300k ceiling (agent's own estimate 185) | Tovu `dc1169fa`, `99554bf3`, `76ce8f9e`, `3273072a`; Jini `3a8ede8d`, `8fe045ba` | passed: mutating row 1 turns it red, restoring turns it green |
 | Z2 | 102 by harness count (agent's own estimate 45) | Jini `283af360`; Tovu `230acc77f` | passed: 558 lines removed (137 source, 421 tests) |
-| Follow-up (V1 review R1) | | | not reached |
+| Follow-up (V1 review R1) | 99 by harness count (agent's own estimate 45); its cap was 100 | Jini `35c4961a`; Tovu `59e79cbbf` | passed: doc comments only, checks equal the record |
 
 ## V0
 
@@ -247,3 +248,93 @@ Added one `@agent-note` doc-comment tag to each of the three Jini db contracts (
 - Layers 0. Isolation 0 failing (audit `SI-c` 9, `SI-d` 7). `guard:plugins` clean.
 
 **Commits.** Jini `35c4961a`. Tovu: this report commit.
+
+## Session 1 summary (coordinator)
+
+**Result: all six batches and the one follow-up finished. Every gate passed. No cap was reached.** Wall clock 19:52 to 21:27 UTC (1 h 35 min of the 4 h cap). Tokens: about 1.31M of the 1.5M cap (agents 1,190k by harness count, coordinator about 115k).
+
+### Gates
+
+| Gate | Result |
+|---|---|
+| V0: contract test has no `.todo`, three new checks green | passed (28 of 28 files) |
+| V0: `server` diff against combine is empty | passed at V0. After Z2 the diff is exactly Z2's planned deletion |
+| V0: guard equals the record, no `L3-undeclared-edge` | passed |
+| V0: P-C1 (pack, plain `node` imports, Tovu on tarballs for one group) | passed, with the workaround and findings listed under errors |
+| V1: `cms`, `db` `tsc --noEmit` and build | passed |
+| V1: its own lists, 79 importer files and 30 module files | 30 modules passed 561/561. Importers passed 919/920; the one failure, `plugin-host-bundled-identity`, already failed on the V0 tip |
+| V1: layers, isolation and guard equal V0 by name | passed |
+| V1: reviewer's report | done: 0 blockers, R1 should-fix (fixed by the follow-up), R2-R7 minor |
+| V2: design tripwire, generics satisfy | **passed (held)**. Five separate mutations each turned the pin red |
+| V3: mutating one pair turns the test red | passed |
+| Z2: dead copy deleted, checks equal the record | passed |
+| Follow-up: R1 | passed |
+
+### Pushed SHAs, all on `cloud/extract`
+
+- **Jini:** `5309a136`, `7dd0dbbf`, `11ce1742` (V0); `0609ee49` (V1 merge); `bf3fbf58`, `39cf677f` (V2); `3a8ede8d`, `8fe045ba` (V3); `283af360` (Z2); `35c4961a` (follow-up).
+- **Tovu:** `ac0e65294` (report skeleton); `8495cabf`, `4d3548a5`, `49a7cee9` (V0); `9bf77fe7`, `ebcca09a`, `d4d9f85b` (V1); `9ef0a65d` (review); `f2888904` (V2); `dc1169fa`, `99554bf3`, `76ce8f9e`, `3273072a` (V3); `230acc77f` (Z2); `59e79cbbf` (follow-up). Plus coordinator progress commits.
+
+### Baseline by finding name (unmodified Jini `d3efaed6`); every later run equals it
+
+- **`pnpm guard`:** `R2-deep-path` (1), `R10-chatpane-public-surface` (1), and informational `R13-model-fallback-freshness` lines. Hardwiring HW1 17, HW2 16, HW3 135, HW4 1, HW8 49, 0 new.
+- **Package layers:** 0. **Subpath isolation:** 0 failing (non-failing audit `SI-c` 9, `SI-d` 7). **`guard:plugins`:** clean.
+- `R8-package-metadata` and `SI-resolution`, named in the more-jini-1 report, did not arrive with the merge. Both came from untracked or gitignored leftovers on the machine that ran that branch.
+
+### Final context per agent, against the plan's estimates
+
+| Agent | Plan est (k) | Harness count (k) | Ratio | Agent's own estimate (k) |
+|---|---|---|---|---|
+| V0 | 230 | 206 | 0.90 | 125 |
+| V1 | 200 | 144 | 0.72 | 75 |
+| V1 review | 180 | 158 | 0.88 | 95 |
+| V2 | 170 | 172 | 1.01 | 95 |
+| V3 | 200 | **309** | **1.55** | 185 |
+| Z2 | 80 | 102 | 1.28 | 45 |
+| Follow-up | (≤100 cap) | 99 | - | 45 |
+| Coordinator | 50 + 6x12 = 122 | - | - | ~115 |
+| **Total** | 1,182 | **~1,305** | 1.10 | |
+
+The harness count and the agents' own estimates differ by 1.3x to 2.3x. The table uses the harness count, the conservative one. **V3 is over the 300k ceiling and 1.55x its estimate by the harness count** (the agent reported 185k). The plan says a ratio over 1.4x means "stop and rethink" before re-deriving later numbers. That decision goes to the owner. No seam or move agents ran this session, so the seam and move formulas are still unmeasured.
+
+### Errors by name (none caused by this session)
+
+- `plugin-host-bundled-identity` (Tovu). The test reads identities with namespace `tovu`, but the bundled manifests moved to `extensions.jini` in Jini `291a2200`. The test is out of date; production is not affected. Logged in `development/open-bugs.md`.
+- `sign-in-card.unit.test.ts` (Jini `ui`): 5 failures, `TypeError: AbortSignal.any is not a function` under jsdom. Already failing before V2.
+- Tovu `tsconfig.tests.json`, 12 errors, already present: `external-mcp-connection-source.operator-read-only` TS2551, `import-local.integration` TS18047 x8, `set-enabled-confirmation-ui` TS2353, `site-imports.integration` TS2741, `agent-plugin-token-boot-order` TS2561. Tovu `tsc -p tsconfig.json` is clean.
+- P-C1, Tovu on tarballs: `user-management`'s `otplib` and `@simplewebauthn/*` were missing, because a linked install never installs a linked Jini package's own dependencies. They were installed nested for the run only.
+- P-C1, plain `node`: `agent-plugins/lifecycle`, `lifecycle/host-tools`, `lifecycle/tools` and `search/contribution` load only after the optional peers `semver` and `@cfworker/json-schema` are installed.
+- Packed consumer with `skipLibCheck: false`: TS2307 in `@jini-ai/agentic` `dist/core/gen-ui/encoder.d.ts` (`@jini-ai/protocol` not installed), plus errors in `vite`'s own type files. Left for the packed-proof batch.
+- During V1 setup, the throwaway Postgres instance lost its data folder partway through the run (an environment problem). The run was restarted, and the full list passed.
+
+### Bugs
+
+- **New, fixed:** `search_agent_plugin_local` named host tools inside Jini (V0). The failing test came first. The fix takes the names from host `messages`, and the golden is unchanged.
+- **Preserved, not fixed:** `L079-force-without-principal-kind`, `L079-partial-inverse-failure`, `snapshot-stale-header` (`development/open-bugs.md`).
+- **Not bugs, for a later plan:**
+  - 11 Tovu files each build a lifecycle owner with its own activation queue. Ordering across them rests on the activations file lock; no lost write was found.
+  - A skill overview call opens every supporting file (2 files, 4 directory listings) and allocates 256 KiB per read.
+  - A token lookup makes 4 credential opens, where §10 expected one per BYO connection.
+
+### Findings the owner should see
+
+1. **Cards port shape (V2):** `SurfaceCardsPort<Resource = unknown>` is generic in the resource, not a fixed opaque type, because `waitAtSignInCard` takes the resource in a parameter position. A consumer that calls `waitAtSignInCard` must be generic in `Resource`. A consumer that only builds cards can take `Omit<SurfaceCardsPort, 'waitAtSignInCard'>`.
+2. **Provenance refusal is narrower than the plan says (follow-up):** a changed provenance is refused (`IDENTITY_ADOPTION_REQUIRES_CONSENT`) only on a declare that creates or alters a table. It is not refused on every boot. This matters for the plan's Newsletter and Comments rows and for G-news.
+3. **`dbPath` pointing at the wrong real file (follow-up):** the snapshot is saved next to the wrong file, and the headroom check measures a file that may not exist (0 bytes, so it always passes). Only memory paths skip these steps entirely.
+4. **Wiring test seam (V3):** row 1 passes the surface through `createApp`'s `assistantToolSurface` test seam, because the default path builds it where a test cannot read it. Row 6's admin side sits in a closure; `===` would need a production change.
+
+### Not done
+
+- Sessions 2 to 19: not started; not approved.
+- V1 review R2-R7 (minor), listed only.
+- From V0: comments in `neutral-host.test.ts` still name the removed `server` entries, and changeset `agent-plugin-host-entries.md` still says the host-tools entries are empty.
+- From Z2: `packages/server/docs/decisions/DR-001-partial-boot-rollback.md` has two broken links to the deleted files, and `packages/daemon/docs/call-shape-sweep.tsv` still has rows for them.
+- From V3:
+  - Row 6's admin-side `===`.
+  - Renders of the credential form cards from the real tool.
+  - The per-recipient mail ledger counters (P5m).
+  - §6 rows 3 and 8-13 and row 2's rollback test, which wait for their lanes.
+  - 13 neutral-host `.todo`s, named with their lanes in `## V3`.
+- The other vendor's check of this session has not run.
+
+SESSION 1 DONE
