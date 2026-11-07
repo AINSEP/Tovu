@@ -79,6 +79,7 @@ function fixture({ t }: { t: TestContext }) {
     recentSiteDirs: () => [],
     ctx: {},
     importSiteArchive: async () => { throw new Error("unused"); },
+    stopRunningImports: async () => { throw new Error("unused"); },
   };
   registerSiteIpcHandlers(deps);
   return {

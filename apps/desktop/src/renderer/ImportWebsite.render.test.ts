@@ -25,6 +25,9 @@ function render(t: TestContext, props: Partial<ImportWebsiteProps> = {}) {
     address: '',
     onAddressChange: (address: string) => { calls.push(`address:${address}`); },
     importing: false,
+    archiveRun: 'none',
+    onCancelImport: () => { calls.push('cancel-import'); },
+    onPageOpen: () => { calls.push('page-open'); return () => { calls.push('page-closed'); }; },
     onImportAddress: async () => { calls.push('import'); },
     failure: null,
     addError: null,
@@ -48,7 +51,7 @@ test('ImportWebsite: each button reaches its own source, and Cancel goes back', 
   await view.click(view.byText('Choose folder…'));
   await view.click(view.byText('Import website'));
   await view.click(view.byText('Cancel'));
-  assert.deepEqual(view.calls, ['folder', 'import', 'back']);
+  assert.deepEqual(view.calls, ['page-open', 'folder', 'import', 'back']);
   await view.type(view.container.querySelector('input')!, 'x.org');
   assert.equal(view.calls.at(-1), 'address:x.org');
 });
@@ -74,4 +77,34 @@ test('ImportWebsite: a failure shows its words and a Copy details button; the ad
 
 test('ImportWebsite: not shown renders nothing', (t) => {
   assert.equal(render(t, { shown: false }).container.textContent, '');
+});
+
+test('ImportWebsite: while an archive imports, Cancel stops the import instead of hiding the page', async (t) => {
+  const view = render(t, { importing: true, archiveRun: 'running' });
+  await view.click(view.byText('Cancel'));
+  assert.equal(view.calls.at(-1), 'cancel-import');
+  assert.equal(view.calls.includes('back'), false);
+});
+
+test('ImportWebsite: once asked to stop, Cancel says so and cannot be pressed twice', (t) => {
+  const view = render(t, { importing: true, archiveRun: 'cancelling' });
+  assert.equal(view.byText('Cancelling…')?.hasAttribute('disabled'), true);
+});
+
+test('ImportWebsite: Cancel is disabled while a live address makes its site, which cannot be stopped', (t) => {
+  const view = render(t, { importing: true, archiveRun: 'none', address: 'example.com' });
+  assert.equal(view.byText('Cancel')?.hasAttribute('disabled'), true);
+});
+
+test('ImportWebsite: All websites still only leaves the page while an import runs', async (t) => {
+  const view = render(t, { importing: true, archiveRun: 'running' });
+  await view.click(view.byText('← All websites'));
+  assert.equal(view.calls.at(-1), 'back');
+  assert.equal(view.calls.includes('cancel-import'), false);
+});
+
+test('ImportWebsite: tells its owner when the page opens, and not while it is hidden', (t) => {
+  const hidden = render(t, { shown: false });
+  assert.deepEqual(hidden.calls, []);
+  assert.equal(render(t).calls[0], 'page-open');
 });

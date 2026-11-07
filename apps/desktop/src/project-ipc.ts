@@ -1818,6 +1818,7 @@ function registerSiteIpcHandlers<TCtx>(deps: ProjectIpcDeps<TCtx>, options: Site
   deps.ipcMain.handle(SITE_IPC_CHANNELS.rename, (_event, input) => handleRename(input, { ...deps, siteRuntime: states }));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.addSite, (_event, input) => handleAddSite({ ...deps, siteRuntime: states }, input ?? {}));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.importArchive, (_event, input) => handleImportArchive(input, { ...deps, siteRuntime: states }));
+  deps.ipcMain.handle(SITE_IPC_CHANNELS.cancelImport, () => deps.stopRunningImports({}, { reason: "cancel" }));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.preview, (_event, id) => handleGetPreview(id, deps));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.locate, (_event, id) => handleLocate(id, { ...deps, siteRuntime: states }));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.tokenSignInPlugins, () => handleTokenSignInPlugins(deps));
@@ -1878,6 +1879,7 @@ interface ProjectIpcDeps<TCtx = unknown> {
   addSitePointer: AddSitePointerLike;
   /** `site-archive-import.ts`'s real runner. */
   importSiteArchive: typeof import("./site-archive-import.ts").importSiteArchive;
+  stopRunningImports: typeof import("./site-archive-import.ts").stopRunningImports;
   /** Injected for tests; defaults to `agent-plugin-tokens.ts`'s CLI-backed lister. */
   listTokenSignInPlugins?: (input: { repoRoot: string; cliMode?: "source" | "compiled" }) => Promise<TokenSignInPlugin[]>;
   // `classifySiteDirSafely`'s verdicts, spelled out because `site-dir-store.ts` does not export its

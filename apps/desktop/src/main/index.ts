@@ -925,6 +925,7 @@ function buildProjectDeps(sitesCtx: SitesHomeCtx) {
     // empty folder. See `add-site-pointer.ts`'s header and `handleAddSite`.
     addSitePointer,
     importSiteArchive,
+    stopRunningImports,
     openSiteServer: (siteDir: string, ctx: SitesHomeCtx) => siteBackend.openSiteServer({ siteDir, ctx }),
     recordSiteClosed,
     // How `handleDelete` sees a SIBLING app instance's open sites before erasing a directory —

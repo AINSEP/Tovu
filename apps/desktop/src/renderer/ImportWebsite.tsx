@@ -3,10 +3,12 @@
  * Create website (intro, one card of sections, actions row). Layout and markup only; the state is in
  * `use-import-website.hooks.ts` and `use-add-site.hooks.ts`. Explanations are tooltips, not text.
  */
+import { useEffect } from 'react';
+
 import type { ImportArchiveInput } from '../contracts/project.js';
 import { InfoTip } from './CreateWebsiteOnboarding.js';
 import { useImportDrop } from './use-import-drop.hooks.js';
-import { importPageError, useCopyDetails, type ImportFailure } from './use-import-website.hooks.js';
+import { importPageError, useCopyDetails, type ArchiveRun, type ImportFailure } from './use-import-website.hooks.js';
 
 export interface ImportWebsiteProps {
   /** The page is on screen. Decided here, not by `App`, which is at its complexity ceiling. */
@@ -24,6 +26,11 @@ export interface ImportWebsiteProps {
   address: string;
   onAddressChange: (address: string) => void;
   importing: boolean;
+  /** An archive import can be stopped; making a site for a live address cannot. */
+  archiveRun: ArchiveRun;
+  onCancelImport: () => void;
+  /** Called when the page opens; the function it returns when the page closes. */
+  onPageOpen: () => () => void;
   onImportAddress: () => Promise<void>;
   failure: ImportFailure | null;
   addError: string | null;
@@ -44,14 +51,25 @@ function ImportError({ error }: { error: ImportFailure }) {
   );
 }
 
+/** The page's Cancel: leaves, stops a running archive import, or waits for what cannot be stopped. */
+function CancelButton({ importing, archiveRun, onBack, onCancelImport }: Pick<ImportWebsiteProps, 'importing' | 'archiveRun' | 'onBack' | 'onCancelImport'>) {
+  const stoppable = archiveRun === 'running';
+  return (
+    <button type="button" className="button button--quiet" onClick={stoppable ? onCancelImport : onBack} disabled={importing && !stoppable}>
+      {archiveRun === 'cancelling' ? 'Cancelling…' : 'Cancel'}
+    </button>
+  );
+}
+
 export function ImportWebsite({ shown, ...page }: ImportWebsiteProps) {
   return shown ? <ImportPage {...page} /> : null;
 }
 
 /** Its own component so the drag state is dropped with the page. */
 function ImportPage({
-  onBack, adding, onChooseFolder, onDropFolder, onImportArchive, onRefuse, address, onAddressChange, importing, onImportAddress, failure, addError, addDetails,
+  onBack, adding, onChooseFolder, onDropFolder, onImportArchive, onRefuse, address, onAddressChange, importing, archiveRun, onCancelImport, onPageOpen, onImportAddress, failure, addError, addDetails,
 }: Omit<ImportWebsiteProps, 'shown'>) {
+  useEffect(onPageOpen, [onPageOpen]);
   const error = importPageError({ failure, addError, addDetails });
   const busy = adding || importing;
   const { dragging, dropProps } = useImportDrop({ busy, onRefused: onRefuse,
@@ -115,7 +133,7 @@ function ImportPage({
           <div className="onboarding__actions">
             {error !== null && <ImportError error={error} />}
             <div>
-              <button type="button" className="button button--quiet" onClick={onBack}>Cancel</button>
+              <CancelButton importing={importing} archiveRun={archiveRun} onBack={onBack} onCancelImport={onCancelImport} />
             </div>
           </div>
         </section>

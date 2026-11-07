@@ -161,6 +161,7 @@ async function assertEveryRunnerMethod({ exposed, invokes, listeners, frameCalls
     ["addSite", [], [SITE.addSite]],
     ["addDroppedSite", [{ folder: "/site" }], [SITE.addSite, { folder: "/site" }]],
     ["importSiteArchive", [{ url: "https://x.test/a.tovu.zip" }], [SITE.importArchive, { url: "https://x.test/a.tovu.zip" }]],
+    ["cancelSiteImport", [], [SITE.cancelImport]],
     ["planNewDir", [{ name: "Blog" }], [SITE.planNewDir, { name: "Blog" }]],
     ["createSite", [input], [SITE.create, input]],
     ["listTokenSignInPlugins", [], [SITE.tokenSignInPlugins]],

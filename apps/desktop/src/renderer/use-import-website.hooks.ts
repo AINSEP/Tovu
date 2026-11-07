@@ -9,7 +9,7 @@
  * An archive (share link or .tovu.zip) is finished by main with no site involved, so it just
  * resolves with the new site.
  */
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 
 import type { ImportArchiveInput, ImportedSiteRecord, SiteRecord } from '../contracts/project.js';
 import { copyableDetails } from './import-error-details.js';
@@ -18,6 +18,8 @@ import { runnerInventoryBridge, type BridgeLookup } from './runner-api.js';
 import { humanSiteError } from './site-shell-policy.js';
 
 export interface ImportFailure { message: string; details: string }
+/** Where an archive import stands. Only a running archive import can be stopped. */
+export type ArchiveRun = 'none' | 'running' | 'cancelling';
 
 const CREATE_FAILED = "Couldn't create a website for that address.";
 const ARCHIVE_FAILED = "Couldn't import that website. No website was created.";
@@ -44,31 +46,52 @@ function importFailure({ error, fallback }: { error: unknown; fallback: string }
 /**
  * @param required.createSite makes the site (`useProjectMutations().handleCreate`); resolves the new record.
  * @param required.openSite opens the new site's tab on the given admin page.
+ * @param required.onFailureWhileClosed tells the person about a failure when the page is not open,
+ *   since `failure` shows only on that page and opening it clears the old one.
  * @returns the address field state and `importLive`, which never rejects: a failure becomes `failure`.
  * @complexity O(1) per call, plus one site creation.
  */
 export function useImportWebsite(
-  { createSite, openSite, onArchiveImported }: {
+  { createSite, openSite, onArchiveImported, onFailureWhileClosed }: {
     createSite: (input: { displayName: string }) => Promise<SiteRecord | undefined>;
     openSite: (input: { id: string; adminPage: SiteAdminPage }) => void;
     /** A .tovu.zip or share link became this site. */
     onArchiveImported: (site: ImportedSiteRecord) => void;
+    onFailureWhileClosed: (toast: { message: string; note?: string }) => void;
   },
-  { getBridge = runnerInventoryBridge }: { getBridge?: BridgeLookup<'importSiteArchive'> } = {},
+  { getBridge = runnerInventoryBridge }: { getBridge?: BridgeLookup<'importSiteArchive' | 'cancelSiteImport'> } = {},
 ): {
   address: string;
   setAddress: (address: string) => void;
   importing: boolean;
+  archiveRun: ArchiveRun;
   failure: ImportFailure | null;
   importLive: () => Promise<void>;
   importArchive: (source: ImportArchiveInput) => Promise<void>;
+  /** Asks main to stop a running archive import. It ends with no site, or with one that had just finished. */
+  cancelArchive: () => Promise<void>;
+  /** Call when the page opens; the returned function when it closes. Shaped for `useEffect`. */
+  pageOpened: () => () => void;
   /** Shows a message the page itself decided, such as a wrong file type dropped. */
   refuse: (message: string) => void;
   clearFailure: () => void;
 } {
   const [address, setAddressState] = useState('');
   const [importing, setImporting] = useState(false);
+  const [archiveRun, setArchiveRun] = useState<ArchiveRun>('none');
   const [failure, setFailure] = useState<ImportFailure | null>(null);
+  // A ref, not state: the running import reads it when it fails, long after it was started.
+  const pageClosed = useRef(false);
+
+  const pageOpened = useCallback(() => {
+    pageClosed.current = false;
+    return () => { pageClosed.current = true; };
+  }, []);
+  /** A failure from a run that may have outlived the page. */
+  const reportRunFailure = useCallback((failed: ImportFailure) => {
+    if (!pageClosed.current) { setFailure(failed); return; }
+    onFailureWhileClosed({ message: failed.message, ...(failed.details === '' ? {} : { note: failed.details }) });
+  }, [onFailureWhileClosed]);
 
   const setAddress = useCallback((next: string) => { setAddressState(next); setFailure(null); }, []);
   const clearFailure = useCallback(() => setFailure(null), []);
@@ -78,6 +101,7 @@ export function useImportWebsite(
     const bridge = getBridge();
     if (bridge?.importSiteArchive === undefined) { setFailure(NO_ARCHIVE_BRIDGE); return; }
     setImporting(true);
+    setArchiveRun('running');
     setFailure(null);
     try {
       const imported = await bridge.importSiteArchive(source);
@@ -85,11 +109,19 @@ export function useImportWebsite(
       setAddressState('');
       onArchiveImported(imported);
     } catch (error) {
-      setFailure(importFailure({ error, fallback: ARCHIVE_FAILED }));
+      reportRunFailure(importFailure({ error, fallback: ARCHIVE_FAILED }));
     } finally {
       setImporting(false);
+      setArchiveRun('none');
     }
-  }, [getBridge, onArchiveImported]);
+  }, [getBridge, onArchiveImported, reportRunFailure]);
+
+  const cancelArchive = useCallback(async () => {
+    const stop = getBridge()?.cancelSiteImport;
+    if (stop === undefined) return;
+    setArchiveRun('cancelling');
+    await stop();
+  }, [getBridge]);
 
   const importLive = useCallback(async () => {
     const liveAddress = websiteAddress({ text: address });
@@ -103,13 +135,13 @@ export function useImportWebsite(
       setAddressState('');
       openSite({ id: created.id, adminPage: { page: 'import', liveAddress } });
     } catch (error) {
-      setFailure(importFailure({ error, fallback: CREATE_FAILED }));
+      reportRunFailure(importFailure({ error, fallback: CREATE_FAILED }));
     } finally {
       setImporting(false);
     }
-  }, [address, createSite, openSite, importArchive]);
+  }, [address, createSite, openSite, importArchive, reportRunFailure]);
 
-  return { address, setAddress, importing, failure, importLive, importArchive, refuse, clearFailure };
+  return { address, setAddress, importing, archiveRun, failure, importLive, importArchive, cancelArchive, pageOpened, refuse, clearFailure };
 }
 
 /**
