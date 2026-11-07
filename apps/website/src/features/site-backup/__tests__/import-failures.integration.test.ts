@@ -139,13 +139,13 @@ for (const mode of ["no URL", "supervisor error"] as const) test(`owner creation
   assert.deepEqual(await backend.completeOwner({ principalId: "owner", importId: pending.importId, adminPassword: OWNER_PASSWORD }), ready);
   assert.equal(starts, 1); assert.equal(h.workspace.registry({}).list({}).length, 1);
 });
-test("owner creation checks volume space before allocating and keeps staged data for retry", async t => {
+test("owner creation checks volume space before allocating and removes the staged copy", async t => {
   const h = await importFixture(t), upload = await h.backend.upload({ principalId: "owner", archive: h.archive });
   const pending = await h.backend.importBackup({ principalId: "owner", source: upload });
   fs.rmSync(h.workspace.home({}), { recursive: true });
   const space = fs.statfsSync(h.registry.directory); t.mock.method(fs, "statfsSync", () => ({ ...space, bavail: 0 }));
   await assert.rejects(h.backend.completeOwner({ principalId: "owner", importId: pending.importId, adminPassword: OWNER_PASSWORD }), { code: "INSUFFICIENT_STORAGE" });
-  assert.equal(h.backend.get({ principalId: "owner", importId: pending.importId }).state, "needs-owner");
-  assert.equal(fs.existsSync(h.registry.stagePath(pending)), true);
+  assert.equal(h.backend.get({ principalId: "owner", importId: pending.importId }).state, "failed");
+  assert.equal(fs.existsSync(h.registry.stagePath(pending)), false);
   assert.deepEqual(h.workspace.registry({}).list({}), []);
 });

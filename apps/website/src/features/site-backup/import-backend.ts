@@ -67,9 +67,10 @@ export function createSiteImportBackend(required: {
   /** Reads or downloads the archive; records the consumed upload before reading so it is always removed. */
   const fetchArchive = async (input: { parsed: ParsedSiteImportInput; principalId: string; importId: string; signal: AbortSignal; consumed: (uploadId: string) => void }): Promise<Buffer> => {
     const { source } = input.parsed;
-    if ("url" in source) return downloadShareArchive({ http: required.http, url: source.url, signal: input.signal });
+    if ("url" in source) { input.signal.throwIfAborted(); return downloadShareArchive({ http: required.http, url: source.url, signal: input.signal }); }
     const uploadId = consumeUpload({ registry, uploadId: source.uploadId, principalId: input.principalId, importId: input.importId });
     input.consumed(uploadId);
+    input.signal.throwIfAborted();
     return fs.readFileSync(registry.uploadPath({ uploadId }));
   };
 
@@ -78,7 +79,6 @@ export function createSiteImportBackend(required: {
     let consumedUpload: string | undefined;
     let row = input.row;
     try {
-      input.signal.throwIfAborted();
       const archive = await fetchArchive({ parsed: input.parsed, principalId: input.row.principalId, importId: input.row.importId, signal: input.signal, consumed: uploadId => { consumedUpload = uploadId; } });
       const verified = await verifySiteImport({ archive, reader: required.reader, sanitize: required.sanitize, schema: required.schema }, { signal: input.signal });
       input.signal.throwIfAborted();
@@ -160,12 +160,14 @@ export function createSiteImportBackend(required: {
         const adminPassword = resolveNewSiteAdminPassword({ adminPassword: input.adminPassword });
         if (input.savedKeysPassword !== undefined && (typeof input.savedKeysPassword !== "string" || input.savedKeysPassword.length > 1024)) refusal("INVALID_INPUT", "Saved keys password must be text of at most 1024 characters.");
         const home = workspace.home({});
-        requireFreeSpace({ dir: fs.existsSync(home) ? home : path.dirname(home), message: "Import requires 900 MiB of free space on the sites-home volume." });
-        if (signal.aborted) {
-          // Cancelled before any site exists (the desktop app quitting): the verified copy must not wait out its hour.
-          fs.rmSync(registry.stagePath(pending), { recursive: true, force: true });
-          put({ ...pending, status: "failed", error: "The import was stopped. No site was created. Import the archive again." });
+        try {
+          requireFreeSpace({ dir: fs.existsSync(home) ? home : path.dirname(home), message: "Import requires 900 MiB of free space on the sites-home volume." });
           signal.throwIfAborted();
+        } catch (error) {
+          // No site exists yet (low space, or the desktop app quitting): the verified copy must not wait out its hour.
+          fs.rmSync(registry.stagePath(pending), { recursive: true, force: true });
+          put({ ...pending, status: "failed", error: signal.aborted ? "The import was stopped. No site was created. Import the archive again." : "There is not enough free disk space. No site was created. Free up space and import the archive again." });
+          throw error;
         }
         const creating: SiteImportRecord = { ...pending, status: "creating" }; put(creating);
         const { row: allocated, created } = await createImportedSite({ row: creating, adminPassword, savedKeysPassword: input.savedKeysPassword as string | undefined, signal });
