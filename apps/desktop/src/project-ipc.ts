@@ -64,6 +64,7 @@ const SITE_IPC_CHANNELS = Object.freeze({
   saveSettings: "runner:sites:settings:save",
   addSite: "runner:sites:add-site",
   importArchive: "runner:sites:import-archive",
+  cancelImport: "runner:sites:cancel-import",
   rename: "runner:sites:rename",
   preview: "runner:sites:preview",
   locate: "runner:sites:locate",
