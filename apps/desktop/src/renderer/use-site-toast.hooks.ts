@@ -6,7 +6,8 @@ import { useCallback, useEffect, useState } from 'react';
 
 import type { CreatedSiteRecord, ImportedSiteRecord, SiteRecord } from '../contracts/project.js';
 
-export interface SiteToast { message: string; note?: string }
+/** `note` is one short line; `items` is the full list behind it, shown on request. */
+export interface SiteToast { message: string; note?: string; items?: string[] }
 
 const AUTO_HIDE_MS = 5000;
 /** Long enough to read what was kept off or left out. */
@@ -31,12 +32,15 @@ export function useSiteToast(
   useEffect(() => { if (lastCreated) setToast(createdToast(lastCreated)); }, [lastCreated]);
   useEffect(() => {
     if (toast === null) return undefined;
-    const timer = setTimeout(() => setToast(null), toast.note ? Math.max(autoHideMs, AUTO_HIDE_WITH_NOTE_MS) : autoHideMs);
+    const timer = setTimeout(() => setToast(null), (toast.note || toast.items) ? Math.max(autoHideMs, AUTO_HIDE_WITH_NOTE_MS) : autoHideMs);
     return () => clearTimeout(timer);
   }, [toast, autoHideMs]);
 
   const announceImported = useCallback((site: ImportedSiteRecord) => {
-    setToast({ ...createdToast(site), ...(site.warnings.length > 0 ? { note: site.warnings.join(' ') } : {}) });
+    const count = site.warnings.length;
+    // Each notice stays whole in `items`; the toast itself only counts them.
+    setToast({ ...createdToast(site), ...(count > 0
+      ? { note: `${count} ${count === 1 ? 'item was' : 'items were'} kept off or set aside.`, items: site.warnings } : {}) });
   }, []);
   /** A folder is added rather than made, and one already on the list has its own notice. */
   const announceAdded = useCallback((site: SiteRecord & { alreadyTracked?: boolean }) => {
