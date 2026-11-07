@@ -12,14 +12,21 @@ function record(value: unknown): Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 }
 
+/** Pages are saved through the posts routes, whose wording says "post"; a caller that knows the row is a page swaps the word.
+ * @complexity O(n) in the already-bounded text. */
+function asPage({ text }: { text: string }, _options = {}): string {
+  return text.replace(/\bpost(s?)\b/gi, (match, plural: string) => (match[0] === "P" ? "Page" : "page") + plural);
+}
+
 /** Accept only a formatter-shaped explanation from an authenticated response. Never stringify bodies.
  * @complexity O(1), fixed field checks; formatter bounds and redacts all displayed text.
  * @overallScore 98 — trusted server disclosure remains a boundary contract, tested with anonymous canaries.
  */
-function approvedFailure({ value }: { value: unknown }): UserFacingError | undefined {
+function approvedFailure({ value, entry }: { value: unknown; entry?: "page" }): UserFacingError | undefined {
   const candidate = record(value);
   if (typeof candidate.message !== "string" || typeof candidate.action !== "string" || typeof candidate.step !== "string" || typeof candidate.cause !== "string") return undefined;
-  return formatUserFacingError({ message: candidate.message, action: candidate.action, step: candidate.step, cause: candidate.cause }, {
+  const word = (text: string) => (entry === "page" ? asPage({ text }) : text);
+  return formatUserFacingError({ message: word(candidate.message), action: word(candidate.action), step: word(candidate.step), cause: candidate.cause }, {
     ...TOVU_ERROR_REDACTION_OPTIONS,
     errorId: typeof candidate.errorId === "string" ? candidate.errorId : undefined,
     time: typeof candidate.time === "string" ? candidate.time : undefined,
@@ -43,7 +50,7 @@ function incidentCause({ status, errorId }: { status: number; errorId?: string }
  * @overallScore 98 — the server owns approved explanation accuracy; no raw legacy text is disclosed here.
  */
 export function publishAdminFailure(
-  { body, path, method, status, generation }: { body: unknown; path: string; method?: string; status: number; generation: number },
+  { body, path, method, status, generation, entry }: { body: unknown; path: string; method?: string; status: number; generation: number; entry?: "page" },
   _options = {},
 ): void {
   const decoded = decodeApiError({ body });
@@ -52,8 +59,8 @@ export function publishAdminFailure(
   const reference = details.errorId ?? envelope.errorId ?? decoded.requestId;
   const errorId = typeof reference === "string" ? reference : undefined;
   const authenticated = getAdminDraftIdentity() !== null && !path.startsWith("/auth/");
-  const approved = authenticated ? approvedFailure({ value: details.failure }) : undefined;
-  const wording = describeRequestFailure({ method, route: path, vocabulary: ADMIN_FAILURE_VOCABULARY });
+  const approved = authenticated ? approvedFailure({ value: details.failure, ...(entry ? { entry } : {}) }) : undefined;
+  const wording = describeRequestFailure({ method, route: entry === "page" ? path.replace(/\/posts\//, "/pages/") : path, vocabulary: ADMIN_FAILURE_VOCABULARY });
   const step = status === 0 ? `${wording.step} (no server response)` : `${wording.step} (HTTP ${status})`;
   const cause = incidentCause({ status, errorId });
   const failure = approved ?? formatUserFacingError({ ...wording, step, cause }, {

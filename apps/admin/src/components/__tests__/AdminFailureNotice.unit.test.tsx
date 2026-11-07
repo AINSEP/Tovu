@@ -32,3 +32,13 @@ it("retains a polite failure with copyable details until dismissed", async () =>
   expect(screen.queryByText(failure.message)).toBeNull();
   expect(adminFailureChannel.getSnapshot()).toBeNull();
 });
+
+it("floats over the page and keeps Dismiss inside the notice card", () => {
+  const failure = formatUserFacingError({ message: "The page save could not be completed.", action: "Check.", step: "Save page", cause: "x" }, { errorId: "incident-card" });
+  adminFailureChannel.publish({ failure });
+  const { container } = render(<AdminFailureNotice />);
+  const card = container.querySelector(".admin-failure-notice");
+  expect(card).not.toBeNull();
+  expect(card?.contains(screen.getByRole("button", { name: "Dismiss error" }))).toBe(true);
+  expect(card?.querySelector(".notice")?.contains(screen.getByRole("button", { name: "Dismiss error" }))).toBe(false);
+});

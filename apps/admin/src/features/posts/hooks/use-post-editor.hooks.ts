@@ -487,6 +487,12 @@ function formatOutsideChangeMessage(version: number, t: Translate): string {
   return interpolate({ template: t("Changed outside the editor · version {version}"), vars: { version } });
 }
 
+/** Mirrors the request layer's rule for raising the shared failure notice: status 0 or 5xx. @complexity O(1). */
+function isUnexpectedServerFailure(error: unknown, _options = {}): boolean {
+  const status = (error as { status?: unknown } | null)?.status;
+  return typeof status === "number" && (status === 0 || status >= 500);
+}
+
 /**
  * `save`'s failure copy — same extraction reasoning as {@link formatSaveSuccessMessage} just above.
  * A thrown `Error`'s own message wins; otherwise falls back to a verb-specific default so the
@@ -498,6 +504,9 @@ function formatSaveErrorMessage(
   statusOverride: SaveStatusOverride,
   t: Translate,
 ): string {
+  // A server or network failure already raised the shared failure notice with plain words and
+  // copyable details; repeating its raw message here would show the same string twice.
+  if (isUnexpectedServerFailure(error)) return t(statusOverride === "published" ? "Not published. Your edits are still here." : "Not saved. Your edits are still here.");
   if (error instanceof Error) return error.message;
   return t(statusOverride === "published" ? "publish failed" : "save failed");
 }
