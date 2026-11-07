@@ -1,0 +1,8 @@
+ℹ tests 168
+ℹ pass 167
+ℹ fail 1
+✖ failing tests:
+✖ real core tree has only reviewed pattern exceptions, each with its exact current total (5316.117268ms)
+no-vendor-in-core 'real core tree' failure: 60-line actual list identical to pre-P2a HEAD 52407d262 (run in a throwaway worktree); red before this batch
+passing lines: 154
+✔ moved tools, cards, approvals and counters match the golden recorded before any move (422.179372ms)

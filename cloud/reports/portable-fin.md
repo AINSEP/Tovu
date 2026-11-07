@@ -49,6 +49,8 @@ P0 merge of `origin/cloud/combine` was clean in both repos: Tovu 10 commits, 29 
   "status" -> "state" turns `moved-tools.golden` red on `tools`; sign-in card "Skip" -> "Skip for now"
   turns it red on `cards`. Both reverted. `raw/P1b-mutations.txt`.
 
+- **P2a:** no product bug found.
+
 ## Errors by name
 
 - P0: `AssertionError [ERR_ASSERTION]` x3 in `bundled-higgsfield-media-package` (before fix; fixed).
@@ -68,6 +70,13 @@ P0 merge of `origin/cloud/combine` was clean in both repos: Tovu 10 commits, 29 
   (a paren slip in the new test); `VaultError` code `context` (fake sealed envelopes are refused by the
   in-memory MCP repo, so the counter now seals with the real AES-GCM sealer); `AssertionError
   [ERR_ASSERTION]` on symbol-keyed batch markers in input schemas (compared as serialized JSON now).
+
+- P2a: guard `N1-consumer-identity` on `packages/devops/src/deploy/{config,target}-contracts.ts`
+  (the product name in moved comments: "Tovu", a frozen `tovu-*` filename and a `TOVU_*` env name).
+  Fixed by neutral wording in those comment lines only; guard back to the two baseline violations.
+- P2a: Tovu `no-vendor-in-core.boundary.test.ts` test "real core tree has only reviewed pattern
+  exceptions" `AssertionError [ERR_ASSERTION]` (60 unreviewed vendor counts outside the deploy
+  files). Red before this batch: the same 60-line list on pre-P2a HEAD `52407d262`. Not fixed.
 
 ## Coordinator decisions
 

@@ -1,0 +1,12 @@
+ ✓ src/__tests__/contribution-contracts.test.ts > contribution contracts > deploy-configs: fly parses through a public Jini export, and its modules pass that kind's contract
+ ✓ src/__tests__/contribution-contracts.test.ts > contribution contracts > deploy-configs: railway parses through a public Jini export, and its modules pass that kind's contract
+ ✓ src/__tests__/contribution-contracts.test.ts > contribution contracts > deploy-configs: render parses through a public Jini export, and its modules pass that kind's contract
+ ✓ src/__tests__/contribution-contracts.test.ts > contribution contracts > deploy-ops: fly parses through a public Jini export, and its modules pass that kind's contract
+ ✓ src/__tests__/contribution-contracts.test.ts > contribution contracts > deploy-ops: github parses through a public Jini export, and its modules pass that kind's contract
+ ✓ src/__tests__/contribution-contracts.test.ts > contribution contracts > deploy-ops: railway parses through a public Jini export, and its modules pass that kind's contract
+ ✓ src/__tests__/contribution-contracts.test.ts > contribution contracts > deploy-ops: render parses through a public Jini export, and its modules pass that kind's contract
+ ✓ src/__tests__/contribution-contracts.test.ts > contribution contracts > deploy-targets: cloudflare parses through a public Jini export, and its modules pass that kind's contract
+ ✓ src/__tests__/contribution-contracts.test.ts > contribution contracts > deploy-targets: github-pages parses through a public Jini export, and its modules pass that kind's contract
+ ✓ src/__tests__/contribution-contracts.test.ts > contribution contracts > deploy-targets: netlify parses through a public Jini export, and its modules pass that kind's contract
+ ✓ src/__tests__/contribution-contracts.test.ts > contribution contracts > deploy-targets: s3-compatible parses through a public Jini export, and its modules pass that kind's contract
+ ✓ src/__tests__/contribution-contracts.test.ts > contribution contracts > deploy-targets: vercel parses through a public Jini export, and its modules pass that kind's contract
